@@ -5556,6 +5556,51 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
+        MVM_OP_sp_fastinvoke_v,
+        "sp_fastinvoke_v",
+        ".s",
+        2,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_fastinvoke_i,
+        "sp_fastinvoke_i",
+        ".s",
+        3,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_fastinvoke_n,
+        "sp_fastinvoke_n",
+        ".s",
+        3,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_fastinvoke_s,
+        "sp_fastinvoke_s",
+        ".s",
+        3,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_sp_fastinvoke_o,
+        "sp_fastinvoke_o",
+        ".s",
+        3,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
+    {
         MVM_OP_sp_namedarg_used,
         "sp_namedarg_used",
         ".s",
@@ -5755,7 +5800,7 @@ static MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static unsigned short MVM_op_counts = 639;
+static unsigned short MVM_op_counts = 644;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

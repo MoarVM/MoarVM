@@ -68,7 +68,7 @@ void MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types,
 
         /* Invoke the deserialization frame and return to the runloop. */
         MVM_frame_invoke(tc, loaded->body.deserialize_frame, &no_arg_callsite,
-            NULL, NULL, NULL);
+            NULL, NULL, NULL, -1);
     }
 }
 

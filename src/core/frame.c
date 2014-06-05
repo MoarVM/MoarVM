@@ -132,7 +132,7 @@ MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
 /* Takes a static frame and a thread context. Invokes the static frame. */
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
-                      MVMFrame *outer, MVMObject *code_ref) {
+                      MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand) {
     MVMFrame *frame;
 
     MVMuint32 pool_index, found_spesh;
@@ -278,7 +278,18 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* See if any specializations apply. */
     found_spesh = 0;
-    if (++static_frame_body->invocations >= 10 && callsite->is_interned) {
+    if (spesh_cand >= 0) {
+        MVMSpeshCandidate *chosen_cand = &static_frame_body->spesh_candidates[spesh_cand];
+        if (!chosen_cand->sg) {
+            frame->effective_bytecode    = chosen_cand->bytecode;
+            frame->effective_handlers    = chosen_cand->handlers;
+            frame->effective_spesh_slots = chosen_cand->spesh_slots;
+            frame->spesh_cand            = chosen_cand;
+            frame->spesh_log_idx         = -1;
+            found_spesh                  = 1;
+        }
+    }
+    if (!found_spesh && ++static_frame_body->invocations >= 10 && callsite->is_interned) {
         /* Look for specialized bytecode. */
         MVMint32 num_spesh = static_frame_body->num_spesh_candidates;
         MVMSpeshCandidate *chosen_cand = NULL;

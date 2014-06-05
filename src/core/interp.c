@@ -4439,6 +4439,66 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).s = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].s;
                 cur_op += 4;
                 goto NEXT;
+            OP(sp_fastinvoke_v): {
+                MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 0).o;
+                MVMRegister *args       = tc->cur_frame->args;
+                MVMint32     spesh_cand = GET_UI16(cur_op, 2);
+                tc->cur_frame->return_value = NULL;
+                tc->cur_frame->return_type  = MVM_RETURN_VOID;
+                cur_op += 4;
+                tc->cur_frame->return_address = cur_op;
+                MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
+                    code->body.outer, (MVMObject *)code, spesh_cand);
+                goto NEXT;
+            }
+            OP(sp_fastinvoke_i): {
+                MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 2).o;
+                MVMRegister *args       = tc->cur_frame->args;
+                MVMint32     spesh_cand = GET_UI16(cur_op, 4);
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_INT;
+                cur_op += 6;
+                tc->cur_frame->return_address = cur_op;
+                MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
+                    code->body.outer, (MVMObject *)code, spesh_cand);
+                goto NEXT;
+            }
+            OP(sp_fastinvoke_n): {
+                MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 2).o;
+                MVMRegister *args       = tc->cur_frame->args;
+                MVMint32     spesh_cand = GET_UI16(cur_op, 4);
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_NUM;
+                cur_op += 6;
+                tc->cur_frame->return_address = cur_op;
+                MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
+                    code->body.outer, (MVMObject *)code, spesh_cand);
+                goto NEXT;
+            }
+            OP(sp_fastinvoke_s): {
+                MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 2).o;
+                MVMRegister *args       = tc->cur_frame->args;
+                MVMint32     spesh_cand = GET_UI16(cur_op, 4);
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_STR;
+                cur_op += 6;
+                tc->cur_frame->return_address = cur_op;
+                MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
+                    code->body.outer, (MVMObject *)code, spesh_cand);
+                goto NEXT;
+            }
+            OP(sp_fastinvoke_o): {
+                MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 2).o;
+                MVMRegister *args       = tc->cur_frame->args;
+                MVMint32     spesh_cand = GET_UI16(cur_op, 4);
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_OBJ;
+                cur_op += 6;
+                tc->cur_frame->return_address = cur_op;
+                MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
+                    code->body.outer, (MVMObject *)code, spesh_cand);
+                goto NEXT;
+            }
             OP(sp_namedarg_used):
                 tc->cur_frame->params.named_used[GET_UI16(cur_op, 0)] = 1;
                 cur_op += 2;

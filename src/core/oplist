@@ -671,6 +671,13 @@ sp_getarg_i      .s w(obj) int16
 sp_getarg_n      .s w(obj) int16
 sp_getarg_s      .s w(obj) int16
 
+# Fast invocation.
+sp_fastinvoke_v  .s r(obj) int16
+sp_fastinvoke_i  .s w(int64) r(obj) int16
+sp_fastinvoke_n  .s w(num64) r(obj) int16
+sp_fastinvoke_s  .s w(str) r(obj) int16
+sp_fastinvoke_o  .s w(obj) r(obj) int16
+
 # Marking named params used.
 sp_namedarg_used .s int16
 

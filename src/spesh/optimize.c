@@ -356,6 +356,65 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
     }
 }
 
+/* Determines if there's a matching spesh candidate for a callee and a given
+ * set of argument info. */
+static MVMint32 try_find_spesh_candidate(MVMThreadContext *tc, MVMCode *code, MVMSpeshCallInfo *arg_info) {
+    MVMStaticFrameBody *sfb = &(code->body.sf->body);
+    MVMint32 num_spesh      = sfb->num_spesh_candidates;
+    MVMint32 i, j;
+    for (i = 0; i < num_spesh; i++) {
+        MVMSpeshCandidate *cand = &sfb->spesh_candidates[i];
+        if (cand->cs == arg_info->cs) {
+            /* Matching callsite, now see if we have enough information to
+             * test the guards. */
+            MVMint32 guard_failed = 0;
+            for (j = 0; j < cand->num_guards; j++) {
+                MVMint32       slot    = cand->guards[j].slot;
+                MVMSpeshFacts *facts   = slot < MAX_ARGS_FOR_OPT ? arg_info->arg_facts[slot] : NULL;
+                MVMSTable     *want_st = (MVMSTable *)cand->guards[j].match;
+                if (!facts) {
+                    guard_failed = 1;
+                    break;
+                }
+                switch (cand->guards[j].kind) {
+                case MVM_SPESH_GUARD_CONC:
+                    if (!(facts->flags & MVM_SPESH_FACT_CONCRETE) ||
+                            !(facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) ||
+                            STABLE(facts->type) != want_st)
+                        guard_failed = 1;
+                    break;
+                case MVM_SPESH_GUARD_TYPE:
+                    if (!(facts->flags & MVM_SPESH_FACT_TYPEOBJ) ||
+                            !(facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) ||
+                            STABLE(facts->type) != want_st)
+                        guard_failed = 1;
+                    break;
+                case MVM_SPESH_GUARD_DC_CONC:
+                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) ||
+                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
+                            STABLE(facts->decont_type) != want_st)
+                        guard_failed = 1;
+                    break;
+                case MVM_SPESH_GUARD_DC_TYPE:
+                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_TYPEOBJ) ||
+                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
+                            STABLE(facts->decont_type) != want_st)
+                        guard_failed = 1;
+                    break;
+                default:
+                    guard_failed = 1;
+                    break;
+                }
+                if (guard_failed)
+                    break;
+            }
+            if (!guard_failed)
+                return i;
+        }
+    }
+    return -1;
+}
+
 /* Drives optimization of a call. */
 static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                           MVMSpeshIns *ins, MVMint32 callee_idx, MVMSpeshCallInfo *arg_info) {
@@ -432,6 +491,42 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, ss_ins);
             /* XXX TODO: Do this differently so we can eliminate the original
              * lookup of the enclosing code object also. */
+        }
+
+        /* See if we can point the call at a particular specialization. */
+        if (target) {
+            MVMint32 spesh_cand = try_find_spesh_candidate(tc, (MVMCode *)target, arg_info);
+            if (spesh_cand >= 0) {
+                MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                if (ins->info->opcode == MVM_OP_invoke_v) {
+                    new_operands[0]         = ins->operands[0];
+                    new_operands[1].lit_i16 = spesh_cand;
+                    ins->operands           = new_operands;
+                    ins->info               = MVM_op_get_op(MVM_OP_sp_fastinvoke_v);
+                }
+                else {
+                    new_operands[0]         = ins->operands[0];
+                    new_operands[1]         = ins->operands[1];
+                    new_operands[2].lit_i16 = spesh_cand;
+                    ins->operands           = new_operands;
+                    switch (ins->info->opcode) {
+                    case MVM_OP_invoke_i:
+                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_i);
+                        break;
+                    case MVM_OP_invoke_n:
+                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_n);
+                        break;
+                    case MVM_OP_invoke_s:
+                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_s);
+                        break;
+                    case MVM_OP_invoke_o:
+                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_o);
+                        break;
+                    default:
+                        MVM_exception_throw_adhoc(tc, "Spesh: unhandled invoke instruction");
+                    }
+                }
+            }
         }
     }
 }
