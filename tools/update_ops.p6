@@ -74,17 +74,17 @@ sub parse_ops($file) {
         if $line !~~ /^\s*['#'|$]/ {
             my ($name, $mark, @operands) = $line.split(/\s+/);
 
+            # Look for validation mark.
+            unless $mark ~~ /^ <[:.+*-]> \w $/ {
+                @operands.unshift($mark) if $mark;
+                $mark = '  ';
+            }
+
             # Look for operands that are actually adverbs.
             my %adverbs;
             while @operands && @operands[*-1] ~~ /^ ':' (\w+) $/ {
                 %adverbs{$0} = 1;
                 @operands.pop;
-            }
-
-            # Look for validation mark.
-            unless $mark ~~ /^ <[:.+*-]> \w $/ {
-                @operands.unshift($mark) if $mark;
-                $mark = '  ';
             }
 
             @ops.push(Op.new(
@@ -197,6 +197,7 @@ sub opcode_details(@ops) {
             take "        $(
                 ($op.adverbs<deoptonepoint> ?? 1 !! 0) +
                 ($op.adverbs<deoptallpoint> ?? 2 !! 0)),";
+            take "        $($op.adverbs<noinline> ?? '1' !! '0'),";
             if $op.operands {
                 take "        \{ $op.operands.map(&operand_flags).join(', ') }";
             }
