@@ -648,6 +648,12 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
     uv_listen((uv_stream_t *)li->socket, 128, on_connection);
 }
 
+/* Stops listening. */
+static void listen_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
+    ListenInfo *li = (ListenInfo *)data;
+    uv_close((uv_handle_t *)li->socket, NULL);
+}
+
 /* Frees info for a listen task. */
 static void listen_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data) {
@@ -661,7 +667,7 @@ static void listen_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 /* Operations table for async listen task. */
 static const MVMAsyncTaskOps listen_op_table = {
     listen_setup,
-    NULL,
+    listen_cancel,
     NULL,
     listen_gc_free
 };
