@@ -48,6 +48,9 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
             }
     }
 
+    /* Set its spesh threshold. */
+    static_frame_body->spesh_threshold = MVM_spesh_threshold(tc, static_frame);
+
     /* Mark frame as invoked, so we need not do these calculations again. */
     static_frame_body->invoked = 1;
 }
@@ -289,7 +292,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             found_spesh                  = 1;
         }
     }
-    if (!found_spesh && ++static_frame_body->invocations >= 10 && callsite->is_interned) {
+    if (!found_spesh && ++static_frame_body->invocations >= static_frame_body->spesh_threshold && callsite->is_interned) {
         /* Look for specialized bytecode. */
         MVMint32 num_spesh = static_frame_body->num_spesh_candidates;
         MVMSpeshCandidate *chosen_cand = NULL;

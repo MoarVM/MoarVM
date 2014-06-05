@@ -115,6 +115,7 @@ typedef double   MVMnum64;
 #include "spesh/optimize.h"
 #include "spesh/deopt.h"
 #include "spesh/log.h"
+#include "spesh/threshold.h"
 #include "strings/decode_stream.h"
 #include "strings/ascii.h"
 #include "strings/utf8.h"

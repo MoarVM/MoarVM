@@ -32,7 +32,10 @@ struct MVMStaticFrameBody {
      * count, but that's fine; it's just a rough indicator, used to make
      * decisions about optimization. */
     MVMuint32 invocations;
-    
+
+    /* Number of times we should invoke before spesh applies. */
+    MVMuint32 spesh_threshold;
+
     /* Specializations array, if there are any. */
     MVMSpeshCandidate *spesh_candidates;
     MVMuint32          num_spesh_candidates;
