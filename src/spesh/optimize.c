@@ -495,35 +495,55 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
 
         /* See if we can point the call at a particular specialization. */
         if (target) {
-            MVMint32 spesh_cand = try_find_spesh_candidate(tc, (MVMCode *)target, arg_info);
+            MVMCode *target_code  = (MVMCode *)target;
+            MVMint32 spesh_cand = try_find_spesh_candidate(tc, target_code, arg_info);
             if (spesh_cand >= 0) {
-                MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-                if (ins->info->opcode == MVM_OP_invoke_v) {
-                    new_operands[0]         = ins->operands[0];
-                    new_operands[1].lit_i16 = spesh_cand;
-                    ins->operands           = new_operands;
-                    ins->info               = MVM_op_get_op(MVM_OP_sp_fastinvoke_v);
+                /* Yes. Will we be able to inline? */
+                MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, target_code,
+                    &target_code->body.sf->body.spesh_candidates[spesh_cand]);
+                if (inline_graph) {
+                    /* XXX Can't actually inline yet. */
+                    /*char *c_name = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.name);
+                    char *c_cuid = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.cuuid);
+                    printf("Can inline %s ($s)\n", c_name, c_cuid);
+                    free(c_name);
+                    free(c_cuid);*/
+                    MVM_spesh_graph_destroy(tc, inline_graph);
+                    inline_graph = NULL;
+                }
+                if (inline_graph) {
+                    MVM_panic(1, "Inlining NYI");
                 }
                 else {
-                    new_operands[0]         = ins->operands[0];
-                    new_operands[1]         = ins->operands[1];
-                    new_operands[2].lit_i16 = spesh_cand;
-                    ins->operands           = new_operands;
-                    switch (ins->info->opcode) {
-                    case MVM_OP_invoke_i:
-                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_i);
-                        break;
-                    case MVM_OP_invoke_n:
-                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_n);
-                        break;
-                    case MVM_OP_invoke_s:
-                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_s);
-                        break;
-                    case MVM_OP_invoke_o:
-                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_o);
-                        break;
-                    default:
-                        MVM_exception_throw_adhoc(tc, "Spesh: unhandled invoke instruction");
+                    /* Can't inline, so just identify candidate. */
+                    MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    if (ins->info->opcode == MVM_OP_invoke_v) {
+                        new_operands[0]         = ins->operands[0];
+                        new_operands[1].lit_i16 = spesh_cand;
+                        ins->operands           = new_operands;
+                        ins->info               = MVM_op_get_op(MVM_OP_sp_fastinvoke_v);
+                    }
+                    else {
+                        new_operands[0]         = ins->operands[0];
+                        new_operands[1]         = ins->operands[1];
+                        new_operands[2].lit_i16 = spesh_cand;
+                        ins->operands           = new_operands;
+                        switch (ins->info->opcode) {
+                        case MVM_OP_invoke_i:
+                            ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_i);
+                            break;
+                        case MVM_OP_invoke_n:
+                            ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_n);
+                            break;
+                        case MVM_OP_invoke_s:
+                            ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_s);
+                            break;
+                        case MVM_OP_invoke_o:
+                            ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_o);
+                            break;
+                        default:
+                            MVM_exception_throw_adhoc(tc, "Spesh: unhandled invoke instruction");
+                        }
                     }
                 }
             }
