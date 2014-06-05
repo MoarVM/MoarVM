@@ -1,6 +1,9 @@
 # Editor backups
 *~
 *.bak
+# Emacs specfic in-use files
+\#*\#
+.#*
 
 # Separately cloned repos
 tools/nqp-cross-compiler/nqp/

@@ -379,6 +379,7 @@ install: all
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/platform
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/spesh
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/strings
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/jit
 	$(CP) 3rdparty/*.h $(DESTDIR)$(PREFIX)/include/moar
 	$(CP) src/*.h $(DESTDIR)$(PREFIX)/include/moar
 	$(CP) src/6model/*.h $(DESTDIR)$(PREFIX)/include/moar/6model
@@ -392,6 +393,7 @@ install: all
 	$(CP) src/platform/*.h $(DESTDIR)$(PREFIX)/include/moar/platform
 	$(CP) src/spesh/*.h $(DESTDIR)$(PREFIX)/include/moar/spesh
 	$(CP) src/strings/*.h $(DESTDIR)$(PREFIX)/include/moar/strings
+	$(CP) src/jit/*.h $(DESTDIR)$(PREFIX)/include/moar/jit
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libuv
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/armcc
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/gcc
