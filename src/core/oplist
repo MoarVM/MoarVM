@@ -630,7 +630,7 @@ asynclisten         w(obj) r(obj) r(obj) r(str) r(int64) r(obj)
 asyncwritestr       w(obj) r(obj) r(obj) r(obj) r(str) r(obj)
 asyncwritebytes     w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 asyncreadchars      w(obj) r(obj) r(obj) r(obj) r(obj)
-asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj)
+asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 getlexstatic_o      w(obj) r(str) :pure
 getlexperinvtype_o  w(obj) r(str) :pure
 execname            w(str)
