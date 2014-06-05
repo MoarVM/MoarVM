@@ -11,5 +11,8 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *ta
     if (target->body.sf->body.bytecode_size > MVM_SPESH_MAX_INLINE_SIZE)
         return NULL;
 
-    return NULL;
+    /* Build graph from the already-specialized bytecode. */
+    ig = MVM_spesh_graph_create_from_cand(tc, target->body.sf, cand);
+
+    return ig;
 }

@@ -972,6 +972,33 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf)
     return g;
 }
 
+/* Takes a static frame and creates a spesh graph for it. */
+MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStaticFrame *sf,
+                                                 MVMSpeshCandidate *cand) {
+    /* Create top-level graph object. */
+    MVMSpeshGraph *g = calloc(1, sizeof(MVMSpeshGraph));
+    g->sf            = sf;
+    g->bytecode      = cand->bytecode;
+    g->bytecode_size = cand->bytecode_size;
+    g->handlers      = cand->handlers;
+    g->num_handlers  = sf->body.num_handlers;
+
+    /* Ensure the frame is validated, since we'll rely on this. */
+    if (!sf->body.invoked) {
+        MVM_spesh_graph_destroy(tc, g);
+        MVM_exception_throw_adhoc(tc, "Spesh: cannot build CFG from unvalidated frame");
+    }
+
+    /* Build the CFG out of the static frame, and transform it to SSA. */
+    build_cfg(tc, g, sf);
+    eliminate_dead(tc, g);
+    add_predecessors(tc, g);
+    ssa(tc, g);
+
+    /* Hand back the completed graph. */
+    return g;
+}
+
 /* Marks GCables held in a spesh graph. */
 void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist *worklist) {
     MVMuint16 i, j, num_locals, num_facts;
