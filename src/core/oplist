@@ -198,8 +198,8 @@ param_sp            w(obj) int16 :pure :noinline
 param_sn            w(obj) :noinline
 getcode             w(obj) coderef :pure
 caller              w(obj) r(int64) :pure :noinline
-capturelex          r(obj)
-takeclosure         w(obj) r(obj)
+capturelex          r(obj) :noinline
+takeclosure         w(obj) r(obj) :noinline
 exception           w(obj)
 bindexmessage       r(obj) r(str)
 bindexpayload       r(obj) r(obj)
