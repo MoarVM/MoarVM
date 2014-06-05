@@ -5,5 +5,11 @@
  * or a graph ready to be merged if it will be possible. */
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *target,
                                                MVMSpeshCandidate *cand) {
+    MVMSpeshGraph *ig;
+
+    /* Check bytecode size is below the inline limit. */
+    if (target->body.sf->body.bytecode_size > MVM_SPESH_MAX_INLINE_SIZE)
+        return NULL;
+
     return NULL;
 }
