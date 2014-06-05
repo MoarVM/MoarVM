@@ -4,6 +4,12 @@ struct MVMSpeshGraph {
     /* The static frame this is the spesh graph for. */
     MVMStaticFrame *sf;
 
+    /* The bytecode we're building the graph out of. */
+    MVMuint8 *bytecode;
+
+    /* The size of the bytecode we're building the graph out of. */
+    MVMuint32 bytecode_size;
+
     /* The entry basic block. */
     MVMSpeshBB *entry;
 

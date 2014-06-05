@@ -83,7 +83,7 @@ static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         else
             g->deopt_addrs = malloc(g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
     }
-    g->deopt_addrs[2 * g->num_deopt_addrs] = pc - g->sf->body.bytecode;
+    g->deopt_addrs[2 * g->num_deopt_addrs] = pc - g->bytecode;
     g->num_deopt_addrs++;
 }
 
@@ -99,7 +99,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
     /* Temporary array of all MVMSpeshIns we create (one per instruction).
      * Overestimate at size. Has the flat view, matching the bytecode. */
-    MVMSpeshIns **ins_flat = calloc(sf->body.bytecode_size / 2, sizeof(MVMSpeshIns *));
+    MVMSpeshIns **ins_flat = calloc(g->bytecode_size / 2, sizeof(MVMSpeshIns *));
 
     /* Temporary array where each byte in the input bytecode gets a 32-bit
      * integer. This is used for two things:
@@ -110,7 +110,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
      *    a basic block. The second bit is "I can branch" - that is, end of
      *    a basic block. It's possible to have both bits set.
      * Anything that's just a zero has no instruction starting there. */
-    MVMuint32 *byte_to_ins_flags = calloc(sf->body.bytecode_size, sizeof(MVMuint32));
+    MVMuint32 *byte_to_ins_flags = calloc(g->bytecode_size, sizeof(MVMuint32));
 
     /* Instruction to basic block mapping. Initialized later. */
     MVMSpeshBB **ins_to_bb = NULL;
@@ -119,8 +119,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
      * nodes for each instruction and set the start/end of block bits. Also
      * set handler targets as basic block starters. */
     MVMCompUnit *cu       = sf->body.cu;
-    MVMuint8    *pc       = sf->body.bytecode;
-    MVMuint8    *end      = sf->body.bytecode + sf->body.bytecode_size;
+    MVMuint8    *pc       = g->bytecode;
+    MVMuint8    *end      = g->bytecode + g->bytecode_size;
     MVMuint32    ins_idx  = 0;
     MVMuint8     next_bbs = 1; /* Next iteration (here, first) starts a BB. */
     for (i = 0; i < sf->body.num_handlers; i++)
@@ -135,11 +135,11 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* Create an instruction node, add it, and record its position. */
         MVMSpeshIns *ins_node = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
         ins_flat[ins_idx] = ins_node;
-        byte_to_ins_flags[pc - sf->body.bytecode] |= ins_idx << 2;
+        byte_to_ins_flags[pc - g->bytecode] |= ins_idx << 2;
 
         /* Did previous instruction end a basic block? */
         if (next_bbs) {
-            byte_to_ins_flags[pc - sf->body.bytecode] |= MVM_CFG_BB_START;
+            byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_START;
             next_bbs = 0;
         }
 
@@ -147,8 +147,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
          * target, in which case we should ensure our prior is marked as
          * a BB end. */
         else {
-            if (byte_to_ins_flags[pc - sf->body.bytecode] & MVM_CFG_BB_START) {
-                MVMuint32 hunt = pc - sf->body.bytecode;
+            if (byte_to_ins_flags[pc - g->bytecode] & MVM_CFG_BB_START) {
+                MVMuint32 hunt = pc - g->bytecode;
                 while (!byte_to_ins_flags[--hunt]);
                 byte_to_ins_flags[hunt] |= MVM_CFG_BB_END;
             }
@@ -219,12 +219,12 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     ins_node->operands[i].ins_offset = target;
 
                     /* This is a branching instruction, so it's a BB end. */
-                    byte_to_ins_flags[pc - sf->body.bytecode] |= MVM_CFG_BB_END;
+                    byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
 
                     /* Its target is a BB start, and any previous instruction
                      * we already passed needs marking as a BB end. */
                     byte_to_ins_flags[target] |= MVM_CFG_BB_START;
-                    if (target > 0 && target < pc - sf->body.bytecode) {
+                    if (target > 0 && target < pc - g->bytecode) {
                         while (!byte_to_ins_flags[--target]);
                         byte_to_ins_flags[target] |= MVM_CFG_BB_END;
                     }
@@ -249,13 +249,13 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         if (opcode == MVM_OP_jumplist) {
             MVMint64 n = MVM_BC_get_I64(args, 0);
             for (i = 0; i <= n; i++)
-                byte_to_ins_flags[(pc - sf->body.bytecode) + 12 + i * 6] |= MVM_CFG_BB_START;
-            byte_to_ins_flags[pc - sf->body.bytecode] |= MVM_CFG_BB_END;
+                byte_to_ins_flags[(pc - g->bytecode) + 12 + i * 6] |= MVM_CFG_BB_START;
+            byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
         }
 
         /* Final instruction is basic block end. */
         if (pc + 2 + arg_size == end)
-            byte_to_ins_flags[pc - sf->body.bytecode] |= MVM_CFG_BB_END;
+            byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
 
         /* Caculate next instruction's PC. */
         pc += 2 + arg_size;
@@ -311,7 +311,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     ins_to_bb                 = calloc(ins_idx, sizeof(MVMSpeshBB *));
     ins_idx                   = 0;
     bb_idx                    = 1;
-    for (i = 0; i < sf->body.bytecode_size; i++) {
+    for (i = 0; i < g->bytecode_size; i++) {
         MVMSpeshIns *cur_ins;
 
         /* Skip zeros; no instruction here. */
@@ -950,7 +950,9 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf) {
     /* Create top-level graph object. */
     MVMSpeshGraph *g = calloc(1, sizeof(MVMSpeshGraph));
-    g->sf = sf;
+    g->sf            = sf;
+    g->bytecode      = sf->body.bytecode;
+    g->bytecode_size = sf->body.bytecode_size;
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (!sf->body.invoked) {
