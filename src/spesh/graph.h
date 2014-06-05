@@ -7,8 +7,14 @@ struct MVMSpeshGraph {
     /* The bytecode we're building the graph out of. */
     MVMuint8 *bytecode;
 
+    /* Exception handler map for that bytecode. */
+    MVMFrameHandler *handlers;
+
     /* The size of the bytecode we're building the graph out of. */
     MVMuint32 bytecode_size;
+
+    /* Number of exception handlers. */
+    MVMuint32 num_handlers;
 
     /* The entry basic block. */
     MVMSpeshBB *entry;

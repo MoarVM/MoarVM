@@ -123,8 +123,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     MVMuint8    *end      = g->bytecode + g->bytecode_size;
     MVMuint32    ins_idx  = 0;
     MVMuint8     next_bbs = 1; /* Next iteration (here, first) starts a BB. */
-    for (i = 0; i < sf->body.num_handlers; i++)
-        byte_to_ins_flags[sf->body.handlers[i].goto_offset] |= MVM_CFG_BB_START;
+    for (i = 0; i < g->num_handlers; i++)
+        byte_to_ins_flags[g->handlers[i].goto_offset] |= MVM_CFG_BB_START;
     while (pc < end) {
         /* Look up op info. */
         MVMuint16  opcode   = *(MVMuint16 *)pc;
@@ -271,10 +271,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     }
 
     /* Annotate instructions that are handler-significant. */
-    for (i = 0; i < sf->body.num_handlers; i++) {
-        MVMSpeshIns *start_ins = ins_flat[byte_to_ins_flags[sf->body.handlers[i].start_offset] >> 2];
-        MVMSpeshIns *end_ins   = ins_flat[byte_to_ins_flags[sf->body.handlers[i].end_offset] >> 2];
-        MVMSpeshIns *goto_ins  = ins_flat[byte_to_ins_flags[sf->body.handlers[i].goto_offset] >> 2];
+    for (i = 0; i < g->num_handlers; i++) {
+        MVMSpeshIns *start_ins = ins_flat[byte_to_ins_flags[g->handlers[i].start_offset] >> 2];
+        MVMSpeshIns *end_ins   = ins_flat[byte_to_ins_flags[g->handlers[i].end_offset] >> 2];
+        MVMSpeshIns *goto_ins  = ins_flat[byte_to_ins_flags[g->handlers[i].goto_offset] >> 2];
         MVMSpeshAnn *start_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
         MVMSpeshAnn *end_ann   = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
         MVMSpeshAnn *goto_ann  = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
@@ -374,11 +374,11 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* If it's the first block, it's a special case; successors are the
          * real successor and all exception handlers. */
         if (cur_bb == g->entry) {
-            cur_bb->num_succ = 1 + sf->body.num_handlers;
+            cur_bb->num_succ = 1 + g->num_handlers;
             cur_bb->succ     = MVM_spesh_alloc(tc, g, cur_bb->num_succ * sizeof(MVMSpeshBB *));
             cur_bb->succ[0]  = cur_bb->linear_next;
-            for (i = 0; i < sf->body.num_handlers; i++) {
-                MVMuint32 offset = sf->body.handlers[i].goto_offset;
+            for (i = 0; i < g->num_handlers; i++) {
+                MVMuint32 offset = g->handlers[i].goto_offset;
                 cur_bb->succ[i + 1] = ins_to_bb[byte_to_ins_flags[offset] >> 2];
             }
         }
@@ -953,6 +953,8 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf)
     g->sf            = sf;
     g->bytecode      = sf->body.bytecode;
     g->bytecode_size = sf->body.bytecode_size;
+    g->handlers      = sf->body.handlers;
+    g->num_handlers  = sf->body.num_handlers;
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (!sf->body.invoked) {
