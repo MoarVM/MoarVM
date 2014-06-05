@@ -74,16 +74,16 @@ unless_o            r(obj) ins
 jumplist         :j int64 r(int64)
 getlex              w(`1) rl(`1) :pure :deoptonepoint
 bindlex             wl(`1) r(`1)
-getlex_ni           w(int64) str :pure
-getlex_nn           w(num64) str :pure
-getlex_ns           w(str) str :pure
-getlex_no           w(obj) str :pure :deoptonepoint
-bindlex_ni          str r(int64)
-bindlex_nn          str r(num64)
-bindlex_ns          str r(str)
-bindlex_no          str r(obj)
-getlex_ng           w(obj) r(str) :pure
-bindlex_ng          r(str) r(obj)
+getlex_ni           w(int64) str :pure :noinline
+getlex_nn           w(num64) str :pure :noinline
+getlex_ns           w(str) str :pure :noinline
+getlex_no           w(obj) str :pure :deoptonepoint :noinline
+bindlex_ni          str r(int64) :noinline
+bindlex_nn          str r(num64) :noinline
+bindlex_ns          str r(str) :noinline
+bindlex_no          str r(obj) :noinline
+getlex_ng           w(obj) r(str) :pure :noinline
+bindlex_ng          r(str) r(obj) :noinline
 getdynlex           w(obj) r(str) :pure
 binddynlex          r(str) r(obj)
 setlexvalue         r(obj) str r(obj) int16
@@ -217,8 +217,8 @@ die                 w(obj) r(str)
 rethrow             r(obj)
 resume              r(obj)
 takehandlerresult   w(obj)
-newlexotic          w(obj) ins
-lexoticresult       w(obj) r(obj)
+newlexotic          w(obj) ins :noinline
+lexoticresult       w(obj) r(obj) :noinline
 backtracestrings    w(obj) r(obj) :pure
 usecapture          w(obj) :noinline
 savecapture         w(obj) :noinline
