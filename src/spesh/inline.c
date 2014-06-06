@@ -50,6 +50,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *ta
 /* Merges the inlinee's spesh graph into the inliner. */
 void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *inlinee) {
     MVMSpeshFacts **merged_facts;
+    MVMint32        i;
 
     /* Renumber the locals, lexicals, and basic blocks of the inlinee. */
     MVMSpeshBB *bb = inlinee->entry;
@@ -57,12 +58,10 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *in
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
             if (ins->info->opcode == MVM_SSA_PHI) {
-                MVMint8 i;
                 for (i = 0; i < ins->info->num_operands; i++)
                     ins->operands[i].reg.orig += inliner->num_locals;
             }
             else {
-                MVMint8 i;
                 for (i = 0; i < ins->info->num_operands; i++)
                     switch (ins->info->operands[i] & MVM_operand_rw_mask) {
                     case MVM_operand_read_reg:
@@ -72,6 +71,10 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *in
                     case MVM_operand_read_lex:
                     case MVM_operand_write_lex:
                         ins->operands[i].lex.idx += inliner->num_lexicals;
+                        break;
+                    default:
+                        if (ins->info->operands[i] & MVM_operand_spesh_slot)
+                            ins->operands[i].lit_i16 += inliner->num_spesh_slots;
                         break;
                     }
             }
@@ -108,6 +111,10 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *in
     memcpy(merged_facts + inliner->num_locals, inlinee->facts,
         inlinee->num_locals * sizeof(MVMSpeshFacts *));
     inliner->facts = merged_facts;
+
+    /* Copy over spesh slots. */
+    for (i = 0; i < inlinee->num_spesh_slots; i++)
+        MVM_spesh_add_spesh_slot(tc, inliner, inlinee->spesh_slots[i]);
 
     /* Update total locals, lexicals, and basic blocks of the inliner. */
     inliner->num_bbs      += inlinee->num_bbs - 1;
