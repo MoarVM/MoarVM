@@ -78,6 +78,7 @@ struct MVMOpInfo {
 #define MVM_operand_coderef     (12 << 3)
 #define MVM_operand_callsite    (13 << 3)
 #define MVM_operand_type_mask   (15 << 3)
+#define MVM_operand_spesh_slot  (16 << 3)
 
 /* Functions. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data);

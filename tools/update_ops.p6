@@ -128,7 +128,8 @@ my $value_map = {
     'MVM_operand_lex_outer' => 88,
     'MVM_operand_coderef' => 96,
     'MVM_operand_callsite' => 104,
-    'MVM_operand_type_mask' => 120
+    'MVM_operand_type_mask' => 120,
+    'MVM_operand_spesh_slot' => 128
 };
 
 # Generates MAST::Ops constants module.
@@ -219,7 +220,7 @@ grammar OperandFlag {
     token rw       { < rl wl r w > }
     token type     { < int8 int16 int32 int64 num32 num64 str obj > }
     token type_var { '`1' }
-    token special  { < ins lo coderef callsite > }
+    token special  { < ins lo coderef callsite sslot > }
 }
 my %rwflags = (
     r  => 'MVM_operand_read_reg',
@@ -246,6 +247,9 @@ sub operand_flags($operand) {
         }
         elsif $special eq 'callsite' {
             'MVM_operand_callsite'
+        }
+        elsif $special eq 'sslot' {
+            'MVM_operand_spesh_slot'
         }
         else {
             die "Failed to process operand '$operand'";
@@ -275,6 +279,9 @@ sub operand_flags_values($operand) {
         }
         elsif $special eq 'callsite' {
             $value_map{'MVM_operand_callsite'}
+        }
+        elsif $special eq 'sslot' {
+            $value_map{'MVM_operand_spesh_slot'}
         }
         else {
             die "Failed to process operand '$operand'";
