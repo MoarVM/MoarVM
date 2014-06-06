@@ -711,7 +711,7 @@ typedef struct {
 /* Creates an SSAVarInfo for each local, initializing it with a list of nodes
  * that assign to the local. */
 SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    SSAVarInfo *var_info = calloc(sizeof(SSAVarInfo), g->sf->body.num_locals);
+    SSAVarInfo *var_info = calloc(sizeof(SSAVarInfo), g->num_locals);
     MVMint32 i;
 
     /* Visit all instructions, looking for local writes. */
@@ -748,7 +748,7 @@ SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     /* Set stack top to -1 sentinel for all nodes, and count = 1 (as we may
      * read the default value of a register). */
-    for (i = 0; i < g->sf->body.num_locals; i++) {
+    for (i = 0; i < g->num_locals; i++) {
         var_info[i].count     = 1;
         var_info[i].stack_top = -1;
     }
@@ -781,7 +781,7 @@ static void insert_phi_functions(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarI
 
     /* Go over all locals. */
     MVMint32 var, i, j, found;
-    for (var = 0; var < g->sf->body.num_locals; var++) {
+    for (var = 0; var < g->num_locals; var++) {
         /* Move to next iteration. */
         iter_count++;
 
@@ -934,7 +934,7 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     /* Allocate space for spesh facts for each local; clean up stacks while
      * we're at it. */
-    num_locals     = g->sf->body.num_locals;
+    num_locals     = g->num_locals;
     g->facts       = MVM_spesh_alloc(tc, g, num_locals * sizeof(MVMSpeshFacts *));
     g->fact_counts = MVM_spesh_alloc(tc, g, num_locals * sizeof(MVMuint16));
     for (i = 0; i < num_locals; i++) {
@@ -955,6 +955,8 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf)
     g->bytecode_size = sf->body.bytecode_size;
     g->handlers      = sf->body.handlers;
     g->num_handlers  = sf->body.num_handlers;
+    g->num_locals    = sf->body.num_locals;
+    g->num_lexicals  = sf->body.num_lexicals;
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (!sf->body.invoked) {
@@ -982,6 +984,8 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->bytecode_size = cand->bytecode_size;
     g->handlers      = cand->handlers;
     g->num_handlers  = sf->body.num_handlers;
+    g->num_locals    = sf->body.num_locals;
+    g->num_lexicals  = sf->body.num_lexicals;
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (!sf->body.invoked) {
@@ -1007,7 +1011,7 @@ void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist 
     MVM_gc_worklist_add(tc, worklist, &g->sf);
 
     /* Mark facts. */
-    num_locals = g->sf->body.num_locals;
+    num_locals = g->num_locals;
     for (i = 0; i < num_locals; i++) {
         num_facts = g->fact_counts[i];
         for (j = 0; j < num_facts; j++) {

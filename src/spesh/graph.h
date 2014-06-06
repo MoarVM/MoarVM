@@ -58,6 +58,12 @@ struct MVMSpeshGraph {
 
     /* Number of basic blocks we have. */
     MVMint32 num_bbs;
+
+    /* The total number of locals, accounting for any inlining done. */
+    MVMuint16 num_locals;
+
+    /* The total number of lexicals, accounting for any inlining done. */
+    MVMuint16 num_lexicals;
 };
 
 /* The default allocation chunk size for memory blocks used to store spesh
