@@ -46,3 +46,84 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *ta
     MVM_spesh_graph_destroy(tc, ig);
     return NULL;
 }
+
+/* Merges the inlinee's spesh graph into the inliner. */
+void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *inlinee) {
+    MVMSpeshFacts **merged_facts;
+
+    /* Renumber the locals, lexicals, and basic blocks of the inlinee. */
+    MVMSpeshBB *bb = inlinee->entry;
+    while (bb) {
+        MVMSpeshIns *ins = bb->first_ins;
+        while (ins) {
+            if (ins->info->opcode == MVM_SSA_PHI) {
+                MVMint8 i;
+                for (i = 0; i < ins->info->num_operands; i++)
+                    ins->operands[i].reg.orig += inliner->num_locals;
+            }
+            else {
+                MVMint8 i;
+                for (i = 0; i < ins->info->num_operands; i++)
+                    switch (ins->info->operands[i] & MVM_operand_rw_mask) {
+                    case MVM_operand_read_reg:
+                    case MVM_operand_write_reg:
+                        ins->operands[i].reg.orig += inliner->num_locals;
+                        break;
+                    case MVM_operand_read_lex:
+                    case MVM_operand_write_lex:
+                        ins->operands[i].lex.idx += inliner->num_lexicals;
+                        break;
+                    }
+            }
+            ins = ins->next;
+        }
+        bb->idx += inliner->num_bbs - 1; /* -1 as we won't include entry */
+        bb = bb->linear_next;
+    }
+
+    /* Incorporate the basic blocks by concatening them onto the end of the
+     * linear_next chain of the inliner; skip the inlinee's fake entry BB. */
+    bb = inliner->entry;
+    while (bb) {
+        if (!bb->linear_next) {
+            /* Found the end; insert and we're done. */
+            bb->linear_next = inlinee->entry->linear_next;
+            /* XXX Hack until we properly incorporate things... */
+            bb->num_succ = 1;
+            bb->succ = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshBB *));
+            bb->succ[0] = bb->linear_next;
+            /* XXX End hack. */
+            bb = NULL;
+        }
+        else {
+            bb = bb->linear_next;
+        }
+    }
+
+    /* Merge facts. */
+    merged_facts = MVM_spesh_alloc(tc, inliner,
+        (inliner->num_locals + inlinee->num_locals) * sizeof(MVMSpeshFacts *));
+    memcpy(merged_facts, inliner->facts,
+        inliner->num_locals * sizeof(MVMSpeshFacts *));
+    memcpy(merged_facts + inliner->num_locals, inlinee->facts,
+        inlinee->num_locals * sizeof(MVMSpeshFacts *));
+    inliner->facts = merged_facts;
+
+    /* Update total locals, lexicals, and basic blocks of the inliner. */
+    inliner->num_bbs      += inlinee->num_bbs - 1;
+    inliner->num_locals   += inlinee->num_locals;
+    inliner->num_lexicals += inlinee->num_lexicals;
+}
+
+/* Drives the overall inlining process. */
+void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+                      MVMSpeshIns *invoke, MVMSpeshGraph *inlinee) {
+    /* Merge inlinee's graph into the inliner. */
+    merge_graph(tc, inliner, inlinee);
+
+    /* Re-write the argument passing instructions to poke values into the
+     * appropriate slots. */
+
+    /* Re-write invoke and returns to gotos. */
+
+}
