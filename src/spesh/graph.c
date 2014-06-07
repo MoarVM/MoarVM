@@ -261,6 +261,23 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
         }
 
+        /* Invocations and returns are basic block ends. */
+        switch (opcode) {
+        case MVM_OP_invoke_v:
+        case MVM_OP_invoke_i:
+        case MVM_OP_invoke_n:
+        case MVM_OP_invoke_s:
+        case MVM_OP_invoke_o:
+        case MVM_OP_return_i:
+        case MVM_OP_return_n:
+        case MVM_OP_return_s:
+        case MVM_OP_return_o:
+        case MVM_OP_return:
+            byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
+            next_bbs = 1;
+            break;
+        }
+
         /* Final instruction is basic block end. */
         if (pc + 2 + arg_size == end)
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
