@@ -992,8 +992,8 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->bytecode_size = cand->bytecode_size;
     g->handlers      = cand->handlers;
     g->num_handlers  = sf->body.num_handlers;
-    g->num_locals    = sf->body.num_locals;
-    g->num_lexicals  = sf->body.num_lexicals;
+    g->num_locals    = cand->num_locals;
+    g->num_lexicals  = cand->num_lexicals;
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (!sf->body.invoked) {
