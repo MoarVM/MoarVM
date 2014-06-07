@@ -11,6 +11,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     MVMSpeshGuard *guards;
     MVMSpeshCode *sc;
     MVMint32 num_spesh_slots, num_log_slots, num_guards, *deopts, num_deopts;
+    MVMuint16 num_locals, num_lexicals;
     MVMCollectable **spesh_slots, **log_slots;
     char *before, *after;
 
@@ -32,6 +33,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     spesh_slots     = sg->spesh_slots;
     num_log_slots   = sg->num_log_slots;
     log_slots       = sg->log_slots;
+    num_locals      = sg->num_locals;
+    num_lexicals    = sg->num_lexicals;
 
     /* Now try to add it. Note there's a slim chance another thread beat us
      * to doing so. Also other threads can read the specializations without
@@ -68,6 +71,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             result->deopts              = deopts;
             result->num_log_slots       = num_log_slots;
             result->log_slots           = log_slots;
+            result->num_locals          = num_locals;
+            result->num_lexicals        = num_lexicals;
             result->sg                  = sg;
             result->log_enter_idx       = 0;
             result->log_exits_remaining = MVM_SPESH_LOG_RUNS;
@@ -139,6 +144,8 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     candidate->handlers      = sc->handlers;
     candidate->num_deopts    = sg->num_deopt_addrs;
     candidate->deopts        = sg->deopt_addrs;
+    candidate->num_locals    = sg->num_locals;
+    candidate->num_lexicals  = sg->num_lexicals;
     free(sc);
 
     /* Update spesh slots. */

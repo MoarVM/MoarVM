@@ -52,6 +52,13 @@ struct MVMSpeshCandidate {
 
     /* Number of logging slots. */
     MVMuint32 num_log_slots;
+
+    /* Number of locals the specialized code has (may be different from the
+     * original frame thanks to inlining). */
+    MVMuint16 num_locals;
+
+    /* Number of lexicals the specialized code has. */
+    MVMuint16 num_lexicals;
 };
 
 /* The number of specializations we'll allow per static frame. */
