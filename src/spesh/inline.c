@@ -56,11 +56,23 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *in
     MVMSpeshFacts **merged_facts;
     MVMint32        i;
 
-    /* Renumber the locals, lexicals, and basic blocks of the inlinee. */
+    /* Renumber the locals, lexicals, and basic blocks of the inlinee; also
+     * re-write any indexes in annotations that need it. */
     MVMSpeshBB *bb = inlinee->entry;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
+            MVMSpeshAnn *ann = ins->annotations;
+            while (ann) {
+                switch (ann->type) {
+                case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                case MVM_SPESH_ANN_DEOPT_ALL_INS:
+                    ann->data.deopt_idx += inliner->num_deopt_addrs;
+                    break;
+                }
+                ann = ann->next;
+            }
+
             if (ins->info->opcode == MVM_SSA_PHI) {
                 for (i = 0; i < ins->info->num_operands; i++)
                     ins->operands[i].reg.orig += inliner->num_locals;
@@ -119,6 +131,19 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *in
     /* Copy over spesh slots. */
     for (i = 0; i < inlinee->num_spesh_slots; i++)
         MVM_spesh_add_spesh_slot(tc, inliner, inlinee->spesh_slots[i]);
+
+    /* Merge de-opt tables, if needed. */
+    if (inlinee->num_deopt_addrs) {
+        inliner->alloc_deopt_addrs += inlinee->alloc_deopt_addrs;
+        if (inliner->deopt_addrs)
+            inliner->deopt_addrs = realloc(inliner->deopt_addrs,
+                inliner->alloc_deopt_addrs * sizeof(MVMint32) * 2);
+        else
+            inliner->deopt_addrs = malloc(inliner->alloc_deopt_addrs * sizeof(MVMint32) * 2);
+        memcpy(inliner->deopt_addrs + inliner->num_deopt_addrs * 2,
+            inlinee->deopt_addrs, inlinee->alloc_deopt_addrs * sizeof(MVMint32) * 2);
+        inliner->num_deopt_addrs += inlinee->num_deopt_addrs;
+    }
 
     /* Update total locals, lexicals, and basic blocks of the inliner. */
     inliner->num_bbs      += inlinee->num_bbs - 1;
