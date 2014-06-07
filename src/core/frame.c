@@ -132,87 +132,78 @@ MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
     return result;
 }
 
-/* Takes a static frame and a thread context. Invokes the static frame. */
-void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
-                      MVMCallsite *callsite, MVMRegister *args,
-                      MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand) {
-    MVMFrame *frame;
-
-    MVMuint32 pool_index, found_spesh;
+/* Obtains memory for a frame. */
+static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *static_frame_body,
+                                 MVMSpeshCandidate *spesh_cand) {
+    MVMFrame *frame = NULL;
     MVMFrame *node;
-    int fresh = 0;
-    MVMStaticFrameBody *static_frame_body = &static_frame->body;
+    MVMint32  env_size, work_size;
 
-    /* If the frame was never invoked before, need initial calculations
-     * and verification. */
-    if (!static_frame_body->invoked)
-        prepare_and_verify_static_frame(tc, static_frame);
+    /* See if we can just go with a default-size frame. */
+    if (!spesh_cand || spesh_cand->num_locals == static_frame_body->num_locals &&
+                       spesh_cand->num_lexicals == static_frame_body->num_lexicals) {
+        /* Yes, everything is the default sizes; try the pool. */
+        MVMuint32 pool_index = static_frame_body->pool_index;
+        if (pool_index >= tc->frame_pool_table_size)
+            grow_frame_pool(tc, pool_index);
+        node = tc->frame_pool_table[pool_index];
+        if (node) {
+            /* Got a pool entry. */
+            tc->frame_pool_table[pool_index] = node->outer;
+            node->outer = NULL;
+            frame = node;
 
-    /* Get frame body from the re-use pool, or allocate it. */
-    pool_index = static_frame_body->pool_index;
-    if (pool_index >= tc->frame_pool_table_size)
-        grow_frame_pool(tc, pool_index);
-    node = tc->frame_pool_table[pool_index];
-    if (node == NULL) {
-        fresh = 1;
-        frame = malloc(sizeof(MVMFrame));
-        frame->params.named_used = NULL;
+            /* Clear memory. */
+            if (static_frame_body->env_size)
+                memset(frame->env, 0, static_frame_body->env_size);
+            else
+                frame->env = NULL;
+            if (static_frame_body->work_size) {
+                if (!frame->work)
+                    frame->work = calloc(1, static_frame_body->work_size);
+                else
+                    memset(frame->work, 0, static_frame_body->work_size);
+            }
+            else {
+                frame->work = NULL;
+            }
 
-        /* Ensure special return pointers and continuation tags are null. */
-        frame->special_return = NULL;
-        frame->special_unwind = NULL;
-        frame->continuation_tags = NULL;
+            /* Calculate args buffer position and make sure current call site starts
+             * empty. */
+            frame->args = static_frame_body->work_size ?
+                frame->work + static_frame_body->num_locals :
+                NULL;
+            frame->cur_args_callsite = NULL;
+
+            return frame;
+        }
     }
-    else {
-        tc->frame_pool_table[pool_index] = node->outer;
-        node->outer = NULL;
-        frame = node;
-    }
 
-#if MVM_HLL_PROFILE_CALLS
-    frame->profile_index = tc->profile_index;
-    tc->profile_data[frame->profile_index].duration_nanos = MVM_platform_now();
-    tc->profile_data[frame->profile_index].callsite_id = 0; /* XXX get a real callsite id */
-    tc->profile_data[frame->profile_index].code_id = 0; /* XXX get a real code id */
+    /* If we end up here, no re-usable frame, so need to allocate it. */
+    frame = malloc(sizeof(MVMFrame));
+    frame->params.named_used = NULL;
 
-    /* increment the profile data index */
-    ++tc->profile_index;
-
-    if (tc->profile_index == tc->profile_data_size) {
-        tc->profile_data_size *= 2;
-        tc->profile_data = realloc(tc->profile_data, tc->profile_data_size);
-    }
-#endif
-
-    /* Copy thread context (back?) into the frame. */
-    frame->tc = tc;
-
-    /* Set static frame. */
-    frame->static_info = static_frame;
-
-    /* Store the code ref (NULL at the top-level). */
-    frame->code_ref = code_ref;
+    /* Ensure special return pointers and continuation tags are null. */
+    frame->special_return = NULL;
+    frame->special_unwind = NULL;
+    frame->continuation_tags = NULL;
 
     /* Allocate space for lexicals and work area, copying the default lexical
      * environment into place. */
-    if (static_frame_body->env_size) {
-        if (fresh)
-            frame->env = calloc(1, static_frame_body->env_size);
-        else
-            memset(frame->env, 0, static_frame_body->env_size);
-    }
-    else {
+    env_size = spesh_cand
+        ? spesh_cand->num_lexicals * sizeof(MVMRegister)
+        : static_frame_body->env_size;
+    if (env_size)
+        frame->env = calloc(1, env_size);
+    else
         frame->env = NULL;
-    }
-    if (static_frame_body->work_size) {
-        if (fresh || !frame->work)
-            frame->work = calloc(1, static_frame_body->work_size);
-        else
-            memset(frame->work, 0, static_frame_body->work_size);
-    }
-    else {
+    work_size = spesh_cand
+        ? (spesh_cand->num_locals + static_frame_body->cu->body.max_callsite_size) * sizeof(MVMRegister)
+        : static_frame_body->work_size;
+    if (work_size)
+        frame->work = calloc(1, work_size);
+    else
         frame->work = NULL;
-    }
 
     /* Calculate args buffer position and make sure current call site starts
      * empty. */
@@ -221,69 +212,29 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         NULL;
     frame->cur_args_callsite = NULL;
 
-    /* Outer. */
-    if (outer) {
-        /* We were provided with an outer frame; just ensure that it is
-         * based on the correct static frame (compare on bytecode address
-         * to come with nqp::freshcoderef). */
-        if (outer->static_info->body.orig_bytecode == static_frame_body->outer->body.orig_bytecode)
-            frame->outer = outer;
-        else
-            MVM_exception_throw_adhoc(tc,
-                "When invoking %s, Provided outer frame %p (%s %s) does not match expected static frame type %p (%s %s)",
-                static_frame_body->name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->name) : "<anonymous static frame>",
-                outer->static_info,
-                MVM_repr_get_by_id(tc, REPR(outer->static_info)->ID)->name,
-                outer->static_info->body.name ? MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name) : "<anonymous static frame>",
-                static_frame_body->outer,
-                MVM_repr_get_by_id(tc, REPR(static_frame_body->outer)->ID)->name,
-                static_frame_body->outer->body.name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->outer->body.name) : "<anonymous static frame>");
-    }
-    else if (static_frame_body->static_code && static_frame_body->static_code->body.outer) {
-        /* We're lacking an outer, but our static code object may have one.
-         * This comes up in the case of cloned protoregexes, for example. */
-        frame->outer = static_frame_body->static_code->body.outer;
-    }
-    else if (static_frame_body->outer) {
-        /* Auto-close, and cache it in the static frame. */
-        frame->outer = autoclose(tc, static_frame_body->outer);
-        static_frame_body->static_code->body.outer = MVM_frame_inc_ref(tc, frame->outer);
-    }
-    else {
-        frame->outer = NULL;
-    }
-    if (frame->outer)
-        MVM_frame_inc_ref(tc, frame->outer);
+    return frame;
+}
 
-    /* Caller is current frame in the thread context. */
-    if (tc->cur_frame)
-        frame->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
-    else
-        frame->caller = NULL;
-    frame->keep_caller = 0;
-    frame->in_continuation = 0;
+/* Takes a static frame and a thread context. Invokes the static frame. */
+void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
+                      MVMCallsite *callsite, MVMRegister *args,
+                      MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand) {
+    MVMFrame *frame;
+    MVMuint32 found_spesh;
+    int fresh = 0;
+    MVMStaticFrameBody *static_frame_body = &static_frame->body;
 
-    /* Initial reference count is 1 by virtue of it being the currently
-     * executing frame. */
-    frame->ref_count = 1;
-    frame->gc_seq_number = 0;
-
-    /* Initialize argument processing. */
-    MVM_args_proc_init(tc, &frame->params, callsite, args);
-    
-    /* Make sure there's no frame context pointer and special return data
-     * won't be marked. */
-    frame->context_object = NULL;
-    frame->mark_special_return_data = NULL;
-
-    /* Clear frame flags. */
-    frame->flags = 0;
+    /* If the frame was never invoked before, need initial calculations
+     * and verification. */
+    if (!static_frame_body->invoked)
+        prepare_and_verify_static_frame(tc, static_frame);
 
     /* See if any specializations apply. */
     found_spesh = 0;
     if (spesh_cand >= 0) {
         MVMSpeshCandidate *chosen_cand = &static_frame_body->spesh_candidates[spesh_cand];
         if (!chosen_cand->sg) {
+            frame = allocate_frame(tc, static_frame_body, chosen_cand);
             frame->effective_bytecode    = chosen_cand->bytecode;
             frame->effective_handlers    = chosen_cand->handlers;
             frame->effective_spesh_slots = chosen_cand->spesh_slots;
@@ -358,6 +309,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 if (cur_idx < MVM_SPESH_LOG_RUNS) {
                     if (MVM_cas(&(chosen_cand->log_enter_idx), cur_idx, cur_idx + 1) == cur_idx) {
                         /* We get to log. */
+                        frame = allocate_frame(tc, static_frame_body, NULL); /* NULL as no inlines yet. */
                         frame->effective_bytecode    = chosen_cand->bytecode;
                         frame->effective_handlers    = chosen_cand->handlers;
                         frame->effective_spesh_slots = chosen_cand->spesh_slots;
@@ -370,6 +322,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             }
             else {
                 /* In the post-specialize phase; can safely used the code. */
+                frame = allocate_frame(tc, static_frame_body, chosen_cand);
                 frame->effective_bytecode    = chosen_cand->bytecode;
                 frame->effective_handlers    = chosen_cand->handlers;
                 frame->effective_spesh_slots = chosen_cand->spesh_slots;
@@ -380,10 +333,93 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         }
     }
     if (!found_spesh) {
+        frame = allocate_frame(tc, static_frame_body, NULL);
         frame->effective_bytecode = static_frame_body->bytecode;
         frame->effective_handlers = static_frame_body->handlers;
         frame->spesh_cand         = NULL;
     }
+
+#if MVM_HLL_PROFILE_CALLS
+    frame->profile_index = tc->profile_index;
+    tc->profile_data[frame->profile_index].duration_nanos = MVM_platform_now();
+    tc->profile_data[frame->profile_index].callsite_id = 0; /* XXX get a real callsite id */
+    tc->profile_data[frame->profile_index].code_id = 0; /* XXX get a real code id */
+
+    /* increment the profile data index */
+    ++tc->profile_index;
+
+    if (tc->profile_index == tc->profile_data_size) {
+        tc->profile_data_size *= 2;
+        tc->profile_data = realloc(tc->profile_data, tc->profile_data_size);
+    }
+#endif
+
+    /* Copy thread context (back?) into the frame. */
+    frame->tc = tc;
+
+    /* Set static frame. */
+    frame->static_info = static_frame;
+
+    /* Store the code ref (NULL at the top-level). */
+    frame->code_ref = code_ref;
+
+    /* Outer. */
+    if (outer) {
+        /* We were provided with an outer frame; just ensure that it is
+         * based on the correct static frame (compare on bytecode address
+         * to come with nqp::freshcoderef). */
+        if (outer->static_info->body.orig_bytecode == static_frame_body->outer->body.orig_bytecode)
+            frame->outer = outer;
+        else
+            MVM_exception_throw_adhoc(tc,
+                "When invoking %s, Provided outer frame %p (%s %s) does not match expected static frame type %p (%s %s)",
+                static_frame_body->name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->name) : "<anonymous static frame>",
+                outer->static_info,
+                MVM_repr_get_by_id(tc, REPR(outer->static_info)->ID)->name,
+                outer->static_info->body.name ? MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name) : "<anonymous static frame>",
+                static_frame_body->outer,
+                MVM_repr_get_by_id(tc, REPR(static_frame_body->outer)->ID)->name,
+                static_frame_body->outer->body.name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->outer->body.name) : "<anonymous static frame>");
+    }
+    else if (static_frame_body->static_code && static_frame_body->static_code->body.outer) {
+        /* We're lacking an outer, but our static code object may have one.
+         * This comes up in the case of cloned protoregexes, for example. */
+        frame->outer = static_frame_body->static_code->body.outer;
+    }
+    else if (static_frame_body->outer) {
+        /* Auto-close, and cache it in the static frame. */
+        frame->outer = autoclose(tc, static_frame_body->outer);
+        static_frame_body->static_code->body.outer = MVM_frame_inc_ref(tc, frame->outer);
+    }
+    else {
+        frame->outer = NULL;
+    }
+    if (frame->outer)
+        MVM_frame_inc_ref(tc, frame->outer);
+
+    /* Caller is current frame in the thread context. */
+    if (tc->cur_frame)
+        frame->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
+    else
+        frame->caller = NULL;
+    frame->keep_caller = 0;
+    frame->in_continuation = 0;
+
+    /* Initial reference count is 1 by virtue of it being the currently
+     * executing frame. */
+    frame->ref_count = 1;
+    frame->gc_seq_number = 0;
+
+    /* Initialize argument processing. */
+    MVM_args_proc_init(tc, &frame->params, callsite, args);
+    
+    /* Make sure there's no frame context pointer and special return data
+     * won't be marked. */
+    frame->context_object = NULL;
+    frame->mark_special_return_data = NULL;
+
+    /* Clear frame flags. */
+    frame->flags = 0;
 
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
