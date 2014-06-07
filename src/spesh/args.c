@@ -68,16 +68,6 @@ void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
     }
 }
 
-/* Inserts a goto to avoid executing optional handling code. */
-static void add_goto(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMSpeshBB *target) {
-    MVMSpeshIns *inserted_goto = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
-    MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ));
-    inserted_goto->info        = MVM_op_get_op(MVM_OP_goto);
-    inserted_goto->operands    = operands;
-    operands[0].ins_bb         = target;
-    MVM_spesh_manipulate_insert_ins(tc, bb, ins, inserted_goto);
-}
-
 /* Adds an instruction marking a name arg as being used (if we turned its
  * fetching into a positional). */
 static void add_named_used_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -294,7 +284,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 if (passed) {
                     /* If we know the argument has been passed, then add a goto
                     * to the "passed" code. */
-                    add_goto(tc, g, pos_bb[i], pos_ins[i], pos_ins[i]->operands[2].ins_bb);
+                    MVM_spesh_manipulate_insert_goto(tc, g, pos_bb[i], pos_ins[i],
+                        pos_ins[i]->operands[2].ins_bb);
 
                     /* Inserting an unconditional goto makes the linear_next BB
                     * unreachable, so we remove it from the succ list. */
@@ -385,7 +376,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 else if (found_flag & MVM_CALLSITE_ARG_INT) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
-                    add_goto(tc, g, named_bb[i], named_ins[i], named_ins[i]->operands[2].ins_bb);
+                    MVM_spesh_manipulate_insert_goto(tc, g, named_bb[i], named_ins[i],
+                        named_ins[i]->operands[2].ins_bb);
                     add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
                 }
                 break;
@@ -396,7 +388,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 else if (found_flag & MVM_CALLSITE_ARG_NUM) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
-                    add_goto(tc, g, named_bb[i], named_ins[i], named_ins[i]->operands[2].ins_bb);
+                    MVM_spesh_manipulate_insert_goto(tc, g, named_bb[i], named_ins[i],
+                        named_ins[i]->operands[2].ins_bb);
                     add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
                 }
                 break;
@@ -407,7 +400,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 else if (found_flag & MVM_CALLSITE_ARG_STR) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
-                    add_goto(tc, g, named_bb[i], named_ins[i], named_ins[i]->operands[2].ins_bb);
+                    MVM_spesh_manipulate_insert_goto(tc, g, named_bb[i], named_ins[i],
+                        named_ins[i]->operands[2].ins_bb);
                     add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
                 }
                 break;
@@ -419,7 +413,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     MVMuint16 arg_idx = found_idx + 1;
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
                     named_ins[i]->operands[1].lit_i16 = arg_idx;
-                    add_goto(tc, g, named_bb[i], named_ins[i], named_ins[i]->operands[2].ins_bb);
+                    MVM_spesh_manipulate_insert_goto(tc, g, named_bb[i], named_ins[i],
+                        named_ins[i]->operands[2].ins_bb);
                     add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
                     if (args[arg_idx].o)
                         add_guards_and_facts(tc, g, arg_idx, args[arg_idx].o, named_ins[i]);
