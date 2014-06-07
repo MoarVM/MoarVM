@@ -4,4 +4,5 @@
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *target,
     MVMSpeshCandidate *cand);
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+    MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
     MVMSpeshIns *invoke, MVMSpeshGraph *inlinee);
