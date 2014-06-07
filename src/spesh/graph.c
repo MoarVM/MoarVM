@@ -235,6 +235,14 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     arg_size += 4;
                     break;
                 }
+                case MVM_operand_spesh_slot:
+                    ins_node->operands[i].lit_i16 = GET_I16(args, arg_size);
+                    arg_size += 2;
+                    break;
+                default:
+                    MVM_exception_throw_adhoc(tc,
+                        "Spesh: unknown operand type %d in graph building (op %s)",
+                        (int)type, ins_node->info->name);
                 }
             }
             break;

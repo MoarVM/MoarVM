@@ -132,7 +132,7 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
                     write_int16(ws, ins->operands[i].lex.outers);
                     break;
                 case MVM_operand_literal: {
-                    MVMuint32 type = flags & MVM_operand_type_mask;
+                    MVMuint8 type = flags & MVM_operand_type_mask;
                     switch (type) {
                     case MVM_operand_int8:
                         write_int8(ws, ins->operands[i].lit_i8);
@@ -183,8 +183,13 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
                         }
                         break;
                     }
+                    case MVM_operand_spesh_slot:
+                        write_int16(ws, ins->operands[i].lit_i16);
+                        break;
                     default:
-                        MVM_exception_throw_adhoc(tc, "Spesh: unknown operand type in codegen");
+                        MVM_exception_throw_adhoc(tc,
+                            "Spesh: unknown operand type %d in codegen (op %s)",
+                            (int)type, ins->info->name);
                     }
                     }
                     break;
