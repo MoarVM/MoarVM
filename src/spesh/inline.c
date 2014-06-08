@@ -54,6 +54,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *ta
 /* Merges the inlinee's spesh graph into the inliner. */
 void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *inlinee) {
     MVMSpeshFacts **merged_facts;
+    MVMuint16      *merged_fact_counts;
     MVMint32        i;
 
     /* Renumber the locals, lexicals, and basic blocks of the inlinee; also
@@ -127,6 +128,13 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *in
     memcpy(merged_facts + inliner->num_locals, inlinee->facts,
         inlinee->num_locals * sizeof(MVMSpeshFacts *));
     inliner->facts = merged_facts;
+    merged_fact_counts = MVM_spesh_alloc(tc, inliner,
+        (inliner->num_locals + inlinee->num_locals) * sizeof(MVMuint16));
+    memcpy(merged_fact_counts, inliner->fact_counts,
+        inliner->num_locals * sizeof(MVMuint16));
+    memcpy(merged_fact_counts + inliner->num_locals, inlinee->fact_counts,
+        inlinee->num_locals * sizeof(MVMuint16));
+    inliner->fact_counts = merged_fact_counts;
 
     /* Copy over spesh slots. */
     for (i = 0; i < inlinee->num_spesh_slots; i++)
