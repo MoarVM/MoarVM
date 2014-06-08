@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <setjmp.h>
+#include <stddef.h>
 
 /* Configuration. */
 #include "gen/config.h"

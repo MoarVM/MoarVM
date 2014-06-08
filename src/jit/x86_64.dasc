@@ -2,9 +2,16 @@
 #include <dasm_proto.h>
 #include <dasm_x86.h>
 
+#define OFFSET_ENV offsetof(MVMFrame, env)
+#define OFFSET_ARGS offsetof(MVMFrame, args)
+#define OFFSET_WORK offsetof(MVMFrame, work)
 
 |.arch x64
 |.actionlist actions
+
+/* The 'work' registers that MVM supplies will be referenced a lot.
+ * So the rbx register will be set up to hold the work space base. */
+|.define WORK, rbx
 
 /* A function prologue is always the same in x86 / x64, becuase
  * we do not provide variable arguments, instead arguments are provided
@@ -12,9 +19,9 @@
 void MVM_jit_gen_prologue(dasm_State **Dst) {
     | push rbp
     | mov rbp, rsp
-    | mov [rsp-8], rdi
-    | mov [rp-16], rsi
-    /* TODO - move work register base to a suitable register */
+    | mov [rsp-8], rdi // thread context
+    | mov [rsp-16], rsi // frame
+    | mov WORK, [rsi + OFFSET_WORK]
 }
 
 /* And a function epilogue is also always the same */
