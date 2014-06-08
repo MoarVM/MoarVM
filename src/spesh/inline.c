@@ -316,6 +316,53 @@ void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     }
 }
 
+/* Re-writes argument passing and parameter taking instructions to simple
+ * register set operations. */
+void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+                  MVMSpeshGraph *inlinee, MVMSpeshBB *invoke_bb,
+                  MVMSpeshCallInfo *call_info) {
+    /* Look for param-taking instructions. Track what arg instructions we
+     * use in the process. */
+    MVMSpeshBB *bb = inlinee->entry;
+    while (bb) {
+        MVMSpeshIns *ins = bb->first_ins;
+        while (ins) {
+            MVMuint16    opcode = ins->info->opcode;
+            MVMSpeshIns *next   = ins->next;
+            switch (opcode) {
+            case MVM_OP_sp_getarg_o:
+            case MVM_OP_sp_getarg_i:
+            case MVM_OP_sp_getarg_n:
+            case MVM_OP_sp_getarg_s: {
+                MVMuint16    idx     = ins->operands[1].lit_i16;
+                MVMSpeshIns *arg_ins = call_info->arg_ins[idx];
+                switch (arg_ins->info->opcode) {
+                case MVM_OP_arg_i:
+                case MVM_OP_arg_n:
+                case MVM_OP_arg_s:
+                case MVM_OP_arg_o:
+                    /* Arg passer just becomes a set instruction; delete the
+                     * parameter-taking instruction. */
+                    arg_ins->info        = MVM_op_get_op(MVM_OP_set);
+                    arg_ins->operands[0] = ins->operands[0];
+                    MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+                    break;
+                default:
+                    MVM_exception_throw_adhoc(tc,
+                        "Spesh inline: unhandled arg instruction");
+                }
+                break;
+            }
+            }
+            ins = next;
+        }
+        bb = bb->linear_next;
+    }
+
+    /* Delete the prepargs instruction. */
+    MVM_spesh_manipulate_delete_ins(tc, invoke_bb, call_info->prepargs_ins);
+}
+
 /* Drives the overall inlining process. */
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                       MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
@@ -328,4 +375,9 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 
     /* Re-write the argument passing instructions to poke values into the
      * appropriate slots. */
+    rewrite_args(tc, inliner, inlinee, invoke_bb, call_info);
+
+     /* Finally, turn the invoke instruction into a goto. */
+     invoke_ins->info = MVM_op_get_op(MVM_OP_goto);
+     invoke_ins->operands[0].ins_bb = inlinee->entry->linear_next;
 }
