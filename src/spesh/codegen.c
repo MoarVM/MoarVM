@@ -97,6 +97,9 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
             case MVM_SPESH_ANN_INLINE_END:
                 g->inlines[ann->data.inline_idx].end = ws->bytecode_pos;
                 break;
+            case MVM_SPESH_ANN_DEOPT_INLINE:
+                g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos;
+                break;
             }
             ann = ann->next;
         }

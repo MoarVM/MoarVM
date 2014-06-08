@@ -91,7 +91,8 @@ static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
  * with it. This also makes nodes for all of the instruction. */
 #define MVM_CFG_BB_START    1
 #define MVM_CFG_BB_END      2
-static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf) {
+static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf,
+                      MVMint32 *existing_deopts, MVMint32 num_existing_deopts) {
     MVMSpeshBB  *cur_bb, *prev_bb;
     MVMSpeshIns *last_ins;
     MVMint64     i;
@@ -286,9 +287,9 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         pc += 2 + arg_size;
 
         /* If this is a deopt point opcode... */
-        if (info->deopt_point & MVM_DEOPT_MARK_ONE)
+        if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ONE))
             add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ONE_INS);
-        if (info->deopt_point & MVM_DEOPT_MARK_ALL)
+        if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ALL))
             add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ALL_INS);
 
         /* Go to next instruction. */
@@ -336,6 +337,19 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         end_ann->type = MVM_SPESH_ANN_INLINE_END;
         end_ann->data.inline_idx = i;
         end_ins->annotations = end_ann;
+    }
+
+    /* If we're building the graph for optimized bytecode, insert existing
+     * deopt points. */
+    if (existing_deopts) {
+        for (i = 0; i < num_existing_deopts; i ++) {
+            MVMSpeshIns *deopt_ins    = ins_flat[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2];
+            MVMSpeshAnn *deopt_ann    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+            deopt_ann->next           = deopt_ins->annotations;
+            deopt_ann->type           = MVM_SPESH_ANN_DEOPT_INLINE;
+            deopt_ann->data.deopt_idx = i;
+            deopt_ins->annotations    = deopt_ann;
+        }
     }
 
     /* Now for the second pass, where we assemble the basic blocks. Also we
@@ -1008,7 +1022,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf)
     }
 
     /* Build the CFG out of the static frame, and transform it to SSA. */
-    build_cfg(tc, g, sf);
+    build_cfg(tc, g, sf, NULL, 0);
     eliminate_dead(tc, g);
     add_predecessors(tc, g);
     ssa(tc, g);
@@ -1021,16 +1035,19 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf)
 MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStaticFrame *sf,
                                                  MVMSpeshCandidate *cand) {
     /* Create top-level graph object. */
-    MVMSpeshGraph *g = calloc(1, sizeof(MVMSpeshGraph));
-    g->sf            = sf;
-    g->bytecode      = cand->bytecode;
-    g->bytecode_size = cand->bytecode_size;
-    g->handlers      = cand->handlers;
-    g->num_handlers  = sf->body.num_handlers;
-    g->num_locals    = cand->num_locals;
-    g->num_lexicals  = cand->num_lexicals;
-    g->inlines       = cand->inlines;
-    g->num_inlines   = cand->num_inlines;
+    MVMSpeshGraph *g     = calloc(1, sizeof(MVMSpeshGraph));
+    g->sf                = sf;
+    g->bytecode          = cand->bytecode;
+    g->bytecode_size     = cand->bytecode_size;
+    g->handlers          = cand->handlers;
+    g->num_handlers      = sf->body.num_handlers;
+    g->num_locals        = cand->num_locals;
+    g->num_lexicals      = cand->num_lexicals;
+    g->inlines           = cand->inlines;
+    g->num_inlines       = cand->num_inlines;
+    g->deopt_addrs       = cand->deopts;
+    g->num_deopt_addrs   = cand->num_deopts;
+    g->alloc_deopt_addrs = cand->num_deopts;
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (!sf->body.invoked) {
@@ -1039,7 +1056,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     }
 
     /* Build the CFG out of the static frame, and transform it to SSA. */
-    build_cfg(tc, g, sf);
+    build_cfg(tc, g, sf, cand->deopts, cand->num_deopts);
     eliminate_dead(tc, g);
     add_predecessors(tc, g);
     ssa(tc, g);

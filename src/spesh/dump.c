@@ -85,6 +85,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     appendf(ds, "      [Annotation: Inline End (%d)]\n",
                         ann->data.inline_idx);
                     break;
+                case MVM_SPESH_ANN_DEOPT_INLINE:
+                    appendf(ds, "      [Annotation: INS Deopt Inline (idx %d -> pc %d)]\n",
+                        ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx]);
+                    break;
                 default:
                     appendf(ds, "      [Annotation: %d (unknown)]\n", ann->type);
             }

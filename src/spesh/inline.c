@@ -80,8 +80,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *in
             MVMSpeshAnn *ann = ins->annotations;
             while (ann) {
                 switch (ann->type) {
-                case MVM_SPESH_ANN_DEOPT_ONE_INS:
-                case MVM_SPESH_ANN_DEOPT_ALL_INS:
+                case MVM_SPESH_ANN_DEOPT_INLINE:
                     ann->data.deopt_idx += inliner->num_deopt_addrs;
                     break;
                 case MVM_SPESH_ANN_INLINE_START:
