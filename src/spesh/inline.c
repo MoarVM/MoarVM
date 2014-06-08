@@ -19,11 +19,24 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *ta
     /* Build graph from the already-specialized bytecode. */
     ig = MVM_spesh_graph_create_from_cand(tc, target->body.sf, cand);
 
-    /* Traverse graph, looking for anything that might prevent inlining. */
+    /* Traverse graph, looking for anything that might prevent inlining and
+     * also building usage counts up. */
     bb = ig->entry;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
+            /* Track usages. */
+            MVMint32 opcode = ins->info->opcode;
+            MVMint32 is_phi = opcode == MVM_SSA_PHI;
+            MVMuint8 i;
+            for (i = 0; i < ins->info->num_operands; i++)
+                if (is_phi && i > 0 || !is_phi &&
+                    (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
+                    ig->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i].usages++;
+            if (opcode == MVM_OP_inc_i || opcode == MVM_OP_inc_u ||
+                    opcode == MVM_OP_dec_i || opcode == MVM_OP_dec_u)
+                ig->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i - 1].usages++;
+
             /* Instruction may be marked directly as not being inlinable, in
              * which case we're done. */
             if (ins->info->no_inline)
