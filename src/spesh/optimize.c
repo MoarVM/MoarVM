@@ -573,6 +573,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_prepargs:
             arg_info.cs = g->sf->body.cu->body.callsites[ins->operands[0].callsite_idx];
+            arg_info.prepargs_ins = ins;
             break;
         case MVM_OP_arg_i:
         case MVM_OP_arg_n:
@@ -582,6 +583,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             if (idx < MAX_ARGS_FOR_OPT) {
                 arg_info.arg_is_const[idx] = 0;
                 arg_info.arg_facts[idx]    = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+                arg_info.arg_ins[idx]      = ins;
             }
             break;
         }
@@ -589,8 +591,10 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_argconst_n:
         case MVM_OP_argconst_s: {
             MVMint16 idx = ins->operands[0].lit_i16;
-            if (idx < MAX_ARGS_FOR_OPT)
+            if (idx < MAX_ARGS_FOR_OPT) {
                 arg_info.arg_is_const[idx] = 1;
+                arg_info.arg_ins[idx]      = ins;
+            }
             break;
         }
         case MVM_OP_invoke_v:
