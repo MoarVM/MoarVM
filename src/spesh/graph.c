@@ -320,6 +320,24 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         goto_ins->annotations = goto_ann;
     }
 
+    /* Annotate instructions that are inline start/end points. */
+    for (i = 0; i < g->num_inlines; i++) {
+        MVMSpeshIns *start_ins = ins_flat[byte_to_ins_flags[g->inlines[i].start] >> 2];
+        MVMSpeshIns *end_ins   = ins_flat[byte_to_ins_flags[g->inlines[i].end] >> 2];
+        MVMSpeshAnn *start_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+        MVMSpeshAnn *end_ann   = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+
+        start_ann->next = start_ins->annotations;
+        start_ann->type = MVM_SPESH_ANN_INLINE_START;
+        start_ann->data.inline_idx = i;
+        start_ins->annotations = start_ann;
+
+        end_ann->next = end_ins->annotations;
+        end_ann->type = MVM_SPESH_ANN_INLINE_END;
+        end_ann->data.inline_idx = i;
+        end_ins->annotations = end_ann;
+    }
+
     /* Now for the second pass, where we assemble the basic blocks. Also we
      * build a lookup table of instructions that start a basic block to that
      * basic block, for the final CFG construction. We make the entry block a
@@ -1011,6 +1029,8 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->num_handlers  = sf->body.num_handlers;
     g->num_locals    = cand->num_locals;
     g->num_lexicals  = cand->num_lexicals;
+    g->inlines       = cand->inlines;
+    g->num_inlines   = cand->num_inlines;
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (!sf->body.invoked) {

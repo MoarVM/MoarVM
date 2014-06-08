@@ -66,9 +66,10 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *ta
 
 /* Merges the inlinee's spesh graph into the inliner. */
 void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *inlinee) {
+    MVMSpeshBB     *last_bb;
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
-    MVMint32        i;
+    MVMint32        i, total_inlines;
 
     /* Renumber the locals, lexicals, and basic blocks of the inlinee; also
      * re-write any indexes in annotations that need it. */
@@ -82,6 +83,10 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *in
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
                 case MVM_SPESH_ANN_DEOPT_ALL_INS:
                     ann->data.deopt_idx += inliner->num_deopt_addrs;
+                    break;
+                case MVM_SPESH_ANN_INLINE_START:
+                case MVM_SPESH_ANN_INLINE_END:
+                    ann->data.inline_idx += inliner->num_inlines;
                     break;
                 }
                 ann = ann->next;
@@ -165,6 +170,18 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *in
             inlinee->deopt_addrs, inlinee->alloc_deopt_addrs * sizeof(MVMint32) * 2);
         inliner->num_deopt_addrs += inlinee->num_deopt_addrs;
     }
+
+    /* Merge inlines table, and add us an entry too. */
+    total_inlines = inliner->num_inlines + inlinee->num_inlines + 1;
+    inliner->inlines = inliner->num_inlines
+        ? realloc(inliner->inlines, total_inlines * sizeof(MVMSpeshInline))
+        : malloc(total_inlines * sizeof(MVMSpeshInline));
+    memcpy(inliner->inlines + inliner->num_inlines, inlinee->inlines,
+        inlinee->num_inlines * sizeof(MVMSpeshInline));
+    inliner->inlines[total_inlines - 1].sf             = inlinee->sf;
+    inliner->inlines[total_inlines - 1].locals_start   = inliner->num_locals;
+    inliner->inlines[total_inlines - 1].lexicals_start = inliner->num_lexicals;
+    inliner->num_inlines = total_inlines;
 
     /* Update total locals, lexicals, and basic blocks of the inliner. */
     inliner->num_bbs      += inlinee->num_bbs - 1;
@@ -363,6 +380,31 @@ void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVM_spesh_manipulate_delete_ins(tc, invoke_bb, call_info->prepargs_ins);
 }
 
+/* Annotates first and last instruction in post-processed inlinee with start
+ * and end inline annotations. */
+void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+                               MVMSpeshGraph *inlinee, MVMint32 idx) {
+    /* Annotate first instruction. */
+    MVMSpeshAnn *start_ann     = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
+    MVMSpeshBB *bb             = inlinee->entry->succ[0];
+    start_ann->next            = bb->first_ins->annotations;
+    start_ann->type            = MVM_SPESH_ANN_INLINE_START;
+    start_ann->data.inline_idx = idx;
+    bb->first_ins->annotations = start_ann;
+
+    /* Now look for last instruction and annotate it. */
+    while (bb) {
+        if (!bb->linear_next) {
+            MVMSpeshAnn *end_ann      = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
+            end_ann->next             = bb->last_ins->annotations;
+            end_ann->type             = MVM_SPESH_ANN_INLINE_END;
+            end_ann->data.inline_idx  = idx;
+            bb->last_ins->annotations = end_ann;
+        }
+        bb = bb->linear_next;
+    }
+}
+
 /* Drives the overall inlining process. */
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                       MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
@@ -376,6 +418,9 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Re-write the argument passing instructions to poke values into the
      * appropriate slots. */
     rewrite_args(tc, inliner, inlinee, invoke_bb, call_info);
+
+    /* Annotate first and last instruction with inline table annotations. */
+    annotate_inline_start_end(tc, inliner, inlinee, inliner->num_inlines - 1);
 
      /* Finally, turn the invoke instruction into a goto. */
      invoke_ins->info = MVM_op_get_op(MVM_OP_goto);
