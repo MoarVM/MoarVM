@@ -53,6 +53,11 @@ struct MVMSpeshCandidate {
     /* Number of logging slots. */
     MVMuint32 num_log_slots;
 
+    /* Number of inlines and inlines table; see graph.h for description of
+     * the table format. */
+    MVMint32 num_inlines;
+    MVMSpeshInline *inlines;
+
     /* Number of locals the specialized code has (may be different from the
      * original frame thanks to inlining). */
     MVMuint16 num_locals;

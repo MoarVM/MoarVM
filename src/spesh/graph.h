@@ -52,9 +52,16 @@ struct MVMSpeshGraph {
     MVMint32  num_deopt_addrs;
     MVMint32  alloc_deopt_addrs;
 
+    /* Table of information about inlines, laid out in order of nesting
+     * depth. Thus, going through the table in order and finding when we
+     * are within the bounds will show up each call frame that needs to
+     * be created in deopt. */
+    MVMSpeshInline *inlines;
+    MVMint32 num_inlines;
+
     /* Logging slots, along with the number of them. */
-    MVMCollectable **log_slots;
     MVMint32 num_log_slots;
+    MVMCollectable **log_slots;
 
     /* Number of basic blocks we have. */
     MVMint32 num_bbs;
