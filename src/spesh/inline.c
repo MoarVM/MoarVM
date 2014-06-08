@@ -65,7 +65,8 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *ta
 }
 
 /* Merges the inlinee's spesh graph into the inliner. */
-void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *inlinee) {
+void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+                 MVMSpeshGraph *inlinee, MVMSpeshIns *invoke_ins) {
     MVMSpeshBB     *last_bb;
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
@@ -179,7 +180,29 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *in
         inlinee->num_inlines * sizeof(MVMSpeshInline));
     inliner->inlines[total_inlines - 1].sf             = inlinee->sf;
     inliner->inlines[total_inlines - 1].locals_start   = inliner->num_locals;
-    inliner->inlines[total_inlines - 1].lexicals_start = inliner->num_lexicals;
+    switch (invoke_ins->info->opcode) {
+    case MVM_OP_invoke_v:
+        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_VOID;
+        break;
+    case MVM_OP_invoke_o:
+        inliner->inlines[total_inlines - 1].res_reg = invoke_ins->operands[0].reg.orig;
+        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_OBJ;
+        break;
+    case MVM_OP_invoke_i:
+        inliner->inlines[total_inlines - 1].res_reg = invoke_ins->operands[0].reg.orig;
+        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_INT;
+        break;
+    case MVM_OP_invoke_n:
+        inliner->inlines[total_inlines - 1].res_reg = invoke_ins->operands[0].reg.orig;
+        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_NUM;
+        break;
+    case MVM_OP_invoke_s:
+        inliner->inlines[total_inlines - 1].res_reg = invoke_ins->operands[0].reg.orig;
+        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_STR;
+        break;
+    default:
+        MVM_exception_throw_adhoc(tc, "Spesh inline: unknown invoke instruction");
+    }
     inliner->num_inlines = total_inlines;
 
     /* Update total locals, lexicals, and basic blocks of the inliner. */
@@ -409,7 +432,7 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                       MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
                       MVMSpeshIns *invoke_ins, MVMSpeshGraph *inlinee) {
     /* Merge inlinee's graph into the inliner. */
-    merge_graph(tc, inliner, inlinee);
+    merge_graph(tc, inliner, inlinee, invoke_ins);
 
     /* Re-write returns to a set and goto. */
     rewrite_returns(tc, inliner, inlinee, invoke_bb, invoke_ins);
