@@ -163,7 +163,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
 /* Dumps the facts table. */
 static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     MVMuint16 i, j, num_locals, num_facts;
-    num_locals = g->sf->body.num_locals;
+    num_locals = g->num_locals;
     for (i = 0; i < num_locals; i++) {
         num_facts = g->fact_counts[i];
         for (j = 0; j < num_facts; j++) {
