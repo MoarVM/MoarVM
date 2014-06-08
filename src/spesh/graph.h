@@ -180,6 +180,7 @@ struct MVMSpeshAnn {
     union {
         MVMint32 frame_handler_index;
         MVMint32 deopt_idx;
+        MVMint32 inline_idx;
     } data;
 };
 
@@ -189,6 +190,8 @@ struct MVMSpeshAnn {
 #define MVM_SPESH_ANN_FH_GOTO       3
 #define MVM_SPESH_ANN_DEOPT_ONE_INS 4
 #define MVM_SPESH_ANN_DEOPT_ALL_INS 5
+#define MVM_SPESH_ANN_INLINE_START  6
+#define MVM_SPESH_ANN_INLINE_END    7
 
 /* Functions to create/destory the spesh graph. */
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf);
