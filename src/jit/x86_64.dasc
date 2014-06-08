@@ -1,10 +1,12 @@
 #include "moar.h"
 #include <dasm_proto.h>
 #include <dasm_x86.h>
+#include "emit.h"
 
 #define OFFSET_ENV offsetof(MVMFrame, env)
 #define OFFSET_ARGS offsetof(MVMFrame, args)
 #define OFFSET_WORK offsetof(MVMFrame, work)
+
 
 |.arch x64
 |.actionlist actions
@@ -13,20 +15,42 @@
  * So the rbx register will be set up to hold the work space base. */
 |.define WORK, rbx
 
+
 /* A function prologue is always the same in x86 / x64, becuase
  * we do not provide variable arguments, instead arguments are provided
  * via a frame. All JIT entry points receive prologue */
-void MVM_jit_gen_prologue(dasm_State **Dst) {
+void MVM_jit_emit_prologue(MVMThreadContext *tc, dasm_State **Dst) {
     | push rbp
     | mov rbp, rsp
-    | mov [rsp-8], rdi // thread context
-    | mov [rsp-16], rsi // frame
-    | mov WORK, [rsi + OFFSET_WORK]
+    | mov [rsp-8], rdi              // thread context
+    | mov [rsp-16], rsi             // frame
+    | mov WORK, [rsi + OFFSET_WORK] // work register base
 }
 
 /* And a function epilogue is also always the same */
-void MVM_jit_gen_epilogue(dasm_State **Dst) {
+void MVM_jit_emit_epilogue(MVMThreadContext *tc, dasm_State **Dst) {
     | pop rbp
     | ret
 }
 
+void MVM_jit_emit_c_call(MVMThreadContext *tc, MVMJitCCall * call_spec, dasm_State **Dst) {
+    int i;
+    if (call_spec->has_vargs) {
+        MVM_exception_throw_adhoc(tc, "JIT can't handle varargs yet");
+    }   
+    /* Set up for the call */
+    | sub rsp, 16 
+    | mov64 rbx, (uintptr_t)call_spec->func_ptr 
+    /* now add arguments */
+    for (i = 0; i < call_spec->num_args; i++) {
+        /* just kidding */
+        MVM_exception_throw_adhoc(tc, "JIT can't handle arguments yet");
+    }
+    /* emit a call */
+    | call rbx
+    /* restore our frame */
+    | add rsp, 16
+    /* and our work register pointer */
+    | mov WORK, [rsp-16]
+    | mov WORK, [WORK + OFFSET_WORK]
+}

@@ -71,7 +71,7 @@ struct MVMJitCCall {
     MVMJitNode node;
     void * func_ptr; // what do we call
     MVMuint16 num_args; // how many arguments we pass
-    MVMuint16 has_vargs; // if so, we need to declare that number in 
+    MVMuint16 has_vargs; // does the receiver consider them variable
 };
 
 

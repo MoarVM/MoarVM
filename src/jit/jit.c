@@ -3,6 +3,7 @@
 #include <sys/mman.h>
 #endif
 #include <dasm_proto.h>
+#include "emit.h"
 
 static struct MVMJitCCall opcode_func[] = {
 
