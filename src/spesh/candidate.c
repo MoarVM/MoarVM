@@ -88,6 +88,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
                     "Inserting logging for specialization of '%s' (cuid: %s)\n\n", c_name, c_cuid);
                 fprintf(tc->instance->spesh_log_fh,
                     "Before:\n%s\nAfter:\n%s\n\n========\n\n", before, after);
+                fflush(tc->instance->spesh_log_fh);
                 free(before);
                 free(after);
                 free(c_name);
@@ -129,6 +130,7 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
             "Finished specialization of '%s' (cuid: %s)\n\n", c_name, c_cuid);
         fprintf(tc->instance->spesh_log_fh,
             "%s\n\n========\n\n", dump);
+        fflush(tc->instance->spesh_log_fh);
         free(dump);
         free(c_name);
         free(c_cuid);
