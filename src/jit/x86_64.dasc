@@ -2,11 +2,24 @@
 #include <dasm_proto.h>
 #include <dasm_x86.h>
 
+
 |.arch x64
 |.actionlist actions
 
+/* A function prologue is always the same in x86 / x64, becuase
+ * we do not provide variable arguments, instead arguments are provided
+ * via a frame. All JIT entry points receive prologue */
+void MVM_jit_gen_prologue(dasm_State **Dst) {
+    | push rbp
+    | mov rbp, rsp
+    | mov [rsp-8], rdi
+    | mov [rp-16], rsi
+    /* TODO - move work register base to a suitable register */
+}
 
-void MVM_jit_generate(dasm_State **Dst, MVMSpeshGraph *graph) {
-    | mov rax, 3
+/* And a function epilogue is also always the same */
+void MVM_jit_gen_epilogue(dasm_State **Dst) {
+    | pop rbp
     | ret
 }
+
