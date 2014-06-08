@@ -160,6 +160,24 @@ void return_to_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *return_i
     return_ins->info          = MVM_op_get_op(MVM_OP_set);
     return_ins->operands      = operands;
 }
+void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *return_bb,
+                   MVMSpeshIns *return_ins, MVMSpeshOperand target,
+                   MVMuint16 box_type_op, MVMuint16 box_op) {
+    /* Create and insert boxing instruction after current return instruction. */
+    MVMSpeshIns      *box_ins     = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    MVMSpeshOperand *box_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+    box_ins->info                 = MVM_op_get_op(box_op);
+    box_ins->operands             = box_operands;
+    box_operands[0]               = target;
+    box_operands[1]               = return_ins->operands[0];
+    box_operands[2]               = target;
+    MVM_spesh_manipulate_insert_ins(tc, return_bb, return_ins, box_ins);
+
+    /* Now turn return instruction node into lookup of appropraite box
+     * type. */
+    return_ins->info        = MVM_op_get_op(box_type_op);
+    return_ins->operands[0] = target;
+}
 void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
                         MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
                         MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
@@ -169,6 +187,10 @@ void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
         break;
     case MVM_OP_invoke_i:
         return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
+        break;
+    case MVM_OP_invoke_o:
+        return_to_box(tc, g, return_bb, return_ins, invoke_ins->operands[0],
+            MVM_OP_hllboxtype_i, MVM_OP_box_i);
         break;
     default:
         MVM_exception_throw_adhoc(tc,
@@ -185,6 +207,10 @@ void rewrite_num_return(MVMThreadContext *tc, MVMSpeshGraph *g,
     case MVM_OP_invoke_n:
         return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
         break;
+    case MVM_OP_invoke_o:
+        return_to_box(tc, g, return_bb, return_ins, invoke_ins->operands[0],
+            MVM_OP_hllboxtype_n, MVM_OP_box_n);
+        break;
     default:
         MVM_exception_throw_adhoc(tc,
             "Spesh inline: unhandled case of return_n");
@@ -199,6 +225,10 @@ void rewrite_str_return(MVMThreadContext *tc, MVMSpeshGraph *g,
         break;
     case MVM_OP_invoke_s:
         return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
+        break;
+    case MVM_OP_invoke_o:
+        return_to_box(tc, g, return_bb, return_ins, invoke_ins->operands[0],
+            MVM_OP_hllboxtype_s, MVM_OP_box_s);
         break;
     default:
         MVM_exception_throw_adhoc(tc,
