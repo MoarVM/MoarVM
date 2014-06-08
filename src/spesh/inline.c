@@ -153,48 +153,67 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMSpeshGraph *in
 
 /* Finds return instructions and re-writes them into gotos, doing any needed
  * boxing or unboxing. */
-void rewrite_int_return(MVMThreadContext *tc, MVMSpeshBB *return_bb,
-                        MVMSpeshIns *return_ins, MVMSpeshBB *invoke_bb,
-                        MVMSpeshIns *invoke_ins) {
+void return_to_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *return_ins, MVMSpeshOperand target) {
+    MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+    operands[0]               = target;
+    operands[1]               = return_ins->operands[0];
+    return_ins->info          = MVM_op_get_op(MVM_OP_set);
+    return_ins->operands      = operands;
+}
+void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
+                        MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
+                        MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
     switch (invoke_ins->info->opcode) {
     case MVM_OP_invoke_v:
         MVM_spesh_manipulate_delete_ins(tc, return_bb, return_ins);
+        break;
+    case MVM_OP_invoke_i:
+        return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
         break;
     default:
         MVM_exception_throw_adhoc(tc,
             "Spesh inline: unhandled case of return_i");
     }
 }
-void rewrite_num_return(MVMThreadContext *tc, MVMSpeshBB *return_bb,
-                        MVMSpeshIns *return_ins, MVMSpeshBB *invoke_bb,
-                        MVMSpeshIns *invoke_ins) {
+void rewrite_num_return(MVMThreadContext *tc, MVMSpeshGraph *g,
+                        MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
+                        MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
     switch (invoke_ins->info->opcode) {
     case MVM_OP_invoke_v:
         MVM_spesh_manipulate_delete_ins(tc, return_bb, return_ins);
+        break;
+    case MVM_OP_invoke_n:
+        return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
         break;
     default:
         MVM_exception_throw_adhoc(tc,
             "Spesh inline: unhandled case of return_n");
     }
 }
-void rewrite_str_return(MVMThreadContext *tc, MVMSpeshBB *return_bb,
-                        MVMSpeshIns *return_ins, MVMSpeshBB *invoke_bb,
-                        MVMSpeshIns *invoke_ins) {
+void rewrite_str_return(MVMThreadContext *tc, MVMSpeshGraph *g,
+                        MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
+                        MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
     switch (invoke_ins->info->opcode) {
     case MVM_OP_invoke_v:
         MVM_spesh_manipulate_delete_ins(tc, return_bb, return_ins);
+        break;
+    case MVM_OP_invoke_s:
+        return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
         break;
     default:
         MVM_exception_throw_adhoc(tc,
             "Spesh inline: unhandled case of return_s");
     }
 }
-void rewrite_obj_return(MVMThreadContext *tc, MVMSpeshBB *return_bb,
-                        MVMSpeshIns *return_ins, MVMSpeshBB *invoke_bb,
-                        MVMSpeshIns *invoke_ins) {
+void rewrite_obj_return(MVMThreadContext *tc, MVMSpeshGraph *g,
+                        MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
+                        MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
     switch (invoke_ins->info->opcode) {
     case MVM_OP_invoke_v:
         MVM_spesh_manipulate_delete_ins(tc, return_bb, return_ins);
+        break;
+    case MVM_OP_invoke_o:
+        return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
         break;
     default:
         MVM_exception_throw_adhoc(tc,
@@ -212,35 +231,32 @@ void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             MVMuint16 opcode = ins->info->opcode;
             switch (opcode) {
             case MVM_OP_return:
-                if (invoke_ins->info->opcode == MVM_OP_invoke_v) {
+                if (invoke_ins->info->opcode == MVM_OP_invoke_v)
                     MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                         invoke_bb->succ[0]);
-                    MVM_spesh_manipulate_delete_ins(tc, bb, ins);
-                }
-                else {
+                else
                     MVM_exception_throw_adhoc(tc,
                         "Spesh inline: return_v/invoke_[!v] mismatch");
-                }
                 break;
             case MVM_OP_return_i:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                rewrite_int_return(tc, bb, ins, invoke_bb, invoke_ins);
+                rewrite_int_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_n:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                rewrite_num_return(tc, bb, ins, invoke_bb, invoke_ins);
+                rewrite_num_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_s:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                rewrite_str_return(tc, bb, ins, invoke_bb, invoke_ins);
+                rewrite_str_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_o:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                rewrite_obj_return(tc, bb, ins, invoke_bb, invoke_ins);
+                rewrite_obj_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             }
             ins = ins->next;
