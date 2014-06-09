@@ -6,49 +6,51 @@
 
 
 MVMJitGraph * MVM_jit_try_make_jit_graph(MVMThreadContext *tc, MVMSpeshGraph *spesh) {
-    /* right now i'm planning to only jit a few very simple things. */
-    MVMSpeshBB * current_bb;
-    MVMSpeshIns * current_ins;
+    MVMSpeshBB * current_bb = spesh->entry;
+    MVMSpeshIns * current_ins = current_bb->first_ins;
     MVMJitGraph * jit_graph;
-    MVMJitNode * current_node;
     if (spesh->num_bbs > 1) {
 	return NULL;
     }
-    /* set up the graph */
-    jit_graph = MVM_spesh_alloc(tc, spesh, sizeof(MVMJitGraph));
-    current_node = MVM_spesh_alloc(tc, spesh, sizeof(MVMJitNode));
-    
-    jit_graph->spesh = spesh;
-    jit_graph->entry = current_node;
-    current_bb = spesh->entry;
-    current_ins = current_bb->first_ins;
-
     while (current_ins) {
+	switch(current_ins->info->opcode) {
+	case MVM_OP_add_i:
+	case MVM_OP_const_i64:
+	case MVM_OP_return_i:
+	    break;
+	default:
+	    return NULL;
+	}
+	if (current_ins == current_bb->last_ins) // don't continue past the bb
+	    break;
 	current_ins = current_ins->next;
     }
-    /* finish the graph */
-    current_node->next = MVM_spesh_alloc(tc, spesh, sizeof(MVMJitNode));
-    current_node = current_node->next;
-
-    jit_graph->exit = current_node;
+    /* The jit graph is - for now - just a few pointers into the spesh graph */
+    jit_graph = MVM_spesh_alloc(tc, spesh, sizeof(MVMJitGraph));
+    jit_graph->entry = current_bb->first_ins;
+    jit_graph->exit = current_bb->last_ins;
     return jit_graph;
 }
 
 
 MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph) {
-    
     dasm_State *state;
     char * memory;
     size_t codesize;
-    
+    MVMSpeshIns *ins = graph->entry;
     dasm_init(&state, 1);
     dasm_setup(&state, MVM_jit_actions());
 
-    /* here we generate code */
+    /* generate code */
     MVM_jit_emit_prologue(tc, &state);
-    /* tumbleweed */
+    while (ins != graph->exit) {
+	MVM_jit_emit_instruction(tc, ins, &state);
+	ins = ins->next;
+    }
+    MVM_jit_emit_instruction(tc, ins, &state);
     MVM_jit_emit_epilogue(tc, &state);
-    
+
+    /* build the function */
     dasm_link(&state, &codesize);
     memory = MVM_platform_alloc_pages(codesize, MVM_PAGE_READ|MVM_PAGE_WRITE);
     dasm_encode(&state, memory);

@@ -1,28 +1,27 @@
-/* Whats the basic idea here? For now, an MVMJitGraph is simply a
- * linear stream of compilable instructions. The difference between
- * this and MVMSpeshGraph is that it contains information to help 
- * allocate registers and select instructions. 
- *
- * This isn't even my final form.
- */
 struct MVMJitGraph {
     MVMSpeshGraph * spesh;
-    MVMJitNode * entry;
-    MVMJitNode * exit;
+    MVMSpeshIns * entry;
+    MVMSpeshIns * exit;
 };
 
+typedef enum {
+    MVM_JIT_ARG_STACK, // relative to stack base
+    MVM_JIT_ARG_MOAR, // relative to register base
+    MVM_JIT_ARG_CONST, // constant number
+} MVMJitArgBase;
 
-struct MVMJitNode {
-    MVMJitNode * next;
+struct MVMJitCallArg {
+    MVMJitArgBase base;
+    MVMuint64 offset;
 };
-
 
 struct MVMJitCallC {
-    MVMJitNode node;
     void * func_ptr; // what do we call
+    MVMJitCallArg * args;
     MVMuint16 num_args; // how many arguments we pass
     MVMuint16 has_vargs; // does the receiver consider them variable
 };
+
 
 
 typedef void (*MVMJitCode)(MVMThreadContext *tc, MVMFrame *frame);
