@@ -22,11 +22,13 @@
 #endif
 #line 12 "src/jit/x86_64.dasc"
 //|.actionlist actions
-static const unsigned char actions[69] = {
+static const unsigned char actions[114] = {
   85,72,137,229,72,129,252,236,239,255,72,137,125,252,248,72,137,117,252,240,
   72,139,158,233,255,72,129,196,239,93,195,255,72,199,131,233,237,255,72,139,
-  131,233,72,3,131,233,72,137,131,233,255,72,187,237,237,252,255,211,255,72,
-  139,93,252,240,72,139,155,233,255
+  131,233,72,3,131,233,72,137,131,233,255,72,139,189,233,255,72,139,181,233,
+  255,72,139,149,233,255,72,139,187,233,255,72,139,179,233,255,72,139,147,233,
+  255,72,199,199,237,255,72,199,198,237,255,72,199,194,237,255,72,187,237,237,
+  252,255,211,255,72,139,93,252,240,72,139,155,233,255
 };
 
 #line 13 "src/jit/x86_64.dasc"
@@ -91,9 +93,9 @@ void MVM_jit_emit_instruction(MVMThreadContext *tc, MVMSpeshIns * ins, dasm_Stat
     }
     case MVM_OP_return_i: {
 	MVMJitCallC call_set_result;
-	MVMJitCallArg set_result_args[] = { { MVM_JIT_ARG_STACK, 8 },  
+	MVMJitCallArg set_result_args[] = { { MVM_JIT_ARG_STACK, 8 },
 					    { MVM_JIT_ARG_MOAR, ins->operands[0].reg.i },
-					    { MVM_JIT_ARG_CONST, 0 } }; 
+					    { MVM_JIT_ARG_CONST, 0 } };
 	call_set_result.func_ptr = (void*)&MVM_args_set_result_int;
 	call_set_result.args = set_result_args;
 	call_set_result.num_args = 3;
@@ -104,18 +106,78 @@ void MVM_jit_emit_instruction(MVMThreadContext *tc, MVMSpeshIns * ins, dasm_Stat
     default:
 	MVM_exception_throw_adhoc(tc, "Can't JIT opcode");
     }
-	
 }
 
 void MVM_jit_emit_c_call(MVMThreadContext *tc, MVMJitCallC * call_spec, dasm_State **Dst) {
     int i;
+    MVMJitCallArg *args = call_spec->args;
     if (call_spec->has_vargs) {
         MVM_exception_throw_adhoc(tc, "JIT can't handle varargs yet");
     }
     /* first, add arguments */
     for (i = 0; i < call_spec->num_args; i++) {
-        /* just kidding */
-        MVM_exception_throw_adhoc(tc, "JIT can't handle arguments yet");
+	if (i > 2) {
+	    MVM_exception_throw_adhoc(tc, "JIT can't handle more than 3 args yet");
+	}
+	switch (args[i].base) {
+	case MVM_JIT_ARG_STACK: {
+	    switch(i) {
+	    case 0:
+		//| mov rdi, [rbp-args[i].offset]
+		dasm_put(Dst, 51, -args[i].offset);
+#line 95 "src/jit/x86_64.dasc"
+		break;
+	    case 1:
+		//| mov rsi, [rbp-args[i].offset]
+		dasm_put(Dst, 56, -args[i].offset);
+#line 98 "src/jit/x86_64.dasc"
+		break;
+	    case 2:
+		//| mov rdx, [rbp-args[i].offset]
+		dasm_put(Dst, 61, -args[i].offset);
+#line 101 "src/jit/x86_64.dasc"
+		break;
+	    }
+	}
+	case MVM_JIT_ARG_MOAR: {
+	    switch(i) {
+	    case 0:
+		//| mov rdi, [WORK+args[i].offset]
+		dasm_put(Dst, 66, args[i].offset);
+#line 108 "src/jit/x86_64.dasc"
+		break;
+	    case 1:
+		//| mov rsi, [WORK+args[i].offset]
+		dasm_put(Dst, 71, args[i].offset);
+#line 111 "src/jit/x86_64.dasc"
+		break;
+	    case 2:
+		//| mov rdx, [WORK+args[i].offset]
+		dasm_put(Dst, 76, args[i].offset);
+#line 114 "src/jit/x86_64.dasc"
+		break;
+	    }
+	}
+	case MVM_JIT_ARG_CONST: {
+	    switch(i) {
+	    case 0:
+		//| mov rdi, args[i].offset
+		dasm_put(Dst, 81, args[i].offset);
+#line 121 "src/jit/x86_64.dasc"
+		break;
+	    case 1:
+		//| mov rsi, args[i].offset
+		dasm_put(Dst, 86, args[i].offset);
+#line 124 "src/jit/x86_64.dasc"
+		break;
+	    case 2:
+		//| mov rdx, args[i].offset
+		dasm_put(Dst, 91, args[i].offset);
+#line 127 "src/jit/x86_64.dasc"
+		break;
+	    }
+	}
+	}
     }
     /* Set up and emit the call. I re-use the work pointer register
      * because it has to be restored anyway and does not normally
@@ -125,11 +187,11 @@ void MVM_jit_emit_c_call(MVMThreadContext *tc, MVMJitCallC * call_spec, dasm_Sta
      * register pointer might be needed there. */
     //| mov64 WORK, (uintptr_t)call_spec->func_ptr
     //| call WORK
-    dasm_put(Dst, 51, (unsigned int)((uintptr_t)call_spec->func_ptr), (unsigned int)(((uintptr_t)call_spec->func_ptr)>>32));
-#line 98 "src/jit/x86_64.dasc"
+    dasm_put(Dst, 96, (unsigned int)((uintptr_t)call_spec->func_ptr), (unsigned int)(((uintptr_t)call_spec->func_ptr)>>32));
+#line 140 "src/jit/x86_64.dasc"
     /* Restore the work register pointer */
     //| mov WORK, [rbp-16]             // load the mvm frame
     //| mov WORK, [WORK + OFFSET_WORK] // load the work register pointer
-    dasm_put(Dst, 59, OFFSET_WORK);
-#line 101 "src/jit/x86_64.dasc"
+    dasm_put(Dst, 104, OFFSET_WORK);
+#line 143 "src/jit/x86_64.dasc"
 }

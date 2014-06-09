@@ -61,9 +61,9 @@ void MVM_jit_emit_instruction(MVMThreadContext *tc, MVMSpeshIns * ins, dasm_Stat
     }
     case MVM_OP_return_i: {
 	MVMJitCallC call_set_result;
-	MVMJitCallArg set_result_args[] = { { MVM_JIT_ARG_STACK, 8 },  
+	MVMJitCallArg set_result_args[] = { { MVM_JIT_ARG_STACK, 8 },
 					    { MVM_JIT_ARG_MOAR, ins->operands[0].reg.i },
-					    { MVM_JIT_ARG_CONST, 0 } }; 
+					    { MVM_JIT_ARG_CONST, 0 } };
 	call_set_result.func_ptr = (void*)&MVM_args_set_result_int;
 	call_set_result.args = set_result_args;
 	call_set_result.num_args = 3;
@@ -74,18 +74,60 @@ void MVM_jit_emit_instruction(MVMThreadContext *tc, MVMSpeshIns * ins, dasm_Stat
     default:
 	MVM_exception_throw_adhoc(tc, "Can't JIT opcode");
     }
-	
 }
 
 void MVM_jit_emit_c_call(MVMThreadContext *tc, MVMJitCallC * call_spec, dasm_State **Dst) {
     int i;
+    MVMJitCallArg *args = call_spec->args;
     if (call_spec->has_vargs) {
         MVM_exception_throw_adhoc(tc, "JIT can't handle varargs yet");
     }
     /* first, add arguments */
     for (i = 0; i < call_spec->num_args; i++) {
-        /* just kidding */
-        MVM_exception_throw_adhoc(tc, "JIT can't handle arguments yet");
+	if (i > 2) {
+	    MVM_exception_throw_adhoc(tc, "JIT can't handle more than 3 args yet");
+	}
+	switch (args[i].base) {
+	case MVM_JIT_ARG_STACK: {
+	    switch(i) {
+	    case 0:
+		| mov rdi, [rbp-args[i].offset]
+		break;
+	    case 1:
+		| mov rsi, [rbp-args[i].offset]
+		break;
+	    case 2:
+		| mov rdx, [rbp-args[i].offset]
+		break;
+	    }
+	}
+	case MVM_JIT_ARG_MOAR: {
+	    switch(i) {
+	    case 0:
+		| mov rdi, [WORK+args[i].offset]
+		break;
+	    case 1:
+		| mov rsi, [WORK+args[i].offset]
+		break;
+	    case 2:
+		| mov rdx, [WORK+args[i].offset]
+		break;
+	    }
+	}
+	case MVM_JIT_ARG_CONST: {
+	    switch(i) {
+	    case 0:
+		| mov rdi, args[i].offset
+		break;
+	    case 1:
+		| mov rsi, args[i].offset
+		break;
+	    case 2:
+		| mov rdx, args[i].offset
+		break;
+	    }
+	}
+	}
     }
     /* Set up and emit the call. I re-use the work pointer register
      * because it has to be restored anyway and does not normally
