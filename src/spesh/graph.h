@@ -66,6 +66,12 @@ struct MVMSpeshGraph {
     /* Number of basic blocks we have. */
     MVMint32 num_bbs;
 
+    /* The list of local types (only set up if we do inlines). */
+    MVMuint16 *local_types;
+
+    /* The list of lexical types (only set up if we do inlines). */
+    MVMuint16 *lexical_types;
+
     /* The total number of locals, accounting for any inlining done. */
     MVMuint16 num_locals;
 

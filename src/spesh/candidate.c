@@ -150,6 +150,8 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     candidate->num_lexicals  = sg->num_lexicals;
     candidate->num_inlines   = sg->num_inlines;
     candidate->inlines       = sg->inlines;
+    candidate->local_types   = sg->local_types;
+    candidate->lexical_types = sg->lexical_types;
     free(sc);
 
     /* Update spesh slots. */

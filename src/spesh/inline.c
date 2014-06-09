@@ -205,6 +205,28 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     }
     inliner->num_inlines = total_inlines;
 
+    /* Create/update per-specialization local and lexical type maps. */
+    if (!inliner->local_types) {
+        MVMint32 local_types_size = inliner->num_locals * sizeof(MVMuint16);
+        inliner->local_types = malloc(local_types_size);
+        memcpy(inliner->local_types, inliner->sf->body.local_types, local_types_size);
+    }
+    inliner->local_types = realloc(inliner->local_types,
+        (inliner->num_locals + inlinee->num_locals) * sizeof(MVMuint16));
+    memcpy(inliner->local_types + inliner->num_locals,
+        inlinee->local_types ? inlinee->local_types : inlinee->sf->body.local_types,
+        inlinee->num_locals * sizeof(MVMuint16));
+    if (!inliner->lexical_types) {
+        MVMint32 lexical_types_size = inliner->num_lexicals * sizeof(MVMuint16);
+        inliner->lexical_types = malloc(lexical_types_size);
+        memcpy(inliner->lexical_types, inliner->sf->body.lexical_types, lexical_types_size);
+    }
+    inliner->lexical_types = realloc(inliner->lexical_types,
+        (inliner->num_lexicals + inlinee->num_lexicals) * sizeof(MVMuint16));
+    memcpy(inliner->lexical_types + inliner->num_lexicals,
+        inlinee->lexical_types ? inlinee->lexical_types : inlinee->sf->body.lexical_types,
+        inlinee->num_lexicals * sizeof(MVMuint16));
+
     /* Update total locals, lexicals, and basic blocks of the inliner. */
     inliner->num_bbs      += inlinee->num_bbs - 1;
     inliner->num_locals   += inlinee->num_locals;

@@ -1048,6 +1048,8 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->deopt_addrs       = cand->deopts;
     g->num_deopt_addrs   = cand->num_deopts;
     g->alloc_deopt_addrs = cand->num_deopts;
+    g->local_types       = cand->local_types;
+    g->lexical_types     = cand->lexical_types;
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (!sf->body.invoked) {

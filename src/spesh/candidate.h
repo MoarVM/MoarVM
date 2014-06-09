@@ -58,6 +58,12 @@ struct MVMSpeshCandidate {
     MVMint32 num_inlines;
     MVMSpeshInline *inlines;
 
+    /* The list of local types (only set up if we do inlines). */
+    MVMuint16 *local_types;
+
+    /* The list of lexical types (only set up if we do inlines). */
+    MVMuint16 *lexical_types;
+
     /* Number of locals the specialized code has (may be different from the
      * original frame thanks to inlining). */
     MVMuint16 num_locals;
