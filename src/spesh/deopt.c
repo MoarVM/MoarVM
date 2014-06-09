@@ -4,14 +4,6 @@
  * back out of it, because some assumption it made has been invalidated. This
  * file contains implementations of those various forms of de-opt. */
 
-static MVMint32 find_offset_or_die(MVMThreadContext *tc, MVMSpeshCandidate *cand, MVMint32 offset) {
-    MVMint32 i;
-    for (i = 0; i < cand->num_deopts * 2; i += 2)
-        if (cand->deopts[i + 1] == offset)
-            return cand->deopts[i + 1];
-    MVM_panic(1, "Spesh deopt: failed to uninline; deopt offset %d not found\n", offset);
-}
-
 /* If we have to deopt inside of a frame containing inlines, and we're in
  * an inlined frame at the point we hit deopt, we need to undo the inlining
  * by switching all levels of inlined frame out for a bunch of frames that
@@ -21,7 +13,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
     MVMFrame      *last_uninlined = NULL;
     MVMuint16      last_res_reg;
     MVMReturnType  last_res_type;
-    MVMuint32      last_ret_addr;
+    MVMuint32      last_return_deopt_idx;
     MVMint32 i;
     for (i = 0; i < cand->num_inlines; i++) {
         if (offset >= cand->inlines[i].start && offset < cand->inlines[i].end) {
@@ -52,16 +44,16 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             /* Update tracking variables for last uninline. Note that we know
              * an inline ends with a goto, which is how we're able to find a
              * return address offset. */
-            last_uninlined = uf;
-            last_res_reg   = cand->inlines[i].res_reg;
-            last_res_type  = cand->inlines[i].res_type;
-            last_ret_addr  = *((MVMuint32 *)(f->effective_bytecode + cand->inlines[i].end + 2));
+            last_uninlined        = uf;
+            last_res_reg          = cand->inlines[i].res_reg;
+            last_res_type         = cand->inlines[i].res_type;
+            last_return_deopt_idx = cand->inlines[i].return_deopt_idx;
         }
     }
     if (last_uninlined) {
         /* Set return address, which we need to resolve to the deopt'd one. */
         f->return_address = f->static_info->body.bytecode +
-            find_offset_or_die(tc, cand, last_ret_addr);
+            cand->deopts[2 * last_return_deopt_idx];
 
         /* Set result type and register. */
         f->return_type = last_res_type;

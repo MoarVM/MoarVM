@@ -64,6 +64,17 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *ta
     return NULL;
 }
 
+/* Finds the deopt index of the return. */
+MVMint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *invoke_ins) {
+    MVMSpeshAnn *ann = invoke_ins->annotations;
+    while (ann) {
+        if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS)
+            return ann->data.deopt_idx;
+        ann = ann->next;
+    }
+    MVM_exception_throw_adhoc(tc, "Spesh inline: return_deopt_idx failed");
+}
+
 /* Merges the inlinee's spesh graph into the inliner. */
 void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMSpeshIns *invoke_ins) {
@@ -203,6 +214,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     default:
         MVM_exception_throw_adhoc(tc, "Spesh inline: unknown invoke instruction");
     }
+    inliner->inlines[total_inlines - 1].return_deopt_idx = return_deopt_idx(tc, invoke_ins);
     inliner->num_inlines = total_inlines;
 
     /* Create/update per-specialization local and lexical type maps. */

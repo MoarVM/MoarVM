@@ -19,6 +19,9 @@ struct MVMSpeshInline {
     /* Result register and result type. */
     MVMuint16     res_reg;
     MVMReturnType res_type;
+
+    /* Deopt index used to find return address. */
+    MVMuint32 return_deopt_idx;
 };
 
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *target,
