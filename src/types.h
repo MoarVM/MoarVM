@@ -177,4 +177,4 @@ typedef struct MVMJitGraph MVMJitGraph;
 typedef struct MVMJitNode MVMJitNode;
 typedef struct MVMJitStore MVMJitStore;
 typedef struct MVMJitValue MVMJitValue;
-typedef struct MVMJitCCall MVMJitCCall;
+typedef struct MVMJitCallC MVMJitCallC;

@@ -6,7 +6,7 @@
 #define OFFSET_ENV offsetof(MVMFrame, env)
 #define OFFSET_ARGS offsetof(MVMFrame, args)
 #define OFFSET_WORK offsetof(MVMFrame, work)
-
+#define JIT_FRAME_SIZE 16
 
 |.arch x64
 |.actionlist actions
@@ -15,42 +15,50 @@
  * So the rbx register will be set up to hold the work space base. */
 |.define WORK, rbx
 
+const unsigned char * MVM_jit_actions(void) {
+    return actions;
+}
 
 /* A function prologue is always the same in x86 / x64, becuase
  * we do not provide variable arguments, instead arguments are provided
  * via a frame. All JIT entry points receive prologue */
 void MVM_jit_emit_prologue(MVMThreadContext *tc, dasm_State **Dst) {
+    /* set up our C call frame, i.e. allocate stack space*/
     | push rbp
     | mov rbp, rsp
-    | mov [rsp-8], rdi              // thread context
-    | mov [rsp-16], rsi             // frame
+    | sub rsp, JIT_FRAME_SIZE
+
+    | mov [rbp-8], rdi              // thread context
+    | mov [rbp-16], rsi             // mvm frame
     | mov WORK, [rsi + OFFSET_WORK] // work register base
 }
 
 /* And a function epilogue is also always the same */
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, dasm_State **Dst) {
+    | add rsp, JIT_FRAME_SIZE
     | pop rbp
     | ret
 }
 
-void MVM_jit_emit_c_call(MVMThreadContext *tc, MVMJitCCall * call_spec, dasm_State **Dst) {
+void MVM_jit_emit_c_call(MVMThreadContext *tc, MVMJitCallC * call_spec, dasm_State **Dst) {
     int i;
     if (call_spec->has_vargs) {
         MVM_exception_throw_adhoc(tc, "JIT can't handle varargs yet");
-    }   
-    /* Set up for the call */
-    | sub rsp, 16 
-    | mov64 rbx, (uintptr_t)call_spec->func_ptr 
-    /* now add arguments */
+    }
+    /* first, add arguments */
     for (i = 0; i < call_spec->num_args; i++) {
         /* just kidding */
         MVM_exception_throw_adhoc(tc, "JIT can't handle arguments yet");
     }
-    /* emit a call */
-    | call rbx
-    /* restore our frame */
-    | add rsp, 16
-    /* and our work register pointer */
-    | mov WORK, [rsp-16]
-    | mov WORK, [WORK + OFFSET_WORK]
+    /* Set up and emit the call. I re-use the work pointer register
+     * because it has to be restored anyway and does not normally
+     * participate in argument passing, so it is 'free'. Also, rax
+     * is unavailable as it has to hold the number of arguments on the
+     * stack. I've moved this below the argument setup as the work
+     * register pointer might be needed there. */
+    | mov64 WORK, (uintptr_t)call_spec->func_ptr
+    | call WORK
+    /* Restore the work register pointer */
+    | mov WORK, [rbp-16]             // load the mvm frame
+    | mov WORK, [WORK + OFFSET_WORK] // load the work register pointer
 }
