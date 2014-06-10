@@ -7,7 +7,8 @@
 /* If we have to deopt inside of a frame containing inlines, and we're in
  * an inlined frame at the point we hit deopt, we need to undo the inlining
  * by switching all levels of inlined frame out for a bunch of frames that
- * are running the de-optimized code. */
+ * are running the de-optimized code. We may, of course, be in the original,
+ * non-inline, bit of the code - in which case we've nothing to do. */
 static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                      MVMint32 offset, MVMint32 deopt_offset) {
     MVMFrame      *last_uninlined = NULL;
@@ -29,8 +30,26 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
 
             /* Did we already uninline a frame? */
             if (last_uninlined) {
-                /* Yes; multi-level un-inline. */
-                MVM_exception_throw_adhoc(tc, "Multi-level uninline NYI");
+                /* Yes; multi-level un-inline. Switch it back to deopt'd
+                 * code. */
+                uf->effective_bytecode    = uf->static_info->body.bytecode;
+                uf->effective_handlers    = uf->static_info->body.handlers;
+                uf->effective_spesh_slots = NULL;
+                uf->spesh_cand            = NULL;
+
+                /* Set up the return location. */
+                uf->return_address = uf->static_info->body.bytecode +
+                    cand->deopts[2 * last_return_deopt_idx];
+
+                /* Set result type and register. */
+                uf->return_type = last_res_type;
+                if (last_res_type == MVM_RETURN_VOID)
+                    uf->return_value = NULL;
+                else
+                    uf->return_value = uf->work + last_res_reg;
+
+                /* Set up last uninlined's caller to us. */
+                last_uninlined->caller = MVM_frame_inc_ref(tc, uf);
             }
             else {
                 /* No, so this is where we'll point the interpreter. */
@@ -66,8 +85,9 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
         last_uninlined->caller = MVM_frame_inc_ref(tc, f);
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Failed to uninline in '%s'\n",
-            MVM_string_utf8_encode_C_string(tc, f->static_info->body.name));
+        /* Weren't in an inline after all; just move control to deopt'd. */
+        *(tc->interp_cur_op)         = f->static_info->body.bytecode + deopt_offset;
+        *(tc->interp_bytecode_start) = f->static_info->body.bytecode;
     }
 }
 
