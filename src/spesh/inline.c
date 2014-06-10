@@ -137,11 +137,6 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         if (!bb->linear_next) {
             /* Found the end; insert and we're done. */
             bb->linear_next = inlinee->entry->linear_next;
-            /* XXX Hack until we properly incorporate things... */
-            bb->num_succ = 1;
-            bb->succ = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshBB *));
-            bb->succ[0] = bb->linear_next;
-            /* XXX End hack. */
             bb = NULL;
         }
         else {
@@ -243,6 +238,26 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     inliner->num_bbs      += inlinee->num_bbs - 1;
     inliner->num_locals   += inlinee->num_locals;
     inliner->num_lexicals += inlinee->num_lexicals;
+}
+
+/* Tweak the successor of a BB, also updating the target BBs pred. */
+static void tweak_succ(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *new_succ) {
+    if (bb->num_succ == 0) {
+        bb->succ = malloc(sizeof(MVMSpeshBB *));
+        bb->num_succ = 1;
+    }
+    if (bb->num_succ == 1)
+        bb->succ[0] = new_succ;
+    else
+        MVM_exception_throw_adhoc(tc, "Spesh inline: unexpected num_succ");
+    if (new_succ->num_pred == 0) {
+        new_succ->pred = malloc(sizeof(MVMSpeshBB *));
+        new_succ->num_pred = 1;
+    }
+    if (new_succ->num_pred == 1)
+        new_succ->pred[0] = bb;
+    else
+        MVM_exception_throw_adhoc(tc, "Spesh inline: unexpected num_pred");
 }
 
 /* Finds return instructions and re-writes them into gotos, doing any needed
@@ -355,31 +370,38 @@ void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             MVMuint16 opcode = ins->info->opcode;
             switch (opcode) {
             case MVM_OP_return:
-                if (invoke_ins->info->opcode == MVM_OP_invoke_v)
+                if (invoke_ins->info->opcode == MVM_OP_invoke_v) {
                     MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                         invoke_bb->succ[0]);
-                else
+                    tweak_succ(tc, bb, invoke_bb->succ[0]);
+                }
+                else {
                     MVM_exception_throw_adhoc(tc,
                         "Spesh inline: return_v/invoke_[!v] mismatch");
+                }
                 break;
             case MVM_OP_return_i:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
+                tweak_succ(tc, bb, invoke_bb->succ[0]);
                 rewrite_int_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_n:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
+                tweak_succ(tc, bb, invoke_bb->succ[0]);
                 rewrite_num_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_s:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
+                tweak_succ(tc, bb, invoke_bb->succ[0]);
                 rewrite_str_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_o:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
+                tweak_succ(tc, bb, invoke_bb->succ[0]);
                 rewrite_obj_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             }
@@ -478,7 +500,8 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Annotate first and last instruction with inline table annotations. */
     annotate_inline_start_end(tc, inliner, inlinee, inliner->num_inlines - 1);
 
-     /* Finally, turn the invoke instruction into a goto. */
-     invoke_ins->info = MVM_op_get_op(MVM_OP_goto);
-     invoke_ins->operands[0].ins_bb = inlinee->entry->linear_next;
+    /* Finally, turn the invoke instruction into a goto. */
+    invoke_ins->info = MVM_op_get_op(MVM_OP_goto);
+    invoke_ins->operands[0].ins_bb = inlinee->entry->linear_next;
+    tweak_succ(tc, invoke_bb, inlinee->entry->linear_next);
 }
