@@ -111,6 +111,9 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
                     f->effective_handlers    = f->static_info->body.handlers;
                     f->effective_spesh_slots = NULL;
                     f->spesh_cand            = NULL;
+                    /*fprintf(stderr, "did deopt_one for %s (%i) with uninlining\n",
+                        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+                        i / 2);*/
                 }
                 else {
                     /* No inlining; simple case. Switch back to the original code. */
@@ -120,7 +123,7 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
                     *(tc->interp_bytecode_start) = f->effective_bytecode;
                     f->effective_spesh_slots     = NULL;
                     f->spesh_cand                = NULL;
-                    /*printf("did deopt_one for %s (%i)\n",
+                    /*fprintf(stderr, "did deopt_one for %s (%i)\n",
                         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
                         i / 2);*/
                 }
