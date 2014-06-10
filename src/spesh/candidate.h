@@ -52,6 +52,12 @@ struct MVMSpeshCandidate {
 
     /* Number of logging slots. */
     MVMuint32 num_log_slots;
+    
+    /* Function pointer to the JIT-ed function */
+    MVMJitCode jitcode;
+
+    /* Size of jit code (to be able to free it) */
+    size_t jitcode_size;
 };
 
 /* The number of specializations we'll allow per static frame. */

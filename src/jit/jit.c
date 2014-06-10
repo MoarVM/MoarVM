@@ -4,7 +4,7 @@
 #include "emit.h"
 
 
-MVMJitGraph * MVM_jit_try_make_jit_graph(MVMThreadContext *tc, MVMSpeshGraph *spesh) {
+MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *spesh) {
     MVMSpeshBB * current_bb = spesh->entry;
     MVMSpeshIns * current_ins = current_bb->first_ins;
     MVMJitGraph * jit_graph;
@@ -32,11 +32,12 @@ MVMJitGraph * MVM_jit_try_make_jit_graph(MVMThreadContext *tc, MVMSpeshGraph *sp
 }
 
 
-MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph) {
+MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph, size_t *codesize_out) {
     dasm_State *state;
     char * memory;
     size_t codesize;
     MVMSpeshIns *ins = graph->entry;
+    /* setup dasm */
     dasm_init(&state, 1);
     dasm_setup(&state, MVM_jit_actions());
 
@@ -49,11 +50,13 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph) {
     MVM_jit_emit_instruction(tc, ins, &state);
     MVM_jit_emit_epilogue(tc, &state);
 
-    /* build the function */
+    /* compile the function */
     dasm_link(&state, &codesize);
     memory = MVM_platform_alloc_pages(codesize, MVM_PAGE_READ|MVM_PAGE_WRITE);
     dasm_encode(&state, memory);
+    /* protect memory from being overwritten */
     MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC);
-
+    
+    *codesize_out = codesize;
     return (MVMJitCode)memory;
 }

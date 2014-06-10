@@ -109,7 +109,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
 void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMSpeshCandidate *candidate) {
     MVMSpeshCode *sc;
-
+    MVMJitGraph *jg;
+    MVMJitCode jc;
     /* Obtain the graph, add facts, and do optimization work. */
     MVMSpeshGraph *sg = candidate->sg;
     MVM_spesh_facts_discover(tc, sg);
@@ -128,18 +129,38 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
         free(c_name);
         free(c_cuid);
     }
-
-    /* Generate code, and replace that in the candidate. */
-    sc = MVM_spesh_codegen(tc, sg);
-    free(candidate->bytecode);
-    if (candidate->handlers)
-        free(candidate->handlers);
-    candidate->bytecode      = sc->bytecode;
-    candidate->bytecode_size = sc->bytecode_size;
-    candidate->handlers      = sc->handlers;
-    candidate->num_deopts    = sg->num_deopt_addrs;
-    candidate->deopts        = sg->deopt_addrs;
-    free(sc);
+    /* Try to JIT compile the optimised graph. The JIT graph hangs off
+     * of the spesh graph and can safely be deleted with it. */
+    jg = MVM_jit_try_make_graph(tc, sg);
+    if (jg != NULL) {
+	jc = MVM_jit_compile_graph(tc, jg, &candidate->jitcode_size);
+	candidate->jitcode = jc;
+	if (tc->instance->spesh_log_fh) {
+	    int i = 0; 
+	    MVMuint8 * mem = (char*)jc;
+	    int num_qw = candidate->jitcode_size / sizeof(MVMuint64);
+	    fprintf(tc->instance->spesh_log_fh, "Made JIT compiled function: Bytecode Dump\n\n");
+	    for (i = 0; i < candidate->jitcode_size; i++) {
+		fprintf(tc->instance->spesh_log_fh, "%02X%c", mem[i], 
+			((i + 1) % 64) == 0 ? '\n' : ' ');
+	    }
+	    fprintf(tc->instance->spesh_log_fh, "\n\n");
+	}
+	/* We have nothing for exceptions, deopt, etc. yet. */
+    }
+    else {
+	/* Generate code, and replace that in the candidate. */
+	sc = MVM_spesh_codegen(tc, sg);
+	free(candidate->bytecode);
+	if (candidate->handlers)
+	    free(candidate->handlers);
+	candidate->bytecode      = sc->bytecode;
+	candidate->bytecode_size = sc->bytecode_size;
+	candidate->handlers      = sc->handlers;
+	candidate->num_deopts    = sg->num_deopt_addrs;
+	candidate->deopts        = sg->deopt_addrs;
+	free(sc);
+    }
 
     /* Update spesh slots. */
     candidate->num_spesh_slots = sg->num_spesh_slots;
