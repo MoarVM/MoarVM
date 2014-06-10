@@ -4,7 +4,6 @@
 #include "emit.h"
 
 
-
 MVMJitGraph * MVM_jit_try_make_jit_graph(MVMThreadContext *tc, MVMSpeshGraph *spesh) {
     MVMSpeshBB * current_bb = spesh->entry;
     MVMSpeshIns * current_ins = current_bb->first_ins;

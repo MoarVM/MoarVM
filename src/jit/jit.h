@@ -24,7 +24,7 @@ struct MVMJitCallC {
 
 
 
-typedef void (*MVMJitCode)(MVMThreadContext *tc, MVMFrame *frame);
+
 
 MVMJitGraph* MVM_jit_try_make_jit_graph(MVMThreadContext *tc, MVMSpeshGraph *spesh);
 MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);

@@ -3,17 +3,47 @@
 #include <dasm_x86.h>
 #include "emit.h"
 
-#define OFFSET_ENV offsetof(MVMFrame, env)
-#define OFFSET_ARGS offsetof(MVMFrame, args)
-#define OFFSET_WORK offsetof(MVMFrame, work)
-#define JIT_FRAME_SIZE 16
-
 |.arch x64
 |.actionlist actions
 
-/* The 'work' registers that MVM supplies will be referenced a lot.
- * So the rbx register will be set up to hold the work space base. */
-|.define WORK, rbx
+#define JIT_FRAME_SIZE 16
+
+/* Type maps for work and frame registers. This is fragile. */
+|.type WORK, MVMRegister, r15
+|.type FRAME, MVMFrame, r14
+
+|.macro addarg, i, val
+||switch(i) {
+||    case 0:
+|         mov rdi, val
+||        break;
+||    case 1:
+|         mov rsi, val
+||        break;
+||    case 2:
+|         mov rdx, val
+||        break;
+||    case 3:
+|         mov rcx, val
+||        break;
+||    case 4:
+|         mov r8, val
+||        break;
+||    case 5:
+|         mov r9, val
+||        break;
+||    default:
+||        MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
+||}
+|.endmacro
+
+
+
+|.macro setup, loc
+| mov FRAME, loc
+| mov WORK, FRAME->work
+|.endmacro
+
 
 const unsigned char * MVM_jit_actions(void) {
     return actions;
@@ -27,14 +57,14 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, dasm_State **Dst) {
     | push rbp
     | mov rbp, rsp
     | sub rsp, JIT_FRAME_SIZE
-
     | mov [rbp-8], rdi              // thread context
     | mov [rbp-16], rsi             // mvm frame
-    | mov WORK, [rsi + OFFSET_WORK] // work register base
+    | setup rsi                     // setup our work registers
 }
 
 /* And a function epilogue is also always the same */
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, dasm_State **Dst) {
+    |->jit_exit:
     | add rsp, JIT_FRAME_SIZE
     | pop rbp
     | ret
@@ -46,7 +76,7 @@ void MVM_jit_emit_instruction(MVMThreadContext *tc, MVMSpeshIns * ins, dasm_Stat
     case MVM_OP_const_i64: {
 	MVMint32 reg = ins->operands[0].reg.i;
 	MVMint64 val = ins->operands[1].lit_i64;
-	| mov [WORK + reg], qword val
+	| mov WORK[reg], qword val
 	break;
     }
     case MVM_OP_add_i: {
@@ -54,9 +84,9 @@ void MVM_jit_emit_instruction(MVMThreadContext *tc, MVMSpeshIns * ins, dasm_Stat
 	MVMint32 reg_a = ins->operands[0].reg.i;
 	MVMint32 reg_b = ins->operands[1].reg.i;
 	MVMint32 reg_c = ins->operands[2].reg.i;
-	| mov rax, [WORK + reg_b]
-        | add rax, [WORK + reg_c]
-        | mov [WORK + reg_c], rax
+	| mov rax, WORK[reg_b]
+        | add rax, WORK[reg_c]
+        | mov WORK[reg_a], rax
         break;
     }
     case MVM_OP_return_i: {
@@ -69,6 +99,7 @@ void MVM_jit_emit_instruction(MVMThreadContext *tc, MVMSpeshIns * ins, dasm_Stat
 	call_set_result.num_args = 3;
 	call_set_result.has_vargs = 0;
 	MVM_jit_emit_c_call(tc, &call_set_result, Dst);
+	| jmp ->exit
 	break;
     }
     default:
@@ -84,60 +115,17 @@ void MVM_jit_emit_c_call(MVMThreadContext *tc, MVMJitCallC * call_spec, dasm_Sta
     }
     /* first, add arguments */
     for (i = 0; i < call_spec->num_args; i++) {
-	if (i > 2) {
-	    MVM_exception_throw_adhoc(tc, "JIT can't handle more than 3 args yet");
-	}
 	switch (args[i].base) {
-	case MVM_JIT_ARG_STACK: {
-	    switch(i) {
-	    case 0:
-		| mov rdi, [rbp-args[i].offset]
-		break;
-	    case 1:
-		| mov rsi, [rbp-args[i].offset]
-		break;
-	    case 2:
-		| mov rdx, [rbp-args[i].offset]
-		break;
-	    }
-	}
-	case MVM_JIT_ARG_MOAR: {
-	    switch(i) {
-	    case 0:
-		| mov rdi, [WORK+args[i].offset]
-		break;
-	    case 1:
-		| mov rsi, [WORK+args[i].offset]
-		break;
-	    case 2:
-		| mov rdx, [WORK+args[i].offset]
-		break;
-	    }
-	}
-	case MVM_JIT_ARG_CONST: {
-	    switch(i) {
-	    case 0:
-		| mov rdi, args[i].offset
-		break;
-	    case 1:
-		| mov rsi, args[i].offset
-		break;
-	    case 2:
-		| mov rdx, args[i].offset
-		break;
-	    }
-	}
+	case MVM_JIT_ARG_STACK:
+	    | addarg i, [rsp-args[i].offset]
+	case MVM_JIT_ARG_MOAR: 
+	    | addarg i, WORK[args[i].offset]
+	case MVM_JIT_ARG_CONST: 
+	    | addarg i, args[i].offset
 	}
     }
-    /* Set up and emit the call. I re-use the work pointer register
-     * because it has to be restored anyway and does not normally
-     * participate in argument passing, so it is 'free'. Also, rax
-     * is unavailable as it has to hold the number of arguments on the
-     * stack. I've moved this below the argument setup as the work
-     * register pointer might be needed there. */
-    | mov64 WORK, (uintptr_t)call_spec->func_ptr
-    | call WORK
+    | mov64 r10, (uintptr_t)call_spec->func_ptr
+    | call r10
     /* Restore the work register pointer */
-    | mov WORK, [rbp-16]             // load the mvm frame
-    | mov WORK, [WORK + OFFSET_WORK] // load the work register pointer
+    | setup [rbp-16]
 }
