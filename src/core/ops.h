@@ -639,6 +639,7 @@
 #define MVM_OP_sp_p6obind_i 635
 #define MVM_OP_sp_p6obind_n 636
 #define MVM_OP_sp_p6obind_s 637
+#define MVM_OP_sp_jit_enter 638
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

@@ -639,7 +639,7 @@ static const void * const LABELS[] = {
     &&OP_sp_p6obind_i,
     &&OP_sp_p6obind_n,
     &&OP_sp_p6obind_s,
-    NULL,
+    &&OP_sp_jit_enter,
     NULL,
     NULL,
     NULL,

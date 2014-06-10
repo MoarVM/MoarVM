@@ -60,3 +60,10 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph, size_
     *codesize_out = codesize;
     return (MVMJitCode)memory;
 }
+
+MVMuint8 * MVM_jit_magic_bytecode(MVMThreadContext *tc, MVMuint32 *magic_bytecode_size_out) {
+    MVMuint16 magic_bytecode[] = { MVM_OP_sp_jit_enter, 0 };
+    MVMuint8 * magic_block = malloc(sizeof(magic_bytecode));
+    *magic_bytecode_size_out = sizeof(magic_bytecode);
+    return memcpy(magic_block, magic_bytecode, sizeof(magic_bytecode));
+}

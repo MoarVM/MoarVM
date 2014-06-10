@@ -146,6 +146,9 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
 	    }
 	    fprintf(tc->instance->spesh_log_fh, "\n\n");
 	}
+        /* Add special bytecode for invoking the jit code */
+        free(candidate->bytecode);
+        candidate->bytecode = MVM_jit_magic_bytecode(tc, &candidate->bytecode_size);
 	/* We have nothing for exceptions, deopt, etc. yet. */
     }
     else {

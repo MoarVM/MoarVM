@@ -704,3 +704,6 @@ sp_p6obind_o     .s r(obj) int16 r(obj)
 sp_p6obind_i     .s r(obj) int16 r(int64)
 sp_p6obind_n     .s r(obj) int16 r(num64)
 sp_p6obind_s     .s r(obj) int16 r(str)
+
+# Enter the JIT
+sp_jit_enter      .s w(obj)

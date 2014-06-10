@@ -4601,6 +4601,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_jit_enter): {
+                if (tc->cur_frame->spesh_cand->jitcode == NULL) {
+                    MVM_exception_throw_adhoc(tc, "Try to enter NULL jitcode");
+                }
+                tc->cur_frame->spesh_cand->jitcode(tc, tc->cur_frame, NULL);
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
