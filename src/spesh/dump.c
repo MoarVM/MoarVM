@@ -145,6 +145,9 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             free(cstr);
                             break;
                         }
+                        case MVM_operand_spesh_slot:
+                            appendf(ds, "sslot(%d)", cur_ins->operands[i].lit_i16);
+                            break;
                         default:
                             append(ds, "<nyi(lit)>");
                         }
