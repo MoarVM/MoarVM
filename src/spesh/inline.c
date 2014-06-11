@@ -90,6 +90,34 @@ static void fix_str(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     MVMSpeshGraph *inlinee, MVMSpeshOperand *to_fix) {
     MVM_exception_throw_adhoc(tc, "Spesh inline: fix_str NYI");
 }
+static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+                     MVMSpeshGraph *inlinee, MVMSpeshIns *to_fix) {
+    /* Resolve object, then just put it into a spesh slot. (Could do some
+     * smarter things like trying to see if the SC is referenced by both
+     * compilation units, too.) */
+    MVMCompUnit *cu  = inlinee->sf->body.cu;
+    MVMint16     dep = to_fix->operands[1].lit_i16;
+    MVMint64     idx = to_fix->info->opcode == MVM_OP_wval
+        ? to_fix->operands[2].lit_i16
+        : to_fix->operands[2].lit_i64;
+    if (dep >= 0 && dep < cu->body.num_scs) {
+        MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
+        if (sc) {
+            MVMObject *obj = MVM_sc_get_object(tc, sc, idx);
+            MVMint16   ss  = MVM_spesh_add_spesh_slot(tc, inliner, (MVMCollectable *)obj);
+            to_fix->info   = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+            to_fix->operands[0].lit_i16 = ss;
+        }
+        else {
+            MVM_exception_throw_adhoc(tc,
+                "Spesh inline: SC not yet resolved; lookup failed");
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Spesh inline: invalid SC index found");
+    }
+}
 
 /* Merges the inlinee's spesh graph into the inliner. */
 void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
@@ -109,7 +137,8 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
-            MVMSpeshAnn *ann = ins->annotations;
+            MVMuint16    opcode = ins->info->opcode;
+            MVMSpeshAnn *ann    = ins->annotations;
             while (ann) {
                 switch (ann->type) {
                 case MVM_SPESH_ANN_DEOPT_INLINE:
@@ -123,7 +152,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 ann = ann->next;
             }
 
-            if (ins->info->opcode == MVM_SSA_PHI) {
+            if (opcode == MVM_SSA_PHI) {
                 for (i = 0; i < ins->info->num_operands; i++)
                     ins->operands[i].reg.orig += inliner->num_locals;
             }
@@ -157,6 +186,13 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     }
                 }
             }
+
+            /* wval and wval_wide need special handling in cross-comp-unit
+             * situation. */
+            if (!same_comp_unit && (opcode == MVM_OP_wval || opcode == MVM_OP_wval_wide)) {
+                fix_wval(tc, inliner, inlinee, ins);
+            }
+
             ins = ins->next;
         }
         bb->idx += inliner->num_bbs - 1; /* -1 as we won't include entry */
