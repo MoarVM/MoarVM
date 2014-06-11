@@ -32,9 +32,12 @@ struct MVMCompUnitBody {
 
     /* The various static frames in the compilation unit, along with a
      * code object for each one. */
-    MVMuint32        num_frames;
     MVMStaticFrame **frames;
     MVMObject      **coderefs;
+    MVMuint32        num_frames;    /* Total, inc. added by inliner. */
+    MVMuint32        orig_frames;   /* Original from loading comp unit. */
+
+    /* Special frames. */
     MVMStaticFrame  *main_frame;
     MVMStaticFrame  *load_frame;
     MVMStaticFrame  *deserialize_frame;
@@ -42,6 +45,7 @@ struct MVMCompUnitBody {
     /* The callsites in the compilation unit. */
     MVMCallsite **callsites;
     MVMuint32     num_callsites;
+    MVMuint32     orig_callsites;
     MVMuint16     max_callsite_size;
 
     /* The extension ops used by the compilation unit. */
@@ -51,6 +55,7 @@ struct MVMCompUnitBody {
     /* The string heap and number of strings. */
     MVMString **strings;
     MVMuint32   num_strings;
+    MVMuint32   orig_strings;
 
     /* Serialized data, if any. */
     MVMint32  serialized_size;
@@ -82,6 +87,10 @@ struct MVMCompUnitBody {
 
     /* Handle, if any, associated with a mapped file. */
     void *handle;
+
+    /* Lock to be taken if we want to add extra string, callsite, or coderef
+     * constants to the pools (done during inlining). */
+    uv_mutex_t *update_pools_mutex;
 };
 struct MVMCompUnit {
     MVMObject common;

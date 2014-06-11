@@ -219,7 +219,7 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
     switch (type) {
         case MVM_operand_callsite: {
             MVMuint16 index = GET_UI16(val->cur_op, 0);
-            MVMuint32 count = val->cu->body.num_callsites;
+            MVMuint32 count = val->cu->body.orig_callsites;
             if (index >= count)
                 fail(val, MSG(val, "callsite index %" PRIu16
                         " out of range 0..%" PRIu32), index, count - 1);
@@ -228,7 +228,7 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
 
         case MVM_operand_coderef: {
             MVMuint16 index = GET_UI16(val->cur_op, 0);
-            MVMuint32 count = val->cu->body.num_frames;
+            MVMuint32 count = val->cu->body.orig_frames;
             if (index >= count)
                 fail(val, MSG(val, "coderef index %" PRIu16
                         " out of range 0..%" PRIu32), index, count - 1);
@@ -237,7 +237,7 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
 
         case MVM_operand_str: {
             MVMuint32 index = GET_UI32(val->cur_op, 0);
-            MVMuint32 count = val->cu->body.num_strings;
+            MVMuint32 count = val->cu->body.orig_strings;
             if (index >= count)
                 fail(val, MSG(val, "string index %" PRIu16
                         " out of range 0..%" PRIu32), index, count - 1);

@@ -767,6 +767,7 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Load the strings heap. */
     cu_body->strings = deserialize_strings(tc, cu, rs);
     cu_body->num_strings = rs->expected_strings;
+    cu_body->orig_strings = rs->expected_strings;
 
     /* Load SC dependencies. */
     deserialize_sc_deps(tc, cu, rs);
@@ -778,12 +779,14 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Load the static frame info and give each one a code reference. */
     cu_body->frames = deserialize_frames(tc, cu, rs);
     cu_body->num_frames = rs->expected_frames;
+    cu_body->orig_frames = rs->expected_frames;
     create_code_objects(tc, cu);
 
     /* Load callsites. */
     cu_body->max_callsite_size = MVM_MIN_CALLSITE_SIZE;
     cu_body->callsites = deserialize_callsites(tc, cu, rs);
     cu_body->num_callsites = rs->expected_callsites;
+    cu_body->orig_callsites = rs->expected_callsites;
 
     /* Resolve HLL name. */
     MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->hll_name, cu_body->strings[rs->hll_str_idx]);
