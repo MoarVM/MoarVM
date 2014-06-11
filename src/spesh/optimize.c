@@ -502,17 +502,18 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, target_code,
                     &target_code->body.sf->body.spesh_candidates[spesh_cand]);
                 if (inline_graph) {
-                    /* XXX Can't actually inline yet. */
-                    /*char *c_name = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.name);
-                    char *c_cuid = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.cuuid);
-                    printf("Can inline %s ($s)\n", c_name, c_cuid);
-                    free(c_name);
-                    free(c_cuid);*/
-                    MVM_spesh_graph_destroy(tc, inline_graph);
-                    inline_graph = NULL;
-                }
-                if (inline_graph) {
-                    MVM_panic(1, "Inlining NYI");
+                    /* Yes, have inline graph, so go ahead and do it. */
+                    /*char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.name);
+                    char *c_cuid_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.cuuid);
+                    char *c_name_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.name);
+                    char *c_cuid_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
+                    printf("Can inline %s (%s) into %s (%s)\n",
+                        c_name_i, c_cuid_i, c_name_t, c_cuid_t);
+                    free(c_name_i);
+                    free(c_cuid_i);
+                    free(c_name_t);
+                    free(c_cuid_t);*/
+                    MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_code);
                 }
                 else {
                     /* Can't inline, so just identify candidate. */
