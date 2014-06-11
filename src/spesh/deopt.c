@@ -56,8 +56,26 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                 /* First uninlined frame. Are we in the middle of the call
                  * stack (and thus in deopt_all)? */
                 if (callee) {
-                    MVM_exception_throw_adhoc(tc,
-                        "Don't know how to uninline with deopt_all yet\n");
+                    /* Tweak the callee's caller to the uninlined frame, not
+                     * the frame holding the inlinings. */
+                    MVMFrame *orig_caller = callee->caller;
+                    callee->caller = MVM_frame_inc_ref(tc, uf);
+                    MVM_frame_dec_ref(tc, orig_caller);
+
+                    /* Copy over the return location. */
+                    uf->return_address = uf->effective_bytecode +
+                        deopt_offset;
+
+                    /* Set result type and register. */
+                    uf->return_type = f->return_type;
+                    if (last_res_type == MVM_RETURN_VOID) {
+                        uf->return_value = NULL;
+                    }
+                    else {
+                        MVMuint16 orig_reg = (MVMuint16)(f->return_value - f->work);
+                        MVMuint16 ret_reg  = orig_reg - cand->inlines[i].locals_start;
+                        uf->return_value = uf->work + ret_reg;
+                    }
                 }
                 else {
                     /* No, it's the deopt_one case, so this is where we'll point
@@ -94,11 +112,17 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
         /* Set up inliner as the caller, given we now have a direct inline. */
         last_uninlined->caller = MVM_frame_inc_ref(tc, f);
     }
-    else if (!callee) {
-        /* Weren't in an inline after all, but this is a deopt_one; just
-         * move control to deopt'd. */
-        *(tc->interp_cur_op)         = f->static_info->body.bytecode + deopt_offset;
-        *(tc->interp_bytecode_start) = f->static_info->body.bytecode;
+    else {
+        /* Weren't in an inline after all. What kind of deopt? */
+        if (callee) {
+            /* Deopt all. Move return address. */
+            f->return_address = f->effective_bytecode + deopt_offset;
+        }
+        else {
+            /* Deopt one. Move interpreter. */
+            *(tc->interp_cur_op)         = f->static_info->body.bytecode + deopt_offset;
+            *(tc->interp_bytecode_start) = f->static_info->body.bytecode;
+        }
     }
 }
 
@@ -161,15 +185,18 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
             MVMint32 i;
             for (i = 0; i < f->spesh_cand->num_deopts * 2; i += 2) {
                 if (f->spesh_cand->deopts[i + 1] == ret_offset) {
-                    /* Re-create any frames needed if we're in an inline. */
-                    MVMSpeshInline *inlines = f->spesh_cand->inlines;
-                    if (inlines)
-                        uninline(tc, f, f->spesh_cand, ret_offset, f->spesh_cand->deopts[i], l);
-
                     /* Switch frame itself back to the original code. */
                     f->effective_bytecode    = f->static_info->body.bytecode;
                     f->effective_handlers    = f->static_info->body.handlers;
-                    f->return_address        = f->effective_bytecode + f->spesh_cand->deopts[i];
+
+                    /* Re-create any frames needed if we're in an inline; if not,
+                     * just update return address. */
+                    if (f->spesh_cand->inlines)
+                        uninline(tc, f, f->spesh_cand, ret_offset, f->spesh_cand->deopts[i], l);
+                    else
+                        f->return_address = f->effective_bytecode + f->spesh_cand->deopts[i];
+
+                    /* No spesh cand/slots needed now. */
                     f->effective_spesh_slots = NULL;
                     f->spesh_cand            = NULL;
 
