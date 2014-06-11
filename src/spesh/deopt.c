@@ -19,8 +19,9 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
     for (i = 0; i < cand->num_inlines; i++) {
         if (offset >= cand->inlines[i].start && offset < cand->inlines[i].end) {
             /* Create the frame. */
-            MVMStaticFrame *usf = cand->inlines[i].sf;
-            MVMFrame       *uf  = MVM_frame_create_for_deopt(tc, usf, NULL); /* XXX code ref */
+            MVMCode        *ucode = cand->inlines[i].code;
+            MVMStaticFrame *usf   = ucode->body.sf;
+            MVMFrame       *uf    = MVM_frame_create_for_deopt(tc, usf, ucode);
 
             /* Copy the locals and lexicals into place. */
             memcpy(uf->work, f->work + cand->inlines[i].locals_start,

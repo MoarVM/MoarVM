@@ -8,8 +8,8 @@ struct MVMSpeshInline {
     MVMuint32 start;
     MVMuint32 end;
 
-    /* The static frame of the inlined code. */
-    MVMStaticFrame *sf;
+    /* The inlined code ref. */
+    MVMCode *code;
 
     /* Start position of the locals and lexicals, so we can extract them
      * to the new frame. */
@@ -28,4 +28,4 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *ta
     MVMSpeshCandidate *cand);
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
-    MVMSpeshIns *invoke, MVMSpeshGraph *inlinee);
+    MVMSpeshIns *invoke, MVMSpeshGraph *inlinee, MVMCode *inlinee_code);

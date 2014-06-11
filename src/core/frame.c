@@ -518,15 +518,14 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
 
 /* Creates a frame for de-optimization purposes. */
 MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *static_frame,
-                                      MVMObject *code_ref) {
+                                      MVMCode *code_ref) {
     MVMFrame *frame = allocate_frame(tc, &(static_frame->body), NULL);
     frame->effective_bytecode       = static_frame->body.bytecode;
     frame->effective_handlers       = static_frame->body.handlers;
     frame->spesh_cand               = NULL;
     frame->tc                       = tc;
     frame->static_info              = static_frame;
-    frame->code_ref                 = code_ref;
-    frame->outer                    = NULL; /* Inlines never have free lexicals. */
+    frame->code_ref                 = (MVMObject *)code_ref;
     frame->caller                   = NULL; /* Set up by deopt-er. */
     frame->keep_caller              = 0;
     frame->in_continuation          = 0;
@@ -535,6 +534,10 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
     frame->context_object           = NULL;
     frame->mark_special_return_data = NULL;
     frame->flags                    = 0;
+    if (code_ref->body.outer)
+        frame->outer = MVM_frame_inc_ref(tc, code_ref->body.outer);
+    else
+        frame->outer = NULL;
     return frame;
 }
 

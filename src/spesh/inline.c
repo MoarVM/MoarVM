@@ -122,7 +122,8 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 
 /* Merges the inlinee's spesh graph into the inliner. */
 void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-                 MVMSpeshGraph *inlinee, MVMSpeshIns *invoke_ins) {
+                 MVMSpeshGraph *inlinee, MVMCode *inlinee_code,
+                 MVMSpeshIns *invoke_ins) {
     MVMSpeshBB     *last_bb;
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
@@ -271,7 +272,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         : malloc(total_inlines * sizeof(MVMSpeshInline));
     memcpy(inliner->inlines + inliner->num_inlines, inlinee->inlines,
         inlinee->num_inlines * sizeof(MVMSpeshInline));
-    inliner->inlines[total_inlines - 1].sf             = inlinee->sf;
+    inliner->inlines[total_inlines - 1].code           = inlinee_code;
     inliner->inlines[total_inlines - 1].locals_start   = inliner->num_locals;
     switch (invoke_ins->info->opcode) {
     case MVM_OP_invoke_v:
@@ -573,9 +574,10 @@ void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 /* Drives the overall inlining process. */
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                       MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
-                      MVMSpeshIns *invoke_ins, MVMSpeshGraph *inlinee) {
+                      MVMSpeshIns *invoke_ins, MVMSpeshGraph *inlinee,
+                      MVMCode *inlinee_code) {
     /* Merge inlinee's graph into the inliner. */
-    merge_graph(tc, inliner, inlinee, invoke_ins);
+    merge_graph(tc, inliner, inlinee, inlinee_code, invoke_ins);
 
     /* Re-write returns to a set and goto. */
     rewrite_returns(tc, inliner, inlinee, invoke_bb, invoke_ins);
