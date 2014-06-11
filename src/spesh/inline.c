@@ -341,11 +341,21 @@ static void tweak_succ(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *new_suc
     if (new_succ->num_pred == 0) {
         new_succ->pred = malloc(sizeof(MVMSpeshBB *));
         new_succ->num_pred = 1;
-    }
-    if (new_succ->num_pred == 1)
         new_succ->pred[0] = bb;
-    else
-        MVM_exception_throw_adhoc(tc, "Spesh inline: unexpected num_pred");
+    }
+    else {
+        MVMint32 found = 0;
+        MVMint32 i;
+        for (i = 0; i < new_succ->num_pred; i++)
+            if (new_succ->pred[i]->idx + 1 == new_succ->idx) {
+                new_succ->pred[i] = bb;
+                found = 1;
+                break;
+            }
+        if (!found)
+            MVM_exception_throw_adhoc(tc,
+                "Spesh inline: could not find appropriate pred to update\n");
+    }
 }
 
 /* Finds return instructions and re-writes them into gotos, doing any needed
