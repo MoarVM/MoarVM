@@ -56,8 +56,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
         }
         if (!result) {
             if (!static_frame->body.spesh_candidates)
-                static_frame->body.spesh_candidates = malloc(
-                    MVM_SPESH_LIMIT * sizeof(MVMSpeshCandidate));
+                static_frame->body.spesh_candidates = calloc(
+                    MVM_SPESH_LIMIT, sizeof(MVMSpeshCandidate));
             result                      = &static_frame->body.spesh_candidates[num_spesh];
             result->cs                  = callsite;
             result->num_guards          = num_guards;
