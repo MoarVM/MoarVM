@@ -24,6 +24,8 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSp
             case MVM_SPESH_ANN_FH_START:
             case MVM_SPESH_ANN_FH_GOTO:
             case MVM_SPESH_ANN_INLINE_START:
+                if (!next && bb->linear_next)
+                    next = bb->linear_next->first_ins;
                 if (next) {
                     ann->next = next->annotations;
                     next->annotations = ann;
