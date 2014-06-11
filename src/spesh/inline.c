@@ -50,6 +50,10 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *ta
                 if (ins->operands[0].lex.outers > 0)
                     goto not_inlinable;
 
+            /* Ext-ops currently cannot be inlined. */
+            if (ins->info->opcode == (MVMuint16)-1)
+                goto not_inlinable;
+
             ins = ins->next;
         }
         bb = bb->linear_next;
