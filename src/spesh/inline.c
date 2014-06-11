@@ -75,6 +75,21 @@ MVMint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *invoke_ins) {
     MVM_exception_throw_adhoc(tc, "Spesh inline: return_deopt_idx failed");
 }
 
+/* The following routines fix references to per-compilation-unit things
+ * that would be broken by inlining. */
+static void fix_callsite(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+                         MVMSpeshGraph *inlinee, MVMSpeshOperand *to_fix) {
+    MVM_exception_throw_adhoc(tc, "Spesh inline: fix_callsite NYI");
+}
+static void fix_coderef(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+                        MVMSpeshGraph *inlinee, MVMSpeshOperand *to_fix) {
+    MVM_exception_throw_adhoc(tc, "Spesh inline: fix_coderef NYI");
+}
+static void fix_str(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+                    MVMSpeshGraph *inlinee, MVMSpeshOperand *to_fix) {
+    MVM_exception_throw_adhoc(tc, "Spesh inline: fix_str NYI");
+}
+
 /* Merges the inlinee's spesh graph into the inliner. */
 void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMSpeshIns *invoke_ins) {
@@ -82,6 +97,10 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
     MVMint32        i, total_inlines;
+
+    /* If the inliner and inlinee are from different compilation units, we
+     * potentially have to fix up extra things. */
+    MVMint32 same_comp_unit = inliner->sf->body.cu == inlinee->sf->body.cu;
 
     /* Renumber the locals, lexicals, and basic blocks of the inlinee; also
      * re-write any indexes in annotations that need it. */
@@ -108,8 +127,9 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     ins->operands[i].reg.orig += inliner->num_locals;
             }
             else {
-                for (i = 0; i < ins->info->num_operands; i++)
-                    switch (ins->info->operands[i] & MVM_operand_rw_mask) {
+                for (i = 0; i < ins->info->num_operands; i++) {
+                    MVMuint8 flags = ins->info->operands[i];
+                    switch (flags & MVM_operand_rw_mask) {
                     case MVM_operand_read_reg:
                     case MVM_operand_write_reg:
                         ins->operands[i].reg.orig += inliner->num_locals;
@@ -118,11 +138,23 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     case MVM_operand_write_lex:
                         ins->operands[i].lex.idx += inliner->num_lexicals;
                         break;
-                    default:
-                        if (ins->info->operands[i] & MVM_operand_spesh_slot)
+                    default: {
+                        MVMuint32 type = flags & MVM_operand_type_mask;
+                        if (type == MVM_operand_spesh_slot)
                             ins->operands[i].lit_i16 += inliner->num_spesh_slots;
+                        else if (type == MVM_operand_callsite)
+                            if (!same_comp_unit)
+                                fix_callsite(tc, inliner, inlinee, &(ins->operands[i]));
+                        else if (type == MVM_operand_coderef)
+                            if (!same_comp_unit)
+                                fix_coderef(tc, inliner, inlinee, &(ins->operands[i]));
+                        else if (type == MVM_operand_str)
+                            if (!same_comp_unit)
+                                fix_str(tc, inliner, inlinee, &(ins->operands[i]));
                         break;
+                        }
                     }
+                }
             }
             ins = ins->next;
         }
