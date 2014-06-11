@@ -129,6 +129,9 @@ struct MVMSpeshBB {
     /* Index (just an ascending integer along the linear_next chain), used as
      * the block identifier in dominance computation and for debug output. */
     MVMint32 idx;
+
+    /* Is this block an inlining of another one? */
+    MVMint32 inlined;
 };
 
 /* The SSA phi instruction. */

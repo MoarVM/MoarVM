@@ -761,9 +761,11 @@ static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
         cur_bb = g->entry;
         while (cur_bb->linear_next) {
             if (!seen[cur_bb->linear_next->idx]) {
-                cur_bb->linear_next = cur_bb->linear_next->linear_next;
-                g->num_bbs--;
-                death = 1;
+                if (!cur_bb->linear_next->inlined) {
+                    cur_bb->linear_next = cur_bb->linear_next->linear_next;
+                    g->num_bbs--;
+                    death = 1;
+                }
             }
             cur_bb = cur_bb->linear_next;
         }

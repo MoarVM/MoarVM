@@ -196,6 +196,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             ins = ins->next;
         }
         bb->idx += inliner->num_bbs - 1; /* -1 as we won't include entry */
+        bb->inlined = 1;
         bb = bb->linear_next;
     }
 
