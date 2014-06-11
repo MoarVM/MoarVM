@@ -170,17 +170,21 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                         break;
                     default: {
                         MVMuint32 type = flags & MVM_operand_type_mask;
-                        if (type == MVM_operand_spesh_slot)
+                        if (type == MVM_operand_spesh_slot) {
                             ins->operands[i].lit_i16 += inliner->num_spesh_slots;
-                        else if (type == MVM_operand_callsite)
+                        }
+                        else if (type == MVM_operand_callsite) {
                             if (!same_comp_unit)
                                 fix_callsite(tc, inliner, inlinee, &(ins->operands[i]));
-                        else if (type == MVM_operand_coderef)
+                        }
+                        else if (type == MVM_operand_coderef) {
                             if (!same_comp_unit)
                                 fix_coderef(tc, inliner, inlinee, &(ins->operands[i]));
-                        else if (type == MVM_operand_str)
+                        }
+                        else if (type == MVM_operand_str) {
                             if (!same_comp_unit)
                                 fix_str(tc, inliner, inlinee, &(ins->operands[i]));
+                        }
                         break;
                         }
                     }
