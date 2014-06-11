@@ -207,9 +207,9 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
 
     /* Calculate args buffer position and make sure current call site starts
      * empty. */
-    frame->args = static_frame_body->work_size ?
-        frame->work + static_frame_body->num_locals :
-        NULL;
+    frame->args = work_size
+        ? frame->work + (spesh_cand ? spesh_cand->num_locals : static_frame_body->num_locals)
+        : NULL;
     frame->cur_args_callsite = NULL;
 
     return frame;
