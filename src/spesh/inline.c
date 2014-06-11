@@ -107,7 +107,7 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             MVMObject *obj = MVM_sc_get_object(tc, sc, idx);
             MVMint16   ss  = MVM_spesh_add_spesh_slot(tc, inliner, (MVMCollectable *)obj);
             to_fix->info   = MVM_op_get_op(MVM_OP_sp_getspeshslot);
-            to_fix->operands[0].lit_i16 = ss;
+            to_fix->operands[1].lit_i16 = ss;
         }
         else {
             MVM_exception_throw_adhoc(tc,
