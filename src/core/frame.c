@@ -535,6 +535,8 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
     frame->mark_special_return_data = NULL;
     frame->flags                    = 0;
     frame->params.callsite          = NULL; /* We only ever deopt after args handling. */
+    frame->params.arg_flags         = NULL;
+    frame->params.named_used        = NULL;
     if (code_ref->body.outer)
         frame->outer = MVM_frame_inc_ref(tc, code_ref->body.outer);
     else
