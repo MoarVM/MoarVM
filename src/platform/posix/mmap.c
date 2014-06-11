@@ -19,19 +19,19 @@
 static int page_mode_to_prot_mode(int page_mode) {
     switch (page_mode) {
     case MVM_PAGE_READ:
-	return PROT_READ;
+        return PROT_READ;
     case MVM_PAGE_WRITE:
-	return PROT_WRITE;
+        return PROT_WRITE;
     case (MVM_PAGE_READ|MVM_PAGE_WRITE):
-	return PROT_READ|PROT_WRITE;
+        return PROT_READ|PROT_WRITE;
     case MVM_PAGE_EXEC:
-	return PROT_EXEC;
+        return PROT_EXEC;
     case (MVM_PAGE_READ|MVM_PAGE_EXEC):
-	return PROT_READ|PROT_EXEC;
+        return PROT_READ|PROT_EXEC;
     case (MVM_PAGE_WRITE|MVM_PAGE_EXEC):
-	return PROT_WRITE|PROT_EXEC;
+        return PROT_WRITE|PROT_EXEC;
     case (MVM_PAGE_READ|MVM_PAGE_WRITE|MVM_PAGE_EXEC):
-	return PROT_READ|PROT_WRITE|PROT_EXEC;
+        return PROT_READ|PROT_WRITE|PROT_EXEC;
     }
     return PROT_NONE;
 }

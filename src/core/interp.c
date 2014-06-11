@@ -4605,8 +4605,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (tc->cur_frame->spesh_cand->jitcode == NULL) {
                     MVM_exception_throw_adhoc(tc, "Try to enter NULL jitcode");
                 }
-                tc->cur_frame->spesh_cand->jitcode(tc, tc->cur_frame, NULL);
-                goto NEXT;
+                MVM_jit_enter(tc, tc->cur_frame,
+                              tc->cur_frame->spesh_cand->jitcode);
+                goto return_label;
             }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {

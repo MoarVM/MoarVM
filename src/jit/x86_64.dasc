@@ -6,6 +6,11 @@
 |.arch x64
 |.actionlist actions
 
+
+const unsigned char * MVM_jit_actions(void) {
+    return actions;
+}
+
 #define JIT_FRAME_SIZE 16
 
 /* Type maps for work and frame registers. This is fragile. */
@@ -45,27 +50,27 @@
 |.endmacro
 
 
-const unsigned char * MVM_jit_actions(void) {
-    return actions;
-}
 
 /* A function prologue is always the same in x86 / x64, becuase
  * we do not provide variable arguments, instead arguments are provided
  * via a frame. All JIT entry points receive prologue */
 void MVM_jit_emit_prologue(MVMThreadContext *tc, dasm_State **Dst) {
     /* set up our C call frame, i.e. allocate stack space*/
+    | ret
+
     | push rbp
     | mov rbp, rsp
     | sub rsp, JIT_FRAME_SIZE
+
     | mov [rbp-8], rdi              // thread context
     | mov [rbp-16], rsi             // mvm frame
     | setup rsi                     // setup our work registers
+
 }
 
 /* And a function epilogue is also always the same */
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, dasm_State **Dst) {
-    |->jit_exit:
-    | add rsp, JIT_FRAME_SIZE
+    | mov rsp, rbp
     | pop rbp
     | ret
 }
@@ -75,6 +80,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive * prim,
                             dasm_State **Dst) {
     MVMSpeshIns *ins = prim->ins;
     switch (ins->info->opcode) {
+    case MVM_OP_const_i64_16: {
+        MVMint32 reg = ins->operands[0].reg.i;
+        /* Upgrade to 64 bit */
+        MVMint64 val = (MVMint64)ins->operands[1].lit_i16;
+        | mov WORK[reg], qword val
+        break;
+    }
     case MVM_OP_const_i64: {
         MVMint32 reg = ins->operands[0].reg.i;
         MVMint64 val = ins->operands[1].lit_i64;
@@ -107,11 +119,14 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC * call_spec,
     for (i = 0; i < call_spec->num_args; i++) {
         switch (args[i].base) {
         case MVM_JIT_ARG_STACK:
-            | addarg i, [rsp-args[i].offset]
+            | addarg i, [rbp-args[i].offset]
+            break;
         case MVM_JIT_ARG_REG:
             | addarg i, WORK[args[i].offset]
+            break;
         case MVM_JIT_ARG_CONST:
             | addarg i, args[i].offset
+            break;
         }
     }
     | mov64 r10, (uintptr_t)call_spec->func_ptr
@@ -123,7 +138,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC * call_spec,
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitBranch * branch,
                          dasm_State **Dst) {
     if (branch->destination == MVM_JIT_BRANCH_EXIT) {
-        | jmp ->exit
+        | jmp ->jit_exit
     } else {
         | jmp =>(branch->destination)
     }
