@@ -343,12 +343,14 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
      * deopt points. */
     if (existing_deopts) {
         for (i = 0; i < num_existing_deopts; i ++) {
-            MVMSpeshIns *deopt_ins    = ins_flat[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2];
-            MVMSpeshAnn *deopt_ann    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
-            deopt_ann->next           = deopt_ins->annotations;
-            deopt_ann->type           = MVM_SPESH_ANN_DEOPT_INLINE;
-            deopt_ann->data.deopt_idx = i;
-            deopt_ins->annotations    = deopt_ann;
+            if (existing_deopts[2 * i + 1] >= 0) {
+                MVMSpeshIns *deopt_ins    = ins_flat[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2];
+                MVMSpeshAnn *deopt_ann    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+                deopt_ann->next           = deopt_ins->annotations;
+                deopt_ann->type           = MVM_SPESH_ANN_DEOPT_INLINE;
+                deopt_ann->data.deopt_idx = i;
+                deopt_ins->annotations    = deopt_ann;
+            }
         }
     }
 
