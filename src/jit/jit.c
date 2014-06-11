@@ -8,26 +8,30 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *spesh)
     MVMSpeshBB * current_bb = spesh->entry;
     MVMSpeshIns * current_ins = current_bb->first_ins;
     MVMJitGraph * jit_graph;
+    if (tc->instance->spesh_log_fh) {
+        fprintf(tc->instance->spesh_log_fh, "Attempt to make a JIT tree");
+    }
+
     if (spesh->num_bbs > 1) {
-	return NULL;
+        return NULL;
     }
     while (current_ins) {
-	switch(current_ins->info->opcode) {
-	case MVM_OP_add_i:
-	case MVM_OP_const_i64:
-	case MVM_OP_return_i:
-	    break;
-	default:
-	    return NULL;
-	}
-	if (current_ins == current_bb->last_ins) // don't continue past the bb
-	    break;
-	current_ins = current_ins->next;
+        switch(current_ins->info->opcode) {
+        case MVM_OP_add_i:
+        case MVM_OP_const_i64:
+        case MVM_OP_return_i:
+            break;
+        default:
+            return NULL;
+        }
+        if (current_ins == current_bb->last_ins) // don't continue past the bb
+            break;
+        current_ins = current_ins->next;
     }
     /* The jit graph is - for now - just a few pointers into the spesh graph */
     jit_graph = MVM_spesh_alloc(tc, spesh, sizeof(MVMJitGraph));
     jit_graph->entry = current_bb->first_ins;
-    jit_graph->exit = current_bb->last_ins;
+    jit_graph->exit= current_bb->last_ins;
     return jit_graph;
 }
 
@@ -44,8 +48,8 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph, size_
     /* generate code */
     MVM_jit_emit_prologue(tc, &state);
     while (ins != graph->exit) {
-	MVM_jit_emit_instruction(tc, ins, &state);
-	ins = ins->next;
+        MVM_jit_emit_instruction(tc, ins, &state);
+        ins = ins->next;
     }
     MVM_jit_emit_instruction(tc, ins, &state);
     MVM_jit_emit_epilogue(tc, &state);
@@ -56,7 +60,7 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph, size_
     dasm_encode(&state, memory);
     /* protect memory from being overwritten */
     MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC);
-    
+
     *codesize_out = codesize;
     return (MVMJitCode)memory;
 }

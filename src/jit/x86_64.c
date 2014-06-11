@@ -108,19 +108,19 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, dasm_State **Dst) {
 void MVM_jit_emit_instruction(MVMThreadContext *tc, MVMSpeshIns * ins, dasm_State **Dst) {
     switch (ins->info->opcode) {
     case MVM_OP_const_i64: {
-	MVMint32 reg = ins->operands[0].reg.i;
-	MVMint64 val = ins->operands[1].lit_i64;
-	//| mov WORK[reg], qword val
-	dasm_put(Dst, 37, Dt1([reg]), val);
+        MVMint32 reg = ins->operands[0].reg.i;
+        MVMint64 val = ins->operands[1].lit_i64;
+        //| mov WORK[reg], qword val
+        dasm_put(Dst, 37, Dt1([reg]), val);
 #line 80 "src/jit/x86_64.dasc"
-	break;
+        break;
     }
     case MVM_OP_add_i: {
-	/* a = b + c */
-	MVMint32 reg_a = ins->operands[0].reg.i;
-	MVMint32 reg_b = ins->operands[1].reg.i;
-	MVMint32 reg_c = ins->operands[2].reg.i;
-	//| mov rax, WORK[reg_b]
+        /* a = b + c */
+        MVMint32 reg_a = ins->operands[0].reg.i;
+        MVMint32 reg_b = ins->operands[1].reg.i;
+        MVMint32 reg_c = ins->operands[2].reg.i;
+        //| mov rax, WORK[reg_b]
         //| add rax, WORK[reg_c]
         //| mov WORK[reg_a], rax
         dasm_put(Dst, 43, Dt1([reg_b]), Dt1([reg_c]), Dt1([reg_a]));
@@ -128,22 +128,22 @@ void MVM_jit_emit_instruction(MVMThreadContext *tc, MVMSpeshIns * ins, dasm_Stat
         break;
     }
     case MVM_OP_return_i: {
-	MVMJitCallC call_set_result;
-	MVMJitCallArg set_result_args[] = { { MVM_JIT_ARG_STACK, 8 },
-					    { MVM_JIT_ARG_MOAR, ins->operands[0].reg.i },
-					    { MVM_JIT_ARG_CONST, 0 } };
-	call_set_result.func_ptr = (void*)&MVM_args_set_result_int;
-	call_set_result.args = set_result_args;
-	call_set_result.num_args = 3;
-	call_set_result.has_vargs = 0;
-	MVM_jit_emit_c_call(tc, &call_set_result, Dst);
-	//| jmp ->exit
-	dasm_put(Dst, 56);
+        MVMJitCallC call_set_result;
+        MVMJitCallArg set_result_args[] = { { MVM_JIT_ARG_STACK, 8 },
+                                            { MVM_JIT_ARG_MOAR, ins->operands[0].reg.i },
+                                            { MVM_JIT_ARG_CONST, 0 } };
+        call_set_result.func_ptr = (void*)&MVM_args_set_result_int;
+        call_set_result.args = set_result_args;
+        call_set_result.num_args = 3;
+        call_set_result.has_vargs = 0;
+        MVM_jit_emit_c_call(tc, &call_set_result, Dst);
+        //| jmp ->exit
+        dasm_put(Dst, 56);
 #line 103 "src/jit/x86_64.dasc"
-	break;
+        break;
     }
     default:
-	MVM_exception_throw_adhoc(tc, "Can't JIT opcode");
+        MVM_exception_throw_adhoc(tc, "Can't JIT opcode");
     }
 }
 
@@ -155,83 +155,83 @@ void MVM_jit_emit_c_call(MVMThreadContext *tc, MVMJitCallC * call_spec, dasm_Sta
     }
     /* first, add arguments */
     for (i = 0; i < call_spec->num_args; i++) {
-	switch (args[i].base) {
-	case MVM_JIT_ARG_STACK:
-	    //| addarg i, [rsp-args[i].offset]
-	    switch(i) {
-	        case 0:
-	    dasm_put(Dst, 61, -args[i].offset);
-	            break;
-	        case 1:
-	    dasm_put(Dst, 68, -args[i].offset);
-	            break;
-	        case 2:
-	    dasm_put(Dst, 75, -args[i].offset);
-	            break;
-	        case 3:
-	    dasm_put(Dst, 82, -args[i].offset);
-	            break;
-	        case 4:
-	    dasm_put(Dst, 89, -args[i].offset);
-	            break;
-	        case 5:
-	    dasm_put(Dst, 96, -args[i].offset);
-	            break;
-	        default:
-	            MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
-	    }
+        switch (args[i].base) {
+        case MVM_JIT_ARG_STACK:
+            //| addarg i, [rsp-args[i].offset]
+            switch(i) {
+                case 0:
+            dasm_put(Dst, 61, -args[i].offset);
+                    break;
+                case 1:
+            dasm_put(Dst, 68, -args[i].offset);
+                    break;
+                case 2:
+            dasm_put(Dst, 75, -args[i].offset);
+                    break;
+                case 3:
+            dasm_put(Dst, 82, -args[i].offset);
+                    break;
+                case 4:
+            dasm_put(Dst, 89, -args[i].offset);
+                    break;
+                case 5:
+            dasm_put(Dst, 96, -args[i].offset);
+                    break;
+                default:
+                    MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
+            }
 #line 121 "src/jit/x86_64.dasc"
-	case MVM_JIT_ARG_MOAR: 
-	    //| addarg i, WORK[args[i].offset]
-	    switch(i) {
-	        case 0:
-	    dasm_put(Dst, 103, Dt1([args[i].offset]));
-	            break;
-	        case 1:
-	    dasm_put(Dst, 108, Dt1([args[i].offset]));
-	            break;
-	        case 2:
-	    dasm_put(Dst, 113, Dt1([args[i].offset]));
-	            break;
-	        case 3:
-	    dasm_put(Dst, 118, Dt1([args[i].offset]));
-	            break;
-	        case 4:
-	    dasm_put(Dst, 123, Dt1([args[i].offset]));
-	            break;
-	        case 5:
-	    dasm_put(Dst, 128, Dt1([args[i].offset]));
-	            break;
-	        default:
-	            MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
-	    }
+        case MVM_JIT_ARG_MOAR:
+            //| addarg i, WORK[args[i].offset]
+            switch(i) {
+                case 0:
+            dasm_put(Dst, 103, Dt1([args[i].offset]));
+                    break;
+                case 1:
+            dasm_put(Dst, 108, Dt1([args[i].offset]));
+                    break;
+                case 2:
+            dasm_put(Dst, 113, Dt1([args[i].offset]));
+                    break;
+                case 3:
+            dasm_put(Dst, 118, Dt1([args[i].offset]));
+                    break;
+                case 4:
+            dasm_put(Dst, 123, Dt1([args[i].offset]));
+                    break;
+                case 5:
+            dasm_put(Dst, 128, Dt1([args[i].offset]));
+                    break;
+                default:
+                    MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
+            }
 #line 123 "src/jit/x86_64.dasc"
-	case MVM_JIT_ARG_CONST: 
-	    //| addarg i, args[i].offset
-	    switch(i) {
-	        case 0:
-	    dasm_put(Dst, 133, args[i].offset);
-	            break;
-	        case 1:
-	    dasm_put(Dst, 138, args[i].offset);
-	            break;
-	        case 2:
-	    dasm_put(Dst, 143, args[i].offset);
-	            break;
-	        case 3:
-	    dasm_put(Dst, 148, args[i].offset);
-	            break;
-	        case 4:
-	    dasm_put(Dst, 153, args[i].offset);
-	            break;
-	        case 5:
-	    dasm_put(Dst, 158, args[i].offset);
-	            break;
-	        default:
-	            MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
-	    }
+        case MVM_JIT_ARG_CONST:
+            //| addarg i, args[i].offset
+            switch(i) {
+                case 0:
+            dasm_put(Dst, 133, args[i].offset);
+                    break;
+                case 1:
+            dasm_put(Dst, 138, args[i].offset);
+                    break;
+                case 2:
+            dasm_put(Dst, 143, args[i].offset);
+                    break;
+                case 3:
+            dasm_put(Dst, 148, args[i].offset);
+                    break;
+                case 4:
+            dasm_put(Dst, 153, args[i].offset);
+                    break;
+                case 5:
+            dasm_put(Dst, 158, args[i].offset);
+                    break;
+                default:
+                    MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
+            }
 #line 125 "src/jit/x86_64.dasc"
-	}
+        }
     }
     //| mov64 r10, (uintptr_t)call_spec->func_ptr
     //| call r10
