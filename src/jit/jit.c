@@ -52,14 +52,15 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     MVMSpeshIns * current_ins = current_bb->first_ins;
     MVMJitGraph * jit_graph;
     MVMJitIns   * jit_ins;
-    fprintf(stderr, "Trying to make jit graph\n");
     if (tc->instance->spesh_log_fh) {
         fprintf(tc->instance->spesh_log_fh, "Can I make a JIT graph?\n");
     }
     /* Can't handle complex graphs yet */
     if (sg->num_bbs > 2) {
-        fprintf(stderr, "Can't make graph jit graph "
-                "because I have %d basic blocks\n", sg->num_bbs);
+        if (tc->instance->spesh_log_fh) {
+            fprintf(tc->instance->spesh_log_fh, "Can't make graph jit graph "
+                    "because I have %d basic blocks\n", sg->num_bbs);
+        }
         return NULL;
     }
     /* special case logic! */
@@ -71,7 +72,9 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     jit_graph = MVM_spesh_alloc(tc, sg, sizeof(MVMJitGraph));
     jit_graph->spesh = sg;
     while (current_ins) {
-        fprintf(stderr, "op-to-graph: <%s>\n", current_ins->info->name);
+        if (tc->instance->spesh_log_fh) {
+            fprintf(tc->instance->spesh_log_fh, "JIT: op-to-graph: <%s>\n", current_ins->info->name);
+        }
         switch(current_ins->info->opcode) {
         case MVM_OP_no_op:
             /* srsly */
@@ -79,20 +82,31 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
         case MVM_OP_add_i:
         case MVM_OP_const_i64:
         case MVM_OP_const_i64_16:
+        case MVM_OP_const_s:
             append_primitive(tc, jit_graph, current_ins);
             break;
+        case MVM_OP_say: {
+            MVMint32 reg = current_ins->operands[0].reg.i;
+            MVMJitCallArg args[] = { { MVM_JIT_ARG_STACK, MVM_JIT_STACK_TC},
+                                     { MVM_JIT_ARG_REG, reg } };
+            //append_call_c(tc, jit_graph, &MVM_string_say,  2, args);
+            break;
+        }
         case MVM_OP_return_i: {
             MVMint32 reg = current_ins->operands[0].reg.i;
             MVMJitCallArg args[] = { { MVM_JIT_ARG_STACK, MVM_JIT_STACK_TC },
-                                     { MVM_JIT_ARG_REG,  reg },
-                                     { MVM_JIT_ARG_CONST, 1 } };
+                                     { MVM_JIT_ARG_REG, reg },
+                                     { MVM_JIT_ARG_CONST, 0 } };
             append_call_c(tc, jit_graph, &MVM_args_set_result_int, 3, args);
-            //append_branch(tc, jit_graph, MVM_JIT_BRANCH_EXIT);
+            append_branch(tc, jit_graph, MVM_JIT_BRANCH_EXIT);
             break;
         }
         default:
-            fprintf(stderr, "Can't make graph due to opcode <%s>\n",
-                    current_ins->info->name);
+            if (tc->instance->spesh_log_fh) {
+                fprintf(tc->instance->spesh_log_fh,
+                        "Can't make graph due to opcode <%s>\n",
+                        current_ins->info->name);
+            }
             return NULL;
         }
         current_ins = current_ins->next;
@@ -103,16 +117,31 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     return NULL;
 }
 
+static void dump_code(FILE *f, unsigned char * code, size_t codesize) {
+    int i;
+    fprintf(f, "JIT Bytecode Dump:\n");
+    for (i = 0; i < codesize; i++) {
+        fprintf(f, "%02X%c", code[i], ((i + 1) % 32) == 0 ? '\n' : ' ');
+    }
+    fprintf(f, "\n\n");
+}
+
 MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
                                  size_t *codesize_out) {
     dasm_State *state;
-    char * memory;
+    unsigned char * memory;
     size_t codesize;
+    MVMint32  num_globals = MVM_jit_num_globals();
     MVMJitIns * ins = jg->first_ins;
-    fprintf(stderr, "Trying to compile jit graph\n");
+    void **global_labels = MVM_spesh_alloc(tc, jg->spesh, sizeof(void*) * num_globals);
+    if (tc->instance->spesh_log_fh) {
+        fprintf(tc->instance->spesh_log_fh, "JIT compiling code\n");
+    }
+
     /* setup dasm */
     dasm_init(&state, 1);
     dasm_setup(&state, MVM_jit_actions());
+    dasm_setupglobal(&state, global_labels, num_globals);
     dasm_growpc(&state, jg->num_labels);
     /* generate code */
 
@@ -144,7 +173,13 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
     /* protect memory from being overwritten */
     MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC);
     *codesize_out = codesize;
-    fprintf(stderr, "Created JIT-ed function of size %d\n", codesize);
+    /* clear up the assembler */
+    dasm_free(&state);
+
+    if (tc->instance->spesh_log_fh) {
+        fprintf(tc->instance->spesh_log_fh, "JIT compiled code: %d bytes", codesize);
+        dump_code(tc->instance->spesh_log_fh, memory, codesize);
+    }
     return (MVMJitCode)memory;
 }
 
@@ -155,9 +190,6 @@ MVMuint8 * MVM_jit_magic_bytecode(MVMThreadContext *tc, MVMuint32 *magic_bytecod
     return memcpy(magic_block, magic_bytecode, sizeof(magic_bytecode));
 }
 
-
 void MVM_jit_enter(MVMThreadContext *tc, MVMFrame *f, MVMJitCode code) {
-    fprintf(stderr, "Entering JIT at %X\n", (void*)code);
     code(tc, f, NULL);
-    fprintf(stderr, "Leave JIT\n");
 }

@@ -5,10 +5,14 @@
 
 |.arch x64
 |.actionlist actions
-
+|.globals JIT_LABEL_
 
 const unsigned char * MVM_jit_actions(void) {
     return actions;
+}
+
+const unsigned int MVM_jit_num_globals(void) {
+    return JIT_LABEL__MAX;
 }
 
 #define JIT_FRAME_SIZE 16
@@ -56,8 +60,6 @@ const unsigned char * MVM_jit_actions(void) {
  * via a frame. All JIT entry points receive prologue */
 void MVM_jit_emit_prologue(MVMThreadContext *tc, dasm_State **Dst) {
     /* set up our C call frame, i.e. allocate stack space*/
-    | ret
-
     | push rbp
     | mov rbp, rsp
     | sub rsp, JIT_FRAME_SIZE
@@ -70,6 +72,7 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, dasm_State **Dst) {
 
 /* And a function epilogue is also always the same */
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, dasm_State **Dst) {
+    | ->exit:
     | mov rsp, rbp
     | pop rbp
     | ret
@@ -93,14 +96,18 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive * prim,
         | mov WORK[reg], qword val
         break;
     }
+    case MVM_OP_const_s: {
+         MVMint32 reg = ins->operands[0].reg.i;
+         MVMint32 idx = ins->operands[1].lit_str_idx;
+    }
     case MVM_OP_add_i: {
         /* a = b + c */
         MVMint32 reg_a = ins->operands[0].reg.i;
         MVMint32 reg_b = ins->operands[1].reg.i;
         MVMint32 reg_c = ins->operands[2].reg.i;
-        | mov rax, WORK[reg_b]
-        | add rax, WORK[reg_c]
-        | mov WORK[reg_a], rax
+        | mov rax, qword WORK[reg_b]
+        | add rax, qword WORK[reg_c]
+        | mov qword WORK[reg_a], rax
         break;
     }
     default:
@@ -138,7 +145,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC * call_spec,
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitBranch * branch,
                          dasm_State **Dst) {
     if (branch->destination == MVM_JIT_BRANCH_EXIT) {
-        | jmp ->jit_exit
+        | jmp ->exit
     } else {
         | jmp =>(branch->destination)
     }

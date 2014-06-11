@@ -135,17 +135,6 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     if (jg != NULL) {
         jc = MVM_jit_compile_graph(tc, jg, &candidate->jitcode_size);
         candidate->jitcode = jc;
-        if (tc->instance->spesh_log_fh) {
-            int i = 0;
-            MVMuint8 * mem = (char*)jc;
-            int num_qw = candidate->jitcode_size / sizeof(MVMuint64);
-            fprintf(tc->instance->spesh_log_fh, "Made JIT compiled function: Bytecode Dump\n\n");
-            for (i = 0; i < candidate->jitcode_size; i++) {
-                fprintf(tc->instance->spesh_log_fh, "%02X%c", mem[i],
-                        ((i + 1) % 64) == 0 ? '\n' : ' ');
-            }
-            fprintf(tc->instance->spesh_log_fh, "\n\n");
-        }
         /* Add special bytecode for invoking the jit code */
         free(candidate->bytecode);
         candidate->bytecode = MVM_jit_magic_bytecode(tc, &candidate->bytecode_size);

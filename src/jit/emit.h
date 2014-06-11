@@ -1,5 +1,6 @@
 /* Declarations for architecture-specific codegen stuff */
 const unsigned char * MVM_jit_actions(void);
+const unsigned int MVM_jit_num_globals(void);
 void MVM_jit_emit_prologue(MVMThreadContext *tc, dasm_State **Dst);
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, dasm_State **Dst);
 void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive *prim,
