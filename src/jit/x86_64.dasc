@@ -71,7 +71,9 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, dasm_State **Dst) {
 }
 
 /* compile per instruction, can't really do any better yet */
-void MVM_jit_emit_instruction(MVMThreadContext *tc, MVMSpeshIns * ins, dasm_State **Dst) {
+void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive * prim,
+                            dasm_State **Dst) {
+    MVMSpeshIns *ins = prim->ins;
     switch (ins->info->opcode) {
     case MVM_OP_const_i64: {
         MVMint32 reg = ins->operands[0].reg.i;
@@ -89,25 +91,13 @@ void MVM_jit_emit_instruction(MVMThreadContext *tc, MVMSpeshIns * ins, dasm_Stat
         | mov WORK[reg_a], rax
         break;
     }
-    case MVM_OP_return_i: {
-        MVMJitCallC call_set_result;
-        MVMJitCallArg set_result_args[] = { { MVM_JIT_ARG_STACK, 8 },
-                                            { MVM_JIT_ARG_MOAR, ins->operands[0].reg.i },
-                                            { MVM_JIT_ARG_CONST, 0 } };
-        call_set_result.func_ptr = (void*)&MVM_args_set_result_int;
-        call_set_result.args = set_result_args;
-        call_set_result.num_args = 3;
-        call_set_result.has_vargs = 0;
-        MVM_jit_emit_c_call(tc, &call_set_result, Dst);
-        | jmp ->exit
-        break;
-    }
     default:
         MVM_exception_throw_adhoc(tc, "Can't JIT opcode");
     }
 }
 
-void MVM_jit_emit_c_call(MVMThreadContext *tc, MVMJitCallC * call_spec, dasm_State **Dst) {
+void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC * call_spec,
+                         dasm_State **Dst) {
     int i;
     MVMJitCallArg *args = call_spec->args;
     if (call_spec->has_vargs) {
@@ -118,7 +108,7 @@ void MVM_jit_emit_c_call(MVMThreadContext *tc, MVMJitCallC * call_spec, dasm_Sta
         switch (args[i].base) {
         case MVM_JIT_ARG_STACK:
             | addarg i, [rsp-args[i].offset]
-        case MVM_JIT_ARG_MOAR:
+        case MVM_JIT_ARG_REG:
             | addarg i, WORK[args[i].offset]
         case MVM_JIT_ARG_CONST:
             | addarg i, args[i].offset
@@ -128,4 +118,18 @@ void MVM_jit_emit_c_call(MVMThreadContext *tc, MVMJitCallC * call_spec, dasm_Sta
     | call r10
     /* Restore the work register pointer */
     | setup [rbp-16]
+}
+
+void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitBranch * branch,
+                         dasm_State **Dst) {
+    if (branch->destination == MVM_JIT_BRANCH_EXIT) {
+        | jmp ->exit
+    } else {
+        | jmp =>(branch->destination)
+    }
+}
+
+void MVM_jit_emit_label(MVMThreadContext *tc, MVMint32 label,
+                        dasm_State **Dst) {
+    | =>(label):
 }

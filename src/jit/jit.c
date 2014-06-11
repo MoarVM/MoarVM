@@ -3,55 +3,119 @@
 #include <dasm_proto.h>
 #include "emit.h"
 
+static void append_ins(MVMJitGraph *jg, MVMJitIns *ins) {
+    if (jg->last_ins) {
+        jg->last_ins->next = ins;
+        jg->last_ins = ins;
+    } else {
+        jg->first_ins = ins;
+        jg->last_ins = ins;
+    }
+    ins->next = NULL;
+}
 
-MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *spesh) {
-    MVMSpeshBB * current_bb = spesh->entry;
+static void append_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
+                             MVMSpeshIns * moar_ins) {
+    MVMJitIns * ins = MVM_spesh_alloc(tc, jg->spesh, sizeof(MVMJitIns));
+    ins->type = MVM_JIT_INS_PRIMITIVE;
+    ins->u.prim.ins = moar_ins;
+    append_ins(jg, ins);
+}
+
+
+static void append_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
+                          void * func_ptr, MVMint16 num_args,
+                          MVMJitCallArg *call_args) {
+    MVMJitIns * ins = MVM_spesh_alloc(tc, jg->spesh, sizeof(MVMJitIns));
+    size_t args_size =  num_args * sizeof(MVMJitCallArg);
+    ins->type = MVM_JIT_INS_CALL_C;
+    ins->u.call.func_ptr = func_ptr;
+    ins->u.call.num_args = num_args;
+    ins->u.call.has_vargs = 0; // don't support them yet
+    /* Call argument array is typically stack allocated,
+     * so they need to be copied */
+    ins->u.call.args = MVM_spesh_alloc(tc, jg->spesh, args_size);
+    memcpy(ins->u.call.args, call_args, args_size);
+    append_ins(jg, ins);
+}
+
+static void append_branch(MVMThreadContext *tc, MVMJitGraph *jg,
+                          MVMint32 destination) {
+    MVMJitIns * ins = MVM_spesh_alloc(tc, jg->spesh, sizeof(MVMJitIns));
+    ins->type = MVM_JIT_INS_BRANCH;
+    ins->u.branch.destination = destination;
+    append_ins(jg, ins);
+}
+
+MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
+    MVMSpeshBB  * current_bb = sg->entry;
     MVMSpeshIns * current_ins = current_bb->first_ins;
     MVMJitGraph * jit_graph;
+    MVMJitIns   * jit_ins;
     if (tc->instance->spesh_log_fh) {
         fprintf(tc->instance->spesh_log_fh, "Attempt to make a JIT tree");
     }
-
-    if (spesh->num_bbs > 1) {
+    /* Can't handle complex graphs yet */
+    if (sg->num_bbs > 1) {
         return NULL;
     }
+    jit_graph = MVM_spesh_alloc(tc, sg, sizeof(MVMJitGraph));
+    jit_graph->spesh = sg;
     while (current_ins) {
         switch(current_ins->info->opcode) {
         case MVM_OP_add_i:
         case MVM_OP_const_i64:
-        case MVM_OP_return_i:
+            append_primitive(tc, jit_graph, current_ins);
             break;
+        case MVM_OP_return_i: {
+            MVMint32 reg = current_ins->operands[0].reg.i;
+            MVMJitCallArg args[] = { { MVM_JIT_ARG_STACK, MVM_JIT_STACK_TC },
+                                     { MVM_JIT_ARG_REG,  reg},
+                                     { MVM_JIT_ARG_CONST, 0 } };
+            append_call_c(tc, jit_graph, &MVM_args_set_result_int, 3, args);
+            append_branch(tc, jit_graph, MVM_JIT_BRANCH_EXIT);
+            break;
+        }
         default:
             return NULL;
         }
-        if (current_ins == current_bb->last_ins) // don't continue past the bb
-            break;
         current_ins = current_ins->next;
     }
-    /* The jit graph is - for now - just a few pointers into the spesh graph */
-    jit_graph = MVM_spesh_alloc(tc, spesh, sizeof(MVMJitGraph));
-    jit_graph->entry = current_bb->first_ins;
-    jit_graph->exit= current_bb->last_ins;
+    /* All done */
     return jit_graph;
 }
 
 
-MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph, size_t *codesize_out) {
+MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
+                                 size_t *codesize_out) {
     dasm_State *state;
     char * memory;
     size_t codesize;
-    MVMSpeshIns *ins = graph->entry;
+    MVMJitIns * ins = jg->first_ins;
     /* setup dasm */
     dasm_init(&state, 1);
     dasm_setup(&state, MVM_jit_actions());
-
+    dasm_growpc(&state, jg->num_labels);
     /* generate code */
+
     MVM_jit_emit_prologue(tc, &state);
-    while (ins != graph->exit) {
-        MVM_jit_emit_instruction(tc, ins, &state);
+    while (ins) {
+        if (ins->label) {
+            MVM_jit_emit_label(tc, ins->label, &state);
+        }
+        switch(ins->type) {
+        case MVM_JIT_INS_PRIMITIVE:
+            MVM_jit_emit_primitive(tc, &ins->u.prim, &state);
+            break;
+        case MVM_JIT_INS_CALL_C:
+            MVM_jit_emit_call_c(tc, &ins->u.call, &state);
+            break;
+        case MVM_JIT_INS_BRANCH:
+            MVM_jit_emit_branch(tc, &ins->u.branch, &state);
+            break;
+        }
         ins = ins->next;
     }
-    MVM_jit_emit_instruction(tc, ins, &state);
     MVM_jit_emit_epilogue(tc, &state);
 
     /* compile the function */
