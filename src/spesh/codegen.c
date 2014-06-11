@@ -254,9 +254,13 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 
     /* -1 all the deopt targets, so we'll easily catch those that don't get
-     * mapped if we try to use them. */
+     * mapped if we try to use them. Same for inlines. */
     for (i = 0; i < g->num_deopt_addrs; i++)
         g->deopt_addrs[i * 2 + 1] = -1;
+    for (i = 0; i < g->num_inlines; i++) {
+        g->inlines[i].start = -1;
+        g->inlines[i].end = -1;
+    }
 
     /* Write out each of the basic blocks, in linear order. Skip the first,
      * dummy, block. */
@@ -282,6 +286,11 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 (int)ws->handlers[i].end_offset,
                 (int)ws->handlers[i].goto_offset);
     }
+
+    /* Ensure all inlines got fixed up. */
+    for (i = 0; i < g->num_inlines; i++)
+        if (g->inlines[i].start == -1 || g->inlines[i].end == -1)
+            MVM_exception_throw_adhoc(tc, "Spesh: failed to fix up inline %d", i);
 
     /* Produce result data structure. */
     res                = malloc(sizeof(MVMSpeshCode));
