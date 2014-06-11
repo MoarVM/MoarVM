@@ -79,7 +79,8 @@ MVMint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *invoke_ins) {
  * that would be broken by inlining. */
 static void fix_callsite(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                          MVMSpeshGraph *inlinee, MVMSpeshOperand *to_fix) {
-    MVM_exception_throw_adhoc(tc, "Spesh inline: fix_callsite NYI");
+    to_fix->callsite_idx = MVM_cu_callsite_add(tc, inliner->sf->body.cu,
+        inlinee->sf->body.cu->body.callsites[to_fix->callsite_idx]);
 }
 static void fix_coderef(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                         MVMSpeshGraph *inlinee, MVMSpeshOperand *to_fix) {
