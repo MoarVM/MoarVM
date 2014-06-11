@@ -192,12 +192,6 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 }
             }
 
-            /* wval and wval_wide need special handling in cross-comp-unit
-             * situation. */
-            if (!same_comp_unit && (opcode == MVM_OP_wval || opcode == MVM_OP_wval_wide)) {
-                fix_wval(tc, inliner, inlinee, ins);
-            }
-
             ins = ins->next;
         }
         bb->idx += inliner->num_bbs - 1; /* -1 as we won't include entry */
@@ -237,6 +231,25 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Copy over spesh slots. */
     for (i = 0; i < inlinee->num_spesh_slots; i++)
         MVM_spesh_add_spesh_slot(tc, inliner, inlinee->spesh_slots[i]);
+
+    /* If they are from separate compilation units, make another pass through
+     * to fix up on wvals. Note we can't do this in the first pass as we must
+     * not modify the spesh slots once we've got started with the rewrites.
+     * Now we've resolved all that, we're good to map wvals elsewhere into
+     * some extra spesh slots. */
+    if (!same_comp_unit) {
+        bb = inlinee->entry;
+        while (bb) {
+            MVMSpeshIns *ins = bb->first_ins;
+            while (ins) {
+                MVMuint16 opcode = ins->info->opcode;
+                if (opcode == MVM_OP_wval || opcode == MVM_OP_wval_wide)
+                    fix_wval(tc, inliner, inlinee, ins);
+                ins = ins->next;
+            }
+            bb = bb->linear_next;
+        }
+    }
 
     /* Merge de-opt tables, if needed. */
     if (inlinee->num_deopt_addrs) {
