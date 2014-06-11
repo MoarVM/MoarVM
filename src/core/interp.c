@@ -4607,7 +4607,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
                 MVM_jit_enter(tc, tc->cur_frame,
                               tc->cur_frame->spesh_cand->jitcode);
-                goto return_label;
+                if (MVM_frame_try_return(tc) == 0)
+                    goto return_label;
+                goto NEXT;
             }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
