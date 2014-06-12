@@ -162,16 +162,11 @@ if ($args{'has-libatomic_ops'}) {
 }
 
 if ($args{'enable-jit'}) {
-    if (system($config{lua} . ' -e \'require("bit")\'') == 0) {
-	# we can run lua and dynasm
-	if ($Config{archname} =~ m/^x86_64/) {
-	    $config{arch} = 'x86_64';
-	    $config{jit} = '$(JIT_X64)';
-	} else {
-	    say "JIT isn't supported on $Config{archname} yet.";
-	}
+    if ($Config{archname} =~ m/^x86_64/) {
+        $config{arch} = 'x86_64';
+        $config{jit} = '$(JIT_X64)';
     } else {
-	say "You'll need lua and the bit module to run dynasm.";
+        say "JIT isn't supported on $Config{archname} yet.";
     }
 }
 # fallback
