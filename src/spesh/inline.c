@@ -3,13 +3,21 @@
 /* Sees if it will be possible to inline the target code ref, given we could
  * already identify a spesh candidate. Returns NULL if no inlining is possible
  * or a graph ready to be merged if it will be possible. */
-MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *target,
-                                               MVMSpeshCandidate *cand) {
+MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+                                               MVMCode *target, MVMSpeshCandidate *cand) {
     MVMSpeshGraph *ig;
     MVMSpeshBB    *bb;
 
     /* Check bytecode size is within the inline limit. */
     if (target->body.sf->body.bytecode_size > MVM_SPESH_MAX_INLINE_SIZE)
+        return NULL;
+
+    /* Ensure that this isn't a recursive inlining. */
+    if (target->body.sf == inliner->sf)
+        return NULL;
+
+    /* Ensure the candidate isn't still logging. */
+    if (cand->sg)
         return NULL;
 
     /* For now, if it has handlers, refuse to inline it. */
@@ -259,6 +267,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 
     /* Merge de-opt tables, if needed. */
     if (inlinee->num_deopt_addrs) {
+        assert(inlinee->deopt_addrs != inliner->deopt_addrs);
         inliner->alloc_deopt_addrs += inlinee->alloc_deopt_addrs;
         if (inliner->deopt_addrs)
             inliner->deopt_addrs = realloc(inliner->deopt_addrs,

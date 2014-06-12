@@ -24,8 +24,8 @@ struct MVMSpeshInline {
     MVMuint32 return_deopt_idx;
 };
 
-MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMCode *target,
-    MVMSpeshCandidate *cand);
+MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc,
+    MVMSpeshGraph *inliner, MVMCode *target, MVMSpeshCandidate *cand);
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
     MVMSpeshIns *invoke, MVMSpeshGraph *inlinee, MVMCode *inlinee_code);

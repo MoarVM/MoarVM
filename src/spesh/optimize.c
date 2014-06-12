@@ -499,8 +499,8 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             MVMint32 spesh_cand = try_find_spesh_candidate(tc, target_code, arg_info);
             if (spesh_cand >= 0) {
                 /* Yes. Will we be able to inline? */
-                MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, target_code,
-                    &target_code->body.sf->body.spesh_candidates[spesh_cand]);
+                MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
+                    target_code, &target_code->body.sf->body.spesh_candidates[spesh_cand]);
                 if (inline_graph) {
                     /* Yes, have inline graph, so go ahead and do it. */
                     /*char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.name);
