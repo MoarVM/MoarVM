@@ -8,6 +8,10 @@
 |.section code
 |.globals JIT_LABEL_
 
+const MVMint32 MVM_jit_support(void) {
+    return 1;
+}
+
 const unsigned char * MVM_jit_actions(void) {
     return actions;
 }

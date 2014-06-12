@@ -41,6 +41,10 @@ enum {
 };
 #line 10 "src/jit/x86_64.dasc"
 
+const MVMint32 MVM_jit_support(void) {
+    return 1;
+}
+
 const unsigned char * MVM_jit_actions(void) {
     return actions;
 }
@@ -54,10 +58,10 @@ const unsigned int MVM_jit_num_globals(void) {
 /* Type maps for work and frame registers. This is fragile. */
 //|.type WORK, MVMRegister, r15
 #define Dt1(_V) (int)(ptrdiff_t)&(((MVMRegister *)0)_V)
-#line 23 "src/jit/x86_64.dasc"
+#line 27 "src/jit/x86_64.dasc"
 //|.type FRAME, MVMFrame, r14
 #define Dt2(_V) (int)(ptrdiff_t)&(((MVMFrame *)0)_V)
-#line 24 "src/jit/x86_64.dasc"
+#line 28 "src/jit/x86_64.dasc"
 
 //|.macro addarg, i, val
 //||switch(i) {
@@ -102,13 +106,13 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, dasm_State **Dst) {
     //| mov rbp, rsp
     //| sub rsp, JIT_FRAME_SIZE
     dasm_put(Dst, 0, JIT_FRAME_SIZE);
-#line 67 "src/jit/x86_64.dasc"
+#line 71 "src/jit/x86_64.dasc"
 
     //| mov [rbp-8], rdi              // thread context
     //| mov [rbp-16], rsi             // mvm frame
     //| setup rsi                     // setup our work registers
     dasm_put(Dst, 10, Dt2(->work));
-#line 71 "src/jit/x86_64.dasc"
+#line 75 "src/jit/x86_64.dasc"
 
 }
 
@@ -119,7 +123,7 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, dasm_State **Dst) {
     //| pop rbp
     //| ret
     dasm_put(Dst, 29);
-#line 80 "src/jit/x86_64.dasc"
+#line 84 "src/jit/x86_64.dasc"
 }
 
 /* compile per instruction, can't really do any better yet */
@@ -135,7 +139,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive * prim,
         fprintf(stderr, "Emit store %d reg %d\n", val, reg);
         //| mov WORK[reg], qword val
         dasm_put(Dst, 38, Dt1([reg]), val);
-#line 94 "src/jit/x86_64.dasc"
+#line 98 "src/jit/x86_64.dasc"
         break;
     }
     case MVM_OP_const_i64: {
@@ -143,7 +147,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive * prim,
         MVMint64 val = ins->operands[1].lit_i64;
         //| mov WORK[reg], qword val
         dasm_put(Dst, 38, Dt1([reg]), val);
-#line 100 "src/jit/x86_64.dasc"
+#line 104 "src/jit/x86_64.dasc"
         break;
     }
     case MVM_OP_const_s: {
@@ -161,7 +165,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive * prim,
         //| add rax, WORK[reg_c]
         //| mov WORK[reg_a], rax
         dasm_put(Dst, 44, Dt1([reg_b]), Dt1([reg_c]), Dt1([reg_a]));
-#line 116 "src/jit/x86_64.dasc"
+#line 120 "src/jit/x86_64.dasc"
         break;
     }
     default:
@@ -205,7 +209,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC * call_spec,
                 default:
                     MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
             }
-#line 137 "src/jit/x86_64.dasc"
+#line 141 "src/jit/x86_64.dasc"
             break;
         case MVM_JIT_ARG_REG:
             fprintf(stderr, "Emit work offset arg %d\n", args[i].offset);
@@ -232,7 +236,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC * call_spec,
                 default:
                     MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
             }
-#line 141 "src/jit/x86_64.dasc"
+#line 145 "src/jit/x86_64.dasc"
             break;
         case MVM_JIT_ARG_CONST:
             fprintf(stderr, "Emit constant arg %d\n", args[i].offset);
@@ -259,18 +263,18 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC * call_spec,
                 default:
                     MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
             }
-#line 145 "src/jit/x86_64.dasc"
+#line 149 "src/jit/x86_64.dasc"
             break;
         }
     }
     //| mov64 r10, (uintptr_t)call_spec->func_ptr
     //| call r10
     dasm_put(Dst, 147, (unsigned int)((uintptr_t)call_spec->func_ptr), (unsigned int)(((uintptr_t)call_spec->func_ptr)>>32));
-#line 150 "src/jit/x86_64.dasc"
+#line 154 "src/jit/x86_64.dasc"
     /* Restore the work register pointer */
     //| setup [rbp-16]
     dasm_put(Dst, 156, Dt2(->work));
-#line 152 "src/jit/x86_64.dasc"
+#line 156 "src/jit/x86_64.dasc"
 }
 
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitBranch * branch,
@@ -278,21 +282,21 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitBranch * branch,
     if (branch->destination == MVM_JIT_BRANCH_EXIT) {
         //| jmp ->exit
         dasm_put(Dst, 166);
-#line 158 "src/jit/x86_64.dasc"
+#line 162 "src/jit/x86_64.dasc"
     } else {
         //| jmp =>(branch->destination)
         dasm_put(Dst, 171, (branch->destination));
-#line 160 "src/jit/x86_64.dasc"
+#line 164 "src/jit/x86_64.dasc"
     }
     /* This fixes an issue with aligning the labels. */
     //| nop
     dasm_put(Dst, 175);
-#line 163 "src/jit/x86_64.dasc"
+#line 167 "src/jit/x86_64.dasc"
 }
 
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMint32 label,
                         dasm_State **Dst) {
     //| =>(label):
     dasm_put(Dst, 177, (label));
-#line 168 "src/jit/x86_64.dasc"
+#line 172 "src/jit/x86_64.dasc"
 }

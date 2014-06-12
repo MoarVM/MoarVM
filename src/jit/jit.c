@@ -52,6 +52,11 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     MVMSpeshIns * current_ins = current_bb->first_ins;
     MVMJitGraph * jit_graph;
     MVMJitIns   * jit_ins;
+
+    if (!MVM_jit_support()) {
+        return NULL;
+    }
+
     if (tc->instance->spesh_log_fh) {
         fprintf(tc->instance->spesh_log_fh, "Can I make a JIT graph?\n");
     }
