@@ -5,6 +5,7 @@
 
 |.arch x64
 |.actionlist actions
+|.section code
 |.globals JIT_LABEL_
 
 const unsigned char * MVM_jit_actions(void) {
@@ -82,16 +83,18 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, dasm_State **Dst) {
 void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive * prim,
                             dasm_State **Dst) {
     MVMSpeshIns *ins = prim->ins;
+    fprintf(stderr, "original opcode: <%s>\n", ins->info->name);
     switch (ins->info->opcode) {
     case MVM_OP_const_i64_16: {
-        MVMint32 reg = ins->operands[0].reg.i;
+        MVMint32 reg = ins->operands[0].reg.orig;
         /* Upgrade to 64 bit */
         MVMint64 val = (MVMint64)ins->operands[1].lit_i16;
+        fprintf(stderr, "Emit store %d reg %d\n", val, reg);
         | mov WORK[reg], qword val
         break;
     }
     case MVM_OP_const_i64: {
-        MVMint32 reg = ins->operands[0].reg.i;
+        MVMint32 reg = ins->operands[0].reg.orig;
         MVMint64 val = ins->operands[1].lit_i64;
         | mov WORK[reg], qword val
         break;
@@ -99,15 +102,17 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive * prim,
     case MVM_OP_const_s: {
          MVMint32 reg = ins->operands[0].reg.i;
          MVMint32 idx = ins->operands[1].lit_str_idx;
+         break;
     }
     case MVM_OP_add_i: {
         /* a = b + c */
-        MVMint32 reg_a = ins->operands[0].reg.i;
-        MVMint32 reg_b = ins->operands[1].reg.i;
-        MVMint32 reg_c = ins->operands[2].reg.i;
-        | mov rax, qword WORK[reg_b]
-        | add rax, qword WORK[reg_c]
-        | mov qword WORK[reg_a], rax
+        MVMint32 reg_a = ins->operands[0].reg.orig;
+        MVMint32 reg_b = ins->operands[1].reg.orig;
+        MVMint32 reg_c = ins->operands[2].reg.orig;
+        fprintf(stderr, "Emit add r%d = r%d  + r%d\n", reg_a, reg_b, reg_c);
+        | mov rax, WORK[reg_b]
+        | add rax, WORK[reg_c]
+        | mov WORK[reg_a], rax
         break;
     }
     default:
@@ -119,6 +124,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC * call_spec,
                          dasm_State **Dst) {
     int i;
     MVMJitCallArg *args = call_spec->args;
+    fprintf(stderr, "Emitting c call\n");
     if (call_spec->has_vargs) {
         MVM_exception_throw_adhoc(tc, "JIT can't handle varargs yet");
     }
@@ -126,12 +132,15 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC * call_spec,
     for (i = 0; i < call_spec->num_args; i++) {
         switch (args[i].base) {
         case MVM_JIT_ARG_STACK:
+            fprintf(stderr, "Emit load stack offset arg %d\n", args[i].offset);
             | addarg i, [rbp-args[i].offset]
             break;
         case MVM_JIT_ARG_REG:
+            fprintf(stderr, "Emit work offset arg %d\n", args[i].offset);
             | addarg i, WORK[args[i].offset]
             break;
         case MVM_JIT_ARG_CONST:
+            fprintf(stderr, "Emit constant arg %d\n", args[i].offset);
             | addarg i, args[i].offset
             break;
         }
@@ -149,6 +158,8 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitBranch * branch,
     } else {
         | jmp =>(branch->destination)
     }
+    /* This fixes an issue with aligning the labels. */
+    | nop
 }
 
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMint32 label,

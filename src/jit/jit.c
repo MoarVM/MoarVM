@@ -93,7 +93,7 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
             break;
         }
         case MVM_OP_return_i: {
-            MVMint32 reg = current_ins->operands[0].reg.i;
+            MVMint32 reg = current_ins->operands[0].reg.orig;
             MVMJitCallArg args[] = { { MVM_JIT_ARG_STACK, MVM_JIT_STACK_TC },
                                      { MVM_JIT_ARG_REG, reg },
                                      { MVM_JIT_ARG_CONST, 0 } };
@@ -124,6 +124,12 @@ static void dump_code(FILE *f, unsigned char * code, size_t codesize) {
         fprintf(f, "%02X%c", code[i], ((i + 1) % 32) == 0 ? '\n' : ' ');
     }
     fprintf(f, "\n\n");
+}
+
+static void dump_binary(char * filename, unsigned char * code, size_t codesize) {
+    FILE * f = fopen(filename, "w");
+    fwrite(code, sizeof(char), codesize, f);
+    fclose(f);
 }
 
 MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
@@ -180,6 +186,8 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
         fprintf(tc->instance->spesh_log_fh, "JIT compiled code: %d bytes", codesize);
         dump_code(tc->instance->spesh_log_fh, memory, codesize);
     }
+    dump_binary("jit-code.bin", memory, codesize);
+
     return (MVMJitCode)memory;
 }
 
