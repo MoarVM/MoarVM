@@ -67,12 +67,9 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, dasm_State **Dst) {
     /* set up our C call frame, i.e. allocate stack space*/
     | push rbp
     | mov rbp, rsp
-    | sub rsp, JIT_FRAME_SIZE
-
-    | mov [rbp-8], rdi              // thread context
-    | mov [rbp-16], rsi             // mvm frame
-    | setup rsi                     // setup our work registers
-
+    | push, rdi              // thread context
+    | push, rsi              // mvm frame
+    | setup rsi              // setup our work registers
 }
 
 /* And a function epilogue is also always the same */
@@ -162,8 +159,6 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitBranch * branch,
     } else {
         | jmp =>(branch->destination)
     }
-    /* This fixes an issue with aligning the labels. */
-    | nop
 }
 
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMint32 label,

@@ -17,16 +17,16 @@
 #endif
 #line 7 "src/jit/x86_64.dasc"
 //|.actionlist actions
-static const unsigned char actions[179] = {
-  85,72,137,229,72,129,252,236,239,255,72,137,125,252,248,72,137,117,252,240,
-  73,137,252,246,77,139,190,233,255,248,10,72,137,252,236,93,195,255,73,199,
-  135,233,237,255,73,139,135,233,73,3,135,233,73,137,135,233,255,72,139,189,
-  233,255,72,139,181,233,255,72,139,149,233,255,72,139,141,233,255,76,139,133,
-  233,255,76,139,141,233,255,73,139,191,233,255,73,139,183,233,255,73,139,151,
-  233,255,73,139,143,233,255,77,139,135,233,255,77,139,143,233,255,72,199,199,
-  237,255,72,199,198,237,255,72,199,194,237,255,72,199,193,237,255,73,199,192,
-  237,255,73,199,193,237,255,73,186,237,237,65,252,255,210,255,76,139,117,252,
-  240,77,139,190,233,255,252,233,244,10,255,252,233,245,255,144,255,249,255
+static const unsigned char actions[163] = {
+  85,72,137,229,87,86,73,137,252,246,77,139,190,233,255,248,10,72,137,252,236,
+  93,195,255,73,199,135,233,237,255,73,139,135,233,73,3,135,233,73,137,135,
+  233,255,72,139,189,233,255,72,139,181,233,255,72,139,149,233,255,72,139,141,
+  233,255,76,139,133,233,255,76,139,141,233,255,73,139,191,233,255,73,139,183,
+  233,255,73,139,151,233,255,73,139,143,233,255,77,139,135,233,255,77,139,143,
+  233,255,72,199,199,237,255,72,199,198,237,255,72,199,194,237,255,72,199,193,
+  237,255,73,199,192,237,255,73,199,193,237,255,73,186,237,237,65,252,255,210,
+  255,76,139,117,252,240,77,139,190,233,255,252,233,244,10,255,252,233,245,
+  255,249,255
 };
 
 #line 8 "src/jit/x86_64.dasc"
@@ -104,16 +104,11 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, dasm_State **Dst) {
     /* set up our C call frame, i.e. allocate stack space*/
     //| push rbp
     //| mov rbp, rsp
-    //| sub rsp, JIT_FRAME_SIZE
-    dasm_put(Dst, 0, JIT_FRAME_SIZE);
-#line 71 "src/jit/x86_64.dasc"
-
-    //| mov [rbp-8], rdi              // thread context
-    //| mov [rbp-16], rsi             // mvm frame
-    //| setup rsi                     // setup our work registers
-    dasm_put(Dst, 10, Dt2(->work));
-#line 75 "src/jit/x86_64.dasc"
-
+    //| push, rdi              // thread context
+    //| push, rsi              // mvm frame
+    //| setup rsi              // setup our work registers
+    dasm_put(Dst, 0, Dt2(->work));
+#line 73 "src/jit/x86_64.dasc"
 }
 
 /* And a function epilogue is also always the same */
@@ -122,8 +117,8 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, dasm_State **Dst) {
     //| mov rsp, rbp
     //| pop rbp
     //| ret
-    dasm_put(Dst, 29);
-#line 84 "src/jit/x86_64.dasc"
+    dasm_put(Dst, 15);
+#line 81 "src/jit/x86_64.dasc"
 }
 
 /* compile per instruction, can't really do any better yet */
@@ -138,16 +133,16 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive * prim,
         MVMint64 val = (MVMint64)ins->operands[1].lit_i16;
         fprintf(stderr, "Emit store %d reg %d\n", val, reg);
         //| mov WORK[reg], qword val
-        dasm_put(Dst, 38, Dt1([reg]), val);
-#line 98 "src/jit/x86_64.dasc"
+        dasm_put(Dst, 24, Dt1([reg]), val);
+#line 95 "src/jit/x86_64.dasc"
         break;
     }
     case MVM_OP_const_i64: {
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMint64 val = ins->operands[1].lit_i64;
         //| mov WORK[reg], qword val
-        dasm_put(Dst, 38, Dt1([reg]), val);
-#line 104 "src/jit/x86_64.dasc"
+        dasm_put(Dst, 24, Dt1([reg]), val);
+#line 101 "src/jit/x86_64.dasc"
         break;
     }
     case MVM_OP_const_s: {
@@ -164,8 +159,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive * prim,
         //| mov rax, WORK[reg_b]
         //| add rax, WORK[reg_c]
         //| mov WORK[reg_a], rax
-        dasm_put(Dst, 44, Dt1([reg_b]), Dt1([reg_c]), Dt1([reg_a]));
-#line 120 "src/jit/x86_64.dasc"
+        dasm_put(Dst, 30, Dt1([reg_b]), Dt1([reg_c]), Dt1([reg_a]));
+#line 117 "src/jit/x86_64.dasc"
         break;
     }
     default:
@@ -189,114 +184,110 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC * call_spec,
             //| addarg i, [rbp-args[i].offset]
             switch(i) {
                 case 0:
-            dasm_put(Dst, 57, -args[i].offset);
+            dasm_put(Dst, 43, -args[i].offset);
                     break;
                 case 1:
-            dasm_put(Dst, 62, -args[i].offset);
+            dasm_put(Dst, 48, -args[i].offset);
                     break;
                 case 2:
-            dasm_put(Dst, 67, -args[i].offset);
+            dasm_put(Dst, 53, -args[i].offset);
                     break;
                 case 3:
-            dasm_put(Dst, 72, -args[i].offset);
+            dasm_put(Dst, 58, -args[i].offset);
                     break;
                 case 4:
-            dasm_put(Dst, 77, -args[i].offset);
+            dasm_put(Dst, 63, -args[i].offset);
                     break;
                 case 5:
-            dasm_put(Dst, 82, -args[i].offset);
+            dasm_put(Dst, 68, -args[i].offset);
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
             }
-#line 141 "src/jit/x86_64.dasc"
+#line 138 "src/jit/x86_64.dasc"
             break;
         case MVM_JIT_ARG_REG:
             fprintf(stderr, "Emit work offset arg %d\n", args[i].offset);
             //| addarg i, WORK[args[i].offset]
             switch(i) {
                 case 0:
-            dasm_put(Dst, 87, Dt1([args[i].offset]));
+            dasm_put(Dst, 73, Dt1([args[i].offset]));
                     break;
                 case 1:
-            dasm_put(Dst, 92, Dt1([args[i].offset]));
+            dasm_put(Dst, 78, Dt1([args[i].offset]));
                     break;
                 case 2:
-            dasm_put(Dst, 97, Dt1([args[i].offset]));
+            dasm_put(Dst, 83, Dt1([args[i].offset]));
                     break;
                 case 3:
-            dasm_put(Dst, 102, Dt1([args[i].offset]));
+            dasm_put(Dst, 88, Dt1([args[i].offset]));
                     break;
                 case 4:
-            dasm_put(Dst, 107, Dt1([args[i].offset]));
+            dasm_put(Dst, 93, Dt1([args[i].offset]));
                     break;
                 case 5:
-            dasm_put(Dst, 112, Dt1([args[i].offset]));
+            dasm_put(Dst, 98, Dt1([args[i].offset]));
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
             }
-#line 145 "src/jit/x86_64.dasc"
+#line 142 "src/jit/x86_64.dasc"
             break;
         case MVM_JIT_ARG_CONST:
             fprintf(stderr, "Emit constant arg %d\n", args[i].offset);
             //| addarg i, args[i].offset
             switch(i) {
                 case 0:
-            dasm_put(Dst, 117, args[i].offset);
+            dasm_put(Dst, 103, args[i].offset);
                     break;
                 case 1:
-            dasm_put(Dst, 122, args[i].offset);
+            dasm_put(Dst, 108, args[i].offset);
                     break;
                 case 2:
-            dasm_put(Dst, 127, args[i].offset);
+            dasm_put(Dst, 113, args[i].offset);
                     break;
                 case 3:
-            dasm_put(Dst, 132, args[i].offset);
+            dasm_put(Dst, 118, args[i].offset);
                     break;
                 case 4:
-            dasm_put(Dst, 137, args[i].offset);
+            dasm_put(Dst, 123, args[i].offset);
                     break;
                 case 5:
-            dasm_put(Dst, 142, args[i].offset);
+            dasm_put(Dst, 128, args[i].offset);
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
             }
-#line 149 "src/jit/x86_64.dasc"
+#line 146 "src/jit/x86_64.dasc"
             break;
         }
     }
     //| mov64 r10, (uintptr_t)call_spec->func_ptr
     //| call r10
-    dasm_put(Dst, 147, (unsigned int)((uintptr_t)call_spec->func_ptr), (unsigned int)(((uintptr_t)call_spec->func_ptr)>>32));
-#line 154 "src/jit/x86_64.dasc"
+    dasm_put(Dst, 133, (unsigned int)((uintptr_t)call_spec->func_ptr), (unsigned int)(((uintptr_t)call_spec->func_ptr)>>32));
+#line 151 "src/jit/x86_64.dasc"
     /* Restore the work register pointer */
     //| setup [rbp-16]
-    dasm_put(Dst, 156, Dt2(->work));
-#line 156 "src/jit/x86_64.dasc"
+    dasm_put(Dst, 142, Dt2(->work));
+#line 153 "src/jit/x86_64.dasc"
 }
 
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitBranch * branch,
                          dasm_State **Dst) {
     if (branch->destination == MVM_JIT_BRANCH_EXIT) {
         //| jmp ->exit
-        dasm_put(Dst, 166);
-#line 162 "src/jit/x86_64.dasc"
+        dasm_put(Dst, 152);
+#line 159 "src/jit/x86_64.dasc"
     } else {
         //| jmp =>(branch->destination)
-        dasm_put(Dst, 171, (branch->destination));
-#line 164 "src/jit/x86_64.dasc"
+        dasm_put(Dst, 157, (branch->destination));
+#line 161 "src/jit/x86_64.dasc"
     }
-    /* This fixes an issue with aligning the labels. */
-    //| nop
-    dasm_put(Dst, 175);
-#line 167 "src/jit/x86_64.dasc"
 }
 
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMint32 label,
                         dasm_State **Dst) {
     //| =>(label):
-    dasm_put(Dst, 177, (label));
-#line 172 "src/jit/x86_64.dasc"
+    dasm_put(Dst, 161, (label));
+#line 167 "src/jit/x86_64.dasc"
 }
