@@ -68,7 +68,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
 
                     /* Set result type and register. */
                     uf->return_type = f->return_type;
-                    if (last_res_type == MVM_RETURN_VOID) {
+                    if (uf->return_type == MVM_RETURN_VOID) {
                         uf->return_value = NULL;
                     }
                     else {
