@@ -491,7 +491,7 @@ switch no-tracing no-cgoto:
 
 %.c: %.dasc
 	$(MSG) preprocessing $< to $@
-	$(CMD)$(LUA) ./3rdparty/dynasm/dynasm.lua -o $@ $<
+	@dynasm_rule@
 
 src/main@obj@: src/main.c
 	$(MSG) compiling $@

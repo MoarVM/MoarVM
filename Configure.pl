@@ -162,6 +162,9 @@ if ($args{'has-libatomic_ops'}) {
 }
 
 if ($args{'enable-jit'}) {
+    if (system($config{lua} .' -e \'require("bit");\'') == 0) {
+        $config{dynasm_rule} = '$(CMD)$(LUA) ./3rdparty/dynasm/dynasm.lua -o $@ $<';
+    }
     if ($Config{archname} =~ m/^x86_64/) {
         $config{arch} = 'x86_64';
         $config{jit} = '$(JIT_X64)';
@@ -169,7 +172,9 @@ if ($args{'enable-jit'}) {
         say "JIT isn't supported on $Config{archname} yet.";
     }
 }
+
 # fallback
+$config{dynasm_rule} //= '$(MSG) "Warning: Cannot run preprocessor (try reconfigure)"';
 $config{arch} //= 'stub';
 $config{jit} //= '$(JIT_STUB)';
 
