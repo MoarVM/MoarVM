@@ -165,7 +165,7 @@ if ($args{'enable-jit'}) {
     if (system($config{lua} .' -e \'require("bit");\'') == 0) {
         $config{dynasm_rule} = '$(CMD)$(LUA) ./3rdparty/dynasm/dynasm.lua -o $@ $<';
     }
-    if ($Config{archname} =~ m/^x86_64/) {
+    if ($Config{archname} =~ m/^x86_64|^MSWin32-x64/) {
         $config{arch} = 'x86_64';
         $config{jit} = '$(JIT_X64)';
     } else {
