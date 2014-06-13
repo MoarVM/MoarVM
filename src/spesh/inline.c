@@ -47,7 +47,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
 
             /* Instruction may be marked directly as not being inlinable, in
              * which case we're done. */
-            if (ins->info->no_inline)
+            if (!is_phi && ins->info->no_inline)
                 goto not_inlinable;
 
             /* If we have lexical access, make sure it's within the frame. */
