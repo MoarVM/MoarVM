@@ -24,7 +24,10 @@ static int page_mode_to_prot_mode(int page_mode) {
 void *MVM_platform_alloc_pages(size_t size, int page_mode)
 {
     int prot_mode = page_mode_to_prot_mode(page_mode);
-    return VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, page_mode);
+    void * allocd = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, page_mode);
+    if (!allocd)
+        MVM_panic(1, "MVM_platform_alloc_pages failed: %d", GetLastError());
+    return allocd;
 }
 
 int MVM_platform_set_page_mode(void * pages, size_t size, int page_mode) {
