@@ -144,7 +144,7 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
     size_t codesize;
     /* Space for globals */
     MVMint32  num_globals = MVM_jit_num_globals();
-    void * global_labels[num_globals];
+    void ** dasm_globals = malloc(num_globals * sizeof(void*));
     MVMJitIns * ins = jg->first_ins;
 
     if (tc->instance->spesh_log_fh) {
@@ -153,7 +153,7 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
 
     /* setup dasm */
     dasm_init(&state, 1);
-    dasm_setupglobal(&state, global_labels, num_globals);
+    dasm_setupglobal(&state, dasm_globals, num_globals);
     dasm_setup(&state, MVM_jit_actions());
     /* For the dynamic labels (not necessary right now) */
     dasm_growpc(&state, jg->num_labels);
@@ -189,6 +189,7 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
     *codesize_out = codesize;
     /* clear up the assembler */
     dasm_free(&state);
+    free(dasm_globals);
 
     if (tc->instance->spesh_log_fh) {
         fprintf(tc->instance->spesh_log_fh, "JIT compiled code: %d bytes", codesize);
