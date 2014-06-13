@@ -18,7 +18,7 @@ static int page_mode_to_prot_mode(int page_mode) {
 	return PAGE_EXECUTE_READWRITE;
     }
     /* I pity the fools that enter an invalid mode */
-    return MVM_PAGE_NOACCESS;
+    return PAGE_NOACCESS;
 }
 
 void *MVM_platform_alloc_pages(size_t size, int page_mode)
