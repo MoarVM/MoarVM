@@ -5,6 +5,30 @@
 
 |.arch x64
 |.actionlist actions
+
+/* Static allocation of relevant types to registers. I pick
+ * callee-save registers for efficiency. It is likely we'll be calling
+ * quite a C functions, and this saves us the trouble of storing
+ * them. Moreover, C compilers preferentially do not use callee-saved
+ * registers, and so in most cases, these won't be touched at all. */
+|.type TC, MVMThreadContext, r14
+|.type FRAME, MVMFrame
+/* 'alternative base pointer. I'll be using this often, so picking rbx
+ * here rather than the extended registers will likely lead to smaller
+ * bytecode */
+|.type WORK, MVMRegister, rbx
+|.type ARGS, MVMRegister, r12
+|.type ENV,  MVMRegister, r13
+
+|.macro saveregs
+| push TC; push WORK; push ARGS; push ENV
+|.endmacro
+
+|.macro restoreregs
+| pop ENV; pop ARGS; pop WORK; pop TC
+|.endmacro
+
+
 |.section code
 |.globals JIT_LABEL_
 
@@ -20,31 +44,38 @@ const unsigned int MVM_jit_num_globals(void) {
     return JIT_LABEL__MAX;
 }
 
-#define JIT_FRAME_SIZE 16
 
-/* Type maps for work and frame registers. This is fragile. */
-|.type WORK, MVMRegister, r15
-|.type FRAME, MVMFrame, r14
+/* C Call argument registers */
+
+|.define ARG1, rdi
+|.define ARG2, rsi
+|.define ARG3, rdx
+|.define ARG4, rcx
+|.define ARG5, r8
+|.define ARG6, r9
+
+/* Special register for the function to be invoked */
+|.define FUNCTION, r10
 
 |.macro addarg, i, val
 ||switch(i) {
 ||    case 0:
-|         mov rdi, val
+|         mov ARG1, val
 ||        break;
 ||    case 1:
-|         mov rsi, val
+|         mov ARG2, val
 ||        break;
 ||    case 2:
-|         mov rdx, val
+|         mov ARG3, val
 ||        break;
 ||    case 3:
-|         mov rcx, val
+|         mov ARG4, val
 ||        break;
 ||    case 4:
-|         mov r8, val
+|         mov ARG5, val
 ||        break;
 ||    case 5:
-|         mov r9, val
+|         mov ARG6, val
 ||        break;
 ||    default:
 ||        MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
@@ -53,28 +84,28 @@ const unsigned int MVM_jit_num_globals(void) {
 
 
 
-|.macro setup, loc
-| mov FRAME, loc
-| mov WORK, FRAME->work
-|.endmacro
-
-
-
 /* A function prologue is always the same in x86 / x64, becuase
  * we do not provide variable arguments, instead arguments are provided
  * via a frame. All JIT entry points receive prologue */
 void MVM_jit_emit_prologue(MVMThreadContext *tc, dasm_State **Dst) {
-    /* set up our C call frame, i.e. allocate stack space*/
+    /* Setup stack */
     | push rbp
     | mov rbp, rsp
-    | push, rdi              // thread context
-    | push, rsi              // mvm frame
-    | setup rsi              // setup our work registers
+    /* save callee-save registers */
+    | saveregs
+    /* setup special frame variables */
+    | mov TC,   ARG1
+    | mov WORK, FRAME:ARG2->work
+    | mov ARGS, FRAME:ARG2->args
+    | mov ENV,  FRAME:ARG2->env
 }
 
 /* And a function epilogue is also always the same */
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, dasm_State **Dst) {
     | ->exit:
+    /* restore callee-save registers */
+    | restoreregs
+    /* Restore stack */
     | mov rsp, rbp
     | pop rbp
     | ret
@@ -124,7 +155,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive * prim,
 void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC * call_spec,
                          dasm_State **Dst) {
     int i;
-    MVMJitCallArg *args = call_spec->args;
+    MVMJitAddr *args = call_spec->args;
     fprintf(stderr, "Emitting c call\n");
     if (call_spec->has_vargs) {
         MVM_exception_throw_adhoc(tc, "JIT can't handle varargs yet");
@@ -132,24 +163,37 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC * call_spec,
     /* first, add arguments */
     for (i = 0; i < call_spec->num_args; i++) {
         switch (args[i].base) {
-        case MVM_JIT_ARG_STACK:
-            fprintf(stderr, "Emit load stack offset arg %d\n", args[i].offset);
-            | addarg i, [rbp-args[i].offset]
+        case MVM_JIT_ADDR_STACK: /* unlikely to use this now, though */
+            fprintf(stderr, "Emit load stack offset arg %d\n", args[i].idx);
+            | addarg i, [rbp-args[i].idx]
             break;
-        case MVM_JIT_ARG_REG:
-            fprintf(stderr, "Emit work offset arg %d\n", args[i].offset);
-            | addarg i, WORK[args[i].offset]
+        case MVM_JIT_ADDR_INTERP:
+            switch (args[i].idx) {
+            case MVM_JIT_INTERP_TC:
+                | addarg i, TC
+                 break;
+            case MVM_JIT_INTERP_FRAME:
+                | addarg i, TC->cur_frame
+                break;
+            }
             break;
-        case MVM_JIT_ARG_CONST:
-            fprintf(stderr, "Emit constant arg %d\n", args[i].offset);
-            | addarg i, args[i].offset
+        case MVM_JIT_ADDR_REG:
+            fprintf(stderr, "Emit work offset arg %d\n", args[i].idx);
+            | addarg i, WORK[args[i].idx]
             break;
+        case MVM_JIT_ADDR_LITERAL:
+            fprintf(stderr, "Emit constant arg %d\n", args[i].idx);
+            | addarg i, args[i].idx
+            break;
+
         }
     }
-    | mov64 r10, (uintptr_t)call_spec->func_ptr
-    | call r10
-    /* Restore the work register pointer */
-    | setup [rbp-16]
+    /* Emit the call. I think we should be able to do something smarter than
+     * store the constant into the bytecode, like a data segment. But I'm
+     * not sure. */
+    | mov64 FUNCTION, (uintptr_t)call_spec->func_ptr
+    | call FUNCTION
+    /* No need to do anything here, our work registers are callee-saved :-) */
 }
 
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitBranch * branch,

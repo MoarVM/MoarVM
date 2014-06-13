@@ -19,27 +19,29 @@ struct MVMJitBranch {
 };
 
 typedef enum {
-    MVM_JIT_ARG_STACK,  // relative to stack base
-    MVM_JIT_ARG_REG,    // relative to register base
-    MVM_JIT_ARG_CONST,  // constant value
-} MVMJitArgBase;
+    MVM_JIT_ADDR_STACK,    // relative to stack base
+    MVM_JIT_ADDR_INTERP,   // interpreter variable
+    MVM_JIT_ADDR_REG,      // relative to register base
+    MVM_JIT_ADDR_LITERAL,  // constant value
+} MVMJitAddrBase;
 
-/* Stack-frame offsets for variables */
-#define MVM_JIT_STACK_TC    (sizeof(MVMThreadContext*))
-#define MVM_JIT_STACK_FRAME (sizeof(MVMThreadContext*) + sizeof(MVMFrame*))
+/* Some interpreter address definition */
+#define MVM_JIT_INTERP_TC     0
+#define MVM_JIT_INTERP_FRAME  1
 
-struct MVMJitCallArg {
-    MVMJitArgBase base;
-    MVMuint64 offset;
+struct MVMJitAddr {
+    MVMJitAddrBase base;
+    MVMint32 idx;
 };
 
 struct MVMJitCallC {
-    void * func_ptr; // what do we call
-    MVMJitCallArg * args; // a list of arguments
-    MVMuint16 num_args; // how many arguments we pass
+    void * func_ptr;     // what do we call
+    MVMJitAddr * args;   // a list of arguments
+    MVMuint16 num_args;  // how many arguments we pass
     MVMuint16 has_vargs; // does the receiver consider them variable
 };
 
+/* A non-final list of node types */
 typedef enum {
     MVM_JIT_INS_PRIMITIVE,
     MVM_JIT_INS_CALL_C,
