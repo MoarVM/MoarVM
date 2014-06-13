@@ -5,6 +5,8 @@
 
 |.arch x64
 |.actionlist actions
+|.section code
+|.globals JIT_LABEL_
 
 /* Static allocation of relevant types to registers. I pick
  * callee-save registers for efficiency. It is likely we'll be calling
@@ -29,9 +31,6 @@
 |.endmacro
 
 
-|.section code
-|.globals JIT_LABEL_
-
 const MVMint32 MVM_jit_support(void) {
     return 1;
 }
@@ -46,16 +45,33 @@ const unsigned int MVM_jit_num_globals(void) {
 
 
 /* C Call argument registers */
-
+|.if WIN32
+|.define ARG1, rcx
+|.define ARG2, rdx
+|.define ARG3, r8
+|.define ARG4, r9
+|.else
 |.define ARG1, rdi
 |.define ARG2, rsi
 |.define ARG3, rdx
 |.define ARG4, rcx
 |.define ARG5, r8
 |.define ARG6, r9
+|.endif
 
 /* Special register for the function to be invoked */
 |.define FUNCTION, r10
+
+|.macro callp, funcptr
+| mov64 FUNCTION, (uintptr_t)funcptr
+|.if WIN32
+| sub rsp, 32
+| call FUNCTION
+| add rsp, 32
+|.else
+| call FUNCTION
+|.endif
+|.endmacro
 
 |.macro addarg, i, val
 ||switch(i) {
@@ -71,17 +87,18 @@ const unsigned int MVM_jit_num_globals(void) {
 ||    case 3:
 |         mov ARG4, val
 ||        break;
+|.if not WIN32
 ||    case 4:
 |         mov ARG5, val
 ||        break;
 ||    case 5:
 |         mov ARG6, val
 ||        break;
+|.endif
 ||    default:
 ||        MVM_exception_throw_adhoc(tc, "Can't JIT more than 6 arguments");
 ||}
 |.endmacro
-
 
 
 /* A function prologue is always the same in x86 / x64, becuase
@@ -185,15 +202,12 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC * call_spec,
             fprintf(stderr, "Emit constant arg %d\n", args[i].idx);
             | addarg i, args[i].idx
             break;
-
         }
     }
     /* Emit the call. I think we should be able to do something smarter than
      * store the constant into the bytecode, like a data segment. But I'm
      * not sure. */
-    | mov64 FUNCTION, (uintptr_t)call_spec->func_ptr
-    | call FUNCTION
-    /* No need to do anything here, our work registers are callee-saved :-) */
+     | callp call_spec->func_ptr
 }
 
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitBranch * branch,

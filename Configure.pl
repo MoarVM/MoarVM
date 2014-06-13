@@ -162,21 +162,28 @@ if ($args{'has-libatomic_ops'}) {
 }
 
 if ($args{'enable-jit'}) {
-    if (system($config{lua} .' -e \'require("bit");\'') == 0) {
-        $config{dynasm_rule} = '$(CMD)$(LUA) ./3rdparty/dynasm/dynasm.lua -o $@ $<';
-    }
-    if ($Config{archname} =~ m/^x86_64|^MSWin32-x64/) {
-        $config{arch} = 'x86_64';
-        $config{jit} = '$(JIT_X64)';
+    if ($Config{archname} =~ m/^x86_64/) {
+        $config{jit} = '$(JIT_POSIX_X64)';
+    } elsif ($Config{archname} =~ /^MSWin32-x64/) {
+        $config{jit} = '$(JIT_WIN32_X64)';
     } else {
         say "JIT isn't supported on $Config{archname} yet.";
     }
 }
-
 # fallback
-$config{dynasm_rule} //= '$(MSG) "Warning: Cannot run preprocessor (try reconfigure)"';
-$config{arch} //= 'stub';
 $config{jit} //= '$(JIT_STUB)';
+
+
+if (system($config{lua} . ' -e \'require("bit");\'') == 0) {
+    # this is nasty imho, but what can you do
+    $config{dasm_rule_win32} = '$(DYNASM) $(DASM_FLAGS_WIN32) -o $@ $<';
+    $config{dasm_rule_posix} = '$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ $<';
+} else {
+    $config{dasm_rule_win32} //= '$(MSG) Waring: Cannot run preprocessor, try reconfigure?';
+    $config{dasm_rule_posix} //= '$(MSG) Waring: Cannot run preprocessor, try reconfigure?';
+}
+
+
 
 
 

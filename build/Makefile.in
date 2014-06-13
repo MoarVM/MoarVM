@@ -10,6 +10,9 @@ LUA    = @lua@
 CP     = $(PERL) -MExtUtils::Command -e cp
 MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 CHMOD  = $(PERL) -MExtUtils::Command -e chmod
+DYNASM = $(LUA) ./3rdparty/dynasm/dynasm.lua
+
+
 
 CONFIG    = @config@
 ADDCONFIG =
@@ -55,9 +58,12 @@ PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
                  src/platform/posix/time@obj@ \
                  src/platform/posix/sys@obj@
 
-JIT_X64 = src/jit/x86_64@obj@
-
+DASM_FLAGS_WIN32 = -D WIN32=1
+DASM_FLAGS_POSIX = -D POSIX=1
+JIT_WIN32_X64 = src/jit/emit_win32_x64@obj@
+JIT_POSIX_X64 = src/jit/emit_posix_x64@obj@
 JIT_STUB = src/jit/stub@obj@
+
 
 MAIN_OBJECTS = src/main@obj@
 
@@ -489,9 +495,6 @@ switch no-tracing no-cgoto:
 	$(MSG) compiling $@
 	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @objflags@ $(CINCLUDES) @ccout@$@ $*.c
 
-%.c: %.dasc
-	$(MSG) preprocessing $< to $@
-	@dynasm_rule@
 
 src/main@obj@: src/main.c
 	$(MSG) compiling $@
@@ -500,6 +503,14 @@ src/main@obj@: src/main.c
 src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(MSG) generating $@
 	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
+
+src/jit/emit_posix_x64.c: src/jit/emit_x64.dasc
+	@dasm_rule_posix@
+
+src/jit/emit_win32_x64.c: src/jit/emit_x64.dasc
+	@dasm_rule_win32@
+
+dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
 
 @uvlib@: $(UV_OBJECTS)
 	$(MSG) linking $@
