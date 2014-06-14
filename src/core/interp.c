@@ -196,7 +196,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0) = found = GET_LEX(cur_op, 2, f);
                 if (found.o == NULL) {
                     MVMuint16 idx = GET_UI16(cur_op, 2);
-                    if (f->static_info->body.lexical_types[idx] == MVM_reg_obj)
+                    MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
+                        ? f->spesh_cand->lexical_types
+                        : f->static_info->body.lexical_types;
+                    if (lexical_types[idx] == MVM_reg_obj)
                         GET_REG(cur_op, 0).o = MVM_frame_vivify_lexical(tc, f, idx);
                 }
                 cur_op += 6;
