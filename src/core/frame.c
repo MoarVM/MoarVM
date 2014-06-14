@@ -810,14 +810,35 @@ void MVM_frame_free_frame_pool(MVMThreadContext *tc) {
 
 /* Vivifies a lexical in a frame. */
 MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint16 idx) {
-    MVMuint8 *flags = f->static_info->body.static_env_flags;
-    MVMuint8  flag  = flags ? flags[idx] : -1;
+    MVMuint8    *flags, flag;
+    MVMRegister *static_env;
+    if (idx < f->static_info->body.num_lexicals) {
+        flags      = f->static_info->body.static_env_flags;
+        static_env = f->static_info->body.static_env;
+    }
+    else if (f->spesh_cand) {
+        MVMint32 i;
+        flags = NULL;
+        for (i = 0; i < f->spesh_cand->num_inlines; i++) {
+            MVMStaticFrame *isf = f->spesh_cand->inlines[i].code->body.sf;
+            idx -= f->spesh_cand->inlines[i].lexicals_start;
+            if (idx < isf->body.num_lexicals) {
+                flags      = isf->body.static_env_flags;
+                static_env = isf->body.static_env;
+                break;
+            }
+        }
+    }
+    else {
+        flags = NULL;
+    }
+    flag  = flags ? flags[idx] : -1;
     if (flag == 0) {
-        MVMObject *viv = f->static_info->body.static_env[idx].o;
+        MVMObject *viv = static_env[idx].o;
         return f->env[idx].o = viv ? viv : tc->instance->VMNull;
     }
     else if (flag == 1) {
-        MVMObject *viv = f->static_info->body.static_env[idx].o;
+        MVMObject *viv = static_env[idx].o;
         return f->env[idx].o = MVM_repr_clone(tc, viv);
     }
     else {
