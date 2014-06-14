@@ -68,9 +68,10 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
         MVMint32 i;
 
         /* Process any annotations. */
-        MVMSpeshAnn *ann           = ins->annotations;
-        MVMSpeshAnn *deopt_one_ann = NULL;
-        MVMSpeshAnn *deopt_all_ann = NULL;
+        MVMSpeshAnn *ann              = ins->annotations;
+        MVMSpeshAnn *deopt_one_ann    = NULL;
+        MVMSpeshAnn *deopt_all_ann    = NULL;
+        MVMSpeshAnn *deopt_inline_ann = NULL;
         while (ann) {
             switch (ann->type) {
             case MVM_SPESH_ANN_FH_START:
@@ -98,7 +99,7 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
                 g->inlines[ann->data.inline_idx].end = ws->bytecode_pos;
                 break;
             case MVM_SPESH_ANN_DEOPT_INLINE:
-                g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos;
+                deopt_inline_ann = ann;
                 break;
             }
             ann = ann->next;
@@ -213,6 +214,8 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
             g->deopt_addrs[2 * deopt_one_ann->data.deopt_idx + 1] = ws->bytecode_pos;
         if (deopt_all_ann)
             g->deopt_addrs[2 * deopt_all_ann->data.deopt_idx + 1] = ws->bytecode_pos;
+        if (deopt_inline_ann)
+            g->deopt_addrs[2 * deopt_inline_ann->data.deopt_idx + 1] = ws->bytecode_pos;
 
         ins = ins->next;
     }

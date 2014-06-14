@@ -87,6 +87,17 @@ static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     g->num_deopt_addrs++;
 }
 
+/* Finds the linearly previous basic block (not cheap, but uncommon). */
+static MVMSpeshBB * linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search) {
+    MVMSpeshBB *bb = g->entry;
+    while (bb) {
+        if (bb->linear_next == search)
+            return bb;
+        bb = bb->linear_next;
+    }
+    return NULL;
+}
+
 /* Builds the control flow graph, populating the passed spesh graph structure
  * with it. This also makes nodes for all of the instruction. */
 #define MVM_CFG_BB_START    1
@@ -339,21 +350,6 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         end_ins->annotations = end_ann;
     }
 
-    /* If we're building the graph for optimized bytecode, insert existing
-     * deopt points. */
-    if (existing_deopts) {
-        for (i = 0; i < num_existing_deopts; i ++) {
-            if (existing_deopts[2 * i + 1] >= 0) {
-                MVMSpeshIns *deopt_ins    = ins_flat[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2];
-                MVMSpeshAnn *deopt_ann    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
-                deopt_ann->next           = deopt_ins->annotations;
-                deopt_ann->type           = MVM_SPESH_ANN_DEOPT_INLINE;
-                deopt_ann->data.deopt_idx = i;
-                deopt_ins->annotations    = deopt_ann;
-            }
-        }
-    }
-
     /* Now for the second pass, where we assemble the basic blocks. Also we
      * build a lookup table of instructions that start a basic block to that
      * basic block, for the final CFG construction. We make the entry block a
@@ -497,6 +493,23 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
         /* Move on to next block. */
         cur_bb = cur_bb->linear_next;
+    }
+
+    /* If we're building the graph for optimized bytecode, insert existing
+     * deopt points. */
+    if (existing_deopts) {
+        for (i = 0; i < num_existing_deopts; i ++) {
+            if (existing_deopts[2 * i + 1] >= 0) {
+                MVMSpeshIns *post_ins     = ins_flat[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2];
+                MVMSpeshIns *deopt_ins    = post_ins->prev ? post_ins->prev :
+                    linear_prev(tc, g, ins_to_bb[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2])->last_ins;
+                MVMSpeshAnn *deopt_ann    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+                deopt_ann->next           = deopt_ins->annotations;
+                deopt_ann->type           = MVM_SPESH_ANN_DEOPT_INLINE;
+                deopt_ann->data.deopt_idx = i;
+                deopt_ins->annotations    = deopt_ann;
+            }
+        }
     }
 
     /* Clear up the temporary arrays. */
