@@ -1,5 +1,14 @@
 #include "moar.h"
 
+/* Calculates the work and env sizes based on the number of locals and
+ * lexicals. */
+static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
+                                     MVMSpeshCandidate *c) {
+    c->work_size = (c->num_locals + sf->body.cu->body.max_callsite_size)
+        * sizeof(MVMRegister);
+    c->env_size = c->num_lexicals * sizeof(MVMRegister);
+}
+
 /* Tries to set up a specialization of the bytecode for a given arg tuple.
  * Doesn't do the actual optimizations, just works out the guards and does
  * any simple argument transformations, and then inserts logging to record
@@ -76,6 +85,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             result->sg                  = sg;
             result->log_enter_idx       = 0;
             result->log_exits_remaining = MVM_SPESH_LOG_RUNS;
+            calculate_work_env_sizes(tc, static_frame, result);
             MVM_barrier();
             static_frame->body.num_spesh_candidates++;
             if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)
@@ -152,6 +162,7 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     candidate->inlines       = sg->inlines;
     candidate->local_types   = sg->local_types;
     candidate->lexical_types = sg->lexical_types;
+    calculate_work_env_sizes(tc, static_frame, candidate);
     free(sc);
 
     /* Update spesh slots. */
