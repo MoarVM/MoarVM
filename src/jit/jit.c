@@ -88,6 +88,7 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
         case MVM_OP_const_i64:
         case MVM_OP_const_i64_16:
         case MVM_OP_const_s:
+        case MVM_OP_sp_getarg_i:
             append_primitive(tc, jit_graph, current_ins);
             break;
         case MVM_OP_say: {

@@ -15,6 +15,7 @@
  * registers, and so in most cases, these won't be touched at all. */
 |.type TC, MVMThreadContext, r14
 |.type FRAME, MVMFrame
+|.type ARGCTX, MVMArgProcContext
 /* 'alternative base pointer. I'll be using this often, so picking rbx
  * here rather than the extended registers will likely lead to smaller
  * bytecode */
@@ -61,6 +62,8 @@ const unsigned int MVM_jit_num_globals(void) {
 
 /* Special register for the function to be invoked */
 |.define FUNCTION, r10
+/* all-purpose temporary register */
+|.define TMP, r11
 
 |.macro callp, funcptr
 | mov64 FUNCTION, (uintptr_t)funcptr
@@ -113,7 +116,7 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, dasm_State **Dst) {
     /* setup special frame variables */
     | mov TC,   ARG1
     | mov WORK, FRAME:ARG2->work
-    | mov ARGS, FRAME:ARG2->args
+    | mov ARGS, FRAME:ARG2->params.args
     | mov ENV,  FRAME:ARG2->env
 }
 
@@ -145,12 +148,31 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive * prim,
     case MVM_OP_const_i64: {
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMint64 val = ins->operands[1].lit_i64;
-        | mov WORK[reg], qword val
+        | mov64 TMP, val
+        | mov WORK[reg], TMP
         break;
+    }
+    case MVM_OP_sp_getarg_i: {
+        MVMint32 reg = ins->operands[0].reg.orig;
+        MVMuint16 idx = ins->operands[1].callsite_idx;
+        | mov TMP, ARGS[idx]
+        | mov WORK[reg], TMP
+        break;
+    }
+    case MVM_OP_set: {
+         MVMint32 reg1 = ins->operands[0].reg.orig;
+         MVMint32 reg2 = ins->operands[1].reg.orig;
+         | mov TMP, WORK[reg2]
+         | mov WORK[reg1], TMP
+         break;
     }
     case MVM_OP_const_s: {
          MVMint32 reg = ins->operands[0].reg.i;
          MVMint32 idx = ins->operands[1].lit_str_idx;
+         /* I basically don't really want to use the TC's CompUnit
+          * here, because what if we decide JIT compilation should
+           * go to another thread? */
+         MVMString * s = NULL;
          break;
     }
     case MVM_OP_add_i: {
