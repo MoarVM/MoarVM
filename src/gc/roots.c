@@ -372,7 +372,7 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
 
     /* Scan lexicals. */
     if (frame->env) {
-        if (frame->spesh_cand && frame->spesh_cand->lexical_types) {
+        if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->lexical_types) {
             type_map = frame->spesh_cand->lexical_types;
             count    = frame->spesh_cand->num_lexicals;
         }
