@@ -22,6 +22,9 @@ struct MVMSpeshInline {
 
     /* Deopt index used to find return address. */
     MVMuint32 return_deopt_idx;
+
+    /* Inlinee's spesh graph, so we can free it up after code-gen. */
+    MVMSpeshGraph *g;
 };
 
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc,

@@ -287,6 +287,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     memcpy(inliner->inlines + inliner->num_inlines, inlinee->inlines,
         inlinee->num_inlines * sizeof(MVMSpeshInline));
     inliner->inlines[total_inlines - 1].code           = inlinee_code;
+    inliner->inlines[total_inlines - 1].g              = inlinee;
     inliner->inlines[total_inlines - 1].locals_start   = inliner->num_locals;
     inliner->inlines[total_inlines - 1].lexicals_start = inliner->num_lexicals;
     switch (invoke_ins->info->opcode) {

@@ -176,6 +176,14 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
 
     /* Destory spesh graph, and finally clear point to it in the candidate,
      * which unblocks use of the specialization. */
+    if (candidate->num_inlines) {
+        MVMint32 i;
+        for (i = 0; i < candidate->num_inlines; i++)
+            if (candidate->inlines[i].g) {
+                MVM_spesh_graph_destroy(tc, candidate->inlines[i].g);
+                candidate->inlines[i].g = NULL;
+            }
+    }
     MVM_spesh_graph_destroy(tc, sg);
     MVM_barrier();
     candidate->sg = NULL;

@@ -80,7 +80,7 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
             if (frame->env) {
                 MVM_fixed_size_free(tc, tc->instance->fsa,
                     frame->spesh_cand && frame->spesh_log_idx == -1
-                        ? frame->spesh_cand->num_lexicals * sizeof(MVMRegister)
+                        ? frame->spesh_cand->env_size
                         : frame->static_info->body.env_size,
                     frame->env);
                 frame->env = NULL;
