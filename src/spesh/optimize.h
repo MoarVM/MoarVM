@@ -7,6 +7,8 @@ struct MVMSpeshCallInfo {
     MVMCallsite   *cs;
     MVMint8        arg_is_const[MAX_ARGS_FOR_OPT];
     MVMSpeshFacts *arg_facts[MAX_ARGS_FOR_OPT];
+    MVMSpeshIns   *prepargs_ins;
+    MVMSpeshIns   *arg_ins[MAX_ARGS_FOR_OPT];
 };
 
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g);

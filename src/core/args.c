@@ -10,11 +10,14 @@ static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuin
     }
     else {
         if (ctx->named_used) {
-            free(ctx->named_used);
+            MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size,
+                ctx->named_used);
             ctx->named_used = NULL;
         }
         ctx->named_used_size = num;
-        ctx->named_used = ctx->named_used_size ? calloc(sizeof(MVMuint8), ctx->named_used_size) : NULL;
+        ctx->named_used = ctx->named_used_size
+            ? MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num)
+            : NULL;
     }
 }
 
@@ -33,7 +36,7 @@ void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsit
 /* Clean up an arguments processing context for cache. */
 void MVM_args_proc_cleanup_for_cache(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     /* Really, just if ctx->arg_flags, which indicates a flattening occurred. */
-    if (ctx->callsite->has_flattening) {
+    if (ctx->callsite && ctx->callsite->has_flattening) {
         if (ctx->arg_flags) {
             /* Free the generated flags. */
             free(ctx->arg_flags);
@@ -50,7 +53,8 @@ void MVM_args_proc_cleanup_for_cache(MVMThreadContext *tc, MVMArgProcContext *ct
 void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     MVM_args_proc_cleanup_for_cache(tc, ctx);
     if (ctx->named_used) {
-        free(ctx->named_used);
+        MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size,
+            ctx->named_used);
         ctx->named_used = NULL;
         ctx->named_used_size = 0;
     }

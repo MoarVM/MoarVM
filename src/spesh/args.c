@@ -3,6 +3,9 @@
 /* Maximum number of positional args we'll consider for optimization purposes. */
 #define MAX_POS_ARGS 8
 
+/* Maximum number of named args we'll consider for optimization purposes. */
+#define MAX_NAMED_ARGS 8
+
 /* Adds guards and facts for an object arg. */
 void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
                           MVMObject *arg, MVMSpeshIns *arg_ins) {
@@ -65,6 +68,19 @@ void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
     }
 }
 
+/* Adds an instruction marking a name arg as being used (if we turned its
+ * fetching into a positional). */
+static MVMSpeshIns * add_named_used_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                               MVMSpeshIns *ins, MVMint32 idx) {
+    MVMSpeshIns *inserted_ins = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+    MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ));
+    inserted_ins->info        = MVM_op_get_op(MVM_OP_sp_namedarg_used);
+    inserted_ins->operands    = operands;
+    operands[0].lit_i16       = (MVMint16)idx;
+    MVM_spesh_manipulate_insert_ins(tc, bb, ins, inserted_ins);
+    return inserted_ins;
+}
+
 /* Takes information about the incoming callsite and arguments, and performs
  * various optimizations based on that information. */
 void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVMRegister *args) {
@@ -77,11 +93,17 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVMSpeshIns  *param_sn_ins       = NULL;
     MVMSpeshBB   *param_sn_bb        = NULL;
 
-    MVMSpeshIns **pos_ins = calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
-    MVMSpeshBB  **pos_bb  = calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
-    MVMint32      req_max = -1;
-    MVMint32      opt_min = -1;
-    MVMint32      opt_max = -1;
+    MVMSpeshIns **pos_ins    = calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
+    MVMSpeshBB  **pos_bb     = calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
+    MVMSpeshIns **named_ins  = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
+    MVMSpeshBB  **named_bb   = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshBB *));
+    MVMSpeshIns **used_ins   = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
+    MVMint32      req_max    = -1;
+    MVMint32      opt_min    = -1;
+    MVMint32      opt_max    = -1;
+    MVMint32      num_named  = 0;
+    MVMint32      named_used = 0;
+    MVMint32      got_named  = cs->num_pos != cs->arg_count;
 
     /* Walk through the graph, looking for arg related instructions. */
     MVMSpeshBB *bb = g->entry;
@@ -137,8 +159,15 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             case MVM_OP_param_rn_n:
             case MVM_OP_param_rn_s:
             case MVM_OP_param_rn_o:
+                /* Named (optional or required). */
+                if (num_named == MAX_NAMED_ARGS)
+                    goto cleanup;
+                named_ins[num_named] = ins;
+                named_bb[num_named]  = bb;
+                num_named++;
+                break;
             case MVM_OP_param_sp:
-                /* Don't know how to handle these yet; bail out. */
+                /* Don't know how to handle this yet; bail out. */
                 goto cleanup;
             case MVM_OP_param_sn:
                 param_sn_ins = ins;
@@ -200,10 +229,9 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             }
         }
 
-        /* Since we know there's no incoming nameds (due to spesh limitation)
-         * we can always turn param_sn into a simple hash creation. This will
-         * typically be further lowered in optimize. */
-        if (param_sn_ins) {
+        /* If we know there's no incoming nameds we can always turn param_sn into a
+         * simple hash creation. This will typically be further lowered in optimize. */
+        if (param_sn_ins && !got_named) {
             MVMObject *hash_type = g->sf->body.cu->body.hll_config->slurpy_hash_type;
             if (REPR(hash_type)->ID == MVM_REPR_ID_MVMHash) {
                 MVMSpeshOperand target    = param_sn_ins->operands[0];
@@ -219,14 +247,13 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             }
         }
 
-        /* We can optimize. Toss checkarity and paramnamesused. */
+        /* We can optimize. Toss checkarity. */
         MVM_spesh_manipulate_delete_ins(tc, checkarity_bb, checkarity_ins);
-        if (paramnamesused_ins)
-            MVM_spesh_manipulate_delete_ins(tc, paramnamesused_bb, paramnamesused_ins);
 
-        /* Re-write the passed things to spesh ops, and store any gurads. */
-        if (cs->num_pos)
-            g->guards = malloc(2 * cs->num_pos * sizeof(MVMSpeshGuard));
+        /* Re-write the passed required positionals to spesh ops, and store
+         * any gurads. */
+        if (cs->arg_count)
+            g->guards = malloc(2 * cs->arg_count * sizeof(MVMSpeshGuard));
         for (i = 0; i < cs->num_pos; i++) {
             switch (pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:
@@ -258,13 +285,9 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 if (passed) {
                     /* If we know the argument has been passed, then add a goto
                     * to the "passed" code. */
-                    MVMSpeshIns *inserted_goto = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
-                    MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ));
-                    inserted_goto->info        = MVM_op_get_op(MVM_OP_goto);
-                    inserted_goto->operands    = operands;
-                    operands[0].ins_bb         = pos_ins[i]->operands[2].ins_bb;
-                    MVM_spesh_manipulate_insert_ins(tc, pos_bb[i], pos_ins[i], inserted_goto);
-    
+                    MVM_spesh_manipulate_insert_goto(tc, g, pos_bb[i], pos_ins[i],
+                        pos_ins[i]->operands[2].ins_bb);
+
                     /* Inserting an unconditional goto makes the linear_next BB
                     * unreachable, so we remove it from the succ list. */
                     MVM_spesh_manipulate_remove_successor(tc, pos_bb[i],
@@ -278,9 +301,150 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 }
             }
         }
+
+        /* Now consider any nameds. */
+        for (i = 0; i < num_named; i++) {
+            /* See if the arg was passed. */
+            MVMString *arg_name      = MVM_spesh_get_string(tc, g, named_ins[i]->operands[1]);
+            MVMint32   passed_nameds = (cs->arg_count - cs->num_pos) / 2;
+            MVMint32   cs_flags      = cs->num_pos + passed_nameds;
+            MVMint32   cur_idx       = 0;
+            MVMint32   cur_named     = 0;
+            MVMuint8   found_flag    = 0;
+            MVMint32   found_idx     = -1;
+            MVMint32   j;
+            for (j = 0; j < cs_flags; j++) {
+                if (cs->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
+                    if (MVM_string_equal(tc, arg_name, cs->arg_names[cur_named])) {
+                        /* Found it. */
+                        found_flag = cs->arg_flags[j];
+                        found_idx  = cur_idx;
+                        break;
+                    }
+                    cur_idx += 2;
+                    cur_named++;
+                }
+                else {
+                    cur_idx++;
+                }
+            }
+
+            /* Now go by instruction. */
+            switch (named_ins[i]->info->opcode) {
+            case MVM_OP_param_rn_i:
+                if (found_idx == -1)
+                    goto cleanup;
+                if (found_flag & MVM_CALLSITE_ARG_INT) {
+                    named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
+                    named_ins[i]->operands[1].lit_i16 = found_idx + 1;
+                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                }
+                named_used++;
+                break;
+            case MVM_OP_param_rn_n:
+                if (found_idx == -1)
+                    goto cleanup;
+                if (found_flag & MVM_CALLSITE_ARG_NUM) {
+                    named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
+                    named_ins[i]->operands[1].lit_i16 = found_idx + 1;
+                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                }
+                named_used++;
+                break;
+            case MVM_OP_param_rn_s:
+                if (found_idx == -1)
+                    goto cleanup;
+                if (found_flag & MVM_CALLSITE_ARG_STR) {
+                    named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
+                    named_ins[i]->operands[1].lit_i16 = found_idx + 1;
+                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                }
+                named_used++;
+                break;
+            case MVM_OP_param_rn_o:
+                if (found_idx == -1)
+                    goto cleanup;
+                if (found_flag & MVM_CALLSITE_ARG_OBJ) {
+                    MVMuint16 arg_idx = found_idx + 1;
+                    named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
+                    named_ins[i]->operands[1].lit_i16 = arg_idx;
+                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    if (args[arg_idx].o)
+                        add_guards_and_facts(tc, g, arg_idx, args[arg_idx].o, named_ins[i]);
+                }
+                named_used++;
+                break;
+            case MVM_OP_param_on_i:
+                if (found_idx == -1) {
+                    MVM_spesh_manipulate_delete_ins(tc, named_bb[i], named_ins[i]);
+                }
+                else if (found_flag & MVM_CALLSITE_ARG_INT) {
+                    named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
+                    named_ins[i]->operands[1].lit_i16 = found_idx + 1;
+                    MVM_spesh_manipulate_insert_goto(tc, g, named_bb[i], named_ins[i],
+                        named_ins[i]->operands[2].ins_bb);
+                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    named_used++;
+                }
+                break;
+            case MVM_OP_param_on_n:
+                if (found_idx == -1) {
+                    MVM_spesh_manipulate_delete_ins(tc, named_bb[i], named_ins[i]);
+                }
+                else if (found_flag & MVM_CALLSITE_ARG_NUM) {
+                    named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
+                    named_ins[i]->operands[1].lit_i16 = found_idx + 1;
+                    MVM_spesh_manipulate_insert_goto(tc, g, named_bb[i], named_ins[i],
+                        named_ins[i]->operands[2].ins_bb);
+                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    named_used++;
+                }
+                break;
+            case MVM_OP_param_on_s:
+                if (found_idx == -1) {
+                    MVM_spesh_manipulate_delete_ins(tc, named_bb[i], named_ins[i]);
+                }
+                else if (found_flag & MVM_CALLSITE_ARG_STR) {
+                    named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
+                    named_ins[i]->operands[1].lit_i16 = found_idx + 1;
+                    MVM_spesh_manipulate_insert_goto(tc, g, named_bb[i], named_ins[i],
+                        named_ins[i]->operands[2].ins_bb);
+                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    named_used++;
+                }
+                break;
+            case MVM_OP_param_on_o:
+                if (found_idx == -1) {
+                    MVM_spesh_manipulate_delete_ins(tc, named_bb[i], named_ins[i]);
+                }
+                else if (found_flag & MVM_CALLSITE_ARG_OBJ) {
+                    MVMuint16 arg_idx = found_idx + 1;
+                    named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
+                    named_ins[i]->operands[1].lit_i16 = arg_idx;
+                    MVM_spesh_manipulate_insert_goto(tc, g, named_bb[i], named_ins[i],
+                        named_ins[i]->operands[2].ins_bb);
+                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
+                    if (args[arg_idx].o)
+                        add_guards_and_facts(tc, g, arg_idx, args[arg_idx].o, named_ins[i]);
+                    named_used++;
+                }
+                break;
+            }
+        }
+
+        /* If we had no nameds or we used them all, can toss namesused, and we
+         * don't need to mark used after all. */
+        if (paramnamesused_ins && num_named == named_used) {
+            MVM_spesh_manipulate_delete_ins(tc, paramnamesused_bb, paramnamesused_ins);
+            for (i = 0; i < num_named; i++)
+                if (used_ins[i])
+                    MVM_spesh_manipulate_delete_ins(tc, named_bb[i], used_ins[i]);
+        }
     }
 
   cleanup:
     free(pos_ins);
     free(pos_bb);
+    free(named_ins);
+    free(named_bb);
 }

@@ -245,7 +245,9 @@ callsite descriptor will always be a pointer + offset away.
 Each callsite consists of a 16-bit unsigned integer indicating the number
 of argument flags. This is followed by the flags, taking 8 bits each. If
 the number of argument flags is odd, then an extra padding byte will be
-written afterwards.
+written afterwards. Since version 3, this is then followed with one index
+to the string heap (in the form of a 32-bit integer) for each argument flag
+that has the `MVM_CALLSITE_ARG_NAMED` bit set.
 
 ## Bytecode segment
 This consists of a sequence of instructions. Instruction codes are always

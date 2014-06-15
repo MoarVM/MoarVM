@@ -23,6 +23,9 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSp
         switch (ann->type) {
             case MVM_SPESH_ANN_FH_START:
             case MVM_SPESH_ANN_FH_GOTO:
+            case MVM_SPESH_ANN_INLINE_START:
+                if (!next && bb->linear_next)
+                    next = bb->linear_next->first_ins;
                 if (next) {
                     ann->next = next->annotations;
                     next->annotations = ann;
@@ -56,6 +59,16 @@ void MVM_spesh_manipulate_insert_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSp
         bb->last_ins = to_insert;
     }
     to_insert->prev = previous;
+}
+
+/* Inserts a goto. */
+void MVM_spesh_manipulate_insert_goto(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMSpeshBB *target) {
+    MVMSpeshIns *inserted_goto = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+    MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ));
+    inserted_goto->info        = MVM_op_get_op(MVM_OP_goto);
+    inserted_goto->operands    = operands;
+    operands[0].ins_bb         = target;
+    MVM_spesh_manipulate_insert_ins(tc, bb, ins, inserted_goto);
 }
 
 void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *succ) {

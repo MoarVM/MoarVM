@@ -1,5 +1,14 @@
 #include "moar.h"
 
+/* Calculates the work and env sizes based on the number of locals and
+ * lexicals. */
+static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
+                                     MVMSpeshCandidate *c) {
+    c->work_size = (c->num_locals + sf->body.cu->body.max_callsite_size)
+        * sizeof(MVMRegister);
+    c->env_size = c->num_lexicals * sizeof(MVMRegister);
+}
+
 /* Tries to set up a specialization of the bytecode for a given arg tuple.
  * Doesn't do the actual optimizations, just works out the guards and does
  * any simple argument transformations, and then inserts logging to record
@@ -11,6 +20,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     MVMSpeshGuard *guards;
     MVMSpeshCode *sc;
     MVMint32 num_spesh_slots, num_log_slots, num_guards, *deopts, num_deopts;
+    MVMuint16 num_locals, num_lexicals;
     MVMCollectable **spesh_slots, **log_slots;
     char *before, *after;
 
@@ -32,6 +42,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     spesh_slots     = sg->spesh_slots;
     num_log_slots   = sg->num_log_slots;
     log_slots       = sg->log_slots;
+    num_locals      = sg->num_locals;
+    num_lexicals    = sg->num_lexicals;
 
     /* Now try to add it. Note there's a slim chance another thread beat us
      * to doing so. Also other threads can read the specializations without
@@ -53,8 +65,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
         }
         if (!result) {
             if (!static_frame->body.spesh_candidates)
-                static_frame->body.spesh_candidates = malloc(
-                    MVM_SPESH_LIMIT * sizeof(MVMSpeshCandidate));
+                static_frame->body.spesh_candidates = calloc(
+                    MVM_SPESH_LIMIT, sizeof(MVMSpeshCandidate));
             result                      = &static_frame->body.spesh_candidates[num_spesh];
             result->cs                  = callsite;
             result->num_guards          = num_guards;
@@ -68,9 +80,12 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             result->deopts              = deopts;
             result->num_log_slots       = num_log_slots;
             result->log_slots           = log_slots;
+            result->num_locals          = num_locals;
+            result->num_lexicals        = num_lexicals;
             result->sg                  = sg;
             result->log_enter_idx       = 0;
             result->log_exits_remaining = MVM_SPESH_LOG_RUNS;
+            calculate_work_env_sizes(tc, static_frame, result);
             MVM_barrier();
             static_frame->body.num_spesh_candidates++;
             if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)
@@ -83,6 +98,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
                     "Inserting logging for specialization of '%s' (cuid: %s)\n\n", c_name, c_cuid);
                 fprintf(tc->instance->spesh_log_fh,
                     "Before:\n%s\nAfter:\n%s\n\n========\n\n", before, after);
+                fflush(tc->instance->spesh_log_fh);
                 free(before);
                 free(after);
                 free(c_name);
@@ -125,10 +141,12 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
             "Finished specialization of '%s' (cuid: %s)\n\n", c_name, c_cuid);
         fprintf(tc->instance->spesh_log_fh,
             "%s\n\n========\n\n", dump);
+        fflush(tc->instance->spesh_log_fh);
         free(dump);
         free(c_name);
         free(c_cuid);
     }
+
     /* Try to JIT compile the optimised graph. The JIT graph hangs off
      * of the spesh graph and can safely be deleted with it. */
     jg = MVM_jit_try_make_graph(tc, sg);
@@ -151,6 +169,13 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
         candidate->handlers      = sc->handlers;
         candidate->num_deopts    = sg->num_deopt_addrs;
         candidate->deopts        = sg->deopt_addrs;
+        candidate->num_locals    = sg->num_locals;
+        candidate->num_lexicals  = sg->num_lexicals;
+        candidate->num_inlines   = sg->num_inlines;
+        candidate->inlines       = sg->inlines;
+        candidate->local_types   = sg->local_types;
+        candidate->lexical_types = sg->lexical_types;
+        calculate_work_env_sizes(tc, static_frame, candidate);
         free(sc);
     }
 
@@ -165,6 +190,14 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
 
     /* Destory spesh graph, and finally clear point to it in the candidate,
      * which unblocks use of the specialization. */
+    if (candidate->num_inlines) {
+        MVMint32 i;
+        for (i = 0; i < candidate->num_inlines; i++)
+            if (candidate->inlines[i].g) {
+                MVM_spesh_graph_destroy(tc, candidate->inlines[i].g);
+                candidate->inlines[i].g = NULL;
+            }
+    }
     MVM_spesh_graph_destroy(tc, sg);
     MVM_barrier();
     candidate->sg = NULL;

@@ -3,7 +3,7 @@
 /* Some constants. */
 #define HEADER_SIZE                 92
 #define MIN_BYTECODE_VERSION        1
-#define MAX_BYTECODE_VERSION        2
+#define MAX_BYTECODE_VERSION        3
 #define FRAME_HEADER_SIZE           (9 * 4 + (rs->version >= 2 ? 2 : 1) * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define SCDEP_HEADER_OFFSET         12
@@ -702,7 +702,18 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         callsites[i]->arg_count      = positionals + nameds;
         callsites[i]->has_flattening = has_flattening;
         callsites[i]->is_interned    = 0;
-        callsites[i]->with_invocant  = NULL; 
+        callsites[i]->with_invocant  = NULL;
+
+        if (rs->version >= 3 && nameds) {
+            ensure_can_read(tc, cu, rs, pos, (nameds / 2) * 4);
+            callsites[i]->arg_names = malloc((nameds / 2) * sizeof(MVMString));
+            for (j = 0; j < nameds / 2; j++) {
+                callsites[i]->arg_names[j] = get_heap_string(tc, cu, rs, pos, 0);
+                pos += 4;
+            }
+        } else {
+            callsites[i]->arg_names = NULL;
+        }
 
         /* Track maximum callsite size we've seen. (Used for now, though
          * in the end we probably should calculate it by frame.) */
@@ -756,6 +767,7 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Load the strings heap. */
     cu_body->strings = deserialize_strings(tc, cu, rs);
     cu_body->num_strings = rs->expected_strings;
+    cu_body->orig_strings = rs->expected_strings;
 
     /* Load SC dependencies. */
     deserialize_sc_deps(tc, cu, rs);
@@ -767,12 +779,14 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Load the static frame info and give each one a code reference. */
     cu_body->frames = deserialize_frames(tc, cu, rs);
     cu_body->num_frames = rs->expected_frames;
+    cu_body->orig_frames = rs->expected_frames;
     create_code_objects(tc, cu);
 
     /* Load callsites. */
     cu_body->max_callsite_size = MVM_MIN_CALLSITE_SIZE;
     cu_body->callsites = deserialize_callsites(tc, cu, rs);
     cu_body->num_callsites = rs->expected_callsites;
+    cu_body->orig_callsites = rs->expected_callsites;
 
     /* Resolve HLL name. */
     MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->hll_name, cu_body->strings[rs->hll_str_idx]);

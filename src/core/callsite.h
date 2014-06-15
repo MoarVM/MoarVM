@@ -13,9 +13,7 @@ typedef enum {
     /* Argument is a native NFG string (MVMString REPR). */
     MVM_CALLSITE_ARG_STR = 8,
 
-    /* Argument is named; in this case, there are two entries in
-     * the argument list, the first a MVMString naming the arg and
-     * after that the arg. */
+    /* Argument is named. The name is placed in the MVMCallsite. */
     MVM_CALLSITE_ARG_NAMED = 32,
 
     /* Argument is flattened. What this means is up to the target. */
@@ -28,16 +26,16 @@ typedef enum {
 /* A callsite entry is just one of the above flags. */
 typedef MVMuint8 MVMCallsiteEntry;
 
-/* A callsite is an argument count and a bunch of flags. Note that it
- * does not contain the values; this is the *statically known* things
- * about the callsite and is immutable. It describes how to process
- * the callsite memory buffer. */
+/* A callsite is an argument count, a bunch of flags, and names of named
+ * arguments (excluding any flattening ones). Note that it does not contain
+ * the argument values; this is the *statically known* things about the
+ * callsite and is immutable. It describes how to process the callsite
+ * memory buffer. */
 struct MVMCallsite {
     /* The set of flags. */
     MVMCallsiteEntry *arg_flags;
 
-    /* The total argument count (including 2 for each
-     * named arg). */
+    /* The total argument count (including 2 for each named arg). */
     MVMuint16 arg_count;
 
     /* Number of positionals. */
@@ -52,6 +50,10 @@ struct MVMCallsite {
 
     /* Cached version of this callsite with an extra invocant arg. */
     MVMCallsite *with_invocant;
+
+    /* Names of named arguments, in the order that they are passed (and thus
+     * matching the flags). */
+    MVMString **arg_names;
 
 #if MVM_HLL_PROFILE_CALLS
     MVMuint32 static_frame_id;

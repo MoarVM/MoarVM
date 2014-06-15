@@ -128,11 +128,15 @@ struct MVMFrame {
 
     /* Linked list of any continuation tags we have. */
     MVMContinuationTag *continuation_tags;
-
+    
     /* Linked MVMContext object, so we can track the
      * serialization context and such. */
     /* note: used atomically */
     MVMObject *context_object;
+
+    /* The allocated work/env sizes. */
+    MVMuint16 allocd_work;
+    MVMuint16 allocd_env;
 
     /* Flags that the caller chain should be kept in place after return or
      * unwind; used to make sure we can get a backtrace after an exception. */
@@ -180,9 +184,11 @@ struct MVMInvocationSpec {
 
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
-                      MVMFrame *outer, MVMObject *code_ref);
+                      MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand);
 MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMObject *code_ref);
+MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *static_frame,
+                                      MVMCode *code_ref);
 MVM_PUBLIC MVMuint64 MVM_frame_try_return(MVMThreadContext *tc);
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
                          MVMuint32 rel_addr, MVMObject *return_value);

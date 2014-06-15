@@ -24,6 +24,13 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
+/* Initializes a new instance. */
+static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMCompUnitBody *body = (MVMCompUnitBody *)data;
+    body->update_pools_mutex = malloc(sizeof(uv_mutex_t));
+    uv_mutex_init(body->update_pools_mutex);
+}
+
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMCompUnitBody *src_body  = (MVMCompUnitBody *)src;
@@ -91,6 +98,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     default:
         MVM_panic(MVM_exitcode_NYI, "Invalid deallocate of %u during MVMCompUnit gc_free", body->deallocate);
     }
+    uv_mutex_destroy(body->update_pools_mutex);
+    free(body->update_pools_mutex);
 }
 
 /* Gets the storage specification for this representation. */
@@ -116,7 +125,7 @@ const MVMREPROps * MVMCompUnit_initialize(MVMThreadContext *tc) {
 static const MVMREPROps this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
-    NULL, /* initialize */
+    initialize,
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
     MVM_REPR_DEFAULT_BOX_FUNCS,

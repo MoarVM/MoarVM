@@ -199,7 +199,7 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
                 MVM_store(&thread_obj->body.stage, MVM_thread_stage_clearing_nursery);
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
                     "Thread %d run %d : set thread %d clearing nursery stage to %d\n",
-                    other->thread_id, MVM_load(&thread_obj->body.stage));
+                    other->thread_id, (int)MVM_load(&thread_obj->body.stage));
             }
             MVM_cas(&other->gc_status, MVMGCStatus_STOLEN, MVMGCStatus_UNABLE);
             MVM_cas(&other->gc_status, MVMGCStatus_INTERRUPT, MVMGCStatus_NONE);

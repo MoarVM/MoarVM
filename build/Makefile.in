@@ -88,6 +88,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/core/nativecall@obj@ \
           src/core/continuation@obj@ \
           src/core/intcache@obj@ \
+          src/core/fixedsizealloc@obj@ \
           src/gen/config@obj@ \
           src/gc/orchestrate@obj@ \
           src/gc/allocation@obj@ \
@@ -167,6 +168,8 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/optimize@obj@ \
           src/spesh/deopt@obj@ \
           src/spesh/log@obj@ \
+          src/spesh/threshold@obj@ \
+          src/spesh/inline@obj@ \
           src/jit/jit@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
@@ -208,6 +211,7 @@ HEADERS = src/moar.h \
           src/core/nativecall.h \
           src/core/continuation.h \
           src/core/intcache.h \
+          src/core/fixedsizealloc.h \
           src/io/io.h \
           src/io/eventloop.h \
           src/io/syncfile.h \
@@ -285,6 +289,8 @@ HEADERS = src/moar.h \
           src/spesh/optimize.h \
           src/spesh/deopt.h \
           src/spesh/log.h \
+          src/spesh/threshold.h \
+          src/spesh/inline.h \
           src/strings/unicode_gen.h \
           src/strings/decode_stream.h \
           src/strings/ascii.h \

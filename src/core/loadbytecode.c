@@ -46,7 +46,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
 
             /* Invoke the deserialization frame and return to the runloop. */
             MVM_frame_invoke(tc, cu->body.deserialize_frame, &no_arg_callsite,
-                NULL, NULL, NULL);
+                NULL, NULL, NULL, -1);
         }
         else {
             /* No deserialize frame, so do load frame instead. */
@@ -74,6 +74,6 @@ static void run_load(MVMThreadContext *tc, void *sr_data) {
 
         /* Invoke the load frame and return to the runloop. */
         MVM_frame_invoke(tc, cu->body.load_frame, &no_arg_callsite,
-            NULL, NULL, NULL);
+            NULL, NULL, NULL, -1);
     }
 }

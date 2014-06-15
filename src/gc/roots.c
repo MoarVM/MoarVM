@@ -342,8 +342,14 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
 
     /* Scan locals. */
     if (frame->work && frame->tc) {
-        type_map = frame->static_info->body.local_types;
-        count    = frame->static_info->body.num_locals;
+        if (frame->spesh_cand && frame->spesh_cand->local_types) {
+            type_map = frame->spesh_cand->local_types;
+            count    = frame->spesh_cand->num_locals;
+        }
+        else {
+            type_map = frame->static_info->body.local_types;
+            count    = frame->static_info->body.num_locals;
+        }
         for (i = 0; i < count; i++)
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
                 MVM_gc_worklist_add(tc, worklist, &frame->work[i].o);
@@ -366,8 +372,14 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
 
     /* Scan lexicals. */
     if (frame->env) {
-        type_map = frame->static_info->body.lexical_types;
-        count    = frame->static_info->body.num_lexicals;
+        if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->lexical_types) {
+            type_map = frame->spesh_cand->lexical_types;
+            count    = frame->spesh_cand->num_lexicals;
+        }
+        else {
+            type_map = frame->static_info->body.lexical_types;
+            count    = frame->static_info->body.num_lexicals;
+        }
         for (i = 0; i < count; i++)
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
                 MVM_gc_worklist_add(tc, worklist, &frame->env[i].o);

@@ -34,6 +34,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->permroots       = malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
     init_mutex(instance->mutex_permroots, "permanent roots");
 
+    /* Create fixed size allocator. */
+    instance->fsa = MVM_fixed_size_create(instance->main_thread);
+
     /* Set up REPR registry mutex. */
     init_mutex(instance->mutex_repr_registry, "REPR registry");
 
@@ -141,7 +144,7 @@ static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
     static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0 };
 
     /* Create initial frame, which sets up all of the interpreter state also. */
-    MVM_frame_invoke(tc, (MVMStaticFrame *)data, &no_arg_callsite, NULL, NULL, NULL);
+    MVM_frame_invoke(tc, (MVMStaticFrame *)data, &no_arg_callsite, NULL, NULL, NULL, -1);
 }
 
 /* Loads bytecode from the specified file name and runs it. */

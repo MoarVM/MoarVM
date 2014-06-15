@@ -158,6 +158,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             if (body->spesh_candidates[i].log_slots)
                 for (j = 0; j < body->spesh_candidates[i].num_log_slots * MVM_SPESH_LOG_RUNS; j++)
                     MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].log_slots[j]);
+            for (j = 0; j < body->spesh_candidates[i].num_inlines; j++)
+                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i].inlines[j].code);
             if (body->spesh_candidates[i].sg)
                 MVM_spesh_graph_mark(tc, body->spesh_candidates[i].sg, worklist);
         }
