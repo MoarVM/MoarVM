@@ -306,6 +306,24 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     }
 }
 
+/* If we have a const_i and a coerce_in, we can emit a const_n instead. */
+static void optimize_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+
+    if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        MVMnum64 result = facts->value.i64;
+
+        facts->usages--;
+
+        ins->info = MVM_op_get_op(MVM_OP_const_n64);
+        ins->operands[1].lit_n64 = result;
+
+        result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+        result_facts->value.n64 = result;
+    }
+}
+
 /* If we know the type of a significant operand, we might try to specialize by
  * representation. */
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -598,6 +616,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             }
             break;
         }
+        case MVM_OP_coerce_in:
+            optimize_coerce(tc, g, bb, ins);
+            break;
         case MVM_OP_invoke_v:
             optimize_call(tc, g, bb, ins, 0, &arg_info);
             break;
