@@ -128,11 +128,15 @@ struct MVMFrame {
 
     /* Linked list of any continuation tags we have. */
     MVMContinuationTag *continuation_tags;
-
+    
     /* Linked MVMContext object, so we can track the
      * serialization context and such. */
     /* note: used atomically */
     MVMObject *context_object;
+
+    /* The allocated work/env sizes. */
+    MVMuint16 allocd_work;
+    MVMuint16 allocd_env;
 
     /* Flags that the caller chain should be kept in place after return or
      * unwind; used to make sure we can get a backtrace after an exception. */

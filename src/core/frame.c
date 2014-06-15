@@ -36,7 +36,7 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
         grow_frame_pool(tc, static_frame_body->pool_index);
     }
 
-    /* Check if we have any static lexicals. */
+    /* Check if we have any state var lexicals. */
     if (static_frame_body->static_env_flags) {
         MVMuint8 *flags  = static_frame_body->static_env_flags;
         MVMint64  numlex = static_frame_body->num_lexicals;
@@ -78,19 +78,13 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
         if (node && MVM_load(&node->ref_count) >= MVMFramePoolLengthLimit) {
             /* There's no room on the free list, so destruction.*/
             if (frame->env) {
-                MVM_fixed_size_free(tc, tc->instance->fsa,
-                    frame->spesh_cand && frame->spesh_log_idx == -1
-                        ? frame->spesh_cand->env_size
-                        : frame->static_info->body.env_size,
+                MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env,
                     frame->env);
                 frame->env = NULL;
             }
             if (frame->work) {
                 MVM_args_proc_cleanup(tc, &frame->params);
-                MVM_fixed_size_free(tc, tc->instance->fsa,
-                    frame->spesh_cand && frame->spesh_log_idx == -1
-                        ? frame->spesh_cand->work_size
-                        : frame->static_info->body.work_size,
+                MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_work,
                     frame->work);
                 frame->work = NULL;
             }
@@ -167,11 +161,14 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
             else
                 frame->env = NULL;
             if (static_frame_body->work_size) {
-                if (!frame->work)
+                if (!frame->work) {
                     frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
                         static_frame_body->work_size);
-                else
+                    frame->allocd_work = static_frame_body->work_size;
+                }
+                else {
                     memset(frame->work, 0, static_frame_body->work_size);
+                }
             }
             else {
                 frame->work = NULL;
@@ -200,15 +197,21 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     /* Allocate space for lexicals and work area, copying the default lexical
      * environment into place. */
     env_size = spesh_cand ? spesh_cand->env_size : static_frame_body->env_size;
-    if (env_size)
+    if (env_size) {
         frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
-    else
+        frame->allocd_env = env_size;
+    }
+    else {
         frame->env = NULL;
+    }
     work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
-    if (work_size)
+    if (work_size) {
         frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, work_size);
-    else
+        frame->allocd_work = work_size;
+    }
+    else {
         frame->work = NULL;
+    }
 
     /* Calculate args buffer position and make sure current call site starts
      * empty. */
@@ -512,6 +515,7 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
      * into place. */
     if (static_frame->body.env_size) {
         frame->env = MVM_fixed_size_alloc(tc, tc->instance->fsa, static_frame->body.env_size);
+        frame->allocd_env = static_frame->body.env_size;
         memcpy(frame->env, static_frame->body.static_env, static_frame->body.env_size);
     }
 
@@ -800,17 +804,11 @@ void MVM_frame_free_frame_pool(MVMThreadContext *tc) {
         while (cur) {
             MVMFrame *next = cur->outer;
             if (cur->env)
-                MVM_fixed_size_free(tc, tc->instance->fsa,
-                    cur->spesh_cand && cur->spesh_log_idx == -1
-                        ? cur->spesh_cand->env_size
-                        : cur->static_info->body.env_size,
+                MVM_fixed_size_free(tc, tc->instance->fsa, cur->allocd_env,
                     cur->env);
             if (cur->work) {
                 MVM_args_proc_cleanup(tc, &cur->params);
-                MVM_fixed_size_free(tc, tc->instance->fsa,
-                    cur->spesh_cand && cur->spesh_log_idx == -1
-                        ? cur->spesh_cand->work_size
-                        : cur->static_info->body.work_size,
+                MVM_fixed_size_free(tc, tc->instance->fsa, cur->allocd_work,
                     cur->work);
             }
             MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrame), cur);
@@ -1248,6 +1246,7 @@ MVMFrame * MVM_frame_clone(MVMThreadContext *tc, MVMFrame *f) {
     /* Need fresh env and work. */
     if (f->static_info->body.env_size) {
         clone->env = MVM_fixed_size_alloc(tc, tc->instance->fsa, f->static_info->body.env_size);
+        clone->allocd_env = f->static_info->body.env_size;
         memcpy(clone->env, f->env, f->static_info->body.env_size);
     }
     if (f->static_info->body.work_size) {
