@@ -60,3 +60,58 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
     cu->body.deallocate = MVM_DEALLOCATE_UNMAP;
     return cu;
 }
+
+/* Adds an extra callsite, needed due to an inlining, and returns its index. */
+MVMuint16 MVM_cu_callsite_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMCallsite *cs) {
+    MVMuint16 found = 0;
+    MVMuint16 idx;
+
+    uv_mutex_lock(cu->body.update_pools_mutex);
+
+    /* See if we already know this callsite. */
+    for (idx = 0; idx < cu->body.num_callsites; idx++)
+        if (cu->body.callsites[idx] == cs) {
+            found = 1;
+            break;
+        }
+    if (!found) {
+        /* Not known; let's add it. */
+        idx = cu->body.num_callsites;
+        cu->body.callsites = realloc(cu->body.callsites,
+            (idx + 1) * sizeof(MVMCallsite *));
+        cu->body.callsites[idx] = cs;
+        cu->body.num_callsites++;
+    }
+
+    uv_mutex_unlock(cu->body.update_pools_mutex);
+
+    return idx;
+}
+
+/* Adds an extra string, needed due to an inlining, and returns its index. */
+MVMuint32 MVM_cu_string_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMString *str) {
+    MVMuint32 found = 0;
+    MVMuint32 idx;
+
+    uv_mutex_lock(cu->body.update_pools_mutex);
+
+    /* See if we already know this string; only consider those added already by
+     * inline, since we don't intern and don't want this to be costly to hunt. */
+    for (idx = cu->body.orig_strings; idx < cu->body.num_strings; idx++)
+        if (cu->body.strings[idx] == str) {
+            found = 1;
+            break;
+        }
+    if (!found) {
+        /* Not known; let's add it. */
+        idx = cu->body.num_strings;
+        cu->body.strings = realloc(cu->body.strings,
+            (idx + 1) * sizeof(MVMString *));
+        cu->body.strings[idx] = str;
+        cu->body.num_strings++;
+    }
+
+    uv_mutex_unlock(cu->body.update_pools_mutex);
+
+    return idx;
+}

@@ -31,7 +31,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     HASH_ITER(hash_handle, src_body->hash_head, current, tmp) {
         size_t klen;
         void *kdata;
-        MVMHashEntry *new_entry = malloc(sizeof(MVMHashEntry));
+        MVMHashEntry *new_entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+            sizeof(MVMHashEntry));
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
         extract_key(tc, &kdata, &klen, new_entry->key);
@@ -54,7 +55,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMHash *h = (MVMHash *)obj;
-    MVM_HASH_DESTROY(hash_handle, MVMHashEntry, h->body.hash_head);
+    MVM_HASH_DESTROY_FSA(hash_handle, MVMHashEntry, h->body.hash_head);
 }
 
 static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind) {
@@ -82,7 +83,8 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     /* first check whether we can must update the old entry. */
     HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
     if (!entry) {
-        entry = malloc(sizeof(MVMHashEntry));
+        entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+            sizeof(MVMHashEntry));
         HASH_ADD_KEYPTR(hash_handle, body->hash_head, kdata, klen, entry);
     }
     else
@@ -123,7 +125,8 @@ static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     HASH_FIND(hash_handle, body->hash_head, kdata, klen, old_entry);
     if (old_entry) {
         HASH_DELETE(hash_handle, body->hash_head, old_entry);
-        free(old_entry);
+        MVM_fixed_size_free(tc, tc->instance->fsa,
+            sizeof(MVMHashEntry), old_entry);
     }
 }
 

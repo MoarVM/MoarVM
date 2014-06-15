@@ -52,6 +52,28 @@ struct MVMSpeshCandidate {
 
     /* Number of logging slots. */
     MVMuint32 num_log_slots;
+
+    /* Number of inlines and inlines table; see graph.h for description of
+     * the table format. */
+    MVMint32 num_inlines;
+    MVMSpeshInline *inlines;
+
+    /* The list of local types (only set up if we do inlines). */
+    MVMuint16 *local_types;
+
+    /* The list of lexical types (only set up if we do inlines). */
+    MVMuint16 *lexical_types;
+
+    /* Number of locals the specialized code has (may be different from the
+     * original frame thanks to inlining). */
+    MVMuint16 num_locals;
+
+    /* Number of lexicals the specialized code has. */
+    MVMuint16 num_lexicals;
+
+    /* Memory sizes to allocate for work/env, taking into account inlining. */
+    MVMuint32 work_size;
+    MVMuint32 env_size;
 };
 
 /* The number of specializations we'll allow per static frame. */

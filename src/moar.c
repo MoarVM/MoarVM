@@ -34,6 +34,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->permroots       = malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
     init_mutex(instance->mutex_permroots, "permanent roots");
 
+    /* Create fixed size allocator. */
+    instance->fsa = MVM_fixed_size_create(instance->main_thread);
+
     /* Set up REPR registry mutex. */
     init_mutex(instance->mutex_repr_registry, "REPR registry");
 

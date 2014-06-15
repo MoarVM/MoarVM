@@ -261,6 +261,9 @@ struct MVMInstance {
     MVMObject *stdout_handle;
     MVMObject *stderr_handle;
 
+    /* Fixed size allocator. */
+    MVMFixedSizeAlloc *fsa;
+
     /* Next type cache ID, to go in STable. */
     AO_t cur_type_cache_id;
 

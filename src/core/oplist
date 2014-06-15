@@ -74,16 +74,16 @@ unless_o            r(obj) ins
 jumplist         :j int64 r(int64)
 getlex              w(`1) rl(`1) :pure :deoptonepoint
 bindlex             wl(`1) r(`1)
-getlex_ni           w(int64) str :pure
-getlex_nn           w(num64) str :pure
-getlex_ns           w(str) str :pure
-getlex_no           w(obj) str :pure :deoptonepoint
-bindlex_ni          str r(int64)
-bindlex_nn          str r(num64)
-bindlex_ns          str r(str)
-bindlex_no          str r(obj)
-getlex_ng           w(obj) r(str) :pure
-bindlex_ng          r(str) r(obj)
+getlex_ni           w(int64) str :pure :noinline
+getlex_nn           w(num64) str :pure :noinline
+getlex_ns           w(str) str :pure :noinline
+getlex_no           w(obj) str :pure :deoptonepoint :noinline
+bindlex_ni          str r(int64) :noinline
+bindlex_nn          str r(num64) :noinline
+bindlex_ns          str r(str) :noinline
+bindlex_no          str r(obj) :noinline
+getlex_ng           w(obj) r(str) :pure :noinline
+bindlex_ng          r(str) r(obj) :noinline
 getdynlex           w(obj) r(str) :pure
 binddynlex          r(str) r(obj)
 setlexvalue         r(obj) str r(obj) int16
@@ -178,28 +178,28 @@ invoke_n         -a w(num64) r(obj) :deoptallpoint
 invoke_s         -a w(str) r(obj) :deoptallpoint
 invoke_o         -a w(obj) r(obj) :deoptallpoint :deoptonepoint
 checkarity          int16 int16
-param_rp_i          w(int64) int16 :pure
-param_rp_n          w(num64) int16 :pure
-param_rp_s          w(str) int16 :pure
-param_rp_o          w(obj) int16 :pure
-param_op_i          w(int64) int16 ins :pure
-param_op_n          w(num64) int16 ins :pure
-param_op_s          w(str) int16 ins :pure
-param_op_o          w(obj) int16 ins :pure
-param_rn_i          w(int64) str
-param_rn_n          w(num64) str
-param_rn_s          w(str) str
-param_rn_o          w(obj) str
-param_on_i          w(int64) str ins
-param_on_n          w(num64) str ins
-param_on_s          w(str) str ins
-param_on_o          w(obj) str ins
-param_sp            w(obj) int16 :pure
-param_sn            w(obj)
+param_rp_i          w(int64) int16 :pure :noinline
+param_rp_n          w(num64) int16 :pure :noinline
+param_rp_s          w(str) int16 :pure :noinline
+param_rp_o          w(obj) int16 :pure :noinline
+param_op_i          w(int64) int16 ins :pure :noinline
+param_op_n          w(num64) int16 ins :pure :noinline
+param_op_s          w(str) int16 ins :pure :noinline
+param_op_o          w(obj) int16 ins :pure :noinline
+param_rn_i          w(int64) str :noinline
+param_rn_n          w(num64) str :noinline
+param_rn_s          w(str) str :noinline
+param_rn_o          w(obj) str :noinline
+param_on_i          w(int64) str ins :noinline
+param_on_n          w(num64) str ins :noinline
+param_on_s          w(str) str ins :noinline
+param_on_o          w(obj) str ins :noinline
+param_sp            w(obj) int16 :pure :noinline
+param_sn            w(obj) :noinline
 getcode             w(obj) coderef :pure
-caller              w(obj) r(int64) :pure
-capturelex          r(obj)
-takeclosure         w(obj) r(obj)
+caller              w(obj) r(int64) :pure :noinline
+capturelex          r(obj) :noinline
+takeclosure         w(obj) r(obj) :noinline
 exception           w(obj)
 bindexmessage       r(obj) r(str)
 bindexpayload       r(obj) r(obj)
@@ -217,11 +217,11 @@ die                 w(obj) r(str)
 rethrow             r(obj)
 resume              r(obj)
 takehandlerresult   w(obj)
-newlexotic          w(obj) ins
-lexoticresult       w(obj) r(obj)
+newlexotic          w(obj) ins :noinline
+lexoticresult       w(obj) r(obj) :noinline
 backtracestrings    w(obj) r(obj) :pure
-usecapture          w(obj)
-savecapture         w(obj)
+usecapture          w(obj) :noinline
+savecapture         w(obj) :noinline
 captureposelems     w(int64) r(obj) :pure
 captureposarg       w(obj) r(obj) r(int64) :pure
 captureposarg_i     w(int64) r(obj) r(int64) :pure
@@ -456,12 +456,12 @@ masttocu            w(obj) r(obj) r(obj)
 iscompunit          w(int64) r(obj) :pure
 compunitmainline    w(obj) r(obj)
 compunitcodes       w(obj) r(obj)
-ctx                 w(obj)
+ctx                 w(obj) :noinline
 ctxouter            w(obj) r(obj)
 ctxcaller           w(obj) r(obj)
 ctxlexpad           w(obj) r(obj)
-curcode             w(obj)
-callercode          w(obj)
+curcode             w(obj) :noinline
+callercode          w(obj) :noinline
 add_I               w(obj) r(obj) r(obj) r(obj) :pure
 sub_I               w(obj) r(obj) r(obj) r(obj) :pure
 mul_I               w(obj) r(obj) r(obj) r(obj) :pure
@@ -593,9 +593,9 @@ continuationcontrol w(obj) r(int64) r(obj) r(obj)
 continuationinvoke  w(obj) r(obj) r(obj)
 randscale_n         w(num64) r(num64) :pure
 uniisblock          w(int64) r(str) r(int64) r(str) :pure
-assertparamcheck    r(int64)
+assertparamcheck    r(int64) :noinline
 hintfor             w(int64) r(obj) r(str)
-paramnamesused
+paramnamesused      :noinline
 getuniname          w(str) r(int64)
 getuniprop_int      w(int64) r(int64) r(int64)
 getuniprop_bool     w(int64) r(int64) r(int64)
@@ -619,8 +619,8 @@ condsignalone       r(obj)
 condsignalall       r(obj)
 queuepoll           w(obj) r(obj)
 setmultispec        r(obj) r(obj) r(str) r(str)
-ctxouterskipthunks  w(obj) r(obj)
-ctxcallerskipthunks w(obj) r(obj)
+ctxouterskipthunks  w(obj) r(obj) :noinline
+ctxcallerskipthunks w(obj) r(obj) :noinline
 timer               w(obj) r(obj) r(obj) r(int64) r(int64) r(obj)
 cancel              r(obj)
 signal              w(obj) r(obj) r(obj) r(int64) r(obj)
@@ -637,21 +637,21 @@ execname            w(str)
 const_i64_16        w(int64) int16 :pure
 const_i64_32        w(int64) int32 :pure
 isnonnull           w(int64) r(obj) :pure
-param_rn2_i         w(int64) str str
-param_rn2_n         w(num64) str str
-param_rn2_s         w(str) str str
-param_rn2_o         w(obj) str str
-param_on2_i         w(int64) str str ins
-param_on2_n         w(num64) str str ins
-param_on2_s         w(str) str str ins
-param_on2_o         w(obj) str str ins
+param_rn2_i         w(int64) str str :noinline
+param_rn2_n         w(num64) str str :noinline
+param_rn2_s         w(str) str str :noinline
+param_rn2_o         w(obj) str str :noinline
+param_on2_i         w(int64) str str ins :noinline
+param_on2_n         w(num64) str str ins :noinline
+param_on2_s         w(str) str str ins :noinline
+param_on2_o         w(obj) str str ins :noinline
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
 
 # Used for logging what objects we saw during execution, which is used to do
 # speculative optimizations.
-sp_log           .s r(obj) int16
+sp_log           .s r(obj) sslot
 
 # Guard operations. Trigger de-optimization if the guard is violated.
 #   guardconc = guard on concrete type; index is spesh slot with type
@@ -660,10 +660,10 @@ sp_log           .s r(obj) int16
 #                   spesh slots with container type and then value type
 #   guardconttype = guard on container holding type object; indexes are
 #                   spesh slots with container type and then value type
-sp_guardconc     .s r(obj) int16
-sp_guardtype     .s r(obj) int16
-sp_guardcontconc .s r(obj) int16 int16
-sp_guardconttype .s r(obj) int16 int16
+sp_guardconc     .s r(obj) sslot
+sp_guardtype     .s r(obj) sslot
+sp_guardcontconc .s r(obj) sslot sslot
+sp_guardconttype .s r(obj) sslot sslot
 
 # Following are for fast, unchecked grabbing of args from the arg buffer.
 sp_getarg_o      .s w(obj) int16
@@ -682,14 +682,14 @@ sp_fastinvoke_o  .s w(obj) r(obj) int16
 sp_namedarg_used .s int16
 
 # Look up a spesh slot.
-sp_getspeshslot  .s w(obj) int16 :pure
+sp_getspeshslot  .s w(obj) sslot :pure
 
-# Find method, using int16 spesh slot and the one after it as a cache.
-sp_findmeth      .s w(obj) r(obj) str int16 :pure
+# Find method, using spesh slot and the one after it as a cache.
+sp_findmeth      .s w(obj) r(obj) str sslot :pure
 
 # Create an object with the first int16's number of bytes size and then
-# set its STable to the STable in the spesh slot with the second int16.
-sp_fastcreate    .s w(obj) int16 int16 :pure
+# set its STable to the STable in the spesh slot.
+sp_fastcreate    .s w(obj) int16 sslot :pure
 
 # Retrieve or store a value by pointer offset.
 sp_get_o         .s w(obj) r(obj) int16 :pure
@@ -705,8 +705,8 @@ sp_bind_s        .s r(obj) int16 r(str)
 # real_data thing for mixins. The vt variant vivifies a NULL with a
 # type object; the vc does it with a clone.
 sp_p6oget_o      .s w(obj) r(obj) int16 :pure
-sp_p6ogetvt_o    .s w(obj) r(obj) int16 int16
-sp_p6ogetvc_o    .s w(obj) r(obj) int16 int16
+sp_p6ogetvt_o    .s w(obj) r(obj) int16 sslot
+sp_p6ogetvc_o    .s w(obj) r(obj) int16 sslot
 sp_p6oget_i      .s w(int64) r(obj) int16 :pure
 sp_p6oget_n      .s w(num64) r(obj) int16 :pure
 sp_p6oget_s      .s w(str) r(obj) int16 :pure

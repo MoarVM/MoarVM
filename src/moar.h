@@ -116,6 +116,7 @@ typedef double   MVMnum64;
 #include "spesh/deopt.h"
 #include "spesh/log.h"
 #include "spesh/threshold.h"
+#include "spesh/inline.h"
 #include "strings/decode_stream.h"
 #include "strings/ascii.h"
 #include "strings/utf8.h"
@@ -141,6 +142,7 @@ typedef double   MVMnum64;
 #include "math/bigintops.h"
 #include "mast/driver.h"
 #include "core/intcache.h"
+#include "core/fixedsizealloc.h"
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc);
 

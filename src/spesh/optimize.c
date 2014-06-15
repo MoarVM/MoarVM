@@ -495,35 +495,56 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
 
         /* See if we can point the call at a particular specialization. */
         if (target) {
-            MVMint32 spesh_cand = try_find_spesh_candidate(tc, (MVMCode *)target, arg_info);
+            MVMCode *target_code  = (MVMCode *)target;
+            MVMint32 spesh_cand = try_find_spesh_candidate(tc, target_code, arg_info);
             if (spesh_cand >= 0) {
-                MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-                if (ins->info->opcode == MVM_OP_invoke_v) {
-                    new_operands[0]         = ins->operands[0];
-                    new_operands[1].lit_i16 = spesh_cand;
-                    ins->operands           = new_operands;
-                    ins->info               = MVM_op_get_op(MVM_OP_sp_fastinvoke_v);
+                /* Yes. Will we be able to inline? */
+                MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
+                    target_code, &target_code->body.sf->body.spesh_candidates[spesh_cand]);
+                if (inline_graph) {
+                    /* Yes, have inline graph, so go ahead and do it. */
+                    /*char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.name);
+                    char *c_cuid_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.cuuid);
+                    char *c_name_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.name);
+                    char *c_cuid_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
+                    printf("Can inline %s (%s) into %s (%s)\n",
+                        c_name_i, c_cuid_i, c_name_t, c_cuid_t);
+                    free(c_name_i);
+                    free(c_cuid_i);
+                    free(c_name_t);
+                    free(c_cuid_t);*/
+                    MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_code);
                 }
                 else {
-                    new_operands[0]         = ins->operands[0];
-                    new_operands[1]         = ins->operands[1];
-                    new_operands[2].lit_i16 = spesh_cand;
-                    ins->operands           = new_operands;
-                    switch (ins->info->opcode) {
-                    case MVM_OP_invoke_i:
-                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_i);
-                        break;
-                    case MVM_OP_invoke_n:
-                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_n);
-                        break;
-                    case MVM_OP_invoke_s:
-                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_s);
-                        break;
-                    case MVM_OP_invoke_o:
-                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_o);
-                        break;
-                    default:
-                        MVM_exception_throw_adhoc(tc, "Spesh: unhandled invoke instruction");
+                    /* Can't inline, so just identify candidate. */
+                    MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    if (ins->info->opcode == MVM_OP_invoke_v) {
+                        new_operands[0]         = ins->operands[0];
+                        new_operands[1].lit_i16 = spesh_cand;
+                        ins->operands           = new_operands;
+                        ins->info               = MVM_op_get_op(MVM_OP_sp_fastinvoke_v);
+                    }
+                    else {
+                        new_operands[0]         = ins->operands[0];
+                        new_operands[1]         = ins->operands[1];
+                        new_operands[2].lit_i16 = spesh_cand;
+                        ins->operands           = new_operands;
+                        switch (ins->info->opcode) {
+                        case MVM_OP_invoke_i:
+                            ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_i);
+                            break;
+                        case MVM_OP_invoke_n:
+                            ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_n);
+                            break;
+                        case MVM_OP_invoke_s:
+                            ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_s);
+                            break;
+                        case MVM_OP_invoke_o:
+                            ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_o);
+                            break;
+                        default:
+                            MVM_exception_throw_adhoc(tc, "Spesh: unhandled invoke instruction");
+                        }
                     }
                 }
             }
@@ -553,6 +574,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_prepargs:
             arg_info.cs = g->sf->body.cu->body.callsites[ins->operands[0].callsite_idx];
+            arg_info.prepargs_ins = ins;
             break;
         case MVM_OP_arg_i:
         case MVM_OP_arg_n:
@@ -562,6 +584,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             if (idx < MAX_ARGS_FOR_OPT) {
                 arg_info.arg_is_const[idx] = 0;
                 arg_info.arg_facts[idx]    = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+                arg_info.arg_ins[idx]      = ins;
             }
             break;
         }
@@ -569,8 +592,10 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_argconst_n:
         case MVM_OP_argconst_s: {
             MVMint16 idx = ins->operands[0].lit_i16;
-            if (idx < MAX_ARGS_FOR_OPT)
+            if (idx < MAX_ARGS_FOR_OPT) {
                 arg_info.arg_is_const[idx] = 1;
+                arg_info.arg_ins[idx]      = ins;
+            }
             break;
         }
         case MVM_OP_invoke_v:
@@ -737,9 +762,11 @@ static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
         cur_bb = g->entry;
         while (cur_bb->linear_next) {
             if (!seen[cur_bb->linear_next->idx]) {
-                cur_bb->linear_next = cur_bb->linear_next->linear_next;
-                g->num_bbs--;
-                death = 1;
+                if (!cur_bb->linear_next->inlined) {
+                    cur_bb->linear_next = cur_bb->linear_next->linear_next;
+                    g->num_bbs--;
+                    death = 1;
+                }
             }
             cur_bb = cur_bb->linear_next;
         }

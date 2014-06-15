@@ -68,9 +68,10 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
         MVMint32 i;
 
         /* Process any annotations. */
-        MVMSpeshAnn *ann           = ins->annotations;
-        MVMSpeshAnn *deopt_one_ann = NULL;
-        MVMSpeshAnn *deopt_all_ann = NULL;
+        MVMSpeshAnn *ann              = ins->annotations;
+        MVMSpeshAnn *deopt_one_ann    = NULL;
+        MVMSpeshAnn *deopt_all_ann    = NULL;
+        MVMSpeshAnn *deopt_inline_ann = NULL;
         while (ann) {
             switch (ann->type) {
             case MVM_SPESH_ANN_FH_START:
@@ -90,6 +91,15 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
                 break;
             case MVM_SPESH_ANN_DEOPT_ALL_INS:
                 deopt_all_ann = ann;
+                break;
+            case MVM_SPESH_ANN_INLINE_START:
+                g->inlines[ann->data.inline_idx].start = ws->bytecode_pos;
+                break;
+            case MVM_SPESH_ANN_INLINE_END:
+                g->inlines[ann->data.inline_idx].end = ws->bytecode_pos;
+                break;
+            case MVM_SPESH_ANN_DEOPT_INLINE:
+                deopt_inline_ann = ann;
                 break;
             }
             ann = ann->next;
@@ -132,7 +142,7 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
                     write_int16(ws, ins->operands[i].lex.outers);
                     break;
                 case MVM_operand_literal: {
-                    MVMuint32 type = flags & MVM_operand_type_mask;
+                    MVMuint8 type = flags & MVM_operand_type_mask;
                     switch (type) {
                     case MVM_operand_int8:
                         write_int8(ws, ins->operands[i].lit_i8);
@@ -183,8 +193,13 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
                         }
                         break;
                     }
+                    case MVM_operand_spesh_slot:
+                        write_int16(ws, ins->operands[i].lit_i16);
+                        break;
                     default:
-                        MVM_exception_throw_adhoc(tc, "Spesh: unknown operand type in codegen");
+                        MVM_exception_throw_adhoc(tc,
+                            "Spesh: unknown operand type %d in codegen (op %s)",
+                            (int)type, ins->info->name);
                     }
                     }
                     break;
@@ -199,6 +214,8 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
             g->deopt_addrs[2 * deopt_one_ann->data.deopt_idx + 1] = ws->bytecode_pos;
         if (deopt_all_ann)
             g->deopt_addrs[2 * deopt_all_ann->data.deopt_idx + 1] = ws->bytecode_pos;
+        if (deopt_inline_ann)
+            g->deopt_addrs[2 * deopt_inline_ann->data.deopt_idx + 1] = ws->bytecode_pos;
 
         ins = ins->next;
     }
@@ -240,9 +257,13 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 
     /* -1 all the deopt targets, so we'll easily catch those that don't get
-     * mapped if we try to use them. */
+     * mapped if we try to use them. Same for inlines. */
     for (i = 0; i < g->num_deopt_addrs; i++)
         g->deopt_addrs[i * 2 + 1] = -1;
+    for (i = 0; i < g->num_inlines; i++) {
+        g->inlines[i].start = -1;
+        g->inlines[i].end = -1;
+    }
 
     /* Write out each of the basic blocks, in linear order. Skip the first,
      * dummy, block. */
@@ -268,6 +289,11 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 (int)ws->handlers[i].end_offset,
                 (int)ws->handlers[i].goto_offset);
     }
+
+    /* Ensure all inlines got fixed up. */
+    for (i = 0; i < g->num_inlines; i++)
+        if (g->inlines[i].start == -1 || g->inlines[i].end == -1)
+            MVM_exception_throw_adhoc(tc, "Spesh: failed to fix up inline %d", i);
 
     /* Produce result data structure. */
     res                = malloc(sizeof(MVMSpeshCode));

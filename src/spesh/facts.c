@@ -354,7 +354,9 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb)
             literal_facts(tc, g, ins);
             break;
         case MVM_OP_sp_log: {
-            MVMuint16 po = ins->prev->info->opcode;
+            MVMuint16 po = ins->prev
+                ? ins->prev->info->opcode
+                : bb->pred[0]->last_ins->info->opcode;
             if (po != MVM_OP_getlexstatic_o && po != MVM_OP_getlexperinvtype_o)
                 log_facts(tc, g, ins);
             break;

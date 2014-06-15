@@ -70,8 +70,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
 #if MVM_TRACING
         if (tracing_enabled) {
-            char *trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0);
-            fprintf(stderr, "%s\n", trace_line);
+            char *trace_line;
+            tc->cur_frame->throw_address = cur_op;
+            trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0);
+            fprintf(stderr, "Op %d%s\n", (int)*((MVMuint16 *)cur_op), trace_line);
             /* slow tracing is slow. Feel free to speed it. */
             free(trace_line);
         }
@@ -194,7 +196,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0) = found = GET_LEX(cur_op, 2, f);
                 if (found.o == NULL) {
                     MVMuint16 idx = GET_UI16(cur_op, 2);
-                    if (f->static_info->body.lexical_types[idx] == MVM_reg_obj)
+                    MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
+                        ? f->spesh_cand->lexical_types
+                        : f->static_info->body.lexical_types;
+                    if (lexical_types[idx] == MVM_reg_obj)
                         GET_REG(cur_op, 0).o = MVM_frame_vivify_lexical(tc, f, idx);
                 }
                 cur_op += 6;

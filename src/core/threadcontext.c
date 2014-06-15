@@ -59,6 +59,9 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     /* We run once again (non-blocking) to eventually close filehandles. */
     uv_run(tc->loop, UV_RUN_NOWAIT);
 
+    /* Destroy the frame pool. */
+    MVM_frame_free_frame_pool(tc);
+
     /* Free the nursery. */
     free(tc->nursery_fromspace);
     free(tc->nursery_tospace);
@@ -67,7 +70,6 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     MVM_gc_gen2_destroy(tc->instance, tc->gen2);
 
     /* Free the thread-specific storage */
-    MVM_frame_free_frame_pool(tc);
     MVM_checked_free_null(tc->gc_work);
     MVM_checked_free_null(tc->temproots);
     MVM_checked_free_null(tc->gen2roots);

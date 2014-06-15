@@ -6,14 +6,17 @@
  * statically. After a number of logging runs, the collected data is
  * used as an additional "fact" source while specializing. */
 
-static void insert_log(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+static void insert_log(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMint32 next_bb) {
     /* Add the entry. */
     MVMSpeshIns *log_ins         = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     log_ins->info                = MVM_op_get_op(MVM_OP_sp_log);
     log_ins->operands            = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
     log_ins->operands[0].reg     = ins->operands[0].reg;
     log_ins->operands[1].lit_i16 = g->num_log_slots;
-    MVM_spesh_manipulate_insert_ins(tc, bb, ins, log_ins);
+    if (next_bb)
+        MVM_spesh_manipulate_insert_ins(tc, bb->succ[0], NULL, log_ins);
+    else
+        MVM_spesh_manipulate_insert_ins(tc, bb, ins, log_ins);
     g->num_log_slots++;
 
     /* Steal the de-opt annotation into the log instruction, if it exists. */
@@ -50,16 +53,17 @@ void MVM_spesh_log_add_logging(MVMThreadContext *tc, MVMSpeshGraph *g) {
             switch (ins->info->opcode) {
             case MVM_OP_getlex:
                 if (g->sf->body.local_types[ins->operands[0].reg.orig] == MVM_reg_obj)
-                    insert_log(tc, g, bb, ins);
+                    insert_log(tc, g, bb, ins, 0);
                 break;
             case MVM_OP_getlex_no:
-            case MVM_OP_invoke_o:
             case MVM_OP_getattr_o:
             case MVM_OP_getattrs_o:
             case MVM_OP_getlexstatic_o:
             case MVM_OP_getlexperinvtype_o:
-                insert_log(tc, g, bb, ins);
+                insert_log(tc, g, bb, ins, 0);
                 break;
+            case MVM_OP_invoke_o:
+                insert_log(tc, g, bb, ins, 1);
             }
             ins = ins->next;
         }

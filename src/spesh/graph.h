@@ -4,6 +4,18 @@ struct MVMSpeshGraph {
     /* The static frame this is the spesh graph for. */
     MVMStaticFrame *sf;
 
+    /* The bytecode we're building the graph out of. */
+    MVMuint8 *bytecode;
+
+    /* Exception handler map for that bytecode. */
+    MVMFrameHandler *handlers;
+
+    /* The size of the bytecode we're building the graph out of. */
+    MVMuint32 bytecode_size;
+
+    /* Number of exception handlers. */
+    MVMuint32 num_handlers;
+
     /* The entry basic block. */
     MVMSpeshBB *entry;
 
@@ -40,12 +52,31 @@ struct MVMSpeshGraph {
     MVMint32  num_deopt_addrs;
     MVMint32  alloc_deopt_addrs;
 
+    /* Table of information about inlines, laid out in order of nesting
+     * depth. Thus, going through the table in order and finding when we
+     * are within the bounds will show up each call frame that needs to
+     * be created in deopt. */
+    MVMSpeshInline *inlines;
+    MVMint32 num_inlines;
+
     /* Logging slots, along with the number of them. */
-    MVMCollectable **log_slots;
     MVMint32 num_log_slots;
+    MVMCollectable **log_slots;
 
     /* Number of basic blocks we have. */
     MVMint32 num_bbs;
+
+    /* The list of local types (only set up if we do inlines). */
+    MVMuint16 *local_types;
+
+    /* The list of lexical types (only set up if we do inlines). */
+    MVMuint16 *lexical_types;
+
+    /* The total number of locals, accounting for any inlining done. */
+    MVMuint16 num_locals;
+
+    /* The total number of lexicals, accounting for any inlining done. */
+    MVMuint16 num_lexicals;
 };
 
 /* The default allocation chunk size for memory blocks used to store spesh
@@ -98,6 +129,9 @@ struct MVMSpeshBB {
     /* Index (just an ascending integer along the linear_next chain), used as
      * the block identifier in dominance computation and for debug output. */
     MVMint32 idx;
+
+    /* Is this block an inlining of another one? */
+    MVMint32 inlined;
 };
 
 /* The SSA phi instruction. */
@@ -155,6 +189,7 @@ struct MVMSpeshAnn {
     union {
         MVMint32 frame_handler_index;
         MVMint32 deopt_idx;
+        MVMint32 inline_idx;
     } data;
 };
 
@@ -164,9 +199,14 @@ struct MVMSpeshAnn {
 #define MVM_SPESH_ANN_FH_GOTO       3
 #define MVM_SPESH_ANN_DEOPT_ONE_INS 4
 #define MVM_SPESH_ANN_DEOPT_ALL_INS 5
+#define MVM_SPESH_ANN_INLINE_START  6
+#define MVM_SPESH_ANN_INLINE_END    7
+#define MVM_SPESH_ANN_DEOPT_INLINE  8
 
 /* Functions to create/destory the spesh graph. */
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf);
+MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStaticFrame *sf,
+    MVMSpeshCandidate *cand);
 void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist *worklist);
 void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g);
 void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes);
