@@ -87,6 +87,8 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
             /* srsly */
             break;
         case MVM_OP_add_i:
+        case MVM_OP_sub_i:
+        case MVM_OP_inc_i:
         case MVM_OP_const_i64:
         case MVM_OP_const_i64_16:
         case MVM_OP_sp_getarg_i:
@@ -99,6 +101,13 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
             MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
                                   { MVM_JIT_ADDR_REG, reg } };
             append_call_c(tc, jit_graph, &MVM_string_say,  2, args);
+            break;
+        }
+        case MVM_OP_return: {
+            MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
+                                  { MVM_JIT_ADDR_LITERAL, 0 }};
+            append_call_c(tc, jit_graph, &MVM_args_assert_void_return_ok,
+                          2, args);
             break;
         }
         case MVM_OP_return_i: {

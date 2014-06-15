@@ -50,7 +50,7 @@ my $iv := nqp::compunitmainline($cub);
 
 sub foo() {
     nqp::say("OH HAI");
-    1 + 1;
+    12 - 6;
 }
 
 my $i := 0;
