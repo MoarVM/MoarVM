@@ -14,6 +14,7 @@ static void setup_std_handles(MVMThreadContext *tc);
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
     char *spesh_log, *spesh_disable;
+    char *jit_log, *jit_disable, *jit_bytecode_dir;
     int init_stat;
 
     /* Set up instance data structure. */
@@ -116,6 +117,16 @@ MVMInstance * MVM_vm_create_instance(void) {
     if (!spesh_disable || strlen(spesh_disable) == 0)
         instance->spesh_enabled = 1;
 
+    jit_disable = getenv("MVM_JIT_DISABLE");
+    if (!jit_disable || strlen(jit_disable) == 0)
+        instance->jit_enabled = 1;
+    jit_log = getenv("MVM_JIT_LOG");
+    if (jit_log && strlen(jit_log))
+        instance->jit_log_fh = fopen(jit_log, "w");
+    jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
+    if (jit_bytecode_dir && strlen(jit_bytecode_dir))
+        instance->jit_bytecode_dir = jit_bytecode_dir;
+
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
 
@@ -192,9 +203,11 @@ void MVM_vm_exit(MVMInstance *instance) {
     /* Join any foreground threads. */
     MVM_thread_join_foreground(instance->main_thread);
 
-    /* Close any spesh log. */
+    /* Close any spesh or jit log. */
     if (instance->spesh_log_fh)
         fclose(instance->spesh_log_fh);
+    if (instance->jit_log_fh)
+        fclose(instance->jit_log_fh);
 
     /* And, we're done. */
     exit(0);
@@ -259,6 +272,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->mutex_spesh_install);
     if (instance->spesh_log_fh)
         fclose(instance->spesh_log_fh);
+    if (instance->jit_log_fh)
+        fclose(instance->jit_log_fh);
 
     /* Clean up event loop starting mutex. */
     uv_mutex_destroy(&instance->mutex_event_loop_start);

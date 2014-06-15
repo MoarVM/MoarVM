@@ -145,6 +145,15 @@ struct MVMInstance {
     /* Flag for if spesh is enabled. */
     MVMint32 spesh_enabled;
 
+    /* Flag for if jit is enabled */
+    MVMint32 jit_enabled;
+
+    /* File for JIT logging */
+    FILE *jit_log_fh;
+
+    /* Directory name for JIT bytecode dumps */
+    char *jit_bytecode_dir;
+
     /* Number of representations registered so far. */
     MVMuint32 num_reprs;
 

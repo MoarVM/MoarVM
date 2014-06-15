@@ -57,13 +57,14 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
         return NULL;
     }
 
-    if (tc->instance->spesh_log_fh) {
-        fprintf(tc->instance->spesh_log_fh, "Can I make a JIT graph?\n");
+    if (tc->instance->jit_log_fh) {
+        fprintf(tc->instance->jit_log_fh,  "Constructing JIT graph\n");
+
     }
     /* Can't handle complex graphs yet */
     if (sg->num_bbs > 2) {
-        if (tc->instance->spesh_log_fh) {
-            fprintf(tc->instance->spesh_log_fh, "Can't make graph jit graph "
+        if (tc->instance->jit_log_fh) {
+            fprintf(tc->instance->jit_log_fh, "Can't make graph jit graph "
                     "because I have %d basic blocks\n", sg->num_bbs);
         }
         return NULL;
@@ -77,8 +78,9 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     jit_graph = MVM_spesh_alloc(tc, sg, sizeof(MVMJitGraph));
     jit_graph->spesh = sg;
     while (current_ins) {
-        if (tc->instance->spesh_log_fh) {
-            fprintf(tc->instance->spesh_log_fh, "JIT: op-to-graph: <%s>\n", current_ins->info->name);
+        if (tc->instance->jit_log_fh) {
+            fprintf(tc->instance->jit_log_fh,
+                    "op-to-graph: <%s>\n", current_ins->info->name);
         }
         switch(current_ins->info->opcode) {
         case MVM_OP_no_op:
@@ -87,15 +89,16 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
         case MVM_OP_add_i:
         case MVM_OP_const_i64:
         case MVM_OP_const_i64_16:
-        case MVM_OP_const_s:
         case MVM_OP_sp_getarg_i:
+        case MVM_OP_set:
+        case MVM_OP_const_s:
             append_primitive(tc, jit_graph, current_ins);
             break;
         case MVM_OP_say: {
-            MVMint32 reg = current_ins->operands[0].reg.i;
+            MVMint32 reg = current_ins->operands[0].reg.orig;
             MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
-                                     { MVM_JIT_ADDR_REG, reg } };
-            //append_call_c(tc, jit_graph, &MVM_string_say,  2, args);
+                                  { MVM_JIT_ADDR_REG, reg } };
+            append_call_c(tc, jit_graph, &MVM_string_say,  2, args);
             break;
         }
         case MVM_OP_return_i: {
@@ -110,7 +113,7 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
         default:
             if (tc->instance->spesh_log_fh) {
                 fprintf(tc->instance->spesh_log_fh,
-                        "Can't make graph due to opcode <%s>\n",
+                        "Can't make graph of opcode <%s>\n",
                         current_ins->info->name);
             }
             return NULL;
@@ -123,16 +126,12 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     return NULL;
 }
 
-static void dump_code(FILE *f, unsigned char * code, size_t codesize) {
-    int i;
-    fprintf(f, "JIT Bytecode Dump:\n");
-    for (i = 0; i < codesize; i++) {
-        fprintf(f, "%02X%c", code[i], ((i + 1) % 32) == 0 ? '\n' : ' ');
-    }
-    fprintf(f, "\n\n");
-}
 
-static void dump_binary(char * filename, unsigned char * code, size_t codesize) {
+static void dump_bytecode(MVMThreadContext *tc, void * code, size_t codesize) {
+    size_t dirname_length = strlen(tc->instance->jit_bytecode_dir);
+    char * filename = malloc(dirname_length + strlen("/jit-code.bin") + 1);
+    strcpy(filename, tc->instance->jit_bytecode_dir);
+    strcpy(filename + dirname_length, "/jit-code.bin");
     FILE * f = fopen(filename, "w");
     fwrite(code, sizeof(char), codesize, f);
     fclose(f);
@@ -141,15 +140,15 @@ static void dump_binary(char * filename, unsigned char * code, size_t codesize) 
 MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
                                  size_t *codesize_out) {
     dasm_State *state;
-    unsigned char * memory;
+    void * memory;
     size_t codesize;
     /* Space for globals */
     MVMint32  num_globals = MVM_jit_num_globals();
     void ** dasm_globals = malloc(num_globals * sizeof(void*));
     MVMJitIns * ins = jg->first_ins;
 
-    if (tc->instance->spesh_log_fh) {
-        fprintf(tc->instance->spesh_log_fh, "JIT compiling code\n");
+    if (tc->instance->jit_log_fh) {
+        fprintf(tc->instance->jit_log_fh, "Start compilation\n");
     }
 
     /* setup dasm */
@@ -160,30 +159,29 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
     dasm_growpc(&state, jg->num_labels);
     /* generate code */
 
-    MVM_jit_emit_prologue(tc, &state);
+    MVM_jit_emit_prologue(tc, jg,  &state);
     while (ins) {
         if (ins->label) {
-            MVM_jit_emit_label(tc, ins->label, &state);
+            MVM_jit_emit_label(tc, jg, ins->label, &state);
         }
         switch(ins->type) {
         case MVM_JIT_INS_PRIMITIVE:
-            MVM_jit_emit_primitive(tc, &ins->u.prim, &state);
+            MVM_jit_emit_primitive(tc, jg, &ins->u.prim, &state);
             break;
         case MVM_JIT_INS_CALL_C:
-            MVM_jit_emit_call_c(tc, &ins->u.call, &state);
+            MVM_jit_emit_call_c(tc, jg, &ins->u.call, &state);
             break;
         case MVM_JIT_INS_BRANCH:
-            MVM_jit_emit_branch(tc, &ins->u.branch, &state);
+            MVM_jit_emit_branch(tc, jg, &ins->u.branch, &state);
             break;
         }
         ins = ins->next;
     }
-    MVM_jit_emit_epilogue(tc, &state);
+    MVM_jit_emit_epilogue(tc, jg, &state);
 
     /* compile the function */
     dasm_link(&state, &codesize);
     memory = MVM_platform_alloc_pages(codesize, MVM_PAGE_READ|MVM_PAGE_WRITE);
-    memset(memory, 0, codesize);
     dasm_encode(&state, memory);
     /* protect memory from being overwritten */
     MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC);
@@ -192,22 +190,25 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
     dasm_free(&state);
     free(dasm_globals);
 
-    if (tc->instance->spesh_log_fh) {
-        fprintf(tc->instance->spesh_log_fh, "JIT compiled code: %d bytes", codesize);
-        dump_code(tc->instance->spesh_log_fh, memory, codesize);
+    if (tc->instance->jit_log_fh) {
+        fprintf(tc->instance->jit_log_fh, "Compiled code: %d bytes\n",
+                codesize);
     }
-    dump_binary("jit-code.bin", memory, codesize);
-
+    if (tc->instance->jit_bytecode_dir) {
+        dump_bytecode(tc, memory, codesize);
+    }
     return (MVMJitCode)memory;
 }
 
-MVMuint8 * MVM_jit_magic_bytecode(MVMThreadContext *tc, MVMuint32 *magic_bytecode_size_out) {
-    MVMuint16 magic_bytecode[] = { MVM_OP_sp_jit_enter, 0, MVM_OP_return };
+MVMuint8 * MVM_jit_magic_bytecode(MVMThreadContext *tc,
+                                  MVMuint32 *magic_bytecode_size_out) {
+    MVMuint16 magic_bytecode[] = { MVM_OP_sp_jit_enter, 0 };
     MVMuint8 * magic_block = malloc(sizeof(magic_bytecode));
     *magic_bytecode_size_out = sizeof(magic_bytecode);
     return memcpy(magic_block, magic_bytecode, sizeof(magic_bytecode));
 }
 
 void MVM_jit_enter(MVMThreadContext *tc, MVMFrame *f, MVMJitCode code) {
+    /* this should do something intelligent, of course :-) */
     code(tc, f, NULL);
 }

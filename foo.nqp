@@ -49,6 +49,7 @@ my $cub := $mc.assemble_and_load($comp_unit);
 my $iv := nqp::compunitmainline($cub);
 
 sub foo() {
+    nqp::say("OH HAI");
     1 + 1;
 }
 

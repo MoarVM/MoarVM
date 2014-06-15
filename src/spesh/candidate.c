@@ -125,7 +125,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
 void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMSpeshCandidate *candidate) {
     MVMSpeshCode *sc;
-    MVMJitGraph *jg;
+    MVMJitGraph *jg = NULL;
     MVMJitCode jc;
     /* Obtain the graph, add facts, and do optimization work. */
     MVMSpeshGraph *sg = candidate->sg;
@@ -149,7 +149,9 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
 
     /* Try to JIT compile the optimised graph. The JIT graph hangs off
      * of the spesh graph and can safely be deleted with it. */
-    jg = MVM_jit_try_make_graph(tc, sg);
+    if (tc->instance->jit_enabled)
+        jg = MVM_jit_try_make_graph(tc, sg);
+
     if (jg != NULL) {
         jc = MVM_jit_compile_graph(tc, jg, &candidate->jitcode_size);
         candidate->jitcode = jc;
