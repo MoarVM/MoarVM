@@ -7,6 +7,15 @@
  * freed piece of memory of a given size, which should give good cache
  * behavior. */
 
+/* Turn this on to switch to a mode where we debug by size. */
+#define FSA_SIZE_DEBUG 0
+#if FSA_SIZE_DEBUG
+typedef struct {
+    MVMuint64 alloc_size;
+    void *memory;
+} MVMFixedSizeAllocDebug;
+#endif
+
 /* Creates the allocator data structure with bins. */
 MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
     int init_stat;
@@ -91,6 +100,11 @@ static void * alloc_slow_path(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVMui
     return result;
 }
 void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t bytes) {
+#if FSA_SIZE_DEBUG
+    MVMFixedSizeAllocDebug *dbg = malloc(bytes + sizeof(MVMuint64));
+    dbg->alloc_size = bytes;
+    return &(dbg->memory);
+#else
     MVMuint32 bin = bin_for(bytes);
     if (bin < MVM_FSA_BINS) {
         char *allocd;
@@ -121,6 +135,7 @@ void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t 
     else {
         return malloc(bytes);
     }
+#endif
 }
 
 /* Allocates a piece of memory of the specified size, using the FSA. Promises
@@ -133,6 +148,12 @@ void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *al, 
 
 /* Frees a piece of memory of the specified size, using the FSA. */
 void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t bytes, void *to_free) {
+#if FSA_SIZE_DEBUG
+    MVMFixedSizeAllocDebug *dbg = (MVMFixedSizeAllocDebug *)((char *)to_free - 8);
+    if (dbg->alloc_size != bytes)
+        MVM_panic(1, "Fixed size allocator: wrong size in free");
+    free(dbg);
+#else
     MVMuint32 bin = bin_for(bytes);
     if (bin < MVM_FSA_BINS) {
         /* Came from a bin; put into free list. */
@@ -156,4 +177,5 @@ void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t byt
         /* Was malloc'd due to being oversize, so just free it. */
         free(to_free);
     }
+#endif
 }
