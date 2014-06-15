@@ -606,6 +606,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_invoke_s:
         case MVM_OP_invoke_o:
             optimize_call(tc, g, bb, ins, 1, &arg_info);
+            break;
         case MVM_OP_islist:
         case MVM_OP_ishash:
         case MVM_OP_isint:
