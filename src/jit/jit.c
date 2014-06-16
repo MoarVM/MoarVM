@@ -47,6 +47,15 @@ static void append_branch(MVMThreadContext *tc, MVMJitGraph *jg,
     append_ins(jg, ins);
 }
 
+/* inline this? maybe */
+void MVM_jit_log(MVMThreadContext *tc, const char * fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    if (tc->instance->jit_log_fh) {
+        vfprintf(tc->instance->jit_log_fh, fmt, args);
+    }
+}
+
 MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     MVMSpeshBB  * current_bb = sg->entry;
     MVMSpeshIns * current_ins = current_bb->first_ins;
@@ -57,16 +66,11 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
         return NULL;
     }
 
-    if (tc->instance->jit_log_fh) {
-        fprintf(tc->instance->jit_log_fh,  "Constructing JIT graph\n");
-
-    }
-    /* Can't handle complex graphs yet */
+    MVM_jit_log(tc, "Constructing JIT graph\n");
+     /* Can't handle complex graphs yet */
     if (sg->num_bbs > 2) {
-        if (tc->instance->jit_log_fh) {
-            fprintf(tc->instance->jit_log_fh, "Can't make graph jit graph "
-                    "because I have %d basic blocks\n", sg->num_bbs);
-        }
+        MVM_jit_log(tc, "Can't make JIT graph because "
+                    "spesh graph has %d basic blocks", sg->num_bbs);
         return NULL;
     }
     /* special case logic! */
@@ -78,10 +82,7 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     jit_graph = MVM_spesh_alloc(tc, sg, sizeof(MVMJitGraph));
     jit_graph->spesh = sg;
     while (current_ins) {
-        if (tc->instance->jit_log_fh) {
-            fprintf(tc->instance->jit_log_fh,
-                    "op-to-graph: <%s>\n", current_ins->info->name);
-        }
+        MVM_jit_log(tc, "op-to-graph: <%s>", current_ins->info->name);
         switch(current_ins->info->opcode) {
         case MVM_OP_no_op:
             /* srsly */
@@ -89,6 +90,13 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
         case MVM_OP_add_i:
         case MVM_OP_sub_i:
         case MVM_OP_inc_i:
+        case MVM_OP_dec_i:
+        case MVM_OP_eq_i:
+        case MVM_OP_ne_i:
+        case MVM_OP_lt_i:
+        case MVM_OP_le_i:
+        case MVM_OP_gt_i:
+        case MVM_OP_ge_i:
         case MVM_OP_const_i64:
         case MVM_OP_const_i64_16:
         case MVM_OP_sp_getarg_i:
@@ -120,11 +128,8 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
             break;
         }
         default:
-            if (tc->instance->spesh_log_fh) {
-                fprintf(tc->instance->spesh_log_fh,
-                        "Can't make graph of opcode <%s>\n",
+            MVM_jit_log(tc, "Don't know how to make a graph of opcode <%s>\n",
                         current_ins->info->name);
-            }
             return NULL;
         }
         current_ins = current_ins->next;
@@ -156,9 +161,7 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
     void ** dasm_globals = malloc(num_globals * sizeof(void*));
     MVMJitIns * ins = jg->first_ins;
 
-    if (tc->instance->jit_log_fh) {
-        fprintf(tc->instance->jit_log_fh, "Start compilation\n");
-    }
+    MVM_jit_log(tc, "Starting compilation");
 
     /* setup dasm */
     dasm_init(&state, 1);
@@ -170,9 +173,6 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
 
     MVM_jit_emit_prologue(tc, jg,  &state);
     while (ins) {
-        if (ins->label) {
-            MVM_jit_emit_label(tc, jg, ins->label, &state);
-        }
         switch(ins->type) {
         case MVM_JIT_INS_PRIMITIVE:
             MVM_jit_emit_primitive(tc, jg, &ins->u.prim, &state);
@@ -199,10 +199,7 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
     dasm_free(&state);
     free(dasm_globals);
 
-    if (tc->instance->jit_log_fh) {
-        fprintf(tc->instance->jit_log_fh, "Compiled code: %d bytes\n",
-                codesize);
-    }
+    MVM_jit_log(tc, "Bytecode size: %d", codesize);
     if (tc->instance->jit_bytecode_dir) {
         dump_bytecode(tc, memory, codesize);
     }

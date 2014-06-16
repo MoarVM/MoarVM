@@ -6,10 +6,17 @@ struct MVMJitGraph {
 };
 
 
+struct MVMJitLabel {
+    MVMJitIns *ins;
+    MVMSpeshBB *bb;
+    MVMint32 label;
+};
 
 struct MVMJitPrimitive {
     MVMSpeshIns * ins;
 };
+
+
 
 /* Special branch target for the exit */
 #define MVM_JIT_BRANCH_EXIT -1
@@ -41,6 +48,7 @@ struct MVMJitCallC {
     MVMuint16 has_vargs; // does the receiver consider them variable
 };
 
+
 /* A non-final list of node types */
 typedef enum {
     MVM_JIT_INS_PRIMITIVE,
@@ -51,13 +59,14 @@ typedef enum {
 struct MVMJitIns {
     MVMJitIns * next;   // linked list
     MVMJitInsType type; // tag
-    MVMint32 label;     // dynamic label
     union {
         MVMJitPrimitive prim;
         MVMJitCallC     call;
         MVMJitBranch    branch;
+        MVMJitLabel     label;
     } u;
 };
+
 
 
 MVMJitGraph* MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *spesh);

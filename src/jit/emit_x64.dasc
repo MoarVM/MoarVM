@@ -207,6 +207,47 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
          | inc qword WORK[reg]
          break;
     }
+    case MVM_OP_dec_i: {
+        MVMint32 reg = ins->operands[0].reg.orig;
+        | dec qword WORK[reg]
+        break;
+    }
+    case MVM_OP_eq_i:
+    case MVM_OP_ne_i:
+    case MVM_OP_lt_i:
+    case MVM_OP_le_i:
+    case MVM_OP_gt_i:
+    case MVM_OP_ge_i: {
+        MVMint32 reg_a = ins->operands[0].reg.orig;
+        MVMint32 reg_b = ins->operands[1].reg.orig;
+        MVMint32 reg_c = ins->operands[2].reg.orig;
+        | mov rax, WORK[reg_b]
+        | cmp rax, WORK[reg_c]
+        /* copy the right comparison bit */
+        switch(ins->info->opcode) {
+        case MVM_OP_eq_i:
+            | sete al
+            break;
+        case MVM_OP_ne_i:
+            | setne al
+            break;
+        case MVM_OP_lt_i:
+            | setl al
+            break;
+        case MVM_OP_le_i:
+            | setle al
+            break;
+        case MVM_OP_gt_i:
+            | setg al
+            break;
+        case MVM_OP_ge_i:
+            | setge al
+            break;
+        }
+        | movzx rax, al        // zero extend al (byte) to rax (quadword)
+        | mov WORK[reg_a], rax // store in mvm register
+        break;
+    }
     default:
         MVM_exception_throw_adhoc(tc, "Can't JIT opcode");
     }
