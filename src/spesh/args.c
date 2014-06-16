@@ -46,6 +46,8 @@ void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
         MVMRegister r;
         STABLE(type)->container_spec->fetch(tc, arg, &r);
         arg = r.o;
+        if (!arg)
+            return;
 
         /* Add facts about it. */
         type                           = STABLE(arg)->WHAT;
