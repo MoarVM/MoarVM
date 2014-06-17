@@ -39,104 +39,156 @@ static void append_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
     append_ins(jg, ins);
 }
 
+/* Try to assign a label name for a basic block */
+static MVMint32 get_label_name(MVMThreadContext *tc, MVMJitGraph *jg,
+                               MVMSpeshBB *bb) {
+    int i = 0;
+    for (i = 0; i < jg->num_labels; i++) {
+        if (jg->labels[i].bb == bb) {
+            return i;
+        } else if (jg->labels[i].bb == NULL) {
+            jg->labels[i].bb = bb;
+            return i;
+        }
+    }
+    MVM_exception_throw_adhoc(tc, "JIT: Cannot assign %d labels", i);
+}
+
 static void append_branch(MVMThreadContext *tc, MVMJitGraph *jg,
-                          MVMint32 destination) {
+                          MVMint32 name, MVMSpeshIns *sp_ins) {
+
     MVMJitIns * ins = MVM_spesh_alloc(tc, jg->spesh, sizeof(MVMJitIns));
     ins->type = MVM_JIT_INS_BRANCH;
-    ins->u.branch.destination = destination;
+    if (sp_ins == NULL) {
+        ins->u.branch.ins = NULL;
+        ins->u.branch.dest.bb = NULL;
+        ins->u.branch.dest.name = name;
+    }
+    else {
+        ins->u.branch.ins = sp_ins;
+        if (sp_ins->info->opcode == MVM_OP_goto) {
+            ins->u.branch.dest.bb = sp_ins->operands[0].ins_bb;
+        }
+        else {
+            ins->u.branch.dest.bb = sp_ins->operands[1].ins_bb;
+        }
+        ins->u.branch.dest.name = get_label_name(tc, jg, ins->u.branch.dest.bb);
+    }
     append_ins(jg, ins);
 }
 
-/* inline this? maybe */
-void MVM_jit_log(MVMThreadContext *tc, const char * fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    if (tc->instance->jit_log_fh) {
-        vfprintf(tc->instance->jit_log_fh, fmt, args);
+static void append_label(MVMThreadContext *tc, MVMJitGraph *jg,
+                         MVMSpeshBB *bb) {
+
+    MVMJitIns *ins = MVM_spesh_alloc(tc, jg->spesh, sizeof(MVMJitIns));
+    ins->type = MVM_JIT_INS_LABEL;
+    ins->u.label.bb = bb;
+    ins->u.label.name = get_label_name(tc, jg, bb);
+    append_ins(jg, ins);
+    MVM_jit_log(tc, "append label: %d\n", ins->u.label.name);
+}
+
+static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
+                           MVMSpeshIns *ins) {
+    MVM_jit_log(tc, "append_ins: <%s>\n", ins->info->name);
+    switch(ins->info->opcode) {
+    case MVM_SSA_PHI:
+    case MVM_OP_no_op:
+        break;
+    case MVM_OP_add_i:
+    case MVM_OP_sub_i:
+    case MVM_OP_inc_i:
+    case MVM_OP_dec_i:
+    case MVM_OP_eq_i:
+    case MVM_OP_ne_i:
+    case MVM_OP_lt_i:
+    case MVM_OP_le_i:
+    case MVM_OP_gt_i:
+    case MVM_OP_ge_i:
+    case MVM_OP_const_i64:
+    case MVM_OP_const_i64_16:
+    case MVM_OP_sp_getarg_i:
+    case MVM_OP_set:
+    case MVM_OP_const_s:
+        append_primitive(tc, jg, ins);
+        break;
+    case MVM_OP_goto:
+    case MVM_OP_if_i:
+    case MVM_OP_unless_i:
+        append_branch(tc, jg, 0, ins);
+        break;
+    case MVM_OP_say: {
+        MVMint32 reg = ins->operands[0].reg.orig;
+        MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
+                              { MVM_JIT_ADDR_REG, reg } };
+        append_call_c(tc, jg, &MVM_string_say,  2, args);
+        break;
     }
+    case MVM_OP_return: {
+        MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
+                              { MVM_JIT_ADDR_LITERAL, 0 }};
+        append_call_c(tc, jg, &MVM_args_assert_void_return_ok,
+                      2, args);
+        break;
+    }
+    case MVM_OP_return_i: {
+        MVMint32 reg = ins->operands[0].reg.orig;
+        MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC },
+                              { MVM_JIT_ADDR_REG, reg },
+                              { MVM_JIT_ADDR_LITERAL, 0 } };
+        append_call_c(tc, jg, &MVM_args_set_result_int, 3, args);
+        append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL);
+        break;
+    }
+    default:
+        MVM_jit_log(tc, "Don't know how to make a graph of opcode <%s>\n",
+                    ins->info->name);
+        return 0;
+    }
+    return 1;
+}
+
+static MVMint32 append_bb(MVMThreadContext *tc, MVMJitGraph *jg,
+                          MVMSpeshBB *bb) {
+    append_label(tc, jg, bb);
+    MVMSpeshIns *cur_ins = bb->first_ins;
+    while (cur_ins) {
+        if(!append_op(tc, jg, cur_ins))
+            return 0;
+        if (cur_ins == bb->last_ins)
+            break;
+        cur_ins = cur_ins->next;
+    }
+    return 1;
 }
 
 MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
-    MVMSpeshBB  * current_bb = sg->entry;
-    MVMSpeshIns * current_ins = current_bb->first_ins;
-    MVMJitGraph * jit_graph;
-    MVMJitIns   * jit_ins;
-
+    MVMSpeshBB *cur_bb;
+    MVMJitGraph * jg;
+    int i;
     if (!MVM_jit_support()) {
         return NULL;
     }
 
     MVM_jit_log(tc, "Constructing JIT graph\n");
-     /* Can't handle complex graphs yet */
-    if (sg->num_bbs > 2) {
-        MVM_jit_log(tc, "Can't make JIT graph because "
-                    "spesh graph has %d basic blocks", sg->num_bbs);
-        return NULL;
-    }
-    /* special case logic! */
-    if (current_ins == current_bb->last_ins &&
-        current_ins->info->opcode == MVM_OP_no_op) {
-        current_bb = current_bb->linear_next;
-        current_ins = current_bb->first_ins;
-    }
-    jit_graph = MVM_spesh_alloc(tc, sg, sizeof(MVMJitGraph));
-    jit_graph->spesh = sg;
-    while (current_ins) {
-        MVM_jit_log(tc, "op-to-graph: <%s>", current_ins->info->name);
-        switch(current_ins->info->opcode) {
-        case MVM_OP_no_op:
-            /* srsly */
-            break;
-        case MVM_OP_add_i:
-        case MVM_OP_sub_i:
-        case MVM_OP_inc_i:
-        case MVM_OP_dec_i:
-        case MVM_OP_eq_i:
-        case MVM_OP_ne_i:
-        case MVM_OP_lt_i:
-        case MVM_OP_le_i:
-        case MVM_OP_gt_i:
-        case MVM_OP_ge_i:
-        case MVM_OP_const_i64:
-        case MVM_OP_const_i64_16:
-        case MVM_OP_sp_getarg_i:
-        case MVM_OP_set:
-        case MVM_OP_const_s:
-            append_primitive(tc, jit_graph, current_ins);
-            break;
-        case MVM_OP_say: {
-            MVMint32 reg = current_ins->operands[0].reg.orig;
-            MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
-                                  { MVM_JIT_ADDR_REG, reg } };
-            append_call_c(tc, jit_graph, &MVM_string_say,  2, args);
-            break;
-        }
-        case MVM_OP_return: {
-            MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
-                                  { MVM_JIT_ADDR_LITERAL, 0 }};
-            append_call_c(tc, jit_graph, &MVM_args_assert_void_return_ok,
-                          2, args);
-            break;
-        }
-        case MVM_OP_return_i: {
-            MVMint32 reg = current_ins->operands[0].reg.orig;
-            MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC },
-                                  { MVM_JIT_ADDR_REG, reg },
-                                  { MVM_JIT_ADDR_LITERAL, 0 } };
-            append_call_c(tc, jit_graph, &MVM_args_set_result_int, 3, args);
-            append_branch(tc, jit_graph, MVM_JIT_BRANCH_EXIT);
-            break;
-        }
-        default:
-            MVM_jit_log(tc, "Don't know how to make a graph of opcode <%s>\n",
-                        current_ins->info->name);
+
+    jg = MVM_spesh_alloc(tc, sg, sizeof(MVMJitGraph));
+    jg->spesh = sg;
+    jg->num_labels = sg->num_bbs;
+    jg->labels = MVM_spesh_alloc(tc, sg, sizeof(MVMJitLabel) * jg->num_labels);
+
+    /* ignore first (nop) BB, don't need it */
+    cur_bb = sg->entry->linear_next;
+    /* loop over basic blocks, adding one after the other */
+    while (cur_bb) {
+        if (!append_bb(tc, jg, cur_bb))
             return NULL;
-        }
-        current_ins = current_ins->next;
+        cur_bb = cur_bb->linear_next;
     }
+
     /* Check if we've added a instruction at all */
-    if (jit_graph->first_ins)
-        return jit_graph;
+    if (jg->first_ins)
+        return jg;
     return NULL;
 }
 
@@ -161,7 +213,7 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
     void ** dasm_globals = malloc(num_globals * sizeof(void*));
     MVMJitIns * ins = jg->first_ins;
 
-    MVM_jit_log(tc, "Starting compilation");
+    MVM_jit_log(tc, "Starting compilation\n");
 
     /* setup dasm */
     dasm_init(&state, 1);
@@ -174,14 +226,17 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
     MVM_jit_emit_prologue(tc, jg,  &state);
     while (ins) {
         switch(ins->type) {
+        case MVM_JIT_INS_LABEL:
+            MVM_jit_emit_label(tc, jg, &ins->u.label, &state);
+            break;
         case MVM_JIT_INS_PRIMITIVE:
             MVM_jit_emit_primitive(tc, jg, &ins->u.prim, &state);
             break;
-        case MVM_JIT_INS_CALL_C:
-            MVM_jit_emit_call_c(tc, jg, &ins->u.call, &state);
-            break;
         case MVM_JIT_INS_BRANCH:
             MVM_jit_emit_branch(tc, jg, &ins->u.branch, &state);
+            break;
+        case MVM_JIT_INS_CALL_C:
+            MVM_jit_emit_call_c(tc, jg, &ins->u.call, &state);
             break;
         }
         ins = ins->next;
@@ -199,11 +254,24 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
     dasm_free(&state);
     free(dasm_globals);
 
-    MVM_jit_log(tc, "Bytecode size: %d", codesize);
+    MVM_jit_log(tc, "Bytecode size: %d\n", codesize);
     if (tc->instance->jit_bytecode_dir) {
         dump_bytecode(tc, memory, codesize);
     }
+    if (tc->instance->jit_log_fh)
+        fflush(tc->instance->jit_log_fh);
     return (MVMJitCode)memory;
+}
+
+
+/* inline this? maybe */
+void MVM_jit_log(MVMThreadContext *tc, const char * fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    if (tc->instance->jit_log_fh) {
+        vfprintf(tc->instance->jit_log_fh, fmt, args);
+    }
+    va_end(args);
 }
 
 MVMuint8 * MVM_jit_magic_bytecode(MVMThreadContext *tc,

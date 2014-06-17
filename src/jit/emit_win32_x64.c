@@ -17,7 +17,7 @@
 #endif
 #line 7 "src/jit/emit_x64.dasc"
 //|.actionlist actions
-static const unsigned char actions[291] = {
+static const unsigned char actions[313] = {
   85,72,137,229,255,65,86,83,65,84,65,85,255,73,137,206,72,139,154,233,76,139,
   162,233,76,139,170,233,255,248,10,255,65,93,65,92,91,65,94,255,72,137,252,
   236,93,195,255,72,199,131,233,237,255,73,187,237,237,76,137,155,233,255,77,
@@ -32,7 +32,8 @@ static const unsigned char actions[291] = {
   72,139,139,233,255,72,139,147,233,255,76,139,131,233,255,76,139,139,233,255,
   72,199,193,237,255,72,199,194,237,255,73,199,192,237,255,73,199,193,237,255,
   73,186,237,237,72,131,252,236,32,65,252,255,210,72,131,196,32,255,252,233,
-  244,10,255,252,233,245,255,249,255
+  244,10,255,252,233,245,255,72,139,131,233,72,133,192,15,133,245,255,72,139,
+  131,233,72,133,192,15,132,245,255,249,255
 };
 
 #line 8 "src/jit/emit_x64.dasc"
@@ -359,7 +360,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
     for (i = 0; i < call_spec->num_args; i++) {
         switch (args[i].base) {
         case MVM_JIT_ADDR_STACK: /* unlikely to use this now, though */
-            //| addarg i, [rbp-args[i].idx]
+            //| addarg i, [rbp-args[i].idx];
             switch(i) {
                 case 0:
             dasm_put(Dst, 162, -args[i].idx);
@@ -381,7 +382,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_JIT_ADDR_INTERP:
             switch (args[i].idx) {
             case MVM_JIT_INTERP_TC:
-                //| addarg i, TC
+                //| addarg i, TC;
                 switch(i) {
                     case 0:
                 dasm_put(Dst, 182);
@@ -401,7 +402,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
 #line 271 "src/jit/emit_x64.dasc"
                  break;
             case MVM_JIT_INTERP_FRAME:
-                //| addarg i, TC->cur_frame
+                //| addarg i, TC->cur_frame;
                 switch(i) {
                     case 0:
                 dasm_put(Dst, 202, Dt1(->cur_frame));
@@ -423,7 +424,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
             }
             break;
         case MVM_JIT_ADDR_REG:
-            //| addarg i, WORK[args[i].idx]
+            //| addarg i, WORK[args[i].idx];
             switch(i) {
                 case 0:
             dasm_put(Dst, 222, Dt4([args[i].idx]));
@@ -443,7 +444,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
 #line 279 "src/jit/emit_x64.dasc"
             break;
         case MVM_JIT_ADDR_LITERAL:
-            //| addarg i, args[i].idx
+            //| addarg i, args[i].idx;
             switch(i) {
                 case 0:
             dasm_put(Dst, 242, args[i].idx);
@@ -474,20 +475,48 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
 
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
                          MVMJitBranch * branch, dasm_State **Dst) {
-    if (branch->destination == MVM_JIT_BRANCH_EXIT) {
-        //| jmp ->exit
-        dasm_put(Dst, 280);
-#line 295 "src/jit/emit_x64.dasc"
+    MVMSpeshIns *ins = branch->ins;
+    MVMint32 name = branch->dest.name;
+    if (ins == NULL || ins->info->opcode == MVM_OP_goto) {
+        MVM_jit_log(tc, "emit jump to label %d\n", name);
+        if (name == MVM_JIT_BRANCH_EXIT) {
+            //| jmp ->exit
+            dasm_put(Dst, 280);
+#line 299 "src/jit/emit_x64.dasc"
+        } else {
+            //| jmp =>(name)
+            dasm_put(Dst, 285, (name));
+#line 301 "src/jit/emit_x64.dasc"
+        }
     } else {
-        //| jmp =>(branch->destination)
-        dasm_put(Dst, 285, (branch->destination));
-#line 297 "src/jit/emit_x64.dasc"
+        MVMint16 reg = ins->operands[0].reg.orig;
+        MVM_jit_log(tc, "emit branch <%s> to label %d\n",
+                    ins->info->name, name);
+        switch(ins->info->opcode) {
+        case MVM_OP_if_i:
+            //| mov rax, WORK[reg];
+            //| test rax, rax;
+            //| jnz =>(name); // jump to dynamic label
+            dasm_put(Dst, 289, Dt4([reg]), (name));
+#line 311 "src/jit/emit_x64.dasc"
+            break;
+        case MVM_OP_unless_i:
+            //| mov rax, WORK[reg];
+            //| test rax, rax;
+            //| jz =>(name);
+            dasm_put(Dst, 300, Dt4([reg]), (name));
+#line 316 "src/jit/emit_x64.dasc"
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "JIT: Can't handle conditional <%s>",
+                                      ins->info->name);
+        }
     }
 }
 
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitGraph *jg,
-                        MVMint32 label, dasm_State **Dst) {
-    //| =>(label):
-    dasm_put(Dst, 289, (label));
-#line 303 "src/jit/emit_x64.dasc"
+                        MVMJitLabel *label, dasm_State **Dst) {
+    //| =>(label->name):
+    dasm_put(Dst, 311, (label->name));
+#line 327 "src/jit/emit_x64.dasc"
 }

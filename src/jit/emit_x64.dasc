@@ -262,23 +262,23 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
     for (i = 0; i < call_spec->num_args; i++) {
         switch (args[i].base) {
         case MVM_JIT_ADDR_STACK: /* unlikely to use this now, though */
-            | addarg i, [rbp-args[i].idx]
+            | addarg i, [rbp-args[i].idx];
             break;
         case MVM_JIT_ADDR_INTERP:
             switch (args[i].idx) {
             case MVM_JIT_INTERP_TC:
-                | addarg i, TC
+                | addarg i, TC;
                  break;
             case MVM_JIT_INTERP_FRAME:
-                | addarg i, TC->cur_frame
+                | addarg i, TC->cur_frame;
                 break;
             }
             break;
         case MVM_JIT_ADDR_REG:
-            | addarg i, WORK[args[i].idx]
+            | addarg i, WORK[args[i].idx];
             break;
         case MVM_JIT_ADDR_LITERAL:
-            | addarg i, args[i].idx
+            | addarg i, args[i].idx;
             break;
         }
     }
@@ -290,14 +290,38 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
 
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
                          MVMJitBranch * branch, dasm_State **Dst) {
-    if (branch->destination == MVM_JIT_BRANCH_EXIT) {
-        | jmp ->exit
+    MVMSpeshIns *ins = branch->ins;
+    MVMint32 name = branch->dest.name;
+    if (ins == NULL || ins->info->opcode == MVM_OP_goto) {
+        MVM_jit_log(tc, "emit jump to label %d\n", name);
+        if (name == MVM_JIT_BRANCH_EXIT) {
+            | jmp ->exit
+        } else {
+            | jmp =>(name)
+        }
     } else {
-        | jmp =>(branch->destination)
+        MVMint16 reg = ins->operands[0].reg.orig;
+        MVM_jit_log(tc, "emit branch <%s> to label %d\n",
+                    ins->info->name, name);
+        switch(ins->info->opcode) {
+        case MVM_OP_if_i:
+            | mov rax, WORK[reg];
+            | test rax, rax;
+            | jnz =>(name); // jump to dynamic label
+            break;
+        case MVM_OP_unless_i:
+            | mov rax, WORK[reg];
+            | test rax, rax;
+            | jz =>(name);
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "JIT: Can't handle conditional <%s>",
+                                      ins->info->name);
+        }
     }
 }
 
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitGraph *jg,
-                        MVMint32 label, dasm_State **Dst) {
-    | =>(label):
+                        MVMJitLabel *label, dasm_State **Dst) {
+    | =>(label->name):
 }

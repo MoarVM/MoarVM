@@ -2,14 +2,15 @@ struct MVMJitGraph {
     MVMSpeshGraph * spesh;
     MVMJitIns * first_ins;
     MVMJitIns * last_ins;
+
     MVMint32 num_labels;
+    MVMJitLabel * labels;
 };
 
-
+/* A label */
 struct MVMJitLabel {
-    MVMJitIns *ins;
+    MVMint32 name;
     MVMSpeshBB *bb;
-    MVMint32 label;
 };
 
 struct MVMJitPrimitive {
@@ -17,12 +18,14 @@ struct MVMJitPrimitive {
 };
 
 
-
 /* Special branch target for the exit */
 #define MVM_JIT_BRANCH_EXIT -1
 
+/* What does a branch need? a label to go to, an instruction to read */
+
 struct MVMJitBranch {
-    MVMint32 destination;
+    MVMJitLabel dest;
+    MVMSpeshIns * ins;
 };
 
 typedef enum {
@@ -54,6 +57,7 @@ typedef enum {
     MVM_JIT_INS_PRIMITIVE,
     MVM_JIT_INS_CALL_C,
     MVM_JIT_INS_BRANCH,
+    MVM_JIT_INS_LABEL,
 } MVMJitInsType;
 
 struct MVMJitIns {
@@ -68,7 +72,7 @@ struct MVMJitIns {
 };
 
 
-
+void MVM_jit_log(MVMThreadContext *tc, const char *fmt, ...);
 MVMJitGraph* MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *spesh);
 MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph, size_t *codesize_out);
 MVMuint8* MVM_jit_magic_bytecode(MVMThreadContext *tc, MVMuint32 *bytecode_size_out);

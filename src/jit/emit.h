@@ -13,4 +13,4 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
                          MVMJitBranch *branc_spec, dasm_State **Dst);
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitGraph *jg,
-                        MVMint32 label, dasm_State **Dst);
+                        MVMJitLabel *label, dasm_State **Dst);
