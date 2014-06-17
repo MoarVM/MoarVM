@@ -5,7 +5,7 @@ New in 2014.06
 + Start storing named argument names in callsite objects
 + Start interning callsites with named arguments
 + Specializer can turn named arg resolution to indexed lookups
-+ Specializer can optimize optimize named args
++ Specializer can optimize named args
 + Specializer adds facts and guards for named args
 + Implement cancelling listening on a socket
 + Implement async bytes reads from sockets
