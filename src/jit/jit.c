@@ -108,6 +108,9 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_const_i64:
     case MVM_OP_const_i64_16:
     case MVM_OP_sp_getarg_i:
+    case MVM_OP_sp_getarg_o:
+    case MVM_OP_sp_getarg_n:
+    case MVM_OP_sp_getarg_s:
     case MVM_OP_set:
     case MVM_OP_const_s:
         append_primitive(tc, jg, ins);
@@ -124,11 +127,19 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
         append_call_c(tc, jg, &MVM_string_say,  2, args);
         break;
     }
+    case MVM_OP_print: {
+        MVMint32 reg = ins->operands[0].reg.orig;
+        MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
+                              { MVM_JIT_ADDR_REG, reg } };
+        append_call_c(tc, jg, &MVM_string_print,  2, args);
+        break;
+    }
     case MVM_OP_return: {
         MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
                               { MVM_JIT_ADDR_LITERAL, 0 }};
         append_call_c(tc, jg, &MVM_args_assert_void_return_ok,
                       2, args);
+        append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL);
         break;
     }
     case MVM_OP_return_i: {

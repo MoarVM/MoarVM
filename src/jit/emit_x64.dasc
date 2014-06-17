@@ -157,6 +157,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[reg], TMP
         break;
     }
+    case MVM_OP_sp_getarg_o:
+    case MVM_OP_sp_getarg_n:
+    case MVM_OP_sp_getarg_s:
     case MVM_OP_sp_getarg_i: {
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMuint16 idx = ins->operands[1].callsite_idx;
@@ -176,6 +179,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
          MVMint32 idx = ins->operands[1].lit_str_idx;
          MVMStaticFrame *sf = jg->spesh->sf;
          MVMString * s = sf->body.cu->body.strings[idx];
+         // TODO fixme
          | mov64 TMP, (uintptr_t)s
          | mov WORK[reg], TMP
          break;
