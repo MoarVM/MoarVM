@@ -17,13 +17,15 @@ const unsigned int MVM_jit_num_globals(void) {
     return 0;
 }
 
-void MVM_jit_emit_prologue(MVMThreadContext *tc, dasm_State **Dst) {}
-void MVM_jit_emit_epilogue(MVMThreadContext *tc, dasm_State **Dst) {}
-void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitPrimitive *prim,
-                            dasm_State **Dst) {}
-void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCallC *call_spec,
-                         dasm_State **Dst) {}
-void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitBranch  *branch_spec,
-                         dasm_State **Dst) {}
-void MVM_jit_emit_label(MVMThreadContext *tc, MVMint32 label,
-                        dasm_State **Dst) {}
+void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
+                           dasm_State **Dst) {}
+void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitGraph *jg,
+                           dasm_State **Dst) {}
+void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
+                            MVMJitPrimitive *prim, dasm_State **Dst) {}
+void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
+                         MVMJitCallC *call_spec, dasm_State **Dst) {}
+void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
+                         MVMJitBranch *branch_spec, dasm_State **Dst) {}
+void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitGraph *jg,
+                        MVMJitLabel *label, dasm_State **Dst) {}

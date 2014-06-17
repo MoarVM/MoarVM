@@ -162,7 +162,7 @@ if ($args{'has-libatomic_ops'}) {
 }
 
 if ($args{'enable-jit'}) {
-    if ($Config{archname} =~ m/^x86_64/) {
+    if ($Config{archname} =~ m/^x86_64|^darwin-2level/) {
         $config{jit} = '$(JIT_POSIX_X64)';
     } elsif ($Config{archname} =~ /^MSWin32-x64/) {
         $config{jit} = '$(JIT_WIN32_X64)';
