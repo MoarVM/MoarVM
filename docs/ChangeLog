@@ -1,3 +1,29 @@
+New in 2014.06
+
++ Correct closure semantics of native callbacks
++ Add ops for 2-possibility named parameter handling.
++ Start storing named argument names in callsite objects
++ Start interning callsites with named arguments
++ Specializer can turn named arg resolution to indexed lookups
++ Specializer can optimize optimize named args
++ Specializer adds facts and guards for named args
++ Implement cancelling listening on a socket
++ Implement async bytes reads from sockets
++ Optimize invocation by pre-selecting callee spesh cand if possible
++ Pick a spesh threshold by bytecode size rather than a constant
++ Mark ops that are not suitable for inlining
++ Add an operand type for spesh slots
++ Implement basic inlining
++ Implement deoptimization of inlined calls, which uninlines
++ Make interp trace output more useful; include op
++ Have invoke/return end a basic block
++ Add a thread-safe fixed-size allocator
++ Use fixed-size allocator for frames/work/env.
++ Use fixed-size allocator for hash entries
++ Use fixed-size allocator for named used flags.
++ Don't refuse to spesh if we've a slurpy positional
++ Can do coerce_in of literals at spesh-time
+
 New in 2014.05
 
 + Add a libuv-managed event loop thread
