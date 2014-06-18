@@ -62,10 +62,13 @@ Some key features provided by MoarVM include:
 * Code generation from MAST (MoarVM AST)
 * Runtime loading of code
 * Big integers
-* A range of IO and process support
+* A range of IO and process support, including asynchronous sockets, signals,
+  and timers
 * Native calling
 * Threads, mutexes, condition variables, semaphores, and blocking queues
-* Bytecode specialization by type, and a range of basic optimizations
+* Bytecode specialization by type, and a range of optimizations (including
+  resolution of method calls and multiple dispatch, dead code elimination,
+  and inlining)
 
 ## Contributing
 
