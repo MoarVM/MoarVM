@@ -23,6 +23,8 @@ New in 2014.06
 + Use fixed-size allocator for named used flags.
 + Don't refuse to spesh if we've a slurpy positional
 + Can do coerce_in of literals at spesh-time
++ Fix spesh frame handler end annotation motion in instruction deletion
++ Fix spesh fact marking bug
 
 New in 2014.05
 
