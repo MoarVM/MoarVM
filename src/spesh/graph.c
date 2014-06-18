@@ -1087,13 +1087,14 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
 
 /* Marks GCables held in a spesh graph. */
 void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist *worklist) {
-    MVMuint16 i, j, num_locals, num_facts;
+    MVMuint16 i, j, num_locals, num_facts, *local_types;
 
     /* Mark static frame. */
     MVM_gc_worklist_add(tc, worklist, &g->sf);
 
     /* Mark facts. */
     num_locals = g->num_locals;
+    local_types = g->local_types ? g->local_types : g->sf->body.local_types;
     for (i = 0; i < num_locals; i++) {
         num_facts = g->fact_counts[i];
         for (j = 0; j < num_facts; j++) {
@@ -1102,6 +1103,12 @@ void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist 
                 MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].type));
             if (flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE)
                 MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].decont_type));
+            if (flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                if (local_types[i] == MVM_reg_obj)
+                    MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].value.o));
+                else if (local_types[i] == MVM_reg_str)
+                    MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].value.s));
+            }
         }
     }
 }
