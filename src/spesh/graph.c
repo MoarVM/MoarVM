@@ -1101,7 +1101,7 @@ void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist 
             if (flags & MVM_SPESH_FACT_KNOWN_TYPE)
                 MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].type));
             if (flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE)
-                MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].type));
+                MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].decont_type));
         }
     }
 }
