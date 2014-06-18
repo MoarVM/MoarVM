@@ -253,7 +253,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         }
 
         /* We can optimize. Toss checkarity. */
-        MVM_spesh_manipulate_delete_ins(tc, checkarity_bb, checkarity_ins);
+        MVM_spesh_manipulate_delete_ins(tc, g, checkarity_bb, checkarity_ins);
 
         /* Re-write the passed required positionals to spesh ops, and store
          * any gurads. */
@@ -300,7 +300,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 } else {
                     /* If we didn't pass this, just fall through the original
                     * operation and we'll get the default value set. */
-                    MVM_spesh_manipulate_delete_ins(tc, pos_bb[i], pos_ins[i]);
+                    MVM_spesh_manipulate_delete_ins(tc, g, pos_bb[i], pos_ins[i]);
                     MVM_spesh_manipulate_remove_successor(tc, pos_bb[i],
                         pos_ins[i]->operands[2].ins_bb);
                 }
@@ -381,7 +381,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 break;
             case MVM_OP_param_on_i:
                 if (found_idx == -1) {
-                    MVM_spesh_manipulate_delete_ins(tc, named_bb[i], named_ins[i]);
+                    MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], named_ins[i]);
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_INT) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
@@ -394,7 +394,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 break;
             case MVM_OP_param_on_n:
                 if (found_idx == -1) {
-                    MVM_spesh_manipulate_delete_ins(tc, named_bb[i], named_ins[i]);
+                    MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], named_ins[i]);
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_NUM) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
@@ -407,7 +407,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 break;
             case MVM_OP_param_on_s:
                 if (found_idx == -1) {
-                    MVM_spesh_manipulate_delete_ins(tc, named_bb[i], named_ins[i]);
+                    MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], named_ins[i]);
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_STR) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
@@ -420,7 +420,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 break;
             case MVM_OP_param_on_o:
                 if (found_idx == -1) {
-                    MVM_spesh_manipulate_delete_ins(tc, named_bb[i], named_ins[i]);
+                    MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], named_ins[i]);
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ) {
                     MVMuint16 arg_idx = found_idx + 1;
@@ -440,10 +440,10 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         /* If we had no nameds or we used them all, can toss namesused, and we
          * don't need to mark used after all. */
         if (paramnamesused_ins && num_named == named_used) {
-            MVM_spesh_manipulate_delete_ins(tc, paramnamesused_bb, paramnamesused_ins);
+            MVM_spesh_manipulate_delete_ins(tc, g, paramnamesused_bb, paramnamesused_ins);
             for (i = 0; i < num_named; i++)
                 if (used_ins[i])
-                    MVM_spesh_manipulate_delete_ins(tc, named_bb[i], used_ins[i]);
+                    MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], used_ins[i]);
         }
     }
 

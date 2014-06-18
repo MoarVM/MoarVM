@@ -406,7 +406,7 @@ void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
                         MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
     switch (invoke_ins->info->opcode) {
     case MVM_OP_invoke_v:
-        MVM_spesh_manipulate_delete_ins(tc, return_bb, return_ins);
+        MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
         break;
     case MVM_OP_invoke_i:
         return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
@@ -425,7 +425,7 @@ void rewrite_num_return(MVMThreadContext *tc, MVMSpeshGraph *g,
                         MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
     switch (invoke_ins->info->opcode) {
     case MVM_OP_invoke_v:
-        MVM_spesh_manipulate_delete_ins(tc, return_bb, return_ins);
+        MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
         break;
     case MVM_OP_invoke_n:
         return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
@@ -444,7 +444,7 @@ void rewrite_str_return(MVMThreadContext *tc, MVMSpeshGraph *g,
                         MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
     switch (invoke_ins->info->opcode) {
     case MVM_OP_invoke_v:
-        MVM_spesh_manipulate_delete_ins(tc, return_bb, return_ins);
+        MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
         break;
     case MVM_OP_invoke_s:
         return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
@@ -463,7 +463,7 @@ void rewrite_obj_return(MVMThreadContext *tc, MVMSpeshGraph *g,
                         MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
     switch (invoke_ins->info->opcode) {
     case MVM_OP_invoke_v:
-        MVM_spesh_manipulate_delete_ins(tc, return_bb, return_ins);
+        MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
         break;
     case MVM_OP_invoke_o:
         return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
@@ -554,7 +554,7 @@ void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                      * parameter-taking instruction. */
                     arg_ins->info        = MVM_op_get_op(MVM_OP_set);
                     arg_ins->operands[0] = ins->operands[0];
-                    MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+                    MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc,
@@ -569,7 +569,7 @@ void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     }
 
     /* Delete the prepargs instruction. */
-    MVM_spesh_manipulate_delete_ins(tc, invoke_bb, call_info->prepargs_ins);
+    MVM_spesh_manipulate_delete_ins(tc, inliner, invoke_bb, call_info->prepargs_ins);
 }
 
 /* Annotates first and last instruction in post-processed inlinee with start

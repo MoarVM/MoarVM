@@ -222,7 +222,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     } else {
         /* this conditional can be dropped completely */
         MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
-        MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
     }
 }
 
@@ -264,7 +264,7 @@ static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE && facts->value.i64) {
         facts->usages--;
-        MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
     }
 }
 
@@ -350,7 +350,7 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
             MVMuint16 ss = MVM_spesh_add_spesh_slot(tc, g, log_obj);
 
             /* Delete logging instruction. */
-            MVM_spesh_manipulate_delete_ins(tc, bb, ins->next);
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->next);
 
             /* Transform lookup instruction into spesh slot read. */
             MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
@@ -700,7 +700,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_sp_log:
             /* Left-over log instruction that didn't become a guard; just
              * delete it. */
-            MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
             break;
         }
         ins = ins->next;
@@ -731,7 +731,7 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                             MVM_spesh_get_facts(tc, g, ins->operands[i])->usages--;
 
                         /* Remove this phi. */
-                        MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+                        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                         death = 1;
                     }
                 }
@@ -747,7 +747,7 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                                     MVM_spesh_get_facts(tc, g, ins->operands[i])->usages--;
 
                             /* Remove this instruction. */
-                            MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+                            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                             death = 1;
                         }
                     }

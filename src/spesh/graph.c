@@ -88,7 +88,7 @@ static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 }
 
 /* Finds the linearly previous basic block (not cheap, but uncommon). */
-static MVMSpeshBB * linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search) {
+MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search) {
     MVMSpeshBB *bb = g->entry;
     while (bb) {
         if (bb->linear_next == search)
@@ -502,7 +502,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             if (existing_deopts[2 * i + 1] >= 0) {
                 MVMSpeshIns *post_ins     = ins_flat[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2];
                 MVMSpeshIns *deopt_ins    = post_ins->prev ? post_ins->prev :
-                    linear_prev(tc, g, ins_to_bb[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2])->last_ins;
+                    MVM_spesh_graph_linear_prev(tc, g,
+                        ins_to_bb[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2])->last_ins;
                 MVMSpeshAnn *deopt_ann    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
                 deopt_ann->next           = deopt_ins->annotations;
                 deopt_ann->type           = MVM_SPESH_ANN_DEOPT_INLINE;
