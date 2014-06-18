@@ -148,7 +148,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
             MVMObject *arg = MVM_args_get_pos_obj(tc, apc, i, 1).arg.o;
             if (arg) {
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
-                if (contspec) {
+                if (contspec && IS_CONCRETE(arg)) {
                     if (contspec->fetch_never_invokes) {
                         MVMRegister r;
                         contspec->fetch(tc, arg, &r);
@@ -231,7 +231,7 @@ MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache_obj, MVM
             MVMObject *arg = MVM_args_get_pos_obj(tc, apc, i, 1).arg.o;
             if (arg) {
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
-                if (contspec) {
+                if (contspec && IS_CONCRETE(arg)) {
                     if (contspec->fetch_never_invokes) {
                         MVMRegister r;
                         contspec->fetch(tc, arg, &r);
@@ -309,7 +309,7 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
             MVMObject *arg = args[i].o;
             if (arg) {
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
-                if (contspec) {
+                if (contspec && IS_CONCRETE(arg)) {
                     if (contspec->fetch_never_invokes) {
                         MVMRegister r;
                         contspec->fetch(tc, arg, &r);
