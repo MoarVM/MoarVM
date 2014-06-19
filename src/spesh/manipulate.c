@@ -3,7 +3,7 @@
 /* This file contains various routines for manipulating a spesh graph, such
  * as adding/removing/replacing instructions. */
 
-void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     /* Remove it from the double linked list. */
     MVMSpeshIns *prev = ins->prev;
     MVMSpeshIns *next = ins->next;
@@ -33,6 +33,11 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSp
                 break;
             case MVM_SPESH_ANN_FH_END:
             case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                if (!prev) {
+                    MVMSpeshBB *prev_bb = MVM_spesh_graph_linear_prev(tc, g, bb);
+                    if (prev_bb)
+                        prev = prev_bb->last_ins;
+                }
                 if (prev) {
                     ann->next = prev->annotations;
                     prev->annotations = ann;

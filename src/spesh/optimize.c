@@ -222,7 +222,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     } else {
         /* this conditional can be dropped completely */
         MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
-        MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
     }
 }
 
@@ -264,7 +264,7 @@ static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE && facts->value.i64) {
         facts->usages--;
-        MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
     }
 }
 
@@ -306,6 +306,24 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     }
 }
 
+/* If we have a const_i and a coerce_in, we can emit a const_n instead. */
+static void optimize_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+
+    if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        MVMnum64 result = facts->value.i64;
+
+        facts->usages--;
+
+        ins->info = MVM_op_get_op(MVM_OP_const_n64);
+        ins->operands[1].lit_n64 = result;
+
+        result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+        result_facts->value.n64 = result;
+    }
+}
+
 /* If we know the type of a significant operand, we might try to specialize by
  * representation. */
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -332,7 +350,7 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
             MVMuint16 ss = MVM_spesh_add_spesh_slot(tc, g, log_obj);
 
             /* Delete logging instruction. */
-            MVM_spesh_manipulate_delete_ins(tc, bb, ins->next);
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->next);
 
             /* Transform lookup instruction into spesh slot read. */
             MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
@@ -598,6 +616,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             }
             break;
         }
+        case MVM_OP_coerce_in:
+            optimize_coerce(tc, g, bb, ins);
+            break;
         case MVM_OP_invoke_v:
             optimize_call(tc, g, bb, ins, 0, &arg_info);
             break;
@@ -606,6 +627,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_invoke_s:
         case MVM_OP_invoke_o:
             optimize_call(tc, g, bb, ins, 1, &arg_info);
+            break;
         case MVM_OP_islist:
         case MVM_OP_ishash:
         case MVM_OP_isint:
@@ -678,7 +700,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_sp_log:
             /* Left-over log instruction that didn't become a guard; just
              * delete it. */
-            MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
             break;
         }
         ins = ins->next;
@@ -709,7 +731,7 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                             MVM_spesh_get_facts(tc, g, ins->operands[i])->usages--;
 
                         /* Remove this phi. */
-                        MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+                        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                         death = 1;
                     }
                 }
@@ -725,7 +747,7 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                                     MVM_spesh_get_facts(tc, g, ins->operands[i])->usages--;
 
                             /* Remove this instruction. */
-                            MVM_spesh_manipulate_delete_ins(tc, bb, ins);
+                            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                             death = 1;
                         }
                     }

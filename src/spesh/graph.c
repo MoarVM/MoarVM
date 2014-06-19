@@ -88,7 +88,7 @@ static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 }
 
 /* Finds the linearly previous basic block (not cheap, but uncommon). */
-static MVMSpeshBB * linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search) {
+MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search) {
     MVMSpeshBB *bb = g->entry;
     while (bb) {
         if (bb->linear_next == search)
@@ -502,7 +502,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             if (existing_deopts[2 * i + 1] >= 0) {
                 MVMSpeshIns *post_ins     = ins_flat[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2];
                 MVMSpeshIns *deopt_ins    = post_ins->prev ? post_ins->prev :
-                    linear_prev(tc, g, ins_to_bb[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2])->last_ins;
+                    MVM_spesh_graph_linear_prev(tc, g,
+                        ins_to_bb[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 2])->last_ins;
                 MVMSpeshAnn *deopt_ann    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
                 deopt_ann->next           = deopt_ins->annotations;
                 deopt_ann->type           = MVM_SPESH_ANN_DEOPT_INLINE;
@@ -1086,13 +1087,14 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
 
 /* Marks GCables held in a spesh graph. */
 void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist *worklist) {
-    MVMuint16 i, j, num_locals, num_facts;
+    MVMuint16 i, j, num_locals, num_facts, *local_types;
 
     /* Mark static frame. */
     MVM_gc_worklist_add(tc, worklist, &g->sf);
 
     /* Mark facts. */
     num_locals = g->num_locals;
+    local_types = g->local_types ? g->local_types : g->sf->body.local_types;
     for (i = 0; i < num_locals; i++) {
         num_facts = g->fact_counts[i];
         for (j = 0; j < num_facts; j++) {
@@ -1100,7 +1102,13 @@ void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist 
             if (flags & MVM_SPESH_FACT_KNOWN_TYPE)
                 MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].type));
             if (flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE)
-                MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].type));
+                MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].decont_type));
+            if (flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                if (local_types[i] == MVM_reg_obj)
+                    MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].value.o));
+                else if (local_types[i] == MVM_reg_str)
+                    MVM_gc_worklist_add(tc, worklist, &(g->facts[i][j].value.s));
+            }
         }
     }
 }
