@@ -44,6 +44,24 @@ struct MVMJitAddr {
     MVMint32 idx;
 };
 
+/* We support a few operations with return values.
+ * (and I might add more :-))
+ * a): store to register
+ * b): store pointer value to register
+ * c): store register to memory pointer */
+
+typedef enum {
+    MVM_JIT_RV_VAL_TO_REG,
+    MVM_JIT_RV_REF_TO_REG,
+    MVM_JIT_RV_REG_TO_PTR,
+} MVMJitRVMode;;
+
+struct MVMJitRVH { // return value handler
+    MVMJitRVMode mode;
+    MVMJitAddr   addr;
+};
+
+
 struct MVMJitCallC {
     void * func_ptr;     // what do we call
     MVMJitAddr * args;   // a list of arguments
@@ -52,10 +70,12 @@ struct MVMJitCallC {
 };
 
 
+
 /* A non-final list of node types */
 typedef enum {
     MVM_JIT_INS_PRIMITIVE,
     MVM_JIT_INS_CALL_C,
+    MVM_JIT_INS_RVH,
     MVM_JIT_INS_BRANCH,
     MVM_JIT_INS_LABEL,
 } MVMJitInsType;
@@ -66,6 +86,7 @@ struct MVMJitIns {
     union {
         MVMJitPrimitive prim;
         MVMJitCallC     call;
+        MVMJitRVH       rvh;
         MVMJitBranch    branch;
         MVMJitLabel     label;
     } u;

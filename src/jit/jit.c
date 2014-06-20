@@ -22,7 +22,6 @@ static void append_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     append_ins(jg, ins);
 }
 
-
 static void append_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
                           void * func_ptr, MVMint16 num_args,
                           MVMJitAddr *call_args) {
@@ -36,6 +35,17 @@ static void append_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
      * so they need to be copied */
     ins->u.call.args = MVM_spesh_alloc(tc, jg->spesh, args_size);
     memcpy(ins->u.call.args, call_args, args_size);
+    append_ins(jg, ins);
+}
+
+static void append_rvh(MVMThreadContext *tc, MVMJitGraph *jg,
+                       MVMJitRVMode mode, MVMJitAddrBase base,
+                       MVMint32 idx) {
+    MVMJitIns * ins = MVM_spesh_alloc(tc, jg->spesh, sizeof(MVMJitIns));
+    ins->type = MVM_JIT_INS_RVH;
+    ins->u.rvh.mode = mode;
+    ins->u.rvh.addr.base = base;
+    ins->u.rvh.addr.idx = idx;
     append_ins(jg, ins);
 }
 
@@ -142,13 +152,39 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
         append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL);
         break;
     }
+    case MVM_OP_return_s:
     case MVM_OP_return_i: {
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC },
                               { MVM_JIT_ADDR_REG, reg },
                               { MVM_JIT_ADDR_LITERAL, 0 } };
-        append_call_c(tc, jg, &MVM_args_set_result_int, 3, args);
+        void * func_ptr;
+        switch(ins->info->opcode) {
+        case MVM_OP_return_s: func_ptr = &MVM_args_set_result_str; break;
+        case MVM_OP_return_i: func_ptr = &MVM_args_set_result_int; break;
+        }
+        append_call_c(tc, jg, func_ptr, 3, args);
         append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL);
+        break;
+    }
+    case MVM_OP_coerce_sn:
+    case MVM_OP_coerce_ns:
+    case MVM_OP_coerce_si:
+    case MVM_OP_coerce_is: {
+        MVMint16 src = ins->operands[1].reg.orig;
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMJitAddr args[] = {{ MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
+                             { MVM_JIT_ADDR_REG, src } };
+        void * func_ptr;
+        switch (ins->info->opcode) {
+        case MVM_OP_coerce_sn: func_ptr = &MVM_coerce_s_n; break;
+        case MVM_OP_coerce_ns: func_ptr = &MVM_coerce_n_s; break;
+        case MVM_OP_coerce_si: func_ptr = &MVM_coerce_s_i; break;
+        case MVM_OP_coerce_is: func_ptr = &MVM_coerce_i_s; break;
+        default: MVM_exception_throw_adhoc(tc, "Whut");
+        }
+        append_call_c(tc, jg, func_ptr, 2, args);
+        append_rvh(tc, jg, MVM_JIT_RV_VAL_TO_REG, MVM_JIT_ADDR_REG, dst);
         break;
     }
     default:
@@ -248,6 +284,9 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
             break;
         case MVM_JIT_INS_CALL_C:
             MVM_jit_emit_call_c(tc, jg, &ins->u.call, &state);
+            break;
+        case MVM_JIT_INS_RVH:
+            MVM_jit_emit_rvh(tc, jg, &ins->u.rvh, &state);
             break;
         }
         ins = ins->next;

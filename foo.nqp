@@ -13,9 +13,11 @@ sub fib (int $x) {
     $a
 }
 
+sub foo(int $i) {
+    nqp::say($i);
+}
 my int $i := 0;
 while $i < 50 {
     $i := $i + 1;
-    my int $f := fib($i);
-    nqp::say("Fib number " ~ $i ~ " is " ~ $f);
+    foo($i);
 }

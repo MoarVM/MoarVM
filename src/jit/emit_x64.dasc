@@ -61,9 +61,12 @@ const unsigned int MVM_jit_num_globals(void) {
 |.endif
 
 /* Special register for the function to be invoked */
-|.define FUNCTION, r10
+|.define FUNCTION, r10;
 /* all-purpose temporary register */
-|.define TMP, r11
+|.define TMP, r11;
+/* return value */
+|.define RV, rax
+
 
 |.macro callp, funcptr
 | mov64 FUNCTION, (uintptr_t)funcptr
@@ -328,4 +331,21 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitGraph *jg,
                         MVMJitLabel *label, dasm_State **Dst) {
     | =>(label->name):
+}
+
+void MVM_jit_emit_rvh(MVMThreadContext *tc, MVMJitGraph *jg,
+                      MVMJitRVH *rvh, dasm_State **Dst) {
+    switch(rvh->mode) {
+    case MVM_JIT_RV_VAL_TO_REG:
+        | mov WORK[rvh->addr.idx], RV;
+        break;
+    case MVM_JIT_RV_REF_TO_REG:
+        | mov TMP, [RV]; // maybe add an offset?
+        | mov WORK[rvh->addr.idx], TMP;
+        break;
+    case MVM_JIT_RV_REG_TO_PTR:
+        | mov TMP, WORK[rvh->addr.idx];
+        | mov [RV], TMP;
+        break;
+    }
 }
