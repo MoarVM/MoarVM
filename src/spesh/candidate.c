@@ -147,38 +147,36 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
         free(c_cuid);
     }
 
-    /* Try to JIT compile the optimised graph. The JIT graph hangs off
-     * of the spesh graph and can safely be deleted with it. */
+
+    /* Generate code, and replace that in the candidate. */
+    sc = MVM_spesh_codegen(tc, sg);
+    free(candidate->bytecode);
+    if (candidate->handlers)
+        free(candidate->handlers);
+    candidate->bytecode      = sc->bytecode;
+    candidate->bytecode_size = sc->bytecode_size;
+    candidate->handlers      = sc->handlers;
+    candidate->num_deopts    = sg->num_deopt_addrs;
+    candidate->deopts        = sg->deopt_addrs;
+    candidate->num_locals    = sg->num_locals;
+    candidate->num_lexicals  = sg->num_lexicals;
+    candidate->num_inlines   = sg->num_inlines;
+    candidate->inlines       = sg->inlines;
+    candidate->local_types   = sg->local_types;
+    candidate->lexical_types = sg->lexical_types;
+    calculate_work_env_sizes(tc, static_frame, candidate);
+    free(sc);
+
+    /* Try to JIT compile the optimised graph. The JIT graph hangs from
+     * the spesh graph and can safely be deleted with it. */
     if (tc->instance->jit_enabled)
         jg = MVM_jit_try_make_graph(tc, sg);
 
     if (jg != NULL) {
         jc = MVM_jit_compile_graph(tc, jg, &candidate->jitcode_size);
         candidate->jitcode = jc;
-        /* Add special bytecode for invoking the jit code */
-        free(candidate->bytecode);
-        candidate->bytecode = MVM_jit_magic_bytecode(tc, &candidate->bytecode_size);
-        /* We have nothing for exceptions, deopt, etc. yet. */
-    }
-    else {
-        /* Generate code, and replace that in the candidate. */
-        sc = MVM_spesh_codegen(tc, sg);
-        free(candidate->bytecode);
-        if (candidate->handlers)
-            free(candidate->handlers);
-        candidate->bytecode      = sc->bytecode;
-        candidate->bytecode_size = sc->bytecode_size;
-        candidate->handlers      = sc->handlers;
-        candidate->num_deopts    = sg->num_deopt_addrs;
-        candidate->deopts        = sg->deopt_addrs;
-        candidate->num_locals    = sg->num_locals;
-        candidate->num_lexicals  = sg->num_lexicals;
-        candidate->num_inlines   = sg->num_inlines;
-        candidate->inlines       = sg->inlines;
-        candidate->local_types   = sg->local_types;
-        candidate->lexical_types = sg->lexical_types;
-        calculate_work_env_sizes(tc, static_frame, candidate);
-        free(sc);
+        /* install magic bytecode */
+        candidate->jit_bytecode = MVM_jit_magic_bytecode(tc);
     }
 
     /* Update spesh slots. */
