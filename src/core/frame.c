@@ -429,6 +429,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Clear frame flags. */
     frame->flags = 0;
 
+    /* Initialize OSR counter. */
+    frame->osr_counter = 0;
+
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
     tc->cur_frame = frame;
