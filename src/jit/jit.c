@@ -106,6 +106,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_return_i: return &MVM_args_set_result_int;
     case MVM_OP_return_s: return &MVM_args_set_result_str;
     case MVM_OP_return_o: return &MVM_args_set_result_obj;
+    case MVM_OP_return_n: return &MVM_args_set_result_num;
     case MVM_OP_coerce_is: return &MVM_coerce_i_s;
     case MVM_OP_coerce_ns: return &MVM_coerce_n_s;
     case MVM_OP_coerce_si: return &MVM_coerce_s_i;
@@ -125,15 +126,24 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     case MVM_OP_add_i:
     case MVM_OP_sub_i:
+    case MVM_OP_mul_i:
+    case MVM_OP_div_i:
+    case MVM_OP_mod_i:
     case MVM_OP_inc_i:
     case MVM_OP_dec_i:
+    case MVM_OP_add_n:
+    case MVM_OP_sub_n:
+    case MVM_OP_mul_n:
+    case MVM_OP_div_n:
     case MVM_OP_eq_i:
     case MVM_OP_ne_i:
     case MVM_OP_lt_i:
     case MVM_OP_le_i:
     case MVM_OP_gt_i:
     case MVM_OP_ge_i:
+    case MVM_OP_coerce_in:
     case MVM_OP_const_i64:
+    case MVM_OP_const_n64:
     case MVM_OP_const_i64_16:
     case MVM_OP_sp_getarg_i:
     case MVM_OP_sp_getarg_o:
@@ -165,11 +175,15 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     case MVM_OP_return_o:
     case MVM_OP_return_s:
+    case MVM_OP_return_n:
     case MVM_OP_return_i: {
-        MVMint32 reg = ins->operands[0].reg.orig;
-        MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC },
+        MVMint16 reg = ins->operands[0].reg.orig;
+        MVMJitAddr args[3] = {{ MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC },
                               { MVM_JIT_ADDR_REG, reg },
                               { MVM_JIT_ADDR_LITERAL, 0 } };
+        if (op == MVM_OP_return_n) {
+            args[1].base == MVM_JIT_ADDR_REG_F;
+        }
         append_call_c(tc, jg, op_to_func(tc, op), 3, args);
         append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL);
         break;
