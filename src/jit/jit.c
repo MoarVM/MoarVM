@@ -98,10 +98,28 @@ static void append_label(MVMThreadContext *tc, MVMJitGraph *jg,
     MVM_jit_log(tc, "append label: %d\n", ins->u.label.name);
 }
 
+static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
+    switch(opcode) {
+    case MVM_OP_say: return &MVM_string_say;
+    case MVM_OP_print: return &MVM_string_print;
+    case MVM_OP_return: return &MVM_args_assert_void_return_ok;
+    case MVM_OP_return_i: return &MVM_args_set_result_int;
+    case MVM_OP_return_s: return &MVM_args_set_result_str;
+    case MVM_OP_return_o: return &MVM_args_set_result_obj;
+    case MVM_OP_coerce_is: return &MVM_coerce_i_s;
+    case MVM_OP_coerce_ns: return &MVM_coerce_n_s;
+    case MVM_OP_coerce_si: return &MVM_coerce_s_i;
+    case MVM_OP_coerce_sn: return &MVM_coerce_s_n;
+    default:
+        MVM_exception_throw_adhoc(tc, "No function for op %d", opcode);
+    }
+}
+
 static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
                            MVMSpeshIns *ins) {
+    int op = ins->info->opcode;
     MVM_jit_log(tc, "append_ins: <%s>\n", ins->info->name);
-    switch(ins->info->opcode) {
+    switch(op) {
     case MVM_SSA_PHI:
     case MVM_OP_no_op:
         break;
@@ -130,61 +148,49 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_unless_i:
         append_branch(tc, jg, 0, ins);
         break;
-    case MVM_OP_say: {
-        MVMint32 reg = ins->operands[0].reg.orig;
-        MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
-                              { MVM_JIT_ADDR_REG, reg } };
-        append_call_c(tc, jg, &MVM_string_say,  2, args);
-        break;
-    }
+    case MVM_OP_say: 
     case MVM_OP_print: {
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
                               { MVM_JIT_ADDR_REG, reg } };
-        append_call_c(tc, jg, &MVM_string_print,  2, args);
+        append_call_c(tc, jg, op_to_func(tc, op),  2, args);
         break;
     }
     case MVM_OP_return: {
         MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
                               { MVM_JIT_ADDR_LITERAL, 0 }};
-        append_call_c(tc, jg, &MVM_args_assert_void_return_ok,
-                      2, args);
+        append_call_c(tc, jg, op_to_func(tc, op), 2, args);
         append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL);
         break;
     }
+    case MVM_OP_return_o:
     case MVM_OP_return_s:
     case MVM_OP_return_i: {
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC },
                               { MVM_JIT_ADDR_REG, reg },
                               { MVM_JIT_ADDR_LITERAL, 0 } };
-        void * func_ptr;
-        switch(ins->info->opcode) {
-        case MVM_OP_return_s: func_ptr = &MVM_args_set_result_str; break;
-        case MVM_OP_return_i: func_ptr = &MVM_args_set_result_int; break;
-        }
-        append_call_c(tc, jg, func_ptr, 3, args);
+        append_call_c(tc, jg, op_to_func(tc, op), 3, args);
         append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL);
         break;
     }
-    case MVM_OP_coerce_sn:
-    case MVM_OP_coerce_ns:
+    case MVM_OP_coerce_sn: 
+    case MVM_OP_coerce_ns: 
     case MVM_OP_coerce_si:
     case MVM_OP_coerce_is: {
         MVMint16 src = ins->operands[1].reg.orig;
         MVMint16 dst = ins->operands[0].reg.orig;
-        MVMJitAddr args[] = {{ MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
-                             { MVM_JIT_ADDR_REG, src } };
-        void * func_ptr;
-        switch (ins->info->opcode) {
-        case MVM_OP_coerce_sn: func_ptr = &MVM_coerce_s_n; break;
-        case MVM_OP_coerce_ns: func_ptr = &MVM_coerce_n_s; break;
-        case MVM_OP_coerce_si: func_ptr = &MVM_coerce_s_i; break;
-        case MVM_OP_coerce_is: func_ptr = &MVM_coerce_i_s; break;
-        default: MVM_exception_throw_adhoc(tc, "Whut");
+        MVMJitAddr args[2] = {{ MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
+                              { MVM_JIT_ADDR_REG, src } };
+        if (op == MVM_OP_coerce_ns) {
+            args[1].base = MVM_JIT_ADDR_REG_F;
+        } 
+        append_call_c(tc, jg, op_to_func(tc, op), 2, args);
+        if (op == MVM_OP_coerce_sn) {
+            append_rvh(tc, jg, MVM_JIT_RV_VAL_TO_REG_F, MVM_JIT_ADDR_REG, dst);
+        } else {
+            append_rvh(tc, jg, MVM_JIT_RV_VAL_TO_REG, MVM_JIT_ADDR_REG, dst);
         }
-        append_call_c(tc, jg, func_ptr, 2, args);
-        append_rvh(tc, jg, MVM_JIT_RV_VAL_TO_REG, MVM_JIT_ADDR_REG, dst);
         break;
     }
     default:

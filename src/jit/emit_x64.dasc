@@ -60,13 +60,30 @@ const unsigned int MVM_jit_num_globals(void) {
 |.define ARG6, r9
 |.endif
 
+/* C call argument registers for floating point */
+|.if WIN32
+|.define ARG1F, xmm0
+|.define ARG2F, xmm1
+|.define ARG3F, xmm2
+|.define ARG4F, xmm3
+|.else
+|.define ARG1F, xmm0
+|.define ARG2F, xmm1
+|.define ARG3F, xmm2
+|.define ARG4F, xmm3
+|.define ARG5F, xmm4
+|.define ARG6F, xmm5
+|.define ARG7F, xmm6
+|.define ARG8F, xmm7
+|.endif
+
 /* Special register for the function to be invoked */
 |.define FUNCTION, r10;
 /* all-purpose temporary register */
 |.define TMP, r11;
 /* return value */
 |.define RV, rax
-
+|.define RVF, xmm0
 
 |.macro callp, funcptr
 | mov64 FUNCTION, (uintptr_t)funcptr
@@ -99,6 +116,39 @@ const unsigned int MVM_jit_num_globals(void) {
 ||        break;
 ||    case 5:
 |         mov ARG6, val
+||        break;
+|.endif
+||    default:
+||        MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
+||}
+|.endmacro
+
+|.macro addarg_f, i, val
+||switch(i) {
+||    case 0:
+|         movsd ARG1F, qword val
+||        break;
+||    case 1:
+|         movsd ARG2F, qword val
+||        break;
+||    case 2:
+|         movsd ARG3F, qword val
+||        break;
+||    case 3:
+|         movsd ARG4F, qword val
+||        break;
+|.if not WIN32
+||    case 4:
+|         movsd ARG5F, qword val
+||        break;
+||    case 5:
+|         movsd ARG6F, qword val
+||        break;
+||    case 6:
+|         movsd ARG7F, qword val
+||        break;
+||    case 7:
+|         movsd ARG8F, qword val
 ||        break;
 |.endif
 ||    default:
@@ -284,6 +334,9 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_JIT_ADDR_REG:
             | addarg i, WORK[args[i].idx];
             break;
+        case MVM_JIT_ADDR_REG_F:
+            | addarg_f i, WORK[args[i].idx];
+            break;
         case MVM_JIT_ADDR_LITERAL:
             | addarg i, args[i].idx;
             break;
@@ -338,6 +391,9 @@ void MVM_jit_emit_rvh(MVMThreadContext *tc, MVMJitGraph *jg,
     switch(rvh->mode) {
     case MVM_JIT_RV_VAL_TO_REG:
         | mov WORK[rvh->addr.idx], RV;
+        break;
+    case MVM_JIT_RV_VAL_TO_REG_F:
+        | movsd qword WORK[rvh->addr.idx], RVF;
         break;
     case MVM_JIT_RV_REF_TO_REG:
         | mov TMP, [RV]; // maybe add an offset?

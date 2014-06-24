@@ -29,15 +29,17 @@ struct MVMJitBranch {
 };
 
 typedef enum {
-    MVM_JIT_ADDR_STACK,    // relative to stack base
+    MVM_JIT_ADDR_STACK,    // relative to stack base (unused)
     MVM_JIT_ADDR_INTERP,   // interpreter variable
     MVM_JIT_ADDR_REG,      // relative to register base
+    MVM_JIT_ADDR_REG_F,    // same, but represents a floating point
     MVM_JIT_ADDR_LITERAL,  // constant value
 } MVMJitAddrBase;
 
 /* Some interpreter address definition */
 #define MVM_JIT_INTERP_TC     0
 #define MVM_JIT_INTERP_FRAME  1
+#define MVM_JIT_INTERP_CU     2
 
 struct MVMJitAddr {
     MVMJitAddrBase base;
@@ -46,12 +48,15 @@ struct MVMJitAddr {
 
 /* We support a few operations with return values.
  * (and I might add more :-))
- * a): store to register
- * b): store pointer value to register
+ * a): store value to register 
+ * b): store pointer to register
  * c): store register to memory pointer */
 
 typedef enum {
     MVM_JIT_RV_VAL_TO_REG,
+    // only for a direct value does the difference 
+    // between a float and everything else matter
+    MVM_JIT_RV_VAL_TO_REG_F,  
     MVM_JIT_RV_REF_TO_REG,
     MVM_JIT_RV_REG_TO_PTR,
 } MVMJitRVMode;;

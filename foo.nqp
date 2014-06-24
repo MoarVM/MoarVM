@@ -13,11 +13,11 @@ sub fib (int $x) {
     $a
 }
 
-sub foo(int $i) {
+sub foo(num $i) {
     nqp::say($i);
 }
-my int $i := 0;
-while $i < 50 {
-    $i := $i + 1;
+my num $i := 0.5;
+while $i < 50.0 {
+    $i := $i + 1.0;
     foo($i);
 }
