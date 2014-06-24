@@ -14,7 +14,7 @@ CONFIG    = @config@
 ADDCONFIG =
 
 TRACING = 0
-CGOTO = 0
+CGOTO = @cancgoto@
 NOISY = 0
 
 MSG = @:
