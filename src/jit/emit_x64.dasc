@@ -22,6 +22,9 @@
 |.type WORK, MVMRegister, rbx
 |.type ARGS, MVMRegister, r12
 |.type ENV,  MVMRegister, r13
+|.type P6OPAQUE, MVMP6opaque
+|.type P6OBODY, MVMP6opaqueBody
+|.type MVMINSTANCE, MVMInstance
 
 |.macro saveregs
 | push TC; push WORK; push ARGS; push ENV
@@ -228,6 +231,31 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[reg], TMP
         break;
     }
+    case MVM_OP_sp_p6oget_o: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 obj    = ins->operands[1].reg.orig;
+        MVMint16 offset = ins->operands[2].lit_i16;
+        | mov TMP, WORK[obj];
+        | mov TMP, P6OPAQUE:TMP->body;
+        | cmp qword P6OBODY:TMP->replaced, 0;
+        /* not zero, thus load replacement data pointer */
+        | je >1;
+        | mov TMP, P6OBODY:TMP->replaced;
+        /* otherwise do nothing (i.e. the body is our data pointer) */
+        |1:
+        /* load our value */
+        | mov TMP, [TMP + offset];
+        /* compare it to null */
+        | cmp TMP, 0;
+        /* not-null? done */
+        | jne >2
+        /* store VMNull instead */
+        | mov TMP, TC->instance;
+        | mov TMP, MVMINSTANCE:TMP->VMNull;
+        |2:
+        | mov WORK[dst], TMP;
+        break;
+    }
     case MVM_OP_set: {
          MVMint32 reg1 = ins->operands[0].reg.orig;
          MVMint32 reg2 = ins->operands[1].reg.orig;
@@ -266,25 +294,29 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             break;
         case MVM_OP_div_i:
         case MVM_OP_mod_i:
-            | cqo;
+            // Convert Quadword to Octoword, i.e. use rax:rdx as one
+            // single 16 byte register
+            | cqo; 
             | idiv qword WORK[reg_c];
             break;
         }
         if (ins->info->opcode == MVM_OP_mod_i) {
+            // result of modula is stored in rdx
             | mov WORK[reg_a], rdx;
         } else {
+            // all others in rax
             | mov WORK[reg_a], rax;
         }
         break;
     }
     case MVM_OP_inc_i: {
          MVMint32 reg = ins->operands[0].reg.orig;
-         | inc qword WORK[reg]
+         | inc qword WORK[reg];
          break;
     }
     case MVM_OP_dec_i: {
         MVMint32 reg = ins->operands[0].reg.orig;
-        | dec qword WORK[reg]
+        | dec qword WORK[reg];
         break;
     }
     case MVM_OP_add_n:
@@ -294,6 +326,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 reg_a = ins->operands[0].reg.orig;
         MVMint16 reg_b = ins->operands[1].reg.orig;
         MVMint16 reg_c = ins->operands[2].reg.orig;
+        /* Copying data to xmm (floating point) registers requires
+         * a special move instruction */
         | movsd xmm0, qword WORK[reg_b];
         switch(ins->info->opcode) {
         case MVM_OP_add_n:
@@ -315,6 +349,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_coerce_in: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
+        /* convert simple integer to double precision */
         | cvtsi2sd xmm0, qword WORK[src];
         | movsd qword WORK[dst], xmm0;
         break;
@@ -322,6 +357,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_coerce_ni: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
+        /* convert double precision to simple intege */
         | cvttsd2si rax, qword WORK[src];
         | mov WORK[dst], rax;
         break;
@@ -335,31 +371,33 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint32 reg_a = ins->operands[0].reg.orig;
         MVMint32 reg_b = ins->operands[1].reg.orig;
         MVMint32 reg_c = ins->operands[2].reg.orig;
-        | mov rax, WORK[reg_b]
-        | cmp rax, WORK[reg_c]
-        /* copy the right comparison bit */
+        | mov rax, WORK[reg_b];
+        /* comparison result in the setting bits in the rflags register */
+        | cmp rax, WORK[reg_c];
+        /* copy the right comparison bit to the lower byte of the rax register */
         switch(ins->info->opcode) {
         case MVM_OP_eq_i:
-            | sete al
+            | sete al;
             break;
         case MVM_OP_ne_i:
-            | setne al
+            | setne al;
             break;
         case MVM_OP_lt_i:
-            | setl al
+            | setl al;
             break;
         case MVM_OP_le_i:
-            | setle al
+            | setle al;
             break;
         case MVM_OP_gt_i:
-            | setg al
+            | setg al;
             break;
         case MVM_OP_ge_i:
-            | setge al
+            | setge al;
             break;
         }
-        | movzx rax, al        // zero extend al (byte) to rax (quadword)
-        | mov WORK[reg_a], rax // store in mvm register
+        /* zero extend al (lower byte) to rax (whole register) */
+        | movzx rax, al;
+        | mov WORK[reg_a], rax; 
         break;
     }
     default:

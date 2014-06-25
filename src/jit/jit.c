@@ -149,6 +149,7 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_getarg_o:
     case MVM_OP_sp_getarg_n:
     case MVM_OP_sp_getarg_s:
+    case MVM_OP_sp_p6oget_o:
     case MVM_OP_set:
     case MVM_OP_const_s:
         append_primitive(tc, jg, ins);

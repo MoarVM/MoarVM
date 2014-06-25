@@ -7,7 +7,10 @@
 static const MVMREPROps this_repr;
 
 /* If an object gets mixed in to, we need to be sure we look at its real body,
- * which may have been moved to hang off the specified pointer. */
+ * which may have been moved to hang off the specified pointer.
+ * 
+ * NB: This has been hardcoded into the jit compilation. Thus, consider it 
+ * set into stone :-). That is the price you pay for disintermediation. */
 MVM_PUBLIC void * MVM_p6opaque_real_data(MVMThreadContext *tc, void *data) {
     MVMP6opaqueBody *body = (MVMP6opaqueBody *)data;
     return body->replaced ? body->replaced : data;
