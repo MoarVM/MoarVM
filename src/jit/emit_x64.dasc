@@ -25,6 +25,9 @@
 |.type P6OPAQUE, MVMP6opaque
 |.type P6OBODY, MVMP6opaqueBody
 |.type MVMINSTANCE, MVMInstance
+|.type OBJECT, MVMObject
+|.type COLLECTABLE, MVMCollectable
+
 
 |.macro saveregs
 | push TC; push WORK; push ARGS; push ENV
@@ -80,10 +83,18 @@ const unsigned int MVM_jit_num_globals(void) {
 |.define ARG8F, xmm7
 |.endif
 
-/* Special register for the function to be invoked */
-|.define FUNCTION, r10;
-/* all-purpose temporary register */
-|.define TMP, r11;
+/* Special register for the function to be invoked 
+ * (chosen because it isn't involved in argument passing
+ *  and volatile) */
+|.define FUNCTION, r10
+/* all-purpose temporary registers */
+|.define TMP1, rcx
+|.define TMP2, rdx
+|.define TMP3, r8
+|.define TMP4, r9
+|.define TMP5, r10
+|.define TMP6, r11
+
 /* return value */
 |.define RV, rax
 |.define RVF, xmm0
@@ -193,12 +204,13 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
                             MVMJitPrimitive * prim, dasm_State **Dst) {
     MVMSpeshIns *ins = prim->ins;
+    MVMuint16 op = ins->info->opcode;
     MVM_jit_log(tc, "emit opcode: <%s>\n", ins->info->name);
     /* Quite a few of these opcodes are copies. Ultimately, I want to
      * move copies to their own node (MVMJitCopy or such), and reduce
      * the number of copies (and thereby increase the efficiency), but
      * currently that isn't really feasible. */
-    switch (ins->info->opcode) {
+    switch (op) {
     case MVM_OP_const_i64_16: {
         MVMint32 reg = ins->operands[0].reg.orig;
         /* Upgrade to 64 bit */
@@ -209,16 +221,16 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_const_i64: {
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMint64 val = ins->operands[1].lit_i64;
-        | mov64 TMP, val;
-        | mov WORK[reg], TMP;
+        | mov64 TMP1, val;
+        | mov WORK[reg], TMP1;
         break;
     }
     case MVM_OP_const_n64: {
         MVM_jit_log(tc, "store const %f\n", ins->operands[1].lit_n64);
         MVMint16 reg = ins->operands[0].reg.orig;
         MVMint64 valbytes = ins->operands[1].lit_i64;
-        | mov64 TMP, valbytes;
-        | mov WORK[reg], TMP;
+        | mov64 TMP1, valbytes;
+        | mov WORK[reg], TMP1;
         break;
     }
     case MVM_OP_sp_getarg_o:
@@ -227,40 +239,85 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_getarg_i: {
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMuint16 idx = ins->operands[1].callsite_idx;
-        | mov TMP, ARGS[idx]
-        | mov WORK[reg], TMP
+        | mov TMP1, ARGS[idx];
+        | mov WORK[reg], TMP1;
         break;
     }
+    case MVM_OP_sp_p6oget_i:
+    case MVM_OP_sp_p6oget_n:
+    case MVM_OP_sp_p6oget_s:
     case MVM_OP_sp_p6oget_o: {
         MVMint16 dst    = ins->operands[0].reg.orig;
         MVMint16 obj    = ins->operands[1].reg.orig;
-        MVMint16 offset = ins->operands[2].lit_i16;
-        | mov TMP, WORK[obj];
-        | mov TMP, P6OPAQUE:TMP->body;
-        | cmp qword P6OBODY:TMP->replaced, 0;
-        /* not zero, thus load replacement data pointer */
+        MVMint16 offset = ins->operands[2].callsite_idx;
+        | mov TMP1, WORK[obj];
+        | mov TMP1, P6OPAQUE:TMP1->body;
+        | cmp qword P6OBODY:TMP1->replaced, 0;
+        /* if not zero then load replacement data pointer */
         | je >1;
-        | mov TMP, P6OBODY:TMP->replaced;
+        | mov TMP1, P6OBODY:TMP1->replaced;
         /* otherwise do nothing (i.e. the body is our data pointer) */
         |1:
         /* load our value */
-        | mov TMP, [TMP + offset];
-        /* compare it to null */
-        | cmp TMP, 0;
-        /* not-null? done */
-        | jne >2
-        /* store VMNull instead */
-        | mov TMP, TC->instance;
-        | mov TMP, MVMINSTANCE:TMP->VMNull;
-        |2:
-        | mov WORK[dst], TMP;
+        | mov TMP1, [TMP1 + offset];
+        if (op == MVM_OP_sp_p6oget_o) {
+            /* transform null object pointers to VMNull */
+            | cmp TMP1, 0;
+            /* not-null? done */
+            | jne >2;
+            /* store VMNull instead */
+            | mov TMP1, TC->instance;
+            | mov TMP1, MVMINSTANCE:TMP1->VMNull;
+            |2:
+        }
+        | mov WORK[dst], TMP1;
+        break;
+    }
+    case MVM_OP_sp_p6obind_i:
+    case MVM_OP_sp_p6obind_n:
+    case MVM_OP_sp_p6obind_o:
+    case MVM_OP_sp_p6obind_s: {
+        MVMint16 obj    = ins->operands[0].reg.orig;
+        MVMint16 offset = ins->operands[1].callsite_idx;
+        MVMint16 val    = ins->operands[2].reg.orig;
+        | mov TMP1, WORK[obj];            // object
+        | mov TMP2, WORK[val];            // value
+        | lea TMP3, P6OPAQUE:TMP1->body;  // body
+        | cmp qword P6OBODY:TMP3->replaced, 0; 
+        | je >1;
+        | mov TMP3, P6OBODY:TMP3->replaced; // replaced object body
+        |1:
+        if (op == MVM_OP_sp_p6obind_o) {
+            /* this is an assembly-version of MVM_gc_write_barrier
+             * TMP1 is root, TMP2 is referenced value */
+            // is our root second gen?
+            | test word COLLECTABLE:TMP1->flags, MVM_CF_SECOND_GEN; 
+            | jz >2; // if not, skip
+            | cmp TMP2, 0; // is value non-null? (should be)
+            | je >2; // if not, skip
+            // is the reference second gen?
+            | test word COLLECTABLE:TMP2->flags, MVM_CF_SECOND_GEN; 
+            | jnz >2;  // if so, skip
+            | push TMP2; // store value
+            | push TMP3; // store body pointer
+            | mov ARG1, TC;  // set tc as first argument
+            // NB, c call arguments arguments clobber our temporary
+            // space (depending on ABI), so I reload the work object
+            // from register space 
+            | mov ARG2, WORK[obj]; // object as second
+            | callp &MVM_gc_write_barrier_hit; // call our function
+            | pop TMP3; // restore body pointer
+            | pop TMP2; // restore value
+            |2: // done
+        }
+        | mov [TMP3+offset], TMP2; // store value into body
         break;
     }
     case MVM_OP_set: {
          MVMint32 reg1 = ins->operands[0].reg.orig;
          MVMint32 reg2 = ins->operands[1].reg.orig;
-         | mov TMP, WORK[reg2]
-         | mov WORK[reg1], TMP
+         | mov TMP1, WORK[reg2]
+         | mov WORK[reg1], TMP1
          break;
     }
     case MVM_OP_const_s: {
@@ -269,8 +326,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
          MVMStaticFrame *sf = jg->spesh->sf;
          MVMString * s = sf->body.cu->body.strings[idx];
          // TODO fixme
-         | mov64 TMP, (uintptr_t)s
-         | mov WORK[reg], TMP
+         | mov64 TMP1, (uintptr_t)s
+         | mov WORK[reg], TMP1
          break;
     }
     case MVM_OP_add_i:
@@ -494,12 +551,12 @@ void MVM_jit_emit_rvh(MVMThreadContext *tc, MVMJitGraph *jg,
         | movsd qword WORK[rvh->addr.idx], RVF;
         break;
     case MVM_JIT_RV_REF_TO_REG:
-        | mov TMP, [RV]; // maybe add an offset?
-        | mov WORK[rvh->addr.idx], TMP;
+        | mov TMP1, [RV]; // maybe add an offset?
+        | mov WORK[rvh->addr.idx], TMP1;
         break;
     case MVM_JIT_RV_REG_TO_PTR:
-        | mov TMP, WORK[rvh->addr.idx];
-        | mov [RV], TMP;
+        | mov TMP1, WORK[rvh->addr.idx];
+        | mov [RV], TMP1;
         break;
     }
 }

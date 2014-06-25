@@ -167,7 +167,12 @@ struct MVMCollectable {
 #  define MVM_DIRECT_SC_IDX_SENTINEL ~0
 #endif
 
-/* The common things every object has. */
+/* The common things every object has.
+ *
+ * NB - the assumption that MVMObject* can be safely cast into
+ * MVMCollectable* is spread throughout the codebase, as well
+ * as used directly in JIT. Thus, nothing may preceed the header!
+ */
 struct MVMObject {
     /* Commonalities that all collectable entities have. */
     MVMCollectable header;
