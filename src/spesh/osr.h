@@ -1,5 +1,6 @@
 /* How many iterations we must do in a loop to trigger OSR. */
 #define MVM_OSR_THRESHOLD 100
 
-/* Function called when OSR is triggered. */
+/* Functions called when OSR is triggered, and after logging runs are done. */
 void MVM_spesh_osr(MVMThreadContext *tc);
+void MVM_spesh_osr_finalize(MVMThreadContext *tc);

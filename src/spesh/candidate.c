@@ -15,12 +15,13 @@ static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
  * what we see. Produces bytecode with those transformations and the logging
  * instructions. */
 MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
-        MVMStaticFrame *static_frame, MVMCallsite *callsite, MVMRegister *args) {
+        MVMStaticFrame *static_frame, MVMCallsite *callsite, MVMRegister *args,
+        MVMint32 osr) {
     MVMSpeshCandidate *result;
     MVMSpeshGuard *guards;
     MVMSpeshCode *sc;
     MVMint32 num_spesh_slots, num_log_slots, num_guards, *deopts, num_deopts;
-    MVMuint16 num_locals, num_lexicals;
+    MVMuint16 num_locals, num_lexicals, used;
     MVMCollectable **spesh_slots, **log_slots;
     char *before, *after;
 
@@ -50,6 +51,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
      * lock, so make absolutely sure we increment the count of them after we
      * add the new one. */
     result    = NULL;
+    used      = 0;
     uv_mutex_lock(&tc->instance->mutex_spesh_install);
     if (static_frame->body.num_spesh_candidates < MVM_SPESH_LIMIT) {
         MVMint32 num_spesh = static_frame->body.num_spesh_candidates;
@@ -59,7 +61,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             if (compare->cs == callsite && compare->num_guards == num_guards &&
                 memcmp(compare->guards, guards, num_guards * sizeof(MVMSpeshGuard)) == 0) {
                 /* Beaten! */
-                result = &static_frame->body.spesh_candidates[i];
+                result = osr ? NULL : &static_frame->body.spesh_candidates[i];
                 break;
             }
         }
@@ -86,6 +88,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             result->log_enter_idx       = 0;
             result->log_exits_remaining = MVM_SPESH_LOG_RUNS;
             calculate_work_env_sizes(tc, static_frame, result);
+            if (osr)
+                result->osr_logging = 1;
             MVM_barrier();
             static_frame->body.num_spesh_candidates++;
             if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)
@@ -104,9 +108,10 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
                 free(c_name);
                 free(c_cuid);
             }
+            used = 1;
         }
     }
-    if (!result) {
+    if (result && !used) {
         free(sc->bytecode);
         if (sc->handlers)
             free(sc->handlers);

@@ -4376,6 +4376,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
                 cur_op += 4;
                 goto NEXT;
+            OP(sp_osrfinalize): {
+                MVMSpeshCandidate *cand = tc->cur_frame->spesh_cand;
+                if (cand) {
+                    cand->log_enter_idx++;
+                    tc->cur_frame->spesh_log_idx = cand->log_enter_idx;
+                    if (--(cand->log_exits_remaining) == 0)
+                        MVM_spesh_osr_finalize(tc);
+                }
+                goto NEXT;
+            }
             OP(sp_guardconc): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame

@@ -312,9 +312,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
          * be a logging run of it. */
         if (chosen_cand) {
             if (chosen_cand->sg) {
-                /* In the logging phase. Try to get a logging index. */
+                /* In the logging phase. Try to get a logging index; ensure it
+                 * is not being used as an OSR logging candidate elsewhere. */
                 AO_t cur_idx = MVM_load(&(chosen_cand->log_enter_idx));
-                if (cur_idx < MVM_SPESH_LOG_RUNS) {
+                if (!chosen_cand->osr_logging && cur_idx < MVM_SPESH_LOG_RUNS) {
                     if (MVM_cas(&(chosen_cand->log_enter_idx), cur_idx, cur_idx + 1) == cur_idx) {
                         /* We get to log. */
                         frame = allocate_frame(tc, static_frame_body, NULL); /* NULL as no inlines yet. */
@@ -563,10 +564,17 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* See if we were in a logging spesh frame, and need to complete the
      * specialization. */
-    if (returner->spesh_cand && returner->spesh_log_idx >= 0)
-        if (MVM_decr(&(returner->spesh_cand->log_exits_remaining)) == 1)
+    if (returner->spesh_cand && returner->spesh_log_idx >= 0) {
+        if (returner->spesh_cand->osr_logging) {
+            /* Didn't achieve enough log entries to complete the OSR; just
+             * drop it to normal logging. */
+            returner->spesh_cand->osr_logging = 0;
+        }
+        else if (MVM_decr(&(returner->spesh_cand->log_exits_remaining)) == 1) {
             MVM_spesh_candidate_specialize(tc, returner->static_info,
                 returner->spesh_cand);
+        }
+    }
 
     /* Some cleanup we only need do if we're not a frame involved in a
      * continuation (otherwise we need to allow for multi-shot
