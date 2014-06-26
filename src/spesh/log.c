@@ -64,6 +64,13 @@ void MVM_spesh_log_add_logging(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 
                 break;
             case MVM_OP_invoke_o:
                 insert_log(tc, g, bb, ins, 1);
+                break;
+            case MVM_OP_osrpoint:
+                if (osr)
+                    ins->info = MVM_op_get_op(MVM_OP_sp_osrfinalize);
+                else
+                    MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+                break;
             }
             ins = ins->next;
         }
