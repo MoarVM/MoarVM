@@ -284,6 +284,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         } else {
             | mov TMP1, STABLE:TMP1->WHAT;
         }
+        | mov WORK[dst], TMP1;
         break;
     }
     case MVM_OP_getlex: {
@@ -311,7 +312,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         lexical_types = (jg->spesh->lexical_types ? jg->spesh->lexical_types :
                          sf->body.lexical_types);
         if (lexical_types[idx] == MVM_reg_obj) {
-            /* NB: this code path hasn't been checked. */
+           /* NB: this code path hasn't been checked. */
             /* if it is zero, check if we need to auto-vivify */        
             | test TMP2, TMP2;
             | jnz >1; 
@@ -331,6 +332,20 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         } 
         /* store the value */
         | mov WORK[dst], TMP2;
+        break;
+    }
+    case MVM_OP_bindlex: {
+        MVMint16 idx = ins->operands[0].lex.idx;
+        MVMint16 out = ins->operands[0].lex.outers;
+        MVMint16 src = ins->operands[1].reg.orig;
+        MVMint16 i;
+        | mov TMP1, TC->cur_frame;
+        for (i = 0; i < out; i++) {
+            | mov TMP1, FRAME:TMP1->outer;
+        }
+        | mov TMP1, FRAME:TMP1->env;
+        | mov TMP2, WORK[src];
+        | mov REGISTER:TMP1[idx], TMP2;
         break;
     }
     case MVM_OP_sp_getarg_o:

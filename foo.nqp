@@ -24,19 +24,15 @@ sub bar() {
 }
 
 my int $x := 42;
+
 sub access_lex() {
+    $x := $x + 1;
     nqp::say($x);
 }
 
-my $foolex;
-
-sub access_obj_lex() {
-    $foolex;
-}
 
 my int $i := 0;
 while $i < 50 {
     $i := $i + 1;
     access_lex();
-    access_obj_lex();
 }

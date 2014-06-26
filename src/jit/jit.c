@@ -168,6 +168,7 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_p6obind_i:
     case MVM_OP_set:
     case MVM_OP_getlex:
+    case MVM_OP_bindlex:
     case MVM_OP_getwhat:
     case MVM_OP_gethow:
     case MVM_OP_getwhere:
