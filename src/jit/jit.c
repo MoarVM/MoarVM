@@ -111,6 +111,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_coerce_ns: return &MVM_coerce_n_s;
     case MVM_OP_coerce_si: return &MVM_coerce_s_i;
     case MVM_OP_coerce_sn: return &MVM_coerce_s_n;
+    case MVM_OP_wval: case MVM_OP_wval_wide: return &MVM_sc_get_sc_object;
     default:
         MVM_exception_throw_adhoc(tc, "No function for op %d", opcode);
     }
@@ -179,6 +180,21 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
                               { MVM_JIT_ADDR_REG, reg } };
         append_call_c(tc, jg, op_to_func(tc, op),  2, args);
+        break;
+    }
+    case MVM_OP_wval:
+    case MVM_OP_wval_wide: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 dep = ins->operands[0].lit_i16;
+        // NB: the next line is only legal because spesh stuff
+        // is zeroed before it is acquired
+        MVMint64 idx = idx = ins->operands[0].lit_i64;
+        MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC },
+                              { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_CU },
+                              { MVM_JIT_ADDR_LITERAL, dep },
+                              { MVM_JIT_ADDR_LITERAL, idx } };
+        append_call_c(tc, jg, op_to_func(tc, op), 4, args);
+        append_rvh(tc, jg, MVM_JIT_RV_VAL_TO_REG, MVM_JIT_ADDR_REG, dst);
         break;
     }
         /* coercion */

@@ -206,7 +206,7 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitGraph *jg,
 static MVMuint64 try_emit_gen2_ref(MVMThreadContext *tc, MVMJitGraph *jg,
                                    MVMObject *obj, MVMint16 reg, 
                                    dasm_State **Dst) {
-    if (!(obj->header.flags & MVM_CF_SECOND_GEN) || 1)
+    if (!(obj->header.flags & MVM_CF_SECOND_GEN))
         return 0;
     | mov64 TMP1, (uintptr_t)obj;
     | mov WORK[reg], TMP1;
@@ -278,7 +278,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 obj    = ins->operands[1].reg.orig;
         MVMint16 offset = ins->operands[2].callsite_idx;
         | mov TMP1, WORK[obj];
-        | mov TMP1, P6OPAQUE:TMP1->body;
+        | lea TMP1, P6OPAQUE:TMP1->body;
         | cmp qword P6OBODY:TMP1->replaced, 0;
         /* if not zero then load replacement data pointer */
         | je >1;
@@ -316,7 +316,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         |1:
         if (op == MVM_OP_sp_p6obind_o) {
             /* this is an assembly-version of MVM_gc_write_barrier
-             * TMP1 is root, TMP2 is referenced value */
+             * TMP1 is root, TMP2 is referenced value. And yes, this
+             * should be factored out */
             // is our root second gen?
             | test word COLLECTABLE:TMP1->flags, MVM_CF_SECOND_GEN; 
             | jz >2; // if not, skip
@@ -494,12 +495,17 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
             | addarg i, [rbp-args[i].idx];
             break;
         case MVM_JIT_ADDR_INTERP:
+            MVM_jit_log(tc, "emit interp call arg %d %d \n", i, args[i].idx);
             switch (args[i].idx) {
             case MVM_JIT_INTERP_TC:
                 | addarg i, TC;
                  break;
             case MVM_JIT_INTERP_FRAME:
                 | addarg i, TC->cur_frame;
+                break;
+            case MVM_JIT_INTERP_CU:
+                | mov rax, TC->interp_cu;
+                | addarg i, [rax];
                 break;
             }
             break;

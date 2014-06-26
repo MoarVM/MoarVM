@@ -17,8 +17,12 @@ sub foo(int $i) {
     nqp::say($i / 2);
     $i * 3.5;
 }
+
+sub bar() {
+    nqp::say("OH HAI");
+}
 my int $i := 0;
 while $i < 50 {
     $i := $i + 1;
-    nqp::say(foo($i));
+    bar();
 }
