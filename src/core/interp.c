@@ -4363,7 +4363,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(osrpoint):
-                tc->cur_frame->osr_counter++;
+                if (++(tc->cur_frame->osr_counter) == MVM_OSR_THRESHOLD)
+                    MVM_spesh_osr(tc);
                 goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
