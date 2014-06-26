@@ -18,11 +18,25 @@ sub foo(int $i) {
     $i * 3.5;
 }
 
+
 sub bar() {
     nqp::say("OH HAI");
 }
+
+my int $x := 42;
+sub access_lex() {
+    nqp::say($x);
+}
+
+my $foolex;
+
+sub access_obj_lex() {
+    $foolex;
+}
+
 my int $i := 0;
 while $i < 50 {
     $i := $i + 1;
-    bar();
+    access_lex();
+    access_obj_lex();
 }

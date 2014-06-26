@@ -15,6 +15,7 @@
  * registers, and so in most cases, these won't be touched at all. */
 |.type TC, MVMThreadContext, r14
 |.type FRAME, MVMFrame
+|.type REGISTER, MVMRegister
 |.type ARGCTX, MVMArgProcContext
 |.type STATICFRAME, MVMStaticFrame
 |.type COMPUNIT, MVMCompUnit
@@ -24,7 +25,12 @@
 |.type MVMINSTANCE, MVMInstance
 |.type OBJECT, MVMObject
 |.type COLLECTABLE, MVMCollectable
+|.type STABLE, MVMSTable
 |.type STRING, MVMString*
+|.type U16, MVMuint16
+|.type U32, MVMuint32
+|.type U64, MVMuint64
+
 /* 'alternative base pointer. I'll be using this often, so picking rbx
  * here rather than the extended registers will likely lead to smaller
  * bytecode */
@@ -260,6 +266,73 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
          }
          break;
     }
+    case MVM_OP_null: {
+        MVMint16 reg = ins->operands[0].reg.orig;
+        | mov TMP1, TC->instance;
+        | mov TMP1, MVMINSTANCE:TMP1->VMNull;
+        | mov WORK[reg], TMP1;
+        break;
+    }
+    case MVM_OP_gethow:
+    case MVM_OP_getwhat: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[0].reg.orig;
+        | mov TMP1, WORK[obj];
+        | mov TMP1, OBJECT:TMP1->st;
+        if (op == MVM_OP_gethow) {
+            | mov TMP1, STABLE:TMP1->HOW;
+        } else {
+            | mov TMP1, STABLE:TMP1->WHAT;
+        }
+        break;
+    }
+    case MVM_OP_getlex: {
+        MVMint16 *lexical_types;
+        MVMStaticFrame * sf = jg->spesh->sf;
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 idx = ins->operands[1].lex.idx;
+        MVMint16 out = ins->operands[1].lex.outers;
+        MVMint16 i;
+        | mov TMP1, TC->cur_frame;
+        for (i = 0; i < out; i++) {
+            /* I'm going to skip compiling the check whether the outer
+             * node really exists, because if the code has run N times
+             * correctly, then the outer frame must have existed then,
+             * and since this chain is static, it should still exist now.
+             * If it doesn't exist, that means we crash. */
+            | nop;
+            | mov TMP1, FRAME:TMP1->outer;
+            sf = sf->body.outer;
+        }
+        /* get array of lexicals */
+        | mov TMP2, FRAME:TMP1->env;
+        /* read value */
+        | mov TMP2, REGISTER:TMP2[idx];
+        lexical_types = (jg->spesh->lexical_types ? jg->spesh->lexical_types :
+                         sf->body.lexical_types);
+        if (lexical_types[idx] == MVM_reg_obj) {
+            /* NB: this code path hasn't been checked. */
+            /* if it is zero, check if we need to auto-vivify */        
+            | test TMP2, TMP2;
+            | jnz >1; 
+            /* save frame and value */
+            | push TMP2;
+            | push TMP1;
+            /* setup args */
+            | mov ARG1, TC;
+            | mov ARG2, [rsp+8]; // the frame, which i just pushed
+            | mov ARG3, idx;
+            | callp &MVM_frame_vivify_lexical;
+            /* restore stack pointer */
+            | add rsp, 16;
+            /* use return value for the result */
+            | mov TMP2, RV;
+            |1:
+        } 
+        /* store the value */
+        | mov WORK[dst], TMP2;
+        break;
+    }
     case MVM_OP_sp_getarg_o:
     case MVM_OP_sp_getarg_n:
     case MVM_OP_sp_getarg_s:
@@ -341,6 +414,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov [TMP3+offset], TMP2; // store value into body
         break;
     }
+    case MVM_OP_getwhere:
     case MVM_OP_set: {
          MVMint32 reg1 = ins->operands[0].reg.orig;
          MVMint32 reg2 = ins->operands[1].reg.orig;
@@ -348,6 +422,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
          | mov WORK[reg1], TMP1
          break;
     }
+
     case MVM_OP_add_i:
     case MVM_OP_sub_i:
     case MVM_OP_mul_i:
@@ -438,6 +513,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     }
     case MVM_OP_eq_i:
+    case MVM_OP_eqaddr:
     case MVM_OP_ne_i:
     case MVM_OP_lt_i:
     case MVM_OP_le_i:
@@ -451,6 +527,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | cmp rax, WORK[reg_c];
         /* copy the right comparison bit to the lower byte of the rax register */
         switch(ins->info->opcode) {
+        case MVM_OP_eqaddr:
         case MVM_OP_eq_i:
             | sete al;
             break;

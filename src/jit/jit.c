@@ -139,6 +139,7 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_div_n:
     case MVM_OP_coerce_in:
         /* comparison (integer) */
+    case MVM_OP_eqaddr:
     case MVM_OP_eq_i:
     case MVM_OP_ne_i:
     case MVM_OP_lt_i:
@@ -150,6 +151,7 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_const_i64:
     case MVM_OP_const_n64:
     case MVM_OP_const_s:
+    case MVM_OP_null:
         /* argument reading */
     case MVM_OP_sp_getarg_i:
     case MVM_OP_sp_getarg_o:
@@ -165,6 +167,10 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_p6obind_n:
     case MVM_OP_sp_p6obind_i:
     case MVM_OP_set:
+    case MVM_OP_getlex:
+    case MVM_OP_getwhat:
+    case MVM_OP_gethow:
+    case MVM_OP_getwhere:
         append_primitive(tc, jg, ins);
         break;
         /* branches */
