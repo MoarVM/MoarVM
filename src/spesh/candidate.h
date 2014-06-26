@@ -99,6 +99,7 @@ struct MVMSpeshGuard {
 
 /* Functions for generating a specialization. */
 MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
-    MVMStaticFrame *static_frame, MVMCallsite *callsite, MVMRegister *args);
+    MVMStaticFrame *static_frame, MVMCallsite *callsite, MVMRegister *args,
+    MVMint32 osr);
 void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMSpeshCandidate *candidate);

@@ -39,7 +39,7 @@ static void insert_log(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, M
     }
 }
  
-void MVM_spesh_log_add_logging(MVMThreadContext *tc, MVMSpeshGraph *g) {
+void MVM_spesh_log_add_logging(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 osr) {
     MVMSpeshBB  *bb;
 
     /* We've no log slots so far. */

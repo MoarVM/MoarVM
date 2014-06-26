@@ -306,7 +306,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
          * specialization. */
         if (!chosen_cand && num_spesh < MVM_SPESH_LIMIT && tc->instance->spesh_enabled)
             chosen_cand = MVM_spesh_candidate_setup(tc, static_frame,
-                callsite, args);
+                callsite, args, 0);
 
         /* Now try to use specialized bytecode. We may need to compete to
          * be a logging run of it. */
