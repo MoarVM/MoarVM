@@ -63,7 +63,8 @@ void MVM_spesh_osr(MVMThreadContext *tc) {
         osr_index = get_osr_deopt_index(tc, specialized);
         *(tc->interp_bytecode_start) = specialized->bytecode;
         *(tc->interp_cur_op)         = specialized->bytecode +
-                                       specialized->deopts[2 * osr_index + 1];
+                                       specialized->deopts[2 * osr_index + 1] +
+                                       2; /* Pass over sp_osrfianlize this first time */;
     }
 }
 
