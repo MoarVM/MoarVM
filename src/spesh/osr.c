@@ -15,10 +15,26 @@ MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
     MVM_exception_throw_adhoc(tc, "Spesh: get_osr_deopt_index failed");
 }
 
+/* Locates deopt index matching OSR finalize point. */
+MVMint32 get_osr_deopt_finalize_index(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
+    /* Calculate offset. */
+    MVMint32 offset = ((*(tc->interp_cur_op) - *(tc->interp_bytecode_start))) - 2;
+
+    /* Locate it in the deopt table. */
+    MVMint32 i;
+    for (i = 0; i < cand->num_deopts; i++)
+        if (cand->deopts[2 * i + 1] == offset)
+            return i;
+
+    /* If we couldn't locate it, something is really very wrong. */
+    MVM_exception_throw_adhoc(tc, "Spesh: get_osr_deopt_finalize_index failed");
+}
+
 /* Called to start OSR. Switches us over to logging runs of spesh'd code, to
  * collect extra type info. */
 void MVM_spesh_osr(MVMThreadContext *tc) {
     MVMSpeshCandidate *specialized;
+    MVMint32 osr_index;
 
     /* Ensure that we are in a position to specialize. */
     if (!tc->cur_frame->caller)
@@ -40,17 +56,21 @@ void MVM_spesh_osr(MVMThreadContext *tc) {
 
         /* Work out deopt index that applies, and move interpreter into the
          * logging version of the code. */
-        specialized->osr_index       = get_osr_deopt_index(tc, specialized);
+        osr_index = get_osr_deopt_index(tc, specialized);
         *(tc->interp_bytecode_start) = specialized->bytecode;
         *(tc->interp_cur_op)         = specialized->bytecode +
-                                       specialized->deopts[2 * specialized->osr_index + 1];
+                                       specialized->deopts[2 * osr_index + 1];
     }
 }
 
 /* Finalizes OSR. */
 void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
-    /* Finish up the specialization. */
+    /* Find deopt index using existing deopt table, for entering the updated
+     * code later. */
     MVMSpeshCandidate *specialized = tc->cur_frame->spesh_cand;
+    MVMint32 osr_index = get_osr_deopt_finalize_index(tc, specialized);
+
+    /* Finish up the specialization. */
     MVM_spesh_candidate_specialize(tc, tc->cur_frame->static_info, specialized);
 
     /* XXX TODO: cope with inlining here. */
@@ -66,6 +86,6 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
     /* Sync interpreter with updates. */
     *(tc->interp_bytecode_start) = specialized->bytecode;
     *(tc->interp_cur_op)         = specialized->bytecode +
-                                   specialized->deopts[2 * specialized->osr_index + 1];
+                                   specialized->deopts[2 * osr_index + 1];
 }
 

@@ -78,10 +78,6 @@ struct MVMSpeshCandidate {
     /* Whether this is a candidate we're in the process of doing OSR logging
      * on. */
     MVMuint32 osr_logging;
-
-    /* If we are doing OSR, this is the index in the deopt table that contains
-     * the location to jump to. */
-    MVMint32 osr_index;
 };
 
 /* The number of specializations we'll allow per static frame. */
