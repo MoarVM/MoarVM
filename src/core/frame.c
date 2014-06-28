@@ -156,10 +156,13 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
             frame = node;
 
             /* Clear memory. */
-            if (static_frame_body->env_size)
+            if (static_frame_body->env_size) {
                 memset(frame->env, 0, static_frame_body->env_size);
-            else
+            }
+            else {
                 frame->env = NULL;
+                frame->allocd_env = 0;
+            }
             if (static_frame_body->work_size) {
                 if (!frame->work) {
                     frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
@@ -172,6 +175,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
             }
             else {
                 frame->work = NULL;
+                frame->allocd_work = 0;
             }
 
             /* Calculate args buffer position and make sure current call site starts
@@ -203,6 +207,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     }
     else {
         frame->env = NULL;
+        frame->allocd_env = 0;
     }
     work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
     if (work_size) {
@@ -211,6 +216,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     }
     else {
         frame->work = NULL;
+        frame->allocd_work = 0;
     }
 
     /* Calculate args buffer position and make sure current call site starts
