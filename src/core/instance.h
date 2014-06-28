@@ -142,8 +142,10 @@ struct MVMInstance {
     /* Log file for specializations, if we're to log them. */
     FILE *spesh_log_fh;
 
-    /* Flag for if spesh is enabled. */
-    MVMint32 spesh_enabled;
+    /* Flag for if spesh (and certain spesh features) are enabled. */
+    MVMint8 spesh_enabled;
+    MVMint8 spesh_inline_enabled;
+    MVMint8 spesh_osr_enabled;
 
     /* Number of representations registered so far. */
     MVMuint32 num_reprs;

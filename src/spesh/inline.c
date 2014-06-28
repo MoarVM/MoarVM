@@ -8,6 +8,10 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     MVMSpeshGraph *ig;
     MVMSpeshBB    *bb;
 
+    /* Check inlining is enabled. */
+    if (!tc->instance->spesh_inline_enabled)
+        return NULL;
+
     /* Check bytecode size is within the inline limit. */
     if (target->body.sf->body.bytecode_size > MVM_SPESH_MAX_INLINE_SIZE)
         return NULL;

@@ -36,6 +36,10 @@ void MVM_spesh_osr(MVMThreadContext *tc) {
     MVMSpeshCandidate *specialized;
     MVMint32 osr_index;
 
+    /* Check OSR is enabled. */
+    if (!tc->instance->spesh_osr_enabled)
+        return;
+
     /* Ensure that we are in a position to specialize. */
     if (!tc->cur_frame->caller)
         return;
