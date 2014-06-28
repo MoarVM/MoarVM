@@ -6088,7 +6088,7 @@ static MVMOpInfo MVM_op_infos[] = {
         "  ",
         0,
         0,
-        1,
+        4,
         0,
     },
     {
