@@ -15,3 +15,4 @@ struct MVMAsyncTaskOps {
 };
 
 void MVM_io_eventloop_queue_work(MVMThreadContext *tc, MVMObject *work);
+void MVM_io_eventloop_cancel_work(MVMThreadContext *tc, MVMObject *task_obj);
