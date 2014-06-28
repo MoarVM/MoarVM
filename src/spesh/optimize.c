@@ -698,8 +698,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             optimize_getlex_known(tc, g, bb, ins);
             break;
         case MVM_OP_sp_log:
-            /* Left-over log instruction that didn't become a guard; just
-             * delete it. */
+        case MVM_OP_sp_osrfinalize:
+            /* Left-over log instruction that didn't become a guard, or OSR
+             * finalize instruction; just delete it. */
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
             break;
         }
