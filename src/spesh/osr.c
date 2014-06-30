@@ -109,7 +109,8 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
     tc->cur_frame->effective_bytecode    = specialized->bytecode;
     tc->cur_frame->effective_handlers    = specialized->handlers;
     tc->cur_frame->effective_spesh_slots = specialized->spesh_slots;
-    tc->cur_frame->spesh_log_slots       = specialized->log_slots;
+    tc->cur_frame->spesh_log_slots       = NULL;
+    tc->cur_frame->spesh_log_idx         = -1;
 
     /* Sync interpreter with updates. */
     *(tc->interp_bytecode_start) = specialized->bytecode;
