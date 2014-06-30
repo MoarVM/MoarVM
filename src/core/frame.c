@@ -779,17 +779,27 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
 
 /* Given the specified code object, sets its outer to the current scope. */
 void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
-    MVMCode *code_obj;
+    MVMCode *code_obj = (MVMCode *)code;
 
     if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
         MVM_exception_throw_adhoc(tc,
             "Can only perform capturelex on object with representation MVMCode");
 
-    /* XXX Following is vulnerable to a race condition. */
-    code_obj = (MVMCode *)code;
-    if (code_obj->body.outer)
-        MVM_frame_dec_ref(tc, code_obj->body.outer);
-    code_obj->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
+    /* Increment current frame reference. */
+    MVM_frame_inc_ref(tc, tc->cur_frame);
+
+    /* Try to replace outer; retry on failure (should hopefully be highly
+     * rare). */
+    do {
+        MVMFrame *orig_outer = code_obj->body.outer;
+        if (MVM_trycas(&(code_obj->body.outer), orig_outer, tc->cur_frame)) {
+            /* Success; decrement any original outer and we're done. */
+            if (orig_outer)
+                MVM_frame_dec_ref(tc, orig_outer);
+            return;
+        }
+    }
+    while (1);
 }
 
 /* Given the specified code object, copies it and returns a copy which
