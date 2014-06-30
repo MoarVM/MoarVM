@@ -73,17 +73,17 @@ static uv_loop_t *get_or_vivify_loop(MVMThreadContext *tc) {
             /* Start the event loop thread, which will call a C function that
              * sits in the uv loop, never leaving. */
             MVMObject *thread, *loop_runner;
-            loop_runner = MVM_repr_alloc_init(tc, instance->boot_types.BOOTCCode);
-            ((MVMCFunction *)loop_runner)->body.func = enter_loop;
-            thread = MVM_thread_new(tc, loop_runner, 1);
-            MVM_thread_run(tc, thread);
-            instance->event_loop_thread       = ((MVMThread *)thread)->body.tc;
             instance->event_loop_todo_queue   = MVM_repr_alloc_init(tc,
                 instance->boot_types.BOOTQueue);
             instance->event_loop_cancel_queue = MVM_repr_alloc_init(tc,
                 instance->boot_types.BOOTQueue);
             instance->event_loop_active       = MVM_repr_alloc_init(tc,
                 instance->boot_types.BOOTArray);
+            loop_runner = MVM_repr_alloc_init(tc, instance->boot_types.BOOTCCode);
+            ((MVMCFunction *)loop_runner)->body.func = enter_loop;
+            thread = MVM_thread_new(tc, loop_runner, 1);
+            MVM_thread_run(tc, thread);
+            instance->event_loop_thread       = ((MVMThread *)thread)->body.tc;
         }
 
         uv_mutex_unlock(&instance->mutex_event_loop_start);
