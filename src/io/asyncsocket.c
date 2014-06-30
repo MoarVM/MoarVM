@@ -176,7 +176,9 @@ static MVMAsyncTask * read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
     /* Create async task handle. */
     MVMROOT(tc, queue, {
     MVMROOT(tc, schedulee, {
+    MVMROOT(tc, h, {
         task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
+    });
     });
     });
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
@@ -217,7 +219,11 @@ static MVMAsyncTask * read_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
     /* Create async task handle. */
     MVMROOT(tc, queue, {
     MVMROOT(tc, schedulee, {
+    MVMROOT(tc, h, {
+    MVMROOT(tc, buf_type, {
         task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
+    });
+    });
     });
     });
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
@@ -372,7 +378,11 @@ static MVMAsyncTask * write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMObject 
     /* Create async task handle. */
     MVMROOT(tc, queue, {
     MVMROOT(tc, schedulee, {
+    MVMROOT(tc, h, {
+    MVMROOT(tc, s, {
         task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
+    });
+    });
     });
     });
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
@@ -410,7 +420,11 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
     /* Create async task handle. */
     MVMROOT(tc, queue, {
     MVMROOT(tc, schedulee, {
+    MVMROOT(tc, h, {
+    MVMROOT(tc, buffer, {
         task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
+    });
+    });
     });
     });
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
@@ -485,13 +499,17 @@ static void on_connect(uv_connect_t* req, int status) {
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if (status >= 0) {
         /* Allocate and set up handle. */
-        MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-        MVMIOAsyncSocketData *data   = calloc(1, sizeof(MVMIOAsyncSocketData));
-        data->handle                 = (uv_stream_t *)ci->socket;
-        result->body.ops             = &op_table;
-        result->body.data            = data;
-        MVM_repr_push_o(tc, arr, (MVMObject *)result);
-        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+        MVMROOT(tc, arr, {
+        MVMROOT(tc, t, {
+            MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+            MVMIOAsyncSocketData *data   = calloc(1, sizeof(MVMIOAsyncSocketData));
+            data->handle                 = (uv_stream_t *)ci->socket;
+            result->body.ops             = &op_table;
+            result->body.data            = data;
+            MVM_repr_push_o(tc, arr, (MVMObject *)result);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+        });
+        });
     }
     else {
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
@@ -627,13 +645,17 @@ static void on_connection(uv_stream_t *server, int status) {
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if ((r = uv_accept(server, (uv_stream_t *)client)) == 0) {
         /* Allocate and set up handle. */
-        MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-        MVMIOAsyncSocketData *data   = calloc(1, sizeof(MVMIOAsyncSocketData));
-        data->handle                 = (uv_stream_t *)client;
-        result->body.ops             = &op_table;
-        result->body.data            = data;
-        MVM_repr_push_o(tc, arr, (MVMObject *)result);
-        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+        MVMROOT(tc, arr, {
+        MVMROOT(tc, t, {
+            MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+            MVMIOAsyncSocketData *data   = calloc(1, sizeof(MVMIOAsyncSocketData));
+            data->handle                 = (uv_stream_t *)client;
+            result->body.ops             = &op_table;
+            result->body.data            = data;
+            MVM_repr_push_o(tc, arr, (MVMObject *)result);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+        });
+        });
     }
     else {
         uv_close((uv_handle_t*)client, NULL);
