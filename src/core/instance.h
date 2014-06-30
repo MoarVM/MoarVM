@@ -21,6 +21,7 @@ struct MVMBootTypes {
     MVMObject *BOOTMultiCache;
     MVMObject *BOOTContinuation;
     MVMObject *BOOTQueue;
+    MVMObject *BOOTAsync;
 };
 
 /* Various raw types that don't need a HOW */
