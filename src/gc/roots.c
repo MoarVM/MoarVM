@@ -87,6 +87,14 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     if (tc->interp_cu)
         MVM_gc_worklist_add(tc, worklist, tc->interp_cu);
 
+    /* Lexotics cache. */
+    if (tc->lexotic_cache_size) {
+        MVMuint32 i;
+        for (i = 0; i < tc->lexotic_cache_size; i++)
+            if (tc->lexotic_cache[i])
+                MVM_gc_worklist_add(tc, worklist, &(tc->lexotic_cache[i]));
+    }
+
     /* Current dispatcher. */
     MVM_gc_worklist_add(tc, worklist, &tc->cur_dispatcher);
 
