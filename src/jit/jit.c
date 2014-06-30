@@ -192,10 +192,13 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_wval:
     case MVM_OP_wval_wide: {
         MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 dep = ins->operands[0].lit_i16;
-        // NB: the next line is only legal because spesh stuff
-        // is zeroed before it is acquired
-        MVMint64 idx = idx = ins->operands[0].lit_i64;
+        MVMint16 dep = ins->operands[1].lit_i16;
+        MVMint64 idx;
+        if (op == MVM_OP_wval) {
+            idx = ins->operands[2].lit_i16;
+        } else {
+            idx = ins->operands[2].lit_i64;
+        }
         MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC },
                               { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_CU },
                               { MVM_JIT_ADDR_LITERAL, dep },
