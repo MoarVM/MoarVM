@@ -1117,6 +1117,18 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
             case MVM_ARRAY_I8:
                 body->slots.i8[i] = (MVMint8)reader->read_varint(tc, reader);
                 break;
+            case MVM_ARRAY_U64:
+                body->slots.i64[i] = reader->read_varint(tc, reader);
+                break;
+            case MVM_ARRAY_U32:
+                body->slots.i32[i] = (MVMuint32)reader->read_varint(tc, reader);
+                break;
+            case MVM_ARRAY_U16:
+                body->slots.i16[i] = (MVMuint16)reader->read_varint(tc, reader);
+                break;
+            case MVM_ARRAY_U8:
+                body->slots.i8[i] = (MVMuint8)reader->read_varint(tc, reader);
+                break;
             case MVM_ARRAY_N64:
                 body->slots.n64[i] = reader->read_num(tc, reader);
                 break;
@@ -1154,6 +1166,18 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
                 break;
             case MVM_ARRAY_I8:
                 writer->write_varint(tc, writer, (MVMint64)body->slots.i8[body->start + i]);
+                break;
+            case MVM_ARRAY_U64:
+                writer->write_varint(tc, writer, (MVMint64)body->slots.u64[body->start + i]);
+                break;
+            case MVM_ARRAY_U32:
+                writer->write_varint(tc, writer, (MVMint64)body->slots.u32[body->start + i]);
+                break;
+            case MVM_ARRAY_U16:
+                writer->write_varint(tc, writer, (MVMint64)body->slots.u16[body->start + i]);
+                break;
+            case MVM_ARRAY_U8:
+                writer->write_varint(tc, writer, (MVMint64)body->slots.u8[body->start + i]);
                 break;
             case MVM_ARRAY_N64:
                 writer->write_num(tc, writer, (MVMnum64)body->slots.n64[body->start + i]);
