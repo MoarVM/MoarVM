@@ -79,14 +79,8 @@ struct MVMSpeshCandidate {
      * on. */
     MVMuint32 osr_logging;
 
-    /* Function pointer to the JIT-ed function */
-    MVMJitCode jitcode;
-    
-    /* Size of jit code (to be able to free it) */
-    size_t jitcode_size;
-
-    /* magic bytecode to invoke jit code */
-    MVMuint8 *jit_bytecode;
+    /* JIT-code structure */
+    MVMJitCode *jitcode;
 };
 
 /* The number of specializations we'll allow per static frame. */

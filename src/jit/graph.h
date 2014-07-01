@@ -74,8 +74,6 @@ struct MVMJitCallC {
     MVMuint16 has_vargs; // does the receiver consider them variable
 };
 
-
-
 /* A non-final list of node types */
 typedef enum {
     MVM_JIT_INS_PRIMITIVE,

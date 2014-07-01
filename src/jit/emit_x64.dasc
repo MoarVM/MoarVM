@@ -8,12 +8,7 @@
 |.section code
 |.globals JIT_LABEL_
 
-/* Static allocation of relevant types to registers. I pick
- * callee-save registers for efficiency. It is likely we'll be calling
- * quite a C functions, and this saves us the trouble of storing
- * them. Moreover, C compilers preferentially do not use callee-saved
- * registers, and so in most cases, these won't be touched at all. */
-|.type TC, MVMThreadContext, r14
+/* type declarations */
 |.type FRAME, MVMFrame
 |.type REGISTER, MVMRegister
 |.type ARGCTX, MVMArgProcContext
@@ -31,20 +26,28 @@
 |.type U32, MVMuint32
 |.type U64, MVMuint64
 
-/* 'alternative base pointer. I'll be using this often, so picking rbx
- * here rather than the extended registers will likely lead to smaller
+
+
+/* Static allocation of relevant types to registers. I pick
+ * callee-save registers for efficiency. It is likely we'll be calling
+ * quite a C functions, and this saves us the trouble of storing
+ * them. Moreover, C compilers preferentially do not use callee-saved
+ * registers, and so in most cases, these won't be touched at all. */
+|.type TC, MVMThreadContext, r14
+/* Alternative base pointer. I'll be using this often, so picking rbx
+ * here rather than the extended registers will lead to smaller
  * bytecode */
 |.type WORK, MVMRegister, rbx
 |.type ARGS, MVMRegister, r12
-|.type ENV,  MVMRegister, r13
+|.type CU, MVMCompUnit, r13
 
 
 |.macro saveregs
-| push TC; push WORK; push ARGS; push ENV
+| push TC; push WORK; push ARGS; push CU;
 |.endmacro
 
 |.macro restoreregs
-| pop ENV; pop ARGS; pop WORK; pop TC
+| pop CU; pop ARGS; pop WORK; pop TC
 |.endmacro
 
 
@@ -186,15 +189,16 @@ const unsigned int MVM_jit_num_globals(void) {
 void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
                            dasm_State **Dst) {
     /* Setup stack */
-    | push rbp
-    | mov rbp, rsp
+    | push rbp;
+    | mov rbp, rsp;
     /* save callee-save registers */
-    | saveregs
+    | saveregs;
     /* setup special frame variables */
-    | mov TC,   ARG1
-    | mov WORK, FRAME:ARG2->work
-    | mov ARGS, FRAME:ARG2->params.args
-    | mov ENV,  FRAME:ARG2->env
+    | mov TC,   ARG1;
+    | mov CU,   ARG2;
+    | mov TMP1, TC->cur_frame;
+    | mov WORK, FRAME:TMP1->work;
+    | mov ARGS, FRAME:TMP1->params.args;
 }
 
 /* And a function epilogue is also always the same */
@@ -202,11 +206,11 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitGraph *jg,
                            dasm_State **Dst) {
     | ->exit:
     /* restore callee-save registers */
-    | restoreregs
+    | restoreregs;
     /* Restore stack */
-    | mov rsp, rbp
-    | pop rbp
-    | ret
+    | mov rsp, rbp;
+    | pop rbp;
+    | ret;
 }
 
 static MVMuint64 try_emit_gen2_ref(MVMThreadContext *tc, MVMJitGraph *jg,
@@ -432,11 +436,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_set: {
          MVMint32 reg1 = ins->operands[0].reg.orig;
          MVMint32 reg2 = ins->operands[1].reg.orig;
-         | mov TMP1, WORK[reg2]
-         | mov WORK[reg1], TMP1
+         | mov TMP1, WORK[reg2];
+         | mov WORK[reg1], TMP1;
          break;
     }
-
     case MVM_OP_add_i:
     case MVM_OP_sub_i:
     case MVM_OP_mul_i:
@@ -595,8 +598,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
                 | addarg i, TC->cur_frame;
                 break;
             case MVM_JIT_INTERP_CU:
-                | mov rax, TC->interp_cu;
-                | addarg i, [rax];
+                | addarg i, CU;
                 break;
             }
             break;

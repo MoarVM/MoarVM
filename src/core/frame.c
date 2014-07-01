@@ -338,8 +338,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             else {
                 /* In the post-specialize phase; can safely used the code. */
                 frame = allocate_frame(tc, static_frame_body, chosen_cand);
-                if (chosen_cand->jitcode_size) {
-                    frame->effective_bytecode = chosen_cand->jit_bytecode;
+                if (chosen_cand->jitcode) {
+                    frame->effective_bytecode = chosen_cand->jitcode->bytecode;
                 }
                 else {
                     frame->effective_bytecode = chosen_cand->bytecode;

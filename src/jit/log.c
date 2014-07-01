@@ -10,12 +10,12 @@ void MVM_jit_log(MVMThreadContext *tc, const char * fmt, ...) {
     va_end(args);
 }
 
-void MVM_jit_log_bytecode(MVMThreadContext *tc, void * code, size_t codesize) {
+void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
     size_t dirname_length = strlen(tc->instance->jit_bytecode_dir);
     char * filename = malloc(dirname_length + strlen("/jit-code.bin") + 1);
     strcpy(filename, tc->instance->jit_bytecode_dir);
     strcpy(filename + dirname_length, "/jit-code.bin");
     FILE * f = fopen(filename, "w");
-    fwrite(code, sizeof(char), codesize, f);
+    fwrite(code->func_ptr, sizeof(char), code->size, f);
     fclose(f);
 }

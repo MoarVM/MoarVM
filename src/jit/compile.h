@@ -1,3 +1,14 @@
-MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph, size_t *codesize_out);
-MVMuint8* MVM_jit_magic_bytecode(MVMThreadContext *tc);
-void MVM_enter_jit(MVMThreadContext *tc, MVMFrame *frame, MVMJitCode jitcode);
+
+
+struct MVMJitCode {
+    MVMJitFunc func_ptr;
+    size_t         size;
+    MVMuint8  *bytecode;
+    MVMint16 num_locals;
+    MVMStaticFrame  *sf;
+};
+
+MVMJitCode* MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);
+void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code);
+void MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
+                        MVMJitCode * code);

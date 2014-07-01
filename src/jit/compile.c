@@ -3,9 +3,9 @@
 #include "platform/mmap.h"
 #include "emit.h"
 
+static const MVMuint16 MAGIC_BYTECODE[] = { MVM_OP_sp_jit_enter, 0 };
 
-MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
-                                 size_t *codesize_out) {
+MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     dasm_State *state;
     void * memory;
     size_t codesize;
@@ -13,6 +13,7 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMint32  num_globals = MVM_jit_num_globals();
     void ** dasm_globals = malloc(num_globals * sizeof(void*));
     MVMJitIns * ins = jg->first_ins;
+    MVMJitCode * code;
 
     MVM_jit_log(tc, "Starting compilation\n");
 
@@ -53,28 +54,33 @@ MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg,
     dasm_encode(&state, memory);
     /* protect memory from being overwritten */
     MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC);
-    *codesize_out = codesize;
     /* clear up the assembler */
     dasm_free(&state);
     free(dasm_globals);
 
     MVM_jit_log(tc, "Bytecode size: %d\n", codesize);
+    /* Create code segment */
+    code = malloc(sizeof(MVMJitCode));
+    code->func_ptr   = (MVMJitFunc)memory;
+    code->size       = codesize;
+    code->sf         = jg->spesh->sf;
+    code->num_locals = jg->spesh->num_locals;
+    code->bytecode   = (MVMuint8*)MAGIC_BYTECODE;
+
     if (tc->instance->jit_bytecode_dir) {
-        MVM_jit_log_bytecode(tc, memory, codesize);
+        MVM_jit_log_bytecode(tc, code);
     }
     if (tc->instance->jit_log_fh)
         fflush(tc->instance->jit_log_fh);
-    return (MVMJitCode)memory;
+    return code;
 }
 
-
-MVMuint8 * MVM_jit_magic_bytecode(MVMThreadContext *tc) {
-    MVMuint16 magic_bytecode[] = { MVM_OP_sp_jit_enter, 0 };
-    MVMuint8 *mbc = malloc(sizeof(magic_bytecode));
-    return memcpy(mbc, magic_bytecode, sizeof(magic_bytecode));
+void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
+    MVM_platform_free_pages(code->func_ptr, code->size);
+    free(code);
 }
 
-void MVM_jit_enter(MVMThreadContext *tc, MVMFrame *f, MVMJitCode code) {
-    /* this should do something intelligent, of course :-) */
-    code(tc, f, NULL);
+void MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
+                        MVMJitCode *code) {
+    code->func_ptr(tc, cu, NULL);
 }

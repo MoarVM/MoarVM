@@ -185,4 +185,5 @@ typedef struct MVMJitCallC MVMJitCallC;
 typedef struct MVMJitAddr MVMJitAddr;
 typedef struct MVMJitLabel MVMJitLabel;
 typedef struct MVMJitRVH MVMJitRVH;
-typedef void (*MVMJitCode)(MVMThreadContext *tc, MVMFrame *frame, void * label);
+typedef struct MVMJitCode MVMJitCode;
+typedef void (*MVMJitFunc)(MVMThreadContext *tc, MVMCompUnit *cu, void * label);
