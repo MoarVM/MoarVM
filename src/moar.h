@@ -145,7 +145,9 @@ typedef double   MVMnum64;
 #include "mast/driver.h"
 #include "core/intcache.h"
 #include "core/fixedsizealloc.h"
-#include "jit/jit.h"
+#include "jit/graph.h"
+#include "jit/compile.h"
+#include "jit/log.h"
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc);
 

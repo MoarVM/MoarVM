@@ -97,9 +97,4 @@ struct MVMJitIns {
     } u;
 };
 
-
-void MVM_jit_log(MVMThreadContext *tc, const char *fmt, ...);
 MVMJitGraph* MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *spesh);
-MVMJitCode MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph, size_t *codesize_out);
-MVMuint8* MVM_jit_magic_bytecode(MVMThreadContext *tc);
-void MVM_enter_jit(MVMThreadContext *tc, MVMFrame *frame, MVMJitCode jitcode);
