@@ -13,7 +13,7 @@ static void string_consts(MVMThreadContext *tc);
 static void setup_std_handles(MVMThreadContext *tc);
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
-    char *spesh_log, *spesh_disable;
+    char *spesh_log, *spesh_disable, *spesh_inline_disable, *spesh_osr_disable;
     char *jit_log, *jit_disable, *jit_bytecode_dir;
     int init_stat;
 
@@ -114,8 +114,15 @@ MVMInstance * MVM_vm_create_instance(void) {
     if (spesh_log && strlen(spesh_log))
         instance->spesh_log_fh = fopen(spesh_log, "w");
     spesh_disable = getenv("MVM_SPESH_DISABLE");
-    if (!spesh_disable || strlen(spesh_disable) == 0)
+    if (!spesh_disable || strlen(spesh_disable) == 0) {
         instance->spesh_enabled = 1;
+        spesh_inline_disable = getenv("MVM_SPESH_INLINE_DISABLE");
+        if (!spesh_inline_disable || strlen(spesh_inline_disable) == 0)
+            instance->spesh_inline_enabled = 1;
+        spesh_osr_disable = getenv("MVM_SPESH_OSR_DISABLE");
+        if (!spesh_osr_disable || strlen(spesh_osr_disable) == 0)
+            instance->spesh_osr_enabled = 1;
+    }
 
     jit_disable = getenv("MVM_JIT_DISABLE");
     if (!jit_disable || strlen(jit_disable) == 0)

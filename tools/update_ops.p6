@@ -197,7 +197,8 @@ sub opcode_details(@ops) {
             take "        $($op.adverbs<pure> ?? '1' !! '0'),";
             take "        $(
                 ($op.adverbs<deoptonepoint> ?? 1 !! 0) +
-                ($op.adverbs<deoptallpoint> ?? 2 !! 0)),";
+                ($op.adverbs<deoptallpoint> ?? 2 !! 0) +
+                ($op.adverbs<osrpoint> ?? 4 !! 0)),";
             take "        $($op.adverbs<noinline> ?? '1' !! '0'),";
             if $op.operands {
                 take "        \{ $op.operands.map(&operand_flags).join(', ') }";

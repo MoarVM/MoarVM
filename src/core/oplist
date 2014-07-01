@@ -631,8 +631,8 @@ asyncwritestr       w(obj) r(obj) r(obj) r(obj) r(str) r(obj)
 asyncwritebytes     w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 asyncreadchars      w(obj) r(obj) r(obj) r(obj) r(obj)
 asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
-getlexstatic_o      w(obj) r(str) :pure
-getlexperinvtype_o  w(obj) r(str) :pure
+getlexstatic_o      w(obj) r(str) :pure :noinline
+getlexperinvtype_o  w(obj) r(str) :pure :noinline
 execname            w(str)
 const_i64_16        w(int64) int16 :pure
 const_i64_32        w(int64) int32 :pure
@@ -645,6 +645,7 @@ param_on2_i         w(int64) str str ins :noinline
 param_on2_n         w(num64) str str ins :noinline
 param_on2_s         w(str) str str ins :noinline
 param_on2_o         w(obj) str str ins :noinline
+osrpoint            :osrpoint
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
@@ -652,6 +653,11 @@ param_on2_o         w(obj) str str ins :noinline
 # Used for logging what objects we saw during execution, which is used to do
 # speculative optimizations.
 sp_log           .s r(obj) sslot
+
+# If we're doing OSR, the logging phase replaces the osrpoint with this op, to
+# trigger the finalization of the optimization process once we do enough loops
+# to gather logging information.
+sp_osrfinalize   .s
 
 # Guard operations. Trigger de-optimization if the guard is violated.
 #   guardconc = guard on concrete type; index is spesh slot with type

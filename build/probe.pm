@@ -291,4 +291,31 @@ sub ptr_size_cross {
     $config->{ptr_size} = 4;
 }
 
+sub computed_goto {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    _spew('try.c', <<'EOT');
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(int argc, char **argv) {
+    void *cgoto_ptr;
+    cgoto_ptr = &&cgoto_label;
+
+    goto *cgoto_ptr;
+
+    return EXIT_FAILURE;
+
+    cgoto_label:
+        return EXIT_SUCCESS;
+}
+EOT
+
+    print ::dots('    probing computed goto support');
+    my $can_cgoto = compile($config, 'try');
+    $can_cgoto  &&= !system './try';
+    print $can_cgoto ? "YES\n": "NO\n";
+    $config->{cancgoto} = $can_cgoto || 0
+}
+
 '00';

@@ -24,6 +24,7 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
             case MVM_SPESH_ANN_FH_START:
             case MVM_SPESH_ANN_FH_GOTO:
             case MVM_SPESH_ANN_INLINE_START:
+            case MVM_SPESH_ANN_DEOPT_OSR:
                 if (!next && bb->linear_next)
                     next = bb->linear_next->first_ins;
                 if (next) {

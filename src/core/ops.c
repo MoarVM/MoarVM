@@ -5949,7 +5949,7 @@ static MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -5959,7 +5959,7 @@ static MVMOpInfo MVM_op_infos[] = {
         2,
         1,
         0,
-        0,
+        1,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
@@ -6083,6 +6083,15 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_str, MVM_operand_ins }
     },
     {
+        MVM_OP_osrpoint,
+        "osrpoint",
+        "  ",
+        0,
+        0,
+        4,
+        0,
+    },
+    {
         MVM_OP_sp_log,
         "sp_log",
         ".s",
@@ -6091,6 +6100,15 @@ static MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot }
+    },
+    {
+        MVM_OP_sp_osrfinalize,
+        "sp_osrfinalize",
+        ".s",
+        0,
+        0,
+        0,
+        0,
     },
     {
         MVM_OP_sp_guardconc,
@@ -6454,7 +6472,7 @@ static MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static unsigned short MVM_op_counts = 645;
+static unsigned short MVM_op_counts = 647;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

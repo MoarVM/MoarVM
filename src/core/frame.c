@@ -156,10 +156,13 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
             frame = node;
 
             /* Clear memory. */
-            if (static_frame_body->env_size)
+            if (static_frame_body->env_size) {
                 memset(frame->env, 0, static_frame_body->env_size);
-            else
+            }
+            else {
                 frame->env = NULL;
+                frame->allocd_env = 0;
+            }
             if (static_frame_body->work_size) {
                 if (!frame->work) {
                     frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
@@ -172,6 +175,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
             }
             else {
                 frame->work = NULL;
+                frame->allocd_work = 0;
             }
 
             /* Calculate args buffer position and make sure current call site starts
@@ -203,6 +207,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     }
     else {
         frame->env = NULL;
+        frame->allocd_env = 0;
     }
     work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
     if (work_size) {
@@ -211,6 +216,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     }
     else {
         frame->work = NULL;
+        frame->allocd_work = 0;
     }
 
     /* Calculate args buffer position and make sure current call site starts
@@ -306,15 +312,16 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
          * specialization. */
         if (!chosen_cand && num_spesh < MVM_SPESH_LIMIT && tc->instance->spesh_enabled)
             chosen_cand = MVM_spesh_candidate_setup(tc, static_frame,
-                callsite, args);
+                callsite, args, 0);
 
         /* Now try to use specialized bytecode. We may need to compete to
          * be a logging run of it. */
         if (chosen_cand) {
             if (chosen_cand->sg) {
-                /* In the logging phase. Try to get a logging index. */
+                /* In the logging phase. Try to get a logging index; ensure it
+                 * is not being used as an OSR logging candidate elsewhere. */
                 AO_t cur_idx = MVM_load(&(chosen_cand->log_enter_idx));
-                if (cur_idx < MVM_SPESH_LOG_RUNS) {
+                if (!chosen_cand->osr_logging && cur_idx < MVM_SPESH_LOG_RUNS) {
                     if (MVM_cas(&(chosen_cand->log_enter_idx), cur_idx, cur_idx + 1) == cur_idx) {
                         /* We get to log. */
                         frame = allocate_frame(tc, static_frame_body, NULL); /* NULL as no inlines yet. */
@@ -433,6 +440,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* Clear frame flags. */
     frame->flags = 0;
+
+    /* Initialize OSR counter. */
+    frame->osr_counter = 0;
 
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
@@ -565,10 +575,17 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* See if we were in a logging spesh frame, and need to complete the
      * specialization. */
-    if (returner->spesh_cand && returner->spesh_log_idx >= 0)
-        if (MVM_decr(&(returner->spesh_cand->log_exits_remaining)) == 1)
+    if (returner->spesh_cand && returner->spesh_log_idx >= 0) {
+        if (returner->spesh_cand->osr_logging) {
+            /* Didn't achieve enough log entries to complete the OSR; just
+             * drop it to normal logging. */
+            returner->spesh_cand->osr_logging = 0;
+        }
+        else if (MVM_decr(&(returner->spesh_cand->log_exits_remaining)) == 1) {
             MVM_spesh_candidate_specialize(tc, returner->static_info,
                 returner->spesh_cand);
+        }
+    }
 
     /* Some cleanup we only need do if we're not a frame involved in a
      * continuation (otherwise we need to allow for multi-shot
@@ -767,17 +784,27 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
 
 /* Given the specified code object, sets its outer to the current scope. */
 void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
-    MVMCode *code_obj;
+    MVMCode *code_obj = (MVMCode *)code;
 
     if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
         MVM_exception_throw_adhoc(tc,
             "Can only perform capturelex on object with representation MVMCode");
 
-    /* XXX Following is vulnerable to a race condition. */
-    code_obj = (MVMCode *)code;
-    if (code_obj->body.outer)
-        MVM_frame_dec_ref(tc, code_obj->body.outer);
-    code_obj->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
+    /* Increment current frame reference. */
+    MVM_frame_inc_ref(tc, tc->cur_frame);
+
+    /* Try to replace outer; retry on failure (should hopefully be highly
+     * rare). */
+    do {
+        MVMFrame *orig_outer = code_obj->body.outer;
+        if (MVM_trycas(&(code_obj->body.outer), orig_outer, tc->cur_frame)) {
+            /* Success; decrement any original outer and we're done. */
+            if (orig_outer)
+                MVM_frame_dec_ref(tc, orig_outer);
+            return;
+        }
+    }
+    while (1);
 }
 
 /* Given the specified code object, copies it and returns a copy which

@@ -90,11 +90,11 @@ static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
         MVMint32 result;
         if (!MVM_6model_try_cache_type_check(tc, obj_facts->type, type_facts->type, &result))
             return;
-        ins->info = MVM_op_get_op(MVM_OP_const_i64);
+        ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
-        ins->operands[1].lit_i64 = result;
-        result_facts->value.i64  = result;
+        ins->operands[1].lit_i16 = result;
+        result_facts->value.i16  = result;
         obj_facts->usages--;
         type_facts->usages--;
     }
@@ -136,10 +136,10 @@ static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     if (obj_facts->flags & (MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_TYPEOBJ)) {
         MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-        ins->info                   = MVM_op_get_op(MVM_OP_const_i64);
+        ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
-        ins->operands[0].lit_i64    = !!(obj_facts->flags & MVM_SPESH_FACT_CONCRETE);
-        result_facts->value.i64     = !!(obj_facts->flags & MVM_SPESH_FACT_CONCRETE);
+        result_facts->value.i16     = obj_facts->flags & MVM_SPESH_FACT_CONCRETE ? 1 : 0;
+        ins->operands[1].lit_i16    = result_facts->value.i16;
         obj_facts->usages--;
     }
 }
@@ -298,10 +298,10 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
             MVM_spesh_get_facts(tc, g, ins->operands[2])->usages--;
 
         result_facts                = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-        ins->info                   = MVM_op_get_op(MVM_OP_const_i64);
+        ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
-        ins->operands[1].lit_i64    = can_result;
-        result_facts->value.i64     = can_result;
+        ins->operands[1].lit_i16    = can_result;
+        result_facts->value.i16     = can_result;
         obj_facts->usages--;
     }
 }
@@ -332,6 +332,16 @@ static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
     if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && facts->type)
         if (REPR(facts->type)->spesh)
             REPR(facts->type)->spesh(tc, STABLE(facts->type), g, bb, ins);
+}
+
+/* Checks if we have specialized on the invocant - useful to know for some
+ * optimizations. */
+static MVMint32 specialized_on_invocant(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMint32 i;
+    for (i = 0; i < g->num_guards; i++)
+        if (g->guards[i].slot == 0)
+            return 1;
+    return 0;
 }
 
 /* Optimizes away a lexical lookup when we know the value won't change from
@@ -646,9 +656,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_create:
             optimize_repr_op(tc, g, bb, ins, 1);
             break;
-        /*case MVM_OP_isconcrete:
+        case MVM_OP_isconcrete:
             optimize_isconcrete(tc, g, ins);
-            break;*/
+            break;
         case MVM_OP_istype:
             optimize_istype(tc, g, ins);
             break;
@@ -697,9 +707,14 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_getlexstatic_o:
             optimize_getlex_known(tc, g, bb, ins);
             break;
+        case MVM_OP_getlexperinvtype_o:
+            if (specialized_on_invocant(tc, g))
+                optimize_getlex_known(tc, g, bb, ins);
+            break;
         case MVM_OP_sp_log:
-            /* Left-over log instruction that didn't become a guard; just
-             * delete it. */
+        case MVM_OP_sp_osrfinalize:
+            /* Left-over log instruction that didn't become a guard, or OSR
+             * finalize instruction; just delete it. */
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
             break;
         }

@@ -66,12 +66,14 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         free(cur);
         cur = next;
     }
+    cbq->body.head = cbq->body.tail = NULL;
 
     /* Clean up locks. */
     uv_mutex_destroy(&cbq->body.locks->head_lock);
     uv_mutex_destroy(&cbq->body.locks->tail_lock);
     uv_cond_destroy(&cbq->body.locks->head_cond);
     free(cbq->body.locks);
+    cbq->body.locks = NULL;
 }
 
 /* Gets the storage specification for this representation. */

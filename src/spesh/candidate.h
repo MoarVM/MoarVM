@@ -75,6 +75,10 @@ struct MVMSpeshCandidate {
     MVMuint32 work_size;
     MVMuint32 env_size;
 
+    /* Whether this is a candidate we're in the process of doing OSR logging
+     * on. */
+    MVMuint32 osr_logging;
+
     /* Function pointer to the JIT-ed function */
     MVMJitCode jitcode;
     
@@ -108,6 +112,7 @@ struct MVMSpeshGuard {
 
 /* Functions for generating a specialization. */
 MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
-    MVMStaticFrame *static_frame, MVMCallsite *callsite, MVMRegister *args);
+    MVMStaticFrame *static_frame, MVMCallsite *callsite, MVMRegister *args,
+    MVMint32 osr);
 void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMSpeshCandidate *candidate);

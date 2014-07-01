@@ -264,6 +264,8 @@ else {
     build::probe::ptr_size_native(\%config, \%defaults);
 }
 
+build::probe::computed_goto(\%config, \%defaults);
+
 my $order = $config{be} ? 'big endian' : 'little endian';
 
 # dump configuration

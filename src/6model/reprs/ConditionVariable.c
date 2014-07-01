@@ -99,7 +99,9 @@ MVMObject * MVM_conditionvariable_from_lock(MVMThreadContext *tc, MVMReentrantMu
     if (REPR(type)->ID != MVM_REPR_ID_ConditionVariable)
         MVM_exception_throw_adhoc(tc, "Condition variable must have ConditionVariable REPR");
 
-    cv = (MVMConditionVariable *)MVM_gc_allocate_object(tc, STABLE(type));
+    MVMROOT(tc, lock, {
+        cv = (MVMConditionVariable *)MVM_gc_allocate_object(tc, STABLE(type));
+    });
     cv->body.condvar = malloc(sizeof(uv_cond_t));
     if ((init_stat = uv_cond_init(cv->body.condvar)) < 0)
         MVM_exception_throw_adhoc(tc, "Failed to initialize condition variable: %s",

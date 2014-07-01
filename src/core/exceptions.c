@@ -528,10 +528,11 @@ MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
         MVM_exception_throw_adhoc(tc, "Label with no handler passed to newlexotic");
 
     /* See if we've got this lexotic cached; return it if so. */
-    lexotic = NULL;
-    for (i = 0; i < sf->body.num_lexotics; i++)
-        if (sf->body.lexotics[i]->body.handler_idx == handler_idx)
-            return (MVMObject *)sf->body.lexotics[i];
+    if (sf->body.pool_index < tc->lexotic_cache_size) {
+        lexotic = tc->lexotic_cache[sf->body.pool_index];
+        if (lexotic && lexotic->body.handler_idx == handler_idx)
+            return (MVMObject *)lexotic;
+    }
 
     /* Allocate lexotic object, set it up, and cache it. */
     MVMROOT(tc, sf, {
@@ -539,13 +540,17 @@ MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
     });
     lexotic->body.handler_idx = handler_idx;
     MVM_ASSIGN_REF(tc, &(lexotic->common.header), lexotic->body.sf, sf);
-    if (sf->body.num_lexotics)
-        sf->body.lexotics = realloc(sf->body.lexotics,
-            (sf->body.num_lexotics + 1) * sizeof(MVMLexotic *));
-    else
-        sf->body.lexotics = malloc(sizeof(MVMLexotic *));
-    MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.lexotics[sf->body.num_lexotics], lexotic);
-    sf->body.num_lexotics++;
+    if (sf->body.pool_index >= tc->lexotic_cache_size) {
+        MVMuint32 orig_size = tc->lexotic_cache_size;
+        tc->lexotic_cache_size = sf->body.pool_index + 1;
+        tc->lexotic_cache = orig_size
+            ? realloc(tc->lexotic_cache, tc->lexotic_cache_size * sizeof(MVMLexotic *))
+            : malloc(tc->lexotic_cache_size * sizeof(MVMLexotic *));
+        memset(tc->lexotic_cache + orig_size, 0,
+            (tc->lexotic_cache_size - orig_size) * sizeof(MVMLexotic *));
+    }
+    if (!tc->lexotic_cache[sf->body.pool_index])
+        tc->lexotic_cache[sf->body.pool_index] = lexotic;
 
     return (MVMObject *)lexotic;
 }

@@ -154,6 +154,10 @@ struct MVMFrame {
      * spesh_cand is set in this frame at all. */
     MVMint8 spesh_log_idx;
 
+    /* On Stack Replacement iteration counter; incremented in loops, and will
+     * trigger if the limit is hit. */
+    MVMuint8 osr_counter;
+
 #if MVM_HLL_PROFILE_CALLS
     /* Index of the profile data record. */
     MVMuint32 profile_index;

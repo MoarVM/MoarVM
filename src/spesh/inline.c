@@ -1,5 +1,44 @@
 #include "moar.h"
 
+/* Ensures that a given compilation unit has access to the specified extop. */
+static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUnit *source_cu,
+                         MVMOpInfo *info) {
+    MVMExtOpRecord *extops;
+    MVMuint16 i, num_extops;
+
+    uv_mutex_lock(target_cu->body.update_pools_mutex);
+
+    /* See if the target compunit already has the extop. */
+    extops     = target_cu->body.extops;
+    num_extops = target_cu->body.num_extops;
+    for (i = 0; i < num_extops; i++)
+        if (extops[i].info == info) {
+            uv_mutex_unlock(target_cu->body.update_pools_mutex);
+            return;
+        }
+
+    /* If not, need to add it. Locate it in the source CU. */
+    extops     = source_cu->body.extops;
+    num_extops = source_cu->body.num_extops;
+    for (i = 0; i < num_extops; i++) {
+        if (extops[i].info == info) {
+            MVMuint32 size = (target_cu->body.num_extops + 1) * sizeof(MVMExtOpRecord);
+            target_cu->body.extops = target_cu->body.extops
+                ? realloc(target_cu->body.extops, size)
+                : malloc(size);
+            memcpy(&target_cu->body.extops[target_cu->body.num_extops],
+                &extops[i], sizeof(MVMExtOpRecord));
+            target_cu->body.num_extops++;
+            uv_mutex_unlock(target_cu->body.update_pools_mutex);
+            return;
+        }
+    }
+
+    /* Didn't find it; should be impossible. */
+    uv_mutex_unlock(target_cu->body.update_pools_mutex);
+    MVM_exception_throw_adhoc(tc, "Spesh: inline failed to find source CU extop entry");
+}
+
 /* Sees if it will be possible to inline the target code ref, given we could
  * already identify a spesh candidate. Returns NULL if no inlining is possible
  * or a graph ready to be merged if it will be possible. */
@@ -7,6 +46,10 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                                                MVMCode *target, MVMSpeshCandidate *cand) {
     MVMSpeshGraph *ig;
     MVMSpeshBB    *bb;
+
+    /* Check inlining is enabled. */
+    if (!tc->instance->spesh_inline_enabled)
+        return NULL;
 
     /* Check bytecode size is within the inline limit. */
     if (target->body.sf->body.bytecode_size > MVM_SPESH_MAX_INLINE_SIZE)
@@ -58,9 +101,13 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                 if (ins->operands[0].lex.outers > 0)
                     goto not_inlinable;
 
-            /* Ext-ops currently cannot be inlined. */
-            if (ins->info->opcode == (MVMuint16)-1)
-                goto not_inlinable;
+            /* Ext-ops need special care in inter-comp-unit inlines. */
+            if (ins->info->opcode == (MVMuint16)-1) {
+                MVMCompUnit *target_cu = inliner->sf->body.cu;
+                MVMCompUnit *source_cu = target->body.sf->body.cu;
+                if (source_cu != target_cu)
+                    demand_extop(tc, target_cu, source_cu, ins->info);
+            }
 
             ins = ins->next;
         }

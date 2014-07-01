@@ -140,13 +140,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
                 MVM_gc_worklist_add(tc, worklist, &body->static_env[i].o);
     }
 
-    /* Lexotics cache. */
-    if (body->num_lexotics) {
-        MVMint32 i;
-        for (i = 0; i < body->num_lexotics; i++)
-            MVM_gc_worklist_add(tc, worklist, &body->lexotics[i]);
-    }
-
     /* Spesh slots. */
     if (body->num_spesh_candidates) {
         MVMint32 i, j;

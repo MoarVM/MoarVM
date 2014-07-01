@@ -8,7 +8,7 @@
 #ifndef _WIN32
 #include <sys/types.h>
 #include <unistd.h>
-#define DEFAULT_MODE 0x0FFF
+#define DEFAULT_MODE 0x01B6
 #else
 #include <fcntl.h>
 #define O_CREAT  _O_CREAT

@@ -118,7 +118,7 @@ void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t 
                 fle = bin_ptr->free_list;
                 if (!fle)
                     break;
-            } while (MVM_trycas(&(bin_ptr->free_list), fle, fle->next));
+            } while (!MVM_trycas(&(bin_ptr->free_list), fle, fle->next));
         }
         else {
             /* Single-threaded; just take it. */

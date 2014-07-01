@@ -18,7 +18,7 @@ CONFIG    = @config@
 ADDCONFIG =
 
 TRACING = 0
-CGOTO = 0
+CGOTO = @cancgoto@
 NOISY = 0
 
 MSG = @:
@@ -170,6 +170,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/log@obj@ \
           src/spesh/threshold@obj@ \
           src/spesh/inline@obj@ \
+          src/spesh/osr@obj@ \
           src/jit/jit@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
@@ -291,6 +292,7 @@ HEADERS = src/moar.h \
           src/spesh/log.h \
           src/spesh/threshold.h \
           src/spesh/inline.h \
+          src/spesh/osr.h \
           src/strings/unicode_gen.h \
           src/strings/decode_stream.h \
           src/strings/ascii.h \

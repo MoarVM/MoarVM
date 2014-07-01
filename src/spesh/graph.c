@@ -302,6 +302,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ONE_INS);
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ALL))
             add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_ALL_INS);
+        if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_OSR))
+            add_deopt_annotation(tc, g, ins_node, pc, MVM_SPESH_ANN_DEOPT_OSR);
 
         /* Go to next instruction. */
         ins_idx++;
