@@ -21,30 +21,23 @@ static void append_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
 
 static void append_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
                           void * func_ptr, MVMint16 num_args,
-                          MVMJitAddr *call_args) {
+                          MVMJitAddr *call_args, MVMJitRVMode rv_mode,
+                          MVMint16 rv_idx) {
     MVMJitIns * ins = MVM_spesh_alloc(tc, jg->spesh, sizeof(MVMJitIns));
     size_t args_size =  num_args * sizeof(MVMJitAddr);
-    ins->type = MVM_JIT_INS_CALL_C;
-    ins->u.call.func_ptr = func_ptr;
-    ins->u.call.num_args = num_args;
+    ins->type             = MVM_JIT_INS_CALL_C;
+    ins->u.call.func_ptr  = func_ptr;
+    ins->u.call.num_args  = num_args;
     ins->u.call.has_vargs = 0; // don't support them yet
     /* Call argument array is typically stack allocated,
      * so they need to be copied */
-    ins->u.call.args = MVM_spesh_alloc(tc, jg->spesh, args_size);
+    ins->u.call.args      = MVM_spesh_alloc(tc, jg->spesh, args_size);
     memcpy(ins->u.call.args, call_args, args_size);
+    ins->u.call.rv_mode   = rv_mode;
+    ins->u.call.rv_idx    = rv_idx;
     append_ins(jg, ins);
 }
 
-static void append_rvh(MVMThreadContext *tc, MVMJitGraph *jg,
-                       MVMJitRVMode mode, MVMJitAddrBase base,
-                       MVMint32 idx) {
-    MVMJitIns * ins = MVM_spesh_alloc(tc, jg->spesh, sizeof(MVMJitIns));
-    ins->type = MVM_JIT_INS_RVH;
-    ins->u.rvh.mode = mode;
-    ins->u.rvh.addr.base = base;
-    ins->u.rvh.addr.idx = idx;
-    append_ins(jg, ins);
-}
 
 /* Try to assign a label name for a basic block */
 static MVMint32 get_label_name(MVMThreadContext *tc, MVMJitGraph *jg,
@@ -183,7 +176,7 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
                               { MVM_JIT_ADDR_REG, reg } };
-        append_call_c(tc, jg, op_to_func(tc, op),  2, args);
+        append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_wval:
@@ -200,8 +193,7 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
                               { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_CU },
                               { MVM_JIT_ADDR_LITERAL, dep },
                               { MVM_JIT_ADDR_LITERAL, idx } };
-        append_call_c(tc, jg, op_to_func(tc, op), 4, args);
-        append_rvh(tc, jg, MVM_JIT_RV_VAL_TO_REG, MVM_JIT_ADDR_REG, dst);
+        append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_PTR, dst);
         break;
     }
         /* coercion */
@@ -213,22 +205,20 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMJitAddr args[2] = {{ MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
                               { MVM_JIT_ADDR_REG, src } };
+        MVMJitRVMode rv_mode = (op == MVM_OP_coerce_sn ? MVM_JIT_RV_NUM :
+                                op == MVM_OP_coerce_si ? MVM_JIT_RV_INT :
+                                MVM_JIT_RV_PTR);
         if (op == MVM_OP_coerce_ns) {
             args[1].base = MVM_JIT_ADDR_REG_F;
         } 
-        append_call_c(tc, jg, op_to_func(tc, op), 2, args);
-        if (op == MVM_OP_coerce_sn) {
-            append_rvh(tc, jg, MVM_JIT_RV_VAL_TO_REG_F, MVM_JIT_ADDR_REG, dst);
-        } else {
-            append_rvh(tc, jg, MVM_JIT_RV_VAL_TO_REG, MVM_JIT_ADDR_REG, dst);
-        }
+        append_call_c(tc, jg, op_to_func(tc, op), 2, args, rv_mode, dst);
         break;
     }
         /* returning */
     case MVM_OP_return: {
         MVMJitAddr args[] = { { MVM_JIT_ADDR_INTERP, MVM_JIT_INTERP_TC},
                               { MVM_JIT_ADDR_LITERAL, 0 }};
-        append_call_c(tc, jg, op_to_func(tc, op), 2, args);
+        append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
         append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL);
         break;
     }
@@ -243,7 +233,7 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
         if (op == MVM_OP_return_n) {
             args[1].base == MVM_JIT_ADDR_REG_F;
         }
-        append_call_c(tc, jg, op_to_func(tc, op), 3, args);
+        append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL);
         break;
     }

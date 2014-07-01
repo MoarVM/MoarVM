@@ -49,9 +49,9 @@ static const unsigned char actions[680] = {
   137,252,233,255,72,139,139,233,255,72,139,147,233,255,76,139,131,233,255,
   76,139,139,233,255,252,242,15,16,139,233,255,252,242,15,16,147,233,255,252,
   242,15,16,155,233,255,72,199,193,237,255,72,199,194,237,255,73,199,192,237,
-  255,73,199,193,237,255,252,233,244,10,255,252,233,245,255,72,139,131,233,
-  72,133,192,15,133,245,255,72,139,131,233,72,133,192,15,132,245,255,249,255,
-  72,139,8,72,137,139,233,255,72,139,139,233,72,137,8,255
+  255,73,199,193,237,255,72,139,8,72,137,139,233,255,72,139,139,233,72,137,
+  8,255,252,233,244,10,255,252,233,245,255,72,139,131,233,72,133,192,15,133,
+  245,255,72,139,131,233,72,133,192,15,132,245,255,249,255
 };
 
 #line 8 "src/jit/emit_x64.dasc"
@@ -965,9 +965,38 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
     /* Emit the call. I think we should be able to do something smarter than
      * store the constant into the bytecode, like a data segment. But I'm
      * not sure. */
-     //| callp call_spec->func_ptr
-     dasm_put(Dst, 139, (unsigned int)((uintptr_t)call_spec->func_ptr), (unsigned int)(((uintptr_t)call_spec->func_ptr)>>32));
+    //| callp call_spec->func_ptr;
+    dasm_put(Dst, 139, (unsigned int)((uintptr_t)call_spec->func_ptr), (unsigned int)(((uintptr_t)call_spec->func_ptr)>>32));
 #line 616 "src/jit/emit_x64.dasc"
+    /* right, now determine what to do with the return value */
+    switch(call_spec->rv_mode) {
+    case MVM_JIT_RV_VOID:
+        break;
+    case MVM_JIT_RV_INT:
+    case MVM_JIT_RV_PTR:
+        //| mov WORK[call_spec->rv_idx], RV;
+        dasm_put(Dst, 378, Dt10([call_spec->rv_idx]));
+#line 623 "src/jit/emit_x64.dasc"
+        break;
+    case MVM_JIT_RV_NUM:
+        //| movsd qword WORK[call_spec->rv_idx], RVF;
+        dasm_put(Dst, 430, Dt10([call_spec->rv_idx]));
+#line 626 "src/jit/emit_x64.dasc"
+        break;
+    case MVM_JIT_RV_DEREF:
+        //| mov TMP1, [RV];
+        //| mov WORK[call_spec->rv_idx], TMP1;
+        dasm_put(Dst, 631, Dt10([call_spec->rv_idx]));
+#line 630 "src/jit/emit_x64.dasc"
+        break;
+    case MVM_JIT_RV_ADDR:
+        /* store local at address */
+        //| mov TMP1, WORK[call_spec->rv_idx];
+        //| mov [RV], TMP1;
+        dasm_put(Dst, 639, Dt10([call_spec->rv_idx]));
+#line 635 "src/jit/emit_x64.dasc"
+        break;
+    }
 }
 
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
@@ -978,12 +1007,12 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
         MVM_jit_log(tc, "emit jump to label %d\n", name);
         if (name == MVM_JIT_BRANCH_EXIT) {
             //| jmp ->exit
-            dasm_put(Dst, 631);
-#line 626 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 647);
+#line 647 "src/jit/emit_x64.dasc"
         } else {
             //| jmp =>(name)
-            dasm_put(Dst, 636, (name));
-#line 628 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 652, (name));
+#line 649 "src/jit/emit_x64.dasc"
         }
     } else {
         MVMint16 reg = ins->operands[0].reg.orig;
@@ -994,15 +1023,15 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
             //| mov rax, WORK[reg];
             //| test rax, rax;
             //| jnz =>(name); // jump to dynamic label
-            dasm_put(Dst, 640, Dt10([reg]), (name));
-#line 638 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 656, Dt10([reg]), (name));
+#line 659 "src/jit/emit_x64.dasc"
             break;
         case MVM_OP_unless_i:
             //| mov rax, WORK[reg];
             //| test rax, rax;
             //| jz =>(name);
-            dasm_put(Dst, 651, Dt10([reg]), (name));
-#line 643 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 667, Dt10([reg]), (name));
+#line 664 "src/jit/emit_x64.dasc"
             break;
         default:
             MVM_exception_throw_adhoc(tc, "JIT: Can't handle conditional <%s>",
@@ -1014,34 +1043,7 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitGraph *jg,
                         MVMJitLabel *label, dasm_State **Dst) {
     //| =>(label->name):
-    dasm_put(Dst, 662, (label->name));
-#line 654 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 678, (label->name));
+#line 675 "src/jit/emit_x64.dasc"
 }
 
-void MVM_jit_emit_rvh(MVMThreadContext *tc, MVMJitGraph *jg,
-                      MVMJitRVH *rvh, dasm_State **Dst) {
-    switch(rvh->mode) {
-    case MVM_JIT_RV_VAL_TO_REG:
-        //| mov WORK[rvh->addr.idx], RV;
-        dasm_put(Dst, 378, Dt10([rvh->addr.idx]));
-#line 661 "src/jit/emit_x64.dasc"
-        break;
-    case MVM_JIT_RV_VAL_TO_REG_F:
-        //| movsd qword WORK[rvh->addr.idx], RVF;
-        dasm_put(Dst, 430, Dt10([rvh->addr.idx]));
-#line 664 "src/jit/emit_x64.dasc"
-        break;
-    case MVM_JIT_RV_REF_TO_REG:
-        //| mov TMP1, [RV]; // maybe add an offset?
-        //| mov WORK[rvh->addr.idx], TMP1;
-        dasm_put(Dst, 664, Dt10([rvh->addr.idx]));
-#line 668 "src/jit/emit_x64.dasc"
-        break;
-    case MVM_JIT_RV_REG_TO_PTR:
-        //| mov TMP1, WORK[rvh->addr.idx];
-        //| mov [RV], TMP1;
-        dasm_put(Dst, 672, Dt10([rvh->addr.idx]));
-#line 672 "src/jit/emit_x64.dasc"
-        break;
-    }
-}

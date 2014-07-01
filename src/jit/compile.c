@@ -40,9 +40,6 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         case MVM_JIT_INS_CALL_C:
             MVM_jit_emit_call_c(tc, jg, &ins->u.call, &state);
             break;
-        case MVM_JIT_INS_RVH:
-            MVM_jit_emit_rvh(tc, jg, &ins->u.rvh, &state);
-            break;
         }
         ins = ins->next;
     }

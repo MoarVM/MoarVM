@@ -1,9 +1,11 @@
+/* The MVMJitGraph is - for now - really a linked list of instructions.
+ * It's likely I'll add complexity when it's needed */
 struct MVMJitGraph {
-    MVMSpeshGraph * spesh;
-    MVMJitIns * first_ins;
-    MVMJitIns * last_ins;
+    MVMSpeshGraph *spesh;
+    MVMJitIns *first_ins;
+    MVMJitIns  *last_ins;
 
-    MVMint32 num_labels;
+    MVMint32  num_labels;
     MVMJitLabel * labels;
 };
 
@@ -17,12 +19,10 @@ struct MVMJitPrimitive {
     MVMSpeshIns * ins;
 };
 
-
 /* Special branch target for the exit */
 #define MVM_JIT_BRANCH_EXIT -1
 
 /* What does a branch need? a label to go to, an instruction to read */
-
 struct MVMJitBranch {
     MVMJitLabel dest;
     MVMSpeshIns * ins;
@@ -46,39 +46,34 @@ struct MVMJitAddr {
     MVMint32 idx;
 };
 
-/* We support a few operations with return values.
- * (and I might add more :-))
- * a): store value to register 
- * b): store pointer to register
- * c): store register to memory pointer */
 
 typedef enum {
-    MVM_JIT_RV_VAL_TO_REG,
-    // only for a direct value does the difference 
-    // between a float and everything else matter
-    MVM_JIT_RV_VAL_TO_REG_F,  
-    MVM_JIT_RV_REF_TO_REG,
-    MVM_JIT_RV_REG_TO_PTR,
-} MVMJitRVMode;;
-
-struct MVMJitRVH { // return value handler
-    MVMJitRVMode mode;
-    MVMJitAddr   addr;
-};
+    MVM_JIT_RV_VOID,
+    /* ptr and int are mostly the same, but they might not be on all
+       platforms */
+    MVM_JIT_RV_INT,
+    MVM_JIT_RV_PTR,
+    MVM_JIT_RV_NUM,
+    /* dereference and store */
+    MVM_JIT_RV_DEREF,
+    /* store local at address */
+    MVM_JIT_RV_ADDR
+} MVMJitRVMode;
 
 
 struct MVMJitCallC {
-    void * func_ptr;     // what do we call
-    MVMJitAddr * args;   // a list of arguments
-    MVMuint16 num_args;  // how many arguments we pass
-    MVMuint16 has_vargs; // does the receiver consider them variable
+    void       *func_ptr; 
+    MVMJitAddr     *args;   
+    MVMuint16   num_args;
+    MVMuint16  has_vargs;
+    MVMJitRVMode rv_mode;
+    MVMint16      rv_idx;
 };
 
 /* A non-final list of node types */
 typedef enum {
     MVM_JIT_INS_PRIMITIVE,
     MVM_JIT_INS_CALL_C,
-    MVM_JIT_INS_RVH,
     MVM_JIT_INS_BRANCH,
     MVM_JIT_INS_LABEL,
 } MVMJitInsType;
@@ -89,7 +84,6 @@ struct MVMJitIns {
     union {
         MVMJitPrimitive prim;
         MVMJitCallC     call;
-        MVMJitRVH       rvh;
         MVMJitBranch    branch;
         MVMJitLabel     label;
     } u;

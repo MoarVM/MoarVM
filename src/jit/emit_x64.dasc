@@ -612,7 +612,30 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
     /* Emit the call. I think we should be able to do something smarter than
      * store the constant into the bytecode, like a data segment. But I'm
      * not sure. */
-     | callp call_spec->func_ptr
+    | callp call_spec->func_ptr;
+    /* right, now determine what to do with the return value */
+    switch(call_spec->rv_mode) {
+    case MVM_JIT_RV_VOID:
+        break;
+    case MVM_JIT_RV_INT:
+    case MVM_JIT_RV_PTR:
+        printf("Emit rv int or ptr\n");
+        | mov WORK[call_spec->rv_idx], RV;
+        break;
+    case MVM_JIT_RV_NUM:
+        printf("Emit rv num\n");
+        | movsd qword WORK[call_spec->rv_idx], RVF;
+        break;
+    case MVM_JIT_RV_DEREF:
+        | mov TMP1, [RV];
+        | mov WORK[call_spec->rv_idx], TMP1;
+        break;
+    case MVM_JIT_RV_ADDR:
+        /* store local at address */
+        | mov TMP1, WORK[call_spec->rv_idx];
+        | mov [RV], TMP1;
+        break;
+    }
 }
 
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
@@ -653,22 +676,3 @@ void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitGraph *jg,
     | =>(label->name):
 }
 
-void MVM_jit_emit_rvh(MVMThreadContext *tc, MVMJitGraph *jg,
-                      MVMJitRVH *rvh, dasm_State **Dst) {
-    switch(rvh->mode) {
-    case MVM_JIT_RV_VAL_TO_REG:
-        | mov WORK[rvh->addr.idx], RV;
-        break;
-    case MVM_JIT_RV_VAL_TO_REG_F:
-        | movsd qword WORK[rvh->addr.idx], RVF;
-        break;
-    case MVM_JIT_RV_REF_TO_REG:
-        | mov TMP1, [RV]; // maybe add an offset?
-        | mov WORK[rvh->addr.idx], TMP1;
-        break;
-    case MVM_JIT_RV_REG_TO_PTR:
-        | mov TMP1, WORK[rvh->addr.idx];
-        | mov [RV], TMP1;
-        break;
-    }
-}
