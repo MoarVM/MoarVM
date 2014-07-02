@@ -20,6 +20,7 @@
 |.type COLLECTABLE, MVMCollectable
 |.type STABLE, MVMSTable
 |.type STRING, MVMString*
+|.type OBJECTPTR, MVMObject*
 |.type U16, MVMuint16
 |.type U32, MVMuint32
 |.type U64, MVMuint64
@@ -180,6 +181,36 @@ const unsigned int MVM_jit_num_globals(void) {
 ||        MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
 ||}
 |.endmacro
+
+|.macro check_wb, root, ref;
+| test word COLLECTABLE:root->flags, MVM_CF_SECOND_GEN;
+| setnz al;
+| cmp ref, 0x0;
+| setne ah;
+| test ah, al;
+| setnz al;
+| test word COLLECTABLE:ref->flags, MVM_CF_SECOND_GEN;
+| setz ah;
+| test ah, al;
+|.endmacro;
+
+|.macro hit_wb, obj
+| mov ARG1, TC;
+| mov ARG2, obj;
+| callp &MVM_gc_write_barrier_hit;
+|.endmacro
+
+|.macro get_spesh_slot, reg, idx;
+| mov reg, TC->cur_frame;
+| mov reg, FRAME:reg->effective_spesh_slots;
+| mov reg, OBJECTPTR:reg[idx];
+|.endmacro
+
+|.macro get_vmnull, reg
+| mov reg, TC->instance;
+| mov reg, MVMINSTANCE:reg->VMNull;
+|.endmacro
+
 
 /* A function prologue is always the same in x86 / x64, becuase
  * we do not provide variable arguments, instead arguments are provided
@@ -360,31 +391,85 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_p6oget_i:
     case MVM_OP_sp_p6oget_n:
     case MVM_OP_sp_p6oget_s:
-    case MVM_OP_sp_p6oget_o: {
+    case MVM_OP_sp_p6oget_o:
+    case MVM_OP_sp_p6ogetvc_o:
+    case MVM_OP_sp_p6ogetvt_o: {
         MVMint16 dst    = ins->operands[0].reg.orig;
         MVMint16 obj    = ins->operands[1].reg.orig;
-        MVMint16 offset = ins->operands[2].callsite_idx;
+        MVMint16 offset = ins->operands[2].lit_i16;
+        MVMint16 body   = offsetof(MVMP6opaque, body);
         | mov TMP1, WORK[obj];
-        | lea TMP1, P6OPAQUE:TMP1->body;
-        | cmp qword P6OBODY:TMP1->replaced, 0;
-        /* if not zero then load replacement data pointer */
-        | je >1;
-        | mov TMP1, P6OBODY:TMP1->replaced;
-        /* otherwise do nothing (i.e. the body is our data pointer) */
+        | cmp aword P6OPAQUE:TMP1->body.replaced, 0;
+        | jne >1;
+        | lea TMP2, [TMP1 + (offset + body)];
+        | jmp >2;
         |1:
-        /* load our value */
-        | mov TMP1, [TMP1 + offset];
+        | mov TMP2, P6OPAQUE:TMP1->body.replaced;
+        | lea TMP2, [TMP2 + offset];
+        |2:
+        /* TMP1 now contains address of item */
         if (op == MVM_OP_sp_p6oget_o) {
-            /* transform null object pointers to VMNull */
-            | cmp TMP1, 0;
-            /* not-null? done */
-            | jne >2;
-            /* store VMNull instead */
-            | mov TMP1, TC->instance;
-            | mov TMP1, MVMINSTANCE:TMP1->VMNull;
-            |2:
+            | mov TMP3, [TMP2];
+            | cmp TMP3, 0;
+            /* Check if object doesn't point to NULL */
+            | jne >3;
+            /* Otherwise load VMNull */
+            | get_vmnull TMP3;
+            |3:
+        } else if (op == MVM_OP_sp_p6ogetvt_o) {
+            /* vivify as type object */ 
+            MVMint16 spesh_idx = ins->operands[3].lit_i16;
+            | mov TMP3, [TMP2];
+            | cmp TMP3, 0;
+            | jne >4;
+            /* get type object from spesh slot */
+            | get_spesh_slot TMP3, spesh_idx;
+            /* check write barrier, tmp1 (object) is root, 
+             * tmp3 (type object) is value */
+            | check_wb TMP1, TMP3;
+            /* not necessary to hit */
+            | jz >3;
+            | push TMP2; // address
+            | push TMP3; // value
+            | hit_wb WORK[obj]; // write barrier for header 
+            | pop TMP3;
+            | pop TMP2;
+            |3:
+            /* store value in memory */
+            | mov [TMP2], TMP3;
+            |4:
+        } else if (op == MVM_OP_sp_p6ogetvc_o) {
+            MVMint16 spesh_idx = ins->operands[3].lit_i16;
+            | mov TMP3, [TMP2];
+            | cmp TMP3, 0;
+            | jne >4;
+            /* vivify as clone */
+            | push TMP1;
+            | push TMP2;
+            | mov ARG1, TC; 
+            | get_spesh_slot ARG2, spesh_idx;
+            | callp &MVM_repr_clone;
+            | pop TMP2;
+            | pop TMP1;
+            /* assign with write barrier */
+            | mov TMP3, RV;
+            | check_wb TMP1, TMP3;
+            | jz >3;
+            | push TMP2;
+            | push TMP3;
+            | hit_wb WORK[obj];
+            | pop TMP3;
+            | pop TMP2;
+            |3: 
+            | mov [TMP2], TMP3;
+            /* done */
+            |4:
+        } else {
+            /* the regular case */
+            | mov TMP3, [TMP2];
         }
-        | mov WORK[dst], TMP1;
+        /* store in local register */
+        | mov WORK[dst], TMP3;
         break;
     }
     case MVM_OP_sp_p6obind_i:
@@ -402,25 +487,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP3, P6OBODY:TMP3->replaced; // replaced object body
         |1:
         if (op == MVM_OP_sp_p6obind_o) {
-            /* this is an assembly-version of MVM_gc_write_barrier
-             * TMP1 is root, TMP2 is referenced value. And yes, this
-             * should be factored out */
-            // is our root second gen?
-            | test word COLLECTABLE:TMP1->flags, MVM_CF_SECOND_GEN; 
-            | jz >2; // if not, skip
-            | cmp TMP2, 0; // is value non-null? (should be)
-            | je >2; // if not, skip
-            // is the reference second gen?
-            | test word COLLECTABLE:TMP2->flags, MVM_CF_SECOND_GEN; 
-            | jnz >2;  // if so, skip
+            /* check if we should hit write barrier */
+            | check_wb TMP1, TMP2;
+            | jz >2;
             | push TMP2; // store value
             | push TMP3; // store body pointer
-            | mov ARG1, TC;  // set tc as first argument
-            // NB, c call arguments arguments clobber our temporary
-            // space (depending on ABI), so I reload the work object
-            // from register space 
-            | mov ARG2, WORK[obj]; // object as second
-            | callp &MVM_gc_write_barrier_hit; // call our function
+            | hit_wb WORK[obj]
             | pop TMP3; // restore body pointer
             | pop TMP2; // restore value
             |2: // done
