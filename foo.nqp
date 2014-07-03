@@ -30,22 +30,18 @@ sub access_lex() {
     nqp::say($x);
 }
 
-class FooTest {
-    has $!foo;
+class Quix {
+    has int $!foo;
+    
+    method bar() {
+        $!foo := $!foo + 1;
+        $!foo * 2;
+    }
 }
 
-my $y;
-
-sub access_lex_obj() {
-    $y;
-}
-
+my $y := Quix.new;
 my int $i := 0;
 while $i < 50 {
     $i := $i + 1;
-    access_lex();
-    access_lex_obj();
-    if $i == 25 {
-        $y := FooTest.new;
-    }
+    nqp::say($y.bar);
 }

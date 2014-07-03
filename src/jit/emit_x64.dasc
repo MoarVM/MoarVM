@@ -419,21 +419,18 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | cmp TMP3, 0;
             /* Check if object doesn't point to NULL */
             | jne >3;
-            /* Otherwise load VMNull */
+            /* Otherwise load VMNull */ 
             | get_vmnull TMP3;
             |3:
         } else if (op == MVM_OP_sp_p6ogetvt_o) {
             /* vivify as type object */ 
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
             | mov TMP3, [TMP2];
+            /*
             | cmp TMP3, 0;
             | jne >4;
-            /* get type object from spesh slot */
             | get_spesh_slot TMP3, spesh_idx;
-            /* check write barrier, tmp1 (object) is root, 
-             * tmp3 (type object) is value */
             | check_wb TMP1, TMP3;
-            /* not necessary to hit */
             | jz >3;
             | push TMP2; // address
             | push TMP3; // value
@@ -441,9 +438,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | pop TMP3;
             | pop TMP2;
             |3:
-            /* store value in memory */
+
             | mov [TMP2], TMP3;
             |4:
+            */
         } else if (op == MVM_OP_sp_p6ogetvc_o) {
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
             | mov TMP3, [TMP2];
