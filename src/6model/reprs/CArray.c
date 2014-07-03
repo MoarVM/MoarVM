@@ -383,7 +383,7 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
         return body->elems;
 
     MVM_exception_throw_adhoc(tc,
-        "Don't know how many elements a C array returned from a library has");
+        "Don't know how many elements a C array returned from a library");
 }
 
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
