@@ -29,3 +29,5 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
                          MVMJitBranch *branch_spec, dasm_State **Dst) {}
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitGraph *jg,
                         MVMJitLabel *label, dasm_State **Dst) {}
+void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGrahp *jg,
+                        MVMJitGuard *guard, dasm_State **Dst) {}

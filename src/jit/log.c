@@ -36,5 +36,7 @@ void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
     FILE * f = fopen(filename, "w");
     fwrite(code->func_ptr, sizeof(char), code->size, f);
     fclose(f);
+    MVM_jit_log(tc, "Dump bytecode in %s\n", filename);
     free(filename);
+
 }

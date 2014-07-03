@@ -211,6 +211,9 @@ const unsigned int MVM_jit_num_globals(void) {
 | mov reg, MVMINSTANCE:reg->VMNull;
 |.endmacro
 
+|.macro is_type_object, reg
+| test word OBJECT:reg->header.flags, MVM_CF_TYPE_OBJECT
+|.endmacro
 
 /* A function prologue is always the same in x86 / x64, becuase
  * we do not provide variable arguments, instead arguments are provided
@@ -341,12 +344,15 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP2, REGISTER:TMP2[idx];
         lexical_types = (jg->spesh->lexical_types ? jg->spesh->lexical_types :
                          sf->body.lexical_types);
+        MVM_jit_log(tc, "Lexical type of register: %d\n", lexical_types[idx]);
         if (lexical_types[idx] == MVM_reg_obj) {
-           /* NB: this code path hasn't been checked. */
+            MVM_jit_log(tc, "Emit lex vifivy check\n");
+            /* NB: this code path hasn't been checked. */
             /* if it is zero, check if we need to auto-vivify */        
-            | test TMP2, TMP2;
-            | jnz >1; 
+            | cmp TMP2, 0;
+            | jne >1; 
             /* save frame and value */
+            | int 3; // debug instruction - i haven't tested this path, and it seems hard to trigger
             | push TMP2;
             | push TMP1;
             /* setup args */
@@ -691,11 +697,9 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     case MVM_JIT_RV_INT:
     case MVM_JIT_RV_PTR:
-        printf("Emit rv int or ptr\n");
         | mov WORK[call_spec->rv_idx], RV;
         break;
     case MVM_JIT_RV_NUM:
-        printf("Emit rv num\n");
         | movsd qword WORK[call_spec->rv_idx], RVF;
         break;
     case MVM_JIT_RV_DEREF:
@@ -748,3 +752,50 @@ void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitGraph *jg,
     | =>(label->name):
 }
 
+void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
+                        MVMJitGuard *guard, dasm_State **Dst) {
+    MVMint16 op        = guard->ins->info->opcode;
+    MVMint16 obj       = guard->ins->operands[0].lit_i16;
+    MVMint16 spesh_idx = guard->ins->operands[1].lit_i16;
+    MVM_jit_log(tc, "emit guard <%s>\n", guard->ins->info->name);
+    /* load object and spesh slot value */
+    | mov TMP1, WORK[obj];
+    | get_spesh_slot TMP2, spesh_idx;
+    if (op == MVM_OP_sp_guardtype) {
+        /* object in queston should be a type object, so it shouldn't
+         * be zero, should not be concrete, and the STABLE should be
+         * equal to the value in the spesh slot */
+        /* check for null */
+        | cmp TMP1, 0;
+        | je >1;
+        /* check if type object (not concrete) */
+        | is_type_object TMP1;
+        /* if zero, this is a concrete object, and we should deopt */
+        | jz >1;
+        /* get stable and compare */
+        | cmp TMP2, OBJECT:TMP1->st;
+        | jne >1;
+        /* we're good, no need to deopt */
+    } else if (op == MVM_OP_sp_guardconc) {
+        /* object should be a non-null concrete (non-type) object */
+        | cmp TMP1, 0;
+        | je >1;
+        /* shouldn't be type object */
+        | is_type_object TMP1;
+        | jnz >1;
+        /* should have our stable */
+        | cmp TMP2, OBJECT:TMP1->st;
+        | jne >1;
+    }
+    /* if we're here, we didn't jump to deopt, so skip it */
+    | jmp >2;
+    |1:
+    /* emit deopt */
+    | mov ARG1, TC;
+    | mov ARG2, guard->deopt_offset;
+    | mov ARG3, guard->deopt_target;
+    | callp &MVM_spesh_deopt_one_direct;
+    | jmp ->exit;
+
+    |2:
+}

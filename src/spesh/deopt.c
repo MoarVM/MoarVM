@@ -189,6 +189,21 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
     }
 }
 
+/* De-optimizes the current frame by directly specifying the addresses */
+void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMint32 deopt_offset,
+                                MVMint32 deopt_target) {
+    fprintf(stderr, "deopt_one_direct\n");
+    MVMFrame *f = tc->cur_frame;
+    if (f->effective_bytecode != f->static_info->body.bytecode) {
+        deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
+    } else {
+        MVM_exception_throw_adhoc(tc, "deopt_one_direct failed for %s (%s)",
+            MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+            MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+    }
+    
+}
+
 /* De-optimizes all specialized frames on the call stack. Used when a change
  * is made the could invalidate all kinds of assumptions all over the place
  * (such as a mix-in). */

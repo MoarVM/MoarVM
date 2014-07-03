@@ -19,13 +19,19 @@ struct MVMJitPrimitive {
     MVMSpeshIns * ins;
 };
 
+struct MVMJitGuard {
+    MVMSpeshIns * ins;
+    MVMint32      deopt_target;
+    MVMint32      deopt_offset;
+};
+
 /* Special branch target for the exit */
 #define MVM_JIT_BRANCH_EXIT -1
 
 /* What does a branch need? a label to go to, an instruction to read */
 struct MVMJitBranch {
     MVMJitLabel dest;
-    MVMSpeshIns * ins;
+    MVMSpeshIns *ins;
 };
 
 typedef enum {
@@ -51,8 +57,9 @@ typedef enum {
     MVM_JIT_RV_VOID,
     /* ptr and int are mostly the same, but they might not be on all
        platforms */
-    MVM_JIT_RV_INT,
+    MVM_JIT_RV_INT, 
     MVM_JIT_RV_PTR,
+    /* floats aren't */
     MVM_JIT_RV_NUM,
     /* dereference and store */
     MVM_JIT_RV_DEREF,
@@ -76,6 +83,7 @@ typedef enum {
     MVM_JIT_INS_CALL_C,
     MVM_JIT_INS_BRANCH,
     MVM_JIT_INS_LABEL,
+    MVM_JIT_INS_GUARD,
 } MVMJitInsType;
 
 struct MVMJitIns {
@@ -86,6 +94,7 @@ struct MVMJitIns {
         MVMJitCallC     call;
         MVMJitBranch    branch;
         MVMJitLabel     label;
+        MVMJitGuard     guard;
     } u;
 };
 

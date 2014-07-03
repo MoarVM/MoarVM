@@ -30,9 +30,22 @@ sub access_lex() {
     nqp::say($x);
 }
 
+class FooTest {
+    has $!foo;
+}
+
+my $y;
+
+sub access_lex_obj() {
+    $y;
+}
 
 my int $i := 0;
 while $i < 50 {
     $i := $i + 1;
     access_lex();
+    access_lex_obj();
+    if $i == 25 {
+        $y := FooTest.new;
+    }
 }

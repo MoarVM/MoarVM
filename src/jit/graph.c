@@ -107,8 +107,35 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     }
 }
 
+static void append_guard(MVMThreadContext *tc, MVMJitGraph *jg, 
+                         MVMSpeshIns *ins) {
+    MVMSpeshGraph *sg = jg->spesh;
+    MVMSpeshAnn  *ann = ins->annotations;
+    MVMJitIns     *ji = MVM_spesh_alloc(tc, sg, sizeof(MVMJitIns));
+    MVMint32       deopt_idx;
+    ji->type = MVM_JIT_INS_GUARD;
+    ji->u.guard.ins = ins;
+    while (ann) {
+        if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS ||
+            ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS || 
+            ann->type == MVM_SPESH_ANN_DEOPT_INLINE  ||
+            ann->type == MVM_SPESH_ANN_DEOPT_OSR) {
+            deopt_idx = ann->data.deopt_idx;
+            break;
+        }
+        ann = ann->next;
+    }
+    if (!ann) {
+        MVM_exception_throw_adhoc(tc, "Can't find deopt idx annotation" 
+                                  " on spesh ins <%s>", ins->info->name);
+    }
+    ji->u.guard.deopt_target = sg->deopt_addrs[2 * deopt_idx];
+    ji->u.guard.deopt_offset = sg->deopt_addrs[2 * deopt_idx + 1];
+    append_ins(jg, ji);
+}
+
 static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
-                           MVMSpeshIns *ins) {
+                          MVMSpeshIns *ins) {
     int op = ins->info->opcode;
     MVM_jit_log(tc, "append_ins: <%s>\n", ins->info->name);
     switch(op) {
@@ -152,8 +179,10 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_p6oget_s:
     case MVM_OP_sp_p6oget_i:
     case MVM_OP_sp_p6oget_n:
+        /*
     case MVM_OP_sp_p6ogetvc_o:
     case MVM_OP_sp_p6ogetvt_o:
+        */
     case MVM_OP_sp_p6obind_o:
     case MVM_OP_sp_p6obind_s:
     case MVM_OP_sp_p6obind_n:
@@ -239,6 +268,10 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
         append_branch(tc, jg, MVM_JIT_BRANCH_EXIT, NULL);
         break;
     }
+    case MVM_OP_sp_guardconc:
+    case MVM_OP_sp_guardtype:
+        append_guard(tc, jg, ins);
+        break;
     default:
         MVM_jit_log(tc, "Don't know how to make a graph of opcode <%s>\n",
                     ins->info->name);
