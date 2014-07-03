@@ -126,49 +126,67 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
     }
 }
 
+static MVMint32 find_deopt_target(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset) {
+    MVMint32 i;
+    for (i = 0; i < f->spesh_cand->num_deopts * 2; i += 2) {
+        if (f->spesh_cand->deopts[i + 1] == deopt_offset) {
+            return f->spesh_cand->deopts[i];
+        }
+    }
+    MVM_exception_throw_adhoc(tc, "find_deopt_target failed for %s (%s)",
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+}
+
+static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset, MVMint32 deopt_target) {
+    /* Found it; are we in an inline? */
+    MVMSpeshInline *inlines = f->spesh_cand->inlines;
+    if (inlines) {
+        /* Yes, going to have to re-create the frames; uninline
+         * moves the interpreter, so we can just tweak the last
+         * frame. */
+        uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, NULL);
+        f->effective_bytecode    = f->static_info->body.bytecode;
+        f->effective_handlers    = f->static_info->body.handlers;
+        f->effective_spesh_slots = NULL;
+        f->spesh_cand            = NULL;
+        /*
+        fprintf(stderr, "did deopt_one for %s (%i) with uninlining\n",
+          MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+          deopt_offset);
+        */
+    }
+    else {
+        /* No inlining; simple case. Switch back to the original code. */
+        f->effective_bytecode        = f->static_info->body.bytecode;
+        f->effective_handlers        = f->static_info->body.handlers;
+        *(tc->interp_cur_op)         = f->effective_bytecode + deopt_target;
+        *(tc->interp_bytecode_start) = f->effective_bytecode;
+        f->effective_spesh_slots     = NULL;
+        f->spesh_cand                = NULL;
+        /*
+          fprintf(stderr, "did deopt_one for %s (%i)\n",
+          MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+          deopt_offset);  */
+    }
+    return;
+
+}
+
 /* De-optimizes the currently executing frame, provided it is specialized and
  * at a valid de-optimization point. Typically used when a guard fails. */
 void MVM_spesh_deopt_one(MVMThreadContext *tc) {
     MVMFrame *f = tc->cur_frame;
     if (f->effective_bytecode != f->static_info->body.bytecode) {
         MVMint32 deopt_offset = *(tc->interp_cur_op) - f->effective_bytecode;
-        MVMint32 i;
-        for (i = 0; i < f->spesh_cand->num_deopts * 2; i += 2) {
-            if (f->spesh_cand->deopts[i + 1] == deopt_offset) {
-                /* Found it; are we in an inline? */
-                MVMSpeshInline *inlines = f->spesh_cand->inlines;
-                if (inlines) {
-                    /* Yes, going to have to re-create the frames; uninline
-                     * moves the interpreter, so we can just tweak the last
-                     * frame. */
-                    uninline(tc, f, f->spesh_cand, deopt_offset, f->spesh_cand->deopts[i], NULL);
-                    f->effective_bytecode    = f->static_info->body.bytecode;
-                    f->effective_handlers    = f->static_info->body.handlers;
-                    f->effective_spesh_slots = NULL;
-                    f->spesh_cand            = NULL;
-                    /*fprintf(stderr, "did deopt_one for %s (%i) with uninlining\n",
-                        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-                        i / 2);*/
-                }
-                else {
-                    /* No inlining; simple case. Switch back to the original code. */
-                    f->effective_bytecode        = f->static_info->body.bytecode;
-                    f->effective_handlers        = f->static_info->body.handlers;
-                    *(tc->interp_cur_op)         = f->effective_bytecode + f->spesh_cand->deopts[i];
-                    *(tc->interp_bytecode_start) = f->effective_bytecode;
-                    f->effective_spesh_slots     = NULL;
-                    f->spesh_cand                = NULL;
-                    /*fprintf(stderr, "did deopt_one for %s (%i)\n",
-                        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-                        i / 2);*/
-                }
-                return;
-            }
-        }
+        MVMint32 deopt_target = find_deopt_target(tc, f, deopt_offset);
+        deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
     }
-    MVM_exception_throw_adhoc(tc, "deopt_one failed for %s (%s)",
-        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+    else {
+        MVM_exception_throw_adhoc(tc, "deopt_one failed for %s (%s)",
+            MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+            MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+    }
 }
 
 /* De-optimizes all specialized frames on the call stack. Used when a change
