@@ -237,6 +237,8 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitGraph *jg,
                            dasm_State **Dst) {
     | ->exit:
+    | mov RV, 0;
+    | ->out:
     /* restore callee-save registers */
     | restoreregs;
     /* Restore stack */
@@ -793,7 +795,8 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
     | mov ARG2, guard->deopt_offset;
     | mov ARG3, guard->deopt_target;
     | callp &MVM_spesh_deopt_one_direct;
-    | jmp ->exit;
-
+    /* tell jit driver we're deopting */
+    | mov RV, MVM_JIT_CTRL_DEOPT
+    | jmp ->out;
     |2:
 }

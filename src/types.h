@@ -186,4 +186,4 @@ typedef struct MVMJitAddr MVMJitAddr;
 typedef struct MVMJitLabel MVMJitLabel;
 typedef struct MVMJitGuard MVMJitGuard;
 typedef struct MVMJitCode MVMJitCode;
-typedef void (*MVMJitFunc)(MVMThreadContext *tc, MVMCompUnit *cu, void * label);
+

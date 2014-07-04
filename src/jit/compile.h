@@ -1,4 +1,4 @@
-
+typedef MVMint32 (*MVMJitFunc)(MVMThreadContext *tc, MVMCompUnit *cu, void * label);
 
 struct MVMJitCode {
     MVMJitFunc func_ptr;
@@ -10,5 +10,8 @@ struct MVMJitCode {
 
 MVMJitCode* MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);
 void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code);
-void MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
-                        MVMJitCode * code);
+MVMint32 MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
+                            MVMJitCode * code);
+
+#define MVM_JIT_CTRL_DEOPT -1
+#define MVM_JIT_CTRL_NORMAL 0

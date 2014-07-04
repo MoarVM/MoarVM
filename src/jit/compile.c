@@ -80,7 +80,10 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
     free(code);
 }
 
-void MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
+/* Returns 1 if we should return from the frame, the function, 0 otherwise */
+MVMint32 MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
                         MVMJitCode *code) {
-    code->func_ptr(tc, cu, NULL);
+    /* The actual JIT code returns 0 if it went through to the exit */
+    MVMint32 ctrl = code->func_ptr(tc, cu, NULL);
+    return ctrl ? 0 : 1;
 }
