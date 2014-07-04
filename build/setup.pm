@@ -144,6 +144,7 @@ our %TC_POSIX = (
 
     bindir    => '@prefix@/bin',
     libdir    => '@prefix@/lib',
+    mastdir   => '@prefix@/share/nqp/lib/MAST',
     sharedlib => '',
 
     staticlib => '',
@@ -231,6 +232,7 @@ TERM
 
     bindir    => '@prefix@/bin',
     libdir    => '@bindir@',
+    mastdir   => '@prefix@/share/nqp/lib/MAST',
     sharedlib => '@moardll@.lib',
 
     staticlib => '',

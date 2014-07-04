@@ -33,7 +33,7 @@ GetOptions(\%args, qw(
     cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
     build=s host=s big-endian
-    prefix=s bindir=s libdir=s make-install profilecalls),
+    prefix=s bindir=s libdir=s mastdir=s make-install profilecalls),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 }
 ) or die "See --help for further information\n";
@@ -53,11 +53,10 @@ ENOTTOCWD
 }
 
 # Override default target directories with command line argumets
-my @target_dirs = qw{bindir libdir};
+my @target_dirs = qw{bindir libdir mastdir};
 for my $target (@target_dirs) {
     $config{$target} = $args{$target} if $args{$target};
 }
-
 
 if (-d '.git') {
     print dots("Updating submodules");
@@ -719,6 +718,11 @@ Install executable files in the supplied path.  The default is
 Install library in the supplied path.  The default is "@prefix@/lib"
 for POSIX toolchain and “@bindir@” for MSVC if this option is not
 passed.
+
+=item --mastdir
+
+Install NQP libraries in the supplied path.  The default is
+"@prefix@/share/nqp/lib/MAST" if this option is not passed.
 
 =item --make-install
 
