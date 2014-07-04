@@ -380,7 +380,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         callback_data->tc        = tc;
         callback_data->cs        = cs;
         callback_data->target    = callback;
-        callback_data->cb        = dcbNewCallback(signature, &callback_handler, callback_data);
+        callback_data->cb        = dcbNewCallback(signature, (DCCallbackHandler *)&callback_handler, callback_data);
 
         /* Now insert the MVMCallback into the linked list. */
         *callback_data_handle = callback_data;
