@@ -142,6 +142,7 @@ our %TC_POSIX = (
     dll => 'lib%s.so',
     asm => '.s',
 
+    bindir    => '@prefix@/bin',
     shareddir => 'lib',
     sharedlib => '',
 
@@ -229,6 +230,7 @@ TERM
     dll => '%s.dll',
     asm => '.asm',
 
+    bindir    => '@prefix@/bin',
     shareddir => 'bin',
     sharedlib => '@moardll@.lib',
 

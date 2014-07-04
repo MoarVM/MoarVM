@@ -33,7 +33,7 @@ GetOptions(\%args, qw(
     cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
     build=s host=s big-endian
-    prefix=s make-install profilecalls),
+    prefix=s bindir=s make-install profilecalls),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 }
 ) or die "See --help for further information\n";
@@ -51,6 +51,13 @@ Configuration FAIL. Installing to MoarVM root folder is not allowed.
 Please specify another installation target by using --prefix=PATH.
 ENOTTOCWD
 }
+
+# Override default target directories with command line argumets
+my @target_dirs = qw{bindir};
+for my $target (@target_dirs) {
+    $config{$target} = $args{$target} if $args{$target};
+}
+
 
 if (-d '.git') {
     print dots("Updating submodules");
@@ -701,6 +708,11 @@ builds, the byte order is auto-detected.
 
 Install files in subdirectory /bin, /lib and /include of the supplied path.
 The default prefix is "install" if this option is not passed.
+
+=item --bindir
+
+Install executable files in the supplied path.  The default is
+"@prefix@/bin" if this option is not passed.
 
 =item --make-install
 

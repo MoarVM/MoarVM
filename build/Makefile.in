@@ -25,6 +25,8 @@ NOERR =
 @mknoisy@
 
 PREFIX    = @prefix@
+BINDIR    = @bindir@
+
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/libuv/src \
@@ -358,9 +360,9 @@ THIRDPARTY = @thirdpartylibs@
 all: moar@exe@
 
 install: all
-	$(MKPATH) $(DESTDIR)$(PREFIX)/bin
-	$(CP) moar@exe@ $(DESTDIR)$(PREFIX)/bin
-	$(CHMOD) 755 $(DESTDIR)$(PREFIX)/bin/moar@exe@
+	$(MKPATH) $(DESTDIR)$(BINDIR)
+	$(CP) moar@exe@ $(DESTDIR)$(BINDIR)/
+	$(CHMOD) 755 $(DESTDIR)$(BINDIR)/moar@exe@
 	$(MKPATH) $(DESTDIR)$(PREFIX)/lib/MAST
 	$(CP) @moar@ @impinst@ $(DESTDIR)$(PREFIX)/@moarinst@
 	$(CP) lib/MAST/Nodes.nqp $(DESTDIR)$(PREFIX)/lib/MAST
