@@ -428,10 +428,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             /* vivify as type object */ 
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
             | mov TMP3, [TMP2];
-            /*
+            /* check for null */
             | cmp TMP3, 0;
             | jne >4;
+            /* if null, vivify as type object from spesh slot */
             | get_spesh_slot TMP3, spesh_idx;
+            /* need to hit write barrier? */
             | check_wb TMP1, TMP3;
             | jz >3;
             | push TMP2; // address
@@ -440,10 +442,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | pop TMP3;
             | pop TMP2;
             |3:
-
+            /* store vivified type value in memory location */
             | mov [TMP2], TMP3;
             |4:
-            */
         } else if (op == MVM_OP_sp_p6ogetvc_o) {
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
             | mov TMP3, [TMP2];
