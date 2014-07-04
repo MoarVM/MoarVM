@@ -39,9 +39,23 @@ class Quix {
     }
 }
 
+class Quam {
+    method bar() {
+        1337;
+    }
+}
+
 my $y := Quix.new;
+sub gety() {
+    $y
+}
+
+
 my int $i := 0;
 while $i < 50 {
     $i := $i + 1;
-    nqp::say($y.bar);
+    nqp::say(gety().bar);
+    if $i == 40 {
+        $y := Quam.new();
+    }
 }
