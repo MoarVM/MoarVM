@@ -26,6 +26,7 @@ NOERR =
 
 PREFIX    = @prefix@
 BINDIR    = @bindir@
+LIBDIR    = @libdir@
 
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @ccinc@3rdparty/libuv/include \
@@ -363,10 +364,11 @@ install: all
 	$(MKPATH) $(DESTDIR)$(BINDIR)
 	$(CP) moar@exe@ $(DESTDIR)$(BINDIR)/
 	$(CHMOD) 755 $(DESTDIR)$(BINDIR)/moar@exe@
-	$(MKPATH) $(DESTDIR)$(PREFIX)/lib/MAST
-	$(CP) @moar@ @impinst@ $(DESTDIR)$(PREFIX)/@moarinst@
-	$(CP) lib/MAST/Nodes.nqp $(DESTDIR)$(PREFIX)/lib/MAST
-	$(CP) lib/MAST/Ops.nqp $(DESTDIR)$(PREFIX)/lib/MAST
+	$(MKPATH) $(DESTDIR)/$(LIBDIR)
+	$(CP) @moar@ @impinst@ $(DESTDIR)/$(LIBDIR)
+	$(MKPATH) $(DESTDIR)$(LIBDIR)/MAST
+	$(CP) lib/MAST/Nodes.nqp $(DESTDIR)$(LIBDIR)/MAST
+	$(CP) lib/MAST/Ops.nqp $(DESTDIR)$(LIBDIR)/MAST
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar
 	$(CP) src/gen/config.h $(DESTDIR)$(PREFIX)/include/moar
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/6model/reprs

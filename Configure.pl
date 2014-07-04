@@ -33,7 +33,7 @@ GetOptions(\%args, qw(
     cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
     build=s host=s big-endian
-    prefix=s bindir=s make-install profilecalls),
+    prefix=s bindir=s libdir=s make-install profilecalls),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 }
 ) or die "See --help for further information\n";
@@ -53,7 +53,7 @@ ENOTTOCWD
 }
 
 # Override default target directories with command line argumets
-my @target_dirs = qw{bindir};
+my @target_dirs = qw{bindir libdir};
 for my $target (@target_dirs) {
     $config{$target} = $args{$target} if $args{$target};
 }
@@ -211,7 +211,6 @@ unless ($args{static}) {
     $config{objflags}  = '@ccdef@MVM_BUILD_SHARED @ccshared@';
     $config{mainflags} = '@ccdef@MVM_SHARED';
     $config{moar}      = '@moardll@';
-    $config{moarinst}  = $config{shareddir};
     $config{impinst}   = $config{sharedlib},
     $config{mainlibs}  = '@lddir@. ' .
         sprintf($config{ldimp} // $config{ldusr}, $NAME);
@@ -220,9 +219,10 @@ else {
     $config{objflags}  = '';
     $config{mainflags} = '';
     $config{moar}      = '@moarlib@';
-    $config{moarinst}  = $config{staticdir};
     $config{impinst}   = $config{staticlib};
     $config{mainlibs}  = '@moarlib@ @thirdpartylibs@ $(LDLIBS)';
+    # Install static library in default location
+    $config{libdir}    = '@prefix@/lib' if ! $args{libdir};
 }
 
 # some toolchains generate garbage
@@ -713,6 +713,12 @@ The default prefix is "install" if this option is not passed.
 
 Install executable files in the supplied path.  The default is
 "@prefix@/bin" if this option is not passed.
+
+=item --libdir
+
+Install library in the supplied path.  The default is "@prefix@/lib"
+for POSIX toolchain and “@bindir@” for MSVC if this option is not
+passed.
 
 =item --make-install
 
