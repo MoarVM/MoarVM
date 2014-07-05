@@ -22,6 +22,9 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             MVMCode        *ucode = cand->inlines[i].code;
             MVMStaticFrame *usf   = ucode->body.sf;
             MVMFrame       *uf    = MVM_frame_create_for_deopt(tc, usf, ucode);
+            /*fprintf(stderr, "Recreated frame '%s' (cuid '%s')\n",
+                MVM_string_utf8_encode_C_string(tc, usf->body.name),
+                MVM_string_utf8_encode_C_string(tc, usf->body.cuuid));*/
 
             /* Copy the locals and lexicals into place. */
             memcpy(uf->work, f->work + cand->inlines[i].locals_start,
@@ -130,6 +133,9 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
  * at a valid de-optimization point. Typically used when a guard fails. */
 void MVM_spesh_deopt_one(MVMThreadContext *tc) {
     MVMFrame *f = tc->cur_frame;
+    /*fprintf(stderr, "deopt_one requested in frame '%s' (cuid '%s')\n",
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));*/
     if (f->effective_bytecode != f->static_info->body.bytecode) {
         MVMint32 deopt_offset = *(tc->interp_cur_op) - f->effective_bytecode;
         MVMint32 i;
@@ -146,8 +152,9 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
                     f->effective_handlers    = f->static_info->body.handlers;
                     f->effective_spesh_slots = NULL;
                     f->spesh_cand            = NULL;
-                    /*fprintf(stderr, "did deopt_one for %s (%i) with uninlining\n",
+                    /*fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s'), idx = %i, with uninlining\n",
                         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+                        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid),
                         i / 2);*/
                 }
                 else {
@@ -158,8 +165,9 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
                     *(tc->interp_bytecode_start) = f->effective_bytecode;
                     f->effective_spesh_slots     = NULL;
                     f->spesh_cand                = NULL;
-                    /*fprintf(stderr, "did deopt_one for %s (%i)\n",
+                    /*fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s'), idx = %i\n",
                         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+                        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid),
                         i / 2);*/
                 }
                 return;
