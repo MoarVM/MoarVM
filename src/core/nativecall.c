@@ -754,7 +754,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
 
 MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_type, MVMObject *source) {
     MVMObject *result        = NULL;
-    void      *cpointer_body = cpointer_body = unmarshal_cpointer(tc, source);
+    void      *cpointer_body = unmarshal_cpointer(tc, source);
 
     if (!source) return target_type;
 
