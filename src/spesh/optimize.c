@@ -3,9 +3,18 @@
 /* This is where the main optimization work on a spesh graph takes place,
  * using facts discovered during analysis. */
 
-/* Obtains facts for an operand. */
-MVMSpeshFacts * MVM_spesh_get_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
+/* Obtains facts for an operand, just directly accessing them without
+ * inferring any kind of usage. */
+static MVMSpeshFacts * get_facts_direct(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
     return &g->facts[o.reg.orig][o.reg.i];
+}
+
+/* Obtains facts for an operand, indicating they are being used. */
+MVMSpeshFacts * MVM_spesh_get_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
+    MVMSpeshFacts *facts = get_facts_direct(tc, g, o);
+    if (facts->flags & MVM_SPESH_FACT_FROM_LOG_GUARD)
+        g->log_guards[facts->log_guard].used = 1;
+    return facts;
 }
 
 /* Obtains a string constant. */
@@ -16,8 +25,8 @@ MVMString * MVM_spesh_get_string(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 /* Copy facts between two register operands. */
 static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand to,
                        MVMSpeshOperand from) {
-    MVMSpeshFacts *tfacts = MVM_spesh_get_facts(tc, g, to);
-    MVMSpeshFacts *ffacts = MVM_spesh_get_facts(tc, g, from);
+    MVMSpeshFacts *tfacts = get_facts_direct(tc, g, to);
+    MVMSpeshFacts *ffacts = get_facts_direct(tc, g, from);
     tfacts->flags         = ffacts->flags;
     tfacts->type          = ffacts->type;
     tfacts->decont_type   = ffacts->decont_type;
