@@ -13,26 +13,41 @@ static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 to_orig
     tfacts->type          = ffacts->type;
     tfacts->decont_type   = ffacts->decont_type;
     tfacts->value         = ffacts->value;
+    tfacts->log_guard     = ffacts->log_guard;
+}
+
+/* Called when one set of facts depend on another, allowing any log guard
+ * that is to thank to be marked used as needed later on. */
+static void depend(MVMThreadContext *tc, MVMSpeshGraph *g,
+                   MVMSpeshFacts *target, MVMSpeshFacts *source) {
+    if (source->flags & MVM_SPESH_FACT_FROM_LOG_GUARD) {
+        target->flags     |= MVM_SPESH_FACT_FROM_LOG_GUARD;
+        target->log_guard  = source->log_guard;
+    }
 }
 
 /* Handles object-creating instructions. */
 static void create_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 obj_orig,
                          MVMuint16 obj_i, MVMuint16 type_orig, MVMuint16 type_i) {
+    MVMSpeshFacts *type_facts = &(g->facts[type_orig][type_i]);
+    MVMSpeshFacts *obj_facts  = &(g->facts[obj_orig][obj_i]);
+
     /* The type is carried. */
-    if (g->facts[type_orig][type_i].flags & MVM_SPESH_FACT_KNOWN_TYPE) {
-        g->facts[obj_orig][obj_i].type   = g->facts[type_orig][type_i].type;
-        g->facts[obj_orig][obj_i].flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+    if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        obj_facts->type   = type_facts->type;
+        obj_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+        depend(tc, g, obj_facts, type_facts);
     }
 
     /* We know it's a concrete object. */
-    g->facts[obj_orig][obj_i].flags |= MVM_SPESH_FACT_CONCRETE;
+    obj_facts->flags |= MVM_SPESH_FACT_CONCRETE;
 
     /* If we know the original value, then we can check the type to see if
      * it's a container type. */
-    if (g->facts[type_orig][type_i].flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-        MVMObject *value = g->facts[type_orig][type_i].value.o;
+    if (type_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        MVMObject *value = type_facts->value.o;
         if (value && !STABLE(value)->container_spec)
-            g->facts[obj_orig][obj_i].flags |= MVM_SPESH_FACT_DECONTED;
+            obj_facts->flags |= MVM_SPESH_FACT_DECONTED;
     }
 }
 
@@ -65,25 +80,32 @@ static void object_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_o
 /* Propagates information relating to decontainerization. */
 static void decont_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 out_orig,
                          MVMuint16 out_i, MVMuint16 in_orig, MVMuint16 in_i) {
+    MVMSpeshFacts *out_facts = &(g->facts[out_orig][out_i]);
+    MVMSpeshFacts *in_facts  = &(g->facts[in_orig][in_i]);
+
     /* If we know the original is decontainerized already, just copy its
      * info. */
-    MVMint32 in_flags = g->facts[in_orig][in_i].flags;
+    MVMint32 in_flags = in_facts->flags;
     if (in_flags & MVM_SPESH_FACT_DECONTED)
         copy_facts(tc, g, out_orig, out_i, in_orig, in_i);
 
     /* We know the result is decontainerized. */
-    g->facts[out_orig][out_i].flags |= MVM_SPESH_FACT_DECONTED;
+    out_facts->flags |= MVM_SPESH_FACT_DECONTED;
 
     /* We may also know the original was containerized, and have some facts
      * about its contents. */
     if (in_flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
-        g->facts[out_orig][out_i].type = g->facts[in_orig][in_i].decont_type;
-        g->facts[out_orig][out_i].flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+        out_facts->type = in_facts->decont_type;
+        out_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
     }
     if (in_flags & MVM_SPESH_FACT_DECONT_CONCRETE)
-        g->facts[out_orig][out_i].flags |= MVM_SPESH_FACT_CONCRETE;
+        out_facts->flags |= MVM_SPESH_FACT_CONCRETE;
     else if (in_flags & MVM_SPESH_FACT_DECONT_TYPEOBJ)
-        g->facts[out_orig][out_i].flags |= MVM_SPESH_FACT_TYPEOBJ;
+        out_facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+    if (in_flags & (MVM_SPESH_FACT_KNOWN_DECONT_TYPE |
+                    MVM_SPESH_FACT_DECONT_CONCRETE |
+                    MVM_SPESH_FACT_DECONT_TYPEOBJ))
+        depend(tc, g, out_facts, in_facts);
 }
 
 /* Looks up a wval and adds information based on it. */
