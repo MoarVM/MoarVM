@@ -338,8 +338,8 @@ static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
  * optimizations. */
 static MVMint32 specialized_on_invocant(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMint32 i;
-    for (i = 0; i < g->num_guards; i++)
-        if (g->guards[i].slot == 0)
+    for (i = 0; i < g->num_arg_guards; i++)
+        if (g->arg_guards[i].slot == 0)
             return 1;
     return 0;
 }

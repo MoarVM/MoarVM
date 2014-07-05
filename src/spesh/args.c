@@ -31,13 +31,13 @@ void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
     }
 
     /* Add guard record for the arg type. */
-    g->guards[g->num_guards].slot  = slot;
-    g->guards[g->num_guards].match = (MVMCollectable *)STABLE(type);
+    g->arg_guards[g->num_arg_guards].slot  = slot;
+    g->arg_guards[g->num_arg_guards].match = (MVMCollectable *)STABLE(type);
     if (concrete)
-        g->guards[g->num_guards].kind = MVM_SPESH_GUARD_CONC;
+        g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_CONC;
     else
-        g->guards[g->num_guards].kind = MVM_SPESH_GUARD_TYPE;
-    g->num_guards++;
+        g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_TYPE;
+    g->num_arg_guards++;
 
     /* If we know it's a container, might be able to look inside it to
      * further optimize. */
@@ -60,13 +60,13 @@ void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
             g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
 
         /* Add guard for contained value. */
-        g->guards[g->num_guards].slot  = slot;
-        g->guards[g->num_guards].match = (MVMCollectable *)STABLE(type);
+        g->arg_guards[g->num_arg_guards].slot  = slot;
+        g->arg_guards[g->num_arg_guards].match = (MVMCollectable *)STABLE(type);
         if (concrete)
-            g->guards[g->num_guards].kind = MVM_SPESH_GUARD_DC_CONC;
+            g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_CONC;
         else
-            g->guards[g->num_guards].kind = MVM_SPESH_GUARD_DC_TYPE;
-        g->num_guards++;
+            g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_TYPE;
+        g->num_arg_guards++;
     }
 }
 
@@ -258,7 +258,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         /* Re-write the passed required positionals to spesh ops, and store
          * any gurads. */
         if (cs->arg_count)
-            g->guards = malloc(2 * cs->arg_count * sizeof(MVMSpeshGuard));
+            g->arg_guards = malloc(2 * cs->arg_count * sizeof(MVMSpeshGuard));
         for (i = 0; i < cs->num_pos; i++) {
             switch (pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:
