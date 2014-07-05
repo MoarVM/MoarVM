@@ -28,6 +28,16 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->ptr = src_body->ptr;
 }
 
+static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
+    MVMCPointerBody *body = (MVMCPointerBody *)OBJECT_BODY(root);
+    body->ptr = (void *)value;
+}
+
+static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMCPointerBody *body = (MVMCPointerBody *)OBJECT_BODY(root);
+    return (MVMint64)body->ptr;
+}
+
 /* Gets the storage specification for this representation. */
 static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMStorageSpec spec;
@@ -54,7 +64,15 @@ static const MVMREPROps this_repr = {
     NULL, /* initialize */
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
-    MVM_REPR_DEFAULT_BOX_FUNCS,
+    {
+        set_int,
+        get_int,
+        MVM_REPR_DEFAULT_SET_NUM,
+        MVM_REPR_DEFAULT_GET_NUM,
+        MVM_REPR_DEFAULT_SET_STR,
+        MVM_REPR_DEFAULT_GET_STR,
+        MVM_REPR_DEFAULT_GET_BOXED_REF
+    },    /* box_funcs */
     MVM_REPR_DEFAULT_POS_FUNCS,
     MVM_REPR_DEFAULT_ASS_FUNCS,
     MVM_REPR_DEFAULT_ELEMS,
