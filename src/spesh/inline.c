@@ -186,7 +186,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMSpeshBB     *last_bb;
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
-    MVMint32        i, total_inlines;
+    MVMint32        i, total_inlines, orig_deopt_addrs;
 
     /* If the inliner and inlinee are from different compilation units, we
      * potentially have to fix up extra things. */
@@ -313,6 +313,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     }
 
     /* Merge de-opt tables, if needed. */
+    orig_deopt_addrs = inliner->num_deopt_addrs;
     if (inlinee->num_deopt_addrs) {
         assert(inlinee->deopt_addrs != inliner->deopt_addrs);
         inliner->alloc_deopt_addrs += inlinee->alloc_deopt_addrs;
@@ -333,6 +334,11 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         : malloc(total_inlines * sizeof(MVMSpeshInline));
     memcpy(inliner->inlines + inliner->num_inlines, inlinee->inlines,
         inlinee->num_inlines * sizeof(MVMSpeshInline));
+    for (i = inliner->num_inlines; i < total_inlines - 1; i++) {
+        inliner->inlines[i].locals_start += inliner->num_locals;
+        inliner->inlines[i].lexicals_start += inliner->num_lexicals;
+        inliner->inlines[i].return_deopt_idx += orig_deopt_addrs;
+    }
     inliner->inlines[total_inlines - 1].code           = inlinee_code;
     inliner->inlines[total_inlines - 1].g              = inlinee;
     inliner->inlines[total_inlines - 1].locals_start   = inliner->num_locals;
