@@ -31,6 +31,7 @@ static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand t
     tfacts->type          = ffacts->type;
     tfacts->decont_type   = ffacts->decont_type;
     tfacts->value         = ffacts->value;
+    tfacts->log_guard     = ffacts->log_guard;
 }
 
 /* Adds a value into a spesh slot and returns its index. */
