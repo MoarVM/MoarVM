@@ -831,9 +831,20 @@ static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 }
 
+/* Goes through the various log-based guard instructions and removes any that
+ * are not being made use of. */
+void elimiante_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMint32 i;
+    for (i = 0; i < g->num_log_guards; i++)
+        if (!g->log_guards[i].used)
+            MVM_spesh_manipulate_delete_ins(tc, g, g->log_guards[i].bb,
+                g->log_guards[i].ins);
+}
+
 /* Drives the overall optimization work taking place on a spesh graph. */
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
     optimize_bb(tc, g, g->entry);
     eliminate_dead_ins(tc, g);
     eliminate_dead_bbs(tc, g);
+    elimiante_unused_log_guards(tc, g);
 }
