@@ -69,8 +69,8 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     MVMString *sym, MVMString *conv, MVMObject *arg_spec, MVMObject *ret_spec);
 MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     MVMObject *site, MVMObject *args);
-MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *res_type,
-    MVMObject *obj);
+MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
+    MVMObject *res_type, MVMObject *obj);
 void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy);
 MVMObject * MVM_nativecall_make_cstruct(MVMThreadContext *tc, MVMObject *type, void *cstruct);
 MVMObject * MVM_nativecall_make_cpointer(MVMThreadContext *tc, MVMObject *type, void *ptr);

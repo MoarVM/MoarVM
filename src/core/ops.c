@@ -6095,11 +6095,11 @@ static MVMOpInfo MVM_op_infos[] = {
         MVM_OP_nativecallcast,
         "nativecallcast",
         "  ",
-        3,
+        4,
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_sp_log,

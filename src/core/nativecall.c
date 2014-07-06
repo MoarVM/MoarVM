@@ -752,21 +752,63 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     return result;
 }
 
-MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_type, MVMObject *source) {
+MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObject *target_type, MVMObject *source) {
     MVMObject *result        = NULL;
     void      *cpointer_body = unmarshal_cpointer(tc, source);
 
     if (!source) return target_type;
 
-    MVMROOT(tc, target_type, {
-        switch (REPR(target_type)->ID) {
-            case MVM_REPR_ID_P6opaque: {
-                MVMStorageSpec ss = REPR(target_type)->get_storage_spec(tc, STABLE(target_type));
-                if(ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT) {
+    MVMROOT(tc, target_spec, {
+        MVMROOT(tc, target_type, {
+            switch (REPR(target_type)->ID) {
+                case MVM_REPR_ID_P6opaque: {
+                    MVMStorageSpec ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
+                    if(ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT) {
+                        MVMint64 value = 0;
+                        switch(ss.bits) {
+                            case 8:
+                                value = *(MVMint8 *)cpointer_body;
+                                break;
+                            case 16:
+                                value = *(MVMint16 *)cpointer_body;
+                                break;
+                            case 32:
+                                value = *(MVMint32 *)cpointer_body;
+                                break;
+                            case 64:
+                            default:
+                                value = *(MVMint64 *)cpointer_body;
+                        }
+                        
+                        result = make_int_result(tc, target_type, value);
+                    }
+                    else if(ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM) {
+                        MVMnum64 value;
+                    
+                        switch(ss.bits) {
+                            case 32:
+                                value = *(MVMnum32 *)cpointer_body;
+                                break;
+                            case 64:
+                            default:
+                                value = *(MVMnum64 *)cpointer_body;
+                        }
+                        
+                        result = make_num_result(tc, target_type, value);
+                    }
+                    else if(ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
+                        result = make_str_result(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR,
+                        (char *)cpointer_body);
+                    }
+                    break;
+                }
+                case MVM_REPR_ID_P6int: {
+                    MVMStorageSpec ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
                     MVMint64 value;
                     switch(ss.bits) {
                         case 8:
                             value = *(MVMint8 *)cpointer_body;
+                            break;
                         case 16:
                             value = *(MVMint16 *)cpointer_body;
                             break;
@@ -777,12 +819,13 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_type, MV
                         default:
                             value = *(MVMint64 *)cpointer_body;
                     }
-                    
                     result = make_int_result(tc, target_type, value);
+                    break;
                 }
-                else if(ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM) {
+                case MVM_REPR_ID_P6num: {
+                    MVMStorageSpec ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
                     MVMnum64 value;
-                
+                    
                     switch(ss.bits) {
                         case 32:
                             value = *(MVMnum32 *)cpointer_body;
@@ -793,66 +836,27 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_type, MV
                     }
                     
                     result = make_num_result(tc, target_type, value);
+                    break;
                 }
-                else if(ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
+                case MVM_REPR_ID_MVMCStr:
+                case MVM_REPR_ID_P6str:
                     result = make_str_result(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR,
-                    (char *)cpointer_body);
+                        (char *)cpointer_body);
+                    break;
+                case MVM_REPR_ID_MVMCStruct:
+                    result = MVM_nativecall_make_cstruct(tc, target_type, (void *)cpointer_body);
+                    break;
+                case MVM_REPR_ID_MVMCPointer:
+                    result = MVM_nativecall_make_cpointer(tc, target_type, (void *)cpointer_body);
+                    break;
+                case MVM_REPR_ID_MVMCArray: {
+                    result = MVM_nativecall_make_carray(tc, target_type, (void *)cpointer_body);
+                    break;
                 }
-                break;
+                default:
+                    MVM_exception_throw_adhoc(tc, "Internal error: unhandled target type");
             }
-            case MVM_REPR_ID_P6int: {
-                MVMStorageSpec ss = REPR(target_type)->get_storage_spec(tc, STABLE(target_type));
-                MVMint64 value;
-                switch(ss.bits) {
-                    case 8:
-                        value = *(MVMint8 *)cpointer_body;
-                    case 16:
-                        value = *(MVMint16 *)cpointer_body;
-                        break;
-                    case 32:
-                        value = *(MVMint32 *)cpointer_body;
-                        break;
-                    case 64:
-                    default:
-                        value = *(MVMint64 *)cpointer_body;
-                }
-                result = make_int_result(tc, target_type, value);
-                break;
-            }
-            case MVM_REPR_ID_P6num: {
-                MVMStorageSpec ss = REPR(target_type)->get_storage_spec(tc, STABLE(target_type));
-                MVMnum64 value;
-                
-                switch(ss.bits) {
-                    case 32:
-                        value = *(MVMnum32 *)cpointer_body;
-                        break;
-                    case 64:
-                    default:
-                        value = *(MVMnum64 *)cpointer_body;
-                }
-                
-                result = make_num_result(tc, target_type, value);
-                break;
-            }
-            case MVM_REPR_ID_MVMCStr:
-            case MVM_REPR_ID_P6str:
-                result = make_str_result(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR,
-                    (char *)cpointer_body);
-                break;
-            case MVM_REPR_ID_MVMCStruct:
-                result = MVM_nativecall_make_cstruct(tc, target_type, (void *)cpointer_body);
-                break;
-            case MVM_REPR_ID_MVMCPointer:
-                result = MVM_nativecall_make_cpointer(tc, target_type, (void *)cpointer_body);
-                break;
-            case MVM_REPR_ID_MVMCArray: {
-                result = MVM_nativecall_make_carray(tc, target_type, (void *)cpointer_body);
-                break;
-            }
-            default:
-                MVM_exception_throw_adhoc(tc, "Internal error: unhandled target type");
-        }
+        });
     });
 
     return result;

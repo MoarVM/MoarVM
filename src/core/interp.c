@@ -4367,8 +4367,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(nativecallcast):
                 GET_REG(cur_op, 0).o = MVM_nativecall_cast(tc, GET_REG(cur_op, 2).o,
-                    GET_REG(cur_op, 4).o);
-                cur_op += 6;
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o);
+                cur_op += 8;
                 goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
