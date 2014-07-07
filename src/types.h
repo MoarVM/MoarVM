@@ -182,7 +182,7 @@ typedef struct MVMJitIns MVMJitIns;
 typedef struct MVMJitPrimitive MVMJitPrimitive;
 typedef struct MVMJitBranch MVMJitBranch;
 typedef struct MVMJitCallC MVMJitCallC;
-typedef struct MVMJitAddr MVMJitAddr;
+typedef struct MVMJitCallArg MVMJitCallArg;
 typedef struct MVMJitLabel MVMJitLabel;
 typedef struct MVMJitGuard MVMJitGuard;
 typedef struct MVMJitCode MVMJitCode;

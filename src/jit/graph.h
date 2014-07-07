@@ -36,21 +36,29 @@ struct MVMJitBranch {
 };
 
 typedef enum {
-    MVM_JIT_ADDR_STACK,    // relative to stack base (unused)
-    MVM_JIT_ADDR_INTERP,   // interpreter variable
-    MVM_JIT_ADDR_REG,      // relative to register base
-    MVM_JIT_ADDR_REG_F,    // same, but represents a floating point
-    MVM_JIT_ADDR_LITERAL,  // constant value
-} MVMJitAddrBase;
+    MVM_JIT_INTERP_TC,
+    MVM_JIT_INTERP_FRAME,
+    MVM_JIT_INTERP_CU,
+} MVMJitInterpVar;
 
-/* Some interpreter address definition */
-#define MVM_JIT_INTERP_TC     0
-#define MVM_JIT_INTERP_FRAME  1
-#define MVM_JIT_INTERP_CU     2
+typedef enum {
+    MVM_JIT_INTERP_VAR,
+    MVM_JIT_REG_VAL,
+    MVM_JIT_REG_VAL_F,
+    MVM_JIT_REG_ADDR,
+    MVM_JIT_LITERAL,
+    MVM_JIT_LITERAL_F,
+    MVM_JIT_LITERAL_64,
+} MVMJitArgType;
 
-struct MVMJitAddr {
-    MVMJitAddrBase base;
-    MVMint32 idx;
+struct MVMJitCallArg {
+    MVMJitArgType type;
+    union {
+        MVMint64      lit_i64;
+        MVMnum64      lit_n64;
+        MVMJitInterpVar  ivar;
+        MVMint16          reg;
+    } v;
 };
 
 
@@ -71,7 +79,7 @@ typedef enum {
 
 struct MVMJitCallC {
     void       *func_ptr; 
-    MVMJitAddr     *args;   
+    MVMJitCallArg  *args;
     MVMuint16   num_args;
     MVMuint16  has_vargs;
     MVMJitRVMode rv_mode;
