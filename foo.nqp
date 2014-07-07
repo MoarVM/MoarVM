@@ -1,61 +1,15 @@
 #!/usr/bin/env nqp-m
 
-# This fibonacci number calculator will be compiled to JIT code
-
-sub fib (int $x) {
-    my int $a := 1;
-    my int $b := 1;
-    while $x > 2 {
-        $a := $a + $b;
-        $b := $a - $b;
-        $x := $x - 1;
-    }
-    $a
-}
-
-sub foo(int $i) {
-    nqp::say($i / 2);
-    $i * 3.5;
-}
-
-
 sub bar() {
-    nqp::say("OH HAI");
+    1;
 }
 
-my int $x := 42;
-
-sub access_lex() {
-    $x := $x + 1;
-    nqp::say($x);
+sub foo() {
+    bar() + 3;
 }
-
-class Quix {
-    has int $!foo;
-    
-    method bar() {
-        $!foo := $!foo + 1;
-        $!foo * 2;
-    }
-}
-
-class Quam {
-    method bar() {
-        1337;
-    }
-}
-
-my $y := Quix.new;
-sub gety() {
-    $y
-}
-
 
 my int $i := 0;
 while $i < 50 {
     $i := $i + 1;
-    nqp::say(gety().bar);
-    if $i == 40 {
-        $y := Quam.new();
-    }
-}
+    nqp::say(foo());
+ }

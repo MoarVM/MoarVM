@@ -515,6 +515,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
          | mov WORK[reg1], TMP1;
          break;
     }
+    case MVM_OP_sp_getspeshslot: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 spesh_idx = ins->operands[1].lit_i16;
+        | get_spesh_slot TMP1, spesh_idx;
+        | mov WORK[dst], TMP1;
+        break;
+    }
     case MVM_OP_add_i:
     case MVM_OP_sub_i:
     case MVM_OP_mul_i:

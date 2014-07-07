@@ -191,6 +191,7 @@ static MVMint32 append_op(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_getwhat:
     case MVM_OP_gethow:
     case MVM_OP_getwhere:
+    case MVM_OP_sp_getspeshslot:
         append_primitive(tc, jg, ins);
         break;
         /* branches */
