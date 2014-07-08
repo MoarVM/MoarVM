@@ -185,5 +185,6 @@ typedef struct MVMJitCallC MVMJitCallC;
 typedef struct MVMJitCallArg MVMJitCallArg;
 typedef struct MVMJitLabel MVMJitLabel;
 typedef struct MVMJitGuard MVMJitGuard;
+typedef struct MVMJitInvoke MVMJitInvoke;
 typedef struct MVMJitCode MVMJitCode;
 

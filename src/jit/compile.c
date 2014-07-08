@@ -43,6 +43,9 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         case MVM_JIT_NODE_GUARD:
             MVM_jit_emit_guard(tc, jg, &node->u.guard, &state);
             break;
+        case MVM_JIT_NODE_INVOKE:
+            MVM_jit_emit_invoke(tc, jg, &node->u.invoke, &state);
+            break;
         }
         node = node->next;
     }

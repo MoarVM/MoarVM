@@ -86,13 +86,25 @@ struct MVMJitCallC {
     MVMint16      rv_idx;
 };
 
-/* A non-final list of node types */
+struct MVMJitInvoke {
+    MVMint16      callsite_idx;
+    MVMint16      arg_count;
+    MVMSpeshIns **arg_ins;
+    MVMReturnType return_type;
+    MVMint16      return_register;
+    MVMint16      code_register;
+    MVMint16      spesh_cand;
+    MVMint32      next_label;
+};
+
+/* Node types */
 typedef enum {
     MVM_JIT_NODE_PRIMITIVE,
     MVM_JIT_NODE_CALL_C,
     MVM_JIT_NODE_BRANCH,
     MVM_JIT_NODE_LABEL,
     MVM_JIT_NODE_GUARD,
+    MVM_JIT_NODE_INVOKE,
 } MVMJitNodeType;
 
 struct MVMJitNode {
@@ -104,6 +116,7 @@ struct MVMJitNode {
         MVMJitBranch    branch;
         MVMJitLabel     label;
         MVMJitGuard     guard;
+        MVMJitInvoke    invoke;
     } u;
 };
 

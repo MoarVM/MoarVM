@@ -1262,3 +1262,8 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
     dasm_put(Dst, 1069, MVM_JIT_CTRL_DEOPT);
 #line 815 "src/jit/emit_x64.dasc"
 }
+
+void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *invoke,
+                         dasm_State **Dst) {
+    MVM_exception_throw_adhoc(tc, "JIT invoke NYI");
+}

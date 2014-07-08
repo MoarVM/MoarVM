@@ -31,3 +31,5 @@ void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitGraph *jg,
                         MVMJitLabel *label, dasm_State **Dst) {}
 void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGrahp *jg,
                         MVMJitGuard *guard, dasm_State **Dst) {}
+void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
+                         MVMJitInvoke *invoke, dasm_State **Dst) {}

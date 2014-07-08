@@ -148,6 +148,95 @@ static void jgb_append_guard(MVMThreadContext *tc, JitGraphBuilder *jgb,
     jgb_append_node(jgb, node);
 }
 
+static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
+                                   MVMSpeshIns *ins) {
+    MVMJitNode      *node = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitNode));
+    MVMCompUnit       *cu = jgb->sg->sf->body.cu;
+    MVMint16 callsite_idx = ins->operands[0].callsite_idx;
+    MVMCallsite       *cs = cu->body.callsites[callsite_idx];
+    MVMSpeshIns **arg_ins = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMSpeshIns*) * cs->arg_count);
+    MVMint16            i = 0;
+    MVMSpeshBB   *next_bb;
+    MVMint32      next_label;
+    MVMReturnType return_type;
+    MVMint16      return_register;
+    MVMint16      code_register;
+    MVMint16      spesh_cand;
+
+    while (ins = ins->next) {
+        switch(ins->info->opcode) {
+        case MVM_OP_arg_i:
+        case MVM_OP_arg_n:
+        case MVM_OP_arg_s:
+        case MVM_OP_arg_o:
+        case MVM_OP_argconst_i:
+        case MVM_OP_argconst_n:
+        case MVM_OP_argconst_s:
+            arg_ins[i++] = ins;
+        case MVM_OP_sp_fastinvoke_v:
+            return_type     = MVM_RETURN_VOID;
+            return_register = -1;
+            code_register   = ins->operands[0].reg.orig;
+            spesh_cand      = ins->operands[1].lit_i16;
+            break;
+        case MVM_OP_sp_fastinvoke_o:
+            return_type     = MVM_RETURN_OBJ;
+            return_register = ins->operands[0].reg.orig;;
+            code_register   = ins->operands[1].reg.orig;
+            spesh_cand      = ins->operands[2].lit_i16;
+            break;
+        case MVM_OP_sp_fastinvoke_s:
+            return_type     = MVM_RETURN_STR;
+            return_register = ins->operands[0].reg.orig;;
+            code_register   = ins->operands[1].reg.orig;
+            spesh_cand      = ins->operands[2].lit_i16;
+            break;
+        case MVM_OP_sp_fastinvoke_i:
+            return_type     = MVM_RETURN_INT;
+            return_register = ins->operands[0].reg.orig;;
+            code_register   = ins->operands[1].reg.orig;
+            spesh_cand      = ins->operands[2].lit_i16;
+            break;
+        case MVM_OP_sp_fastinvoke_n:
+            return_type     = MVM_RETURN_NUM;
+            return_register = ins->operands[0].reg.orig;;
+            code_register   = ins->operands[1].reg.orig;
+            spesh_cand      = ins->operands[2].lit_i16;
+            break;
+        default:
+            MVM_jit_log(tc, "Unexpected opcode in invoke sequence: <%s>\n",
+                        ins->info->name);
+            return 0;
+        }
+    }
+
+    if (!ins || i < cs->arg_count) {
+        MVM_jit_log(tc, "Could not find invoke opcode or enough arguments\n");
+        return 0;
+    }
+    if (ins != jgb->cur_bb->last_ins || jgb->cur_bb->linear_next == NULL) {
+        MVM_jit_log(tc, "Invoke instruction isn't last of basic block or is last of graph\n");
+        return 0;
+    }
+
+    next_bb    = jgb->cur_bb->linear_next;
+    next_label = get_label_name(tc, jgb, next_bb);
+    /* create node */
+    node->type                     = MVM_JIT_NODE_INVOKE;
+    node->u.invoke.callsite_idx    = callsite_idx;
+    node->u.invoke.arg_count       = cs->arg_count;
+    node->u.invoke.arg_ins         = arg_ins;
+    node->u.invoke.return_type     = return_type;
+    node->u.invoke.return_register = return_register;
+    node->u.invoke.code_register   = code_register;
+    node->u.invoke.spesh_cand      = spesh_cand;
+    node->u.invoke.next_label      = next_label;
+    jgb_append_node(jgb, node);
+    /* move forward to invoke ins */
+    jgb->cur_ins = ins;
+    return 1;
+}
+
 static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                 MVMSpeshIns *ins) {
     int op = ins->info->opcode;
@@ -285,6 +374,9 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_sp_guardtype:
         jgb_append_guard(tc, jgb, ins);
         break;
+    case MVM_OP_prepargs: {
+        return jgb_consume_invoke(tc, jgb, ins);
+    }
     default:
         MVM_jit_log(tc, "Don't know how to make a graph of opcode <%s>\n",
                     ins->info->name);

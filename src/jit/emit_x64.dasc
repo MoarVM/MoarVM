@@ -813,3 +813,8 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
     | jmp ->out;
     |2:
 }
+
+void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *invoke,
+                         dasm_State **Dst) {
+    MVM_exception_throw_adhoc(tc, "JIT invoke NYI");
+}
