@@ -186,6 +186,8 @@ struct MVMInvocationSpec {
     MVMString *md_valid_attr_name;
 };
 
+void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code, MVMCallSite *callsite,
+                           MVMint32 spesh_cand);
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
                       MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand);

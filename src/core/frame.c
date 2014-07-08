@@ -229,6 +229,14 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     return frame;
 }
 
+/* This exists to reduce the amount of pointer-fiddling that has to be
+ * done by the JIT */
+void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
+                           MVMCallsite *callsite, MVMint32 spesh_cand)
+    MVM_frame_invoke(tc, code->body.sf, callsite,  tc->cur_frame->args,
+                     code->body.outer, (MVMObject*)code, spesh_cand);
+}
+
 /* Takes a static frame and a thread context. Invokes the static frame. */
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
