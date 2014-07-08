@@ -1,15 +1,15 @@
 #!/usr/bin/env nqp-m
 
-sub bar() {
-    1;
+sub bar(int $x, int $y) {
+    $x * $y;
 }
 
-sub foo() {
-    bar() + 3;
+sub foo(int $x) {
+    bar($x, $x + $x);
 }
 
 my int $i := 0;
 while $i < 50 {
     $i := $i + 1;
-    nqp::say(foo());
+    nqp::say(foo($i));
  }

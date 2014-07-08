@@ -172,46 +172,50 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
         case MVM_OP_argconst_i:
         case MVM_OP_argconst_n:
         case MVM_OP_argconst_s:
+            MVM_jit_log(tc, "Invoke arg: <%s>\n", ins->info->name);
             arg_ins[i++] = ins;
+            break;
         case MVM_OP_sp_fastinvoke_v:
             return_type     = MVM_RETURN_VOID;
             return_register = -1;
             code_register   = ins->operands[0].reg.orig;
             spesh_cand      = ins->operands[1].lit_i16;
-            break;
+            goto checkargs;
         case MVM_OP_sp_fastinvoke_o:
             return_type     = MVM_RETURN_OBJ;
             return_register = ins->operands[0].reg.orig;;
             code_register   = ins->operands[1].reg.orig;
             spesh_cand      = ins->operands[2].lit_i16;
-            break;
+            goto checkargs;
         case MVM_OP_sp_fastinvoke_s:
             return_type     = MVM_RETURN_STR;
             return_register = ins->operands[0].reg.orig;;
             code_register   = ins->operands[1].reg.orig;
             spesh_cand      = ins->operands[2].lit_i16;
-            break;
+            goto checkargs;
         case MVM_OP_sp_fastinvoke_i:
             return_type     = MVM_RETURN_INT;
             return_register = ins->operands[0].reg.orig;;
             code_register   = ins->operands[1].reg.orig;
             spesh_cand      = ins->operands[2].lit_i16;
-            break;
+            goto checkargs;
         case MVM_OP_sp_fastinvoke_n:
             return_type     = MVM_RETURN_NUM;
             return_register = ins->operands[0].reg.orig;;
             code_register   = ins->operands[1].reg.orig;
             spesh_cand      = ins->operands[2].lit_i16;
-            break;
+            goto checkargs;
         default:
             MVM_jit_log(tc, "Unexpected opcode in invoke sequence: <%s>\n",
                         ins->info->name);
             return 0;
         }
     }
-
+ checkargs:
     if (!ins || i < cs->arg_count) {
-        MVM_jit_log(tc, "Could not find invoke opcode or enough arguments\n");
+        MVM_jit_log(tc, "Could not find invoke opcode or enough arguments\n"
+                    "Current opcode: <%s>, expected args: %d, num of args: %d\n",
+                    ins->info->name, i, cs->arg_count);
         return 0;
     }
     if (ins != jgb->cur_bb->last_ins || jgb->cur_bb->linear_next == NULL) {
