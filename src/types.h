@@ -178,7 +178,7 @@ typedef struct MVMDecodeStreamChars MVMDecodeStreamChars;
 typedef struct MVMNativeCallback MVMNativeCallback;
 typedef struct MVMNativeCallbackCacheHead MVMNativeCallbackCacheHead;
 typedef struct MVMJitGraph MVMJitGraph;
-typedef struct MVMJitIns MVMJitIns;
+typedef struct MVMJitNode MVMJitNode;
 typedef struct MVMJitPrimitive MVMJitPrimitive;
 typedef struct MVMJitBranch MVMJitBranch;
 typedef struct MVMJitCallC MVMJitCallC;

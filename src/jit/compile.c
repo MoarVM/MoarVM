@@ -12,7 +12,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     /* Space for globals */
     MVMint32  num_globals = MVM_jit_num_globals();
     void ** dasm_globals = malloc(num_globals * sizeof(void*));
-    MVMJitIns * ins = jg->first_ins;
+    MVMJitNode * node = jg->first_node;
     MVMJitCode * code;
 
     MVM_jit_log(tc, "Starting compilation\n");
@@ -23,28 +23,28 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     dasm_setup(&state, MVM_jit_actions());
     /* For the dynamic labels (not necessary right now) */
     dasm_growpc(&state, jg->num_labels);
-    /* generate code */
 
+    /* generate code */
     MVM_jit_emit_prologue(tc, jg,  &state);
-    while (ins) {
-        switch(ins->type) {
-        case MVM_JIT_INS_LABEL:
-            MVM_jit_emit_label(tc, jg, &ins->u.label, &state);
+    while (node) {
+        switch(node->type) {
+        case MVM_JIT_NODE_LABEL:
+            MVM_jit_emit_label(tc, jg, &node->u.label, &state);
             break;
-        case MVM_JIT_INS_PRIMITIVE:
-            MVM_jit_emit_primitive(tc, jg, &ins->u.prim, &state);
+        case MVM_JIT_NODE_PRIMITIVE:
+            MVM_jit_emit_primitive(tc, jg, &node->u.prim, &state);
             break;
-        case MVM_JIT_INS_BRANCH:
-            MVM_jit_emit_branch(tc, jg, &ins->u.branch, &state);
+        case MVM_JIT_NODE_BRANCH:
+            MVM_jit_emit_branch(tc, jg, &node->u.branch, &state);
             break;
-        case MVM_JIT_INS_CALL_C:
-            MVM_jit_emit_call_c(tc, jg, &ins->u.call, &state);
+        case MVM_JIT_NODE_CALL_C:
+            MVM_jit_emit_call_c(tc, jg, &node->u.call, &state);
             break;
-        case MVM_JIT_INS_GUARD:
-            MVM_jit_emit_guard(tc, jg, &ins->u.guard, &state);
+        case MVM_JIT_NODE_GUARD:
+            MVM_jit_emit_guard(tc, jg, &node->u.guard, &state);
             break;
         }
-        ins = ins->next;
+        node = node->next;
     }
     MVM_jit_emit_epilogue(tc, jg, &state);
 
@@ -63,8 +63,8 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     code = malloc(sizeof(MVMJitCode));
     code->func_ptr   = (MVMJitFunc)memory;
     code->size       = codesize;
-    code->sf         = jg->spesh->sf;
-    code->num_locals = jg->spesh->num_locals;
+    code->sf         = jg->sg->sf;
+    code->num_locals = jg->sg->num_locals;
     code->bytecode   = (MVMuint8*)MAGIC_BYTECODE;
 
     if (tc->instance->jit_bytecode_dir) {

@@ -296,7 +296,7 @@ const unsigned int MVM_jit_num_globals(void) {
 //||        break;
 //|.endif
 //||    default:
-//||       MVM_exception_throw_adhoc(tc, "Can't compile %d arugments", i);
+//||        MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
 //||}
 //|.endmacro
 
@@ -431,7 +431,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_const_s: {
          MVMint16 reg = ins->operands[0].reg.orig;
          MVMuint32 idx = ins->operands[1].lit_str_idx;
-         MVMStaticFrame *sf = jg->spesh->sf;
+         MVMStaticFrame *sf = jg->sg->sf;
          MVMString * s = sf->body.cu->body.strings[idx];
          if (!try_emit_gen2_ref(tc, jg, (MVMObject*)s, reg, Dst)) {
              //| mov TMP1, CU->body.strings; // get strings array
@@ -475,7 +475,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     case MVM_OP_getlex: {
         MVMint16 *lexical_types;
-        MVMStaticFrame * sf = jg->spesh->sf;
+        MVMStaticFrame * sf = jg->sg->sf;
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 idx = ins->operands[1].lex.idx;
         MVMint16 out = ins->operands[1].lex.outers;
@@ -502,7 +502,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         //| mov TMP2, REGISTER:TMP2[idx];
         dasm_put(Dst, 121, Dt2([idx]));
 #line 347 "src/jit/emit_x64.dasc"
-        lexical_types = (jg->spesh->lexical_types ? jg->spesh->lexical_types :
+        lexical_types = (jg->sg->lexical_types ? jg->sg->lexical_types :
                          sf->body.lexical_types);
         MVM_jit_log(tc, "Lexical type of register: %d\n", lexical_types[idx]);
         if (lexical_types[idx] == MVM_reg_obj) {
@@ -1074,7 +1074,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
             dasm_put(Dst, 903, Dt11([args[i].v.reg]));
                     break;
                 default:
-                   MVM_exception_throw_adhoc(tc, "Can't compile %d arugments", i);
+                    MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
             }
 #line 689 "src/jit/emit_x64.dasc"
             break;

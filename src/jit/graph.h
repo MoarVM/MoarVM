@@ -1,12 +1,12 @@
 /* The MVMJitGraph is - for now - really a linked list of instructions.
  * It's likely I'll add complexity when it's needed */
 struct MVMJitGraph {
-    MVMSpeshGraph *spesh;
-    MVMJitIns *first_ins;
-    MVMJitIns  *last_ins;
+    MVMSpeshGraph      *sg;
+    MVMJitNode *first_node;
+    MVMJitNode  *last_node;
 
-    MVMint32  num_labels;
-    MVMJitLabel * labels;
+    MVMint32    num_labels;
+    MVMJitLabel    *labels;
 };
 
 /* A label */
@@ -88,16 +88,16 @@ struct MVMJitCallC {
 
 /* A non-final list of node types */
 typedef enum {
-    MVM_JIT_INS_PRIMITIVE,
-    MVM_JIT_INS_CALL_C,
-    MVM_JIT_INS_BRANCH,
-    MVM_JIT_INS_LABEL,
-    MVM_JIT_INS_GUARD,
-} MVMJitInsType;
+    MVM_JIT_NODE_PRIMITIVE,
+    MVM_JIT_NODE_CALL_C,
+    MVM_JIT_NODE_BRANCH,
+    MVM_JIT_NODE_LABEL,
+    MVM_JIT_NODE_GUARD,
+} MVMJitNodeType;
 
-struct MVMJitIns {
-    MVMJitIns * next;   // linked list
-    MVMJitInsType type; // tag
+struct MVMJitNode {
+    MVMJitNode   * next; // linked list
+    MVMJitNodeType type; // tag
     union {
         MVMJitPrimitive prim;
         MVMJitCallC     call;
@@ -107,4 +107,4 @@ struct MVMJitIns {
     } u;
 };
 
-MVMJitGraph* MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *spesh);
+MVMJitGraph* MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg);
