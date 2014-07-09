@@ -24,6 +24,14 @@ struct MVMSpeshFacts {
         MVMString *s;
     } value;
 
+    /* The instruction that writes the register (noting we're in SSA form, so
+     * this is unique). */
+    MVMSpeshIns *writer;
+
+    /* The deoptimization index in effect at the point of declaration, or -1
+     * if none yet. */
+    MVMint32 deopt_idx;
+
     /* The log guard the facts depend on, if any. */
     MVMuint32 log_guard;
 };
