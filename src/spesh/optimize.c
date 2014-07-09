@@ -520,13 +520,27 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         /* If we resolved to something better than the code object, then add
          * the resolved item in a spesh slot and insert a lookup. */
         if (target && target != code && !((MVMCode *)target)->body.is_compiler_stub) {
+            MVMSpeshIns *pa_ins = arg_info->prepargs_ins;
             MVMSpeshIns *ss_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
             ss_ins->info        = MVM_op_get_op(MVM_OP_sp_getspeshslot);
             ss_ins->operands    = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
             ss_ins->operands[0] = ins->operands[callee_idx];
             ss_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot(tc, g,
                 (MVMCollectable *)target);
-            MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, ss_ins);
+            /* Basically, we're inserting between arg* and invoke_*.
+             * Since invoke_* directly uses the code in the register,
+             * the register must have held the code during the arg*
+             * instructions as well, because none of {prepargs, arg*}
+             * can manipulate the register that holds the code.
+             *
+             * To make a long story very short, I think it should be
+             * safe to move the sp_getspeshslot to /before/ the
+             * prepargs instruction. And this is very convenient for
+             * me, as it allows me to treat set of prepargs, arg*,
+             * invoke, as a /single node/, and this greatly simplifies
+             * invoke JIT compilation */
+
+            MVM_spesh_manipulate_insert_ins(tc, bb, pa_ins->prev, ss_ins);
             /* XXX TODO: Do this differently so we can eliminate the original
              * lookup of the enclosing code object also. */
         }
