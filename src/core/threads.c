@@ -1,11 +1,13 @@
 #include "moar.h"
 #include <platform/threads.h>
 
+/* We call thread entry point with no args. */
+static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0, 0 };
+
 /* Temporary structure for passing data to thread start. */
 typedef struct {
     MVMThreadContext *tc;
     MVMObject        *thread_obj;
-    MVMCallsite       no_arg_callsite;
 } ThreadStart;
 
 /* Creates a new thread handle with the MVMThread representation. Does not
@@ -39,16 +41,9 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
     });
     });
 
-    /* Dummy, 0-arg callsite. */
-    ts->no_arg_callsite.arg_flags      = NULL;
-    ts->no_arg_callsite.arg_count      = 0;
-    ts->no_arg_callsite.num_pos        = 0;
-    ts->no_arg_callsite.has_flattening = 0;
-    ts->no_arg_callsite.is_interned    = 0;
-
     /* Create initial frame, which sets up all of the interpreter state also. */
     invokee = MVM_frame_find_invokee(tc, invokee, NULL);
-    STABLE(invokee)->invoke(tc, invokee, &ts->no_arg_callsite, NULL);
+    STABLE(invokee)->invoke(tc, invokee, &no_arg_callsite, NULL);
 
     /* This frame should be marked as the thread entry frame, so that any
      * return from it will cause us to drop out of the interpreter and end
