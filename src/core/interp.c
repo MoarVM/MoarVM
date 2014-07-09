@@ -4383,9 +4383,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_osrfinalize): {
                 MVMSpeshCandidate *cand = tc->cur_frame->spesh_cand;
                 if (cand) {
-                    cand->log_enter_idx++;
                     tc->cur_frame->spesh_log_idx = cand->log_enter_idx;
-                    if (--(cand->log_exits_remaining) == 0)
+                    cand->log_enter_idx++;
+                    if (cand->log_enter_idx >= MVM_SPESH_LOG_RUNS)
                         MVM_spesh_osr_finalize(tc);
                 }
                 goto NEXT;

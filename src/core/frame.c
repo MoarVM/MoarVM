@@ -572,9 +572,13 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
      * specialization. */
     if (returner->spesh_cand && returner->spesh_log_idx >= 0) {
         if (returner->spesh_cand->osr_logging) {
-            /* Didn't achieve enough log entries to complete the OSR; just
-             * drop it to normal logging. */
+            /* Didn't achieve enough log entries to complete the OSR, but
+             * clearly hot, so specialize anyway. This also avoids races
+             * when the candidate is called again later and still has
+             * sp_osrfinalize instructions in it. */
             returner->spesh_cand->osr_logging = 0;
+            MVM_spesh_candidate_specialize(tc, returner->static_info,
+                returner->spesh_cand);
         }
         else if (MVM_decr(&(returner->spesh_cand->log_exits_remaining)) == 1) {
             MVM_spesh_candidate_specialize(tc, returner->static_info,
