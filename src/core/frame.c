@@ -197,7 +197,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     frame->special_return = NULL;
     frame->special_unwind = NULL;
     frame->continuation_tags = NULL;
-
+    frame->jit_continuation_label = 0;
     /* Allocate space for lexicals and work area, copying the default lexical
      * environment into place. */
     env_size = spesh_cand ? spesh_cand->env_size : static_frame_body->env_size;
@@ -232,7 +232,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
 /* This exists to reduce the amount of pointer-fiddling that has to be
  * done by the JIT */
 void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
-                           MVMCallsite *callsite, MVMint32 spesh_cand)
+                           MVMCallsite *callsite, MVMint32 spesh_cand) {
     MVM_frame_invoke(tc, code->body.sf, callsite,  tc->cur_frame->args,
                      code->body.outer, (MVMObject*)code, spesh_cand);
 }

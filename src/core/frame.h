@@ -158,6 +158,10 @@ struct MVMFrame {
      * trigger if the limit is hit. */
     MVMuint8 osr_counter;
 
+    /* The 'continuation label' is a sort of indirect return address
+       for the JIT */
+    MVMint32 jit_continuation_label;
+
 #if MVM_HLL_PROFILE_CALLS
     /* Index of the profile data record. */
     MVMuint32 profile_index;
@@ -186,8 +190,8 @@ struct MVMInvocationSpec {
     MVMString *md_valid_attr_name;
 };
 
-void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code, MVMCallSite *callsite,
-                           MVMint32 spesh_cand);
+void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
+                           MVMCallsite *callsite, MVMint32 spesh_cand);
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
                       MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand);

@@ -6,6 +6,8 @@ struct MVMJitCode {
     MVMuint8  *bytecode;
     MVMint16 num_locals;
     MVMStaticFrame  *sf;
+    void       **labels;
+    MVMint32 num_labels;
 };
 
 MVMJitCode* MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);

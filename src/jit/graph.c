@@ -222,7 +222,7 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVM_jit_log(tc, "Invoke instruction isn't last of basic block or is last of graph\n");
         return 0;
     }
-
+    MVM_jit_log(tc, "Invoke instruction: <%s>\n", ins->info->name);
     next_bb    = jgb->cur_bb->linear_next;
     next_label = get_label_name(tc, jgb, next_bb);
     /* create node */

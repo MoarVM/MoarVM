@@ -7,13 +7,14 @@ static const MVMuint16 MAGIC_BYTECODE[] = { MVM_OP_sp_jit_enter, 0 };
 
 MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     dasm_State *state;
-    void * memory;
+    char * memory;
     size_t codesize;
     /* Space for globals */
     MVMint32  num_globals = MVM_jit_num_globals();
     void ** dasm_globals = malloc(num_globals * sizeof(void*));
     MVMJitNode * node = jg->first_node;
     MVMJitCode * code;
+    MVMint32 i;
 
     MVM_jit_log(tc, "Starting compilation\n");
 
@@ -55,11 +56,9 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     dasm_link(&state, &codesize);
     memory = MVM_platform_alloc_pages(codesize, MVM_PAGE_READ|MVM_PAGE_WRITE);
     dasm_encode(&state, memory);
-    /* protect memory from being overwritten */
+    /* set memory readable + executable */
     MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC);
-    /* clear up the assembler */
-    dasm_free(&state);
-    free(dasm_globals);
+
 
     MVM_jit_log(tc, "Bytecode size: %d\n", codesize);
     /* Create code segment */
@@ -69,6 +68,17 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     code->sf         = jg->sg->sf;
     code->num_locals = jg->sg->num_locals;
     code->bytecode   = (MVMuint8*)MAGIC_BYTECODE;
+
+    /* setup labels */
+    code->num_labels = jg->num_labels;
+    code->labels = malloc(sizeof(void*) * code->num_labels);
+    for (i = 0; i < code->num_labels; i++) {
+        code->labels[i] = memory + dasm_getpclabel(&state, i);
+    }
+
+    /* clear up the assembler */
+    dasm_free(&state);
+    free(dasm_globals);
 
     if (tc->instance->jit_bytecode_dir) {
         MVM_jit_log_bytecode(tc, code);
@@ -85,8 +95,17 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
 
 /* Returns 1 if we should return from the frame, the function, 0 otherwise */
 MVMint32 MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
-                        MVMJitCode *code) {
+                            MVMJitCode *code) {
     /* The actual JIT code returns 0 if it went through to the exit */
-    MVMint32 ctrl = code->func_ptr(tc, cu, NULL);
-    return ctrl ? 0 : 1;
+    void * label = NULL;
+    MVMint32 ctrl;
+    if (tc->cur_frame->jit_continuation_label) {
+        label = code->labels[tc->cur_frame->jit_continuation_label];
+    }
+    ctrl = code->func_ptr(tc, cu, label);
+    if (!ctrl) {
+        tc->cur_frame->jit_continuation_label = 0;
+        return 1;
+    }
+    return 0;
 }
