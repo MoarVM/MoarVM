@@ -158,9 +158,9 @@ struct MVMFrame {
      * trigger if the limit is hit. */
     MVMuint8 osr_counter;
 
-    /* The 'continuation label' is a sort of indirect return address
+    /* The 'entry label' is a sort of indirect return address
        for the JIT */
-    MVMint32 jit_continuation_label;
+    MVMint32 jit_entry_label;
 
 #if MVM_HLL_PROFILE_CALLS
     /* Index of the profile data record. */

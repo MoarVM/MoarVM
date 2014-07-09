@@ -242,11 +242,9 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
     | mov TMP6, TC->cur_frame;
     | mov WORK, FRAME:TMP6->work;
     | mov ARGS, FRAME:TMP6->params.args;
-    /* should we continue somehwere? */
-    | cmp ARG3, NULL;
-    | je >1;
+    /* ARG3 contains our 'entry label' */
     | jmp ARG3
-    |1:
+
 }
 
 /* And a function epilogue is also always the same */
@@ -891,8 +889,8 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     /* interpreter return address */
     | get_cur_op TMP2;
     | mov aword FRAME:TMP1->return_address, TMP2;
-    /* store continuation label */
-    | mov dword FRAME:TMP1->jit_continuation_label, invoke->next_label;
+    /* store re-entry address in entry label */
+    | mov dword FRAME:TMP1->jit_entry_label, invoke->reentry_label;
     /* call MVM_frame_invoke_code */
     | mov ARG1, TC;
     | mov ARG2, WORK[invoke->code_register];

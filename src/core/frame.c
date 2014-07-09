@@ -197,7 +197,6 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     frame->special_return = NULL;
     frame->special_unwind = NULL;
     frame->continuation_tags = NULL;
-    frame->jit_continuation_label = 0;
     /* Allocate space for lexicals and work area, copying the default lexical
      * environment into place. */
     env_size = spesh_cand ? spesh_cand->env_size : static_frame_body->env_size;
@@ -348,6 +347,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 frame = allocate_frame(tc, static_frame_body, chosen_cand);
                 if (chosen_cand->jitcode) {
                     frame->effective_bytecode = chosen_cand->jitcode->bytecode;
+                    frame->jit_entry_label    = 0;
                 }
                 else {
                     frame->effective_bytecode = chosen_cand->bytecode;

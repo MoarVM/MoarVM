@@ -17,69 +17,68 @@
 #endif
 #line 7 "src/jit/emit_x64.dasc"
 //|.actionlist actions
-static const unsigned char actions[1242] = {
+static const unsigned char actions[1231] = {
   85,72,137,229,255,65,86,83,65,84,65,85,255,73,137,206,73,137,213,77,139,158,
-  233,73,139,155,233,77,139,163,233,255,73,129,252,248,239,15,132,244,247,65,
-  252,255,224,248,1,255,248,10,72,199,192,0,0,0,0,248,11,255,65,93,65,92,91,
-  65,94,255,72,137,252,236,93,195,255,72,185,237,237,72,137,139,233,255,72,
-  199,131,233,237,255,73,139,141,233,72,139,137,233,72,137,139,233,255,73,139,
-  142,233,72,139,137,233,72,137,139,233,255,72,139,139,233,72,139,137,233,255,
-  73,139,142,233,255,72,139,145,233,255,72,139,146,233,255,72,131,252,250,0,
-  15,133,244,247,255,205,3,82,81,255,76,137,252,241,72,139,84,36,8,73,199,192,
-  237,73,186,237,237,72,131,252,236,32,65,252,255,210,72,131,196,32,255,72,
-  131,196,16,255,72,137,194,248,1,255,72,137,147,233,255,72,139,137,233,72,
-  139,147,233,72,137,145,233,255,73,139,140,253,36,233,72,137,139,233,255,72,
-  139,139,233,72,131,185,233,0,15,133,244,247,72,141,145,233,252,233,244,248,
-  248,1,72,139,145,233,72,141,146,233,248,2,255,76,139,2,73,131,252,248,0,255,
-  15,133,244,249,255,77,139,134,233,77,139,128,233,248,3,255,76,139,2,255,73,
-  131,252,248,0,15,133,244,250,255,77,139,134,233,77,139,128,233,77,139,128,
-  233,255,102,252,247,129,233,236,15,149,208,73,131,252,248,0,15,149,212,132,
-  196,15,149,208,102,65,252,247,128,233,236,15,148,212,132,196,15,132,244,249,
-  82,65,80,76,137,252,241,72,139,147,233,73,186,237,237,72,131,252,236,32,65,
-  252,255,210,72,131,196,32,65,88,90,248,3,255,76,137,2,248,4,255,76,139,2,
-  73,131,252,248,0,15,133,244,250,255,81,82,76,137,252,241,73,139,150,233,72,
-  139,146,233,72,139,146,233,73,186,237,237,72,131,252,236,32,65,252,255,210,
-  72,131,196,32,90,89,255,73,137,192,102,252,247,129,233,236,15,149,208,73,
-  131,252,248,0,15,149,212,132,196,15,149,208,102,65,252,247,128,233,236,15,
-  148,212,132,196,15,132,244,249,82,65,80,76,137,252,241,72,139,147,233,73,
-  186,237,237,72,131,252,236,32,65,252,255,210,72,131,196,32,65,88,90,248,3,
-  76,137,2,255,76,137,131,233,255,72,139,139,233,72,139,147,233,76,141,129,
-  233,73,131,184,233,0,15,132,244,247,77,139,128,233,248,1,255,102,252,247,
-  129,233,236,15,149,208,72,131,252,250,0,15,149,212,132,196,15,149,208,102,
-  252,247,130,233,236,15,148,212,132,196,15,132,244,248,82,65,80,76,137,252,
-  241,72,139,147,233,73,186,237,237,72,131,252,236,32,65,252,255,210,72,131,
-  196,32,65,88,90,248,2,255,73,137,144,233,255,72,139,139,233,72,137,139,233,
-  255,73,139,142,233,72,139,137,233,72,139,137,233,72,137,139,233,255,72,139,
-  131,233,255,72,3,131,233,255,72,43,131,233,255,72,15,175,131,233,255,72,153,
-  72,252,247,187,233,255,72,137,131,233,255,72,252,255,131,233,255,72,252,255,
-  139,233,255,252,242,15,16,131,233,255,252,242,15,88,131,233,255,252,242,15,
-  92,131,233,255,252,242,15,89,131,233,255,252,242,15,94,131,233,255,252,242,
-  15,17,131,233,255,252,242,72,15,42,131,233,252,242,15,17,131,233,255,252,
-  242,72,15,44,131,233,72,137,131,233,255,72,59,131,233,255,15,148,208,255,
-  15,149,208,255,15,156,208,255,15,158,208,255,15,159,208,255,15,157,208,255,
-  72,15,182,192,72,137,131,233,255,76,137,252,241,255,76,137,252,242,255,77,
-  137,252,240,255,77,137,252,241,255,73,139,150,233,255,77,139,134,233,255,
-  77,139,142,233,255,76,137,252,233,255,76,137,252,234,255,77,137,232,255,77,
-  137,252,233,255,72,139,139,233,255,72,139,147,233,255,76,139,131,233,255,
-  76,139,139,233,255,252,242,15,16,139,233,255,252,242,15,16,147,233,255,252,
-  242,15,16,155,233,255,76,141,155,233,255,76,137,217,255,76,137,218,255,77,
-  137,216,255,77,137,217,255,72,199,193,237,255,72,199,194,237,255,73,199,192,
-  237,255,73,199,193,237,255,73,187,237,237,255,72,139,8,72,137,139,233,255,
-  72,139,139,233,72,137,8,255,252,233,244,10,255,252,233,245,255,72,139,131,
-  233,72,133,192,15,133,245,255,72,139,131,233,72,133,192,15,132,245,255,72,
-  139,139,233,73,139,150,233,72,139,146,233,72,139,146,233,255,72,131,252,249,
-  0,15,132,244,247,255,102,252,247,129,233,236,255,72,59,145,233,15,133,244,
-  247,255,102,252,247,129,233,236,15,133,244,247,255,252,233,244,248,248,1,
-  255,76,137,252,241,72,199,194,237,73,199,192,237,73,186,237,237,72,131,252,
-  236,32,65,252,255,210,72,131,196,32,255,72,199,192,237,252,233,244,11,248,
-  2,255,76,137,252,241,76,137,252,234,73,199,192,237,73,186,237,237,72,131,
-  252,236,32,65,252,255,210,72,131,196,32,73,137,195,255,76,139,129,233,255,
-  76,139,139,233,77,137,136,233,255,73,185,237,237,77,137,136,233,255,77,139,
-  141,233,77,139,137,233,77,137,136,233,255,199,129,233,237,255,72,199,129,
-  233,237,255,72,141,147,233,72,137,145,233,255,73,139,150,233,72,139,18,72,
-  137,145,233,255,76,137,252,241,72,139,147,233,77,137,216,73,199,193,237,73,
-  186,237,237,72,131,252,236,32,65,252,255,210,72,131,196,32,255,72,199,192,
-  1,0,0,0,252,233,244,11,255
+  233,73,139,155,233,77,139,163,233,255,65,252,255,224,255,248,10,72,199,192,
+  0,0,0,0,248,11,255,65,93,65,92,91,65,94,255,72,137,252,236,93,195,255,72,
+  185,237,237,72,137,139,233,255,72,199,131,233,237,255,73,139,141,233,72,139,
+  137,233,72,137,139,233,255,73,139,142,233,72,139,137,233,72,137,139,233,255,
+  72,139,139,233,72,139,137,233,255,73,139,142,233,255,72,139,145,233,255,72,
+  139,146,233,255,72,131,252,250,0,15,133,244,247,255,205,3,82,81,255,76,137,
+  252,241,72,139,84,36,8,73,199,192,237,73,186,237,237,72,131,252,236,32,65,
+  252,255,210,72,131,196,32,255,72,131,196,16,255,72,137,194,248,1,255,72,137,
+  147,233,255,72,139,137,233,72,139,147,233,72,137,145,233,255,73,139,140,253,
+  36,233,72,137,139,233,255,72,139,139,233,72,131,185,233,0,15,133,244,247,
+  72,141,145,233,252,233,244,248,248,1,72,139,145,233,72,141,146,233,248,2,
+  255,76,139,2,73,131,252,248,0,255,15,133,244,249,255,77,139,134,233,77,139,
+  128,233,248,3,255,76,139,2,255,73,131,252,248,0,15,133,244,250,255,77,139,
+  134,233,77,139,128,233,77,139,128,233,255,102,252,247,129,233,236,15,149,
+  208,73,131,252,248,0,15,149,212,132,196,15,149,208,102,65,252,247,128,233,
+  236,15,148,212,132,196,15,132,244,249,82,65,80,76,137,252,241,72,139,147,
+  233,73,186,237,237,72,131,252,236,32,65,252,255,210,72,131,196,32,65,88,90,
+  248,3,255,76,137,2,248,4,255,76,139,2,73,131,252,248,0,15,133,244,250,255,
+  81,82,76,137,252,241,73,139,150,233,72,139,146,233,72,139,146,233,73,186,
+  237,237,72,131,252,236,32,65,252,255,210,72,131,196,32,90,89,255,73,137,192,
+  102,252,247,129,233,236,15,149,208,73,131,252,248,0,15,149,212,132,196,15,
+  149,208,102,65,252,247,128,233,236,15,148,212,132,196,15,132,244,249,82,65,
+  80,76,137,252,241,72,139,147,233,73,186,237,237,72,131,252,236,32,65,252,
+  255,210,72,131,196,32,65,88,90,248,3,76,137,2,255,76,137,131,233,255,72,139,
+  139,233,72,139,147,233,76,141,129,233,73,131,184,233,0,15,132,244,247,77,
+  139,128,233,248,1,255,102,252,247,129,233,236,15,149,208,72,131,252,250,0,
+  15,149,212,132,196,15,149,208,102,252,247,130,233,236,15,148,212,132,196,
+  15,132,244,248,82,65,80,76,137,252,241,72,139,147,233,73,186,237,237,72,131,
+  252,236,32,65,252,255,210,72,131,196,32,65,88,90,248,2,255,73,137,144,233,
+  255,72,139,139,233,72,137,139,233,255,73,139,142,233,72,139,137,233,72,139,
+  137,233,72,137,139,233,255,72,139,131,233,255,72,3,131,233,255,72,43,131,
+  233,255,72,15,175,131,233,255,72,153,72,252,247,187,233,255,72,137,131,233,
+  255,72,252,255,131,233,255,72,252,255,139,233,255,252,242,15,16,131,233,255,
+  252,242,15,88,131,233,255,252,242,15,92,131,233,255,252,242,15,89,131,233,
+  255,252,242,15,94,131,233,255,252,242,15,17,131,233,255,252,242,72,15,42,
+  131,233,252,242,15,17,131,233,255,252,242,72,15,44,131,233,72,137,131,233,
+  255,72,59,131,233,255,15,148,208,255,15,149,208,255,15,156,208,255,15,158,
+  208,255,15,159,208,255,15,157,208,255,72,15,182,192,72,137,131,233,255,76,
+  137,252,241,255,76,137,252,242,255,77,137,252,240,255,77,137,252,241,255,
+  73,139,150,233,255,77,139,134,233,255,77,139,142,233,255,76,137,252,233,255,
+  76,137,252,234,255,77,137,232,255,77,137,252,233,255,72,139,139,233,255,72,
+  139,147,233,255,76,139,131,233,255,76,139,139,233,255,252,242,15,16,139,233,
+  255,252,242,15,16,147,233,255,252,242,15,16,155,233,255,76,141,155,233,255,
+  76,137,217,255,76,137,218,255,77,137,216,255,77,137,217,255,72,199,193,237,
+  255,72,199,194,237,255,73,199,192,237,255,73,199,193,237,255,73,187,237,237,
+  255,72,139,8,72,137,139,233,255,72,139,139,233,72,137,8,255,252,233,244,10,
+  255,252,233,245,255,72,139,131,233,72,133,192,15,133,245,255,72,139,131,233,
+  72,133,192,15,132,245,255,72,139,139,233,73,139,150,233,72,139,146,233,72,
+  139,146,233,255,72,131,252,249,0,15,132,244,247,255,102,252,247,129,233,236,
+  255,72,59,145,233,15,133,244,247,255,102,252,247,129,233,236,15,133,244,247,
+  255,252,233,244,248,248,1,255,76,137,252,241,72,199,194,237,73,199,192,237,
+  73,186,237,237,72,131,252,236,32,65,252,255,210,72,131,196,32,255,72,199,
+  192,237,252,233,244,11,248,2,255,76,137,252,241,76,137,252,234,73,199,192,
+  237,73,186,237,237,72,131,252,236,32,65,252,255,210,72,131,196,32,73,137,
+  195,255,76,139,129,233,255,76,139,139,233,77,137,136,233,255,73,185,237,237,
+  77,137,136,233,255,77,139,141,233,77,139,137,233,77,137,136,233,255,199,129,
+  233,237,255,72,199,129,233,237,255,72,141,147,233,72,137,145,233,255,73,139,
+  150,233,72,139,18,72,137,145,233,255,76,137,252,241,72,139,147,233,77,137,
+  216,73,199,193,237,73,186,237,237,72,131,252,236,32,65,252,255,210,72,131,
+  196,32,255,72,199,192,1,0,0,0,252,233,244,11,255
 };
 
 #line 8 "src/jit/emit_x64.dasc"
@@ -373,13 +372,11 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
     //| mov ARGS, FRAME:TMP6->params.args;
     dasm_put(Dst, 13, Dt10(->cur_frame), Dt1(->work), Dt1(->params.args));
 #line 245 "src/jit/emit_x64.dasc"
-    /* should we continue somehwere? */
-    //| cmp ARG3, NULL;
-    //| je >1;
+    /* ARG3 contains our 'entry label' */
     //| jmp ARG3
-    //|1:
-    dasm_put(Dst, 32, NULL);
-#line 250 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 32);
+#line 247 "src/jit/emit_x64.dasc"
+
 }
 
 /* And a function epilogue is also always the same */
@@ -388,18 +385,18 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitGraph *jg,
     //| ->exit:
     //| mov RV, 0;
     //| ->out:
-    dasm_put(Dst, 48);
-#line 258 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 37);
+#line 256 "src/jit/emit_x64.dasc"
     /* restore callee-save registers */
     //| restoreregs;
-    dasm_put(Dst, 60);
-#line 260 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 49);
+#line 258 "src/jit/emit_x64.dasc"
     /* Restore stack */
     //| mov rsp, rbp;
     //| pop rbp;
     //| ret;
-    dasm_put(Dst, 68);
-#line 264 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 57);
+#line 262 "src/jit/emit_x64.dasc"
 }
 
 static MVMuint64 try_emit_gen2_ref(MVMThreadContext *tc, MVMJitGraph *jg,
@@ -409,8 +406,8 @@ static MVMuint64 try_emit_gen2_ref(MVMThreadContext *tc, MVMJitGraph *jg,
         return 0;
     //| mov64 TMP1, (uintptr_t)obj;
     //| mov WORK[reg], TMP1;
-    dasm_put(Dst, 75, (unsigned int)((uintptr_t)obj), (unsigned int)(((uintptr_t)obj)>>32), Dt11([reg]));
-#line 273 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 64, (unsigned int)((uintptr_t)obj), (unsigned int)(((uintptr_t)obj)>>32), Dt11([reg]));
+#line 271 "src/jit/emit_x64.dasc"
     return 1;
 }
 
@@ -430,8 +427,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         /* Upgrade to 64 bit */
         MVMint64 val = (MVMint64)ins->operands[1].lit_i16;
         //| mov WORK[reg], qword val;
-        dasm_put(Dst, 84, Dt11([reg]), val);
-#line 292 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 73, Dt11([reg]), val);
+#line 290 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_const_i64: {
@@ -439,8 +436,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint64 val = ins->operands[1].lit_i64;
         //| mov64 TMP1, val;
         //| mov WORK[reg], TMP1;
-        dasm_put(Dst, 75, (unsigned int)(val), (unsigned int)((val)>>32), Dt11([reg]));
-#line 299 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 64, (unsigned int)(val), (unsigned int)((val)>>32), Dt11([reg]));
+#line 297 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_const_n64: {
@@ -449,8 +446,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint64 valbytes = ins->operands[1].lit_i64;
         //| mov64 TMP1, valbytes;
         //| mov WORK[reg], TMP1;
-        dasm_put(Dst, 75, (unsigned int)(valbytes), (unsigned int)((valbytes)>>32), Dt11([reg]));
-#line 307 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 64, (unsigned int)(valbytes), (unsigned int)((valbytes)>>32), Dt11([reg]));
+#line 305 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_const_s: {
@@ -461,8 +458,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
          if (!try_emit_gen2_ref(tc, jg, (MVMObject*)s, reg, Dst)) {
              //| get_string TMP1, idx;
              //| mov WORK[reg], TMP1;
-             dasm_put(Dst, 90, Dt13(->body.strings), DtB([idx]), Dt11([reg]));
-#line 317 "src/jit/emit_x64.dasc"
+             dasm_put(Dst, 79, Dt13(->body.strings), DtB([idx]), Dt11([reg]));
+#line 315 "src/jit/emit_x64.dasc"
          }
          break;
     }
@@ -471,8 +468,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         //| mov TMP1, TC->instance;
         //| mov TMP1, MVMINSTANCE:TMP1->VMNull;
         //| mov WORK[reg], TMP1;
-        dasm_put(Dst, 103, Dt10(->instance), Dt7(->VMNull), Dt11([reg]));
-#line 325 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 92, Dt10(->instance), Dt7(->VMNull), Dt11([reg]));
+#line 323 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_gethow:
@@ -481,20 +478,20 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 obj = ins->operands[0].reg.orig;
         //| mov TMP1, WORK[obj];
         //| mov TMP1, OBJECT:TMP1->st;
-        dasm_put(Dst, 116, Dt11([obj]), Dt8(->st));
-#line 333 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 105, Dt11([obj]), Dt8(->st));
+#line 331 "src/jit/emit_x64.dasc"
         if (op == MVM_OP_gethow) {
             //| mov TMP1, STABLE:TMP1->HOW;
-            dasm_put(Dst, 120, DtA(->HOW));
-#line 335 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 109, DtA(->HOW));
+#line 333 "src/jit/emit_x64.dasc"
         } else {
             //| mov TMP1, STABLE:TMP1->WHAT;
-            dasm_put(Dst, 120, DtA(->WHAT));
-#line 337 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 109, DtA(->WHAT));
+#line 335 "src/jit/emit_x64.dasc"
         }
         //| mov WORK[dst], TMP1;
-        dasm_put(Dst, 79, Dt11([dst]));
-#line 339 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 68, Dt11([dst]));
+#line 337 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_getlex: {
@@ -505,8 +502,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 out = ins->operands[1].lex.outers;
         MVMint16 i;
         //| mov TMP1, TC->cur_frame;
-        dasm_put(Dst, 125, Dt10(->cur_frame));
-#line 349 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 114, Dt10(->cur_frame));
+#line 347 "src/jit/emit_x64.dasc"
         for (i = 0; i < out; i++) {
             /* I'm going to skip compiling the check whether the outer
              * node really exists, because if the code has run N times
@@ -514,18 +511,18 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
              * and since this chain is static, it should still exist now.
              * If it doesn't exist, that means we crash. */
             //| mov TMP1, FRAME:TMP1->outer;
-            dasm_put(Dst, 120, Dt1(->outer));
-#line 356 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 109, Dt1(->outer));
+#line 354 "src/jit/emit_x64.dasc"
             sf = sf->body.outer;
         }
         /* get array of lexicals */
         //| mov TMP2, FRAME:TMP1->env;
-        dasm_put(Dst, 130, Dt1(->env));
-#line 360 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 119, Dt1(->env));
+#line 358 "src/jit/emit_x64.dasc"
         /* read value */
         //| mov TMP2, REGISTER:TMP2[idx];
-        dasm_put(Dst, 135, Dt2([idx]));
-#line 362 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 124, Dt2([idx]));
+#line 360 "src/jit/emit_x64.dasc"
         lexical_types = (jg->sg->lexical_types ? jg->sg->lexical_types :
                          sf->body.lexical_types);
         MVM_jit_log(tc, "Lexical type of register: %d\n", lexical_types[idx]);
@@ -535,35 +532,35 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             /* if it is zero, check if we need to auto-vivify */        
             //| cmp TMP2, 0;
             //| jne >1; 
-            dasm_put(Dst, 140);
-#line 371 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 129);
+#line 369 "src/jit/emit_x64.dasc"
             /* save frame and value */
             //| int 3; // debug instruction - i haven't tested this path, and it seems hard to trigger
             //| push TMP2;
             //| push TMP1;
-            dasm_put(Dst, 150);
-#line 375 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 139);
+#line 373 "src/jit/emit_x64.dasc"
             /* setup args */
             //| mov ARG1, TC;
             //| mov ARG2, [rsp+8]; // the frame, which i just pushed
             //| mov ARG3, idx;
             //| callp &MVM_frame_vivify_lexical;
-            dasm_put(Dst, 155, idx, (unsigned int)((uintptr_t)&MVM_frame_vivify_lexical), (unsigned int)(((uintptr_t)&MVM_frame_vivify_lexical)>>32));
-#line 380 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 144, idx, (unsigned int)((uintptr_t)&MVM_frame_vivify_lexical), (unsigned int)(((uintptr_t)&MVM_frame_vivify_lexical)>>32));
+#line 378 "src/jit/emit_x64.dasc"
             /* restore stack pointer */
             //| add rsp, 16;
-            dasm_put(Dst, 186);
-#line 382 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 175);
+#line 380 "src/jit/emit_x64.dasc"
             /* use return value for the result */
             //| mov TMP2, RV;
             //|1:
-            dasm_put(Dst, 191);
-#line 385 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 180);
+#line 383 "src/jit/emit_x64.dasc"
         } 
         /* store the value */
         //| mov WORK[dst], TMP2;
-        dasm_put(Dst, 197, Dt11([dst]));
-#line 388 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 186, Dt11([dst]));
+#line 386 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_bindlex: {
@@ -572,18 +569,18 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 src = ins->operands[1].reg.orig;
         MVMint16 i;
         //| mov TMP1, TC->cur_frame;
-        dasm_put(Dst, 125, Dt10(->cur_frame));
-#line 396 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 114, Dt10(->cur_frame));
+#line 394 "src/jit/emit_x64.dasc"
         for (i = 0; i < out; i++) {
             //| mov TMP1, FRAME:TMP1->outer;
-            dasm_put(Dst, 120, Dt1(->outer));
-#line 398 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 109, Dt1(->outer));
+#line 396 "src/jit/emit_x64.dasc"
         }
         //| mov TMP1, FRAME:TMP1->env;
         //| mov TMP2, WORK[src];
         //| mov REGISTER:TMP1[idx], TMP2;
-        dasm_put(Dst, 202, Dt1(->env), Dt11([src]), Dt2([idx]));
-#line 402 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 191, Dt1(->env), Dt11([src]), Dt2([idx]));
+#line 400 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_sp_getarg_o:
@@ -594,8 +591,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMuint16 idx = ins->operands[1].callsite_idx;
         //| mov TMP1, ARGS[idx];
         //| mov WORK[reg], TMP1;
-        dasm_put(Dst, 215, Dt12([idx]), Dt11([reg]));
-#line 412 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 204, Dt12([idx]), Dt11([reg]));
+#line 410 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_sp_p6oget_i:
@@ -617,38 +614,38 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         //| mov TMP2, P6OPAQUE:TMP1->body.replaced;
         //| lea TMP2, [TMP2 + offset];
         //|2:
-        dasm_put(Dst, 226, Dt11([obj]), Dt5(->body.replaced), (offset + body), Dt5(->body.replaced), offset);
-#line 433 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 215, Dt11([obj]), Dt5(->body.replaced), (offset + body), Dt5(->body.replaced), offset);
+#line 431 "src/jit/emit_x64.dasc"
         /* TMP1 now contains address of item */
         if (op == MVM_OP_sp_p6oget_o) {
             //| mov TMP3, [TMP2];
             //| cmp TMP3, 0;
-            dasm_put(Dst, 260);
-#line 437 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 249);
+#line 435 "src/jit/emit_x64.dasc"
             /* Check if object doesn't point to NULL */
             //| jne >3;
-            dasm_put(Dst, 269);
-#line 439 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 258);
+#line 437 "src/jit/emit_x64.dasc"
             /* Otherwise load VMNull */ 
             //| get_vmnull TMP3;
             //|3:
-            dasm_put(Dst, 274, Dt10(->instance), Dt7(->VMNull));
-#line 442 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 263, Dt10(->instance), Dt7(->VMNull));
+#line 440 "src/jit/emit_x64.dasc"
         } else if (op == MVM_OP_sp_p6ogetvt_o) {
             /* vivify as type object */ 
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
             //| mov TMP3, [TMP2];
-            dasm_put(Dst, 285);
-#line 446 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 274);
+#line 444 "src/jit/emit_x64.dasc"
             /* check for null */
             //| cmp TMP3, 0;
             //| jne >4;
-            dasm_put(Dst, 289);
-#line 449 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 278);
+#line 447 "src/jit/emit_x64.dasc"
             /* if null, vivify as type object from spesh slot */
             //| get_spesh_slot TMP3, spesh_idx;
-            dasm_put(Dst, 299, Dt10(->cur_frame), Dt1(->effective_spesh_slots), DtC([spesh_idx]));
-#line 451 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 288, Dt10(->cur_frame), Dt1(->effective_spesh_slots), DtC([spesh_idx]));
+#line 449 "src/jit/emit_x64.dasc"
             /* need to hit write barrier? */
             //| check_wb TMP1, TMP3;
             //| jz >3;
@@ -658,20 +655,20 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             //| pop TMP3;
             //| pop TMP2;
             //|3:
-            dasm_put(Dst, 312, Dt9(->flags), MVM_CF_SECOND_GEN, Dt9(->flags), MVM_CF_SECOND_GEN, Dt11([obj]), (unsigned int)((uintptr_t)&MVM_gc_write_barrier_hit), (unsigned int)(((uintptr_t)&MVM_gc_write_barrier_hit)>>32));
-#line 460 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 301, Dt9(->flags), MVM_CF_SECOND_GEN, Dt9(->flags), MVM_CF_SECOND_GEN, Dt11([obj]), (unsigned int)((uintptr_t)&MVM_gc_write_barrier_hit), (unsigned int)(((uintptr_t)&MVM_gc_write_barrier_hit)>>32));
+#line 458 "src/jit/emit_x64.dasc"
             /* store vivified type value in memory location */
             //| mov [TMP2], TMP3;
             //|4:
-            dasm_put(Dst, 384);
-#line 463 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 373);
+#line 461 "src/jit/emit_x64.dasc"
         } else if (op == MVM_OP_sp_p6ogetvc_o) {
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
             //| mov TMP3, [TMP2];
             //| cmp TMP3, 0;
             //| jne >4;
-            dasm_put(Dst, 390);
-#line 468 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 379);
+#line 466 "src/jit/emit_x64.dasc"
             /* vivify as clone */
             //| push TMP1;
             //| push TMP2;
@@ -680,8 +677,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             //| callp &MVM_repr_clone;
             //| pop TMP2;
             //| pop TMP1;
-            dasm_put(Dst, 403, Dt10(->cur_frame), Dt1(->effective_spesh_slots), DtC([spesh_idx]), (unsigned int)((uintptr_t)&MVM_repr_clone), (unsigned int)(((uintptr_t)&MVM_repr_clone)>>32));
-#line 476 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 392, Dt10(->cur_frame), Dt1(->effective_spesh_slots), DtC([spesh_idx]), (unsigned int)((uintptr_t)&MVM_repr_clone), (unsigned int)(((uintptr_t)&MVM_repr_clone)>>32));
+#line 474 "src/jit/emit_x64.dasc"
             /* assign with write barrier */
             //| mov TMP3, RV;
             //| check_wb TMP1, TMP3;
@@ -693,22 +690,22 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             //| pop TMP2;
             //|3: 
             //| mov [TMP2], TMP3;
-            dasm_put(Dst, 441, Dt9(->flags), MVM_CF_SECOND_GEN, Dt9(->flags), MVM_CF_SECOND_GEN, Dt11([obj]), (unsigned int)((uintptr_t)&MVM_gc_write_barrier_hit), (unsigned int)(((uintptr_t)&MVM_gc_write_barrier_hit)>>32));
-#line 487 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 430, Dt9(->flags), MVM_CF_SECOND_GEN, Dt9(->flags), MVM_CF_SECOND_GEN, Dt11([obj]), (unsigned int)((uintptr_t)&MVM_gc_write_barrier_hit), (unsigned int)(((uintptr_t)&MVM_gc_write_barrier_hit)>>32));
+#line 485 "src/jit/emit_x64.dasc"
             /* done */
             //|4:
-            dasm_put(Dst, 387);
-#line 489 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 376);
+#line 487 "src/jit/emit_x64.dasc"
         } else {
             /* the regular case */
             //| mov TMP3, [TMP2];
-            dasm_put(Dst, 285);
-#line 492 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 274);
+#line 490 "src/jit/emit_x64.dasc"
         }
         /* store in local register */
         //| mov WORK[dst], TMP3;
-        dasm_put(Dst, 519, Dt11([dst]));
-#line 495 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 508, Dt11([dst]));
+#line 493 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_sp_p6obind_i:
@@ -725,8 +722,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         //| je >1;
         //| mov TMP3, P6OBODY:TMP3->replaced; // replaced object body
         //|1:
-        dasm_put(Dst, 524, Dt11([obj]), Dt11([val]), Dt5(->body), Dt6(->replaced), Dt6(->replaced));
-#line 511 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 513, Dt11([obj]), Dt11([val]), Dt5(->body), Dt6(->replaced), Dt6(->replaced));
+#line 509 "src/jit/emit_x64.dasc"
         if (op == MVM_OP_sp_p6obind_o) {
             /* check if we should hit write barrier */
             //| check_wb TMP1, TMP2;
@@ -737,12 +734,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             //| pop TMP3; // restore body pointer
             //| pop TMP2; // restore value
             //|2: // done
-            dasm_put(Dst, 552, Dt9(->flags), MVM_CF_SECOND_GEN, Dt9(->flags), MVM_CF_SECOND_GEN, Dt11([obj]), (unsigned int)((uintptr_t)&MVM_gc_write_barrier_hit), (unsigned int)(((uintptr_t)&MVM_gc_write_barrier_hit)>>32));
-#line 521 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 541, Dt9(->flags), MVM_CF_SECOND_GEN, Dt9(->flags), MVM_CF_SECOND_GEN, Dt11([obj]), (unsigned int)((uintptr_t)&MVM_gc_write_barrier_hit), (unsigned int)(((uintptr_t)&MVM_gc_write_barrier_hit)>>32));
+#line 519 "src/jit/emit_x64.dasc"
         }
         //| mov [TMP3+offset], TMP2; // store value into body
-        dasm_put(Dst, 623, offset);
-#line 523 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 612, offset);
+#line 521 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_getwhere:
@@ -751,8 +748,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
          MVMint32 reg2 = ins->operands[1].reg.orig;
          //| mov TMP1, WORK[reg2];
          //| mov WORK[reg1], TMP1;
-         dasm_put(Dst, 628, Dt11([reg2]), Dt11([reg1]));
-#line 531 "src/jit/emit_x64.dasc"
+         dasm_put(Dst, 617, Dt11([reg2]), Dt11([reg1]));
+#line 529 "src/jit/emit_x64.dasc"
          break;
     }
     case MVM_OP_sp_getspeshslot: {
@@ -760,8 +757,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 spesh_idx = ins->operands[1].lit_i16;
         //| get_spesh_slot TMP1, spesh_idx;
         //| mov WORK[dst], TMP1;
-        dasm_put(Dst, 637, Dt10(->cur_frame), Dt1(->effective_spesh_slots), DtC([spesh_idx]), Dt11([dst]));
-#line 538 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 626, Dt10(->cur_frame), Dt1(->effective_spesh_slots), DtC([spesh_idx]), Dt11([dst]));
+#line 536 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_add_i:
@@ -773,23 +770,23 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint32 reg_b = ins->operands[1].reg.orig;
         MVMint32 reg_c = ins->operands[2].reg.orig;
         //| mov rax, WORK[reg_b];
-        dasm_put(Dst, 654, Dt11([reg_b]));
-#line 549 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 643, Dt11([reg_b]));
+#line 547 "src/jit/emit_x64.dasc"
         switch(ins->info->opcode) {
         case MVM_OP_add_i:
             //| add rax, WORK[reg_c];
-            dasm_put(Dst, 659, Dt11([reg_c]));
-#line 552 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 648, Dt11([reg_c]));
+#line 550 "src/jit/emit_x64.dasc"
             break;
         case MVM_OP_sub_i:
             //| sub rax, WORK[reg_c];
-            dasm_put(Dst, 664, Dt11([reg_c]));
-#line 555 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 653, Dt11([reg_c]));
+#line 553 "src/jit/emit_x64.dasc"
             break;
         case MVM_OP_mul_i:
             //| imul rax, WORK[reg_c];
-            dasm_put(Dst, 669, Dt11([reg_c]));
-#line 558 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 658, Dt11([reg_c]));
+#line 556 "src/jit/emit_x64.dasc"
             break;
         case MVM_OP_div_i:
         case MVM_OP_mod_i:
@@ -797,35 +794,35 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             // single 16 byte register
             //| cqo; 
             //| idiv qword WORK[reg_c];
-            dasm_put(Dst, 675, Dt11([reg_c]));
-#line 565 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 664, Dt11([reg_c]));
+#line 563 "src/jit/emit_x64.dasc"
             break;
         }
         if (ins->info->opcode == MVM_OP_mod_i) {
             // result of modula is stored in rdx
             //| mov WORK[reg_a], rdx;
-            dasm_put(Dst, 197, Dt11([reg_a]));
-#line 570 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 186, Dt11([reg_a]));
+#line 568 "src/jit/emit_x64.dasc"
         } else {
             // all others in rax
             //| mov WORK[reg_a], rax;
-            dasm_put(Dst, 683, Dt11([reg_a]));
-#line 573 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 672, Dt11([reg_a]));
+#line 571 "src/jit/emit_x64.dasc"
         }
         break;
     }
     case MVM_OP_inc_i: {
          MVMint32 reg = ins->operands[0].reg.orig;
          //| inc qword WORK[reg];
-         dasm_put(Dst, 688, Dt11([reg]));
-#line 579 "src/jit/emit_x64.dasc"
+         dasm_put(Dst, 677, Dt11([reg]));
+#line 577 "src/jit/emit_x64.dasc"
          break;
     }
     case MVM_OP_dec_i: {
         MVMint32 reg = ins->operands[0].reg.orig;
         //| dec qword WORK[reg];
-        dasm_put(Dst, 694, Dt11([reg]));
-#line 584 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 683, Dt11([reg]));
+#line 582 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_add_n:
@@ -838,33 +835,33 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         /* Copying data to xmm (floating point) registers requires
          * a special move instruction */
         //| movsd xmm0, qword WORK[reg_b];
-        dasm_put(Dst, 700, Dt11([reg_b]));
-#line 596 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 689, Dt11([reg_b]));
+#line 594 "src/jit/emit_x64.dasc"
         switch(ins->info->opcode) {
         case MVM_OP_add_n:
             //| addsd xmm0, qword WORK[reg_c];
-            dasm_put(Dst, 707, Dt11([reg_c]));
-#line 599 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 696, Dt11([reg_c]));
+#line 597 "src/jit/emit_x64.dasc"
             break;
         case MVM_OP_sub_n:
             //| subsd xmm0, qword WORK[reg_c];
-            dasm_put(Dst, 714, Dt11([reg_c]));
-#line 602 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 703, Dt11([reg_c]));
+#line 600 "src/jit/emit_x64.dasc"
             break;
         case MVM_OP_mul_n:
             //| mulsd xmm0, qword WORK[reg_c];
-            dasm_put(Dst, 721, Dt11([reg_c]));
-#line 605 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 710, Dt11([reg_c]));
+#line 603 "src/jit/emit_x64.dasc"
             break;
         case MVM_OP_div_n:
             //| divsd xmm0, qword WORK[reg_c];
-            dasm_put(Dst, 728, Dt11([reg_c]));
-#line 608 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 717, Dt11([reg_c]));
+#line 606 "src/jit/emit_x64.dasc"
             break;
         }
         //| movsd qword WORK[reg_a], xmm0;
-        dasm_put(Dst, 735, Dt11([reg_a]));
-#line 611 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 724, Dt11([reg_a]));
+#line 609 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_coerce_in: {
@@ -873,8 +870,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         /* convert simple integer to double precision */
         //| cvtsi2sd xmm0, qword WORK[src];
         //| movsd qword WORK[dst], xmm0;
-        dasm_put(Dst, 742, Dt11([src]), Dt11([dst]));
-#line 619 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 731, Dt11([src]), Dt11([dst]));
+#line 617 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_coerce_ni: {
@@ -883,8 +880,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         /* convert double precision to simple intege */
         //| cvttsd2si rax, qword WORK[src];
         //| mov WORK[dst], rax;
-        dasm_put(Dst, 756, Dt11([src]), Dt11([dst]));
-#line 627 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 745, Dt11([src]), Dt11([dst]));
+#line 625 "src/jit/emit_x64.dasc"
         break;
     }
     case MVM_OP_eq_i:
@@ -898,51 +895,51 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint32 reg_b = ins->operands[1].reg.orig;
         MVMint32 reg_c = ins->operands[2].reg.orig;
         //| mov rax, WORK[reg_b];
-        dasm_put(Dst, 654, Dt11([reg_b]));
-#line 640 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 643, Dt11([reg_b]));
+#line 638 "src/jit/emit_x64.dasc"
         /* comparison result in the setting bits in the rflags register */
         //| cmp rax, WORK[reg_c];
-        dasm_put(Dst, 768, Dt11([reg_c]));
-#line 642 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 757, Dt11([reg_c]));
+#line 640 "src/jit/emit_x64.dasc"
         /* copy the right comparison bit to the lower byte of the rax register */
         switch(ins->info->opcode) {
         case MVM_OP_eqaddr:
         case MVM_OP_eq_i:
             //| sete al;
-            dasm_put(Dst, 773);
-#line 647 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 762);
+#line 645 "src/jit/emit_x64.dasc"
             break;
         case MVM_OP_ne_i:
             //| setne al;
-            dasm_put(Dst, 777);
-#line 650 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 766);
+#line 648 "src/jit/emit_x64.dasc"
             break;
         case MVM_OP_lt_i:
             //| setl al;
-            dasm_put(Dst, 781);
-#line 653 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 770);
+#line 651 "src/jit/emit_x64.dasc"
             break;
         case MVM_OP_le_i:
             //| setle al;
-            dasm_put(Dst, 785);
-#line 656 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 774);
+#line 654 "src/jit/emit_x64.dasc"
             break;
         case MVM_OP_gt_i:
             //| setg al;
-            dasm_put(Dst, 789);
-#line 659 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 778);
+#line 657 "src/jit/emit_x64.dasc"
             break;
         case MVM_OP_ge_i:
             //| setge al;
-            dasm_put(Dst, 793);
-#line 662 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 782);
+#line 660 "src/jit/emit_x64.dasc"
             break;
         }
         /* zero extend al (lower byte) to rax (whole register) */
         //| movzx rax, al;
         //| mov WORK[reg_a], rax; 
-        dasm_put(Dst, 797, Dt11([reg_a]));
-#line 667 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 786, Dt11([reg_a]));
+#line 665 "src/jit/emit_x64.dasc"
         break;
     }
     default:
@@ -968,61 +965,61 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
                 //| addarg i, TC;
                 switch(i) {
                     case 0:
-                dasm_put(Dst, 806);
+                dasm_put(Dst, 795);
                         break;
                     case 1:
-                dasm_put(Dst, 811);
+                dasm_put(Dst, 800);
                         break;
                     case 2:
-                dasm_put(Dst, 816);
+                dasm_put(Dst, 805);
                         break;
                     case 3:
-                dasm_put(Dst, 821);
+                dasm_put(Dst, 810);
                         break;
                     default:
                         MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
                 }
-#line 690 "src/jit/emit_x64.dasc"
+#line 688 "src/jit/emit_x64.dasc"
                  break;
             case MVM_JIT_INTERP_FRAME:
                 //| addarg i, TC->cur_frame;
                 switch(i) {
                     case 0:
-                dasm_put(Dst, 125, Dt10(->cur_frame));
+                dasm_put(Dst, 114, Dt10(->cur_frame));
                         break;
                     case 1:
-                dasm_put(Dst, 826, Dt10(->cur_frame));
+                dasm_put(Dst, 815, Dt10(->cur_frame));
                         break;
                     case 2:
-                dasm_put(Dst, 831, Dt10(->cur_frame));
+                dasm_put(Dst, 820, Dt10(->cur_frame));
                         break;
                     case 3:
-                dasm_put(Dst, 836, Dt10(->cur_frame));
+                dasm_put(Dst, 825, Dt10(->cur_frame));
                         break;
                     default:
                         MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
                 }
-#line 693 "src/jit/emit_x64.dasc"
+#line 691 "src/jit/emit_x64.dasc"
                 break;
             case MVM_JIT_INTERP_CU:
                 //| addarg i, CU;
                 switch(i) {
                     case 0:
-                dasm_put(Dst, 841);
+                dasm_put(Dst, 830);
                         break;
                     case 1:
-                dasm_put(Dst, 846);
+                dasm_put(Dst, 835);
                         break;
                     case 2:
-                dasm_put(Dst, 851);
+                dasm_put(Dst, 840);
                         break;
                     case 3:
-                dasm_put(Dst, 855);
+                dasm_put(Dst, 844);
                         break;
                     default:
                         MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
                 }
-#line 696 "src/jit/emit_x64.dasc"
+#line 694 "src/jit/emit_x64.dasc"
                 break;
             }
             break;
@@ -1030,105 +1027,105 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
             //| addarg i, WORK[args[i].v.reg];
             switch(i) {
                 case 0:
-            dasm_put(Dst, 860, Dt11([args[i].v.reg]));
+            dasm_put(Dst, 849, Dt11([args[i].v.reg]));
                     break;
                 case 1:
-            dasm_put(Dst, 865, Dt11([args[i].v.reg]));
+            dasm_put(Dst, 854, Dt11([args[i].v.reg]));
                     break;
                 case 2:
-            dasm_put(Dst, 870, Dt11([args[i].v.reg]));
+            dasm_put(Dst, 859, Dt11([args[i].v.reg]));
                     break;
                 case 3:
-            dasm_put(Dst, 875, Dt11([args[i].v.reg]));
+            dasm_put(Dst, 864, Dt11([args[i].v.reg]));
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
             }
-#line 701 "src/jit/emit_x64.dasc"
+#line 699 "src/jit/emit_x64.dasc"
             break;
         case MVM_JIT_REG_VAL_F:
             //| addarg_f i, WORK[args[i].v.reg];
             switch(i) {
                 case 0:
-            dasm_put(Dst, 700, Dt11([args[i].v.reg]));
+            dasm_put(Dst, 689, Dt11([args[i].v.reg]));
                     break;
                 case 1:
-            dasm_put(Dst, 880, Dt11([args[i].v.reg]));
+            dasm_put(Dst, 869, Dt11([args[i].v.reg]));
                     break;
                 case 2:
-            dasm_put(Dst, 887, Dt11([args[i].v.reg]));
+            dasm_put(Dst, 876, Dt11([args[i].v.reg]));
                     break;
                 case 3:
-            dasm_put(Dst, 894, Dt11([args[i].v.reg]));
+            dasm_put(Dst, 883, Dt11([args[i].v.reg]));
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
             }
-#line 704 "src/jit/emit_x64.dasc"
+#line 702 "src/jit/emit_x64.dasc"
             break;
         case MVM_JIT_REG_ADDR:
             //| lea TMP6, WORK[args[i].v.reg];
             //| addarg i, TMP6;
-            dasm_put(Dst, 901, Dt11([args[i].v.reg]));
+            dasm_put(Dst, 890, Dt11([args[i].v.reg]));
             switch(i) {
                 case 0:
-            dasm_put(Dst, 906);
+            dasm_put(Dst, 895);
                     break;
                 case 1:
-            dasm_put(Dst, 910);
+            dasm_put(Dst, 899);
                     break;
                 case 2:
-            dasm_put(Dst, 914);
+            dasm_put(Dst, 903);
                     break;
                 case 3:
-            dasm_put(Dst, 918);
+            dasm_put(Dst, 907);
+                    break;
+                default:
+                    MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
+            }
+#line 706 "src/jit/emit_x64.dasc"
+        case MVM_JIT_LITERAL:
+            //| addarg i, args[i].v.lit_i64;
+            switch(i) {
+                case 0:
+            dasm_put(Dst, 911, args[i].v.lit_i64);
+                    break;
+                case 1:
+            dasm_put(Dst, 916, args[i].v.lit_i64);
+                    break;
+                case 2:
+            dasm_put(Dst, 921, args[i].v.lit_i64);
+                    break;
+                case 3:
+            dasm_put(Dst, 926, args[i].v.lit_i64);
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
             }
 #line 708 "src/jit/emit_x64.dasc"
-        case MVM_JIT_LITERAL:
-            //| addarg i, args[i].v.lit_i64;
-            switch(i) {
-                case 0:
-            dasm_put(Dst, 922, args[i].v.lit_i64);
-                    break;
-                case 1:
-            dasm_put(Dst, 927, args[i].v.lit_i64);
-                    break;
-                case 2:
-            dasm_put(Dst, 932, args[i].v.lit_i64);
-                    break;
-                case 3:
-            dasm_put(Dst, 937, args[i].v.lit_i64);
-                    break;
-                default:
-                    MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
-            }
-#line 710 "src/jit/emit_x64.dasc"
             break;
         case MVM_JIT_LITERAL_64:
         case MVM_JIT_LITERAL_F:
             //| mov64 TMP6, args[i].v.lit_i64;
             //| addarg i, TMP6;
-            dasm_put(Dst, 942, (unsigned int)(args[i].v.lit_i64), (unsigned int)((args[i].v.lit_i64)>>32));
+            dasm_put(Dst, 931, (unsigned int)(args[i].v.lit_i64), (unsigned int)((args[i].v.lit_i64)>>32));
             switch(i) {
                 case 0:
-            dasm_put(Dst, 906);
+            dasm_put(Dst, 895);
                     break;
                 case 1:
-            dasm_put(Dst, 910);
+            dasm_put(Dst, 899);
                     break;
                 case 2:
-            dasm_put(Dst, 914);
+            dasm_put(Dst, 903);
                     break;
                 case 3:
-            dasm_put(Dst, 918);
+            dasm_put(Dst, 907);
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
             }
-#line 715 "src/jit/emit_x64.dasc"
+#line 713 "src/jit/emit_x64.dasc"
             break;
         }
     }
@@ -1136,8 +1133,8 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
      * store the constant into the bytecode, like a data segment. But I'm
      * not sure. */
     //| callp call_spec->func_ptr;
-    dasm_put(Dst, 168, (unsigned int)((uintptr_t)call_spec->func_ptr), (unsigned int)(((uintptr_t)call_spec->func_ptr)>>32));
-#line 722 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 157, (unsigned int)((uintptr_t)call_spec->func_ptr), (unsigned int)(((uintptr_t)call_spec->func_ptr)>>32));
+#line 720 "src/jit/emit_x64.dasc"
     /* right, now determine what to do with the return value */
     switch(call_spec->rv_mode) {
     case MVM_JIT_RV_VOID:
@@ -1145,26 +1142,26 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_JIT_RV_INT:
     case MVM_JIT_RV_PTR:
         //| mov WORK[call_spec->rv_idx], RV;
-        dasm_put(Dst, 683, Dt11([call_spec->rv_idx]));
-#line 729 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 672, Dt11([call_spec->rv_idx]));
+#line 727 "src/jit/emit_x64.dasc"
         break;
     case MVM_JIT_RV_NUM:
         //| movsd qword WORK[call_spec->rv_idx], RVF;
-        dasm_put(Dst, 735, Dt11([call_spec->rv_idx]));
-#line 732 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 724, Dt11([call_spec->rv_idx]));
+#line 730 "src/jit/emit_x64.dasc"
         break;
     case MVM_JIT_RV_DEREF:
         //| mov TMP1, [RV];
         //| mov WORK[call_spec->rv_idx], TMP1;
-        dasm_put(Dst, 947, Dt11([call_spec->rv_idx]));
-#line 736 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 936, Dt11([call_spec->rv_idx]));
+#line 734 "src/jit/emit_x64.dasc"
         break;
     case MVM_JIT_RV_ADDR:
         /* store local at address */
         //| mov TMP1, WORK[call_spec->rv_idx];
         //| mov [RV], TMP1;
-        dasm_put(Dst, 955, Dt11([call_spec->rv_idx]));
-#line 741 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 944, Dt11([call_spec->rv_idx]));
+#line 739 "src/jit/emit_x64.dasc"
         break;
     }
 }
@@ -1177,12 +1174,12 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
         MVM_jit_log(tc, "emit jump to label %d\n", name);
         if (name == MVM_JIT_BRANCH_EXIT) {
             //| jmp ->exit
-            dasm_put(Dst, 963);
-#line 753 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 952);
+#line 751 "src/jit/emit_x64.dasc"
         } else {
             //| jmp =>(name)
-            dasm_put(Dst, 968, (name));
-#line 755 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 957, (name));
+#line 753 "src/jit/emit_x64.dasc"
         }
     } else {
         MVMint16 reg = ins->operands[0].reg.orig;
@@ -1193,15 +1190,15 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
             //| mov rax, WORK[reg];
             //| test rax, rax;
             //| jnz =>(name); // jump to dynamic label
-            dasm_put(Dst, 972, Dt11([reg]), (name));
-#line 765 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 961, Dt11([reg]), (name));
+#line 763 "src/jit/emit_x64.dasc"
             break;
         case MVM_OP_unless_i:
             //| mov rax, WORK[reg];
             //| test rax, rax;
             //| jz =>(name);
-            dasm_put(Dst, 983, Dt11([reg]), (name));
-#line 770 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 972, Dt11([reg]), (name));
+#line 768 "src/jit/emit_x64.dasc"
             break;
         default:
             MVM_exception_throw_adhoc(tc, "JIT: Can't handle conditional <%s>",
@@ -1213,8 +1210,8 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitGraph *jg,
                         MVMJitLabel *label, dasm_State **Dst) {
     //| =>(label->name):
-    dasm_put(Dst, 272, (label->name));
-#line 781 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 261, (label->name));
+#line 779 "src/jit/emit_x64.dasc"
 }
 
 void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
@@ -1226,8 +1223,8 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
     /* load object and spesh slot value */
     //| mov TMP1, WORK[obj];
     //| get_spesh_slot TMP2, spesh_idx;
-    dasm_put(Dst, 994, Dt11([obj]), Dt10(->cur_frame), Dt1(->effective_spesh_slots), DtC([spesh_idx]));
-#line 792 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 983, Dt11([obj]), Dt10(->cur_frame), Dt1(->effective_spesh_slots), DtC([spesh_idx]));
+#line 790 "src/jit/emit_x64.dasc"
     if (op == MVM_OP_sp_guardtype) {
         /* object in queston should be a type object, so it shouldn't
          * be zero, should not be concrete, and the STABLE should be
@@ -1235,57 +1232,57 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
         /* check for null */
         //| cmp TMP1, 0;
         //| je >1;
-        dasm_put(Dst, 1011);
-#line 799 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1000);
+#line 797 "src/jit/emit_x64.dasc"
         /* check if type object (not concrete) */
         //| is_type_object TMP1;
-        dasm_put(Dst, 1021, Dt8(->header.flags), MVM_CF_TYPE_OBJECT);
-#line 801 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1010, Dt8(->header.flags), MVM_CF_TYPE_OBJECT);
+#line 799 "src/jit/emit_x64.dasc"
         /* if zero, this is a concrete object, and we should deopt */
         //| jz >1;
-        dasm_put(Dst, 1016);
-#line 803 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1005);
+#line 801 "src/jit/emit_x64.dasc"
         /* get stable and compare */
         //| cmp TMP2, OBJECT:TMP1->st;
         //| jne >1;
-        dasm_put(Dst, 1028, Dt8(->st));
-#line 806 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1017, Dt8(->st));
+#line 804 "src/jit/emit_x64.dasc"
         /* we're good, no need to deopt */
     } else if (op == MVM_OP_sp_guardconc) {
         /* object should be a non-null concrete (non-type) object */
         //| cmp TMP1, 0;
         //| je >1;
-        dasm_put(Dst, 1011);
-#line 811 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1000);
+#line 809 "src/jit/emit_x64.dasc"
         /* shouldn't be type object */
         //| is_type_object TMP1;
         //| jnz >1;
-        dasm_put(Dst, 1037, Dt8(->header.flags), MVM_CF_TYPE_OBJECT);
-#line 814 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1026, Dt8(->header.flags), MVM_CF_TYPE_OBJECT);
+#line 812 "src/jit/emit_x64.dasc"
         /* should have our stable */
         //| cmp TMP2, OBJECT:TMP1->st;
         //| jne >1;
-        dasm_put(Dst, 1028, Dt8(->st));
-#line 817 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1017, Dt8(->st));
+#line 815 "src/jit/emit_x64.dasc"
     }
     /* if we're here, we didn't jump to deopt, so skip it */
     //| jmp >2;
     //|1:
-    dasm_put(Dst, 1048);
-#line 821 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 1037);
+#line 819 "src/jit/emit_x64.dasc"
     /* emit deopt */
     //| mov ARG1, TC;
     //| mov ARG2, guard->deopt_offset;
     //| mov ARG3, guard->deopt_target;
     //| callp &MVM_spesh_deopt_one_direct;
-    dasm_put(Dst, 1055, guard->deopt_offset, guard->deopt_target, (unsigned int)((uintptr_t)&MVM_spesh_deopt_one_direct), (unsigned int)(((uintptr_t)&MVM_spesh_deopt_one_direct)>>32));
-#line 826 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 1044, guard->deopt_offset, guard->deopt_target, (unsigned int)((uintptr_t)&MVM_spesh_deopt_one_direct), (unsigned int)(((uintptr_t)&MVM_spesh_deopt_one_direct)>>32));
+#line 824 "src/jit/emit_x64.dasc"
     /* tell jit driver we're deopting */
     //| mov RV, MVM_JIT_CTRL_DEOPT
     //| jmp ->out;
     //|2:
-    dasm_put(Dst, 1085, MVM_JIT_CTRL_DEOPT);
-#line 830 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 1074, MVM_JIT_CTRL_DEOPT);
+#line 828 "src/jit/emit_x64.dasc"
 }
 
 void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *invoke,
@@ -1297,16 +1294,16 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     //| mov ARG3, invoke->callsite_idx;
     //| callp &MVM_args_prepare;
     //| mov TMP6, RV; // store callsite in tmp6, which we don't use until the end
-    dasm_put(Dst, 1096, invoke->callsite_idx, (unsigned int)((uintptr_t)&MVM_args_prepare), (unsigned int)(((uintptr_t)&MVM_args_prepare)>>32));
-#line 841 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 1085, invoke->callsite_idx, (unsigned int)((uintptr_t)&MVM_args_prepare), (unsigned int)(((uintptr_t)&MVM_args_prepare)>>32));
+#line 839 "src/jit/emit_x64.dasc"
     /* get the frame (we'll use it often) */
     //| mov TMP1, TC->cur_frame;
-    dasm_put(Dst, 125, Dt10(->cur_frame));
-#line 843 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 114, Dt10(->cur_frame));
+#line 841 "src/jit/emit_x64.dasc"
     /* add arguments */
     //| mov TMP3, FRAME:TMP1->args;
-    dasm_put(Dst, 1129, Dt1(->args));
-#line 845 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 1118, Dt1(->args));
+#line 843 "src/jit/emit_x64.dasc"
     for (i = 0;  i < invoke->arg_count; i++) {
         MVMSpeshIns *ins = invoke->arg_ins[i];
         switch (ins->info->opcode) {
@@ -1318,8 +1315,8 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
             MVMint16 src = ins->operands[1].reg.orig;
             //| mov TMP4, WORK[src];
             //| mov REGISTER:TMP3[dst], TMP4;
-            dasm_put(Dst, 1134, Dt11([src]), Dt2([dst]));
-#line 856 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 1123, Dt11([src]), Dt2([dst]));
+#line 854 "src/jit/emit_x64.dasc"
             break;
         }
         case MVM_OP_argconst_n:
@@ -1328,8 +1325,8 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
             MVMint64 val = ins->operands[1].lit_i64;
             //| mov64 TMP4, val;
             //| mov REGISTER:TMP3[dst], TMP4;
-            dasm_put(Dst, 1143, (unsigned int)(val), (unsigned int)((val)>>32), Dt2([dst]));
-#line 864 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 1132, (unsigned int)(val), (unsigned int)((val)>>32), Dt2([dst]));
+#line 862 "src/jit/emit_x64.dasc"
             break;
         }
         case MVM_OP_argconst_s: {
@@ -1337,8 +1334,8 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
             MVMint32 idx = ins->operands[1].lit_str_idx;
             //| get_string TMP4, idx;
             //| mov REGISTER:TMP3[dst], TMP4;
-            dasm_put(Dst, 1152, Dt13(->body.strings), DtB([idx]), Dt2([dst]));
-#line 871 "src/jit/emit_x64.dasc"
+            dasm_put(Dst, 1141, Dt13(->body.strings), DtB([idx]), Dt2([dst]));
+#line 869 "src/jit/emit_x64.dasc"
             break;
         }
         default:
@@ -1349,42 +1346,42 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     /* frame setup */
     if (sizeof(MVMReturnType) == 4) {
         //| mov dword FRAME:TMP1->return_type, invoke->return_type;
-        dasm_put(Dst, 1165, Dt1(->return_type), invoke->return_type);
-#line 881 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1154, Dt1(->return_type), invoke->return_type);
+#line 879 "src/jit/emit_x64.dasc"
     } else {
         MVM_exception_throw_adhoc(tc, "JIT: MVMReturnType has unexpected size");
     }
     /* return register */
     if (invoke->return_type == MVM_RETURN_VOID) {
         //| mov aword FRAME:TMP1->return_value, NULL;
-        dasm_put(Dst, 1170, Dt1(->return_value), NULL);
-#line 887 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1159, Dt1(->return_value), NULL);
+#line 885 "src/jit/emit_x64.dasc"
     } else {
         //| lea TMP2, WORK[invoke->return_register];
         //| mov aword FRAME:TMP1->return_value, TMP2;
-        dasm_put(Dst, 1176, Dt11([invoke->return_register]), Dt1(->return_value));
-#line 890 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1165, Dt11([invoke->return_register]), Dt1(->return_value));
+#line 888 "src/jit/emit_x64.dasc"
     }
     /* interpreter return address */
     //| get_cur_op TMP2;
     //| mov aword FRAME:TMP1->return_address, TMP2;
-    dasm_put(Dst, 1185, Dt10(->interp_cur_op), Dt1(->return_address));
+    dasm_put(Dst, 1174, Dt10(->interp_cur_op), Dt1(->return_address));
+#line 892 "src/jit/emit_x64.dasc"
+    /* store re-entry address in entry label */
+    //| mov dword FRAME:TMP1->jit_entry_label, invoke->reentry_label;
+    dasm_put(Dst, 1154, Dt1(->jit_entry_label), invoke->reentry_label);
 #line 894 "src/jit/emit_x64.dasc"
-    /* store continuation label */
-    //| mov dword FRAME:TMP1->jit_continuation_label, invoke->next_label;
-    dasm_put(Dst, 1165, Dt1(->jit_continuation_label), invoke->next_label);
-#line 896 "src/jit/emit_x64.dasc"
     /* call MVM_frame_invoke_code */
     //| mov ARG1, TC;
     //| mov ARG2, WORK[invoke->code_register];
     //| mov ARG3, TMP6; // this is the callsite object
     //| mov ARG4, invoke->spesh_cand;
     //| callp &MVM_frame_invoke_code;
-    dasm_put(Dst, 1197, Dt11([invoke->code_register]), invoke->spesh_cand, (unsigned int)((uintptr_t)&MVM_frame_invoke_code), (unsigned int)(((uintptr_t)&MVM_frame_invoke_code)>>32));
-#line 902 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 1186, Dt11([invoke->code_register]), invoke->spesh_cand, (unsigned int)((uintptr_t)&MVM_frame_invoke_code), (unsigned int)(((uintptr_t)&MVM_frame_invoke_code)>>32));
+#line 900 "src/jit/emit_x64.dasc"
     /* Almost done. jump out into the interprete */
     //| mov RV, 1;
     //| jmp ->out;
-    dasm_put(Dst, 1230);
-#line 905 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 1219);
+#line 903 "src/jit/emit_x64.dasc"
 }

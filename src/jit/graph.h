@@ -94,7 +94,7 @@ struct MVMJitInvoke {
     MVMint16      return_register;
     MVMint16      code_register;
     MVMint16      spesh_cand;
-    MVMint32      next_label;
+    MVMint32      reentry_label;
 };
 
 /* Node types */

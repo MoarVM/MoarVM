@@ -157,7 +157,7 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVMSpeshIns **arg_ins = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMSpeshIns*) * cs->arg_count);
     MVMint16            i = 0;
     MVMSpeshBB   *next_bb;
-    MVMint32      next_label;
+    MVMint32      reentry_label;
     MVMReturnType return_type;
     MVMint16      return_register;
     MVMint16      code_register;
@@ -223,8 +223,8 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
         return 0;
     }
     MVM_jit_log(tc, "Invoke instruction: <%s>\n", ins->info->name);
-    next_bb    = jgb->cur_bb->linear_next;
-    next_label = get_label_name(tc, jgb, next_bb);
+    next_bb       = jgb->cur_bb->linear_next;
+    reentry_label = get_label_name(tc, jgb, next_bb);
     /* create node */
     node->type                     = MVM_JIT_NODE_INVOKE;
     node->u.invoke.callsite_idx    = callsite_idx;
@@ -234,7 +234,7 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
     node->u.invoke.return_register = return_register;
     node->u.invoke.code_register   = code_register;
     node->u.invoke.spesh_cand      = spesh_cand;
-    node->u.invoke.next_label      = next_label;
+    node->u.invoke.reentry_label   = reentry_label;
     jgb_append_node(jgb, node);
     /* move forward to invoke ins */
     jgb->cur_ins = ins;
