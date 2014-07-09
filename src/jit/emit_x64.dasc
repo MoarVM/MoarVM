@@ -111,15 +111,19 @@ const unsigned int MVM_jit_num_globals(void) {
 |.define RV, rax
 |.define RVF, xmm0
 
-|.macro callp, funcptr
-| mov64 FUNCTION, (uintptr_t)funcptr
+|.macro callr, reg
 |.if WIN32
 | sub rsp, 32
-| call FUNCTION
+| call reg
 | add rsp, 32
 |.else
-| call FUNCTION
+| call reg
 |.endif
+|.endmacro
+
+|.macro callp, funcptr
+| mov64 FUNCTION, (uintptr_t)funcptr
+| callr FUNCTION
 |.endmacro
 
 |.macro addarg, i, val
@@ -830,9 +834,6 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *invoke,
                          dasm_State **Dst) {
     MVMint16 i;
-    if (!invoke->is_fast) {
-        MVM_exception_throw_adhoc(tc, "Can't actually compile slow invoke yet");
-    }
     /* setup the callsite */
     | mov ARG1, TC;
     | mov ARG2, CU;
@@ -841,8 +842,9 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     | mov TMP6, RV; // store callsite in tmp6, which we don't use until the end
     /* get the frame (we'll use it often) */
     | mov TMP1, TC->cur_frame;
-    /* add arguments */
-    | mov TMP3, FRAME:TMP1->args;
+    /* Store arguments in the buffer. I use TMP5 as it never conflicts
+     * with argument passing (like TMP6, but unlike other TMP regs) */
+    | mov TMP5, FRAME:TMP1->args;
     for (i = 0;  i < invoke->arg_count; i++) {
         MVMSpeshIns *ins = invoke->arg_ins[i];
         switch (ins->info->opcode) {
@@ -853,7 +855,7 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
             MVMint16 dst = ins->operands[0].lit_i16;
             MVMint16 src = ins->operands[1].reg.orig;
             | mov TMP4, WORK[src];
-            | mov REGISTER:TMP3[dst], TMP4;
+            | mov REGISTER:TMP5[dst], TMP4;
             break;
         }
         case MVM_OP_argconst_n:
@@ -861,14 +863,14 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
             MVMint16 dst = ins->operands[0].lit_i16;
             MVMint64 val = ins->operands[1].lit_i64;
             | mov64 TMP4, val;
-            | mov REGISTER:TMP3[dst], TMP4;
+            | mov REGISTER:TMP5[dst], TMP4;
             break;
         }
         case MVM_OP_argconst_s: {
             MVMint16 dst = ins->operands[0].lit_i16;
             MVMint32 idx = ins->operands[1].lit_str_idx;
             | get_string TMP4, idx;
-            | mov REGISTER:TMP3[dst], TMP4;
+            | mov REGISTER:TMP5[dst], TMP4;
             break;
         }
         default:
@@ -876,30 +878,58 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
                                       ins->info->name);
         }
     }
-    /* frame setup */
+
+    /* Setup the frame for returning to our current position */
     if (sizeof(MVMReturnType) == 4) {
         | mov dword FRAME:TMP1->return_type, invoke->return_type;
     } else {
         MVM_exception_throw_adhoc(tc, "JIT: MVMReturnType has unexpected size");
     }
-    /* return register */
+    /* The register for our return value */
     if (invoke->return_type == MVM_RETURN_VOID) {
         | mov aword FRAME:TMP1->return_value, NULL;
     } else {
         | lea TMP2, WORK[invoke->return_register];
         | mov aword FRAME:TMP1->return_value, TMP2;
     }
-    /* interpreter return address */
+    /* The return address for the interpreter */
     | get_cur_op TMP2;
     | mov aword FRAME:TMP1->return_address, TMP2;
-    /* store re-entry address in entry label */
+    /* The re-entry label for the JIT, so that we continue in the next BB */
     | mov dword FRAME:TMP1->jit_entry_label, invoke->reentry_label;
-    /* call MVM_frame_invoke_code */
-    | mov ARG1, TC;
-    | mov ARG2, WORK[invoke->code_register];
-    | mov ARG3, TMP6; // this is the callsite object
-    | mov ARG4, invoke->spesh_cand;
-    | callp &MVM_frame_invoke_code;
+
+
+    /* if we're not fast, then we should get the code from multi resolution */
+    if (!invoke->is_fast) {
+        /* first, save callsite and args */
+        | push TMP5; // args
+        | push TMP6; // callsite
+        /* setup call MVM_frame_multi_ok(tc, code, &cur_callsite, args); */
+        | mov ARG1, TC;
+        | mov ARG2, WORK[invoke->code_register]; // code object
+        | mov ARG3, rsp; // basically, [rsp] == TMP6 == &cur_callsite
+        | mov ARG4, TMP5; // args
+        | callp &MVM_frame_find_invokee_multi_ok;
+        /* restore callsite, args, RV now holds code object */
+        | pop TMP6; // callsite
+        | pop TMP5; // args
+        /* setup args for call to invoke(tc, code, cur_callsite, args) */
+        | mov ARG1, TC;
+        | mov ARG2, RV;   // code object
+        | mov ARG3, TMP6; // cur_callsite
+        | mov ARG4, TMP5; // nb - this could be pop ARG4, but that would be confusing
+        /* get the actual function */
+        | mov FUNCTION, OBJECT:RV->st;
+        | mov FUNCTION, STABLE:FUNCTION->invoke;
+        | callr FUNCTION;
+    } else {
+        /* call MVM_frame_invoke_code */
+        | mov ARG1, TC;
+        | mov ARG2, WORK[invoke->code_register];
+        | mov ARG3, TMP6; // this is the callsite object
+        | mov ARG4, invoke->spesh_cand;
+        | callp &MVM_frame_invoke_code;
+    }
     /* Almost done. jump out into the interprete */
     | mov RV, 1;
     | jmp ->out;
