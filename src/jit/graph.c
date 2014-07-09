@@ -162,6 +162,7 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVMint16      return_register;
     MVMint16      code_register;
     MVMint16      spesh_cand;
+    MVMint16      is_fast;
 
     while (ins = ins->next) {
         switch(ins->info->opcode) {
@@ -175,35 +176,75 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
             MVM_jit_log(tc, "Invoke arg: <%s>\n", ins->info->name);
             arg_ins[i++] = ins;
             break;
+        case MVM_OP_invoke_v:
+            return_type     = MVM_RETURN_VOID;
+            return_register = -1;
+            code_register   = ins->operands[0].reg.orig;
+            spesh_cand      = -1;
+            is_fast         = 0;
+            goto checkargs;
+        case MVM_OP_invoke_i:
+            return_type     = MVM_RETURN_INT;
+            return_register = ins->operands[0].reg.orig;
+            code_register   = ins->operands[1].reg.orig;
+            spesh_cand      = -1;
+            is_fast         = 0;
+            goto checkargs;
+        case MVM_OP_invoke_n:
+            return_type     = MVM_RETURN_NUM;
+            return_register = ins->operands[0].reg.orig;
+            code_register   = ins->operands[1].reg.orig;
+            spesh_cand      = -1;
+            is_fast         = 0;
+            goto checkargs;
+        case MVM_OP_invoke_s:
+            return_type     = MVM_RETURN_STR;
+            return_register = ins->operands[0].reg.orig;
+            code_register   = ins->operands[1].reg.orig;
+            spesh_cand      = -1;
+            is_fast         = 0;
+            goto checkargs;
+        case MVM_OP_invoke_o:
+            return_type     = MVM_RETURN_OBJ;
+            return_register = ins->operands[0].reg.orig;
+            code_register   = ins->operands[1].reg.orig;
+            spesh_cand      = -1;
+            is_fast         = 0;
+            goto checkargs;
         case MVM_OP_sp_fastinvoke_v:
             return_type     = MVM_RETURN_VOID;
             return_register = -1;
             code_register   = ins->operands[0].reg.orig;
             spesh_cand      = ins->operands[1].lit_i16;
+            is_fast         = 1;
             goto checkargs;
         case MVM_OP_sp_fastinvoke_o:
             return_type     = MVM_RETURN_OBJ;
             return_register = ins->operands[0].reg.orig;;
             code_register   = ins->operands[1].reg.orig;
             spesh_cand      = ins->operands[2].lit_i16;
+            is_fast         = 1;
             goto checkargs;
         case MVM_OP_sp_fastinvoke_s:
             return_type     = MVM_RETURN_STR;
             return_register = ins->operands[0].reg.orig;;
             code_register   = ins->operands[1].reg.orig;
             spesh_cand      = ins->operands[2].lit_i16;
+            is_fast         = 1;
             goto checkargs;
         case MVM_OP_sp_fastinvoke_i:
             return_type     = MVM_RETURN_INT;
             return_register = ins->operands[0].reg.orig;;
             code_register   = ins->operands[1].reg.orig;
             spesh_cand      = ins->operands[2].lit_i16;
+            is_fast         = 1;
             goto checkargs;
         case MVM_OP_sp_fastinvoke_n:
             return_type     = MVM_RETURN_NUM;
             return_register = ins->operands[0].reg.orig;;
             code_register   = ins->operands[1].reg.orig;
             spesh_cand      = ins->operands[2].lit_i16;
+            is_fast         = 1;
             goto checkargs;
         default:
             MVM_jit_log(tc, "Unexpected opcode in invoke sequence: <%s>\n",
@@ -235,6 +276,7 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
     node->u.invoke.code_register   = code_register;
     node->u.invoke.spesh_cand      = spesh_cand;
     node->u.invoke.reentry_label   = reentry_label;
+    node->u.invoke.is_fast         = is_fast;
     jgb_append_node(jgb, node);
     /* move forward to invoke ins */
     jgb->cur_ins = ins;

@@ -830,6 +830,9 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *invoke,
                          dasm_State **Dst) {
     MVMint16 i;
+    if (!invoke->is_fast) {
+        MVM_exception_throw_adhoc(tc, "Can't actually compile slow invoke yet");
+    }
     /* setup the callsite */
     | mov ARG1, TC;
     | mov ARG2, CU;

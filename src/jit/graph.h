@@ -94,6 +94,7 @@ struct MVMJitInvoke {
     MVMint16      return_register;
     MVMint16      code_register;
     MVMint16      spesh_cand;
+    MVMint8       is_fast;
     MVMint32      reentry_label;
 };
 
