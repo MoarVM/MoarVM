@@ -736,7 +736,32 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         optimize_bb(tc, g, bb->children[i]);
 }
 
-/* Elimiantes any unused instructions. */
+/* Checks that we can tweak the writer of a register safely as part of getting
+ * rid of an unrequired set instruction. Of note, we want the writer to be in
+ * the same BB as the instruction we'll delete, and no instruction on the path
+ * between the current instruction and the writer should use the register we
+ * will be moving the write to (which could pollute it with another value). */
+static MVMint32 is_writer_tweak_safe(MVMThreadContext *tc, MVMSpeshIns *cur_ins, MVMSpeshIns *writer) {
+    /* Check it's got a write reg operand and is not an unsafe to manipulate. */
+    if ((writer->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg &&
+            writer->info->opcode != MVM_OP_inc_i && writer->info->opcode != MVM_OP_dec_i &&
+            writer->info->opcode != MVM_SSA_PHI) {
+        /* Check writer is reachable from ins, and that nothing uses the same
+         * register in another version. */
+        MVMuint16 blocked_reg = cur_ins->operands[0].reg.orig;
+        while (cur_ins = cur_ins->prev) {
+            if (cur_ins == writer)
+                return 1;
+            if (cur_ins->info->opcode != MVM_SSA_PHI && cur_ins->info->operands > 0)
+                if ((cur_ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
+                    if (cur_ins->operands[0].reg.orig == blocked_reg)
+                        return 0;
+        }
+    }
+    return 0;
+}
+
+/* Elimiantes any unused instructions and unrequired set instructions. */
 static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Keep eliminating to a fixed point. */
     MVMint8 death = 1;
@@ -774,6 +799,20 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                             /* Remove this instruction. */
                             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                             death = 1;
+                        }
+                        else if (ins->info->opcode == MVM_OP_set) {
+                            MVMSpeshFacts *src_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+                            if (src_facts->usages == 1 && src_facts->writer) {
+                                MVMSpeshIns *writer = src_facts->writer;
+                                if (is_writer_tweak_safe(tc, ins, writer)) {
+                                    /* The write instruction can store the result directly
+                                     * in the target of the set, and the set can go away. */
+                                    writer->operands[0] = ins->operands[0];
+                                    /*src_facts->usages--;*/
+                                    /*MVM_spesh_get_facts(tc, g, writer->operands[0])->usages++;*/
+                                    MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+                                }
+                            }
                         }
                     }
                 }
