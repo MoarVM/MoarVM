@@ -27,10 +27,16 @@ struct MVMSpeshGraph {
     MVMuint16 *fact_counts;
 
     /* Argument guards added. */
-    MVMSpeshGuard *guards;
+    MVMSpeshGuard *arg_guards;
 
-    /* Number of guards we have. */
-    MVMint32 num_guards;
+    /* Number of argument guards we have. */
+    MVMint32 num_arg_guards;
+
+    /* Log-based guards added. */
+    MVMSpeshLogGuard *log_guards;
+
+    /* Number of log-based guards we have. */
+    MVMint32 num_log_guards;
 
     /* Memory blocks we allocate to store spesh nodes, and which we free along
      * with the graph. Contains a link to previous blocks. */

@@ -646,6 +646,7 @@ param_on2_n         w(num64) str str ins :noinline
 param_on2_s         w(str) str str ins :noinline
 param_on2_o         w(obj) str str ins :noinline
 osrpoint            :osrpoint
+nativecallcast      w(obj) r(obj) r(obj) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

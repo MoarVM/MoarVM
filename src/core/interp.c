@@ -4336,6 +4336,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (++(tc->cur_frame->osr_counter) == MVM_OSR_THRESHOLD)
                     MVM_spesh_osr(tc);
                 goto NEXT;
+            OP(nativecallcast):
+                GET_REG(cur_op, 0).o = MVM_nativecall_cast(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o);
+                cur_op += 8;
+                goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
@@ -4349,9 +4354,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_osrfinalize): {
                 MVMSpeshCandidate *cand = tc->cur_frame->spesh_cand;
                 if (cand) {
-                    cand->log_enter_idx++;
                     tc->cur_frame->spesh_log_idx = cand->log_enter_idx;
-                    if (--(cand->log_exits_remaining) == 0)
+                    cand->log_enter_idx++;
+                    if (cand->log_enter_idx >= MVM_SPESH_LOG_RUNS)
                         MVM_spesh_osr_finalize(tc);
                 }
                 goto NEXT;

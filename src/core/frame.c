@@ -585,9 +585,13 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
      * specialization. */
     if (returner->spesh_cand && returner->spesh_log_idx >= 0) {
         if (returner->spesh_cand->osr_logging) {
-            /* Didn't achieve enough log entries to complete the OSR; just
-             * drop it to normal logging. */
+            /* Didn't achieve enough log entries to complete the OSR, but
+             * clearly hot, so specialize anyway. This also avoids races
+             * when the candidate is called again later and still has
+             * sp_osrfinalize instructions in it. */
             returner->spesh_cand->osr_logging = 0;
+            MVM_spesh_candidate_specialize(tc, returner->static_info,
+                returner->spesh_cand);
         }
         else if (MVM_decr(&(returner->spesh_cand->log_exits_remaining)) == 1) {
             MVM_spesh_candidate_specialize(tc, returner->static_info,
@@ -862,17 +866,19 @@ void MVM_frame_free_frame_pool(MVMThreadContext *tc) {
 MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint16 idx) {
     MVMuint8    *flags, flag;
     MVMRegister *static_env;
+    MVMuint16 effective_idx;
     if (idx < f->static_info->body.num_lexicals) {
-        flags      = f->static_info->body.static_env_flags;
-        static_env = f->static_info->body.static_env;
+        flags         = f->static_info->body.static_env_flags;
+        static_env    = f->static_info->body.static_env;
+        effective_idx = idx;
     }
     else if (f->spesh_cand) {
         MVMint32 i;
         flags = NULL;
         for (i = 0; i < f->spesh_cand->num_inlines; i++) {
             MVMStaticFrame *isf = f->spesh_cand->inlines[i].code->body.sf;
-            idx -= f->spesh_cand->inlines[i].lexicals_start;
-            if (idx < isf->body.num_lexicals) {
+            effective_idx = idx - f->spesh_cand->inlines[i].lexicals_start;
+            if (effective_idx < isf->body.num_lexicals) {
                 flags      = isf->body.static_env_flags;
                 static_env = isf->body.static_env;
                 break;
@@ -882,13 +888,13 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
     else {
         flags = NULL;
     }
-    flag  = flags ? flags[idx] : -1;
+    flag  = flags ? flags[effective_idx] : -1;
     if (flag == 0) {
-        MVMObject *viv = static_env[idx].o;
+        MVMObject *viv = static_env[effective_idx].o;
         return f->env[idx].o = viv ? viv : tc->instance->VMNull;
     }
     else if (flag == 1) {
-        MVMObject *viv = static_env[idx].o;
+        MVMObject *viv = static_env[effective_idx].o;
         return f->env[idx].o = MVM_repr_clone(tc, viv);
     }
     else {

@@ -33,8 +33,11 @@ GetOptions(\%args, qw(
     cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
     build=s host=s big-endian enable-jit lua=s
-    prefix=s make-install profilecalls
-)) or die "See --help for further information\n";
+    prefix=s make-install profilecalls),
+    'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
+    'no-debug|nodebug' => sub { $args{debug} = 0 }
+) or die "See --help for further information\n";
+
 
 pod2usage(1) if $args{help};
 

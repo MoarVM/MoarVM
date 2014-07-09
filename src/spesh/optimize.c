@@ -3,9 +3,18 @@
 /* This is where the main optimization work on a spesh graph takes place,
  * using facts discovered during analysis. */
 
-/* Obtains facts for an operand. */
-MVMSpeshFacts * MVM_spesh_get_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
+/* Obtains facts for an operand, just directly accessing them without
+ * inferring any kind of usage. */
+static MVMSpeshFacts * get_facts_direct(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
     return &g->facts[o.reg.orig][o.reg.i];
+}
+
+/* Obtains facts for an operand, indicating they are being used. */
+MVMSpeshFacts * MVM_spesh_get_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
+    MVMSpeshFacts *facts = get_facts_direct(tc, g, o);
+    if (facts->flags & MVM_SPESH_FACT_FROM_LOG_GUARD)
+        g->log_guards[facts->log_guard].used = 1;
+    return facts;
 }
 
 /* Obtains a string constant. */
@@ -16,12 +25,13 @@ MVMString * MVM_spesh_get_string(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 /* Copy facts between two register operands. */
 static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand to,
                        MVMSpeshOperand from) {
-    MVMSpeshFacts *tfacts = MVM_spesh_get_facts(tc, g, to);
-    MVMSpeshFacts *ffacts = MVM_spesh_get_facts(tc, g, from);
+    MVMSpeshFacts *tfacts = get_facts_direct(tc, g, to);
+    MVMSpeshFacts *ffacts = get_facts_direct(tc, g, from);
     tfacts->flags         = ffacts->flags;
     tfacts->type          = ffacts->type;
     tfacts->decont_type   = ffacts->decont_type;
     tfacts->value         = ffacts->value;
+    tfacts->log_guard     = ffacts->log_guard;
 }
 
 /* Adds a value into a spesh slot and returns its index. */
@@ -338,8 +348,8 @@ static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
  * optimizations. */
 static MVMint32 specialized_on_invocant(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMint32 i;
-    for (i = 0; i < g->num_guards; i++)
-        if (g->guards[i].slot == 0)
+    for (i = 0; i < g->num_arg_guards; i++)
+        if (g->arg_guards[i].slot == 0)
             return 1;
     return 0;
 }
@@ -821,9 +831,20 @@ static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 }
 
+/* Goes through the various log-based guard instructions and removes any that
+ * are not being made use of. */
+void elimiante_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMint32 i;
+    for (i = 0; i < g->num_log_guards; i++)
+        if (!g->log_guards[i].used)
+            MVM_spesh_manipulate_delete_ins(tc, g, g->log_guards[i].bb,
+                g->log_guards[i].ins);
+}
+
 /* Drives the overall optimization work taking place on a spesh graph. */
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
     optimize_bb(tc, g, g->entry);
     eliminate_dead_ins(tc, g);
     eliminate_dead_bbs(tc, g);
+    elimiante_unused_log_guards(tc, g);
 }

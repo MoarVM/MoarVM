@@ -6092,6 +6092,16 @@ static MVMOpInfo MVM_op_infos[] = {
         0,
     },
     {
+        MVM_OP_nativecallcast,
+        "nativecallcast",
+        "  ",
+        4,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_sp_log,
         "sp_log",
         ".s",
@@ -6472,7 +6482,7 @@ static MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static unsigned short MVM_op_counts = 647;
+static unsigned short MVM_op_counts = 648;
 
 MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

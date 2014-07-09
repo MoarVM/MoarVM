@@ -35,8 +35,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     if (tc->instance->spesh_log_fh)
         after = MVM_spesh_dump(tc, sg);
     sc              = MVM_spesh_codegen(tc, sg);
-    num_guards      = sg->num_guards;
-    guards          = sg->guards;
+    num_guards      = sg->num_arg_guards;
+    guards          = sg->arg_guards;
     num_deopts      = sg->num_deopt_addrs;
     deopts          = sg->deopt_addrs;
     num_spesh_slots = sg->num_spesh_slots;
