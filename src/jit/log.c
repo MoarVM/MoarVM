@@ -18,14 +18,20 @@ static char * jitcode_name(MVMThreadContext *tc, MVMJitCode *code) {
     MVMuint8 *name  = MVM_string_ascii_encode(tc, code->sf->body.name,
                                               &name_len);
     MVMuint64 dirname_len = strlen(tc->instance->jit_bytecode_dir);
-    // 3 chars for the separators, 4 for the postfix, 1 for the 0
-    char *filename = malloc(dirname_len + name_len + cuuid_len + 8);
-    memcpy(filename, tc->instance->jit_bytecode_dir, dirname_len);
-    filename[dirname_len] = '/';
-    memcpy(filename + dirname_len + 1, cuuid, cuuid_len);
-    filename[dirname_len + cuuid_len + 1] = '.';
-    memcpy(filename + dirname_len + cuuid_len + 2, name, name_len);
-    memcpy(filename + dirname_len + cuuid_len + name_len + 2, ".bin", 5);
+    // 4 chars for prefix, 3 chars for the separators, 4 for the postfix, 1 for the 0
+    char *filename = malloc(dirname_len + name_len + cuuid_len + 12);
+    char *dst = filename;
+    memcpy(dst, tc->instance->jit_bytecode_dir, dirname_len);
+    dst[dirname_len] = '/';
+    dst += dirname_len + 1;
+    memcpy(dst, "jit-", 4);
+    dst += 4;
+    memcpy(dst, cuuid, cuuid_len);
+    dst[cuuid_len] = '.';
+    dst += cuuid_len + 1;
+    memcpy(dst, name, name_len);
+    dst += name_len;
+    memcpy(dst, ".bin", 5);
     free(name);
     free(cuuid);
     return filename;

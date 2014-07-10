@@ -62,3 +62,7 @@ tags
 install/
 
 nqp-cc/nqp/
+
+# jit files
+jit-log.txt
+jit-*.bin
