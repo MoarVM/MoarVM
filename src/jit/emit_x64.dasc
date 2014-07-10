@@ -539,6 +539,19 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP1;
         break;
     }
+    case MVM_OP_setdispatcher: {
+        MVMint16 src = ins->operands[0].reg.orig;
+        | mov TMP1, aword WORK[src];
+        | mov aword TC->cur_dispatcher, TMP1;
+        break;
+    }
+    case MVM_OP_takedispatcher: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP1, aword TC->cur_dispatcher;
+        | mov aword WORK[dst], TMP1;
+        | mov aword TC->cur_dispatcher, NULL;
+        break;
+    }
     case MVM_OP_add_i:
     case MVM_OP_sub_i:
     case MVM_OP_mul_i:
