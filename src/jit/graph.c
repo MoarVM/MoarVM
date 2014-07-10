@@ -371,12 +371,9 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_wval_wide: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 dep = ins->operands[1].lit_i16;
-        MVMint64 idx;
-        if (op == MVM_OP_wval) {
-            idx = ins->operands[2].lit_i16;
-        } else {
-            idx = ins->operands[2].lit_i64;
-        }
+        MVMint64 idx = op == MVM_OP_wval
+            ? ins->operands[2].lit_i16
+            : ins->operands[2].lit_i64;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_CU },
                                  { MVM_JIT_LITERAL, dep },
