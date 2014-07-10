@@ -1,8 +1,11 @@
 #!/usr/bin/env perl6-m
 use v6;
 my %counts;
-for lines(%*ENV{"MVM_JIT_LOG"}.IO) -> $line {
-    if $line ~~ m/^'BAIL: op <'(\w+)'>'/ {
+my $logfile = @*ARGS ?? shift @*ARGS !! %*ENV<MVM_JIT_LOG>;
+
+for lines($logfile.IO) -> $line {
+    if $line ~~ /'BAIL:'/ {
+        $line ~~ /'<' (\w+) '>'/;
         %counts{$/[0].Str}++;
     }
 }
