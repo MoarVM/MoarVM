@@ -21,6 +21,7 @@
 |.type STABLE, MVMSTable
 |.type STRING, MVMString*
 |.type OBJECTPTR, MVMObject*
+|.type CONTAINERSPEC, MVMContainerSpec
 |.type U16, MVMuint16
 |.type U32, MVMuint32
 |.type U64, MVMuint64
@@ -711,6 +712,33 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov aword WORK[dst], RV; // store in local register
         break;
     }
+    case MVM_OP_decont: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov TMP5, WORK[src];
+        | test TMP5, TMP5;
+        // obj is null
+        | jz >1; 
+        | is_type_object TMP5;
+        // object is type object (not concrete)
+        | jz >1;
+        | mov TMP6, OBJECT:TMP5->st;
+        | mov TMP6, STABLE:TMP6->container_spec;
+        | test TMP6, TMP6;
+        // container spec is zero
+        | jz >1;
+        | mov ARG1, TC;
+        | mov ARG2, TMP5;      // object
+        | lea ARG3, WORK[dst]; // destination register
+        | mov FUNCTION, CONTAINERSPEC:TMP6->fetch; // get function pointer
+        | callr FUNCTION;
+        | jmp >2;
+        |1:
+        // otherwise just move the object into the register
+        | mov WORK[dst], TMP5;
+        |2:
+    }
+        
     default:
         MVM_exception_throw_adhoc(tc, "Can't JIT opcode");
     }
