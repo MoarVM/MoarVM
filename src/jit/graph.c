@@ -424,7 +424,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, reg },
                                  { MVM_JIT_LITERAL, 0 } };
         if (op == MVM_OP_return_n) {
-            args[1].type == MVM_JIT_REG_VAL_F;
+            args[1].type = MVM_JIT_REG_VAL_F;
         }
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         jgb_append_branch(tc, jgb, MVM_JIT_BRANCH_EXIT, NULL);
