@@ -736,7 +736,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         optimize_bb(tc, g, bb->children[i]);
 }
 
-/* Elimiantes any unused instructions. */
+/* Eliminates any unused instructions. */
 static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Keep eliminating to a fixed point. */
     MVMint8 death = 1;
@@ -833,7 +833,7 @@ static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
 /* Goes through the various log-based guard instructions and removes any that
  * are not being made use of. */
-void elimiante_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) {
+void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMint32 i;
     for (i = 0; i < g->num_log_guards; i++)
         if (!g->log_guards[i].used)
@@ -846,5 +846,5 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
     optimize_bb(tc, g, g->entry);
     eliminate_dead_ins(tc, g);
     eliminate_dead_bbs(tc, g);
-    elimiante_unused_log_guards(tc, g);
+    eliminate_unused_log_guards(tc, g);
 }
