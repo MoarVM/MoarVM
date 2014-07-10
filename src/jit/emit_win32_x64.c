@@ -467,9 +467,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     }
     case MVM_OP_const_n64: {
-        MVM_jit_log(tc, "store const %f\n", ins->operands[1].lit_n64);
         MVMint16 reg = ins->operands[0].reg.orig;
         MVMint64 valbytes = ins->operands[1].lit_i64;
+        MVM_jit_log(tc, "store const %f\n", ins->operands[1].lit_n64);
         //| mov64 TMP1, valbytes;
         //| mov WORK[reg], TMP1;
         dasm_put(Dst, 64, (unsigned int)(valbytes), (unsigned int)((valbytes)>>32), Dt12([reg]));
