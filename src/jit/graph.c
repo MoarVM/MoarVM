@@ -255,7 +255,7 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
  checkargs:
     if (!ins || i < cs->arg_count) {
         MVM_jit_log(tc, "Could not find invoke opcode or enough arguments\n"
-                    "Current opcode: <%s>, expected args: %d, num of args: %d\n",
+                    "BAIL: op <%s>, expected args: %d, num of args: %d\n",
                     ins->info->name, i, cs->arg_count);
         return 0;
     }
@@ -424,8 +424,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         return jgb_consume_invoke(tc, jgb, ins);
     }
     default:
-        MVM_jit_log(tc, "Don't know how to make a graph of opcode <%s>\n",
-                    ins->info->name);
+        MVM_jit_log(tc, "BAIL: op <%s>\n", ins->info->name);
         return 0;
     }
     return 1;

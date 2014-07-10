@@ -1363,7 +1363,7 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     dasm_put(Dst, 115, Dt10(->cur_frame));
 #line 845 "src/jit/emit_x64.dasc"
     /* Store arguments in the buffer. I use TMP5 as it never conflicts
-     * with argument passing (like TMP6) */
+     * with argument passing (like TMP6, but unlike other TMP regs) */
     //| mov TMP5, FRAME:TMP1->args;
     dasm_put(Dst, 1142, Dt1(->args));
 #line 848 "src/jit/emit_x64.dasc"
