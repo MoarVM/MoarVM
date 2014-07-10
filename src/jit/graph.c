@@ -343,6 +343,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_sp_getspeshslot:
     case MVM_OP_takedispatcher:
     case MVM_OP_setdispatcher:
+    case MVM_OP_getcode:
         jgb_append_primitive(tc, jgb, ins);
         break;
         /* branches */
