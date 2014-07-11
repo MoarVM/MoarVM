@@ -360,8 +360,11 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             /* I'm going to skip compiling the check whether the outer
              * node really exists, because if the code has run N times
              * correctly, then the outer frame must have existed then,
-             * and since this chain is static, it should still exist now.
-             * If it doesn't exist, that means we crash. */
+             * and since this chain is static, it should still exist
+             * now.  If it doesn't exist, that means we crash.
+             *
+             * NB: inlining /might/ make this all wrong! But, if that
+             * happens, the interpreter will panic even without JIT */
             | mov TMP1, FRAME:TMP1->outer;
             sf = sf->body.outer;
         }
@@ -369,7 +372,11 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP2, FRAME:TMP1->env;
         /* read value */
         | mov TMP2, REGISTER:TMP2[idx];
-        lexical_types = (jg->sg->lexical_types ? jg->sg->lexical_types :
+        /* it seems that if at runtime, if the outer frame has been inlined,
+         * this /could/ be wrong. But if that is so, the interpreted instruction
+         * would also be wrong, because it'd refer to the wrong lexical. */
+        lexical_types = (!out && jg->sg->lexical_types ?
+                         jg->sg->lexical_types :
                          sf->body.lexical_types);
         MVM_jit_log(tc, "Lexical type of register: %d\n", lexical_types[idx]);
         if (lexical_types[idx] == MVM_reg_obj) {
