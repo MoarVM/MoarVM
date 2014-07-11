@@ -257,14 +257,15 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         copy_facts(tc, g, ins->operands[0], ins->operands[1]);
     }
     else {
+        MVMSpeshFacts *res_facts;
         if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type) {
             MVMSTable *stable = STABLE(obj_facts->type);
-            MVMContainerSpec *contspec = stable->container_spec;
+            MVMContainerSpec const *contspec = stable->container_spec;
             if (contspec && contspec->fetch_never_invokes && contspec->spesh) {
                 contspec->spesh(tc, stable, g, bb, ins);
             }
         }
-        MVMSpeshFacts *res_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        res_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
             res_facts->type   = obj_facts->decont_type;
             res_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
