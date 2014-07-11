@@ -42,7 +42,7 @@ sub MAIN($file = "src/core/oplist") {
     $cf.say('#endif');
     $cf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $cf.say(opcode_details(@ops));
-    $cf.say('MVMOpInfo * MVM_op_get_op(unsigned short op) {');
+    $cf.say('MVM_PUBLIC MVMOpInfo * MVM_op_get_op(unsigned short op) {');
     $cf.say('    if (op >= MVM_op_counts)');
     $cf.say('        return NULL;');
     $cf.say('    return &MVM_op_infos[op];');
