@@ -262,7 +262,6 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
             MVMContainerSpec *contspec = stable->container_spec;
             if (contspec && contspec->fetch_never_invokes && contspec->spesh) {
                 contspec->spesh(tc, stable, g, bb, ins);
-                printf("spesh'd a decont op with a container spec's spesh method\n");
             }
         }
         MVMSpeshFacts *res_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);

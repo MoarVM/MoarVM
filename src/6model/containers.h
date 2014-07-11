@@ -18,6 +18,8 @@ struct MVMContainerSpec {
      * assignment. */
     void (*store_unchecked) (MVMThreadContext *tc, MVMObject *cont, MVMObject *obj);
 
+    /* Allow the Container Spec to emit better bytecode, for example for
+     * a decont operation. */
     void (*spesh) (MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins);
 
     /* Marks container data, if any. */
