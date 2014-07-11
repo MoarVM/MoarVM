@@ -18,6 +18,8 @@ struct MVMContainerSpec {
      * assignment. */
     void (*store_unchecked) (MVMThreadContext *tc, MVMObject *cont, MVMObject *obj);
 
+    void (*spesh) (MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins);
+
     /* Marks container data, if any. */
     void (*gc_mark_data) (MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist);
 

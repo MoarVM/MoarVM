@@ -250,13 +250,21 @@ static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
 
 /* Turns a decont into a set, if we know it's not needed. Also make sure we
  * propagate any needed information. */
-static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     if (obj_facts->flags & (MVM_SPESH_FACT_DECONTED | MVM_SPESH_FACT_TYPEOBJ)) {
         ins->info = MVM_op_get_op(MVM_OP_set);
         copy_facts(tc, g, ins->operands[0], ins->operands[1]);
     }
     else {
+        if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type) {
+            MVMSTable *stable = STABLE(obj_facts->type);
+            MVMContainerSpec *contspec = stable->container_spec;
+            if (contspec && contspec->fetch_never_invokes && contspec->spesh) {
+                contspec->spesh(tc, stable, g, bb, ins);
+                printf("spesh'd a decont op with a container spec's spesh method\n");
+            }
+        }
         MVMSpeshFacts *res_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
             res_facts->type   = obj_facts->decont_type;
@@ -709,7 +717,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             optimize_hllize(tc, g, ins);
             break;
         case MVM_OP_decont:
-            optimize_decont(tc, g, ins);
+            optimize_decont(tc, g, bb, ins);
             break;
         case MVM_OP_assertparamcheck:
             optimize_assertparamcheck(tc, g, bb, ins);
