@@ -104,6 +104,7 @@ static void jgb_append_label(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
 static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     switch(opcode) {
+    case MVM_OP_checkarity: return &MVM_args_checkarity;
     case MVM_OP_say: return &MVM_string_say;
     case MVM_OP_print: return &MVM_string_print;
     case MVM_OP_isnull: return &MVM_is_null;
@@ -360,6 +361,15 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_branch(tc, jgb, 0, ins);
         break;
         /* some functions */
+    case MVM_OP_checkarity: {
+        MVMuint16 min = ins->operands[0].lit_i16;
+        MVMuint16 max = ins->operands[1].lit_i16;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC},
+                                 { MVM_JIT_LITERAL, min },
+                                 { MVM_JIT_LITERAL, max } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
     case MVM_OP_say:
     case MVM_OP_print: {
         MVMint32 reg = ins->operands[0].reg.orig;
