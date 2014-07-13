@@ -41,7 +41,8 @@ MVMint64 MVM_io_syncstream_tell(MVMThreadContext *tc, MVMOSHandle *h) {
 void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) {
     /* For now, take last character. */
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    data->sep = (MVMCodepoint32)MVM_string_get_codepoint_at(tc, sep, NUM_GRAPHS(sep) - 1);
+    data->sep = (MVMGrapheme32)MVM_string_get_grapheme_at(tc, sep,
+        MVM_string_graphs(tc, sep) - 1);
 }
 
 /* Read a bunch of bytes into the current decode stream. Returns true if we

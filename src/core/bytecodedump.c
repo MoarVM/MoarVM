@@ -115,9 +115,9 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         frame_lexicals[k] = lexicals;
 
         HASH_ITER(hash_handle, frame->body.lexical_names, current, tmp) {
-            name->body.int32s = (MVMint32 *)current->hash_handle.key;
-            name->body.graphs = (MVMuint32)current->hash_handle.keylen / sizeof(MVMCodepoint32);
-            lexicals[current->value] = MVM_string_utf8_encode_C_string(tc, name);
+            name->body.storage.blob_32 = (MVMint32 *)current->hash_handle.key;
+            name->body.num_graphs      = (MVMuint32)current->hash_handle.keylen / sizeof(MVMGrapheme32);
+            lexicals[current->value]   = MVM_string_utf8_encode_C_string(tc, name);
         }
     }
     for (k = 0; k < cu->body.num_frames; k++) {

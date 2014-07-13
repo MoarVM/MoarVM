@@ -122,6 +122,7 @@ typedef double   MVMnum64;
 #include "strings/ascii.h"
 #include "strings/utf8.h"
 #include "strings/utf16.h"
+#include "strings/iter.h"
 #include "strings/ops.h"
 #include "strings/unicode_gen.h"
 #include "strings/unicode.h"

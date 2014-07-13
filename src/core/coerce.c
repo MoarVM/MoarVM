@@ -18,7 +18,11 @@ typedef struct {
 } BoolMethReturnData;
 
 MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
-    return str == NULL || !IS_CONCRETE(str) || NUM_GRAPHS(str) == 0 || (NUM_GRAPHS(str) == 1 && MVM_string_get_codepoint_at_nocheck(tc, str, 0) == 48) ? 0 : 1;
+    return str == NULL ||
+           !IS_CONCRETE(str) ||
+           MVM_string_graphs(tc, str) == 0 ||
+           (MVM_string_graphs(tc, str) == 1 && MVM_string_get_grapheme_at_nocheck(tc, str, 0) == 48)
+           ? 0 : 1;
 }
 
 /* Tries to do the boolification. It may be that a method call is needed. In
@@ -75,7 +79,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                 result = !IS_CONCRETE(obj) || REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj)) == 0.0 ? 0 : 1;
                 break;
             case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY:
-                result = !IS_CONCRETE(obj) || NUM_GRAPHS(REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj))) == 0 ? 0 : 1;
+                result = !IS_CONCRETE(obj) || MVM_string_graphs(tc, REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj))) == 0 ? 0 : 1;
                 break;
             case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO: {
                 MVMString *str;
@@ -315,7 +319,7 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     MVMObject *result;
     MVMint64 zvalue = 0;
     MVMint64 zbase  = 1;
-    MVMint64 chars  = NUM_GRAPHS(str);
+    MVMint64 chars  = MVM_string_graphs(tc, str);
     MVMint64 value  = zvalue;
     MVMint64 base   = zbase;
     MVMint64   pos  = -1;
@@ -326,11 +330,11 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
         MVM_exception_throw_adhoc(tc, "Cannot convert radix of %d (max 36)", radix);
     }
 
-    ch = (offset < chars) ? MVM_string_get_codepoint_at_nocheck(tc, str, offset) : 0;
+    ch = (offset < chars) ? MVM_string_get_grapheme_at_nocheck(tc, str, offset) : 0;
     if ((flag & 0x02) && (ch == '+' || ch == '-')) {
         neg = (ch == '-');
         offset++;
-        ch = (offset < chars) ? MVM_string_get_codepoint_at_nocheck(tc, str, offset) : 0;
+        ch = (offset < chars) ? MVM_string_get_grapheme_at_nocheck(tc, str, offset) : 0;
     }
 
     while (offset < chars) {
@@ -344,11 +348,11 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
         offset++; pos = offset;
         if (ch != 0 || !(flag & 0x04)) { value=zvalue; base=zbase; }
         if (offset >= chars) break;
-        ch = MVM_string_get_codepoint_at_nocheck(tc, str, offset);
+        ch = MVM_string_get_grapheme_at_nocheck(tc, str, offset);
         if (ch != '_') continue;
         offset++;
         if (offset >= chars) break;
-        ch = MVM_string_get_codepoint_at_nocheck(tc, str, offset);
+        ch = MVM_string_get_grapheme_at_nocheck(tc, str, offset);
     }
 
     if (neg || flag & 0x01) { value = -value; }
