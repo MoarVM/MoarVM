@@ -23,6 +23,11 @@ MVM_PUBLIC void MVM_repr_unshift_n(MVMThreadContext *tc, MVMObject *obj, MVMnum6
 MVM_PUBLIC void MVM_repr_unshift_s(MVMThreadContext *tc, MVMObject *obj, MVMString *unshiftee);
 MVM_PUBLIC void MVM_repr_unshift_o(MVMThreadContext *tc, MVMObject *obj, MVMObject *unshiftee);
 
+MVM_PUBLIC MVMint64 MVM_repr_pop_i(MVMThreadContext *tc, MVMObject *obj);
+MVM_PUBLIC MVMnum64 MVM_repr_pop_n(MVMThreadContext *tc, MVMObject *obj);
+MVM_PUBLIC MVMString * MVM_repr_pop_s(MVMThreadContext *tc, MVMObject *obj);
+MVM_PUBLIC MVMObject * MVM_repr_pop_o(MVMThreadContext *tc, MVMObject *obj);
+
 MVM_PUBLIC MVMint64 MVM_repr_shift_i(MVMThreadContext *tc, MVMObject *obj);
 MVM_PUBLIC MVMnum64 MVM_repr_shift_n(MVMThreadContext *tc, MVMObject *obj);
 MVM_PUBLIC MVMString * MVM_repr_shift_s(MVMThreadContext *tc, MVMObject *obj);

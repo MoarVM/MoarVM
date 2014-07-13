@@ -148,6 +148,34 @@ void MVM_repr_unshift_o(MVMThreadContext *tc, MVMObject *obj, MVMObject *unshift
         value, MVM_reg_obj);
 }
 
+MVMint64 MVM_repr_pop_i(MVMThreadContext *tc, MVMObject *obj) {
+    MVMRegister value;
+    REPR(obj)->pos_funcs.pop(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &value, MVM_reg_int64);
+    return value.i64;
+}
+
+MVMnum64 MVM_repr_pop_n(MVMThreadContext *tc, MVMObject *obj) {
+    MVMRegister value;
+    REPR(obj)->pos_funcs.pop(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &value, MVM_reg_num64);
+    return value.n64;
+}
+
+MVMString * MVM_repr_pop_s(MVMThreadContext *tc, MVMObject *obj) {
+    MVMRegister value;
+    REPR(obj)->pos_funcs.pop(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &value, MVM_reg_str);
+    return value.s;
+}
+
+MVMObject * MVM_repr_pop_o(MVMThreadContext *tc, MVMObject *obj) {
+    MVMRegister value;
+    REPR(obj)->pos_funcs.pop(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &value, MVM_reg_obj);
+    return value.o;
+}
+
 MVMint64 MVM_repr_shift_i(MVMThreadContext *tc, MVMObject *obj) {
     MVMRegister value;
     REPR(obj)->pos_funcs.shift(tc, STABLE(obj), obj, OBJECT_BODY(obj),
