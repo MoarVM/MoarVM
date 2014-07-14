@@ -107,7 +107,7 @@ MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str,
         MVM_string_ci_init(tc, &ci, str);
         while (MVM_string_ci_has_more(tc, &ci)) {
             MVMCodepoint ord = MVM_string_ci_get_codepoint(tc, &ci);
-            if (ord >= 0 && ord <= 127)
+            if (ord >= 0 && ord <= 255)
                 result[i] = (MVMuint8)ord;
             else
                 result[i] = '?';
