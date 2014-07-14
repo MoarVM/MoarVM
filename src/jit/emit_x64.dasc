@@ -9,7 +9,6 @@
 |.globals JIT_LABEL_
 
 /* type declarations */
-|.type FRAME, MVMFrame
 |.type REGISTER, MVMRegister
 |.type ARGCTX, MVMArgProcContext
 |.type STATICFRAME, MVMStaticFrame
@@ -38,16 +37,16 @@
  * here rather than the extended registers will lead to smaller
  * bytecode */
 |.type WORK, MVMRegister, rbx
-|.type ARGS, MVMRegister, r12
+|.type FRAME, MVMFrame, r12
 |.type CU, MVMCompUnit, r13
 
 
 |.macro saveregs
-| push TC; push WORK; push ARGS; push CU;
+| push TC; push WORK; push FRAME; push CU;
 |.endmacro
 
 |.macro restoreregs
-| pop CU; pop ARGS; pop WORK; pop TC
+| pop CU; pop FRAME; pop WORK; pop TC
 |.endmacro
 
 
@@ -217,8 +216,7 @@ const unsigned int MVM_jit_num_globals(void) {
 |.endmacro
 
 |.macro get_spesh_slot, reg, idx;
-| mov reg, TC->cur_frame;
-| mov reg, FRAME:reg->effective_spesh_slots;
+| mov reg, FRAME->effective_spesh_slots;
 | mov reg, OBJECTPTR:reg[idx];
 |.endmacro
 
@@ -255,9 +253,8 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
     /* setup special frame variables */
     | mov TC,   ARG1;
     | mov CU,   ARG2;
-    | mov TMP6, TC->cur_frame;
-    | mov WORK, FRAME:TMP6->work;
-    | mov ARGS, FRAME:TMP6->params.args;
+    | mov FRAME, TC->cur_frame;
+    | mov WORK, FRAME->work;
     /* ARG3 contains our 'entry label' */
     | jmp ARG3
 
@@ -333,8 +330,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     case MVM_OP_null: {
         MVMint16 reg = ins->operands[0].reg.orig;
-        | mov TMP1, TC->instance;
-        | mov TMP1, MVMINSTANCE:TMP1->VMNull;
+        | get_vmnull TMP1;
         | mov WORK[reg], TMP1;
         break;
     }
@@ -359,7 +355,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 idx = ins->operands[1].lex.idx;
         MVMint16 out = ins->operands[1].lex.outers;
         MVMint16 i;
-        | mov TMP1, TC->cur_frame;
+        | mov TMP6, FRAME;
         for (i = 0; i < out; i++) {
             /* I'm going to skip compiling the check whether the outer
              * node really exists, because if the code has run N times
@@ -369,13 +365,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
              *
              * NB: inlining /might/ make this all wrong! But, if that
              * happens, the interpreter will panic even without JIT */
-            | mov TMP1, FRAME:TMP1->outer;
+            | mov TMP6, FRAME:TMP6->outer;
             sf = sf->body.outer;
         }
         /* get array of lexicals */
-        | mov TMP2, FRAME:TMP1->env;
+        | mov TMP5, FRAME:TMP6->env;
         /* read value */
-        | mov TMP2, REGISTER:TMP2[idx];
+        | mov TMP5, REGISTER:TMP5[idx];
         /* it seems that if at runtime, if the outer frame has been inlined,
          * this /could/ be wrong. But if that is so, the interpreted instruction
          * would also be wrong, because it'd refer to the wrong lexical. */
@@ -387,24 +383,19 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             MVM_jit_log(tc, "Emit lex vifivy check\n");
             /* NB: this code path hasn't been checked. */
             /* if it is zero, check if we need to auto-vivify */        
-            | cmp TMP2, 0;
+            | cmp TMP5, 0;
             | jne >1; 
-            /* save frame and value */
-            | push TMP2;
-            | push TMP1;
             /* setup args */
             | mov ARG1, TC;
-            | mov ARG2, [rsp+8]; // the frame, which i just pushed
+            | mov ARG2, TMP6;
             | mov ARG3, idx;
             | callp &MVM_frame_vivify_lexical;
-            /* restore stack pointer */
-            | add rsp, 16;
             /* use return value for the result */
-            | mov TMP2, RV;
+            | mov TMP5, RV;
             |1:
         } 
         /* store the value */
-        | mov WORK[dst], TMP2;
+        | mov WORK[dst], TMP5;
         break;
     }
     case MVM_OP_bindlex: {
@@ -412,7 +403,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 out = ins->operands[0].lex.outers;
         MVMint16 src = ins->operands[1].reg.orig;
         MVMint16 i;
-        | mov TMP1, TC->cur_frame;
+        | mov TMP1, FRAME;
         for (i = 0; i < out; i++) {
             | mov TMP1, FRAME:TMP1->outer;
         }
@@ -427,7 +418,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_getarg_i: {
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMuint16 idx = ins->operands[1].callsite_idx;
-        | mov TMP1, ARGS[idx];
+        | mov TMP1, FRAME->params.args;
+        | mov TMP1, REGISTER:TMP1[idx];
         | mov WORK[reg], TMP1;
         break;
     }
@@ -772,7 +764,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
                 | addarg i, TC;
                  break;
             case MVM_JIT_INTERP_FRAME:
-                | addarg i, TC->cur_frame;
+                | addarg i, FRAME;
                 break;
             case MVM_JIT_INTERP_CU:
                 | addarg i, CU;
@@ -927,11 +919,9 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     | mov ARG3, invoke->callsite_idx;
     | callp &MVM_args_prepare;
     | mov TMP6, RV; // store callsite in tmp6, which we don't use until the end
-    /* get the frame (we'll use it often) */
-    | mov TMP1, TC->cur_frame;
     /* Store arguments in the buffer. I use TMP5 as it never conflicts
      * with argument passing (like TMP6, but unlike other TMP regs) */
-    | mov TMP5, FRAME:TMP1->args;
+    | mov TMP5, FRAME->args;
     for (i = 0;  i < invoke->arg_count; i++) {
         MVMSpeshIns *ins = invoke->arg_ins[i];
         switch (ins->info->opcode) {
@@ -968,23 +958,22 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
 
     /* Setup the frame for returning to our current position */
     if (sizeof(MVMReturnType) == 4) {
-        | mov dword FRAME:TMP1->return_type, invoke->return_type;
+        | mov dword FRAME->return_type, invoke->return_type;
     } else {
         MVM_exception_throw_adhoc(tc, "JIT: MVMReturnType has unexpected size");
     }
     /* The register for our return value */
     if (invoke->return_type == MVM_RETURN_VOID) {
-        | mov aword FRAME:TMP1->return_value, NULL;
+        | mov aword FRAME->return_value, NULL;
     } else {
         | lea TMP2, WORK[invoke->return_register];
-        | mov aword FRAME:TMP1->return_value, TMP2;
+        | mov aword FRAME->return_value, TMP2;
     }
     /* The return address for the interpreter */
     | get_cur_op TMP2;
-    | mov aword FRAME:TMP1->return_address, TMP2;
+    | mov aword FRAME->return_address, TMP2;
     /* The re-entry label for the JIT, so that we continue in the next BB */
-    | mov dword FRAME:TMP1->jit_entry_label, invoke->reentry_label;
-
+    | mov dword FRAME->jit_entry_label, invoke->reentry_label;
 
     /* if we're not fast, then we should get the code from multi resolution */
     if (!invoke->is_fast) {
