@@ -259,18 +259,44 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MV
 }
 
 /* Visits the blocks in dominator tree order, recursively. */
-static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
-    MVMint32 i;
+static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                         MVMint32 cur_deopt_idx) {
+    MVMint32 i, is_phi;
 
     /* Look for instructions that provide or propagate facts. */
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
-        /* Look through operands for usages and record them. */
-        MVMint32 is_phi = ins->info->opcode == MVM_SSA_PHI;
-        for (i = 0; i < ins->info->num_operands; i++)
+        /* See if there's a deopt annotation, and sync cur_deopt_idx. */
+        MVMSpeshAnn *ann = ins->annotations;
+        while (ann) {
+            if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS ||
+                    ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS) {
+                cur_deopt_idx = ann->data.deopt_idx;
+                break;
+            }
+            ann = ann->next;
+        }
+
+        /* Look through operands for reads and writes. */
+        is_phi = ins->info->opcode == MVM_SSA_PHI;
+        for (i = 0; i < ins->info->num_operands; i++) {
+            /* Reads need usage tracking; if the read is after a deopt point
+             * relative to the write then give it an extra usage bump. */
             if (is_phi && i > 0 || !is_phi &&
-                (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
-                g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i].usages++;
+                    (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg) {
+                MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
+                facts->usages += facts->deopt_idx == cur_deopt_idx ? 1 : 2;
+            }
+
+            /* Writes need the current deopt index and the writing instruction
+             * to be specified. */
+            if (is_phi && i == 0 || !is_phi &&
+                    (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
+                MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
+                facts->deopt_idx = cur_deopt_idx;
+                facts->writer    = ins;
+            }
+        }
 
         /* Look for ops that are fact-interesting. */
         switch (ins->info->opcode) {
@@ -403,7 +429,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb)
 
     /* Visit children. */
     for (i = 0; i < bb->num_children; i++)
-        add_bb_facts(tc, g, bb->children[i]);
+        add_bb_facts(tc, g, bb->children[i], cur_deopt_idx);
 }
 
 /* Exception handlers that use a block to store the handler must not have the
@@ -420,6 +446,6 @@ void tweak_block_handler_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
 /* Kicks off fact discovery from the top of the (dominator) tree. */
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g) {
     allocate_log_guard_table(tc, g);
-    add_bb_facts(tc, g, g->entry);
+    add_bb_facts(tc, g, g->entry, -1);
     tweak_block_handler_usage(tc, g);
 }

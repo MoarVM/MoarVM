@@ -71,6 +71,7 @@ static const MVMContainerSpec code_pair_spec = {
     code_pair_fetch,
     code_pair_store,
     code_pair_store,
+    NULL, /* spesh */
     code_pair_gc_mark_data,
     code_pair_gc_free_data,
     code_pair_serialize,
