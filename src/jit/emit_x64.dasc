@@ -390,7 +390,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | cmp TMP2, 0;
             | jne >1; 
             /* save frame and value */
-            | int 3; // debug instruction - i haven't tested this path, and it seems hard to trigger
             | push TMP2;
             | push TMP1;
             /* setup args */
