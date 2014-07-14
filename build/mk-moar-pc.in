@@ -56,18 +56,18 @@ open my $pcfile, '>', "$args[0]";
 print $pcfile <<EOF;
 # pkg-config information for MoarVM ${version}
 #
-prefix="$prefix"
-package="$package"
-includedir="$includedir"
-bindir="$bindir"
-libdir="$libdir"
-mastdir="$mastdir"
-ldopts="$ldopts"
-exeext="$exeext"
-version="$version"
-moar="$moar"
-libs="$libs"
-static_libs="$static_libs"
+prefix=$prefix
+package=$package
+includedir=$includedir
+bindir=$bindir
+libdir=$libdir
+mastdir=$mastdir
+ldopts=$ldopts
+exeext=$exeext
+version=$version
+moar=$moar
+libs=$libs
+static_libs=$static_libs
 
 Name:           MoarVM
 Description:    A virtual machine for Rakudo Perl 6 and NQP
