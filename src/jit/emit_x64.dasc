@@ -790,6 +790,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
             break;
         case MVM_JIT_LITERAL_64:
         case MVM_JIT_LITERAL_F:
+        case MVM_JIT_LITERAL_PTR:
             | mov64 TMP6, args[i].v.lit_i64;
             | addarg i, TMP6;
             break;

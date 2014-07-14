@@ -49,6 +49,7 @@ typedef enum {
     MVM_JIT_LITERAL,
     MVM_JIT_LITERAL_F,
     MVM_JIT_LITERAL_64,
+    MVM_JIT_LITERAL_PTR,
 } MVMJitArgType;
 
 struct MVMJitCallArg {
@@ -58,6 +59,7 @@ struct MVMJitCallArg {
         MVMnum64      lit_n64;
         MVMJitInterpVar  ivar;
         MVMint16          reg;
+        void             *ptr;
     } v;
 };
 
