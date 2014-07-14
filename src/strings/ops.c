@@ -8,8 +8,8 @@ static MVMStringStrand * allocate_strands(MVMThreadContext *tc, MVMuint16 num_st
 /* Copies strands from one strand string to another. */
 static void copy_strands(MVMThreadContext *tc, MVMString *from, MVMuint16 from_offset,
         MVMString *to, MVMuint16 to_offset, MVMuint16 num_strands) {
-    assert(sa->body.storage_type == MVM_STRING_STRAND);
-    assert(sb->body.storage_type == MVM_STRING_STRAND);
+    assert(from->body.storage_type == MVM_STRING_STRAND);
+    assert(to->body.storage_type == MVM_STRING_STRAND);
     memcpy(
         to->body.storage.strands + to_offset,
         from->body.storage.strands + from_offset,
