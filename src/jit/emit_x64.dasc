@@ -240,6 +240,14 @@ const unsigned int MVM_jit_num_globals(void) {
 | test word OBJECT:reg->header.flags, MVM_CF_TYPE_OBJECT
 |.endmacro
 
+|.macro gc_sync_point
+| cmp qword TC->gc_status, 0;
+| je >1;
+| mov ARG1, TC;
+| callp &MVM_gc_enter_from_interrupt;
+|1:
+|.endmacro
+
 /* A function prologue is always the same in x86 / x64, becuase
  * we do not provide variable arguments, instead arguments are provided
  * via a frame. All JIT entry points receive a prologue. */
@@ -831,6 +839,9 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
                          MVMJitBranch * branch, dasm_State **Dst) {
     MVMSpeshIns *ins = branch->ins;
     MVMint32 name = branch->dest.name;
+    /* move gc sync point to the front so as to not have
+v/     * awkward dispatching issues */
+    | gc_sync_point;
     if (ins == NULL || ins->info->opcode == MVM_OP_goto) {
         MVM_jit_log(tc, "emit jump to label %d\n", name);
         if (name == MVM_JIT_BRANCH_EXIT) {
@@ -852,6 +863,16 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
             | mov rax, WORK[reg];
             | test rax, rax;
             | jz =>(name);
+            break;
+        case MVM_OP_ifnonnull:
+            | mov TMP1, WORK[reg];
+            | test TMP1, TMP1;
+            | jz >1;
+            | get_vmnull TMP2;
+            | cmp TMP1, TMP2;
+            | je >1;
+            | jmp =>(name);
+            |1:
             break;
         default:
             MVM_exception_throw_adhoc(tc, "JIT: Can't handle conditional <%s>",

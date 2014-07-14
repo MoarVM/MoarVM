@@ -365,6 +365,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_goto:
     case MVM_OP_if_i:
     case MVM_OP_unless_i:
+    case MVM_OP_ifnonnull:
         jgb_append_branch(tc, jgb, 0, ins);
         break;
         /* some functions */
