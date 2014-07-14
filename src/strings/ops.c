@@ -343,7 +343,6 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             MVMString *effective_a = a;
             MVMString *effective_b = b;
             if (strands_a + strands_b > MVM_STRING_MAX_STRANDS) {
-printf("strand overflow; collapsing\n");
                 if (strands_a >= strands_b) {
                     effective_a = collapse_strands(tc, effective_a);
                     strands_a   = 1;
