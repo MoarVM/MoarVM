@@ -1258,18 +1258,10 @@ void MVM_string_cclass_init(MVMThreadContext *tc) {
         MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Po"));
 }
 
-/* Checks if the character at the specified offset is a member of the
- * indicated character class. */
-MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset) {
-    MVMGrapheme32 cp;
-
-    if (offset < 0 || offset >= MVM_string_graphs(tc, s))
-        return 0;
-
-    cp = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
-    if (cp < 0) {
+/* Checks if the specified grapheme is in the given character class. */
+static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 cp) {
+    if (cp < 0)
         MVM_exception_throw_adhoc(tc, "Negative character fed to cclass: '%d'", cp);
-    }
 
     switch (cclass) {
         case MVM_CCLASS_ANY:
@@ -1382,32 +1374,56 @@ MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *
     }
 }
 
+/* Checks if the character at the specified offset is a member of the
+ * indicated character class. */
+MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset) {
+    MVMGrapheme32 cp;
+    if (offset < 0 || offset >= MVM_string_graphs(tc, s))
+        return 0;
+    cp = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
+    return grapheme_is_cclass(tc, cclass, cp);
+}
+
 /* Searches for the next char that is in the specified character class. */
 MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count) {
-    MVMint64 length = MVM_string_graphs(tc, s);
-    MVMint64 end    = offset + count;
-    MVMint64 pos;
+    MVMGraphemeIter gi;
+    MVMint64        length = MVM_string_graphs(tc, s);
+    MVMint64        end    = offset + count;
+    MVMint64        pos;
 
+    if (offset < 0 || offset >= length)
+        return end;
     end = length < end ? length : end;
 
-    for (pos = offset; pos < end; pos++)
-        if (MVM_string_is_cclass(tc, cclass, s, pos) > 0)
+    MVM_string_gi_init(tc, &gi, s);
+    MVM_string_gi_move_to(tc, &gi, offset);
+    for (pos = offset; pos < end; pos++) {
+        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+        if (grapheme_is_cclass(tc, cclass, g) > 0)
             return pos;
+    }
 
     return end;
 }
 
 /* Searches for the next char that is not in the specified character class. */
 MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count) {
-    MVMint64 length = MVM_string_graphs(tc, s);
-    MVMint64 end    = offset + count;
-    MVMint64 pos;
+    MVMGraphemeIter gi;
+    MVMint64        length = MVM_string_graphs(tc, s);
+    MVMint64        end    = offset + count;
+    MVMint64        pos;
 
+    if (offset < 0 || offset >= length)
+        return offset;
     end = length < end ? length : end;
 
-    for (pos = offset; pos < end; pos++)
-        if (MVM_string_is_cclass(tc, cclass, s, pos) == 0)
+    MVM_string_gi_init(tc, &gi, s);
+    MVM_string_gi_move_to(tc, &gi, offset);
+    for (pos = offset; pos < end; pos++) {
+        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+        if (grapheme_is_cclass(tc, cclass, g) == 0)
             return pos;
+    }
 
     return end;
 }
