@@ -36,7 +36,7 @@ if ('@config@' =~ m/--static/) {
 else {
     my $static_libs = '';
 }
-if ($libdir =~ m{^/(?:usr/)?lib(?:64)?/}) {
+if ($libdir =~ m{^/(?:usr/)?lib(?:64)?}) {
     $ldopts = '';
     $ldflags = "-l$package";
 }
