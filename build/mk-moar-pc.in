@@ -1,68 +1,81 @@
-#! @sh@
+#! @perl@
 ## ---------------------------------------------------------------------
 ## mk-moar-pc.in -- Describe MoarVM configuration
 ##
 ##  Copyright © 2014 Daniel Dehennin <daniel.dehennin@baby-gnu.org>
 ##
 ##
-      prefix="@prefix@"
-      bindir="@bindir@"
-      libdir="@libdir@"
-      mastdir="@mastdir@"
-   includedir="${prefix}/include"
-      package="@name@"
-     version="@version@"
-      exeext="@exe@"
-        moar="${bindir}/${package}${exeext}"
-      ldopts="@ldflags@"
-     ldflags="-L${libdir} -l${package}"
-        libs="${ldflags}"
-      cflags="-I${includedir}"
-case '@config@' in
-    *--static*)
-        static_libs="${libdir}/lib${package}.a"
-	;;
-    *)
-        static_libs=''
-	;;
-esac
-case "${libdir}" in
-    /lib | /lib64 | /usr/lib | /usr/lib64 | /usr/lib/* )
-	ldopts=''
-	ldflags=-l${package}
-	;;
-    * )
-	ldflags="${ldopts} ${ldflags}"
-	;;
-esac
-libs=${ldflags}
-test "${includedir}" = "/usr/include" && cflags=""
-PS4='>mk-aopc> '
-dirname=`dirname ${1}`
-test -d ${dirname} || mkdir -p ${dirname} || exit 1
+use 5.010;
+use strict;
+use warnings;
+use autodie;
 
-cat > ${1} <<-  _EOF_
-	# pkg-config information for MoarVM ${version}
-	#
-	prefix="${prefix}"
-	package="${package}"
-	includedir="${includedir}"
-	bindir="${bindir}"
-	libdir="${libdir}"
-	mastdir="${mastdir}"
-	ldopts="${ldopts}"
-	exeext="${exeext}"
-	version="${version}"
-	moar="${moar}"
-	libs="${libs}"
-	libsrc="${libsrc}"
-	static_libs="${static_libs}"
+use File::Basename;
+use File::Path qw{make_path};
 
-	Name:           MoarVM
-	Description:    A virtual machine for Rakudo Perl 6 and NQP
-	URL:            http://moarvm.org
-	Version:        ${version}
-	Libs:           ${ldflags}
-	Cflags:         ${cflags}
-	_EOF_
+my @args = @ARGV;
+die "Missing target filename argument" if @args < 1;
+
+my $prefix = "@prefix@";
+my $bindir = "@bindir@";
+my $libdir = "@libdir@";
+my $mastdir = "@mastdir@";
+my $includedir = "${prefix}/include";
+my $package = "@name@";
+my $version = "@version@";
+my $exeext = "@exe@";
+my $moar = "${bindir}/${package}${exeext}";
+my $ldopts = "@ldflags@";
+my $ldflags = "-L${libdir} -l${package}";
+my $libs = "${ldflags}";
+my $cflags = "-I${includedir}";
+my $static_libs = '';
+if ('@config@' =~ m/--static/) {
+    my $static_libs = "${libdir}/lib${package}.a";
+}
+else {
+    my $static_libs = '';
+}
+if ($libdir =~ m{^/(?:usr/)?lib(?:64)?/}) {
+    $ldopts = '';
+    $ldflags = "-l$package";
+}
+else {
+    $ldflags = "${ldopts} ${ldflags}";
+}
+$libs = "${ldflags}";
+$cflags = '' if ${includedir} eq "/usr/include";
+
+my $dirname = dirname $args[0];
+if ( ! -d $dirname ) {
+    make_path($dirname);
+}
+
+open my $pcfile, '>', "$args[0]";
+
+print $pcfile <<EOF;
+# pkg-config information for MoarVM ${version}
+#
+prefix="$prefix"
+package="$package"
+includedir="$includedir"
+bindir="$bindir"
+libdir="$libdir"
+mastdir="$mastdir"
+ldopts="$ldopts"
+exeext="$exeext"
+version="$version"
+moar="$moar"
+libs="$libs"
+static_libs="$static_libs"
+
+Name:           MoarVM
+Description:    A virtual machine for Rakudo Perl 6 and NQP
+URL:            http://moarvm.org
+Version:        $version
+Libs:           $ldflags
+Cflags:         $cflags
+EOF
+
+close $pcfile;
 ## end of mk-moar-pc.in

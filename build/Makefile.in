@@ -534,8 +534,8 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 
 @dcblib@ @dllib@: @dclib@
 
-pkgconfig/moar.pc: build/mk-moar-pc.sh
-	$(SHELL) build/mk-moar-pc.sh $@
+pkgconfig/moar.pc: build/mk-moar-pc.pl
+	$(PERL) build/mk-moar-pc.pl $@
 
 clean:
 	$(MSG) remove build files
@@ -558,7 +558,7 @@ distclean: realclean
 	-$(CMD)$(RM) moar@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
 	$(MSG) remove configuration and generated files
 	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c tools/check.mk $(NOOUT) $(NOERR)
-	-$(CMD)$(RM_RF) build/mk-moar-pc.sh pkgconfig/ $(NOOUT) $(NOERR)
+	-$(CMD)$(RM_RF) build/mk-moar-pc.pl pkgconfig/ $(NOOUT) $(NOERR)
 
 release:
 	[ -n "$(VERSION)" ] || ( echo "\nTry 'make release VERSION=yyyy.mm'\n\n"; exit 1 )
