@@ -280,3 +280,15 @@ MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, MVMString *v
     });
     return res;
 }
+
+MVM_PUBLIC MVMString * MVM_repr_get_attr_s(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint) {
+    MVMRegister result_reg;
+    if (!IS_CONCRETE(object))
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+    REPR(object)->attr_funcs.get_attribute(tc,
+            STABLE(object), object, OBJECT_BODY(object),
+            type, name,
+            hint, &result_reg, MVM_reg_str);
+    return result_reg.s;
+}

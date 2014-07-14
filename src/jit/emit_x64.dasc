@@ -157,7 +157,9 @@ const unsigned int MVM_jit_num_globals(void) {
 ||        break;
 |.endif
 ||    default:
-||        MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
+|          mov TMP6, val;
+|          push TMP6;
+||         break;
 ||}
 |.endmacro
 
@@ -190,7 +192,9 @@ const unsigned int MVM_jit_num_globals(void) {
 ||        break;
 |.endif
 ||    default:
-||        MVM_exception_throw_adhoc(tc, "Can't JIT more than %d arguments", i);
+|         mov TMP6, val;
+|         push TMP6;
+||        break;
 ||}
 |.endmacro
 
@@ -785,6 +789,11 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_JIT_REG_ADDR:
             | lea TMP6, WORK[args[i].v.reg];
             | addarg i, TMP6;
+            break;
+        case MVM_JIT_STR_IDX:    
+            | get_string TMP6, args[i].v.lit_i64;
+            | addarg i, TMP6;
+            break;
         case MVM_JIT_LITERAL:
             | addarg i, args[i].v.lit_i64;
             break;
