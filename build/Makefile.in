@@ -9,6 +9,7 @@ SHELL  = @sh@
 CP     = $(PERL) -MExtUtils::Command -e cp
 MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 CHMOD  = $(PERL) -MExtUtils::Command -e chmod
+RM_RF  = $(PERL) -MExtUtils::Command -e rm_rf
 
 CONFIG    = @config@
 ADDCONFIG =
@@ -557,6 +558,7 @@ distclean: realclean
 	-$(CMD)$(RM) moar@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
 	$(MSG) remove configuration and generated files
 	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c tools/check.mk $(NOOUT) $(NOERR)
+	-$(CMD)$(RM_RF) build/mk-moar-pc.sh pkgconfig/ $(NOOUT) $(NOERR)
 
 release:
 	[ -n "$(VERSION)" ] || ( echo "\nTry 'make release VERSION=yyyy.mm'\n\n"; exit 1 )
