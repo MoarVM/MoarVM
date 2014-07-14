@@ -126,15 +126,6 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
     if (num_pos < min || num_pos > max)
         arity_fail(tc, num_pos, min, max);
 }
-/* The jit prefers calling only with the threadcontext and stuff */
-void MVM_args_checkarity_for_jit(MVMThreadContext *tc, MVMuint16 min, MVMuint16 max) {
-    MVMuint16 num_pos;
-    MVMArgProcContext *ctx = &tc->cur_frame->params;
-    flatten_args(tc, ctx);
-    num_pos = ctx->num_pos;
-    if (num_pos < min || num_pos > max)
-        arity_fail(tc, num_pos, min, max);
-}
 
 /* Get positional arguments. */
 #define find_pos_arg(ctx, pos, result) do { \

@@ -371,7 +371,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_checkarity: {
         MVMuint16 min = ins->operands[0].lit_i16;
         MVMuint16 max = ins->operands[1].lit_i16;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC},
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_PARAMS },
                                  { MVM_JIT_LITERAL, min },
                                  { MVM_JIT_LITERAL, max } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);

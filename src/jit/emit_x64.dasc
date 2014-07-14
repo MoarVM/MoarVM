@@ -769,6 +769,10 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
             case MVM_JIT_INTERP_CU:
                 | addarg i, CU;
                 break;
+            case MVM_JIT_INTERP_PARAMS:
+                | lea TMP6, FRAME->params;
+                | addarg i, TMP6;
+                break;
             }
             break;
         case MVM_JIT_REG_VAL:
