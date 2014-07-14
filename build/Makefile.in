@@ -282,6 +282,7 @@ HEADERS = src/moar.h \
           src/strings/decode_stream.h \
           src/strings/ascii.h \
           src/strings/utf8.h \
+          src/strings/iter.h \
           src/strings/ops.h \
           src/strings/unicode.h \
           src/strings/latin1.h \

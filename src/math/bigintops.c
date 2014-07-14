@@ -815,7 +815,7 @@ MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
 
 MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag, MVMObject *type) {
     MVMObject *result;
-    MVMint64 chars  = NUM_GRAPHS(str);
+    MVMint64 chars  = MVM_string_graphs(tc, str);
     MVMuint16  neg  = 0;
     MVMint64   ch;
 
@@ -866,11 +866,11 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
 
     mp_set_int(base, 1);
 
-    ch = (offset < chars) ? MVM_string_get_codepoint_at_nocheck(tc, str, offset) : 0;
+    ch = (offset < chars) ? MVM_string_get_grapheme_at_nocheck(tc, str, offset) : 0;
     if ((flag & 0x02) && (ch == '+' || ch == '-')) {
         neg = (ch == '-');
         offset++;
-        ch = (offset < chars) ? MVM_string_get_codepoint_at_nocheck(tc, str, offset) : 0;
+        ch = (offset < chars) ? MVM_string_get_grapheme_at_nocheck(tc, str, offset) : 0;
     }
 
    while (offset < chars) {
@@ -885,11 +885,11 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
         offset++; pos = offset;
         if (ch != 0 || !(flag & 0x04)) { mp_copy(&zvalue, value); mp_copy(&zbase, base); }
         if (offset >= chars) break;
-        ch = MVM_string_get_codepoint_at_nocheck(tc, str, offset);
+        ch = MVM_string_get_grapheme_at_nocheck(tc, str, offset);
         if (ch != '_') continue;
         offset++;
         if (offset >= chars) break;
-        ch = MVM_string_get_codepoint_at_nocheck(tc, str, offset);
+        ch = MVM_string_get_grapheme_at_nocheck(tc, str, offset);
     }
 
     mp_clear(&zvalue);

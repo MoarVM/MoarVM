@@ -69,7 +69,7 @@ static MVMint16 get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMint16 is_
 /* Maps a calling convention name to an ID. */
 static MVMint16 get_calling_convention(MVMThreadContext *tc, MVMString *name) {
     MVMint16 result = DC_CALL_C_DEFAULT;
-    if (name && NUM_GRAPHS(name) > 0) {
+    if (name && MVM_string_graphs(tc, name) > 0) {
         char *cname = MVM_string_utf8_encode_C_string(tc, name);
         if (strcmp(cname, "cdecl") == 0)
             result = DC_CALL_C_X86_CDECL;

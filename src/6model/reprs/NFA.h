@@ -18,8 +18,8 @@ struct MVMNFAStateInfo {
         MVMint64   i;
         MVMString *s;
         struct {
-            MVMCodepoint32 uc;
-            MVMCodepoint32 lc;
+            MVMGrapheme32 uc;
+            MVMGrapheme32 lc;
         } uclc;
     } arg;
 };
