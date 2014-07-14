@@ -29,6 +29,8 @@ BINDIR    = @bindir@
 LIBDIR    = @libdir@
 MASTDIR   = @mastdir@
 
+PKGCONFIGDIR = @prefix@/share/pkgconfig
+
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @ccinc@3rdparty/libuv/include \
             @ccinc@3rdparty/libuv/src \
@@ -359,7 +361,7 @@ THIRDPARTY = @thirdpartylibs@
 
 .SUFFIXES: .c @obj@ .i @asm@
 
-all: moar@exe@
+all: moar@exe@ pkgconfig/moar.pc
 
 install: all
 	$(MKPATH) $(DESTDIR)$(BINDIR)
@@ -370,6 +372,8 @@ install: all
 	$(MKPATH) $(DESTDIR)$(MASTDIR)
 	$(CP) lib/MAST/Nodes.nqp $(DESTDIR)$(MASTDIR)
 	$(CP) lib/MAST/Ops.nqp $(DESTDIR)$(MASTDIR)
+	$(MKPATH) $(DESTDIR)$(PKGCONFIGDIR)
+	$(CP) pkgconfig/moar.pc $(DESTDIR)$(PKGCONFIGDIR)
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar
 	$(CP) src/gen/config.h $(DESTDIR)$(PREFIX)/include/moar
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/6model/reprs
@@ -528,6 +532,9 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(MSG) done.
 
 @dcblib@ @dllib@: @dclib@
+
+pkgconfig/moar.pc: build/mk-moar-pc.sh
+	$(SHELL) build/mk-moar-pc.sh $@
 
 clean:
 	$(MSG) remove build files
