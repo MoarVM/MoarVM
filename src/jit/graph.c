@@ -394,7 +394,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
          * args space to store and read the result */
         MVMint16 obj = ins->operands[0].reg.orig;
         /* Assign the very last register allocated */
-        MVMint16 dst = (jgb->sg->sf->body.work_size / sizeof(MVMRegister)) - 1;
+        MVMint16 dst = jgb->sg->num_locals + jgb->sg->sf->body.cu->body.max_callsite_size - 1;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_REG_VAL,  obj },
                                  { MVM_JIT_REG_ADDR, dst }, // destination register (in args space)
@@ -402,7 +402,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_LITERAL, 0 }, // false code
                                  { MVM_JIT_LITERAL, op == MVM_OP_unless_o }}; // switch
         MVMSpeshIns * branch = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMSpeshIns));
-        if (dst + 1 == jgb->sg->num_locals) {
+        if (dst + 1 <= jgb->sg->num_locals) {
             MVM_exception_throw_adhoc(tc, "JIT: no space in args buffer to store"
                                       " temporary result for <%s>", ins->info->name);
         }
