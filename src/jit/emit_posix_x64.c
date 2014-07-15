@@ -17,7 +17,7 @@
 #endif
 #line 7 "src/jit/emit_x64.dasc"
 //|.actionlist actions
-static const unsigned char actions[1540] = {
+static const unsigned char actions[1551] = {
   85,72,137,229,255,65,86,83,65,84,65,85,255,73,137,252,254,73,137,252,245,
   77,139,166,233,73,139,156,253,36,233,255,252,255,226,255,248,10,72,199,192,
   0,0,0,0,248,11,255,65,93,65,92,91,65,94,255,72,137,252,236,93,195,255,72,
@@ -89,12 +89,12 @@ static const unsigned char actions[1540] = {
   255,76,139,139,233,77,137,138,233,255,73,185,237,237,77,137,138,233,255,77,
   139,141,233,77,139,137,233,77,137,138,233,255,65,199,132,253,36,233,237,255,
   73,199,132,253,36,233,237,255,72,141,147,233,73,137,148,253,36,233,255,73,
-  139,150,233,72,139,18,73,137,148,253,36,233,255,65,82,65,83,255,76,137,252,
-  247,72,139,179,233,72,137,226,76,137,209,73,186,237,237,65,252,255,210,255,
-  65,91,65,90,255,76,137,252,247,72,137,198,76,137,218,76,137,209,255,76,139,
-  144,233,77,139,146,233,65,252,255,210,255,76,137,252,247,72,139,179,233,76,
-  137,218,72,199,193,237,73,186,237,237,65,252,255,210,255,72,199,192,1,0,0,
-  0,252,233,244,11,255
+  139,150,233,72,139,18,73,137,148,253,36,233,255,72,141,21,245,73,137,148,
+  253,36,233,255,65,82,65,83,255,76,137,252,247,72,139,179,233,72,137,226,76,
+  137,209,73,186,237,237,65,252,255,210,255,65,91,65,90,255,76,137,252,247,
+  72,137,198,76,137,218,76,137,209,255,76,139,144,233,77,139,146,233,65,252,
+  255,210,255,76,137,252,247,72,139,179,233,76,137,218,72,199,193,237,73,186,
+  237,237,65,252,255,210,255,72,199,192,1,0,0,0,252,233,244,11,255
 };
 
 #line 8 "src/jit/emit_x64.dasc"
@@ -1619,44 +1619,46 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     //| mov aword FRAME->return_address, TMP2;
     dasm_put(Dst, 1430, Dt10(->interp_cur_op), Dt12(->return_address));
 #line 1000 "src/jit/emit_x64.dasc"
+
     /* The re-entry label for the JIT, so that we continue in the next BB */
-    //| mov dword FRAME->jit_entry_label, invoke->reentry_label;
-    dasm_put(Dst, 1403, Dt12(->jit_entry_label), invoke->reentry_label);
-#line 1002 "src/jit/emit_x64.dasc"
+    //| lea TMP2, [=>(invoke->reentry_label)];
+    //| mov aword FRAME->jit_entry_label, TMP2;
+    dasm_put(Dst, 1444, (invoke->reentry_label), Dt12(->jit_entry_label));
+#line 1004 "src/jit/emit_x64.dasc"
 
     /* if we're not fast, then we should get the code from multi resolution */
     if (!invoke->is_fast) {
         /* first, save callsite and args */
         //| push TMP5; // args
         //| push TMP6; // callsite
-        dasm_put(Dst, 1444);
-#line 1008 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1455);
+#line 1010 "src/jit/emit_x64.dasc"
         /* setup call MVM_frame_multi_ok(tc, code, &cur_callsite, args); */
         //| mov ARG1, TC;
         //| mov ARG2, WORK[invoke->code_register]; // code object
         //| mov ARG3, rsp; // basically, [rsp] == TMP6 == &cur_callsite
         //| mov ARG4, TMP5; // args
         //| callp &MVM_frame_find_invokee_multi_ok;
-        dasm_put(Dst, 1449, Dt11([invoke->code_register]), (unsigned int)((uintptr_t)&MVM_frame_find_invokee_multi_ok), (unsigned int)(((uintptr_t)&MVM_frame_find_invokee_multi_ok)>>32));
-#line 1014 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1460, Dt11([invoke->code_register]), (unsigned int)((uintptr_t)&MVM_frame_find_invokee_multi_ok), (unsigned int)(((uintptr_t)&MVM_frame_find_invokee_multi_ok)>>32));
+#line 1016 "src/jit/emit_x64.dasc"
         /* restore callsite, args, RV now holds code object */
         //| pop TMP6; // callsite
         //| pop TMP5; // args
-        dasm_put(Dst, 1472);
-#line 1017 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1483);
+#line 1019 "src/jit/emit_x64.dasc"
         /* setup args for call to invoke(tc, code, cur_callsite, args) */
         //| mov ARG1, TC;
         //| mov ARG2, RV;   // code object
         //| mov ARG3, TMP6; // cur_callsite
         //| mov ARG4, TMP5; // nb - this could be pop ARG4, but that would be confusing
-        dasm_put(Dst, 1477);
-#line 1022 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1488);
+#line 1024 "src/jit/emit_x64.dasc"
         /* get the actual function */
         //| mov FUNCTION, OBJECT:RV->st;
         //| mov FUNCTION, STABLE:FUNCTION->invoke;
         //| callr FUNCTION;
-        dasm_put(Dst, 1491, Dt7(->st), Dt9(->invoke));
-#line 1026 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1502, Dt7(->st), Dt9(->invoke));
+#line 1028 "src/jit/emit_x64.dasc"
     } else {
         /* call MVM_frame_invoke_code */
         //| mov ARG1, TC;
@@ -1664,12 +1666,12 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
         //| mov ARG3, TMP6; // this is the callsite object
         //| mov ARG4, invoke->spesh_cand;
         //| callp &MVM_frame_invoke_code;
-        dasm_put(Dst, 1504, Dt11([invoke->code_register]), invoke->spesh_cand, (unsigned int)((uintptr_t)&MVM_frame_invoke_code), (unsigned int)(((uintptr_t)&MVM_frame_invoke_code)>>32));
-#line 1033 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1515, Dt11([invoke->code_register]), invoke->spesh_cand, (unsigned int)((uintptr_t)&MVM_frame_invoke_code), (unsigned int)(((uintptr_t)&MVM_frame_invoke_code)>>32));
+#line 1035 "src/jit/emit_x64.dasc"
     }
     /* Almost done. jump out into the interprete */
     //| mov RV, 1;
     //| jmp ->out;
-    dasm_put(Dst, 1528);
-#line 1037 "src/jit/emit_x64.dasc"
+    dasm_put(Dst, 1539);
+#line 1039 "src/jit/emit_x64.dasc"
 }

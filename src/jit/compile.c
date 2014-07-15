@@ -97,7 +97,7 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
 MVMint32 MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
                             MVMJitCode *code) {
     /* The actual JIT code returns 0 if it went through to the exit */
-    void * label = label = code->labels[tc->cur_frame->jit_entry_label];
+    void *label = tc->cur_frame->jit_entry_label;
     MVMint32 ctrl = code->func_ptr(tc, cu, label);
     return ctrl ? 0 : 1;
 }

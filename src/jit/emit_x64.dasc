@@ -997,8 +997,10 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     /* The return address for the interpreter */
     | get_cur_op TMP2;
     | mov aword FRAME->return_address, TMP2;
+
     /* The re-entry label for the JIT, so that we continue in the next BB */
-    | mov dword FRAME->jit_entry_label, invoke->reentry_label;
+    | lea TMP2, [=>(invoke->reentry_label)];
+    | mov aword FRAME->jit_entry_label, TMP2;
 
     /* if we're not fast, then we should get the code from multi resolution */
     if (!invoke->is_fast) {

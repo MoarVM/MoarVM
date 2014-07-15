@@ -160,7 +160,7 @@ struct MVMFrame {
 
     /* The 'entry label' is a sort of indirect return address
        for the JIT */
-    MVMint32 jit_entry_label;
+    void * jit_entry_label;
 
 #if MVM_HLL_PROFILE_CALLS
     /* Index of the profile data record. */

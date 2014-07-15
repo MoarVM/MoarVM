@@ -347,7 +347,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 frame = allocate_frame(tc, static_frame_body, chosen_cand);
                 if (chosen_cand->jitcode) {
                     frame->effective_bytecode = chosen_cand->jitcode->bytecode;
-                    frame->jit_entry_label    = 0;
+                    frame->jit_entry_label    = chosen_cand->jitcode->labels[0];
                 }
                 else {
                     frame->effective_bytecode = chosen_cand->bytecode;
