@@ -1037,3 +1037,20 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     | mov RV, 1;
     | jmp ->out;
 }
+
+
+void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
+                          MVMJitControl *ctrl, dasm_State **Dst) {
+    if (ctrl->type == MVM_JIT_CONTROL_INVOKISH) {
+        | cmp FRAME, TC->cur_frame;
+        | je >1;
+        | lea TMP1, [>1];
+        | mov aword FRAME->jit_entry_label, TMP1;
+        | mov RV, 1;
+        | jmp ->out;
+        |1:
+    } else {
+        MVM_exception_throw_adhoc(tc, "Unknown contol code: <%s>",
+                                  ctrl->ins->info->name);
+    }
+}

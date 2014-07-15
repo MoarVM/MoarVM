@@ -25,6 +25,15 @@ struct MVMJitGuard {
     MVMint32      deopt_offset;
 };
 
+typedef enum {
+    MVM_JIT_CONTROL_INVOKISH,
+} MVMJitControlType;
+
+struct MVMJitControl {
+    MVMSpeshIns       *ins;
+    MVMJitControlType type;
+};
+
 /* Special branch target for the exit */
 #define MVM_JIT_BRANCH_EXIT -1
 #define MVM_JIT_BRANCH_OUT  -2
@@ -110,6 +119,7 @@ typedef enum {
     MVM_JIT_NODE_LABEL,
     MVM_JIT_NODE_GUARD,
     MVM_JIT_NODE_INVOKE,
+    MVM_JIT_NODE_CONTROL,
 } MVMJitNodeType;
 
 struct MVMJitNode {
@@ -122,6 +132,7 @@ struct MVMJitNode {
         MVMJitLabel     label;
         MVMJitGuard     guard;
         MVMJitInvoke    invoke;
+        MVMJitControl   control;
     } u;
 };
 

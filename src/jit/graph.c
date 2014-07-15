@@ -294,6 +294,15 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
     return 1;
 }
 
+static void jgb_append_control(MVMThreadContext *tc, JitGraphBuilder *jgb,
+                                MVMSpeshIns *ins, MVMJitControlType ctrl) {
+    MVMJitNode *node = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitNode));
+    node->type = MVM_JIT_NODE_CONTROL;
+    node->u.control.ins  = ins;
+    node->u.control.type = ctrl;
+    jgb_append_node(jgb, node);
+}
+
 static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                 MVMSpeshIns *ins) {
     int op = ins->info->opcode;
@@ -359,7 +368,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_setdispatcher:
     case MVM_OP_getcode:
     case MVM_OP_sp_fastcreate:
-        /*    case MVM_OP_decont: */
+    case MVM_OP_decont:
         jgb_append_primitive(tc, jgb, ins);
         break;
         /* branches */
@@ -530,6 +539,10 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     default:
         MVM_jit_log(tc, "BAIL: op <%s>\n", ins->info->name);
         return 0;
+    }
+    /* If we've consumed an invokish op, we should append a guard */
+    if (ins->info->invokish) {
+        jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_INVOKISH);
     }
     return 1;
 }

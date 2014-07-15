@@ -17,7 +17,7 @@
 #endif
 #line 7 "src/jit/emit_x64.dasc"
 //|.actionlist actions
-static const unsigned char actions[1583] = {
+static const unsigned char actions[1616] = {
   85,72,137,229,255,65,86,83,65,84,65,85,255,73,137,206,73,137,213,77,139,166,
   233,73,139,156,253,36,233,255,65,252,255,224,255,248,10,72,199,192,0,0,0,
   0,248,11,255,65,93,65,92,91,65,94,255,72,137,252,236,93,195,255,72,185,237,
@@ -96,7 +96,8 @@ static const unsigned char actions[1583] = {
   137,209,255,76,139,144,233,77,139,146,233,72,131,252,236,32,65,252,255,210,
   72,131,196,32,255,76,137,252,241,72,139,147,233,77,137,216,73,199,193,237,
   73,186,237,237,72,131,252,236,32,65,252,255,210,72,131,196,32,255,72,199,
-  192,1,0,0,0,252,233,244,11,255
+  192,1,0,0,0,252,233,244,11,255,77,59,166,233,15,132,244,247,72,141,13,244,
+  247,73,137,140,253,36,233,72,199,192,1,0,0,0,252,233,244,11,248,1,255
 };
 
 #line 8 "src/jit/emit_x64.dasc"
@@ -1610,4 +1611,23 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     //| jmp ->out;
     dasm_put(Dst, 1571);
 #line 1039 "src/jit/emit_x64.dasc"
+}
+
+
+void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
+                          MVMJitControl *ctrl, dasm_State **Dst) {
+    if (ctrl->type == MVM_JIT_CONTROL_INVOKISH) {
+        //| cmp FRAME, TC->cur_frame;
+        //| je >1;
+        //| lea TMP1, [>1];
+        //| mov aword FRAME->jit_entry_label, TMP1;
+        //| mov RV, 1;
+        //| jmp ->out;
+        //|1:
+        dasm_put(Dst, 1583, Dt10(->cur_frame), Dt12(->jit_entry_label));
+#line 1052 "src/jit/emit_x64.dasc"
+    } else {
+        MVM_exception_throw_adhoc(tc, "Unknown contol code: <%s>",
+                                  ctrl->ins->info->name);
+    }
 }
