@@ -1057,8 +1057,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         //|2:
         dasm_put(Dst, 869, Dt11([dst]));
 #line 750 "src/jit/emit_x64.dasc"
+        break;
     }
-        
     default:
         MVM_exception_throw_adhoc(tc, "Can't JIT opcode");
     }

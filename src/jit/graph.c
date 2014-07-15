@@ -119,6 +119,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_coerce_si: return &MVM_coerce_s_i;
     case MVM_OP_coerce_sn: return &MVM_coerce_s_n;
     case MVM_OP_smrt_numify: return &MVM_coerce_smart_numify;
+    case MVM_OP_smrt_strify: return &MVM_coerce_smart_stringify;
     case MVM_OP_wval: case MVM_OP_wval_wide: return &MVM_sc_get_sc_object;
     case MVM_OP_push_o: return &MVM_repr_push_o;
     case MVM_OP_unshift_o: return &MVM_repr_unshift_o;
@@ -504,6 +505,17 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
             args[1].type = MVM_JIT_REG_VAL_F;
         }
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, rv_mode, dst);
+        break;
+    }
+    case MVM_OP_smrt_strify:
+    case MVM_OP_smrt_numify: {
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, obj },
+                                 { MVM_JIT_REG_ADDR, dst }};
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args,
+                          MVM_JIT_RV_VOID, -1);
         break;
     }
         /* returning */

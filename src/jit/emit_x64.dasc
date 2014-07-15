@@ -747,8 +747,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         // otherwise just move the object into the register
         | mov WORK[dst], TMP5;
         |2:
+        break;
     }
-        
     default:
         MVM_exception_throw_adhoc(tc, "Can't JIT opcode");
     }

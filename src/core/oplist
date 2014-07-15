@@ -162,8 +162,8 @@ coerce_is           w(str) r(int64) :pure
 coerce_ns           w(str) r(num64) :pure
 coerce_si           w(int64) r(str) :pure
 coerce_sn           w(num64) r(str) :pure
-smrt_numify         w(num64) r(obj) :pure
-smrt_strify         w(str) r(obj) :pure
+smrt_numify         w(num64) r(obj) :pure :invokish
+smrt_strify         w(str) r(obj) :pure :invokish
 prepargs         +a callsite
 arg_i            *a int16 r(int64)
 arg_n            *a int16 r(num64)
