@@ -282,8 +282,8 @@ nfarunalt           r(obj) r(str) r(int64) r(obj) r(obj) r(obj)
 radix               w(obj) r(int64) r(str) r(int64) r(int64)
 encode              w(obj) r(str) r(str) r(obj)
 decode              w(str) r(obj) r(str)
-istrue_s            w(int64) r(str) :pure
-isfalse_s           w(int64) r(str) :pure
+istrue_s            w(int64) r(str) :pure :invokish
+isfalse_s           w(int64) r(str) :pure :invokish
 null                w(obj) :pure
 isnull              w(int64) r(obj) :pure
 ifnonnull           r(obj) ins
