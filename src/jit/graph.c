@@ -380,6 +380,45 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_ifnonnull:
         jgb_append_branch(tc, jgb, 0, ins);
         break;
+    case MVM_OP_if_o:
+    case MVM_OP_unless_o: {
+        /* Very special / funky branches. The function involved in
+         * making this decision - namely, MVM_coerse_istrue - expects
+         * to take a return register address /or/ two bytecode
+         * addresses.  This is a reasonable decision with regards to
+         * invokation nesting in the interpreter, but not for the
+         * JIT. Hence, we will transform this into the istrue /
+         * isfalse primitive combined with the if_i branch. A special
+         * problem is that there really isn't any 'real' work space
+         * available to store the result. Instead, we'll use the
+         * args space to store and read the result */
+        MVMint16 obj = ins->operands[0].reg.orig;
+        /* Assign the very last register allocated */
+        MVMint16 dst = (jgb->sg->sf->body.work_size / sizeof(MVMRegister)) - 1;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL,  obj },
+                                 { MVM_JIT_REG_ADDR, dst }, // destination register (in args space)
+                                 { MVM_JIT_LITERAL, 0 }, // true code
+                                 { MVM_JIT_LITERAL, 0 }, // false code
+                                 { MVM_JIT_LITERAL, op == MVM_OP_unless_o }}; // switch
+        MVMSpeshIns * branch = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMSpeshIns));
+        if (dst + 1 == jgb->sg->num_locals) {
+            MVM_exception_throw_adhoc(tc, "JIT: no space in args buffer to store"
+                                      " temporary result for <%s>", ins->info->name);
+        }
+        jgb_append_call_c(tc, jgb, op_to_func(tc, MVM_OP_istrue), 6,
+                          args, MVM_JIT_RV_VOID, -1);
+        /* guard the potential invoke */
+        jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_INVOKISH);
+        /* branch if true (switch is done by coercion) */
+        branch->info = MVM_op_get_op(MVM_OP_if_i);
+        branch->operands = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMSpeshOperand) * 2);
+        branch->operands[0].reg.orig = dst;
+        branch->operands[1].ins_bb = ins->operands[1].ins_bb;
+        jgb_append_branch(tc, jgb, 0, branch);
+        break;
+    }
+
         /* some functions */
     case MVM_OP_checkarity: {
         MVMuint16 min = ins->operands[0].lit_i16;
