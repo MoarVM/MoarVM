@@ -25,7 +25,7 @@ sub MAIN($file = "src/core/oplist") {
     $hf.say("#define MVM_OP_EXT_BASE $EXT_BASE");
     $hf.say("#define MVM_OP_EXT_CU_LIMIT $EXT_CU_LIMIT");
     $hf.say('');
-    $hf.say('MVMOpInfo * MVM_op_get_op(unsigned short op);');
+    $hf.say('MVM_PUBLIC MVMOpInfo * MVM_op_get_op(unsigned short op);');
     $hf.close;
 
     # Generate C file
@@ -200,6 +200,7 @@ sub opcode_details(@ops) {
                 ($op.adverbs<deoptallpoint> ?? 2 !! 0) +
                 ($op.adverbs<osrpoint> ?? 4 !! 0)),";
             take "        $($op.adverbs<noinline> ?? '1' !! '0'),";
+            take "        $($op.adverbs<invokish> ?? '1' !! '0'),";
             if $op.operands {
                 take "        \{ $op.operands.map(&operand_flags).join(', ') }";
             }
