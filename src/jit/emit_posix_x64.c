@@ -17,7 +17,7 @@
 #endif
 #line 7 "src/jit/emit_x64.dasc"
 //|.actionlist actions
-static const unsigned char actions[1584] = {
+static const unsigned char actions[1587] = {
   85,72,137,229,255,65,86,83,65,84,65,85,255,73,137,252,254,73,137,252,245,
   77,139,166,233,73,139,156,253,36,233,255,252,255,226,255,248,10,72,199,192,
   0,0,0,0,248,11,255,65,93,65,92,91,65,94,255,72,137,252,236,93,195,255,72,
@@ -58,7 +58,7 @@ static const unsigned char actions[1584] = {
   137,131,233,255,76,137,252,247,72,199,198,237,73,186,237,237,65,252,255,210,
   73,139,140,253,36,233,72,139,137,233,72,137,136,233,102,199,128,233,236,65,
   139,142,233,137,136,233,72,137,131,233,255,76,139,147,233,77,133,210,255,
-  15,132,244,247,102,65,252,247,130,233,236,255,15,132,244,247,77,139,154,233,
+  15,132,244,247,102,65,252,247,130,233,236,255,15,133,244,247,77,139,154,233,
   77,139,155,233,77,133,219,255,15,132,244,247,76,137,252,247,76,137,214,72,
   141,147,233,77,139,147,233,65,252,255,210,252,233,244,248,248,1,255,76,137,
   147,233,248,2,255,76,137,252,247,255,76,137,252,246,255,76,137,252,242,255,
@@ -96,7 +96,7 @@ static const unsigned char actions[1584] = {
   255,210,255,76,137,252,247,72,139,179,233,76,137,218,72,199,193,237,73,186,
   237,237,65,252,255,210,255,72,199,192,1,0,0,0,252,233,244,11,255,77,59,166,
   233,15,132,244,247,72,141,13,244,247,73,137,140,253,36,233,72,199,192,1,0,
-  0,0,252,233,244,11,248,1,255
+  0,0,252,233,244,11,248,1,255,205,3,255
 };
 
 #line 8 "src/jit/emit_x64.dasc"
@@ -1035,7 +1035,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         dasm_put(Dst, 811, Dt7(->header.flags), MVM_CF_TYPE_OBJECT);
 #line 733 "src/jit/emit_x64.dasc"
         // object is type object (not concrete)
-        //| jz >1;
+        //| jnz >1;
         //| mov TMP6, OBJECT:TMP5->st;
         //| mov TMP6, STABLE:TMP6->container_spec;
         //| test TMP6, TMP6;
@@ -1410,7 +1410,7 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMSpeshIns *ins = branch->ins;
     MVMint32 name = branch->dest.name;
     /* move gc sync point to the front so as to not have
-v/     * awkward dispatching issues */
+     * awkward dispatching issues */
     //| gc_sync_point;
     dasm_put(Dst, 1170, Dt10(->gc_status), (unsigned int)((uintptr_t)&MVM_gc_enter_from_interrupt), (unsigned int)(((uintptr_t)&MVM_gc_enter_from_interrupt)>>32));
 #line 845 "src/jit/emit_x64.dasc"
@@ -1691,6 +1691,10 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         //|1:
         dasm_put(Dst, 1551, Dt10(->cur_frame), Dt12(->jit_entry_label));
 #line 1052 "src/jit/emit_x64.dasc"
+    } else if (ctrl->type == MVM_JIT_CONTROL_BREAKPOINT) {
+        //| int 3;
+        dasm_put(Dst, 1584);
+#line 1054 "src/jit/emit_x64.dasc"
     } else {
         MVM_exception_throw_adhoc(tc, "Unknown contol code: <%s>",
                                   ctrl->ins->info->name);

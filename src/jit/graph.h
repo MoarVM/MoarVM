@@ -27,6 +27,7 @@ struct MVMJitGuard {
 
 typedef enum {
     MVM_JIT_CONTROL_INVOKISH,
+    MVM_JIT_CONTROL_BREAKPOINT,
 } MVMJitControlType;
 
 struct MVMJitControl {

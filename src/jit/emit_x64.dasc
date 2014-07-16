@@ -731,7 +731,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | jz >1; 
         | is_type_object TMP5;
         // object is type object (not concrete)
-        | jz >1;
+        | jnz >1;
         | mov TMP6, OBJECT:TMP5->st;
         | mov TMP6, STABLE:TMP6->container_spec;
         | test TMP6, TMP6;
@@ -840,7 +840,7 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMSpeshIns *ins = branch->ins;
     MVMint32 name = branch->dest.name;
     /* move gc sync point to the front so as to not have
-v/     * awkward dispatching issues */
+     * awkward dispatching issues */
     | gc_sync_point;
     if (ins == NULL || ins->info->opcode == MVM_OP_goto) {
         MVM_jit_log(tc, "emit jump to label %d\n", name);
@@ -1049,6 +1049,8 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov RV, 1;
         | jmp ->out;
         |1:
+    } else if (ctrl->type == MVM_JIT_CONTROL_BREAKPOINT) {
+        | int 3;
     } else {
         MVM_exception_throw_adhoc(tc, "Unknown contol code: <%s>",
                                   ctrl->ins->info->name);
