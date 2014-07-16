@@ -1,3 +1,39 @@
+New in 2014.07
+
++ Make default file mode 0666
++ Auto-detect computed goto support and enable it when available
++ Implement On Stack Replacement for hot loops
++ Fix and enable isconcrete optimization
++ Use const_i64_16 in spesh-produced code for more compact output
++ Fix bug where [work|env]_alloc were not cleared, leading to mis-frees
++ Support inlining frames that use with extops
++ Add missing decl in header to quiet warnings
++ Fix logical bug in fixed-size-allocator
++ Fix capturelex race condition
++ Add missing MVMROOT in ConditionVariable setup
++ Don't share cached Lexotics over threads
++ Re-order code to avoid race on event loop startup
++ Add a bunch of missing MVMROOTing in asyncsocket
++ Make exit get out quickly
++ Close async sockets on event loop thread to avoid corruption
++ Make --no-optimize and --no-debug work in Configure
++ Implement (de)serializing of Array[uint]
++ Specialize getlexperinvtype_o (enables better roles optimization)
++ Allow pointer math using CPointer repr
++ Fix typo in CArray.elems error message
++ Add a cast to get rid of a warning in nativecall.c
++ Fix merging of inline table entries
++ Eliminate unused guard instructions at end of specialization
++ Update uthash to latest version
++ Correct computation of lexical vivifications
++ Add nativecallcast operation
++ Fix use-after-free bug with thread entry callsite
++ Cope with cross-deopt-point usage analysis
++ Give ContainerSpec a spesh function, use it for decont
++ Make various spesh things available publicly, for VM extensions
++ Significantly overhaul the strings code, fixing many performance issues
++ Optimize find_cclass and find_not_cclass
+
 New in 2014.06
 
 + Correct closure semantics of native callbacks
