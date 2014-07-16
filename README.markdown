@@ -64,11 +64,11 @@ Some key features provided by MoarVM include:
 * Big integers
 * A range of IO and process support, including asynchronous sockets, signals,
   and timers
-* Native calling
+* Native calling and native pointer manipulation
 * Threads, mutexes, condition variables, semaphores, and blocking queues
 * Bytecode specialization by type, and a range of optimizations (including
   resolution of method calls and multiple dispatch, dead code elimination,
-  and inlining)
+  inlining, and on stack replacement)
 
 ## Contributing
 
