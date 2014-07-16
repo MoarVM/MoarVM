@@ -607,6 +607,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     }
     /* If we've consumed an invokish op, we should append a guard */
     if (ins->info->invokish) {
+        MVM_jit_log(tc, "append invokish control guard\n");
         jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_INVOKISH);
     }
     return 1;
