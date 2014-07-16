@@ -13,22 +13,17 @@ class Quix {
         $!foo := $foo;
     }
 
-    method Num() {
-#        nqp::say("Numify: " ~ $!foo);
-        $!foo := $!foo * 1.1;
-        $!foo;
-    }
 
     method Bool() {
 #        nqp::say("Boolify");
-        $!foo < 100;
+        $!foo := $!foo * 1.1;
+        $!foo < 50.0;
     }
 }
 
 sub bar($o) {
-    my num $n := $o * 3.14;
-    if $o {
-        nqp::say($n);
+     if nqp::istrue($o) {
+        nqp::say("STILL WAITING");
     } else {
         nqp::say("DONE");
     }
