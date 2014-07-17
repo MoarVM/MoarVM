@@ -370,21 +370,34 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
         switch (STABLE(facts->type)->boolification_spec->mode) {
             case MVM_BOOL_MODE_UNBOX_INT:
-                if (negated_op) { return; }; /* Bail out for now */
                 /* We can just unbox the int and pretend it's a bool. */
                 ins->info = MVM_op_get_op(MVM_OP_unbox_i);
                 /* And then we might be able to optimize this even further. */
                 optimize_repr_op(tc, g, bb, ins, 1);
                 break;
             case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
-                if (negated_op) { return; }; /* Bail out for now */
                 /* This is the same as isconcrete. */
                 ins->info = MVM_op_get_op(MVM_OP_isconcrete);
                 /* And now defer another bit of optimization */
                 optimize_isconcrete(tc, g, ins);
                 break;
             default:
-                break;
+                return;
+        }
+        /* Now we can take care of the negation. */
+        if (negated_op) {
+            MVMSpeshIns *new_ins = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+            MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
+
+            /* This is a bit naughty with regards to the SSA form, but
+             * we'll hopefully get away with it until we have a proper
+             * way to get new registers crammed in the middle of things */
+            new_ins->info = MVM_op_get_op(MVM_OP_not_i);
+            new_ins->operands = operands;
+            operands[0] = ins->operands[0];
+            operands[1] = ins->operands[0];
+
+            MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
         }
     }
 }
@@ -648,6 +661,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             copy_facts(tc, g, ins->operands[0], ins->operands[1]);
             break;
         case MVM_OP_istrue:
+        case MVM_OP_isfalse:
             optimize_istrue_isfalse(tc, g, bb, ins);
             break;
         case MVM_OP_if_i:
