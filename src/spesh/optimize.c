@@ -383,10 +383,7 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
                 /* And now defer another bit of optimization */
                 optimize_isconcrete(tc, g, ins);
                 break;
-            case MVM_BOOL_MODE_UNBOX_NUM:
-                if (negated_op) { return; }; /* Bail out for now */
-                ins->info = MVM_op_get_op(MVM_OP_unbox_n);
-                optimize_repr_op(tc, g, bb, ins, 1);
+            default:
                 break;
         }
     }
