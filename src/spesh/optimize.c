@@ -352,6 +352,46 @@ static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
             REPR(facts->type)->spesh(tc, STABLE(facts->type), g, bb, ins);
 }
 
+/* boolification has a major indirection, which we can spesh away.
+ * Afterwards, we may be able to spesh even further, so we defer
+ * to other optimization methods. */
+static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMuint8 negated_op;
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    if (ins->info->opcode == MVM_OP_istrue) {
+        negated_op = 0;
+    } else if (ins->info->opcode == MVM_OP_isfalse) {
+        negated_op = 1;
+    } else {
+        return;
+    }
+
+    /* Let's try to figure out the boolification spec. */
+    if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        switch (STABLE(facts->type)->boolification_spec->mode) {
+            case MVM_BOOL_MODE_UNBOX_INT:
+                if (negated_op) { return; }; /* Bail out for now */
+                /* We can just unbox the int and pretend it's a bool. */
+                ins->info = MVM_op_get_op(MVM_OP_unbox_i);
+                /* And then we might be able to optimize this even further. */
+                optimize_repr_op(tc, g, bb, ins, 1);
+                break;
+            case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
+                if (negated_op) { return; }; /* Bail out for now */
+                /* This is the same as isconcrete. */
+                ins->info = MVM_op_get_op(MVM_OP_isconcrete);
+                /* And now defer another bit of optimization */
+                optimize_isconcrete(tc, g, ins);
+                break;
+            case MVM_BOOL_MODE_UNBOX_NUM:
+                if (negated_op) { return; }; /* Bail out for now */
+                ins->info = MVM_op_get_op(MVM_OP_unbox_n);
+                optimize_repr_op(tc, g, bb, ins, 1);
+                break;
+        }
+    }
+}
+
 /* Checks if we have specialized on the invocant - useful to know for some
  * optimizations. */
 static MVMint32 specialized_on_invocant(MVMThreadContext *tc, MVMSpeshGraph *g) {
@@ -609,6 +649,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         switch (ins->info->opcode) {
         case MVM_OP_set:
             copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+            break;
+        case MVM_OP_istrue:
+            optimize_istrue_isfalse(tc, g, bb, ins);
             break;
         case MVM_OP_if_i:
         case MVM_OP_unless_i:
