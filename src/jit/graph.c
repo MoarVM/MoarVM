@@ -559,7 +559,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, rv_mode, dst);
         break;
     }
-        /*
+
     case MVM_OP_smrt_strify:
     case MVM_OP_smrt_numify: {
         MVMint16 obj = ins->operands[1].reg.orig;
@@ -571,7 +571,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                           MVM_JIT_RV_VOID, -1);
         break;
     }
-        */
         /* returning */
     case MVM_OP_return: {
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC},

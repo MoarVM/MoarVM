@@ -13,20 +13,26 @@ class Quix {
         $!foo := $foo;
     }
 
+    method Num() {
+        $!foo := $!foo * 1.1;
+        $!foo;
+    }
 
     method Bool() {
-#        nqp::say("Boolify");
-        $!foo := $!foo * 1.1;
+        nqp::say("Boolify");
         $!foo < 50.0;
     }
 }
 
 sub bar($o) {
-     if nqp::istrue($o) {
-        nqp::say("STILL WAITING");
+    my num $n := $o;
+    my num $t := $n;
+    if $o {
+        nqp::say($n);
+        nqp::say($t);
     } else {
-        nqp::say("DONE");
-    }
+       nqp::say("DONE");
+   }
 }
 
 my int $i := 0;

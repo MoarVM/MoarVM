@@ -133,69 +133,6 @@ const unsigned int MVM_jit_num_globals(void) {
 | callr FUNCTION
 |.endmacro
 
-|.macro addarg, i, val
-||switch(i) {
-||    case 0:
-|         mov ARG1, val
-||        break;
-||    case 1:
-|         mov ARG2, val
-||        break;
-||    case 2:
-|         mov ARG3, val
-||        break;
-||    case 3:
-|         mov ARG4, val
-||        break;
-|.if not WIN32
-||    case 4:
-|         mov ARG5, val
-||        break;
-||    case 5:
-|         mov ARG6, val
-||        break;
-|.endif
-||    default:
-|          mov TMP6, val;
-|          push TMP6;
-||         break;
-||}
-|.endmacro
-
-|.macro addarg_f, i, val
-||switch(i) {
-||    case 0:
-|         movsd ARG1F, qword val
-||        break;
-||    case 1:
-|         movsd ARG2F, qword val
-||        break;
-||    case 2:
-|         movsd ARG3F, qword val
-||        break;
-||    case 3:
-|         movsd ARG4F, qword val
-||        break;
-|.if not WIN32
-||    case 4:
-|         movsd ARG5F, qword val
-||        break;
-||    case 5:
-|         movsd ARG6F, qword val
-||        break;
-||    case 6:
-|         movsd ARG7F, qword val
-||        break;
-||    case 7:
-|         movsd ARG8F, qword val
-||        break;
-|.endif
-||    default:
-|         mov TMP6, val;
-|         push TMP6;
-||        break;
-||}
-|.endmacro
 
 |.macro check_wb, root, ref;
 | test word COLLECTABLE:root->flags, MVM_CF_SECOND_GEN;
@@ -754,60 +691,190 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     }
 }
 
+|.macro addarg, i, val
+||switch(i) {
+||    case 0:
+|         mov ARG1, val
+||        break;
+||    case 1:
+|         mov ARG2, val
+||        break;
+||    case 2:
+|         mov ARG3, val
+||        break;
+||    case 3:
+|         mov ARG4, val
+||        break;
+|.if not WIN32
+||    case 4:
+|         mov ARG5, val
+||        break;
+||    case 5:
+|         mov ARG6, val
+||        break;
+|.endif
+||    default:
+|         mov TMP6, val;
+|         push TMP6;
+||}
+|.endmacro
+
+|.macro addarg_f, i, val
+||switch(i) {
+||    case 0:
+|         movd ARG1F, val
+||        break;
+||    case 1:
+|         movd ARG2F, val
+||        break;
+||    case 2:
+|         movd ARG3F, val
+||        break;
+||    case 3:
+|         movd ARG4F, val
+||        break;
+|.if not WIN32
+||    case 4:
+|         movd ARG5F, val
+||        break;
+||    case 5:
+|         movd ARG6F, val
+||        break;
+||    case 6:
+|         movd ARG7F, val
+||        break;
+||    case 7:
+|         movd ARG8F, val
+||        break;
+|.endif
+||    default:
+|         mov TMP6, val;
+|         push TMP6;
+||        break;
+||}
+|.endmacro
+
+
+/* Call argument decoder */
+static void emit_call_arg(MVMThreadContext *tc, MVMJitCallArg arg,
+                          MVMint32 i, dasm_State **Dst) {
+    switch(arg.type) {
+    case MVM_JIT_INTERP_VAR:
+        MVM_jit_log(tc, "emit interp call arg %d %d \n", i, arg.v.ivar);
+        switch (arg.v.ivar) {
+        case MVM_JIT_INTERP_TC:
+            | addarg i, TC;
+            break;
+        case MVM_JIT_INTERP_FRAME:
+            | addarg i, FRAME;
+            break;
+        case MVM_JIT_INTERP_CU:
+            | addarg i, CU;
+            break;
+        case MVM_JIT_INTERP_PARAMS:
+            | lea TMP6, FRAME->params;
+            | addarg i, TMP6;
+            break;
+        }
+        break;
+    case MVM_JIT_REG_VAL:
+        | addarg i, WORK[arg.v.reg];
+        break;
+    case MVM_JIT_REG_VAL_F:
+        | addarg_f i, qword WORK[arg.v.reg];
+        break;
+    case MVM_JIT_REG_ADDR:
+        | lea TMP6, WORK[arg.v.reg];
+        | addarg i, TMP6;
+        break;
+    case MVM_JIT_STR_IDX:
+        | get_string TMP6, arg.v.lit_i64;
+        | addarg i, TMP6;
+        break;
+    case MVM_JIT_LITERAL:
+        | addarg i, arg.v.lit_i64;
+        break;
+    case MVM_JIT_LITERAL_64:
+    case MVM_JIT_LITERAL_PTR:
+        | mov64 TMP6, arg.v.lit_i64;
+        | addarg i, TMP6;
+        break;
+    case MVM_JIT_LITERAL_F:
+        | mov64 TMP6, arg.v.lit_i64;
+        | addarg_f i, TMP6;
+        break;
+    }
+}
+
+
+static void emit_posix_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
+                                MVMJitCallArg args[], MVMint32 num_args,
+                                dasm_State **Dst) {
+    MVMint32 num_gpr = 0, num_fpr = 0, num_stack = 0, i;
+    MVMJitCallArg in_gpr[6], in_fpr[8], *on_stack;
+    on_stack = malloc(sizeof(MVMJitCallArg) * (num_args - 6));
+    /* divide in gpr, fpr, stack values */
+    for (i = 0; i < num_args; i++) {
+        switch (args[i].type) {
+        case MVM_JIT_INTERP_VAR:
+        case MVM_JIT_REG_VAL:
+        case MVM_JIT_REG_ADDR:
+        case MVM_JIT_STR_IDX:
+        case MVM_JIT_LITERAL:
+        case MVM_JIT_LITERAL_64:
+        case MVM_JIT_LITERAL_PTR:
+            if (num_gpr < 6) {
+                in_gpr[num_gpr++] = args[i];
+            } else {
+                on_stack[num_stack++] = args[i];
+            }
+            break;
+        case MVM_JIT_REG_VAL_F:
+        case MVM_JIT_LITERAL_F:
+            if (num_fpr < 8) {
+                in_fpr[num_fpr++] = args[i];
+            } else {
+                on_stack[num_stack++] = args[i];
+            }
+            break;
+        }
+    }
+    for (i = 0; i < num_gpr; i++) {
+        emit_call_arg(tc, in_gpr[i], i, Dst);
+    }
+    for (i = 0; i < num_fpr; i++) {
+        emit_call_arg(tc, in_fpr[i], i, Dst);
+    }
+    /* push right-to-left */
+    for (i = num_stack - 1; i >= 0; i--) {
+        emit_call_arg(tc, on_stack[i], i + 8, Dst); // always a stack arg
+    }
+    free(on_stack);
+}
+
+static void emit_win64_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
+                                MVMJitCallArg args[], MVMint32 num_args,
+                                dasm_State **Dst) {
+    MVMint32 i;
+    /* The difficultiy in win64 call args is handled adequately
+     * by the addarg macros. */
+    for (i = 0; i < num_args; i++) {
+        emit_call_arg(tc, args[i], i, Dst);
+    }
+}
+
 void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
                          MVMJitCallC * call_spec, dasm_State **Dst) {
-    int i;
-    MVMJitCallArg *args = call_spec->args;
+
     MVM_jit_log(tc, "emit c call <%d args>\n", call_spec->num_args);
     if (call_spec->has_vargs) {
         MVM_exception_throw_adhoc(tc, "JIT can't handle varargs yet");
     }
-    /* first, add arguments */
-    for (i = 0; i < call_spec->num_args; i++) {
-        switch (args[i].type) {
-        case MVM_JIT_INTERP_VAR:
-            MVM_jit_log(tc, "emit interp call arg %d %d \n", i, args[i].v.ivar);
-            switch (args[i].v.ivar) {
-            case MVM_JIT_INTERP_TC:
-                | addarg i, TC;
-                 break;
-            case MVM_JIT_INTERP_FRAME:
-                | addarg i, FRAME;
-                break;
-            case MVM_JIT_INTERP_CU:
-                | addarg i, CU;
-                break;
-            case MVM_JIT_INTERP_PARAMS:
-                | lea TMP6, FRAME->params;
-                | addarg i, TMP6;
-                break;
-            }
-            break;
-        case MVM_JIT_REG_VAL:
-            | addarg i, WORK[args[i].v.reg];
-            break;
-        case MVM_JIT_REG_VAL_F:
-            | addarg_f i, WORK[args[i].v.reg];
-            break;
-        case MVM_JIT_REG_ADDR:
-            | lea TMP6, WORK[args[i].v.reg];
-            | addarg i, TMP6;
-            break;
-        case MVM_JIT_STR_IDX:    
-            | get_string TMP6, args[i].v.lit_i64;
-            | addarg i, TMP6;
-            break;
-        case MVM_JIT_LITERAL:
-            | addarg i, args[i].v.lit_i64;
-            break;
-        case MVM_JIT_LITERAL_64:
-        case MVM_JIT_LITERAL_F:
-        case MVM_JIT_LITERAL_PTR:
-            | mov64 TMP6, args[i].v.lit_i64;
-            | addarg i, TMP6;
-            break;
-        }
-    }
+    |.if WIN32;
+    || emit_win64_callargs(tc, jg, call_spec->args, call_spec->num_args, Dst);
+    |.else;
+    || emit_posix_callargs(tc, jg, call_spec->args, call_spec->num_args, Dst);
+    |.endif
     /* Emit the call. I think we should be able to do something smarter than
      * store the constant into the bytecode, like a data segment. But I'm
      * not sure. */
