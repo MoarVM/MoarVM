@@ -368,7 +368,8 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
 
     /* Let's try to figure out the boolification spec. */
     if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
-        switch (STABLE(facts->type)->boolification_spec->mode) {
+        MVMBoolificationSpec *bs = STABLE(facts->type)->boolification_spec;
+        switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
             case MVM_BOOL_MODE_UNBOX_INT:
                 /* We can just unbox the int and pretend it's a bool. */
                 ins->info = MVM_op_get_op(MVM_OP_unbox_i);
