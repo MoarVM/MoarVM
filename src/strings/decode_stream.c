@@ -31,7 +31,7 @@ void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds
 }
 
 /* Adds another char result buffer into the decoding stream. */
-void MVM_string_decodestream_add_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMCodepoint32 *chars, MVMint32 length) {
+void MVM_string_decodestream_add_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 *chars, MVMint32 length) {
     MVMDecodeStreamChars *new_chars = calloc(1, sizeof(MVMDecodeStreamChars));
     new_chars->chars  = chars;
     new_chars->length = length;
@@ -104,11 +104,11 @@ static MVMint32 missing_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
     return got >= wanted ? 0 : wanted - got;
 }
 static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 chars) {
-    MVMint32 found = 0;
-    MVMString *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    result->body.int32s = malloc(chars * sizeof(MVMCodepoint32));
-    result->body.flags  = MVM_STRING_TYPE_INT32;
-    result->body.graphs = chars;
+    MVMint32   found             = 0;
+    MVMString *result            = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    result->body.storage.blob_32 = malloc(chars * sizeof(MVMGrapheme32));
+    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+    result->body.num_graphs      = chars;
     while (found < chars) {
         MVMDecodeStreamChars *cur_chars = ds->chars_head;
         MVMint32 available = cur_chars->length - ds->chars_head_pos;
@@ -116,8 +116,8 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
             /* We need all that's left in this buffer and likely
              * more. */
             MVMDecodeStreamChars *next_chars = cur_chars->next;
-            memcpy(result->body.int32s + found, cur_chars->chars + ds->chars_head_pos,
-                available * sizeof(MVMCodepoint32));
+            memcpy(result->body.storage.blob_32 + found, cur_chars->chars + ds->chars_head_pos,
+                available * sizeof(MVMGrapheme32));
             found += available;
             free(cur_chars->chars);
             free(cur_chars);
@@ -131,8 +131,8 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
             /* There's enough in this buffer to satisfy us, and we'll leave
              * some behind. */
             MVMint32 take = chars - found;
-            memcpy(result->body.int32s + found, cur_chars->chars + ds->chars_head_pos,
-                take * sizeof(MVMCodepoint32));
+            memcpy(result->body.storage.blob_32 + found, cur_chars->chars + ds->chars_head_pos,
+                take * sizeof(MVMGrapheme32));
             found += take;
             ds->chars_head_pos += take;
         }
@@ -143,13 +143,8 @@ MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStr
     MVMint32 missing;
 
     /* If we request nothing, give empty string. */
-    if (chars == 0) {
-        MVMString *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-        result->body.int32s = malloc(1);
-        result->body.flags  = MVM_STRING_TYPE_INT32;
-        result->body.graphs = 0;
-        return result;
-    }
+    if (chars == 0)
+        return tc->instance->str_consts.empty;
 
     /* If we don't already have enough chars, try and decode more. */
     missing = missing_chars(tc, ds, chars);
@@ -166,7 +161,7 @@ MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStr
 /* Gets characters up until the specified string is encountered. If we do
  * not encounter it, returns NULL. This may mean more input buffers are needed
  * or that we reached the end of the stream. */
-MVMint32 find_separator(MVMThreadContext *tc, MVMDecodeStream *ds, MVMCodepoint32 sep) {
+MVMint32 find_separator(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 sep) {
     MVMint32 sep_loc = 0;
     MVMDecodeStreamChars *cur_chars = ds->chars_head;
     while (cur_chars) {
@@ -181,7 +176,7 @@ MVMint32 find_separator(MVMThreadContext *tc, MVMDecodeStream *ds, MVMCodepoint3
     }
     return 0;
 }
-MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecodeStream *ds, MVMCodepoint32 sep) {
+MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 sep) {
     MVMint32 sep_loc;
 
     /* Look for separator, trying more decoding if it fails. We get the place
@@ -201,24 +196,23 @@ MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecod
  * characters. */
 MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStream *ds) {
     MVMString *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    result->body.storage_type = MVM_STRING_GRAPHEME_32;
 
     /* Decode all the things. */
     run_decode(tc, ds, NULL, NULL);
 
     /* If there's no codepoint buffer, then return the empty string. */
     if (!ds->chars_head) {
-        result->body.int32s = malloc(1);
-        result->body.flags  = MVM_STRING_TYPE_INT32;
-        result->body.graphs = 0;
+        result->body.storage.blob_32 = NULL;
+        result->body.num_graphs      = 0;
     }
     
     /* If there's exactly one resulting codepoint buffer and we swallowed none
      * of it, just use it. */
     else if (ds->chars_head == ds->chars_tail && ds->chars_head_pos == 0) {
         /* Set up result string. */
-        result->body.int32s = ds->chars_head->chars;
-        result->body.flags  = MVM_STRING_TYPE_INT32;
-        result->body.graphs = ds->chars_head->length;
+        result->body.storage.blob_32 = ds->chars_head->chars;
+        result->body.num_graphs      = ds->chars_head->length;
 
         /* Don't free the buffer's memory itself, just the holder, as we
          * stole that for the buffer into the string above. */
@@ -240,22 +234,21 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
         }
 
         /* Allocate a result buffer of the right size. */
-        result->body.int32s = malloc(length * sizeof(MVMCodepoint32));
-        result->body.flags  = MVM_STRING_TYPE_INT32;
-        result->body.graphs = length;
+        result->body.storage.blob_32 = malloc(length * sizeof(MVMGrapheme32));
+        result->body.num_graphs      = length;
 
         /* Copy all the things into the target, freeing as we go. */
         cur_chars = ds->chars_head;
         while (cur_chars) {
             if (cur_chars == ds->chars_head) {
                 MVMint32 to_copy = ds->chars_head->length - ds->chars_head_pos;
-                memcpy(result->body.int32s + pos, cur_chars->chars + ds->chars_head_pos,
-                    cur_chars->length * sizeof(MVMCodepoint32));
+                memcpy(result->body.storage.blob_32 + pos, cur_chars->chars + ds->chars_head_pos,
+                    cur_chars->length * sizeof(MVMGrapheme32));
                 pos += to_copy;
             }
             else {
-                memcpy(result->body.int32s + pos, cur_chars->chars,
-                    cur_chars->length * sizeof(MVMCodepoint32));
+                memcpy(result->body.storage.blob_32 + pos, cur_chars->chars,
+                    cur_chars->length * sizeof(MVMGrapheme32));
                 pos += cur_chars->length;
             }
             cur_chars = cur_chars->next;

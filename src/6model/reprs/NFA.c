@@ -311,7 +311,7 @@ static MVMint64 quicksort(MVMint64 *arr, MVMint64 elements) {
 /* Does a run of the NFA. Produces a list of integers indicating the
  * chosen ordering. */
 static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *target, MVMint64 offset, MVMint64 *total_fates_out) {
-    MVMint64  eos     = NUM_GRAPHS(target);
+    MVMint64  eos     = MVM_string_graphs(tc, target);
     MVMint64  gen     = 1;
     MVMint64  numcur  = 0;
     MVMint64  numnext = 0;
@@ -394,12 +394,12 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 }
                 else if (act == MVM_NFA_EDGE_CODEPOINT) {
                     MVMint64 arg = edge_info[i].arg.i;
-                    if (MVM_string_get_codepoint_at_nocheck(tc, target, offset) == arg)
+                    if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg)
                         nextst[numnext++] = to;
                 }
                 else if (act == MVM_NFA_EDGE_CODEPOINT_NEG) {
                     MVMint64 arg = edge_info[i].arg.i;
-                    if (MVM_string_get_codepoint_at_nocheck(tc, target, offset) != arg)
+                    if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) != arg)
                         nextst[numnext++] = to;
                 }
                 else if (act == MVM_NFA_EDGE_CHARCLASS) {
@@ -414,27 +414,27 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 }
                 else if (act == MVM_NFA_EDGE_CHARLIST) {
                     MVMString *arg    = edge_info[i].arg.s;
-                    MVMCodepoint32 cp = MVM_string_get_codepoint_at_nocheck(tc, target, offset);
-                    if (MVM_string_index_of_codepoint(tc, arg, cp) >= 0)
+                    MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                    if (MVM_string_index_of_grapheme(tc, arg, cp) >= 0)
                         nextst[numnext++] = to;
                 }
                 else if (act == MVM_NFA_EDGE_CHARLIST_NEG) {
                     MVMString *arg    = edge_info[i].arg.s;
-                    MVMCodepoint32 cp = MVM_string_get_codepoint_at_nocheck(tc, target, offset);
-                    if (MVM_string_index_of_codepoint(tc, arg, cp) < 0)
+                    MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                    if (MVM_string_index_of_grapheme(tc, arg, cp) < 0)
                         nextst[numnext++] = to;
                 }
                 else if (act == MVM_NFA_EDGE_CODEPOINT_I) {
-                    MVMCodepoint32 uc_arg = edge_info[i].arg.uclc.uc;
-                    MVMCodepoint32 lc_arg = edge_info[i].arg.uclc.lc;
-                    MVMCodepoint32 ord    = MVM_string_get_codepoint_at_nocheck(tc, target, offset);
+                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
                     if (ord == lc_arg || ord == uc_arg)
                         nextst[numnext++] = to;
                 }
                 else if (act == MVM_NFA_EDGE_CODEPOINT_I_NEG) {
-                    MVMCodepoint32 uc_arg = edge_info[i].arg.uclc.uc;
-                    MVMCodepoint32 lc_arg = edge_info[i].arg.uclc.lc;
-                    MVMCodepoint32 ord    = MVM_string_get_codepoint_at_nocheck(tc, target, offset);
+                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
                     if (ord != lc_arg && ord != uc_arg)
                         nextst[numnext++] = to;
                 }

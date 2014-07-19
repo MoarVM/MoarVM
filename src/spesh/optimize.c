@@ -352,6 +352,57 @@ static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
             REPR(facts->type)->spesh(tc, STABLE(facts->type), g, bb, ins);
 }
 
+/* boolification has a major indirection, which we can spesh away.
+ * Afterwards, we may be able to spesh even further, so we defer
+ * to other optimization methods. */
+static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMuint8 negated_op;
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    if (ins->info->opcode == MVM_OP_istrue) {
+        negated_op = 0;
+    } else if (ins->info->opcode == MVM_OP_isfalse) {
+        negated_op = 1;
+    } else {
+        return;
+    }
+
+    /* Let's try to figure out the boolification spec. */
+    if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        MVMBoolificationSpec *bs = STABLE(facts->type)->boolification_spec;
+        switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
+            case MVM_BOOL_MODE_UNBOX_INT:
+                /* We can just unbox the int and pretend it's a bool. */
+                ins->info = MVM_op_get_op(MVM_OP_unbox_i);
+                /* And then we might be able to optimize this even further. */
+                optimize_repr_op(tc, g, bb, ins, 1);
+                break;
+            case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
+                /* This is the same as isconcrete. */
+                ins->info = MVM_op_get_op(MVM_OP_isconcrete);
+                /* And now defer another bit of optimization */
+                optimize_isconcrete(tc, g, ins);
+                break;
+            default:
+                return;
+        }
+        /* Now we can take care of the negation. */
+        if (negated_op) {
+            MVMSpeshIns *new_ins = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+            MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
+
+            /* This is a bit naughty with regards to the SSA form, but
+             * we'll hopefully get away with it until we have a proper
+             * way to get new registers crammed in the middle of things */
+            new_ins->info = MVM_op_get_op(MVM_OP_not_i);
+            new_ins->operands = operands;
+            operands[0] = ins->operands[0];
+            operands[1] = ins->operands[0];
+
+            MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
+        }
+    }
+}
+
 /* Checks if we have specialized on the invocant - useful to know for some
  * optimizations. */
 static MVMint32 specialized_on_invocant(MVMThreadContext *tc, MVMSpeshGraph *g) {
@@ -623,6 +674,10 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         switch (ins->info->opcode) {
         case MVM_OP_set:
             copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+            break;
+        case MVM_OP_istrue:
+        case MVM_OP_isfalse:
+            optimize_istrue_isfalse(tc, g, bb, ins);
             break;
         case MVM_OP_if_i:
         case MVM_OP_unless_i:

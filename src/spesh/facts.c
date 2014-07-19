@@ -42,11 +42,11 @@ static void create_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 obj_o
     /* We know it's a concrete object. */
     obj_facts->flags |= MVM_SPESH_FACT_CONCRETE;
 
-    /* If we know the original value, then we can check the type to see if
+    /* If we know the type object, then we can check to see if
      * it's a container type. */
-    if (type_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-        MVMObject *value = type_facts->value.o;
-        if (value && !STABLE(value)->container_spec)
+    if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        MVMObject *type = type_facts->type;
+        if (type && !STABLE(type)->container_spec)
             obj_facts->flags |= MVM_SPESH_FACT_DECONTED;
     }
 }

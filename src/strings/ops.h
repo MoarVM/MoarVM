@@ -1,3 +1,4 @@
+/* Encoding types and encoding validity check. */
 #define MVM_encoding_type_MIN           1
 #define MVM_encoding_type_utf8          1
 #define MVM_encoding_type_ascii         2
@@ -8,43 +9,6 @@
 #define ENCODING_VALID(enc) \
     (((enc) >= MVM_encoding_type_MIN && (enc) <= MVM_encoding_type_MAX) \
     || (MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", (enc)),1))
-
-/* substring consumer functions accept a state object in *data and
-    consume a substring portion. Utilized by many of the string ops
-    so traversal state can be maintained while applying a function to
-    each subsection of a string. Accepts physical strings only. (non-
-    ropes). Each function should branch for the ascii and wide modes
-    so there doesn't have to be a function call on every codepoint.
-    Returns nonzero if the traverser is supposed to stop traversal
-    early. See how it's used in ops.c */
-#define MVM_SUBSTRING_CONSUMER(name) MVMuint8 name(MVMThreadContext *tc, \
-    MVMString *string, MVMStringIndex start, MVMStringIndex length, MVMStringIndex top_index, void *data)
-typedef MVM_SUBSTRING_CONSUMER((*MVMSubstringConsumer));
-
-/* number of grahemes in the string */
-#define NUM_ROPE_GRAPHS(str) ((str)->body.num_strands ? (str)->body.strands[(str)->body.num_strands].graphs : 0)
-#define NUM_GRAPHS(str) (IS_ROPE((str)) ? NUM_ROPE_GRAPHS((str)) : (str)->body.graphs)
-/* gets the code that defines the type of string. More things could be
-    stored in flags later. */
-#define STR_FLAGS(str) (((MVMString *)(str))->body.flags & MVM_STRING_TYPE_MASK)
-/* whether it's a string of full-blown 4-byte (positive and/or negative)
-    codepoints. */
-#define IS_WIDE(str) (STR_FLAGS((str)) == MVM_STRING_TYPE_INT32)
-/* whether it's a string of only codepoints that fit in 8 bits, so
-    are stored compactly in a byte array. */
-#define IS_ASCII(str) (STR_FLAGS((str)) == MVM_STRING_TYPE_UINT8)
-/* whether it's a composite of strand segments */
-#define IS_ROPE(str) (STR_FLAGS((str)) == MVM_STRING_TYPE_ROPE)
-/* potentially lvalue version of the below */
-#define _STRAND_DEPTH(str) ((str)->body.strands[(str)->body.num_strands].strand_depth)
-/* the max number of levels deep the rope tree goes */
-#define STRAND_DEPTH(str) ((IS_ROPE((str)) && NUM_ROPE_GRAPHS(str)) ? _STRAND_DEPTH((str)) : 0)
-/* whether the rope is composed of only one segment of another string */
-#define IS_ONE_STRING_ROPE(str) (IS_ROPE((str)) && (str)->body.num_strands == 1)
-
-struct MVMConcatState {
-    MVMuint32 some_state;
-};
 
 /* Character class constants (map to nqp::const::CCLASS_* values). */
 #define MVM_CCLASS_ANY          65535
@@ -62,7 +26,14 @@ struct MVMConcatState {
 #define MVM_CCLASS_NEWLINE      4096
 #define MVM_CCLASS_WORD         8192
 
-MVMCodepoint32 MVM_string_get_codepoint_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index);
+MVM_STATIC_INLINE MVMuint32 MVM_string_graphs(MVMThreadContext *tc, MVMString *s) {
+    return s->body.num_graphs;
+}
+MVM_STATIC_INLINE MVMuint32 MVM_string_codes(MVMThreadContext *tc, MVMString *s) {
+    return s->body.num_graphs; /* Don't do NFG yet; this will do us. */
+}
+
+MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index);
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b);
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start);
 MVMint64 MVM_string_index_from_end(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start);
@@ -75,8 +46,8 @@ void MVM_string_print(MVMThreadContext *tc, MVMString *a);
 MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset);
 MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset);
 MVMint64 MVM_string_have_at(MVMThreadContext *tc, MVMString *a, MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb);
-MVMint64 MVM_string_get_codepoint_at(MVMThreadContext *tc, MVMString *a, MVMint64 index);
-MVMint64 MVM_string_index_of_codepoint(MVMThreadContext *tc, MVMString *a, MVMint64 codepoint);
+MVMint64 MVM_string_get_grapheme_at(MVMThreadContext *tc, MVMString *a, MVMint64 index);
+MVMint64 MVM_string_index_of_grapheme(MVMThreadContext *tc, MVMString *a, MVMGrapheme32 codepoint);
 MVMString * MVM_string_uc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s);
@@ -88,11 +59,11 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObject *input);
 MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint64 offset, MVMString *b);
 MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMString *s, MVMint64 offset, MVMint64 property_code, MVMint64 property_value_code);
-MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code, MVMint64 property_value_code);
-MVMString * MVM_unicode_codepoint_get_property_str(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code);
-MVMint64 MVM_unicode_codepoint_get_property_int(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code);
-MVMint64 MVM_unicode_codepoint_get_property_bool(MVMThreadContext *tc, MVMCodepoint32 codepoint, MVMint64 property_code);
-MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint);
+MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMGrapheme32 grapheme, MVMint64 property_code, MVMint64 property_value_code);
+MVMString * MVM_unicode_codepoint_get_property_str(MVMThreadContext *tc, MVMGrapheme32 grapheme, MVMint64 property_code);
+MVMint64 MVM_unicode_codepoint_get_property_int(MVMThreadContext *tc, MVMGrapheme32 grapheme, MVMint64 property_code);
+MVMint64 MVM_unicode_codepoint_get_property_bool(MVMThreadContext *tc, MVMGrapheme32 grapheme, MVMint64 property_code);
+MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 grapheme);
 void MVM_string_flatten(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s);
@@ -105,3 +76,4 @@ MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *
 MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count);
 MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count);
 MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name);
+MVMString * MVM_string_chr(MVMThreadContext *tc, MVMGrapheme32 g);

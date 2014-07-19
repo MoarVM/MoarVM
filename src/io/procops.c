@@ -378,18 +378,12 @@ MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
 
 MVMString * MVM_executable_name(MVMThreadContext *tc) {
     MVMInstance * const instance = tc->instance;
-    if (instance->exec_name) {
+    if (instance->exec_name)
         return MVM_string_utf8_decode(tc,
             instance->VMString,
             instance->exec_name, strlen(instance->exec_name));
-    }
-    else {
-        MVMString *result = (MVMString *)MVM_repr_alloc_init(tc, instance->VMString);
-        result->body.int32s = malloc(1);
-        result->body.flags  = MVM_STRING_TYPE_INT32;
-        result->body.graphs = 0;
-        return result;
-    }
+    else
+        return tc->instance->str_consts.empty;
 }
 
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {

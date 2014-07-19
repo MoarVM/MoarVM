@@ -41595,7 +41595,7 @@ static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint32 code
 }
 
 MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block) {
-    MVMCodepoint32 ord = MVM_string_get_codepoint_at_nocheck(tc, str, pos);
+    MVMGrapheme32 ord = MVM_string_get_grapheme_at_nocheck(tc, str, pos);
     MVMuint64 size;
     unsigned char *bname = MVM_string_ascii_encode(tc, block, &size);
 

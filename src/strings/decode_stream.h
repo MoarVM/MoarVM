@@ -31,17 +31,17 @@ struct MVMDecodeStreamBytes {
 
 /* A bunch of characters already decoded, with a link to the next bunch. */
 struct MVMDecodeStreamChars {
-    MVMCodepoint32       *chars;
+    MVMGrapheme32        *chars;
     MVMint32              length;
     MVMDecodeStreamChars *next;
 };
 
 MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 encoding, MVMint64 abs_byte_pos);
 void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, char *bytes, MVMint32 length);
-void MVM_string_decodestream_add_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMCodepoint32 *chars, MVMint32 length);
+void MVM_string_decodestream_add_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 *chars, MVMint32 length);
 void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *ds, MVMDecodeStreamBytes *bytes, MVMint32 pos);
 MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 chars);
-MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecodeStream *ds, MVMCodepoint32 sep);
+MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 sep);
 MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStream *ds);
 MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 bytes);
 MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStream *ds, char **buf, MVMint32 bytes);

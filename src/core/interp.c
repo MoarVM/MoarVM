@@ -116,7 +116,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(if_s): {
                 MVMString *str = GET_REG(cur_op, 0).s;
-                if (!str || NUM_GRAPHS(str) == 0)
+                if (!str || MVM_string_graphs(tc, str) == 0)
                     cur_op += 6;
                 else
                     cur_op = bytecode_start + GET_UI32(cur_op, 2);
@@ -125,7 +125,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(unless_s): {
                 MVMString *str = GET_REG(cur_op, 0).s;
-                if (!str || NUM_GRAPHS(str) == 0)
+                if (!str || MVM_string_graphs(tc, str) == 0)
                     cur_op = bytecode_start + GET_UI32(cur_op, 2);
                 else
                     cur_op += 6;
@@ -1360,11 +1360,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             OP(graphs_s):
-                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).s->body.graphs;
+                GET_REG(cur_op, 0).i64 = MVM_string_graphs(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(codes_s):
-                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).s->body.codes;
+                GET_REG(cur_op, 0).i64 = MVM_string_codes(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(eq_s):
@@ -1391,12 +1391,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 12;
                 goto NEXT;
             OP(getcp_s):
-                GET_REG(cur_op, 0).i64 = MVM_string_get_codepoint_at(tc,
+                GET_REG(cur_op, 0).i64 = MVM_string_get_grapheme_at(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
             OP(indexcp_s):
-                GET_REG(cur_op, 0).i64 = MVM_string_index_of_codepoint(tc,
+                GET_REG(cur_op, 0).i64 = MVM_string_index_of_grapheme(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
@@ -1502,39 +1502,29 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(chars):
-                GET_REG(cur_op, 0).i64 = NUM_GRAPHS(GET_REG(cur_op, 2).s);
+                GET_REG(cur_op, 0).i64 = MVM_string_graphs(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(chr): {
-                MVMint64 ord = GET_REG(cur_op, 2).i64;
-                MVMString *s;
-                if (ord < 0)
-                    MVM_exception_throw_adhoc(tc, "chr codepoint cannot be negative");
-                s = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
-                s->body.flags = MVM_STRING_TYPE_INT32;
-                s->body.int32s = malloc(sizeof(MVMCodepoint32));
-                s->body.int32s[0] = (MVMCodepoint32)ord;
-                s->body.graphs = 1;
-                s->body.codes = 1;
-                GET_REG(cur_op, 0).s = s;
+                GET_REG(cur_op, 0).s = MVM_string_chr(tc, (MVMGrapheme32)GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(ordfirst): {
                 MVMString *s = GET_REG(cur_op, 2).s;
-                if (!s || NUM_GRAPHS(s) == 0) {
+                if (!s || MVM_string_graphs(tc, s) == 0) {
                     MVM_exception_throw_adhoc(tc, "ord string is null or blank");
                 }
-                GET_REG(cur_op, 0).i64 = MVM_string_get_codepoint_at(tc, s, 0);
+                GET_REG(cur_op, 0).i64 = MVM_string_get_grapheme_at(tc, s, 0);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(ordat): {
                 MVMString *s = GET_REG(cur_op, 2).s;
-                if (!s || NUM_GRAPHS(s) == 0) {
+                if (!s || MVM_string_graphs(tc, s) == 0) {
                     MVM_exception_throw_adhoc(tc, "ord string is null or blank");
                 }
-                GET_REG(cur_op, 0).i64 = MVM_string_get_codepoint_at(tc, s, GET_REG(cur_op, 4).i64);
+                GET_REG(cur_op, 0).i64 = MVM_string_get_grapheme_at(tc, s, GET_REG(cur_op, 4).i64);
                 /* XXX what to do with synthetics?  return them? */
                 cur_op += 6;
                 goto NEXT;
