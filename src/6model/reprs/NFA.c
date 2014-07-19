@@ -94,7 +94,9 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
                     writer->write_str(tc, writer, body->states[i][j].arg.s);
                     break;
                 case MVM_NFA_EDGE_CODEPOINT_I:
-                case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
+                case MVM_NFA_EDGE_CODEPOINT_I_NEG:
+                case MVM_NFA_EDGE_CHARRANGE:
+                case MVM_NFA_EDGE_CHARRANGE_NEG: {
                     writer->write_varint(tc, writer, body->states[i][j].arg.uclc.lc);
                     writer->write_varint(tc, writer, body->states[i][j].arg.uclc.uc);
                     break;
@@ -143,7 +145,9 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                         MVM_ASSIGN_REF(tc, &(root->header), body->states[i][j].arg.s, reader->read_str(tc, reader));
                         break;
                     case MVM_NFA_EDGE_CODEPOINT_I:
-                    case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
+                    case MVM_NFA_EDGE_CODEPOINT_I_NEG:
+                    case MVM_NFA_EDGE_CHARRANGE:
+                    case MVM_NFA_EDGE_CHARRANGE_NEG: {
                         body->states[i][j].arg.uclc.lc = reader->read_varint(tc, reader);
                         body->states[i][j].arg.uclc.uc = reader->read_varint(tc, reader);
                         break;
@@ -254,7 +258,11 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                         MVM_repr_get_str(tc, MVM_repr_at_pos_o(tc, edge_info, j + 1)));
                     break;
                 case MVM_NFA_EDGE_CODEPOINT_I:
-                case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
+                case MVM_NFA_EDGE_CODEPOINT_I_NEG:
+                /* That is not about uppercase/lowercase here, but lower and upper bounds
+                   of our range. */
+                case MVM_NFA_EDGE_CHARRANGE:
+                case MVM_NFA_EDGE_CHARRANGE_NEG: {
                     MVMObject *arg = MVM_repr_at_pos_o(tc, edge_info, j + 1);
                     nfa->states[i][cur_edge].arg.uclc.lc = MVM_coerce_simple_intify(tc,
                         MVM_repr_at_pos_o(tc, arg, 0));
@@ -436,6 +444,21 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                     MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
                     MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
                     if (ord != lc_arg && ord != uc_arg)
+                        nextst[numnext++] = to;
+                }
+                else if (act == MVM_NFA_EDGE_CHARRANGE) {
+                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                    if (ord >= lc_arg && ord <= uc_arg) /* TODO ignorecase? */
+                        nextst[numnext++] = to;
+                    
+                }
+                else if (act == MVM_NFA_EDGE_CHARRANGE_NEG) {
+                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                    if (ord < lc_arg || ord > uc_arg) /* TODO ignorecase? */
                         nextst[numnext++] = to;
                 }
             }
