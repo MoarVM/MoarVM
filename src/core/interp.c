@@ -2321,47 +2321,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(box_i): {
-                MVMObject *type = GET_REG(cur_op, 4).o;
-                MVMObject *box;
-                box = MVM_intcache_get(tc, type, GET_REG(cur_op, 2).i64);
-                if (box == 0) {
-                    box = REPR(type)->allocate(tc, STABLE(type));
-                    MVMROOT(tc, box, {
-                        if (REPR(box)->initialize)
-                            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-                        REPR(box)->box_funcs.set_int(tc, STABLE(box), box,
-                            OBJECT_BODY(box), GET_REG(cur_op, 2).i64);
-                        GET_REG(cur_op, 0).o = box;
-                    });
-                } else {
-                    GET_REG(cur_op, 0).o = box;
-                }
+                GET_REG(cur_op, 0).o = MVM_box_int(tc, GET_REG(cur_op, 2).i64, 
+                                                   GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(box_n): {
-                MVMObject *type = GET_REG(cur_op, 4).o;
-                MVMObject *box  = REPR(type)->allocate(tc, STABLE(type));
-                MVMROOT(tc, box, {
-                    if (REPR(box)->initialize)
-                        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-                    REPR(box)->box_funcs.set_num(tc, STABLE(box), box,
-                        OBJECT_BODY(box), GET_REG(cur_op, 2).n64);
-                    GET_REG(cur_op, 0).o = box;
-                });
+                GET_REG(cur_op, 0).o = MVM_box_num(tc, GET_REG(cur_op, 2).n64,
+                                                   GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(box_s): {
-                MVMObject *type = GET_REG(cur_op, 4).o;
-                MVMObject *box  = REPR(type)->allocate(tc, STABLE(type));
-                MVMROOT(tc, box, {
-                    if (REPR(box)->initialize)
-                        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-                    REPR(box)->box_funcs.set_str(tc, STABLE(box), box,
-                        OBJECT_BODY(box), GET_REG(cur_op, 2).s);
-                    GET_REG(cur_op, 0).o = box;
-                });
+                GET_REG(cur_op, 0).o = MVM_box_str(tc, GET_REG(cur_op, 2).s,
+                                                   GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
             }
