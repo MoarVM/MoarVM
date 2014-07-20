@@ -2321,22 +2321,31 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(box_i): {
-                GET_REG(cur_op, 0).o = MVM_box_int(tc, GET_REG(cur_op, 2).i64, 
-                                                   GET_REG(cur_op, 4).o);
+                MVM_box_int(tc, GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).o,
+                            &GET_REG(cur_op, 0));
                 cur_op += 6;
                 goto NEXT;
             }
             OP(box_n): {
-                GET_REG(cur_op, 0).o = MVM_box_num(tc, GET_REG(cur_op, 2).n64,
-                                                   GET_REG(cur_op, 4).o);
+                MVM_box_num(tc, GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).o,
+                            &GET_REG(cur_op, 0));
                 cur_op += 6;
                 goto NEXT;
             }
             OP(box_s): {
-                GET_REG(cur_op, 0).o = MVM_box_str(tc, GET_REG(cur_op, 2).s,
-                                                   GET_REG(cur_op, 4).o);
-                cur_op += 6;
-                goto NEXT;
+                    /*
+            MVMObject *type = GET_REG(cur_op, 4).o;
+            MVMObject *box  = REPR(type)->allocate(tc, STABLE(type));
+            MVMROOT(tc, box, {
+                    if (REPR(box)->initialize)
+                        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+                    REPR(box)->box_funcs.set_str(tc, STABLE(box), box,
+                        OBJECT_BODY(box), GET_REG(cur_op, 2).s);
+                    GET_REG(cur_op, 0).o = box;
+                    }); */
+                    MVM_box_str(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o, &GET_REG(cur_op, 0));
+            cur_op += 6;
+            goto NEXT;
             }
             OP(unbox_i): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;

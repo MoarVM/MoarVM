@@ -375,9 +375,9 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
 }
 
 
-MVMObject * MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type) {
-    MVMObject *box;
-    box = MVM_intcache_get(tc, type, value);
+void MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type,
+             MVMRegister * dst) {
+    MVMObject *box = MVM_intcache_get(tc, type, value);
     if (box == 0) {
         box = REPR(type)->allocate(tc, STABLE(type));
         MVMROOT(tc, box, {
@@ -385,30 +385,33 @@ MVMObject * MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type) {
                     REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
                 REPR(box)->box_funcs.set_int(tc, STABLE(box), box,
                                              OBJECT_BODY(box), value);
+                dst->o = box;
             });
+    } else {
+        dst->o = box;
     }
-    return box;
 }
 
-MVMObject * MVM_box_num(MVMThreadContext *tc, MVMnum64 value, MVMObject *type) {
-
-    MVMObject *box  = REPR(type)->allocate(tc, STABLE(type));
+void MVM_box_num(MVMThreadContext *tc, MVMnum64 value, MVMObject *type,
+                 MVMRegister * dst) {
+    MVMObject *box = REPR(type)->allocate(tc, STABLE(type));
     MVMROOT(tc, box, {
             if (REPR(box)->initialize)
                 REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
             REPR(box)->box_funcs.set_num(tc, STABLE(box), box,
                                          OBJECT_BODY(box), value);
+            dst->o = box;
         });
-    return box;
 }
 
-MVMObject * MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type) {
+void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type,
+                 MVMRegister * dst) {
     MVMObject *box  = REPR(type)->allocate(tc, STABLE(type));
     MVMROOT(tc, box, {
             if (REPR(box)->initialize)
                 REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
             REPR(box)->box_funcs.set_str(tc, STABLE(box), box,
                                          OBJECT_BODY(box), value);
+            dst->o = box;
         });
-    return box;
 }
