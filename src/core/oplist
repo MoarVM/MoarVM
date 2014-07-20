@@ -295,7 +295,7 @@ create              w(obj) r(obj) :pure
 clone               w(obj) r(obj) :pure
 isconcrete          w(int64) r(obj) :pure
 rebless             w(obj) r(obj) r(obj)
-istype              w(int64) r(obj) r(obj) :pure
+istype              w(int64) r(obj) r(obj) :pure :invokish
 objprimspec         w(int64) r(obj) :pure
 gethow              w(obj) r(obj) :pure
 getwhat             w(obj) r(obj) :pure

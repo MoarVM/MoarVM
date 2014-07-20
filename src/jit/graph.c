@@ -124,6 +124,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_box_s: return &MVM_box_str;
     case MVM_OP_box_n: return &MVM_box_num;
     case MVM_OP_istrue: case MVM_OP_isfalse: return &MVM_coerce_istrue;
+    case MVM_OP_istype: return &MVM_6model_istype;
     case MVM_OP_wval: case MVM_OP_wval_wide: return &MVM_sc_get_sc_object;
     case MVM_OP_push_o: return &MVM_repr_push_o;
     case MVM_OP_unshift_o: return &MVM_repr_unshift_o;
@@ -383,6 +384,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_hllboxtype_i:
     case MVM_OP_hllboxtype_n:
     case MVM_OP_hllboxtype_s:
+    case MVM_OP_isnull_s:
         jgb_append_primitive(tc, jgb, ins);
         break;
         /* branches */
@@ -430,6 +432,17 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_branch(tc, jgb, 0, branch);
         break;
     }
+    case MVM_OP_istype: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMint16 type = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, obj },
+                                 { MVM_JIT_REG_VAL, type },
+                                 { MVM_JIT_REG_ADDR, dst }};
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
         /* some functions */
     case MVM_OP_checkarity: {
         MVMuint16 min = ins->operands[0].lit_i16;
@@ -438,7 +451,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_PARAMS },
                                  { MVM_JIT_LITERAL, min },
                                  { MVM_JIT_LITERAL, max } };
-        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_say:
