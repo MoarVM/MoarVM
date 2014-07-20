@@ -21,6 +21,8 @@
 |.type STRING, MVMString*
 |.type OBJECTPTR, MVMObject*
 |.type CONTAINERSPEC, MVMContainerSpec
+|.type HLLCONFIG, MVMHLLConfig;
+|.type U8, MVMuint8
 |.type U16, MVMuint16
 |.type U32, MVMuint32
 |.type U64, MVMuint64
@@ -515,6 +517,21 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov aword WORK[dst], TMP1;
         break;
     }
+    case MVM_OP_hllboxtype_n:
+    case MVM_OP_hllboxtype_s:
+    case MVM_OP_hllboxtype_i: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP1, CU->body.hll_config;
+        if (op == MVM_OP_hllboxtype_n) {
+            | mov TMP1, aword HLLCONFIG:TMP1->num_box_type;
+        } else if (op == MVM_OP_hllboxtype_s) {
+            | mov TMP1, aword HLLCONFIG:TMP1->str_box_type;
+        } else {
+            | mov TMP1, aword HLLCONFIG:TMP1->int_box_type;
+        }
+        | mov aword WORK[dst], TMP1;
+        break;
+    }
     case MVM_OP_add_i:
     case MVM_OP_sub_i:
     case MVM_OP_mul_i:
@@ -686,7 +703,14 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         |2:
         break;
     }
+    case MVM_OP_sp_namedarg_used: {
+        MVMuint16 param = ins->operands[0].lit_i16;
+        | mov TMP1, FRAME->params.named_used;
+        | mov byte U8:TMP1[param], 1;
+        break;
+    }
     default:
+
         MVM_exception_throw_adhoc(tc, "Can't JIT opcode");
     }
 }
