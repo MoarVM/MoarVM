@@ -532,6 +532,11 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov aword WORK[dst], TMP1;
         break;
     }
+    case MVM_OP_null_s: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov qword WORK[dst], 0;
+        break;
+     }
     case MVM_OP_isnull_s: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;

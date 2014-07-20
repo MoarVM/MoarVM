@@ -384,6 +384,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_hllboxtype_i:
     case MVM_OP_hllboxtype_n:
     case MVM_OP_hllboxtype_s:
+    case MVM_OP_null_s:
     case MVM_OP_isnull_s:
         jgb_append_primitive(tc, jgb, ins);
         break;
