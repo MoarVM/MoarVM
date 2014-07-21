@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 
 # GDB will automatically load this module when you attach to the binary moar.
 # but first you'll have to tell gdb that it's okay to load it. gdb will instruct
@@ -44,10 +44,10 @@ import random
 import sys
 
 # These are the flags from MVMString's body.flags
-str_t_info = {0: 'int32s',
-              1: 'uint8s',
-              2: 'rope',
-              3: 'mask'}
+str_t_info = {0: 'blob_32',
+              1: 'blob_ascii',
+              2: 'blob_8',
+              3: 'strands'}
 
 # How big to make the histograms and such
 PRETTY_WIDTH=50
@@ -158,13 +158,13 @@ class MVMStringPPrinter(object):
         self.pointer = pointer
 
     def stringify(self):
-        stringtyp = str_t_info[int(self.val['body']['flags']) & 0b11]
-        if stringtyp in ("int32s", "uint8s"):
+        stringtyp = str_t_info[int(self.val['body']['storage_type']) & 0b11]
+        if stringtyp in ("blob_32", "blob_ascii", "blob_8"):
             zero_reached = False
-            data = self.val['body'][stringtyp]
+            data = self.val['body']['storage'][stringtyp]
             i = 0
             pieces = []
-            graphs = self.val['body']['graphs']
+            graphs = self.val['body']['num_graphs']
             # XXX are the strings actually null-terminated, or do we have to
             # XXX check the graphs attribute?
             for i in range(graphs):
@@ -175,29 +175,30 @@ class MVMStringPPrinter(object):
                 except:
                     pieces.append("\\x%x" % pdata)
             return "".join(pieces)
-        elif stringtyp == "rope":
+        elif stringtyp == "strands":
             # XXX here be dragons and/or wrong code
+            # XXX This is still true now
             i = 0
             pieces = []
-            data = self.val['body']['strands']
+            data = self.val['body']['storage']['strands']
             end_reached = False
             previous_index = 0
             previous_string = None
             while not end_reached:
                 strand_data = (data + i).dereference()
-                if strand_data['string'] == 0:
+                if strand_data['blob_string'] == 0:
                     end_reached = True
                     pieces.append(previous_string[1:-1])
                 else:
-                    the_string = strand_data['string'].dereference()
+                    the_string = strand_data['blob_string'].dereference()
                     if previous_string is not None:
                         pieces.append(
                             str(previous_string)[1:-1][
-                                int(strand_data['string_offset']) :
-                                int(strand_data['compare_offset']) - previous_index]
+                                int(strand_data['start']) :
+                                int(strand_data['end']) - previous_index]
                             )
                     previous_string = str(the_string)
-                    previous_index = int(strand_data['compare_offset'])
+                    previous_index = int(strand_data['end'])
                 i = i + 1
             return "r(" + ")(".join(pieces) + ")"
         else:
