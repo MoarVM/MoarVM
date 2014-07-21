@@ -802,7 +802,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
 sub emit_block_lookup {
     my $hout = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block);\n";
     my $out  = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block) {
-    MVMCodepoint32 ord = MVM_string_get_codepoint_at_nocheck(tc, str, pos);
+    MVMGrapheme32 ord = MVM_string_get_grapheme_at_nocheck(tc, str, pos);
     MVMuint64 size;
     unsigned char *bname = MVM_string_ascii_encode(tc, block, &size);
 ";
