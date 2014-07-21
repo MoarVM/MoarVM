@@ -719,8 +719,14 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     if (!MVM_jit_support()) {
         return NULL;
     }
-
-    MVM_jit_log(tc, "Constructing JIT graph\n");
+    {
+        char *cuuid = MVM_string_ascii_encode_any(tc, sg->sf->body.cuuid);
+        char *name  = MVM_string_ascii_encode_any(tc, sg->sf->body.name);
+        MVM_jit_log(tc, "Constructing JIT graph (cuuid: %s, name: '%s')\n",
+                    cuuid, name);
+        free(cuuid);
+        free(name);
+    }
 
     jgb.sg = sg;
     jgb.num_labels = sg->num_bbs;
