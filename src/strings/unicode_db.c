@@ -42932,4 +42932,23 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             }
         }
     }
+    MVMUnicodeNameRegistry *entry = malloc(sizeof(MVMUnicodeNameRegistry));
+    entry->name = "LF";
+    entry->codepoint = 10;
+    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "LF", 2, entry);
+
+    entry = malloc(sizeof(MVMUnicodeNameRegistry));
+    entry->name = "FF";
+    entry->codepoint = 12;
+    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "FF", 2, entry);
+
+    entry = malloc(sizeof(MVMUnicodeNameRegistry));
+    entry->name = "CR";
+    entry->codepoint = 13;
+    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "CR", 2, entry);
+
+    entry = malloc(sizeof(MVMUnicodeNameRegistry));
+    entry->name = "NEL";
+    entry->codepoint = 133;
+    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "NEL", 3, entry);
 }
