@@ -373,6 +373,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_bindlex:
     case MVM_OP_getwhat:
     case MVM_OP_gethow:
+    case MVM_OP_getwho:
     case MVM_OP_getwhere:
     case MVM_OP_sp_getspeshslot:
     case MVM_OP_takedispatcher:

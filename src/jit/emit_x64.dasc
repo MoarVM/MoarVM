@@ -282,13 +282,16 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     }
     case MVM_OP_gethow:
-    case MVM_OP_getwhat: {
+    case MVM_OP_getwhat:
+    case MVM_OP_getwho: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[0].reg.orig;
         | mov TMP1, WORK[obj];
         | mov TMP1, OBJECT:TMP1->st;
         if (op == MVM_OP_gethow) {
             | mov TMP1, STABLE:TMP1->HOW;
+        } else if (op == MVM_OP_getwho) {
+            | mov TMP1, STABLE:TMP1->WHO;
         } else {
             | mov TMP1, STABLE:TMP1->WHAT;
         }
