@@ -1363,7 +1363,8 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Po);
 
         case MVM_CCLASS_NEWLINE: {
-            if (cp == '\n' || cp == '\r' || cp == 0x85)
+            if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
+                cp == 0x85 || cp == 0x2028 || cp == 0x2029)
                 return 1;
             return MVM_unicode_codepoint_has_property_value(tc, cp,
                 MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Zl);
