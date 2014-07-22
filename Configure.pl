@@ -33,7 +33,7 @@ GetOptions(\%args, qw(
     cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
     build=s host=s big-endian enable-jit lua=s
-    prefix=s make-install profilecalls),
+    prefix=s make-install profilecalls asan),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 }
 ) or die "See --help for further information\n";
@@ -73,7 +73,7 @@ $args{'has-libtommath'}    //= 0;
 $args{'has-sha'}           //= 0;
 $args{'has-libuv'}         //= 0;
 $args{'has-libatomic_ops'} //= 0;
-$args{'build-dynasm'}      //= 0;
+$args{'asan'}              //= 0;
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
@@ -196,7 +196,7 @@ $config{ldlibs} = join ' ',
     (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),
     (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
 $config{ldlibs} .= ' -ltommath' if $args{'has-libtommath'};
-
+$config{ldlibs} .= ' -lasan' if $args{asan};
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
@@ -215,6 +215,7 @@ push @cflags, $config{ccinstflags}  if $args{instrument};
 push @cflags, $config{ccwarnflags};
 push @cflags, $config{ccdefflags};
 push @cflags, $config{ccshared}     unless $args{static};
+push @cflags, '-fno-omit-frame-pointer -fsanitize=address' if $args{asan};
 $config{cflags} = join ' ', @cflags;
 
 # generate LDFLAGS
@@ -223,6 +224,7 @@ push @ldflags, $config{ldoptiflags}  if $args{optimize};
 push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}       if $args{instrument};
 push @ldflags, $config{ldrpath}           unless $args{static};
+push @ldflags,  '-fsanitize=address' if $args{asan};
 $config{ldflags} = join ' ', @ldflags;
 
 # setup library names
