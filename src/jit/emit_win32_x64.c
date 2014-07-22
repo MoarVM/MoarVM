@@ -707,13 +707,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         //| mov TMP1, WORK[obj];            // object
         //| mov TMP2, WORK[val];            // value
         //| lea TMP3, P6OPAQUE:TMP1->body;  // body
-        //| cmp qword P6OBODY:TMP3->replaced, 0; 
+        //| cmp qword P6OBODY:TMP3->replaced, 0;
         //| je >1;
         //| mov TMP3, P6OBODY:TMP3->replaced; // replaced object body
         //|1:
         dasm_put(Dst, 507, Dt13([obj]), Dt13([val]), Dt4(->body), Dt5(->replaced), Dt5(->replaced));
 #line 473 "src/jit/emit_x64.dasc"
-        if (op == MVM_OP_sp_p6obind_o) {
+        if (op == MVM_OP_sp_p6obind_o || op == MVM_OP_sp_p6obind_s) {
             /* check if we should hit write barrier */
             //| check_wb TMP1, TMP2;
             //| jz >2;
