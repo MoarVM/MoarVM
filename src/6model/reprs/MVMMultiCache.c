@@ -127,7 +127,9 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
 
     /* If it's zero arity, just stick it in that slot. */
     if (num_args == 0) {
-        MVM_ASSIGN_REF(tc, &(cache_obj->header), cache->zero_arity, result);
+        /* Can only be added if there are no named args */
+        if (!has_nameds)
+            MVM_ASSIGN_REF(tc, &(cache_obj->header), cache->zero_arity, result);
         return cache_obj;
     }
 
@@ -217,8 +219,8 @@ MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache_obj, MVM
     }
 
     /* If it's zero-arity, return result right off. */
-    if (num_args == 0 && !has_nameds)
-        return cache->zero_arity;
+    if (num_args == 0)
+        return has_nameds ? NULL : cache->zero_arity;
 
     /* If there's more args than the maximum, won't be in the cache. */
     if (num_args > MVM_MULTICACHE_MAX_ARITY)
@@ -295,8 +297,8 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
     has_nameds = cs->arg_count != cs->num_pos;
 
     /* If it's zero-arity, return result right off. */
-    if (num_args == 0 && !has_nameds)
-        return cache->zero_arity;
+    if (num_args == 0)
+        return has_nameds ? NULL : cache->zero_arity;
 
     /* If there's more args than the maximum, won't be in the cache. */
     if (num_args > MVM_MULTICACHE_MAX_ARITY)
@@ -371,8 +373,8 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
     has_nameds = arg_info->cs->arg_count != arg_info->cs->num_pos;
 
     /* If it's zero-arity, return result right off. */
-    if (num_args == 0 && !has_nameds)
-        return cache->zero_arity;
+    if (num_args == 0)
+        return has_nameds ? NULL : cache->zero_arity;
 
     /* If there's more args than the maximum, won't be in the cache. Also
      * check against maximum size of spesh call site. */
