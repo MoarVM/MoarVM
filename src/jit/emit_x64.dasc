@@ -855,8 +855,9 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
                                 MVMJitCallArg args[], MVMint32 num_args,
                                 dasm_State **Dst) {
     MVMint32 num_gpr = 0, num_fpr = 0, num_stack = 0, i;
-    MVMJitCallArg in_gpr[6], in_fpr[8], *on_stack;
-    on_stack = malloc(sizeof(MVMJitCallArg) * (num_args - 6));
+    MVMJitCallArg in_gpr[6], in_fpr[8], *on_stack = NULL;
+    if (num_args > 6)
+        on_stack = malloc(sizeof(MVMJitCallArg) * (num_args - 6));
     /* divide in gpr, fpr, stack values */
     for (i = 0; i < num_args; i++) {
         switch (args[i].type) {
@@ -893,7 +894,8 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
     for (i = num_stack - 1; i >= 0; i--) {
         emit_call_arg(tc, on_stack[i], i + 8, Dst); // always a stack arg
     }
-    free(on_stack);
+    if (on_stack)
+        free(on_stack);
 }
 
 static void emit_win64_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
