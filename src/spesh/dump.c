@@ -137,10 +137,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             appendf(ds, "liti64(%d)", cur_ins->operands[i].lit_i64);
                             break;
                         case MVM_operand_num32:
-                            appendf(ds, "litn32(%d)", cur_ins->operands[i].lit_n32);
+                            appendf(ds, "litn32(%f)", cur_ins->operands[i].lit_n32);
                             break;
                         case MVM_operand_num64:
-                            appendf(ds, "litn64(%d)", cur_ins->operands[i].lit_n64);
+                            appendf(ds, "litn64(%g)", cur_ins->operands[i].lit_n64);
                             break;
                         case MVM_operand_str: {
                             char *cstr = MVM_string_utf8_encode_C_string(tc, g->sf->body.cu->body.strings[cur_ins->operands[i].lit_str_idx]);
