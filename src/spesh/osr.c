@@ -93,11 +93,12 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
         tc->cur_frame->args = tc->cur_frame->work + specialized->num_locals;
 
         /* Resize environment if needed. */
-        if (specialized->env_size > tc->cur_frame->allocd_env) {
+        if (specialized->num_lexicals > tc->cur_frame->static_info->body.num_lexicals) {
             MVMRegister *new_env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
                 specialized->env_size);
             if (tc->cur_frame->allocd_env) {
-                memcpy(new_env, tc->cur_frame->env, tc->cur_frame->allocd_env);
+                memcpy(new_env, tc->cur_frame->env,
+                    tc->cur_frame->static_info->body.num_lexicals * sizeof(MVMRegister));
                 MVM_fixed_size_free(tc, tc->instance->fsa, tc->cur_frame->allocd_env,
                     tc->cur_frame->env);
             }
