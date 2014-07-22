@@ -45,6 +45,8 @@ void MVM_spesh_osr(MVMThreadContext *tc) {
         return;
     if (!tc->cur_frame->params.callsite->is_interned)
         return;
+    if (tc->cur_frame->static_info->body.num_spesh_candidates == MVM_SPESH_LIMIT)
+        return;
 
     /* Produce logging spesh candidate. */
     specialized = MVM_spesh_candidate_setup(tc, tc->cur_frame->static_info,
