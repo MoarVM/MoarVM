@@ -17,7 +17,7 @@
 #endif
 #line 7 "src/jit/emit_x64.dasc"
 //|.actionlist actions
-static const unsigned char actions[1695] = {
+static const unsigned char actions[1698] = {
   85,72,137,229,255,65,86,83,65,84,65,85,255,73,137,252,254,73,137,252,245,
   77,139,166,233,73,139,156,253,36,233,255,252,255,226,255,248,10,72,199,192,
   0,0,0,0,248,11,255,65,93,65,92,91,65,94,255,72,137,252,236,93,195,255,72,
@@ -101,7 +101,7 @@ static const unsigned char actions[1695] = {
   255,210,255,76,137,252,247,72,139,179,233,76,137,218,72,199,193,237,73,186,
   237,237,65,252,255,210,255,72,199,192,1,0,0,0,252,233,244,11,255,77,59,166,
   233,15,132,244,247,72,141,13,244,247,73,137,140,253,36,233,72,199,192,1,0,
-  0,0,252,233,244,11,248,1,255,205,3,255
+  0,0,252,233,244,11,248,1,255,248,12,255,205,3,255
 };
 
 #line 8 "src/jit/emit_x64.dasc"
@@ -109,11 +109,12 @@ static const unsigned char actions[1695] = {
 #define DASM_SECTION_CODE	0
 #define DASM_MAXSECTION		1
 #line 9 "src/jit/emit_x64.dasc"
-//|.globals JIT_LABEL_
+//|.globals MVM_JIT_LABEL_
 enum {
-  JIT_LABEL_exit,
-  JIT_LABEL_out,
-  JIT_LABEL__MAX
+  MVM_JIT_LABEL_exit,
+  MVM_JIT_LABEL_out,
+  MVM_JIT_LABEL_osrlabel,
+  MVM_JIT_LABEL__MAX
 };
 #line 10 "src/jit/emit_x64.dasc"
 
@@ -212,7 +213,7 @@ const unsigned char * MVM_jit_actions(void) {
 }
 
 const unsigned int MVM_jit_num_globals(void) {
-    return JIT_LABEL__MAX;
+    return MVM_JIT_LABEL__MAX;
 }
 
 
@@ -1853,12 +1854,21 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         //|1:
         dasm_put(Dst, 1659, Dt12(->cur_frame), Dt14(->jit_entry_label));
 #line 1165 "src/jit/emit_x64.dasc"
-    } else if (ctrl->type == MVM_JIT_CONTROL_BREAKPOINT) {
-        //| int 3;
+    } else if (ctrl->type == MVM_JIT_CONTROL_OSRLABEL) {
+        //| ->osrlabel:
         dasm_put(Dst, 1692);
 #line 1167 "src/jit/emit_x64.dasc"
+    } else if (ctrl->type == MVM_JIT_CONTROL_BREAKPOINT) {
+        //| int 3;
+        dasm_put(Dst, 1695);
+#line 1169 "src/jit/emit_x64.dasc"
     } else {
-        MVM_exception_throw_adhoc(tc, "Unknown contol code: <%s>",
+        MVM_exception_throw_adhoc(tc, "Unknown conrtol code: <%s>",
                                   ctrl->ins->info->name);
     }
+}
+
+void * MVM_jit_osr_label(MVMThreadContext *tc, MVMJitGraph *jg,
+                         void **globals, dasm_State **Dst) {
+    return globals[MVM_JIT_LABEL_osrlabel];
 }

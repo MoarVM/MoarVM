@@ -8,6 +8,7 @@ struct MVMJitCode {
     MVMStaticFrame  *sf;
     void       **labels;
     MVMint32 num_labels;
+    void     *osr_label;
 };
 
 MVMJitCode* MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);

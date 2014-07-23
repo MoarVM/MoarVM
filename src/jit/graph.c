@@ -1,15 +1,17 @@
 #include "moar.h"
 
 typedef struct {
-    MVMSpeshGraph    *sg;
-    MVMSpeshBB   *cur_bb;
-    MVMSpeshIns *cur_ins;
+    MVMSpeshGraph      *sg;
+    MVMSpeshBB     *cur_bb;
+    MVMSpeshIns   *cur_ins;
 
     MVMJitNode *first_node;
-    MVMJitNode *last_node;
+    MVMJitNode  *last_node;
 
-    MVMint32  num_labels;
-    MVMJitLabel  *labels;
+    MVMint32    num_labels;
+    MVMJitLabel    *labels;
+
+    MVMint8         in_osr;
 } JitGraphBuilder;
 
 
@@ -155,8 +157,7 @@ static void jgb_append_guard(MVMThreadContext *tc, JitGraphBuilder *jgb,
     while (ann) {
         if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS ||
             ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS ||
-            ann->type == MVM_SPESH_ANN_DEOPT_INLINE  ||
-            ann->type == MVM_SPESH_ANN_DEOPT_OSR) {
+            ann->type == MVM_SPESH_ANN_DEOPT_INLINE) {
             deopt_idx = ann->data.deopt_idx;
             break;
         }
@@ -317,7 +318,20 @@ static void jgb_append_control(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
 static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                 MVMSpeshIns *ins) {
-    int op = ins->info->opcode;
+    MVMint16 op = ins->info->opcode;
+    MVMSpeshAnn *ann = ins->annotations;
+
+    /* Search annotations for OSR opcode */
+    while (ann && !jgb->in_osr) {
+        if (ann->type == MVM_SPESH_ANN_DEOPT_OSR) {
+            /* this breaks out and stops us from searching further OSR labels,
+             * which we couldn't handle correctly anyway (I think) */
+            jgb->in_osr = 1;
+            jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_OSRLABEL);
+        }
+        ann = ann->next;
+    }
+
     MVM_jit_log(tc, "append_ins: <%s>\n", ins->info->name);
     switch(op) {
     case MVM_SSA_PHI:
@@ -711,6 +725,7 @@ static MVMJitGraph *jgb_build(MVMThreadContext *tc, JitGraphBuilder *jgb) {
     jg->labels     = jgb->labels;
     jg->first_node = jgb->first_node;
     jg->last_node  = jgb->last_node;
+    jg->in_osr     = jgb->in_osr;
     return jg;
 }
 
@@ -722,8 +737,8 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
         return NULL;
     }
     {
-        char *cuuid = MVM_string_ascii_encode_any(tc, sg->sf->body.cuuid);
-        char *name  = MVM_string_ascii_encode_any(tc, sg->sf->body.name);
+        MVMuint8 *cuuid = MVM_string_ascii_encode_any(tc, sg->sf->body.cuuid);
+        MVMuint8 *name  = MVM_string_ascii_encode_any(tc, sg->sf->body.name);
         MVM_jit_log(tc, "Constructing JIT graph (cuuid: %s, name: '%s')\n",
                     cuuid, name);
         free(cuuid);
@@ -737,6 +752,7 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     jgb.cur_bb = sg->entry->linear_next;
     jgb.cur_ins = jgb.cur_bb->first_ins;
     jgb.first_node = jgb.last_node = NULL;
+    jgb.in_osr = 0;
     /* loop over basic blocks, adding one after the other */
     while (jgb.cur_bb) {
         if (!jgb_consume_bb(tc, &jgb, jgb.cur_bb))

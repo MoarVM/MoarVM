@@ -114,9 +114,15 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
     tc->cur_frame->spesh_log_idx         = -1;
 
     /* Sync interpreter with updates. */
-    *(tc->interp_bytecode_start) = specialized->bytecode;
-    *(tc->interp_cur_op)         = specialized->bytecode +
-                                   specialized->deopts[2 * osr_index + 1];
+    if (specialized->jitcode && specialized->jitcode->osr_label) {
+        *(tc->interp_bytecode_start)   = specialized->jitcode->bytecode;
+        *(tc->interp_cur_op)           = specialized->jitcode->bytecode;
+        tc->cur_frame->jit_entry_label = specialized->jitcode->osr_label;
+    } else {
+        *(tc->interp_bytecode_start) = specialized->bytecode;
+        *(tc->interp_cur_op)         = specialized->bytecode +
+            specialized->deopts[2 * osr_index + 1];
+    }
     *(tc->interp_reg_base)       = tc->cur_frame->work;
 }
 

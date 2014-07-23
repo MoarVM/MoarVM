@@ -7,6 +7,7 @@ struct MVMJitGraph {
 
     MVMint32    num_labels;
     MVMJitLabel    *labels;
+    MVMuint8        in_osr;
 };
 
 /* A label */
@@ -27,6 +28,7 @@ struct MVMJitGuard {
 
 typedef enum {
     MVM_JIT_CONTROL_INVOKISH,
+    MVM_JIT_CONTROL_OSRLABEL,
     MVM_JIT_CONTROL_BREAKPOINT,
 } MVMJitControlType;
 

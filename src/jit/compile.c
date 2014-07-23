@@ -79,6 +79,12 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         code->labels[i] = memory + dasm_getpclabel(&state, i);
     }
 
+    /* get the osr label if needed */
+    if (jg->in_osr)
+        code->osr_label = MVM_jit_osr_label(tc, jg, dasm_globals, &state);
+    else
+        code->osr_label = NULL;
+
     /* clear up the assembler */
     dasm_free(&state);
     free(dasm_globals);
