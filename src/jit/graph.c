@@ -11,7 +11,9 @@ typedef struct {
     MVMint32    num_labels;
     MVMJitLabel    *labels;
 
-    MVMint8         in_osr;
+    MVMint32  *osr_offsets;
+    MVMint32   num_offsets;
+    MVMint32 alloc_offsets;
 } JitGraphBuilder;
 
 
@@ -321,13 +323,18 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVMint16 op = ins->info->opcode;
     MVMSpeshAnn *ann = ins->annotations;
 
-    /* Search annotations for OSR opcode */
-    while (ann && !jgb->in_osr) {
+    /* Search annotations for OSR point */
+    while (ann) {
         if (ann->type == MVM_SPESH_ANN_DEOPT_OSR) {
-            /* this breaks out and stops us from searching further OSR labels,
-             * which we couldn't handle correctly anyway (I think) */
-            jgb->in_osr = 1;
+            if (jgb->num_offsets == jgb->alloc_offsets)
+                /* I want you to laugh and shake your head at this ridiculous line. After that, I will
+                 * refactor it into something you'll be able to read. */
+                jgb->osr_offsets = memcpy(MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMint32) * (jgb->alloc_offsets *= 2)),
+                                          jgb->osr_offsets, jgb->num_offsets * sizeof(MVMint32));
+            /* While we're at, it, why not make this a one-liner too */
+            jgb->osr_offsets[jgb->num_offsets++] = jgb->sg->deopt_addrs[ann->data.deopt_idx * 2];
             jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_OSRLABEL);
+            break;
         }
         ann = ann->next;
     }
@@ -720,12 +727,13 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
 static MVMJitGraph *jgb_build(MVMThreadContext *tc, JitGraphBuilder *jgb) {
     MVMJitGraph * jg = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitGraph));
-    jg->sg         = jgb->sg;
-    jg->num_labels = jgb->num_labels;
-    jg->labels     = jgb->labels;
-    jg->first_node = jgb->first_node;
-    jg->last_node  = jgb->last_node;
-    jg->in_osr     = jgb->in_osr;
+    jg->sg             = jgb->sg;
+    jg->num_labels     = jgb->num_labels;
+    jg->labels         = jgb->labels;
+    jg->first_node     = jgb->first_node;
+    jg->last_node      = jgb->last_node;
+    jg->num_osr_labels = jgb->num_offsets;
+    jg->osr_offsets    = jgb->osr_offsets;
     return jg;
 }
 
@@ -752,7 +760,10 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     jgb.cur_bb = sg->entry->linear_next;
     jgb.cur_ins = jgb.cur_bb->first_ins;
     jgb.first_node = jgb.last_node = NULL;
-    jgb.in_osr = 0;
+    /* Allocate space for the address -> label mapping needed for OSR */
+    jgb.num_offsets = 0;
+    jgb.alloc_offsets = 2;
+    jgb.osr_offsets = MVM_spesh_alloc(tc, sg, sizeof(MVMint32) * jgb.alloc_offsets);
     /* loop over basic blocks, adding one after the other */
     while (jgb.cur_bb) {
         if (!jgb_consume_bb(tc, &jgb, jgb.cur_bb))

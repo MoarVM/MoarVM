@@ -1,14 +1,17 @@
 typedef MVMint32 (*MVMJitFunc)(MVMThreadContext *tc, MVMCompUnit *cu, void * label);
 
 struct MVMJitCode {
-    MVMJitFunc func_ptr;
-    size_t         size;
-    MVMuint8  *bytecode;
-    MVMint16 num_locals;
-    MVMStaticFrame  *sf;
-    void       **labels;
-    MVMint32 num_labels;
-    void     *osr_label;
+    MVMJitFunc     func_ptr;
+    size_t             size;
+    MVMuint8      *bytecode;
+    MVMint16     num_locals;
+    MVMStaticFrame      *sf;
+    void           **labels;
+    MVMint32     num_labels;
+    
+    void       **osr_labels;
+    MVMint32   *osr_offsets;
+    MVMint32 num_osr_labels;
 };
 
 MVMJitCode* MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);

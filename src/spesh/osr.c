@@ -75,7 +75,7 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
      * code later. */
     MVMSpeshCandidate *specialized = tc->cur_frame->spesh_cand;
     MVMint32 osr_index = get_osr_deopt_finalize_index(tc, specialized);
-
+    MVMJitCode *jc;
     /* Finish up the specialization. */
     MVM_spesh_candidate_specialize(tc, tc->cur_frame->static_info, specialized);
 
@@ -114,10 +114,20 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
     tc->cur_frame->spesh_log_idx         = -1;
 
     /* Sync interpreter with updates. */
-    if (specialized->jitcode && specialized->jitcode->osr_label) {
+    jc = specialized->jitcode;
+    if (jc && jc->num_osr_labels) {
+        MVMint32 offset = specialized->deopts[osr_index * 2];
+        MVMint32 i;
         *(tc->interp_bytecode_start)   = specialized->jitcode->bytecode;
         *(tc->interp_cur_op)           = specialized->jitcode->bytecode;
-        tc->cur_frame->jit_entry_label = specialized->jitcode->osr_label;
+        for (i = 0; i < jc->num_osr_labels; i++) {
+            if (jc->osr_offsets[i] == offset) {
+                tc->cur_frame->jit_entry_label = jc->osr_labels[i];
+                break;
+            }
+        }
+        if (i == jc->num_osr_labels)
+            MVM_exception_throw_adhoc(tc, "JIT: Could not find OSR label");
     } else {
         *(tc->interp_bytecode_start) = specialized->bytecode;
         *(tc->interp_cur_op)         = specialized->bytecode +

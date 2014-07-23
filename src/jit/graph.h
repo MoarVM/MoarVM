@@ -7,7 +7,9 @@ struct MVMJitGraph {
 
     MVMint32    num_labels;
     MVMJitLabel    *labels;
-    MVMuint8        in_osr;
+
+    MVMint32 num_osr_labels;
+    MVMint32   *osr_offsets;
 };
 
 /* A label */

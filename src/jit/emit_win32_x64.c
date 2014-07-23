@@ -17,7 +17,7 @@
 #endif
 #line 7 "src/jit/emit_x64.dasc"
 //|.actionlist actions
-static const unsigned char actions[1703] = {
+static const unsigned char actions[1700] = {
   85,72,137,229,255,65,86,83,65,84,65,85,255,73,137,206,73,137,213,77,139,166,
   233,73,139,156,253,36,233,255,65,252,255,224,255,248,10,72,199,192,0,0,0,
   0,248,11,255,65,93,65,92,91,65,94,255,72,137,252,236,93,195,255,72,185,237,
@@ -101,7 +101,7 @@ static const unsigned char actions[1703] = {
   137,252,241,72,139,147,233,77,137,216,73,199,193,237,73,186,237,237,72,131,
   252,236,32,65,252,255,210,72,131,196,32,255,72,199,192,1,0,0,0,252,233,244,
   11,255,77,59,166,233,15,132,244,247,72,141,13,244,247,73,137,140,253,36,233,
-  72,199,192,1,0,0,0,252,233,244,11,248,1,255,248,12,255,205,3,255
+  72,199,192,1,0,0,0,252,233,244,11,248,1,255,205,3,255
 };
 
 #line 8 "src/jit/emit_x64.dasc"
@@ -113,7 +113,6 @@ static const unsigned char actions[1703] = {
 enum {
   MVM_JIT_LABEL_exit,
   MVM_JIT_LABEL_out,
-  MVM_JIT_LABEL_osrlabel,
   MVM_JIT_LABEL__MAX
 };
 #line 10 "src/jit/emit_x64.dasc"
@@ -1777,20 +1776,38 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         dasm_put(Dst, 1664, Dt12(->cur_frame), Dt14(->jit_entry_label));
 #line 1165 "src/jit/emit_x64.dasc"
     } else if (ctrl->type == MVM_JIT_CONTROL_OSRLABEL) {
-        //| ->osrlabel:
-        dasm_put(Dst, 1697);
-#line 1167 "src/jit/emit_x64.dasc"
+        /* Find the deopt address, the index into the osr label array,
+           and emit a dynamic label */
+        MVMint32 deopt_addr, i;
+        MVMSpeshAnn *ann = ctrl->ins->annotations;
+        while (ann) {
+            if (ann->type == MVM_SPESH_ANN_DEOPT_OSR) {
+                deopt_addr = jg->sg->deopt_addrs[ann->data.deopt_idx * 2];
+                break;
+            }
+            ann = ann->next;
+        }
+        if (!ann)
+            MVM_exception_throw_adhoc(tc, "JIT: this ins <%s> doesn't have a"
+                                      " OSR annotation", ctrl->ins->info->name);
+        for (i = 0; i < jg->num_osr_labels; i++) {
+            if (jg->osr_offsets[i] == deopt_addr)
+                break;
+        }
+        if (i == jg->num_osr_labels)
+            MVM_exception_throw_adhoc(tc, "JIT: Couldn't find the right label index");
+        /* emit the dynamic label */
+        MVM_jit_log(tc, "Emit OSR label %d (dynamic label %d)", i, i + jg->num_labels);
+        //|=>(i + jg->num_labels):
+        dasm_put(Dst, 259, (i + jg->num_labels));
+#line 1189 "src/jit/emit_x64.dasc"
     } else if (ctrl->type == MVM_JIT_CONTROL_BREAKPOINT) {
         //| int 3;
-        dasm_put(Dst, 1700);
-#line 1169 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 1697);
+#line 1191 "src/jit/emit_x64.dasc"
     } else {
         MVM_exception_throw_adhoc(tc, "Unknown conrtol code: <%s>",
                                   ctrl->ins->info->name);
     }
 }
 
-void * MVM_jit_osr_label(MVMThreadContext *tc, MVMJitGraph *jg,
-                         void **globals, dasm_State **Dst) {
-    return globals[MVM_JIT_LABEL_osrlabel];
-}

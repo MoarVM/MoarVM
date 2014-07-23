@@ -22,8 +22,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     dasm_init(&state, 1);
     dasm_setupglobal(&state, dasm_globals, num_globals);
     dasm_setup(&state, MVM_jit_actions());
-    /* For the dynamic labels (not necessary right now) */
-    dasm_growpc(&state, jg->num_labels);
+    dasm_growpc(&state, jg->num_labels + jg->num_osr_labels);
 
     /* generate code */
     MVM_jit_emit_prologue(tc, jg,  &state);
@@ -72,18 +71,22 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     code->num_locals = jg->sg->num_locals;
     code->bytecode   = (MVMuint8*)MAGIC_BYTECODE;
 
-    /* setup labels */
+    /* Get the basic block labels */
     code->num_labels = jg->num_labels;
     code->labels = malloc(sizeof(void*) * code->num_labels);
     for (i = 0; i < code->num_labels; i++) {
         code->labels[i] = memory + dasm_getpclabel(&state, i);
     }
 
-    /* get the osr label if needed */
-    if (jg->in_osr)
-        code->osr_label = MVM_jit_osr_label(tc, jg, dasm_globals, &state);
-    else
-        code->osr_label = NULL;
+    /* Get the OSR labels */
+    code->num_osr_labels = jg->num_osr_labels;
+    code->osr_labels     = malloc(sizeof(void*) * code->num_osr_labels);
+    code->osr_offsets    = malloc(sizeof(MVMint32) * code->num_osr_labels);
+    memcpy(code->osr_offsets, jg->osr_offsets, sizeof(MVMint32) * code->num_osr_labels);
+    for (i = 0; i < code->num_osr_labels; i++) {
+        /* OSR labels are numbered starting from the basic block labels */
+        code->osr_labels[i] = memory + dasm_getpclabel(&state, i + jg->num_labels);
+    }
 
     /* clear up the assembler */
     dasm_free(&state);
