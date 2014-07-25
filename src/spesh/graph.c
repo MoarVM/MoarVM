@@ -604,6 +604,7 @@ static MVMSpeshBB ** reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMuint8    *seen = calloc(g->num_bbs, 1);
     MVMint32     ins  = g->num_bbs - 1;
     dfs(rpo, &ins, seen, g->entry);
+    free(seen);
     if (ins != -1) {
         printf("%s", MVM_spesh_dump(tc, g));
         MVM_spesh_graph_destroy(tc, g);
@@ -893,6 +894,10 @@ static void insert_phi_functions(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarI
             }
         }
     }
+
+    free(has_already);
+    free(work);
+    free(worklist);
 }
 
 /* Renames the local variables such that we end up with SSA form. */
@@ -1015,8 +1020,10 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
     for (i = 0; i < num_locals; i++) {
         g->fact_counts[i] = var_info[i].count;
         g->facts[i]       = MVM_spesh_alloc(tc, g, var_info[i].count * sizeof(MVMSpeshFacts));
-        if (var_info[i].stack_alloc)
+        if (var_info[i].stack_alloc) {
             free(var_info[i].stack);
+            free(var_info[i].ass_nodes);
+        }
     }
     free(var_info);
 }
