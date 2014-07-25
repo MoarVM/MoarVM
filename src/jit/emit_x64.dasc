@@ -109,6 +109,21 @@ const unsigned int MVM_jit_num_globals(void) {
 |.define TMP4d, r9d
 |.define TMP5d, r10d
 |.define TMP6d, r11d
+/* and 16 bits wide */
+|.define TMP1w, cx
+|.define TMP2w, dx
+|.define TMP3w, r8w
+|.define TMP4w, r9w
+|.define TMP5w, r10w
+|.define TMP6w, r11w
+/* and 8 bits for good measure */
+|.define TMP1b, cl
+|.define TMP2b, dl
+|.define TMP3b, r8b
+|.define TMP4b, r9b
+|.define TMP5b, r10b
+|.define TMP6b, r11b
+
 
 /* return value */
 |.define RV, rax
@@ -729,118 +744,142 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     }
 }
 
-|.macro addarg, i, val
-||switch(i) {
-||    case 0:
-|         mov ARG1, val
-||        break;
-||    case 1:
-|         mov ARG2, val
-||        break;
-||    case 2:
-|         mov ARG3, val
-||        break;
-||    case 3:
-|         mov ARG4, val
-||        break;
-|.if not WIN32
-||    case 4:
-|         mov ARG5, val
-||        break;
-||    case 5:
-|         mov ARG6, val
-||        break;
-|.endif
-||    default:
-||        MVM_exception_throw_adhoc(tc, "JIT: adding %d arguments temporarily disabled\n", i);
-||}
-|.endmacro
-
-|.macro addarg_f, i, val
-||switch(i) {
-||    case 0:
-|         movd ARG1F, val
-||        break;
-||    case 1:
-|         movd ARG2F, val
-||        break;
-||    case 2:
-|         movd ARG3F, val
-||        break;
-||    case 3:
-|         movd ARG4F, val
-||        break;
-|.if not WIN32
-||    case 4:
-|         movd ARG5F, val
-||        break;
-||    case 5:
-|         movd ARG6F, val
-||        break;
-||    case 6:
-|         movd ARG7F, val
-||        break;
-||    case 7:
-|         movd ARG8F, val
-||        break;
-|.endif
-||    default:
-||        MVM_exception_throw_adhoc(tc, "JIT: adding %d arguments temporarily disabled\n", i);
-||}
-|.endmacro
 
 
 /* Call argument decoder */
-static void emit_call_arg(MVMThreadContext *tc, MVMJitCallArg arg,
-                          MVMint32 i, dasm_State **Dst) {
+static void load_call_arg(MVMThreadContext *tc, MVMJitGraph *jg,
+                          MVMJitCallArg arg, dasm_State **Dst) {
     switch(arg.type) {
     case MVM_JIT_INTERP_VAR:
-        MVM_jit_log(tc, "emit interp call arg %d %d \n", i, arg.v.ivar);
         switch (arg.v.ivar) {
         case MVM_JIT_INTERP_TC:
-            | addarg i, TC;
+            | mov TMP6, TC;
             break;
         case MVM_JIT_INTERP_FRAME:
-            | addarg i, FRAME;
+            | mov TMP6, FRAME;
             break;
         case MVM_JIT_INTERP_CU:
-            | addarg i, CU;
+            | mov TMP6, CU;
             break;
         case MVM_JIT_INTERP_PARAMS:
             | lea TMP6, FRAME->params;
-            | addarg i, TMP6;
             break;
         }
         break;
     case MVM_JIT_REG_VAL:
-        | addarg i, WORK[arg.v.reg];
+        | mov TMP6, qword WORK[arg.v.reg];
         break;
     case MVM_JIT_REG_VAL_F:
-        | addarg_f i, qword WORK[arg.v.reg];
+        | mov TMP6, qword WORK[arg.v.reg];
         break;
     case MVM_JIT_REG_ADDR:
         | lea TMP6, WORK[arg.v.reg];
-        | addarg i, TMP6;
         break;
     case MVM_JIT_STR_IDX:
         | get_string TMP6, arg.v.lit_i64;
-        | addarg i, TMP6;
         break;
     case MVM_JIT_LITERAL:
-        | addarg i, arg.v.lit_i64;
+        | mov TMP6, arg.v.lit_i64;
         break;
     case MVM_JIT_LITERAL_64:
     case MVM_JIT_LITERAL_PTR:
-        | mov64 TMP6, arg.v.lit_i64;
-        | addarg i, TMP6;
-        break;
     case MVM_JIT_LITERAL_F:
         | mov64 TMP6, arg.v.lit_i64;
-        | addarg_f i, TMP6;
         break;
     }
 }
 
+static void emit_gpr_arg(MVMThreadContext *tc, MVMJitGraph *jg,
+                         MVMint32 i, dasm_State **Dst) {
+    switch (i) {
+    case 0:
+        | mov ARG1, TMP6;
+        break;
+    case 1:
+        | mov ARG2, TMP6;
+        break;
+    case 2:
+        | mov ARG3, TMP6;
+        break;
+    case 3:
+        | mov ARG4, TMP6;
+        break;
+|.if POSIX
+||    case 4:
+|        mov ARG5, TMP6;
+||       break;
+||  case 5:
+|      mov ARG6, TMP6;
+||     break;
+|.endif
+    default:
+        MVM_exception_throw_adhoc(tc, "JIT: can't store %d arguments in GPR", i);
+    }
+}
+
+static void emit_sse_arg(MVMThreadContext *tc, MVMJitGraph *jg,
+                         MVMint32 i, dasm_State **Dst) {
+    switch (i) {
+    case 0:
+        | movd ARG1F, TMP6;
+        break;
+    case 1:
+        | movd ARG2F, TMP6;
+        break;
+    case 2:
+        | movd ARG3F, TMP6;
+        break;
+    case 3:
+        | movd ARG4F, TMP6;
+        break;
+|.if POSIX
+||    case 4:
+|        movd ARG5F, TMP6;
+||       break;
+||    case 5:
+|         movd ARG6F, TMP6;
+||        break;
+||    case 6:
+|        movd ARG5F, TMP6;
+||       break;
+||    case 7:
+|        movd ARG5F, TMP6;
+||       break;
+|.endif
+    default:
+        MVM_exception_throw_adhoc(tc, "JIT: can't put  %d arguments in SSE", i);
+    }
+}
+
+static void emit_stack_arg(MVMThreadContext *tc, MVMJitGraph *jg,
+                           MVMint32 arg_size, MVMint32 pos,
+                           dasm_State **Dst) {
+    /* basically, stack argumetns are passed in right-to-left order
+       on both POSIX and W64 backends, it seems. Thus the most logical
+       thing to do is to count from the stack top upwards. */
+    if (pos + arg_size > 64) {
+        MVM_exception_throw_adhoc(tc, "JIT: trying to pass arguments "
+                                  " in local space (stack top offset: "
+                                  " %d, size: %d)", pos, arg_size);
+    }
+    switch(arg_size) {
+    case 1:
+        | mov byte [rsp+pos], TMP6b;
+        break;
+    case 2:
+        | mov word [rsp+pos], TMP6w;
+        break;
+    case 4:
+        | mov dword [rsp+pos], TMP6d;
+        break;
+    case 8:
+        | mov qword [rsp+pos], TMP6;
+        break;
+    default:
+        MVM_exception_throw_adhoc(tc, "JIT: can't pass arguments size %d bytes",
+                                  arg_size);
+    }
+}
 
 static void emit_posix_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
                                 MVMJitCallArg args[], MVMint32 num_args,
@@ -876,14 +915,18 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
         }
     }
     for (i = 0; i < num_gpr; i++) {
-        emit_call_arg(tc, in_gpr[i], i, Dst);
+        load_call_arg(tc, jg, in_gpr[i], Dst);
+        emit_gpr_arg(tc, jg, i, Dst);
     }
     for (i = 0; i < num_fpr; i++) {
-        emit_call_arg(tc, in_fpr[i], i, Dst);
+        load_call_arg(tc, jg, in_fpr[i], Dst);
+        emit_sse_arg(tc, jg, i, Dst);
     }
     /* push right-to-left */
-    for (i = num_stack - 1; i >= 0; i--) {
-        emit_call_arg(tc, on_stack[i], i + 8, Dst); // always a stack arg
+    for (i = 0; i < num_stack; i++) {
+        load_call_arg(tc, jg, on_stack[i], Dst);
+        // I'm not sure this is correct, btw
+        emit_stack_arg(tc, jg, 8, i*8, Dst);
     }
     if (on_stack)
         free(on_stack);
@@ -893,10 +936,18 @@ static void emit_win64_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
                                 MVMJitCallArg args[], MVMint32 num_args,
                                 dasm_State **Dst) {
     MVMint32 i;
-    /* The difficultiy in win64 call args is handled adequately
-     * by the addarg macros. */
-    for (i = 0; i < num_args; i++) {
-        emit_call_arg(tc, args[i], i, Dst);
+    for (i = 0; i < 4; i++) {
+        load_call_arg(tc, jg, args[i], Dst);
+        if (args[i].type == MVM_JIT_REG_VAL_F ||
+            args[i].type == MVM_JIT_LITERAL_F) {
+            emit_sse_arg(tc, jg, i, Dst);
+        } else {
+            emit_gpr_arg(tc, jg, i, Dst);
+        }
+    }
+    for (; i < num_args; i++) {
+        load_call_arg(tc, jg, args[i], Dst);
+        emit_stack_arg(tc, jg, 8, i * 8, Dst);
     }
 }
 

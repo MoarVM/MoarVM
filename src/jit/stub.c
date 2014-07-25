@@ -35,5 +35,3 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
                          MVMJitInvoke *invoke, dasm_State **Dst) {}
 void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
                           MVMJitControl *ctrl, dasm_State **Dst) {}
-void * MVM_jit_osr_label(MVMThreadContext *tc, MVMJitGraph *jg,
-                         void **globals, dasm_State **Dst);
