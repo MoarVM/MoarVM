@@ -3,6 +3,7 @@
 #include <dasm_x86.h>
 #include "emit.h"
 
+
 |.arch x64
 |.actionlist actions
 |.section code
@@ -43,13 +44,6 @@
 |.type CU, MVMCompUnit, r13
 
 
-|.macro saveregs
-| push TC; push WORK; push FRAME; push CU;
-|.endmacro
-
-|.macro restoreregs
-| pop CU; pop FRAME; pop WORK; pop TC
-|.endmacro
 
 
 const MVMint32 MVM_jit_support(void) {
@@ -97,7 +91,7 @@ const unsigned int MVM_jit_num_globals(void) {
 |.define ARG8F, xmm7
 |.endif
 
-/* Special register for the function to be invoked 
+/* Special register for the function to be invoked
  * (chosen because it isn't involved in argument passing
  *  and volatile) */
 |.define FUNCTION, r10
@@ -120,19 +114,10 @@ const unsigned int MVM_jit_num_globals(void) {
 |.define RV, rax
 |.define RVF, xmm0
 
-|.macro callr, reg
-|.if WIN32
-| sub rsp, 32
-| call reg
-| add rsp, 32
-|.else
-| call reg
-|.endif
-|.endmacro
 
 |.macro callp, funcptr
 | mov64 FUNCTION, (uintptr_t)funcptr
-| callr FUNCTION
+| call FUNCTION
 |.endmacro
 
 
@@ -193,10 +178,16 @@ const unsigned int MVM_jit_num_globals(void) {
 void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
                            dasm_State **Dst) {
     /* Setup stack */
-    | push rbp;
+    | push rbp; // nb, this aligns the stack to 16 bytes again
     | mov rbp, rsp;
+    /* allocate stack space for 4 callee-save registers,
+       4 stack parameters, and 4 parameter registers (windows only) */
+    | sub rsp, 0x60;
     /* save callee-save registers */
-    | saveregs;
+    | mov [rbp-0x8],  TC;
+    | mov [rbp-0x10], CU;
+    | mov [rbp-0x18], FRAME;
+    | mov [rbp-0x20], WORK;
     /* setup special frame variables */
     | mov TC,   ARG1;
     | mov CU,   ARG2;
@@ -214,7 +205,10 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitGraph *jg,
     | mov RV, 0;
     | ->out:
     /* restore callee-save registers */
-    | restoreregs;
+    | mov TC, [rbp-0x8];
+    | mov CU, [rbp-0x10];
+    | mov FRAME, [rbp-0x18];
+    | mov WORK, [rbp-0x20];
     /* Restore stack */
     | mov rsp, rbp;
     | pop rbp;
@@ -222,7 +216,7 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitGraph *jg,
 }
 
 static MVMuint64 try_emit_gen2_ref(MVMThreadContext *tc, MVMJitGraph *jg,
-                                   MVMObject *obj, MVMint16 reg, 
+                                   MVMObject *obj, MVMint16 reg,
                                    dasm_State **Dst) {
     if (!(obj->header.flags & MVM_CF_SECOND_GEN))
         return 0;
@@ -331,10 +325,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVM_jit_log(tc, "Lexical type of register: %d\n", lexical_types[idx]);
         if (lexical_types[idx] == MVM_reg_obj) {
             MVM_jit_log(tc, "Emit lex vifivy check\n");
-            /* NB: this code path hasn't been checked. */
-            /* if it is zero, check if we need to auto-vivify */        
+            /* if it is zero, check if we need to auto-vivify */
             | cmp TMP5, 0;
-            | jne >1; 
+            | jne >1;
             /* setup args */
             | mov ARG1, TC;
             | mov ARG2, TMP6;
@@ -343,7 +336,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             /* use return value for the result */
             | mov TMP5, RV;
             |1:
-        } 
+        }
         /* store the value */
         | mov WORK[dst], TMP5;
         break;
@@ -398,11 +391,11 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | cmp TMP3, 0;
             /* Check if object doesn't point to NULL */
             | jne >3;
-            /* Otherwise load VMNull */ 
+            /* Otherwise load VMNull */
             | get_vmnull TMP3;
             |3:
         } else if (op == MVM_OP_sp_p6ogetvt_o) {
-            /* vivify as type object */ 
+            /* vivify as type object */
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
             | mov TMP3, [TMP2];
             /* check for null */
@@ -413,11 +406,11 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             /* need to hit write barrier? */
             | check_wb TMP1, TMP3;
             | jz >3;
-            | push TMP2; // address
-            | push TMP3; // value
-            | hit_wb WORK[obj]; // write barrier for header 
-            | pop TMP3;
-            | pop TMP2;
+            | mov qword [rbp-0x28], TMP2; // address
+            | mov qword [rbp-0x30], TMP3; // value
+            | hit_wb WORK[obj]; // write barrier for header
+            | mov TMP3, qword [rbp-0x30];
+            | mov TMP2, qword [rbp-0x28];
             |3:
             /* store vivified type value in memory location */
             | mov [TMP2], TMP3;
@@ -428,23 +421,23 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | cmp TMP3, 0;
             | jne >4;
             /* vivify as clone */
-            | push TMP1;
-            | push TMP2;
-            | mov ARG1, TC; 
+            | mov [rbp-0x28], TMP1;
+            | mov [rbp-0x30], TMP2;
+            | mov ARG1, TC;
             | get_spesh_slot ARG2, spesh_idx;
             | callp &MVM_repr_clone;
-            | pop TMP2;
-            | pop TMP1;
+            | mov TMP2, [rbp-0x30];
+            | mov TMP1, [rbp-0x28];
             /* assign with write barrier */
             | mov TMP3, RV;
             | check_wb TMP1, TMP3;
             | jz >3;
-            | push TMP2;
-            | push TMP3;
-            | hit_wb WORK[obj];
-            | pop TMP3;
-            | pop TMP2;
-            |3: 
+            | mov qword [rbp-0x28], TMP2; // address
+            | mov qword [rbp-0x30], TMP3; // value
+            | hit_wb WORK[obj]; // write barrier for header
+            | mov TMP3, qword [rbp-0x30];
+            | mov TMP2, qword [rbp-0x28];
+            |3:
             | mov [TMP2], TMP3;
             /* done */
             |4:
@@ -474,11 +467,11 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             /* check if we should hit write barrier */
             | check_wb TMP1, TMP2;
             | jz >2;
-            | push TMP2; // store value
-            | push TMP3; // store body pointer
-            | hit_wb WORK[obj]
-            | pop TMP3; // restore body pointer
-            | pop TMP2; // restore value
+            | mov qword [rbp-0x28], TMP2; // store value
+            | mov qword [rbp-0x30], TMP3; // store body pointer
+            | hit_wb WORK[obj];
+            | mov TMP3, qword [rbp-0x30]; // restore body pointer
+            | mov TMP2, qword [rbp-0x28]; // restore value
             |2: // done
         }
         | mov [TMP3+offset], TMP2; // store value into body
@@ -575,7 +568,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_OP_mod_i:
             // Convert Quadword to Octoword, i.e. use rax:rdx as one
             // single 16 byte register
-            | cqo; 
+            | cqo;
             | idiv qword WORK[reg_c];
             break;
         }
@@ -654,7 +647,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov rax, WORK[reg_b];
         /* comparison result in the setting bits in the rflags register */
         | cmp rax, WORK[reg_c];
-        /* copy the right comparison bit to the lower byte of the rax register */
+        /* copy the right comparison bit to the lower byte of the rax
+           register */
         switch(ins->info->opcode) {
         case MVM_OP_eqaddr:
         case MVM_OP_eq_i:
@@ -678,7 +672,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         }
         /* zero extend al (lower byte) to rax (whole register) */
         | movzx rax, al;
-        | mov WORK[reg_a], rax; 
+        | mov WORK[reg_a], rax;
         break;
     }
     case MVM_OP_sp_fastcreate: {
@@ -702,7 +696,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP5, WORK[src];
         | test TMP5, TMP5;
         // obj is null
-        | jz >1; 
+        | jz >1;
         | is_type_object TMP5;
         // object is type object (not concrete)
         | jnz >1;
@@ -715,7 +709,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov ARG2, TMP5;      // object
         | lea ARG3, WORK[dst]; // destination register
         | mov FUNCTION, CONTAINERSPEC:TMP6->fetch; // get function pointer
-        | callr FUNCTION;
+        | call FUNCTION;
         | jmp >2;
         |1:
         // otherwise just move the object into the register
@@ -758,8 +752,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
 ||        break;
 |.endif
 ||    default:
-|         mov TMP6, val;
-|         push TMP6;
+||        MVM_exception_throw_adhoc(tc, "JIT: adding %d arguments temporarily disabled\n", i);
 ||}
 |.endmacro
 
@@ -792,9 +785,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
 ||        break;
 |.endif
 ||    default:
-|         mov TMP6, val;
-|         push TMP6;
-||        break;
+||        MVM_exception_throw_adhoc(tc, "JIT: adding %d arguments temporarily disabled\n", i);
 ||}
 |.endmacro
 
@@ -1118,8 +1109,8 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     /* if we're not fast, then we should get the code from multi resolution */
     if (!invoke->is_fast) {
         /* first, save callsite and args */
-        | push TMP5; // args
-        | push TMP6; // callsite
+        | mov qword [rbp-0x28], TMP5; // args
+        | mov qword [rbp-0x30], TMP6; // callsite
         /* setup call MVM_frame_multi_ok(tc, code, &cur_callsite, args); */
         | mov ARG1, TC;
         | mov ARG2, WORK[invoke->code_register]; // code object
@@ -1127,17 +1118,17 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
         | mov ARG4, TMP5; // args
         | callp &MVM_frame_find_invokee_multi_ok;
         /* restore callsite, args, RV now holds code object */
-        | pop TMP6; // callsite
-        | pop TMP5; // args
+        | mov TMP6, [rbp-0x30]; // callsite
+        | mov TMP5, [rbp-0x28]; // args
         /* setup args for call to invoke(tc, code, cur_callsite, args) */
         | mov ARG1, TC;
         | mov ARG2, RV;   // code object
-        | mov ARG3, TMP6; // cur_callsite
-        | mov ARG4, TMP5; // nb - this could be pop ARG4, but that would be confusing
+        | mov ARG3, TMP6; // callsite
+        | mov ARG4, TMP5; // args
         /* get the actual function */
         | mov FUNCTION, OBJECT:RV->st;
         | mov FUNCTION, STABLE:FUNCTION->invoke;
-        | callr FUNCTION;
+        | call FUNCTION;
     } else {
         /* call MVM_frame_invoke_code */
         | mov ARG1, TC;
