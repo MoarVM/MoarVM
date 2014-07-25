@@ -398,9 +398,9 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 }
 
 /* Tweak the successor of a BB, also updating the target BBs pred. */
-static void tweak_succ(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *new_succ) {
+static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshBB *new_succ) {
     if (bb->num_succ == 0) {
-        bb->succ = malloc(sizeof(MVMSpeshBB *));
+        bb->succ = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
         bb->num_succ = 1;
     }
     if (bb->num_succ == 1)
@@ -408,7 +408,7 @@ static void tweak_succ(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *new_suc
     else
         MVM_exception_throw_adhoc(tc, "Spesh inline: unexpected num_succ");
     if (new_succ->num_pred == 0) {
-        new_succ->pred = malloc(sizeof(MVMSpeshBB *));
+        new_succ->pred = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
         new_succ->num_pred = 1;
         new_succ->pred[0] = bb;
     }
@@ -540,7 +540,7 @@ void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 if (invoke_ins->info->opcode == MVM_OP_invoke_v) {
                     MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                         invoke_bb->succ[0]);
-                    tweak_succ(tc, bb, invoke_bb->succ[0]);
+                    tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 }
                 else {
                     MVM_exception_throw_adhoc(tc,
@@ -550,25 +550,25 @@ void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             case MVM_OP_return_i:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 rewrite_int_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_n:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 rewrite_num_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_s:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 rewrite_str_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_o:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 rewrite_obj_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             }
@@ -671,5 +671,5 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Finally, turn the invoke instruction into a goto. */
     invoke_ins->info = MVM_op_get_op(MVM_OP_goto);
     invoke_ins->operands[0].ins_bb = inlinee->entry->linear_next;
-    tweak_succ(tc, invoke_bb, inlinee->entry->linear_next);
+    tweak_succ(tc, inliner, invoke_bb, inlinee->entry->linear_next);
 }
