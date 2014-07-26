@@ -829,12 +829,12 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
             while (ins) {
                 MVMSpeshIns *prev = ins->prev;
                 if (ins->info->opcode == MVM_SSA_PHI) {
-                    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                    MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[0]);
                     if (facts->usages == 0) {
                         /* Propagate non-usage. */
                         MVMint32 i;
                         for (i = 1; i < ins->info->num_operands; i++)
-                            MVM_spesh_get_facts(tc, g, ins->operands[i])->usages--;
+                            get_facts_direct(tc, g, ins->operands[i])->usages--;
 
                         /* Remove this phi. */
                         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
@@ -844,13 +844,13 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 else if (ins->info->pure) {
                     /* Sanity check to make sure it's a write reg as first operand. */
                     if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
-                        MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                        MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[0]);
                         if (facts->usages == 0) {
                             /* Propagate non-usage. */
                             MVMint32 i;
                             for (i = 1; i < ins->info->num_operands; i++)
                                 if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
-                                    MVM_spesh_get_facts(tc, g, ins->operands[i])->usages--;
+                                    get_facts_direct(tc, g, ins->operands[i])->usages--;
 
                             /* Remove this instruction. */
                             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
