@@ -65,36 +65,31 @@ sub MAIN($file = "src/core/oplist") {
 
 # Parses ops and produces a bunch of Op objects.
 sub parse_ops($file) {
-    my @ops;
-    my int $i = 0;
-    for lines($file.IO) -> $line {
-        if $line !~~ /^\s*['#'|$]/ {
-            my ($name, $mark, @operands) = $line.split(/\s+/);
+    gather for lines($file.IO) -> $line {
+        my grammar Op::Line {
+            regex TOP { <comment-line> | <op-line> }
+            regex comment-line { \h* ['#'\N*]? }
+            regex op-line { <name> \h* <mark>? \h* <operand>* % [\h+] \h* <adverb>* % [\h+] $$
+                {
+                    my $code = (state $)++;
+                    my $name = ~$<name>;
+                    my $mark = ~($<mark> // '  ');
+                    my @operands = ~«@<operand>;
+                    my %adverbs = @<adverb>.map(-> $/ { $0 => $1 || 1 });
 
-            # Look for validation mark.
-            unless $mark ~~ /^ <[:.+*-]> \w $/ {
-                @operands.unshift($mark) if $mark;
-                $mark = '  ';
+                    take Op.new(:$code, :$name, :$mark, :@operands, :%adverbs);
+                }
             }
+            token name { \H+ }
+            token mark { <[:.+*-]> \w >> }
+            token operand { <!before ':'> \H+ }
+            token adverb { ':' (\w+) [ '(' (<-[)]>+) ')' ]? }
+        };
 
-            # Look for operands that are actually adverbs.
-            my %adverbs;
-            while @operands && @operands[*-1] ~~ /^ ':' (\w+) [ '(' (<-[)]>+) ')' ]? $/ {
-                %adverbs{$0} = $1 || 1;
-                @operands.pop;
-            }
+        Op::Line.parse($line)
+            or die "Couldn't parse line '$line'";
 
-            @ops.push(Op.new(
-                code     => $i,
-                name     => $name,
-                mark     => $mark,
-                operands => @operands,
-                adverbs  => %adverbs
-            ));
-            $i = $i + 1;
-        }
     }
-    return @ops;
 }
 
 my $value_map = {
