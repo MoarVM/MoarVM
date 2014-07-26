@@ -75,7 +75,7 @@ sub parse_ops($file) {
                     my $name = ~$<name>;
                     my $mark = ~($<mark> // '  ');
                     my @operands = @<operand>».ast;
-                    my %adverbs = @<adverb>.map(-> $/ { $0 => $1 || 1 });
+                    my %adverbs = @<adverb>.map(-> $/ { $0 => ($<escval> ?? $<escval>».ast !! 1) });
 
                     take Op.new(:$code, :$name, :$mark, :@operands, :%adverbs);
                 }
@@ -101,7 +101,16 @@ sub parse_ops($file) {
             token type     { < int8 int16 int32 int64 num32 num64 str obj > }
             token type_var { '`1' }
             token special  { < ins lo coderef callsite sslot > }
-            token adverb { ':' (\w+) [ '(' (<-[)]>+) ')' ]? }
+            token adverb { ':' (\w+) [ '(' <escval>+ % [\h* ',' \h*] ')' ]? }
+            token escval {
+                [
+                | '-'                   { make "MVM_ESCAPE_IRR" }
+                | 'n'                   { make "MVM_ESCAPE_NO"  }
+                | 'y'                   { make "MVM_ESCAPE_YES" }
+                | 'into' '[' (\d+) ']'  { make "MVM_ESCAPE_INTO + " ~ ($0 +< 3) }
+                | 'outof' '[' (\d+) ']' { make "MVM_ESCAPE_OUTOF + " ~ ($0 +< 3) }
+                ]
+            }
         };
 
         Op::Line.parse($line)
@@ -216,8 +225,8 @@ sub opcode_details(@ops) {
                 take "        \{ $op.operands.map(&operand_flags).join(', ') },";
             }
             else { take "        \{ 0 },"; }
-            if $op.adverbs<esc> -> $esc_info {
-                take escape_info($esc_info);
+            if $op.adverbs<esc> -> @escvals {
+                take "        \{ @escvals.join(', ') }";
             }
             else { take "        \{ 0 }"; }
             take "    },"
@@ -225,23 +234,6 @@ sub opcode_details(@ops) {
         take "};\n";
         take "static const unsigned short MVM_op_counts = {+@ops};\n";
     }
-}
-
-sub escape_info($info) {
-    sub flag($_) {
-        when '-' { 'MVM_ESCAPE_IRR' }
-        when 'y' { 'MVM_ESCAPE_YES' }
-        when 'n' { 'MVM_ESCAPE_NO' }
-        when /into '[' (\d+) ']'/ {
-            'MVM_ESCAPE_INTO + ' ~ ($0 +< 3)
-        }
-        when /outof '[' (\d+) ']'/ {
-            'MVM_ESCAPE_OUTOF + ' ~ ($0 +< 3)
-        }
-        default { die "Unknown escape flag $_" }
-    }
-    return "        \{ $( $_ ?? .map(&flag).join(', ') !! '0' ) }"
-        given $info.split(',');
 }
 
 # Figures out the various flags for an operand type.
