@@ -338,6 +338,21 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[2].reg.orig, ins->operands[2].reg.i);
             break;
+        case MVM_OP_add_I:
+        case MVM_OP_sub_I:
+        case MVM_OP_mul_I:
+        case MVM_OP_div_I:
+        case MVM_OP_mod_I:
+            create_facts(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                ins->operands[3].reg.orig, ins->operands[3].reg.i);
+            break;
+        case MVM_OP_neg_I:
+        case MVM_OP_abs_I:
+            create_facts(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                ins->operands[2].reg.orig, ins->operands[2].reg.i);
+            break;
         case MVM_OP_bootint:
             object_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
