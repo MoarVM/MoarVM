@@ -12,47 +12,53 @@ class Op {
     has %.adverbs;
 }
 
+sub redirect-to($path, &block) {
+    my $*OUT = open($path, :w);
+    block;
+    $*OUT.close;
+}
+
 sub MAIN($file = "src/core/oplist") {
     # Parse the ops file to get the various ops.
     my @ops = parse_ops($file);
     say "Parsed {+@ops} total ops from src/core/oplist";
 
     # Generate header file.
-    my $hf = open("src/core/ops.h", :w);
-    $hf.say("/* This file is generated from $file by tools/update_ops.p6. */");
-    $hf.say("");
-    $hf.say(opcode_defines(@ops));
-    $hf.say("#define MVM_OP_EXT_BASE $EXT_BASE");
-    $hf.say("#define MVM_OP_EXT_CU_LIMIT $EXT_CU_LIMIT");
-    $hf.say('');
-    $hf.say('MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op);');
-    $hf.close;
+    redirect-to "src/core/ops.h", {
+        say "/* This file is generated from $file by tools/update_ops.p6. */";
+        say "";
+        say opcode_defines(@ops);
+        say "#define MVM_OP_EXT_BASE $EXT_BASE";
+        say "#define MVM_OP_EXT_CU_LIMIT $EXT_CU_LIMIT";
+        say '';
+        say 'MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op);';
+    }
 
     # Generate C file
-    my $cf = open("src/core/ops.c", :w);
-    $cf.say('#include "moar.h"');
-    $cf.say("/* This file is generated from $file by tools/update_ops.p6. */");
-    $cf.say(opcode_details(@ops));
-    $cf.say('MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {');
-    $cf.say('    if (op >= MVM_op_counts)');
-    $cf.say('        return NULL;');
-    $cf.say('    return &MVM_op_infos[op];');
-    $cf.say('}');
-    $cf.close;
+    redirect-to "src/core/ops.c", {
+        say '#include "moar.h"';
+        say "/* This file is generated from $file by tools/update_ops.p6. */";
+        say opcode_details(@ops);
+        say 'MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {';
+        say '    if (op >= MVM_op_counts)';
+        say '        return NULL;';
+        say '    return &MVM_op_infos[op];';
+        say '}';
+    }
 
     # Generate cgoto labels header.
-    my $lf = open('src/core/oplabels.h', :w);
-    $lf.say("/* This file is generated from $file by tools/update_ops.p6. */");
-    $lf.say("");
-    $lf.say(op_labels(@ops));
-    $lf.close;
+    redirect-to "src/core/oplabels.h", {
+        say "/* This file is generated from $file by tools/update_ops.p6. */";
+        say "";
+        say op_labels(@ops);
+    }
 
     # Generate NQP Ops file.
-    my $nf = open("lib/MAST/Ops.nqp", :w);
-    $nf.say("# This file is generated from $file by tools/update_ops.p6.");
-    $nf.say("");
-    $nf.say(op_constants(@ops));
-    $nf.close;
+    redirect-to "lib/MAST/Ops.nqp", {
+        say "# This file is generated from $file by tools/update_ops.p6.";
+        say "";
+        say op_constants(@ops);
+    }
 
     say "Wrote src/core/ops.h, src/core/ops.c, src/core/oplabels.h and lib/MAST/Ops.nqp";
 }
