@@ -63,10 +63,6 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     if (cand->sg)
         return NULL;
 
-    /* For now, if it has handlers, refuse to inline it. */
-    if (target->body.sf->body.num_handlers > 0)
-        return NULL;
-
     /* Build graph from the already-specialized bytecode. */
     ig = MVM_spesh_graph_create_from_cand(tc, target->body.sf, cand);
 
@@ -202,6 +198,11 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             MVMSpeshAnn *ann    = ins->annotations;
             while (ann) {
                 switch (ann->type) {
+                case MVM_SPESH_ANN_FH_START:
+                case MVM_SPESH_ANN_FH_END:
+                case MVM_SPESH_ANN_FH_GOTO:
+                    ann->data.frame_handler_index += inliner->num_handlers;
+                    break;
                 case MVM_SPESH_ANN_DEOPT_INLINE:
                     ann->data.deopt_idx += inliner->num_deopt_addrs;
                     break;
@@ -391,10 +392,35 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         inlinee->lexical_types ? inlinee->lexical_types : inlinee->sf->body.lexical_types,
         inlinee->num_lexicals * sizeof(MVMuint16));
 
-    /* Update total locals, lexicals, and basic blocks of the inliner. */
+    /* Merge handlers. */
+    if (inlinee->num_handlers) {
+        MVMuint32 total_handlers = inliner->num_handlers + inlinee->num_handlers;
+        if (inliner->handlers == inliner->sf->body.handlers) {
+            /* Original handlers table; need a copy. */
+            MVMFrameHandler *new_handlers = malloc(total_handlers * sizeof(MVMFrameHandler));
+            memcpy(new_handlers, inliner->handlers,
+                inliner->num_handlers * sizeof(MVMFrameHandler));
+            inliner->handlers = new_handlers;
+        }
+        else {
+            /* Probably already did some inlines into this frame; resize. */
+            inliner->handlers = realloc(inliner->handlers,
+                total_handlers * sizeof(MVMFrameHandler));
+        }
+        memcpy(inliner->handlers + inliner->num_handlers, inlinee->handlers,
+            inlinee->num_handlers * sizeof(MVMFrameHandler));
+        for (i = inliner->num_handlers; i < total_handlers; i++) {
+            inliner->handlers[i].block_reg += inliner->num_locals;
+            inliner->handlers[i].label_reg += inliner->num_locals;
+        }
+    }
+
+    /* Update total locals, lexicals, basic blocks, and handlers of the
+     * inliner. */
     inliner->num_bbs      += inlinee->num_bbs - 1;
     inliner->num_locals   += inlinee->num_locals;
     inliner->num_lexicals += inlinee->num_lexicals;
+    inliner->num_handlers += inlinee->num_handlers;
 }
 
 /* Tweak the successor of a BB, also updating the target BBs pred. */
