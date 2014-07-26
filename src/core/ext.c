@@ -189,6 +189,7 @@ const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
     record->info  = &entry->info;
     record->func  = entry->func;
     record->spesh = entry->spesh;
+    record->discover = entry->discover;
 
     uv_mutex_unlock(&tc->instance->mutex_extop_registry);
 
