@@ -513,11 +513,14 @@ MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
     MVMLexotic *lexotic;
 
     /* Locate handler associated with the specified label. */
-    MVMFrame       *f  = tc->cur_frame;
-    MVMStaticFrame *sf = f->static_info;
-    MVMint32 handler_idx = -1;
+    MVMFrame       *f     = tc->cur_frame;
+    MVMStaticFrame *sf    = f->static_info;
+    MVMint32 handler_idx  = -1;
+    MVMint32 num_handlers = f->spesh_cand
+        ? f->spesh_cand->num_handlers
+        : sf->body.num_handlers;
     MVMuint32 i;
-    for (i = 0; i < sf->body.num_handlers; i++) {
+    for (i = 0; i < num_handlers; i++) {
         if (f->effective_handlers[i].action == MVM_EX_ACTION_GOTO &&
                 f->effective_handlers[i].goto_offset == offset) {
             handler_idx = i;

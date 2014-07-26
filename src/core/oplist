@@ -217,8 +217,8 @@ die                 w(obj) r(str)
 rethrow             r(obj)
 resume              r(obj)
 takehandlerresult   w(obj)
-newlexotic          w(obj) ins :noinline
-lexoticresult       w(obj) r(obj) :noinline
+newlexotic          w(obj) ins
+lexoticresult       w(obj) r(obj)
 backtracestrings    w(obj) r(obj) :pure
 usecapture          w(obj) :noinline
 savecapture         w(obj) :noinline
