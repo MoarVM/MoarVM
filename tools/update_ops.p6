@@ -74,7 +74,7 @@ sub parse_ops($file) {
                     my $code = (state $)++;
                     my $name = ~$<name>;
                     my $mark = ~($<mark> // '  ');
-                    my @operands = ~«@<operand>;
+                    my @operands = @<operand>».ast;
                     my %adverbs = @<adverb>.map(-> $/ { $0 => $1 || 1 });
 
                     take Op.new(:$code, :$name, :$mark, :@operands, :%adverbs);
@@ -82,7 +82,25 @@ sub parse_ops($file) {
             }
             token name { \H+ }
             token mark { <[:.+*-]> \w >> }
-            token operand { <!before ':'> \H+ }
+            token operand { <!before ':'>
+                [
+                | <rw> '(' [ <type> | <type_var> ] ')'
+                | <type>
+                | <special>
+                ]
+                {
+                    make {
+                        :rw(~($<rw> // '')),
+                        :type(~($<type> // '')),
+                        :type_var(~($<type_var> // '')),
+                        :special(~($<special> // '')),
+                    }
+                }
+            }
+            token rw       { < rl wl r w > }
+            token type     { < int8 int16 int32 int64 num32 num64 str obj > }
+            token type_var { '`1' }
+            token special  { < ins lo coderef callsite sslot > }
             token adverb { ':' (\w+) [ '(' (<-[)]>+) ')' ]? }
         };
 
@@ -227,17 +245,6 @@ sub escape_info($info) {
 }
 
 # Figures out the various flags for an operand type.
-grammar OperandFlag {
-    token TOP {
-        | <rw> '(' [ <type> | <type_var> ] ')'
-        | <type>
-        | <special>
-    }
-    token rw       { < rl wl r w > }
-    token type     { < int8 int16 int32 int64 num32 num64 str obj > }
-    token type_var { '`1' }
-    token special  { < ins lo coderef callsite sslot > }
-}
 my %rwflags = (
     r  => 'MVM_operand_read_reg',
     w  => 'MVM_operand_write_reg',
@@ -245,7 +252,7 @@ my %rwflags = (
     wl => 'MVM_operand_write_lex'
 );
 sub operand_flags($operand) {
-    if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
+    given $operand -> (:$rw, :$type, :$type_var, :$special) {
         if $rw {
             %rwflags{$rw} ~ ' | ' ~ ($type ?? "MVM_operand_$type" !! 'MVM_operand_type_var')
         }
@@ -271,13 +278,10 @@ sub operand_flags($operand) {
             die "Failed to process operand '$operand'";
         }
     }
-    else {
-        die "Cannot parse operand '$operand'";
-    }
 }
 
 sub operand_flags_values($operand) {
-    if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
+    given $operand -> (:$rw, :$type, :$type_var, :$special) {
         if $rw {
             $value_map{%rwflags{$rw}} +| $value_map{($type ?? "MVM_operand_$type" !! 'MVM_operand_type_var')}
         }
@@ -302,8 +306,5 @@ sub operand_flags_values($operand) {
         else {
             die "Failed to process operand '$operand'";
         }
-    }
-    else {
-        die "Cannot parse operand '$operand'";
     }
 }
