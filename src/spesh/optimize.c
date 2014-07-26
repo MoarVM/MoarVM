@@ -649,6 +649,21 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
     }
 }
 
+/* Optimizes an extension op. */
+static void optimize_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMExtOpRecord *extops     = g->sf->body.cu->body.extops;
+    MVMuint16       num_extops = g->sf->body.cu->body.num_extops;
+    MVMuint16       i;
+    for (i = 0; i < num_extops; i++) {
+        if (extops[i].info == ins->info) {
+            /* Found op; call its spesh function, if any. */
+            if (extops[i].spesh)
+                extops[i].spesh(tc, g, bb, ins);
+            return;
+        }
+    }
+}
+
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMSpeshCallInfo arg_info;
@@ -790,6 +805,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
              * finalize instruction; just delete it. */
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
             break;
+        default:
+            if (ins->info->opcode == (MVMuint16)-1)
+                optimize_extop(tc, g, bb, ins);
         }
         ins = ins->next;
     }
