@@ -156,6 +156,20 @@ static void literal_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
 }
 
+/* Discover facts from extops. */
+static void discover_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMExtOpRecord *extops     = g->sf->body.cu->body.extops;
+    MVMuint16       num_extops = g->sf->body.cu->body.num_extops;
+    MVMuint16       i;
+    for (i = 0; i < num_extops; i++) {
+        if (extops[i].info == ins->info) {
+            /* Found op; call its discovery function, if any. */
+            if (extops[i].discover)
+                extops[i].discover(tc, g, ins);
+            return;
+        }
+    }
+}
 /* Allocates space for keeping track of guards inserted from logging, and
  * their usage. */
 void allocate_log_guard_table(MVMThreadContext *tc, MVMSpeshGraph *g) {
@@ -423,6 +437,9 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 log_facts(tc, g, bb, ins);
             break;
         }
+        default:
+            if (ins->info->opcode == (MVMuint16)-1)
+                discover_extop(tc, g, ins);
         }
         ins = ins->next;
     }

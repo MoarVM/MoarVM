@@ -52,7 +52,7 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
 
 int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
         MVMExtOpFunc func, MVMuint8 num_operands, MVMuint8 operands[],
-        MVMExtOpSpesh *spesh, MVMuint32 flags) {
+        MVMExtOpSpesh *spesh, MVMExtOpFactDiscover *discover, MVMuint32 flags) {
     MVMExtOpRegistry *entry;
     MVMString *name = MVM_string_ascii_decode_nt(
             tc, tc->instance->VMString, cname);
@@ -157,6 +157,7 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     memset(entry->info.operands + num_operands, 0,
             MVM_MAX_OPERANDS - num_operands);
     entry->spesh = spesh;
+    entry->discover = discover;
 
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
     MVM_HASH_BIND(tc, tc->instance->extop_registry, name, entry);

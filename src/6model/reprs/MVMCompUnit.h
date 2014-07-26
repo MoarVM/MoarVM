@@ -18,6 +18,9 @@ struct MVMExtOpRecord {
 
     /* Specialization function. */
     MVMExtOpSpesh *spesh;
+
+    /* Discover facts for spesh. */
+    MVMExtOpFactDiscover *discover;
 };
 
 /* How to release memory. */
