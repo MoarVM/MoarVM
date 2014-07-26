@@ -91,7 +91,7 @@ lexprimspec         w(int64) r(obj) r(str) :pure
 return_i         .r r(int64)
 return_n         .r r(num64)
 return_s         .r r(str)
-return_o         .r r(obj)
+return_o         .r r(obj) :esc(y)
 return           .r
 eq_i                w(int64) r(int64) r(int64) :pure
 ne_i                w(int64) r(int64) r(int64) :pure
@@ -214,7 +214,7 @@ throwcatdyn         w(obj) int64
 throwcatlex         w(obj) int64
 throwcatlexotic     w(obj) int64
 die                 w(obj) r(str) :throwish
-rethrow             r(obj)
+rethrow             r(obj) :esc(y)
 resume              r(obj)
 takehandlerresult   w(obj)
 newlexotic          w(obj) ins
@@ -293,7 +293,7 @@ can                 w(int64) r(obj) str :pure :invokish
 can_s               w(int64) r(obj) r(str) :pure :invokish
 create              w(obj) r(obj) :pure
 clone               w(obj) r(obj) :pure
-isconcrete          w(int64) r(obj) :pure
+isconcrete          w(int64) r(obj) :pure :esc(-,n)
 rebless             w(obj) r(obj) r(obj)
 istype              w(int64) r(obj) r(obj) :pure :invokish
 objprimspec         w(int64) r(obj) :pure
@@ -307,7 +307,7 @@ eqaddr              w(int64) r(obj) r(obj) :pure
 bindattr_i          r(obj) r(obj) str r(int64) int16
 bindattr_n          r(obj) r(obj) str r(num64) int16
 bindattr_s          r(obj) r(obj) str r(str) int16
-bindattr_o          r(obj) r(obj) str r(obj) int16
+bindattr_o          r(obj) r(obj) str r(obj) int16 :esc(n,n,-,into[0],-)
 bindattrs_i         r(obj) r(obj) r(str) r(int64)
 bindattrs_n         r(obj) r(obj) r(str) r(num64)
 bindattrs_s         r(obj) r(obj) r(str) r(str)
@@ -315,7 +315,7 @@ bindattrs_o         r(obj) r(obj) r(str) r(obj)
 getattr_i           w(int64) r(obj) r(obj) str int16
 getattr_n           w(num64) r(obj) r(obj) str int16
 getattr_s           w(str) r(obj) r(obj) str int16
-getattr_o           w(obj) r(obj) r(obj) str int16 :deoptonepoint
+getattr_o           w(obj) r(obj) r(obj) str int16 :deoptonepoint :esc(outof[1],n,n,-,-)
 getattrs_i          w(int64) r(obj) r(obj) r(str)
 getattrs_n          w(num64) r(obj) r(obj) r(str)
 getattrs_s          w(str) r(obj) r(obj) r(str)

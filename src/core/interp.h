@@ -35,6 +35,14 @@ union MVMRegister {
 #define MVM_DEOPT_MARK_ALL 2
 #define MVM_DEOPT_MARK_OSR 4
 
+/* Escape information. */
+#define MVM_ESCAPE_IRR      0
+#define MVM_ESCAPE_NO       1
+#define MVM_ESCAPE_YES      2
+#define MVM_ESCAPE_INTO     3   /* And bitshift by 3 to get operand index */
+#define MVM_ESCAPE_OUTOF    4   /* And bitshift by 3 to get operand index */
+#define MVM_ESCAPE_KIND     7   /* Mask for kind */
+
 /* Information about an opcode. */
 struct MVMOpInfo {
     MVMuint16   opcode;
@@ -46,6 +54,7 @@ struct MVMOpInfo {
     MVMuint8    no_inline;
     MVMuint8    jittivity;
     MVMuint8    operands[MVM_MAX_OPERANDS];
+    MVMuint8    esc[MVM_MAX_OPERANDS];
 };
 
 /* Operand read/write/literal flags. */
