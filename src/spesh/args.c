@@ -471,6 +471,23 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     if (args[arg_idx].o)
                         add_guards_and_facts(tc, g, arg_idx, args[arg_idx].o, named_ins[i]);
                 }
+                else if (found_flag & (MVM_CALLSITE_ARG_INT | MVM_CALLSITE_ARG_NUM | MVM_CALLSITE_ARG_STR)) {
+                    MVMuint16 arg_idx = found_idx + 1;
+                    named_ins[i]->operands[1].lit_i16 = arg_idx;
+                    if (found_flag & MVM_CALLSITE_ARG_INT)
+                        pos_box(tc, g, named_bb[i], named_ins[i],
+                            MVM_op_get_op(MVM_OP_hllboxtype_i), MVM_op_get_op(MVM_OP_box_i),
+                            MVM_op_get_op(MVM_OP_sp_getarg_i), MVM_reg_int64);
+                    else if (found_flag & MVM_CALLSITE_ARG_NUM)
+                        pos_box(tc, g, named_bb[i], named_ins[i],
+                            MVM_op_get_op(MVM_OP_hllboxtype_n), MVM_op_get_op(MVM_OP_box_n),
+                            MVM_op_get_op(MVM_OP_sp_getarg_n), MVM_reg_num64);
+                    else if (found_flag & MVM_CALLSITE_ARG_STR)
+                        pos_box(tc, g, named_bb[i], named_ins[i],
+                            MVM_op_get_op(MVM_OP_hllboxtype_s), MVM_op_get_op(MVM_OP_box_s),
+                            MVM_op_get_op(MVM_OP_sp_getarg_s), MVM_reg_str);
+                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next->next, cur_named);
+                }
                 named_used++;
                 break;
             case MVM_OP_param_on_i:
@@ -525,6 +542,26 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i], cur_named);
                     if (args[arg_idx].o)
                         add_guards_and_facts(tc, g, arg_idx, args[arg_idx].o, named_ins[i]);
+                    named_used++;
+                }
+                else if (found_flag & (MVM_CALLSITE_ARG_INT | MVM_CALLSITE_ARG_NUM | MVM_CALLSITE_ARG_STR)) {
+                    MVMuint16 arg_idx = found_idx + 1;
+                    named_ins[i]->operands[1].lit_i16 = arg_idx;
+                    if (found_flag & MVM_CALLSITE_ARG_INT)
+                        pos_box(tc, g, named_bb[i], named_ins[i],
+                            MVM_op_get_op(MVM_OP_hllboxtype_i), MVM_op_get_op(MVM_OP_box_i),
+                            MVM_op_get_op(MVM_OP_sp_getarg_i), MVM_reg_int64);
+                    else if (found_flag & MVM_CALLSITE_ARG_NUM)
+                        pos_box(tc, g, named_bb[i], named_ins[i],
+                            MVM_op_get_op(MVM_OP_hllboxtype_n), MVM_op_get_op(MVM_OP_box_n),
+                            MVM_op_get_op(MVM_OP_sp_getarg_n), MVM_reg_num64);
+                    else if (found_flag & MVM_CALLSITE_ARG_STR)
+                        pos_box(tc, g, named_bb[i], named_ins[i],
+                            MVM_op_get_op(MVM_OP_hllboxtype_s), MVM_op_get_op(MVM_OP_box_s),
+                            MVM_op_get_op(MVM_OP_sp_getarg_s), MVM_reg_str);
+                    MVM_spesh_manipulate_insert_goto(tc, g, named_bb[i], named_ins[i]->next->next,
+                        named_ins[i]->operands[2].ins_bb);
+                    used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next->next, cur_named);
                     named_used++;
                 }
                 break;
