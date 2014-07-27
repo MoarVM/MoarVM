@@ -85,7 +85,7 @@ static MVMSpeshIns * add_named_used_ins(MVMThreadContext *tc, MVMSpeshGraph *g, 
 
 /* Handles a pos arg that needs unboxing. */
 static void pos_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                         MVMSpeshIns *ins, MVMOpInfo *unbox_op) {
+                      MVMSpeshIns *ins, MVMOpInfo *unbox_op) {
     MVMSpeshOperand  temp  = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
     MVMSpeshIns     *unbox = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     unbox->info            = unbox_op;
@@ -96,6 +96,40 @@ static void pos_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
     ins->operands[0]       = temp;
     MVM_spesh_manipulate_insert_ins(tc, bb, ins, unbox);
     MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+}
+
+/* Handles a pos arg that needs boxing. */
+static void pos_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                    MVMSpeshIns *ins, MVMOpInfo *hlltype_op, MVMOpInfo *box_op,
+                    MVMOpInfo *arg_op, MVMuint8 kind) {
+    MVMSpeshOperand  temp_bt, temp_arg;
+    MVMSpeshIns     *hlltype, *box;
+
+    /* Add HLL type op. */
+    temp_bt              = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+    hlltype              = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    hlltype->info        = hlltype_op;
+    hlltype->operands    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
+    hlltype->operands[0] = temp_bt;
+    MVM_spesh_manipulate_insert_ins(tc, bb, ins, hlltype);
+
+    /* Add box op. */
+    temp_arg         = MVM_spesh_manipulate_get_temp_reg(tc, g, kind);
+    box              = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    box->info        = box_op;
+    box->operands    = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+    box->operands[0] = ins->operands[0];
+    box->operands[1] = temp_arg;
+    box->operands[2] = temp_bt;
+    MVM_spesh_manipulate_insert_ins(tc, bb, hlltype, box);
+
+    /* Update instruction to receive unboxed arg. */
+    ins->info        = arg_op;
+    ins->operands[0] = temp_arg;
+
+    /* Release temporary registers. */
+    MVM_spesh_manipulate_release_temp_reg(tc, g, temp_bt);
+    MVM_spesh_manipulate_release_temp_reg(tc, g, temp_arg);
 }
 
 /* Takes information about the incoming callsite and arguments, and performs
@@ -114,6 +148,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
 
     MVMSpeshIns **pos_ins    = calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
     MVMSpeshBB  **pos_bb     = calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
+    MVMuint8     *pos_added  = calloc(MAX_POS_ARGS, sizeof(MVMuint8));
     MVMSpeshIns **named_ins  = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
     MVMSpeshBB  **named_bb   = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshBB *));
     MVMSpeshIns **used_ins   = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
@@ -244,7 +279,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 break;
             case MVM_OP_param_rp_o:
             case MVM_OP_param_op_o:
-                if (arg_flag != MVM_CALLSITE_ARG_OBJ)
+                if (arg_flag != MVM_CALLSITE_ARG_OBJ && arg_flag != MVM_CALLSITE_ARG_INT &&
+                    arg_flag != MVM_CALLSITE_ARG_NUM && arg_flag != MVM_CALLSITE_ARG_STR)
                     goto cleanup;
                 break;
             }
@@ -280,30 +316,59 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             switch (pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:
             case MVM_OP_param_op_i:
-                if (arg_flag == MVM_CALLSITE_ARG_INT)
+                if (arg_flag == MVM_CALLSITE_ARG_INT) {
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
-                else
+                }
+                else {
                     pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_unbox_i));
+                    pos_added[i]++;
+                }
                 break;
             case MVM_OP_param_rp_n:
             case MVM_OP_param_op_n:
-                if (arg_flag == MVM_CALLSITE_ARG_NUM)
+                if (arg_flag == MVM_CALLSITE_ARG_NUM) {
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
-                else
+                }
+                else {
                     pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_unbox_n));
+                    pos_added[i]++;
+                }
                 break;
             case MVM_OP_param_rp_s:
             case MVM_OP_param_op_s:
-                if (arg_flag == MVM_CALLSITE_ARG_STR)
+                if (arg_flag == MVM_CALLSITE_ARG_STR) {
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
-                else
+                }
+                else {
                     pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_unbox_s));
+                    pos_added[i]++;
+                }
                 break;
             case MVM_OP_param_rp_o:
             case MVM_OP_param_op_o:
-                pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
-                if (args[i].o)
-                    add_guards_and_facts(tc, g, i, args[i].o, pos_ins[i]);
+                if (arg_flag == MVM_CALLSITE_ARG_OBJ) {
+                    pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
+                    if (args[i].o)
+                        add_guards_and_facts(tc, g, i, args[i].o, pos_ins[i]);
+                }
+                else if (arg_flag == MVM_CALLSITE_ARG_INT) {
+                    pos_box(tc, g, pos_bb[i], pos_ins[i],
+                        MVM_op_get_op(MVM_OP_hllboxtype_i), MVM_op_get_op(MVM_OP_box_i),
+                        MVM_op_get_op(MVM_OP_sp_getarg_i), MVM_reg_int64);
+                    pos_added[i] += 2;
+                }
+                else if (arg_flag == MVM_CALLSITE_ARG_NUM) {
+                    pos_box(tc, g, pos_bb[i], pos_ins[i],
+                        MVM_op_get_op(MVM_OP_hllboxtype_n), MVM_op_get_op(MVM_OP_box_n),
+                        MVM_op_get_op(MVM_OP_sp_getarg_n), MVM_reg_num64);
+                    pos_added[i] += 2;
+                }
+                else if (arg_flag == MVM_CALLSITE_ARG_STR) {
+                    pos_box(tc, g, pos_bb[i], pos_ins[i],
+                        MVM_op_get_op(MVM_OP_hllboxtype_s), MVM_op_get_op(MVM_OP_box_s),
+                        MVM_op_get_op(MVM_OP_sp_getarg_s), MVM_reg_str);
+                    pos_added[i] += 2;
+                }
                 break;
             }
             pos_ins[i]->operands[1].lit_i16 = (MVMint16)i;
@@ -315,8 +380,11 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 MVMuint8 passed = i < cs->num_pos;
                 if (passed) {
                     /* If we know the argument has been passed, then add a goto
-                    * to the "passed" code. */
-                    MVM_spesh_manipulate_insert_goto(tc, g, pos_bb[i], pos_ins[i],
+                     * to the "passed" code. */
+                    MVMSpeshIns *after = pos_ins[i];
+                    while (pos_added[i]--)
+                        after = after->next;
+                    MVM_spesh_manipulate_insert_goto(tc, g, pos_bb[i], after,
                         pos_ins[i]->operands[2].ins_bb);
 
                     /* Inserting an unconditional goto makes the linear_next BB
@@ -476,6 +544,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
   cleanup:
     free(pos_ins);
     free(pos_bb);
+    free(pos_added);
     free(named_ins);
     free(named_bb);
 }
