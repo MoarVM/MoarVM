@@ -134,6 +134,7 @@ typedef struct MVMSerializationRoot MVMSerializationRoot;
 typedef struct MVMSerializationWriter MVMSerializationWriter;
 typedef struct MVMSpeshGraph MVMSpeshGraph;
 typedef struct MVMSpeshMemBlock MVMSpeshMemBlock;
+typedef struct MVMSpeshTemporary MVMSpeshTemporary;
 typedef struct MVMSpeshBB MVMSpeshBB;
 typedef struct MVMSpeshIns MVMSpeshIns;
 typedef union MVMSpeshOperand MVMSpeshOperand;
