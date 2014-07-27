@@ -83,6 +83,21 @@ static MVMSpeshIns * add_named_used_ins(MVMThreadContext *tc, MVMSpeshGraph *g, 
     return inserted_ins;
 }
 
+/* Handles a pos arg that needs unboxing. */
+static void pos_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                         MVMSpeshIns *ins, MVMOpInfo *unbox_op) {
+    MVMSpeshOperand  temp  = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+    MVMSpeshIns     *unbox = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    unbox->info            = unbox_op;
+    unbox->operands        = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+    unbox->operands[0]     = ins->operands[0];
+    unbox->operands[1]     = temp;
+    ins->info              = MVM_op_get_op(MVM_OP_sp_getarg_o);
+    ins->operands[0]       = temp;
+    MVM_spesh_manipulate_insert_ins(tc, bb, ins, unbox);
+    MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+}
+
 /* Takes information about the incoming callsite and arguments, and performs
  * various optimizations based on that information. */
 void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVMRegister *args) {
@@ -205,30 +220,31 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     /* If the number of passed args is in range... */
     if (cs->num_pos >= req_max + 1 && (opt_max < 0 || cs->num_pos <= opt_max + 1)) {
         /* Ensure we've got all the arg fetch instructions we need, and that
-         * types match. (TODO: insert box/unbox instructions.) */
+         * types match or it's a box/unbox. */
         MVMint32 i;
         for (i = 0; i < cs->num_pos; i++) {
+            MVMCallsiteEntry arg_flag = cs->arg_flags[i];
             if (!pos_ins[i])
                 goto cleanup;
             switch (pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:
             case MVM_OP_param_op_i:
-                if (cs->arg_flags[i] != MVM_CALLSITE_ARG_INT)
+                if (arg_flag != MVM_CALLSITE_ARG_INT && arg_flag != MVM_CALLSITE_ARG_OBJ)
                     goto cleanup;
                 break;
             case MVM_OP_param_rp_n:
             case MVM_OP_param_op_n:
-                if (cs->arg_flags[i] != MVM_CALLSITE_ARG_NUM)
+                if (arg_flag != MVM_CALLSITE_ARG_NUM && arg_flag != MVM_CALLSITE_ARG_OBJ)
                     goto cleanup;
                 break;
             case MVM_OP_param_rp_s:
             case MVM_OP_param_op_s:
-                if (cs->arg_flags[i] != MVM_CALLSITE_ARG_STR)
+                if (arg_flag != MVM_CALLSITE_ARG_STR && arg_flag != MVM_CALLSITE_ARG_OBJ)
                     goto cleanup;
                 break;
             case MVM_OP_param_rp_o:
             case MVM_OP_param_op_o:
-                if (cs->arg_flags[i] != MVM_CALLSITE_ARG_OBJ)
+                if (arg_flag != MVM_CALLSITE_ARG_OBJ)
                     goto cleanup;
                 break;
             }
@@ -260,18 +276,28 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         if (cs->arg_count)
             g->arg_guards = malloc(2 * cs->arg_count * sizeof(MVMSpeshGuard));
         for (i = 0; i < cs->num_pos; i++) {
+            MVMCallsiteEntry arg_flag = cs->arg_flags[i];
             switch (pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:
             case MVM_OP_param_op_i:
-                pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
+                if (arg_flag == MVM_CALLSITE_ARG_INT)
+                    pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
+                else
+                    pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_unbox_i));
                 break;
             case MVM_OP_param_rp_n:
             case MVM_OP_param_op_n:
-                pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
+                if (arg_flag == MVM_CALLSITE_ARG_NUM)
+                    pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
+                else
+                    pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_unbox_n));
                 break;
             case MVM_OP_param_rp_s:
             case MVM_OP_param_op_s:
-                pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
+                if (arg_flag == MVM_CALLSITE_ARG_STR)
+                    pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
+                else
+                    pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_unbox_s));
                 break;
             case MVM_OP_param_rp_o:
             case MVM_OP_param_op_o:
