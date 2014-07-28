@@ -136,6 +136,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_shift_o: return &MVM_repr_shift_o;
     case MVM_OP_atpos_o: return &MVM_repr_at_pos_o;
     case MVM_OP_getattr_s: return &MVM_repr_get_attr_s;
+    case MVM_OP_elems: return &MVM_repr_elems;
     case MVM_OP_flattenropes: return &MVM_string_flatten;
     case MVM_OP_atkey_o: return &MVM_repr_at_key_o;
     case MVM_OP_concat_s: return &MVM_string_concatenate;
@@ -588,6 +589,14 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_STR_IDX, str_idx },
                                  { MVM_JIT_LITERAL, hint }};
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 5, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_elems: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint32 invocant = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, invocant } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
         break;
     }
         /* coercion */
