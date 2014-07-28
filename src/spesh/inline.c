@@ -63,10 +63,6 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     if (cand->sg)
         return NULL;
 
-    /* For now, if it has handlers, refuse to inline it. */
-    if (target->body.sf->body.num_handlers > 0)
-        return NULL;
-
     /* Build graph from the already-specialized bytecode. */
     ig = MVM_spesh_graph_create_from_cand(tc, target->body.sf, cand);
 
@@ -202,6 +198,11 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             MVMSpeshAnn *ann    = ins->annotations;
             while (ann) {
                 switch (ann->type) {
+                case MVM_SPESH_ANN_FH_START:
+                case MVM_SPESH_ANN_FH_END:
+                case MVM_SPESH_ANN_FH_GOTO:
+                    ann->data.frame_handler_index += inliner->num_handlers;
+                    break;
                 case MVM_SPESH_ANN_DEOPT_INLINE:
                     ann->data.deopt_idx += inliner->num_deopt_addrs;
                     break;
@@ -391,16 +392,41 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         inlinee->lexical_types ? inlinee->lexical_types : inlinee->sf->body.lexical_types,
         inlinee->num_lexicals * sizeof(MVMuint16));
 
-    /* Update total locals, lexicals, and basic blocks of the inliner. */
+    /* Merge handlers. */
+    if (inlinee->num_handlers) {
+        MVMuint32 total_handlers = inliner->num_handlers + inlinee->num_handlers;
+        if (inliner->handlers == inliner->sf->body.handlers) {
+            /* Original handlers table; need a copy. */
+            MVMFrameHandler *new_handlers = malloc(total_handlers * sizeof(MVMFrameHandler));
+            memcpy(new_handlers, inliner->handlers,
+                inliner->num_handlers * sizeof(MVMFrameHandler));
+            inliner->handlers = new_handlers;
+        }
+        else {
+            /* Probably already did some inlines into this frame; resize. */
+            inliner->handlers = realloc(inliner->handlers,
+                total_handlers * sizeof(MVMFrameHandler));
+        }
+        memcpy(inliner->handlers + inliner->num_handlers, inlinee->handlers,
+            inlinee->num_handlers * sizeof(MVMFrameHandler));
+        for (i = inliner->num_handlers; i < total_handlers; i++) {
+            inliner->handlers[i].block_reg += inliner->num_locals;
+            inliner->handlers[i].label_reg += inliner->num_locals;
+        }
+    }
+
+    /* Update total locals, lexicals, basic blocks, and handlers of the
+     * inliner. */
     inliner->num_bbs      += inlinee->num_bbs - 1;
     inliner->num_locals   += inlinee->num_locals;
     inliner->num_lexicals += inlinee->num_lexicals;
+    inliner->num_handlers += inlinee->num_handlers;
 }
 
 /* Tweak the successor of a BB, also updating the target BBs pred. */
-static void tweak_succ(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *new_succ) {
+static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshBB *new_succ) {
     if (bb->num_succ == 0) {
-        bb->succ = malloc(sizeof(MVMSpeshBB *));
+        bb->succ = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
         bb->num_succ = 1;
     }
     if (bb->num_succ == 1)
@@ -408,7 +434,7 @@ static void tweak_succ(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *new_suc
     else
         MVM_exception_throw_adhoc(tc, "Spesh inline: unexpected num_succ");
     if (new_succ->num_pred == 0) {
-        new_succ->pred = malloc(sizeof(MVMSpeshBB *));
+        new_succ->pred = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
         new_succ->num_pred = 1;
         new_succ->pred[0] = bb;
     }
@@ -540,7 +566,7 @@ void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 if (invoke_ins->info->opcode == MVM_OP_invoke_v) {
                     MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                         invoke_bb->succ[0]);
-                    tweak_succ(tc, bb, invoke_bb->succ[0]);
+                    tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 }
                 else {
                     MVM_exception_throw_adhoc(tc,
@@ -550,25 +576,25 @@ void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             case MVM_OP_return_i:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 rewrite_int_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_n:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 rewrite_num_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_s:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 rewrite_str_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_o:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 rewrite_obj_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             }
@@ -671,5 +697,5 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Finally, turn the invoke instruction into a goto. */
     invoke_ins->info = MVM_op_get_op(MVM_OP_goto);
     invoke_ins->operands[0].ins_bb = inlinee->entry->linear_next;
-    tweak_succ(tc, invoke_bb, inlinee->entry->linear_next);
+    tweak_succ(tc, inliner, invoke_bb, inlinee->entry->linear_next);
 }

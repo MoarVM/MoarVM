@@ -331,7 +331,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 if (!chosen_cand->osr_logging && cur_idx < MVM_SPESH_LOG_RUNS) {
                     if (MVM_cas(&(chosen_cand->log_enter_idx), cur_idx, cur_idx + 1) == cur_idx) {
                         /* We get to log. */
-                        frame = allocate_frame(tc, static_frame_body, NULL); /* NULL as no inlines yet. */
+                        frame = allocate_frame(tc, static_frame_body, chosen_cand);
                         frame->effective_bytecode    = chosen_cand->bytecode;
                         frame->effective_handlers    = chosen_cand->handlers;
                         frame->effective_spesh_slots = chosen_cand->spesh_slots;

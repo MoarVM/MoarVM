@@ -45,6 +45,8 @@ void MVM_spesh_osr(MVMThreadContext *tc) {
         return;
     if (!tc->cur_frame->params.callsite->is_interned)
         return;
+    if (tc->cur_frame->static_info->body.num_spesh_candidates == MVM_SPESH_LIMIT)
+        return;
 
     /* Produce logging spesh candidate. */
     specialized = MVM_spesh_candidate_setup(tc, tc->cur_frame->static_info,
@@ -79,8 +81,8 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
     /* Finish up the specialization. */
     MVM_spesh_candidate_specialize(tc, tc->cur_frame->static_info, specialized);
 
-    /* If there are inlinings, need to update ->work and ->env. */
-    if (specialized->num_inlines > 0) {
+    /* Resize work area if needed. */
+    if (specialized->num_locals > tc->cur_frame->static_info->body.num_locals) {
         /* Resize work area. */
         MVMRegister *new_work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
             specialized->work_size);
@@ -91,19 +93,20 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
         tc->cur_frame->work = new_work;
         tc->cur_frame->allocd_work = specialized->work_size;
         tc->cur_frame->args = tc->cur_frame->work + specialized->num_locals;
+    }
 
-        /* Resize environment if needed. */
-        if (specialized->env_size > tc->cur_frame->allocd_env) {
-            MVMRegister *new_env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-                specialized->env_size);
-            if (tc->cur_frame->allocd_env) {
-                memcpy(new_env, tc->cur_frame->env, tc->cur_frame->allocd_env);
-                MVM_fixed_size_free(tc, tc->instance->fsa, tc->cur_frame->allocd_env,
-                    tc->cur_frame->env);
-            }
-            tc->cur_frame->env = new_env;
-            tc->cur_frame->allocd_env = specialized->env_size;
+    /* Resize environment if needed. */
+    if (specialized->num_lexicals > tc->cur_frame->static_info->body.num_lexicals) {
+        MVMRegister *new_env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+            specialized->env_size);
+        if (tc->cur_frame->allocd_env) {
+            memcpy(new_env, tc->cur_frame->env,
+                tc->cur_frame->static_info->body.num_lexicals * sizeof(MVMRegister));
+            MVM_fixed_size_free(tc, tc->instance->fsa, tc->cur_frame->allocd_env,
+                tc->cur_frame->env);
         }
+        tc->cur_frame->env = new_env;
+        tc->cur_frame->allocd_env = specialized->env_size;
     }
 
     /* Sync frame with updates. */

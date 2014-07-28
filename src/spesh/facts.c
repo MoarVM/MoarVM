@@ -156,6 +156,20 @@ static void literal_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
 }
 
+/* Discover facts from extops. */
+static void discover_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMExtOpRecord *extops     = g->sf->body.cu->body.extops;
+    MVMuint16       num_extops = g->sf->body.cu->body.num_extops;
+    MVMuint16       i;
+    for (i = 0; i < num_extops; i++) {
+        if (extops[i].info == ins->info) {
+            /* Found op; call its discovery function, if any. */
+            if (extops[i].discover)
+                extops[i].discover(tc, g, ins);
+            return;
+        }
+    }
+}
 /* Allocates space for keeping track of guards inserted from logging, and
  * their usage. */
 void allocate_log_guard_table(MVMThreadContext *tc, MVMSpeshGraph *g) {
@@ -324,6 +338,21 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[2].reg.orig, ins->operands[2].reg.i);
             break;
+        case MVM_OP_add_I:
+        case MVM_OP_sub_I:
+        case MVM_OP_mul_I:
+        case MVM_OP_div_I:
+        case MVM_OP_mod_I:
+            create_facts(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                ins->operands[3].reg.orig, ins->operands[3].reg.i);
+            break;
+        case MVM_OP_neg_I:
+        case MVM_OP_abs_I:
+            create_facts(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                ins->operands[2].reg.orig, ins->operands[2].reg.i);
+            break;
         case MVM_OP_bootint:
             object_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
@@ -423,6 +452,9 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 log_facts(tc, g, bb, ins);
             break;
         }
+        default:
+            if (ins->info->opcode == (MVMuint16)-1)
+                discover_extop(tc, g, ins);
         }
         ins = ins->next;
     }

@@ -76,6 +76,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             result->bytecode            = sc->bytecode;
             result->bytecode_size       = sc->bytecode_size;
             result->handlers            = sc->handlers;
+            result->num_handlers        = sg->num_handlers;
             result->num_spesh_slots     = num_spesh_slots;
             result->spesh_slots         = spesh_slots;
             result->num_deopts          = num_deopts;
@@ -84,6 +85,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             result->log_slots           = log_slots;
             result->num_locals          = num_locals;
             result->num_lexicals        = num_lexicals;
+            result->local_types         = sg->local_types;
+            result->lexical_types       = sg->lexical_types;
             result->sg                  = sg;
             result->log_enter_idx       = 0;
             result->log_exits_remaining = MVM_SPESH_LOG_RUNS;
@@ -160,6 +163,7 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     candidate->bytecode      = sc->bytecode;
     candidate->bytecode_size = sc->bytecode_size;
     candidate->handlers      = sc->handlers;
+    candidate->num_handlers  = sg->num_handlers;
     candidate->num_deopts    = sg->num_deopt_addrs;
     candidate->deopts        = sg->deopt_addrs;
     candidate->num_locals    = sg->num_locals;

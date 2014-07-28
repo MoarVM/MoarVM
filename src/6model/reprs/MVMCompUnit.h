@@ -15,6 +15,12 @@ struct MVMExtOpRecord {
 
     /* Read from the bytecode stream. */
     MVMuint8 operand_descriptor[MVM_MAX_OPERANDS];
+
+    /* Specialization function. */
+    MVMExtOpSpesh *spesh;
+
+    /* Discover facts for spesh. */
+    MVMExtOpFactDiscover *discover;
 };
 
 /* How to release memory. */

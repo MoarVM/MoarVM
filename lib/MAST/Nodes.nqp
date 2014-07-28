@@ -41,7 +41,7 @@ class MAST::ExtOpRegistry {
 }
 
 # The extension of base number (everything below is internal).
-my $EXTOP_BASE := 1024;
+my int $EXTOP_BASE := 1024;
 
 # The base class for all nodes.
 class MAST::Node {
@@ -127,7 +127,7 @@ class MAST::CompUnit is MAST::Node {
     }
 
     method sc_idx($sc) {
-        my $handle := nqp::scgethandle($sc);
+        my str $handle := nqp::scgethandle($sc);
         if nqp::existskey(%!sc_lookup, $handle) {
             nqp::atkey(%!sc_lookup, $handle)
         }
@@ -141,12 +141,12 @@ class MAST::CompUnit is MAST::Node {
 
     # Gets the opcode for an extop in the current compilation unit. If this is
     # the first use of the extop, gives it an index for this compilation unit.
-    method get_extop_code($name) {
+    method get_extop_code(str $name) {
         if nqp::existskey(%!extop_idx, $name) {
             %!extop_idx{$name} + $EXTOP_BASE
         }
         else {
-            my $idx             := +@!extop_sigs;
+            my int $idx         := +@!extop_sigs;
             @!extop_names[$idx] := $name;
             @!extop_sigs[$idx]  := MAST::ExtOpRegistry.extop_signature($name);
             %!extop_idx{$name}  := $idx;
@@ -197,9 +197,9 @@ class MAST::Frame is MAST::Node {
     my int $FRAME_FLAG_IS_THUNK     := 2;
     has int $!flags;
 
-    my $cuuid_src := 0;
+    my int $cuuid_src := 0;
     sub fresh_id() {
-        $cuuid_src := $cuuid_src + 1;
+        $cuuid_src++;
         "!MVM_CUUID_$cuuid_src"
     }
 
@@ -319,7 +319,15 @@ class MAST::Op is MAST::Node {
 
     my %op_codes := MAST::Ops.WHO<%codes>;
     my @op_names := MAST::Ops.WHO<@names>;
-    method new(:$op!, *@operands) {
+
+    method new(str :$op!, *@operands) {
+        my $obj := nqp::create(self);
+        nqp::bindattr_i($obj, MAST::Op, '$!op', %op_codes{$op});
+        nqp::bindattr($obj, MAST::Op, '@!operands', @operands);
+        $obj
+    }
+
+    method new_with_operand_array(@operands, str :$op!) {
         my $obj := nqp::create(self);
         nqp::bindattr_i($obj, MAST::Op, '$!op', %op_codes{$op});
         nqp::bindattr($obj, MAST::Op, '@!operands', @operands);
@@ -343,7 +351,15 @@ class MAST::ExtOp is MAST::Node {
     has @!operands;
     has str $!name;
 
-    method new(:$op!, :$cu!, *@operands) {
+    method new(str :$op!, :$cu!, *@operands) {
+        my $obj := nqp::create(self);
+        nqp::bindattr_i($obj, MAST::ExtOp, '$!op', $cu.get_extop_code($op));
+        nqp::bindattr($obj, MAST::ExtOp, '@!operands', @operands);
+        nqp::bindattr_s($obj, MAST::ExtOp, '$!name', $op);
+        $obj
+    }
+
+    method new_with_operand_array(@operands, str :$op!, :$cu!) {
         my $obj := nqp::create(self);
         nqp::bindattr_i($obj, MAST::ExtOp, '$!op', $cu.get_extop_code($op));
         nqp::bindattr($obj, MAST::ExtOp, '@!operands', @operands);
