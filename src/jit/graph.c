@@ -141,10 +141,12 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_shift_o: return &MVM_repr_shift_o;
     case MVM_OP_atpos_o: return &MVM_repr_at_pos_o;
     case MVM_OP_atpos_i: return &MVM_repr_at_pos_i;
+    case MVM_OP_atkey_o: return &MVM_repr_at_key_o;
+    case MVM_OP_bindpos_o: return &MVM_repr_bind_pos_o;
+    case MVM_OP_bindkey_o: return &MVM_repr_bind_key_o;
     case MVM_OP_getattr_s: return &MVM_repr_get_attr_s;
     case MVM_OP_elems: return &MVM_repr_elems;
     case MVM_OP_flattenropes: return &MVM_string_flatten;
-    case MVM_OP_atkey_o: return &MVM_repr_at_key_o;
     case MVM_OP_concat_s: return &MVM_string_concatenate;
     case MVM_OP_repeat_s: return &MVM_string_repeat;
     case MVM_OP_flip: return &MVM_string_flip;
@@ -594,6 +596,18 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, invocant },
                                  { MVM_JIT_REG_VAL, key } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_bindpos_o:
+    case MVM_OP_bindkey_o: {
+        MVMint32 invocant = ins->operands[0].reg.orig;
+        MVMint32 key_pos = ins->operands[1].reg.orig;
+        MVMint32 value = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, invocant },
+                                 { MVM_JIT_REG_VAL, key_pos },
+                                 { MVM_JIT_REG_VAL, value } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_getattr_s: {
