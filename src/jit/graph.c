@@ -142,7 +142,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_repeat_s: return &MVM_string_repeat;
     case MVM_OP_flip: return &MVM_string_flip;
     case MVM_OP_eq_s: return &MVM_string_equal;
-    case MVM_OP_graphs_s: return &MVM_string_graphs;
+    case MVM_OP_chars: case MVM_OP_graphs_s: return &MVM_string_graphs;
     case MVM_OP_codes_s: return &MVM_string_codes;
     default:
         MVM_exception_throw_adhoc(tc, "No function for op %d", opcode);
@@ -657,6 +657,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                           MVM_JIT_RV_INT, dst);
         break;
     }
+    case MVM_OP_chars:
     case MVM_OP_graphs_s:
     case MVM_OP_codes_s:
     case MVM_OP_flip: {
