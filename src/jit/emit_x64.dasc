@@ -936,7 +936,8 @@ static void emit_win64_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
                                 MVMJitCallArg args[], MVMint32 num_args,
                                 dasm_State **Dst) {
     MVMint32 i;
-    for (i = 0; i < 4; i++) {
+    MVMint32 num_reg_args = (num_args > 4 ? 4 : num_args);
+    for (i = 0; i < num_reg_args; i++) {
         load_call_arg(tc, jg, args[i], Dst);
         if (args[i].type == MVM_JIT_REG_VAL_F ||
             args[i].type == MVM_JIT_LITERAL_F) {
