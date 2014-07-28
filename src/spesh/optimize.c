@@ -249,7 +249,6 @@ static void optimize_objprimspec(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         result_facts->value.i16     = REPR(obj_facts->type)->get_storage_spec(tc, STABLE(obj_facts->type)).boxed_primitive;
         ins->operands[1].lit_i16    = result_facts->value.i16;
         obj_facts->usages--;
-        printf("objprimspec constantized to %d\n", result_facts->value.i16);
     }
 }
 
