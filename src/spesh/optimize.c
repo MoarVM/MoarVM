@@ -236,6 +236,22 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     }
 }
 
+/* objprimspec can be done at spesh-time if we know the type of something.
+ * Another thing is, that if we rely on the type being known, we'll be assured
+ * we'll have a guard that promises the object in question to be non-null. */
+static void optimize_objprimspec(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+
+    if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type) {
+        MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
+        result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
+        result_facts->value.i16     = REPR(obj_facts->type)->get_storage_spec(tc, STABLE(obj_facts->type)).boxed_primitive;
+        ins->operands[1].lit_i16    = result_facts->value.i16;
+        obj_facts->usages--;
+    }
+}
+
 /* Optimizes a hllize instruction away if the type is known and already in the
  * right HLL, by turning it into a set. */
 static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
@@ -763,6 +779,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_istype:
             optimize_istype(tc, g, ins);
+            break;
+        case MVM_OP_objprimspec:
+            optimize_objprimspec(tc, g, ins);
             break;
         case MVM_OP_bindattr_i:
         case MVM_OP_bindattr_n:

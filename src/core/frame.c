@@ -1230,6 +1230,7 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCal
     return code;
 }
 
+MVM_USED_BY_JIT
 MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs, MVMRegister *args) {
     if (!code)
         MVM_exception_throw_adhoc(tc, "Cannot invoke null object");
