@@ -127,6 +127,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_box_i: return &MVM_box_int;
     case MVM_OP_box_s: return &MVM_box_str;
     case MVM_OP_box_n: return &MVM_box_num;
+    case MVM_OP_unbox_i: return &MVM_repr_get_int;
+    case MVM_OP_unbox_s: return &MVM_repr_get_str;
+    case MVM_OP_unbox_n: return &MVM_repr_get_num;
     case MVM_OP_istrue: case MVM_OP_isfalse: return &MVM_coerce_istrue;
     case MVM_OP_istype: return &MVM_6model_istype;
     case MVM_OP_wval: case MVM_OP_wval_wide: return &MVM_sc_get_sc_object;
@@ -720,6 +723,30 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, type },
                                  { MVM_JIT_REG_ADDR, dst }};
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_unbox_i: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, obj } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_unbox_n: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, obj } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_NUM, dst);
+        break;
+    }
+    case MVM_OP_unbox_s: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, obj } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
         /* string ops */
