@@ -70,6 +70,12 @@ typedef double   MVMnum64;
 #  define MVM_USE_OVERFLOW_SERIALIZATION_INDEX
 #endif
 
+#if defined _MSC_VER
+#  define MVM_USED_BY_JIT __pragma(optimize( "g", off ))
+#else
+#  define MVM_USED_BY_JIT
+#endif
+
 /* Headers for various other data structures and APIs. */
 #include "6model/6model.h"
 #include "gc/wb.h"
