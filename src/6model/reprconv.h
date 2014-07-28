@@ -53,6 +53,8 @@ MVM_PUBLIC MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, M
 
 MVM_PUBLIC MVMString * MVM_repr_get_attr_s(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
                                            MVMString *name, MVMint16 hint);
+MVM_PUBLIC MVMint64    MVM_repr_get_attr_i(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint);
 
 #define MVM_repr_at_key_int(tc, obj, key) \
     MVM_repr_get_int((tc), MVM_repr_at_key_o((tc), (obj), (key)))
