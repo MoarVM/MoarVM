@@ -331,7 +331,7 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
         free(dir_str);
         return result;
     } else {
-        return MVM_string_decode(tc, tc->instance->VMString, "", 0, data->encoding);
+        return tc->instance->str_consts.empty;
     }
 #else
     struct dirent entry;
@@ -342,7 +342,7 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
 
     if (ret == 0) {
         if (result == NULL)
-            return MVM_string_decode(tc, tc->instance->VMString, "", 0, data->encoding);
+            return tc->instance->str_consts.empty;
         return MVM_string_decode(tc, tc->instance->VMString, entry.d_name, strlen(entry.d_name), data->encoding);
     }
 
