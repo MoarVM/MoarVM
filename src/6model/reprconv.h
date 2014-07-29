@@ -51,9 +51,13 @@ MVM_PUBLIC MVMObject * MVM_repr_box_int(MVMThreadContext *tc, MVMObject *type, M
 MVM_PUBLIC MVMObject * MVM_repr_box_num(MVMThreadContext *tc, MVMObject *type, MVMnum64 val);
 MVM_PUBLIC MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, MVMString *val);
 
+MVM_PUBLIC MVMint64    MVM_repr_get_attr_i(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint);
+MVM_PUBLIC MVMnum64    MVM_repr_get_attr_n(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint);
 MVM_PUBLIC MVMString * MVM_repr_get_attr_s(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
                                            MVMString *name, MVMint16 hint);
-MVM_PUBLIC MVMint64    MVM_repr_get_attr_i(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+MVM_PUBLIC MVMObject * MVM_repr_get_attr_o(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
                                            MVMString *name, MVMint16 hint);
 
 MVM_PUBLIC void        MVM_repr_bind_attr_inso(MVMThreadContext *tc, MVMObject *object, MVMObject *type,

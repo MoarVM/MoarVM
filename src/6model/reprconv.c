@@ -287,6 +287,30 @@ MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, MVMString *v
     return res;
 }
 
+MVM_PUBLIC MVMint64 MVM_repr_get_attr_i(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint) {
+    MVMRegister result_reg;
+    if (!IS_CONCRETE(object))
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+    REPR(object)->attr_funcs.get_attribute(tc,
+            STABLE(object), object, OBJECT_BODY(object),
+            type, name,
+            hint, &result_reg, MVM_reg_int64);
+    return result_reg.i64;
+}
+
+MVM_PUBLIC MVMnum64 MVM_repr_get_attr_n(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint) {
+    MVMRegister result_reg;
+    if (!IS_CONCRETE(object))
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+    REPR(object)->attr_funcs.get_attribute(tc,
+            STABLE(object), object, OBJECT_BODY(object),
+            type, name,
+            hint, &result_reg, MVM_reg_num64);
+    return result_reg.n64;
+}
+
 MVM_PUBLIC MVMString * MVM_repr_get_attr_s(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
                                            MVMString *name, MVMint16 hint) {
     MVMRegister result_reg;
@@ -299,7 +323,7 @@ MVM_PUBLIC MVMString * MVM_repr_get_attr_s(MVMThreadContext *tc, MVMObject *obje
     return result_reg.s;
 }
 
-MVM_PUBLIC MVMint64 MVM_repr_get_attr_i(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+MVM_PUBLIC MVMObject * MVM_repr_get_attr_o(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
                                            MVMString *name, MVMint16 hint) {
     MVMRegister result_reg;
     if (!IS_CONCRETE(object))
@@ -307,9 +331,10 @@ MVM_PUBLIC MVMint64 MVM_repr_get_attr_i(MVMThreadContext *tc, MVMObject *object,
     REPR(object)->attr_funcs.get_attribute(tc,
             STABLE(object), object, OBJECT_BODY(object),
             type, name,
-            hint, &result_reg, MVM_reg_int64);
-    return result_reg.i64;
+            hint, &result_reg, MVM_reg_obj);
+    return result_reg.o;
 }
+
 
 MVM_PUBLIC void MVM_repr_bind_attr_inso(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
                                            MVMString *name, MVMint16 hint, MVMRegister value_reg, MVMuint16 kind) {
