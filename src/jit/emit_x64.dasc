@@ -1166,8 +1166,8 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
         /* setup call MVM_frame_multi_ok(tc, code, &cur_callsite, args); */
         | mov ARG1, TC;
         | mov ARG2, WORK[invoke->code_register]; // code object
-        | mov ARG3, rsp; // basically, [rsp] == TMP6 == &cur_callsite
-        | mov ARG4, TMP5; // args
+        | lea ARG3, [rbp-0x30];                  // &cur_callsite
+        | mov ARG4, TMP5;                        // args
         | callp &MVM_frame_find_invokee_multi_ok;
         /* restore callsite, args, RV now holds code object */
         | mov TMP6, [rbp-0x30]; // callsite
