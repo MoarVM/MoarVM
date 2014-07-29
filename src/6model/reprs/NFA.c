@@ -326,11 +326,19 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     MVMint64 *done, *fates, *curst, *nextst;
     MVMint64  i, fate_arr_len, num_states, total_fates, prev_fates;
 
-    /* Allocate "done states", "current states" and "next states" arrays. */
+    /* Obtain or (re)allocate "done states", "current states" and "next
+     * states" arrays. */
     num_states = nfa->num_states;
-    done   = (MVMint64 *)malloc((num_states + 1) * sizeof(MVMint64));
-    curst  = (MVMint64 *)malloc((num_states + 1) * sizeof(MVMint64));
-    nextst = (MVMint64 *)malloc((num_states + 1) * sizeof(MVMint64));
+    if (tc->nfa_alloc_states < num_states) {
+        size_t alloc   = (num_states + 1) * sizeof(MVMint64);
+        tc->nfa_done   = (MVMint64 *)realloc(tc->nfa_done, alloc);
+        tc->nfa_curst  = (MVMint64 *)realloc(tc->nfa_curst, alloc);
+        tc->nfa_nextst = (MVMint64 *)realloc(tc->nfa_nextst, alloc);
+        tc->nfa_alloc_states = num_states;
+    }
+    done   = tc->nfa_done;
+    curst  = tc->nfa_curst;
+    nextst = tc->nfa_nextst;
     memset(done, 0, (num_states + 1) * sizeof(MVMint64));
 
     /* Allocate fates array. */
@@ -480,9 +488,6 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 fates[i] = -fates[i];
         }
     }
-    free(done);
-    free(curst);
-    free(nextst);
 
     *total_fates_out = total_fates;
     return fates;
