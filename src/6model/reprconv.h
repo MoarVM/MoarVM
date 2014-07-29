@@ -56,6 +56,9 @@ MVM_PUBLIC MVMString * MVM_repr_get_attr_s(MVMThreadContext *tc, MVMObject *obje
 MVM_PUBLIC MVMint64    MVM_repr_get_attr_i(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
                                            MVMString *name, MVMint16 hint);
 
+MVM_PUBLIC void        MVM_repr_bind_attr_inso(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                               MVMString *name, MVMint16 hint, MVMRegister value_reg, MVMuint16 kind);
+
 #define MVM_repr_at_key_int(tc, obj, key) \
     MVM_repr_get_int((tc), MVM_repr_at_key_o((tc), (obj), (key)))
 #define MVM_repr_at_key_num(tc, obj, key) \

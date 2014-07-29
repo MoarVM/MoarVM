@@ -310,3 +310,13 @@ MVM_PUBLIC MVMint64 MVM_repr_get_attr_i(MVMThreadContext *tc, MVMObject *object,
             hint, &result_reg, MVM_reg_int64);
     return result_reg.i64;
 }
+
+MVM_PUBLIC void MVM_repr_bind_attr_inso(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint, MVMRegister value_reg, MVMuint16 kind) {
+    if (!IS_CONCRETE(object))
+        MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a type object");
+    REPR(object)->attr_funcs.bind_attribute(tc,
+            STABLE(object), object, OBJECT_BODY(object),
+            type, name,
+            hint, value_reg, kind);
+}
