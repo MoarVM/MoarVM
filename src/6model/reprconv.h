@@ -3,6 +3,8 @@ MVM_PUBLIC MVMObject * MVM_repr_alloc_init(MVMThreadContext *tc, MVMObject *type
 MVM_PUBLIC MVMObject * MVM_repr_clone(MVMThreadContext *tc, MVMObject *obj);
 void MVM_repr_compose(MVMThreadContext *tc, MVMObject *type, MVMObject *obj);
 
+MVM_PUBLIC void MVM_repr_pos_set_elems(MVMThreadContext *tc, MVMObject *obj, MVMint64 elems);
+
 MVM_PUBLIC MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx);
 MVM_PUBLIC MVMnum64 MVM_repr_at_pos_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx);
 MVM_PUBLIC MVMString * MVM_repr_at_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx);

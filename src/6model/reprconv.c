@@ -36,6 +36,12 @@ void MVM_repr_compose(MVMThreadContext *tc, MVMObject *type, MVMObject *obj) {
     REPR(type)->compose(tc, STABLE(type), obj);
 }
 
+MVM_PUBLIC void MVM_repr_pos_set_elems(MVMThreadContext *tc, MVMObject *obj, MVMint64 elems) {
+    REPR(obj)->pos_funcs.set_elems(tc, STABLE(obj), obj,
+        OBJECT_BODY(obj), elems);
+}
+
+
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
     MVMRegister value;
     REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
