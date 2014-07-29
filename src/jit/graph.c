@@ -579,7 +579,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
-    case MVM_OP_iterval:
     case MVM_OP_shift_o:
     case MVM_OP_pop_o: {
         MVMint16 dst = ins->operands[0].reg.orig;
@@ -746,7 +745,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
         break;
     }
-    case MVM_OP_iterkey_s:
+   /* case MVM_OP_iterkey_s:
+    case MVM_OP_iterval:
     case MVM_OP_iter: {
         MVMint16 dst      = ins->operands[0].reg.orig;
         MVMint32 invocant = ins->operands[1].reg.orig;
@@ -754,7 +754,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, invocant } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
-    }
+    }*/
         /* coercion */
     case MVM_OP_coerce_sn:
     case MVM_OP_coerce_ns:
