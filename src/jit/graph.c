@@ -113,6 +113,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_print: return &MVM_string_print;
     case MVM_OP_isnull: return &MVM_is_null;
     case MVM_OP_takeclosure: return &MVM_frame_takeclosure;
+    case MVM_OP_newlexotic: return &MVM_exception_newlexotic;
     case MVM_OP_return: return &MVM_args_assert_void_return_ok;
     case MVM_OP_return_i: return &MVM_args_set_result_int;
     case MVM_OP_return_s: return &MVM_args_set_result_str;
@@ -546,6 +547,14 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMint16 src = ins->operands[1].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_REG_VAL, src } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_newlexotic: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint32 offs = ins->operands[1].ins_offset;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_LITERAL, offs } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
