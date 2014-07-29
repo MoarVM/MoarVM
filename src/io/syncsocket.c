@@ -1,5 +1,9 @@
 #include "moar.h"
 
+#ifndef _WIN32
+    #include "unistd.h"
+#endif
+
 #if defined(_MSC_VER)
 #define snprintf _snprintf
 #endif
