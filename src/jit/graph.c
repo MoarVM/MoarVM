@@ -139,8 +139,10 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_iter: return &MVM_iter;
     case MVM_OP_iterkey_s: return &MVM_iterkey_s;
     case MVM_OP_iterval: return &MVM_iterval;
-    case MVM_OP_push_o: return &MVM_repr_push_o;
     case MVM_OP_push_i: return &MVM_repr_push_i;
+    case MVM_OP_push_n: return &MVM_repr_push_n;
+    case MVM_OP_push_s: return &MVM_repr_push_s;
+    case MVM_OP_push_o: return &MVM_repr_push_o;
     case MVM_OP_unshift_o: return &MVM_repr_unshift_o;
     case MVM_OP_unshift_i: return &MVM_repr_unshift_i;
     case MVM_OP_pop_o: return &MVM_repr_pop_o;
@@ -596,6 +598,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         /* repr ops */
     case MVM_OP_unshift_i:
     case MVM_OP_push_i:
+    case MVM_OP_push_n:
+    case MVM_OP_push_s:
     case MVM_OP_unshift_o:
     case MVM_OP_push_o: {
         MVMint32 invocant = ins->operands[0].reg.orig;
