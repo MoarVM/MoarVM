@@ -167,6 +167,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_concat_s: return &MVM_string_concatenate;
     case MVM_OP_repeat_s: return &MVM_string_repeat;
     case MVM_OP_flip: return &MVM_string_flip;
+    case MVM_OP_uc: return &MVM_string_uc;
+    case MVM_OP_tc: return &MVM_string_tc;
+    case MVM_OP_lc: return &MVM_string_lc;
     case MVM_OP_eq_s: return &MVM_string_equal;
     case MVM_OP_eqat_s: return &MVM_string_equal_at;
     case MVM_OP_chars: case MVM_OP_graphs_s: return &MVM_string_graphs;
@@ -865,6 +868,16 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, src_b } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args,
                           MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_uc:
+    case MVM_OP_lc:
+    case MVM_OP_tc: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 string = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, string } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_eq_s: {
