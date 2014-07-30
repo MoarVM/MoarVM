@@ -139,9 +139,6 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_isint: case MVM_OP_isnum: case MVM_OP_isstr: // continued
     case MVM_OP_islist: case MVM_OP_ishash: return &MVM_repr_compare_repr_id;
     case MVM_OP_wval: case MVM_OP_wval_wide: return &MVM_sc_get_sc_object;
-    case MVM_OP_iter: return &MVM_iter;
-    case MVM_OP_iterkey_s: return &MVM_iterkey_s;
-    case MVM_OP_iterval: return &MVM_iterval;
     case MVM_OP_push_i: return &MVM_repr_push_i;
     case MVM_OP_push_n: return &MVM_repr_push_n;
     case MVM_OP_push_s: return &MVM_repr_push_s;
@@ -603,16 +600,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
         break;
     }
-    case MVM_OP_iterkey_s:
-    case MVM_OP_iterval:
-    case MVM_OP_iter: {
-        MVMint16 dst      = ins->operands[0].reg.orig;
-        MVMint32 invocant = ins->operands[1].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
-                                 { MVM_JIT_REG_VAL, invocant } };
-        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
-        break;
-        }
         /* repr ops */
     case MVM_OP_unshift_i:
     case MVM_OP_push_i:
@@ -808,7 +795,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
         break;
     }
-   /* case MVM_OP_iterkey_s:
+    case MVM_OP_iterkey_s:
     case MVM_OP_iterval:
     case MVM_OP_iter: {
         MVMint16 dst      = ins->operands[0].reg.orig;
@@ -817,7 +804,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, invocant } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
-    }*/
+    }
         /* coercion */
     case MVM_OP_coerce_sn:
     case MVM_OP_coerce_ns:
