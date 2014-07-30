@@ -478,7 +478,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_branch(tc, jgb, 0, branch);
         break;
     }
-    case MVM_OP_istype: {
+/*    case MVM_OP_istype: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
         MVMint16 type = ins->operands[2].reg.orig;
@@ -488,6 +488,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_ADDR, dst }};
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         break;
+    } */
     }
         /* some functions */
     case MVM_OP_checkarity: {
