@@ -170,6 +170,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_chars: case MVM_OP_graphs_s: return &MVM_string_graphs;
     case MVM_OP_codes_s: return &MVM_string_codes;
     case MVM_OP_iscclass: return &MVM_string_is_cclass;
+    case MVM_OP_nfarunalt: return &MVM_nfa_run_alt;
     default:
         MVM_exception_throw_adhoc(tc, "No function for op %d", opcode);
     }
@@ -906,6 +907,23 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, str },
                                  { MVM_JIT_REG_VAL, offset } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_nfarunalt: {
+        MVMint16 nfa    = ins->operands[0].reg.orig;
+        MVMint16 target = ins->operands[1].reg.orig;
+        MVMint16 offset = ins->operands[2].reg.orig;
+        MVMint16 bstack = ins->operands[3].reg.orig;
+        MVMint16 cstack = ins->operands[4].reg.orig;
+        MVMint16 labels = ins->operands[5].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, nfa },
+                                 { MVM_JIT_REG_VAL, target },
+                                 { MVM_JIT_REG_VAL, offset },
+                                 { MVM_JIT_REG_VAL, bstack },
+                                 { MVM_JIT_REG_VAL, cstack },
+                                 { MVM_JIT_REG_VAL, labels } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 7, args, MVM_JIT_RV_VOID, -1);
         break;
     }
         /* returning */
