@@ -151,6 +151,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_atpos_i: return &MVM_repr_at_pos_i;
     case MVM_OP_atkey_o: return &MVM_repr_at_key_o;
     case MVM_OP_bindpos_o: return &MVM_repr_bind_pos_o;
+    case MVM_OP_bindpos_i: return &MVM_repr_bind_pos_i;
     case MVM_OP_bindkey_o: return &MVM_repr_bind_key_o;
     case MVM_OP_getattr_s: return &MVM_repr_get_attr_s;
     case MVM_OP_getattr_n: return &MVM_repr_get_attr_n;
@@ -647,6 +648,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
+    case MVM_OP_bindpos_i:
     case MVM_OP_bindpos_o:
     case MVM_OP_bindkey_o: {
         MVMint32 invocant = ins->operands[0].reg.orig;
