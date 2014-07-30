@@ -41,6 +41,11 @@ MVM_PUBLIC void MVM_repr_pos_set_elems(MVMThreadContext *tc, MVMObject *obj, MVM
         OBJECT_BODY(obj), elems);
 }
 
+MVM_PUBLIC void MVM_repr_pos_splice(MVMThreadContext *tc, MVMObject *obj, MVMObject *replacement, MVMint64 offset, MVMint64 count) {
+    REPR(obj)->pos_funcs.splice(tc, STABLE(obj), obj,
+        OBJECT_BODY(obj), replacement,
+        offset, count);
+}
 
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
     MVMRegister value;
