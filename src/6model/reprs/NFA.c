@@ -399,9 +399,11 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                     }
                     else {
                         if (total_fates >= fate_arr_len) {
-                            fate_arr_len = total_fates + 1;
-                            fates = (MVMint64 *)realloc(fates,
+                            fate_arr_len      = total_fates + 1;
+                            tc->nfa_fates     = (MVMint64 *)realloc(tc->nfa_fates,
                                 sizeof(MVMint64) * fate_arr_len);
+                            tc->nfa_fates_len = fate_arr_len;
+                            fates             = tc->nfa_fates;
                         }
                         fates[total_fates++] = arg;
                     }
