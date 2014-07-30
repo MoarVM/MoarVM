@@ -122,6 +122,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_coerce_ns: return &MVM_coerce_n_s;
     case MVM_OP_coerce_si: return &MVM_coerce_s_i;
     case MVM_OP_coerce_sn: return &MVM_coerce_s_n;
+    case MVM_OP_iterkey_s: return &MVM_iterkey_s;
+    case MVM_OP_iter: return &MVM_iter;
+    case MVM_OP_iterval: return &MVM_iterval;
     case MVM_OP_smrt_numify: return &MVM_coerce_smart_numify;
     case MVM_OP_smrt_strify: return &MVM_coerce_smart_stringify;
     case MVM_OP_box_i: return &MVM_box_int;
@@ -536,6 +539,16 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
         break;
     }
+    case MVM_OP_iterkey_s:
+    case MVM_OP_iterval:
+    case MVM_OP_iter: {
+        MVMint16 dst      = ins->operands[0].reg.orig;
+        MVMint32 invocant = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, invocant } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+        }
         /* repr ops */
     case MVM_OP_unshift_o:
     case MVM_OP_push_o: {
@@ -743,6 +756,10 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     MVMJitGraph * jg;
     int i;
     if (!MVM_jit_support()) {
+        return NULL;
+    }
+    if (sg->num_handlers > 0) {
+        MVM_jit_log(tc, "Can't build JIT graph because handlers NYI\n");
         return NULL;
     }
     {
