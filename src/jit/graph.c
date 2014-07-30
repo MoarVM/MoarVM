@@ -168,6 +168,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_concat_s: return &MVM_string_concatenate;
     case MVM_OP_repeat_s: return &MVM_string_repeat;
     case MVM_OP_flip: return &MVM_string_flip;
+    case MVM_OP_split: return &MVM_string_split;
     case MVM_OP_uc: return &MVM_string_uc;
     case MVM_OP_tc: return &MVM_string_tc;
     case MVM_OP_lc: return &MVM_string_lc;
@@ -873,6 +874,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     }
         /* string ops */
     case MVM_OP_repeat_s:
+    case MVM_OP_split:
     case MVM_OP_concat_s: {
         MVMint16 src_a = ins->operands[1].reg.orig;
         MVMint16 src_b = ins->operands[2].reg.orig;
