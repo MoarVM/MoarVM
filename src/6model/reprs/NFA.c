@@ -343,7 +343,11 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 
     /* Allocate fates array. */
     fate_arr_len = 1 + MVM_repr_elems(tc, nfa->fates);
-    fates = (MVMint64 *)malloc(sizeof(MVMint64) * fate_arr_len);
+    if (tc->nfa_fates_len < fate_arr_len) {
+        tc->nfa_fates     = (MVMint64 *)realloc(tc->nfa_fates, sizeof(MVMint64) * fate_arr_len);
+        tc->nfa_fates_len = fate_arr_len;
+    }
+    fates = tc->nfa_fates;
     total_fates = 0;
 
     nextst[numnext++] = 1;
@@ -504,7 +508,6 @@ MVMObject * MVM_nfa_run_proto(MVMThreadContext *tc, MVMObject *nfa, MVMString *t
     MVMObject *fateres = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
     for (i = 0; i < total_fates; i++)
         MVM_repr_bind_pos_i(tc, fateres, i, fates[i]);
-    free(fates);
 
     return fateres;
 }
@@ -529,5 +532,4 @@ void MVM_nfa_run_alt(MVMThreadContext *tc, MVMObject *nfa, MVMString *target,
         MVM_repr_push_i(tc, bstack, 0);
         MVM_repr_push_i(tc, bstack, caps);
     }
-    free(fates);
 }

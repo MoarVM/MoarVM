@@ -198,6 +198,8 @@ struct MVMThreadContext {
     MVMint64 *nfa_curst;
     MVMint64 *nfa_nextst;
     MVMint64  nfa_alloc_states;
+    MVMint64 *nfa_fates;
+    MVMint64  nfa_fates_len;
 
 #if MVM_HLL_PROFILE_CALLS
     /* storage of profile timings */
