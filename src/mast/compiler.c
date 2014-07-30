@@ -25,6 +25,7 @@
 /* Frame flags. */
 #define FRAME_FLAG_EXIT_HANDLER     1
 #define FRAME_FLAG_IS_THUNK         2
+#define FRAME_FLAG_HAS_INDEX        32768
 
 typedef struct {
     /* callsite ID */
@@ -282,13 +283,18 @@ unsigned int get_string_heap_index(VM, WriterState *ws, VMSTR *strval) {
 
 /* Locates the index of a frame. */
 unsigned short get_frame_index(VM, WriterState *ws, MASTNode *frame) {
-    int num_frames = ELEMS(vm, ws->cu->frames);
-    unsigned short i;
-    for (i = 0; i < num_frames; i++)
-        if (ATPOS(vm, ws->cu->frames, i) == frame)
-            return i;
-    cleanup_all(vm, ws);
-    DIE(vm, "MAST::Frame passed for code ref not found in compilation unit");
+    if (((MAST_Frame *)frame)->flags & FRAME_FLAG_HAS_INDEX) {
+        return (short)((MAST_Frame *)frame)->index;
+    }
+    else {
+        int num_frames = ELEMS(vm, ws->cu->frames);
+        unsigned short i;
+        for (i = 0; i < num_frames; i++)
+            if (ATPOS(vm, ws->cu->frames, i) == frame)
+                return i;
+        cleanup_all(vm, ws);
+        DIE(vm, "MAST::Frame passed for code ref not found in compilation unit");
+    }
 }
 
 /* Takes a 6model object type and turns it into a local/lexical type flag. */

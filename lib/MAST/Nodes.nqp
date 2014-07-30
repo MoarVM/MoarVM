@@ -95,7 +95,9 @@ class MAST::CompUnit is MAST::Node {
     has @!extop_names;
 
     method add_frame($frame) {
-        @!frames[+@!frames] := $frame;
+        my int $idx := nqp::elems(@!frames);
+        $frame.set_index($idx);
+        nqp::push(@!frames, $frame);
     }
 
     method dump_lines(@lines, $indent) {
@@ -195,7 +197,11 @@ class MAST::Frame is MAST::Node {
     # Flag bits.
     my int $FRAME_FLAG_EXIT_HANDLER := 1;
     my int $FRAME_FLAG_IS_THUNK     := 2;
+    my int $FRAME_FLAG_HAS_INDEX    := 32768; # Can go after a rebootstrap.
     has int $!flags;
+
+    # The frame index in the compilation unit (cached to aid assembly).
+    has int $!frame_idx;
 
     my int $cuuid_src := 0;
     sub fresh_id() {
@@ -218,6 +224,11 @@ class MAST::Frame is MAST::Node {
         @!instructions  := nqp::list();
         $!outer         := MAST::Node;
         %!lexical_map   := nqp::hash();
+    }
+
+    method set_index(int $idx) {
+        $!frame_idx := $idx;
+        $!flags     := nqp::bitor_i($!flags, $FRAME_FLAG_HAS_INDEX);
     }
 
     method add_lexical($type, $name) {
