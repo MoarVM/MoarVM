@@ -635,8 +635,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         break;
     }
     case MVM_OP_setelemspos: {
-        MVMint32 invocant = ins->operands[1].reg.orig;
-        MVMint32 elements = ins->operands[2].reg.orig;
+        MVMint32 invocant = ins->operands[0].reg.orig;
+        MVMint32 elements = ins->operands[1].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_REG_VAL, invocant },
                                  { MVM_JIT_REG_VAL, elements } };
