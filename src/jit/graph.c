@@ -519,7 +519,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                      /*  op == MVM_OP_ishash */ MVM_REPR_ID_MVMHash;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_REG_VAL, obj },
-                                 { MVM_JIT_REG_VAL, reprid } };
+                                 { MVM_JIT_LITERAL_64, reprid } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
         break;
     }
