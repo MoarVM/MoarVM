@@ -354,6 +354,38 @@ static void jgb_append_control(MVMThreadContext *tc, JitGraphBuilder *jgb,
     jgb_append_node(jgb, node);
 }
 
+static MVMint32 jgb_consume_jumplist(MVMThreadContext *tc, JitGraphBuilder *jgb,
+                                     MVMSpeshIns *ins) {
+    MVMint64 num_labels  = ins->operands[0].lit_i64;
+    MVMint16 idx_reg     = ins->operands[1].reg.orig;
+    MVMint32 *in_labels  = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMint32) * num_labels);
+    MVMint32 *out_labels = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMint32) * num_labels);
+    MVMSpeshBB *bb       = jgb->cur_bb;
+    MVMJitNode *node;
+    MVMint64 i;
+    for (i = 0; i < num_labels; i++) {
+        bb = bb->linear_next; // take the next basic block
+        if (!bb || bb->first_ins != bb->last_ins) return 0; //  which must exist
+        ins = bb->first_ins;  //  and it's first and only entry
+        if (ins->info->opcode != MVM_OP_goto)  // which must be a goto
+            return 0;
+        in_labels[i]  = get_label_name(tc, jgb, bb);
+        out_labels[i] = get_label_name(tc, jgb, ins->operands[0].ins_bb);
+    }
+    /* build the node */
+    node = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitNode));
+    node->type = MVM_JIT_NODE_JUMPLIST;
+    node->u.jumplist.num_labels = num_labels;
+    node->u.jumplist.reg = idx_reg;
+    node->u.jumplist.in_labels = in_labels;
+    node->u.jumplist.out_labels = out_labels;
+    jgb_append_node(jgb, node);
+    /* set cur_bb and cur_ins to the end of our jumplist */
+    jgb->cur_bb = bb;
+    jgb->cur_ins = ins;
+    return 1;
+}
+
 static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                 MVMSpeshIns *ins) {
     MVMint16 op = ins->info->opcode;
@@ -984,6 +1016,10 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, labels } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 7, args, MVM_JIT_RV_VOID, -1);
         break;
+    }
+        /* special jumplist branch */
+    case MVM_OP_jumplist: {
+        return jgb_consume_jumplist(tc, jgb, ins);
     }
         /* returning */
     case MVM_OP_return: {

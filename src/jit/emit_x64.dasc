@@ -1193,6 +1193,27 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     | jmp ->out;
 }
 
+void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitGraph *jg,
+                           MVMJitJumpList *jumplist, dasm_State **Dst) {
+    MVMint32 i;
+    | mov TMP1, WORK[jumplist->reg];
+    | cmp TMP1, 0;
+    | jl >2;
+    | cmp TMP1, jumplist->num_labels;
+    | jge >2;
+    | imul TMP1, 0x8; // 8 bytes per goto
+    | lea TMP2, [>1];
+    | add TMP2, TMP1;
+    | jmp TMP2;
+    |.align 8;
+    |1:
+    for (i = 0; i < jumplist->num_labels; i++) {
+        |=>(jumplist->in_labels[i]):
+        | jmp =>(jumplist->out_labels[i]);
+        |.align 8;
+    }
+    |2:
+}
 
 void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
                           MVMJitControl *ctrl, dasm_State **Dst) {

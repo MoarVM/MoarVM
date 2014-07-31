@@ -116,6 +116,15 @@ struct MVMJitInvoke {
     MVMint32      reentry_label;
 };
 
+struct MVMJitJumpList {
+    MVMint64 num_labels;
+    MVMint16 reg;
+    // labels of the goto's / jump instructions themselves
+    MVMint32 *in_labels;
+    // labels the goto's jump to
+    MVMint32 *out_labels;
+};
+
 /* Node types */
 typedef enum {
     MVM_JIT_NODE_PRIMITIVE,
@@ -124,6 +133,7 @@ typedef enum {
     MVM_JIT_NODE_LABEL,
     MVM_JIT_NODE_GUARD,
     MVM_JIT_NODE_INVOKE,
+    MVM_JIT_NODE_JUMPLIST,
     MVM_JIT_NODE_CONTROL,
 } MVMJitNodeType;
 
@@ -137,6 +147,7 @@ struct MVMJitNode {
         MVMJitLabel     label;
         MVMJitGuard     guard;
         MVMJitInvoke    invoke;
+        MVMJitJumpList  jumplist;
         MVMJitControl   control;
     } u;
 };

@@ -46,6 +46,9 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         case MVM_JIT_NODE_INVOKE:
             MVM_jit_emit_invoke(tc, jg, &node->u.invoke, &state);
             break;
+        case MVM_JIT_NODE_JUMPLIST:
+            MVM_jit_emit_jumplist(tc, jg, &node->u.jumplist, &state);
+            break;
         case MVM_JIT_NODE_CONTROL:
             MVM_jit_emit_control(tc, jg, &node->u.control, &state);
             break;
@@ -75,7 +78,11 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     code->num_labels = jg->num_labels;
     code->labels = malloc(sizeof(void*) * code->num_labels);
     for (i = 0; i < code->num_labels; i++) {
-        code->labels[i] = memory + dasm_getpclabel(&state, i);
+        MVMint32 offset = dasm_getpclabel(&state, i);
+        if (offset < 0)
+            MVM_jit_log(tc, "Got negative offset for dynamic label %d\n", i);
+
+        code->labels[i] = memory + offset;
     }
 
     /* Get the OSR labels */
@@ -85,7 +92,11 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     memcpy(code->osr_offsets, jg->osr_offsets, sizeof(MVMint32) * code->num_osr_labels);
     for (i = 0; i < code->num_osr_labels; i++) {
         /* OSR labels are numbered starting from the basic block labels */
-        code->osr_labels[i] = memory + dasm_getpclabel(&state, i + jg->num_labels);
+        MVMint32 offset = dasm_getpclabel(&state, i + jg->num_labels);
+        if (offset < 0)
+            MVM_jit_log(tc, "Got negative offset for dynamic label %d (OSR label %d)\n",
+                        i + jg->num_labels, i);
+        code->osr_labels[i] = memory + offset;
     }
 
     /* clear up the assembler */
