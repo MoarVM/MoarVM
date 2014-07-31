@@ -40,9 +40,13 @@ static char * jitcode_name(MVMThreadContext *tc, MVMJitCode *code) {
 void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
     char * filename = jitcode_name(tc, code);
     FILE * f = fopen(filename, "w");
-    fwrite(code->func_ptr, sizeof(char), code->size, f);
-    fclose(f);
-    MVM_jit_log(tc, "Dump bytecode in %s\n", filename);
-    free(filename);
+    if (f) {
+        fwrite(code->func_ptr, sizeof(char), code->size, f);
+        fclose(f);
+        MVM_jit_log(tc, "Dump bytecode in %s\n", filename);
 
+    } else {
+        MVM_jit_log(tc, "Could not dump bytecode in %s\n", filename);
+    }
+    free(filename);
 }
