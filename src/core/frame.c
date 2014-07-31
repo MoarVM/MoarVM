@@ -1000,12 +1000,35 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     }
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
-        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
-        if (lexical_names) {
+        /* See if we inside an inline. */
+        MVMLexicalRegistry *lexical_names;
+        MVMSpeshCandidate  *cand = cur_frame->spesh_cand;
+        if (cand && cand->num_inlines) {
+            MVMint32 ret_offset = cur_frame->return_address - cur_frame->effective_bytecode;
+            MVMint32 i;
+            for (i = 0; i < cand->num_inlines; i++) {
+                if (ret_offset >= cand->inlines[i].start && ret_offset < cand->inlines[i].end) {
+                    MVMStaticFrame *isf = cand->inlines[i].code->body.sf;
+                    if (lexical_names = isf->body.lexical_names) {
+                        MVMLexicalRegistry *entry;
+                        MVM_HASH_GET(tc, lexical_names, name, entry)
+                        if (entry) {
+                            MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
+                            MVMRegister *result = &cur_frame->env[lexidx];
+                            *type = cand->lexical_types[lexidx];
+                            if (vivify && *type == MVM_reg_obj && !result->o)
+                                MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
+                            return result;
+                        }
+                    }
+                }
+            }
+        }
+
+        /* Now look in the frame itself. */
+        if (lexical_names = cur_frame->static_info->body.lexical_names) {
             MVMLexicalRegistry *entry;
-
             MVM_HASH_GET(tc, lexical_names, name, entry)
-
             if (entry) {
                 MVMRegister *result = &cur_frame->env[entry->value];
                 *type = cur_frame->static_info->body.lexical_types[entry->value];
