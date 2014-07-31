@@ -210,7 +210,6 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
     | mov WORK, FRAME->work;
     /* ARG3 contains our 'entry label' */
     | jmp ARG3
-
 }
 
 /* And a function epilogue is also always the same */
@@ -294,7 +293,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_getwhat:
     case MVM_OP_getwho: {
         MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 obj = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
         | mov TMP1, WORK[obj];
         | mov TMP1, OBJECT:TMP1->st;
         if (op == MVM_OP_gethow) {
