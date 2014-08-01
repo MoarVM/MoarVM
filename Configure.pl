@@ -179,8 +179,8 @@ $config{jit} //= '$(JIT_STUB)';
 
 if (system($config{lua} . ' -e \'require("bit");\'') == 0) {
     # this is nasty imho, but what can you do
-    $config{dasm_rule_win32} = '$(DYNASM) $(DASM_FLAGS_WIN32) -o $@ $<';
-    $config{dasm_rule_posix} = '$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ $<';
+    $config{dasm_rule_win32} = '$(DYNASM) $(DASM_FLAGS_WIN32) -o $@ src/jit/emit_x64.dasc';
+    $config{dasm_rule_posix} = '$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ src/jit/emit_x64.dasc';
 } else {
     $config{dasm_rule_win32} //= '$(MSG) Waring: Cannot run preprocessor, try reconfigure?';
     $config{dasm_rule_posix} //= '$(MSG) Waring: Cannot run preprocessor, try reconfigure?';
