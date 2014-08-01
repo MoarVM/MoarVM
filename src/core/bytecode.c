@@ -610,6 +610,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticFrame *sf) {
     MVMuint32 j;
     MVMuint8 *pos;
+    MVMuint16 slvs;
 
     /* Ensure we've not already done this. */
     if (sf->body.fully_deserialized)
@@ -618,7 +619,10 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticF
     /* Locate start of frame body. */
     pos = sf->body.frame_data_pos;
 
-    /* Header is not needed. */
+    /* Get the number of static lex values we'll need to apply. */
+    slvs = cu->body.bytecode_version >= 4 ? read_int16(pos, 40) : 0;
+
+    /* Skip past header. */
     pos += FRAME_HEADER_SIZE;
 
     /* Read the local types. */
@@ -678,6 +682,20 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticF
     sf->body.env_size         = sf->body.num_lexicals * sizeof(MVMRegister);
     sf->body.static_env       = calloc(1, sf->body.env_size);
     sf->body.static_env_flags = calloc(1, sf->body.num_lexicals);
+
+    /* Read in static lexical values. */
+    for (j = 0; j < slvs; j++) {
+        MVMSerializationContext *sc;
+        MVMuint16 lex_idx = read_int16(pos, 0);
+        sf->body.static_env_flags[lex_idx] = read_int16(pos, 2);
+        sc = MVM_sc_get_sc(tc, cu, read_int32(pos, 4));
+        if (sc == NULL)
+            MVM_exception_throw_adhoc(tc,
+                "SC not yet resolved; lookup failed");
+        MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[lex_idx].o,
+            MVM_sc_get_object(tc, sc, read_int32(pos, 8)));
+        pos += FRAME_SLV_SIZE;
+    }
 
     /* Mark the frame fully deserialized. */
     sf->body.fully_deserialized = 1;
