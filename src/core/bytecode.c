@@ -583,9 +583,6 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
                 }
             }
         }
-
-        /* Fetch rest of frame (TODO: do this bit on first touch.) */
-        MVM_bytecode_finish_frame(tc, cu, static_frame);
     }
 
     /* Fixup outers. */
