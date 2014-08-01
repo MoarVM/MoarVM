@@ -1011,7 +1011,7 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
                 return;
             }
             else {
-                MVMint32 i;
+                MVMint32 i = 0;
                 while (from && from != to && ++i < DYNLEX_CACHE_INSTALLS)
                     from = from->caller;
                 if (!from)
