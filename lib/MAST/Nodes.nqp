@@ -198,10 +198,18 @@ class MAST::Frame is MAST::Node {
     my int $FRAME_FLAG_EXIT_HANDLER := 1;
     my int $FRAME_FLAG_IS_THUNK     := 2;
     my int $FRAME_FLAG_HAS_INDEX    := 32768; # Can go after a rebootstrap.
+    my int $FRAME_FLAG_HAS_SLV      := 65536; # Can go after a rebootstrap.
     has int $!flags;
 
     # The frame index in the compilation unit (cached to aid assembly).
     has int $!frame_idx;
+
+    # Integer array with 4 entries per static lexical value:
+    # - The lexical index in the frame
+    # - A flag (0 = static, 1 = container var, 2 = state var)
+    # - SC index in this compilation unit
+    # - Index of the object within that SC
+    has @!static_lex_values;
 
     my int $cuuid_src := 0;
     sub fresh_id() {
@@ -216,14 +224,15 @@ class MAST::Frame is MAST::Node {
     }
 
     method BUILD($cuuid, $name) {
-        $!cuuid         := $cuuid;
-        $!name          := $name;
-        @!lexical_types := nqp::list();
-        @!lexical_names := nqp::list();
-        @!local_types   := nqp::list();
-        @!instructions  := nqp::list();
-        $!outer         := MAST::Node;
-        %!lexical_map   := nqp::hash();
+        $!cuuid             := $cuuid;
+        $!name              := $name;
+        @!lexical_types     := nqp::list();
+        @!lexical_names     := nqp::list();
+        @!local_types       := nqp::list();
+        @!instructions      := nqp::list();
+        $!outer             := MAST::Node;
+        %!lexical_map       := nqp::hash();
+        @!static_lex_values := nqp::list_i();
     }
 
     method set_index(int $idx) {
@@ -243,6 +252,15 @@ class MAST::Frame is MAST::Node {
         nqp::existskey(%!lexical_map, $name) ??
             %!lexical_map{$name} !!
             nqp::die("No such lexical '$name'")
+    }
+
+    method add_static_lex_value($index, $flags, $sc_idx, $idx) {
+        my @slv := @!static_lex_values;
+        nqp::push_i(@slv, $index);
+        nqp::push_i(@slv, $flags);
+        nqp::push_i(@slv, $sc_idx);
+        nqp::push_i(@slv, $idx);
+        $!flags := nqp::bitor_i($!flags, $FRAME_FLAG_HAS_SLV);
     }
 
     method add_local($type) {
