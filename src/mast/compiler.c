@@ -5,9 +5,10 @@
 
 /* Some constants. */
 #define HEADER_SIZE                 92
-#define BYTECODE_VERSION            3
-#define FRAME_HEADER_SIZE           (9 * 4 + 2 * 2)
+#define BYTECODE_VERSION            4
+#define FRAME_HEADER_SIZE           (9 * 4 + 3 * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
+#define FRAME_SLV_SIZE              (2 * 2 + 2 * 4)
 #define SC_DEP_SIZE                 4
 #define EXTOP_SIZE                  (4 + 8)
 #define SCDEP_HEADER_OFFSET         12
@@ -26,6 +27,7 @@
 #define FRAME_FLAG_EXIT_HANDLER     1
 #define FRAME_FLAG_IS_THUNK         2
 #define FRAME_FLAG_HAS_INDEX        32768
+#define FRAME_FLAG_HAS_SLV          65536
 
 typedef struct {
     /* callsite ID */
@@ -983,6 +985,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     FrameState  *fs;
     unsigned int i, num_ins, instructions_start;
     MASTNode *last_inst = NULL;
+    MVMuint16 num_slvs;
 
     /* Ensure we have a node of the right type. */
     if (!ISTYPE(vm, node, ws->types->Frame)) {
@@ -1058,6 +1061,10 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     write_int32(ws->frame_seg, ws->frame_pos + 30, 0); /* number of annotation; fill in later */
     write_int32(ws->frame_seg, ws->frame_pos + 34, 0); /* number of handlers; fill in later */
     write_int16(ws->frame_seg, ws->frame_pos + 38, (MVMint16)f->flags);
+    num_slvs = f->flags & FRAME_FLAG_HAS_SLV
+        ? (MVMuint16)ELEMS(vm, f->static_lex_values) / 4
+        : 0;
+    write_int16(ws->frame_seg, ws->frame_pos + 40, num_slvs);
 
     ws->frame_pos += FRAME_HEADER_SIZE;
 
@@ -1091,7 +1098,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     for (i = 0; i < num_ins; i++)
         compile_instruction(vm, ws, last_inst = ATPOS(vm, f->instructions, i));
 
-    /* fixup frames that don't have a return instruction, so
+    /* Fixup frames that don't have a return instruction, so
      * we don't have to check against bytecode length every
      * time through the runloop. */
     if (!last_inst || !ISTYPE(vm, last_inst, ws->types->Op)
@@ -1148,6 +1155,21 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
             write_int16(ws->frame_seg, ws->frame_pos, fs->handlers[i].label_reg);
             ws->frame_pos += 2;
         }
+    }
+
+    /* Write static lex values. */
+    ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos,
+        FRAME_SLV_SIZE * num_slvs);
+    for (i = 0; i < num_slvs; i++) {
+        write_int16(ws->frame_seg, ws->frame_pos,
+            (MVMuint16)ATPOS_I(vm, f->static_lex_values, 4 * i));
+        write_int16(ws->frame_seg, ws->frame_pos + 2,
+            (MVMuint16)ATPOS_I(vm, f->static_lex_values, 4 * i + 1));
+        write_int32(ws->frame_seg, ws->frame_pos + 4,
+            (MVMuint16)ATPOS_I(vm, f->static_lex_values, 4 * i + 2));
+        write_int32(ws->frame_seg, ws->frame_pos + 8,
+            (MVMuint16)ATPOS_I(vm, f->static_lex_values, 4 * i + 3));
+        ws->frame_pos += FRAME_SLV_SIZE;
     }
 
     /* Any leftover labels? */

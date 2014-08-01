@@ -3,9 +3,10 @@
 /* Some constants. */
 #define HEADER_SIZE                 92
 #define MIN_BYTECODE_VERSION        2
-#define MAX_BYTECODE_VERSION        3
-#define FRAME_HEADER_SIZE           (9 * 4 + 2 * 2)
+#define MAX_BYTECODE_VERSION        4
+#define FRAME_HEADER_SIZE           (9 * 4 + (cu->body.bytecode_version >= 4 ? 3 : 2) * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
+#define FRAME_SLV_SIZE              (2 * 2 + 2 * 4)
 #define SCDEP_HEADER_OFFSET         12
 #define EXTOP_HEADER_OFFSET         20
 #define FRAME_HEADER_OFFSET         28
@@ -165,6 +166,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs = malloc(sizeof(ReaderState));
     memset(rs, 0, sizeof(ReaderState));
     rs->version = version;
+    cu->body.bytecode_version = version;
 
     /* Locate SC dependencies segment. */
     offset = read_int32(cu_body->data_start, SCDEP_HEADER_OFFSET);
@@ -568,6 +570,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         {
             MVMuint32 skip = 2 * static_frame_body->num_locals +
                              6 * static_frame_body->num_lexicals;
+            MVMuint16 slvs = cu->body.bytecode_version >= 4 ? read_int16(pos, 40) : 0;
             pos += FRAME_HEADER_SIZE;
             ensure_can_read(tc, cu, rs, pos, skip);
             pos += skip;
@@ -582,6 +585,8 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
                     pos += FRAME_HANDLER_SIZE;
                 }
             }
+            ensure_can_read(tc, cu, rs, pos, slvs * FRAME_SLV_SIZE);
+            pos += slvs * FRAME_SLV_SIZE;
         }
     }
 

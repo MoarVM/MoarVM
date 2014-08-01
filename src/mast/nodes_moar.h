@@ -26,6 +26,7 @@ typedef struct {
     MVMObject   *lexical_map;
     MVMint64     flags;
     MVMint64     index;
+    MVMObject   *static_lex_values;
 } MAST_Frame;
 
 /* MAST::Op */
