@@ -112,7 +112,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMint64 i, j;
 
     /* Read fates. */
-    body->fates = reader->read_ref(tc, reader);
+    body->fates = MVM_serialization_read_ref(tc, reader);
 
     /* Read number of states. */
     body->num_states = reader->read_varint(tc, reader);
@@ -142,7 +142,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                         break;
                     case MVM_NFA_EDGE_CHARLIST:
                     case MVM_NFA_EDGE_CHARLIST_NEG:
-                        MVM_ASSIGN_REF(tc, &(root->header), body->states[i][j].arg.s, reader->read_str(tc, reader));
+                        MVM_ASSIGN_REF(tc, &(root->header), body->states[i][j].arg.s, MVM_serialization_read_str(tc, reader));
                         break;
                     case MVM_NFA_EDGE_CODEPOINT_I:
                     case MVM_NFA_EDGE_CODEPOINT_I_NEG:

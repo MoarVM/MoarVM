@@ -76,12 +76,7 @@ struct MVMSerializationReader {
     char     **cur_read_end;
 
     /* Various reading functions. */
-    MVMint64    (*read_int)   (MVMThreadContext *tc, MVMSerializationReader *reader);
     MVMint64    (*read_varint)(MVMThreadContext *tc, MVMSerializationReader *reader);
-    MVMnum64    (*read_num)   (MVMThreadContext *tc, MVMSerializationReader *reader);
-    MVMString * (*read_str)   (MVMThreadContext *tc, MVMSerializationReader *reader);
-    MVMObject * (*read_ref)   (MVMThreadContext *tc, MVMSerializationReader *reader);
-    MVMSTable * (*read_stable_ref) (MVMThreadContext *tc, MVMSerializationReader *reader);
 
     /* List of code objects (static first, then all the closures). */
     MVMObject *codes_list;
@@ -155,3 +150,10 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
 MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str);
 MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc,
     MVMObject *empty_string_heap);
+
+/* Reader/writer functions. */
+MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader *reader);
+MVMnum64 MVM_serialization_read_num(MVMThreadContext *tc, MVMSerializationReader *reader);
+MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationReader *reader);
+MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationReader *reader);
+MVMSTable * MVM_serialization_read_stable_ref(MVMThreadContext *tc, MVMSerializationReader *reader);

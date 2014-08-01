@@ -1007,7 +1007,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)malloc(sizeof(MVMArrayREPRData));
 
-    MVMObject *type = reader->root.version >= 7 ? reader->read_ref(tc, reader) : NULL;
+    MVMObject *type = reader->root.version >= 7 ? MVM_serialization_read_ref(tc, reader) : NULL;
     MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
     repr_data->slot_type = MVM_ARRAY_OBJ;
     repr_data->elem_size = sizeof(MVMObject *);
@@ -1100,10 +1100,10 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     for (i = 0; i < body->elems; i++) {
         switch (repr_data->slot_type) {
             case MVM_ARRAY_OBJ:
-                MVM_ASSIGN_REF(tc, &(root->header), body->slots.o[i], reader->read_ref(tc, reader));
+                MVM_ASSIGN_REF(tc, &(root->header), body->slots.o[i], MVM_serialization_read_ref(tc, reader));
                 break;
             case MVM_ARRAY_STR:
-                MVM_ASSIGN_REF(tc, &(root->header), body->slots.s[i], reader->read_str(tc, reader));
+                MVM_ASSIGN_REF(tc, &(root->header), body->slots.s[i], MVM_serialization_read_str(tc, reader));
                 break;
             case MVM_ARRAY_I64:
                 body->slots.i64[i] = reader->read_varint(tc, reader);
@@ -1130,10 +1130,10 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                 body->slots.i8[i] = (MVMuint8)reader->read_varint(tc, reader);
                 break;
             case MVM_ARRAY_N64:
-                body->slots.n64[i] = reader->read_num(tc, reader);
+                body->slots.n64[i] = MVM_serialization_read_num(tc, reader);
                 break;
             case MVM_ARRAY_N32:
-                body->slots.n32[i] = (MVMnum32)reader->read_num(tc, reader);
+                body->slots.n32[i] = (MVMnum32)MVM_serialization_read_num(tc, reader);
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");

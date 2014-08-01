@@ -401,9 +401,9 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 /* Deserializes the REPR data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *) malloc(sizeof(MVMCArrayREPRData));
-    repr_data->elem_size = reader->read_int(tc, reader);
-    repr_data->elem_type = reader->read_ref(tc, reader);
-    repr_data->elem_kind = reader->read_int(tc, reader);
+    repr_data->elem_size = MVM_serialization_read_int(tc, reader);
+    repr_data->elem_type = MVM_serialization_read_ref(tc, reader);
+    repr_data->elem_kind = MVM_serialization_read_int(tc, reader);
     st->REPR_data = repr_data;
 }
 

@@ -165,7 +165,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         read_bigint = 1;
     }
     if (read_bigint) {
-        const char *buf = MVM_string_ascii_encode(tc, reader->read_str(tc, reader), &output_size);
+        const char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), &output_size);
         body->u.bigint = malloc(sizeof(mp_int));
         mp_init(body->u.bigint);
         mp_read_radix(body->u.bigint, buf, 10);

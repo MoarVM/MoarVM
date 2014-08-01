@@ -667,20 +667,20 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         repr_data->struct_offsets[i] = reader->read_varint(tc, reader);
 
         if(reader->read_varint(tc, reader)){
-            repr_data->flattened_stables[i] = reader->read_stable_ref(tc, reader);
+            repr_data->flattened_stables[i] = MVM_serialization_read_stable_ref(tc, reader);
         }
         else {
             repr_data->flattened_stables[i] = NULL;
         }
 
-        repr_data->member_types[i] = reader->read_ref(tc, reader);
+        repr_data->member_types[i] = MVM_serialization_read_ref(tc, reader);
     }
 
     num_classes = reader->read_varint(tc, reader);
     repr_data->name_to_index_mapping = (MVMCStructNameMap *)malloc(sizeof(MVMCStructNameMap) * (1 + num_classes));
     for(i = 0; i < num_classes; i++){
-        repr_data->name_to_index_mapping[i].class_key = reader->read_ref(tc, reader);
-        repr_data->name_to_index_mapping[i].name_map = reader->read_ref(tc, reader);
+        repr_data->name_to_index_mapping[i].class_key = MVM_serialization_read_ref(tc, reader);
+        repr_data->name_to_index_mapping[i].name_map = MVM_serialization_read_ref(tc, reader);
     }
     repr_data->name_to_index_mapping[i].class_key = NULL;
     repr_data->name_to_index_mapping[i].name_map = NULL;

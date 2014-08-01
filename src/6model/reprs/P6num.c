@@ -118,7 +118,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    MVMnum64 value = reader->read_num(tc, reader);
+    MVMnum64 value = MVM_serialization_read_num(tc, reader);
     set_num(tc, st, root, data, value);
 }
 
