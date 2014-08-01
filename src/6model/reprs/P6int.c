@@ -118,8 +118,8 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
-    writer->write_varint(tc, writer, repr_data->bits);
-    writer->write_varint(tc, writer, repr_data->is_unsigned);
+    MVM_serialization_write_varint(tc, writer, repr_data->bits);
+    MVM_serialization_write_varint(tc, writer, repr_data->is_unsigned);
 }
 
 /* Deserializes representation data. */
@@ -127,8 +127,8 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)malloc(sizeof(MVMP6intREPRData));
 
 
-    repr_data->bits        = reader->read_varint(tc, reader);
-    repr_data->is_unsigned = reader->read_varint(tc, reader);
+    repr_data->bits        = MVM_serialization_read_varint(tc, reader);
+    repr_data->is_unsigned = MVM_serialization_read_varint(tc, reader);
 
     if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
      && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
@@ -138,11 +138,11 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    set_int(tc, st, root, data, reader->read_varint(tc, reader));
+    set_int(tc, st, root, data, MVM_serialization_read_varint(tc, reader));
 }
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    writer->write_varint(tc, writer, get_int(tc, st, NULL, data));
+    MVM_serialization_write_varint(tc, writer, get_int(tc, st, NULL, data));
 }
 
 /* Initializes the representation. */

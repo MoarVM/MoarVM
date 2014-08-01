@@ -59,11 +59,11 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVM_ASSIGN_REF(tc, &(root->header), ((MVMP6strBody *)data)->value,
-        reader->read_str(tc, reader));
+        MVM_serialization_read_str(tc, reader));
 }
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    writer->write_str(tc, writer, ((MVMP6strBody *)data)->value);
+    MVM_serialization_write_str(tc, writer, ((MVMP6strBody *)data)->value);
 }
 
 /* Initializes the representation. */

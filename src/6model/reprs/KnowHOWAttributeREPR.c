@@ -55,13 +55,13 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the data. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMKnowHOWAttributeREPRBody *body = (MVMKnowHOWAttributeREPRBody *)data;
-    writer->write_str(tc, writer, body->name);
+    MVM_serialization_write_str(tc, writer, body->name);
 }
 
 /* Deserializes the data. */
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMKnowHOWAttributeREPRBody *body = (MVMKnowHOWAttributeREPRBody *)data;
-    MVM_ASSIGN_REF(tc, &(root->header), body->name, reader->read_str(tc, reader));
+    MVM_ASSIGN_REF(tc, &(root->header), body->name, MVM_serialization_read_str(tc, reader));
     MVM_ASSIGN_REF(tc, &(root->header), body->type, tc->instance->KnowHOW);
 }
 

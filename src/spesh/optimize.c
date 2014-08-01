@@ -403,8 +403,9 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
         }
         /* Now we can take care of the negation. */
         if (negated_op) {
-            MVMSpeshIns *new_ins = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
-            MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
+            MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+            MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
+            MVMSpeshFacts   *res_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
 
             /* This is a bit naughty with regards to the SSA form, but
              * we'll hopefully get away with it until we have a proper
@@ -413,8 +414,11 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
             new_ins->operands = operands;
             operands[0] = ins->operands[0];
             operands[1] = ins->operands[0];
-
             MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
+
+            /* If there's a known value, update the fact. */
+            if (res_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)
+                res_facts->value.i64 = !res_facts->value.i64;
         }
     }
 }

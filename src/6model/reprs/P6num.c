@@ -100,7 +100,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
-    writer->write_varint(tc, writer, repr_data->bits);
+    MVM_serialization_write_varint(tc, writer, repr_data->bits);
 }
 
 /* Deserializes representation data. */
@@ -108,7 +108,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     MVMP6numREPRData *repr_data = (MVMP6numREPRData *)malloc(sizeof(MVMP6numREPRData));
 
 
-    repr_data->bits        = reader->read_varint(tc, reader);
+    repr_data->bits        = MVM_serialization_read_varint(tc, reader);
 
     if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
      && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
@@ -118,12 +118,12 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    MVMnum64 value = reader->read_num(tc, reader);
+    MVMnum64 value = MVM_serialization_read_num(tc, reader);
     set_num(tc, st, root, data, value);
 }
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    writer->write_num(tc, writer, get_num(tc, st, NULL, data));
+    MVM_serialization_write_num(tc, writer, get_num(tc, st, NULL, data));
 }
 
 /* Initializes the representation. */

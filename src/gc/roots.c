@@ -338,6 +338,10 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
         }
     }
 
+    /* Mark any dyn lex cache. */
+    if (cur_frame->dynlex_cache_name)
+        MVM_gc_worklist_add(tc, worklist, &cur_frame->dynlex_cache_name);
+
     /* Scan the registers. */
     scan_registers(tc, worklist, cur_frame);
 }

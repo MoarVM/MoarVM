@@ -193,6 +193,14 @@ struct MVMThreadContext {
      * near the end to keep the hotter stuff on the same cacheline. */
     jmp_buf interp_jump;
 
+    /* NFA evaluator memory cache, to avoid many allocations; see NFA.c. */
+    MVMint64 *nfa_done;
+    MVMint64 *nfa_curst;
+    MVMint64 *nfa_nextst;
+    MVMint64  nfa_alloc_states;
+    MVMint64 *nfa_fates;
+    MVMint64  nfa_fates_len;
+
 #if MVM_HLL_PROFILE_CALLS
     /* storage of profile timings */
     MVMProfileRecord *profile_data;

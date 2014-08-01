@@ -132,14 +132,14 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
 
         /* write the "is small" flag */
-        writer->write_varint(tc, writer, 0);
-        writer->write_str(tc, writer, str);
+        MVM_serialization_write_varint(tc, writer, 0);
+        MVM_serialization_write_str(tc, writer, str);
         free(buf);
     }
     else {
         /* write the "is small" flag */
-        writer->write_varint(tc, writer, 1);
-        writer->write_varint(tc, writer, body->u.smallint.value);
+        MVM_serialization_write_varint(tc, writer, 1);
+        MVM_serialization_write_varint(tc, writer, body->u.smallint.value);
     }
 }
 
@@ -155,9 +155,9 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     int read_bigint = 0;
 
     if (reader->root.version >= 10) {
-        if (reader->read_varint(tc, reader) == 1) {
+        if (MVM_serialization_read_varint(tc, reader) == 1) {
             body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-            body->u.smallint.value = reader->read_varint(tc, reader);
+            body->u.smallint.value = MVM_serialization_read_varint(tc, reader);
         } else {
             read_bigint = 1;
         }
@@ -165,7 +165,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         read_bigint = 1;
     }
     if (read_bigint) {
-        const char *buf = MVM_string_ascii_encode(tc, reader->read_str(tc, reader), &output_size);
+        const char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), &output_size);
         body->u.bigint = malloc(sizeof(mp_int));
         mp_init(body->u.bigint);
         mp_read_radix(body->u.bigint, buf, 10);

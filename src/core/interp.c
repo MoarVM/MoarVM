@@ -3539,7 +3539,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *sc = GET_REG(cur_op, 2).o;
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc,
-                        "Must provide an SCRef operand to scgethandle");
+                        "Must provide an SCRef operand to scgetdesc");
                 GET_REG(cur_op, 0).s = MVM_sc_get_description(tc,
                     (MVMSerializationContext *)sc);
                 cur_op += 4;

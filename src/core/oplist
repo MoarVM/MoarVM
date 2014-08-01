@@ -84,8 +84,8 @@ bindlex_ns          str r(str) :noinline
 bindlex_no          str r(obj) :noinline
 getlex_ng           w(obj) r(str) :pure :noinline
 bindlex_ng          r(str) r(obj) :noinline
-getdynlex           w(obj) r(str) :pure
-binddynlex          r(str) r(obj)
+getdynlex           w(obj) r(str) :pure :noinline
+binddynlex          r(str) r(obj) :noinline
 setlexvalue         r(obj) str r(obj) int16
 lexprimspec         w(int64) r(obj) r(str) :pure
 return_i         .r r(int64)
