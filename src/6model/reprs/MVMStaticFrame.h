@@ -90,6 +90,9 @@ struct MVMStaticFrameBody {
     /* Is the frame a thunk, and thus hidden to caller/outer? */
     MVMuint8 is_thunk;
 
+    /* Is the frame full deserialized? */
+    MVMuint8 fully_deserialized;
+
     /* The original bytecode for this frame (before endian swapping). */
     MVMuint8 *orig_bytecode;
 

@@ -607,9 +607,14 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 /* Finishes up reading and exploding of a frame. */
 void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticFrame *sf) {
     MVMuint32 j;
+    MVMuint8 *pos;
+
+    /* Ensure we've not already done this. */
+    if (sf->body.fully_deserialized)
+        return;
 
     /* Locate start of frame body. */
-    MVMuint8 *pos = sf->body.frame_data_pos;
+    pos = sf->body.frame_data_pos;
 
     /* Header is not needed. */
     pos += FRAME_HEADER_SIZE;
@@ -671,6 +676,9 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticF
     sf->body.env_size         = sf->body.num_lexicals * sizeof(MVMRegister);
     sf->body.static_env       = calloc(1, sf->body.env_size);
     sf->body.static_env_flags = calloc(1, sf->body.num_lexicals);
+
+    /* Mark the frame fully deserialized. */
+    sf->body.fully_deserialized = 1;
 }
 
 /* Loads the callsites. */

@@ -28,6 +28,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMStaticFrameBody *src_body  = (MVMStaticFrameBody *)src;
     MVMStaticFrameBody *dest_body = (MVMStaticFrameBody *)dest;
 
+    if (!src_body->fully_deserialized)
+        MVM_exception_throw_adhoc(tc, "Can only clone a fully deserialized MVMFrame");
+
     dest_body->orig_bytecode = src_body->orig_bytecode;
     dest_body->bytecode_size = src_body->bytecode_size;
     if (src_body->bytecode == src_body->orig_bytecode) {
@@ -105,12 +108,13 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->outer, src_body->outer);
 
     dest_body->num_handlers = src_body->num_handlers;
-    dest_body->handlers = malloc(src_body->num_handlers * sizeof(MVMFrameHandler));
+    dest_body->handlers     = malloc(src_body->num_handlers * sizeof(MVMFrameHandler));
     memcpy(dest_body->handlers, src_body->handlers, src_body->num_handlers * sizeof(MVMFrameHandler));
-    dest_body->invoked = 0;
-    dest_body->pool_index = src_body->pool_index;
-    dest_body->num_annotations = src_body->num_annotations;
-    dest_body->annotations_data = src_body->annotations_data;
+    dest_body->invoked            = 0;
+    dest_body->pool_index         = src_body->pool_index;
+    dest_body->num_annotations    = src_body->num_annotations;
+    dest_body->annotations_data   = src_body->annotations_data;
+    dest_body->fully_deserialized = 1;
 }
 
 /* Adds held objects to the GC worklist. */
@@ -124,6 +128,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &body->name);
     MVM_gc_worklist_add(tc, worklist, &body->outer);
     MVM_gc_worklist_add(tc, worklist, &body->static_code);
+
+    /* If it's not fully deserialized, none of the following can apply. */
+    if (!body->fully_deserialized)
+        return;
 
     /* lexical names hash keys */
     HASH_ITER(hash_handle, body->lexical_names, current, tmp) {
@@ -163,18 +171,22 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMStaticFrame *sf = (MVMStaticFrame *)obj;
     MVMStaticFrameBody *body = &sf->body;
+    if (body->orig_bytecode != body->bytecode) {
+        free(body->bytecode);
+        body->bytecode = body->orig_bytecode;
+    }
+
+    /* If it's not fully deserialized, none of the following can apply. */
+    if (!body->fully_deserialized)
+        return;
+    MVM_checked_free_null(body->instr_offsets);
     MVM_checked_free_null(body->handlers);
     MVM_checked_free_null(body->static_env);
     MVM_checked_free_null(body->static_env_flags);
     MVM_checked_free_null(body->local_types);
     MVM_checked_free_null(body->lexical_types);
     MVM_checked_free_null(body->lexical_names_list);
-    MVM_checked_free_null(body->instr_offsets);
     MVM_HASH_DESTROY(hash_handle, MVMLexicalRegistry, body->lexical_names);
-    if (body->orig_bytecode != body->bytecode) {
-        free(body->bytecode);
-        body->bytecode = body->orig_bytecode;
-    }
 }
 
 /* Gets the storage specification for this representation. */
