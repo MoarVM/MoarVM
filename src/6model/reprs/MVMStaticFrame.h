@@ -1,4 +1,5 @@
-/* Representation for static code in the VM. */
+/* Representation for static code in the VM. Partially populated on first
+ * call or usage. */
 struct MVMStaticFrameBody {
     /* The start of the stream of bytecode for this routine. */
     MVMuint8 *bytecode;
@@ -91,6 +92,10 @@ struct MVMStaticFrameBody {
 
     /* The original bytecode for this frame (before endian swapping). */
     MVMuint8 *orig_bytecode;
+
+    /* The serialized data about this frame, used to set up the things above
+     * marked (lazy). */
+    MVMuint8 *frame_data_pos;
 };
 struct MVMStaticFrame {
     MVMObject common;
