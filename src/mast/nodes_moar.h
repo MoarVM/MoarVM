@@ -137,7 +137,7 @@ typedef MVMString VMSTR;
 #define vm tc
 
 /* Some macros for getting at and examining nodes data. */
-#define ISTYPE(VM, s, t)            (MVM_6model_istype_cache_only(VM, s, t))
+#define ISTYPE(VM, s, t)            (STABLE(s) == STABLE(t))
 #define DIE(vm, msg, ...)           MVM_exception_throw_adhoc(tc, msg, ## __VA_ARGS__)
 #define GET_CompUnit(n)             ((MAST_CompUnit *)n)
 #define GET_Frame(n)                ((MAST_Frame *)n)
