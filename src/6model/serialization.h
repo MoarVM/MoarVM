@@ -75,9 +75,6 @@ struct MVMSerializationReader {
     MVMint32  *cur_read_offset;
     char     **cur_read_end;
 
-    /* Various reading functions. */
-    MVMint64    (*read_varint)(MVMThreadContext *tc, MVMSerializationReader *reader);
-
     /* List of code objects (static first, then all the closures). */
     MVMObject *codes_list;
 
@@ -153,6 +150,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
 
 /* Reader/writer functions. */
 MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader *reader);
+MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader);
 MVMnum64 MVM_serialization_read_num(MVMThreadContext *tc, MVMSerializationReader *reader);
 MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationReader *reader);
 MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationReader *reader);

@@ -155,9 +155,9 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     int read_bigint = 0;
 
     if (reader->root.version >= 10) {
-        if (reader->read_varint(tc, reader) == 1) {
+        if (MVM_serialization_read_varint(tc, reader) == 1) {
             body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-            body->u.smallint.value = reader->read_varint(tc, reader);
+            body->u.smallint.value = MVM_serialization_read_varint(tc, reader);
         } else {
             read_bigint = 1;
         }

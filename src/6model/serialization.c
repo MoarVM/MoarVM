@@ -1299,7 +1299,7 @@ static int assert_can_read_varint(MVMThreadContext *tc, MVMSerializationReader *
 }
 
 /* Reading function for variable-sized integers */
-static MVMint64 read_varint_func(MVMThreadContext *tc, MVMSerializationReader *reader) {
+MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint64 result;
     size_t length;
     assert_can_read_varint(tc, reader);
@@ -1412,7 +1412,7 @@ static MVMObject * read_array_varint(MVMThreadContext *tc, MVMSerializationReade
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++)
-        MVM_repr_bind_pos_i(tc, result, i, read_varint_func(tc, reader));
+        MVM_repr_bind_pos_i(tc, result, i, MVM_serialization_read_varint(tc, reader));
 
     return result;
 }
@@ -1467,7 +1467,7 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
             return tc->instance->VMNull;
         case REFVAR_VM_INT: {
             MVMint64 value;
-            value = read_varint_func(tc, reader);
+            value = MVM_serialization_read_varint(tc, reader);
             result = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, value);
             return result;
         }
@@ -2052,9 +2052,6 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     MVMSerializationReader *reader = calloc(1, sizeof(MVMSerializationReader));
     reader->root.sc          = sc;
     reader->root.string_heap = string_heap;
-
-    /* Put reader functions in place. */
-    reader->read_varint     = read_varint_func;
 
     /* Put code root list into SC. We'll end up mutating it, but that's
      * probably fine. */
