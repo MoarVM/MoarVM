@@ -134,6 +134,12 @@ struct MVMFrame {
     /* note: used atomically */
     MVMObject *context_object;
 
+    /* Cache for dynlex lookup; if the name is non-null, the cache is valid
+     * and the register can be accessed directly to find the contextual. */
+    MVMString   *dynlex_cache_name;
+    MVMRegister *dynlex_cache_reg;
+    MVMuint16    dynlex_cache_type;
+
     /* The allocated work/env sizes. */
     MVMuint16 allocd_work;
     MVMuint16 allocd_env;

@@ -185,6 +185,9 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
                 NULL;
             frame->cur_args_callsite = NULL;
 
+            /* Ensure frame dynlex cache key is cleared. */
+            frame->dynlex_cache_name = NULL;
+
             return frame;
         }
     }
@@ -193,10 +196,12 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     frame = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMFrame));
     frame->params.named_used = NULL;
 
-    /* Ensure special return pointers and continuation tags are null. */
-    frame->special_return = NULL;
-    frame->special_unwind = NULL;
+    /* Ensure special return pointers, continuation tags, and dynlex cache
+     * are null. */
+    frame->special_return    = NULL;
+    frame->special_unwind    = NULL;
     frame->continuation_tags = NULL;
+    frame->dynlex_cache_name = NULL;
 
     /* Allocate space for lexicals and work area, copying the default lexical
      * environment into place. */
@@ -994,15 +999,41 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
 
 /* Looks up the address of the lexical with the specified name and the
  * specified type. Returns null if it does not exist. */
-MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify) {
-    if (!name) {
-        MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
+#define DYNLEX_CACHE_INSTALLS 3
+static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to, MVMString *name, MVMRegister *reg, MVMuint16 type) {
+    MVMint32 installed = 0;
+    while (from != to) {
+        if (!from->dynlex_cache_name) {
+            from->dynlex_cache_name = name;
+            from->dynlex_cache_reg  = reg;
+            from->dynlex_cache_type = type;
+            if (++installed == DYNLEX_CACHE_INSTALLS) {
+                return;
+            }
+            else {
+                MVMint32 i;
+                while (from && from != to && ++i < DYNLEX_CACHE_INSTALLS)
+                    from = from->caller;
+                if (!from)
+                    return;
+            }
+        }
+        else {
+            from = from->caller;
+        }
     }
+}
+MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify) {
+    MVMFrame *initial_frame = cur_frame;
+    if (!name)
+        MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
-        /* See if we inside an inline. */
         MVMLexicalRegistry *lexical_names;
-        MVMSpeshCandidate  *cand = cur_frame->spesh_cand;
+        MVMSpeshCandidate  *cand;
+
+        /* See if we inside an inline. */
+        cand = cur_frame->spesh_cand;
         if (cand && cand->num_inlines) {
             MVMint32 ret_offset = cur_frame->return_address - cur_frame->effective_bytecode;
             MVMint32 i;
@@ -1018,10 +1049,19 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                             *type = cand->lexical_types[lexidx];
                             if (vivify && *type == MVM_reg_obj && !result->o)
                                 MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
+                            try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type);
                             return result;
                         }
                     }
                 }
+            }
+        }
+
+        /* See if we've got it cached at this level. */
+        if (cur_frame->dynlex_cache_name) {
+            if (MVM_string_equal(tc, name, cur_frame->dynlex_cache_name)) {
+                *type = cur_frame->dynlex_cache_type;
+                return cur_frame->dynlex_cache_reg;
             }
         }
 
@@ -1034,6 +1074,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 *type = cur_frame->static_info->body.lexical_types[entry->value];
                 if (vivify && *type == MVM_reg_obj && !result->o)
                     MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
+                try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type);
                 return result;
             }
         }
