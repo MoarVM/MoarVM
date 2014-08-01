@@ -2,9 +2,9 @@
 
 /* Some constants. */
 #define HEADER_SIZE                 92
-#define MIN_BYTECODE_VERSION        1
+#define MIN_BYTECODE_VERSION        2
 #define MAX_BYTECODE_VERSION        3
-#define FRAME_HEADER_SIZE           (9 * 4 + (rs->version >= 2 ? 2 : 1) * 2)
+#define FRAME_HEADER_SIZE           (9 * 4 + 2 * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define SCDEP_HEADER_OFFSET         12
 #define EXTOP_HEADER_OFFSET         20
