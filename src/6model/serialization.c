@@ -9,8 +9,7 @@
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
 #define CURRENT_VERSION 11
-#define VARINT_MIN_VERSION 9
-#define MIN_VERSION     5
+#define MIN_VERSION     9
 
 /* Various sizes (in bytes). */
 #define HEADER_SIZE                 (4 * 16)
@@ -1468,11 +1467,7 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
             return tc->instance->VMNull;
         case REFVAR_VM_INT: {
             MVMint64 value;
-            if (reader->root.version < VARINT_MIN_VERSION) {
-                value = MVM_serialization_read_int(tc, reader);
-            } else {
-                value = read_varint_func(tc, reader);
-            }
+            value = read_varint_func(tc, reader);
             result = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, value);
             return result;
         }
@@ -1495,11 +1490,7 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
 		case REFVAR_VM_ARR_STR:
             return read_array_str(tc, reader);
 		case REFVAR_VM_ARR_INT:
-            if (reader->root.version < VARINT_MIN_VERSION) {
-                return read_array_int(tc, reader);
-            } else {
-                return read_array_varint(tc, reader);
-            }
+            return read_array_varint(tc, reader);
         case REFVAR_VM_HASH_STR_VAR:
             result = read_hash_str_var(tc, reader);
             if (reader->current_object) {
@@ -1571,10 +1562,6 @@ static void check_and_dissect_input(MVMThreadContext *tc,
         fail_deserialize(tc, reader,
             "Unsupported serialization format version %d (current version is %d)",
             reader->root.version, CURRENT_VERSION);
-
-    if (reader->root.version < VARINT_MIN_VERSION) {
-        reader->read_varint = MVM_serialization_read_int;
-    }
 
     /* Ensure that the data is at least as long as the header is expected to be. */
     if (data_len < HEADER_SIZE)
@@ -2067,8 +2054,6 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     reader->root.string_heap = string_heap;
 
     /* Put reader functions in place. */
-    /* if we are before VARINT_MIN_VERSION, this will be changed to point
-     * to read_int instead */
     reader->read_varint     = read_varint_func;
 
     /* Put code root list into SC. We'll end up mutating it, but that's
