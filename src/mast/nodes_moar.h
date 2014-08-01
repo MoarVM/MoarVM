@@ -171,7 +171,7 @@ typedef MVMString VMSTR;
 #define BINDKEY_I(vm, hash, k, v)   (MVM_repr_bind_key_o(vm, hash, k, MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, v)))
 #define EXISTSKEY(vm, hash, k)      (MVM_repr_exists_key(vm, hash, k))
 #define DELETEKEY(vm, hash, k)      (MVM_repr_delete_key(vm, hash, k))
-#define EMPTY_STRING(vm)            (MVM_string_ascii_decode_nt(tc, tc->instance->VMString, ""))
+#define EMPTY_STRING(vm)            (vm->str_consts.empty)
 #define VM_STRING_IS_NULL(s)        (s == NULL)
 #define VM_OBJ_IS_NULL(o)           (o == NULL)
 #define VM_STRING_TO_C_STRING(vm, s) (MVM_string_ascii_encode_any(tc, s))
