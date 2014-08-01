@@ -312,12 +312,7 @@ unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
                     case 16:
                         return MVM_reg_int16;
                     case 32:
-#ifdef PARROT_OPS_BUILD
-                        /* XXX Parrot specific hack... */
-                        return sizeof(INTVAL) == 4 ? MVM_reg_int64 : MVM_reg_int32;
-#else
                         return MVM_reg_int32;
-#endif
                     case 64:
                         return MVM_reg_int64;
                     default:
@@ -1189,16 +1184,8 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
 
     /* Add each string to the heap. */
     for (i = 0; i < num_strings; i++) {
-#ifdef PARROT_OPS_BUILD
-        /* Transcode string to UTF8. */
-        STRING *utf8 = Parrot_str_change_encoding(interp,
-            ATPOS_S(vm, ws->strings, i),
-            Parrot_utf8_encoding_ptr->num);
-        unsigned int bytelen = (unsigned int)Parrot_str_byte_length(interp, utf8);
-#else
         MVMuint64 bytelen;
         MVMuint8 *utf8 = MVM_string_utf8_encode(tc, ATPOS_S(vm, ws->strings, i), &bytelen);
-#endif
 
         /* Ensure we have space. */
         unsigned short align = bytelen & 3 ? 4 - (bytelen & 3) : 0;
@@ -1213,12 +1200,8 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
         heap_size += 4;
 
         /* Write string. */
-#ifdef PARROT_OPS_BUILD
-        memcpy(heap + heap_size, utf8->strstart, bytelen);
-#else
         memcpy(heap + heap_size, utf8, bytelen);
         free(utf8);
-#endif
         heap_size += bytelen;
 
         /* Add alignment. Whilst we never read this memory, it's useful to
