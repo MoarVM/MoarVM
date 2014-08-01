@@ -55,8 +55,8 @@ static void code_pair_gc_free_data(MVMThreadContext *tc, MVMSTable *st) {
 static void code_pair_serialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     CodePairContData *data = (CodePairContData *)st->container_data;
 
-    writer->write_ref(tc, writer, data->fetch_code);
-    writer->write_ref(tc, writer, data->store_code);
+    MVM_serialization_write_ref(tc, writer, data->fetch_code);
+    MVM_serialization_write_ref(tc, writer, data->store_code);
 }
 
 static void code_pair_deserialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {

@@ -63,7 +63,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 }
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    writer->write_str(tc, writer, ((MVMP6strBody *)data)->value);
+    MVM_serialization_write_str(tc, writer, ((MVMP6strBody *)data)->value);
 }
 
 /* Initializes the representation. */

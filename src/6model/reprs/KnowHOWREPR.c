@@ -74,9 +74,9 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the data. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMKnowHOWREPRBody *body = (MVMKnowHOWREPRBody *)data;
-    writer->write_str(tc, writer, body->name);
-    writer->write_ref(tc, writer, body->attributes);
-    writer->write_ref(tc, writer, body->methods);
+    MVM_serialization_write_str(tc, writer, body->name);
+    MVM_serialization_write_ref(tc, writer, body->attributes);
+    MVM_serialization_write_ref(tc, writer, body->methods);
 }
 
 /* Deserializes the data. */

@@ -100,7 +100,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
-    writer->write_varint(tc, writer, repr_data->bits);
+    MVM_serialization_write_varint(tc, writer, repr_data->bits);
 }
 
 /* Deserializes representation data. */
@@ -123,7 +123,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 }
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    writer->write_num(tc, writer, get_num(tc, st, NULL, data));
+    MVM_serialization_write_num(tc, writer, get_num(tc, st, NULL, data));
 }
 
 /* Initializes the representation. */

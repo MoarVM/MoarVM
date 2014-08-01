@@ -323,14 +323,14 @@ static void expand_storage_if_needed(MVMThreadContext *tc, MVMSerializationWrite
 }
 
 /* Writing function for native integers. */
-static void write_int_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value) {
+void MVM_serialization_write_int(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value) {
     expand_storage_if_needed(tc, writer, 8);
     write_int64(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
     *(writer->cur_write_offset) += 8;
 }
 
 /* Writing function for varint9 */
-static void write_varint_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value) {
+void MVM_serialization_write_varint(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value) {
     size_t storage_needed = varintsize(value);
     size_t actually_written;
     expand_storage_if_needed(tc, writer, storage_needed);
@@ -339,14 +339,14 @@ static void write_varint_func(MVMThreadContext *tc, MVMSerializationWriter *writ
 }
 
 /* Writing function for native numbers. */
-static void write_num_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value) {
+void MVM_serialization_write_num(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value) {
     expand_storage_if_needed(tc, writer, 8);
     write_double(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
     *(writer->cur_write_offset) += 8;
 }
 
 /* Writing function for native strings. */
-static void write_str_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *value) {
+void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *value) {
     MVMint32 heap_loc = add_string_to_heap(tc, writer, value);
     expand_storage_if_needed(tc, writer, 4);
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), heap_loc);
@@ -374,7 +374,6 @@ static void write_obj_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, 
 }
 
 /* Writes an array where each item is a variant reference. */
-void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref);
 static void write_array_var(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *arr) {
     MVMint32 elems = (MVMint32)MVM_repr_elems(tc, arr);
     MVMint32 i;
@@ -386,7 +385,7 @@ static void write_array_var(MVMThreadContext *tc, MVMSerializationWriter *writer
 
     /* Write elements. */
     for (i = 0; i < elems; i++)
-        write_ref_func(tc, writer, MVM_repr_at_pos_o(tc, arr, i));
+        MVM_serialization_write_ref(tc, writer, MVM_repr_at_pos_o(tc, arr, i));
 }
 
 /* Writes an array where each item is an integer. */
@@ -399,11 +398,11 @@ static void write_array_int(MVMThreadContext *tc, MVMSerializationWriter *writer
 
     /* Write out element count. */
     expand_storage_if_needed(tc, writer, storage_needed);
-    write_varint_func(tc, writer, elems);
+    MVM_serialization_write_varint(tc, writer, elems);
 
     /* Write elements. */
     for (i = 0; i < elems; i++)
-        write_varint_func(tc, writer, MVM_repr_at_pos_i(tc, arr, i));
+        MVM_serialization_write_varint(tc, writer, MVM_repr_at_pos_i(tc, arr, i));
 }
 
 /* Writes an array where each item is a MVMString. */
@@ -418,11 +417,11 @@ static void write_array_str(MVMThreadContext *tc, MVMSerializationWriter *writer
 
     /* Write elements. */
     for (i = 0; i < elems; i++)
-        write_str_func(tc, writer, MVM_repr_at_pos_s(tc, arr, i));
+        MVM_serialization_write_str(tc, writer, MVM_repr_at_pos_s(tc, arr, i));
 }
 
 /* Writes a hash where each key is a MVMString and each value a variant reference. */
-void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref);
+void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref);
 static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *hash) {
     MVMint32 elems = (MVMint32)MVM_repr_elems(tc, hash);
     MVMObject *iter = MVM_iter(tc, hash);
@@ -435,8 +434,8 @@ static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *wri
     /* Write elements, as key,value,key,value etc. */
     while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
         MVM_repr_shift_o(tc, iter);
-        write_str_func(tc, writer, MVM_iterkey_s(tc, (MVMIter *)iter));
-        write_ref_func(tc, writer, MVM_iterval(tc, (MVMIter *)iter));
+        MVM_serialization_write_str(tc, writer, MVM_iterkey_s(tc, (MVMIter *)iter));
+        MVM_serialization_write_ref(tc, writer, MVM_iterval(tc, (MVMIter *)iter));
     }
 }
 
@@ -561,7 +560,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
 }
 
 /* Writing function for references to things. */
-void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref) {
+void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref) {
     /* Work out what kind of thing we have and determine the discriminator. */
     MVMint16 discrim = 0;
     if (ref == NULL) {
@@ -630,13 +629,13 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
             /* Nothing to do for these. */
             break;
         case REFVAR_VM_INT:
-            write_varint_func(tc, writer, MVM_repr_get_int(tc, ref));
+            MVM_serialization_write_varint(tc, writer, MVM_repr_get_int(tc, ref));
             break;
         case REFVAR_VM_NUM:
-            write_num_func(tc, writer, MVM_repr_get_num(tc, ref));
+            MVM_serialization_write_num(tc, writer, MVM_repr_get_num(tc, ref));
             break;
         case REFVAR_VM_STR:
-            write_str_func(tc, writer, MVM_repr_get_str(tc, ref));
+            MVM_serialization_write_str(tc, writer, MVM_repr_get_str(tc, ref));
             break;
         case REFVAR_VM_ARR_VAR:
             write_array_var(tc, writer, ref);
@@ -662,7 +661,7 @@ void write_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObj
 }
 
 /* Writing function for references to STables. */
-static void write_stable_ref_func(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
+void MVM_serialization_write_stable_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
     MVMuint32 sc_id, idx;
     get_stable_ref_info(tc, writer, st, &sc_id, &idx);
     expand_storage_if_needed(tc, writer, 8);
@@ -815,34 +814,34 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     /* Write HOW, WHAT and WHO. */
     write_obj_ref(tc, writer, st->HOW);
     write_obj_ref(tc, writer, st->WHAT);
-    write_ref_func(tc, writer, st->WHO);
+    MVM_serialization_write_ref(tc, writer, st->WHO);
 
     /* Method cache and v-table. */
-    write_ref_func(tc, writer, st->method_cache);
-    write_int_func(tc, writer, st->vtable_length);
+    MVM_serialization_write_ref(tc, writer, st->method_cache);
+    MVM_serialization_write_int(tc, writer, st->vtable_length);
     for (i = 0; i < st->vtable_length; i++)
-        write_ref_func(tc, writer, st->vtable[i]);
+        MVM_serialization_write_ref(tc, writer, st->vtable[i]);
 
     /* Type check cache. */
-    write_int_func(tc, writer, st->type_check_cache_length);
+    MVM_serialization_write_int(tc, writer, st->type_check_cache_length);
     for (i = 0; i < st->type_check_cache_length; i++)
-        write_ref_func(tc, writer, st->type_check_cache[i]);
+        MVM_serialization_write_ref(tc, writer, st->type_check_cache[i]);
 
     /* Mode flags. */
-    write_int_func(tc, writer, st->mode_flags);
+    MVM_serialization_write_int(tc, writer, st->mode_flags);
 
     /* Boolification spec. */
-    write_int_func(tc, writer, st->boolification_spec != NULL);
+    MVM_serialization_write_int(tc, writer, st->boolification_spec != NULL);
     if (st->boolification_spec) {
-        write_int_func(tc, writer, st->boolification_spec->mode);
-        write_ref_func(tc, writer, st->boolification_spec->method);
+        MVM_serialization_write_int(tc, writer, st->boolification_spec->mode);
+        MVM_serialization_write_ref(tc, writer, st->boolification_spec->method);
     }
 
     /* Container spec. */
-    write_int_func(tc, writer, st->container_spec != NULL);
+    MVM_serialization_write_int(tc, writer, st->container_spec != NULL);
     if (st->container_spec) {
         /* Write container spec name. */
-        write_str_func(tc, writer,
+        MVM_serialization_write_str(tc, writer,
             MVM_string_ascii_decode_nt(tc, tc->instance->VMString,
                 st->container_spec->name));
 
@@ -851,24 +850,24 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     }
 
     /* Invocation spec. */
-    write_int_func(tc, writer, st->invocation_spec != NULL);
+    MVM_serialization_write_int(tc, writer, st->invocation_spec != NULL);
     if (st->invocation_spec) {
-        write_ref_func(tc, writer, st->invocation_spec->class_handle);
-        write_str_func(tc, writer, st->invocation_spec->attr_name);
-        write_int_func(tc, writer, st->invocation_spec->hint);
-        write_ref_func(tc, writer, st->invocation_spec->invocation_handler);
-        write_ref_func(tc, writer, st->invocation_spec->md_class_handle);
-        write_str_func(tc, writer, st->invocation_spec->md_cache_attr_name);
-        write_int_func(tc, writer, st->invocation_spec->md_cache_hint);
-        write_str_func(tc, writer, st->invocation_spec->md_valid_attr_name);
-        write_int_func(tc, writer, st->invocation_spec->md_valid_hint);
+        MVM_serialization_write_ref(tc, writer, st->invocation_spec->class_handle);
+        MVM_serialization_write_str(tc, writer, st->invocation_spec->attr_name);
+        MVM_serialization_write_int(tc, writer, st->invocation_spec->hint);
+        MVM_serialization_write_ref(tc, writer, st->invocation_spec->invocation_handler);
+        MVM_serialization_write_ref(tc, writer, st->invocation_spec->md_class_handle);
+        MVM_serialization_write_str(tc, writer, st->invocation_spec->md_cache_attr_name);
+        MVM_serialization_write_int(tc, writer, st->invocation_spec->md_cache_hint);
+        MVM_serialization_write_str(tc, writer, st->invocation_spec->md_valid_attr_name);
+        MVM_serialization_write_int(tc, writer, st->invocation_spec->md_valid_hint);
     }
 
     /* HLL owner. */
     if (st->hll_owner)
-        write_str_func(tc, writer, st->hll_owner->name);
+        MVM_serialization_write_str(tc, writer, st->hll_owner->name);
     else
-        write_str_func(tc, writer, NULL);
+        MVM_serialization_write_str(tc, writer, NULL);
 
     /* Store offset we save REPR data at. */
     write_int32(writer->root.stables_table, offset + 8, writer->stables_data_offset);
@@ -969,27 +968,27 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
 
     /* Serialize lexicals. */
 
-    writer->write_int(tc, writer, sf->body.num_lexicals);
+    MVM_serialization_write_int(tc, writer, sf->body.num_lexicals);
     for (i = 0; i < sf->body.num_lexicals; i++) {
-        writer->write_str(tc, writer, lexnames[i]->key);
+        MVM_serialization_write_str(tc, writer, lexnames[i]->key);
         switch (sf->body.lexical_types[i]) {
             case MVM_reg_int8:
             case MVM_reg_int16:
             case MVM_reg_int32:
                 MVM_exception_throw_adhoc(tc, "unsupported lexical type");
             case MVM_reg_int64:
-                writer->write_int(tc, writer, frame->env[i].i64);
+                MVM_serialization_write_int(tc, writer, frame->env[i].i64);
                 break;
             case MVM_reg_num32:
                 MVM_exception_throw_adhoc(tc, "unsupported lexical type");
             case MVM_reg_num64:
-                writer->write_num(tc, writer, frame->env[i].n64);
+                MVM_serialization_write_num(tc, writer, frame->env[i].n64);
                 break;
             case MVM_reg_str:
-                writer->write_str(tc, writer, frame->env[i].s);
+                MVM_serialization_write_str(tc, writer, frame->env[i].s);
                 break;
             case MVM_reg_obj:
-                writer->write_ref(tc, writer, frame->env[i].o);
+                MVM_serialization_write_ref(tc, writer, frame->env[i].o);
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "unsupported lexical type");
@@ -1111,14 +1110,6 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer->root.contexts_table      = (char *)malloc(writer->contexts_table_alloc);
     writer->contexts_data_alloc      = DEFAULT_CONTEXTS_DATA_SIZE;
     writer->root.contexts_data       = (char *)malloc(writer->contexts_data_alloc);
-
-    /* Populate write functions table. */
-    writer->write_int        = write_int_func;
-    writer->write_varint     = write_varint_func;
-    writer->write_num        = write_num_func;
-    writer->write_str        = write_str_func;
-    writer->write_ref        = write_ref_func;
-    writer->write_stable_ref = write_stable_ref_func;
 
     /* Initialize MVMString heap so first entry is the NULL MVMString. */
     MVM_repr_push_s(tc, empty_string_heap, NULL);

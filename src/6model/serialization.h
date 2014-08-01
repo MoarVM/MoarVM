@@ -130,14 +130,6 @@ struct MVMSerializationWriter {
     char      **cur_write_buffer;
     MVMuint32  *cur_write_offset;
     MVMuint32  *cur_write_limit;
-
-    /* Various writing functions. */
-    void (*write_int) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
-    void (*write_varint) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
-    void (*write_num) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value);
-    void (*write_str) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *value);
-    void (*write_ref) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *value);
-    void (*write_stable_ref) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st);
 };
 
 /* Core serialize and deserialize functions. */
@@ -155,3 +147,9 @@ MVMnum64 MVM_serialization_read_num(MVMThreadContext *tc, MVMSerializationReader
 MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationReader *reader);
 MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationReader *reader);
 MVMSTable * MVM_serialization_read_stable_ref(MVMThreadContext *tc, MVMSerializationReader *reader);
+void MVM_serialization_write_int(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
+void MVM_serialization_write_varint(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
+void MVM_serialization_write_num(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value);
+void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *value);
+void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref);
+void MVM_serialization_write_stable_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st);

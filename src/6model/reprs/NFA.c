@@ -67,38 +67,38 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     MVMint64 i, j;
 
     /* Write fates. */
-    writer->write_ref(tc, writer, body->fates);
+    MVM_serialization_write_ref(tc, writer, body->fates);
 
     /* Write number of states. */
-    writer->write_varint(tc, writer, body->num_states);
+    MVM_serialization_write_varint(tc, writer, body->num_states);
 
     /* Write state edge list counts. */
     for (i = 0; i < body->num_states; i++)
-        writer->write_varint(tc, writer, body->num_state_edges[i]);
+        MVM_serialization_write_varint(tc, writer, body->num_state_edges[i]);
 
     /* Write state graph. */
     for (i = 0; i < body->num_states; i++) {
         for (j = 0; j < body->num_state_edges[i]; j++) {
-            writer->write_varint(tc, writer, body->states[i][j].act);
-            writer->write_varint(tc, writer, body->states[i][j].to);
+            MVM_serialization_write_varint(tc, writer, body->states[i][j].act);
+            MVM_serialization_write_varint(tc, writer, body->states[i][j].to);
             switch (body->states[i][j].act) {
                 case MVM_NFA_EDGE_FATE:
                 case MVM_NFA_EDGE_CODEPOINT:
                 case MVM_NFA_EDGE_CODEPOINT_NEG:
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
-                    writer->write_varint(tc, writer, body->states[i][j].arg.i);
+                    MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.i);
                     break;
                 case MVM_NFA_EDGE_CHARLIST:
                 case MVM_NFA_EDGE_CHARLIST_NEG:
-                    writer->write_str(tc, writer, body->states[i][j].arg.s);
+                    MVM_serialization_write_str(tc, writer, body->states[i][j].arg.s);
                     break;
                 case MVM_NFA_EDGE_CODEPOINT_I:
                 case MVM_NFA_EDGE_CODEPOINT_I_NEG:
                 case MVM_NFA_EDGE_CHARRANGE:
                 case MVM_NFA_EDGE_CHARRANGE_NEG: {
-                    writer->write_varint(tc, writer, body->states[i][j].arg.uclc.lc);
-                    writer->write_varint(tc, writer, body->states[i][j].arg.uclc.uc);
+                    MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.uclc.lc);
+                    MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.uclc.uc);
                     break;
                 }
             }
