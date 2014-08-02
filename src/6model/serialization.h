@@ -140,6 +140,12 @@ MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str);
 MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc,
     MVMObject *empty_string_heap);
 
+/* Functions for demanding an object/STable/code be made available (that is,
+ * by lazily deserializing it). */
+MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx);
+MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx);
+MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx);
+
 /* Reader/writer functions. */
 MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader *reader);
 MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader);

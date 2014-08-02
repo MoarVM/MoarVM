@@ -2029,6 +2029,21 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
     }
 }
 
+/* Demands that we finish deserializing an object. */
+MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
+    MVM_panic(1, "Should never happen yet (obj)");
+}
+
+/* Demands that we finish deserializing an STable. */
+MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
+    MVM_panic(1, "Should never happen yet (st)");
+}
+
+/* Demands that we finish deserializing a coderef. */
+MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
+    MVM_panic(1, "Should never happen yet (code)");
+}
+
 /* Takes serialized data, an empty SerializationContext to deserialize it into,
  * a strings heap and the set of static code refs for the compilation unit.
  * Deserializes the data into the required objects and STables. */
