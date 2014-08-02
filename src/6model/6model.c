@@ -309,7 +309,6 @@ void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st) {
         st->REPR->gc_free_repr_data(tc, st);
 
     /* free various storage. */
-    MVM_checked_free_null(st->vtable);
     MVM_checked_free_null(st->type_check_cache);
     if (st->container_spec && st->container_spec->gc_free_data)
         st->container_spec->gc_free_data(tc, st);
