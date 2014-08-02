@@ -22,18 +22,6 @@ typedef enum {
     MVMGCStatus_STOLEN = 3
 } MVMGCStatus;
 
-/* Are we allocating in the nursery, or direct into generation 2? (The
- * latter is used in the case of deserialization, when we know the
- * incoming objects are likely to survive, but also don't want to have
- * to worry about triggering GC in the deserialization process. */
-typedef enum {
-    /* Allocate in the nursery. */
-    MVMAllocate_Nursery = 0,
-
-    /* Allocate straight into generation 2. */
-    MVMAllocate_Gen2    = 1
-} MVMAllocationTarget;
-
 /* To manage memory more efficiently, we cache MVMFrame instances.
  * The initial frame pool table size sets the initial guess at the
  * number of different types of frame (that is, an MVMStaticFrame)
@@ -64,8 +52,9 @@ struct MVMThreadContext {
     /* This thread's GC status. */
     AO_t gc_status;
 
-    /* Where we're allocating. */
-    MVMAllocationTarget allocate_in;
+    /* Non-zero is we should allocate in gen2; incremented/decremented as we
+     * enter/leave a region wanting gen2 allocation. */
+    MVMuint32 allocate_in_gen2;
 
     /* Internal ID of the thread. */
     MVMuint32 thread_id;
