@@ -65,7 +65,6 @@ typedef struct {
 /* MAST::Label */
 typedef struct {
     MVMP6opaque  p6o_header;
-    MVMString   *name;
 } MAST_Label;
 
 /* MAST::Local */
