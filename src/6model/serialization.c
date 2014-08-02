@@ -294,8 +294,6 @@ static MVMuint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer,
 }
 
 #define OBJ_IS_NULL(obj) ((obj) == NULL)
-/* cheater */
-#define STABLE_STRUCT(st) (&(st)->header)
 
 /* Takes an STable. If it's already in an SC, returns information on how
  * to reference it. Otherwise, adds it to the current SC, effectively
