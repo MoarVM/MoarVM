@@ -98,8 +98,6 @@ typedef struct {
 
     /* Handlers list. */
     FrameHandler *handlers;
-
-    MASTNode *frame_mast;
 } FrameState;
 
 /* Describes the current writer state for the compilation unit as a whole. */
