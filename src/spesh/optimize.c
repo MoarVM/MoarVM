@@ -473,6 +473,9 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 
                 /* Finally, let's try to optimize the unboxing REPROp. */
                 optimize_repr_op(tc, g, bb, ins, 1);
+
+                /* And as a last clean-up step, we release the temporary register. */
+                MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
                 return;
             }
         } else if (can_result == 1) {
