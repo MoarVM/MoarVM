@@ -452,8 +452,6 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                 operands[0] = old_opers[0];
                 operands[1] = old_opers[1];
                 operands[2].lit_i16 = offsetof( MVMException, body.message );
-
-                fprintf(stderr, "spesh'd a smrt_strify on an MVMException\n");
             } else if(ss.can_box & (MVM_STORAGE_SPEC_CAN_BOX_NUM | MVM_STORAGE_SPEC_CAN_BOX_INT)) {
                 MVMuint16 register_type =
                     ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT ? MVM_reg_int64 : MVM_reg_num64;
@@ -475,9 +473,12 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 
                 /* Finally, let's try to optimize the unboxing REPROp. */
                 optimize_repr_op(tc, g, bb, ins, 1);
-                fprintf(stderr, "spesh'd a smrt_strify to unbox and coerce a %d\n", register_type);
                 return;
             }
+        } else if (can_result == 1) {
+            /* When we know how to generate additional callsites, we could
+             * make an invocation to .Str or .Num here and perhaps have it
+             * in-lined. */
         }
     }
 }
