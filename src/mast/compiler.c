@@ -344,6 +344,68 @@ unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
     }
 }
 
+/* Takes a label and either writes its offset if we already saw it, or writes
+ * a zero and records that a fixups is needed. */
+static void write_label_or_add_fixup(VM, WriterState *ws, MAST_Label *l) {
+    ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
+    if (EXISTSKEY(vm, ws->cur_frame->known_labels, l->name)) {
+        /* Label offset already known; just write it. */
+        write_int32(ws->bytecode_seg, ws->bytecode_pos,
+            (unsigned int)ATKEY_I(vm, ws->cur_frame->known_labels, l->name));
+    }
+    else {
+        /* Add this as a position to fix up. */
+        MASTNode *fixup_list;
+        if (EXISTSKEY(vm, ws->cur_frame->labels_to_resolve, l->name)) {
+            fixup_list = ATKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
+        }
+        else {
+            fixup_list = NEWLIST_I(vm);
+            BINDKEY(vm, ws->cur_frame->labels_to_resolve, l->name, fixup_list);
+        }
+        BINDPOS_I(vm, fixup_list, ELEMS(vm, fixup_list), ws->bytecode_pos);
+        write_int32(ws->bytecode_seg, ws->bytecode_pos, 0);
+    }
+    ws->bytecode_pos += 4;
+}
+
+/* Takes a label, and either adds it to the labels collection or, if it's been
+ * seen already, resolves its fixups. */
+static void add_label_and_resolve_fixups(VM, WriterState *ws, MAST_Label *l) {
+    /* Duplicate check, then insert. */
+    unsigned int offset = ws->bytecode_pos - ws->cur_frame->bytecode_start;
+    if (EXISTSKEY(vm, ws->cur_frame->known_labels, l->name)) {
+        cleanup_all(vm, ws);
+        DIE(vm, "Duplicate label");
+    }
+    BINDKEY_I(vm, ws->cur_frame->known_labels, l->name, offset);
+
+    /* Resolve any existing usages. */
+    if (EXISTSKEY(vm, ws->cur_frame->labels_to_resolve, l->name)) {
+        MASTNode *res_list   = ATKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
+        unsigned int num_res = ELEMS(vm, res_list);
+        unsigned int i;
+        for (i = 0; i < num_res; i++) {
+            unsigned int res_pos = (unsigned int)ATPOS_I(vm, res_list, i);
+            write_int32(ws->bytecode_seg, res_pos, offset);
+        }
+        DELETEKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
+    }
+}
+
+/* Rreturns a label's offset, dying if it's not possible. */
+static MVMuint32 demand_label_offset(VM, WriterState *ws, MAST_Label *l,
+                                     const char *error) {
+    FrameState *fs = ws->cur_frame;
+    if (EXISTSKEY(vm, fs->known_labels, l->name)) {
+        return (unsigned int)ATKEY_I(vm, fs->known_labels, l->name);
+    }
+    else {
+        cleanup_all(vm, ws);
+        DIE(vm, error);
+    }
+}
+
 /* Compiles the operand to an instruction; this involves checking
  * that we have a node of the correct type for it and writing out
  * the appropriate thing to the bytecode stream. */
@@ -413,27 +475,7 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
             }
             case MVM_operand_ins: {
                 if (ISTYPE(vm, operand, ws->types->Label)) {
-                    MAST_Label *l = GET_Label(operand);
-                    ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
-                    if (EXISTSKEY(vm, ws->cur_frame->known_labels, l->name)) {
-                        /* Label offset already known; just write it. */
-                        write_int32(ws->bytecode_seg, ws->bytecode_pos,
-                            (unsigned int)ATKEY_I(vm, ws->cur_frame->known_labels, l->name));
-                    }
-                    else {
-                        /* Add this as a position to fix up. */
-                        MASTNode *fixup_list;
-                        if (EXISTSKEY(vm, ws->cur_frame->labels_to_resolve, l->name)) {
-                            fixup_list = ATKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
-                        }
-                        else {
-                            fixup_list = NEWLIST_I(vm);
-                            BINDKEY(vm, ws->cur_frame->labels_to_resolve, l->name, fixup_list);
-                        }
-                        BINDPOS_I(vm, fixup_list, ELEMS(vm, fixup_list), ws->bytecode_pos);
-                        write_int32(ws->bytecode_seg, ws->bytecode_pos, 0);
-                    }
-                    ws->bytecode_pos += 4;
+                    write_label_or_add_fixup(vm, ws, GET_Label(operand));
                 }
                 else {
                     cleanup_all(vm, ws);
@@ -711,26 +753,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             compile_operand(vm, ws, ATPOS_I(vm, operands, i), ATPOS(vm, o->operands, i));
     }
     else if (ISTYPE(vm, node, ws->types->Label)) {
-        /* Duplicate check, then insert. */
-        MAST_Label *l = GET_Label(node);
-        unsigned int offset = ws->bytecode_pos - ws->cur_frame->bytecode_start;
-        if (EXISTSKEY(vm, ws->cur_frame->known_labels, l->name)) {
-            cleanup_all(vm, ws);
-            DIE(vm, "Duplicate label");
-        }
-        BINDKEY_I(vm, ws->cur_frame->known_labels, l->name, offset);
-
-        /* Resolve any existing usages. */
-        if (EXISTSKEY(vm, ws->cur_frame->labels_to_resolve, l->name)) {
-            MASTNode *res_list   = ATKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
-            unsigned int num_res = ELEMS(vm, res_list);
-            unsigned int i;
-            for (i = 0; i < num_res; i++) {
-                unsigned int res_pos = (unsigned int)ATPOS_I(vm, res_list, i);
-                write_int32(ws->bytecode_seg, res_pos, offset);
-            }
-            DELETEKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
-        }
+        add_label_and_resolve_fixups(vm, ws, GET_Label(node));
     }
     else if (ISTYPE(vm, node, ws->types->Call)) {
         MAST_Call *c           = GET_Call(node);
@@ -1134,20 +1157,12 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
         ws->frame_pos += 2;
         write_int16(ws->frame_seg, ws->frame_pos, fs->handlers[i].local);
         ws->frame_pos += 2;
-        if (ws->cur_frame->handlers[i].label) {
-            MAST_Label *l = GET_Label(fs->handlers[i].label);
-            if (EXISTSKEY(vm, fs->known_labels, l->name)) {
-                write_int32(ws->frame_seg, ws->frame_pos,
-                    (unsigned int)ATKEY_I(vm, fs->known_labels, l->name));
-            }
-            else {
-                cleanup_all(vm, ws);
-                    DIE(vm, "HandlerScope uses unresolved label");
-            }
-        }
-        else {
+        if (ws->cur_frame->handlers[i].label)
+            write_int32(ws->frame_seg, ws->frame_pos,
+                demand_label_offset(vm, ws, GET_Label(fs->handlers[i].label),
+                    "HandlerScope uses unresolved label"));
+        else
             write_int32(ws->frame_seg, ws->frame_pos, 0);
-        }
         ws->frame_pos += 4;
         if (fs->handlers[i].category_mask & MVM_EX_CAT_LABELED) {
             write_int16(ws->frame_seg, ws->frame_pos, fs->handlers[i].label_reg);
