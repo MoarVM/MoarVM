@@ -414,8 +414,7 @@ static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
 static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
 
-    if (ins->info->opcode == MVM_OP_smrt_numify)
-        return;
+    MVMuint16 is_strify = ins->info->opcode == MVM_OP_smrt_strify;
 
     if (facts->flags & (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE)) {
         MVMStorageSpec ss;
@@ -423,7 +422,7 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 
         ss = REPR(facts->type)->get_storage_spec(tc, STABLE(facts->type));
 
-        if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
+        if (is_strify && ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
             MVM_spesh_use_facts(tc, g, facts);
 
             ins->info = MVM_op_get_op(MVM_OP_unbox_s);
@@ -433,15 +432,17 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 
             return;
         }
-        can_result = MVM_6model_can_method_cache_only(tc, facts->type, tc->instance->str_consts.Str);
+        can_result = MVM_6model_can_method_cache_only(tc, facts->type,
+                is_strify ? tc->instance->str_consts.Str : tc->instance->str_consts.Num);
 
         if (can_result == -1) {
             /* Couldn't safely figure out if the type has a Str method or not. */
             return;
         } else if (can_result == 0) {
+            MVM_spesh_use_facts(tc, g, facts);
             /* We can't .Str this object, so we'll duplicate the "guessing"
              * logic from smrt_strify here to remove indirection. */
-            if (REPR(facts->type)->ID == MVM_REPR_ID_MVMException) {
+            if (is_strify && REPR(facts->type)->ID == MVM_REPR_ID_MVMException) {
                 MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 3);
                 MVMSpeshOperand *old_opers = ins->operands;
 
@@ -464,17 +465,54 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                 ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_unbox_n : MVM_OP_unbox_i);
                 ins->operands[0] = temp;
 
-                new_ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_coerce_ns : MVM_OP_coerce_is);
+                if (is_strify)
+                    new_ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_coerce_ns : MVM_OP_coerce_is);
+                else
+                    new_ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_set : MVM_OP_coerce_in);
+                new_ins->operands = operands;
+                operands[0] = orig_dst;
+                operands[1] = temp;
+
+                /* We can directly "eliminate" a set instruction here. */
+                if (new_ins->info->opcode != MVM_OP_set) {
+                    MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
+
+                    MVM_spesh_get_facts(tc, g, temp)->usages++;
+                } else {
+                    ins->operands[0] = orig_dst;
+                }
+
+                /* Finally, let's try to optimize the unboxing REPROp. */
+                optimize_repr_op(tc, g, bb, ins, 1);
+
+                /* And as a last clean-up step, we release the temporary register. */
+                MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+
+                return;
+            } else if (!is_strify && (REPR(facts->type)->ID == MVM_REPR_ID_MVMArray ||
+                                     (REPR(facts->type)->ID == MVM_REPR_ID_MVMHash))) {
+                /* A smrt_numify on an array or hash can be replaced by an
+                 * elems operation, that can then be optimized by our
+                 * versatile and dilligent friend optimize_repr_op. */
+
+                MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+                MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
+                MVMSpeshOperand  temp      = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+                MVMSpeshOperand  orig_dst  = ins->operands[0];
+
+                ins->info = MVM_op_get_op(MVM_OP_elems);
+                ins->operands[0] = temp;
+
+                new_ins->info = MVM_op_get_op(MVM_OP_coerce_in);
                 new_ins->operands = operands;
                 operands[0] = orig_dst;
                 operands[1] = temp;
 
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
 
-                /* Finally, let's try to optimize the unboxing REPROp. */
                 optimize_repr_op(tc, g, bb, ins, 1);
 
-                /* And as a last clean-up step, we release the temporary register. */
+                MVM_spesh_get_facts(tc, g, temp)->usages++;
                 MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
                 return;
             }
@@ -858,7 +896,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_coerce_in:
             optimize_coerce(tc, g, bb, ins);
             break;
-        /*case MVM_OP_smrt_numify:*/
+        case MVM_OP_smrt_numify:
         case MVM_OP_smrt_strify:
             optimize_smart_coerce(tc, g, bb, ins);
             break;
