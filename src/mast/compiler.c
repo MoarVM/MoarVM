@@ -66,6 +66,15 @@ typedef struct {
 #define HANDLER_UNWIND_GOTO_OBJ  1
 #define HANDLER_INVOKE           2
 
+/* Information about a label. */
+typedef struct {
+    MAST_Label *label;
+    MVMint32    offset;          /* Negative if unknown. */
+    MVMuint16   num_resolve;
+    MVMuint16   alloc_resolve;
+    MVMuint32  *resolve;
+} LabelInfo;
+
 /* Describes the state for the frame we're currently compiling. */
 typedef struct {
     /* Position of start of bytecode. */
@@ -74,30 +83,27 @@ typedef struct {
     /* Position of start of frame entry. */
     unsigned int frame_start;
 
-    /* Types of locals, along with the number of them we have. */
+    /* Types of locals and lexicals, with counts. */
     unsigned short *local_types;
-    unsigned int num_locals;
-
-    /* Types of lexicals, along with the number of them we have. */
     unsigned short *lexical_types;
+    unsigned int num_locals;
     unsigned int num_lexicals;
 
     /* Number of annotations. */
     unsigned int num_annotations;
 
-    /* Number of handlers */
+    /* Handlers count and list. */
     unsigned int num_handlers;
-
-    /* Labels that we have seen and know the address of. Hash of name to
-     * index. */
-    MASTNode *known_labels;
-
-    /* Labels that are currently unresolved, that we need to fix up. Hash
-     * of name to a list of positions needing a fixup. */
-    MASTNode *labels_to_resolve;
-
-    /* Handlers list. */
     FrameHandler *handlers;
+
+    /* Labels we have so far (either through finding them or finding a need
+     * to fix them up). */
+    LabelInfo *labels;
+    unsigned int num_labels;
+    unsigned int alloc_labels;
+
+    /* Number of unresolved labels. */
+    unsigned int unresolved_labels;
 } FrameState;
 
 /* Describes the current writer state for the compilation unit as a whole. */
@@ -243,6 +249,13 @@ void cleanup_frame(VM, FrameState *fs) {
         free(fs->lexical_types);
     if (fs->handlers)
         free(fs->handlers);
+    if (fs->labels) {
+        MVMuint32 i;
+        for (i = 0; i < fs->num_labels; i++)
+            if (fs->labels[i].alloc_resolve)
+                free(fs->labels[i].resolve);
+        free(fs->labels);
+    }
     free(fs);
 }
 
@@ -344,66 +357,121 @@ unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
     }
 }
 
+/* Grows label storage. */
+static void add_label(VM, FrameState *fs, MAST_Label *l, MVMint32 offset) {
+    if (fs->num_labels == fs->alloc_labels) {
+        if (fs->alloc_labels)
+            fs->alloc_labels *= 2;
+        else
+            fs->alloc_labels = 8;
+        fs->labels = realloc(fs->labels, fs->alloc_labels * sizeof(LabelInfo));
+    }
+    fs->labels[fs->num_labels].label         = l;
+    fs->labels[fs->num_labels].offset        = offset;
+    fs->labels[fs->num_labels].resolve       = NULL;
+    fs->labels[fs->num_labels].num_resolve   = 0;
+    fs->labels[fs->num_labels].alloc_resolve = 0;
+    fs->num_labels++;
+}
+
 /* Takes a label and either writes its offset if we already saw it, or writes
  * a zero and records that a fixups is needed. */
 static void write_label_or_add_fixup(VM, WriterState *ws, MAST_Label *l) {
+    FrameState *fs   = ws->cur_frame;
+    LabelInfo  *info = NULL;
+    MVMuint32   i;
+
+    /* Ensure we've space to write an offset. */
     ensure_space(vm, &ws->bytecode_seg, &ws->bytecode_alloc, ws->bytecode_pos, 4);
-    if (EXISTSKEY(vm, ws->cur_frame->known_labels, l->name)) {
-        /* Label offset already known; just write it. */
-        write_int32(ws->bytecode_seg, ws->bytecode_pos,
-            (unsigned int)ATKEY_I(vm, ws->cur_frame->known_labels, l->name));
-    }
-    else {
-        /* Add this as a position to fix up. */
-        MASTNode *fixup_list;
-        if (EXISTSKEY(vm, ws->cur_frame->labels_to_resolve, l->name)) {
-            fixup_list = ATKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
+
+    /* Look for the label. */
+    for (i = 0; i < fs->num_labels; i++) {
+        if (fs->labels[i].label == l) {
+            /* Found it. If we know its offset, write and we're done. */
+            MVMint32 offset = fs->labels[i].offset;
+            if (offset >= 0) {
+                write_int32(ws->bytecode_seg, ws->bytecode_pos, offset);
+                ws->bytecode_pos += 4;
+                return;
+            }
+
+            /* Otherwise, note this label to add the resolve need to. */
+            info = &(fs->labels[i]);
+            break;
         }
-        else {
-            fixup_list = NEWLIST_I(vm);
-            BINDKEY(vm, ws->cur_frame->labels_to_resolve, l->name, fixup_list);
-        }
-        BINDPOS_I(vm, fixup_list, ELEMS(vm, fixup_list), ws->bytecode_pos);
-        write_int32(ws->bytecode_seg, ws->bytecode_pos, 0);
     }
+
+    /* If we don't have an entry for this label yet, add it. */
+    if (!info) {
+        add_label(vm, fs, l, -1);
+        info = &(fs->labels[fs->num_labels - 1]);
+    }
+    if (info->num_resolve == info->alloc_resolve) {
+        if (info->alloc_resolve)
+            info->alloc_resolve *= 2;
+        else
+            info->alloc_resolve = 8;
+        info->resolve = realloc(info->resolve, info->alloc_resolve * sizeof(MVMuint32));
+    }
+    info->resolve[info->num_resolve] = ws->bytecode_pos;
+    info->num_resolve++;
+    fs->unresolved_labels++;
+
+    /* Write zero, to be fixed up later. */
+    write_int32(ws->bytecode_seg, ws->bytecode_pos, 0);
     ws->bytecode_pos += 4;
 }
 
 /* Takes a label, and either adds it to the labels collection or, if it's been
  * seen already, resolves its fixups. */
 static void add_label_and_resolve_fixups(VM, WriterState *ws, MAST_Label *l) {
-    /* Duplicate check, then insert. */
-    unsigned int offset = ws->bytecode_pos - ws->cur_frame->bytecode_start;
-    if (EXISTSKEY(vm, ws->cur_frame->known_labels, l->name)) {
-        cleanup_all(vm, ws);
-        DIE(vm, "Duplicate label");
-    }
-    BINDKEY_I(vm, ws->cur_frame->known_labels, l->name, offset);
+    FrameState *fs     = ws->cur_frame;
+    MVMuint32   offset = ws->bytecode_pos - ws->cur_frame->bytecode_start;
+    MVMuint32   i, j;
 
-    /* Resolve any existing usages. */
-    if (EXISTSKEY(vm, ws->cur_frame->labels_to_resolve, l->name)) {
-        MASTNode *res_list   = ATKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
-        unsigned int num_res = ELEMS(vm, res_list);
-        unsigned int i;
-        for (i = 0; i < num_res; i++) {
-            unsigned int res_pos = (unsigned int)ATPOS_I(vm, res_list, i);
-            write_int32(ws->bytecode_seg, res_pos, offset);
+    /* See if it has an existing entry. */
+    for (i = 0; i < fs->num_labels; i++) {
+        if (fs->labels[i].label == l) {
+            /* Found it. Must not already have an offset, or it's a dupe. */
+            if (fs->labels[i].offset < 0) {
+                /* Fix up existing usages. */
+                MVMuint32 *resolve = fs->labels[i].resolve;
+                MVMuint32  nr      = fs->labels[i].num_resolve;
+                for (j = 0; j < nr; j++)
+                    write_int32(ws->bytecode_seg, resolve[j], offset);
+                fs->labels[i].offset        = offset;
+                fs->labels[i].alloc_resolve = 0;
+                fs->labels[i].num_resolve   = 0;
+                fs->unresolved_labels      -= nr;
+                free(fs->labels[i].resolve);
+            }
+            else {
+                cleanup_all(vm, ws);
+                DIE(vm, "Duplicate label");
+            }
+            return;
         }
-        DELETEKEY(vm, ws->cur_frame->labels_to_resolve, l->name);
     }
+
+    /* If we get here, no entry; create one. */
+    add_label(vm, fs, l, offset);
 }
 
 /* Rreturns a label's offset, dying if it's not possible. */
 static MVMuint32 demand_label_offset(VM, WriterState *ws, MAST_Label *l,
                                      const char *error) {
     FrameState *fs = ws->cur_frame;
-    if (EXISTSKEY(vm, fs->known_labels, l->name)) {
-        return (unsigned int)ATKEY_I(vm, fs->known_labels, l->name);
+    MVMuint32   nl = fs->num_labels;
+    MVMuint32   i;
+    for (i = 0; i < nl; i++) {
+        if (fs->labels[i].label == l) {
+            if (fs->labels[i].offset >= 0)
+                return fs->labels[i].offset;
+            break;
+        }
     }
-    else {
-        cleanup_all(vm, ws);
-        DIE(vm, error);
-    }
+    cleanup_all(vm, ws);
+    DIE(vm, error);
 }
 
 /* Compiles the operand to an instruction; this involves checking
@@ -1019,8 +1087,10 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     fs = ws->cur_frame    = (FrameState *)malloc(sizeof(FrameState));
     fs->bytecode_start    = ws->bytecode_pos;
     fs->frame_start       = ws->frame_pos;
-    fs->known_labels      = NEWHASH(vm);
-    fs->labels_to_resolve = NEWHASH(vm);
+    fs->labels            = NULL;
+    fs->num_labels        = 0;
+    fs->alloc_labels      = 0;
+    fs->unresolved_labels = 0;
 
     /* Count locals and lexicals. */
     fs->num_locals   = ELEMS(vm, f->local_types);
@@ -1186,9 +1256,9 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     }
 
     /* Any leftover labels? */
-    if (HASHELEMS(vm, fs->labels_to_resolve)) {
+    if (fs->unresolved_labels) {
         cleanup_all(vm, ws);
-        DIE(vm, "Frame has unresolved labels");
+        DIE(vm, "Frame has %u unresolved labels", fs->unresolved_labels);
     }
 
     /* Free the frame state. */
