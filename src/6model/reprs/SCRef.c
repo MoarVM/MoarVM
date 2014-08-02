@@ -65,6 +65,16 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         MVM_gc_worklist_add(tc, worklist, &sc->root_stables[i]);
 
     MVM_gc_worklist_add(tc, worklist, &sc->sc);
+
+    /* Mark serialization reader, if we have one. */
+    if (sc->sr) {
+        MVM_gc_worklist_add(tc, worklist, &(sc->sr->root.sc));
+        for (i = 0; i < sc->sr->root.num_dependencies; i++)
+            MVM_gc_worklist_add(tc, worklist, &(sc->sr->root.dependent_scs[i]));
+        MVM_gc_worklist_add(tc, worklist, &(sc->sr->root.string_heap));
+        MVM_gc_worklist_add(tc, worklist, &(sc->sr->codes_list));
+        MVM_gc_worklist_add(tc, worklist, &(sc->sr->current_object));
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -80,8 +90,18 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     tc->instance->all_scs[sc->body->sc_idx] = NULL;
     uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
 
-    /* Free manually managed STable list memory and body. */
+    /* Free manually managed STable list memory. */
     MVM_checked_free_null(sc->body->root_stables);
+
+    /* If we have a serialization reader, clean that up too. */
+    if (sc->body->sr) {
+        if (sc->body->sr->data_needs_free)
+            MVM_checked_free_null(sc->body->sr->data);
+        MVM_checked_free_null(sc->body->sr->contexts);
+        MVM_checked_free_null(sc->body->sr);
+    }
+
+    /* Free body. */
     MVM_checked_free_null(sc->body);
 }
 

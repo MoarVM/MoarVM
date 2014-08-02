@@ -54,9 +54,6 @@ struct MVMSerializationReader {
     /* Serialization root data. */
     MVMSerializationRoot root;
 
-    /* The object repossession conflicts list. */
-    MVMObject *repo_conflicts_list;
-
     /* Current offsets for the data chunks (also correspond to the amount of
      * data written in to them). */
     MVMint32 stables_data_offset;
@@ -84,8 +81,10 @@ struct MVMSerializationReader {
     /* The current object we're deserializing. */
     MVMObject *current_object;
 
-    /* The data, which we'll want to free after deserialization. */
-    char *data;
+    /* The data, which we may want to free when the SC goes away; a flag
+     * indicates when it should be. */
+    char      *data;
+    MVMuint32  data_needs_free;
 };
 
 /* Represents the serialization writer and the various functions available

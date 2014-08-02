@@ -1524,6 +1524,7 @@ static void check_and_dissect_input(MVMThreadContext *tc,
         char *data_b64 = (char *)MVM_string_ascii_encode(tc, data_str, NULL);
         data = (char *)base64_decode(data_b64, &data_len);
         free(data_b64);
+        reader->data_needs_free = 1;
     }
     else {
         /* Try to get it from the current compilation unit. */
@@ -1966,7 +1967,8 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
 }
 
 /* Repossess an object or STable. */
-static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint64 i) {
+static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint64 i,
+                      MVMObject *repo_conflicts) {
     /* Calculate location of table row. */
     char *table_row = reader->root.repos_table + i * REPOS_TABLE_ENTRY_SIZE;
 
@@ -1996,8 +1998,8 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
                 });
 
                 MVM_SC_WB_OBJ(tc, backup);
-                MVM_repr_push_o(tc, reader->repo_conflicts_list, backup);
-                MVM_repr_push_o(tc, reader->repo_conflicts_list, orig_obj);
+                MVM_repr_push_o(tc, repo_conflicts, backup);
+                MVM_repr_push_o(tc, repo_conflicts, orig_obj);
             });
         }
 
@@ -2057,13 +2059,15 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     reader->root.sc          = sc;
     reader->root.string_heap = string_heap;
 
+    /* Store reader inside serialization context; it'll need it for lazy
+     * deserialization. */
+    sc->body->sr = reader;
+
     /* Put code root list into SC. We'll end up mutating it, but that's
      * probably fine. */
     MVM_sc_set_code_list(tc, sc, codes_static);
     reader->codes_list = codes_static;
     scodes = (MVMint32)MVM_repr_elems(tc, codes_static);
-
-    reader->repo_conflicts_list = repo_conflicts;
 
     /* Mark all the static code refs we've been provided with as static. */
      for (i = 0; i < scodes; i++) {
@@ -2088,7 +2092,7 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     /* If we're repossessing objects and STables from other SCs, then first
       * get those raw objects into our root set. */
      for (i = 0; i < reader->root.num_repos; i++)
-        repossess(tc, reader, i);
+        repossess(tc, reader, i, repo_conflicts);
 
     /* Stub allocate all STables, and then have the appropriate REPRs do
      * the required size calculations. */
@@ -2118,16 +2122,11 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     for (i = 0; i < reader->root.num_objects; i++)
         deserialize_object(tc, reader, i, MVM_sc_get_object(tc, sc, i));
 
-    /* Clear up afterwards. */
+    /* Clear serialized data reference in CU. */
     if ((*tc->interp_cu)->body.serialized) {
         (*tc->interp_cu)->body.serialized = NULL;
         (*tc->interp_cu)->body.serialized_size = 0;
     }
-    else if (reader->data)
-        free(reader->data);
-    if (reader->contexts)
-        free(reader->contexts);
-    free(reader);
 
     /* Restore normal GC allocation. */
     MVM_gc_allocate_gen2_default_clear(tc);

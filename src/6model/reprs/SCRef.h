@@ -43,6 +43,10 @@ struct MVMSerializationContextBody {
 
     /* SC's index in the all_scs list in instance. */
     MVMuint32 sc_idx;
+
+    /* Reference to the SerializationReader we'll use to deserialize objects,
+     * if this is an SC that we loaded. */
+    MVMSerializationReader *sr;
 };
 
 struct MVMSerializationContext {
