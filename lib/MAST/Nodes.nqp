@@ -464,18 +464,13 @@ class MAST::NVal is MAST::Node {
 # Labels (used directly in the instruction stream indicates where the
 # label goes; can also be used as an instruction operand).
 class MAST::Label is MAST::Node {
-    has str $!name;
-
-    method new(:$name!) {
-        my $obj := nqp::create(self);
-        nqp::bindattr_s($obj, MAST::Label, '$!name', $name);
-        $obj
+    method new() {
+        nqp::create(self)
     }
 
-    method name() { $!name }
-
     method dump_lines(@lines, $indent) {
-        nqp::push(@lines, $indent~"MAST::Label name<$!name>");
+        my int $addr := nqp::where(self);
+        nqp::push(@lines, $indent ~ "MAST::Label <$addr>");
     }
 }
 
