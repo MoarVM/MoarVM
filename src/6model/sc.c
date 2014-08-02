@@ -196,7 +196,7 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
 
 /* Given an SC and an index, fetch the STable stored there. */
 MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
-    if (idx >= 0 && idx < sc->body->num_stables && sc->body->root_stables[idx]) {
+    if (idx >= 0 && idx < sc->body->num_stables) {
         MVMSTable *got = sc->body->root_stables[idx];
         return got ? got : MVM_serialization_demand_stable(tc, sc, idx);
     }

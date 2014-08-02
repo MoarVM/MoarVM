@@ -48,6 +48,13 @@ struct MVMSerializationRoot {
     MVMObject *string_heap;
 };
 
+/* Indexes the deserializer still has to work on. */
+struct MVMDeserializeWorklist {
+    MVMuint32 *indexes;
+    MVMuint32  num_indexes;
+    MVMuint32  alloc_indexes;
+};
+
 /* Represents the serialization reader and the various functions available
  * on it. */
 struct MVMSerializationReader {
@@ -75,8 +82,20 @@ struct MVMSerializationReader {
     /* List of code objects (static first, then all the closures). */
     MVMObject *codes_list;
 
+    /* Number of static code objects. */
+    MVMuint32 num_static_codes;
+
     /* Array of contexts (num_contexts in length). */
     MVMFrame **contexts;
+
+    /* Set of current worklists, for things we need to fully desrialize. When
+     * they are all empty, the current (usually lazy) deserialization work is
+     * done, and we have the required object graph. */
+    MVMDeserializeWorklist wl_objects;
+    MVMDeserializeWorklist wl_stables;
+
+    /* Whether we're already working on these worklists. */
+    MVMuint32 working;
 
     /* The current object we're deserializing. */
     MVMObject *current_object;
