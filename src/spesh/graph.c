@@ -1038,7 +1038,7 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
 }
 
 /* Takes a static frame and creates a spesh graph for it. */
-MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf) {
+MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint32 cfg_only) {
     /* Create top-level graph object. */
     MVMSpeshGraph *g = calloc(1, sizeof(MVMSpeshGraph));
     g->sf            = sf;
@@ -1057,9 +1057,11 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf)
 
     /* Build the CFG out of the static frame, and transform it to SSA. */
     build_cfg(tc, g, sf, NULL, 0);
-    eliminate_dead(tc, g);
-    add_predecessors(tc, g);
-    ssa(tc, g);
+    if (!cfg_only) {
+        eliminate_dead(tc, g);
+        add_predecessors(tc, g);
+        ssa(tc, g);
+    }
 
     /* Hand back the completed graph. */
     return g;
@@ -1067,7 +1069,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf)
 
 /* Takes a static frame and creates a spesh graph for it. */
 MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStaticFrame *sf,
-                                                 MVMSpeshCandidate *cand) {
+                                                 MVMSpeshCandidate *cand, MVMuint32 cfg_only) {
     /* Create top-level graph object. */
     MVMSpeshGraph *g     = calloc(1, sizeof(MVMSpeshGraph));
     g->sf                = sf;
@@ -1095,9 +1097,11 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
 
     /* Build the CFG out of the static frame, and transform it to SSA. */
     build_cfg(tc, g, sf, cand->deopts, cand->num_deopts);
-    eliminate_dead(tc, g);
-    add_predecessors(tc, g);
-    ssa(tc, g);
+    if (!cfg_only) {
+        eliminate_dead(tc, g);
+        add_predecessors(tc, g);
+        ssa(tc, g);
+    }
 
     /* Hand back the completed graph. */
     return g;
