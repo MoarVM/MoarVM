@@ -785,6 +785,21 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     return result;
 }
 
+/* Serializes the possibly-not-deserialized HOW. */
+static void serialize_how_lazy(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
+    if (st->HOW) {
+        write_obj_ref(tc, writer, st->HOW);
+    }
+    else {
+        MVMint32 sc_id = get_sc_id(tc, writer, st->HOW_sc);
+        expand_storage_if_needed(tc, writer, 8);
+        write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_id);
+        *(writer->cur_write_offset) += 4;
+        write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), st->HOW_idx);
+        *(writer->cur_write_offset) += 4;
+    }
+}
+
 /* This handles the serialization of an STable, and calls off to serialize
  * its representation data also. */
 static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
@@ -810,7 +825,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     writer->cur_write_limit  = &(writer->stables_data_alloc);
 
     /* Write HOW, WHAT and WHO. */
-    write_obj_ref(tc, writer, st->HOW);
+    serialize_how_lazy(tc, writer, st);
     write_obj_ref(tc, writer, st->WHAT);
     MVM_serialization_write_ref(tc, writer, st->WHO);
 
@@ -1877,6 +1892,16 @@ static deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *reader,
     }
 }
 
+/* Reads in what we need to lazily deserialize ->HOW later. */
+static void deserialize_how_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    assert_can_read(tc, reader, 8);
+    MVM_ASSIGN_REF(tc, &(st->header), st->HOW_sc, locate_sc(tc, reader,
+        read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset))));
+    *(reader->cur_read_offset) += 4;
+    st->HOW_idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 4;
+}
+
 /* Deserializes a single STable, along with its REPR data. */
 static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i, MVMSTable *st) {
     /* Calculate location of STable's table row. */
@@ -1889,14 +1914,14 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     reader->cur_read_end        = &(reader->stables_data_end);
 
     /* Read the HOW, WHAT and WHO. */
-    MVM_ASSIGN_REF(tc, &(st->header), st->HOW, read_obj_ref(tc, reader));
+    deserialize_how_lazy(tc, st, reader);
     MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, read_obj_ref(tc, reader));
     MVM_ASSIGN_REF(tc, &(st->header), st->WHO, MVM_serialization_read_ref(tc, reader));
 
     /* Method cache and v-table. */
     MVM_ASSIGN_REF(tc, &(st->header), st->method_cache, MVM_serialization_read_ref(tc, reader));
     if (MVM_serialization_read_int(tc, reader) != 0)
-        MVM_exception_throw_adhoc(tc, "Unexpected deprecatedSTable vtable entries");
+        MVM_exception_throw_adhoc(tc, "Unexpected deprecated STable vtable entries");
 
     /* Type check cache. */
     st->type_check_cache_length = MVM_serialization_read_int(tc, reader);
@@ -2152,9 +2177,11 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
                 "STable conflict detected during deserialization.\n"
                 "(Probable attempt to load two modules that cannot be loaded together).");
 
-        /* XXX TODO: clear up memory the STable may have allocated so far. */
-        if (orig_st->REPR->gc_free_repr_data)
-            orig_st->REPR->gc_free_repr_data(tc, orig_st);
+        /* XXX TODO: consider clearing up STable, however we must do it out of
+         * this repossess routine, since we may depend on original data to do
+         * lazy deserialization of original objects. */
+        /*if (orig_st->REPR->gc_free_repr_data)
+            orig_st->REPR->gc_free_repr_data(tc, orig_st);*/
 
         /* Put this on the list of things we should deserialize right away. */
         worklist_add_index(tc, &(reader->wl_stables), slot);

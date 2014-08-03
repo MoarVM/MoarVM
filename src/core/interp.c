@@ -2019,7 +2019,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(gethow):
-                GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->HOW;
+                GET_REG(cur_op, 0).o = MVM_6model_get_how(tc,
+                    STABLE(GET_REG(cur_op, 2).o));
                 cur_op += 4;
                 goto NEXT;
             OP(getwhat):
