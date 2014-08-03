@@ -40,13 +40,6 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     /* Initialize random number generator state. */
     MVM_proc_seed(tc, (MVM_platform_now() / 10000) * MVM_proc_getpid(tc));
 
-#if MVM_HLL_PROFILE_CALLS
-#define PROFILE_INITIAL_SIZE (1 << 29)
-    tc->profile_data_size = PROFILE_INITIAL_SIZE;
-    tc->profile_data = malloc(sizeof(MVMProfileRecord) * PROFILE_INITIAL_SIZE);
-    tc->profile_index = 0;
-#endif
-
     return tc;
 }
 

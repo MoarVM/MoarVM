@@ -79,14 +79,6 @@ struct MVMReprRegistry {
     UT_hash_handle hash_handle;
 };
 
-#if MVM_HLL_PROFILE_CALLS
-typedef struct _MVMCallsiteProfileData {
-    MVMuint32 static_frame_id;
-    MVMuint8 *cuuid, *name;
-
-} MVMCallsiteProfileData;
-#endif
-
 /* Represents a MoarVM instance. */
 struct MVMInstance {
     /* The main thread. */
@@ -293,11 +285,4 @@ struct MVMInstance {
 
     /* Next type cache ID, to go in STable. */
     AO_t cur_type_cache_id;
-
-#if MVM_HLL_PROFILE_CALLS
-    /* allocated size of profile_data in count */
-    MVMuint32 callsite_index;
-    /* next index of record to store */
-    MVMuint32 profile_index;
-#endif
 };

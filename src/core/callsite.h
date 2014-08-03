@@ -54,11 +54,6 @@ struct MVMCallsite {
     /* Names of named arguments, in the order that they are passed (and thus
      * matching the flags). */
     MVMString **arg_names;
-
-#if MVM_HLL_PROFILE_CALLS
-    MVMuint32 static_frame_id;
-    MVMuint8 *cuuid, *name;
-#endif
 };
 
 /* Minimum callsite size is due to certain things internally expecting us to

@@ -167,11 +167,6 @@ struct MVMFrame {
     /* The 'entry label' is a sort of indirect return address
        for the JIT */
     void * jit_entry_label;
-
-#if MVM_HLL_PROFILE_CALLS
-    /* Index of the profile data record. */
-    MVMuint32 profile_index;
-#endif
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for
