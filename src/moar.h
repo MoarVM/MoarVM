@@ -155,6 +155,7 @@ typedef double   MVMnum64;
 #include "jit/graph.h"
 #include "jit/compile.h"
 #include "jit/log.h"
+#include "profiler/log.h"
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc);
 

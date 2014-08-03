@@ -196,4 +196,6 @@ typedef struct MVMJitInvoke MVMJitInvoke;
 typedef struct MVMJitJumpList MVMJitJumpList;
 typedef struct MVMJitControl MVMJitControl;
 typedef struct MVMJitCode MVMJitCode;
-
+typedef struct MVMProfileThreadData MVMProfileThreadData;
+typedef struct MVMProfileCallNode MVMProfileCallNode;
+typedef struct MVMProfileAllocationCount MVMProfileAllocationCount;
