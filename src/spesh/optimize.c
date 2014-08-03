@@ -843,6 +843,89 @@ static void optimize_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
     }
 }
 
+/* Tries to optimize a throwcat instruction. Note that within a given frame
+ * (we don't consider inlines here) the throwcat instructions all have the
+ * same semantics. */
+static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    /* First, see if we have any goto handlers for this category. */
+    MVMint32 *handlers_found = malloc(g->sf->body.num_handlers * sizeof(MVMint32));
+    MVMint32  num_found      = 0;
+    MVMuint32 category       = (MVMuint32)ins->operands[1].lit_i64;
+    MVMint32  i;
+    for (i = 0; i < g->sf->body.num_handlers; i++)
+        if (g->sf->body.handlers[i].action == MVM_EX_ACTION_GOTO)
+            if (g->sf->body.handlers[i].category_mask & category)
+                handlers_found[num_found++] = i;
+
+    /* If we found any appropriate handlers, we'll now do a scan through the
+     * graph to see if we're in the scope of any of them. Note we can't keep
+     * track of this in optimize_bb as it walks the dominance children, but
+     * we need a linear view. */
+    if (num_found) {
+        MVMint32    *in_handlers = calloc(g->sf->body.num_handlers, sizeof(MVMint32));
+        MVMSpeshBB **goto_bbs    = calloc(g->sf->body.num_handlers, sizeof(MVMSpeshBB *));
+        MVMSpeshBB  *search_bb   = g->entry;
+        MVMint32     picked      = -1;
+        while (search_bb) {
+            MVMSpeshIns *search_ins = search_bb->first_ins;
+            while (search_ins) {
+                /* Track handlers. */
+                MVMSpeshAnn *ann = search_ins->annotations;
+                while (ann) {
+                    switch (ann->type) {
+                    case MVM_SPESH_ANN_FH_START:
+                        in_handlers[ann->data.frame_handler_index] = 1;
+                        break;
+                    case MVM_SPESH_ANN_FH_END:
+                        in_handlers[ann->data.frame_handler_index] = 0;
+                        break;
+                    case MVM_SPESH_ANN_FH_GOTO:
+                        goto_bbs[ann->data.frame_handler_index] = search_bb;
+                        if (picked >= 0 && ann->data.frame_handler_index == picked)
+                            goto search_over;
+                        break;
+                    }
+                    ann = ann->next;
+                }
+
+                /* Is this instruction the one we're trying to optimize? */
+                if (search_ins == ins) {
+                    /* See if we're in any acceptable handler (rely on the
+                     * table being pre-sorted by nesting depth here, just like
+                     * normal exception handler search does). */
+                    for (i = 0; i < num_found; i++) {
+                        if (in_handlers[handlers_found[i]]) {
+                            /* Got it! If we already found its goto target, we
+                             * can finish the search. */
+                            picked = handlers_found[i];
+                            if (goto_bbs[picked])
+                                goto search_over;
+                            break;
+                        }
+                    }
+                }
+
+                search_ins = search_ins->next;
+            }
+            search_bb = search_bb->linear_next;
+        }
+      search_over:
+
+        /* If we picked a handler and know where it should goto, we can do the
+         * rewrite into a goto. */
+        if (picked >=0 && goto_bbs[picked]) {
+            ins->info               = MVM_op_get_op(MVM_OP_goto);
+            ins->operands[0].ins_bb = goto_bbs[picked];
+            bb->succ[0]             = goto_bbs[picked];
+        }
+
+        free(in_handlers);
+        free(goto_bbs);
+    }
+
+    free(handlers_found);
+}
+
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMSpeshCallInfo arg_info;
@@ -908,6 +991,11 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_invoke_s:
         case MVM_OP_invoke_o:
             optimize_call(tc, g, bb, ins, 1, &arg_info);
+            break;
+        case MVM_OP_throwcatdyn:
+        case MVM_OP_throwcatlex:
+        case MVM_OP_throwcatlexotic:
+            optimize_throwcat(tc, g, bb, ins);
             break;
         case MVM_OP_islist:
         case MVM_OP_ishash:
