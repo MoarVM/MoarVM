@@ -685,20 +685,53 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticF
 
     /* Read in static lexical values. */
     for (j = 0; j < slvs; j++) {
-        MVMSerializationContext *sc;
         MVMuint16 lex_idx = read_int16(pos, 0);
         sf->body.static_env_flags[lex_idx] = read_int16(pos, 2);
-        sc = MVM_sc_get_sc(tc, cu, read_int32(pos, 4));
-        if (sc == NULL)
-            MVM_exception_throw_adhoc(tc,
-                "SC not yet resolved; lookup failed");
-        MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[lex_idx].o,
-            MVM_sc_get_object(tc, sc, read_int32(pos, 8)));
         pos += FRAME_SLV_SIZE;
     }
 
     /* Mark the frame fully deserialized. */
     sf->body.fully_deserialized = 1;
+}
+
+/* Gets the SC reference for a given static lexical var for
+ * vivification purposes */
+MVMuint8 MVM_bytecode_find_static_lexical_scref(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticFrame *sf, MVMuint16 index, MVMint32 *sc, MVMint32 *id) {
+    MVMStaticFrameBody *static_frame_body = &sf->body;
+    MVMuint8 *pos = static_frame_body->frame_data_pos;
+
+    MVMuint32 skip = 2 * static_frame_body->num_locals +
+                     6 * static_frame_body->num_lexicals;
+    MVMuint16 slvs = cu->body.bytecode_version >= 4 ? read_int16(pos, 40) : 0;
+    MVMuint16 j;
+
+    if (slvs == 0) {
+        return 0;
+    }
+
+    pos += FRAME_HEADER_SIZE;
+    pos += skip;
+    for (j = 0; j < static_frame_body->num_handlers; j++) {
+        if (read_int32(pos, 8) & MVM_EX_CAT_LABELED) {
+            pos += FRAME_HANDLER_SIZE;
+            pos += 2;
+        }
+        else {
+            pos += FRAME_HANDLER_SIZE;
+        }
+    }
+
+    if (index >= slvs) {
+        fprintf(stderr, "%d\n", cu->body.bytecode_version);
+        fprintf(stderr, "Index for static lexical out of range during vivification: %d > %d\n", index, slvs);
+        return 0;
+    }
+
+    pos += index * FRAME_SLV_SIZE;
+    *sc = read_int32(pos, 4);
+    *id = read_int32(pos, 8);
+
+    return 1;
 }
 
 /* Loads the callsites. */

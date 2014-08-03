@@ -886,6 +886,20 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
         flags = NULL;
     }
     flag  = flags ? flags[effective_idx] : -1;
+    if (flag != -1 && static_env[effective_idx].o == NULL) {
+        MVMStaticFrameBody *static_frame_body = &f->static_info->body;
+        MVMSerializationContext *sc;
+        MVMint32 scid, objid;
+
+        if (MVM_bytecode_find_static_lexical_scref(tc, static_frame_body->cu,  f->static_info, effective_idx, &scid, &objid)) {
+            sc = MVM_sc_get_sc(tc, static_frame_body->cu, scid);
+            if (sc == NULL)
+                MVM_exception_throw_adhoc(tc,
+                    "SC not yet resolved; lookup failed");
+            MVM_ASSIGN_REF(tc, &(f->static_info->common.header), static_frame_body->static_env[effective_idx].o,
+                MVM_sc_get_object(tc, sc, objid));
+        }
+    }
     if (flag == 0) {
         MVMObject *viv = static_env[effective_idx].o;
         return f->env[idx].o = viv ? viv : tc->instance->VMNull;
