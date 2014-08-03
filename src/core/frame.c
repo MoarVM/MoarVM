@@ -22,6 +22,11 @@ static void grow_frame_pool(MVMThreadContext *tc, MVMuint32 pool_index) {
  * bytecode. */
 void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     MVMStaticFrameBody *static_frame_body = &static_frame->body;
+
+    /* Ensure the frame is fully deserialized. */
+    if (!static_frame_body->fully_deserialized)
+        MVM_bytecode_finish_frame(tc, static_frame_body->cu, static_frame);
+
     /* Work size is number of locals/registers plus size of the maximum
      * call site argument list. */
     static_frame_body->work_size = sizeof(MVMRegister) *

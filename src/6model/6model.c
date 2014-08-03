@@ -17,6 +17,14 @@ static MVMCallsiteEntry tc_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_OBJ };
 static MVMCallsite     tc_callsite = { tc_flags, 3, 3, 0 };
 
+/* Gets the HOW (meta-object), which may be lazily deserialized. */
+MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st) {
+    MVMObject *HOW = st->HOW;
+    if (!HOW)
+        st->HOW = HOW = MVM_sc_get_object(tc, st->HOW_sc, st->HOW_idx);
+    return HOW;
+}
+
 /* Locates a method by name, checking in the method cache only. */
 MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
     MVMObject *cache = STABLE(obj)->method_cache;
@@ -64,7 +72,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
 
     /* Otherwise, need to call the find_method method. We make the assumption
      * that the invocant's meta-object's type is composed. */
-    HOW = STABLE(obj)->HOW;
+    HOW = MVM_6model_get_how(tc, STABLE(obj));
     find_method = MVM_6model_find_method_cache_only(tc, HOW,
         tc->instance->str_consts.find_method);
     if (MVM_is_null(tc, find_method))
@@ -118,7 +126,7 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
 
     /* If no method in cache and the cache is not authoritative, need to make
      * a late-bound call to find_method. */
-    HOW = STABLE(obj)->HOW;
+    HOW = MVM_6model_get_how(tc, STABLE(obj));
     find_method = MVM_6model_find_method_cache_only(tc, HOW,
         tc->instance->str_consts.find_method);
     if (MVM_is_null(tc, find_method)) {
@@ -147,7 +155,7 @@ void late_bound_can_return(MVMThreadContext *tc, void *sr_data) {
 /* Checks if an object has a given type, delegating to the type_check or
  * accepts_type methods as needed. */
 static void do_accepts_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res) {
-    MVMObject *HOW = STABLE(type)->HOW;
+    MVMObject *HOW = MVM_6model_get_how(tc, STABLE(type));
     MVMObject *meth = MVM_6model_find_method_cache_only(tc, HOW,
         tc->instance->str_consts.accepts_type);
     if (!MVM_is_null(tc, meth)) {
@@ -221,7 +229,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
     /* If we get here, need to call .^type_check on the value we're
      * checking, unless it's an accepts check. */
     if (!cache || (mode & MVM_TYPE_CHECK_CACHE_THEN_METHOD)) {
-        MVMObject *HOW = st->HOW;
+        MVMObject *HOW = MVM_6model_get_how(tc, st);
         MVMObject *meth = MVM_6model_find_method_cache_only(tc, HOW,
             tc->instance->str_consts.type_check);
         if (!MVM_is_null(tc, meth)) {
@@ -309,7 +317,6 @@ void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st) {
         st->REPR->gc_free_repr_data(tc, st);
 
     /* free various storage. */
-    MVM_checked_free_null(st->vtable);
     MVM_checked_free_null(st->type_check_cache);
     if (st->container_spec && st->container_spec->gc_free_data)
         st->container_spec->gc_free_data(tc, st);

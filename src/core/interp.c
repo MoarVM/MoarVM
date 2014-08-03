@@ -895,6 +895,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(code) && REPR(code)->ID == MVM_REPR_ID_MVMCode) {
                     MVMStaticFrame *sf = ((MVMCode *)code)->body.sf;
                     MVMuint8 found = 0;
+                    if (!sf->body.fully_deserialized)
+                        MVM_bytecode_finish_frame(tc, sf->body.cu, sf);
                     MVM_string_flatten(tc, name);
                     if (sf->body.lexical_names) {
                         MVMLexicalRegistry *entry;
@@ -2008,7 +2010,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(gethow):
-                GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->HOW;
+                GET_REG(cur_op, 0).o = MVM_6model_get_how(tc,
+                    STABLE(GET_REG(cur_op, 2).o));
                 cur_op += 4;
                 goto NEXT;
             OP(getwhat):
@@ -3084,7 +3087,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "freshcoderef requires a coderef");
                 ncr = (MVMCode *)(GET_REG(cur_op, 0).o = MVM_repr_clone(tc, cr));
                 MVMROOT(tc, ncr, {
-                    MVMStaticFrame *nsf = (MVMStaticFrame *)MVM_repr_clone(tc,
+                    MVMStaticFrame *nsf;
+                    if (!ncr->body.sf->body.fully_deserialized)
+                        MVM_bytecode_finish_frame(tc, ncr->body.sf->body.cu, ncr->body.sf);
+                    nsf = (MVMStaticFrame *)MVM_repr_clone(tc,
                         (MVMObject *)ncr->body.sf);
                     MVM_ASSIGN_REF(tc, &(ncr->common.header), ncr->body.sf, nsf);
                     MVM_ASSIGN_REF(tc, &(ncr->common.header), ncr->body.sf->body.static_code, ncr);

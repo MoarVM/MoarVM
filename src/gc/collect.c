@@ -343,11 +343,7 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
     else if (new_addr->flags & MVM_CF_STABLE) {
         /* Add all references in the STable to the work list. */
         MVMSTable *new_addr_st = (MVMSTable *)new_addr;
-        MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW);
-        MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHAT);
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->method_cache);
-        for (i = 0; i < new_addr_st->vtable_length; i++)
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->vtable[i]);
         for (i = 0; i < new_addr_st->type_check_cache_length; i++)
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->type_check_cache[i]);
         if (new_addr_st->container_spec)
@@ -364,6 +360,9 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->md_valid_attr_name);
         }
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHO);
+        MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHAT);
+        MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW);
+        MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW_sc);
 
         /* If it needs to have its REPR data marked, do that. */
         if (new_addr_st->REPR->gc_mark_repr_data)

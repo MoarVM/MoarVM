@@ -1,5 +1,5 @@
 /* The number of runs we do to log what we see. */
-#define MVM_SPESH_LOG_RUNS  4
+#define MVM_SPESH_LOG_RUNS  8
 
 /* Information about an inserted guard instruction due to logging. */
 struct MVMSpeshLogGuard {
