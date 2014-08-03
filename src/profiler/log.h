@@ -82,3 +82,15 @@ struct MVMProfileAllocationCount {
     /* The number of allocations we've counted. */
     MVMuint64 allocations;
 };
+
+/* Ways we might enter a frame. */
+#define MVM_PROFILE_ENTER_NORMAL        0
+#define MVM_PROFILE_ENTER_SPESH         1
+#define MVM_PROFILE_ENTER_INLINE        2
+#define MVM_PROFILE_ENTER_SPESH_JIT     3
+#define MVM_PROFILE_ENTER_INLINE_JIT    4
+
+/* Logging functions. */
+void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint32 mode);
+void MVM_profile_log_exit(MVMThreadContext *tc);
+void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);

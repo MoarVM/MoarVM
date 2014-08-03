@@ -4620,6 +4620,27 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(prof_enter):
+                MVM_profile_log_enter(tc, tc->cur_frame->static_info,
+                    MVM_PROFILE_ENTER_NORMAL);
+                goto NEXT;
+            OP(prof_enterspesh):
+                MVM_profile_log_enter(tc, tc->cur_frame->static_info,
+                    MVM_PROFILE_ENTER_SPESH);
+                goto NEXT;
+            OP(prof_enterinline):
+                MVM_profile_log_enter(tc,
+                    (MVMStaticFrame *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 0)],
+                    MVM_PROFILE_ENTER_INLINE);
+                cur_op += 2;
+                goto NEXT;
+            OP(prof_exit):
+                MVM_profile_log_exit(tc);
+                goto NEXT;
+            OP(prof_allocated):
+                MVM_profile_log_allocated(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

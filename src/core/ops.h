@@ -654,6 +654,11 @@
 #define MVM_OP_sp_boolify_iter 650
 #define MVM_OP_sp_boolify_iter_arr 651
 #define MVM_OP_sp_boolify_iter_hash 652
+#define MVM_OP_prof_enter 653
+#define MVM_OP_prof_enterspesh 654
+#define MVM_OP_prof_enterinline 655
+#define MVM_OP_prof_exit 656
+#define MVM_OP_prof_allocated 657
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
