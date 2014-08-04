@@ -1,12 +1,15 @@
 #!/usr/bin/env nqp-m
 
-sub quam(str $s, int $i, str $t) {
-    nqp::say(nqp::x($s, $i) ~ " " ~ $t);
+sub quam() {
+    my num $i := 0.5;
+    while $i < 100.0 {
+        $i := $i * 1.1;
+        nqp::say("Value of \$i is $i");
+    }
 }
 
-my $i := 0;
+my int $i := 0;
 while $i < 100 {
+    quam();
     $i := $i + 1;
-    quam("foo", $i, "bar");
 }
-
