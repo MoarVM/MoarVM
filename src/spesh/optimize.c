@@ -1099,7 +1099,7 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
     while (death) {
         MVMSpeshBB *bb = g->entry;
         death = 0;
-        while (bb) {
+        while (bb && !bb->inlined) {
             MVMSpeshIns *ins = bb->last_ins;
             while (ins) {
                 MVMSpeshIns *prev = ins->prev;
