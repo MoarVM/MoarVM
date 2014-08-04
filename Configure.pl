@@ -91,7 +91,7 @@ $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 $config{osname} = $^O;
 $config{osvers} = $Config{osvers};
 $config{profilecalls} = $args{profilecalls};
-$config{lua} = $args{lua} // ('./3rdparty/dynasm/minilua' . $config{exe} // '');
+$config{lua} = $args{lua} // './3rdparty/dynasm/minilua@exe@';
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
