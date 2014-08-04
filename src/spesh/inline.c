@@ -634,6 +634,7 @@ void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     arg_ins->info        = MVM_op_get_op(MVM_OP_set);
                     arg_ins->operands[0] = ins->operands[0];
                     MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
+                    MVM_spesh_get_facts(tc, inliner, arg_ins->operands[0])->usages++;
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc,
