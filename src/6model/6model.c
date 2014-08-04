@@ -89,6 +89,36 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
     STABLE(code)->invoke(tc, code, &fm_callsite, tc->cur_frame->args);
 }
 
+MVMint32 MVM_6model_find_method_spesh(MVMThreadContext *tc, MVMObject *obj, MVMString *name,
+                                      MVMint32 ss_idx, MVMRegister *res) {
+    /* Missed mono-morph; try cache-only lookup. */
+    MVMObject *meth = MVM_6model_find_method_cache_only(tc, obj, name);
+    if (!MVM_is_null(tc, meth)) {
+        /* Got it; cache. Must be careful due to threads
+         * reading, races, etc. */
+        MVMStaticFrame *sf = tc->cur_frame->static_info;
+        uv_mutex_lock(&tc->instance->mutex_spesh_install);
+        if (!tc->cur_frame->effective_spesh_slots[ss_idx + 1]) {
+            MVM_ASSIGN_REF(tc, &(sf->common.header),
+                           tc->cur_frame->effective_spesh_slots[ss_idx + 1],
+                           (MVMCollectable *)meth);
+            MVM_barrier();
+            MVM_ASSIGN_REF(tc, &(sf->common.header),
+                           tc->cur_frame->effective_spesh_slots[ss_idx],
+                           (MVMCollectable *)STABLE(obj));
+        }
+        uv_mutex_unlock(&tc->instance->mutex_spesh_install);
+        res->o = meth;
+        return 0;
+    }
+    else {
+        /* Fully late-bound. */
+        MVM_6model_find_method(tc, obj, name, res);
+        return 1;
+    }
+}
+
+
 /* Locates a method by name. Returns 1 if it exists; otherwise 0. */
 void late_bound_can_return(MVMThreadContext *tc, void *sr_data);
 
