@@ -517,11 +517,14 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(MSG) generating $@
 	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
 
-src/jit/emit_posix_x64.c: src/jit/emit_x64.dasc
-	@dasm_rule_posix@
+3rdparty/dynasm/minilua@exe@: 3rdparty/dynasm/minilua.c
+	$(CC) $(CFLAGS) $(LDLIBS) 3rdparty/dynasm/minilua.c -o $@
 
-src/jit/emit_win32_x64.c: src/jit/emit_x64.dasc
-	@dasm_rule_win32@
+src/jit/emit_posix_x64.c: $(LUA) src/jit/emit_x64.dasc
+	$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ src/jit/emit_x64.dasc
+
+src/jit/emit_win32_x64.c: $(LUA) src/jit/emit_x64.dasc
+	$(DYNASM) $(DASM_FLAGS_WIN32) -o $@ src/jit/emit_x64.dasc
 
 dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
 

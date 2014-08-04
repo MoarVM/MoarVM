@@ -91,7 +91,7 @@ $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 $config{osname} = $^O;
 $config{osvers} = $Config{osvers};
 $config{profilecalls} = $args{profilecalls};
-$config{lua} = $args{lua} // 'lua';
+$config{lua} = $args{lua} // ('./3rdparty/dynasm/minilua' . $config{exe} // '');
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
@@ -176,15 +176,6 @@ if ($args{'enable-jit'}) {
 # fallback
 $config{jit} //= '$(JIT_STUB)';
 
-
-if (system($config{lua} . ' -e \'require("bit");\'') == 0) {
-    # this is nasty imho, but what can you do
-    $config{dasm_rule_win32} = '$(DYNASM) $(DASM_FLAGS_WIN32) -o $@ src/jit/emit_x64.dasc';
-    $config{dasm_rule_posix} = '$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ src/jit/emit_x64.dasc';
-} else {
-    $config{dasm_rule_win32} //= '$(MSG) Waring: Cannot run preprocessor, try reconfigure?';
-    $config{dasm_rule_posix} //= '$(MSG) Waring: Cannot run preprocessor, try reconfigure?';
-}
 
 
 
