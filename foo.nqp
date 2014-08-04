@@ -1,10 +1,12 @@
 #!/usr/bin/env nqp-m
 
 sub quam() {
-    my num $i := 0.5;
-    while $i < 100.0 {
-        $i := $i * 1.1;
-        nqp::say("Value of \$i is $i");
+    my int $i := 1;
+    my int $j := !$i;
+    if $j {
+        nqp::say("OH HAI");
+    } else {
+    nqp::say("OH NO");
     }
 }
 
