@@ -437,6 +437,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_ge_i:
         /* comparison (objects) */
     case MVM_OP_eqaddr:
+    case MVM_OP_isconcrete:
         /* constants */
     case MVM_OP_const_i64_16:
     case MVM_OP_const_i64:
