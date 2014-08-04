@@ -487,6 +487,9 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_hllboxtype_s:
     case MVM_OP_null_s:
     case MVM_OP_isnull_s:
+    case MVM_OP_not_i:
+    case MVM_OP_isnull:
+    case MVM_OP_isnonnull:
         jgb_append_primitive(tc, jgb, ins);
         break;
         /* branches */
@@ -619,14 +622,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_LITERAL, 0 },
                                  { MVM_JIT_LITERAL, op == MVM_OP_isfalse }};
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 6, args, MVM_JIT_RV_VOID, -1);
-        break;
-    }
-    case MVM_OP_isnull: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 src = ins->operands[1].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
-                                 { MVM_JIT_REG_VAL, src } };
-        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_takeclosure: {
