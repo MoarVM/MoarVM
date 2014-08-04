@@ -287,8 +287,8 @@ isfalse_s           w(int64) r(str) :pure
 null                w(obj) :pure
 isnull              w(int64) r(obj) :pure
 ifnonnull           r(obj) ins
-findmeth            w(obj) r(obj) str :pure
-findmeth_s          w(obj) r(obj) r(str) :pure
+findmeth            w(obj) r(obj) str :pure :invokish
+findmeth_s          w(obj) r(obj) r(str) :pure :invokish
 can                 w(int64) r(obj) str :pure
 can_s               w(int64) r(obj) r(str) :pure
 create              w(obj) r(obj) :pure

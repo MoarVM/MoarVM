@@ -250,11 +250,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
      * the number of copies (and thereby increase the efficiency), but
      * currently that isn't really feasible. */
     switch (op) {
-    case MVM_OP_const_i64_16: {
+    case MVM_OP_const_i64_16:
+    case MVM_OP_const_i64_32: {
         MVMint32 reg = ins->operands[0].reg.orig;
         /* Upgrade to 64 bit */
-        MVMint64 val = (MVMint64)ins->operands[1].lit_i16;
-        | mov WORK[reg], qword val;
+        MVMint64 val = (op == MVM_OP_const_i64_16 ? (MVMint64)ins->operands[1].lit_i16 :
+                        (MVMint64)ins->operands[1].lit_i32);
+        | mov qword WORK[reg], val;
         break;
     }
     case MVM_OP_const_i64: {
