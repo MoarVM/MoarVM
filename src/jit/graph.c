@@ -87,6 +87,9 @@ static void jgb_append_branch(MVMThreadContext *tc, JitGraphBuilder *jgb,
         if (ins->info->opcode == MVM_OP_goto) {
             node->u.branch.dest.bb = ins->operands[0].ins_bb;
         }
+        else if (ins->info->opcode == MVM_OP_indexat) {
+            node->u.branch.dest.bb = ins->operands[3].ins_bb;
+        }
         else {
             node->u.branch.dest.bb = ins->operands[1].ins_bb;
         }
@@ -487,6 +490,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_if_i:
     case MVM_OP_unless_i:
     case MVM_OP_ifnonnull:
+    case MVM_OP_indexat:
         jgb_append_branch(tc, jgb, 0, ins);
         break;
     case MVM_OP_if_o:

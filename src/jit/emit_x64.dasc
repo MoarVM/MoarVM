@@ -1057,22 +1057,22 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
             | jmp =>(name)
         }
     } else {
-        MVMint16 reg = ins->operands[0].reg.orig;
+        MVMint16 val = ins->operands[0].reg.orig;
         MVM_jit_log(tc, "emit branch <%s> to label %d\n",
                     ins->info->name, name);
         switch(ins->info->opcode) {
         case MVM_OP_if_i:
-            | mov rax, WORK[reg];
+            | mov rax, WORK[val];
             | test rax, rax;
             | jnz =>(name); // jump to dynamic label
             break;
         case MVM_OP_unless_i:
-            | mov rax, WORK[reg];
+            | mov rax, WORK[val];
             | test rax, rax;
             | jz =>(name);
             break;
         case MVM_OP_ifnonnull:
-            | mov TMP1, WORK[reg];
+            | mov TMP1, WORK[val];
             | test TMP1, TMP1;
             | jz >1;
             | get_vmnull TMP2;
@@ -1081,6 +1081,18 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
             | jmp =>(name);
             |1:
             break;
+        case MVM_OP_indexat: {
+            MVMint16 offset = ins->operands[1].reg.orig;
+            MVMuint32 str_idx = ins->operands[2].lit_str_idx;
+            | mov ARG1, TC;
+            | mov ARG2, WORK[val];
+            | mov ARG3, WORK[offset];
+            | get_string ARG4, str_idx;
+            | callp &MVM_string_char_at_in_string;
+            | cmp RV, 0;
+            | jl =>(name);
+            break;
+        }
         default:
             MVM_exception_throw_adhoc(tc, "JIT: Can't handle conditional <%s>",
                                       ins->info->name);
