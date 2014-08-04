@@ -4621,7 +4621,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 /* Bounds checking? Never heard of that. */
                 MVMFrame *frame_before = tc->cur_frame;
                 MVMExtOpRecord *record = &cu->body.extops[op - MVM_OP_EXT_BASE];
-                record->func(tc);
+                record->func(tc, cur_op);
                 if (tc->cur_frame == frame_before)
                     cur_op += record->operand_bytes;
                 goto NEXT;
@@ -4633,7 +4633,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVMFrame *frame_before = tc->cur_frame;
                     MVMExtOpRecord *record =
                             &cu->body.extops[op - MVM_OP_EXT_BASE];
-                    record->func(tc);
+                    record->func(tc, cur_op);
                     if (tc->cur_frame == frame_before)
                         cur_op += record->operand_bytes;
                     goto NEXT;

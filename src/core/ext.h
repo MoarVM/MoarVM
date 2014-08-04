@@ -1,4 +1,4 @@
-typedef void MVMExtOpFunc(MVMThreadContext *tc);
+typedef void MVMExtOpFunc(MVMThreadContext *tc, MVMuint8 *cur_op);
 typedef void MVMExtOpSpesh(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins);
 typedef void MVMExtOpFactDiscover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins);
 

@@ -242,6 +242,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     MVM_spesh_use_facts(tc, g, flag_facts);
     flag_facts->usages--;
 
+    truthvalue = truthvalue ? 1 : 0;
     if (truthvalue != negated_op) {
         /* this conditional can be turned into an unconditional jump */
         ins->info = MVM_op_get_op(MVM_OP_goto);
@@ -1112,7 +1113,7 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
     while (death) {
         MVMSpeshBB *bb = g->entry;
         death = 0;
-        while (bb) {
+        while (bb && !bb->inlined) {
             MVMSpeshIns *ins = bb->last_ins;
             while (ins) {
                 MVMSpeshIns *prev = ins->prev;
