@@ -51,9 +51,10 @@ struct MVMJitBranch {
 
 typedef enum {
     MVM_JIT_INTERP_TC,
-    MVM_JIT_INTERP_FRAME,
     MVM_JIT_INTERP_CU,
+    MVM_JIT_INTERP_FRAME,
     MVM_JIT_INTERP_PARAMS,
+    MVM_JIT_INTERP_CALLER,
 } MVMJitInterpVar;
 
 typedef enum {

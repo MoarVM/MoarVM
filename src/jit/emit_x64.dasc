@@ -788,14 +788,17 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_JIT_INTERP_TC:
             | mov TMP6, TC;
             break;
-        case MVM_JIT_INTERP_FRAME:
-            | mov TMP6, FRAME;
-            break;
         case MVM_JIT_INTERP_CU:
             | mov TMP6, CU;
             break;
+        case MVM_JIT_INTERP_FRAME:
+            | mov TMP6, FRAME;
+            break;
         case MVM_JIT_INTERP_PARAMS:
             | lea TMP6, FRAME->params;
+            break;
+        case MVM_JIT_INTERP_CALLER:
+            | mov TMP6, aword FRAME->caller;
             break;
         }
         break;
