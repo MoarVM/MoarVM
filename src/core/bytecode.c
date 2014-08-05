@@ -616,6 +616,15 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticF
     if (sf->body.fully_deserialized)
         return;
 
+    /* Acquire the update mutex on the CompUnit. */
+    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+
+    /* Ensure no other thread has done this for us in the mean time. */
+    if (sf->body.fully_deserialized) {
+        MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+        return;
+    }
+
     /* Locate start of frame body. */
     pos = sf->body.frame_data_pos;
 
@@ -699,6 +708,9 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticF
 
     /* Mark the frame fully deserialized. */
     sf->body.fully_deserialized = 1;
+
+    /* Release the update mutex again */
+    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
 }
 
 /* Loads the callsites. */

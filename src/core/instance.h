@@ -22,6 +22,7 @@ struct MVMBootTypes {
     MVMObject *BOOTContinuation;
     MVMObject *BOOTQueue;
     MVMObject *BOOTAsync;
+    MVMObject *BOOTReentrantMutex;
 };
 
 /* Various raw types that don't need a HOW */
