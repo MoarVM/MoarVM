@@ -1,13 +1,15 @@
 #!/usr/bin/env nqp-m
 
 sub quam() {
-    my int $i := 1;
-    my int $j := !$i;
-    if $j {
+    my num $i := 1.0;
+    my num $j := 2.0;
+    if $j < $i {
         nqp::say("OH HAI");
-    } else {
+    } elsif $j > $i {
     nqp::say("OH NO");
-    }
+    } else {
+    nqp::say("BAI");
+}
 }
 
 my int $i := 0;

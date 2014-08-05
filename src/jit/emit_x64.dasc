@@ -701,20 +701,38 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP2;
         break;
     }
+    case MVM_OP_eq_n:
+    case MVM_OP_ne_n:
+    case MVM_OP_le_n:
     case MVM_OP_lt_n:
+    case MVM_OP_ge_n:
     case MVM_OP_gt_n: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 a   = ins->operands[1].reg.orig;
         MVMint16 b   = ins->operands[2].reg.orig;
-        | movsd xmm0, qword WORK[a];
-        | ucomisd xmm0, qword WORK[b];
-        switch(op) {
-        case MVM_OP_lt_n:
-            | setl TMP1b;
-            break;
-        case MVM_OP_gt_n:
-            | setb TMP1b;
-            break;
+        if (op == MVM_OP_eq_n) {
+            | mov TMP1, 0;
+        } else if (op == MVM_OP_ne_n) {
+            | mov TMP1, 1;
+        }
+        if (op == MVM_OP_lt_n || op == MVM_OP_le_n) {
+            | movsd xmm0, qword WORK[b];
+            | ucomisd xmm0, qword WORK[a];
+        } else {
+            | movsd xmm0, qword WORK[a];
+            | ucomisd xmm0, qword WORK[b];
+        }
+
+        if (op == MVM_OP_le_n || op == MVM_OP_ge_n) {
+            | setae TMP1b;
+        } else if (op == MVM_OP_eq_n) {
+            | setnp TMP2b; // zero if either is NaN, 1 otherwise
+            | cmove TMP1, TMP2; // if equal, overwrite 0 with 1
+        } else if (op == MVM_OP_ne_n) {
+            | setp TMP2b; // 1 if either is NaN (in which case they can't be equal)
+            | cmove TMP1, TMP2; // if equal, overwrite 1 with IsNan(a) | IsNaN(b)
+        } else {
+            | seta TMP1b;
         }
         | movzx TMP1, TMP1b;
         | mov WORK[dst], TMP1;

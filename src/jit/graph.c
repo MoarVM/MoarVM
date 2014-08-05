@@ -440,8 +440,12 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_gt_i:
     case MVM_OP_ge_i:
         /* comparison (numbers) */
-        //    case MVM_OP_gt_n:
-        //    case MVM_OP_lt_n:
+    case MVM_OP_eq_n:
+    case MVM_OP_ne_n:
+    case MVM_OP_ge_n:
+    case MVM_OP_gt_n:
+    case MVM_OP_lt_n:
+    case MVM_OP_le_n:
         /* comparison (objects) */
     case MVM_OP_eqaddr:
     case MVM_OP_isconcrete:
