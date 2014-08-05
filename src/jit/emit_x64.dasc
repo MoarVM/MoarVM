@@ -19,6 +19,7 @@
 |.type OBJECT, MVMObject
 |.type COLLECTABLE, MVMCollectable
 |.type STABLE, MVMSTable
+|.type REPR, MVMREPROps
 |.type STRING, MVMString*
 |.type OBJECTPTR, MVMObject*
 |.type CONTAINERSPEC, MVMContainerSpec
@@ -738,6 +739,32 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP1;
         break;
     }
+    case MVM_OP_isint:
+    case MVM_OP_isnum:
+    case MVM_OP_isstr:
+    case MVM_OP_islist:
+    case MVM_OP_ishash: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMint32 reprid = op == MVM_OP_isint ? MVM_REPR_ID_P6int :
+                          op == MVM_OP_isnum ? MVM_REPR_ID_P6num :
+                          op == MVM_OP_isstr ? MVM_REPR_ID_P6str :
+                          op == MVM_OP_islist ? MVM_REPR_ID_MVMArray :
+                     /*  op == MVM_OP_ishash */ MVM_REPR_ID_MVMHash;
+        | mov TMP1, aword WORK[obj];
+        | test TMP1, TMP1;
+        | jz >1;
+        | mov TMP1, OBJECT:TMP1->st;
+        | mov TMP1, STABLE:TMP1->REPR;
+        | cmp qword REPR:TMP1->ID, reprid;
+        | jne >1;
+        | mov qword WORK[dst], 1;
+        | jmp >2;
+        |1:
+        | mov qword WORK[dst], 0;
+        |2:
+        break;
+    }
     case MVM_OP_isnonnull: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
@@ -1234,6 +1261,7 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *invoke,
                          dasm_State **Dst) {
     MVMint16 i;
+    MVM_jit_log(tc, "Emit invoke (%d args)\n", invoke->arg_count);
     /* setup the callsite */
     | mov ARG1, TC;
     | mov ARG2, CU;
@@ -1337,6 +1365,7 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
 void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitGraph *jg,
                            MVMJitJumpList *jumplist, dasm_State **Dst) {
     MVMint32 i;
+    MVM_jit_log(tc, "Emit jumplist (%d labels)\n", jumplist->num_labels);
     | mov TMP1, WORK[jumplist->reg];
     | cmp TMP1, 0;
     | jl >2;
@@ -1359,6 +1388,7 @@ void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
                           MVMJitControl *ctrl, dasm_State **Dst) {
     if (ctrl->type == MVM_JIT_CONTROL_INVOKISH) {
+        MVM_jit_log(tc, "Emit invokish control guard\n");
         | cmp FRAME, TC->cur_frame;
         | je >1;
         | lea TMP1, [>1];
