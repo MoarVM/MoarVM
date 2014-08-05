@@ -842,7 +842,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
-        /*
+
     case MVM_OP_findmeth:
     case MVM_OP_findmeth_s: {
         MVMint16 dst = ins->operands[0].reg.orig;
@@ -857,7 +857,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
-        */
+
         /* coercion */
     case MVM_OP_coerce_sn:
     case MVM_OP_coerce_ns:

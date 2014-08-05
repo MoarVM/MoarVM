@@ -393,21 +393,19 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 obj    = ins->operands[1].reg.orig;
         MVMint16 offset = ins->operands[2].lit_i16;
         MVMint16 body   = offsetof(MVMP6opaque, body);
+        /* load address and object */
         | mov TMP1, WORK[obj];
-        | cmp aword P6OPAQUE:TMP1->body.replaced, 0;
-        | jne >1;
         | lea TMP2, [TMP1 + (offset + body)];
-        | jmp >2;
-        |1:
-        | mov TMP2, P6OPAQUE:TMP1->body.replaced;
-        | lea TMP2, [TMP2 + offset];
-        |2:
-        /* TMP1 now contains address of item */
+        | mov TMP4, P6OPAQUE:TMP1->body.replaced;
+        | lea TMP5, [TMP4 + offset];
+        | test TMP4, TMP4;
+        | cmovnz TMP2, TMP5;
+        /* TMP2 now contains address of item */
         if (op == MVM_OP_sp_p6oget_o) {
             | mov TMP3, [TMP2];
-            | cmp TMP3, 0;
+            | test TMP3, TMP3;
             /* Check if object doesn't point to NULL */
-            | jne >3;
+            | jnz >3;
             /* Otherwise load VMNull */
             | get_vmnull TMP3;
             |3:
@@ -416,8 +414,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
             | mov TMP3, [TMP2];
             /* check for null */
-            | cmp TMP3, 0;
-            | jne >4;
+            | test TMP3, TMP3;
+            | jnz >4;
             /* if null, vivify as type object from spesh slot */
             | get_spesh_slot TMP3, spesh_idx;
             /* need to hit write barrier? */
@@ -435,18 +433,21 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         } else if (op == MVM_OP_sp_p6ogetvc_o) {
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
             | mov TMP3, [TMP2];
-            | cmp TMP3, 0;
-            | jne >4;
+            | test TMP3, TMP3;
+            | jnz >4;
             /* vivify as clone */
-            | mov [rbp-0x28], TMP1;
-            | mov [rbp-0x30], TMP2;
             | mov ARG1, TC;
             | get_spesh_slot ARG2, spesh_idx;
             | callp &MVM_repr_clone;
-            | mov TMP2, [rbp-0x30];
-            | mov TMP1, [rbp-0x28];
-            /* assign with write barrier */
             | mov TMP3, RV;
+            /* reload object and address */
+            | mov TMP1, WORK[obj];
+            | lea TMP2, [TMP1 + (offset + body)];
+            | mov TMP4, P6OPAQUE:TMP1->body.replaced;
+            | lea TMP5, [TMP4 + offset];
+            | test TMP4, TMP4;
+            | cmovnz TMP2, TMP5;
+            /* assign with write barrier */
             | check_wb TMP1, TMP3;
             | jz >3;
             | mov qword [rbp-0x28], TMP2; // address
