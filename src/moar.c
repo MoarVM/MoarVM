@@ -106,6 +106,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->callsite_interns = calloc(1, sizeof(MVMCallsiteInterns));
     init_mutex(instance->mutex_callsite_interns, "callsite interns");
 
+    /* Allocate int to str cache. */
+    instance->int_to_str_cache = calloc(MVM_INT_TO_STR_CACHE_SIZE, sizeof(MVMString *));
+
     /* Mutex for spesh installations, and check if we've a file we
      * should log specializations to. */
     init_mutex(instance->mutex_spesh_install, "spesh installations");

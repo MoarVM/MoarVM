@@ -136,6 +136,9 @@ struct MVMInstance {
     /* Set of string constants. */
     MVMStringConsts str_consts;
 
+    /* int -> str cache */
+    MVMString **int_to_str_cache;
+
     /* Specialization installation mutex (global, as it's low contention, so
      * no real motivation to have it more fine-grained at present). */
     uv_mutex_t mutex_spesh_install;

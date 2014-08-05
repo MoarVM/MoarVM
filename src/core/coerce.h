@@ -14,3 +14,6 @@ MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s);
 void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg);
 MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj);
 MVMObject* MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag);
+
+/* Size of the int to string coercion cache (we cache 0 ..^ this). */
+#define MVM_INT_TO_STR_CACHE_SIZE 64

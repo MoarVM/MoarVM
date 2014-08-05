@@ -40,6 +40,8 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
 void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     MVMSerializationContextBody *current, *tmp;
     MVMLoadedCompUnitName       *current_lcun, *tmp_lcun;
+    MVMString                  **int_to_str_cache;
+    MVMuint32                    i;
 
     MVM_gc_worklist_add(tc, worklist, &tc->instance->threads);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->compiler_registry);
@@ -48,6 +50,10 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     MVM_gc_worklist_add(tc, worklist, &tc->instance->event_loop_todo_queue);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->event_loop_cancel_queue);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->event_loop_active);
+
+    int_to_str_cache = tc->instance->int_to_str_cache;
+    for (i = 0; i < MVM_INT_TO_STR_CACHE_SIZE; i++)
+        MVM_gc_worklist_add(tc, worklist, &(int_to_str_cache[i]));
 
     /* okay, so this makes the weak hash slightly less weak.. for certain
      * keys of it anyway... */
