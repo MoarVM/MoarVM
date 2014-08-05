@@ -146,6 +146,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
 
+    /* Current instrumentation level starts at 1; used to trigger all frames
+     * to be verified before their first run. */
+    instance->instrumentation_level = 1;
+
     /* Back to nursery allocation, now we're set up. */
     MVM_gc_allocate_gen2_default_clear(instance->main_thread);
 

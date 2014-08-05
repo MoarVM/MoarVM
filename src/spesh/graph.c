@@ -1050,7 +1050,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     g->num_lexicals  = sf->body.num_lexicals;
 
     /* Ensure the frame is validated, since we'll rely on this. */
-    if (!sf->body.invoked) {
+    if (sf->body.instrumentation_level == 0) {
         MVM_spesh_graph_destroy(tc, g);
         MVM_exception_throw_adhoc(tc, "Spesh: cannot build CFG from unvalidated frame");
     }
@@ -1090,7 +1090,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->num_spesh_slots   = cand->num_spesh_slots;
 
     /* Ensure the frame is validated, since we'll rely on this. */
-    if (!sf->body.invoked) {
+    if (sf->body.instrumentation_level == 0) {
         MVM_spesh_graph_destroy(tc, g);
         MVM_exception_throw_adhoc(tc, "Spesh: cannot build CFG from unvalidated frame");
     }

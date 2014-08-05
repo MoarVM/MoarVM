@@ -55,9 +55,21 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
 
     /* Set its spesh threshold. */
     static_frame_body->spesh_threshold = MVM_spesh_threshold(tc, static_frame);
+}
 
-    /* Mark frame as invoked, so we need not do these calculations again. */
-    static_frame_body->invoked = 1;
+/* When we don't match the current instrumentation level, we hit this. It may
+ * simply be that we never invoked the frame, in which case we prepare and
+ * verify it. It may also be because we need to instrument the code for
+ * profiling. */
+static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
+    /* Prepare and verify if needed. */
+    if (static_frame->body.instrumentation_level == 0)
+        prepare_and_verify_static_frame(tc, static_frame);
+
+    /* XXX Profiling instrumentation. */
+
+    /* Mark frame as being at the current instrumentation level. */
+    static_frame->body.instrumentation_level = tc->instance->instrumentation_level;
 }
 
 /* Increases the reference count of a frame. */
@@ -115,8 +127,8 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
 
     /* If the frame was never invoked before, need initial calculations
      * and verification. */
-    if (!static_frame->body.invoked)
-        prepare_and_verify_static_frame(tc, static_frame);
+    if (static_frame->body.instrumentation_level == 0)
+        instrumentation_level_barrier(tc, static_frame);
 
     frame = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMFrame));
 
@@ -324,10 +336,11 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     int fresh = 0;
     MVMStaticFrameBody *static_frame_body = &static_frame->body;
 
-    /* If the frame was never invoked before, need initial calculations
-     * and verification. */
-    if (!static_frame_body->invoked)
-        prepare_and_verify_static_frame(tc, static_frame);
+    /* If the frame was never invoked before, or never before at the current
+     * instrumentation level, we need to trigger the instrumentation level
+     * barrier. */
+    if (static_frame_body->instrumentation_level != tc->instance->instrumentation_level)
+        instrumentation_level_barrier(tc, static_frame);
 
     /* See if any specializations apply. */
     found_spesh = 0;

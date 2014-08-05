@@ -285,4 +285,14 @@ struct MVMInstance {
 
     /* Next type cache ID, to go in STable. */
     AO_t cur_type_cache_id;
+
+    /* The current instrumentation level. Each time we turn on/off some kind
+     * of instrumentation, such as profiling, this is incremented. The next
+     * entry to a frame then knows it should instrument or switch back to an
+     * uninstrumented version. As a special case, when we start up this is set
+     * to 1 which also triggers frame verification. */
+    MVMuint32 instrumentation_level;
+
+    /* Whether profiling is turned on or not. */
+    MVMuint32 profiling;
 };
