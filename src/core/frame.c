@@ -190,7 +190,10 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
                 NULL;
             frame->cur_args_callsite = NULL;
 
-            /* Ensure frame dynlex cache key is cleared. */
+            /* Ensure frame return addres and dynlex cache key is cleared. (We
+             * must clear the return address to avoid bogus searching within
+             * inlines for dynamic variables). */
+            frame->return_address    = NULL;
             frame->dynlex_cache_name = NULL;
 
             return frame;
@@ -201,12 +204,13 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     frame = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMFrame));
     frame->params.named_used = NULL;
 
-    /* Ensure special return pointers, continuation tags, and dynlex cache
-     * are null. */
+    /* Ensure special return pointers, continuation tags, dynlex cache,
+     * and return address are null. */
     frame->special_return    = NULL;
     frame->special_unwind    = NULL;
     frame->continuation_tags = NULL;
     frame->dynlex_cache_name = NULL;
+    frame->return_address    = NULL;
 
     /* Allocate space for lexicals and work area, copying the default lexical
      * environment into place. */
