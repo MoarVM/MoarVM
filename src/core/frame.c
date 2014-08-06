@@ -195,6 +195,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
              * inlines for dynamic variables). */
             frame->return_address    = NULL;
             frame->dynlex_cache_name = NULL;
+            frame->jit_entry_label   = NULL;
 
             return frame;
         }
@@ -211,6 +212,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     frame->continuation_tags = NULL;
     frame->dynlex_cache_name = NULL;
     frame->return_address    = NULL;
+    frame->jit_entry_label   = NULL;
 
     /* Allocate space for lexicals and work area, copying the default lexical
      * environment into place. */

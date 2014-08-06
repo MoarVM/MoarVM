@@ -12,6 +12,10 @@ struct MVMJitCode {
     void       **osr_labels;
     MVMint32   *osr_offsets;
     MVMint32 num_osr_labels;
+
+    void     **deopt_all_labels;
+    MVMint32  *deopt_all_indexes;
+    MVMint32   num_deopt_all_labels;
 };
 
 MVMJitCode* MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);

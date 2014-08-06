@@ -99,6 +99,21 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         code->osr_labels[i] = memory + offset;
     }
 
+    /* Handle deopt all indexes. */
+    code->num_deopt_all_labels = 0;
+    if (jg->num_deopt_all_idxs > 0) {
+        code->deopt_all_labels     = calloc(jg->num_deopt_all_idxs, sizeof(void *));
+        code->deopt_all_indexes    = calloc(jg->num_deopt_all_idxs, sizeof(MVMint32));
+        for (i = 0; i < jg->num_labels; i++) {
+            if (jg->labels[i].bb && jg->labels[i].deopt_all_idx >= 0) {
+                MVMint32 cur_idx = code->num_deopt_all_labels;
+                code->deopt_all_labels[cur_idx]  = code->labels[i];
+                code->deopt_all_indexes[cur_idx] = jg->labels[i].deopt_all_idx;
+                code->num_deopt_all_labels++;
+            }
+        }
+    }
+
     /* clear up the assembler */
     dasm_free(&state);
     free(dasm_globals);

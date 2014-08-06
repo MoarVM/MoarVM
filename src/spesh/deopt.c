@@ -216,28 +216,60 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
     MVMFrame *f = tc->cur_frame->caller;
     while (f) {
         if (f->effective_bytecode != f->static_info->body.bytecode && f->spesh_log_idx < 0) {
-            /* Found one. See if we can find the return address in the deopt
-             * table. */
-            MVMint32 ret_offset = f->return_address - f->effective_bytecode;
-            MVMint32 i;
-            for (i = 0; i < f->spesh_cand->num_deopts * 2; i += 2) {
-                if (f->spesh_cand->deopts[i + 1] == ret_offset) {
-                    /* Switch frame itself back to the original code. */
-                    f->effective_bytecode    = f->static_info->body.bytecode;
-                    f->effective_handlers    = f->static_info->body.handlers;
+            /* Found one. Is it JITted code? */
+            if (f->spesh_cand->jitcode && f->jit_entry_label) {
+                MVMint32 i;
+                for (i = 0; i < f->spesh_cand->jitcode->num_deopt_all_labels; i++) {
+                    if (f->spesh_cand->jitcode->deopt_all_labels[i] == f->jit_entry_label) {
+                        /* Resolve offset and target. */
+                        MVMint32 deopt_idx    = f->spesh_cand->jitcode->deopt_all_indexes[i];
+                        MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
+                        MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
 
-                    /* Re-create any frames needed if we're in an inline; if not,
-                     * just update return address. */
-                    if (f->spesh_cand->inlines)
-                        uninline(tc, f, f->spesh_cand, ret_offset, f->spesh_cand->deopts[i], l);
-                    else
-                        f->return_address = f->effective_bytecode + f->spesh_cand->deopts[i];
+                        /* Switch frame itself back to the original code. */
+                        f->effective_bytecode    = f->static_info->body.bytecode;
+                        f->effective_handlers    = f->static_info->body.handlers;
 
-                    /* No spesh cand/slots needed now. */
-                    f->effective_spesh_slots = NULL;
-                    f->spesh_cand            = NULL;
+                        /* Re-create any frames needed if we're in an inline; if not,
+                        * just update return address. */
+                        if (f->spesh_cand->inlines)
+                            uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
+                        else
+                            f->return_address = f->effective_bytecode + deopt_target;
 
-                    break;
+                        /* No spesh cand/slots needed now. */
+                        f->effective_spesh_slots = NULL;
+                        f->spesh_cand            = NULL;
+                        f->jit_entry_label       = NULL;
+
+                        break;
+                    }
+                }
+            }
+
+            else {
+                /* Not JITted; see if we can find the return address in the deopt table. */
+                MVMint32 ret_offset = f->return_address - f->effective_bytecode;
+                MVMint32 i;
+                for (i = 0; i < f->spesh_cand->num_deopts * 2; i += 2) {
+                    if (f->spesh_cand->deopts[i + 1] == ret_offset) {
+                        /* Switch frame itself back to the original code. */
+                        f->effective_bytecode    = f->static_info->body.bytecode;
+                        f->effective_handlers    = f->static_info->body.handlers;
+
+                        /* Re-create any frames needed if we're in an inline; if not,
+                        * just update return address. */
+                        if (f->spesh_cand->inlines)
+                            uninline(tc, f, f->spesh_cand, ret_offset, f->spesh_cand->deopts[i], l);
+                        else
+                            f->return_address = f->effective_bytecode + f->spesh_cand->deopts[i];
+
+                        /* No spesh cand/slots needed now. */
+                        f->effective_spesh_slots = NULL;
+                        f->spesh_cand            = NULL;
+
+                        break;
+                    }
                 }
             }
         }

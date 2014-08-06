@@ -10,11 +10,14 @@ struct MVMJitGraph {
 
     MVMint32 num_osr_labels;
     MVMint32   *osr_offsets;
+
+    MVMint32 num_deopt_all_idxs;
 };
 
 /* A label */
 struct MVMJitLabel {
-    MVMint32 name;
+    MVMint32    name;
+    MVMint32    deopt_all_idx; /* -1 if there ain't one */
     MVMSpeshBB *bb;
 };
 

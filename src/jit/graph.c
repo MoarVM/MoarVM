@@ -14,6 +14,9 @@ typedef struct {
     MVMint32  *osr_offsets;
     MVMint32   num_offsets;
     MVMint32 alloc_offsets;
+
+    MVMint32 next_bb_deopt_all_idx;
+    MVMint32 num_deopt_all_idxs;
 } JitGraphBuilder;
 
 
@@ -66,6 +69,7 @@ static MVMint32 get_label_name(MVMThreadContext *tc, JitGraphBuilder *jgb,
         }
         else if (jgb->labels[i].bb == NULL) {
             jgb->labels[i].bb = bb;
+            jgb->labels[i].deopt_all_idx = -1;
             return i;
         }
     }
@@ -99,13 +103,14 @@ static void jgb_append_branch(MVMThreadContext *tc, JitGraphBuilder *jgb,
 }
 
 static void jgb_append_label(MVMThreadContext *tc, JitGraphBuilder *jgb,
-                             MVMSpeshBB *bb) {
+                             MVMSpeshBB *bb, MVMint32 deopt_all_idx) {
 
     MVMJitNode *node = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitNode));
     node->type = MVM_JIT_NODE_LABEL;
     node->u.label.bb = bb;
     node->u.label.name = get_label_name(tc, jgb, bb);
     jgb_append_node(jgb, node);
+    jgb->labels[node->u.label.name].deopt_all_idx = deopt_all_idx;
     MVM_jit_log(tc, "append label: %d\n", node->u.label.name);
 }
 
@@ -232,6 +237,16 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVMint16      is_fast;
 
     while (ins = ins->next) {
+        MVMSpeshAnn *ann = ins->annotations;
+        while (ann) {
+            if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS) {
+                jgb->next_bb_deopt_all_idx = ann->data.deopt_idx;
+                jgb->num_deopt_all_idxs++;
+                break;
+            }
+            ann = ann->next;
+        }
+
         switch(ins->info->opcode) {
         case MVM_OP_arg_i:
         case MVM_OP_arg_n:
@@ -396,7 +411,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVMint16 op = ins->info->opcode;
     MVMSpeshAnn *ann = ins->annotations;
 
-    /* Search annotations for OSR point */
+    /* Search annotations for OSR point. */
     while (ann) {
         if (ann->type == MVM_SPESH_ANN_DEOPT_OSR) {
             if (jgb->num_offsets == jgb->alloc_offsets)
@@ -1087,7 +1102,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
 static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                MVMSpeshBB *bb) {
     jgb->cur_bb = bb;
-    jgb_append_label(tc, jgb, bb);
+    jgb_append_label(tc, jgb, bb, jgb->next_bb_deopt_all_idx);
+    jgb->next_bb_deopt_all_idx = -1;
     jgb->cur_ins = bb->first_ins;
     while (jgb->cur_ins) {
         if(!jgb_consume_ins(tc, jgb, jgb->cur_ins))
@@ -1100,14 +1116,15 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
 }
 
 static MVMJitGraph *jgb_build(MVMThreadContext *tc, JitGraphBuilder *jgb) {
-    MVMJitGraph * jg = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitGraph));
-    jg->sg             = jgb->sg;
-    jg->num_labels     = jgb->num_labels;
-    jg->labels         = jgb->labels;
-    jg->first_node     = jgb->first_node;
-    jg->last_node      = jgb->last_node;
-    jg->num_osr_labels = jgb->num_offsets;
-    jg->osr_offsets    = jgb->osr_offsets;
+    MVMJitGraph * jg       = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitGraph));
+    jg->sg                 = jgb->sg;
+    jg->num_labels         = jgb->num_labels;
+    jg->labels             = jgb->labels;
+    jg->first_node         = jgb->first_node;
+    jg->last_node          = jgb->last_node;
+    jg->num_osr_labels     = jgb->num_offsets;
+    jg->osr_offsets        = jgb->osr_offsets;
+    jg->num_deopt_all_idxs = jgb->num_deopt_all_idxs;
     return jg;
 }
 
@@ -1142,6 +1159,8 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     jgb.num_offsets = 0;
     jgb.alloc_offsets = 2;
     jgb.osr_offsets = MVM_spesh_alloc(tc, sg, sizeof(MVMint32) * jgb.alloc_offsets);
+    /* Have no next BB deopt index to start with. */
+    jgb.next_bb_deopt_all_idx = -1;
     /* loop over basic blocks, adding one after the other */
     while (jgb.cur_bb) {
         if (!jgb_consume_bb(tc, &jgb, jgb.cur_bb))
