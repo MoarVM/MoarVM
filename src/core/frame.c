@@ -66,10 +66,12 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
     if (static_frame->body.instrumentation_level == 0)
         prepare_and_verify_static_frame(tc, static_frame);
 
-    /* XXX Profiling instrumentation. */
-
     /* Mark frame as being at the current instrumentation level. */
     static_frame->body.instrumentation_level = tc->instance->instrumentation_level;
+
+    /* Add profiling instrumentation if needed. */
+    if (tc->instance->profiling)
+        MVM_profile_instrument(tc, static_frame);
 }
 
 /* Increases the reference count of a frame. */

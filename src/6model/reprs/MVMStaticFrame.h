@@ -109,6 +109,14 @@ struct MVMStaticFrameBody {
      * static_code only. */
     MVMint32 code_obj_sc_dep_idx;
     MVMint32 code_obj_sc_idx;
+
+    /* Profiling/instrumented version of the bytecode, if we're profiling.
+     * Also, a backup of the uninstrumented bytecode in case we turn off
+     * profiling. Same for handlers. */
+    MVMuint8        *instrumented_bytecode;
+    MVMuint8        *uninstrumented_bytecode;
+    MVMFrameHandler *instrumented_handlers;
+    MVMFrameHandler *uninstrumented_handlers;
 };
 struct MVMStaticFrame {
     MVMObject common;
