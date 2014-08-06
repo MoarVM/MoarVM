@@ -340,6 +340,19 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
     return result;
 }
 
+/* Spawn a process asynchronously. */
+MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue,
+        MVMString *path, MVMint64 flags, MVMObject *exit_callback,
+        MVMObject *stdout_callback, MVMObject *stderr_callback,
+        MVMObject *err_callback) {
+    MVM_exception_throw_adhoc(tc, "Async process spawning NYI");
+}
+
+/* Kills an asynchronously spawned process. */
+void MVM_proc_kill_async(MVMThreadContext *tc, MVMObject *handle) {
+    MVM_exception_throw_adhoc(tc, "Async process killing NYI");
+}
+
 MVMint64 MVM_proc_getpid(MVMThreadContext *tc) {
 #ifdef _WIN32
     return _getpid();
