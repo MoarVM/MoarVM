@@ -1010,26 +1010,26 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
     MVMuint32 desperation = 0;
     
     if (fcost+icost > 20)
-	desperation = 1;
+        desperation = 1;
 
     while (from && from != to) {
-	frames++;
-	if (frames >= next) {
-	    if (!from->dynlex_cache_name || (desperation && frames > 1)) {
-		from->dynlex_cache_name = name;
-		from->dynlex_cache_reg  = reg;
-		from->dynlex_cache_type = type;
-		if (desperation && next == 3) {
-		    next = fcost / 2;
-		}
-		else {
-		    if (next)
-			return;
-		    next = 3;
-		}
-	    }
-	}
-	from = from->caller;
+        frames++;
+        if (frames >= next) {
+            if (!from->dynlex_cache_name || (desperation && frames > 1)) {
+                from->dynlex_cache_name = name;
+                from->dynlex_cache_reg  = reg;
+                from->dynlex_cache_type = type;
+                if (desperation && next == 3) {
+                    next = fcost / 2;
+                }
+                else {
+                    if (next)
+                        return;
+                    next = 3;
+                }
+            }
+        }
+        from = from->caller;
     }
 }
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify) {
@@ -1041,7 +1041,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     char *c_name;
     
     if (dlog)
-	c_name = MVM_string_utf8_encode_C_string(tc, name);
+        c_name = MVM_string_utf8_encode_C_string(tc, name);
 
     MVMFrame *initial_frame = cur_frame;
     if (!name)
@@ -1057,7 +1057,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
             MVMint32 ret_offset = cur_frame->return_address - cur_frame->effective_bytecode;
             MVMint32 i;
             for (i = 0; i < cand->num_inlines; i++) {
-		icost++;
+                icost++;
                 if (ret_offset >= cand->inlines[i].start && ret_offset < cand->inlines[i].end) {
                     MVMStaticFrame *isf = cand->inlines[i].code->body.sf;
                     if (lexical_names = isf->body.lexical_names) {
@@ -1069,13 +1069,13 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                             *type = cand->lexical_types[lexidx];
                             if (vivify && *type == MVM_reg_obj && !result->o)
                                 MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
-			    if (fcost+icost > 1)
-				try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost, ecost, xcost);
-			    if (dlog) {
-				fprintf(dlog, "I %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
-				fflush(dlog);
-				free(c_name);
-			    }
+                            if (fcost+icost > 1)
+                                try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost, ecost, xcost);
+                            if (dlog) {
+                                fprintf(dlog, "I %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+                                fflush(dlog);
+                                free(c_name);
+                            }
                             return result;
                         }
                     }
@@ -1088,20 +1088,20 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
             if (MVM_string_equal(tc, name, cur_frame->dynlex_cache_name)) {
                 *type = cur_frame->dynlex_cache_type;
                 MVMRegister *result = cur_frame->dynlex_cache_reg;
-		if (fcost+icost > 5)
-		    try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost, ecost, xcost);
-		if (dlog) {
-		    fprintf(dlog, "C %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
-		    fflush(dlog);
-		    free(c_name);
-		}
+                if (fcost+icost > 5)
+                    try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost, ecost, xcost);
+                if (dlog) {
+                    fprintf(dlog, "C %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+                    fflush(dlog);
+                    free(c_name);
+                }
                 return result;
             }
-	    else
-		xcost++;
+            else
+                xcost++;
         }
-	else
-	    ecost++;
+        else
+            ecost++;
 
         /* Now look in the frame itself. */
         if (lexical_names = cur_frame->static_info->body.lexical_names) {
@@ -1112,23 +1112,23 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 *type = cur_frame->static_info->body.lexical_types[entry->value];
                 if (vivify && *type == MVM_reg_obj && !result->o)
                     MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
-		if (dlog) {
-		    fprintf(dlog, "F %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
-		    fflush(dlog);
-		    free(c_name);
-		}
-		if (fcost+icost > 1)
-		    try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost, ecost, xcost);
+                if (dlog) {
+                    fprintf(dlog, "F %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+                    fflush(dlog);
+                    free(c_name);
+                }
+                if (fcost+icost > 1)
+                    try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost, ecost, xcost);
                 return result;
             }
         }
-	fcost++;
+        fcost++;
         cur_frame = cur_frame->caller;
     }
     if (dlog) {
-	fprintf(dlog, "N %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
-	fflush(dlog);
-	free(c_name);
+        fprintf(dlog, "N %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+        fflush(dlog);
+        free(c_name);
     }
     return NULL;
 }
