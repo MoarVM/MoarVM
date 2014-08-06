@@ -108,6 +108,9 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         }
     }
 
+    for (k = 0; k < cu->body.num_frames; k++)
+        MVM_bytecode_finish_frame(tc, cu, cu->body.frames[k]);
+
     for (k = 0; k < cu->body.num_frames; k++) {
         MVMStaticFrame *frame = cu->body.frames[k];
         MVMLexicalRegistry *current, *tmp;
