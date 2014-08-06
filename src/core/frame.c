@@ -1012,7 +1012,7 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
     if (fcost > 20)
 	desperation = 1;
 
-    while (from != to) {
+    while (from && from != to) {
 	frames++;
 	if (frames >= next) {
 	    if (!from->dynlex_cache_name || (desperation && frames > 1)) {
