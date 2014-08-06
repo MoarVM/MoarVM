@@ -1039,13 +1039,12 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     MVMuint32 ecost = 0;  /* frames traversed with empty cache */
     MVMuint32 xcost = 0;  /* frames traversed with wrong name */
     char *c_name;
-    
-    if (dlog)
-        c_name = MVM_string_utf8_encode_C_string(tc, name);
 
     MVMFrame *initial_frame = cur_frame;
     if (!name)
         MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
+    if (dlog)
+        c_name = MVM_string_utf8_encode_C_string(tc, name);
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names;
@@ -1086,8 +1085,8 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
         /* See if we've got it cached at this level. */
         if (cur_frame->dynlex_cache_name) {
             if (MVM_string_equal(tc, name, cur_frame->dynlex_cache_name)) {
-                *type = cur_frame->dynlex_cache_type;
                 MVMRegister *result = cur_frame->dynlex_cache_reg;
+                *type = cur_frame->dynlex_cache_type;
                 if (fcost+icost > 5)
                     try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost, ecost, xcost);
                 if (dlog) {
