@@ -343,8 +343,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         if (lexical_types[idx] == MVM_reg_obj) {
             MVM_jit_log(tc, "Emit lex vifivy check\n");
             /* if it is zero, check if we need to auto-vivify */
-            | cmp TMP5, 0;
-            | jne >1;
+            | test TMP5, TMP5;
+            | jnz >1;
             /* setup args */
             | mov ARG1, TC;
             | mov ARG2, TMP6;
@@ -554,11 +554,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_isnull_s: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP2, 0;
-        | cmp qword WORK[src], 0;
-        | jne >1;
-        | mov TMP2, 1;
-        |1:
+        | mov TMP1, WORK[src];
+        | test TMP1, TMP1;
+        | setz TMP2b;
+        | movzx TMP2, TMP2b;
         | mov qword WORK[dst], TMP2;
         break;
     }
