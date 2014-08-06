@@ -28,8 +28,10 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMCompUnitBody *body = (MVMCompUnitBody *)data;
     MVMObject *mutextype = tc->instance->boot_types.BOOTReentrantMutex;
-    body->update_mutex = REPR(mutextype)->allocate(tc, STABLE(mutextype));
-    REPR(mutextype)->initialize(tc, STABLE(mutextype), body->update_mutex, OBJECT_BODY(body->update_mutex));
+    MVMROOT(tc, root, {
+        MVM_ASSIGN_REF(tc, &(root->header), body->update_mutex, REPR(mutextype)->allocate(tc, STABLE(mutextype)));
+        REPR(mutextype)->initialize(tc, STABLE(mutextype), body->update_mutex, OBJECT_BODY(body->update_mutex));
+    });
 }
 
 /* Copies the body of one object to another. */
