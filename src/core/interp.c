@@ -4292,6 +4292,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_proc_kill_async(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
+            OP(startprofile):
+                MVM_profile_start(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
+            OP(endprofile):
+                GET_REG(cur_op, 0).o = MVM_profile_end(tc);
+                cur_op += 2;
+                goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

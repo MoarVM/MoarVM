@@ -184,6 +184,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/strings/windows1252@obj@ \
           src/math/bigintops@obj@ \
           src/profiler/log@obj@ \
+          src/profiler/profile@obj@ \
           src/moar@obj@ \
           @platform@ \
           @jit@
@@ -308,6 +309,7 @@ HEADERS = src/moar.h \
           src/strings/windows1252.h \
           src/math/bigintops.h \
           src/profiler/log.h \
+          src/profiler/profile.h \
           src/platform/mmap.h \
           src/platform/time.h \
           src/platform/threads.h \
