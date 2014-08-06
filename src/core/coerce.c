@@ -143,11 +143,27 @@ void flip_return(MVMThreadContext *tc, void *sr_data) {
 
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     char buffer[64];
-    int len = snprintf(buffer, 64, "%lld", (long long int)i);
-    if (len >= 0)
-        return MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
-    else
+    int len;
+
+    /* See if we can hit the cache. */
+    int cache = i >= 0 && i < MVM_INT_TO_STR_CACHE_SIZE;
+    if (cache) {
+        MVMString *cached = tc->instance->int_to_str_cache[i];
+        if (cached)
+            return cached;
+    }
+
+    /* Otherwise, need to do the work; cache it if in range. */
+    len = snprintf(buffer, 64, "%lld", (long long int)i);
+    if (len >= 0) {
+        MVMString *result = MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
+        if (cache)
+            tc->instance->int_to_str_cache[i] = result;
+        return result;
+    }
+    else {
         MVM_exception_throw_adhoc(tc, "Could not stringify integer");
+    }
 }
 
 MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {

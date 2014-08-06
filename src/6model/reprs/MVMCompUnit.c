@@ -27,8 +27,11 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMCompUnitBody *body = (MVMCompUnitBody *)data;
-    body->update_pools_mutex = malloc(sizeof(uv_mutex_t));
-    uv_mutex_init(body->update_pools_mutex);
+    MVMObject *mutextype = tc->instance->boot_types.BOOTReentrantMutex;
+    MVMROOT(tc, root, {
+        MVM_ASSIGN_REF(tc, &(root->header), body->update_mutex, REPR(mutextype)->allocate(tc, STABLE(mutextype)));
+        REPR(mutextype)->initialize(tc, STABLE(mutextype), body->update_mutex, OBJECT_BODY(body->update_mutex));
+    });
 }
 
 /* Copies the body of one object to another. */
@@ -65,6 +68,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         /* Unresolved sc bodies' handles are marked by the GC instance root marking. */
     }
 
+    MVM_gc_worklist_add(tc, worklist, &body->update_mutex);
+
     /* Add various other referenced strings, etc. */
     MVM_gc_worklist_add(tc, worklist, &body->hll_name);
     MVM_gc_worklist_add(tc, worklist, &body->filename);
@@ -98,8 +103,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     default:
         MVM_panic(MVM_exitcode_NYI, "Invalid deallocate of %u during MVMCompUnit gc_free", body->deallocate);
     }
-    uv_mutex_destroy(body->update_pools_mutex);
-    free(body->update_pools_mutex);
 }
 
 /* Gets the storage specification for this representation. */

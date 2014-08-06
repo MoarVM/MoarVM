@@ -1022,34 +1022,47 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
 
 /* Looks up the address of the lexical with the specified name and the
  * specified type. Returns null if it does not exist. */
-#define DYNLEX_CACHE_INSTALLS 3
-static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to, MVMString *name, MVMRegister *reg, MVMuint16 type) {
-    MVMint32 installed = 0;
-    while (from != to) {
-        if (!from->dynlex_cache_name) {
-            from->dynlex_cache_name = name;
-            from->dynlex_cache_reg  = reg;
-            from->dynlex_cache_type = type;
-            if (++installed == DYNLEX_CACHE_INSTALLS) {
-                return;
-            }
-            else {
-                MVMint32 i = 0;
-                while (from && from != to && ++i < DYNLEX_CACHE_INSTALLS)
-                    from = from->caller;
-                if (!from)
-                    return;
+static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to, MVMString *name, MVMRegister *reg, MVMuint16 type, MVMuint32 fcost, MVMuint32 icost, MVMuint32 ecost, MVMuint32 xcost) {
+    MVMint32 next = 0;
+    MVMint32 frames = 0;
+    MVMuint32 desperation = 0;
+    
+    if (fcost+icost > 20)
+        desperation = 1;
+
+    while (from && from != to) {
+        frames++;
+        if (frames >= next) {
+            if (!from->dynlex_cache_name || (desperation && frames > 1)) {
+                from->dynlex_cache_name = name;
+                from->dynlex_cache_reg  = reg;
+                from->dynlex_cache_type = type;
+                if (desperation && next == 3) {
+                    next = fcost / 2;
+                }
+                else {
+                    if (next)
+                        return;
+                    next = 3;
+                }
             }
         }
-        else {
-            from = from->caller;
-        }
+        from = from->caller;
     }
 }
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify) {
+    FILE *dlog = tc->instance->dynvar_log_fh;
+    MVMuint32 fcost = 0;  /* frames traversed */
+    MVMuint32 icost = 0;  /* inlines traversed */
+    MVMuint32 ecost = 0;  /* frames traversed with empty cache */
+    MVMuint32 xcost = 0;  /* frames traversed with wrong name */
+    char *c_name;
+
     MVMFrame *initial_frame = cur_frame;
     if (!name)
         MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
+    if (dlog)
+        c_name = MVM_string_utf8_encode_C_string(tc, name);
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names;
@@ -1061,6 +1074,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
             MVMint32 ret_offset = cur_frame->return_address - cur_frame->effective_bytecode;
             MVMint32 i;
             for (i = 0; i < cand->num_inlines; i++) {
+                icost++;
                 /* XXX Following line won't work in JITted code. */
                 if (ret_offset >= cand->inlines[i].start && ret_offset < cand->inlines[i].end) {
                     MVMStaticFrame *isf = cand->inlines[i].code->body.sf;
@@ -1080,7 +1094,13 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                              * is meaningless, and we may then try to access
                              * a cache entry below that we should never have
                              * hit. */
-                            /*try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type);*/
+                            /*if (fcost+icost > 1)
+                                try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost, ecost, xcost);*/
+                            if (dlog) {
+                                fprintf(dlog, "I %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+                                fflush(dlog);
+                                free(c_name);
+                            }
                             return result;
                         }
                     }
@@ -1091,10 +1111,22 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
         /* See if we've got it cached at this level. */
         if (cur_frame->dynlex_cache_name) {
             if (MVM_string_equal(tc, name, cur_frame->dynlex_cache_name)) {
+                MVMRegister *result = cur_frame->dynlex_cache_reg;
                 *type = cur_frame->dynlex_cache_type;
-                return cur_frame->dynlex_cache_reg;
+                if (fcost+icost > 5)
+                    try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost, ecost, xcost);
+                if (dlog) {
+                    fprintf(dlog, "C %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+                    fflush(dlog);
+                    free(c_name);
+                }
+                return result;
             }
+            else
+                xcost++;
         }
+        else
+            ecost++;
 
         /* Now look in the frame itself. */
         if (lexical_names = cur_frame->static_info->body.lexical_names) {
@@ -1105,11 +1137,23 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 *type = cur_frame->static_info->body.lexical_types[entry->value];
                 if (vivify && *type == MVM_reg_obj && !result->o)
                     MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
-                try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type);
+                if (dlog) {
+                    fprintf(dlog, "F %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+                    fflush(dlog);
+                    free(c_name);
+                }
+                if (fcost+icost > 1)
+                    try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost, ecost, xcost);
                 return result;
             }
         }
+        fcost++;
         cur_frame = cur_frame->caller;
+    }
+    if (dlog) {
+        fprintf(dlog, "N %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+        fflush(dlog);
+        free(c_name);
     }
     return NULL;
 }

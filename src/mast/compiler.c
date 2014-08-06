@@ -1129,19 +1129,26 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
 
     /* Handle outer. The current index means "no outer". */
     if (ISTYPE(vm, f->outer, ws->types->Frame)) {
-        unsigned short i, found, num_frames;
-        found = 0;
-        num_frames = (unsigned short)ELEMS(vm, ws->cu->frames);
-        for (i = 0; i < num_frames; i++) {
-            if (ATPOS(vm, ws->cu->frames, i) == f->outer) {
-                write_int16(ws->frame_seg, ws->frame_pos + 24, i);
-                found = 1;
-                break;
-            }
+        /* First, see if we have the index cached. If not, go hunting. */
+        if (((MAST_Frame *)f->outer)->flags & FRAME_FLAG_HAS_INDEX) {
+            write_int16(ws->frame_seg, ws->frame_pos + 24,
+                ((MAST_Frame *)f->outer)->index);
         }
-        if (!found) {
-            cleanup_all(vm, ws);
-            DIE(vm, "Could not locate outer frame in frame list");
+        else {
+            unsigned short i, found, num_frames;
+            found = 0;
+            num_frames = (unsigned short)ELEMS(vm, ws->cu->frames);
+            for (i = 0; i < num_frames; i++) {
+                if (ATPOS(vm, ws->cu->frames, i) == f->outer) {
+                    write_int16(ws->frame_seg, ws->frame_pos + 24, i);
+                    found = 1;
+                    break;
+                }
+            }
+            if (!found) {
+                cleanup_all(vm, ws);
+                DIE(vm, "Could not locate outer frame in frame list");
+            }
         }
     }
     else {

@@ -94,9 +94,11 @@ struct MVMCompUnitBody {
     /* Handle, if any, associated with a mapped file. */
     void *handle;
 
-    /* Lock to be taken if we want to add extra string, callsite, or coderef
-     * constants to the pools (done during inlining). */
-    uv_mutex_t *update_pools_mutex;
+    /* MVMReentrantLock to be taken if we want to add extra string,
+     * callsite, or coderef constants to the pools (done during
+     * inlining) or when we finish deserializing a frame, thus
+     * vivifying its lexicals. */
+    MVMObject *update_mutex;
 
     /* Version of the bytecode format we deserialized this comp unit from. */
     MVMuint16 bytecode_version;

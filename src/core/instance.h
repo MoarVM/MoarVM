@@ -22,6 +22,7 @@ struct MVMBootTypes {
     MVMObject *BOOTContinuation;
     MVMObject *BOOTQueue;
     MVMObject *BOOTAsync;
+    MVMObject *BOOTReentrantMutex;
 };
 
 /* Various raw types that don't need a HOW */
@@ -136,12 +137,18 @@ struct MVMInstance {
     /* Set of string constants. */
     MVMStringConsts str_consts;
 
+    /* int -> str cache */
+    MVMString **int_to_str_cache;
+
     /* Specialization installation mutex (global, as it's low contention, so
      * no real motivation to have it more fine-grained at present). */
     uv_mutex_t mutex_spesh_install;
 
     /* Log file for specializations, if we're to log them. */
     FILE *spesh_log_fh;
+
+    /* Log file for dynamic var performance, if we're to log it. */
+    FILE *dynvar_log_fh;
 
     /* Flag for if spesh (and certain spesh features) are enabled. */
     MVMint8 spesh_enabled;

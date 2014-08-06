@@ -15,6 +15,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
     char *spesh_log, *spesh_disable, *spesh_inline_disable, *spesh_osr_disable;
     char *jit_log, *jit_disable, *jit_bytecode_dir;
+    char *dynvar_log;
     int init_stat;
 
     /* Set up instance data structure. */
@@ -107,6 +108,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->callsite_interns = calloc(1, sizeof(MVMCallsiteInterns));
     init_mutex(instance->mutex_callsite_interns, "callsite interns");
 
+    /* Allocate int to str cache. */
+    instance->int_to_str_cache = calloc(MVM_INT_TO_STR_CACHE_SIZE, sizeof(MVMString *));
+
     /* Mutex for spesh installations, and check if we've a file we
      * should log specializations to. */
     init_mutex(instance->mutex_spesh_install, "spesh installations");
@@ -133,6 +137,11 @@ MVMInstance * MVM_vm_create_instance(void) {
     jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
     if (jit_bytecode_dir && strlen(jit_bytecode_dir))
         instance->jit_bytecode_dir = jit_bytecode_dir;
+    dynvar_log = getenv("MVM_DYNVAR_LOG");
+    if (dynvar_log && strlen(dynvar_log))
+        instance->dynvar_log_fh = fopen(dynvar_log, "w");
+    else
+        instance->dynvar_log_fh = NULL;
 
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
