@@ -406,6 +406,24 @@ static MVMint32 jgb_consume_jumplist(MVMThreadContext *tc, JitGraphBuilder *jgb,
     return 1;
 }
 
+static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshIns *ins) {
+    /* XXX Need to be able to clear these up, some day. */
+    MVMuint16 *regs = calloc(ins->info->num_operands, sizeof(MVMuint16));
+    MVMuint16 i;
+    for (i = 0; i < ins->info->num_operands; i++) {
+        switch (ins->info->operands[i] & MVM_operand_rw_mask) {
+        case MVM_operand_read_reg:
+        case MVM_operand_write_reg:
+            regs[i] = ins->operands[i].reg.orig;
+            break;
+        default:
+            free(regs);
+            return NULL;
+        }
+    }
+    return regs;
+}
+
 static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                 MVMSpeshIns *ins) {
     MVMint16 op = ins->info->opcode;
@@ -1087,9 +1105,31 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_prepargs: {
         return jgb_consume_invoke(tc, jgb, ins);
     }
-    default:
-        MVM_jit_log(tc, "BAIL: op <%s>\n", ins->info->name);
-        return 0;
+    default: {
+        /* Check if it's an extop. */
+        MVMint32 emitted_extop = 0;
+        if (ins->info->opcode == (MVMuint16)-1) {
+            MVMExtOpRecord *extops     = jgb->sg->sf->body.cu->body.extops;
+            MVMuint16       num_extops = jgb->sg->sf->body.cu->body.num_extops;
+            MVMuint16       i;
+            for (i = 0; i < num_extops; i++) {
+                if (extops[i].info == ins->info) {
+                    MVMuint16 *fake_regs = try_fake_extop_regs(tc, ins);
+                    if (fake_regs) {
+                        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC},
+                                                 { MVM_JIT_LITERAL_PTR, (MVMint64)fake_regs }};
+                        jgb_append_call_c(tc, jgb, extops[i].func, 2, args, MVM_JIT_RV_VOID, -1);
+                        emitted_extop = 1;
+                    }
+                    break;
+                }
+            }
+        }
+        if (!emitted_extop) {
+            MVM_jit_log(tc, "BAIL: op <%s>\n", ins->info->name);
+            return 0;
+        }
+    }
     }
     /* If we've consumed an invokish op, we should append a guard */
     if (ins->info->invokish) {
