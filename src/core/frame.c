@@ -1009,7 +1009,7 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
     MVMint32 frames = 0;
     MVMuint32 desperation = 0;
     
-    if (fcost > 20)
+    if (fcost+icost > 20)
 	desperation = 1;
 
     while (from && from != to) {
