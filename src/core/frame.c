@@ -1061,6 +1061,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
             MVMint32 ret_offset = cur_frame->return_address - cur_frame->effective_bytecode;
             MVMint32 i;
             for (i = 0; i < cand->num_inlines; i++) {
+                /* XXX Following line won't work in JITted code. */
                 if (ret_offset >= cand->inlines[i].start && ret_offset < cand->inlines[i].end) {
                     MVMStaticFrame *isf = cand->inlines[i].code->body.sf;
                     if (lexical_names = isf->body.lexical_names) {
@@ -1072,7 +1073,14 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                             *type = cand->lexical_types[lexidx];
                             if (vivify && *type == MVM_reg_obj && !result->o)
                                 MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
-                            try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type);
+                            /* XXX For now, don't cache if we find the var in
+                             * an inline. When we run unjitted, we may find a
+                             * var and cache it. Then in the JIT this inline
+                             * bounds check is busted because ->return_address
+                             * is meaningless, and we may then try to access
+                             * a cache entry below that we should never have
+                             * hit. */
+                            /*try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type);*/
                             return result;
                         }
                     }
