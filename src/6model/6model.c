@@ -25,6 +25,12 @@ MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st) {
     return HOW;
 }
 
+/* Gets the HOW (meta-object), which may be lazily deserialized, through the
+ * STable of the passed object. */
+MVMObject * MVM_6model_get_how_obj(MVMThreadContext *tc, MVMObject *obj) {
+    return MVM_6model_get_how(tc, STABLE(obj));
+}
+
 /* Locates a method by name, checking in the method cache only. */
 MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
     MVMObject *cache = STABLE(obj)->method_cache;

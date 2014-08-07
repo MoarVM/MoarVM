@@ -136,6 +136,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_iterval: return &MVM_iterval;
     case MVM_OP_smrt_numify: return &MVM_coerce_smart_numify;
     case MVM_OP_smrt_strify: return &MVM_coerce_smart_stringify;
+    case MVM_OP_gethow: return &MVM_6model_get_how_obj;
     case MVM_OP_box_i: return &MVM_box_int;
     case MVM_OP_box_s: return &MVM_box_str;
     case MVM_OP_box_n: return &MVM_box_num;
@@ -508,7 +509,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_getlex:
     case MVM_OP_bindlex:
     case MVM_OP_getwhat:
-    case MVM_OP_gethow:
     case MVM_OP_getwho:
     case MVM_OP_getwhere:
     case MVM_OP_sp_getspeshslot:
@@ -580,6 +580,15 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_branch(tc, jgb, 0, branch);
         break;
     }
+        /* some functions */
+    case MVM_OP_gethow: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, obj } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
     case MVM_OP_istype: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
@@ -591,7 +600,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
-        /* some functions */
     case MVM_OP_checkarity: {
         MVMuint16 min = ins->operands[0].lit_i16;
         MVMuint16 max = ins->operands[1].lit_i16;
