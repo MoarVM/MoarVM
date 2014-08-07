@@ -5,6 +5,8 @@ typedef void MVMExtOpFactDiscover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 /* Flags we might put on an extension op to indicate its properties. */
 #define MVM_EXTOP_PURE          1
 #define MVM_EXTOP_NOINLINE      2
+#define MVM_EXTOP_INVOKISH      4
+#define MVM_EXTOP_NO_JIT        8
 
 struct MVMExtRegistry {
     MVMDLLSym *sym;
