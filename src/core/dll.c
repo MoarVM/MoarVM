@@ -4,16 +4,11 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
     MVMDLLRegistry *entry;
     char *cpath;
     DLLib *lib;
-    
-    MVMROOT(tc, name, {
-        MVMROOT(tc, path, {
-            path = MVM_file_in_libpath(tc, path);
-        });
-    });
+
+    MVM_string_flatten(tc, name);
 
     uv_mutex_lock(&tc->instance->mutex_dll_registry);
 
-    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, tc->instance->dll_registry, name, entry);
 
     /* already loaded */
@@ -21,6 +16,12 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);
         return 0;
     }
+
+    MVMROOT(tc, name, {
+        MVMROOT(tc, path, {
+            path = MVM_file_in_libpath(tc, path);
+        });
+    });
 
     cpath = MVM_string_utf8_encode_C_string(tc, path);
     lib = dlLoadLibrary(cpath);
