@@ -20,6 +20,7 @@ struct MVMExtOpRegistry {
     MVMOpInfo info;
     MVMExtOpSpesh *spesh;
     MVMExtOpFactDiscover *discover;
+    MVMuint32 no_jit;
     UT_hash_handle hash_handle;
 };
 

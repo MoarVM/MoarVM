@@ -1114,11 +1114,14 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
             MVMuint16       i;
             for (i = 0; i < num_extops; i++) {
                 if (extops[i].info == ins->info) {
-                    MVMuint16 *fake_regs = try_fake_extop_regs(tc, ins);
-                    if (fake_regs) {
+                    MVMuint16 *fake_regs;
+                    if (!extops[i].no_jit && (fake_regs = try_fake_extop_regs(tc, ins))) {
                         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC},
                                                  { MVM_JIT_LITERAL_PTR, (MVMint64)fake_regs }};
                         jgb_append_call_c(tc, jgb, extops[i].func, 2, args, MVM_JIT_RV_VOID, -1);
+                        if (ins->info->invokish)
+                            jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_INVOKISH);
+                        MVM_jit_log(tc, "append extop: <%s>\n", ins->info->name);
                         emitted_extop = 1;
                     }
                     break;

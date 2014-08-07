@@ -13,6 +13,10 @@ struct MVMExtOpRecord {
      * the instruction pointer. */
     MVMuint16 operand_bytes;
 
+    /* Indicates the JIT should not emit a call to this op, because it needs
+     * to be used in an interpreter context. */
+    MVMuint16 no_jit;
+
     /* Read from the bytecode stream. */
     MVMuint8 operand_descriptor[MVM_MAX_OPERANDS];
 
