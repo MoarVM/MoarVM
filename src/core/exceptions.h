@@ -67,6 +67,7 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj);
 MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *exObj);
 void MVM_dump_backtrace(MVMThreadContext *tc);
 void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMRegister *resume_result);
+void MVM_exception_die(MVMThreadContext *tc, MVMString *str, MVMRegister *rr);
 void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exObj, MVMRegister *resume_result);
 void MVM_exception_resume(MVMThreadContext *tc, MVMObject *exObj);
 MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset);

@@ -1025,12 +1025,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(die): {
-                MVMException *ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
                 MVMRegister  *rr = &GET_REG(cur_op, 0);
-                ex->body.category = MVM_EX_CAT_CATCH;
-                MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.message, GET_REG(cur_op, 2).s);
+                MVMString   *str =  GET_REG(cur_op, 2).s;
                 cur_op += 4;
-                MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, (MVMObject *)ex, rr);
+                MVM_exception_die(tc, str, rr);
                 goto NEXT;
             }
             OP(takehandlerresult): {
