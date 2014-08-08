@@ -218,11 +218,18 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
         if (f->effective_bytecode != f->static_info->body.bytecode && f->spesh_log_idx < 0) {
             /* Found one. Is it JITted code? */
             if (f->spesh_cand->jitcode && f->jit_entry_label) {
+                MVMint32 num_deopts = f->spesh_cand->jitcode->num_deopts;
+                MVMJitDeopt *deopts = f->spesh_cand->jitcode->deopts;
+                void       **labels = f->spesh_cand->jitcode->labels;
                 MVMint32 i;
-                for (i = 0; i < f->spesh_cand->jitcode->num_deopt_all_labels; i++) {
-                    if (f->spesh_cand->jitcode->deopt_all_labels[i] == f->jit_entry_label) {
+                for (i = 0; i < num_deopts; i++) {
+                    if (labels[deopts[i].label] == f->jit_entry_label) {
+                        /*
+                        fprintf(stderr, "Found deopt label for JIT (%d) (label %d idx %d)\n", i,
+                                deopts[i].label, deopts[i].idx);
+                        */
                         /* Resolve offset and target. */
-                        MVMint32 deopt_idx    = f->spesh_cand->jitcode->deopt_all_indexes[i];
+                        MVMint32 deopt_idx    = deopts[i].idx;
                         MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
                         MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
 
@@ -245,6 +252,10 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                         break;
                     }
                 }
+                /*
+                if (i == num_deopts)
+                    fprintf(stderr, "JIT: can't find deopt all idx");
+                */
             }
 
             else {

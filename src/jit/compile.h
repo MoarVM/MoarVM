@@ -1,21 +1,30 @@
 typedef MVMint32 (*MVMJitFunc)(MVMThreadContext *tc, MVMCompUnit *cu, void * label);
 
 struct MVMJitCode {
-    MVMJitFunc     func_ptr;
-    size_t             size;
-    MVMuint8      *bytecode;
-    MVMint16     num_locals;
-    MVMStaticFrame      *sf;
-    void           **labels;
-    MVMint32     num_labels;
-    
-    void       **osr_labels;
-    MVMint32   *osr_offsets;
-    MVMint32 num_osr_labels;
+    MVMJitFunc func_ptr;
+    size_t     size;
+    MVMuint8  *bytecode;
 
-    void     **deopt_all_labels;
-    MVMint32  *deopt_all_indexes;
-    MVMint32   num_deopt_all_labels;
+    MVMStaticFrame *sf;
+    /* The basic idea here is that /all/ label names are indexes into
+     * the single labels array. This isn't particularly efficient at
+     * runtime (because we need a second dereference to figure the
+     * labels out), but very simple for me now, and super-easy to
+     * optimise at a later date */
+    MVMint32   num_labels;
+    void     **labels;
+
+    MVMint32       num_bbs;
+    MVMint32      *bb_labels;
+
+    MVMint32       num_deopts;
+    MVMJitDeopt    *deopts;
+
+    MVMint32       num_inlines;
+    MVMJitInline  *inlines;
+
+    MVMint32       num_handlers;
+    MVMJitHandler *handlers;
 };
 
 MVMJitCode* MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);

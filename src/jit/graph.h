@@ -1,24 +1,47 @@
 /* The MVMJitGraph is - for now - really a linked list of instructions.
  * It's likely I'll add complexity when it's needed */
 struct MVMJitGraph {
-    MVMSpeshGraph      *sg;
-    MVMJitNode *first_node;
-    MVMJitNode  *last_node;
+    MVMSpeshGraph *sg;
+    MVMJitNode    *first_node;
+    MVMJitNode    *last_node;
 
-    MVMint32    num_labels;
-    MVMJitLabel    *labels;
+    /* total number of labels, including deopt labels, handler labels,
+       and inline start-stops labels */
+    MVMint32       num_labels;
+    /* bb labels are all basic block label numbers, indexed by basic
+       block number */
+    MVMint32       num_bbs;
+    MVMint32      *bb_labels;
+    
+    MVMint32       num_deopts;
+    MVMJitDeopt   *deopts;
 
-    MVMint32 num_osr_labels;
-    MVMint32   *osr_offsets;
-
-    MVMint32 num_deopt_all_idxs;
+    MVMint32       num_handlers;
+    MVMJitHandler *handlers;
+    
+    MVMint32       num_inlines;
+    MVMJitInline  *inlines;
 };
 
-/* A label */
+struct MVMJitDeopt {
+    MVMint32 idx;
+    MVMint32 label;
+};
+
+struct MVMJitHandler {
+    MVMint32 start_name;
+    MVMint32 end_name;
+    MVMint32 goto_name;
+};
+
+struct MVMJitInline {
+    MVMint32 start_label;
+    MVMint32 end_label;
+};
+
+/* A label (no more than a number) */
 struct MVMJitLabel {
     MVMint32    name;
-    MVMint32    deopt_all_idx; /* -1 if there ain't one */
-    MVMSpeshBB *bb;
 };
 
 struct MVMJitPrimitive {
@@ -33,7 +56,6 @@ struct MVMJitGuard {
 
 typedef enum {
     MVM_JIT_CONTROL_INVOKISH,
-    MVM_JIT_CONTROL_OSRLABEL,
     MVM_JIT_CONTROL_BREAKPOINT,
 } MVMJitControlType;
 
@@ -48,7 +70,7 @@ struct MVMJitControl {
 
 /* What does a branch need? a label to go to, an instruction to read */
 struct MVMJitBranch {
-    MVMJitLabel dest;
+    MVMint32     dest;
     MVMSpeshIns *ins;
 };
 

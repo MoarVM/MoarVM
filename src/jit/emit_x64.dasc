@@ -1149,7 +1149,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
                          MVMJitBranch * branch, dasm_State **Dst) {
     MVMSpeshIns *ins = branch->ins;
-    MVMint32 name = branch->dest.name;
+    MVMint32 name = branch->dest;
     /* move gc sync point to the front so as to not have
      * awkward dispatching issues */
     | gc_sync_point;
@@ -1396,30 +1396,6 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov RV, 1;
         | jmp ->out;
         |1:
-    } else if (ctrl->type == MVM_JIT_CONTROL_OSRLABEL) {
-        /* Find the deopt address, the index into the osr label array,
-           and emit a dynamic label */
-        MVMint32 deopt_addr, i;
-        MVMSpeshAnn *ann = ctrl->ins->annotations;
-        while (ann) {
-            if (ann->type == MVM_SPESH_ANN_DEOPT_OSR) {
-                deopt_addr = jg->sg->deopt_addrs[ann->data.deopt_idx * 2];
-                break;
-            }
-            ann = ann->next;
-        }
-        if (!ann)
-            MVM_exception_throw_adhoc(tc, "JIT: this ins <%s> doesn't have a"
-                                      " OSR annotation", ctrl->ins->info->name);
-        for (i = 0; i < jg->num_osr_labels; i++) {
-            if (jg->osr_offsets[i] == deopt_addr)
-                break;
-        }
-        if (i == jg->num_osr_labels)
-            MVM_exception_throw_adhoc(tc, "JIT: Couldn't find the right label index");
-        /* emit the dynamic label */
-        MVM_jit_log(tc, "Emit OSR label %d (dynamic label %d)", i, i + jg->num_labels);
-        |=>(i + jg->num_labels):
     } else if (ctrl->type == MVM_JIT_CONTROL_BREAKPOINT) {
         | int 3;
     } else {

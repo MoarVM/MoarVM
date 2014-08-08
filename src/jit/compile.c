@@ -3,6 +3,9 @@
 #include "platform/mmap.h"
 #include "emit.h"
 
+#define COPY_ARRAY(a, n, t) memcpy(malloc(n * sizeof(t)), a, n * sizeof(t))
+
+
 static const MVMuint16 MAGIC_BYTECODE[] = { MVM_OP_sp_jit_enter, 0 };
 
 MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
@@ -22,7 +25,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     dasm_init(&state, 1);
     dasm_setupglobal(&state, dasm_globals, num_globals);
     dasm_setup(&state, MVM_jit_actions());
-    dasm_growpc(&state, jg->num_labels + jg->num_osr_labels);
+    dasm_growpc(&state, jg->num_labels);
 
     /* generate code */
     MVM_jit_emit_prologue(tc, jg,  &state);
@@ -70,9 +73,8 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     code = malloc(sizeof(MVMJitCode));
     code->func_ptr   = (MVMJitFunc)memory;
     code->size       = codesize;
-    code->sf         = jg->sg->sf;
-    code->num_locals = jg->sg->num_locals;
     code->bytecode   = (MVMuint8*)MAGIC_BYTECODE;
+    code->sf         = jg->sg->sf;
 
     /* Get the basic block labels */
     code->num_labels = jg->num_labels;
@@ -81,38 +83,20 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         MVMint32 offset = dasm_getpclabel(&state, i);
         if (offset < 0)
             MVM_jit_log(tc, "Got negative offset for dynamic label %d\n", i);
-
         code->labels[i] = memory + offset;
     }
 
-    /* Get the OSR labels */
-    code->num_osr_labels = jg->num_osr_labels;
-    code->osr_labels     = malloc(sizeof(void*) * code->num_osr_labels);
-    code->osr_offsets    = malloc(sizeof(MVMint32) * code->num_osr_labels);
-    memcpy(code->osr_offsets, jg->osr_offsets, sizeof(MVMint32) * code->num_osr_labels);
-    for (i = 0; i < code->num_osr_labels; i++) {
-        /* OSR labels are numbered starting from the basic block labels */
-        MVMint32 offset = dasm_getpclabel(&state, i + jg->num_labels);
-        if (offset < 0)
-            MVM_jit_log(tc, "Got negative offset for dynamic label %d (OSR label %d)\n",
-                        i + jg->num_labels, i);
-        code->osr_labels[i] = memory + offset;
-    }
+    /* Copy the deopts, inlines, and handlers. Because these use the label index
+     * rather than the direct pointer, no fixup is necessary */
+    code->num_bbs      = jg->num_bbs;
+    code->bb_labels    = COPY_ARRAY(jg->bb_labels, jg->num_bbs, MVMint32);
 
-    /* Handle deopt all indexes. */
-    code->num_deopt_all_labels = 0;
-    if (jg->num_deopt_all_idxs > 0) {
-        code->deopt_all_labels     = calloc(jg->num_deopt_all_idxs, sizeof(void *));
-        code->deopt_all_indexes    = calloc(jg->num_deopt_all_idxs, sizeof(MVMint32));
-        for (i = 0; i < jg->num_labels; i++) {
-            if (jg->labels[i].bb && jg->labels[i].deopt_all_idx >= 0) {
-                MVMint32 cur_idx = code->num_deopt_all_labels;
-                code->deopt_all_labels[cur_idx]  = code->labels[i];
-                code->deopt_all_indexes[cur_idx] = jg->labels[i].deopt_all_idx;
-                code->num_deopt_all_labels++;
-            }
-        }
-    }
+    code->num_deopts   = jg->num_deopts;
+    code->deopts       = code->num_deopts ? COPY_ARRAY(jg->deopts, jg->num_deopts, MVMJitDeopt) : NULL;
+    code->num_handlers = jg->num_handlers;
+    code->handlers     = code->num_handlers ? COPY_ARRAY(jg->handlers, jg->num_handlers, MVMJitHandler) : NULL;
+    code->num_inlines  = jg->num_inlines;
+    code->inlines      = code->num_inlines ? COPY_ARRAY(jg->inlines, jg->num_inlines, MVMJitInline) : NULL;
 
     /* clear up the assembler */
     dasm_free(&state);

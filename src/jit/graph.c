@@ -1,22 +1,28 @@
 #include "moar.h"
 
 typedef struct {
-    MVMSpeshGraph      *sg;
-    MVMSpeshBB     *cur_bb;
+    MVMSpeshGraph *sg;
+    MVMSpeshBB    *cur_bb;
     MVMSpeshIns   *cur_ins;
 
-    MVMJitNode *first_node;
-    MVMJitNode  *last_node;
+    MVMJitNode    *first_node;
+    MVMJitNode    *last_node;
 
-    MVMint32    num_labels;
-    MVMJitLabel    *labels;
+    MVMint32      num_labels;
+    void        **labeleds;
 
-    MVMint32  *osr_offsets;
-    MVMint32   num_offsets;
-    MVMint32 alloc_offsets;
+    MVMint32       num_bbs;
+    MVMint32      *bb_labels;
 
-    MVMint32 next_bb_deopt_all_idx;
-    MVMint32 num_deopt_all_idxs;
+    MVMint32       num_deopts;
+    MVMint32       alloc_deopts;
+    MVMJitDeopt   *deopts;
+
+    MVMint32       num_handlers;
+    MVMJitHandler *handlers;
+    
+    MVMint32       num_inlines;
+    MVMJitInline  *inlines;
 } JitGraphBuilder;
 
 
@@ -59,58 +65,109 @@ static void jgb_append_call_c(MVMThreadContext *tc, JitGraphBuilder *jgb,
 }
 
 
-/* Try to assign a label name for a basic block */
-static MVMint32 get_label_name(MVMThreadContext *tc, JitGraphBuilder *jgb,
-                               MVMSpeshBB *bb) {
-    int i = 0;
+static MVMint32 get_label_for_obj(MVMThreadContext *tc, JitGraphBuilder *jgb,
+                           void * obj) {
+    MVMint32 i;
     for (i = 0; i < jgb->num_labels; i++) {
-        if (jgb->labels[i].bb == bb) {
+        if (!jgb->labeleds[i]) 
+            break;
+        if (jgb->labeleds[i] == obj)
             return i;
+    }
+    if (i == jgb->num_labels) {
+        void **lblds = MVM_spesh_alloc(tc, jgb->sg, sizeof(void*) * jgb->num_labels * 2);
+        memcpy(lblds, jgb->labeleds, jgb->num_labels * sizeof(void*));
+        jgb->labeleds = lblds;
+        jgb->num_labels *= 2;
+    }
+    jgb->labeleds[i] = obj;
+    return i;
+}
+
+static MVMint32 get_label_for_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
+                          MVMSpeshBB *bb) {
+    MVMint32 label = get_label_for_obj(tc, jgb, bb);
+    jgb->bb_labels[bb->idx] = label;
+    return label;
+}
+
+/* This is the label that is appended at the very end */
+static MVMint32 get_label_for_graph(MVMThreadContext *tc, JitGraphBuilder *jgb,
+                             MVMSpeshGraph *sg) {
+    return get_label_for_obj(tc, jgb, sg);
+}
+
+/* The idea here is that labels are always - in principle - meant before a target. */
+static MVMint32 get_label_for_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
+                           MVMSpeshBB *bb, MVMSpeshIns *ins, MVMint32 post) {
+    if (!post) {
+        if (ins == bb->first_ins) {
+            return get_label_for_obj(tc, jgb, bb);
         }
-        else if (jgb->labels[i].bb == NULL) {
-            jgb->labels[i].bb = bb;
-            jgb->labels[i].deopt_all_idx = -1;
-            return i;
+        return get_label_for_obj(tc, jgb, ins);
+    }
+    else {
+        if (ins->next) {
+            return get_label_for_obj(tc, jgb, ins->next);
+        }
+        else if (bb->linear_next) {
+            return get_label_for_obj(tc, jgb, bb->linear_next);
+        }
+        else { /* end of graph label is identified by the graph itself */
+            return get_label_for_graph(tc, jgb, jgb->sg);
         }
     }
-    MVM_exception_throw_adhoc(tc, "JIT: Cannot assign %d labels", i);
 }
+
+
+static void add_deopt_idx(MVMThreadContext *tc, JitGraphBuilder *jgb, MVMint32 label_name, MVMint32 deopt_idx) {
+    if (jgb->num_deopts == jgb->alloc_deopts) {
+        MVMJitDeopt *deopts = MVM_spesh_alloc(tc, jgb->sg, jgb->alloc_deopts * 2 * sizeof(MVMJitDeopt));
+        memcpy(deopts, jgb->deopts, jgb->alloc_deopts * sizeof(MVMJitDeopt));
+        jgb->deopts = deopts;
+        jgb->alloc_deopts *= 2;
+    }
+    jgb->deopts[jgb->num_deopts].label = label_name;
+    jgb->deopts[jgb->num_deopts].idx   = deopt_idx;
+    jgb->num_deopts++;
+}
+
 
 static void jgb_append_branch(MVMThreadContext *tc, JitGraphBuilder *jgb,
                               MVMint32 name, MVMSpeshIns *ins) {
-
     MVMJitNode * node = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitNode));
     node->type = MVM_JIT_NODE_BRANCH;
     if (ins == NULL) {
         node->u.branch.ins = NULL;
-        node->u.branch.dest.bb = NULL;
-        node->u.branch.dest.name = name;
+        node->u.branch.dest = name;
     }
     else {
+        MVMSpeshBB *bb;
         node->u.branch.ins = ins;
         if (ins->info->opcode == MVM_OP_goto) {
-            node->u.branch.dest.bb = ins->operands[0].ins_bb;
+            bb = ins->operands[0].ins_bb;
         }
         else if (ins->info->opcode == MVM_OP_indexat) {
-            node->u.branch.dest.bb = ins->operands[3].ins_bb;
+            bb = ins->operands[3].ins_bb;
         }
         else {
-            node->u.branch.dest.bb = ins->operands[1].ins_bb;
+            bb = ins->operands[1].ins_bb;
         }
-        node->u.branch.dest.name = get_label_name(tc, jgb, node->u.branch.dest.bb);
+        node->u.branch.dest = get_label_for_bb(tc, jgb, bb);
     }
     jgb_append_node(jgb, node);
 }
 
-static void jgb_append_label(MVMThreadContext *tc, JitGraphBuilder *jgb,
-                             MVMSpeshBB *bb, MVMint32 deopt_all_idx) {
-
-    MVMJitNode *node = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitNode));
+static void jgb_append_label(MVMThreadContext *tc, JitGraphBuilder *jgb, MVMint32 name) {
+    MVMJitNode *node;
+    if (jgb->last_node &&
+        jgb->last_node->type == MVM_JIT_NODE_LABEL &&
+        jgb->last_node->u.label.name == name)
+        return; /* don't double-add labels, even if it may be harmless */
+    node = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitNode));
     node->type = MVM_JIT_NODE_LABEL;
-    node->u.label.bb = bb;
-    node->u.label.name = get_label_name(tc, jgb, bb);
+    node->u.label.name = name;
     jgb_append_node(jgb, node);
-    jgb->labels[node->u.label.name].deopt_all_idx = deopt_all_idx;
     MVM_jit_log(tc, "append label: %d\n", node->u.label.name);
 }
 
@@ -205,7 +262,6 @@ static void jgb_append_guard(MVMThreadContext *tc, JitGraphBuilder *jgb,
     node->u.guard.ins = ins;
     while (ann) {
         if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS ||
-            ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS ||
             ann->type == MVM_SPESH_ANN_DEOPT_INLINE) {
             deopt_idx = ann->data.deopt_idx;
             break;
@@ -223,13 +279,12 @@ static void jgb_append_guard(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
 static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                    MVMSpeshIns *ins) {
-    MVMJitNode      *node = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitNode));
     MVMCompUnit       *cu = jgb->sg->sf->body.cu;
     MVMint16 callsite_idx = ins->operands[0].callsite_idx;
     MVMCallsite       *cs = cu->body.callsites[callsite_idx];
     MVMSpeshIns **arg_ins = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMSpeshIns*) * cs->arg_count);
     MVMint16            i = 0;
-    MVMSpeshBB   *next_bb;
+    MVMJitNode      *node;
     MVMint32      reentry_label;
     MVMReturnType return_type;
     MVMint16      return_register;
@@ -238,16 +293,6 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVMint16      is_fast;
 
     while (ins = ins->next) {
-        MVMSpeshAnn *ann = ins->annotations;
-        while (ann) {
-            if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS) {
-                jgb->next_bb_deopt_all_idx = ann->data.deopt_idx;
-                jgb->num_deopt_all_idxs++;
-                break;
-            }
-            ann = ann->next;
-        }
-
         switch(ins->info->opcode) {
         case MVM_OP_arg_i:
         case MVM_OP_arg_n:
@@ -342,14 +387,23 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
                     ins->info->name, i, cs->arg_count);
         return 0;
     }
-    if (ins != jgb->cur_bb->last_ins || jgb->cur_bb->linear_next == NULL) {
-        MVM_jit_log(tc, "Invoke instruction isn't last of basic block or is last of graph\n");
-        return 0;
-    }
     MVM_jit_log(tc, "Invoke instruction: <%s>\n", ins->info->name);
-    next_bb       = jgb->cur_bb->linear_next;
-    reentry_label = get_label_name(tc, jgb, next_bb);
-    /* create node */
+    /* get label /after/ current (invoke) ins, where we'll need to reenter the JIT */
+    reentry_label = get_label_for_ins(tc, jgb, jgb->cur_bb, ins, 1);
+    /* Check for deopt_all idx, which we need to store */
+    {
+        MVMSpeshAnn *ann = ins->annotations;
+        while (ann) {
+            if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS) {
+                /* fprintf(stderr, "Adding deopt all idx %d (label %d)\n", reentry_label, ann->data.deopt_idx); */
+                add_deopt_idx(tc, jgb, reentry_label, ann->data.deopt_idx);
+                break;
+            }
+            ann = ann->next;
+        }
+    }
+    /* create invoke node */
+    node = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitNode));
     node->type                     = MVM_JIT_NODE_INVOKE;
     node->u.invoke.callsite_idx    = callsite_idx;
     node->u.invoke.arg_count       = cs->arg_count;
@@ -361,6 +415,9 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
     node->u.invoke.reentry_label   = reentry_label;
     node->u.invoke.is_fast         = is_fast;
     jgb_append_node(jgb, node);
+
+    /* append reentry label */
+    jgb_append_label(tc, jgb, reentry_label);
     /* move forward to invoke ins */
     jgb->cur_ins = ins;
     return 1;
@@ -390,8 +447,8 @@ static MVMint32 jgb_consume_jumplist(MVMThreadContext *tc, JitGraphBuilder *jgb,
         ins = bb->first_ins;  //  and it's first and only entry
         if (ins->info->opcode != MVM_OP_goto)  // which must be a goto
             return 0;
-        in_labels[i]  = get_label_name(tc, jgb, bb);
-        out_labels[i] = get_label_name(tc, jgb, ins->operands[0].ins_bb);
+        in_labels[i]  = get_label_for_bb(tc, jgb, bb);
+        out_labels[i] = get_label_for_bb(tc, jgb, ins->operands[0].ins_bb);
     }
     /* build the node */
     node = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitNode));
@@ -426,21 +483,17 @@ static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshIns *ins) {
 }
 
 static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
-                                MVMSpeshIns *ins) {
+                                MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMint16 op = ins->info->opcode;
     MVMSpeshAnn *ann = ins->annotations;
 
     /* Search annotations for OSR point. */
     while (ann) {
         if (ann->type == MVM_SPESH_ANN_DEOPT_OSR) {
-            if (jgb->num_offsets == jgb->alloc_offsets)
-                /* I want you to laugh and shake your head at this ridiculous line. After that, I will
-                 * refactor it into something you'll be able to read. */
-                jgb->osr_offsets = memcpy(MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMint32) * (jgb->alloc_offsets *= 2)),
-                                          jgb->osr_offsets, jgb->num_offsets * sizeof(MVMint32));
-            /* While we're at, it, why not make this a one-liner too */
-            jgb->osr_offsets[jgb->num_offsets++] = jgb->sg->deopt_addrs[ann->data.deopt_idx * 2];
-            jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_OSRLABEL);
+            /* get label before our instruction */
+            MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 0);
+            jgb_append_label(tc, jgb, label);
+            add_deopt_idx(tc, jgb, label, ann->data.deopt_idx);
             break;
         }
         ann = ann->next;
@@ -1152,12 +1205,12 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
 static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                MVMSpeshBB *bb) {
+    MVMint32 label = get_label_for_bb(tc, jgb, bb);
     jgb->cur_bb = bb;
-    jgb_append_label(tc, jgb, bb, jgb->next_bb_deopt_all_idx);
-    jgb->next_bb_deopt_all_idx = -1;
+    jgb_append_label(tc, jgb, label);
     jgb->cur_ins = bb->first_ins;
     while (jgb->cur_ins) {
-        if(!jgb_consume_ins(tc, jgb, jgb->cur_ins))
+        if(!jgb_consume_ins(tc, jgb, jgb->cur_bb, jgb->cur_ins))
             return 0;
         if (jgb->cur_ins == bb->last_ins)
             break;
@@ -1167,15 +1220,24 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
 }
 
 static MVMJitGraph *jgb_build(MVMThreadContext *tc, JitGraphBuilder *jgb) {
+    MVMint32 i;
     MVMJitGraph * jg       = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitGraph));
     jg->sg                 = jgb->sg;
-    jg->num_labels         = jgb->num_labels;
-    jg->labels             = jgb->labels;
     jg->first_node         = jgb->first_node;
     jg->last_node          = jgb->last_node;
-    jg->num_osr_labels     = jgb->num_offsets;
-    jg->osr_offsets        = jgb->osr_offsets;
-    jg->num_deopt_all_idxs = jgb->num_deopt_all_idxs;
+    /* find the last assigned label */
+    for (i = 0; i < jgb->num_labels; i++)
+        if (jgb->labeleds[i] == NULL)
+            break;
+    jg->num_labels         = i;
+    jg->num_bbs            = jgb->num_bbs;
+    jg->bb_labels          = jgb->bb_labels;
+    jg->num_deopts         = jgb->num_deopts;
+    jg->deopts             = jgb->deopts;
+    jgb->num_inlines       = jgb->num_inlines;
+    jgb->inlines           = jgb->inlines;
+    jgb->num_handlers      = jgb->num_handlers;
+    jgb->handlers          = jgb->handlers;
     return jg;
 }
 
@@ -1200,18 +1262,28 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     }
 
     jgb.sg = sg;
-    jgb.num_labels = sg->num_bbs;
-    jgb.labels = MVM_spesh_alloc(tc, sg, sizeof(MVMJitLabel) * sg->num_bbs);
     /* ignore first BB, which always contains a NOP */
     jgb.cur_bb = sg->entry->linear_next;
     jgb.cur_ins = jgb.cur_bb->first_ins;
     jgb.first_node = jgb.last_node = NULL;
-    /* Allocate space for the address -> label mapping needed for OSR */
-    jgb.num_offsets = 0;
-    jgb.alloc_offsets = 2;
-    jgb.osr_offsets = MVM_spesh_alloc(tc, sg, sizeof(MVMint32) * jgb.alloc_offsets);
-    /* Have no next BB deopt index to start with. */
-    jgb.next_bb_deopt_all_idx = -1;
+    /* Total (expected) number of labels. May grow if there are more than 4
+     * deopt labels (OSR deopt labels or deopt_all labels). */
+    jgb.num_labels = sg->num_bbs + (sg->num_handlers * 3) + 4;
+    /* The objects that are labeled (spesh ins or spesh bbs). May grow */
+    jgb.labeleds   = MVM_spesh_alloc(tc, sg, sizeof(void*) * jgb.num_labels);
+    /* bb labels are indexed by bb index (much wow) */
+    jgb.num_bbs    = sg->num_bbs;
+    jgb.bb_labels  = MVM_spesh_alloc(tc, sg, sizeof(MVMint32) * sg->num_bbs);
+    /* deopt points may grow */
+    jgb.num_deopts   = 0;
+    jgb.alloc_deopts = 2;
+    jgb.deopts       = MVM_spesh_alloc(tc, sg, sizeof(MVMJitDeopt) * 2);
+    /* jit handlers are indexed by.. handler index (also much wow) */
+    jgb.num_handlers = sg->num_handlers;
+    jgb.handlers     = MVM_spesh_alloc(tc, sg, sizeof(MVMJitHandler) * sg->num_handlers);
+    /* guess what inlines are indexed by */
+    jgb.num_inlines  = sg->num_inlines;
+    jgb.inlines      = MVM_spesh_alloc(tc, sg, sizeof(MVMJitInline) * sg->num_inlines);
     /* loop over basic blocks, adding one after the other */
     while (jgb.cur_bb) {
         if (!jgb_consume_bb(tc, &jgb, jgb.cur_bb))
@@ -1219,7 +1291,10 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
         jgb.cur_bb = jgb.cur_bb->linear_next;
     }
     /* Check if we've added a instruction at all */
-    if (jgb.first_node)
-        return jgb_build(tc, &jgb);
-    return NULL;
+    if (!jgb.first_node)
+        return NULL;
+    /* append the end-of-graph label */
+    jgb_append_label(tc, &jgb, get_label_for_graph(tc, &jgb, sg));
+    return jgb_build(tc, &jgb);
+
 }

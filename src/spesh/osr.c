@@ -118,18 +118,17 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
 
     /* Sync interpreter with updates. */
     jc = specialized->jitcode;
-    if (jc && jc->num_osr_labels) {
-        MVMint32 offset = specialized->deopts[osr_index * 2];
+    if (jc && jc->num_deopts) {
         MVMint32 i;
         *(tc->interp_bytecode_start)   = specialized->jitcode->bytecode;
         *(tc->interp_cur_op)           = specialized->jitcode->bytecode;
-        for (i = 0; i < jc->num_osr_labels; i++) {
-            if (jc->osr_offsets[i] == offset) {
-                tc->cur_frame->jit_entry_label = jc->osr_labels[i];
+        for (i = 0; i < jc->num_deopts; i++) {
+            if (jc->deopts[i].idx == osr_index) {
+                tc->cur_frame->jit_entry_label = jc->labels[jc->deopts[i].label];
                 break;
             }
         }
-        if (i == jc->num_osr_labels)
+        if (i == jc->num_deopts)
             MVM_exception_throw_adhoc(tc, "JIT: Could not find OSR label");
     } else {
         *(tc->interp_bytecode_start) = specialized->bytecode;
