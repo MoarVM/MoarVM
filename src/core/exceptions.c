@@ -65,38 +65,66 @@ static MVMuint8 in_caller_chain(MVMThreadContext *tc, MVMFrame *f_maybe) {
     return f_maybe->tc ? 1 : 0;
 }
 
-/* Looks through the handlers of a particular scope, and sees if one will
- * match what we're looking for. Returns a pointer to it if so; if not,
- * returns NULL. */
-static MVMFrameHandler * search_frame_handlers(MVMThreadContext *tc, MVMFrame *f, MVMuint32 cat, MVMObject *payload) {
-    MVMuint32 pc, i;
-    if (f == tc->cur_frame)
-        pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
-    else
-        pc = (MVMuint32)(f->return_address - f->effective_bytecode);
-    for (i = 0; i < f->static_info->body.num_handlers; i++) {
-        MVMFrameHandler              eh = f->effective_handlers[i];
-        MVMuint32         category_mask = eh.category_mask;
-        MVMuint64       block_has_label = category_mask & MVM_EX_CAT_LABELED;
-        MVMuint64           block_label = block_has_label ? (MVMuint64)(f->work[eh.label_reg].o) : 0;
-        MVMuint64          thrown_label = payload ? (MVMuint64)payload : 0;
-        MVMuint64 identical_label_found = thrown_label == block_label;
-
-        if ( ((cat & category_mask) == cat && (!(cat & MVM_EX_CAT_LABELED) || identical_label_found))
-          || ((category_mask & MVM_EX_CAT_CONTROL) && cat != MVM_EX_CAT_CATCH) ) {
-            if (pc >= f->effective_handlers[i].start_offset && pc <= f->effective_handlers[i].end_offset)
-                if (!in_handler_stack(tc, &f->effective_handlers[i], f))
-                    return &f->effective_handlers[i];
-        }
-    }
-    return NULL;
-}
 
 /* Information about a located handler. */
 typedef struct {
     MVMFrame        *frame;
     MVMFrameHandler *handler;
+    MVMJitHandler   *jit_handler;
 } LocatedHandler;
+
+static MVMint32 handler_can_handle(MVMFrame *f, MVMFrameHandler *fh, MVMint32 cat, MVMObject *payload) {
+    MVMuint32         category_mask = fh->category_mask;
+    MVMuint64       block_has_label = category_mask & MVM_EX_CAT_LABELED;
+    MVMuint64           block_label = block_has_label ? (MVMuint64)(f->work[fh->label_reg].o) : 0;
+    MVMuint64          thrown_label = payload ? (MVMuint64)payload : 0;
+    MVMuint64 identical_label_found = thrown_label == block_label;
+    return ((cat & category_mask) == cat && (!(cat & MVM_EX_CAT_LABELED) || identical_label_found))
+        || ((category_mask & MVM_EX_CAT_CONTROL) && cat != MVM_EX_CAT_CATCH);
+}
+
+/* Looks through the handlers of a particular scope, and sees if one will
+ * match what we're looking for. Returns 1 to it if so; if not,
+ * returns 0. */
+static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
+                                      MVMuint32 cat, MVMObject *payload,
+                                      LocatedHandler *lh) {
+    MVMuint32 pc, i;
+    if (f == tc->cur_frame)
+        pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
+    else
+        pc = (MVMuint32)(f->return_address - f->effective_bytecode);
+    if (f->spesh_cand && f->spesh_cand->jitcode) {
+        MVMJitHandler    *jhs = f->spesh_cand->jitcode->handlers;
+        MVMFrameHandler  *fhs = f->effective_handlers;
+        MVMint32 num_handlers = f->spesh_cand->jitcode->num_handlers;
+        void         **labels = f->spesh_cand->jitcode->labels;
+        void       *cur_label = f->jit_entry_label;
+        fprintf(stderr, "Jit searching handler\n");
+        for (i = 0; i < num_handlers; i++) {
+            if (!handler_can_handle(f, &fhs[i], cat, payload))
+                continue;
+            if (cur_label >= labels[jhs[i].start_label] &&
+                cur_label <= labels[jhs[i].end_label] &&
+                !in_handler_stack(tc, &fhs[i], f)) {
+                lh->handler     = &fhs[i];
+                lh->jit_handler = &jhs[i];
+                return 1;
+            }
+        }
+    } else {
+        for (i = 0; i < f->static_info->body.num_handlers; i++) {
+            MVMFrameHandler  *fh = &f->effective_handlers[i];
+            if (!handler_can_handle(f, fh, cat, payload))
+                continue;
+            if (pc >= fh->start_offset && pc <= fh->end_offset && !in_handler_stack(tc, fh, f)) {
+                lh->handler = fh;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
 
 /* Searches for a handler of the specified category, relative to the given
  * starting frame, searching according to the chosen mode. */
@@ -105,7 +133,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     LocatedHandler lh;
     lh.frame = NULL;
     lh.handler = NULL;
-
+    lh.jit_handler = NULL;
     if (mode == MVM_EX_THROW_LEXOTIC) {
         while (f != NULL) {
             lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat, payload);
@@ -116,10 +144,8 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     }
     else {
         while (f != NULL) {
-            MVMFrameHandler *h = search_frame_handlers(tc, f, cat, payload);
-            if (h != NULL) {
+            if (search_frame_handlers(tc, f, cat, payload, &lh)) {
                 lh.frame = f;
-                lh.handler = h;
                 return lh;
             }
             if (mode == MVM_EX_THROW_DYN) {

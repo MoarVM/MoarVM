@@ -191,6 +191,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_iterkey_s: return &MVM_iterkey_s;
     case MVM_OP_iter: return &MVM_iter;
     case MVM_OP_iterval: return &MVM_iterval;
+    case MVM_OP_die: return &MVM_exception_die;
     case MVM_OP_smrt_numify: return &MVM_coerce_smart_numify;
     case MVM_OP_smrt_strify: return &MVM_coerce_smart_stringify;
     case MVM_OP_gethow: return &MVM_6model_get_how_obj;
@@ -487,18 +488,41 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVMint16 op = ins->info->opcode;
     MVMSpeshAnn *ann = ins->annotations;
 
-    /* Search annotations for OSR point. */
+    /* Search annotations for stuff that may need a label. */
     while (ann) {
-        if (ann->type == MVM_SPESH_ANN_DEOPT_OSR) {
+        switch(ann->type) {
+        case MVM_SPESH_ANN_DEOPT_OSR: {
             /* get label before our instruction */
             MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 0);
             jgb_append_label(tc, jgb, label);
             add_deopt_idx(tc, jgb, label, ann->data.deopt_idx);
             break;
         }
+        case MVM_SPESH_ANN_FH_START: {
+            MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 0);
+            jgb_append_label(tc, jgb, label);
+            jgb->handlers[ann->data.frame_handler_index].start_label = label;
+            break;
+        }
+        case MVM_SPESH_ANN_FH_END: {
+            MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 0);
+            jgb_append_label(tc, jgb, label);
+            jgb->handlers[ann->data.frame_handler_index].end_label = label;
+            break;
+        }
+        case MVM_SPESH_ANN_FH_GOTO: {
+            MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 0);
+            jgb_append_label(tc, jgb, label);
+            jgb->handlers[ann->data.frame_handler_index].goto_label = label;
+            break;
+        }
+        } /* switch */
         ann = ann->next;
     }
 
+    if (ins->info->jittivity & MVM_JIT_INFO_THROWISH) {
+        jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_THROWISH);
+    }
     MVM_jit_log(tc, "append_ins: <%s>\n", ins->info->name);
     switch(op) {
     case MVM_SSA_PHI:
@@ -585,6 +609,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_isstr:
     case MVM_OP_islist:
     case MVM_OP_ishash:
+    case MVM_OP_takehandlerresult:
         jgb_append_primitive(tc, jgb, ins);
         break;
         /* branches */
@@ -683,6 +708,17 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_LITERAL, dep },
                                  { MVM_JIT_LITERAL, idx } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+
+    case MVM_OP_die: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 str = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, str },
+                                 { MVM_JIT_REG_ADDR, dst }};
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op),
+                          3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
         /*
@@ -1180,7 +1216,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC},
                                                  { MVM_JIT_LITERAL_PTR, (MVMint64)fake_regs }};
                         jgb_append_call_c(tc, jgb, extops[i].func, 2, args, MVM_JIT_RV_VOID, -1);
-                        if (ins->info->invokish)
+                        if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH)
                             jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_INVOKISH);
                         MVM_jit_log(tc, "append extop: <%s>\n", ins->info->name);
                         emitted_extop = 1;
@@ -1195,8 +1231,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         }
     }
     }
-    /* If we've consumed an invokish op, we should append a guard */
-    if (ins->info->invokish) {
+    /* If we've consumed an (or throwish) op, we should append a guard */
+    if (ins->info->jittivity & (MVM_JIT_INFO_INVOKISH|MVM_JIT_INFO_THROWISH)) {
         MVM_jit_log(tc, "append invokish control guard\n");
         jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_INVOKISH);
     }
@@ -1234,10 +1270,10 @@ static MVMJitGraph *jgb_build(MVMThreadContext *tc, JitGraphBuilder *jgb) {
     jg->bb_labels          = jgb->bb_labels;
     jg->num_deopts         = jgb->num_deopts;
     jg->deopts             = jgb->deopts;
-    jgb->num_inlines       = jgb->num_inlines;
-    jgb->inlines           = jgb->inlines;
-    jgb->num_handlers      = jgb->num_handlers;
-    jgb->handlers          = jgb->handlers;
+    jg->num_inlines       = jgb->num_inlines;
+    jg->inlines           = jgb->inlines;
+    jg->num_handlers      = jgb->num_handlers;
+    jg->handlers          = jgb->handlers;
     return jg;
 }
 
@@ -1246,10 +1282,6 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     MVMJitGraph * jg;
     int i;
     if (!MVM_jit_support()) {
-        return NULL;
-    }
-    if (sg->num_handlers > 0) {
-        MVM_jit_log(tc, "Can't build JIT graph because handlers NYI\n");
         return NULL;
     }
     {
@@ -1280,10 +1312,10 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     jgb.deopts       = MVM_spesh_alloc(tc, sg, sizeof(MVMJitDeopt) * 2);
     /* jit handlers are indexed by.. handler index (also much wow) */
     jgb.num_handlers = sg->num_handlers;
-    jgb.handlers     = MVM_spesh_alloc(tc, sg, sizeof(MVMJitHandler) * sg->num_handlers);
+    jgb.handlers     = sg->num_handlers ? MVM_spesh_alloc(tc, sg, sizeof(MVMJitHandler) * sg->num_handlers) : NULL;
     /* guess what inlines are indexed by */
     jgb.num_inlines  = sg->num_inlines;
-    jgb.inlines      = MVM_spesh_alloc(tc, sg, sizeof(MVMJitInline) * sg->num_inlines);
+    jgb.inlines      = sg->num_inlines ? MVM_spesh_alloc(tc, sg, sizeof(MVMJitInline) * sg->num_inlines) : NULL;
     /* loop over basic blocks, adding one after the other */
     while (jgb.cur_bb) {
         if (!jgb_consume_bb(tc, &jgb, jgb.cur_bb))
@@ -1296,5 +1328,4 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     /* append the end-of-graph label */
     jgb_append_label(tc, &jgb, get_label_for_graph(tc, &jgb, sg));
     return jgb_build(tc, &jgb);
-
 }

@@ -29,9 +29,9 @@ struct MVMJitDeopt {
 };
 
 struct MVMJitHandler {
-    MVMint32 start_name;
-    MVMint32 end_name;
-    MVMint32 goto_name;
+    MVMint32 start_label;
+    MVMint32 end_label;
+    MVMint32 goto_label;
 };
 
 struct MVMJitInline {
@@ -54,8 +54,13 @@ struct MVMJitGuard {
     MVMint32      deopt_offset;
 };
 
+
+#define MVM_JIT_INFO_INVOKISH 1
+#define MVM_JIT_INFO_THROWISH 2
+
 typedef enum {
     MVM_JIT_CONTROL_INVOKISH,
+    MVM_JIT_CONTROL_THROWISH,
     MVM_JIT_CONTROL_BREAKPOINT,
 } MVMJitControlType;
 

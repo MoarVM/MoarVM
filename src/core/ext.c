@@ -153,7 +153,7 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     entry->info.pure         = flags & MVM_EXTOP_PURE;
     entry->info.deopt_point  = 0;
     entry->info.no_inline    = flags & MVM_EXTOP_NOINLINE;
-    entry->info.invokish     = flags & MVM_EXTOP_INVOKISH;
+    entry->info.jittivity    = (flags & MVM_EXTOP_INVOKISH) ? MVM_JIT_INFO_INVOKISH : 0;
     memcpy(entry->info.operands, operands, num_operands);
     memset(entry->info.operands + num_operands, 0,
             MVM_MAX_OPERANDS - num_operands);
