@@ -97,8 +97,10 @@ struct MVMStaticFrameBody {
     MVMuint8 *orig_bytecode;
 
     /* The serialized data about this frame, used to set up the things above
-     * marked (lazy). */
+     * marked (lazy). Also, once we've done that, the static lexical wvals
+     * data pos; we may be able to re-use the same slot for these to. */
     MVMuint8 *frame_data_pos;
+    MVMuint8 *frame_static_lex_pos;
 };
 struct MVMStaticFrame {
     MVMObject common;

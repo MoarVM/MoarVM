@@ -692,17 +692,24 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticF
     sf->body.static_env       = calloc(1, sf->body.env_size);
     sf->body.static_env_flags = calloc(1, sf->body.num_lexicals);
 
-    /* Read in static lexical values. */
+    /* Stash static lexical segment offset, so we can easily locate it to
+     * resolve them later. */
+    sf->body.frame_static_lex_pos = slvs ? pos : NULL;
+
+    /* Read in static lexical flags. */
     for (j = 0; j < slvs; j++) {
-        MVMSerializationContext *sc;
         MVMuint16 lex_idx = read_int16(pos, 0);
-        sf->body.static_env_flags[lex_idx] = read_int16(pos, 2);
-        sc = MVM_sc_get_sc(tc, cu, read_int32(pos, 4));
-        if (sc == NULL)
-            MVM_exception_throw_adhoc(tc,
-                "SC not yet resolved; lookup failed");
-        MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[lex_idx].o,
-            MVM_sc_get_object(tc, sc, read_int32(pos, 8)));
+        MVMuint16 flags   = read_int16(pos, 2);
+        sf->body.static_env_flags[lex_idx] = flags;
+        if (flags == 2) {
+            /* State variable; need to resolve wval immediately. Other kinds
+             * can wait. */
+            MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, read_int32(pos, 4));
+            if (sc == NULL)
+                MVM_exception_throw_adhoc(tc, "SC not yet resolved; lookup failed");
+            MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[lex_idx].o,
+                MVM_sc_get_object(tc, sc, read_int32(pos, 8)));
+        }
         pos += FRAME_SLV_SIZE;
     }
 
@@ -711,6 +718,28 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticF
 
     /* Release the update mutex again */
     MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+}
+
+/* Gets the SC reference for a given static lexical var for
+ * vivification purposes */
+MVMuint8 MVM_bytecode_find_static_lexical_scref(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticFrame *sf, MVMuint16 index, MVMint32 *sc, MVMint32 *id) {
+    MVMuint16 slvs, i;
+
+    MVMuint8 *pos = sf->body.frame_static_lex_pos;
+    if (!pos)
+        return 0;
+
+    slvs = read_int16(sf->body.frame_data_pos, 40);
+    for (i = 0; i < slvs; i++) {
+        if (read_int16(pos, 0) == index) {
+            *sc = read_int32(pos, 4);
+            *id = read_int32(pos, 8);
+            return 1;
+        }
+        pos += FRAME_SLV_SIZE;
+    }
+
+    return 0;
 }
 
 /* Loads the callsites. */

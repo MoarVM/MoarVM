@@ -137,7 +137,7 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
         MVMSerializationContextBody *scb = cu->body.scs_to_resolve[dep];
         if (!scb)
             MVM_exception_throw_adhoc(tc,
-                "SC resolution; internal error");
+                "SC resolution: internal error");
         sc = scb->sc;
         if (sc == NULL)
             return NULL;
