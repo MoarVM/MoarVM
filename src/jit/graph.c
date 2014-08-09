@@ -521,7 +521,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     }
 
     if (ins->info->jittivity & MVM_JIT_INFO_THROWISH) {
-        jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_THROWISH);
+        jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_THROWISH_PRE);
     }
     MVM_jit_log(tc, "append_ins: <%s>\n", ins->info->name);
     switch(op) {
@@ -1232,9 +1232,12 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     }
     }
     /* If we've consumed an (or throwish) op, we should append a guard */
-    if (ins->info->jittivity & (MVM_JIT_INFO_INVOKISH|MVM_JIT_INFO_THROWISH)) {
+    if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH) {
         MVM_jit_log(tc, "append invokish control guard\n");
         jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_INVOKISH);
+    }
+    else if (ins->info->jittivity & MVM_JIT_INFO_THROWISH) {
+        jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_THROWISH_POST);
     }
     return 1;
 }

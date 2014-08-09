@@ -18,7 +18,7 @@
 #endif
 #line 8 "src/jit/emit_x64.dasc"
 //|.actionlist actions
-static const unsigned char actions[1973] = {
+static const unsigned char actions[2012] = {
   85,72,137,229,255,72,131,252,236,96,255,76,137,117,252,248,76,137,109,252,
   240,76,137,101,232,72,137,93,224,255,73,137,206,73,137,213,77,139,166,233,
   73,139,156,253,36,233,255,65,252,255,224,255,248,10,72,199,192,0,0,0,0,248,
@@ -115,7 +115,9 @@ static const unsigned char actions[1973] = {
   244,248,72,107,201,8,72,141,21,244,247,72,1,202,252,255,226,250,7,248,1,255,
   249,252,233,245,250,7,255,77,59,166,233,15,132,244,247,72,141,13,244,247,
   73,137,140,253,36,233,72,199,192,1,0,0,0,252,233,244,11,248,1,255,72,141,
-  13,244,247,73,137,140,253,36,233,248,1,255,205,3,255
+  13,244,247,73,137,140,253,36,233,248,1,255,72,141,13,244,247,73,137,140,253,
+  36,233,255,73,139,142,233,72,137,77,216,248,1,255,73,139,142,233,72,139,85,
+  216,72,57,209,15,132,244,247,255,205,3,255
 };
 
 #line 9 "src/jit/emit_x64.dasc"
@@ -1929,7 +1931,8 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         //|1:
         dasm_put(Dst, 1923, Dt13(->cur_frame), Dt15(->jit_entry_label));
 #line 1406 "src/jit/emit_x64.dasc"
-    }  else if (ctrl->type == MVM_JIT_CONTROL_THROWISH) {
+    }
+    else if (ctrl->type == MVM_JIT_CONTROL_DYNAMIC_LABEL) {
         MVM_jit_log(tc, "Emit throwish control guard\n");
         /* This pre-loads a label for the next op, so that
          * throwish operators will know where we're throwing
@@ -1938,11 +1941,40 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         //| mov aword FRAME->jit_entry_label, TMP1;
         //|1:
         dasm_put(Dst, 1956, Dt15(->jit_entry_label));
-#line 1414 "src/jit/emit_x64.dasc"
+#line 1415 "src/jit/emit_x64.dasc"
+    }
+    else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_PRE) {
+        /* Load dynamic label first, so we can see what our handler should be */
+        //| lea TMP1, [>1];
+        //| mov aword FRAME->jit_entry_label, TMP1;
+        dasm_put(Dst, 1970, Dt15(->jit_entry_label));
+#line 1420 "src/jit/emit_x64.dasc"
+        /* Also store our current handler, so we can check if something
+           was thrown */
+        //| mov TMP1, aword TC->active_handlers;
+        //| mov aword [rbp-0x28], TMP1;
+        //|1:
+        dasm_put(Dst, 1982, Dt13(->active_handlers));
+#line 1425 "src/jit/emit_x64.dasc"
+    }
+    else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_POST) {
+        /* check if our current handler is the same as it was */
+        //| mov TMP1, aword TC->active_handlers;
+        //| mov TMP2, aword [rbp-0x28];
+        //| cmp TMP1, TMP2;
+        //| je >1;
+        dasm_put(Dst, 1993, Dt13(->active_handlers));
+#line 1432 "src/jit/emit_x64.dasc"
+        /*if not, fallout to interpreter */
+        //| mov RV, 1;
+        //| jmp ->out;
+        //|1:
+        dasm_put(Dst, 1942);
+#line 1436 "src/jit/emit_x64.dasc"
     } else if (ctrl->type == MVM_JIT_CONTROL_BREAKPOINT) {
         //| int 3;
-        dasm_put(Dst, 1970);
-#line 1416 "src/jit/emit_x64.dasc"
+        dasm_put(Dst, 2009);
+#line 1438 "src/jit/emit_x64.dasc"
     } else {
         MVM_exception_throw_adhoc(tc, "Unknown conrtol code: <%s>",
                                   ctrl->ins->info->name);
