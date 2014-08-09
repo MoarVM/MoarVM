@@ -38,7 +38,8 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint32 m
             pred->num_succ++;
         }
         else {
-            ptd->call_graph = pcn;
+            if (!ptd->call_graph)
+                ptd->call_graph = pcn;
         }
     }
 
