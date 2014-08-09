@@ -213,7 +213,7 @@ throwlexotic        w(obj) r(obj)
 throwcatdyn         w(obj) int64
 throwcatlex         w(obj) int64
 throwcatlexotic     w(obj) int64
-die                 w(obj) r(str)
+die                 w(obj) r(str) :throwish
 rethrow             r(obj)
 resume              r(obj)
 takehandlerresult   w(obj)

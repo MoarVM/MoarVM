@@ -200,7 +200,8 @@ sub opcode_details(@ops) {
                 ($op.adverbs<deoptallpoint> ?? 2 !! 0) +
                 ($op.adverbs<osrpoint> ?? 4 !! 0)),";
             take "        $($op.adverbs<noinline> ?? '1' !! '0'),";
-            take "        $($op.adverbs<invokish> ?? '1' !! '0'),";
+            take "        $(($op.adverbs<invokish> ?? 1 !! 0) +
+                            ($op.adverbs<throwish> ?? 2 !! 0)),";
             if $op.operands {
                 take "        \{ $op.operands.map(&operand_flags).join(', ') }";
             }

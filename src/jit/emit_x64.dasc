@@ -197,8 +197,9 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
     | push rbp; // nb, this aligns the stack to 16 bytes again
     | mov rbp, rsp;
     /* allocate stack space for 4 callee-save registers,
-       4 stack parameters, and 4 parameter registers (windows only) */
-    | sub rsp, 0x60;
+       4 quadwords of scratch space, 4 stack parameters,
+       and 4 parameter registers (windows only) */
+    | sub rsp, 0x80;
     /* save callee-save registers */
     | mov [rbp-0x8],  TC;
     | mov [rbp-0x10], CU;
@@ -891,6 +892,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         |2:
         break;
     }
+    case MVM_OP_takehandlerresult: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP1, aword TC->last_handler_result;
+        | mov aword WORK[dst], TMP1;
+        | mov aword TC->last_handler_result, 0;
+        break;
+    }
     default:
         MVM_exception_throw_adhoc(tc, "Can't JIT opcode <%s>", ins->info->name);
     }
@@ -1393,6 +1401,36 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         | je >1;
         | lea TMP1, [>1];
         | mov aword FRAME->jit_entry_label, TMP1;
+        | mov RV, 1;
+        | jmp ->out;
+        |1:
+    }
+    else if (ctrl->type == MVM_JIT_CONTROL_DYNAMIC_LABEL) {
+        MVM_jit_log(tc, "Emit throwish control guard\n");
+        /* This pre-loads a label for the next op, so that
+         * throwish operators will know where we're throwing
+         * from */
+        | lea TMP1, [>1];
+        | mov aword FRAME->jit_entry_label, TMP1;
+        |1:
+    }
+    else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_PRE) {
+        /* Load dynamic label first, so we can see what our handler should be */
+        | lea TMP1, [>1];
+        | mov aword FRAME->jit_entry_label, TMP1;
+        /* Also store our current handler, so we can check if something
+           was thrown */
+        | mov TMP1, aword TC->active_handlers;
+        | mov aword [rbp-0x28], TMP1;
+        |1:
+    }
+    else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_POST) {
+        /* check if our current handler is the same as it was */
+        | mov TMP1, aword TC->active_handlers;
+        | mov TMP2, aword [rbp-0x28];
+        | cmp TMP1, TMP2;
+        | je >1;
+        /*if not, fallout to interpreter */
         | mov RV, 1;
         | jmp ->out;
         |1:

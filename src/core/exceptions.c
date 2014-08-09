@@ -65,38 +65,66 @@ static MVMuint8 in_caller_chain(MVMThreadContext *tc, MVMFrame *f_maybe) {
     return f_maybe->tc ? 1 : 0;
 }
 
-/* Looks through the handlers of a particular scope, and sees if one will
- * match what we're looking for. Returns a pointer to it if so; if not,
- * returns NULL. */
-static MVMFrameHandler * search_frame_handlers(MVMThreadContext *tc, MVMFrame *f, MVMuint32 cat, MVMObject *payload) {
-    MVMuint32 pc, i;
-    if (f == tc->cur_frame)
-        pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
-    else
-        pc = (MVMuint32)(f->return_address - f->effective_bytecode);
-    for (i = 0; i < f->static_info->body.num_handlers; i++) {
-        MVMFrameHandler              eh = f->effective_handlers[i];
-        MVMuint32         category_mask = eh.category_mask;
-        MVMuint64       block_has_label = category_mask & MVM_EX_CAT_LABELED;
-        MVMuint64           block_label = block_has_label ? (MVMuint64)(f->work[eh.label_reg].o) : 0;
-        MVMuint64          thrown_label = payload ? (MVMuint64)payload : 0;
-        MVMuint64 identical_label_found = thrown_label == block_label;
-
-        if ( ((cat & category_mask) == cat && (!(cat & MVM_EX_CAT_LABELED) || identical_label_found))
-          || ((category_mask & MVM_EX_CAT_CONTROL) && cat != MVM_EX_CAT_CATCH) ) {
-            if (pc >= f->effective_handlers[i].start_offset && pc <= f->effective_handlers[i].end_offset)
-                if (!in_handler_stack(tc, &f->effective_handlers[i], f))
-                    return &f->effective_handlers[i];
-        }
-    }
-    return NULL;
-}
 
 /* Information about a located handler. */
 typedef struct {
     MVMFrame        *frame;
     MVMFrameHandler *handler;
+    MVMJitHandler   *jit_handler;
 } LocatedHandler;
+
+static MVMint32 handler_can_handle(MVMFrame *f, MVMFrameHandler *fh, MVMint32 cat, MVMObject *payload) {
+    MVMuint32         category_mask = fh->category_mask;
+    MVMuint64       block_has_label = category_mask & MVM_EX_CAT_LABELED;
+    MVMuint64           block_label = block_has_label ? (MVMuint64)(f->work[fh->label_reg].o) : 0;
+    MVMuint64          thrown_label = payload ? (MVMuint64)payload : 0;
+    MVMuint64 identical_label_found = thrown_label == block_label;
+    return ((cat & category_mask) == cat && (!(cat & MVM_EX_CAT_LABELED) || identical_label_found))
+        || ((category_mask & MVM_EX_CAT_CONTROL) && cat != MVM_EX_CAT_CATCH);
+}
+
+/* Looks through the handlers of a particular scope, and sees if one will
+ * match what we're looking for. Returns 1 to it if so; if not,
+ * returns 0. */
+static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
+                                      MVMuint32 cat, MVMObject *payload,
+                                      LocatedHandler *lh) {
+    MVMuint32  i;
+    if (f->spesh_cand && f->spesh_cand->jitcode) {
+        MVMJitHandler    *jhs = f->spesh_cand->jitcode->handlers;
+        MVMFrameHandler  *fhs = f->effective_handlers;
+        MVMint32 num_handlers = f->spesh_cand->jitcode->num_handlers;
+        void         **labels = f->spesh_cand->jitcode->labels;
+        void       *cur_label = f->jit_entry_label;
+        for (i = 0; i < num_handlers; i++) {
+            if (!handler_can_handle(f, &fhs[i], cat, payload))
+                continue;
+            if (cur_label >= labels[jhs[i].start_label] &&
+                cur_label <= labels[jhs[i].end_label] &&
+                !in_handler_stack(tc, &fhs[i], f)) {
+                lh->handler     = &fhs[i];
+                lh->jit_handler = &jhs[i];
+                return 1;
+            }
+        }
+    } else {
+        MVMint32 pc;
+        if (f == tc->cur_frame)
+            pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
+        else
+            pc = (MVMuint32)(f->return_address - f->effective_bytecode);
+        for (i = 0; i < f->static_info->body.num_handlers; i++) {
+            MVMFrameHandler  *fh = &f->effective_handlers[i];
+            if (!handler_can_handle(f, fh, cat, payload))
+                continue;
+            if (pc >= fh->start_offset && pc <= fh->end_offset && !in_handler_stack(tc, fh, f)) {
+                lh->handler = fh;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
 
 /* Searches for a handler of the specified category, relative to the given
  * starting frame, searching according to the chosen mode. */
@@ -105,7 +133,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     LocatedHandler lh;
     lh.frame = NULL;
     lh.handler = NULL;
-
+    lh.jit_handler = NULL;
     if (mode == MVM_EX_THROW_LEXOTIC) {
         while (f != NULL) {
             lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat, payload);
@@ -116,10 +144,8 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     }
     else {
         while (f != NULL) {
-            MVMFrameHandler *h = search_frame_handlers(tc, f, cat, payload);
-            if (h != NULL) {
+            if (search_frame_handlers(tc, f, cat, payload, &lh)) {
                 lh.frame = f;
-                lh.handler = h;
                 return lh;
             }
             if (mode == MVM_EX_THROW_DYN) {
@@ -147,44 +173,53 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data);
 static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data);
 static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_obj) {
     switch (lh.handler->action) {
-        case MVM_EX_ACTION_GOTO:
+    case MVM_EX_ACTION_GOTO:
+        if (lh.jit_handler) {
+            void **labels = lh.frame->spesh_cand->jitcode->labels;
+            MVMuint8  *pc = lh.frame->spesh_cand->jitcode->bytecode;
+            lh.frame->jit_entry_label = labels[lh.jit_handler->goto_label];
+            MVM_frame_unwind_to(tc, lh.frame, pc, 0, NULL);
+        } else {
             MVM_frame_unwind_to(tc, lh.frame, NULL, lh.handler->goto_offset, NULL);
-            break;
-        case MVM_EX_ACTION_INVOKE: {
-            /* Create active handler record. */
-            MVMActiveHandler *ah = malloc(sizeof(MVMActiveHandler));
-
-            /* Find frame to invoke. */
-            MVMObject *handler_code = MVM_frame_find_invokee(tc,
-                lh.frame->work[lh.handler->block_reg].o, NULL);
-
-            /* Ensure we have an exception object. */
-            /* TODO: Can make one up. */
-            if (ex_obj == NULL)
-                MVM_panic(1, "Exception object creation NYI");
-
-            /* Install active handler record. */
-            ah->frame           = MVM_frame_inc_ref(tc, lh.frame);
-            ah->handler         = lh.handler;
-            ah->ex_obj          = ex_obj;
-            ah->next_handler    = tc->active_handlers;
-            tc->active_handlers = ah;
-
-            /* Set up special return to unwinding after running the
-             * handler. */
-            tc->cur_frame->return_value        = (MVMRegister *)&tc->last_handler_result;
-            tc->cur_frame->return_type         = MVM_RETURN_OBJ;
-            tc->cur_frame->special_return      = unwind_after_handler;
-            tc->cur_frame->special_unwind      = cleanup_active_handler;
-            tc->cur_frame->special_return_data = ah;
-
-            /* Invoke the handler frame and return to runloop. */
-            STABLE(handler_code)->invoke(tc, handler_code, &no_arg_callsite,
-                tc->cur_frame->args);
-            break;
         }
-        default:
-            MVM_panic(1, "Unimplemented handler action");
+        break;
+
+    case MVM_EX_ACTION_INVOKE: {
+        /* Create active handler record. */
+        MVMActiveHandler *ah = malloc(sizeof(MVMActiveHandler));
+
+        /* Find frame to invoke. */
+        MVMObject *handler_code = MVM_frame_find_invokee(tc,
+                                                         lh.frame->work[lh.handler->block_reg].o, NULL);
+
+        /* Ensure we have an exception object. */
+        /* TODO: Can make one up. */
+        if (ex_obj == NULL)
+            MVM_panic(1, "Exception object creation NYI");
+
+        /* Install active handler record. */
+        ah->frame           = MVM_frame_inc_ref(tc, lh.frame);
+        ah->handler         = lh.handler;
+        ah->jit_handler     = lh.jit_handler;
+        ah->ex_obj          = ex_obj;
+        ah->next_handler    = tc->active_handlers;
+        tc->active_handlers = ah;
+
+        /* Set up special return to unwinding after running the
+         * handler. */
+        tc->cur_frame->return_value        = (MVMRegister *)&tc->last_handler_result;
+        tc->cur_frame->return_type         = MVM_RETURN_OBJ;
+        tc->cur_frame->special_return      = unwind_after_handler;
+        tc->cur_frame->special_unwind      = cleanup_active_handler;
+        tc->cur_frame->special_return_data = ah;
+
+        /* Invoke the handler frame and return to runloop. */
+        STABLE(handler_code)->invoke(tc, handler_code, &no_arg_callsite,
+                                     tc->cur_frame->args);
+        break;
+    }
+    default:
+        MVM_panic(1, "Unimplemented handler action");
     }
 }
 
@@ -193,6 +228,8 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     MVMFrame     *frame;
     MVMException *exception;
     MVMuint32     goto_offset;
+    MVMuint8     *abs_address;
+
 
     /* Get active handler; sanity check (though it's possible other cases
      * should be supported). */
@@ -203,8 +240,16 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     /* Grab info we'll need to unwind. */
     frame       = ah->frame;
     exception   = (MVMException *)ah->ex_obj;
-    goto_offset = ah->handler->goto_offset;
-
+    if (ah->jit_handler) {
+        void **labels = frame->spesh_cand->jitcode->labels;
+        frame->jit_entry_label = labels[ah->jit_handler->goto_label];
+        abs_address = frame->spesh_cand->jitcode->bytecode;
+        goto_offset = 0;
+    }
+    else {
+        goto_offset = ah->handler->goto_offset;
+        abs_address = NULL;
+    }
     /* Clean up. */
     tc->active_handlers = ah->next_handler;
     MVM_frame_dec_ref(tc, ah->frame);
@@ -215,7 +260,7 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
         MVM_frame_unwind_to(tc, frame->caller, NULL, 0, tc->last_handler_result);
     }
     else {
-        MVM_frame_unwind_to(tc, frame, NULL, goto_offset, NULL);
+        MVM_frame_unwind_to(tc, frame, abs_address, goto_offset, NULL);
     }
 }
 
@@ -584,6 +629,10 @@ void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMSt
         LocatedHandler lh;
         lh.frame = f;
         lh.handler = &(f->effective_handlers[handler_idx]);
+        if (f->spesh_cand && f->spesh_cand->jitcode)
+            lh.jit_handler = &(f->spesh_cand->jitcode->handlers[handler_idx]);
+        else
+            lh.jit_handler = NULL;
         run_handler(tc, lh, NULL);
     }
     else {
