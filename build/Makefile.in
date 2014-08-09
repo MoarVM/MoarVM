@@ -402,6 +402,7 @@ install: all
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/mast
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/math
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/platform
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/profiler
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/spesh
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/strings
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/jit
@@ -416,6 +417,7 @@ install: all
 	$(CP) src/mast/*.h $(DESTDIR)$(PREFIX)/include/moar/mast
 	$(CP) src/math/*.h $(DESTDIR)$(PREFIX)/include/moar/math
 	$(CP) src/platform/*.h $(DESTDIR)$(PREFIX)/include/moar/platform
+	$(CP) src/profiler/*.h $(DESTDIR)$(PREFIX)/include/moar/profiler
 	$(CP) src/spesh/*.h $(DESTDIR)$(PREFIX)/include/moar/spesh
 	$(CP) src/strings/*.h $(DESTDIR)$(PREFIX)/include/moar/strings
 	$(CP) src/jit/*.h $(DESTDIR)$(PREFIX)/include/moar/jit
