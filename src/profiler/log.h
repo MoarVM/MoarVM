@@ -3,6 +3,9 @@ struct MVMProfileThreadData {
     /* The root of the call graph. */
     MVMProfileCallNode *call_graph;
 
+    /* The current call graph node we're in. */
+    MVMProfileCallNode *current_call;
+
     /* The time we started profiling. */
     MVMuint64 start_time;
 

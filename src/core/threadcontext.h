@@ -182,6 +182,8 @@ struct MVMThreadContext {
     MVMint64 *nfa_fates;
     MVMint64  nfa_fates_len;
 
+    /* Profiling data collected for this thread, if profiling is on. */
+    MVMProfileThreadData *prof_data;
 };
 
 MVMThreadContext * MVM_tc_create(MVMInstance *instance);
