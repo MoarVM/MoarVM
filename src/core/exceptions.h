@@ -55,6 +55,9 @@ struct MVMActiveHandler {
     /* The handler information itself. */
     MVMFrameHandler *handler;
 
+    /* Handler information for a JITted handler */
+    MVMJitHandler *jit_handler;
+
     /* The exception object. */
     MVMObject *ex_obj;
 
