@@ -197,8 +197,9 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
     | push rbp; // nb, this aligns the stack to 16 bytes again
     | mov rbp, rsp;
     /* allocate stack space for 4 callee-save registers,
-       4 stack parameters, and 4 parameter registers (windows only) */
-    | sub rsp, 0x60;
+       4 quadwords of scratch space, 4 stack parameters,
+       and 4 parameter registers (windows only) */
+    | sub rsp, 0x80;
     /* save callee-save registers */
     | mov [rbp-0x8],  TC;
     | mov [rbp-0x10], CU;
