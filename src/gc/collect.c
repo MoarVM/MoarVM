@@ -363,6 +363,7 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHAT);
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW);
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW_sc);
+        MVM_gc_worklist_add(tc, worklist, &new_addr_st->method_cache_sc);
 
         /* If it needs to have its REPR data marked, do that. */
         if (new_addr_st->REPR->gc_mark_repr_data)

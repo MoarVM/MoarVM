@@ -830,6 +830,8 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     MVM_serialization_write_ref(tc, writer, st->WHO);
 
     /* Method cache and v-table. */
+    if (!st->method_cache)
+        MVM_serialization_finish_deserialize_method_cache(tc, st);
     MVM_serialization_write_ref(tc, writer, st->method_cache);
     MVM_serialization_write_int(tc, writer, 0); /* Used to be v-table length. */
 
@@ -1902,6 +1904,65 @@ static void deserialize_how_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSeriali
     *(reader->cur_read_offset) += 4;
 }
 
+/* Stashes what we need to deserialize the method cache lazily later, and then
+ * skips over it. */
+static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    /* Peek ahead at the discriminator. */
+    short discrim;
+    assert_can_read(tc, reader, 2);
+    discrim = read_int16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+
+    /* We only know how to lazily handle a hash of code refs or code objects;
+     * for anything else, don't do it lazily. */
+    if (discrim == REFVAR_VM_HASH_STR_VAR) {
+        MVMint32 elems, i, valid;
+
+        /* Save the offset, then skip past discriminator. */
+        MVMint32 before = *(reader->cur_read_offset);
+        *(reader->cur_read_offset) += 2;
+
+        /* Check the elements are as expected. */
+        assert_can_read(tc, reader, 4);
+        elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 4;
+        valid = 1;
+        for (i = 0; i < elems; i++) {
+            /* Skip string. */
+            assert_can_read(tc, reader, 4);
+            *(reader->cur_read_offset) += 4;
+
+            /* Ensure we've a coderef or code object. */
+            assert_can_read(tc, reader, 2);
+            switch (read_int16(*(reader->cur_read_buffer), *(reader->cur_read_offset))) {
+            case REFVAR_OBJECT:
+            case REFVAR_STATIC_CODEREF:
+            case REFVAR_CLONED_CODEREF:
+                assert_can_read(tc, reader, 10);  /* 2 discrim + 8 */
+                *(reader->cur_read_offset) += 10;
+                break;
+            default:
+                valid = 0;
+                *(reader->cur_read_offset) = before;
+                break;
+            }
+            if (!valid)
+                break;
+        }
+
+        /* If all was valid then just stash what we need for later. */
+        if (valid) {
+            st->method_cache = NULL;
+            MVM_ASSIGN_REF(tc, &(st->header), st->method_cache_sc, reader->root.sc);
+            st->method_cache_offset = before;
+            return;
+        }
+    }
+
+    /* If we get here, fall back to eager deserialization. */
+    MVM_ASSIGN_REF(tc, &(st->header), st->method_cache,
+        MVM_serialization_read_ref(tc, reader));
+}
+
 /* Deserializes a single STable, along with its REPR data. */
 static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i, MVMSTable *st) {
     /* Calculate location of STable's table row. */
@@ -1918,8 +1979,8 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, read_obj_ref(tc, reader));
     MVM_ASSIGN_REF(tc, &(st->header), st->WHO, MVM_serialization_read_ref(tc, reader));
 
-    /* Method cache and v-table. */
-    MVM_ASSIGN_REF(tc, &(st->header), st->method_cache, MVM_serialization_read_ref(tc, reader));
+    /* Method cache and legacy v-table. */
+    deserialize_method_cache_lazy(tc, st, reader);
     if (MVM_serialization_read_int(tc, reader) != 0)
         MVM_exception_throw_adhoc(tc, "Unexpected deprecated STable vtable entries");
 
@@ -2114,6 +2175,35 @@ MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerialization
 
     /* Return the (perhaps just stubbed) STable. */
     return MVM_repr_at_pos_o(tc, sr->codes_list, idx);
+}
+
+/* Finishes deserializing the method cache. */
+void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVMSTable *st) {
+    MVMSerializationContext *sc = st->method_cache_sc;
+    if (sc && sc->body->sr) {
+        /* Set reader's position. */
+        MVMSerializationReader *sr = sc->body->sr;
+        sr->stables_data_offset    = st->method_cache_offset;
+        sr->cur_read_buffer        = &(sr->root.stables_data);
+        sr->cur_read_offset        = &(sr->stables_data_offset);
+        sr->cur_read_end           = &(sr->stables_data_end);
+
+        /* Flag that we're working on some deserialization (and so will run the
+         * loop). */
+        sr->working++;
+        MVM_gc_allocate_gen2_default_set(tc);
+
+        /* Deserialize what we need. */
+        MVM_ASSIGN_REF(tc, &(st->header), st->method_cache,
+            MVM_serialization_read_ref(tc, sr));
+        if (sr->working == 1)
+            work_loop(tc, sr);
+
+        /* Clear up. */
+        MVM_gc_allocate_gen2_default_clear(tc);
+        sr->working--;
+        st->method_cache_sc = NULL;
+    }
 }
 
 /* Repossess an object or STable. */
