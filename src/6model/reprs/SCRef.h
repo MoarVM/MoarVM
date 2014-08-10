@@ -47,6 +47,9 @@ struct MVMSerializationContextBody {
     /* Reference to the SerializationReader we'll use to deserialize objects,
      * if this is an SC that we loaded. */
     MVMSerializationReader *sr;
+
+    /* Reentrant mutex protecting lazy deserialization of the SC. */
+    MVMObject *mutex;
 };
 
 struct MVMSerializationContext {

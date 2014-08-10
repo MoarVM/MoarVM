@@ -2131,6 +2131,7 @@ MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializati
     /* Flag that we're working on some deserialization (and so will run the
      * loop). */
     MVMSerializationReader *sr = sc->body->sr;
+    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
     sr->working++;
     MVM_gc_allocate_gen2_default_set(tc);
 
@@ -2145,6 +2146,7 @@ MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializati
     /* Clear up. */
     MVM_gc_allocate_gen2_default_clear(tc);
     sr->working--;
+    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
 
     /* Return the (perhaps just stubbed) object. */
     return sc->body->root_objects[idx];
@@ -2155,6 +2157,7 @@ MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializati
     /* Flag that we're working on some deserialization (and so will run the
      * loop). */
     MVMSerializationReader *sr = sc->body->sr;
+    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
     sr->working++;
     MVM_gc_allocate_gen2_default_set(tc);
 
@@ -2169,6 +2172,7 @@ MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializati
     /* Clear up. */
     MVM_gc_allocate_gen2_default_clear(tc);
     sr->working--;
+    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
 
     /* Return the (perhaps just stubbed) STable. */
     return sc->body->root_stables[idx];
@@ -2179,6 +2183,7 @@ MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerialization
     /* Flag that we're working on some deserialization (and so will run the
      * loop). */
     MVMSerializationReader *sr = sc->body->sr;
+    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
     sr->working++;
     MVM_gc_allocate_gen2_default_set(tc);
 
@@ -2192,6 +2197,7 @@ MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerialization
     /* Clear up. */
     MVM_gc_allocate_gen2_default_clear(tc);
     sr->working--;
+    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
 
     /* Return the (perhaps just stubbed) STable. */
     return MVM_repr_at_pos_o(tc, sr->codes_list, idx);
@@ -2230,28 +2236,33 @@ void MVM_serialization_force_stable(MVMThreadContext *tc, MVMSerializationReader
 void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVMSTable *st) {
     MVMSerializationContext *sc = st->method_cache_sc;
     if (sc && sc->body->sr) {
-        /* Set reader's position. */
+        /* Acquire mutex and ensure we didn't lose a race to do this. */
         MVMSerializationReader *sr = sc->body->sr;
-        sr->stables_data_offset    = st->method_cache_offset;
-        sr->cur_read_buffer        = &(sr->root.stables_data);
-        sr->cur_read_offset        = &(sr->stables_data_offset);
-        sr->cur_read_end           = &(sr->stables_data_end);
-
-        /* Flag that we're working on some deserialization (and so will run the
-         * loop). */
-        sr->working++;
-        MVM_gc_allocate_gen2_default_set(tc);
-
-        /* Deserialize what we need. */
-        MVM_ASSIGN_REF(tc, &(st->header), st->method_cache,
-            MVM_serialization_read_ref(tc, sr));
-        if (sr->working == 1)
-            work_loop(tc, sr);
-
-        /* Clear up. */
-        MVM_gc_allocate_gen2_default_clear(tc);
-        sr->working--;
-        st->method_cache_sc = NULL;
+        MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+        if (st->method_cache_sc) {
+            /* Set reader's position. */
+            sr->stables_data_offset    = st->method_cache_offset;
+            sr->cur_read_buffer        = &(sr->root.stables_data);
+            sr->cur_read_offset        = &(sr->stables_data_offset);
+            sr->cur_read_end           = &(sr->stables_data_end);
+    
+            /* Flag that we're working on some deserialization (and so will run the
+            * loop). */
+            sr->working++;
+            MVM_gc_allocate_gen2_default_set(tc);
+    
+            /* Deserialize what we need. */
+            MVM_ASSIGN_REF(tc, &(st->header), st->method_cache,
+                MVM_serialization_read_ref(tc, sr));
+            if (sr->working == 1)
+                work_loop(tc, sr);
+    
+            /* Clear up. */
+            MVM_gc_allocate_gen2_default_clear(tc);
+            sr->working--;
+            st->method_cache_sc = NULL;
+        }
+        MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
     }
 }
 

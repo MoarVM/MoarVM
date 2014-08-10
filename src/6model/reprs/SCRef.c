@@ -19,7 +19,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMObject *root_codes, *rep_indexes, *rep_scs, *owned_objects;
+    MVMObject *root_codes, *rep_indexes, *rep_scs, *owned_objects, *rm;
 
     MVMInstance       *instance     = tc->instance;
     MVMObject         *BOOTIntArray = instance->boot_types.BOOTIntArray;
@@ -29,6 +29,9 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
     rep_indexes = REPR(BOOTIntArray)->allocate(tc, STABLE(BOOTIntArray));
     MVM_ASSIGN_REF(tc, &(root->header), sc->rep_indexes, rep_indexes);
+
+    rm = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTReentrantMutex);
+    MVM_ASSIGN_REF(tc, &(root->header), sc->mutex, rm);
 
     root_codes = REPR(instance->boot_types.BOOTArray)->allocate(tc, STABLE(instance->boot_types.BOOTArray));
     MVM_ASSIGN_REF(tc, &(root->header), sc->root_codes, root_codes);
@@ -65,6 +68,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         MVM_gc_worklist_add(tc, worklist, &sc->root_stables[i]);
 
     MVM_gc_worklist_add(tc, worklist, &sc->sc);
+    MVM_gc_worklist_add(tc, worklist, &sc->mutex);
 
     /* Mark serialization reader, if we have one. */
     if (sc->sr) {
