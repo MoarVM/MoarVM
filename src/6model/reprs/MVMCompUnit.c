@@ -26,11 +26,9 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMCompUnitBody *body = (MVMCompUnitBody *)data;
-    MVMObject *mutextype = tc->instance->boot_types.BOOTReentrantMutex;
     MVMROOT(tc, root, {
-        MVM_ASSIGN_REF(tc, &(root->header), body->update_mutex, REPR(mutextype)->allocate(tc, STABLE(mutextype)));
-        REPR(mutextype)->initialize(tc, STABLE(mutextype), body->update_mutex, OBJECT_BODY(body->update_mutex));
+        MVMObject *rm = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTReentrantMutex);
+        MVM_ASSIGN_REF(tc, &(root->header), ((MVMCompUnit *)root)->body.update_mutex, rm);
     });
 }
 

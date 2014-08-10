@@ -6,7 +6,7 @@
 /* Some constants. */
 #define HEADER_SIZE                 92
 #define BYTECODE_VERSION            4
-#define FRAME_HEADER_SIZE           (9 * 4 + 3 * 2)
+#define FRAME_HEADER_SIZE           (11 * 4 + 3 * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define FRAME_SLV_SIZE              (2 * 2 + 2 * 4)
 #define SC_DEP_SIZE                 4
@@ -26,6 +26,7 @@
 /* Frame flags. */
 #define FRAME_FLAG_EXIT_HANDLER     1
 #define FRAME_FLAG_IS_THUNK         2
+#define FRAME_FLAG_HAS_CODE_OBJ     4
 #define FRAME_FLAG_HAS_INDEX        32768
 #define FRAME_FLAG_HAS_SLV          65536
 
@@ -1163,6 +1164,15 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
         ? (MVMuint16)ELEMS(vm, f->static_lex_values) / 4
         : 0;
     write_int16(ws->frame_seg, ws->frame_pos + 40, num_slvs);
+
+    if (f->flags & FRAME_FLAG_HAS_CODE_OBJ) {
+        write_int32(ws->frame_seg, ws->frame_pos + 42, f->code_obj_sc_dep_idx + 1);
+        write_int32(ws->frame_seg, ws->frame_pos + 46, f->code_obj_sc_idx);
+    }
+    else {
+        write_int32(ws->frame_seg, ws->frame_pos + 42, 0);
+        write_int32(ws->frame_seg, ws->frame_pos + 46, 0);
+    }
 
     ws->frame_pos += FRAME_HEADER_SIZE;
 

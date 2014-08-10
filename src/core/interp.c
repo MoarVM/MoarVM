@@ -2726,6 +2726,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
                 stable = STABLE(GET_REG(cur_op, 0).o);
                 MVM_ASSIGN_REF(tc, &(stable->header), stable->method_cache, cache);
+                stable->method_cache_sc = NULL;
                 MVM_SC_WB_ST(tc, stable);
 
                 cur_op += 4;
@@ -2839,7 +2840,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getcodeobj): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (REPR(obj)->ID == MVM_REPR_ID_MVMCode)
-                    GET_REG(cur_op, 0).o = ((MVMCode *)obj)->body.code_object;
+                    GET_REG(cur_op, 0).o = MVM_frame_get_code_object(tc, (MVMCode *)obj);
                 else
                     MVM_exception_throw_adhoc(tc, "getcodeobj needs a code ref");
                 cur_op += 4;

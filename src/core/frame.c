@@ -811,6 +811,23 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
         MVM_args_set_result_obj(tc, return_value, 1);
 }
 
+/* Gets a code object for a frame, lazily deserializing it if needed. */
+MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
+    if (!code->body.code_object) {
+        MVMStaticFrame *sf = code->body.sf;
+        if (code == sf->body.static_code && sf->body.code_obj_sc_dep_idx > 0) {
+            MVMSerializationContext *sc = MVM_sc_get_sc(tc, sf->body.cu,
+                sf->body.code_obj_sc_dep_idx - 1);
+            if (sc == NULL)
+                MVM_exception_throw_adhoc(tc,
+                    "SC not yet resolved; lookup failed");
+            MVM_ASSIGN_REF(tc, &(code->common.header), code->body.code_object,
+                MVM_sc_get_object(tc, sc, sf->body.code_obj_sc_idx));
+        }
+    }
+    return code->body.code_object;
+}
+
 /* Given the specified code object, sets its outer to the current scope. */
 void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
     MVMCode *code_obj = (MVMCode *)code;
@@ -852,7 +869,9 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
     MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.sf, ((MVMCode *)code)->body.sf);
     MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.name, ((MVMCode *)code)->body.name);
     closure->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
-    MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.code_object, ((MVMCode *)code)->body.code_object);
+
+    MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.code_object,
+        MVM_frame_get_code_object(tc, (MVMCode *)code));
 
     return (MVMObject *)closure;
 }
@@ -881,13 +900,15 @@ void MVM_frame_free_frame_pool(MVMThreadContext *tc) {
 
 /* Vivifies a lexical in a frame. */
 MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint16 idx) {
-    MVMuint8    *flags, flag;
-    MVMRegister *static_env;
-    MVMuint16 effective_idx;
+    MVMuint8       *flags, flag;
+    MVMRegister    *static_env;
+    MVMuint16       effective_idx;
+    MVMStaticFrame *effective_sf;
     if (idx < f->static_info->body.num_lexicals) {
         flags         = f->static_info->body.static_env_flags;
         static_env    = f->static_info->body.static_env;
         effective_idx = idx;
+        effective_sf  = f->static_info;
     }
     else if (f->spesh_cand) {
         MVMint32 i;
@@ -896,8 +917,9 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
             MVMStaticFrame *isf = f->spesh_cand->inlines[i].code->body.sf;
             effective_idx = idx - f->spesh_cand->inlines[i].lexicals_start;
             if (effective_idx < isf->body.num_lexicals) {
-                flags      = isf->body.static_env_flags;
-                static_env = isf->body.static_env;
+                flags        = isf->body.static_env_flags;
+                static_env   = isf->body.static_env;
+                effective_sf = isf;
                 break;
             }
         }
@@ -906,6 +928,20 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
         flags = NULL;
     }
     flag  = flags ? flags[effective_idx] : -1;
+    if (flag != -1 && static_env[effective_idx].o == NULL) {
+        MVMStaticFrameBody *static_frame_body = &(f->static_info->body);
+        MVMint32 scid, objid;
+        if (MVM_bytecode_find_static_lexical_scref(tc, effective_sf->body.cu, 
+                effective_sf, effective_idx, &scid, &objid)) {
+            MVMSerializationContext *sc = MVM_sc_get_sc(tc, effective_sf->body.cu, scid);
+            if (sc == NULL)
+                MVM_exception_throw_adhoc(tc,
+                    "SC not yet resolved; lookup failed");
+            MVM_ASSIGN_REF(tc, &(f->static_info->common.header),
+                static_frame_body->static_env[effective_idx].o,
+                MVM_sc_get_object(tc, sc, objid));
+        }
+    }
     if (flag == 0) {
         MVMObject *viv = static_env[effective_idx].o;
         return f->env[idx].o = viv ? viv : tc->instance->VMNull;

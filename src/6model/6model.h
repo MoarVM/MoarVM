@@ -285,6 +285,10 @@ struct MVMSTable {
     /* We lazily deserialize HOW; this is the SC and index if needed. */
     MVMSerializationContext *HOW_sc;
     MVMuint32                HOW_idx;
+
+    /* Also info we need to lazily deserialize the method cache. */
+    MVMuint32                method_cache_offset;
+    MVMSerializationContext *method_cache_sc;
 };
 
 /* The representation operations table. Note that representations are not

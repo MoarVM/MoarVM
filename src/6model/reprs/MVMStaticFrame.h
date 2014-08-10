@@ -97,8 +97,16 @@ struct MVMStaticFrameBody {
     MVMuint8 *orig_bytecode;
 
     /* The serialized data about this frame, used to set up the things above
-     * marked (lazy). */
+     * marked (lazy). Also, once we've done that, the static lexical wvals
+     * data pos; we may be able to re-use the same slot for these to. */
     MVMuint8 *frame_data_pos;
+    MVMuint8 *frame_static_lex_pos;
+
+    /* Off-by-one SC dependency index (zero indicates invalid) for the code
+     * object, plus the index of it within that SC. This is relevant for the
+     * static_code only. */
+    MVMint32 code_obj_sc_dep_idx;
+    MVMint32 code_obj_sc_idx;
 };
 struct MVMStaticFrame {
     MVMObject common;

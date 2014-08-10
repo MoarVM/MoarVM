@@ -25,15 +25,23 @@ MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st) {
     return HOW;
 }
 
+
 /* Gets the HOW (meta-object), which may be lazily deserialized, through the
  * STable of the passed object. */
 MVMObject * MVM_6model_get_how_obj(MVMThreadContext *tc, MVMObject *obj) {
     return MVM_6model_get_how(tc, STABLE(obj));
 }
 
+/* Obtains the method cache, lazily deserializing if it needed. */
+static MVMObject * get_method_cache(MVMThreadContext *tc, MVMSTable *st) {
+    if (!st->method_cache)
+        MVM_serialization_finish_deserialize_method_cache(tc, st);
+   return st->method_cache;
+}
+
 /* Locates a method by name, checking in the method cache only. */
 MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
-    MVMObject *cache = STABLE(obj)->method_cache;
+    MVMObject *cache = get_method_cache(tc, STABLE(obj));
     if (cache && IS_CONCRETE(cache))
         return MVM_repr_at_key_o(tc, cache, name);
     return NULL;
@@ -51,7 +59,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
 
     /* First try to find it in the cache. If we find it, we have a result.
      * If we don't find it, but the cache is authoritative, then error. */
-    cache = STABLE(obj)->method_cache;
+    cache = get_method_cache(tc, STABLE(obj));
     if (cache && IS_CONCRETE(cache)) {
         MVMObject *meth = MVM_repr_at_key_o(tc, cache, name);
         if (!MVM_is_null(tc, meth)) {
@@ -137,7 +145,7 @@ MVMint64 MVM_6model_can_method_cache_only(MVMThreadContext *tc, MVMObject *obj, 
              MVM_string_utf8_encode_C_string(tc, name));
 
     /* Consider the method cache. */
-    cache = STABLE(obj)->method_cache;
+    cache = get_method_cache(tc, STABLE(obj));
     if (cache && IS_CONCRETE(cache)) {
         MVMObject *meth = MVM_repr_at_key_o(tc, cache, name);
         if (!MVM_is_null(tc, meth)) {
