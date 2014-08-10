@@ -755,7 +755,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                           3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
-        /*
     case MVM_OP_getdynlex: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 name = ins->operands[1].reg.orig;
@@ -764,7 +763,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_CALLER }};
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
-        } */
+    }
     case MVM_OP_isfalse:
     case MVM_OP_istrue: {
         MVMint16 obj = ins->operands[1].reg.orig;
