@@ -560,28 +560,9 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL);
 }
 
-/* Creates a new lexotic. */
-MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
+static MVMObject* get_lexotic_for_handler_idx(MVMThreadContext *tc, MVMint32 handler_idx) {
     MVMLexotic *lexotic;
-
-    /* Locate handler associated with the specified label. */
-    MVMFrame       *f     = tc->cur_frame;
-    MVMStaticFrame *sf    = f->static_info;
-    MVMint32 handler_idx  = -1;
-    MVMint32 num_handlers = f->spesh_cand
-        ? f->spesh_cand->num_handlers
-        : sf->body.num_handlers;
-    MVMuint32 i;
-    for (i = 0; i < num_handlers; i++) {
-        if (f->effective_handlers[i].action == MVM_EX_ACTION_GOTO &&
-                f->effective_handlers[i].goto_offset == offset) {
-            handler_idx = i;
-            break;
-        }
-    }
-    if (handler_idx < 0)
-        MVM_exception_throw_adhoc(tc, "Label with no handler passed to newlexotic");
-
+    MVMStaticFrame  *sf = tc->cur_frame->static_info;
     /* See if we've got this lexotic cached; return it if so. */
     if (sf->body.pool_index < tc->lexotic_cache_size) {
         lexotic = tc->lexotic_cache[sf->body.pool_index];
@@ -609,6 +590,50 @@ MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
 
     return (MVMObject *)lexotic;
 }
+
+/* Creates a new lexotic. */
+MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset) {
+    /* Locate handler associated with the specified label. */
+    MVMFrame       *f     = tc->cur_frame;
+    MVMStaticFrame *sf    = f->static_info;
+    MVMint32 handler_idx  = -1;
+    MVMint32 num_handlers = f->spesh_cand
+        ? f->spesh_cand->num_handlers
+        : sf->body.num_handlers;
+    MVMuint32 i;
+    for (i = 0; i < num_handlers; i++) {
+        if (f->effective_handlers[i].action == MVM_EX_ACTION_GOTO &&
+                f->effective_handlers[i].goto_offset == offset) {
+            handler_idx = i;
+            break;
+        }
+    }
+    if (handler_idx < 0)
+        MVM_exception_throw_adhoc(tc, "Label with no handler passed to newlexotic");
+    return get_lexotic_for_handler_idx(tc, handler_idx);
+}
+
+/* Creates a new lexotic from the JIT. The JIT doesn't have access to
+ * the offset, so we can't find it from within there. */
+MVMObject * MVM_exception_newlexotic_from_jit(MVMThreadContext *tc, MVMint32 label) {
+    /* Locate handler associated with the specified label. */
+    MVMFrame       *f       = tc->cur_frame;
+    MVMint32 handler_idx    = -1;
+    MVMint32 num_handlers   = f->spesh_cand->jitcode->num_handlers;
+    MVMJitHandler *handlers = f->spesh_cand->jitcode->handlers;
+    MVMuint32 i;
+    for (i = 0; i < num_handlers; i++) {
+        if (f->effective_handlers[i].action == MVM_EX_ACTION_GOTO &&
+            handlers[i].goto_label == label) {
+            handler_idx = i;
+            break;
+        }
+    }
+    if (handler_idx < 0)
+        MVM_exception_throw_adhoc(tc, "Label with no handler passed to newlexotic");
+    return get_lexotic_for_handler_idx(tc, handler_idx);
+}
+
 
 /* Unwinds to a lexotic captured handler. */
 void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMStaticFrame *sf) {
