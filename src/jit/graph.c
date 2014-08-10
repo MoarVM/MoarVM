@@ -483,10 +483,9 @@ static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshIns *ins) {
     return regs;
 }
 
-static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
-                                MVMSpeshBB *bb, MVMSpeshIns *ins) {
-    MVMint16 op = ins->info->opcode;
-    MVMSpeshAnn *ann = ins->annotations;
+static void jgb_before_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
+                           MVMSpeshBB *bb, MVMSpeshIns *ins) {
+   MVMSpeshAnn *ann = ins->annotations;
 
     /* Search annotations for stuff that may need a label. */
     while (ann) {
@@ -516,13 +515,35 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
             jgb->handlers[ann->data.frame_handler_index].goto_label = label;
             break;
         }
+        case MVM_SPESH_ANN_INLINE_START: {
+            MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 0);
+            jgb_append_label(tc, jgb, label); 
+            jgb->inlines[ann->data.inline_idx].start_label = label;
+            break;
+        }
         } /* switch */
         ann = ann->next;
     }
-
     if (ins->info->jittivity & MVM_JIT_INFO_THROWISH) {
         jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_THROWISH_PRE);
     }
+}
+
+static void jgb_after_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
+                          MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    /* If we've consumed an (or throwish) op, we should append a guard */
+    if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH) {
+        MVM_jit_log(tc, "append invokish control guard\n");
+        jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_INVOKISH);
+    }
+    else if (ins->info->jittivity & MVM_JIT_INFO_THROWISH) {
+        jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_THROWISH_POST);
+    }
+}
+
+static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
+                                MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMint16 op = ins->info->opcode;
     MVM_jit_log(tc, "append_ins: <%s>\n", ins->info->name);
     switch(op) {
     case MVM_SSA_PHI:
@@ -1231,14 +1252,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         }
     }
     }
-    /* If we've consumed an (or throwish) op, we should append a guard */
-    if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH) {
-        MVM_jit_log(tc, "append invokish control guard\n");
-        jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_INVOKISH);
-    }
-    else if (ins->info->jittivity & MVM_JIT_INFO_THROWISH) {
-        jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_THROWISH_POST);
-    }
     return 1;
 }
 
@@ -1249,10 +1262,10 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
     jgb_append_label(tc, jgb, label);
     jgb->cur_ins = bb->first_ins;
     while (jgb->cur_ins) {
+        jgb_before_ins(tc, jgb, jgb->cur_bb, jgb->cur_ins);
         if(!jgb_consume_ins(tc, jgb, jgb->cur_bb, jgb->cur_ins))
             return 0;
-        if (jgb->cur_ins == bb->last_ins)
-            break;
+        jgb_after_ins(tc, jgb, jgb->cur_bb, jgb->cur_ins);
         jgb->cur_ins = jgb->cur_ins->next;
     }
     return 1;
