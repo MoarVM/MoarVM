@@ -101,6 +101,12 @@ struct MVMStaticFrameBody {
      * data pos; we may be able to re-use the same slot for these to. */
     MVMuint8 *frame_data_pos;
     MVMuint8 *frame_static_lex_pos;
+
+    /* Off-by-one SC dependency index (zero indicates invalid) for the code
+     * object, plus the index of it within that SC. This is relevant for the
+     * static_code only. */
+    MVMint32 code_obj_sc_dep_idx;
+    MVMint32 code_obj_sc_idx;
 };
 struct MVMStaticFrame {
     MVMObject common;

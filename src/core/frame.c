@@ -791,6 +791,23 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
         MVM_args_set_result_obj(tc, return_value, 1);
 }
 
+/* Gets a code object for a frame, lazily deserializing it if needed. */
+MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
+    if (!code->body.code_object) {
+        MVMStaticFrame *sf = code->body.sf;
+        if (code == sf->body.static_code && sf->body.code_obj_sc_dep_idx > 0) {
+            MVMSerializationContext *sc = MVM_sc_get_sc(tc, sf->body.cu,
+                sf->body.code_obj_sc_dep_idx - 1);
+            if (sc == NULL)
+                MVM_exception_throw_adhoc(tc,
+                    "SC not yet resolved; lookup failed");
+            MVM_ASSIGN_REF(tc, &(code->common.header), code->body.code_object,
+                MVM_sc_get_object(tc, sc, sf->body.code_obj_sc_idx));
+        }
+    }
+    return code->body.code_object;
+}
+
 /* Given the specified code object, sets its outer to the current scope. */
 void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
     MVMCode *code_obj = (MVMCode *)code;
@@ -832,7 +849,9 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
     MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.sf, ((MVMCode *)code)->body.sf);
     MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.name, ((MVMCode *)code)->body.name);
     closure->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
-    MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.code_object, ((MVMCode *)code)->body.code_object);
+
+    MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.code_object,
+        MVM_frame_get_code_object(tc, (MVMCode *)code));
 
     return (MVMObject *)closure;
 }

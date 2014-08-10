@@ -27,6 +27,8 @@ typedef struct {
     MVMint64     flags;
     MVMint64     index;
     MVMObject   *static_lex_values;
+    MVMint64     code_obj_sc_dep_idx;
+    MVMint64     code_obj_sc_idx;
 } MAST_Frame;
 
 /* MAST::Op */

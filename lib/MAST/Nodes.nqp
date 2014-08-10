@@ -197,6 +197,7 @@ class MAST::Frame is MAST::Node {
     # Flag bits.
     my int $FRAME_FLAG_EXIT_HANDLER := 1;
     my int $FRAME_FLAG_IS_THUNK     := 2;
+    my int $FRAME_FLAG_HAS_CODE_OBJ := 4;
     my int $FRAME_FLAG_HAS_INDEX    := 32768; # Can go after a rebootstrap.
     my int $FRAME_FLAG_HAS_SLV      := 65536; # Can go after a rebootstrap.
     has int $!flags;
@@ -210,6 +211,10 @@ class MAST::Frame is MAST::Node {
     # - SC index in this compilation unit
     # - Index of the object within that SC
     has @!static_lex_values;
+
+    # Code object SC dependency index and SC index.
+    has int $!code_obj_sc_dep_idx;
+    has int $!code_obj_sc_idx;
 
     my int $cuuid_src := 0;
     sub fresh_id() {
@@ -297,6 +302,12 @@ class MAST::Frame is MAST::Node {
             $!flags := nqp::bitor_i($!flags, $FRAME_FLAG_IS_THUNK);
         }
         nqp::bitand_i($!flags, $FRAME_FLAG_IS_THUNK)
+    }
+
+    method set_code_object_idxs(int $sc_dep_idx, int $sc_idx) {
+        $!code_obj_sc_dep_idx := $sc_dep_idx;
+        $!code_obj_sc_idx     := $sc_idx;
+        $!flags               := nqp::bitor_i($!flags, $FRAME_FLAG_HAS_CODE_OBJ);
     }
 
     method dump_lines(@lines, $indent) {

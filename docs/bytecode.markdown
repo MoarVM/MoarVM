@@ -193,7 +193,15 @@ Each frame starts with the following data.
     +---------------------------------------------------------+
     | Number of entries in static lexical values table        |
     |    16-bit integer                                       |
-    | [ONLY IN VERSION 4]                                     |
+    | [NEW IN VERSION 4]                                      |
+    +---------------------------------------------------------+
+    | Code object SC dependency index + 1; 0 if none          |
+    |    32-bit unsigned integer                              |
+    | [NEW IN VERSION 4]                                      |
+    +---------------------------------------------------------+
+    | SC object index; ignored if above is 0                  |
+    |    32-bit unsigned integer                              |
+    | [NEW IN VERSION 4]                                      |
     +---------------------------------------------------------+
 
 This is followed, for each local, by a number indicating what kind of

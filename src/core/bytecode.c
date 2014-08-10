@@ -4,7 +4,7 @@
 #define HEADER_SIZE                 92
 #define MIN_BYTECODE_VERSION        2
 #define MAX_BYTECODE_VERSION        4
-#define FRAME_HEADER_SIZE           (9 * 4 + (cu->body.bytecode_version >= 4 ? 3 : 2) * 2)
+#define FRAME_HEADER_SIZE           ((cu->body.bytecode_version >= 4 ? 11 : 9) * 4 + (cu->body.bytecode_version >= 4 ? 3 : 2) * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define FRAME_SLV_SIZE              (2 * 2 + 2 * 4)
 #define SCDEP_HEADER_OFFSET         12
@@ -558,6 +558,12 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             MVMint16 flags = read_int16(pos, 38);
             static_frame_body->has_exit_handler = flags & FRAME_FLAG_EXIT_HANDLER;
             static_frame_body->is_thunk         = flags & FRAME_FLAG_IS_THUNK;
+        }
+
+        /* Read code object SC indexes (version 4 and higher). */
+        if (rs->version >= 4) {
+            static_frame_body->code_obj_sc_dep_idx = read_int32(pos, 42);
+            static_frame_body->code_obj_sc_idx     = read_int32(pos, 46);
         }
 
         /* Associate frame with compilation unit. */
