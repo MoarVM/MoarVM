@@ -25,7 +25,7 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
 
     /* Ensure the frame is fully deserialized. */
     if (!static_frame_body->fully_deserialized)
-        MVM_bytecode_finish_frame(tc, static_frame_body->cu, static_frame);
+        MVM_bytecode_finish_frame(tc, static_frame_body->cu, static_frame, 0);
 
     /* Work size is number of locals/registers plus size of the maximum
      * call site argument list. */

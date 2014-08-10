@@ -114,7 +114,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         char **lexicals;
 
         if (!frame->body.fully_deserialized) {
-            MVM_bytecode_finish_frame(tc, cu, frame);
+            MVM_bytecode_finish_frame(tc, cu, frame, 1);
         }
 
         lexicals = (char **)malloc(sizeof(char *) * frame->body.num_lexicals);
