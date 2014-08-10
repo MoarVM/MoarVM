@@ -210,6 +210,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_islist: case MVM_OP_ishash: return &MVM_repr_compare_repr_id;
     case MVM_OP_wval: case MVM_OP_wval_wide: return &MVM_sc_get_sc_object;
     case MVM_OP_getdynlex: return &MVM_frame_getdynlex;
+    case MVM_OP_binddynlex: return &MVM_frame_binddynlex;
     case MVM_OP_findmeth: case MVM_OP_findmeth_s: return &MVM_6model_find_method;
     case MVM_OP_push_i: return &MVM_repr_push_i;
     case MVM_OP_push_n: return &MVM_repr_push_n;
@@ -766,6 +767,17 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, name },
                                  { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_CALLER }};
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_binddynlex: {
+        MVMint16 name = ins->operands[0].reg.orig;
+        MVMint16 val  = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, name },
+                                 { MVM_JIT_REG_VAL, val  },
+                                 { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_CALLER }};
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op),
+                          4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_isfalse:
