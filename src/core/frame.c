@@ -1068,43 +1068,68 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names;
-        MVMSpeshCandidate  *cand;
-
+        MVMSpeshCandidate  *cand     = cur_frame->spesh_cand;
         /* See if we inside an inline. */
-        cand = cur_frame->spesh_cand;
+
         if (cand && cand->num_inlines) {
-            MVMint32 ret_offset = cur_frame->return_address - cur_frame->effective_bytecode;
-            MVMint32 i;
-            for (i = 0; i < cand->num_inlines; i++) {
-                icost++;
-                /* XXX Following line won't work in JITted code. */
-                if (ret_offset >= cand->inlines[i].start && ret_offset < cand->inlines[i].end) {
-                    MVMStaticFrame *isf = cand->inlines[i].code->body.sf;
-                    if (lexical_names = isf->body.lexical_names) {
-                        MVMLexicalRegistry *entry;
-                        MVM_HASH_GET(tc, lexical_names, name, entry)
-                        if (entry) {
-                            MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
-                            MVMRegister *result = &cur_frame->env[lexidx];
-                            *type = cand->lexical_types[lexidx];
-                            if (vivify && *type == MVM_reg_obj && !result->o)
-                                MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
-                            /* XXX For now, don't cache if we find the var in
-                             * an inline. When we run unjitted, we may find a
-                             * var and cache it. Then in the JIT this inline
-                             * bounds check is busted because ->return_address
-                             * is meaningless, and we may then try to access
-                             * a cache entry below that we should never have
-                             * hit. */
-                            /*if (fcost+icost > 1)
-                                try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost, ecost, xcost);*/
-                            if (dlog) {
-                                fprintf(dlog, "I %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
-                                fflush(dlog);
-                                free(c_name);
+            if (cand->jitcode) { 
+                void      **labels = cand->jitcode->labels;
+                void *return_label = cur_frame->jit_entry_label;
+                MVMJitInline *inls = cand->jitcode->inlines;
+                MVMint32 i;
+                for (i = 0; i < cand->jitcode->num_inlines; i++) {
+                    icost++;
+                    if (return_label >= labels[inls[i].start_label] && return_label <= labels[inls[i].end_label]) {
+                        MVMStaticFrame *isf = cand->inlines[i].code->body.sf;
+                        if (lexical_names = isf->body.lexical_names) {
+                            MVMLexicalRegistry *entry;
+                            MVM_HASH_GET(tc, lexical_names, name, entry);
+                            if (entry) {
+                                MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
+                                MVMRegister *result = &cur_frame->env[lexidx];
+                                *type = cand->lexical_types[lexidx];
+                                if (vivify && *type == MVM_reg_obj && !result->o)
+                                    MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
+                                if (fcost+icost > 1)
+                                  try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost, ecost, xcost);
+                                if (dlog) {
+                                    fprintf(dlog, "I %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+                                    fflush(dlog);
+                                    free(c_name);
+                                }
+                                return result;
                             }
-                            return result;
                         }
+                    }
+                }
+            } else {
+                MVMint32 ret_offset = cur_frame->return_address - cur_frame->effective_bytecode;
+                MVMint32 i;
+                for (i = 0; i < cand->num_inlines; i++) {
+                    icost++;
+                    if (ret_offset >= cand->inlines[i].start && ret_offset < cand->inlines[i].end) {
+                        MVMStaticFrame *isf = cand->inlines[i].code->body.sf;
+                        if (lexical_names = isf->body.lexical_names) {
+                            MVMLexicalRegistry *entry;
+                            MVM_HASH_GET(tc, lexical_names, name, entry);
+                            if (entry) {
+                                MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
+                                MVMRegister *result = &cur_frame->env[lexidx];
+                                *type = cand->lexical_types[lexidx];
+                                if (vivify && *type == MVM_reg_obj && !result->o)
+                                    MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
+                                if (fcost+icost > 1)
+                                  try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost, ecost, xcost);
+                                if (dlog) {
+                                    fprintf(dlog, "I %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+                                    fflush(dlog);
+                                    free(c_name);
+                                }
+                                return result;
+                            }
+
+                        }
+
                     }
                 }
             }

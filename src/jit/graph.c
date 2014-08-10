@@ -391,18 +391,6 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVM_jit_log(tc, "Invoke instruction: <%s>\n", ins->info->name);
     /* get label /after/ current (invoke) ins, where we'll need to reenter the JIT */
     reentry_label = get_label_for_ins(tc, jgb, jgb->cur_bb, ins, 1);
-    /* Check for deopt_all idx, which we need to store */
-    {
-        MVMSpeshAnn *ann = ins->annotations;
-        while (ann) {
-            if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS) {
-                /* fprintf(stderr, "Adding deopt all idx %d (label %d)\n", reentry_label, ann->data.deopt_idx); */
-                add_deopt_idx(tc, jgb, reentry_label, ann->data.deopt_idx);
-                break;
-            }
-            ann = ann->next;
-        }
-    }
     /* create invoke node */
     node = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitNode));
     node->type                     = MVM_JIT_NODE_INVOKE;
@@ -531,6 +519,8 @@ static void jgb_before_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
 static void jgb_after_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                           MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshAnn *ann;
+
     /* If we've consumed an (or throwish) op, we should append a guard */
     if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH) {
         MVM_jit_log(tc, "append invokish control guard\n");
@@ -538,6 +528,29 @@ static void jgb_after_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     }
     else if (ins->info->jittivity & MVM_JIT_INFO_THROWISH) {
         jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_THROWISH_POST);
+    }
+    /* This order of processing is necessary to ensure that a label
+     * calculated by one of the control guards as well as the labels
+     * calculated below point to the exact same instruction. This is a
+     * relatively fragile construction! One could argue that the
+     * control guards should in fact use the same (dynamic) labels. */
+    ann = ins->annotations;
+    while (ann) {
+        if (ann->type == MVM_SPESH_ANN_INLINE_END) {
+            MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 1);
+            jgb_append_label(tc, jgb, label);
+            jgb->inlines[ann->data.inline_idx].end_label = label;
+        } else if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS) {
+            /* An underlying assumption here is that this instruction
+             * will in fact set the jit_entry_label to a correct
+             * value. This is clearly true for invoking ops as well
+             * as invokish ops, and in fact there is no other way
+             * to get a deopt_all_ins annotation. Still, be warned. */
+            MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 1);
+            jgb_append_label(tc, jgb, label);
+            add_deopt_idx(tc, jgb, label, ann->data.deopt_idx);
+        }
+        ann = ann->next;
     }
 }
 
