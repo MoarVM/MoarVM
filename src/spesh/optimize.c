@@ -291,6 +291,37 @@ static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     }
 }
 
+/* hllboxtype_* and the boot*array and hlllist/hllhash can usually be turned
+ * into a simple fetchy thingie. */
+static void optimize_hll_and_boot_consts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMHLLConfig *hllc = g->sf->body.cu->body.hll_config;
+    MVMBootTypes *boottypes = &tc->instance->boot_types;
+
+    MVMObject *targettype;
+
+    switch (ins->info->opcode) {
+        case MVM_OP_bootint:       targettype = boottypes->BOOTInt; break;
+        case MVM_OP_bootnum:       targettype = boottypes->BOOTNum; break;
+        case MVM_OP_bootstr:       targettype = boottypes->BOOTStr; break;
+        case MVM_OP_bootarray:     targettype = boottypes->BOOTArray; break;
+        case MVM_OP_boothash:      targettype = boottypes->BOOTHash; break;
+        case MVM_OP_bootintarray:  targettype = boottypes->BOOTIntArray; break;
+        case MVM_OP_bootnumarray:  targettype = boottypes->BOOTNumArray; break;
+        case MVM_OP_bootstrarray:  targettype = boottypes->BOOTStrArray; break;
+
+        case MVM_OP_hllboxtype_i:  targettype = hllc->int_box_type; break;
+        case MVM_OP_hllboxtype_n:  targettype = hllc->num_box_type; break;
+        case MVM_OP_hllboxtype_s:  targettype = hllc->str_box_type; break;
+        case MVM_OP_hlllist:       targettype = hllc->slurpy_array_type; break;
+        case MVM_OP_hllhash:       targettype = hllc->slurpy_hash_type; break;
+        default:
+            return;
+    }
+
+
+}
+
+
 /* Turns a decont into a set, if we know it's not needed. Also make sure we
  * propagate any needed information. */
 static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
