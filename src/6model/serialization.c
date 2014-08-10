@@ -1965,6 +1965,15 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
 
 /* Deserializes a single STable, along with its REPR data. */
 static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i, MVMSTable *st) {
+    /* Save last read positions. */
+    MVMint32   orig_stables_data_offset = reader->stables_data_offset;
+    char     **orig_read_buffer         = reader->cur_read_buffer;
+    MVMint32  *orig_read_offset         = reader->cur_read_offset;
+    char     **orig_read_end            = reader->cur_read_end;
+    char      *orig_read_buffer_val     = reader->cur_read_buffer ? *(reader->cur_read_buffer) : NULL;
+    MVMint32   orig_read_offset_val     = reader->cur_read_offset ? *(reader->cur_read_offset) : 0;
+    char      *orig_read_end_val        = reader->cur_read_end    ? *(reader->cur_read_end)    : NULL;
+
     /* Calculate location of STable's table row. */
     char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
 
@@ -2036,6 +2045,17 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     /* If the REPR has a function to deserialize representation data, call it. */
     if (st->REPR->deserialize_repr_data)
         st->REPR->deserialize_repr_data(tc, st, reader);
+
+    /* Restore original read positions. */
+    reader->stables_data_offset = orig_stables_data_offset;
+    reader->cur_read_buffer     = orig_read_buffer;
+    reader->cur_read_offset     = orig_read_offset;
+    reader->cur_read_end        = orig_read_end;
+    if (reader->cur_read_buffer) {
+        *(reader->cur_read_buffer)  = orig_read_buffer_val;
+        *(reader->cur_read_offset)  = orig_read_offset_val;
+        *(reader->cur_read_end)     = orig_read_end_val;
+    }
 }
 
 /* Deserializes a single object. */
@@ -2175,6 +2195,35 @@ MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerialization
 
     /* Return the (perhaps just stubbed) STable. */
     return MVM_repr_at_pos_o(tc, sr->codes_list, idx);
+}
+
+/* Forces us to complete deserialization of a particular STable before work
+ * can go on. */
+void MVM_serialization_force_stable(MVMThreadContext *tc, MVMSerializationReader *sr, MVMSTable *st) {
+    /* We'll always have the WHAT if we finished deserializing. */
+    if (!st->WHAT) {
+        /* Not finished. Try to find the index. */
+        MVMDeserializeWorklist *wl = &(sr->wl_stables);
+        MVMint32  found = 0;
+        MVMuint32 i;
+        for (i = 0; i < wl->num_indexes; i++) {
+            MVMuint32 index = wl->indexes[i];
+            if (!found) {
+                if (sr->root.sc->body->root_stables[index] == st) {
+                    /* Found it; finish deserialize. */
+                    deserialize_stable(tc, sr, index,
+                        sr->root.sc->body->root_stables[index]);
+                    found = 1;
+                }
+            }
+            else {
+                /* After the found index; steal from list. */
+                wl->indexes[i - 1] = index;
+            }
+        }
+        if (found)
+            wl->num_indexes--;
+    }
 }
 
 /* Finishes deserializing the method cache. */
