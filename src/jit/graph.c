@@ -1141,6 +1141,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
+    case MVM_OP_ne_s:
     case MVM_OP_eq_s: {
         MVMint16 src_a = ins->operands[1].reg.orig;
         MVMint16 src_b = ins->operands[2].reg.orig;
@@ -1148,8 +1149,17 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_REG_VAL, src_a },
                                  { MVM_JIT_REG_VAL, src_b } };
-        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args,
+        jgb_append_call_c(tc, jgb, op_to_func(tc, MVM_OP_eq_s), 3, args,
                           MVM_JIT_RV_INT, dst);
+        if (op == MVM_OP_ne_s) {
+            /* append not_i to negate ne_s */
+            MVMSpeshIns *not_i          = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMSpeshIns));
+            not_i->info                 = MVM_op_get_op(MVM_OP_not_i);
+            not_i->operands             = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMSpeshOperand) * 2);
+            not_i->operands[0].reg.orig = dst;
+            not_i->operands[1].reg.orig = dst;
+            jgb_append_primitive(tc, jgb, not_i);
+        }
         break;
     }
     case MVM_OP_eqat_s: {
