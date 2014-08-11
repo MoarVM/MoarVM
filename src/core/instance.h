@@ -58,6 +58,8 @@ struct MVMStringConsts {
     MVMString *positional_delegate;
     MVMString *associative_delegate;
     MVMString *auto_viv_container;
+    MVMString *done;
+    MVMString *error;
 };
 
 struct MVMReprRegistry {

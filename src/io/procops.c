@@ -393,9 +393,36 @@ typedef struct {
 } SpawnInfo;
 
 static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
-    MVMint64 status = (exit_status << 8) | term_signal;
+    /* Check we've got a callback to fire. */
+    SpawnInfo        *si  = (SpawnInfo *)req->data;
+    MVMThreadContext *tc  = si->tc;
+    MVMObject *done_cb = MVM_repr_at_key_o(tc, si->callbacks,
+        tc->instance->str_consts.done);
+    if (!MVM_is_null(tc, done_cb)) {
+        MVMROOT(tc, done_cb, {
+            /* Get status. */
+            MVMint64 status = (exit_status << 8) | term_signal;
+
+            /* Get what we'll need to build and convey the result. */
+            MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+            MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
+                tc->instance->event_loop_active, si->work_idx);
+
+            /* Box and send along status. */
+            MVM_repr_push_o(tc, arr, done_cb);
+            MVMROOT(tc, arr, {
+            MVMROOT(tc, t, {
+                MVMObject *result_box = MVM_repr_box_int(tc,
+                    tc->instance->boot_types.BOOTInt, status);
+                MVM_repr_push_o(tc, arr, result_box);
+            });
+            });
+            MVM_repr_push_o(tc, t->body.queue, arr);
+        });
+    }
+
+    /* Close handle. */
     uv_close((uv_handle_t *)req, NULL);
-    /* TODO: convey result */
 }
 
 /* Actually spawns an async task. This runs in the event loop thread. */
@@ -430,9 +457,29 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     process_options.env         = si->env;
     process_options.stdio_count = 3;
     process_options.exit_cb     = async_spawn_on_exit;
-    spawn_result = uv_spawn(tc->loop, process, &process_options);
+
+    /* Attach data, spawn, report any error. */
+    process->data = si;
+    spawn_result  = uv_spawn(tc->loop, process, &process_options);
     if (spawn_result) {
-        /* TODO: convey error */
+        MVMObject *error_cb = MVM_repr_at_key_o(tc, si->callbacks,
+            tc->instance->str_consts.error);
+        if (!MVM_is_null(tc, error_cb)) {
+            MVMROOT(tc, error_cb, {
+            MVMROOT(tc, async_task, {
+                MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+                MVM_repr_push_o(tc, arr, error_cb);
+                MVMROOT(tc, arr, {
+                    MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
+                        tc->instance->VMString, uv_strerror(spawn_result));
+                    MVMObject *msg_box = MVM_repr_box_str(tc,
+                        tc->instance->boot_types.BOOTStr, msg_str);
+                    MVM_repr_push_o(tc, arr, msg_box);
+                });
+                MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
+            });
+            });
+        }
     }
 }
 

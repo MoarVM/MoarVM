@@ -559,6 +559,8 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(positional_delegate, "positional_delegate");
     string_creator(associative_delegate, "associative_delegate");
     string_creator(auto_viv_container, "auto_viv_container");
+    string_creator(done, "done");
+    string_creator(error, "error");
 }
 
 /* Drives the overall bootstrap process. */
