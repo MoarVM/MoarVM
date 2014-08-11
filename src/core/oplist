@@ -289,8 +289,8 @@ isnull              w(int64) r(obj) :pure
 ifnonnull           r(obj) ins
 findmeth            w(obj) r(obj) str :pure :invokish
 findmeth_s          w(obj) r(obj) r(str) :pure :invokish
-can                 w(int64) r(obj) str :pure
-can_s               w(int64) r(obj) r(str) :pure
+can                 w(int64) r(obj) str :pure :invokish
+can_s               w(int64) r(obj) r(str) :pure :invokish
 create              w(obj) r(obj) :pure
 clone               w(obj) r(obj) :pure
 isconcrete          w(int64) r(obj) :pure
