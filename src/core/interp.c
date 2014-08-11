@@ -4310,14 +4310,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(spawnprocasync):
                 GET_REG(cur_op, 0).o = MVM_proc_spawn_async(tc, GET_REG(cur_op, 2).o,
-                    GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64,
-                    GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o,
-                    GET_REG(cur_op, 12).o, GET_REG(cur_op, 14).o);
-                cur_op += 16;
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
+                    GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o);
+                cur_op += 12;
                 goto NEXT;
             OP(killprocasync):
-                MVM_proc_kill_async(tc, GET_REG(cur_op, 0).o);
-                cur_op += 2;
+                MVM_proc_kill_async(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
+                cur_op += 4;
                 goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {

@@ -647,8 +647,8 @@ param_on2_s         w(str) str str ins :noinline
 param_on2_o         w(obj) str str ins :noinline
 osrpoint            :osrpoint
 nativecallcast      w(obj) r(obj) r(obj) r(obj)
-spawnprocasync      w(obj) r(obj) r(str) r(int64) r(obj) r(obj) r(obj) r(obj)
-killprocasync       r(obj)
+spawnprocasync      w(obj) r(obj) r(obj) r(str) r(obj) r(obj)
+killprocasync       r(obj) r(int64)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

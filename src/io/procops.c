@@ -340,19 +340,220 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
     return result;
 }
 
+/* Data that we keep for an asynchronous process handle. */
+typedef struct {
+    /* The libuv handle to the process. */
+    uv_process_t *handle;
+
+    /* Decode streams, for turning bytes into strings. */
+    MVMDecodeStream *ds_stdout;
+    MVMDecodeStream *ds_stderr;
+} MVMIOAsyncProcessData;
+
+/* Clears up an async process handle. */
+static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
+    MVMIOAsyncProcessData *data = (MVMIOAsyncProcessData *)d;
+    if (data->ds_stdout) {
+        MVM_string_decodestream_destory(tc, data->ds_stdout);
+        data->ds_stdout = NULL;
+    }
+    if (data->ds_stderr) {
+        MVM_string_decodestream_destory(tc, data->ds_stdout);
+        data->ds_stderr = NULL;
+    }
+}
+
+/* IO ops table, for async process, populated with functions. */
+static const MVMIOAsyncWritable proc_async_writable = { /*write_str*/NULL, /*write_bytes*/NULL };
+static const MVMIOOps proc_op_table = {
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    &proc_async_writable,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    gc_free
+};
+
+/* Info we convey about an async spawn task. */
+typedef struct {
+    MVMThreadContext  *tc;
+    int                work_idx;
+    MVMObject         *handle;
+    MVMObject         *callbacks;
+    char              *prog;
+    char              *cwd;
+    char             **env;
+    char             **args;
+} SpawnInfo;
+
+static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
+    MVMint64 status = (exit_status << 8) | term_signal;
+    uv_close((uv_handle_t *)req, NULL);
+    /* TODO: convey result */
+}
+
+/* Actually spawns an async task. This runs in the event loop thread. */
+static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
+    MVMint64 spawn_result;
+
+    /* Process info setup. */
+    uv_process_t *process = calloc(1, sizeof(uv_process_t));
+    uv_process_options_t process_options = {0};
+    uv_stdio_container_t process_stdio[3];
+
+    /* Add to work in progress. */
+    SpawnInfo *si = (SpawnInfo *)data;
+    si->tc        = tc;
+    si->work_idx  = MVM_repr_elems(tc, tc->instance->event_loop_active);
+    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+
+    /* TODO: support read/write */
+    process_stdio[0].flags   = UV_INHERIT_FD;
+    process_stdio[0].data.fd = 1;
+    process_stdio[1].flags   = UV_INHERIT_FD;
+    process_stdio[1].data.fd = 1;
+    process_stdio[2].flags   = UV_INHERIT_FD;
+    process_stdio[2].data.fd = 2;
+
+    /* Set up process start info. */
+    process_options.stdio       = process_stdio;
+    process_options.file        = si->prog;
+    process_options.args        = si->args;
+    process_options.cwd         = si->cwd;
+    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
+    process_options.env         = si->env;
+    process_options.stdio_count = 3;
+    process_options.exit_cb     = async_spawn_on_exit;
+    spawn_result = uv_spawn(tc->loop, process, &process_options);
+    if (spawn_result) {
+        /* TODO: convey error */
+    }
+}
+
+/* Marks objects for a spawn task. */
+void spawn_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
+    SpawnInfo *si = (SpawnInfo *)data;
+    MVM_gc_worklist_add(tc, worklist, &si->handle);
+    MVM_gc_worklist_add(tc, worklist, &si->callbacks);
+}
+
+/* Frees info for a spawn task. */
+static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
+    if (data) {
+        SpawnInfo *si = (SpawnInfo *)data;
+        if (si->cwd) {
+            free(si->cwd);
+            si->cwd = NULL;
+        }
+        if (si->env) {
+            MVMuint32 i;
+            char **_env = si->env;
+            FREE_ENV();
+            si->env = NULL;
+        }
+        if (si->args) {
+            MVMuint32 i = 0;
+            while (si->args[i])
+                free(si->args[i++]);
+            free(si->args);
+            si->args = NULL;
+        }
+        free(si);
+    }
+}
+
+/* Operations table for async connect task. */
+static const MVMAsyncTaskOps spawn_op_table = {
+    spawn_setup,
+    NULL,
+    spawn_gc_mark,
+    spawn_gc_free
+};
+
 /* Spawn a process asynchronously. */
-MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue,
-        MVMString *path, MVMint64 flags, MVMObject *exit_callback,
-        MVMObject *stdout_callback, MVMObject *stderr_callback,
-        MVMObject *err_callback) {
-    MVM_exception_throw_adhoc(tc, "Async process spawning NYI");
+MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObject *argv,
+                                 MVMString *cwd, MVMObject *env, MVMObject *callbacks) {
+    MVMAsyncTask  *task;
+    MVMOSHandle   *handle;
+    SpawnInfo     *si;
+    char          *prog, *_cwd, **_env, **args;
+    MVMuint64      size, arg_size, i;
+    MVMIter       *iter;
+    MVMRegister    reg;
+
+    /* Validate queue REPR. */
+    if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
+        MVM_exception_throw_adhoc(tc,
+            "spawnprocasync target queue must have ConcBlockingQueue REPR");
+
+    /* Encode arguments, taking first as program name. */
+    arg_size = MVM_repr_elems(tc, argv);
+    if (arg_size < 1)
+        MVM_exception_throw_adhoc(tc, "spawnprocasync must have first arg for program");
+    args = malloc((arg_size + 1) * sizeof(char *));
+    for (i = 0; i < arg_size; i++) {
+        REPR(argv)->pos_funcs.at_pos(tc, STABLE(argv), argv, OBJECT_BODY(argv), i, &reg, MVM_reg_obj);
+        args[i] = MVM_string_utf8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
+    }
+    args[arg_size] = NULL;
+    prog = args[0];
+
+    /* Encode CWD. */
+    _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
+
+    MVMROOT(tc, queue, {
+    MVMROOT(tc, env, {
+    MVMROOT(tc, callbacks, {
+        MVMIOAsyncProcessData *data;
+
+        /* Encode environment. */
+        size = MVM_repr_elems(tc, env);
+        iter = (MVMIter *)MVM_iter(tc, env);
+        _env = malloc((size + 1) * sizeof(char *));
+        INIT_ENV();
+
+        /* Create handle. */
+        data              = calloc(1, sizeof(MVMIOAsyncProcessData));
+        handle            = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+        handle->body.ops  = &proc_op_table;
+        handle->body.data = data;
+
+        /* Create async task handle. */
+        MVMROOT(tc, handle, {
+            task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTAsync);
+        });
+        MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
+        task->body.ops  = &spawn_op_table;
+        si              = calloc(1, sizeof(SpawnInfo));
+        si->prog        = prog;
+        si->cwd         = _cwd;
+        si->env         = _env;
+        si->args        = args;
+        MVM_ASSIGN_REF(tc, &(task->common.header), si->handle, handle);
+        MVM_ASSIGN_REF(tc, &(task->common.header), si->callbacks, callbacks);
+        task->body.data = si;
+    });
+    });
+    });
+
+    /* Hand the task off to the event loop. */
+    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+
+    return (MVMObject *)handle;
 }
 
 /* Kills an asynchronously spawned process. */
-void MVM_proc_kill_async(MVMThreadContext *tc, MVMObject *handle) {
+void MVM_proc_kill_async(MVMThreadContext *tc, MVMObject *handle, MVMint64 signal) {
     MVM_exception_throw_adhoc(tc, "Async process killing NYI");
 }
 
+/* Get the current process ID. */
 MVMint64 MVM_proc_getpid(MVMThreadContext *tc) {
 #ifdef _WIN32
     return _getpid();
