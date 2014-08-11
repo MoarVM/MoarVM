@@ -1014,7 +1014,9 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     st->REPR_data = repr_data;
 
     if (type) {
-        MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+        MVMStorageSpec spec;
+        MVM_serialization_force_stable(tc, reader, STABLE(type));
+        spec = REPR(type)->get_storage_spec(tc, STABLE(type));
         switch (spec.boxed_primitive) {
             case MVM_STORAGE_SPEC_BP_INT:
                 if (spec.is_unsigned) {

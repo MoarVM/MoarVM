@@ -896,7 +896,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVMStaticFrame *sf = ((MVMCode *)code)->body.sf;
                     MVMuint8 found = 0;
                     if (!sf->body.fully_deserialized)
-                        MVM_bytecode_finish_frame(tc, sf->body.cu, sf);
+                        MVM_bytecode_finish_frame(tc, sf->body.cu, sf, 0);
                     MVM_string_flatten(tc, name);
                     if (sf->body.lexical_names) {
                         MVMLexicalRegistry *entry;
@@ -3088,7 +3088,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMROOT(tc, ncr, {
                     MVMStaticFrame *nsf;
                     if (!ncr->body.sf->body.fully_deserialized)
-                        MVM_bytecode_finish_frame(tc, ncr->body.sf->body.cu, ncr->body.sf);
+                        MVM_bytecode_finish_frame(tc, ncr->body.sf->body.cu, ncr->body.sf, 0);
                     nsf = (MVMStaticFrame *)MVM_repr_clone(tc,
                         (MVMObject *)ncr->body.sf);
                     MVM_ASSIGN_REF(tc, &(ncr->common.header), ncr->body.sf, nsf);

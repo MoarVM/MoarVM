@@ -613,7 +613,8 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 }
 
 /* Finishes up reading and exploding of a frame. */
-void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticFrame *sf) {
+void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
+                               MVMStaticFrame *sf, MVMint32 dump_only) {
     MVMuint32 j;
     MVMuint8 *pos;
     MVMuint16 slvs;
@@ -707,7 +708,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticF
         MVMuint16 lex_idx = read_int16(pos, 0);
         MVMuint16 flags   = read_int16(pos, 2);
         sf->body.static_env_flags[lex_idx] = flags;
-        if (flags == 2) {
+        if (flags == 2 && !dump_only) {
             /* State variable; need to resolve wval immediately. Other kinds
              * can wait. */
             MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, read_int32(pos, 4));

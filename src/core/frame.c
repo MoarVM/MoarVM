@@ -25,7 +25,7 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
 
     /* Ensure the frame is fully deserialized. */
     if (!static_frame_body->fully_deserialized)
-        MVM_bytecode_finish_frame(tc, static_frame_body->cu, static_frame);
+        MVM_bytecode_finish_frame(tc, static_frame_body->cu, static_frame, 0);
 
     /* Work size is number of locals/registers plus size of the maximum
      * call site argument list. */
@@ -815,7 +815,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
 MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
     if (!code->body.code_object) {
         MVMStaticFrame *sf = code->body.sf;
-        if (code == sf->body.static_code && sf->body.code_obj_sc_dep_idx > 0) {
+        if (sf->body.code_obj_sc_dep_idx > 0) {
             MVMSerializationContext *sc = MVM_sc_get_sc(tc, sf->body.cu,
                 sf->body.code_obj_sc_dep_idx - 1);
             if (sc == NULL)
@@ -871,7 +871,7 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
     closure->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
 
     MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.code_object,
-        MVM_frame_get_code_object(tc, (MVMCode *)code));
+        ((MVMCode *)code)->body.code_object);
 
     return (MVMObject *)closure;
 }
