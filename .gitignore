@@ -66,3 +66,6 @@ nqp-cc/nqp/
 # jit files
 jit-log.txt
 jit-*.bin
+
+# dynasm emitted files
+src/jit/emit_*.c
