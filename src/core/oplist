@@ -403,8 +403,8 @@ gethllsym           w(obj) r(str) r(str) :pure
 bindhllsym          r(str) r(str) r(obj)
 settypehll          r(obj) r(str)
 settypehllrole      r(obj) r(int64)
-hllize              w(obj) r(obj) :pure
-hllizefor           w(obj) r(obj) r(str) :pure
+hllize              w(obj) r(obj) :pure :invokish
+hllizefor           w(obj) r(obj) r(str) :pure :invokish
 usecompileehllconfig
 usecompilerhllconfig
 iter                w(obj) r(obj) :pure

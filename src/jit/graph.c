@@ -254,6 +254,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_substr_s: return &MVM_string_substring;
     case MVM_OP_iscclass: return &MVM_string_is_cclass;
     case MVM_OP_nfarunalt: return &MVM_nfa_run_alt;
+    case MVM_OP_hllize: return &MVM_hll_map;
     default:
         MVM_exception_throw_adhoc(tc, "No function for op %d", opcode);
     }
@@ -769,7 +770,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_PTR, dst);
         break;
     }
-
     case MVM_OP_die: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 str = ins->operands[1].reg.orig;
@@ -834,6 +834,17 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_REG_VAL, target } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_hllize: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        MVMHLLConfig *hll_config = jgb->sg->sf->body.cu->body.hll_config;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, src },
+                                 { MVM_JIT_LITERAL_PTR, (MVMint64)hll_config },
+                                 { MVM_JIT_REG_ADDR, dst }};
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
         /* repr ops */
