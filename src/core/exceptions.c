@@ -90,7 +90,7 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
                                       MVMuint32 cat, MVMObject *payload,
                                       LocatedHandler *lh) {
     MVMuint32  i;
-    if (f->spesh_cand && f->spesh_cand->jitcode) {
+    if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
         MVMJitHandler    *jhs = f->spesh_cand->jitcode->handlers;
         MVMFrameHandler  *fhs = f->effective_handlers;
         MVMint32 num_handlers = f->spesh_cand->jitcode->num_handlers;

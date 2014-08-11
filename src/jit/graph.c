@@ -493,12 +493,25 @@ static void jgb_before_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
             MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 0);
             jgb_append_label(tc, jgb, label);
             jgb->handlers[ann->data.frame_handler_index].start_label = label;
+            /* Load the current position into the jit entry label, so that
+             * when throwing we'll know which handler to use */
+            jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
             break;
         }
         case MVM_SPESH_ANN_FH_END: {
             MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 0);
             jgb_append_label(tc, jgb, label);
             jgb->handlers[ann->data.frame_handler_index].end_label = label;
+            /* Same as above. Note that the dynamic label control
+             * actually loads a position a few bytes away from the
+             * label appended above. This is in this case intentional
+             * because the frame handler end is exclusive; once it is
+             * passed we should not use the same handler again.  If we
+             * loaded the exact same position, we would not be able to
+             * distinguish between the end of the basic block to which
+             * the handler applies and the start of the basic block to
+             * which it doesn't. */
+            jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
             break;
         }
         case MVM_SPESH_ANN_FH_GOTO: {
