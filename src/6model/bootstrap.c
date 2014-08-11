@@ -565,6 +565,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(stdout_bytes, "stdout_bytes");
     string_creator(stderr_chars, "stderr_chars");
     string_creator(stderr_bytes, "stderr_bytes");
+    string_creator(buf_type, "buf_type");
 }
 
 /* Drives the overall bootstrap process. */

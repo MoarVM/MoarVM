@@ -375,6 +375,8 @@ typedef struct {
     char             **args;
     MVMDecodeStream   *ds_stdout;
     MVMDecodeStream   *ds_stderr;
+    MVMuint32          seq_stdout;
+    MVMuint32          seq_stderr;
 } SpawnInfo;
 
 static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
@@ -418,13 +420,101 @@ static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) 
 }
 
 /* Read functions for stdout/stderr. */
+static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, SpawnInfo *si,
+                       MVMObject *callback, MVMDecodeStream *ds, MVMuint32 seq_number) {
+    MVMThreadContext *tc  = si->tc;
+    MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
+        tc->instance->event_loop_active, si->work_idx);
+    MVM_repr_push_o(tc, arr, callback);
+    if (nread > 0) {
+        MVMROOT(tc, t, {
+        MVMROOT(tc, arr, {
+            /* Push the sequence number. */
+            MVMObject *seq_boxed = MVM_repr_box_int(tc,
+                tc->instance->boot_types.BOOTInt, seq_number);
+            MVM_repr_push_o(tc, arr, seq_boxed);
+
+            /* Either need to produce a buffer or decode characters. */
+            if (ds) {
+                MVMString *str;
+                MVMObject *boxed_str;
+                MVM_string_decodestream_add_bytes(tc, ds, buf->base, nread);
+                str = MVM_string_decodestream_get_all(tc, ds);
+                boxed_str = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, str);
+                MVM_repr_push_o(tc, arr, boxed_str);
+            }
+            else {
+                MVMObject *buf_type    = MVM_repr_at_key_o(tc, si->callbacks,
+                                            tc->instance->str_consts.buf_type);
+                MVMArray  *res_buf     = (MVMArray *)MVM_repr_alloc_init(tc, buf_type);
+                res_buf->body.slots.i8 = buf->base;
+                res_buf->body.start    = 0;
+                res_buf->body.ssize    = nread;
+                res_buf->body.elems    = nread;
+                MVM_repr_push_o(tc, arr, (MVMObject *)res_buf);
+            }
+
+            /* Finally, no error. */
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+        });
+        });
+    }
+    else if (nread == UV_EOF) {
+        MVMROOT(tc, t, {
+        MVMROOT(tc, arr, {
+            MVMObject *minus_one = MVM_repr_box_int(tc,
+                tc->instance->boot_types.BOOTInt, -1);
+            MVM_repr_push_o(tc, arr, minus_one);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+        });
+        });
+        if (buf->base)
+            free(buf->base);
+        uv_read_stop(handle);
+    }
+    else {
+        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
+        MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+        MVMROOT(tc, t, {
+        MVMROOT(tc, arr, {
+            MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
+                tc->instance->VMString, uv_strerror(nread));
+            MVMObject *msg_box = MVM_repr_box_str(tc,
+                tc->instance->boot_types.BOOTStr, msg_str);
+            MVM_repr_push_o(tc, arr, msg_box);
+        });
+        });
+        if (buf->base)
+            free(buf->base);
+        uv_read_stop(handle);
+    }
+    MVM_repr_push_o(tc, t->body.queue, arr);
+}
 static void async_spawn_stdout_chars_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
+    SpawnInfo *si = (SpawnInfo *)handle->data;
+    MVMObject *cb = MVM_repr_at_key_o(si->tc, si->callbacks,
+        si->tc->instance->str_consts.stdout_chars);
+    async_read(handle, nread, buf, si, cb, si->ds_stdout, si->seq_stdout++);
 }
 static void async_spawn_stdout_bytes_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
+    SpawnInfo *si = (SpawnInfo *)handle->data;
+    MVMObject *cb = MVM_repr_at_key_o(si->tc, si->callbacks,
+        si->tc->instance->str_consts.stdout_bytes);
+    async_read(handle, nread, buf, si, cb, NULL, si->seq_stdout++);
 }
 static void async_spawn_stderr_chars_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
+    SpawnInfo *si = (SpawnInfo *)handle->data;
+    MVMObject *cb = MVM_repr_at_key_o(si->tc, si->callbacks,
+        si->tc->instance->str_consts.stderr_chars);
+    async_read(handle, nread, buf, si, cb, si->ds_stderr, si->seq_stderr++);
 }
 static void async_spawn_stderr_bytes_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
+    SpawnInfo *si = (SpawnInfo *)handle->data;
+    MVMObject *cb = MVM_repr_at_key_o(si->tc, si->callbacks,
+        si->tc->instance->str_consts.stderr_bytes);
+    async_read(handle, nread, buf, si, cb, NULL, si->seq_stderr++);
 }
 
 /* Actually spawns an async task. This runs in the event loop thread. */

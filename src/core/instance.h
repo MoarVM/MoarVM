@@ -64,6 +64,7 @@ struct MVMStringConsts {
     MVMString *stdout_bytes;
     MVMString *stderr_chars;
     MVMString *stderr_bytes;
+    MVMString *buf_type;
 };
 
 struct MVMReprRegistry {
