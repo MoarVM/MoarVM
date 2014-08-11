@@ -568,7 +568,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sub_i:
     case MVM_OP_mul_i:
     case MVM_OP_div_i:
-    case MVM_OP_mod_i: {
+    case MVM_OP_mod_i:
+    case MVM_OP_bor_i:
+    case MVM_OP_band_i:
+    case MVM_OP_bxor_i: {
         MVMint32 reg_a = ins->operands[0].reg.orig;
         MVMint32 reg_b = ins->operands[1].reg.orig;
         MVMint32 reg_c = ins->operands[2].reg.orig;
@@ -590,6 +593,15 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | cqo;
             | idiv qword WORK[reg_c];
             break;
+        case MVM_OP_bor_i:
+            | or rax, WORK[reg_c];
+            break;
+        case MVM_OP_band_i:
+            | and rax, WORK[reg_c];
+            break;
+        case MVM_OP_bxor_i:
+            | xor rax, WORK[reg_c];
+            break;
         }
         if (ins->info->opcode == MVM_OP_mod_i) {
             // result of modula is stored in rdx
@@ -608,6 +620,22 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_dec_i: {
         MVMint32 reg = ins->operands[0].reg.orig;
         | dec qword WORK[reg];
+        break;
+    }
+    case MVM_OP_bnot_i: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov TMP1, WORK[src];
+        | not TMP1;
+        | mov WORK[dst], TMP1;
+        break;
+    }
+    case MVM_OP_neg_i: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov TMP1, WORK[src];
+        | neg TMP1;
+        | mov WORK[dst], TMP1;
         break;
     }
     case MVM_OP_add_n:

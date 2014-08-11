@@ -587,6 +587,11 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_mod_i:
     case MVM_OP_inc_i:
     case MVM_OP_dec_i:
+    case MVM_OP_neg_i:
+    case MVM_OP_band_i:
+    case MVM_OP_bor_i:
+    case MVM_OP_bxor_i:
+    case MVM_OP_bnot_i:
     case MVM_OP_add_n:
     case MVM_OP_sub_n:
     case MVM_OP_mul_n:
