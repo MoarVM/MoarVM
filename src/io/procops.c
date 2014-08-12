@@ -344,7 +344,20 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
 typedef struct {
     /* The libuv handle to the process. */
     uv_process_t *handle;
+
+    /* The async task handle, provided we're running. */
+    MVMObject *async_task;
+
+    /* The exit signal to send, if any. */
+    MVMint64 signal;
 } MVMIOAsyncProcessData;
+
+/* Marks an async handle. */
+static void proc_async_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
+    MVMIOAsyncProcessData *apd = (MVMIOAsyncProcessData *)data;
+    if (data)
+        MVM_gc_worklist_add(tc, worklist, &(apd->async_task));
+}
 
 /* IO ops table, for async process, populated with functions. */
 static const MVMIOAsyncWritable proc_async_writable = { /*write_str*/NULL, /*write_bytes*/NULL };
@@ -359,7 +372,7 @@ static const MVMIOOps proc_op_table = {
     NULL,
     NULL,
     NULL,
-    NULL,
+    &proc_async_gc_mark,
     NULL
 };
 
@@ -378,6 +391,10 @@ typedef struct {
     MVMuint32          seq_stdout;
     MVMuint32          seq_stderr;
 } SpawnInfo;
+
+static void spawn_async_close(uv_handle_t *handle) {
+    free(handle);
+}
 
 static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
     /* Check we've got a callback to fire. */
@@ -409,7 +426,8 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
     }
 
     /* Close handle. */
-    uv_close((uv_handle_t *)req, NULL);
+    uv_close((uv_handle_t *)req, spawn_async_close);
+    ((MVMIOAsyncProcessData *)((MVMOSHandle *)si->handle)->body.data)->handle = NULL;
 }
 
 /* Allocates a buffer of the suggested size. */
@@ -622,12 +640,38 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
             });
         }
     }
+    else {
+        MVMOSHandle           *handle  = (MVMOSHandle *)si->handle;
+        MVMIOAsyncProcessData *apd     = (MVMIOAsyncProcessData *)handle->body.data;
+        apd->handle                    = process;
+    }
 
     /* Start any output readers. */
     if (stdout_pipe)
         uv_read_start((uv_stream_t *)stdout_pipe, on_alloc, stdout_cb);
     if (stderr_pipe)
         uv_read_start((uv_stream_t *)stderr_pipe, on_alloc, stderr_cb);
+}
+
+/* On cancel, kill the process. */
+static void spawn_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
+    /* Locate handle. */
+    SpawnInfo             *si      = (SpawnInfo *)data;
+    MVMOSHandle           *handle  = (MVMOSHandle *)si->handle;
+    MVMIOAsyncProcessData *apd     = (MVMIOAsyncProcessData *)handle->body.data;
+    uv_process_t          *phandle = apd->handle;
+
+    /* If it didn't already end, try to kill it. */
+    if (phandle) {
+#ifdef _WIN32
+        /* On Windows, make sure we use a signal that will actually work. */
+        if (apd->signal != SIGTERM && apd->signal != SIGKILL && apd->signal != SIGINT)
+            apd->signal = SIGKILL;
+#endif
+        uv_process_kill(phandle, (int)apd->signal);
+        uv_close((uv_handle_t *)phandle, spawn_async_close);
+        apd->handle = NULL;
+    }
 }
 
 /* Marks objects for a spawn task. */
@@ -673,7 +717,7 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
 /* Operations table for async connect task. */
 static const MVMAsyncTaskOps spawn_op_table = {
     spawn_setup,
-    NULL,
+    spawn_cancel,
     spawn_gc_mark,
     spawn_gc_free
 };
@@ -740,6 +784,7 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
         MVM_ASSIGN_REF(tc, &(task->common.header), si->handle, handle);
         MVM_ASSIGN_REF(tc, &(task->common.header), si->callbacks, callbacks);
         task->body.data = si;
+        MVM_ASSIGN_REF(tc, &(handle->common.header), data->async_task, task);
     });
     });
     });
@@ -751,8 +796,19 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
 }
 
 /* Kills an asynchronously spawned process. */
-void MVM_proc_kill_async(MVMThreadContext *tc, MVMObject *handle, MVMint64 signal) {
-    MVM_exception_throw_adhoc(tc, "Async process killing NYI");
+void MVM_proc_kill_async(MVMThreadContext *tc, MVMObject *handle_obj, MVMint64 signal) {
+    /* Ensure it's a handle for a process. */
+    if (REPR(handle_obj)->ID == MVM_REPR_ID_MVMOSHandle) {
+        MVMOSHandle *handle = (MVMOSHandle *)handle_obj;
+        if (handle->body.ops == &proc_op_table) {
+            /* It's fine; send the kill by cancelling the task. */
+            MVMIOAsyncProcessData *data = (MVMIOAsyncProcessData *)handle->body.data;
+            data->signal = signal;
+            MVM_io_eventloop_cancel_work(tc, data->async_task);
+            return;
+        }
+    }
+    MVM_exception_throw_adhoc(tc, "killprocasync requires a process handle");
 }
 
 /* Get the current process ID. */
