@@ -224,6 +224,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_pop_i: return &MVM_repr_pop_i;
     case MVM_OP_shift_i: return &MVM_repr_shift_i;
     case MVM_OP_existskey: return &MVM_repr_exists_key;
+    case MVM_OP_deletekey: return &MVM_repr_delete_key;
     case MVM_OP_setelemspos: return &MVM_repr_pos_set_elems;
     case MVM_OP_splice: return &MVM_repr_pos_splice;
     case MVM_OP_atpos_o: return &MVM_repr_at_pos_o;
@@ -889,6 +890,15 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_REG_VAL, invocant } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_deletekey: {
+        MVMint32 invocant = ins->operands[0].reg.orig;
+        MVMint32 key = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, invocant },
+                                 { MVM_JIT_REG_VAL, key } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_existskey: {
