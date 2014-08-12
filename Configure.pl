@@ -745,4 +745,8 @@ Link moar with the libuv library of the system.
 
 Disable the build of libatomic_ops.
 
+=item --enable-jit
+
+Enable JIT compiler for hot frames
+
 =back
