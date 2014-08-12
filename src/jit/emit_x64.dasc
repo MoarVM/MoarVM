@@ -1236,6 +1236,22 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
             | test rax, rax;
             | jz =>(name);
             break;
+        case MVM_OP_if_n:
+            | movd xmm0, qword WORK[val];
+            | xorpd xmm1, xmm1; // make it zero
+            | ucomisd xmm0, xmm1;
+            | jp =>(name);  // is NaN?
+            | jne =>(name); // not equal to zero? we're golden
+            break;
+        case MVM_OP_unless_n:
+            | movd xmm0, qword WORK[val];
+            | xorpd xmm1, xmm1; // make it zero
+            | ucomisd xmm0, xmm1;
+            | jp >1; // is NaN
+            | jne >1; // is not zero
+            | jmp =>(name); // it is zero yay!
+            |1:
+            break;
         case MVM_OP_ifnonnull:
             | mov TMP1, WORK[val];
             | test TMP1, TMP1;
