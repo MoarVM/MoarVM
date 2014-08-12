@@ -1483,7 +1483,7 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->extops_bytes     = ws->num_extops * EXTOP_SIZE;
     ws->extops_seg       = (char *)malloc(ws->extops_bytes);
     ws->frame_pos        = 0;
-    ws->frame_alloc      = 4096;
+    ws->frame_alloc      = 192 * ELEMS(vm, cu->frames);
     ws->frame_seg        = (char *)malloc(ws->frame_alloc);
     ws->num_frames       = 0;
     ws->callsite_pos     = 0;
@@ -1491,10 +1491,10 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->callsite_seg     = (char *)malloc(ws->callsite_alloc);
     ws->num_callsites    = 0;
     ws->bytecode_pos     = 0;
-    ws->bytecode_alloc   = 4096;
+    ws->bytecode_alloc   = 128 * ELEMS(vm, cu->frames);
     ws->bytecode_seg     = (char *)malloc(ws->bytecode_alloc);
     ws->annotation_pos   = 0;
-    ws->annotation_alloc = 4096;
+    ws->annotation_alloc = 64 * ELEMS(vm, cu->frames);
     ws->annotation_seg   = (char *)malloc(ws->annotation_alloc);
     ws->cu               = cu;
     ws->current_frame_idx= 0;
