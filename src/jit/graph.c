@@ -680,6 +680,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_assignunchecked:
     case MVM_OP_getlexstatic_o:
     case MVM_OP_getlexperinvtype_o:
+    case MVM_OP_paramnamesused:
         jgb_append_primitive(tc, jgb, ins);
         break;
         /* branches */

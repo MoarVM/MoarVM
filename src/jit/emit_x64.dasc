@@ -1006,6 +1006,15 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], RV;
         break;
     }
+    case MVM_OP_paramnamesused:
+        | lea ARG2, FRAME->params;
+        | mov TMP5w, word ARGCTX:ARG2->num_pos;
+        | cmp TMP5w, word ARGCTX:ARG2->arg_count;
+        | je >1;
+        | mov ARG1, TC;
+        | callp &MVM_args_assert_nameds_used;
+        |1:
+        break;
     default:
         MVM_exception_throw_adhoc(tc, "Can't JIT opcode <%s>", ins->info->name);
     }
