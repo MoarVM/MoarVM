@@ -993,6 +993,19 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | call FUNCTION;
         break;
     }
+    case MVM_OP_getlexstatic_o:
+    case MVM_OP_getlexperinvtype_o: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 name = ins->operands[1].reg.orig;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[name];
+        | mov ARG3, MVM_reg_obj;
+        | callp &MVM_frame_find_lexical_by_name;
+        | test RV, RV;
+        | cmovnz RV, [RV];
+        | mov WORK[dst], RV;
+        break;
+    }
     default:
         MVM_exception_throw_adhoc(tc, "Can't JIT opcode <%s>", ins->info->name);
     }
