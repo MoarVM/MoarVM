@@ -189,6 +189,12 @@ const unsigned int MVM_jit_num_globals(void) {
 |1:
 |.endmacro
 
+|.macro throw_adhoc, msg
+| mov ARG1, TC;
+| mov64 ARG2, (uintptr_t)(msg);
+| callp &MVM_exception_throw_adhoc;
+|.endmacro
+
 /* A function prologue is always the same in x86 / x64, becuase
  * we do not provide variable arguments, instead arguments are provided
  * via a frame. All JIT entry points receive a prologue. */
@@ -945,9 +951,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | jmp >2;
         |1:
         /* throw an exception */
-        | mov ARG1, TC;
-        | mov64 ARG2, (uintptr_t)("lexoticresult needs a Lexotic");
-        | callp &MVM_exception_throw_adhoc;
+        | throw_adhoc "lexoticresult needs a Lexotic";
         /* we never return from an adhoc exception, so no need to deal with that */
         |2:
         break;
@@ -965,7 +969,28 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP1d, dword TC->sc_wb_disable_depth; // should do zero-extension
         | dec TMP1d;
         | mov dword TC->sc_wb_disable_depth, TMP1d;
-        | mov qword WORK[dst], TMP1;
+        | mov qword WORK[dst], TMP1; 
+        break;
+    }
+    case MVM_OP_assign:
+    case MVM_OP_assignunchecked: {
+        MVMint16 cont = ins->operands[0].reg.orig;
+        MVMint16 obj  = ins->operands[1].reg.orig;
+        | mov ARG2, aword WORK[cont];
+        | mov FUNCTION, OBJECT:ARG2->st;
+        | mov FUNCTION, STABLE:FUNCTION->container_spec;
+        | test FUNCTION, FUNCTION;
+        | jnz >1;
+        | throw_adhoc "Cannot assign to an immutable value";
+        |1:
+        | mov ARG1, TC;
+        | mov ARG3, aword WORK[obj];
+        if (op == MVM_OP_assign) {
+            | mov FUNCTION, CONTAINERSPEC:FUNCTION->store;
+        } else {
+            | mov FUNCTION, CONTAINERSPEC:FUNCTION->store_unchecked;
+        }
+        | call FUNCTION;
         break;
     }
     default:
