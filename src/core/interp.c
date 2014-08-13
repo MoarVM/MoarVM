@@ -1711,30 +1711,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_bigint_bool(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            OP(add_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_add(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+            OP(add_I):
+                GET_REG(cur_op, 0).o = MVM_bigint_add(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
-            }
-            OP(sub_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_sub(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+            OP(sub_I):
+                GET_REG(cur_op, 0).o = MVM_bigint_sub(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
-            }
-            OP(mul_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_mul(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+            OP(mul_I):
+                GET_REG(cur_op, 0).o = MVM_bigint_mul(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
-            }
             OP(div_I): {
                 MVMObject *   const type = GET_REG(cur_op, 6).o;
                 MVMObject * const result = MVM_repr_alloc_init(tc, type);
@@ -1767,14 +1758,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             }
-            OP(lcm_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_lcm(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+            OP(lcm_I):
+                GET_REG(cur_op, 0).o = MVM_bigint_lcm(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
-            }
             OP(bor_I): {
                 MVMObject *   const type = GET_REG(cur_op, 6).o;
                 MVMObject * const result = MVM_repr_alloc_init(tc, type);

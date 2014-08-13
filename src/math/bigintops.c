@@ -299,25 +299,41 @@ void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *sou
 }
 
 #define MVM_BIGINT_BINARY_OP(opname) \
-void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) { \
-    MVMP6bigintBody *ba = get_bigint_body(tc, a); \
-    MVMP6bigintBody *bb = get_bigint_body(tc, b); \
-    MVMP6bigintBody *bc = get_bigint_body(tc, result); \
+MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) { \
+    MVMP6bigintBody *ba, *bb, *bc; \
+    MVMObject *result; \
     mp_int *tmp[2] = { NULL, NULL }; \
-    mp_int *ia = force_bigint(ba, tmp); \
-    mp_int *ib = force_bigint(bb, tmp); \
-    mp_int *ic = malloc(sizeof(mp_int)); \
+    mp_int *ia, *ib, *ic; \
+    MVMROOT(tc, a, { \
+    MVMROOT(tc, b, { \
+        result = MVM_repr_alloc_init(tc, result_type);\
+    }); \
+    }); \
+    ba = get_bigint_body(tc, a); \
+    bb = get_bigint_body(tc, b); \
+    bc = get_bigint_body(tc, result); \
+    ia = force_bigint(ba, tmp); \
+    ib = force_bigint(bb, tmp); \
+    ic = malloc(sizeof(mp_int)); \
     mp_init(ic); \
     mp_##opname(ia, ib, ic); \
     store_bigint_result(bc, ic); \
     clear_temp_bigints(tmp, 2); \
+    return result; \
 }
 
 #define MVM_BIGINT_BINARY_OP_SIMPLE(opname, SMALLINT_OP) \
-void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) { \
-    MVMP6bigintBody *ba = get_bigint_body(tc, a); \
-    MVMP6bigintBody *bb = get_bigint_body(tc, b); \
-    MVMP6bigintBody *bc = get_bigint_body(tc, result); \
+MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) { \
+    MVMP6bigintBody *ba, *bb, *bc; \
+    MVMObject *result; \
+    MVMROOT(tc, a, { \
+    MVMROOT(tc, b, { \
+        result = MVM_repr_alloc_init(tc, result_type);\
+    }); \
+    }); \
+    ba = get_bigint_body(tc, a); \
+    bb = get_bigint_body(tc, b); \
+    bc = get_bigint_body(tc, result); \
     if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) { \
         mp_int *tmp[2] = { NULL, NULL }; \
         mp_int *ia = force_bigint(ba, tmp); \
@@ -335,6 +351,7 @@ void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, 
         SMALLINT_OP; \
         store_int64_result(bc, sc); \
     } \
+    return result; \
 }
 
 #define MVM_BIGINT_BINARY_OP_2(opname, SMALLINT_OP) \
