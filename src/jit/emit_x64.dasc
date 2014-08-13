@@ -1315,6 +1315,17 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
             | jmp =>(name); // it is zero yay!
             |1:
             break;
+        case MVM_OP_if_s0:
+        case MVM_OP_unless_s0:
+            | mov ARG1, TC;
+            | mov ARG2, WORK[val];
+            | callp &MVM_coerce_istrue_s;
+            | test RV, RV;
+            if (ins->info->opcode == MVM_OP_unless_s0)
+                | jz =>(name);
+            else
+                | jnz =>(name);
+            break;
         case MVM_OP_ifnonnull:
             | mov TMP1, WORK[val];
             | test TMP1, TMP1;
