@@ -952,6 +952,22 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         |2:
         break;
     }
+    case MVM_OP_scwbdisable: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP1d, dword TC->sc_wb_disable_depth;
+        | inc TMP1d;
+        | mov dword TC->sc_wb_disable_depth, TMP1d;
+        | mov qword WORK[dst], TMP1;
+        break;
+    }
+    case MVM_OP_scwbenable: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP1d, dword TC->sc_wb_disable_depth; // should do zero-extension
+        | dec TMP1d;
+        | mov dword TC->sc_wb_disable_depth, TMP1d;
+        | mov qword WORK[dst], TMP1;
+        break;
+    }
     default:
         MVM_exception_throw_adhoc(tc, "Can't JIT opcode <%s>", ins->info->name);
     }
