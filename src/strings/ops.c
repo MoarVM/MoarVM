@@ -530,7 +530,7 @@ MVMint64 MVM_string_have_at(MVMThreadContext *tc, MVMString *a,
 MVMint64 MVM_string_get_grapheme_at(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
     MVMStringIndex agraphs;
 
-    if (!IS_CONCRETE((MVMObject *)a)) {
+    if (!a || !IS_CONCRETE((MVMObject *)a)) {
         MVM_exception_throw_adhoc(tc, "codepoint_at needs a concrete string");
     }
 

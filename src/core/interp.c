@@ -1512,18 +1512,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(ordfirst): {
                 MVMString *s = GET_REG(cur_op, 2).s;
-                if (!s || MVM_string_graphs(tc, s) == 0) {
-                    MVM_exception_throw_adhoc(tc, "ord string is null or blank");
-                }
                 GET_REG(cur_op, 0).i64 = MVM_string_get_grapheme_at(tc, s, 0);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(ordat): {
                 MVMString *s = GET_REG(cur_op, 2).s;
-                if (!s || MVM_string_graphs(tc, s) == 0) {
-                    MVM_exception_throw_adhoc(tc, "ord string is null or blank");
-                }
                 GET_REG(cur_op, 0).i64 = MVM_string_get_grapheme_at(tc, s, GET_REG(cur_op, 4).i64);
                 /* XXX what to do with synthetics?  return them? */
                 cur_op += 6;

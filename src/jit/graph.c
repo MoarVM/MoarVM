@@ -249,6 +249,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_lc: return &MVM_string_lc;
     case MVM_OP_eq_s: return &MVM_string_equal;
     case MVM_OP_eqat_s: return &MVM_string_equal_at;
+    case MVM_OP_ordat: return &MVM_string_get_grapheme_at;
     case MVM_OP_chars: case MVM_OP_graphs_s: return &MVM_string_graphs;
     case MVM_OP_codes_s: return &MVM_string_codes;
     case MVM_OP_index_s: return &MVM_string_index;
@@ -1238,6 +1239,16 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, offset } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args,
                           MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_ordat: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 src    = ins->operands[1].reg.orig;
+        MVMint16 offset = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, src },
+                                 { MVM_JIT_REG_VAL, offset } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_chars:
