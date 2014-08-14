@@ -10,7 +10,7 @@ static MVMProfileThreadData * get_thread_data(MVMThreadContext *tc) {
 }
 
 /* Log that we're entering a new frame. */
-void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint32 mode) {
+void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 mode) {
     MVMProfileThreadData *ptd = get_thread_data(tc);
 
     /* Try to locate the entry node, if it's in the call graph already. */
@@ -49,18 +49,16 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint32 m
         case MVM_PROFILE_ENTER_SPESH:
             pcn->specialized_entries++;
             break;
-        case MVM_PROFILE_ENTER_INLINE:
+        case MVM_PROFILE_ENTER_SPESH_INLINE:
             pcn->specialized_entries++;
             pcn->inlined_entries++;
             break;
-        case MVM_PROFILE_ENTER_SPESH_JIT:
-            pcn->specialized_entries++;
+        case MVM_PROFILE_ENTER_JIT:
             pcn->jit_entries++;
             break;
-        case MVM_PROFILE_ENTER_INLINE_JIT:
-            pcn->specialized_entries++;
-            pcn->inlined_entries++;
+        case MVM_PROFILE_ENTER_JIT_INLINE:
             pcn->jit_entries++;
+            pcn->inlined_entries++;
             break;
     }
 

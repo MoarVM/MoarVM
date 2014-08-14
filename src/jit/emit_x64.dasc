@@ -1164,6 +1164,20 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         |1:
         break;
     }
+    case MVM_OP_prof_enterspesh:
+        | mov ARG1, TC;
+        | mov ARG2, aword FRAME->static_info;
+        | mov ARG3, aword MVM_PROFILE_ENTER_JIT;
+        | callp &MVM_profile_log_enter;
+        break;
+    case MVM_OP_prof_enterinline: {
+        MVMint16 spesh_idx = ins->operands[0].lit_i16;
+        | mov ARG1, TC;
+        | get_spesh_slot ARG2, spesh_idx;
+        | mov ARG3, aword MVM_PROFILE_ENTER_JIT_INLINE;
+        | callp &MVM_profile_log_enter;
+        break;
+    }
     default:
         MVM_exception_throw_adhoc(tc, "Can't JIT opcode <%s>", ins->info->name);
     }

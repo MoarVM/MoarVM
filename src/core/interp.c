@@ -4639,7 +4639,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(prof_enterinline):
                 MVM_profile_log_enter(tc,
                     (MVMStaticFrame *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 0)],
-                    MVM_PROFILE_ENTER_INLINE);
+                    MVM_PROFILE_ENTER_SPESH_INLINE);
                 cur_op += 2;
                 goto NEXT;
             OP(prof_exit):
