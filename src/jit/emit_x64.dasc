@@ -775,6 +775,52 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP1;
         break;
     }
+    case MVM_OP_eq_I:
+    case MVM_OP_ne_I:
+    case MVM_OP_lt_I:
+    case MVM_OP_le_I:
+    case MVM_OP_gt_I:
+    case MVM_OP_ge_I: {
+        MVMint32 reg_a = ins->operands[0].reg.orig;
+        MVMint32 reg_b = ins->operands[1].reg.orig;
+        MVMint32 reg_c = ins->operands[2].reg.orig;
+        /* Call the bigint comparison function. */
+        | mov ARG1, tc;
+        | mov ARG2, WORK[reg_b];
+        | mov ARG3, WORK[reg_c];
+        | callp &MVM_bigint_cmp;
+        /* Handle result by opcode. */
+        switch(ins->info->opcode) {
+        case MVM_OP_eq_I:
+            | cmp RV, MP_EQ
+            | sete al;
+            break;
+        case MVM_OP_ne_I:
+            | cmp RV, MP_EQ
+            | setne al;
+            break;
+        case MVM_OP_lt_I:
+            | cmp RV, MP_LT
+            | sete al;
+            break;
+        case MVM_OP_le_I:
+            | cmp RV, MP_GT
+            | setne al;
+            break;
+        case MVM_OP_gt_I:
+            | cmp RV, MP_GT
+            | sete al;
+            break;
+        case MVM_OP_ge_I:
+            | cmp RV, MP_LT
+            | setne al;
+            break;
+        }
+        /* zero extend al (lower byte) to rax (whole register) */
+        | movzx rax, al;
+        | mov WORK[reg_a], rax;
+        break;
+    }
     case MVM_OP_isint:
     case MVM_OP_isnum:
     case MVM_OP_isstr:

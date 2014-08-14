@@ -628,6 +628,13 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         /* comparison (objects) */
     case MVM_OP_eqaddr:
     case MVM_OP_isconcrete:
+        /* comparison (big integer) */
+    case MVM_OP_eq_I:
+    case MVM_OP_ne_I:
+    case MVM_OP_lt_I:
+    case MVM_OP_le_I:
+    case MVM_OP_gt_I:
+    case MVM_OP_ge_I:
         /* constants */
     case MVM_OP_const_i64_16:
     case MVM_OP_const_i64_32:
