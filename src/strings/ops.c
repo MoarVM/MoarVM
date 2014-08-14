@@ -1,5 +1,27 @@
 #include "moar.h"
 
+#define MVM_DEBUG_STRANDS 0
+
+#if MVM_DEBUG_STRANDS
+static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
+    MVMGraphemeIter gi;
+    MVMuint32       len;
+    MVM_string_gi_init(tc, &gi, s);
+    len = 0;
+    while (MVM_string_gi_has_more(tc, &gi)) {
+        MVM_string_gi_get_grapheme(tc, &gi);
+        len++;
+    }
+    if (len != MVM_string_graphs(tc, s))
+        MVM_exception_throw_adhoc(tc,
+            "Strand sanity check failed (stand length %d != num_graphs %d)",
+            len, MVM_string_graphs(tc, s));
+}
+#define STRAND_CHECK(tc, s) check_strand_sanity(tc, s);
+#else
+#define STRAND_CHECK(tc, s) 0
+#endif
+
 /* Allocates strand storage. */
 static MVMStringStrand * allocate_strands(MVMThreadContext *tc, MVMuint16 num_strands) {
     return malloc(num_strands * sizeof(MVMStringStrand));
@@ -257,6 +279,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
         }
     });
 
+    STRAND_CHECK(tc, result);
     return result;
 }
 
@@ -277,8 +300,7 @@ MVMString * MVM_string_replace(MVMThreadContext *tc, MVMString *original, MVMint
 
     MVM_gc_root_temp_pop_n(tc, 3);
 
-    MVM_string_flatten(tc, result);
-
+    STRAND_CHECK(tc, result);
     return result;
 }
 
@@ -380,6 +402,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     });
     });
 
+    STRAND_CHECK(tc, result);
     return result;
 }
 
@@ -432,6 +455,8 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         }
         result->body.storage.strands[0].repetitions = count - 1;
     });
+
+    STRAND_CHECK(tc, result);
     return result;
 }
 
@@ -597,6 +622,7 @@ MVMString * funcname(MVMThreadContext *tc, MVMString *s) { \
             free(result_buf); \
         } \
     } \
+    STRAND_CHECK(tc, s); \
     return s; \
 }
 case_change_func(MVM_string_uc, MVM_unicode_case_change_type_upper, "uc needs a concrete string")
@@ -913,6 +939,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         }
     }
 
+    STRAND_CHECK(tc, result);
     return result;
 }
 
@@ -1057,6 +1084,7 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
     res->body.storage.blob_32 = buffer;
     res->body.num_graphs      = bpos;
 
+    STRAND_CHECK(tc, res);
     return res;
 }
 
@@ -1076,6 +1104,7 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
     res->body.storage.blob_32 = rbuffer;
     res->body.num_graphs      = sgraphs;
 
+    STRAND_CHECK(tc, res);
     return res;
 }
 
@@ -1126,6 +1155,7 @@ MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     res->body.storage.blob_32 = buffer;
     res->body.num_graphs      = sgraphs;
 
+    STRAND_CHECK(tc, res);
     return res;
 }
 
@@ -1157,6 +1187,7 @@ MVMString * MVM_string_bitor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     res->body.storage.blob_32 = buffer;
     res->body.num_graphs      = sgraphs;
 
+    STRAND_CHECK(tc, res);
     return res;
 }
 
@@ -1188,6 +1219,7 @@ MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     res->body.storage.blob_32 = buffer;
     res->body.num_graphs      = sgraphs;
 
+    STRAND_CHECK(tc, res);
     return res;
 }
 
