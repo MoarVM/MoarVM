@@ -3687,13 +3687,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(getlexouter): {
-                MVMRegister *r = MVM_frame_find_lexical_by_name_rel(tc,
-                    GET_REG(cur_op, 2).s, tc->cur_frame->outer);
-                if (r)
-                    GET_REG(cur_op, 0).o = r->o;
-                else
-                    MVM_exception_throw_adhoc(tc, "No lexical found with name '%s'",
-                        MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 2).s));
+                GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name_outer(tc,
+                    GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             }
