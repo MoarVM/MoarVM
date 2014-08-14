@@ -130,9 +130,16 @@ int main(int argc, char *argv[])
             lib_path[lib_path_i++] = argv[argi] + strlen("--libpath=");
             continue;
 
-            case FLAG_VERSION:
-            printf("This is MoarVM version %s\n", MVM_VERSION);
+            case FLAG_VERSION: {
+            char *jitsupport;
+            if (MVM_jit_support()) {
+                jitsupport = " built with JIT support";
+            } else {
+                jitsupport = "";
+            }
+            printf("This is MoarVM version %s%s\n", MVM_VERSION, jitsupport);
             return EXIT_SUCCESS;
+            }
 
             default:
             fprintf(stderr, "ERROR: Unknown flag %s.\n\n%s\n", argv[argi], USAGE);
