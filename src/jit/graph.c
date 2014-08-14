@@ -231,6 +231,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_splice: return &MVM_repr_pos_splice;
     case MVM_OP_atpos_o: return &MVM_repr_at_pos_o;
     case MVM_OP_atpos_i: return &MVM_repr_at_pos_i;
+    case MVM_OP_existspos: return &MVM_repr_exists_pos;
     case MVM_OP_atkey_o: return &MVM_repr_at_key_o;
     case MVM_OP_bindpos_o: return &MVM_repr_bind_pos_o;
     case MVM_OP_bindpos_i: return &MVM_repr_bind_pos_i;
@@ -984,6 +985,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
+    case MVM_OP_existspos:
     case MVM_OP_atpos_i: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint32 invocant = ins->operands[1].reg.orig;
