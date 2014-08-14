@@ -436,7 +436,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         result->body.storage.strands = allocate_strands(tc, 1);
         result->body.num_strands     = 1;
         if (a->body.storage_type == MVM_STRING_STRAND) {
-            if (a->body.num_strands == 1) {
+            if (a->body.num_strands == 1 && a->body.storage.strands[0].repetitions == 0) {
                 copy_strands(tc, a, 0, result, 0, 1);
             }
             else {
