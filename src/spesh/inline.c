@@ -685,6 +685,15 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Merge inlinee's graph into the inliner. */
     merge_graph(tc, inliner, inlinee, inlinee_code, invoke_ins);
 
+    /* If we're profiling, note it's an inline. */
+    if (inlinee->entry->linear_next->first_ins->info->opcode == MVM_OP_prof_enterspesh) {
+        MVMSpeshIns *profenter         = inlinee->entry->linear_next->first_ins;
+        profenter->info                = MVM_op_get_op(MVM_OP_prof_enterinline);
+        profenter->operands            = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshOperand));
+        profenter->operands[0].lit_i16 = MVM_spesh_add_spesh_slot(tc, inliner,
+            (MVMCollectable *)inlinee->sf);
+    }
+
     /* Re-write returns to a set and goto. */
     rewrite_returns(tc, inliner, inlinee, invoke_bb, invoke_ins);
 

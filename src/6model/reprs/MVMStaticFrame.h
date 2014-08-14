@@ -117,6 +117,8 @@ struct MVMStaticFrameBody {
     MVMuint8        *uninstrumented_bytecode;
     MVMFrameHandler *instrumented_handlers;
     MVMFrameHandler *uninstrumented_handlers;
+    MVMuint32        uninstrumented_bytecode_size;
+    MVMuint32        instrumented_bytecode_size;
 };
 struct MVMStaticFrame {
     MVMObject common;

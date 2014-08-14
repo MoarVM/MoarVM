@@ -859,7 +859,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         }
 
         /* See if we can point the call at a particular specialization. */
-        if (target) {
+        if (target && ((MVMCode *)target)->body.sf->body.instrumentation_level == tc->instance->instrumentation_level) {
             MVMCode *target_code  = (MVMCode *)target;
             MVMint32 spesh_cand = try_find_spesh_candidate(tc, target_code, arg_info);
             if (spesh_cand >= 0) {
@@ -1167,6 +1167,10 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             /* Left-over log instruction that didn't become a guard, or OSR
              * finalize instruction; just delete it. */
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+            break;
+        case MVM_OP_prof_enter:
+            /* Profiling entered from spesh should indicate so. */
+            ins->info = MVM_op_get_op(MVM_OP_prof_enterspesh);
             break;
         default:
             if (ins->info->opcode == (MVMuint16)-1)
