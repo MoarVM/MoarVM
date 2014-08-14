@@ -341,7 +341,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 }
 
 /* Marks objects for a write task. */
-void write_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
+static void write_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
     WriteInfo *wi = (WriteInfo *)data;
     MVM_gc_worklist_add(tc, worklist, &wi->handle);
     MVM_gc_worklist_add(tc, worklist, &wi->str_data);
