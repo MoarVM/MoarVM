@@ -115,6 +115,9 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
             entry = entry->next;
         }
     }
+
+    /* Profiling data. */
+    MVM_profile_mark_data(tc);
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */

@@ -30,12 +30,17 @@ typedef struct {
     MVMString *inclusive_time;
     MVMString *exclusive_time;
     MVMString *callees;
+    MVMString *allocations;
+    MVMString *type;
+    MVMString *count;
 } ProfDumpStrs;
 
 /* Dumps a call graph node. */
 static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
                                         MVMProfileCallNode *pcn) {
-    MVMObject *node_hash = new_hash(tc);
+    MVMObject *node_hash  = new_hash(tc);
+    MVMObject *alloc_list = new_array(tc);
+    MVMuint32  i;
 
     /* Add name of code object. */
     MVM_repr_bind_key_o(tc, node_hash,
@@ -64,7 +69,6 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
     if (pcn->num_succ) {
         MVMObject *callees        = new_array(tc);
         MVMuint64  exclusive_time = pcn->total_time;
-        MVMuint32  i;
         for (i = 0; i < pcn->num_succ; i++) {
             MVM_repr_push_o(tc, callees,
                 dump_call_graph_node(tc, pds, pcn->succ[i]));
@@ -77,6 +81,18 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
     else {
         MVM_repr_bind_key_o(tc, node_hash, pds->exclusive_time,
             box_i(tc, pcn->total_time));
+    }
+
+    /* Emit allocations. */
+    MVM_repr_bind_key_o(tc, node_hash, pds->allocations, alloc_list);
+    for (i = 0; i < pcn->num_alloc; i++) {
+        MVMObject *alloc_info = new_hash(tc);
+        MVMObject *type       = pcn->alloc[i].type;
+        MVM_repr_bind_key_o(tc, alloc_info, pds->id, box_i(tc, (MVMint64)type));
+        MVM_repr_bind_key_o(tc, alloc_info, pds->type, type);
+        MVM_repr_bind_key_o(tc, alloc_info, pds->count,
+            box_i(tc, pcn->alloc[i].allocations));
+        MVM_repr_push_o(tc, alloc_list, alloc_info);
     }
 
     return node_hash;
@@ -120,6 +136,9 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
     pds.inclusive_time  = str(tc, "inclusive_time");
     pds.exclusive_time  = str(tc, "exclusive_time");
     pds.callees         = str(tc, "callees");
+    pds.allocations     = str(tc, "allocations");
+    pds.type            = str(tc, "type");
+    pds.count           = str(tc, "count");
 
     /* Build up threads array. */
     /* XXX Only main thread for now. */
@@ -156,4 +175,18 @@ MVMObject * MVM_profile_end(MVMThreadContext *tc) {
 
     /* Build and return result data structure. */
     return dump_data(tc);
+}
+
+/* Marks objects held in the profiling graph. */
+static void mark_call_graph_node(MVMThreadContext *tc, MVMProfileCallNode *node, MVMGCWorklist *worklist) {
+    MVMuint32 i;
+    MVM_gc_worklist_add(tc, worklist, &(node->sf));
+    for (i = 0; i < node->num_alloc; i++)
+        MVM_gc_worklist_add(tc, worklist, &(node->alloc[i].type));
+    for (i = 0; i < node->num_succ; i++)
+        mark_call_graph_node(tc, node->succ[i], worklist);
+}
+void MVM_profile_mark_data(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+    if (tc->prof_data)
+        mark_call_graph_node(tc, tc->prof_data->call_graph, worklist);
 }

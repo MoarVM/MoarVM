@@ -90,5 +90,27 @@ void MVM_profile_log_exit(MVMThreadContext *tc) {
 
 /* Log that we've just allocated the passed object (just log the type). */
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
-    MVMProfileThreadData *ptd = get_thread_data(tc);
+    MVMProfileThreadData *ptd  = get_thread_data(tc);
+    MVMProfileCallNode   *pcn  = ptd->current_call;
+    MVMObject            *what = STABLE(obj)->WHAT;
+    if (pcn) {
+        /* See if there's an existing node to update. */
+        MVMuint32 i;
+        for (i = 0; i < pcn->num_alloc; i++) {
+            if (pcn->alloc[i].type == what) {
+                pcn->alloc[i].allocations++;
+                return;
+            }
+        }
+
+        /* No entry; create one. */
+        if (pcn->num_alloc == pcn->alloc_alloc) {
+            pcn->alloc_alloc += 8;
+            pcn->alloc = realloc(pcn->alloc,
+                pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
+        }
+        pcn->alloc[pcn->num_alloc].type        = what;
+        pcn->alloc[pcn->num_alloc].allocations = 1;
+        pcn->num_alloc++;
+    }
 }
