@@ -13,15 +13,32 @@ struct MVMProfileThreadData {
     MVMuint64 end_time;
 
     /* Garbage collection time measurements. */
-    MVMuint64 *gc_times;
-    MVMuint32 num_gc_times;
-    MVMuint32 alloc_gc_times;
+    MVMProfileGC *gcs;
+    MVMuint32 num_gcs;
+    MVMuint32 alloc_gcs;
 
     /* Amount of time spent in spesh. */
     MVMuint64 spesh_time;
 
     /* Current spesh work start time, if any. */
     MVMuint64 cur_spesh_start_time;
+
+    /* Current GC start time, if any. */
+    MVMuint64 cur_gc_start_time;
+};
+
+/* Information collected about a GC run. */
+struct MVMProfileGC {
+    /* How long the collection took. */
+    MVMuint64 time;
+
+    /* Was it a full collection? */
+    MVMuint32 full;
+
+    /* Nursery statistics. */
+    MVMuint32 cleared_bytes;
+    MVMuint32 retained_bytes;
+    MVMuint32 promoted_bytes;
 };
 
 /* Call graph node, which is kept per thread. */
@@ -97,3 +114,5 @@ struct MVMProfileAllocationCount {
 void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 mode);
 void MVM_profile_log_exit(MVMThreadContext *tc);
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);
+void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full);
+void MVM_profiler_log_gc_end(MVMThreadContext *tc);

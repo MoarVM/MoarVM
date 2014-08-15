@@ -108,10 +108,13 @@ struct MVMThreadContext {
     /* The second GC generation allocator. */
     MVMGen2Allocator *gen2;
 
+    /* Number of bytes promoted to gen2 in current GC run. */
+    MVMuint32 gc_promoted_bytes;
+
     /* Memory buffer pointing to the last thing we serialized, intended to go
      * into the next compilation unit we write. */
-    char         *serialized;
     MVMint32      serialized_size;
+    char         *serialized;
 
     /* Temporarily rooted objects. This is generally used by code written in
      * C that wants to keep references to objects. Since those may change

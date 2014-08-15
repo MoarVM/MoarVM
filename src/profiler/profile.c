@@ -33,6 +33,12 @@ typedef struct {
     MVMString *allocations;
     MVMString *type;
     MVMString *count;
+    MVMString *gcs;
+    MVMString *time;
+    MVMString *full;
+    MVMString *cleared_bytes;
+    MVMString *retained_bytes;
+    MVMString *promoted_bytes;
 } ProfDumpStrs;
 
 /* Dumps a call graph node. */
@@ -102,6 +108,8 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
 static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
                                     MVMProfileThreadData *ptd) {
     MVMObject *thread_hash = new_hash(tc);
+    MVMObject *thread_gcs  = new_array(tc);
+    MVMuint32  i;
 
     /* Add time. */
     MVM_repr_bind_key_o(tc, thread_hash, pds->total_time,
@@ -111,6 +119,23 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
     if (ptd->call_graph)
         MVM_repr_bind_key_o(tc, thread_hash, pds->call_graph,
             dump_call_graph_node(tc, pds, ptd->call_graph));
+
+    /* Add GCs. */
+    for (i = 0; i < ptd->num_gcs; i++) {
+        MVMObject *gc_hash = new_hash(tc);
+        MVM_repr_bind_key_o(tc, gc_hash, pds->time,
+            box_i(tc, ptd->gcs[i].time));
+        MVM_repr_bind_key_o(tc, gc_hash, pds->full,
+            box_i(tc, ptd->gcs[i].full));
+        MVM_repr_bind_key_o(tc, gc_hash, pds->cleared_bytes,
+            box_i(tc, ptd->gcs[i].cleared_bytes));
+        MVM_repr_bind_key_o(tc, gc_hash, pds->retained_bytes,
+            box_i(tc, ptd->gcs[i].retained_bytes));
+        MVM_repr_bind_key_o(tc, gc_hash, pds->promoted_bytes,
+            box_i(tc, ptd->gcs[i].promoted_bytes));
+        MVM_repr_push_o(tc, thread_gcs, gc_hash);
+    }
+    MVM_repr_bind_key_o(tc, thread_hash, pds->gcs, thread_gcs);
 
     return thread_hash;
 }
@@ -139,6 +164,12 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
     pds.allocations     = str(tc, "allocations");
     pds.type            = str(tc, "type");
     pds.count           = str(tc, "count");
+    pds.gcs             = str(tc, "gcs");
+    pds.time            = str(tc, "time");
+    pds.full            = str(tc, "full");
+    pds.cleared_bytes   = str(tc, "cleared_bytes");
+    pds.retained_bytes  = str(tc, "retained_bytes");
+    pds.promoted_bytes  = str(tc, "promoted_bytes");
 
     /* Build up threads array. */
     /* XXX Only main thread for now. */
