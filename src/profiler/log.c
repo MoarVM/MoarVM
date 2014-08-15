@@ -140,10 +140,13 @@ void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full) {
 /* Logs the end of a GC run. */
 void MVM_profiler_log_gc_end(MVMThreadContext *tc) {
     MVMProfileThreadData *ptd = get_thread_data(tc);
-    MVMint32 retained_bytes;
+    MVMProfileCallNode   *pcn = ptd->current_call;
+    MVMuint64 gc_time;
+    MVMint32  retained_bytes;
 
     /* Record time spent. */
-    ptd->gcs[ptd->num_gcs].time = uv_hrtime() - ptd->cur_gc_start_time;
+    gc_time = uv_hrtime() - ptd->cur_gc_start_time;
+    ptd->gcs[ptd->num_gcs].time = gc_time;
 
     /* Record retained and promoted bytes. */
     retained_bytes = (char *)tc->nursery_alloc - (char *)tc->nursery_tospace;
@@ -155,4 +158,10 @@ void MVM_profiler_log_gc_end(MVMThreadContext *tc) {
 
     /* Increment the number of GCs we've done. */
     ptd->num_gcs++;
+
+    /* Discount GC time from all active frames. */
+    while (pcn) {
+        pcn->cur_skip_time += gc_time;
+        pcn = pcn->pred;
+    }
 }
