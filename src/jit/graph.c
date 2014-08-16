@@ -126,7 +126,7 @@ static MVMint32 get_label_for_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
 static void add_deopt_idx(MVMThreadContext *tc, JitGraphBuilder *jgb, MVMint32 label_name, MVMint32 deopt_idx) {
     if (jgb->num_deopts == jgb->alloc_deopts) {
         MVMJitDeopt *deopts = MVM_spesh_alloc(tc, jgb->sg, jgb->alloc_deopts * 2 * sizeof(MVMJitDeopt));
-        memcpy(deopts, jgb->deopts, jgb->alloc_deopts * sizeof(MVMJitDeopt));
+        memcpy(deopts, jgb->deopts, jgb->num_deopts * sizeof(MVMJitDeopt));
         jgb->deopts = deopts;
         jgb->alloc_deopts *= 2;
     }
@@ -574,7 +574,8 @@ static void jgb_after_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
             MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 1);
             jgb_append_label(tc, jgb, label);
             jgb->inlines[ann->data.inline_idx].end_label = label;
-        } else if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS) {
+        } else if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS ||
+                   ann->type == MVM_SPESH_ANN_DEOPT_INLINE) {
             /* An underlying assumption here is that this instruction
              * will in fact set the jit_entry_label to a correct
              * value. This is clearly true for invoking ops as well
@@ -675,6 +676,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_setdispatcher:
     case MVM_OP_getcode:
     case MVM_OP_sp_fastcreate:
+    case MVM_OP_iscont:
     case MVM_OP_decont:
     case MVM_OP_sp_namedarg_used:
     case MVM_OP_sp_findmeth:
