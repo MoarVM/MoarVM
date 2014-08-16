@@ -1440,6 +1440,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_sp_guardconc:
     case MVM_OP_sp_guardtype:
     case MVM_OP_sp_guardcontconc:
+    case MVM_OP_sp_guardconttype:
         jgb_append_guard(tc, jgb, ins);
         break;
     case MVM_OP_prepargs: {
