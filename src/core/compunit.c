@@ -8,10 +8,14 @@
 
 /* Creates a compilation unit from a byte array. */
 MVMCompUnit * MVM_cu_from_bytes(MVMThreadContext *tc, MVMuint8 *bytes, MVMuint32 size) {
-    /* Create compilation unit data structure. */
-    MVMCompUnit *cu = (MVMCompUnit *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTCompUnit);
+    /* Create compilation unit data structure. Allocate it in gen2 always, so
+     * it will never move (the JIT relies on this). */
+    MVMCompUnit *cu;
+    MVM_gc_allocate_gen2_default_set(tc);
+    cu = (MVMCompUnit *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTCompUnit);
     cu->body.data_start = bytes;
     cu->body.data_size  = size;
+    MVM_gc_allocate_gen2_default_clear(tc);
 
     /* Process the input. */
     MVMROOT(tc, cu, {
