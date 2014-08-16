@@ -374,7 +374,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov ARG3, MVM_reg_obj;
         | callp &MVM_frame_find_lexical_by_name;
         | test RV, RV;
-        | cmovnz RV, [RV];
+        | jz >1;
+        | mov RV, [RV];
+        |1:
         | mov WORK[dst], RV;
         break;
     }
@@ -1060,7 +1062,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov ARG3, MVM_reg_obj;
         | callp &MVM_frame_find_lexical_by_name;
         | test RV, RV;
-        | cmovnz RV, [RV];
+        | jz >1;
+        | mov RV, [RV];
+        |1:
         | mov WORK[dst], RV;
         break;
     }
