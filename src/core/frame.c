@@ -822,6 +822,10 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             return;
         }
         else {
+            /* If we're profiling, log an exit. */
+            if (tc->instance->profiling)
+                MVM_profile_log_unwind(tc);
+
             /* No exit handler, so just remove the frame. */
             if (!remove_one_frame(tc, 1))
                 MVM_panic(1, "Internal error: Unwound entire stack and missed handler");

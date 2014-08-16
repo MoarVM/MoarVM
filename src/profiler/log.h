@@ -113,6 +113,7 @@ struct MVMProfileAllocationCount {
 /* Logging functions. */
 void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 mode);
 void MVM_profile_log_exit(MVMThreadContext *tc);
+void MVM_profile_log_unwind(MVMThreadContext *tc);
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);
 void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full);
 void MVM_profiler_log_gc_end(MVMThreadContext *tc);

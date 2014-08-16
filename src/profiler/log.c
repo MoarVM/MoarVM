@@ -70,22 +70,43 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
     ptd->current_call = pcn;
 }
 
-/* Log that we're exiting a frame normally. */
-void MVM_profile_log_exit(MVMThreadContext *tc) {
+/* Frame exit handler, used for unwind and normal exit. */
+static void log_exit(MVMThreadContext *tc, MVMuint32 unwind) {
     MVMProfileThreadData *ptd = get_thread_data(tc);
 
     /* Ensure we've a current frame; panic if not. */
     /* XXX in future, don't panic, try to cope. This is for debugging
      * profiler issues. */
     MVMProfileCallNode *pcn = ptd->current_call;
-    if (!pcn)
+    if (!pcn /*|| !unwind && pcn->sf != tc->cur_frame->static_info*/) {
+        MVM_dump_backtrace(tc);
         MVM_panic(1, "Profiler lost sequence");
+    }
 
     /* Add to total time. */
     pcn->total_time += (uv_hrtime() - pcn->cur_entry_time) - pcn->cur_skip_time;
 
     /* Move back to predecessor in call graph. */
     ptd->current_call = pcn->pred;
+}
+
+/* Log that we're exiting a frame normally. */
+void MVM_profile_log_exit(MVMThreadContext *tc) {
+    log_exit(tc, 0);
+}
+
+/* Called when we unwind. Since we're also potentially leaving some inlined
+ * frames, we need to exit until we hit the target one. */
+void MVM_profile_log_unwind(MVMThreadContext *tc) {
+    MVMProfileThreadData *ptd  = get_thread_data(tc);
+    MVMProfileCallNode   *lpcn;
+    do {
+        MVMProfileCallNode *pcn  = ptd->current_call;
+        if (!pcn)
+            return;
+        lpcn = pcn;
+        log_exit(tc, 1);
+    } while (lpcn->sf != tc->cur_frame->static_info);
 }
 
 /* Log that we've just allocated the passed object (just log the type). */
