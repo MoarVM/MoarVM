@@ -1061,6 +1061,16 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | callp &MVM_args_assert_nameds_used;
         |1:
         break;
+    case MVM_OP_assertparamcheck: {
+        MVMint16 ok = ins->operands[0].reg.orig;
+        | mov TMP1, qword WORK[ok];
+        | test TMP1, TMP1;
+        | jnz >1;
+        | mov ARG1, TC;
+        | callp &MVM_args_bind_failed;
+        |1:
+        break;
+    }
     default:
         MVM_exception_throw_adhoc(tc, "Can't JIT opcode <%s>", ins->info->name);
     }
