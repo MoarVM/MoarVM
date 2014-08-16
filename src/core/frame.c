@@ -107,6 +107,68 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
     return NULL;
 }
 
+/* Creates a frame for usage as a context only, possibly forcing all of the
+ * static lexicals to be deserialized if it's used for auto-close purposes. */
+static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
+        MVMObject *code_ref, MVMint32 autoclose) {
+    MVMFrame *frame;
+
+    /* If the frame was never invoked before, need initial calculations
+     * and verification. */
+    if (!static_frame->body.invoked)
+        prepare_and_verify_static_frame(tc, static_frame);
+
+    frame = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMFrame));
+
+    /* Copy thread context into the frame. */
+    frame->tc = tc;
+
+    /* Set static frame. */
+    frame->static_info = static_frame;
+
+    /* Store the code ref. */
+    frame->code_ref = code_ref;
+
+    /* Allocate space for lexicals, copying the default lexical environment
+     * into place and, if we're auto-closing, making sure anything we'd clone
+     * is vivified to prevent the clone (which is what creates the correct
+     * BEGIN/INIT semantics). */
+    if (static_frame->body.env_size) {
+        frame->env = MVM_fixed_size_alloc(tc, tc->instance->fsa, static_frame->body.env_size);
+        frame->allocd_env = static_frame->body.env_size;
+        if (autoclose) {
+            MVMuint16 i;
+            for (i = 0; i < static_frame->body.num_lexicals; i++) {
+                if (!static_frame->body.static_env[i].o && static_frame->body.static_env_flags[i] == 1) {
+                    MVMint32 scid, objid;
+                    if (MVM_bytecode_find_static_lexical_scref(tc, static_frame->body.cu, 
+                            static_frame, i, &scid, &objid)) {
+                        MVMSerializationContext *sc = MVM_sc_get_sc(tc, static_frame->body.cu, scid);
+                        if (sc == NULL)
+                            MVM_exception_throw_adhoc(tc,
+                                "SC not yet resolved; lookup failed");
+                        MVM_ASSIGN_REF(tc, &(static_frame->common.header),
+                            static_frame->body.static_env[i].o,
+                            MVM_sc_get_object(tc, sc, objid));
+                    }
+                }
+            }
+        }
+        memcpy(frame->env, static_frame->body.static_env, static_frame->body.env_size);
+    }
+
+    /* Initial reference count is 0 (will become referenced by being set as
+     * an outer context). So just return it now. */
+    return frame;
+}
+
+/* Creates a frame that is suitable for deserializing a context into. Does not
+ * try to use the frame pool, since we'll typically never recycle these. */
+MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
+        MVMObject *code_ref) {
+    return create_context_only(tc, static_frame, code_ref, 0);
+}
+
 /* Provides auto-close functionality, for the handful of cases where we have
  * not ever been in the outer frame of something we're invoking. In this case,
  * we fake up a frame based on the static lexical environment. */
@@ -122,7 +184,7 @@ MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
     }
 
     /* If not, fake up a frame See if it also needs an outer. */
-    result = MVM_frame_create_context_only(tc, needed, (MVMObject *)needed->body.static_code);
+    result = create_context_only(tc, needed, (MVMObject *)needed->body.static_code, 1);
     if (needed->body.outer) {
         /* See if the static code object has an outer. */
         MVMCode *outer_code = needed->body.outer->body.static_code;
@@ -527,41 +589,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             }
         });
     }
-}
-
-/* Creates a frame that is suitable for deserializing a context into. Does not
- * try to use the frame pool, since we'll typically never recycle these. */
-MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
-        MVMObject *code_ref) {
-    MVMFrame *frame;
-
-    /* If the frame was never invoked before, need initial calculations
-     * and verification. */
-    if (!static_frame->body.invoked)
-        prepare_and_verify_static_frame(tc, static_frame);
-
-    frame = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMFrame));
-
-    /* Copy thread context into the frame. */
-    frame->tc = tc;
-
-    /* Set static frame. */
-    frame->static_info = static_frame;
-
-    /* Store the code ref. */
-    frame->code_ref = code_ref;
-
-    /* Allocate space for lexicals, copying the default lexical environment
-     * into place. */
-    if (static_frame->body.env_size) {
-        frame->env = MVM_fixed_size_alloc(tc, tc->instance->fsa, static_frame->body.env_size);
-        frame->allocd_env = static_frame->body.env_size;
-        memcpy(frame->env, static_frame->body.static_env, static_frame->body.env_size);
-    }
-
-    /* Initial reference count is 0 (will become referenced by being set as
-     * an outer context). So just return it now. */
-    return frame;
 }
 
 /* Creates a frame for de-optimization purposes. */
