@@ -929,19 +929,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         |2:
         break;
     }
-    case MVM_OP_iscont: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[src];
-        | test TMP1, TMP1;
-        | cmovnz TMP2, OBJECT:TMP1->st;
-        | cmovnz TMP1, STABLE:TMP2->container_spec;
-        | test TMP1, TMP1;
-        | setnz TMP2b;
-        | movzx TMP2, TMP2b;
-        | mov WORK[dst], TMP2;
-        break;
-    }
     case MVM_OP_sp_namedarg_used: {
         MVMuint16 param = ins->operands[0].lit_i16;
         | mov TMP1, FRAME->params.named_used;
