@@ -89,7 +89,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
 /* Adds instrumented versions of the unspecialized bytecode. */
 static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMSpeshCode  *sc;
-    MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, sf, 0);
+    MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, sf, 1);
     instrument_graph(tc, sg);
     sc = MVM_spesh_codegen(tc, sg);
     sf->body.instrumented_bytecode        = sc->bytecode;
