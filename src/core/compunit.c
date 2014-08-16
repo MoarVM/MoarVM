@@ -22,8 +22,10 @@ MVMCompUnit * MVM_cu_from_bytes(MVMThreadContext *tc, MVMuint8 *bytes, MVMuint32
         MVM_bytecode_unpack(tc, cu);
     });
 
-    /* Resolve HLL config. */
+    /* Resolve HLL config. It may contain nursery pointers, so add CU to gen2
+     * root list to be safe. */
     cu->body.hll_config = MVM_hll_get_config_for(tc, cu->body.hll_name);
+    MVM_gc_root_gen2_add(tc, (MVMCollectable *)cu);
 
     return cu;
 }
