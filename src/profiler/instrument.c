@@ -21,6 +21,27 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 MVMSpeshIns *exit_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
                 exit_ins->info        = MVM_op_get_op(MVM_OP_prof_exit);
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, exit_ins);
+
+                /* If the return instruction is a goto target, move to the
+                 * instrumentation instruction. */
+                if (ins->annotations) {
+                    MVMSpeshAnn *ann      = ins->annotations;
+                    MVMSpeshAnn *prev_ann = NULL;
+                    while (ann) {
+                        if (ann->type == MVM_SPESH_ANN_FH_GOTO) {
+                            if (prev_ann)
+                                prev_ann->next = ann->next;
+                            else
+                                ins->annotations = ann->next;
+                            exit_ins->annotations = ann;
+                            ann->next = NULL;
+                            break;
+                        }
+                        prev_ann = ann;
+                        ann = ann->next;
+                    }
+                }
+
                 break;
             }
             case MVM_OP_create:
