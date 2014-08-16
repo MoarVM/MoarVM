@@ -14,6 +14,10 @@ struct MVMContinuationBody {
 
     /* Active exception handler(s) to restore. */
     MVMActiveHandler *active_handlers;
+
+    /* If we're profiling, then data needed to cope with the continuation
+     * being invoked again. */
+    MVMProfileContinuationData *prof_cont;
 };
 struct MVMContinuation {
     MVMObject common;

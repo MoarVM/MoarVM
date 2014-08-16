@@ -92,6 +92,9 @@ struct MVMProfileCallNode {
 
     /* Number of times deopt_all happened. */
     MVMuint64 deopt_all_count;
+
+    /* Entry mode, persisted for the sake of continuations. */
+    MVMuint64 entry_mode;
 };
 
 /* Allocation counts for a call node. */
@@ -101,6 +104,19 @@ struct MVMProfileAllocationCount {
 
     /* The number of allocations we've counted. */
     MVMuint64 allocations;
+};
+
+/* When a continuation is taken, we attach one of these to it. It carries the
+ * data needed to restore profiler state if the continuation is invoked. */
+struct MVMProfileContinuationData {
+    /* List of static frames we should restore, in reverse order. */
+    MVMStaticFrame **sfs;
+
+    /* Entry modes to restore also. */
+    MVMuint64 *modes;
+
+    /* Number of static frames in the list. */
+    MVMuint64 num_sfs;
 };
 
 /* Ways we might enter a frame. */
@@ -114,6 +130,8 @@ struct MVMProfileAllocationCount {
 void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 mode);
 void MVM_profile_log_exit(MVMThreadContext *tc);
 void MVM_profile_log_unwind(MVMThreadContext *tc);
+MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, MVMFrame *root_frame);
+void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, MVMProfileContinuationData *cd);
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);
 void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full);
 void MVM_profiler_log_gc_end(MVMThreadContext *tc);

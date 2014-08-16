@@ -200,3 +200,4 @@ typedef struct MVMProfileThreadData MVMProfileThreadData;
 typedef struct MVMProfileGC MVMProfileGC;
 typedef struct MVMProfileCallNode MVMProfileCallNode;
 typedef struct MVMProfileAllocationCount MVMProfileAllocationCount;
+typedef struct MVMProfileContinuationData MVMProfileContinuationData;

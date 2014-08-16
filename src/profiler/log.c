@@ -61,6 +61,7 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
             pcn->inlined_entries++;
             break;
     }
+    pcn->entry_mode = mode;
 
     /* Log entry time; clear skip time. */
     pcn->cur_entry_time = uv_hrtime();
@@ -107,6 +108,56 @@ void MVM_profile_log_unwind(MVMThreadContext *tc) {
         lpcn = pcn;
         log_exit(tc, 1);
     } while (lpcn->sf != tc->cur_frame->static_info);
+}
+
+/* Called when we take a continuation. Leaves the static frames from the point
+ * of view of the profiler, and saves each of them. */
+MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, MVMFrame *root_frame) {
+    MVMProfileThreadData        *ptd       = get_thread_data(tc);
+    MVMProfileContinuationData  *cd        = malloc(sizeof(MVMProfileContinuationData));
+    MVMStaticFrame             **sfs       = NULL;
+    MVMuint64                   *modes     = NULL;
+    MVMFrame                    *cur_frame = tc->cur_frame;
+    MVMuint64                    alloc_sfs = 0;
+    MVMuint64                    num_sfs   = 0;
+    MVMFrame                   *last_frame;
+
+    do {
+        MVMProfileCallNode   *lpcn;
+        do {
+            MVMProfileCallNode *pcn = ptd->current_call;
+            if (!pcn)
+                MVM_panic(1, "Profiler lost sequence in continuation control");
+
+            if (num_sfs == alloc_sfs) {
+                alloc_sfs += 16;
+                sfs        = realloc(sfs, alloc_sfs * sizeof(MVMStaticFrame *));
+                modes      = realloc(modes, alloc_sfs * sizeof(MVMuint64));
+            }
+            sfs[num_sfs]   = pcn->sf;
+            modes[num_sfs] = pcn->entry_mode;
+            num_sfs++;
+
+            lpcn = pcn;
+            log_exit(tc, 1);
+        } while (lpcn->sf != cur_frame->static_info);
+
+        last_frame = cur_frame;
+        cur_frame = cur_frame->caller;
+    } while (last_frame != root_frame);
+
+    cd->sfs     = sfs;
+    cd->num_sfs = num_sfs;
+    cd->modes   = modes;
+    return cd;
+}
+
+/* Called when we invoke a continuation. Enters all the static frames we left
+ * at the point we took the continuation. */
+void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, MVMProfileContinuationData *cd) {
+    MVMuint64 i = cd->num_sfs;
+    while (i--)
+        MVM_profile_log_enter(tc, cd->sfs[i], cd->modes[i]);
 }
 
 /* Log that we've just allocated the passed object (just log the type). */
