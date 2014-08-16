@@ -25,7 +25,6 @@ MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st) {
     return HOW;
 }
 
-
 /* Gets the HOW (meta-object), which may be lazily deserialized, through the
  * STable of the passed object. */
 MVMObject * MVM_6model_get_how_obj(MVMThreadContext *tc, MVMObject *obj) {
@@ -49,6 +48,44 @@ MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *o
 
 /* Locates a method by name. Returns the method if it exists, or throws an
  * exception if it can not be found. */
+typedef struct {
+    MVMObject   *obj;
+    MVMString   *name;
+    MVMRegister *res;
+} FindMethodSRData;
+static void die_over_missing_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
+    MVMObject *handler = MVM_hll_current(tc)->method_not_found_error;
+    if (!MVM_is_null(tc, handler)) {
+        handler = MVM_frame_find_invokee(tc, handler, NULL);
+        MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, &mnfe_callsite);
+        tc->cur_frame->args[0].o = obj;
+        tc->cur_frame->args[1].s = name;
+        STABLE(handler)->invoke(tc, handler, &mnfe_callsite, tc->cur_frame->args);
+        return;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Cannot find method '%s'",
+            MVM_string_utf8_encode_C_string(tc, name));
+    }
+}
+static void late_bound_find_method_return(MVMThreadContext *tc, void *sr_data) {
+    FindMethodSRData *fm = (FindMethodSRData *)sr_data;
+    if (MVM_is_null(tc, fm->res->o) || !IS_CONCRETE(fm->res->o)) {
+        MVMObject *obj  = fm->obj;
+        MVMString *name = fm->name;
+        free(fm);
+        die_over_missing_method(tc, obj, name);
+    }
+    else {
+        free(fm);
+    }
+}
+static void mark_find_method_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
+    FindMethodSRData *fm = (FindMethodSRData *)frame->special_return_data;
+    MVM_gc_worklist_add(tc, worklist, &fm->obj);
+    MVM_gc_worklist_add(tc, worklist, &fm->name);
+}
 void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
     MVMObject *cache, *HOW, *find_method, *code;
 
@@ -67,20 +104,8 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
             return;
         }
         if (STABLE(obj)->mode_flags & MVM_METHOD_CACHE_AUTHORITATIVE) {
-            MVMObject *handler = MVM_hll_current(tc)->method_not_found_error;
-            if (!MVM_is_null(tc, handler)) {
-                handler = MVM_frame_find_invokee(tc, handler, NULL);
-                MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, &mnfe_callsite);
-                tc->cur_frame->args[0].o = obj;
-                tc->cur_frame->args[1].s = name;
-                STABLE(handler)->invoke(tc, handler, &mnfe_callsite, tc->cur_frame->args);
-                return;
-            }
-            else {
-                MVM_exception_throw_adhoc(tc,
-                    "Cannot find method '%s'",
-                    MVM_string_utf8_encode_C_string(tc, name));
-            }
+            die_over_missing_method(tc, obj, name);
+            return;
         }
     }
 
@@ -97,6 +122,15 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
     /* Set up the call, using the result register as the target. */
     code = MVM_frame_find_invokee(tc, find_method, NULL);
     MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, &fm_callsite);
+    {
+        FindMethodSRData *fm = malloc(sizeof(FindMethodSRData));
+        fm->obj  = obj;
+        fm->name = name;
+        fm->res  = res;
+        tc->cur_frame->special_return           = late_bound_find_method_return;
+        tc->cur_frame->special_return_data      = fm;
+        tc->cur_frame->mark_special_return_data = mark_find_method_sr_data;
+    }
     tc->cur_frame->args[0].o = HOW;
     tc->cur_frame->args[1].o = obj;
     tc->cur_frame->args[2].s = name;
