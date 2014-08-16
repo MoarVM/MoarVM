@@ -366,6 +366,18 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP5;
         break;
     }
+    case MVM_OP_getlex_no: {
+        MVMint16  dst = ins->operands[0].lit_str_idx;
+        MVMuint32 idx = ins->operands[1].lit_str_idx;
+        | mov ARG1, tc;
+        | get_string ARG2, idx;
+        | mov ARG3, MVM_reg_obj;
+        | callp &MVM_frame_find_lexical_by_name;
+        | test RV, RV;
+        | cmovnz RV, [RV];
+        | mov WORK[dst], RV;
+        break;
+    }
     case MVM_OP_bindlex: {
         MVMint16 idx = ins->operands[0].lex.idx;
         MVMint16 out = ins->operands[0].lex.outers;
