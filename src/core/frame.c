@@ -72,6 +72,8 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
     /* Add profiling instrumentation if needed. */
     if (tc->instance->profiling)
         MVM_profile_instrument(tc, static_frame);
+    else
+        MVM_profile_ensure_uninstrumented(tc, static_frame);
 }
 
 /* Increases the reference count of a frame. */
@@ -346,7 +348,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* See if any specializations apply. */
     found_spesh = 0;
-    if (spesh_cand >= 0) {
+    if (spesh_cand >= 0 && spesh_cand < static_frame_body->num_spesh_candidates) {
         MVMSpeshCandidate *chosen_cand = &static_frame_body->spesh_candidates[spesh_cand];
         if (!chosen_cand->sg) {
             frame = allocate_frame(tc, static_frame_body, chosen_cand);

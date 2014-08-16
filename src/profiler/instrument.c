@@ -119,3 +119,20 @@ void MVM_profile_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
         sf->body.spesh_candidates     = NULL;
     }
 }
+
+/* Ensures we're no longer in instrumented code. */
+void MVM_profile_ensure_uninstrumented(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    if (sf->body.bytecode == sf->body.instrumented_bytecode) {
+        /* Switch to uninstrumented code. */
+        sf->body.bytecode      = sf->body.uninstrumented_bytecode;
+        sf->body.handlers      = sf->body.uninstrumented_handlers;
+        sf->body.bytecode_size = sf->body.uninstrumented_bytecode_size;
+
+        /* Throw away specializations, which may also be instrumented. */
+        sf->body.num_spesh_candidates = 0;
+        sf->body.spesh_candidates     = NULL;
+
+        /* XXX For now, due to bugs, disable spesh here. */
+        tc->instance->spesh_enabled = 0;
+    }
+}
