@@ -876,7 +876,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | lea ARG3, [rbp-0x40];
         | call FUNCTION;
         | lea RV, [rbp-0x40];
-        | mov TMP6, STORAGESPEC:RV->boxed_primitive;
+        | mov TMP6w, word STORAGESPEC:RV->boxed_primitive;
+        | movzx TMP6, TMP6w;
         |1:
         | mov aword WORK[dst], TMP6;
         break;
