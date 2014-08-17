@@ -69,3 +69,6 @@ jit-*.bin
 
 # dynasm emitted files
 src/jit/emit_*.c
+
+# vim swap files
+.*.sw?
