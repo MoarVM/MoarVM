@@ -24,10 +24,15 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     MVMuint16 num_locals, num_lexicals, used;
     MVMCollectable **spesh_slots, **log_slots;
     char *before, *after;
+    MVMSpeshGraph *sg;
+
+    /* If we're profiling, log we're starting spesh work. */
+    if (tc->instance->profiling)
+        MVM_profiler_log_spesh_start(tc);
 
     /* Do initial generation of the specialization, working out the argument
      * guards and adding logging. */
-    MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, static_frame, 0);
+    sg = MVM_spesh_graph_create(tc, static_frame, 0);
     if (tc->instance->spesh_log_fh)
         before = MVM_spesh_dump(tc, sg);
     MVM_spesh_args(tc, sg, callsite, args);
@@ -121,6 +126,10 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     }
     uv_mutex_unlock(&tc->instance->mutex_spesh_install);
 
+    /* If we're profiling, log we've finished spesh work. */
+    if (tc->instance->profiling)
+        MVM_profiler_log_spesh_end(tc);
+
     free(sc);
     return result;
 }
@@ -131,10 +140,16 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
  * of the code. */
 void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMSpeshCandidate *candidate) {
-    MVMSpeshCode *sc;
-    MVMJitGraph *jg = NULL;
+    MVMSpeshCode  *sc;
+    MVMSpeshGraph *sg;
+    MVMJitGraph   *jg = NULL;
+
+    /* If we're profiling, log we're starting spesh work. */
+    if (tc->instance->profiling)
+        MVM_profiler_log_spesh_start(tc);
+
     /* Obtain the graph, add facts, and do optimization work. */
-    MVMSpeshGraph *sg = candidate->sg;
+    sg = candidate->sg;
     MVM_spesh_facts_discover(tc, sg);
     MVM_spesh_optimize(tc, sg);
 
@@ -152,7 +167,6 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
         free(c_name);
         free(c_cuid);
     }
-
 
     /* Generate code, and replace that in the candidate. */
     sc = MVM_spesh_codegen(tc, sg);
@@ -203,4 +217,8 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     MVM_spesh_graph_destroy(tc, sg);
     MVM_barrier();
     candidate->sg = NULL;
+
+    /* If we're profiling, log we've finished spesh work. */
+    if (tc->instance->profiling)
+        MVM_profiler_log_spesh_end(tc);
 }

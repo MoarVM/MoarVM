@@ -42,6 +42,7 @@ typedef struct {
     MVMString *osr;
     MVMString *deopt_one;
     MVMString *deopt_all;
+    MVMString *spesh_time;
 } ProfDumpStrs;
 
 /* Dumps a call graph node. */
@@ -148,6 +149,10 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
     }
     MVM_repr_bind_key_o(tc, thread_hash, pds->gcs, thread_gcs);
 
+    /* Add spesh time. */
+    MVM_repr_bind_key_o(tc, thread_hash, pds->spesh_time,
+        box_i(tc, ptd->spesh_time / 1000));
+
     return thread_hash;
 }
 
@@ -184,6 +189,7 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
     pds.osr             = str(tc, "osr");
     pds.deopt_one       = str(tc, "deopt_one");
     pds.deopt_all       = str(tc, "deopt_all");
+    pds.total_time      = str(tc, "spesh_time");
 
     /* Build up threads array. */
     /* XXX Only main thread for now. */

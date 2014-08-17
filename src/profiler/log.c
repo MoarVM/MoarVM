@@ -238,6 +238,30 @@ void MVM_profiler_log_gc_end(MVMThreadContext *tc) {
     }
 }
 
+/* Log that we're starting some work on bytecode specialization or JIT. */
+void MVM_profiler_log_spesh_start(MVMThreadContext *tc) {
+    /* Record start time. */
+    MVMProfileThreadData *ptd = get_thread_data(tc);
+    ptd->cur_spesh_start_time = uv_hrtime();
+}
+
+/* Log that we've finished doing bytecode specialization or JIT. */
+void MVM_profiler_log_spesh_end(MVMThreadContext *tc) {
+    MVMProfileThreadData *ptd = get_thread_data(tc);
+    MVMProfileCallNode   *pcn = ptd->current_call;
+    MVMuint64 spesh_time;
+
+    /* Record time spent. */
+    spesh_time = uv_hrtime() - ptd->cur_gc_start_time;
+    ptd->spesh_time += spesh_time;
+
+    /* Discount spesh time from all active frames. */
+    while (pcn) {
+        pcn->cur_skip_time += spesh_time;
+        pcn = pcn->pred;
+    }
+}
+
 /* Log that an on stack replacement took place. */
 void MVM_profiler_log_osr(MVMThreadContext *tc, MVMuint64 jitted) {
     MVMProfileThreadData *ptd = get_thread_data(tc);
