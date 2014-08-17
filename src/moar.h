@@ -31,6 +31,22 @@
 /* forward declarations */
 #include "types.h"
 
+/*
+ * #ifdef CSTALLOC
+ * #include <cstalloc.h>
+ * #define MVM_stalloc(size)	cstalloc(size)
+ * #define MVM_stfree(ptr)		cstfree(ptr)
+ * #else
+ * #include <stdlib.h>
+ * #define MVM_stalloc(size)	malloc(size)
+ * #define MVM_stfree(ptr)		free(ptr)
+ * #endif
+ */
+
+#include "cst/cstalloc.h"
+#define MVM_stalloc(size)	cstalloc(size)
+#define MVM_stfree(ptr)		cstfree(ptr)
+
 /* Sized types. */
 typedef int8_t   MVMint8;
 typedef uint8_t  MVMuint8;
