@@ -332,7 +332,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
         MVM_gc_worklist_add(tc, worklist, &cur_frame->context_object);
 
     /* Mark special return data, if needed. */
-    if (cur_frame->mark_special_return_data)
+    if (cur_frame->special_return_data && cur_frame->mark_special_return_data)
         cur_frame->mark_special_return_data(tc, cur_frame, worklist);
 
     /* Mark any continuation tags. */

@@ -520,9 +520,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
     
-    /* Make sure there's no frame context pointer and special return data
-     * won't be marked. */
+    /* Make sure there's no frame context pointer and special return data. */
     frame->context_object = NULL;
+    frame->special_return_data = NULL;
     frame->mark_special_return_data = NULL;
 
     /* Clear frame flags. */
@@ -607,6 +607,7 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
     frame->ref_count                = 1; /* It'll be on the "stack". */
     frame->gc_seq_number            = 0;
     frame->context_object           = NULL;
+    frame->special_return_data      = NULL;
     frame->mark_special_return_data = NULL;
     frame->flags                    = 0;
     frame->params.callsite          = NULL; /* We only ever deopt after args handling. */
@@ -709,6 +710,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
                 su(tc, caller->special_return_data);
             else if (!unwind && sr)
                 sr(tc, caller->special_return_data);
+            caller->special_return_data      = NULL;
             caller->mark_special_return_data = NULL;
         }
 
