@@ -23,6 +23,8 @@ typedef struct {
     MVMString *call_graph;
     MVMString *name;
     MVMString *id;
+    MVMString *file;
+    MVMString *line;
     MVMString *entries;
     MVMString *spesh_entries;
     MVMString *jit_entries;
@@ -52,9 +54,27 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
     MVMObject *alloc_list = new_array(tc);
     MVMuint32  i;
 
+    /* Try to resolve the code filename and line number. */
+    MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc,
+        &(pcn->sf->body), 0);
+    MVMint32 fshi = annot ? (MVMint32)annot->filename_string_heap_index : -1;
+
     /* Add name of code object. */
     MVM_repr_bind_key_o(tc, node_hash,
         pds->name, box_s(tc, pcn->sf->body.name));
+
+    /* Add line number and file name. */
+    if (fshi >= 0 && fshi < pcn->sf->body.cu->body.num_strings)
+        MVM_repr_bind_key_o(tc, node_hash, pds->file,
+            box_s(tc, pcn->sf->body.cu->body.strings[fshi]));
+    else if (pcn->sf->body.cu->body.filename)
+        MVM_repr_bind_key_o(tc, node_hash, pds->file,
+            box_s(tc, pcn->sf->body.cu->body.filename));
+    else
+        MVM_repr_bind_key_o(tc, node_hash, pds->file,
+            box_s(tc, tc->instance->str_consts.empty));
+    MVM_repr_bind_key_o(tc, node_hash, pds->line,
+        box_i(tc, annot ? annot->line_number : -1));
 
     /* Use static frame memory address to get a unique ID. */
     MVM_repr_bind_key_o(tc, node_hash, pds->id,
@@ -170,6 +190,8 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
     pds.call_graph      = str(tc, "call_graph");
     pds.name            = str(tc, "name");
     pds.id              = str(tc, "id");
+    pds.file            = str(tc, "file");
+    pds.line            = str(tc, "line");
     pds.entries         = str(tc, "entries");
     pds.spesh_entries   = str(tc, "spesh_entries");
     pds.jit_entries     = str(tc, "jit_entries");
@@ -189,7 +211,7 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
     pds.osr             = str(tc, "osr");
     pds.deopt_one       = str(tc, "deopt_one");
     pds.deopt_all       = str(tc, "deopt_all");
-    pds.total_time      = str(tc, "spesh_time");
+    pds.spesh_time      = str(tc, "spesh_time");
 
     /* Build up threads array. */
     /* XXX Only main thread for now. */

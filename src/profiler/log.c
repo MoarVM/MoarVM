@@ -252,7 +252,7 @@ void MVM_profiler_log_spesh_end(MVMThreadContext *tc) {
     MVMuint64 spesh_time;
 
     /* Record time spent. */
-    spesh_time = uv_hrtime() - ptd->cur_gc_start_time;
+    spesh_time = uv_hrtime() - ptd->cur_spesh_start_time;
     ptd->spesh_time += spesh_time;
 
     /* Discount spesh time from all active frames. */
