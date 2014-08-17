@@ -674,6 +674,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_takedispatcher:
     case MVM_OP_setdispatcher:
     case MVM_OP_getcode:
+    case MVM_OP_callercode:
     case MVM_OP_sp_fastcreate:
     case MVM_OP_decont:
     case MVM_OP_sp_namedarg_used:
