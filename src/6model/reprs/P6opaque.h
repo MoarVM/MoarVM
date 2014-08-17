@@ -95,6 +95,9 @@ struct MVMP6opaqueREPRData {
     /* Slots holding flattened objects that need another REPR to clean them;
      * terminated with -1. */
     MVMint16 *gc_cleanup_slots;
+
+    /* Hold the storage spec */
+    MVMStorageSpec storage_spec;
 };
 
 /* Function for REPR setup. */

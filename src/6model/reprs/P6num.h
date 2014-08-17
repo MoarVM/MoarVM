@@ -13,7 +13,8 @@ struct MVMP6num {
 
 /* The bit width requirement is shared for all instances of the same type. */
 struct MVMP6numREPRData {
-    MVMint16 bits;
+    MVMint16       bits;
+    MVMStorageSpec storage_spec;
 };
 
 /* Function for REPR setup. */

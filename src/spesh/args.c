@@ -135,7 +135,7 @@ static void pos_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 /* Gets the primitive boxed by a type. */
 static MVMuint16 prim_spec(MVMThreadContext *tc, MVMObject *type) {
     return type
-        ? REPR(type)->get_storage_spec(tc, STABLE(type)).boxed_primitive
+        ? REPR(type)->get_storage_spec(tc, STABLE(type))->boxed_primitive
         : 0;
 }
 

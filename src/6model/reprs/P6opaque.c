@@ -556,22 +556,22 @@ static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
         "P6opaque: get_boxed_ref could not unbox for the representation '%d'", repr_id);
 }
 
+static MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    ALIGNOF(void *),            /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+static MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    if (repr_data) {
-        if (repr_data->unbox_int_slot >= 0)
-            spec.can_box += MVM_STORAGE_SPEC_CAN_BOX_INT;
-        if (repr_data->unbox_num_slot >= 0)
-            spec.can_box += MVM_STORAGE_SPEC_CAN_BOX_NUM;
-        if (repr_data->unbox_str_slot >= 0)
-            spec.can_box += MVM_STORAGE_SPEC_CAN_BOX_STR;
-    }
-    return spec;
+    if (repr_data)
+        return &repr_data->storage_spec;
+    return &storage_spec;
 }
 
 /* Compose the representation. */
@@ -708,12 +708,12 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             align        = ALIGNOF(void *);
             if (!MVM_is_null(tc, type)) {
                 /* Get the storage spec of the type and see what it wants. */
-                MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
-                if (spec.inlineable == MVM_STORAGE_SPEC_INLINED) {
+                MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+                if (spec->inlineable == MVM_STORAGE_SPEC_INLINED) {
                     /* Yes, it's something we'll flatten. */
-                    unboxed_type = spec.boxed_primitive;
-                    bits = spec.bits;
-                    align = spec.align;
+                    unboxed_type = spec->boxed_primitive;
+                    bits = spec->bits;
+                    align = spec->align;
                     MVM_ASSIGN_REF(tc, &(st->header), repr_data->flattened_stables[cur_slot], STABLE(type));
                     inlined = 1;
 
@@ -831,6 +831,18 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     repr_data->gc_mark_slots[cur_mark_slot] = -1;
     repr_data->gc_cleanup_slots[cur_cleanup_slot] = -1;
 
+    /* Add storage spec */
+    repr_data->storage_spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
+    repr_data->storage_spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
+    repr_data->storage_spec.can_box         = 0;
+
+    if (repr_data->unbox_int_slot >= 0)
+        repr_data->storage_spec.can_box += MVM_STORAGE_SPEC_CAN_BOX_INT;
+    if (repr_data->unbox_num_slot >= 0)
+        repr_data->storage_spec.can_box += MVM_STORAGE_SPEC_CAN_BOX_NUM;
+    if (repr_data->unbox_str_slot >= 0)
+        repr_data->storage_spec.can_box += MVM_STORAGE_SPEC_CAN_BOX_STR;
+
     /* Install representation data. */
     st->REPR_data = repr_data;
 }
@@ -845,13 +857,13 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     for (i = 0; i < num_attributes; i++) {
         if (MVM_serialization_read_varint(tc, reader)) {
             MVMSTable *st = MVM_serialization_read_stable_ref(tc, reader);
-            MVMStorageSpec ss = st->REPR->get_storage_spec(tc, st);
-            if (ss.inlineable) {
+            MVMStorageSpec *ss = st->REPR->get_storage_spec(tc, st);
+            if (ss->inlineable) {
                 /* TODO: Review if/when we get sub-byte things. */
-                if (cur_offset % ss.align) {
-                    cur_offset += ss.align - cur_offset % ss.align;
+                if (cur_offset % ss->align) {
+                    cur_offset += ss->align - cur_offset % ss->align;
                 }
-                cur_offset += ss.bits / 8;
+                cur_offset += ss->bits / 8;
             }
             else
                 cur_offset += sizeof(MVMObject *);
@@ -1023,8 +1035,8 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         else {
             /* Store position. */
             MVMSTable *cur_st = repr_data->flattened_stables[i];
-            MVMStorageSpec spec = cur_st->REPR->get_storage_spec(tc, cur_st);
-
+            MVMStorageSpec *spec = cur_st->REPR->get_storage_spec(tc, cur_st);
+            puts(cur_st->REPR->name);
             /* Set up flags for initialization and GC. */
             if (cur_st->REPR->initialize)
                 repr_data->initialize_slots[cur_initialize_slot++] = i;
@@ -1033,14 +1045,14 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             if (cur_st->REPR->gc_cleanup)
                 repr_data->gc_cleanup_slots[cur_gc_cleanup_slot++] = i;
 
-            if (cur_offset % spec.align) {
-                cur_offset += spec.align - cur_offset % spec.align;
+            if (cur_offset % spec->align) {
+                cur_offset += spec->align - cur_offset % spec->align;
             }
 
             repr_data->attribute_offsets[i] = cur_offset;
 
             /* Increment by size reported by representation. */
-            cur_offset += spec.bits / 8;
+            cur_offset += spec->bits / 8;
         }
     }
     repr_data->initialize_slots[cur_initialize_slot] = -1;
@@ -1361,9 +1373,9 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         if (name && ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type) {
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
             if (slot >= 0 && repr_data->flattened_stables[slot]) {
-                MVMSTable     *flat_st = repr_data->flattened_stables[slot];
-                MVMStorageSpec flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
-                if (flat_st->REPR->ID == MVM_REPR_ID_P6int && flat_ss.bits == 64) {
+                MVMSTable      *flat_st = repr_data->flattened_stables[slot];
+                MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
+                if (flat_st->REPR->ID == MVM_REPR_ID_P6int && flat_ss->bits == 64) {
                     /*MVM_spesh_get_facts(tc, g, ins->operands[2])->usages--;*/
                     ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_i);
                     ins->operands[2].lit_i16 = repr_data->attribute_offsets[slot];
@@ -1380,9 +1392,9 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type,
                 MVM_spesh_get_string(tc, g, ins->operands[3]));
             if (slot >= 0 && repr_data->flattened_stables[slot]) {
-                MVMSTable     *flat_st = repr_data->flattened_stables[slot];
-                MVMStorageSpec flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
-                if (flat_st->REPR->ID == MVM_REPR_ID_P6num && flat_ss.bits == 64) {
+                MVMSTable      *flat_st = repr_data->flattened_stables[slot];
+                MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
+                if (flat_st->REPR->ID == MVM_REPR_ID_P6num && flat_ss->bits == 64) {
                     /*MVM_spesh_get_facts(tc, g, ins->operands[2])->usages--;*/
                     ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_n);
                     ins->operands[2].lit_i16 = repr_data->attribute_offsets[slot];
@@ -1398,8 +1410,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         if (name && ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type) {
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
             if (slot >= 0 && repr_data->flattened_stables[slot]) {
-                MVMSTable     *flat_st = repr_data->flattened_stables[slot];
-                MVMStorageSpec flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
+                MVMSTable      *flat_st = repr_data->flattened_stables[slot];
+                MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
                 if (flat_st->REPR->ID == MVM_REPR_ID_P6str) {
                     /*MVM_spesh_get_facts(tc, g, ins->operands[2])->usages--;*/
                     ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_s);
@@ -1431,9 +1443,9 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         if (name && ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type) {
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
             if (slot >= 0 && repr_data->flattened_stables[slot]) {
-                MVMSTable     *flat_st = repr_data->flattened_stables[slot];
-                MVMStorageSpec flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
-                if (flat_st->REPR->ID == MVM_REPR_ID_P6int && flat_ss.bits == 64) {
+                MVMSTable      *flat_st = repr_data->flattened_stables[slot];
+                MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
+                if (flat_st->REPR->ID == MVM_REPR_ID_P6int && flat_ss->bits == 64) {
                     MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
                     ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_i);
                     ins->operands[1].lit_i16 = repr_data->attribute_offsets[slot];
@@ -1450,9 +1462,9 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         if (name && ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type) {
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
             if (slot >= 0 && repr_data->flattened_stables[slot]) {
-                MVMSTable     *flat_st = repr_data->flattened_stables[slot];
-                MVMStorageSpec flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
-                if (flat_st->REPR->ID == MVM_REPR_ID_P6num && flat_ss.bits == 64) {
+                MVMSTable      *flat_st = repr_data->flattened_stables[slot];
+                MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
+                if (flat_st->REPR->ID == MVM_REPR_ID_P6num && flat_ss->bits == 64) {
                     MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
                     ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_n);
                     ins->operands[1].lit_i16 = repr_data->attribute_offsets[slot];
@@ -1468,8 +1480,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         if (name && ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type) {
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
             if (slot >= 0 && repr_data->flattened_stables[slot]) {
-                MVMSTable     *flat_st = repr_data->flattened_stables[slot];
-                MVMStorageSpec flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
+                MVMSTable      *flat_st = repr_data->flattened_stables[slot];
+                MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
                 if (flat_st->REPR->ID == MVM_REPR_ID_P6str) {
                     MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
                     ins->info = MVM_op_get_op(MVM_OP_sp_p6obind_s);

@@ -94,13 +94,20 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     MVM_checked_free_null(st->REPR_data);
 }
 
+
+static MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static MVMStorageSpec* get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
@@ -917,12 +924,12 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     if (!MVM_is_null(tc, info)) {
         MVMObject *type = MVM_repr_at_key_o(tc, info, str_consts.type);
         if (!MVM_is_null(tc, type)) {
-            MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+            MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
-            switch (spec.boxed_primitive) {
+            switch (spec->boxed_primitive) {
                 case MVM_STORAGE_SPEC_BP_INT:
-                    if (spec.is_unsigned) {
-                        switch (spec.bits) {
+                    if (spec->is_unsigned) {
+                        switch (spec->bits) {
                             case 64:
                                 repr_data->slot_type = MVM_ARRAY_U64;
                                 repr_data->elem_size = sizeof(MVMuint64);
@@ -945,7 +952,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                         }
                     }
                     else {
-                        switch (spec.bits) {
+                        switch (spec->bits) {
                             case 64:
                                 repr_data->slot_type = MVM_ARRAY_I64;
                                 repr_data->elem_size = sizeof(MVMint64);
@@ -969,7 +976,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                     }
                     break;
                 case MVM_STORAGE_SPEC_BP_NUM:
-                    switch (spec.bits) {
+                    switch (spec->bits) {
                         case 64:
                             repr_data->slot_type = MVM_ARRAY_N64;
                             repr_data->elem_size = sizeof(MVMnum64);
@@ -1014,13 +1021,13 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     st->REPR_data = repr_data;
 
     if (type) {
-        MVMStorageSpec spec;
+        MVMStorageSpec *spec;
         MVM_serialization_force_stable(tc, reader, STABLE(type));
         spec = REPR(type)->get_storage_spec(tc, STABLE(type));
-        switch (spec.boxed_primitive) {
+        switch (spec->boxed_primitive) {
             case MVM_STORAGE_SPEC_BP_INT:
-                if (spec.is_unsigned) {
-                    switch (spec.bits) {
+                if (spec->is_unsigned) {
+                    switch (spec->bits) {
                         case 64:
                             repr_data->slot_type = MVM_ARRAY_U64;
                             repr_data->elem_size = sizeof(MVMuint64);
@@ -1043,7 +1050,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
                     }
                 }
                 else {
-                    switch (spec.bits) {
+                    switch (spec->bits) {
                         case 64:
                             repr_data->slot_type = MVM_ARRAY_I64;
                             repr_data->elem_size = sizeof(MVMint64);
@@ -1067,7 +1074,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
                 }
                 break;
             case MVM_STORAGE_SPEC_BP_NUM:
-                switch (spec.bits) {
+                switch (spec->bits) {
                     case 64:
                         repr_data->slot_type = MVM_ARRAY_N64;
                         repr_data->elem_size = sizeof(MVMnum64);
