@@ -593,7 +593,7 @@ continuationcontrol w(obj) r(int64) r(obj) r(obj)
 continuationinvoke  w(obj) r(obj) r(obj)
 randscale_n         w(num64) r(num64) :pure
 uniisblock          w(int64) r(str) r(int64) r(str) :pure
-assertparamcheck    r(int64) :noinline
+assertparamcheck    r(int64) :noinline :invokish
 hintfor             w(int64) r(obj) r(str)
 paramnamesused      :noinline
 getuniname          w(str) r(int64)
@@ -694,6 +694,7 @@ sp_namedarg_used .s int16
 sp_getspeshslot  .s w(obj) sslot :pure
 
 # Find method, using spesh slot and the one after it as a cache.
+# Isn't marked invokish, since the check is implemented directly
 sp_findmeth      .s w(obj) r(obj) str sslot :pure
 
 # Create an object with the first int16's number of bytes size and then
