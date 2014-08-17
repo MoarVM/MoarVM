@@ -130,12 +130,16 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
         }
         if (i == jc->num_deopts)
             MVM_exception_throw_adhoc(tc, "JIT: Could not find OSR label");
+        if (tc->instance->profiling)
+            MVM_profiler_log_osr(tc, 1);
     } else {
         *(tc->interp_bytecode_start) = specialized->bytecode;
         *(tc->interp_cur_op)         = specialized->bytecode +
             specialized->deopts[2 * osr_index + 1];
+        if (tc->instance->profiling)
+            MVM_profiler_log_osr(tc, 0);
     }
-    *(tc->interp_reg_base)       = tc->cur_frame->work;
+    *(tc->interp_reg_base) = tc->cur_frame->work;
 
     /* Tweak frame invocation count so future invocations will use the code
      * produced by OSR. */

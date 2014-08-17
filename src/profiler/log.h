@@ -135,3 +135,6 @@ void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, MVMProfileContinu
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);
 void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full);
 void MVM_profiler_log_gc_end(MVMThreadContext *tc);
+void MVM_profiler_log_osr(MVMThreadContext *tc, MVMuint64 jitted);
+void MVM_profiler_log_deopt_one(MVMThreadContext *tc);
+void MVM_profiler_log_deopt_all(MVMThreadContext *tc);

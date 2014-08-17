@@ -237,3 +237,32 @@ void MVM_profiler_log_gc_end(MVMThreadContext *tc) {
         pcn = pcn->pred;
     }
 }
+
+/* Log that an on stack replacement took place. */
+void MVM_profiler_log_osr(MVMThreadContext *tc, MVMuint64 jitted) {
+    MVMProfileThreadData *ptd = get_thread_data(tc);
+    MVMProfileCallNode   *pcn = ptd->current_call;
+    if (pcn) {
+        pcn->osr_count++;
+        if (jitted)
+            pcn->jit_entries++;
+        else
+            pcn->specialized_entries++;
+    }
+}
+
+/* Log that local deoptimization took pace. */
+void MVM_profiler_log_deopt_one(MVMThreadContext *tc) {
+    MVMProfileThreadData *ptd = get_thread_data(tc);
+    MVMProfileCallNode   *pcn = ptd->current_call;
+    if (pcn)
+        pcn->deopt_one_count++;
+}
+
+/* Log that full-stack deoptimization took pace. */
+void MVM_profiler_log_deopt_all(MVMThreadContext *tc) {
+    MVMProfileThreadData *ptd = get_thread_data(tc);
+    MVMProfileCallNode   *pcn = ptd->current_call;
+    if (pcn)
+        pcn->deopt_all_count++;
+}

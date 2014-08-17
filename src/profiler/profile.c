@@ -39,6 +39,9 @@ typedef struct {
     MVMString *cleared_bytes;
     MVMString *retained_bytes;
     MVMString *promoted_bytes;
+    MVMString *osr;
+    MVMString *deopt_one;
+    MVMString *deopt_all;
 } ProfDumpStrs;
 
 /* Dumps a call graph node. */
@@ -69,6 +72,14 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
     /* Total (inclusive) time. */
     MVM_repr_bind_key_o(tc, node_hash, pds->inclusive_time,
         box_i(tc, pcn->total_time / 1000));
+
+    /* OSR and deopt counts. */
+    MVM_repr_bind_key_o(tc, node_hash, pds->osr,
+        box_i(tc, pcn->osr_count));
+    MVM_repr_bind_key_o(tc, node_hash, pds->deopt_one,
+        box_i(tc, pcn->deopt_one_count));
+    MVM_repr_bind_key_o(tc, node_hash, pds->deopt_all,
+        box_i(tc, pcn->deopt_all_count));
 
     /* Visit successors in the call graph, dumping them and working out the
      * exclusive time. */
@@ -170,6 +181,9 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
     pds.cleared_bytes   = str(tc, "cleared_bytes");
     pds.retained_bytes  = str(tc, "retained_bytes");
     pds.promoted_bytes  = str(tc, "promoted_bytes");
+    pds.osr             = str(tc, "osr");
+    pds.deopt_one       = str(tc, "deopt_one");
+    pds.deopt_all       = str(tc, "deopt_all");
 
     /* Build up threads array. */
     /* XXX Only main thread for now. */
