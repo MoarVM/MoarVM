@@ -702,16 +702,17 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
         /* Handle any special return hooks. */
         if (caller->special_return || caller->special_unwind) {
-            MVMSpecialReturn sr = caller->special_return;
-            MVMSpecialReturn su = caller->special_unwind;
-            caller->special_return = NULL;
-            caller->special_unwind = NULL;
-            if (unwind && su)
-                su(tc, caller->special_return_data);
-            else if (!unwind && sr)
-                sr(tc, caller->special_return_data);
+            MVMSpecialReturn  sr  = caller->special_return;
+            MVMSpecialReturn  su  = caller->special_unwind;
+            void             *srd = caller->special_return_data;
+            caller->special_return           = NULL;
+            caller->special_unwind           = NULL;
             caller->special_return_data      = NULL;
             caller->mark_special_return_data = NULL;
+            if (unwind && su)
+                su(tc, srd);
+            else if (!unwind && sr)
+                sr(tc, srd);
         }
 
         return 1;
