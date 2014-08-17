@@ -676,7 +676,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_setdispatcher:
     case MVM_OP_getcode:
     case MVM_OP_sp_fastcreate:
-        //    case MVM_OP_iscont:
+    case MVM_OP_iscont:
     case MVM_OP_decont:
     case MVM_OP_sp_namedarg_used:
     case MVM_OP_sp_findmeth:
@@ -693,7 +693,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_isstr:
     case MVM_OP_islist:
     case MVM_OP_ishash:
-    case MVM_OP_objprimspec:
+        //    case MVM_OP_objprimspec:
     case MVM_OP_takehandlerresult:
     case MVM_OP_lexoticresult:
     case MVM_OP_scwbdisable:
