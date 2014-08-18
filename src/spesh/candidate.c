@@ -96,8 +96,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             MVM_barrier();
             static_frame->body.num_spesh_candidates++;
             if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)
-                if (!(static_frame->common.header.flags & MVM_CF_IN_GEN2_ROOT_LIST))
-                    MVM_gc_root_gen2_add(tc, (MVMCollectable *)static_frame);
+                MVM_gc_write_barrier_hit(tc, (MVMCollectable *)static_frame);
             if (tc->instance->spesh_log_fh) {
                 char *c_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.name);
                 char *c_cuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid);
@@ -189,8 +188,7 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
 
     /* May now be referencing nursery objects, so barrier just in case. */
     if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)
-        if (!(static_frame->common.header.flags & MVM_CF_IN_GEN2_ROOT_LIST))
-            MVM_gc_root_gen2_add(tc, (MVMCollectable *)static_frame);
+        MVM_gc_write_barrier_hit(tc, (MVMCollectable *)static_frame);
 
     /* Destory spesh graph, and finally clear point to it in the candidate,
      * which unblocks use of the specialization. */
