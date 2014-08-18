@@ -574,6 +574,20 @@ static MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return &storage_spec;
 }
 
+static void mk_storage_spec(MVMThreadContext *tc, MVMP6opaqueREPRData * repr_data, MVMStorageSpec *spec) {
+
+    spec->inlineable      = MVM_STORAGE_SPEC_REFERENCE;
+    spec->boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
+    spec->can_box         = 0;
+
+    if (repr_data->unbox_int_slot >= 0)
+        spec->can_box += MVM_STORAGE_SPEC_CAN_BOX_INT;
+    if (repr_data->unbox_num_slot >= 0)
+        spec->can_box += MVM_STORAGE_SPEC_CAN_BOX_NUM;
+    if (repr_data->unbox_str_slot >= 0)
+        spec->can_box += MVM_STORAGE_SPEC_CAN_BOX_STR;
+}
+
 /* Compose the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMint64   mro_pos, mro_count, num_parents, total_attrs, num_attrs,
@@ -832,16 +846,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     repr_data->gc_cleanup_slots[cur_cleanup_slot] = -1;
 
     /* Add storage spec */
-    repr_data->storage_spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    repr_data->storage_spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    repr_data->storage_spec.can_box         = 0;
-
-    if (repr_data->unbox_int_slot >= 0)
-        repr_data->storage_spec.can_box += MVM_STORAGE_SPEC_CAN_BOX_INT;
-    if (repr_data->unbox_num_slot >= 0)
-        repr_data->storage_spec.can_box += MVM_STORAGE_SPEC_CAN_BOX_NUM;
-    if (repr_data->unbox_str_slot >= 0)
-        repr_data->storage_spec.can_box += MVM_STORAGE_SPEC_CAN_BOX_STR;
+    mk_storage_spec(tc, repr_data, &repr_data->storage_spec);
 
     /* Install representation data. */
     st->REPR_data = repr_data;
@@ -1036,7 +1041,6 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             /* Store position. */
             MVMSTable *cur_st = repr_data->flattened_stables[i];
             MVMStorageSpec *spec = cur_st->REPR->get_storage_spec(tc, cur_st);
-            puts(cur_st->REPR->name);
             /* Set up flags for initialization and GC. */
             if (cur_st->REPR->initialize)
                 repr_data->initialize_slots[cur_initialize_slot++] = i;
@@ -1058,6 +1062,8 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->initialize_slots[cur_initialize_slot] = -1;
     repr_data->gc_mark_slots[cur_gc_mark_slot] = -1;
     repr_data->gc_cleanup_slots[cur_gc_cleanup_slot] = -1;
+
+    mk_storage_spec(tc, repr_data, &repr_data->storage_spec);
 
     st->REPR_data = repr_data;
 }

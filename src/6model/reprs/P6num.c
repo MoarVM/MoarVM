@@ -63,15 +63,26 @@ static MVMStorageSpec default_storage_spec = {
     0,                            /* is_unsigned */
 };
 
+static void mk_storage_spec(MVMThreadContext *tc, MVMuint16 bits, MVMStorageSpec *spec) {
+    spec->bits = bits;
+    spec->inlineable      = MVM_STORAGE_SPEC_INLINED;
+    spec->boxed_primitive = MVM_STORAGE_SPEC_BP_NUM;
+    spec->can_box         = MVM_STORAGE_SPEC_CAN_BOX_NUM;
+    switch (bits) {
+        case 64: spec->align = ALIGNOF(MVMnum64); break;
+        case 32: spec->align = ALIGNOF(MVMnum32); break;
+        default: spec->align = ALIGNOF(MVMnum64); break;
+    }
+}
 
 /* Gets the storage specification for this representation. */
 static MVMStorageSpec *get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
-    if (repr_data) {
-        puts("P6num: returning repr_data storage spec\n");
+    if (repr_data && repr_data->bits) {
+        if (!repr_data->storage_spec.bits)
+            mk_storage_spec(tc, repr_data->bits, &repr_data->storage_spec);
         return &repr_data->storage_spec;
     }
-    printf("P6num: returning default storage spec\n");
     return &default_storage_spec;
 }
 
@@ -88,22 +99,10 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             repr_data->bits = MVM_repr_get_int(tc, bits_o);
             if (repr_data->bits != 32 && repr_data->bits != 64)
                 MVM_exception_throw_adhoc(tc, "MVMP6num: Unsupported num size (%dbit)", repr_data->bits);
-        } else {
-            repr_data->bits = sizeof(MVMnum64) * 8;
         }
     }
-
-    repr_data->storage_spec.bits = repr_data->bits;
-    repr_data->storage_spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
-    repr_data->storage_spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NUM;
-    repr_data->storage_spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_NUM;
-    switch (repr_data->storage_spec.bits) {
-        case 64: repr_data->storage_spec.align = ALIGNOF(MVMnum64); break;
-        case 32: repr_data->storage_spec.align = ALIGNOF(MVMnum32); break;
-        default: repr_data->storage_spec.align = ALIGNOF(MVMnum64); break;
-    }
-    printf("Composed p6num repr_data. align: %d\n", repr_data->storage_spec.align);
-
+    if (repr_data->bits)
+        mk_storage_spec(tc, repr_data->bits, &repr_data->storage_spec);
 }
 
 /* Set the size of the STable. */
@@ -128,17 +127,8 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
      && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
         MVM_exception_throw_adhoc(tc, "MVMP6num: Unsupported int size (%dbit)", repr_data->bits);
 
-
-    repr_data->storage_spec.bits = repr_data->bits;
-    repr_data->storage_spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
-    repr_data->storage_spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NUM;
-    repr_data->storage_spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_NUM;
-    switch (repr_data->storage_spec.bits) {
-        case 64: repr_data->storage_spec.align = ALIGNOF(MVMnum64); break;
-        case 32: repr_data->storage_spec.align = ALIGNOF(MVMnum32); break;
-        default: repr_data->storage_spec.align = ALIGNOF(MVMnum64); break;
-    }
-    printf("Deserialized P6num: align: %d\n", repr_data->storage_spec.align);
+    if (repr_data->bits)
+        mk_storage_spec(tc, repr_data->bits, &repr_data->storage_spec);
     st->REPR_data = repr_data;
 }
 

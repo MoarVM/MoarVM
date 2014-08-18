@@ -70,13 +70,27 @@ static MVMStorageSpec default_storage_spec = {
     0,                            /* is_unsigned */
 };
 
+static void mk_storage_spec(MVMThreadContext *tc, MVMuint16 bits, MVMuint16 is_unsigned, MVMStorageSpec *spec) {
+    /* create storage spec */
+    spec->inlineable      = MVM_STORAGE_SPEC_INLINED;
+    spec->boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
+    spec->can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
+    spec->bits            = bits;
+    spec->is_unsigned     = is_unsigned;
+    switch (bits) {
+    case 64: spec->align = ALIGNOF(MVMint64); break;
+    case 32: spec->align = ALIGNOF(MVMint32); break;
+    case 16: spec->align = ALIGNOF(MVMint16); break;
+    default: spec->align = ALIGNOF(MVMint8);  break;
+    }
+}
 
 /* Gets the storage specification for this representation. */
 static MVMStorageSpec* get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
-    printf("%d\n", default_storage_spec.align);
-    if (repr_data) {
-        printf("Returning repr data storage spec\n");
+    if (repr_data && repr_data->bits) {
+        if (!repr_data->storage_spec.bits)
+            mk_storage_spec(tc, repr_data->bits, repr_data->is_unsigned, &repr_data->storage_spec);
         return &repr_data->storage_spec;
     }
     return &default_storage_spec;
@@ -102,21 +116,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         if (!MVM_is_null(tc, is_unsigned_o)) {
             repr_data->is_unsigned = MVM_repr_get_int(tc, is_unsigned_o);
         }
-    } else {
-        repr_data->bits = 8 * sizeof(MVMint64);
     }
-    /* create storage spec */
-    repr_data->storage_spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
-    repr_data->storage_spec.boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
-    repr_data->storage_spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
-    repr_data->storage_spec.bits            = repr_data->bits;
-    repr_data->storage_spec.is_unsigned     = repr_data->is_unsigned;
-    switch (repr_data->bits) {
-    case 64: repr_data->storage_spec.align = ALIGNOF(MVMint64); break;
-    case 32: repr_data->storage_spec.align = ALIGNOF(MVMint32); break;
-    case 16: repr_data->storage_spec.align = ALIGNOF(MVMint16); break;
-    default: repr_data->storage_spec.align = ALIGNOF(MVMint8);  break;
-    }
+    if (repr_data->bits)
+        mk_storage_spec(tc, repr_data->bits, repr_data->is_unsigned, &repr_data->storage_spec);
 }
 
 /* Set the size of the STable. */
@@ -143,19 +145,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
      && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
         MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%dbit)", repr_data->bits);
 
-
-    /* create storage spec */
-    repr_data->storage_spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
-    repr_data->storage_spec.boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
-    repr_data->storage_spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
-    repr_data->storage_spec.bits            = repr_data->bits;
-    repr_data->storage_spec.is_unsigned     = repr_data->is_unsigned;
-    switch (repr_data->bits) {
-    case 64: repr_data->storage_spec.align = ALIGNOF(MVMint64); break;
-    case 32: repr_data->storage_spec.align = ALIGNOF(MVMint32); break;
-    case 16: repr_data->storage_spec.align = ALIGNOF(MVMint16); break;
-    default: repr_data->storage_spec.align = ALIGNOF(MVMint8);  break;
-    }
+    mk_storage_spec(tc, repr_data->bits, repr_data->is_unsigned, &repr_data->storage_spec);
 
     st->REPR_data = repr_data;
 }
