@@ -5,5 +5,6 @@
 
 void* cstalloc(size_t);
 void  cstfree(void*);
+void  cstgc(void)
 
 #endif
