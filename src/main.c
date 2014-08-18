@@ -131,13 +131,22 @@ int main(int argc, char *argv[])
             continue;
 
             case FLAG_VERSION: {
-            char *jitsupport;
+            char *spesh_disable;
+            char *jit_disable;
+
+            printf("This is MoarVM version %s", MVM_VERSION);
             if (MVM_jit_support()) {
-                jitsupport = " built with JIT support";
-            } else {
-                jitsupport = "";
+                printf(" built with JIT support");
+
+                spesh_disable = getenv("MVM_SPESH_DISABLE");
+                jit_disable = getenv("MVM_JIT_DISABLE");
+                if (spesh_disable && strlen(spesh_disable) != 0) {
+                    printf(" (disabled via MVM_SPESH_DISABLE)");
+                } else if (jit_disable && strlen(jit_disable) != 0) {
+                    printf(" (disabled via MVM_JIT_DISABLE)");
+                }
             }
-            printf("This is MoarVM version %s%s\n", MVM_VERSION, jitsupport);
+            printf("\n");
             return EXIT_SUCCESS;
             }
 
