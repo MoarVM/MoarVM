@@ -3,6 +3,22 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
+static void mk_storage_spec(MVMThreadContext *tc, MVMuint16 bits, MVMuint16 is_unsigned, MVMStorageSpec *spec) {
+    /* create storage spec */
+    spec->inlineable      = MVM_STORAGE_SPEC_INLINED;
+    spec->boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
+    spec->can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
+    spec->bits            = bits;
+    spec->is_unsigned     = is_unsigned;
+    switch (bits) {
+    case 64: spec->align = ALIGNOF(MVMint64); break;
+    case 32: spec->align = ALIGNOF(MVMint32); break;
+    case 16: spec->align = ALIGNOF(MVMint16); break;
+    default: spec->align = ALIGNOF(MVMint8);  break;
+    }
+}
+
+
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
@@ -14,10 +30,11 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
         repr_data->bits = sizeof(MVMint64) * 8;
         repr_data->is_unsigned = 0;
-
+        mk_storage_spec(tc, repr_data->bits, repr_data->is_unsigned, &repr_data->storage_spec);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMP6int);
         st->REPR_data = repr_data;
+
     });
 
     return st->WHAT;
@@ -70,29 +87,12 @@ static MVMStorageSpec default_storage_spec = {
     0,                            /* is_unsigned */
 };
 
-static void mk_storage_spec(MVMThreadContext *tc, MVMuint16 bits, MVMuint16 is_unsigned, MVMStorageSpec *spec) {
-    /* create storage spec */
-    spec->inlineable      = MVM_STORAGE_SPEC_INLINED;
-    spec->boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
-    spec->can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
-    spec->bits            = bits;
-    spec->is_unsigned     = is_unsigned;
-    switch (bits) {
-    case 64: spec->align = ALIGNOF(MVMint64); break;
-    case 32: spec->align = ALIGNOF(MVMint32); break;
-    case 16: spec->align = ALIGNOF(MVMint16); break;
-    default: spec->align = ALIGNOF(MVMint8);  break;
-    }
-}
 
 /* Gets the storage specification for this representation. */
 static MVMStorageSpec* get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
-    if (repr_data && repr_data->bits) {
-        if (!repr_data->storage_spec.bits)
-            mk_storage_spec(tc, repr_data->bits, repr_data->is_unsigned, &repr_data->storage_spec);
+    if (repr_data && repr_data->bits)
         return &repr_data->storage_spec;
-    }
     return &default_storage_spec;
 }
 

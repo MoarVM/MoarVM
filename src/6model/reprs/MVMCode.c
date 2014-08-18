@@ -72,7 +72,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 }
 
 
-static const MVMStorageSpec storage_spec = {
+static MVMStorageSpec storage_spec = {
     MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
     0,                          /* bits */
     0,                          /* align */

@@ -3,6 +3,18 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
+static void mk_storage_spec(MVMThreadContext *tc, MVMuint16 bits, MVMStorageSpec *spec) {
+    spec->bits = bits;
+    spec->inlineable      = MVM_STORAGE_SPEC_INLINED;
+    spec->boxed_primitive = MVM_STORAGE_SPEC_BP_NUM;
+    spec->can_box         = MVM_STORAGE_SPEC_CAN_BOX_NUM;
+    switch (bits) {
+        case 64: spec->align = ALIGNOF(MVMnum64); break;
+        case 32: spec->align = ALIGNOF(MVMnum32); break;
+        default: spec->align = ALIGNOF(MVMnum64); break;
+    }
+}
+
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
@@ -13,7 +25,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
         MVMP6numREPRData *repr_data = (MVMP6numREPRData *)malloc(sizeof(MVMP6numREPRData));
 
         repr_data->bits = sizeof(MVMnum64) * 8;
-
+        mk_storage_spec(tc, repr_data->bits, &repr_data->storage_spec);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMP6num);
         st->REPR_data = repr_data;
@@ -63,26 +75,12 @@ static MVMStorageSpec default_storage_spec = {
     0,                            /* is_unsigned */
 };
 
-static void mk_storage_spec(MVMThreadContext *tc, MVMuint16 bits, MVMStorageSpec *spec) {
-    spec->bits = bits;
-    spec->inlineable      = MVM_STORAGE_SPEC_INLINED;
-    spec->boxed_primitive = MVM_STORAGE_SPEC_BP_NUM;
-    spec->can_box         = MVM_STORAGE_SPEC_CAN_BOX_NUM;
-    switch (bits) {
-        case 64: spec->align = ALIGNOF(MVMnum64); break;
-        case 32: spec->align = ALIGNOF(MVMnum32); break;
-        default: spec->align = ALIGNOF(MVMnum64); break;
-    }
-}
 
 /* Gets the storage specification for this representation. */
 static MVMStorageSpec *get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
-    if (repr_data && repr_data->bits) {
-        if (!repr_data->storage_spec.bits)
-            mk_storage_spec(tc, repr_data->bits, &repr_data->storage_spec);
+    if (repr_data && repr_data->bits)
         return &repr_data->storage_spec;
-    }
     return &default_storage_spec;
 }
 
