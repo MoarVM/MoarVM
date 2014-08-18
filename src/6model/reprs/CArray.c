@@ -23,30 +23,30 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.array);
     if (!MVM_is_null(tc, info)) {
         MVMCArrayREPRData *repr_data = malloc(sizeof(MVMCArrayREPRData));
-        MVMObject *type   = MVM_repr_at_key_o(tc, info, str_consts.type);
-        MVMStorageSpec ss = REPR(type)->get_storage_spec(tc, STABLE(type));
-        MVMint32 type_id  = REPR(type)->ID;
+        MVMObject *type    = MVM_repr_at_key_o(tc, info, str_consts.type);
+        MVMStorageSpec *ss = REPR(type)->get_storage_spec(tc, STABLE(type));
+        MVMint32 type_id   = REPR(type)->ID;
 
         MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
         st->REPR_data = repr_data;
 
-        if (ss.boxed_primitive == MVM_STORAGE_SPEC_BP_INT) {
-            if (ss.bits == 8 || ss.bits == 16 || ss.bits == 32 || ss.bits == 64)
-                repr_data->elem_size = ss.bits / 8;
+        if (ss->boxed_primitive == MVM_STORAGE_SPEC_BP_INT) {
+            if (ss->bits == 8 || ss->bits == 16 || ss->bits == 32 || ss->bits == 64)
+                repr_data->elem_size = ss->bits / 8;
             else
                 MVM_exception_throw_adhoc(tc,
                     "CArray representation can only have 8, 16, 32 or 64 bit integer elements");
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_NUMERIC;
         }
-        else if (ss.boxed_primitive == MVM_STORAGE_SPEC_BP_NUM) {
-            if (ss.bits == 32 || ss.bits == 64)
-                repr_data->elem_size = ss.bits / 8;
+        else if (ss->boxed_primitive == MVM_STORAGE_SPEC_BP_NUM) {
+            if (ss->bits == 32 || ss->bits == 64)
+                repr_data->elem_size = ss->bits / 8;
             else
                 MVM_exception_throw_adhoc(tc,
                     "CArray representation can only have 32 or 64 bit floating point elements");
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_NUMERIC;
         }
-        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
+        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
             repr_data->elem_size = sizeof(MVMObject *);
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_STRING;
         }
@@ -152,15 +152,19 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
         MVM_gc_worklist_add(tc, worklist, &repr_data->elem_type);
 }
 
+static MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    sizeof(void *) * 8,         /* bits */
+    ALIGNOF(void *),            /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box = 0;
-    spec.bits = sizeof(void *) * 8;
-    spec.align = ALIGNOF(void *);
-    return spec;
+static MVMStorageSpec* get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 

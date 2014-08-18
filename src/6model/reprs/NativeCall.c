@@ -40,15 +40,21 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->ret_type = src_body->ret_type;
 }
 
+
+
+static MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_INLINED,       /* inlineable */
+    sizeof(MVMNativeCallBody) * 8,  /* bits */
+    ALIGNOF(MVMNativeCallBody),     /* align */
+    MVM_STORAGE_SPEC_BP_NONE,       /* boxed_primitive */
+    0,                              /* can_box */
+    0,                              /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
-    spec.bits            = sizeof(MVMNativeCallBody) * 8;
-    spec.align           = ALIGNOF(MVMNativeCallBody);
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static MVMStorageSpec* get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* We can't actually serialize the handle, but since this REPR gets inlined

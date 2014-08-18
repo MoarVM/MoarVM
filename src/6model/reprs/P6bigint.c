@@ -84,15 +84,20 @@ static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
         "P6bigint representation cannot unbox to other types");
 }
 
+
+static MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_INLINED,      /* inlineable */
+    sizeof(MVMP6bigintBody) * 8,   /* bits */
+    ALIGNOF(MVMP6bigintBody),      /* align */
+    MVM_STORAGE_SPEC_BP_INT,       /* boxed_primitive */
+    MVM_STORAGE_SPEC_CAN_BOX_INT,  /* can_box */
+    0,                             /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
-    spec.bits            = sizeof(MVMP6bigintBody) * 8;
-    spec.align           = ALIGNOF(MVMP6bigintBody);
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
-    spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
-    return spec;
+static MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Compose the representation. */

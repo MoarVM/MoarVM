@@ -268,7 +268,7 @@ static void optimize_objprimspec(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
-        result_facts->value.i16     = REPR(obj_facts->type)->get_storage_spec(tc, STABLE(obj_facts->type)).boxed_primitive;
+        result_facts->value.i16     = REPR(obj_facts->type)->get_storage_spec(tc, STABLE(obj_facts->type))->boxed_primitive;
         ins->operands[1].lit_i16    = result_facts->value.i16;
 
         MVM_spesh_use_facts(tc, g, obj_facts);
@@ -418,12 +418,12 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
     MVMuint16 is_strify = ins->info->opcode == MVM_OP_smrt_strify;
 
     if (facts->flags & (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE)) {
-        MVMStorageSpec ss;
+        MVMStorageSpec *ss;
         MVMint64 can_result;
 
         ss = REPR(facts->type)->get_storage_spec(tc, STABLE(facts->type));
 
-        if (is_strify && ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
+        if (is_strify && ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
             MVM_spesh_use_facts(tc, g, facts);
 
             ins->info = MVM_op_get_op(MVM_OP_unbox_s);
@@ -454,9 +454,9 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                 operands[0] = old_opers[0];
                 operands[1] = old_opers[1];
                 operands[2].lit_i16 = offsetof( MVMException, body.message );
-            } else if(ss.can_box & (MVM_STORAGE_SPEC_CAN_BOX_NUM | MVM_STORAGE_SPEC_CAN_BOX_INT)) {
+            } else if(ss->can_box & (MVM_STORAGE_SPEC_CAN_BOX_NUM | MVM_STORAGE_SPEC_CAN_BOX_INT)) {
                 MVMuint16 register_type =
-                    ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT ? MVM_reg_int64 : MVM_reg_num64;
+                    ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT ? MVM_reg_int64 : MVM_reg_num64;
 
                 MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
                 MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);

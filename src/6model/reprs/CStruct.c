@@ -144,18 +144,18 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             MVMint32   align = ALIGNOF(void *);
             if (!MVM_is_null(tc, type)) {
                 /* See if it's a type that we know how to handle in a C struct. */
-                MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
-                MVMint32  type_id   = REPR(type)->ID;
-                if (spec.inlineable == MVM_STORAGE_SPEC_INLINED &&
-                        (spec.boxed_primitive == MVM_STORAGE_SPEC_BP_INT ||
-                         spec.boxed_primitive == MVM_STORAGE_SPEC_BP_NUM)) {
+                MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+                MVMint32  type_id    = REPR(type)->ID;
+                if (spec->inlineable == MVM_STORAGE_SPEC_INLINED &&
+                        (spec->boxed_primitive == MVM_STORAGE_SPEC_BP_INT ||
+                         spec->boxed_primitive == MVM_STORAGE_SPEC_BP_NUM)) {
                     /* It's a boxed int or num; pretty easy. It'll just live in the
                      * body of the struct. Instead of masking in i here (which
                      * would be the parallel to how we handle boxed types) we
                      * repurpose it to store the bit-width of the type, so
                      * that get_attribute_ref can find it later. */
-                    bits = spec.bits;
-                    align = spec.align;
+                    bits = spec->bits;
+                    align = spec->align;
 
                     if (bits % 8) {
                          MVM_exception_throw_adhoc(tc,
@@ -171,7 +171,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                         cur_init_slot++;
                     }
                 }
-                else if (spec.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
+                else if (spec->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
                     /* It's a string of some kind.  */
                     repr_data->num_child_objs++;
                     repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CSTRUCT_ATTR_SHIFT) | MVM_CSTRUCT_ATTR_STRING;
@@ -598,15 +598,18 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 	gc_cleanup(tc, STABLE(obj), OBJECT_BODY(obj));
 }
 
+static MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    sizeof(void*) * 8,          /* bits */
+    ALIGNOF(void*),             /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box = 0;
-    spec.bits = sizeof(void *) * 8;
-    spec.align = ALIGNOF(void *);
-    return spec;
+static MVMStorageSpec* get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Serializes the REPR data. */

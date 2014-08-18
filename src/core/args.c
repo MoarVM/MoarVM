@@ -160,10 +160,10 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
     if (result.exists && !(result.flags & type_flag)) { \
         if (result.flags & MVM_CALLSITE_ARG_OBJ) { \
             MVMObject *obj; \
-            MVMStorageSpec ss; \
+            MVMStorageSpec *ss; \
             obj = decont_arg(tc, result.arg.o); \
             ss = REPR(obj)->get_storage_spec(tc, STABLE(obj)); \
-            switch (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
+            switch (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
                 case MVM_STORAGE_SPEC_CAN_BOX_INT: \
                     result.arg.i64 = MVM_repr_get_int(tc, obj); \
                     result.flags = MVM_CALLSITE_ARG_INT; \
