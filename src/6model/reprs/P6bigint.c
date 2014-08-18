@@ -1,5 +1,27 @@
 #include "moar.h"
 
+/* A forced 64-bit version of mp_get_long, since on some platforms long is
+ * not all that long. */
+static MVMuint64 mp_get_int64(mp_int * a) {
+    int i;
+    MVMuint64 res;
+    
+    if (a->used == 0) {
+         return 0;
+    }
+    
+    /* get number of digits of the lsb we have to read */
+    i = MIN(a->used,(int)((sizeof(MVMuint64)*CHAR_BIT+DIGIT_BIT-1)/DIGIT_BIT))-1;
+    
+    /* get most significant digit of result */
+    res = DIGIT(a,i);
+     
+    while (--i >= 0) {
+        res = (res << DIGIT_BIT) | DIGIT(a,i);
+    }
+    return res;
+}
+
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
@@ -63,12 +85,12 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         if (MP_LT == mp_cmp_d(i, 0)) {
             MVMint64 ret;
             mp_neg(i, i);
-            ret = mp_get_long(i);
+            ret = mp_get_int64(i);
             mp_neg(i, i);
             return -ret;
         }
         else {
-            return mp_get_long(i);
+            return mp_get_int64(i);
         }
     }
     else {
