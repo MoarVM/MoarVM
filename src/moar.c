@@ -8,9 +8,9 @@
 	} \
 } while (0)
 
-/* Create a new instance of the VM. */
-static void string_consts(MVMThreadContext *tc);
 static void setup_std_handles(MVMThreadContext *tc);
+
+/* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
     char *spesh_log, *spesh_disable, *spesh_inline_disable, *spesh_osr_disable;
