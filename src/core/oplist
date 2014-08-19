@@ -726,4 +726,7 @@ sp_p6obind_n     .s r(obj) int16 r(num64)
 sp_p6obind_s     .s r(obj) int16 r(str)
 
 # Enter the JIT
-sp_jit_enter      .s w(obj)
+sp_jit_enter     .s w(obj)
+
+# we boolify iter objects all the time, but we have no op for it. until now!
+sp_boolify_iter  .s w(int64) r(obj) :pure
