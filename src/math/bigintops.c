@@ -933,14 +933,13 @@ MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *a) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
 
     if (MVM_BIGINT_IS_BIG(ba)) {
+        /* Really means does it fit into an integer register, so we've
+         * got 64 bits available. */
         mp_int *b = ba->u.bigint;
-        MVMint64 is_big = b->used > 1;
-        /* XXX somebody please check that on a 32 bit platform */
-        if ( sizeof(MVMint64) * 8 > DIGIT_BIT && is_big == 0 && DIGIT(b, 0) & ~0x7FFFFFFFUL)
-            is_big = 1;
-        return is_big;
+        return b->used > 64 / DIGIT_BIT;
     } else {
-        // if it's in a smallint, it's 32 bits big at most and fits into an INTVAL easily.
+        /* If it's in a smallint, it's 32 bits big at most, so fits in an
+         * integer register easily. */
         return 0;
     }
 }
