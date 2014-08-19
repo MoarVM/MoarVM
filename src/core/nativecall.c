@@ -762,7 +762,7 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
         MVMROOT(tc, target_type, {
             switch (REPR(target_type)->ID) {
                 case MVM_REPR_ID_P6opaque: {
-                    MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
+                    const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
                     if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT) {
                         MVMint64 value = 0;
                         switch(ss->bits) {
@@ -803,7 +803,7 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
                     break;
                 }
                 case MVM_REPR_ID_P6int: {
-                    MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
+                    const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
                     MVMint64 value;
                     switch(ss->bits) {
                         case 8:
@@ -823,7 +823,7 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
                     break;
                 }
                 case MVM_REPR_ID_P6num: {
-                    MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
+                    const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
                     MVMnum64 value;
                     
                     switch(ss->bits) {

@@ -66,7 +66,7 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     MVM_checked_free_null(st->REPR_data);
 }
 
-static MVMStorageSpec default_storage_spec = {
+static const MVMStorageSpec default_storage_spec = {
     MVM_STORAGE_SPEC_INLINED,     /* inlineable */
     sizeof(MVMnum64) * 8,         /* bits */
     ALIGNOF(MVMnum64),            /* align */
@@ -77,7 +77,7 @@ static MVMStorageSpec default_storage_spec = {
 
 
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec *get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
     if (repr_data && repr_data->bits)
         return &repr_data->storage_spec;

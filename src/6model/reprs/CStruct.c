@@ -144,7 +144,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             MVMint32   align = ALIGNOF(void *);
             if (!MVM_is_null(tc, type)) {
                 /* See if it's a type that we know how to handle in a C struct. */
-                MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+                const MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
                 MVMint32  type_id    = REPR(type)->ID;
                 if (spec->inlineable == MVM_STORAGE_SPEC_INLINED &&
                         (spec->boxed_primitive == MVM_STORAGE_SPEC_BP_INT ||
@@ -598,7 +598,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 	gc_cleanup(tc, STABLE(obj), OBJECT_BODY(obj));
 }
 
-static MVMStorageSpec storage_spec = {
+static const MVMStorageSpec storage_spec = {
     MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
     sizeof(void*) * 8,          /* bits */
     ALIGNOF(void*),             /* align */
@@ -608,7 +608,7 @@ static MVMStorageSpec storage_spec = {
 };
 
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec* get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return &storage_spec;
 }
 

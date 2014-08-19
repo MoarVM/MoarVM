@@ -418,7 +418,7 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
     MVMuint16 is_strify = ins->info->opcode == MVM_OP_smrt_strify;
 
     if (facts->flags & (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE)) {
-        MVMStorageSpec *ss;
+        const MVMStorageSpec *ss;
         MVMint64 can_result;
 
         ss = REPR(facts->type)->get_storage_spec(tc, STABLE(facts->type));

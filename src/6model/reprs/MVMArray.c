@@ -95,7 +95,7 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
 }
 
 
-static MVMStorageSpec storage_spec = {
+static const MVMStorageSpec storage_spec = {
     MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
     0,                          /* bits */
     0,                          /* align */
@@ -106,7 +106,7 @@ static MVMStorageSpec storage_spec = {
 
 
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec* get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return &storage_spec;
 }
 
@@ -924,7 +924,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     if (!MVM_is_null(tc, info)) {
         MVMObject *type = MVM_repr_at_key_o(tc, info, str_consts.type);
         if (!MVM_is_null(tc, type)) {
-            MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+            const MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
             switch (spec->boxed_primitive) {
                 case MVM_STORAGE_SPEC_BP_INT:
@@ -1021,7 +1021,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     st->REPR_data = repr_data;
 
     if (type) {
-        MVMStorageSpec *spec;
+        const MVMStorageSpec *spec;
         MVM_serialization_force_stable(tc, reader, STABLE(type));
         spec = REPR(type)->get_storage_spec(tc, STABLE(type));
         switch (spec->boxed_primitive) {

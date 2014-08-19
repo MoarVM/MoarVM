@@ -32,7 +32,7 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     return ((MVMP6strBody *)data)->value;
 }
 
-static MVMStorageSpec storage_spec = {
+static const MVMStorageSpec storage_spec = {
     MVM_STORAGE_SPEC_INLINED, /* inlineable */
     sizeof(MVMString*) * 8,   /* bits */
     ALIGNOF(void *),               /* align */
@@ -42,7 +42,7 @@ static MVMStorageSpec storage_spec = {
 };
 
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return &storage_spec;
 }
 

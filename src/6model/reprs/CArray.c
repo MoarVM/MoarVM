@@ -24,7 +24,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     if (!MVM_is_null(tc, info)) {
         MVMCArrayREPRData *repr_data = malloc(sizeof(MVMCArrayREPRData));
         MVMObject *type    = MVM_repr_at_key_o(tc, info, str_consts.type);
-        MVMStorageSpec *ss = REPR(type)->get_storage_spec(tc, STABLE(type));
+        const MVMStorageSpec *ss = REPR(type)->get_storage_spec(tc, STABLE(type));
         MVMint32 type_id   = REPR(type)->ID;
 
         MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
@@ -152,7 +152,7 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
         MVM_gc_worklist_add(tc, worklist, &repr_data->elem_type);
 }
 
-static MVMStorageSpec storage_spec = {
+static const MVMStorageSpec storage_spec = {
     MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
     sizeof(void *) * 8,         /* bits */
     ALIGNOF(void *),            /* align */
@@ -163,7 +163,7 @@ static MVMStorageSpec storage_spec = {
 
 
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec* get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return &storage_spec;
 }
 

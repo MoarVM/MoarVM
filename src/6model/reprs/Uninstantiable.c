@@ -28,7 +28,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     /* Nothing to copy. */
 }
 
-static MVMStorageSpec storage_spec = {
+static const MVMStorageSpec storage_spec = {
     MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
     0,                          /* bits */
     0,                          /* align */
@@ -39,7 +39,7 @@ static MVMStorageSpec storage_spec = {
 
 
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec* get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     return &storage_spec;
 }
 

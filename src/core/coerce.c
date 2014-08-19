@@ -195,7 +195,7 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
 
 void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
     MVMObject *strmeth;
-    MVMStorageSpec *ss;
+    const MVMStorageSpec *ss;
 
     /* Handle null case. */
     if (MVM_is_null(tc, obj)) {
@@ -289,7 +289,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
         res_reg->n64 = 0.0;
     }
     else {
-        MVMStorageSpec *ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+        const MVMStorageSpec *ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
         if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
             res_reg->n64 = (MVMnum64)REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
@@ -313,7 +313,7 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
 
     /* Otherwise, guess something appropriate. */
     else {
-        MVMStorageSpec *ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+        const MVMStorageSpec *ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
         if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
             return REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
