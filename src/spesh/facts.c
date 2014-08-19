@@ -119,6 +119,30 @@ static void wval_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_ori
     }
 }
 
+/* Let's figure out what exact type of iter we'll get from an iter op */
+static void iter_facts(MVMThreadContext *tc, MVMSpeshGraph *g,
+                       MVMuint16 out_orig, MVMuint16 out_i,
+                       MVMuint16 in_orig, MVMuint16 in_i) {
+    MVMSpeshFacts *out_facts = &(g->facts[out_orig][out_i]);
+    MVMSpeshFacts *in_facts  = &(g->facts[in_orig][in_i]);
+
+    if (in_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        switch (REPR(in_facts->type)->ID) {
+            case MVM_REPR_ID_MVMArray:
+                out_facts->type = g->sf->body.cu->body.hll_config->array_iterator_type;
+                break;
+            case MVM_REPR_ID_MVMHash:
+            case MVM_REPR_ID_MVMContext:
+                out_facts->type = g->sf->body.cu->body.hll_config->hash_iterator_type;
+                break;
+            default:
+                return;
+        }
+    }
+
+    out_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
+}
+
 /* constant ops on literals give us a specialize-time-known value */
 static void literal_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *tgt_facts = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
@@ -432,6 +456,11 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             wval_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[1].lit_i16, ins->operands[2].lit_i64);
+            break;
+        case MVM_OP_iter:
+            iter_facts(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                ins->operands[1].reg.orig, ins->operands[1].reg.i);
             break;
         case MVM_OP_const_i64:
         case MVM_OP_const_i32:

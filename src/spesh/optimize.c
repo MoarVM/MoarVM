@@ -59,6 +59,9 @@ MVMint16 MVM_spesh_add_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCol
     return g->num_spesh_slots++;
 }
 
+static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                             MVMSpeshIns *ins, MVMint32 type_operand);
+
 /* Performs optimization on a method lookup. If we know the type that we'll
  * be dispatching on, resolve it right off. If not, add a cache. */
 static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
@@ -235,27 +238,86 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             default:
                 return;
         }
+
+        MVM_spesh_use_facts(tc, g, flag_facts);
+        flag_facts->usages--;
+
+        truthvalue = truthvalue ? 1 : 0;
+        if (truthvalue != negated_op) {
+            /* this conditional can be turned into an unconditional jump */
+            ins->info = MVM_op_get_op(MVM_OP_goto);
+            ins->operands[0] = ins->operands[1];
+
+            /* since we have an unconditional jump now, we can remove the successor
+             * that's in the linear_next */
+            MVM_spesh_manipulate_remove_successor(tc, bb, bb->linear_next);
+        } else {
+            /* this conditional can be dropped completely */
+            MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+        }
+    } else if (flag_facts->flags & (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE) && flag_facts->type) {
+        if (ins->info->opcode == MVM_OP_if_o || ins->info->opcode == MVM_OP_unless_o) {
+            MVMObject *type            = flag_facts->type;
+            MVMBoolificationSpec *bs   = type->st->boolification_spec;
+            MVMSpeshOperand  temp      = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+
+            MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+            MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
+
+            switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
+                case MVM_BOOL_MODE_ITER:
+                    new_ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter);
+                    break;
+                case MVM_BOOL_MODE_UNBOX_INT:
+                    return;
+                    new_ins->info = MVM_op_get_op(MVM_OP_unbox_i);
+                    break;
+                /* we need to change the register type for our temporary register for this.
+                case MVM_BOOL_MODE_UNBOX_NUM:
+                    new_ins->info = MVM_op_get_op(MVM_OP_unbox_i);
+                    break;
+                    */
+                case MVM_BOOL_MODE_BIGINT:
+                    return;
+                    new_ins->info = MVM_op_get_op(MVM_OP_bool_I);
+                    break;
+                case MVM_BOOL_MODE_HAS_ELEMS:
+                    return;
+                    new_ins->info = MVM_op_get_op(MVM_OP_elems);
+                    break;
+                case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
+                    return;
+                    new_ins->info = MVM_op_get_op(MVM_OP_isconcrete);
+                    break;
+                default:
+                    return;
+
+            }
+
+            operands[0] = temp;
+            operands[1] = ins->operands[0];
+            new_ins->operands = operands;
+
+            ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_i : MVM_OP_if_i);
+            ins->operands[0] = temp;
+
+            MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, new_ins);
+
+            MVM_spesh_get_facts(tc, g, temp)->usages++;
+
+            /*optimize_repr_op(tc, g, bb, new_ins, 1);*/
+
+            MVM_spesh_use_facts(tc, g, flag_facts);
+
+            MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+        } else {
+            return;
+        }
     } else {
         return;
     }
 
-    MVM_spesh_use_facts(tc, g, flag_facts);
-    flag_facts->usages--;
-
-    truthvalue = truthvalue ? 1 : 0;
-    if (truthvalue != negated_op) {
-        /* this conditional can be turned into an unconditional jump */
-        ins->info = MVM_op_get_op(MVM_OP_goto);
-        ins->operands[0] = ins->operands[1];
-
-        /* since we have an unconditional jump now, we can remove the successor
-         * that's in the linear_next */
-        MVM_spesh_manipulate_remove_successor(tc, bb, bb->linear_next);
-    } else {
-        /* this conditional can be dropped completely */
-        MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
-        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-    }
 }
 
 /* objprimspec can be done at spesh-time if we know the type of something.
