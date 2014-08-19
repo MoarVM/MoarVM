@@ -256,7 +256,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
         }
-    } else if (flag_facts->flags & (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE) && flag_facts->type) {
+    } else if (flag_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && flag_facts->type) {
         if (ins->info->opcode == MVM_OP_if_o || ins->info->opcode == MVM_OP_unless_o) {
             MVMObject *type            = flag_facts->type;
             MVMBoolificationSpec *bs   = type->st->boolification_spec;
@@ -264,6 +264,8 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
 
             MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
             MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
+
+            MVMuint8 guaranteed_concrete = flag_facts->flags & MVM_SPESH_FACT_CONCRETE;
 
             switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
                 case MVM_BOOL_MODE_ITER:
@@ -283,11 +285,11 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                     new_ins->info = MVM_op_get_op(MVM_OP_bool_I);
                     break;
                 case MVM_BOOL_MODE_HAS_ELEMS:
-                    return;
+                    if (!guaranteed_concrete)
+                        return;
                     new_ins->info = MVM_op_get_op(MVM_OP_elems);
                     break;
                 case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
-                    return;
                     new_ins->info = MVM_op_get_op(MVM_OP_isconcrete);
                     break;
                 default:
