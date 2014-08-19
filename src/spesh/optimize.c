@@ -272,7 +272,8 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                     new_ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter);
                     break;
                 case MVM_BOOL_MODE_UNBOX_INT:
-                    return;
+                    if (!guaranteed_concrete)
+                        return;
                     new_ins->info = MVM_op_get_op(MVM_OP_unbox_i);
                     break;
                 /* we need to change the register type for our temporary register for this.
@@ -281,7 +282,8 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                     break;
                     */
                 case MVM_BOOL_MODE_BIGINT:
-                    return;
+                    if (!guaranteed_concrete)
+                        return;
                     new_ins->info = MVM_op_get_op(MVM_OP_bool_I);
                     break;
                 case MVM_BOOL_MODE_HAS_ELEMS:
