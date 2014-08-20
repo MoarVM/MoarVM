@@ -651,8 +651,9 @@
 #define MVM_OP_sp_p6obind_n 647
 #define MVM_OP_sp_p6obind_s 648
 #define MVM_OP_sp_jit_enter 649
-#define MVM_OP_sp_boolify_iter_arr 650
-#define MVM_OP_sp_boolify_iter_hash 651
+#define MVM_OP_sp_boolify_iter 650
+#define MVM_OP_sp_boolify_iter_arr 651
+#define MVM_OP_sp_boolify_iter_hash 652
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

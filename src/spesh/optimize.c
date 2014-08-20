@@ -269,12 +269,14 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
 
             switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
                 case MVM_BOOL_MODE_ITER:
+                    if (!guaranteed_concrete)
+                        return;
                     if (flag_facts->flags & MVM_SPESH_FACT_ARRAY_ITER) {
                         new_ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter_arr);
                     } else if (flag_facts->flags & MVM_SPESH_FACT_HASH_ITER) {
                         new_ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter_hash);
                     } else {
-                        return;
+                        new_ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter);
                     }
                     break;
                 case MVM_BOOL_MODE_UNBOX_INT:
