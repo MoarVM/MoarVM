@@ -264,6 +264,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_nfafromstatelist: return &MVM_nfa_from_statelist;
     case MVM_OP_hllize: return &MVM_hll_map;
     case MVM_OP_clone: return &MVM_repr_clone;
+    case MVM_OP_getcodeobj: return &MVM_frame_get_code_object;
     case MVM_OP_isbig_I: return &MVM_bigint_is_big;
     case MVM_OP_add_I: return &MVM_bigint_add;
     case MVM_OP_sub_I: return &MVM_bigint_sub;
@@ -931,6 +932,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         break;
     }
     case MVM_OP_shift_o:
+    case MVM_OP_getcodeobj:
     case MVM_OP_pop_o: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint32 invocant = ins->operands[1].reg.orig;
