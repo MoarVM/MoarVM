@@ -46,6 +46,9 @@ struct MVMSpeshFacts {
 #define MVM_SPESH_FACT_DECONT_CONCRETE      64  /* Is concrete after decont. */
 #define MVM_SPESH_FACT_DECONT_TYPEOBJ       128 /* Is a type object after decont. */
 #define MVM_SPESH_FACT_FROM_LOG_GUARD       256 /* Depends on a guard being met. */
+#define MVM_SPESH_FACT_HASH_ITER            512 /* Is an iter over hashes. */
+#define MVM_SPESH_FACT_ARRAY_ITER           1024 /* Is an iter over arrays
+                                                    (mutually exclusive with HASH_ITER, but neither of them is necessarily set) */
 
 /* Discovers spesh facts and builds up information about them. */
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g);
