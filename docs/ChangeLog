@@ -1,3 +1,57 @@
+New in 2014.08
+
++ Add support for JIT compilation on x64 (when configured with --enable-jit);
+  supports basic arithmetic and logical operations, branching, method finding,
+  invocation with argument passing, basic parameter handling, boxing/unboxing,
+  attribute access, array and hash access, some big integer operations, some
+  string operations, type checks, and more. Integrated with deoptimization,
+  OSR (On Stack Replacement), extension ops, and exception handling.
++ Specialize various cases of istrue/isfalse to remove some indirections
++ Add charrange handling to the NFA evaluator
++ Update Unicode database generation script with latest string API
++ Add char name lookup aliases (LF, FF, CR and NEL) as line separators
++ Update moar-gdb.py for new structure of MVMString
++ Add Configure support for ASAN
++ Fix multi cache bug for no positionals, some nameds case
++ Make spesh dump show numeric literals and lexicals properly
++ Assorted OSR fixes for frames that deoptimized, then hit OSR points
++ Fix a number of SSA/dominance memory leaks.
++ Fix memory leak in inlining.
++ Make dead code elmination not cause unrequired guards to be kept
++ Add an API for extops to be involved in fact discovery and specialization
++ Add type and no-container facts for bigint ops
++ Support inlining of frames with handlers
++ Enable inlining of lexotic (return) handlers
++ Allow addition of temporaries when optimizing
++ Specialize boxing and unboxing of args, both named and positional
++ Avoid repeatedly allocating memory for NFAs.
++ Cache frame index in MAST assembly, to avoid a linear scan
++ Fix various dynamic variable and inlining interaction bugs
++ Add a dynamic variable lookup cache
++ Devirtualize serialization read/write functions
++ Make full frame deserialization lazy, reducing memory and startup time
++ Handle static lexical values far mroe efficiently
++ Identify MAST nodes in assembler by exact type, cheapening assembly
++ Specialize smart stringify/numify into simpler ops in some cases
++ MAST::Label works on identify now, not name matching
++ Make "allocate in gen2" mode reentrant
++ Support lazy deserialization of static lexical values, method caches, and
+  meta-objects
++ Remove some unused fields from STable
++ Optimize some simple control exceptions into gotos
++ Don't redo dead instruction elim on inlinees
++ Make sure inlined args are always marked as used, fixing a bug
++ Add an int -> str cache for 0..^64
++ Add asynchronous process spawning, I/O, and killing
++ Check dll cache before searching through libpath, saving many stats
++ Make a better guess at MAST assembly output buffer sizes
++ Add a mechanism for debugging strand issues
++ Fix bug in string repeat of an already repeated strand
++ Complain properly about missing late-bound methods
++ Clear special return data more eagerly, fixing a double-free
++ Refactor get_storage_spec
++ Fix P6bigint unbox portability bug.
+
 New in 2014.07
 
 + Make default file mode 0666
