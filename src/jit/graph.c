@@ -270,6 +270,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_mul_I: return &MVM_bigint_mul;
     case MVM_OP_lcm_I: return &MVM_bigint_lcm;
     case MVM_OP_gcd_I: return &MVM_bigint_gcd;
+    case MVM_OP_bool_I: return &MVM_bigint_bool;
     case MVM_OP_coerce_Is: case MVM_OP_base_I: return &MVM_bigint_to_str;
     case MVM_OP_sp_boolify_iter: return &MVM_iter_istrue;
     default:
@@ -939,6 +940,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         break;
     }
     case MVM_OP_shift_i:
+    case MVM_OP_bool_I:
     case MVM_OP_pop_i: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint32 invocant = ins->operands[1].reg.orig;
