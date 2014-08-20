@@ -15,6 +15,7 @@
 |.type STATICFRAME, MVMStaticFrame
 |.type P6OPAQUE, MVMP6opaque
 |.type P6OBODY, MVMP6opaqueBody
+|.type MVMITER, MVMIter
 |.type MVMINSTANCE, MVMInstance
 |.type OBJECT, MVMObject
 |.type COLLECTABLE, MVMCollectable
@@ -870,6 +871,31 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         |1:
         | mov qword WORK[dst], 0;
         |2:
+        break;
+    }
+    case MVM_OP_sp_boolify_iter_arr: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[obj];
+        | mov TMP2, MVMITER:TMP1->body.array_state.index;
+        | inc TMP2;
+        | mov TMP3, MVMITER:TMP1->body.array_state.limit;
+        /* index - limit will give a carry flag when index < limit */
+        | cmp TMP2, TMP3;
+        | setl TMP1b;
+        | movzx TMP1, TMP1b;
+        | mov aword WORK[dst], TMP1;
+        break;
+    }
+    case MVM_OP_sp_boolify_iter_hash: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[obj];
+        | mov TMP2, MVMITER:TMP1->body.hash_state.next;
+        | test TMP2, TMP2;
+        | setne TMP2b;
+        | movzx TMP2, TMP2b;
+        | mov aword WORK[dst], TMP2;
         break;
     }
     case MVM_OP_objprimspec: {
