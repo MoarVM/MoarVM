@@ -269,6 +269,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_sub_I: return &MVM_bigint_sub;
     case MVM_OP_mul_I: return &MVM_bigint_mul;
     case MVM_OP_lcm_I: return &MVM_bigint_lcm;
+    case MVM_OP_gcd_I: return &MVM_bigint_gcd;
     case MVM_OP_coerce_Is: case MVM_OP_base_I: return &MVM_bigint_to_str;
     default:
         MVM_exception_throw_adhoc(tc, "No function for op %d", opcode);
@@ -1400,7 +1401,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_add_I:
     case MVM_OP_sub_I:
     case MVM_OP_mul_I:
-    case MVM_OP_lcm_I: {
+    case MVM_OP_lcm_I:
+    case MVM_OP_gcd_I: {
         MVMint16 src_a = ins->operands[1].reg.orig;
         MVMint16 src_b = ins->operands[2].reg.orig;
         MVMint16 type  = ins->operands[3].reg.orig;
