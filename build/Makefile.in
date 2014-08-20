@@ -89,6 +89,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/core/continuation@obj@ \
           src/core/intcache@obj@ \
           src/core/fixedsizealloc@obj@ \
+	  src/cst/cstalloc@obj@ \
           src/gen/config@obj@ \
           src/gc/orchestrate@obj@ \
           src/gc/allocation@obj@ \
@@ -215,6 +216,7 @@ HEADERS = src/moar.h \
           src/core/continuation.h \
           src/core/intcache.h \
           src/core/fixedsizealloc.h \
+	  src/cst/cstalloc.h \
           src/io/io.h \
           src/io/eventloop.h \
           src/io/syncfile.h \
@@ -390,6 +392,7 @@ install: all
 	$(CP) src/gen/config.h $(DESTDIR)$(PREFIX)/include/moar
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/6model/reprs
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/core
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/cst
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/gc
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/gen
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/io
@@ -404,6 +407,7 @@ install: all
 	$(CP) src/6model/*.h $(DESTDIR)$(PREFIX)/include/moar/6model
 	$(CP) src/6model/reprs/*.h $(DESTDIR)$(PREFIX)/include/moar/6model/reprs
 	$(CP) src/core/*.h $(DESTDIR)$(PREFIX)/include/moar/core
+	$(CP) src/cst/*.h $(DESTDIR)$(PREFIX)/include/moar/cst
 	$(CP) src/gc/*.h $(DESTDIR)$(PREFIX)/include/moar/gc
 	$(CP) src/gen/*.h $(DESTDIR)$(PREFIX)/include/moar/gen
 	$(CP) src/io/*.h $(DESTDIR)$(PREFIX)/include/moar/io
