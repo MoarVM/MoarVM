@@ -15,22 +15,22 @@ New in 2014.08
 + Fix multi cache bug for no positionals, some nameds case
 + Make spesh dump show numeric literals and lexicals properly
 + Assorted OSR fixes for frames that deoptimized, then hit OSR points
-+ Fix a number of SSA/dominance memory leaks.
-+ Fix memory leak in inlining.
-+ Make dead code elmination not cause unrequired guards to be kept
++ Fix a number of SSA/dominance memory leaks
++ Fix memory leak in inlining
++ Make dead code elimination not cause unrequired guards to be kept
 + Add an API for extops to be involved in fact discovery and specialization
 + Add type and no-container facts for bigint ops
 + Support inlining of frames with handlers
 + Enable inlining of lexotic (return) handlers
-+ Allow addition of temporaries when optimizing
++ Allow addition of temporary registers when specializing
 + Specialize boxing and unboxing of args, both named and positional
-+ Avoid repeatedly allocating memory for NFAs.
++ Avoid repeatedly allocating memory for NFAs
 + Cache frame index in MAST assembly, to avoid a linear scan
 + Fix various dynamic variable and inlining interaction bugs
 + Add a dynamic variable lookup cache
 + Devirtualize serialization read/write functions
 + Make full frame deserialization lazy, reducing memory and startup time
-+ Handle static lexical values far mroe efficiently
++ Handle static lexical values far more efficiently
 + Identify MAST nodes in assembler by exact type, cheapening assembly
 + Specialize smart stringify/numify into simpler ops in some cases
 + MAST::Label works on identify now, not name matching
@@ -50,7 +50,7 @@ New in 2014.08
 + Complain properly about missing late-bound methods
 + Clear special return data more eagerly, fixing a double-free
 + Refactor get_storage_spec
-+ Fix P6bigint unbox portability bug.
++ Fix P6bigint unbox portability bug
 
 New in 2014.07
 
