@@ -547,6 +547,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov aword TC->cur_dispatcher, NULL;
         break;
     }
+    case MVM_OP_curcode: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP1, aword FRAME->code_ref;
+        | mov TMP1, aword [TMP1]
+        | mov aword WORK[dst], TMP1;
+        break;
+    }
     case MVM_OP_getcode: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMuint16 idx = ins->operands[1].coderef_idx;
