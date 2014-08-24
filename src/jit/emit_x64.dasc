@@ -900,7 +900,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP1, aword WORK[obj];
         | mov TMP2, MVMITER:TMP1->body.hash_state.next;
         | test TMP2, TMP2;
-        | setne TMP2b;
+        | setnz TMP2b;
         | movzx TMP2, TMP2b;
         | mov aword WORK[dst], TMP2;
         break;
