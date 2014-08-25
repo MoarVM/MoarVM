@@ -197,6 +197,23 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     }
 }
 
+static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
+    MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &g->sf->body, 0);
+    MVMCompUnit            *cu = g->sf->body.cu;
+    MVMint32           str_idx = ann ? ann->filename_string_heap_index : 0;
+    MVMint32           line_nr = ann ? ann->line_number : 1;
+    MVMString        *filename = cu->body.filename;
+    MVMuint8    *filename_utf8;
+    if (ann && str_idx < cu->body.num_strings) {
+        filename = cu->body.strings[str_idx];
+    }
+    if (filename)
+        filename_utf8 = MVM_string_utf8_encode(tc, filename, NULL);
+    else
+        filename_utf8 = strdup("<unknown>");
+    appendf(ds, "%s:%d", filename_utf8, line_nr);
+}
+
 /* Dump a spesh graph into string form, for debugging purposes. */
 char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *cur_bb;
@@ -212,6 +229,8 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     append_str(tc, &ds, g->sf->body.name);
     append(&ds, "' (cuid: ");
     append_str(tc, &ds, g->sf->body.cuuid);
+    append(&ds, ", file: ");
+    dump_fileinfo(tc, &ds, g);
     append(&ds, ")\n\n");
 
     /* Go over all the basic blocks and dump them. */
