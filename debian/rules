@@ -2,21 +2,29 @@
 # -*- makefile -*-
 
 # Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
+export DH_VERBOSE=1
 
 build-arch:
 	dh_testdir
 	perl Configure.pl --prefix=/usr --optimize
 	touch configure-stamp
 
+configure-stamp: build-arch
+
 binary-arch: configure-stamp
 	dh_testdir
+	dh_prep
 	$(MAKE)
 	touch build-stamp
 
+build-stamp: binary-arch
+
 install: build-stamp
 	dh_testdir
+	dh_testroot
 	DESTDIR=$(CURDIR)/debian/moarvm $(MAKE) install
+	dh_installchangelogs docs/ChangeLog
+	dh_installdocs docs/*.markdown
 	rm -f configure-stamp build-stamp
 
 
