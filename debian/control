@@ -1,8 +1,8 @@
 Source: moarvm
-Section: unknown
+Section: perl
 Priority: optional
-Maintainer: Moritz <moritz@faui2k3.org>
-Build-Depends: debhelper (>= 8.0.0)
+Maintainer: Moritz Lenz <moritz@faui2k3.org>
+Build-Depends: debhelper (>= 8.0.0), gcc, make, perl
 Standards-Version: 3.9.4
 Homepage: <insert the upstream URL, if relevant>
 #Vcs-Git: git://git.debian.org/collab-maint/moarvm.git
@@ -11,5 +11,9 @@ Homepage: <insert the upstream URL, if relevant>
 Package: moarvm
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Description: A virtual machine for NQP And Rakudo Perl 6
+ MoarVM, short for Metamodel On A Runtime Virtual Machine, is a virtual
+ machine built for running Perl 6. It is the base for the Rakudo Perl 6
+ compiler. It features a versatile object system that separates
+ representation (memory layout) and behavior (user-level types), a compacting
+ garbage collector, a run-time code specializer and an experimental JIT compiler (x86 only).
