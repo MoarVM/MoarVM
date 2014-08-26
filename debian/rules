@@ -4,5 +4,24 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-%:
-	dh $@ 
+build:
+	dh_testdir
+	perl Configure.pl --prefix=/usr --optimize
+	touch configure-stamp
+
+binary: configure-stamp
+	dh_testdir
+	$(MAKE)
+	touch build-stamp
+
+install: build-stamp
+	dh_testdir
+	DESTDIR=$(CURDIR)/debian/moarvm $(MAKE) install
+	rm -f configure-stamp build-stamp
+
+
+clean:
+	dh_testdir
+	$(MAKE) clean || true
+
+.PHONY: build
