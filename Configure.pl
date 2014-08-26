@@ -33,7 +33,7 @@ GetOptions(\%args, qw(
     cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
     build=s host=s big-endian enable-jit lua=s
-    prefix=s make-install profilecalls asan),
+    prefix=s make-install asan),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 }
 ) or die "See --help for further information\n";
@@ -65,7 +65,6 @@ $args{optimize}     = 1 if not defined $args{optimize} or $args{optimize} eq "";
 $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 $args{instrument} //= 0;
 $args{static}     //= 0;
-$args{profilecalls} //= 0;
 
 $args{'use-readline'}      //= 0;
 $args{'big-endian'}        //= 0;
@@ -90,7 +89,6 @@ $config{perl}   = $^X;
 $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 $config{osname} = $^O;
 $config{osvers} = $Config{osvers};
-$config{profilecalls} = $args{profilecalls};
 $config{lua} = $args{lua} // './3rdparty/dynasm/minilua@exe@';
 
 # set options that take priority over all others

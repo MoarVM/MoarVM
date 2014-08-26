@@ -1038,7 +1038,7 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
 }
 
 /* Takes a static frame and creates a spesh graph for it. */
-MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf) {
+MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint32 cfg_only) {
     /* Create top-level graph object. */
     MVMSpeshGraph *g = calloc(1, sizeof(MVMSpeshGraph));
     g->sf            = sf;
@@ -1050,16 +1050,18 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf)
     g->num_lexicals  = sf->body.num_lexicals;
 
     /* Ensure the frame is validated, since we'll rely on this. */
-    if (!sf->body.invoked) {
+    if (sf->body.instrumentation_level == 0) {
         MVM_spesh_graph_destroy(tc, g);
         MVM_exception_throw_adhoc(tc, "Spesh: cannot build CFG from unvalidated frame");
     }
 
     /* Build the CFG out of the static frame, and transform it to SSA. */
     build_cfg(tc, g, sf, NULL, 0);
-    eliminate_dead(tc, g);
-    add_predecessors(tc, g);
-    ssa(tc, g);
+    if (!cfg_only) {
+        eliminate_dead(tc, g);
+        add_predecessors(tc, g);
+        ssa(tc, g);
+    }
 
     /* Hand back the completed graph. */
     return g;
@@ -1067,7 +1069,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf)
 
 /* Takes a static frame and creates a spesh graph for it. */
 MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStaticFrame *sf,
-                                                 MVMSpeshCandidate *cand) {
+                                                 MVMSpeshCandidate *cand, MVMuint32 cfg_only) {
     /* Create top-level graph object. */
     MVMSpeshGraph *g     = calloc(1, sizeof(MVMSpeshGraph));
     g->sf                = sf;
@@ -1088,16 +1090,18 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->num_spesh_slots   = cand->num_spesh_slots;
 
     /* Ensure the frame is validated, since we'll rely on this. */
-    if (!sf->body.invoked) {
+    if (sf->body.instrumentation_level == 0) {
         MVM_spesh_graph_destroy(tc, g);
         MVM_exception_throw_adhoc(tc, "Spesh: cannot build CFG from unvalidated frame");
     }
 
     /* Build the CFG out of the static frame, and transform it to SSA. */
     build_cfg(tc, g, sf, cand->deopts, cand->num_deopts);
-    eliminate_dead(tc, g);
-    add_predecessors(tc, g);
-    ssa(tc, g);
+    if (!cfg_only) {
+        eliminate_dead(tc, g);
+        add_predecessors(tc, g);
+        ssa(tc, g);
+    }
 
     /* Hand back the completed graph. */
     return g;

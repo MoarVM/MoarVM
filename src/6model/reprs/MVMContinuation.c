@@ -36,6 +36,11 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             cur_ah = cur_ah->next_handler;
         }
     }
+    if (body->prof_cont) {
+        MVMuint64 i;
+        for (i = 0; i < body->prof_cont->num_sfs; i++)
+            MVM_gc_worklist_add(tc, worklist, &(body->prof_cont->sfs[i]));
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -54,6 +59,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
             cur_ah = next_ah;
         }
     }
+    if (ctx->body.prof_cont)
+        free(ctx->body.prof_cont);
 }
 
 static const MVMStorageSpec storage_spec = {

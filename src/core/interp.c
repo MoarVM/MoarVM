@@ -1751,10 +1751,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(gcd_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_gcd(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+                GET_REG(cur_op, 0).o = MVM_bigint_gcd(tc, GET_REG(cur_op, 6).o, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
@@ -4295,6 +4292,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_proc_kill_async(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
+            OP(startprofile):
+                MVM_profile_start(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
+            OP(endprofile):
+                GET_REG(cur_op, 0).o = MVM_profile_end(tc);
+                cur_op += 2;
+                goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
@@ -4603,10 +4608,47 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_boolify_iter): {
-                GET_REG(cur_op, 0).i64 = MVM_iter_istrue(tc, (MVMIter *)GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).i64 = MVM_iter_istrue(tc, (MVMIter*)GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(sp_boolify_iter_arr): {
+                MVMIter *iter = (MVMIter *)GET_REG(cur_op, 2).o;
+
+                GET_REG(cur_op, 0).i64 = iter->body.array_state.index + 1 < iter->body.array_state.limit ? 1 : 0;
+
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(sp_boolify_iter_hash): {
+                MVMIter *iter = (MVMIter *)GET_REG(cur_op, 2).o;
+
+                GET_REG(cur_op, 0).i64 = iter->body.hash_state.next != NULL ? 1 : 0;
+
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(prof_enter):
+                MVM_profile_log_enter(tc, tc->cur_frame->static_info,
+                    MVM_PROFILE_ENTER_NORMAL);
+                goto NEXT;
+            OP(prof_enterspesh):
+                MVM_profile_log_enter(tc, tc->cur_frame->static_info,
+                    MVM_PROFILE_ENTER_SPESH);
+                goto NEXT;
+            OP(prof_enterinline):
+                MVM_profile_log_enter(tc,
+                    (MVMStaticFrame *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 0)],
+                    MVM_PROFILE_ENTER_SPESH_INLINE);
+                cur_op += 2;
+                goto NEXT;
+            OP(prof_exit):
+                MVM_profile_log_exit(tc);
+                goto NEXT;
+            OP(prof_allocated):
+                MVM_profile_log_allocated(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

@@ -183,6 +183,9 @@ OBJECTS = src/core/callsite@obj@ \
           src/strings/utf16@obj@ \
           src/strings/windows1252@obj@ \
           src/math/bigintops@obj@ \
+          src/profiler/instrument@obj@ \
+          src/profiler/log@obj@ \
+          src/profiler/profile@obj@ \
           src/moar@obj@ \
           @platform@ \
           @jit@
@@ -306,6 +309,9 @@ HEADERS = src/moar.h \
           src/strings/utf16.h \
           src/strings/windows1252.h \
           src/math/bigintops.h \
+          src/profiler/instrument.h \
+          src/profiler/log.h \
+          src/profiler/profile.h \
           src/platform/mmap.h \
           src/platform/time.h \
           src/platform/threads.h \
@@ -396,6 +402,7 @@ install: all
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/mast
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/math
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/platform
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/profiler
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/spesh
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/strings
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/jit
@@ -410,6 +417,7 @@ install: all
 	$(CP) src/mast/*.h $(DESTDIR)$(PREFIX)/include/moar/mast
 	$(CP) src/math/*.h $(DESTDIR)$(PREFIX)/include/moar/math
 	$(CP) src/platform/*.h $(DESTDIR)$(PREFIX)/include/moar/platform
+	$(CP) src/profiler/*.h $(DESTDIR)$(PREFIX)/include/moar/profiler
 	$(CP) src/spesh/*.h $(DESTDIR)$(PREFIX)/include/moar/spesh
 	$(CP) src/strings/*.h $(DESTDIR)$(PREFIX)/include/moar/strings
 	$(CP) src/jit/*.h $(DESTDIR)$(PREFIX)/include/moar/jit

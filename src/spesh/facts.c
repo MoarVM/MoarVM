@@ -130,10 +130,12 @@ static void iter_facts(MVMThreadContext *tc, MVMSpeshGraph *g,
         switch (REPR(in_facts->type)->ID) {
             case MVM_REPR_ID_MVMArray:
                 out_facts->type = g->sf->body.cu->body.hll_config->array_iterator_type;
+                out_facts->flags |= MVM_SPESH_FACT_ARRAY_ITER;
                 break;
             case MVM_REPR_ID_MVMHash:
             case MVM_REPR_ID_MVMContext:
                 out_facts->type = g->sf->body.cu->body.hll_config->hash_iterator_type;
+                out_facts->flags |= MVM_SPESH_FACT_HASH_ITER;
                 break;
             default:
                 return;

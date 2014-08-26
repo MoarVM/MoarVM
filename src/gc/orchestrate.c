@@ -249,15 +249,17 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
     }
 }
 
+static MVMint32 is_full_collection(MVMThreadContext *tc) {
+    return MVM_load(&tc->instance->gc_seq_number) % MVM_GC_GEN2_RATIO == 0;
+}
+
 static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     MVMuint8   gen;
     MVMThread *child;
     MVMuint32  i, n;
 
     /* Decide nursery or full collection. */
-    gen = MVM_load(&tc->instance->gc_seq_number) % MVM_GC_GEN2_RATIO == 0
-        ? MVMGCGenerations_Both
-        : MVMGCGenerations_Nursery;
+    gen = is_full_collection(tc) ? MVMGCGenerations_Both : MVMGCGenerations_Nursery;
 
     /* Do GC work for ourselve and any work threads. */
     for (i = 0, n = tc->gc_work_count ; i < n; i++) {
@@ -324,6 +326,10 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             "Thread %d run %d : GC thread elected coordinator: starting gc seq %d\n",
             (int)MVM_load(&tc->instance->gc_seq_number));
 
+        /* If profiling, record that GC is starting. */
+        if (tc->instance->profiling)
+            MVM_profiler_log_gc_start(tc, is_full_collection(tc));
+
         /* Ensure our stolen list is empty. */
         tc->gc_work_count = 0;
 
@@ -382,6 +388,10 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Freeing STables if needed\n");
         MVM_gc_collect_free_stables(tc);
 
+        /* If profiling, record that GC is over. */
+        if (tc->instance->profiling)
+            MVM_profiler_log_gc_end(tc);
+
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : GC complete (cooridnator)\n");
     }
     else {
@@ -399,6 +409,10 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     AO_t curr;
 
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from interrupt\n");
+
+    /* If profiling, record that GC is starting. */
+    if (tc->instance->profiling)
+        MVM_profiler_log_gc_start(tc, is_full_collection(tc));
 
     /* We'll certainly take care of our own work. */
     tc->gc_work_count = 0;
@@ -422,6 +436,10 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entering run_gc\n");
     run_gc(tc, MVMGCWhatToDo_NoInstance);
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : GC complete\n");
+
+    /* If profiling, record that GC is over. */
+    if (tc->instance->profiling)
+        MVM_profiler_log_gc_end(tc);
 }
 
 /* Run the global destruction phase. */

@@ -24,10 +24,12 @@ struct MVMStaticFrameBody {
     MVMuint8 *static_env_flags;
 
     /* If the frame has state variables. */
-    MVMuint16 has_state_vars;
+    MVMuint32 has_state_vars;
 
-    /* Flag for if this frame has been invoked ever. */
-    MVMuint16 invoked;
+    /* Zero if the frame was never invoked. Above zero is the instrumentation
+     * level the VM was atlast time the frame was invoked. See MVMInstance for
+     * the VM instance wide field for this. */
+    MVMuint32 instrumentation_level;
 
     /* Rough call count. May be hit up by multiple threads, and lose the odd
      * count, but that's fine; it's just a rough indicator, used to make
@@ -107,6 +109,16 @@ struct MVMStaticFrameBody {
      * static_code only. */
     MVMint32 code_obj_sc_dep_idx;
     MVMint32 code_obj_sc_idx;
+
+    /* Profiling/instrumented version of the bytecode, if we're profiling.
+     * Also, a backup of the uninstrumented bytecode in case we turn off
+     * profiling. Same for handlers. */
+    MVMuint8        *instrumented_bytecode;
+    MVMuint8        *uninstrumented_bytecode;
+    MVMFrameHandler *instrumented_handlers;
+    MVMFrameHandler *uninstrumented_handlers;
+    MVMuint32        uninstrumented_bytecode_size;
+    MVMuint32        instrumented_bytecode_size;
 };
 struct MVMStaticFrame {
     MVMObject common;

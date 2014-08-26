@@ -15,6 +15,7 @@
 |.type STATICFRAME, MVMStaticFrame
 |.type P6OPAQUE, MVMP6opaque
 |.type P6OBODY, MVMP6opaqueBody
+|.type MVMITER, MVMIter
 |.type MVMINSTANCE, MVMInstance
 |.type OBJECT, MVMObject
 |.type COLLECTABLE, MVMCollectable
@@ -546,6 +547,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov aword TC->cur_dispatcher, NULL;
         break;
     }
+    case MVM_OP_curcode: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP1, aword FRAME->code_ref;
+        | mov TMP1, aword [TMP1]
+        | mov aword WORK[dst], TMP1;
+        break;
+    }
     case MVM_OP_getcode: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMuint16 idx = ins->operands[1].coderef_idx;
@@ -872,6 +880,31 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         |2:
         break;
     }
+    case MVM_OP_sp_boolify_iter_arr: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[obj];
+        | mov TMP2, MVMITER:TMP1->body.array_state.index;
+        | inc TMP2;
+        | mov TMP3, MVMITER:TMP1->body.array_state.limit;
+        /* index - limit will give a carry flag when index < limit */
+        | cmp TMP2, TMP3;
+        | setl TMP1b;
+        | movzx TMP1, TMP1b;
+        | mov aword WORK[dst], TMP1;
+        break;
+    }
+    case MVM_OP_sp_boolify_iter_hash: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[obj];
+        | mov TMP2, MVMITER:TMP1->body.hash_state.next;
+        | test TMP2, TMP2;
+        | setnz TMP2b;
+        | movzx TMP2, TMP2b;
+        | mov aword WORK[dst], TMP2;
+        break;
+    }
     case MVM_OP_objprimspec: {
         MVMint16 dst  = ins->operands[0].reg.orig;
         MVMint16 type = ins->operands[1].reg.orig;
@@ -1129,6 +1162,20 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov ARG1, TC;
         | callp &MVM_args_bind_failed;
         |1:
+        break;
+    }
+    case MVM_OP_prof_enterspesh:
+        | mov ARG1, TC;
+        | mov ARG2, aword FRAME->static_info;
+        | mov ARG3, aword MVM_PROFILE_ENTER_JIT;
+        | callp &MVM_profile_log_enter;
+        break;
+    case MVM_OP_prof_enterinline: {
+        MVMint16 spesh_idx = ins->operands[0].lit_i16;
+        | mov ARG1, TC;
+        | get_spesh_slot ARG2, spesh_idx;
+        | mov ARG3, aword MVM_PROFILE_ENTER_JIT_INLINE;
+        | callp &MVM_profile_log_enter;
         break;
     }
     default:

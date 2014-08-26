@@ -233,6 +233,9 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 to_gen2 = 1;
                 new_addr = MVM_gc_gen2_allocate(gen2, item->size);
 
+                /* Add on to the promoted amount (used by profiler). */
+                tc->gc_promoted_bytes += item->size;
+
                 /* Copy the object to the second generation and mark it as
                  * living there. */
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : copying an object %p of size %d to gen2 %p\n",

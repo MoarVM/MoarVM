@@ -32,14 +32,6 @@ typedef enum {
 #define MVMInitialFramePoolTableSize    64
 #define MVMFramePoolLengthLimit         64
 
-#if MVM_HLL_PROFILE_CALLS
-typedef struct _MVMProfileRecord {
-    MVMuint32 callsite_id;
-    MVMuint32 code_id;
-    MVMuint64 duration_nanos;
-} MVMProfileRecord;
-#endif
-
 /* Information associated with an executing thread. */
 struct MVMThreadContext {
     /* The current allocation pointer, where the next object to be allocated
@@ -116,10 +108,13 @@ struct MVMThreadContext {
     /* The second GC generation allocator. */
     MVMGen2Allocator *gen2;
 
+    /* Number of bytes promoted to gen2 in current GC run. */
+    MVMuint32 gc_promoted_bytes;
+
     /* Memory buffer pointing to the last thing we serialized, intended to go
      * into the next compilation unit we write. */
-    char         *serialized;
     MVMint32      serialized_size;
+    char         *serialized;
 
     /* Temporarily rooted objects. This is generally used by code written in
      * C that wants to keep references to objects. Since those may change
@@ -190,14 +185,8 @@ struct MVMThreadContext {
     MVMint64 *nfa_fates;
     MVMint64  nfa_fates_len;
 
-#if MVM_HLL_PROFILE_CALLS
-    /* storage of profile timings */
-    MVMProfileRecord *profile_data;
-    /* allocated size of profile_data in count */
-    MVMuint32 profile_data_size;
-    /* next index of record to store */
-    MVMuint32 profile_index;
-#endif
+    /* Profiling data collected for this thread, if profiling is on. */
+    MVMProfileThreadData *prof_data;
 };
 
 MVMThreadContext * MVM_tc_create(MVMInstance *instance);

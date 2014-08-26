@@ -178,6 +178,8 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
  * at a valid de-optimization point. Typically used when a guard fails. */
 void MVM_spesh_deopt_one(MVMThreadContext *tc) {
     MVMFrame *f = tc->cur_frame;
+    if (tc->instance->profiling)
+        MVM_profiler_log_deopt_one(tc);
     /*fprintf(stderr, "deopt_one requested in frame '%s' (cuid '%s')\n",
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));*/
@@ -197,6 +199,8 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
 void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMint32 deopt_offset,
                                 MVMint32 deopt_target) {
     MVMFrame *f = tc->cur_frame;
+    if (tc->instance->profiling)
+        MVM_profiler_log_deopt_one(tc);
     if (f->effective_bytecode != f->static_info->body.bytecode) {
         deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
     } else {
@@ -214,6 +218,8 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
     /* Walk frames looking for any callers in specialized bytecode. */
     MVMFrame *l = tc->cur_frame;
     MVMFrame *f = tc->cur_frame->caller;
+    if (tc->instance->profiling)
+        MVM_profiler_log_deopt_all(tc);
     while (f) {
         if (f->effective_bytecode != f->static_info->body.bytecode && f->spesh_log_idx < 0) {
             /* Found one. Is it JITted code? */

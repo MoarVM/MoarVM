@@ -55,9 +55,25 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
 
     /* Set its spesh threshold. */
     static_frame_body->spesh_threshold = MVM_spesh_threshold(tc, static_frame);
+}
 
-    /* Mark frame as invoked, so we need not do these calculations again. */
-    static_frame_body->invoked = 1;
+/* When we don't match the current instrumentation level, we hit this. It may
+ * simply be that we never invoked the frame, in which case we prepare and
+ * verify it. It may also be because we need to instrument the code for
+ * profiling. */
+static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
+    /* Prepare and verify if needed. */
+    if (static_frame->body.instrumentation_level == 0)
+        prepare_and_verify_static_frame(tc, static_frame);
+
+    /* Mark frame as being at the current instrumentation level. */
+    static_frame->body.instrumentation_level = tc->instance->instrumentation_level;
+
+    /* Add profiling instrumentation if needed. */
+    if (tc->instance->profiling)
+        MVM_profile_instrument(tc, static_frame);
+    else
+        MVM_profile_ensure_uninstrumented(tc, static_frame);
 }
 
 /* Increases the reference count of a frame. */
@@ -115,8 +131,8 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
 
     /* If the frame was never invoked before, need initial calculations
      * and verification. */
-    if (!static_frame->body.invoked)
-        prepare_and_verify_static_frame(tc, static_frame);
+    if (static_frame->body.instrumentation_level == 0)
+        instrumentation_level_barrier(tc, static_frame);
 
     frame = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMFrame));
 
@@ -324,14 +340,15 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     int fresh = 0;
     MVMStaticFrameBody *static_frame_body = &static_frame->body;
 
-    /* If the frame was never invoked before, need initial calculations
-     * and verification. */
-    if (!static_frame_body->invoked)
-        prepare_and_verify_static_frame(tc, static_frame);
+    /* If the frame was never invoked before, or never before at the current
+     * instrumentation level, we need to trigger the instrumentation level
+     * barrier. */
+    if (static_frame_body->instrumentation_level != tc->instance->instrumentation_level)
+        instrumentation_level_barrier(tc, static_frame);
 
     /* See if any specializations apply. */
     found_spesh = 0;
-    if (spesh_cand >= 0) {
+    if (spesh_cand >= 0 && spesh_cand < static_frame_body->num_spesh_candidates) {
         MVMSpeshCandidate *chosen_cand = &static_frame_body->spesh_candidates[spesh_cand];
         if (!chosen_cand->sg) {
             frame = allocate_frame(tc, static_frame_body, chosen_cand);
@@ -445,21 +462,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame->effective_handlers = static_frame_body->handlers;
         frame->spesh_cand         = NULL;
     }
-
-#if MVM_HLL_PROFILE_CALLS
-    frame->profile_index = tc->profile_index;
-    tc->profile_data[frame->profile_index].duration_nanos = MVM_platform_now();
-    tc->profile_data[frame->profile_index].callsite_id = 0; /* XXX get a real callsite id */
-    tc->profile_data[frame->profile_index].code_id = 0; /* XXX get a real code id */
-
-    /* increment the profile data index */
-    ++tc->profile_index;
-
-    if (tc->profile_index == tc->profile_data_size) {
-        tc->profile_data_size *= 2;
-        tc->profile_data = realloc(tc->profile_data, tc->profile_data_size);
-    }
-#endif
 
     /* Copy thread context (back?) into the frame. */
     frame->tc = tc;
@@ -682,12 +684,6 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         }
     }
 
-#if MVM_HLL_PROFILE_CALLS
-    tc->profile_data[returner->profile_index].duration_nanos =
-        MVM_platform_now() -
-        tc->profile_data[returner->profile_index].duration_nanos;
-#endif
-
     /* Decrement the frame's ref-count by the 1 it got by virtue of being the
      * currently executing frame. */
     MVM_frame_dec_ref(tc, returner);
@@ -828,6 +824,10 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             return;
         }
         else {
+            /* If we're profiling, log an exit. */
+            if (tc->instance->profiling)
+                MVM_profile_log_unwind(tc);
+
             /* No exit handler, so just remove the frame. */
             if (!remove_one_frame(tc, 1))
                 MVM_panic(1, "Internal error: Unwound entire stack and missed handler");

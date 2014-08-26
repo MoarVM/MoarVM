@@ -649,6 +649,8 @@ osrpoint            :osrpoint
 nativecallcast      w(obj) r(obj) r(obj) r(obj)
 spawnprocasync      w(obj) r(obj) r(obj) r(str) r(obj) r(obj)
 killprocasync       r(obj) r(int64)
+startprofile        r(obj)
+endprofile          w(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
@@ -729,4 +731,24 @@ sp_p6obind_s     .s r(obj) int16 r(str)
 sp_jit_enter     .s w(obj)
 
 # we boolify iter objects all the time, but we have no op for it. until now!
-sp_boolify_iter  .s w(int64) r(obj) :pure
+sp_boolify_iter       .s w(int64) r(obj) :pure
+sp_boolify_iter_arr   .s w(int64) r(obj) :pure
+sp_boolify_iter_hash  .s w(int64) r(obj) :pure
+
+# Profiler recording ops. Naming convention: start with prof_. Must all be
+# marked .s, which is how the validator knows to exclude them. (For that
+# purpose, we treat them as a kind of spesh op).
+
+# Entry of various forms. The inline one passes along the static frame of the
+# inlinee.
+prof_enter       .s
+prof_enterspesh  .s
+prof_enterinline .s sslot
+
+# Normal exit (exception throw and unwind is handled separately). Will always
+# be what we last entered, so no need for separate versions like above.
+prof_exit
+
+# Recording of allocated types (may not give full picture of allocations, but
+# is at least enough to get a picture).
+prof_allocated   .s r(obj)

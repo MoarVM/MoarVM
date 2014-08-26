@@ -6734,6 +6734,28 @@ static MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
+        MVM_OP_startprofile,
+        "startprofile",
+        "  ",
+        1,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_endprofile,
+        "endprofile",
+        "  ",
+        1,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_sp_log,
         "sp_log",
         ".s",
@@ -7161,9 +7183,83 @@ static MVMOpInfo MVM_op_infos[] = {
         0,
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_sp_boolify_iter_arr,
+        "sp_boolify_iter_arr",
+        ".s",
+        2,
+        1,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_sp_boolify_iter_hash,
+        "sp_boolify_iter_hash",
+        ".s",
+        2,
+        1,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_prof_enter,
+        "prof_enter",
+        ".s",
+        0,
+        0,
+        0,
+        0,
+        0,
+    },
+    {
+        MVM_OP_prof_enterspesh,
+        "prof_enterspesh",
+        ".s",
+        0,
+        0,
+        0,
+        0,
+        0,
+    },
+    {
+        MVM_OP_prof_enterinline,
+        "prof_enterinline",
+        ".s",
+        1,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_spesh_slot }
+    },
+    {
+        MVM_OP_prof_exit,
+        "prof_exit",
+        "  ",
+        0,
+        0,
+        0,
+        0,
+        0,
+    },
+    {
+        MVM_OP_prof_allocated,
+        "prof_allocated",
+        ".s",
+        1,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj }
+    },
 };
 
-static unsigned short MVM_op_counts = 651;
+static unsigned short MVM_op_counts = 660;
 
 MVM_PUBLIC MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
