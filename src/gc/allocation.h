@@ -1,3 +1,6 @@
+void * MVM_malloc(size_t len);
+void * MVM_realloc(void *p, size_t len);
+void MVM_free(void *p);
 void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size);
 void * MVM_gc_allocate_zeroed(MVMThreadContext *tc, size_t size);
 MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, const MVMREPROps *repr, MVMObject *how);
