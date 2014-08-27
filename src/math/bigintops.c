@@ -452,10 +452,20 @@ MVMint64 MVM_bigint_cmp(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     }
 }
 
-void MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
+MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
     MVMP6bigintBody *bb = get_bigint_body(tc, b);
-    MVMP6bigintBody *bc = get_bigint_body(tc, result);
+    MVMP6bigintBody *bc;
+
+    MVMObject *result;
+
+    MVMROOT(tc, a, {
+    MVMROOT(tc, b, {
+        result = MVM_repr_alloc_init(tc, result_type);
+    });
+    });
+
+    bc = get_bigint_body(tc, result);
 
     // XXX the behavior of C's mod operator is not correct
     // for our purposes. So we rely on mp_mod for all our modulus
@@ -478,19 +488,30 @@ void MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
     } else {
         store_int64_result(bc, ba->u.smallint.value % bb->u.smallint.value);
     }
+
+    return result;
 }
 
-void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b) {
+MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
     MVMP6bigintBody *bb = get_bigint_body(tc, b);
-    MVMP6bigintBody *bc = get_bigint_body(tc, result);
+    MVMP6bigintBody *bc;
     mp_int *ia, *ib, *ic;
     int cmp_a;
     int cmp_b;
     mp_int remainder;
     mp_int intermediate;
+    MVMObject *result;
 
     int mp_result;
+
+    MVMROOT(tc, a, {
+    MVMROOT(tc, b, {
+        result = MVM_repr_alloc_init(tc, result_type);
+    });
+    });
+
+    bc = get_bigint_body(tc, result);
 
     if (MVM_BIGINT_IS_BIG(ba)) {
         cmp_a = mp_cmp_d(ba->u.bigint, 0);
@@ -559,6 +580,8 @@ void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMOb
         }
         store_int64_result(bc, result);
     }
+
+    return result;
 }
 
 MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,

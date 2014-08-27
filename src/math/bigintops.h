@@ -6,11 +6,11 @@ void MVM_bigint_not(MVMThreadContext *tc, MVMObject *result, MVMObject *a);
 /* unused */
 /* void MVM_bigint_sqrt(MVMObject *b, MVMObject *a); */
 
-MVMObject * MVM_bigint_add(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
-MVMObject * MVM_bigint_sub(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
-MVMObject * MVM_bigint_mul(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
-void MVM_bigint_div(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
-void MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
+MVMObject * MVM_bigint_add(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b);
+MVMObject * MVM_bigint_sub(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b);
+MVMObject * MVM_bigint_mul(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b);
+MVMObject * MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b);
+MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b);
 MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
         MVMObject *num_type, MVMObject *int_type);
 MVMObject * MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);

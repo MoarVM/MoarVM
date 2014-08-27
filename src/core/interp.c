@@ -1728,17 +1728,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(div_I): {
                 MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_div(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+                GET_REG(cur_op, 0).o = MVM_bigint_div(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
             OP(mod_I): {
                 MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_mod(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+                GET_REG(cur_op, 0).o = MVM_bigint_mod(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
