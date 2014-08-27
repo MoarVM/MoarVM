@@ -44,7 +44,7 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
     utf16_end = utf16 + bytes;
 
     /* possibly allocating extra space; oh well */
-    result->body.storage.blob_32 = malloc(sizeof(MVMGrapheme32) * bytes / 2);
+    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes / 2);
 
     for (; utf16 < utf16_end; utf16 += 2) {
         MVMuint32 value = (utf16[high] << 8) + utf16[low];
@@ -100,7 +100,7 @@ MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, 
         MVM_exception_throw_adhoc(tc, "length out of range");
 
     /* Kke the result grow as needed instead of allocating so much to start? */
-    result = malloc(length * 4 + 2);
+    result = MVM_malloc(length * 4 + 2);
     result_pos = result;
     MVM_string_ci_init(tc, &ci, str);
     while (MVM_string_ci_has_more(tc, &ci)) {

@@ -28,7 +28,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     switch (dest_body->storage_type) {
         case MVM_STRING_GRAPHEME_32:
             if (dest_body->num_graphs) {
-                dest_body->storage.blob_32 = malloc(dest_body->num_graphs * sizeof(MVMGrapheme32));
+                dest_body->storage.blob_32 = MVM_malloc(dest_body->num_graphs * sizeof(MVMGrapheme32));
                 memcpy(dest_body->storage.blob_32, src_body->storage.blob_32,
                     dest_body->num_graphs * sizeof(MVMGrapheme32));
             }
@@ -36,12 +36,12 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         case MVM_STRING_GRAPHEME_ASCII:
         case MVM_STRING_GRAPHEME_8:
             if (dest_body->num_graphs) {
-                dest_body->storage.blob_8 = malloc(dest_body->num_graphs);
+                dest_body->storage.blob_8 = MVM_malloc(dest_body->num_graphs);
                 memcpy(dest_body->storage.blob_8, src_body->storage.blob_8,
                     dest_body->num_graphs);
             }
         case MVM_STRING_STRAND:
-            dest_body->storage.strands = malloc(dest_body->num_strands * sizeof(MVMStringStrand));
+            dest_body->storage.strands = MVM_malloc(dest_body->num_strands * sizeof(MVMStringStrand));
             memcpy(dest_body->storage.strands, src_body->storage.strands,
                 dest_body->num_strands * sizeof(MVMStringStrand));
         default:

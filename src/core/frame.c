@@ -10,7 +10,7 @@ static void grow_frame_pool(MVMThreadContext *tc, MVMuint32 pool_index) {
     do {
         new_size *= 2;
     } while (pool_index >= new_size);
-    tc->frame_pool_table = realloc(tc->frame_pool_table,
+    tc->frame_pool_table = MVM_realloc(tc->frame_pool_table,
         new_size * sizeof(MVMFrame *));
     memset(tc->frame_pool_table + old_size, 0,
         (new_size - old_size) * sizeof(MVMFrame *));
@@ -570,7 +570,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         }
                         else {
                             /* Allocate storage for state vars. */
-                            state = malloc(frame->static_info->body.env_size);
+                            state = MVM_malloc(frame->static_info->body.env_size);
                             memset(state, 0, frame->static_info->body.env_size);
                             ((MVMCode *)frame->code_ref)->body.state_vars = state;
                             state_act = 1;
@@ -663,7 +663,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
             MVMContinuationTag *tag = returner->continuation_tags;
             while (tag) {
                 MVMContinuationTag *next = tag->next;
-                free(tag);
+                MVM_free(tag);
                 tag = next;
             }
             returner->continuation_tags = NULL;
@@ -785,7 +785,7 @@ static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVMFrame *frame    = ud->frame;
     MVMuint8 *abs_addr = ud->abs_addr;
     MVMuint32 rel_addr = ud->rel_addr;
-    free(sr_data);
+    MVM_free(sr_data);
     MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL);
 }
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
@@ -810,7 +810,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             tc->cur_frame->args[1].o = NULL;
             tc->cur_frame->special_return = continue_unwind;
             {
-                MVMUnwindData *ud = malloc(sizeof(MVMUnwindData));
+                MVMUnwindData *ud = MVM_malloc(sizeof(MVMUnwindData));
                 ud->frame = frame;
                 ud->abs_addr = abs_addr;
                 ud->rel_addr = rel_addr;
@@ -1173,7 +1173,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 if (dlog) {
                                     fprintf(dlog, "I %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
                                     fflush(dlog);
-                                    free(c_name);
+                                    MVM_free(c_name);
                                 }
                                 return result;
                             }
@@ -1201,7 +1201,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 if (dlog) {
                                     fprintf(dlog, "I %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
                                     fflush(dlog);
-                                    free(c_name);
+                                    MVM_free(c_name);
                                 }
                                 return result;
                             }
@@ -1223,7 +1223,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 if (dlog) {
                     fprintf(dlog, "C %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
                     fflush(dlog);
-                    free(c_name);
+                    MVM_free(c_name);
                 }
                 return result;
             }
@@ -1245,7 +1245,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 if (dlog) {
                     fprintf(dlog, "F %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
                     fflush(dlog);
-                    free(c_name);
+                    MVM_free(c_name);
                 }
                 if (fcost+icost > 1)
                     try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
@@ -1258,7 +1258,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     if (dlog) {
         fprintf(dlog, "N %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
         fflush(dlog);
-        free(c_name);
+        MVM_free(c_name);
     }
     return NULL;
 }
@@ -1421,9 +1421,9 @@ static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, 
                 *tweak_cs = orig->with_invocant;
             }
             else {
-                MVMCallsite *new   = malloc(sizeof(MVMCallsite));
+                MVMCallsite *new   = MVM_malloc(sizeof(MVMCallsite));
                 MVMint32     fsize = orig->num_pos + (orig->arg_count - orig->num_pos) / 2;
-                new->arg_flags     = malloc((fsize + 1) * sizeof(MVMCallsiteEntry));
+                new->arg_flags     = MVM_malloc((fsize + 1) * sizeof(MVMCallsiteEntry));
                 new->arg_flags[0]  = MVM_CALLSITE_ARG_OBJ;
                 memcpy(new->arg_flags + 1, orig->arg_flags, fsize);
                 new->arg_count      = orig->arg_count + 1;
@@ -1528,7 +1528,7 @@ MVMFrame * MVM_frame_clone(MVMThreadContext *tc, MVMFrame *f) {
         memcpy(clone->env, f->env, f->static_info->body.env_size);
     }
     if (f->static_info->body.work_size) {
-        clone->work = malloc(f->static_info->body.work_size);
+        clone->work = MVM_malloc(f->static_info->body.work_size);
         memcpy(clone->work, f->work, f->static_info->body.work_size);
         clone->args = clone->work + f->static_info->body.num_locals;
     }

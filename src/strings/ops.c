@@ -24,7 +24,7 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 
 /* Allocates strand storage. */
 static MVMStringStrand * allocate_strands(MVMThreadContext *tc, MVMuint16 num_strands) {
-    return malloc(num_strands * sizeof(MVMStringStrand));
+    return MVM_malloc(num_strands * sizeof(MVMStringStrand));
 }
 
 /* Copies strands from one strand string to another. */
@@ -51,7 +51,7 @@ MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     ographs                      = MVM_string_graphs(tc, orig);
     result->body.num_graphs      = ographs;
     result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    result->body.storage.blob_32 = malloc(ographs * sizeof(MVMGrapheme32));
+    result->body.storage.blob_32 = MVM_malloc(ographs * sizeof(MVMGrapheme32));
 
     MVM_string_gi_init(tc, &gi, orig);
     for (i = 0; i < ographs; i++)
@@ -271,7 +271,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
             MVMGraphemeIter gi;
             MVMint32 i;
             result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-            result->body.storage.blob_32 = malloc(result->body.num_graphs * sizeof(MVMGrapheme32));
+            result->body.storage.blob_32 = MVM_malloc(result->body.num_graphs * sizeof(MVMGrapheme32));
             MVM_string_gi_init(tc, &gi, a);
             MVM_string_gi_move_to(tc, &gi, start_pos);
             for (i = 0; i < result->body.num_graphs; i++)
@@ -474,7 +474,7 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
 
     fwrite(utf8_encoded, 1, utf8_encoded_length + 1, stdout);
 
-    free(utf8_encoded);
+    MVM_free(utf8_encoded);
 }
 
 void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
@@ -490,7 +490,7 @@ void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
 
     fwrite(utf8_encoded, 1, utf8_encoded_length, stdout);
 
-    free(utf8_encoded);
+    MVM_free(utf8_encoded);
 }
 
 /* Tests whether one string a has the other string b as a substring at that index */
@@ -586,7 +586,7 @@ for (i = string->body.member + start; i < string->body.member + start + length; 
     if (dest->body.graphs == state->size) { \
         if (!state->size) state->size = 16; \
         else state->size *= 2; \
-        dest->body.dest_member = realloc(dest->body.dest_member, \
+        dest->body.dest_member = MVM_realloc(dest->body.dest_member, \
             state->size * sizeof(dest_size)); \
     } \
     dest->body.dest_member[dest->body.graphs++] = \
@@ -600,7 +600,7 @@ MVMString * funcname(MVMThreadContext *tc, MVMString *s) { \
     if (sgraphs) { \
         MVMString *result; \
         MVMGraphemeIter gi; \
-        MVMGrapheme32 *result_buf = malloc(sgraphs * sizeof(MVMGrapheme32)); \
+        MVMGrapheme32 *result_buf = MVM_malloc(sgraphs * sizeof(MVMGrapheme32)); \
         MVMint32 changed = 0; \
         MVMint64 i = 0; \
         MVM_string_gi_init(tc, &gi, s); \
@@ -619,7 +619,7 @@ MVMString * funcname(MVMThreadContext *tc, MVMString *s) { \
             return result; \
         } \
         else { \
-            free(result_buf); \
+            MVM_free(result_buf); \
         } \
     } \
     STRAND_CHECK(tc, s); \
@@ -837,7 +837,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
             : 1;
     else
         sstrands = 1;
-    pieces        = malloc(elems * sizeof(MVMString *));
+    pieces        = MVM_malloc(elems * sizeof(MVMString *));
     num_pieces    = 0;
     total_graphs  = 0;
     total_strands = 0;
@@ -892,7 +892,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         MVMint64        position = 0;
         MVMGraphemeIter gi;
         result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-        result->body.storage.blob_32 = malloc(total_graphs * sizeof(MVMGrapheme32));
+        result->body.storage.blob_32 = MVM_malloc(total_graphs * sizeof(MVMGrapheme32));
         for (i = 0; i < num_pieces; i++) {
             /* Get piece. */
             MVMString *piece = pieces[i];
@@ -1012,18 +1012,18 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
     case MVM_STRING_GRAPHEME_ASCII:
     case MVM_STRING_GRAPHEME_8: {
         MVMuint32      length = MVM_string_graphs(tc, s);
-        MVMGrapheme32 *flat   = malloc(length * sizeof(MVMGrapheme32));
+        MVMGrapheme32 *flat   = MVM_malloc(length * sizeof(MVMGrapheme32));
         MVMGrapheme8  *orig   = s->body.storage.blob_8;
         MVMuint32 i;
         for (i = 0; i < length; i++)
             flat[i] = orig[i];
         s->body.storage.blob_32 = flat;
         s->body.storage_type    = MVM_STRING_GRAPHEME_32;
-        free(orig);
+        MVM_free(orig);
         break;
     }
     case MVM_STRING_STRAND: {
-        MVMGrapheme32   *flat = malloc(MVM_string_graphs(tc, s) * sizeof(MVMGrapheme32));
+        MVMGrapheme32   *flat = MVM_malloc(MVM_string_graphs(tc, s) * sizeof(MVMGrapheme32));
         MVMStringStrand *orig = s->body.storage.strands;
         MVMuint32        i    = 0;
         MVMGraphemeIter gi;
@@ -1032,7 +1032,7 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
             flat[i++] = MVM_string_gi_get_grapheme(tc, &gi);
         s->body.storage.blob_32 = flat;
         s->body.storage_type    = MVM_STRING_GRAPHEME_32;
-        free(orig);
+        MVM_free(orig);
         break;
     }
     }
@@ -1045,7 +1045,7 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
     MVMStringIndex  sgraphs = MVM_string_graphs(tc, s);
     MVMStringIndex  spos    = 0;
     MVMStringIndex  balloc  = sgraphs;
-    MVMGrapheme32  *buffer  = malloc(sizeof(MVMGrapheme32) * balloc);
+    MVMGrapheme32  *buffer  = MVM_malloc(sizeof(MVMGrapheme32) * balloc);
     MVMStringIndex  bpos    = 0;
 
     for (; spos < sgraphs; spos++) {
@@ -1065,7 +1065,7 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
         if (esc) {
             if (bpos + 2 > balloc) {
                 balloc += 32;
-                buffer = realloc(buffer, sizeof(MVMGrapheme32) * balloc);
+                buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * balloc);
             }
             buffer[bpos++] = '\\';
             buffer[bpos++] = esc;
@@ -1073,7 +1073,7 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
         else {
             if (bpos + 1 > balloc) {
                 balloc += 32;
-                buffer = realloc(buffer, sizeof(MVMGrapheme32) * balloc);
+                buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * balloc);
             }
             buffer[bpos++] = graph;
         }
@@ -1093,7 +1093,7 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
     MVMString      *res     = NULL;
     MVMStringIndex  sgraphs = MVM_string_graphs(tc, s);
     MVMStringIndex  spos    = 0;
-    MVMGrapheme32  *rbuffer = malloc(sizeof(MVMGrapheme32) * sgraphs);
+    MVMGrapheme32  *rbuffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
     MVMStringIndex  rpos    = sgraphs;
 
     for (; spos < sgraphs; spos++)
@@ -1142,7 +1142,7 @@ MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     MVMStringIndex    alen = MVM_string_graphs(tc, a);
     MVMStringIndex    blen = MVM_string_graphs(tc, b);
     MVMStringIndex sgraphs = alen < blen ? alen : blen;
-    MVMGrapheme32  *buffer = malloc(sizeof(MVMGrapheme32) * sgraphs);
+    MVMGrapheme32  *buffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
     MVMStringIndex i, scanlen;
 
     /* Binary-and up to the length of the shortest string. */
@@ -1165,7 +1165,7 @@ MVMString * MVM_string_bitor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMStringIndex    alen = MVM_string_graphs(tc, a);
     MVMStringIndex    blen = MVM_string_graphs(tc, b);
     MVMStringIndex sgraphs = (alen > blen ? alen : blen);
-    MVMGrapheme32  *buffer = malloc(sizeof(MVMGrapheme32) * sgraphs);
+    MVMGrapheme32  *buffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
     MVMStringIndex i, scanlen;
 
     /* First, binary-or up to the length of the shortest string. */
@@ -1197,7 +1197,7 @@ MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     MVMStringIndex    alen = MVM_string_graphs(tc, a);
     MVMStringIndex    blen = MVM_string_graphs(tc, b);
     MVMStringIndex sgraphs = (alen > blen ? alen : blen);
-    MVMGrapheme32  *buffer = malloc(sizeof(MVMGrapheme32) * sgraphs);
+    MVMGrapheme32  *buffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
     MVMStringIndex i, scanlen;
 
     /* First, binary-xor up to the length of the shorter string. */
@@ -1508,7 +1508,7 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMGrapheme32 g) {
         MVM_exception_throw_adhoc(tc, "chr codepoint cannot be negative");
     s = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
     s->body.storage_type       = MVM_STRING_GRAPHEME_32;
-    s->body.storage.blob_32    = malloc(sizeof(MVMGrapheme32));
+    s->body.storage.blob_32    = MVM_malloc(sizeof(MVMGrapheme32));
     s->body.storage.blob_32[0] = g;
     s->body.num_graphs         = 1;
     return s;

@@ -63,7 +63,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCStr *cstr = (MVMCStr *)obj;
     if (obj && cstr->body.cstr)
-        free(cstr->body.cstr);
+        MVM_free(cstr->body.cstr);
 }
 
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {

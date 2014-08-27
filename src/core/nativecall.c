@@ -26,7 +26,7 @@ static MVMint16 get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMint16 is_
     MVMint16 result;
     if (strcmp(ctypename, "void") == 0) {
         if (!is_return) {
-            free(ctypename);
+            MVM_free(ctypename);
             MVM_exception_throw_adhoc(tc,
                 "Cannot use 'void' type except for on native call return values");
         }
@@ -62,7 +62,7 @@ static MVMint16 get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMint16 is_
         result = MVM_NATIVECALL_ARG_CALLBACK;
     else
         MVM_exception_throw_adhoc(tc, "Unknown type '%s' used for native call", ctypename);
-    free(ctypename);
+    MVM_free(ctypename);
     return result;
 }
 
@@ -80,7 +80,7 @@ static MVMint16 get_calling_convention(MVMThreadContext *tc, MVMString *name) {
         else
             MVM_exception_throw_adhoc(tc,
                 "Unknown calling convention '%s' used for native call", cname);
-        free(cname);
+        MVM_free(cname);
     }
     return result;
 }
@@ -144,7 +144,7 @@ MVMObject * make_str_result(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_
         }
         result = MVM_repr_box_str(tc, type, value);
         if (ret_type & MVM_NATIVECALL_ARG_FREE_STR)
-            free(cstring);
+            MVM_free(cstring);
     }
     return result;
 }
@@ -300,7 +300,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
     MVM_HASH_GET(tc, tc->native_callback_cache, cuid, callback_data_head);
 
     if (!callback_data_head) {
-        callback_data_head = malloc(sizeof(MVMNativeCallbackCacheHead));
+        callback_data_head = MVM_malloc(sizeof(MVMNativeCallbackCacheHead));
         callback_data_head->head = NULL;
 
         MVM_HASH_BIND(tc, tc->native_callback_cache, cuid, callback_data_head);
@@ -324,10 +324,10 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         MVMNativeCallback *callback_data;
 
         num_info                 = MVM_repr_elems(tc, sig_info);
-        callback_data            = malloc(sizeof(MVMNativeCallback));
+        callback_data            = MVM_malloc(sizeof(MVMNativeCallback));
         callback_data->num_types = num_info;
-        callback_data->typeinfos = malloc(num_info * sizeof(MVMint16));
-        callback_data->types     = malloc(num_info * sizeof(MVMObject *));
+        callback_data->typeinfos = MVM_malloc(num_info * sizeof(MVMint16));
+        callback_data->types     = MVM_malloc(num_info * sizeof(MVMObject *));
         callback_data->next      = NULL;
 
         /* A dyncall signature looks like this: xxx)x
@@ -335,13 +335,13 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         * num_info+1 must be NULL (zero-terminated string) and num_info-1
         * must be the ).
         */
-        signature = malloc(num_info + 2);
+        signature = MVM_malloc(num_info + 2);
         signature[num_info + 1] = '\0';
         signature[num_info - 1] = ')';
 
         /* We'll also build up a MoarVM callsite as we go. */
-        cs                 = malloc(sizeof(MVMCallsite));
-        cs->arg_flags      = malloc(num_info * sizeof(MVMCallsiteEntry));
+        cs                 = MVM_malloc(sizeof(MVMCallsite));
+        cs->arg_flags      = MVM_malloc(num_info * sizeof(MVMCallsiteEntry));
         cs->arg_count      = num_info - 1;
         cs->num_pos        = num_info - 1;
         cs->has_flattening = 0;
@@ -409,7 +409,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     MVMRegister res;
 
     /* Build a callsite and arguments buffer. */
-    MVMRegister *args = malloc(data->num_types * sizeof(MVMRegister));
+    MVMRegister *args = MVM_malloc(data->num_types * sizeof(MVMRegister));
     for (i = 1; i < data->num_types; i++) {
         MVMObject *type     = data->types[i];
         MVMint16   typeinfo = data->typeinfos[i];
@@ -549,7 +549,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     }
 
     /* Clean up. */
-    free(args);
+    MVM_free(args);
 
     /* Indicate what we're producing as a result. */
     return get_signature_char(data->typeinfos[0]);
@@ -569,7 +569,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     body->lib_name = lib_name;
     body->lib_handle = dlLoadLibrary(strlen(lib_name) ? lib_name : NULL);
     if (!body->lib_handle) {
-        free(sym_name);
+        MVM_free(sym_name);
         MVM_exception_throw_adhoc(tc, "Cannot locate native library '%s'", lib_name);
     }
 
@@ -578,15 +578,15 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     if (!body->entry_point)
         MVM_exception_throw_adhoc(tc, "Cannot locate symbol '%s' in native library '%s'",
             sym_name, lib_name);
-    free(sym_name);
+    MVM_free(sym_name);
 
     /* Set calling convention, if any. */
     body->convention = get_calling_convention(tc, conv);
 
     /* Transform each of the args info structures into a flag. */
     body->num_args  = MVM_repr_elems(tc, arg_info);
-    body->arg_types = malloc(sizeof(MVMint16) * (body->num_args ? body->num_args : 1));
-    body->arg_info  = malloc(sizeof(MVMObject *) * (body->num_args ? body->num_args : 1));
+    body->arg_types = MVM_malloc(sizeof(MVMint16) * (body->num_args ? body->num_args : 1));
+    body->arg_info  = MVM_malloc(sizeof(MVMObject *) * (body->num_args ? body->num_args : 1));
     for (i = 0; i < body->num_args; i++) {
         MVMObject *info = MVM_repr_at_pos_o(tc, arg_info, i);
         body->arg_types[i] = get_arg_type(tc, info, 0);
@@ -655,7 +655,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     char *str = unmarshal_string(tc, value, arg_types[i], &free);
                     if (free) {
                         if (!free_strs)
-                            free_strs = (char**)malloc(num_args * sizeof(char *));
+                            free_strs = (char**)MVM_malloc(num_args * sizeof(char *));
                         free_strs[num_strs] = str;
                         num_strs++;
                     }
@@ -742,8 +742,8 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     /* Free any memory that we need to. */
     if (free_strs) {
         for (i = 0; i < num_strs; i++)
-            free(free_strs[i]);
-        free(free_strs);
+            MVM_free(free_strs[i]);
+        MVM_free(free_strs);
     }
 
     /* Finally, free call VM. */

@@ -127,7 +127,7 @@ static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMStrin
                 repr->name);
 
     /* Fill a registry entry. */
-    entry = malloc(sizeof(MVMReprRegistry));
+    entry = MVM_malloc(sizeof(MVMReprRegistry));
     entry->name = name;
     entry->repr = repr;
 
@@ -174,7 +174,7 @@ int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr) {
 /* Initializes the representations registry, building up all of the various
  * representations. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc) {
-    tc->instance->repr_list = malloc(
+    tc->instance->repr_list = MVM_malloc(
             MVM_REPR_MAX_COUNT * sizeof *tc->instance->repr_list);
 
     /* Add all core representations. */

@@ -492,7 +492,7 @@ static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshIns *ins) {
             regs[i] = ins->operands[i].reg.orig;
             break;
         default:
-            free(regs);
+            MVM_free(regs);
             return NULL;
         }
     }
@@ -1589,8 +1589,8 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
         MVMuint8 *name  = MVM_string_ascii_encode_any(tc, sg->sf->body.name);
         MVM_jit_log(tc, "Constructing JIT graph (cuuid: %s, name: '%s')\n",
                     cuuid, name);
-        free(cuuid);
-        free(name);
+        MVM_free(cuuid);
+        MVM_free(name);
     }
 
     jgb.sg = sg;

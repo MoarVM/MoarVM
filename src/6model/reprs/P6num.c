@@ -22,7 +22,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVMP6numREPRData *repr_data = (MVMP6numREPRData *)malloc(sizeof(MVMP6numREPRData));
+        MVMP6numREPRData *repr_data = (MVMP6numREPRData *)MVM_malloc(sizeof(MVMP6numREPRData));
 
         repr_data->bits = sizeof(MVMnum64) * 8;
         mk_storage_spec(tc, repr_data->bits, &repr_data->storage_spec);
@@ -116,7 +116,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 
 /* Deserializes representation data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMP6numREPRData *repr_data = (MVMP6numREPRData *)malloc(sizeof(MVMP6numREPRData));
+    MVMP6numREPRData *repr_data = (MVMP6numREPRData *)MVM_malloc(sizeof(MVMP6numREPRData));
 
 
     repr_data->bits        = MVM_serialization_read_varint(tc, reader);

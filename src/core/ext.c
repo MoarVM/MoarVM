@@ -34,7 +34,7 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
         MVM_exception_throw_adhoc(tc, "extension symbol not found");
     }
 
-    entry = malloc(sizeof *entry);
+    entry = MVM_malloc(sizeof *entry);
     entry->sym = sym;
     entry->name = name;
 
@@ -142,7 +142,7 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
         }
     }
 
-    entry                    = malloc(sizeof *entry);
+    entry                    = MVM_malloc(sizeof *entry);
     entry->name              = name;
     entry->func              = func;
     entry->info.name         = cname;

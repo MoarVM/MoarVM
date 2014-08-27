@@ -146,7 +146,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     MVM_ASSIGN_REF(tc, &(STABLE(type_obj)->header), STABLE(type_obj)->method_cache, method_table);
     STABLE(type_obj)->mode_flags              = MVM_METHOD_CACHE_AUTHORITATIVE;
     STABLE(type_obj)->type_check_cache_length = 1;
-    STABLE(type_obj)->type_check_cache        = malloc(sizeof(MVMObject *));
+    STABLE(type_obj)->type_check_cache        = MVM_malloc(sizeof(MVMObject *));
     MVM_ASSIGN_REF(tc, &(STABLE(type_obj)->header), STABLE(type_obj)->type_check_cache[0], type_obj);
     attributes = ((MVMKnowHOWREPR *)self)->body.attributes;
 
@@ -475,7 +475,7 @@ static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject 
         });
 
         /* Also give it a boolification spec. */
-        bs = malloc(sizeof(MVMBoolificationSpec));
+        bs = MVM_malloc(sizeof(MVMBoolificationSpec));
         bs->mode = MVM_BOOL_MODE_HAS_ELEMS;
         bs->method = NULL;
         array->st->boolification_spec = bs;
@@ -591,7 +591,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     MVMObject *type = tc->instance->slot = repr->type_object_for(tc, NULL); \
     if (makeboolspec) { \
         MVMBoolificationSpec *bs; \
-        bs = malloc(sizeof(MVMBoolificationSpec)); \
+        bs = MVM_malloc(sizeof(MVMBoolificationSpec)); \
         bs->mode = boolspec; \
         bs->method = NULL; \
         type->st->boolification_spec = bs; \

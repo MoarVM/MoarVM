@@ -75,7 +75,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0);
             fprintf(stderr, "Op %d%s\n", (int)*((MVMuint16 *)cur_op), trace_line);
             /* slow tracing is slow. Feel free to speed it. */
-            free(trace_line);
+            MVM_free(trace_line);
         }
 #endif
 
@@ -1068,7 +1068,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
                 /* Copy the arguments. */
                 MVMuint32 arg_size = tc->cur_frame->params.arg_count * sizeof(MVMRegister);
-                MVMRegister *args = malloc(arg_size);
+                MVMRegister *args = MVM_malloc(arg_size);
                 memcpy(args, tc->cur_frame->params.args, arg_size);
 
                 /* Create effective callsite. */
@@ -1076,7 +1076,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
                 /* Set up the call capture. */
                 cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
-                cc->body.apc  = malloc(sizeof(MVMArgProcContext));
+                cc->body.apc  = MVM_malloc(sizeof(MVMArgProcContext));
                 memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
                 MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
 
@@ -1885,7 +1885,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint8  *buf = MVM_string_ascii_encode(tc, s, NULL);
                 MVMObject *a = MVM_repr_alloc_init(tc, type);
                 MVM_bigint_from_str(tc, a, buf);
-                free(buf);
+                MVM_free(buf);
                 GET_REG(cur_op, 0).o = a;
                 cur_op += 6;
                 goto NEXT;
@@ -2727,13 +2727,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 MVMObject *types = GET_REG(cur_op, 2).o;
                 MVMint64 i, elems = REPR(types)->elems(tc, STABLE(types), types, OBJECT_BODY(types));
-                MVMObject **cache = malloc(sizeof(MVMObject *) * elems);
+                MVMObject **cache = MVM_malloc(sizeof(MVMObject *) * elems);
                 for (i = 0; i < elems; i++) {
                     MVM_ASSIGN_REF(tc, &(STABLE(obj)->header), cache[i], MVM_repr_at_pos_o(tc, types, i));
                 }
                 /* technically this free isn't thread safe */
                 if (STABLE(obj)->type_check_cache)
-                    free(STABLE(obj)->type_check_cache);
+                    MVM_free(STABLE(obj)->type_check_cache);
                 STABLE(obj)->type_check_cache = cache;
                 STABLE(obj)->type_check_cache_length = (MVMuint16)elems;
                 MVM_SC_WB_ST(tc, STABLE(obj));
@@ -2753,7 +2753,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_ASSIGN_REF(tc, &(st->header), is->invocation_handler, invocation_handler);
                 /* XXX not thread safe, but this should occur on non-shared objects anyway... */
                 if (st->invocation_spec)
-                    free(st->invocation_spec);
+                    MVM_free(st->invocation_spec);
                 st->invocation_spec = is;
                 cur_op += 8;
                 goto NEXT;
@@ -2784,7 +2784,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(setboolspec): {
                 MVMSTable            *st = GET_REG(cur_op, 0).o->st;
-                MVMBoolificationSpec *bs = malloc(sizeof(MVMBoolificationSpec));
+                MVMBoolificationSpec *bs = MVM_malloc(sizeof(MVMBoolificationSpec));
                 bs->mode = (MVMuint32)GET_REG(cur_op, 2).i64;
                 MVM_ASSIGN_REF(tc, &(st->header), bs->method, GET_REG(cur_op, 4).o);
                 st->boolification_spec = bs;

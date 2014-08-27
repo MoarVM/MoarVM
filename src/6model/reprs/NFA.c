@@ -126,16 +126,16 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
     if (body->num_states > 0) {
         /* Read state edge list counts. */
-        body->num_state_edges = malloc(body->num_states * sizeof(MVMint64));
+        body->num_state_edges = MVM_malloc(body->num_states * sizeof(MVMint64));
         for (i = 0; i < body->num_states; i++)
             body->num_state_edges[i] = MVM_serialization_read_varint(tc, reader);
 
         /* Read state graph. */
-        body->states = malloc(body->num_states * sizeof(MVMNFAStateInfo *));
+        body->states = MVM_malloc(body->num_states * sizeof(MVMNFAStateInfo *));
         for (i = 0; i < body->num_states; i++) {
             MVMint64 edges = body->num_state_edges[i];
             if (edges > 0)
-                body->states[i] = malloc(edges * sizeof(MVMNFAStateInfo));
+                body->states[i] = MVM_malloc(edges * sizeof(MVMNFAStateInfo));
             for (j = 0; j < edges; j++) {
                 body->states[i][j].act = MVM_serialization_read_varint(tc, reader);
                 body->states[i][j].to = MVM_serialization_read_varint(tc, reader);
@@ -227,8 +227,8 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
         num_states = MVM_repr_elems(tc, states) - 1;
         nfa->num_states = num_states;
         if (num_states > 0) {
-            nfa->num_state_edges = malloc(num_states * sizeof(MVMint64));
-            nfa->states = malloc(num_states * sizeof(MVMNFAStateInfo *));
+            nfa->num_state_edges = MVM_malloc(num_states * sizeof(MVMint64));
+            nfa->states = MVM_malloc(num_states * sizeof(MVMNFAStateInfo *));
         }
         for (i = 0; i < num_states; i++) {
             MVMObject *edge_info = MVM_repr_at_pos_o(tc, states, i + 1);
@@ -238,7 +238,7 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
 
             nfa->num_state_edges[i] = edges;
             if (edges > 0)
-                nfa->states[i] = malloc(edges * sizeof(MVMNFAStateInfo));
+                nfa->states[i] = MVM_malloc(edges * sizeof(MVMNFAStateInfo));
 
             for (j = 0; j < elems; j += 3) {
                 MVMint64 act = MVM_coerce_simple_intify(tc,
@@ -338,9 +338,9 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     num_states = nfa->num_states;
     if (tc->nfa_alloc_states < num_states) {
         size_t alloc   = (num_states + 1) * sizeof(MVMint64);
-        tc->nfa_done   = (MVMint64 *)realloc(tc->nfa_done, alloc);
-        tc->nfa_curst  = (MVMint64 *)realloc(tc->nfa_curst, alloc);
-        tc->nfa_nextst = (MVMint64 *)realloc(tc->nfa_nextst, alloc);
+        tc->nfa_done   = (MVMint64 *)MVM_realloc(tc->nfa_done, alloc);
+        tc->nfa_curst  = (MVMint64 *)MVM_realloc(tc->nfa_curst, alloc);
+        tc->nfa_nextst = (MVMint64 *)MVM_realloc(tc->nfa_nextst, alloc);
         tc->nfa_alloc_states = num_states;
     }
     done   = tc->nfa_done;
@@ -351,7 +351,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     /* Allocate fates array. */
     fate_arr_len = 1 + MVM_repr_elems(tc, nfa->fates);
     if (tc->nfa_fates_len < fate_arr_len) {
-        tc->nfa_fates     = (MVMint64 *)realloc(tc->nfa_fates, sizeof(MVMint64) * fate_arr_len);
+        tc->nfa_fates     = (MVMint64 *)MVM_realloc(tc->nfa_fates, sizeof(MVMint64) * fate_arr_len);
         tc->nfa_fates_len = fate_arr_len;
     }
     fates = tc->nfa_fates;
@@ -407,7 +407,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                     else {
                         if (total_fates >= fate_arr_len) {
                             fate_arr_len      = total_fates + 1;
-                            tc->nfa_fates     = (MVMint64 *)realloc(tc->nfa_fates,
+                            tc->nfa_fates     = (MVMint64 *)MVM_realloc(tc->nfa_fates,
                                 sizeof(MVMint64) * fate_arr_len);
                             tc->nfa_fates_len = fate_arr_len;
                             fates             = tc->nfa_fates;
