@@ -268,6 +268,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_add_I: return &MVM_bigint_add;
     case MVM_OP_sub_I: return &MVM_bigint_sub;
     case MVM_OP_mul_I: return &MVM_bigint_mul;
+    case MVM_OP_div_I: return &MVM_bigint_div;
+    case MVM_OP_mod_I: return &MVM_bigint_mod;
     case MVM_OP_lcm_I: return &MVM_bigint_lcm;
     case MVM_OP_gcd_I: return &MVM_bigint_gcd;
     case MVM_OP_bool_I: return &MVM_bigint_bool;
@@ -1419,6 +1421,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_add_I:
     case MVM_OP_sub_I:
     case MVM_OP_mul_I:
+    case MVM_OP_div_I:
+    case MVM_OP_mod_I:
     case MVM_OP_lcm_I:
     case MVM_OP_gcd_I: {
         MVMint16 src_a = ins->operands[1].reg.orig;
