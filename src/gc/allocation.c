@@ -18,7 +18,7 @@ void * MVM_realloc(void *p, size_t len) {
     void *n;
     n = realloc(p, len);
 
-    if (!n)
+    if (!n && len > 0)
         MVM_panic(1, "Memory reallocation failed; could not allocate %zu bytes", len);
 
     return n;
