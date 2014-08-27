@@ -19,7 +19,7 @@ static void clear_tag(MVMThreadContext *tc, void *sr_data) {
 void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag, 
                             MVMObject *code, MVMRegister *res_reg) {
     /* Save the tag. */
-    MVMContinuationTag *tag_record = malloc(sizeof(MVMContinuationTag));
+    MVMContinuationTag *tag_record = MVM_malloc(sizeof(MVMContinuationTag));
     tag_record->tag = tag;
     tag_record->active_handlers = tc->active_handlers;
     tag_record->next = tc->cur_frame->continuation_tags;

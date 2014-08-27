@@ -124,7 +124,7 @@ static mp_int * force_bigint(MVMP6bigintBody *body, mp_int **tmp) {
     }
     else {
         MVMint32 value = body->u.smallint.value;
-        mp_int *i = malloc(sizeof(mp_int));
+        mp_int *i = MVM_malloc(sizeof(mp_int));
         mp_init(i);
         if (value >= 0) {
             mp_set_long(i, value);
@@ -158,7 +158,7 @@ static void store_int64_result(MVMP6bigintBody *body, MVMint64 result) {
         body->u.smallint.value = (MVMint32)result;
     }
     else {
-        mp_int *i = malloc(sizeof(mp_int));
+        mp_int *i = MVM_malloc(sizeof(mp_int));
         mp_init(i);
         if (result >= 0) {
             MVM_bigint_mp_set_uint64(i, (MVMuint64)result);
@@ -285,7 +285,7 @@ void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *sou
     MVMP6bigintBody *bb = get_bigint_body(tc, result); \
     if (MVM_BIGINT_IS_BIG(ba)) { \
         mp_int *ia = ba->u.bigint; \
-        mp_int *ib = malloc(sizeof(mp_int)); \
+        mp_int *ib = MVM_malloc(sizeof(mp_int)); \
         mp_init(ib); \
         mp_##opname(ia, ib); \
         store_bigint_result(bb, ib); \
@@ -314,7 +314,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     bc = get_bigint_body(tc, result); \
     ia = force_bigint(ba, tmp); \
     ib = force_bigint(bb, tmp); \
-    ic = malloc(sizeof(mp_int)); \
+    ic = MVM_malloc(sizeof(mp_int)); \
     mp_init(ic); \
     mp_##opname(ia, ib, ic); \
     store_bigint_result(bc, ic); \
@@ -338,7 +338,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
         mp_int *tmp[2] = { NULL, NULL }; \
         mp_int *ia = force_bigint(ba, tmp); \
         mp_int *ib = force_bigint(bb, tmp); \
-        mp_int *ic = malloc(sizeof(mp_int)); \
+        mp_int *ic = MVM_malloc(sizeof(mp_int)); \
         mp_init(ic); \
         mp_##opname(ia, ib, ic); \
         store_bigint_result(bc, ic); \
@@ -363,7 +363,7 @@ void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, 
         mp_int *tmp[2] = { NULL, NULL }; \
         mp_int *ia = force_bigint(ba, tmp); \
         mp_int *ib = force_bigint(bb, tmp); \
-        mp_int *ic = malloc(sizeof(mp_int)); \
+        mp_int *ic = MVM_malloc(sizeof(mp_int)); \
         mp_init(ic); \
         two_complement_bitop(ia, ib, ic, mp_##opname); \
         store_bigint_result(bc, ic); \
@@ -407,7 +407,7 @@ MVMObject *MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         mp_int *tmp[2] = { NULL, NULL };
         mp_int *ia = force_bigint(ba, tmp);
         mp_int *ib = force_bigint(bb, tmp);
-        mp_int *ic = malloc(sizeof(mp_int));
+        mp_int *ic = MVM_malloc(sizeof(mp_int));
         mp_init(ic);
         mp_gcd(ia, ib, ic);
         store_bigint_result(bc, ic);
@@ -474,7 +474,7 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
         mp_int *tmp[2] = { NULL, NULL };
         mp_int *ia = force_bigint(ba, tmp);
         mp_int *ib = force_bigint(bb, tmp);
-        mp_int *ic = malloc(sizeof(mp_int));
+        mp_int *ic = MVM_malloc(sizeof(mp_int));
         int mp_result;
 
         mp_init(ic);
@@ -530,7 +530,7 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         ia = force_bigint(ba, tmp);
         ib = force_bigint(bb, tmp);
 
-        ic = malloc(sizeof(mp_int));
+        ic = MVM_malloc(sizeof(mp_int));
         mp_init(ic);
 
         // if we do a div with a negative, we need to make sure
@@ -600,7 +600,7 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
         r = MVM_repr_box_int(tc, int_type, 1);
     }
     else if (cmp == MP_GT) {
-        mp_int *ic = malloc(sizeof(mp_int));
+        mp_int *ic = MVM_malloc(sizeof(mp_int));
         mp_init(ic);
         exponent_d = mp_get_int(exponent);
         if ((MP_GT == mp_cmp_d(exponent, exponent_d))) {
@@ -639,7 +639,7 @@ void MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMin
     if (MVM_BIGINT_IS_BIG(ba) || n >= 31) {
         mp_int *tmp[1] = { NULL };
         mp_int *ia = force_bigint(ba, tmp);
-        mp_int *ib = malloc(sizeof(mp_int));
+        mp_int *ib = MVM_malloc(sizeof(mp_int));
         mp_init(ib);
         two_complement_shl(ib, ia, n);
         store_bigint_result(bb, ib);
@@ -660,7 +660,7 @@ void MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMin
     if (MVM_BIGINT_IS_BIG(ba) || n < 0) {
         mp_int *tmp[1] = { NULL };
         mp_int *ia = force_bigint(ba, tmp);
-        mp_int *ib = malloc(sizeof(mp_int));
+        mp_int *ib = MVM_malloc(sizeof(mp_int));
         mp_init(ib);
         two_complement_shl(ib, ia, -n);
         store_bigint_result(bb, ib);
@@ -679,7 +679,7 @@ void MVM_bigint_not(MVMThreadContext *tc, MVMObject *result, MVMObject *a) {
     MVMP6bigintBody *bb = get_bigint_body(tc, result);
     if (MVM_BIGINT_IS_BIG(ba)) {
         mp_int *ia = ba->u.bigint;
-        mp_int *ib = malloc(sizeof(mp_int));
+        mp_int *ib = MVM_malloc(sizeof(mp_int));
         mp_init(ib);
         /* two's complement not: add 1 and negate */
         mp_add_d(ia, 1, ib);
@@ -703,7 +703,7 @@ void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MV
     mp_int *ia = force_bigint(ba, tmp);
     mp_int *ib = force_bigint(bb, tmp);
     mp_int *ic = force_bigint(bc, tmp);
-    mp_int *id = malloc(sizeof(mp_int));
+    mp_int *id = MVM_malloc(sizeof(mp_int));
     mp_init(id);
 
     mp_exptmod(ia, ib, ic, id);
@@ -713,7 +713,7 @@ void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MV
 
 void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, MVMuint8 *buf) {
     MVMP6bigintBody *body = get_bigint_body(tc, a);
-    mp_int *i = malloc(sizeof(mp_int));
+    mp_int *i = MVM_malloc(sizeof(mp_int));
     mp_init(i);
     mp_read_radix(i, (const char *)buf, 10);
     if (can_be_smallint(i)) {
@@ -735,7 +735,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
         char *buf;
         MVMString *result;
         mp_radix_size(i, base, &len);
-        buf = (char *) malloc(len);
+        buf = (char *) MVM_malloc(len);
         mp_toradix_n(i, buf, base, len);
         result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
         free(buf);
@@ -764,7 +764,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
             }
 
             mp_radix_size(&i, base, &len);
-            buf = (char *) malloc(len);
+            buf = (char *) MVM_malloc(len);
             mp_toradix_n(&i, buf, base, len);
             result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
             free(buf);
@@ -788,7 +788,7 @@ MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
 
 void MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *a, MVMnum64 n) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
-    mp_int *ia = malloc(sizeof(mp_int));
+    mp_int *ia = MVM_malloc(sizeof(mp_int));
     mp_init(ia);
     from_num(n, ia);
     store_bigint_result(ba, ia);
@@ -829,7 +829,7 @@ void MVM_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     MVMP6bigintBody *bb = get_bigint_body(tc, b);
 
     mp_int *tmp[1] = { NULL };
-    mp_int *rnd = malloc(sizeof(mp_int));
+    mp_int *rnd = MVM_malloc(sizeof(mp_int));
     mp_int *max = force_bigint(bb, tmp);
 
     mp_init(rnd);
@@ -910,8 +910,8 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     bvalue = get_bigint_body(tc, value_obj);
     bbase  = get_bigint_body(tc, base_obj);
 
-    value = malloc(sizeof(mp_int));
-    base  = malloc(sizeof(mp_int));
+    value = MVM_malloc(sizeof(mp_int));
+    base  = MVM_malloc(sizeof(mp_int));
 
     mp_init(value);
     mp_init(base);

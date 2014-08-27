@@ -57,7 +57,7 @@ void MVM_sc_add_all_scs_entry(MVMThreadContext *tc, MVMSerializationContextBody 
         if (tc->instance->all_scs_next_idx == 0) {
             /* First time; allocate, and NULL first slot as it is
              * the "no SC" sentinel value. */
-            tc->instance->all_scs    = malloc(tc->instance->all_scs_alloc * sizeof(MVMSerializationContextBody *));
+            tc->instance->all_scs    = MVM_malloc(tc->instance->all_scs_alloc * sizeof(MVMSerializationContextBody *));
             tc->instance->all_scs[0] = NULL;
             tc->instance->all_scs_next_idx++;
         }

@@ -50,10 +50,10 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     free(host_cstr);
     if (error == 0) {
         if (result->ai_addr->sa_family == AF_INET6) {
-            dest = malloc(sizeof(struct sockaddr_in6));
+            dest = MVM_malloc(sizeof(struct sockaddr_in6));
             memcpy(dest, result->ai_addr, sizeof(struct sockaddr_in6));
         } else {
-            dest = malloc(sizeof(struct sockaddr));
+            dest = MVM_malloc(sizeof(struct sockaddr));
             memcpy(dest, result->ai_addr, sizeof(struct sockaddr));
         }
     }
@@ -77,8 +77,8 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     if (!data->ss.handle) {
         struct sockaddr *dest    = MVM_io_resolve_host_name(tc, host, port);
-        uv_tcp_t        *socket  = malloc(sizeof(uv_tcp_t));
-        uv_connect_t    *connect = malloc(sizeof(uv_connect_t));
+        uv_tcp_t        *socket  = MVM_malloc(sizeof(uv_tcp_t));
+        uv_connect_t    *connect = MVM_malloc(sizeof(uv_connect_t));
         int r;
 
         data->ss.cur_tc = tc;
@@ -115,7 +115,7 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     if (!data->ss.handle) {
         struct sockaddr *dest    = MVM_io_resolve_host_name(tc, host, port);
-        uv_tcp_t        *socket  = malloc(sizeof(uv_tcp_t));
+        uv_tcp_t        *socket  = MVM_malloc(sizeof(uv_tcp_t));
         int r;
 
         if ((r = uv_tcp_init(tc->loop, socket)) < 0 ||
@@ -187,7 +187,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
         MVM_exception_throw_adhoc(tc, "Failed to listen: unknown error");
     }
     else {
-        uv_tcp_t *client    = malloc(sizeof(uv_tcp_t));
+        uv_tcp_t *client    = MVM_malloc(sizeof(uv_tcp_t));
         uv_stream_t *server = data->accept_server;
         int r;
         uv_tcp_init(tc->loop, client);

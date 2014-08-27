@@ -3,7 +3,7 @@
 #include "platform/mmap.h"
 #include "emit.h"
 
-#define COPY_ARRAY(a, n, t) memcpy(malloc(n * sizeof(t)), a, n * sizeof(t))
+#define COPY_ARRAY(a, n, t) memcpy(MVM_malloc(n * sizeof(t)), a, n * sizeof(t))
 
 
 static const MVMuint16 MAGIC_BYTECODE[] = { MVM_OP_sp_jit_enter, 0 };
@@ -14,7 +14,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     size_t codesize;
     /* Space for globals */
     MVMint32  num_globals = MVM_jit_num_globals();
-    void ** dasm_globals = malloc(num_globals * sizeof(void*));
+    void ** dasm_globals = MVM_malloc(num_globals * sizeof(void*));
     MVMJitNode * node = jg->first_node;
     MVMJitCode * code;
     MVMint32 i;
@@ -70,7 +70,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 
     MVM_jit_log(tc, "Bytecode size: %d\n", codesize);
     /* Create code segment */
-    code = malloc(sizeof(MVMJitCode));
+    code = MVM_malloc(sizeof(MVMJitCode));
     code->func_ptr   = (MVMJitFunc)memory;
     code->size       = codesize;
     code->bytecode   = (MVMuint8*)MAGIC_BYTECODE;
@@ -78,7 +78,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 
     /* Get the basic block labels */
     code->num_labels = jg->num_labels;
-    code->labels = malloc(sizeof(void*) * code->num_labels);
+    code->labels = MVM_malloc(sizeof(void*) * code->num_labels);
     for (i = 0; i < code->num_labels; i++) {
         MVMint32 offset = dasm_getpclabel(&state, i);
         if (offset < 0)

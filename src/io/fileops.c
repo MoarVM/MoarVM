@@ -338,7 +338,7 @@ void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename,
 MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable) {
     switch(uv_guess_handle(type)) {
         case UV_TTY: {
-            uv_tty_t * const handle = malloc(sizeof(uv_tty_t));
+            uv_tty_t * const handle = MVM_malloc(sizeof(uv_tty_t));
             uv_tty_init(tc->loop, handle, type, readable);
 #ifdef _WIN32
             uv_stream_set_blocking((uv_stream_t *)handle, 1);
@@ -350,7 +350,7 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
         case UV_FILE:
             return MVM_file_handle_from_fd(tc, type);
         case UV_NAMED_PIPE: {
-            uv_pipe_t * const handle = malloc(sizeof(uv_pipe_t));
+            uv_pipe_t * const handle = MVM_malloc(sizeof(uv_pipe_t));
             uv_pipe_init(tc->loop, handle, 0);
 #ifdef _WIN32
             uv_stream_set_blocking((uv_stream_t *)handle, 1);
@@ -393,7 +393,7 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
                 int    need_sep     = lib_path[lib_path_i][lib_path_len - 1] != '/' &&
                                       lib_path[lib_path_i][lib_path_len - 1] != '\\';
                 int    new_len      = lib_path_len + (need_sep ? 1 : 0) + orig_len;
-                char * new_path     = malloc(new_len);
+                char * new_path     = MVM_malloc(new_len);
                 memcpy(new_path, lib_path[lib_path_i], lib_path_len);
                 if (need_sep) {
                     new_path[lib_path_len] = '/';

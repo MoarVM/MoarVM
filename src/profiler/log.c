@@ -114,7 +114,7 @@ void MVM_profile_log_unwind(MVMThreadContext *tc) {
  * of view of the profiler, and saves each of them. */
 MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, MVMFrame *root_frame) {
     MVMProfileThreadData        *ptd       = get_thread_data(tc);
-    MVMProfileContinuationData  *cd        = malloc(sizeof(MVMProfileContinuationData));
+    MVMProfileContinuationData  *cd        = MVM_malloc(sizeof(MVMProfileContinuationData));
     MVMStaticFrame             **sfs       = NULL;
     MVMuint64                   *modes     = NULL;
     MVMFrame                    *cur_frame = tc->cur_frame;

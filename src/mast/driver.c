@@ -11,7 +11,7 @@ static MVMCallsite no_arg_callsite = { NULL, 0, 0 };
     result->name   = MVM_repr_at_key_o(tc, types, key); \
 } while (0);
 MASTNodeTypes * node_types_struct(MVMThreadContext *tc, MVMObject *types) {
-    MASTNodeTypes *result = malloc(sizeof(MASTNodeTypes));
+    MASTNodeTypes *result = MVM_malloc(sizeof(MASTNodeTypes));
     MVMROOT(tc, types, {
         grab_type(CompUnit);
         grab_type(Frame);

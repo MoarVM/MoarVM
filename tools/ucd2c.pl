@@ -873,7 +873,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
                     && codepoint_table_index < MVMCODEPOINTNAMESCOUNT; extent_span_index++) {
                     const char *name = codepoint_names[codepoint_table_index];
                     if (name) {
-                        MVMUnicodeNameRegistry *entry = malloc(sizeof(MVMUnicodeNameRegistry));
+                        MVMUnicodeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
                         entry->name = (char *)name;
                         entry->codepoint = codepoint;
                         HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);
@@ -889,7 +889,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             case $FATE_SPAN: {
                 const char *name = codepoint_names[codepoint_table_index];
                 if (name) {
-                    MVMUnicodeNameRegistry *entry = malloc(sizeof(MVMUnicodeNameRegistry));
+                    MVMUnicodeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
                     entry->name = (char *)name;
                     entry->codepoint = codepoint;
                     HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);
@@ -900,22 +900,22 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             }
         }
     }
-    entry = malloc(sizeof(MVMUnicodeNameRegistry));
+    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
     entry->name = "LF";
     entry->codepoint = 10;
     HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "LF", 2, entry);
 
-    entry = malloc(sizeof(MVMUnicodeNameRegistry));
+    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
     entry->name = "FF";
     entry->codepoint = 12;
     HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "FF", 2, entry);
 
-    entry = malloc(sizeof(MVMUnicodeNameRegistry));
+    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
     entry->name = "CR";
     entry->codepoint = 13;
     HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "CR", 2, entry);
 
-    entry = malloc(sizeof(MVMUnicodeNameRegistry));
+    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
     entry->name = "NEL";
     entry->codepoint = 133;
     HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "NEL", 3, entry);

@@ -2,13 +2,13 @@
 
 /* Allocates a new GC worklist. */
 MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_gen2) {
-    MVMGCWorklist *worklist = malloc(sizeof(MVMGCWorklist));
+    MVMGCWorklist *worklist = MVM_malloc(sizeof(MVMGCWorklist));
     worklist->items = 0;
     worklist->frames = 0;
     worklist->alloc = MVM_GC_WORKLIST_START_SIZE;
     worklist->frames_alloc = MVM_GC_WORKLIST_START_SIZE;
-    worklist->list  = malloc(worklist->alloc * sizeof(MVMCollectable **));
-    worklist->frames_list  = malloc(worklist->frames_alloc * sizeof(MVMFrame *));
+    worklist->list  = MVM_malloc(worklist->alloc * sizeof(MVMCollectable **));
+    worklist->frames_list  = MVM_malloc(worklist->frames_alloc * sizeof(MVMFrame *));
     worklist->include_gen2 = include_gen2;
     return worklist;
 }

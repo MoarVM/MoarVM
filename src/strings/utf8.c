@@ -195,7 +195,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     MVMint32 line_ending = 0;
     MVMint32 state = 0;
     MVMint32 bufsize = bytes;
-    MVMGrapheme32 *buffer = malloc(sizeof(MVMGrapheme32) * bufsize);
+    MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * bufsize);
     size_t orig_bytes;
     const char *orig_utf8;
     MVMint32 line;
@@ -288,7 +288,7 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 
     /* Rough starting-size estimate is number of bytes in the head buffer. */
     bufsize = ds->bytes_head->length;
-    buffer = malloc(bufsize * sizeof(MVMGrapheme32));
+    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
@@ -304,7 +304,7 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                      * one to the buffers linked list, and continue with a new
                      * one. */
                     MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                    buffer = malloc(bufsize * sizeof(MVMGrapheme32));
+                    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
                     count = 0;
                 }
                 buffer[count++] = codepoint; /* XXX NFG needs a change here */
@@ -353,7 +353,7 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
         MVM_exception_throw_adhoc(tc, "length out of range");
 
     /* give it two spaces for padding in case `say` wants to append a \r\n or \n */
-    result = malloc(sizeof(MVMint32) * length + 2);
+    result = MVM_malloc(sizeof(MVMint32) * length + 2);
     arr = result;
 
     memset(result, 0, sizeof(MVMint32) * length + 2);
@@ -385,7 +385,7 @@ char * MVM_string_utf8_encode_C_string(MVMThreadContext *tc, MVMString *str) {
     MVMuint8 * utf8_string = MVM_string_utf8_encode(tc, str, &output_size);
     /* this is almost always called from error-handling code. Don't care if it
      * contains embedded NULs. XXX TODO: Make sure all uses of this free what it returns */
-    result = malloc(output_size + 1);
+    result = MVM_malloc(output_size + 1);
     memcpy(result, utf8_string, output_size);
     free(utf8_string);
     result[output_size] = (char)0;

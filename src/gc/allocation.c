@@ -5,9 +5,9 @@
 
 #include "moar.h"
 
-void * MVM_malloc(size_t len) {
+void * MVM_MVM_malloc(size_t len) {
     void *p;
-    p = malloc(len);
+    p = MVM_malloc(len);
     if (!p)
         MVM_panic(1, "Memory allocation failed; could not allocate %zu bytes", len);
 

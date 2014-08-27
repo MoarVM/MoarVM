@@ -3,16 +3,16 @@
 /* Creates a new second generation allocator. */
 MVMGen2Allocator * MVM_gc_gen2_create(MVMInstance *i) {
     /* Create allocator data structure. */
-    MVMGen2Allocator *al = malloc(sizeof(MVMGen2Allocator));
+    MVMGen2Allocator *al = MVM_malloc(sizeof(MVMGen2Allocator));
 
     /* Create empty size classes array data structure. */
-    al->size_classes = malloc(sizeof(MVMGen2SizeClass) * MVM_GEN2_BINS);
+    al->size_classes = MVM_malloc(sizeof(MVMGen2SizeClass) * MVM_GEN2_BINS);
     memset(al->size_classes, 0, sizeof(MVMGen2SizeClass) * MVM_GEN2_BINS);
 
     /* Set up overflows area. */
     al->alloc_overflows = MVM_GEN2_OVERFLOWS;
     al->num_overflows = 0;
-    al->overflows = malloc(al->alloc_overflows * sizeof(MVMCollectable *));
+    al->overflows = MVM_malloc(al->alloc_overflows * sizeof(MVMCollectable *));
 
     return al;
 }
@@ -24,8 +24,8 @@ static void setup_bin(MVMGen2Allocator *al, MVMuint32 bin) {
 
     /* We'll just allocate a single page to start off with. */
     al->size_classes[bin].num_pages = 1;
-    al->size_classes[bin].pages     = malloc(sizeof(void *) * al->size_classes[bin].num_pages);
-    al->size_classes[bin].pages[0]  = malloc(page_size);
+    al->size_classes[bin].pages     = MVM_malloc(sizeof(void *) * al->size_classes[bin].num_pages);
+    al->size_classes[bin].pages[0]  = MVM_malloc(page_size);
 
     /* Set up allocation position and limit. */
     al->size_classes[bin].alloc_pos = al->size_classes[bin].pages[0];
@@ -45,7 +45,7 @@ static void add_page(MVMGen2Allocator *al, MVMuint32 bin) {
     al->size_classes[bin].num_pages++;
     al->size_classes[bin].pages = realloc(al->size_classes[bin].pages,
         sizeof(void *) * al->size_classes[bin].num_pages);
-    al->size_classes[bin].pages[cur_page] = malloc(page_size);
+    al->size_classes[bin].pages[cur_page] = MVM_malloc(page_size);
 
     /* Set up allocation position and limit. */
     al->size_classes[bin].alloc_pos = al->size_classes[bin].pages[cur_page];
@@ -91,7 +91,7 @@ void * MVM_gc_gen2_allocate(MVMGen2Allocator *al, MVMuint32 size) {
     }
     else {
         /* We're beyond the size class bins, so resort to malloc. */
-        result = malloc(size);
+        result = MVM_malloc(size);
 
         /* Add to overflows list. */
         if (al->num_overflows == al->alloc_overflows) {
@@ -165,7 +165,7 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
 
         if (dest_gen2->size_classes[bin].pages == NULL) {
             dest_gen2->size_classes[bin].pages
-                = malloc(sizeof(void *) * gen2->size_classes[bin].num_pages);
+                = MVM_malloc(sizeof(void *) * gen2->size_classes[bin].num_pages);
             dest_gen2->size_classes[bin].num_pages = gen2->size_classes[bin].num_pages;
         }
         else {

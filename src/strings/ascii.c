@@ -12,7 +12,7 @@ MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type
 
     /* Allocate grapheme buffer and decode the ASCII string. */
     result->body.storage_type       = MVM_STRING_GRAPHEME_ASCII;
-    result->body.storage.blob_ascii = malloc(bytes);
+    result->body.storage.blob_ascii = MVM_malloc(bytes);
     for (i = 0; i < bytes; i++)
         if (ascii[i] <= 127)
             result->body.storage.blob_ascii[i] = ascii[i];
@@ -51,7 +51,7 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 
     /* Take length of head buffer as initial guess. */
     bufsize = ds->bytes_head->length;
-    buffer = malloc(bufsize * sizeof(MVMGrapheme32));
+    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
@@ -68,7 +68,7 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                 /* We filled the buffer. Attach this one to the buffers
                  * linked list, and continue with a new one. */
                 MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                buffer = malloc(bufsize * sizeof(MVMGrapheme32));
+                buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
                 count = 0;
             }
             buffer[count++] = codepoint;
@@ -109,7 +109,7 @@ MVMuint8 * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, 
     if (length < -1 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
-    result = malloc(lengthu + 1);
+    result = MVM_malloc(lengthu + 1);
     if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
         /* No encoding needed; directly copy. */
         memcpy(result, str->body.storage.blob_ascii, lengthu);

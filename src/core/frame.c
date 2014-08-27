@@ -570,7 +570,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         }
                         else {
                             /* Allocate storage for state vars. */
-                            state = malloc(frame->static_info->body.env_size);
+                            state = MVM_malloc(frame->static_info->body.env_size);
                             memset(state, 0, frame->static_info->body.env_size);
                             ((MVMCode *)frame->code_ref)->body.state_vars = state;
                             state_act = 1;
@@ -810,7 +810,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             tc->cur_frame->args[1].o = NULL;
             tc->cur_frame->special_return = continue_unwind;
             {
-                MVMUnwindData *ud = malloc(sizeof(MVMUnwindData));
+                MVMUnwindData *ud = MVM_malloc(sizeof(MVMUnwindData));
                 ud->frame = frame;
                 ud->abs_addr = abs_addr;
                 ud->rel_addr = rel_addr;
@@ -1421,9 +1421,9 @@ static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, 
                 *tweak_cs = orig->with_invocant;
             }
             else {
-                MVMCallsite *new   = malloc(sizeof(MVMCallsite));
+                MVMCallsite *new   = MVM_malloc(sizeof(MVMCallsite));
                 MVMint32     fsize = orig->num_pos + (orig->arg_count - orig->num_pos) / 2;
-                new->arg_flags     = malloc((fsize + 1) * sizeof(MVMCallsiteEntry));
+                new->arg_flags     = MVM_malloc((fsize + 1) * sizeof(MVMCallsiteEntry));
                 new->arg_flags[0]  = MVM_CALLSITE_ARG_OBJ;
                 memcpy(new->arg_flags + 1, orig->arg_flags, fsize);
                 new->arg_count      = orig->arg_count + 1;
@@ -1528,7 +1528,7 @@ MVMFrame * MVM_frame_clone(MVMThreadContext *tc, MVMFrame *f) {
         memcpy(clone->env, f->env, f->static_info->body.env_size);
     }
     if (f->static_info->body.work_size) {
-        clone->work = malloc(f->static_info->body.work_size);
+        clone->work = MVM_malloc(f->static_info->body.work_size);
         memcpy(clone->work, f->work, f->static_info->body.work_size);
         clone->args = clone->work + f->static_info->body.num_locals;
     }

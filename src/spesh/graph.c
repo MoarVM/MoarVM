@@ -33,7 +33,7 @@ void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
     }
     if (!result) {
         /* No block, or block was full. Add another. */
-        MVMSpeshMemBlock *block = malloc(sizeof(MVMSpeshMemBlock));
+        MVMSpeshMemBlock *block = MVM_malloc(sizeof(MVMSpeshMemBlock));
         block->buffer = calloc(MVM_SPESH_MEMBLOCK_SIZE, 1);
         block->alloc  = block->buffer;
         block->limit  = block->buffer + MVM_SPESH_MEMBLOCK_SIZE;
@@ -81,7 +81,7 @@ static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
             g->deopt_addrs = realloc(g->deopt_addrs,
                 g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
         else
-            g->deopt_addrs = malloc(g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
+            g->deopt_addrs = MVM_malloc(g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
     }
     g->deopt_addrs[2 * g->num_deopt_addrs] = pc - g->bytecode;
     g->num_deopt_addrs++;
@@ -534,7 +534,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
  * to consider them any further simplifies all that follows. */
 static void eliminate_dead(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Iterate to fixed point. */
-    MVMint8  *seen     = malloc(g->num_bbs);
+    MVMint8  *seen     = MVM_malloc(g->num_bbs);
     MVMint32  orig_bbs = g->num_bbs;
     MVMint8   death    = 1;
     while (death) {
@@ -670,7 +670,7 @@ static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
 
     /* Create result list, with all initialized to undefined (use -1, as it's
      * not a valid basic block index). Start node dominates itself. */
-    MVMint32 *doms = malloc(g->num_bbs * sizeof(MVMint32));
+    MVMint32 *doms = MVM_malloc(g->num_bbs * sizeof(MVMint32));
     doms[0] = 0;
     for (i = 1; i < g->num_bbs; i++)
         doms[i] = -1;

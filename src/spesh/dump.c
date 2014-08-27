@@ -20,7 +20,7 @@ static void append(DumpStr *ds, char *to_add) {
 
 /* Formats a string and then appends it. */
 static void appendf(DumpStr *ds, const char *fmt, ...) {
-    char *c_message = malloc(1024);
+    char *c_message = MVM_malloc(1024);
     va_list args;
     va_start(args, fmt);
     c_message[vsnprintf(c_message, 1023, fmt, args)] = 0;
@@ -221,7 +221,7 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Allocate buffer. */
     DumpStr ds;
     ds.alloc  = 8192;
-    ds.buffer = malloc(ds.alloc);
+    ds.buffer = MVM_malloc(ds.alloc);
     ds.pos    = 0;
 
     /* Dump name and CUID. */

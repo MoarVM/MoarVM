@@ -653,8 +653,8 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flag_node, MASTNod
 
     /* See if the callsite has any named args, and get string pool entries
      * for them if so. */
-    flags      = (unsigned char *)malloc(elems);
-    named_idxs = (unsigned int *)malloc(elems * sizeof(int));
+    flags      = (unsigned char *)MVM_malloc(elems);
+    named_idxs = (unsigned int *)MVM_malloc(elems * sizeof(int));
     for (i = 0; i < elems; i++) {
         flags[i] = (unsigned char)ATPOS_I_C(vm, flag_node, i);
         if (flags[i] & (MVM_CALLSITE_ARG_NAMED)) {
@@ -672,7 +672,7 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flag_node, MASTNod
 
     /* See if we already know this callsite. */
     identifier_len = elems + num_nameds * sizeof(int);
-    identifier     = malloc(identifier_len);
+    identifier     = MVM_malloc(identifier_len);
     memcpy(identifier, flags, elems);
     memcpy(identifier + elems, named_idxs, identifier_len - elems);
     HASH_FIND(hash_handle, ws->callsite_reuse_head, identifier, identifier_len, entry);
@@ -682,7 +682,7 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flag_node, MASTNod
         free(identifier);
         return entry->callsite_id;
     }
-    entry = (CallsiteReuseEntry *)malloc(sizeof(CallsiteReuseEntry));
+    entry = (CallsiteReuseEntry *)MVM_malloc(sizeof(CallsiteReuseEntry));
     entry->callsite_id = (unsigned short)ws->num_callsites;
     HASH_ADD_KEYPTR(hash_handle, ws->callsite_reuse_head, identifier, identifier_len, entry);
 
@@ -991,7 +991,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             ws->cur_frame->handlers = (FrameHandler *)realloc(ws->cur_frame->handlers,
                 ws->cur_frame->num_handlers * sizeof(FrameHandler));
         else
-            ws->cur_frame->handlers = (FrameHandler *)malloc(
+            ws->cur_frame->handlers = (FrameHandler *)MVM_malloc(
                 ws->cur_frame->num_handlers * sizeof(FrameHandler));
 
         i = ws->cur_frame->num_handlers - 1;
@@ -1085,7 +1085,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     f = GET_Frame(node);
 
     /* Allocate frame state. */
-    fs = ws->cur_frame    = (FrameState *)malloc(sizeof(FrameState));
+    fs = ws->cur_frame    = (FrameState *)MVM_malloc(sizeof(FrameState));
     fs->bytecode_start    = ws->bytecode_pos;
     fs->frame_start       = ws->frame_pos;
     fs->labels            = NULL;
@@ -1177,7 +1177,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     ws->frame_pos += FRAME_HEADER_SIZE;
 
     /* Write locals, as well as collecting our own array of type info. */
-    fs->local_types = (short unsigned int *)malloc(sizeof(unsigned short) * fs->num_locals);
+    fs->local_types = (short unsigned int *)MVM_malloc(sizeof(unsigned short) * fs->num_locals);
     for (i = 0; i < fs->num_locals; i++) {
         unsigned short local_type = type_to_local_type(vm, ws, ATPOS(vm, f->local_types, i));
         fs->local_types[i] = local_type;
@@ -1186,7 +1186,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     }
 
     /* Write lexicals. */
-    fs->lexical_types = (short unsigned int *)malloc(sizeof(unsigned short) * fs->num_lexicals);
+    fs->lexical_types = (short unsigned int *)MVM_malloc(sizeof(unsigned short) * fs->num_lexicals);
     for (i = 0; i < fs->num_lexicals; i++) {
         unsigned short lexical_type = type_to_local_type(vm, ws, ATPOS(vm, f->lexical_types, i));
         fs->lexical_types[i] = lexical_type;
@@ -1302,7 +1302,7 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
     /* Allocate heap starting point (just a guess). */
     heap_size = 0;
     heap_alloc = num_strings * 32;
-    heap = (char *)malloc(heap_alloc);
+    heap = (char *)MVM_malloc(heap_alloc);
 
     /* Add each string to the heap. */
     for (i = 0; i < num_strings; i++) {
@@ -1370,7 +1370,7 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
         size += vm->serialized_size;
 
     /* Allocate space for the bytecode output. */
-    output = (char *)malloc(size);
+    output = (char *)MVM_malloc(size);
     memset(output, 0, size);
 
     /* Generate start of header. */
@@ -1472,30 +1472,30 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     cu = GET_CompUnit(node);
 
     /* Initialize the writer state structure. */
-    ws = (WriterState *)malloc(sizeof(WriterState));
+    ws = (WriterState *)MVM_malloc(sizeof(WriterState));
     ws->types            = types;
     ws->strings          = NEWLIST_S(vm);
     ws->seen_strings     = NEWHASH(vm);
     ws->cur_frame        = NULL;
     ws->scdep_bytes      = ELEMS(vm, cu->sc_handles) * SC_DEP_SIZE;
-    ws->scdep_seg        = ws->scdep_bytes ? (char *)malloc(ws->scdep_bytes) : NULL;
+    ws->scdep_seg        = ws->scdep_bytes ? (char *)MVM_malloc(ws->scdep_bytes) : NULL;
     ws->num_extops       = ELEMS(vm, cu->extop_names);
     ws->extops_bytes     = ws->num_extops * EXTOP_SIZE;
-    ws->extops_seg       = (char *)malloc(ws->extops_bytes);
+    ws->extops_seg       = (char *)MVM_malloc(ws->extops_bytes);
     ws->frame_pos        = 0;
     ws->frame_alloc      = 192 * ELEMS(vm, cu->frames);
-    ws->frame_seg        = (char *)malloc(ws->frame_alloc);
+    ws->frame_seg        = (char *)MVM_malloc(ws->frame_alloc);
     ws->num_frames       = 0;
     ws->callsite_pos     = 0;
     ws->callsite_alloc   = 4096;
-    ws->callsite_seg     = (char *)malloc(ws->callsite_alloc);
+    ws->callsite_seg     = (char *)MVM_malloc(ws->callsite_alloc);
     ws->num_callsites    = 0;
     ws->bytecode_pos     = 0;
     ws->bytecode_alloc   = 128 * ELEMS(vm, cu->frames);
-    ws->bytecode_seg     = (char *)malloc(ws->bytecode_alloc);
+    ws->bytecode_seg     = (char *)MVM_malloc(ws->bytecode_alloc);
     ws->annotation_pos   = 0;
     ws->annotation_alloc = 64 * ELEMS(vm, cu->frames);
-    ws->annotation_seg   = (char *)malloc(ws->annotation_alloc);
+    ws->annotation_seg   = (char *)MVM_malloc(ws->annotation_alloc);
     ws->cu               = cu;
     ws->current_frame_idx= 0;
 

@@ -33,7 +33,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up the permanent roots storage. */
     instance->num_permroots   = 0;
     instance->alloc_permroots = 16;
-    instance->permroots       = malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
+    instance->permroots       = MVM_malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
     init_mutex(instance->mutex_permroots, "permanent roots");
 
     /* Create fixed size allocator. */

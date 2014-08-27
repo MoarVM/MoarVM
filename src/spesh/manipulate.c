@@ -172,7 +172,7 @@ MVMSpeshOperand MVM_spesh_manipulate_get_temp_reg(MVMThreadContext *tc, MVMSpesh
     /* Add locals table entry. */
     if (!g->local_types) {
         MVMint32 local_types_size = g->num_locals * sizeof(MVMuint16);
-        g->local_types = malloc(local_types_size);
+        g->local_types = MVM_malloc(local_types_size);
         memcpy(g->local_types, g->sf->body.local_types, local_types_size);
     }
     g->local_types = realloc(g->local_types, (g->num_locals + 1) * sizeof(MVMuint16));

@@ -22,7 +22,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMStringConsts str_consts = tc->instance->str_consts;
     MVMObject *info = MVM_repr_at_key_o(tc, info_hash, str_consts.array);
     if (!MVM_is_null(tc, info)) {
-        MVMCArrayREPRData *repr_data = malloc(sizeof(MVMCArrayREPRData));
+        MVMCArrayREPRData *repr_data = MVM_malloc(sizeof(MVMCArrayREPRData));
         MVMObject *type    = MVM_repr_at_key_o(tc, info, str_consts.type);
         const MVMStorageSpec *ss = REPR(type)->get_storage_spec(tc, STABLE(type));
         MVMint32 type_id   = REPR(type)->ID;
@@ -82,7 +82,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     if (!repr_data)
         MVM_exception_throw_adhoc(tc, "CArray type must be composed before use");
 
-    body->storage = malloc(4 * repr_data->elem_size);
+    body->storage = MVM_malloc(4 * repr_data->elem_size);
     body->managed = 1;
 
     /* Don't need child_objs for numerics. */
@@ -103,7 +103,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
     if (src_body->managed) {
         MVMint32 alsize = src_body->allocated * repr_data->elem_size;
-        dest_body->storage = malloc(alsize);
+        dest_body->storage = MVM_malloc(alsize);
         memcpy(dest_body->storage, src_body->storage, alsize);
     }
     else {
@@ -404,7 +404,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 
 /* Deserializes the REPR data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *) malloc(sizeof(MVMCArrayREPRData));
+    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *) MVM_malloc(sizeof(MVMCArrayREPRData));
     repr_data->elem_size = MVM_serialization_read_int(tc, reader);
     repr_data->elem_type = MVM_serialization_read_ref(tc, reader);
     repr_data->elem_kind = MVM_serialization_read_int(tc, reader);

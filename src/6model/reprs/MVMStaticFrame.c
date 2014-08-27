@@ -44,7 +44,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
            sophisticated. The easiest thing would be to bump the allocated size
            and value stored in bytecode by sizeof(MVMuint64), and use the extra
            space to store a reference count. */
-        dest_body->bytecode = malloc(src_body->bytecode_size);
+        dest_body->bytecode = MVM_malloc(src_body->bytecode_size);
         memcpy(dest_body->bytecode, src_body->bytecode, src_body->bytecode_size);
     }
 
@@ -56,8 +56,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->num_locals = src_body->num_locals;
     dest_body->num_lexicals = src_body->num_lexicals;
     {
-        MVMuint16 *local_types = malloc(sizeof(MVMuint16) * src_body->num_locals);
-        MVMuint16 *lexical_types = malloc(sizeof(MVMuint16) * src_body->num_lexicals);
+        MVMuint16 *local_types = MVM_malloc(sizeof(MVMuint16) * src_body->num_locals);
+        MVMuint16 *lexical_types = MVM_malloc(sizeof(MVMuint16) * src_body->num_lexicals);
         memcpy(local_types, src_body->local_types, sizeof(MVMuint16) * src_body->num_locals);
         memcpy(lexical_types, src_body->lexical_types, sizeof(MVMuint16) * src_body->num_lexicals);
         dest_body->local_types = local_types;
@@ -70,7 +70,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         HASH_ITER(hash_handle, src_body->lexical_names, current, tmp) {
             size_t klen;
             void *kdata;
-            MVMLexicalRegistry *new_entry = malloc(sizeof(MVMLexicalRegistry));
+            MVMLexicalRegistry *new_entry = MVM_malloc(sizeof(MVMLexicalRegistry));
 
             /* don't need to clone the string */
             MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
@@ -87,9 +87,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVMuint16  count    = src_body->num_lexicals;
         MVMuint16  i;
 
-        dest_body->static_env = malloc(src_body->env_size);
+        dest_body->static_env = MVM_malloc(src_body->env_size);
         memcpy(dest_body->static_env, src_body->static_env, src_body->env_size);
-        dest_body->static_env_flags = malloc(src_body->num_lexicals);
+        dest_body->static_env_flags = MVM_malloc(src_body->num_lexicals);
         memcpy(dest_body->static_env_flags, src_body->static_env_flags, src_body->num_lexicals);
 
         for (i = 0; i < count; i++) {
@@ -108,7 +108,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->outer, src_body->outer);
 
     dest_body->num_handlers = src_body->num_handlers;
-    dest_body->handlers     = malloc(src_body->num_handlers * sizeof(MVMFrameHandler));
+    dest_body->handlers     = MVM_malloc(src_body->num_handlers * sizeof(MVMFrameHandler));
     memcpy(dest_body->handlers, src_body->handlers, src_body->num_handlers * sizeof(MVMFrameHandler));
     dest_body->instrumentation_level = 0;
     dest_body->pool_index            = src_body->pool_index;

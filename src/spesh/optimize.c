@@ -53,7 +53,7 @@ MVMint16 MVM_spesh_add_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCol
             g->spesh_slots = realloc(g->spesh_slots,
                 g->alloc_spesh_slots * sizeof(MVMCollectable *));
         else
-            g->spesh_slots = malloc(g->alloc_spesh_slots * sizeof(MVMCollectable *));
+            g->spesh_slots = MVM_malloc(g->alloc_spesh_slots * sizeof(MVMCollectable *));
     }
     g->spesh_slots[g->num_spesh_slots] = c;
     return g->num_spesh_slots++;
@@ -937,7 +937,7 @@ static void optimize_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
  * same semantics. */
 static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     /* First, see if we have any goto handlers for this category. */
-    MVMint32 *handlers_found = malloc(g->sf->body.num_handlers * sizeof(MVMint32));
+    MVMint32 *handlers_found = MVM_malloc(g->sf->body.num_handlers * sizeof(MVMint32));
     MVMint32  num_found      = 0;
     MVMuint32 category       = (MVMuint32)ins->operands[1].lit_i64;
     MVMint32  i;
@@ -1236,7 +1236,7 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
  * to consider them any further simplifies all that follows. */
 static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Iterate to fixed point. */
-    MVMint8  *seen     = malloc(g->num_bbs);
+    MVMint8  *seen     = MVM_malloc(g->num_bbs);
     MVMint32  orig_bbs = g->num_bbs;
     MVMint8   death    = 1;
     while (death) {
