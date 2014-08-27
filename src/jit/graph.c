@@ -276,7 +276,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_prof_allocated: return &MVM_profile_log_allocated;
     case MVM_OP_prof_exit: return &MVM_profile_log_exit;
     default:
-        MVM_exception_throw_adhoc(tc, "No function for op %d", opcode);
+        MVM_exception_throw_adhoc(tc, "JIT: No function for op %d in op_to_func.", opcode);
     }
 }
 
