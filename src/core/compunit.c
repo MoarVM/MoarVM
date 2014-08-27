@@ -83,7 +83,7 @@ MVMuint16 MVM_cu_callsite_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMCallsite
     if (!found) {
         /* Not known; let's add it. */
         idx = cu->body.num_callsites;
-        cu->body.callsites = realloc(cu->body.callsites,
+        cu->body.callsites = MVM_realloc(cu->body.callsites,
             (idx + 1) * sizeof(MVMCallsite *));
         cu->body.callsites[idx] = cs;
         cu->body.num_callsites++;
@@ -111,7 +111,7 @@ MVMuint32 MVM_cu_string_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMString *st
     if (!found) {
         /* Not known; let's add it. */
         idx = cu->body.num_strings;
-        cu->body.strings = realloc(cu->body.strings,
+        cu->body.strings = MVM_realloc(cu->body.strings,
             (idx + 1) * sizeof(MVMString *));
         cu->body.strings[idx] = str;
         cu->body.num_strings++;

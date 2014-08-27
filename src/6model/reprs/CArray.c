@@ -183,7 +183,7 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
         next_size = min_size;
 
     if (body->managed)
-        body->storage = realloc(body->storage, next_size * repr_data->elem_size);
+        body->storage = MVM_realloc(body->storage, next_size * repr_data->elem_size);
 
     is_complex = (repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CARRAY
                || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CPOINTER
@@ -194,7 +194,7 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
         const size_t old_size = body->allocated * sizeof(MVMObject *);
         const size_t new_size = next_size * sizeof(MVMObject *);
 
-        body->child_objs = (MVMObject **) realloc(body->child_objs, new_size);
+        body->child_objs = (MVMObject **) MVM_realloc(body->child_objs, new_size);
         memset((char *)body->child_objs + old_size, 0, new_size - old_size);
     }
 

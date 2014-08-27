@@ -238,7 +238,7 @@ static void write_double(char *buffer, size_t offset, double value) {
 void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsigned int need) {
     if (pos + need > *alloc) {
         do { *alloc = *alloc * 2; } while (pos + need > *alloc);
-        *buffer = (char *)realloc(*buffer, *alloc);
+        *buffer = (char *)MVM_realloc(*buffer, *alloc);
     }
 }
 
@@ -365,7 +365,7 @@ static void add_label(VM, FrameState *fs, MAST_Label *l, MVMint32 offset) {
             fs->alloc_labels *= 2;
         else
             fs->alloc_labels = 8;
-        fs->labels = realloc(fs->labels, fs->alloc_labels * sizeof(LabelInfo));
+        fs->labels = MVM_realloc(fs->labels, fs->alloc_labels * sizeof(LabelInfo));
     }
     fs->labels[fs->num_labels].label         = l;
     fs->labels[fs->num_labels].offset        = offset;
@@ -412,7 +412,7 @@ static void write_label_or_add_fixup(VM, WriterState *ws, MAST_Label *l) {
             info->alloc_resolve *= 2;
         else
             info->alloc_resolve = 8;
-        info->resolve = realloc(info->resolve, info->alloc_resolve * sizeof(MVMuint32));
+        info->resolve = MVM_realloc(info->resolve, info->alloc_resolve * sizeof(MVMuint32));
     }
     info->resolve[info->num_resolve] = ws->bytecode_pos;
     info->num_resolve++;
@@ -988,7 +988,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 
         ws->cur_frame->num_handlers++;
         if (ws->cur_frame->handlers)
-            ws->cur_frame->handlers = (FrameHandler *)realloc(ws->cur_frame->handlers,
+            ws->cur_frame->handlers = (FrameHandler *)MVM_realloc(ws->cur_frame->handlers,
                 ws->cur_frame->num_handlers * sizeof(FrameHandler));
         else
             ws->cur_frame->handlers = (FrameHandler *)MVM_malloc(
@@ -1314,7 +1314,7 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
         unsigned int   need  = 4 + bytelen + align;
         if (heap_size + need >= heap_alloc) {
             heap_alloc = umax(heap_alloc * 2, heap_size + need);
-            heap = (char *)realloc(heap, heap_alloc);
+            heap = (char *)MVM_realloc(heap, heap_alloc);
         }
 
         /* Write byte length into heap. */

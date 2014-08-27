@@ -12,7 +12,7 @@ static void append(DumpStr *ds, char *to_add) {
         ds->alloc *= 4;
         if (ds->pos + len >= ds->alloc)
             ds->alloc += len;
-        ds->buffer = realloc(ds->buffer, ds->alloc);
+        ds->buffer = MVM_realloc(ds->buffer, ds->alloc);
     }
     memcpy(ds->buffer + ds->pos, to_add, len);
     ds->pos += len;

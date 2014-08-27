@@ -338,9 +338,9 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     num_states = nfa->num_states;
     if (tc->nfa_alloc_states < num_states) {
         size_t alloc   = (num_states + 1) * sizeof(MVMint64);
-        tc->nfa_done   = (MVMint64 *)realloc(tc->nfa_done, alloc);
-        tc->nfa_curst  = (MVMint64 *)realloc(tc->nfa_curst, alloc);
-        tc->nfa_nextst = (MVMint64 *)realloc(tc->nfa_nextst, alloc);
+        tc->nfa_done   = (MVMint64 *)MVM_realloc(tc->nfa_done, alloc);
+        tc->nfa_curst  = (MVMint64 *)MVM_realloc(tc->nfa_curst, alloc);
+        tc->nfa_nextst = (MVMint64 *)MVM_realloc(tc->nfa_nextst, alloc);
         tc->nfa_alloc_states = num_states;
     }
     done   = tc->nfa_done;
@@ -351,7 +351,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     /* Allocate fates array. */
     fate_arr_len = 1 + MVM_repr_elems(tc, nfa->fates);
     if (tc->nfa_fates_len < fate_arr_len) {
-        tc->nfa_fates     = (MVMint64 *)realloc(tc->nfa_fates, sizeof(MVMint64) * fate_arr_len);
+        tc->nfa_fates     = (MVMint64 *)MVM_realloc(tc->nfa_fates, sizeof(MVMint64) * fate_arr_len);
         tc->nfa_fates_len = fate_arr_len;
     }
     fates = tc->nfa_fates;
@@ -407,7 +407,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                     else {
                         if (total_fates >= fate_arr_len) {
                             fate_arr_len      = total_fates + 1;
-                            tc->nfa_fates     = (MVMint64 *)realloc(tc->nfa_fates,
+                            tc->nfa_fates     = (MVMint64 *)MVM_realloc(tc->nfa_fates,
                                 sizeof(MVMint64) * fate_arr_len);
                             tc->nfa_fates_len = fate_arr_len;
                             fates             = tc->nfa_fates;

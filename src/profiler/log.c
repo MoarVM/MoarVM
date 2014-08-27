@@ -31,7 +31,7 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
             pcn->pred = pred;
             if (pred->num_succ == pred->alloc_succ) {
                 pred->alloc_succ += 8;
-                pred->succ = realloc(pred->succ,
+                pred->succ = MVM_realloc(pred->succ,
                     pred->alloc_succ * sizeof(MVMProfileCallNode *));
             }
             pred->succ[pred->num_succ] = pcn;
@@ -131,8 +131,8 @@ MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadConte
 
             if (num_sfs == alloc_sfs) {
                 alloc_sfs += 16;
-                sfs        = realloc(sfs, alloc_sfs * sizeof(MVMStaticFrame *));
-                modes      = realloc(modes, alloc_sfs * sizeof(MVMuint64));
+                sfs        = MVM_realloc(sfs, alloc_sfs * sizeof(MVMStaticFrame *));
+                modes      = MVM_realloc(modes, alloc_sfs * sizeof(MVMuint64));
             }
             sfs[num_sfs]   = pcn->sf;
             modes[num_sfs] = pcn->entry_mode;
@@ -178,7 +178,7 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
         /* No entry; create one. */
         if (pcn->num_alloc == pcn->alloc_alloc) {
             pcn->alloc_alloc += 8;
-            pcn->alloc = realloc(pcn->alloc,
+            pcn->alloc = MVM_realloc(pcn->alloc,
                 pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
         }
         pcn->alloc[pcn->num_alloc].type        = what;
@@ -196,7 +196,7 @@ void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full) {
      * retained bytes and promoted bytes. */
     if (ptd->num_gcs == ptd->alloc_gcs) {
         ptd->alloc_gcs += 16;
-        ptd->gcs = realloc(ptd->gcs, ptd->alloc_gcs * sizeof(MVMProfileGC));
+        ptd->gcs = MVM_realloc(ptd->gcs, ptd->alloc_gcs * sizeof(MVMProfileGC));
     }
     ptd->gcs[ptd->num_gcs].full          = full;
     ptd->gcs[ptd->num_gcs].cleared_bytes = (char *)tc->nursery_alloc -

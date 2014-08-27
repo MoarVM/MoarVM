@@ -78,7 +78,7 @@ static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     if (g->num_deopt_addrs == g->alloc_deopt_addrs) {
         g->alloc_deopt_addrs += 4;
         if (g->deopt_addrs)
-            g->deopt_addrs = realloc(g->deopt_addrs,
+            g->deopt_addrs = MVM_realloc(g->deopt_addrs,
                 g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
         else
             g->deopt_addrs = MVM_malloc(g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
@@ -817,7 +817,7 @@ SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
                     if (!found) {
                         if (var_info[written].num_ass_nodes % 8 == 0) {
                             MVMint32 new_size = var_info[written].num_ass_nodes + 8;
-                            var_info[written].ass_nodes = realloc(
+                            var_info[written].ass_nodes = MVM_realloc(
                                 var_info[written].ass_nodes,
                                 new_size * sizeof(MVMSpeshBB *));
                         }
@@ -950,7 +950,7 @@ static void rename_locals(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarInfo *va
                         var_info[orig].stack_alloc *= 2;
                     else
                         var_info[orig].stack_alloc = 8;
-                    var_info[orig].stack = realloc(var_info[orig].stack,
+                    var_info[orig].stack = MVM_realloc(var_info[orig].stack,
                         var_info[orig].stack_alloc * sizeof(MVMint32));
                 }
                 var_info[orig].stack[++var_info[orig].stack_top] = reg_i;

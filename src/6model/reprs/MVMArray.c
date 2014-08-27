@@ -330,7 +330,7 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64
 
     /* now allocate the new slot buffer */
     slots = (slots)
-            ? realloc(slots, ssize * repr_data->elem_size)
+            ? MVM_realloc(slots, ssize * repr_data->elem_size)
             : MVM_malloc(ssize * repr_data->elem_size);
 
     /* fill out any unused slots with NULL pointers or zero values */

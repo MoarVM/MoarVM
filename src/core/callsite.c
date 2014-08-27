@@ -58,7 +58,7 @@ void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {
     if (!found) {
         if (interns->num_by_arity[num_flags] % 8 == 0) {
             if (interns->num_by_arity[num_flags])
-                interns->by_arity[num_flags] = realloc(
+                interns->by_arity[num_flags] = MVM_realloc(
                     interns->by_arity[num_flags],
                     sizeof(MVMCallsite *) * (interns->num_by_arity[num_flags] + 8));
             else

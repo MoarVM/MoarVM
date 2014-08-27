@@ -27,7 +27,7 @@ typedef struct {
 static void ensure_space(SpeshWriterState *ws, int bytes) {
     if (ws->bytecode_pos + bytes >= ws->bytecode_alloc) {
         ws->bytecode_alloc *= 2;
-        ws->bytecode = realloc(ws->bytecode, ws->bytecode_alloc);
+        ws->bytecode = MVM_realloc(ws->bytecode, ws->bytecode_alloc);
     }
 }
 static void write_int64(SpeshWriterState *ws, MVMuint64 value) {
@@ -184,9 +184,9 @@ void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState
                             /* Need to fix it up. */
                             if (ws->num_fixups == ws->alloc_fixups) {
                                 ws->alloc_fixups *= 2;
-                                ws->fixup_locations = realloc(ws->fixup_locations,
+                                ws->fixup_locations = MVM_realloc(ws->fixup_locations,
                                     ws->alloc_fixups * sizeof(MVMint32));
-                                ws->fixup_bbs = realloc(ws->fixup_bbs,
+                                ws->fixup_bbs = MVM_realloc(ws->fixup_bbs,
                                     ws->alloc_fixups * sizeof(MVMSpeshBB *));
                             }
                             ws->fixup_locations[ws->num_fixups] = ws->bytecode_pos;

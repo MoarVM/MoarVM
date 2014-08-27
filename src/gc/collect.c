@@ -432,7 +432,7 @@ static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable
     /* If there's no entry for this target, create one. */
     if (target_info == NULL) {
         wtp->num_target_threads++;
-        wtp->target_work = realloc(wtp->target_work,
+        wtp->target_work = MVM_realloc(wtp->target_work,
             wtp->num_target_threads * sizeof(ThreadWork));
         target_info = &wtp->target_work[wtp->num_target_threads - 1];
         target_info->target = target;

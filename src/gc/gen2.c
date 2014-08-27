@@ -43,7 +43,7 @@ static void add_page(MVMGen2Allocator *al, MVMuint32 bin) {
     /* Add the extra page. */
     MVMuint32 cur_page = al->size_classes[bin].num_pages;
     al->size_classes[bin].num_pages++;
-    al->size_classes[bin].pages = realloc(al->size_classes[bin].pages,
+    al->size_classes[bin].pages = MVM_realloc(al->size_classes[bin].pages,
         sizeof(void *) * al->size_classes[bin].num_pages);
     al->size_classes[bin].pages[cur_page] = MVM_malloc(page_size);
 
@@ -96,7 +96,7 @@ void * MVM_gc_gen2_allocate(MVMGen2Allocator *al, MVMuint32 size) {
         /* Add to overflows list. */
         if (al->num_overflows == al->alloc_overflows) {
             al->alloc_overflows *= 2;
-            al->overflows = realloc(al->overflows,
+            al->overflows = MVM_realloc(al->overflows,
                 al->alloc_overflows * sizeof(MVMCollectable *));
         }
         al->overflows[al->num_overflows++] = result;
@@ -172,7 +172,7 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
             dest_gen2->size_classes[bin].num_pages
                 += gen2->size_classes[bin].num_pages;
             dest_gen2->size_classes[bin].pages
-                = realloc(dest_gen2->size_classes[bin].pages,
+                = MVM_realloc(dest_gen2->size_classes[bin].pages,
                     sizeof(void *) * dest_gen2->size_classes[bin].num_pages);
         }
 
