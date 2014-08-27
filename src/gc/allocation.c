@@ -26,7 +26,7 @@ void * MVM_realloc(void *p, size_t len) {
 
 void MVM_free(void *p) {
     if (p)
-        MVM_free(p);
+        free(p);
 }
 
 /* Allocate the specified amount of memory from the nursery. Will
