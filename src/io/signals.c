@@ -46,8 +46,7 @@ static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, 
 
 /* Frees data associated with a timer async task. */
 static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
-    if (data)
-        MVM_free(data);
+    MVM_free(data);
 }
 
 /* Operations table for async timer task. */
