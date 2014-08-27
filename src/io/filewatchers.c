@@ -76,7 +76,7 @@ static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, 
 /* Frees data associated with a file watcher task. */
 static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data)
-        free(data);
+        MVM_free(data);
 }
 
 /* Operations table for a file watcher task. */

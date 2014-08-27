@@ -49,8 +49,8 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
         ds->abs_byte_pos += discard->length - ds->bytes_head_pos;
         ds->bytes_head = discard->next;
         ds->bytes_head_pos = 0;
-        free(discard->bytes);
-        free(discard);
+        MVM_free(discard->bytes);
+        MVM_free(discard);
     }
     if (!ds->bytes_head && pos == 0)
         return;
@@ -60,8 +60,8 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
         ds->abs_byte_pos += discard->length - ds->bytes_head_pos;
         ds->bytes_head = discard->next;
         ds->bytes_head_pos = 0;
-        free(discard->bytes);
-        free(discard);
+        MVM_free(discard->bytes);
+        MVM_free(discard);
         if (ds->bytes_head == NULL)
             ds->bytes_tail = NULL;
     }
@@ -119,8 +119,8 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
             memcpy(result->body.storage.blob_32 + found, cur_chars->chars + ds->chars_head_pos,
                 available * sizeof(MVMGrapheme32));
             found += available;
-            free(cur_chars->chars);
-            free(cur_chars);
+            MVM_free(cur_chars->chars);
+            MVM_free(cur_chars);
             ds->chars_head = next_chars;
             ds->chars_head_pos = 0;
             if (ds->chars_head == NULL)
@@ -216,7 +216,7 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
 
         /* Don't free the buffer's memory itself, just the holder, as we
          * stole that for the buffer into the string above. */
-        free(ds->chars_head);
+        MVM_free(ds->chars_head);
         ds->chars_head = ds->chars_tail = NULL;
     }
 
@@ -293,8 +293,8 @@ MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStr
             taken += available;
             ds->bytes_head = cur_bytes->next;
             ds->bytes_head_pos = 0;
-            free(cur_bytes->bytes);
-            free(cur_bytes);
+            MVM_free(cur_bytes->bytes);
+            MVM_free(cur_bytes);
         }
         else {
             /* Just take what we need. */
@@ -328,9 +328,9 @@ void MVM_string_decodestream_destory(MVMThreadContext *tc, MVMDecodeStream *ds) 
     MVMDecodeStreamBytes *cur_bytes = ds->bytes_head;
     while (cur_bytes) {
         MVMDecodeStreamBytes *next_bytes = cur_bytes->next;
-        free(cur_bytes->bytes);
-        free(cur_bytes);
+        MVM_free(cur_bytes->bytes);
+        MVM_free(cur_bytes);
         cur_bytes = next_bytes;
     }
-    free(ds);
+    MVM_free(ds);
 }

@@ -25,7 +25,7 @@ static void appendf(DumpStr *ds, const char *fmt, ...) {
     va_start(args, fmt);
     c_message[vsnprintf(c_message, 1023, fmt, args)] = 0;
     append(ds, c_message);
-    free(c_message);
+    MVM_free(c_message);
     va_end(args);
 }
 
@@ -33,7 +33,7 @@ static void appendf(DumpStr *ds, const char *fmt, ...) {
 static void append_str(MVMThreadContext *tc, DumpStr *ds, MVMString *s) {
     MVMuint8 *cs = MVM_string_utf8_encode_C_string(tc, s);
     append(ds, cs);
-    free(cs);
+    MVM_free(cs);
 }
 
 /* Appends a null at the end. */
@@ -150,7 +150,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         case MVM_operand_str: {
                             char *cstr = MVM_string_utf8_encode_C_string(tc, g->sf->body.cu->body.strings[cur_ins->operands[i].lit_str_idx]);
                             appendf(ds, "lits(%s)", cstr);
-                            free(cstr);
+                            MVM_free(cstr);
                             break;
                         }
                         case MVM_operand_spesh_slot:
@@ -211,7 +211,7 @@ static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
         filename_utf8 = MVM_string_utf8_encode(tc, filename, NULL);
     appendf(ds, "%s:%d", filename_utf8, line_nr);
     if (filename)
-        free(filename_utf8);
+        MVM_free(filename_utf8);
 }
 
 /* Dump a spesh graph into string form, for debugging purposes. */

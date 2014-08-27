@@ -79,7 +79,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
         });
         });
         if (buf->base)
-            free(buf->base);
+            MVM_free(buf->base);
         uv_read_stop(handle);
     }
     else {
@@ -95,7 +95,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
         });
         });
         if (buf->base)
-            free(buf->base);
+            MVM_free(buf->base);
         uv_read_stop(handle);
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
@@ -148,7 +148,7 @@ static void read_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
         ReadInfo *ri = (ReadInfo *)data;
         if (ri->ds)
             MVM_string_decodestream_destory(tc, ri->ds);
-        free(data);
+        MVM_free(data);
     }
 }
 
@@ -284,8 +284,8 @@ static void on_write(uv_write_t *req, int status) {
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
     if (wi->str_data)
-        free(wi->buf.base);
-    free(wi->req);
+        MVM_free(wi->buf.base);
+    MVM_free(wi->req);
 }
 
 /* Does setup work for an asynchronous write. */
@@ -335,7 +335,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         });
 
         /* Cleanup handle. */
-        free(wi->req);
+        MVM_free(wi->req);
         wi->req = NULL;
     }
 }
@@ -351,7 +351,7 @@ static void write_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *workl
 /* Frees info for a write task. */
 static void write_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data)
-        free(data);
+        MVM_free(data);
 }
 
 /* Operations table for async write task. */
@@ -443,7 +443,7 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
 
 /* Does an asynchronous close (since it must run on the event loop). */
 static void close_cb(uv_handle_t *handle) {
-    free(handle);
+    MVM_free(handle);
 }
 static void close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     uv_close((uv_handle_t *)data, close_cb);
@@ -543,7 +543,7 @@ static void on_connect(uv_connect_t* req, int status) {
         });
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
-    free(req);
+    MVM_free(req);
 }
 
 /* Initilalize the connection on the event loop. */
@@ -579,9 +579,9 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
         });
 
         /* Cleanup handles. */
-        free(ci->socket);
+        MVM_free(ci->socket);
         ci->socket = NULL;
-        free(ci->connect);
+        MVM_free(ci->connect);
         ci->connect = NULL;
     }
 }
@@ -591,8 +591,8 @@ static void connect_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data) {
         ConnectInfo *ci = (ConnectInfo *)data;
         if (ci->dest)
-            free(ci->dest);
-        free(ci);
+            MVM_free(ci->dest);
+        MVM_free(ci);
     }
 }
 
@@ -678,7 +678,7 @@ static void on_connection(uv_stream_t *server, int status) {
     }
     else {
         uv_close((uv_handle_t*)client, NULL);
-        free(client);
+        MVM_free(client);
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
         MVMROOT(tc, arr, {
         MVMROOT(tc, t, {
@@ -723,7 +723,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
             });
             MVM_repr_push_o(tc, t->body.queue, arr);
         });
-        free(li->socket);
+        MVM_free(li->socket);
         li->socket = NULL;
         return;
     }
@@ -743,8 +743,8 @@ static void listen_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data) {
         ListenInfo *li = (ListenInfo *)data;
         if (li->dest)
-            free(li->dest);
-        free(li);
+            MVM_free(li->dest);
+        MVM_free(li);
     }
 }
 

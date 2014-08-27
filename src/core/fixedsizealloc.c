@@ -152,7 +152,7 @@ void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t byt
     MVMFixedSizeAllocDebug *dbg = (MVMFixedSizeAllocDebug *)((char *)to_free - 8);
     if (dbg->alloc_size != bytes)
         MVM_panic(1, "Fixed size allocator: wrong size in free");
-    free(dbg);
+    MVM_free(dbg);
 #else
     MVMuint32 bin = bin_for(bytes);
     if (bin < MVM_FSA_BINS) {
@@ -175,7 +175,7 @@ void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t byt
     }
     else {
         /* Was malloc'd due to being oversize, so just free it. */
-        free(to_free);
+        MVM_free(to_free);
     }
 #endif
 }

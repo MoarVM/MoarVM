@@ -58,7 +58,7 @@ static void fail(Validator *val, const char *msg, ...) {
 
     va_start(args, msg);
 
-    free(val->labels);
+    MVM_free(val->labels);
     MVM_exception_throw_adhoc_va(val->tc, msg, args);
 
     va_end(args);

@@ -305,10 +305,10 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     res->handlers      = ws->handlers;
 
     /* Cleanup. */
-    free(ws->bb_offsets);
-    free(ws->fixup_locations);
-    free(ws->fixup_bbs);
-    free(ws);
+    MVM_free(ws->bb_offsets);
+    MVM_free(ws->fixup_locations);
+    MVM_free(ws->fixup_bbs);
+    MVM_free(ws);
 
     return res;
 }

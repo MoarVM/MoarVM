@@ -131,7 +131,7 @@ static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     if (MVM_BIGINT_IS_BIG(body)) {
         mp_clear(body->u.bigint);
-        free(body->u.bigint);
+        MVM_free(body->u.bigint);
     }
 }
 
@@ -139,7 +139,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMP6bigintBody *body = &((MVMP6bigint *)obj)->body;
     if (MVM_BIGINT_IS_BIG(body)) {
         mp_clear(body->u.bigint);
-        free(body->u.bigint);
+        MVM_free(body->u.bigint);
     }
 }
 
@@ -161,7 +161,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         /* write the "is small" flag */
         MVM_serialization_write_varint(tc, writer, 0);
         MVM_serialization_write_str(tc, writer, str);
-        free(buf);
+        MVM_free(buf);
     }
     else {
         /* write the "is small" flag */

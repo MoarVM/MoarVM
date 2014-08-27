@@ -75,7 +75,7 @@ static void start_thread(void *data) {
 
     /* hopefully pop the ts->thread_obj temp */
     MVM_gc_root_temp_pop(tc);
-    free(ts);
+    MVM_free(ts);
 
     /* Exit the thread, now it's completed. */
     MVM_platform_thread_exit(NULL);

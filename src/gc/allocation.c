@@ -5,18 +5,18 @@
 
 #include "moar.h"
 
-void * MVM_MVM_malloc(size_t len) {
+void * MVM_malloc(size_t len) {
     void *p;
-    p = /**/malloc(len);
+    p = malloc(len);
     if (!p)
         MVM_panic(1, "Memory allocation failed; could not allocate %zu bytes", len);
 
     return p;
 }
 
-void * MVM_MVM_realloc(void *p, size_t len) {
+void * MVM_realloc(void *p, size_t len) {
     void *n;
-    n = /**/realloc(p, len);
+    n = realloc(p, len);
 
     if (!n)
         MVM_panic(1, "Memory reallocation failed; could not allocate %zu bytes", len);
@@ -26,7 +26,7 @@ void * MVM_MVM_realloc(void *p, size_t len) {
 
 void MVM_free(void *p) {
     if (p)
-        /**/free(p);
+        MVM_free(p);
 }
 
 /* Allocate the specified amount of memory from the nursery. Will

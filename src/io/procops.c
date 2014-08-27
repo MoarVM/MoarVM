@@ -47,7 +47,7 @@ static char * ANSIToUTF8(MVMuint16 acp, const char * str)
     wchar_t * const wstr = ANSIToUnicode(acp, str);
     char  * const result = UnicodeToUTF8(wstr);
 
-    free(wstr);
+    MVM_free(wstr);
     return result;
 }
 
@@ -82,7 +82,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
         MVMString *key, *val;
 
 #ifdef _WIN32
-        free(_env);
+        MVM_free(_env);
 #endif
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&str);
 
@@ -123,8 +123,8 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 #define FREE_ENV() do { \
     i = 0;  \
     while(_env[i]) \
-        free(_env[i++]); \
-    free(_env); \
+        MVM_free(_env[i++]); \
+    MVM_free(_env); \
 } while (0)
 
 #define SPAWN(shell) do { \
@@ -236,15 +236,15 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     spawn_result = uv_spawn(tc->loop, process, &process_options);
     if (spawn_result) {
         FREE_ENV();
-        free(_cwd);
-        free(cmdin);
+        MVM_free(_cwd);
+        MVM_free(cmdin);
         uv_unref((uv_handle_t *)process);
         MVM_exception_throw_adhoc(tc, "Failed to open pipe: %d", errno);
     }
 
     FREE_ENV();
-    free(_cwd);
-    free(cmdin);
+    MVM_free(_cwd);
+    MVM_free(cmdin);
     uv_unref((uv_handle_t *)process);
 
     return MVM_io_syncpipe(tc, (uv_stream_t *)(readable ? out : in), process);
@@ -293,13 +293,13 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     SPAWN(_cmd);
     FREE_ENV();
 
-    free(_cwd);
+    MVM_free(_cwd);
 
 #ifdef _WIN32
-    free(_cmd);
+    MVM_free(_cmd);
 #endif
 
-    free(cmdin);
+    MVM_free(cmdin);
     return result;
 }
 
@@ -329,13 +329,13 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
     SPAWN(arg_size ? args[0] : NULL);
     FREE_ENV();
 
-    free(_cwd);
+    MVM_free(_cwd);
 
     i = 0;
     while(args[i])
-        free(args[i++]);
+        MVM_free(args[i++]);
 
-    free(args);
+    MVM_free(args);
 
     return result;
 }
@@ -413,8 +413,8 @@ static void on_write(uv_write_t *req, int status) {
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
     if (wi->str_data)
-        free(wi->buf.base);
-    free(wi->req);
+        MVM_free(wi->buf.base);
+    MVM_free(wi->req);
 }
 
 /* Does setup work for an asynchronous write. */
@@ -470,7 +470,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         });
 
         /* Cleanup handle. */
-        free(wi->req);
+        MVM_free(wi->req);
         wi->req = NULL;
     }
 }
@@ -486,7 +486,7 @@ static void write_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *workl
 /* Frees info for a write task. */
 static void write_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data)
-        free(data);
+        MVM_free(data);
 }
 
 /* Operations table for async write task. */
@@ -585,7 +585,7 @@ static void proc_async_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *
 
 /* Does an asynchronous close (since it must run on the event loop). */
 static void close_cb(uv_handle_t *handle) {
-    free(handle);
+    MVM_free(handle);
 }
 static void close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     uv_close((uv_handle_t *)data, close_cb);
@@ -634,7 +634,7 @@ static const MVMIOOps proc_op_table = {
 };
 
 static void spawn_async_close(uv_handle_t *handle) {
-    free(handle);
+    MVM_free(handle);
 }
 
 static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
@@ -730,7 +730,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
         });
         });
         if (buf->base)
-            free(buf->base);
+            MVM_free(buf->base);
         uv_read_stop(handle);
     }
     else {
@@ -746,7 +746,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
         });
         });
         if (buf->base)
-            free(buf->base);
+            MVM_free(buf->base);
         uv_read_stop(handle);
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
@@ -935,7 +935,7 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data) {
         SpawnInfo *si = (SpawnInfo *)data;
         if (si->cwd) {
-            free(si->cwd);
+            MVM_free(si->cwd);
             si->cwd = NULL;
         }
         if (si->env) {
@@ -947,8 +947,8 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
         if (si->args) {
             MVMuint32 i = 0;
             while (si->args[i])
-                free(si->args[i++]);
-            free(si->args);
+                MVM_free(si->args[i++]);
+            MVM_free(si->args);
             si->args = NULL;
         }
         if (si->ds_stdout) {
@@ -959,7 +959,7 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
             MVM_string_decodestream_destory(tc, si->ds_stdout);
             si->ds_stderr = NULL;
         }
-        free(si);
+        MVM_free(si);
     }
 }
 

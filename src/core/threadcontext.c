@@ -56,8 +56,8 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     MVM_frame_free_frame_pool(tc);
 
     /* Free the nursery. */
-    free(tc->nursery_fromspace);
-    free(tc->nursery_tospace);
+    MVM_free(tc->nursery_fromspace);
+    MVM_free(tc->nursery_tospace);
 
     /* Destroy the second generation allocator. */
     MVM_gc_gen2_destroy(tc->instance, tc->gen2);
@@ -72,7 +72,7 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
 
     /* Free the thread context itself. */
     memset(tc, 0, sizeof(MVMThreadContext));
-    free(tc);
+    MVM_free(tc);
 }
 
 /* Setting and clearing mutex to release on exception throw. */

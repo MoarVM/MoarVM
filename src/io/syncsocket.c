@@ -47,7 +47,7 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     snprintf(port_cstr, 8, "%d", (int)port);
 
     error = getaddrinfo(host_cstr, port_cstr, NULL, &result);
-    free(host_cstr);
+    MVM_free(host_cstr);
     if (error == 0) {
         if (result->ai_addr->sa_family == AF_INET6) {
             dest = MVM_malloc(sizeof(struct sockaddr_in6));
@@ -69,7 +69,7 @@ static void on_connect(uv_connect_t* req, int status) {
     uv_unref((uv_handle_t *)req->handle);
     if (status < 0) {
         MVMThreadContext *tc = ((MVMIOSyncSocketData *)req->data)->ss.cur_tc;
-        free(req);
+        MVM_free(req);
         MVM_exception_throw_adhoc(tc, "Failed to connect: %s", uv_strerror(status));
     }
 }
@@ -85,9 +85,9 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         connect->data   = data;
         if ((r = uv_tcp_init(tc->loop, socket)) < 0 ||
                 (r = uv_tcp_connect(connect, socket, dest, on_connect)) < 0) {
-            free(socket);
-            free(connect);
-            free(dest);
+            MVM_free(socket);
+            MVM_free(connect);
+            MVM_free(dest);
             MVM_exception_throw_adhoc(tc, "Failed to connect: %s", uv_strerror(r));
         }
         uv_ref((uv_handle_t *)socket);
@@ -95,8 +95,8 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
 
         data->ss.handle = (uv_stream_t *)socket;
 
-        free(connect);
-        free(dest);
+        MVM_free(connect);
+        MVM_free(dest);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Socket is already bound or connected");
@@ -120,11 +120,11 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
 
         if ((r = uv_tcp_init(tc->loop, socket)) < 0 ||
                 (r = uv_tcp_bind(socket, dest, 0)) < 0) {
-            free(socket);
-            free(dest);
+            MVM_free(socket);
+            MVM_free(dest);
             MVM_exception_throw_adhoc(tc, "Failed to bind: %s", uv_strerror(r));
         }
-        free(dest);
+        MVM_free(dest);
 
         /* Start listening, but unref the socket so it won't get in the way of
          * other things we want to do on this event loop. */
@@ -204,7 +204,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
         }
         else {
             uv_close((uv_handle_t*)client, NULL);
-            free(client);
+            MVM_free(client);
             MVM_exception_throw_adhoc(tc, "Failed to accept: %s", uv_strerror(r));
         }
     }

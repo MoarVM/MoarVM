@@ -52,7 +52,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         handle->body.ops->gc_free(tc, obj, handle->body.data);
     if (handle->body.mutex) {
         uv_mutex_destroy(handle->body.mutex);
-        free(handle->body.mutex);
+        MVM_free(handle->body.mutex);
     }
 }
 

@@ -55,12 +55,12 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         while (cur_ah != NULL) {
             MVMActiveHandler *next_ah = cur_ah->next_handler;
             MVM_frame_dec_ref(tc, cur_ah->frame);
-            free(cur_ah);
+            MVM_free(cur_ah);
             cur_ah = next_ah;
         }
     }
     if (ctx->body.prof_cont)
-        free(ctx->body.prof_cont);
+        MVM_free(ctx->body.prof_cont);
 }
 
 static const MVMStorageSpec storage_spec = {

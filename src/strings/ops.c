@@ -474,7 +474,7 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
 
     fwrite(utf8_encoded, 1, utf8_encoded_length + 1, stdout);
 
-    free(utf8_encoded);
+    MVM_free(utf8_encoded);
 }
 
 void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
@@ -490,7 +490,7 @@ void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
 
     fwrite(utf8_encoded, 1, utf8_encoded_length, stdout);
 
-    free(utf8_encoded);
+    MVM_free(utf8_encoded);
 }
 
 /* Tests whether one string a has the other string b as a substring at that index */
@@ -619,7 +619,7 @@ MVMString * funcname(MVMThreadContext *tc, MVMString *s) { \
             return result; \
         } \
         else { \
-            free(result_buf); \
+            MVM_free(result_buf); \
         } \
     } \
     STRAND_CHECK(tc, s); \
@@ -1019,7 +1019,7 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
             flat[i] = orig[i];
         s->body.storage.blob_32 = flat;
         s->body.storage_type    = MVM_STRING_GRAPHEME_32;
-        free(orig);
+        MVM_free(orig);
         break;
     }
     case MVM_STRING_STRAND: {
@@ -1032,7 +1032,7 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
             flat[i++] = MVM_string_gi_get_grapheme(tc, &gi);
         s->body.storage.blob_32 = flat;
         s->body.storage_type    = MVM_STRING_GRAPHEME_32;
-        free(orig);
+        MVM_free(orig);
         break;
     }
     }

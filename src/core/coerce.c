@@ -132,7 +132,7 @@ void boolify_return(MVMThreadContext *tc, void *sr_data) {
         *(tc->interp_cur_op) = data->true_addr;
     else
         *(tc->interp_cur_op) = data->false_addr;
-    free(data);
+    MVM_free(data);
 }
 
 /* Callback to flip result. */
@@ -241,7 +241,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
 MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *s) {
     char     *enc = MVM_string_ascii_encode(tc, s, NULL);
     MVMint64  i   = strtoll(enc, NULL, 10);
-    free(enc);
+    MVM_free(enc);
     return i;
 }
 
@@ -258,7 +258,7 @@ MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s) {
         n = MVM_num_neginf(tc);
     else
         n = atof(enc);
-    free(enc);
+    MVM_free(enc);
     return n;
 }
 

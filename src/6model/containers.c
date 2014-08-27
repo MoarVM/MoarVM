@@ -47,7 +47,7 @@ static void code_pair_gc_free_data(MVMThreadContext *tc, MVMSTable *st) {
     CodePairContData *data = (CodePairContData *)st->container_data;
 
     if (data) {
-        free(data);
+        MVM_free(data);
         st->container_data = NULL;
     }
 }

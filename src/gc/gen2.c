@@ -122,21 +122,21 @@ void MVM_gc_gen2_destroy(MVMInstance *i, MVMGen2Allocator *al) {
     /* Remove all pages. */
     for (j = 0; j < MVM_GEN2_BINS; j++) {
         for (k = 0; k < al->size_classes[j].num_pages; k++)
-            free(al->size_classes[j].pages[k]);
-        free(al->size_classes[j].pages);
+            MVM_free(al->size_classes[j].pages[k]);
+        MVM_free(al->size_classes[j].pages);
     }
 
     /* Free any allocated overflows. */
     for (j = 0; j < al->num_overflows; j++)
         if (al->overflows[j])
-            free(al->overflows[j]);
+            MVM_free(al->overflows[j]);
 
     /* Clean up allocator data structure. */
-    free(al->size_classes);
+    MVM_free(al->size_classes);
     al->size_classes = NULL;
-    free(al->overflows);
+    MVM_free(al->overflows);
     al->overflows = NULL;
-    free(al);
+    MVM_free(al);
 }
 
 /* blindly move pages from one gen2 to another */
@@ -226,7 +226,7 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
         dest_gen2->size_classes[bin].alloc_pos = gen2->size_classes[bin].alloc_pos;
         dest_gen2->size_classes[bin].alloc_limit = gen2->size_classes[bin].alloc_limit;
 
-        free(gen2->size_classes[bin].pages);
+        MVM_free(gen2->size_classes[bin].pages);
         gen2->size_classes[bin].pages = NULL;
         gen2->size_classes[bin].num_pages = 0;
     }
@@ -237,7 +237,7 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
         }
         src->num_gen2roots = 0;
         src->alloc_gen2roots = 0;
-        free(src->gen2roots);
+        MVM_free(src->gen2roots);
         src->gen2roots = NULL;
     }
 }

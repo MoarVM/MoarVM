@@ -663,7 +663,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
             MVMContinuationTag *tag = returner->continuation_tags;
             while (tag) {
                 MVMContinuationTag *next = tag->next;
-                free(tag);
+                MVM_free(tag);
                 tag = next;
             }
             returner->continuation_tags = NULL;
@@ -785,7 +785,7 @@ static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVMFrame *frame    = ud->frame;
     MVMuint8 *abs_addr = ud->abs_addr;
     MVMuint32 rel_addr = ud->rel_addr;
-    free(sr_data);
+    MVM_free(sr_data);
     MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL);
 }
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
@@ -1173,7 +1173,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 if (dlog) {
                                     fprintf(dlog, "I %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
                                     fflush(dlog);
-                                    free(c_name);
+                                    MVM_free(c_name);
                                 }
                                 return result;
                             }
@@ -1201,7 +1201,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 if (dlog) {
                                     fprintf(dlog, "I %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
                                     fflush(dlog);
-                                    free(c_name);
+                                    MVM_free(c_name);
                                 }
                                 return result;
                             }
@@ -1223,7 +1223,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 if (dlog) {
                     fprintf(dlog, "C %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
                     fflush(dlog);
-                    free(c_name);
+                    MVM_free(c_name);
                 }
                 return result;
             }
@@ -1245,7 +1245,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 if (dlog) {
                     fprintf(dlog, "F %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
                     fflush(dlog);
-                    free(c_name);
+                    MVM_free(c_name);
                 }
                 if (fcost+icost > 1)
                     try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
@@ -1258,7 +1258,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     if (dlog) {
         fprintf(dlog, "N %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
         fflush(dlog);
-        free(c_name);
+        MVM_free(c_name);
     }
     return NULL;
 }

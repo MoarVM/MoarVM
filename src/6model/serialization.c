@@ -766,7 +766,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     if (tc->compiling_scs && MVM_repr_elems(tc, tc->compiling_scs) &&
             MVM_repr_at_pos_o(tc, tc->compiling_scs, 0) == (MVMObject *)writer->root.sc) {
         if (tc->serialized)
-            free(tc->serialized);
+            MVM_free(tc->serialized);
         tc->serialized = output;
         tc->serialized_size = output_size;
         return NULL;
@@ -774,14 +774,14 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
 
     /* Base 64 encode. */
     output_b64 = base64_encode(output, output_size);
-    free(output);
+    MVM_free(output);
     if (output_b64 == NULL)
         MVM_exception_throw_adhoc(tc,
             "Serialization error: failed to convert to base64");
 
     /* Make a MVMString containing it. */
     result = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, output_b64);
-    free(output_b64);
+    MVM_free(output_b64);
     return result;
 }
 
@@ -1136,12 +1136,12 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     result = concatenate_outputs(tc, writer);
 
     /* Clear up afterwards. */
-    free(writer->root.dependencies_table);
-    free(writer->root.stables_table);
-    free(writer->root.stables_data);
-    free(writer->root.objects_table);
-    free(writer->root.objects_data);
-    free(writer);
+    MVM_free(writer->root.dependencies_table);
+    MVM_free(writer->root.stables_table);
+    MVM_free(writer->root.stables_data);
+    MVM_free(writer->root.objects_table);
+    MVM_free(writer->root.objects_data);
+    MVM_free(writer);
 
     /* Exit gen2 allocation. */
     MVM_gc_allocate_gen2_default_clear(tc);
@@ -1236,10 +1236,10 @@ static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reade
         const char *messageFormat, ...) {
     va_list args;
     if (reader->data_needs_free && reader->data)
-        free(reader->data);
+        MVM_free(reader->data);
     if (reader->contexts)
-        free(reader->contexts);
-    free(reader);
+        MVM_free(reader->contexts);
+    MVM_free(reader);
     MVM_gc_allocate_gen2_default_clear(tc);
     va_start(args, messageFormat);
     MVM_exception_throw_adhoc_va(tc, messageFormat, args);
@@ -1538,7 +1538,7 @@ static void check_and_dissect_input(MVMThreadContext *tc,
         /* Grab data from string. */
         char *data_b64 = (char *)MVM_string_ascii_encode(tc, data_str, NULL);
         data = (char *)base64_decode(data_b64, &data_len);
-        free(data_b64);
+        MVM_free(data_b64);
         reader->data_needs_free = 1;
     }
     else {
@@ -2387,9 +2387,9 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
 
     /* Size objects, STables, and contexts arrays. */
     if (sc->body->root_objects)
-        free(sc->body->root_objects);
+        MVM_free(sc->body->root_objects);
     if (sc->body->root_stables)
-        free(sc->body->root_stables);
+        MVM_free(sc->body->root_stables);
     sc->body->root_objects  = calloc(1, reader->root.num_objects * sizeof(MVMObject *));
     sc->body->num_objects   = reader->root.num_objects;
     sc->body->alloc_objects = reader->root.num_objects;
@@ -2446,6 +2446,6 @@ MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str) {
     SHA1Final(&context, output);
 
     /* Free the C-MVMString and put result into a new MVMString. */
-    free(cstr);
+    MVM_free(cstr);
     return MVM_string_ascii_decode(tc, tc->instance->VMString, output, 40);
 }

@@ -146,7 +146,7 @@ static void clear_temp_bigints(mp_int **ints, MVMint32 n) {
     for (i = 0; i < n; i++)
         if (ints[i]) {
             mp_clear(ints[i]);
-            free(ints[i]);
+            MVM_free(ints[i]);
         }
 }
 
@@ -179,7 +179,7 @@ static void store_bigint_result(MVMP6bigintBody *body, mp_int *i) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
         body->u.smallint.value = SIGN(i) ? -DIGIT(i, 0) : DIGIT(i, 0);
         mp_clear(i);
-        free(i);
+        MVM_free(i);
     }
     else {
         body->u.bigint = i;
@@ -720,7 +720,7 @@ void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, MVMuint8 *buf) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
         body->u.smallint.value = SIGN(i) ? -DIGIT(i, 0) : DIGIT(i, 0);
         mp_clear(i);
-        free(i);
+        MVM_free(i);
     }
     else {
         body->u.bigint = i;
@@ -738,7 +738,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
         buf = (char *) MVM_malloc(len);
         mp_toradix_n(i, buf, base, len);
         result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
-        free(buf);
+        MVM_free(buf);
         return result;
     }
     else {
@@ -767,7 +767,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
             buf = (char *) MVM_malloc(len);
             mp_toradix_n(&i, buf, base, len);
             result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
-            free(buf);
+            MVM_free(buf);
             mp_clear(&i);
 
             return result;

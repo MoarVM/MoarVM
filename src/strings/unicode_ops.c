@@ -8,7 +8,7 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
         generate_codepoints_by_name(tc);
     }
     HASH_FIND(hash_handle, codepoints_by_name, cname, strlen((const char *)cname), result);
-    free(cname);
+    MVM_free(cname);
     return result ? result->codepoint : -1;
 }
 
@@ -93,7 +93,7 @@ MVMint32 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name
         generate_property_codes_by_names_aliases(tc);
     }
     HASH_FIND(hash_handle, property_codes_by_names_aliases, cname, strlen((const char *)cname), result);
-    free(cname); /* not really codepoint, really just an index */
+    MVM_free(cname); /* not really codepoint, really just an index */
     return result ? result->codepoint : 0;
 }
 
@@ -150,7 +150,7 @@ MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 
             generate_unicode_property_values_hashes(tc);
         }
         HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], cname, strlen((const char *)cname), result);
-        free(cname); /* not really codepoint, really just an index */
+        MVM_free(cname); /* not really codepoint, really just an index */
         return result ? result->codepoint : 0;
     }
 }

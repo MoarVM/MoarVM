@@ -66,7 +66,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         char *tmpstr = MVM_string_utf8_encode_C_string(
             tc, cu->body.strings[cu->body.sc_handle_idxs[k]]);
         a("  SC_%u : %s\n", k, tmpstr);
-        free(tmpstr);
+        MVM_free(tmpstr);
     }
 
     for (k = 0; k < cu->body.num_callsites; k++) {
@@ -85,7 +85,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                     char *arg_name = MVM_string_utf8_encode_C_string(tc,
                         callsite->arg_names[nameds_count++]);
                     a(" named(%s)", arg_name);
-                    free(arg_name);
+                    MVM_free(arg_name);
                 }
                 else {
                     a(" named");
@@ -137,9 +137,9 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         fname = MVM_string_utf8_encode_C_string(tc, frame->body.name);
         a("  Frame_%u :\n", k);
         a("    cuuid : %s\n", cuuid);
-        free(cuuid);
+        MVM_free(cuuid);
         a("    name : %s\n", fname);
-        free(fname);
+        MVM_free(fname);
         for (j = 0; j < cu->body.num_frames; j++) {
             if (cu->body.frames[j] == frame->body.outer)
                 a("    outer : Frame_%u\n", j);
@@ -226,7 +226,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             MVM_exception_throw_adhoc(tc, "Unable to resolve op %d", (int)op_num);
         a("%-12s ", op_info->name);
         if (op_info == &tmp_extop_info) {
-            free((void *)op_info->name);
+            MVM_free((void *)op_info->name);
             op_info->name = NULL;
         }
 
@@ -277,7 +277,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                         /* XXX C-string-literal escape the \ and '
                             and line breaks and non-ascii someday */
                         a("'%s'", tmpstr);
-                        free(tmpstr);
+                        MVM_free(tmpstr);
                         break;
                     case MVM_operand_ins:
                         operand_size = 4;
@@ -363,12 +363,12 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 						shi < cu->body.num_strings ? shi : 0
 					]);
                 a("     annotation: %s:%u\n", tmpstr, GET_UI32(frame->body.annotations_data, (annotations[j] - 1)*12 + 8));
-                free(tmpstr);
+                MVM_free(tmpstr);
             }
             if (linelabels[j])
                 a("     label_%u:\n", linelabels[j]);
             a("%05d   %s", j, lines[j]);
-            free(lines[j]);
+            MVM_free(lines[j]);
             if (jumps[j]) {
                 /* horribly inefficient for large frames.  again, should use a hash */
                 line_number = 0;
@@ -377,22 +377,22 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             }
             a("\n");
         }
-        free(lines);
-        free(jumps);
-        free(linelocs);
-        free(linelabels);
-        free(labels);
-        free(annotations);
+        MVM_free(lines);
+        MVM_free(jumps);
+        MVM_free(linelocs);
+        MVM_free(linelabels);
+        MVM_free(labels);
+        MVM_free(annotations);
     }
 
         }
     }
     for (k = 0; k < cu->body.num_frames; k++) {
         for (j = 0; j < cu->body.frames[k]->body.num_lexicals; j++) {
-            free(frame_lexicals[k][j]);
+            MVM_free(frame_lexicals[k][j]);
         }
-        free(frame_lexicals[k]);
+        MVM_free(frame_lexicals[k]);
     }
-    free(frame_lexicals);
+    MVM_free(frame_lexicals);
     return o;
 }

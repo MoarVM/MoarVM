@@ -26,7 +26,7 @@ static MVMint16 get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMint16 is_
     MVMint16 result;
     if (strcmp(ctypename, "void") == 0) {
         if (!is_return) {
-            free(ctypename);
+            MVM_free(ctypename);
             MVM_exception_throw_adhoc(tc,
                 "Cannot use 'void' type except for on native call return values");
         }
@@ -62,7 +62,7 @@ static MVMint16 get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMint16 is_
         result = MVM_NATIVECALL_ARG_CALLBACK;
     else
         MVM_exception_throw_adhoc(tc, "Unknown type '%s' used for native call", ctypename);
-    free(ctypename);
+    MVM_free(ctypename);
     return result;
 }
 
@@ -80,7 +80,7 @@ static MVMint16 get_calling_convention(MVMThreadContext *tc, MVMString *name) {
         else
             MVM_exception_throw_adhoc(tc,
                 "Unknown calling convention '%s' used for native call", cname);
-        free(cname);
+        MVM_free(cname);
     }
     return result;
 }
@@ -144,7 +144,7 @@ MVMObject * make_str_result(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_
         }
         result = MVM_repr_box_str(tc, type, value);
         if (ret_type & MVM_NATIVECALL_ARG_FREE_STR)
-            free(cstring);
+            MVM_free(cstring);
     }
     return result;
 }
@@ -549,7 +549,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     }
 
     /* Clean up. */
-    free(args);
+    MVM_free(args);
 
     /* Indicate what we're producing as a result. */
     return get_signature_char(data->typeinfos[0]);
@@ -569,7 +569,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     body->lib_name = lib_name;
     body->lib_handle = dlLoadLibrary(strlen(lib_name) ? lib_name : NULL);
     if (!body->lib_handle) {
-        free(sym_name);
+        MVM_free(sym_name);
         MVM_exception_throw_adhoc(tc, "Cannot locate native library '%s'", lib_name);
     }
 
@@ -578,7 +578,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     if (!body->entry_point)
         MVM_exception_throw_adhoc(tc, "Cannot locate symbol '%s' in native library '%s'",
             sym_name, lib_name);
-    free(sym_name);
+    MVM_free(sym_name);
 
     /* Set calling convention, if any. */
     body->convention = get_calling_convention(tc, conv);
@@ -742,8 +742,8 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     /* Free any memory that we need to. */
     if (free_strs) {
         for (i = 0; i < num_strs; i++)
-            free(free_strs[i]);
-        free(free_strs);
+            MVM_free(free_strs[i]);
+        MVM_free(free_strs);
     }
 
     /* Finally, free call VM. */

@@ -60,7 +60,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     else if (nread == UV_EOF) {
         data->eof = 1;
         if (buf->base)
-            free(buf->base);
+            MVM_free(buf->base);
     }
     uv_read_stop(handle);
     uv_unref((uv_handle_t*)handle);
@@ -173,7 +173,7 @@ MVMint64 MVM_io_syncstream_eof(MVMThreadContext *tc, MVMOSHandle *h) {
 /* Writes the specified string to the stream, maybe with a newline. */
 static void write_cb(uv_write_t* req, int status) {
     uv_unref((uv_handle_t *)req->handle);
-    free(req);
+    MVM_free(req);
 }
 MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, MVMint64 newline) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
@@ -193,13 +193,13 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
     uv_ref((uv_handle_t *)data->handle);
     if ((r = uv_write(req, data->handle, &write_buf, 1, write_cb)) < 0) {
         uv_unref((uv_handle_t *)data->handle);
-        free(req);
-        free(output);
+        MVM_free(req);
+        MVM_free(output);
         MVM_exception_throw_adhoc(tc, "Failed to write string to stream: %s", uv_strerror(r));
     }
     else {
         uv_run(tc->loop, UV_RUN_DEFAULT);
-        free(output);
+        MVM_free(output);
     }
 
     data->total_bytes_written += output_size;
@@ -215,7 +215,7 @@ MVMint64 MVM_io_syncstream_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, cha
     uv_ref((uv_handle_t *)data->handle);
     if ((r = uv_write(req, data->handle, &write_buf, 1, write_cb)) < 0) {
         uv_unref((uv_handle_t *)data->handle);
-        free(req);
+        MVM_free(req);
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to stream: %s", uv_strerror(r));
     }
     else {
@@ -264,7 +264,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
             MVM_string_decodestream_destory(tc, data->ds);
             data->ds = NULL;
         }
-        free(data);
+        MVM_free(data);
     }
 }
 

@@ -42,11 +42,11 @@ void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, 
 
 /* Free a worklist. */
 void MVM_gc_worklist_destroy(MVMThreadContext *tc, MVMGCWorklist *worklist) {
-    free(worklist->list);
+    MVM_free(worklist->list);
     worklist->list = NULL;
-    free(worklist->frames_list);
+    MVM_free(worklist->frames_list);
     worklist->frames_list = NULL;
-    free(worklist);
+    MVM_free(worklist);
 }
 
 /* Move things from the frames worklist to the object worklist. */

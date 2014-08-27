@@ -168,7 +168,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 
     /* If we replaced the object body, free the replacement. */
     if (((MVMP6opaque *)obj)->body.replaced) {
-        free(((MVMP6opaque *)obj)->body.replaced);
+        MVM_free(((MVMP6opaque *)obj)->body.replaced);
         ((MVMP6opaque *)obj)->body.replaced = NULL;
     }
 }
@@ -1155,7 +1155,7 @@ void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_type) {
         /* Pointer switch, taking care of existing body issues. */
         if (body->replaced) {
             body->replaced = new;
-            free(old);
+            MVM_free(old);
         }
         else {
             body->replaced = new;

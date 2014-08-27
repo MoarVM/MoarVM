@@ -387,7 +387,7 @@ char * MVM_string_utf8_encode_C_string(MVMThreadContext *tc, MVMString *str) {
      * contains embedded NULs. XXX TODO: Make sure all uses of this free what it returns */
     result = MVM_malloc(output_size + 1);
     memcpy(result, utf8_string, output_size);
-    free(utf8_string);
+    MVM_free(utf8_string);
     result[output_size] = (char)0;
     return result;
 }

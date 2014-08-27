@@ -46,8 +46,8 @@ void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {
             /* Got a match! Free the one we were passed and replace it with
              * the interned one. */
             if (num_flags)
-                free(cs->arg_flags);
-            free(cs);
+                MVM_free(cs->arg_flags);
+            MVM_free(cs);
             *cs_ptr = interns->by_arity[num_flags][i];
             found = 1;
             break;

@@ -75,7 +75,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0);
             fprintf(stderr, "Op %d%s\n", (int)*((MVMuint16 *)cur_op), trace_line);
             /* slow tracing is slow. Feel free to speed it. */
-            free(trace_line);
+            MVM_free(trace_line);
         }
 #endif
 
@@ -1880,7 +1880,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint8  *buf = MVM_string_ascii_encode(tc, s, NULL);
                 MVMObject *a = MVM_repr_alloc_init(tc, type);
                 MVM_bigint_from_str(tc, a, buf);
-                free(buf);
+                MVM_free(buf);
                 GET_REG(cur_op, 0).o = a;
                 cur_op += 6;
                 goto NEXT;
@@ -2728,7 +2728,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
                 /* technically this free isn't thread safe */
                 if (STABLE(obj)->type_check_cache)
-                    free(STABLE(obj)->type_check_cache);
+                    MVM_free(STABLE(obj)->type_check_cache);
                 STABLE(obj)->type_check_cache = cache;
                 STABLE(obj)->type_check_cache_length = (MVMuint16)elems;
                 MVM_SC_WB_ST(tc, STABLE(obj));
@@ -2748,7 +2748,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_ASSIGN_REF(tc, &(st->header), is->invocation_handler, invocation_handler);
                 /* XXX not thread safe, but this should occur on non-shared objects anyway... */
                 if (st->invocation_spec)
-                    free(st->invocation_spec);
+                    MVM_free(st->invocation_spec);
                 st->invocation_spec = is;
                 cur_op += 8;
                 goto NEXT;
