@@ -606,8 +606,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_add_i:
     case MVM_OP_sub_i:
     case MVM_OP_mul_i:
-    case MVM_OP_div_i:
-    case MVM_OP_mod_i:
     case MVM_OP_bor_i:
     case MVM_OP_band_i:
     case MVM_OP_bxor_i: {
@@ -625,13 +623,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_OP_mul_i:
             | imul rax, WORK[reg_c];
             break;
-        case MVM_OP_div_i:
-        case MVM_OP_mod_i:
-            // Convert Quadword to Octoword, i.e. use rax:rdx as one
-            // single 16 byte register
-            | cqo;
-            | idiv qword WORK[reg_c];
-            break;
         case MVM_OP_bor_i:
             | or rax, WORK[reg_c];
             break;
@@ -642,15 +633,39 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | xor rax, WORK[reg_c];
             break;
         }
-        if (ins->info->opcode == MVM_OP_mod_i) {
-            // result of modula is stored in rdx
-            | mov WORK[reg_a], rdx;
+        | mov WORK[reg_a], rax;
+        break;
+    }
+    case MVM_OP_div_i:
+    case MVM_OP_mod_i: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 a   = ins->operands[1].reg.orig;
+        MVMint16 b   = ins->operands[2].reg.orig;
+        | mov rcx, WORK[b];
+        | test rcx, rcx;
+        | jnz >1;
+        | throw_adhoc "Division by zero";
+        |1:
+        // division is safe, proceed
+        | mov rax, WORK[a];
+        | cqo;  // convert quadword to octoword. look it up :-)
+        | idiv rcx; // rcx was the denominator
+        if (op == MVM_OP_div_i) {
+            | mov r8, rax;
+            | dec r8;
+            | cmp rax, 0; // quotient < 0
+            | setl ch;
+            | test rdx, rdx; // remainder != 0
+            | setnz cl;
+            | test ch, cl;
+            | cmovnz rax, r8;
+            | mov WORK[dst], rax;
         } else {
-            // all others in rax
-            | mov WORK[reg_a], rax;
+            | mov WORK[dst], rdx;
         }
         break;
     }
+
     case MVM_OP_inc_i: {
          MVMint32 reg = ins->operands[0].reg.orig;
          | inc qword WORK[reg];
