@@ -185,7 +185,7 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
 
     output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
     if (newline) {
-        output = (MVMuint8 *)realloc(output, ++output_size);
+        output = (MVMuint8 *)MVM_realloc(output, ++output_size);
         output[output_size - 1] = '\n';
     }
     req = MVM_malloc(sizeof(uv_write_t));

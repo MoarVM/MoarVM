@@ -11,7 +11,7 @@
 static wchar_t * UTF8ToUnicode(const char *str)
 {
      const int         len = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
-     wchar_t * const result = (wchar_t *)malloc(len * sizeof(wchar_t));
+     wchar_t * const result = (wchar_t *)MVM_malloc(len * sizeof(wchar_t));
 
      MultiByteToWideChar(CP_UTF8, 0, str, -1, result, len);
 
@@ -63,7 +63,7 @@ MVMint64 MVM_platform_unlink(const char *pathname) {
         MVM_free(wpathname);
 
         str_len  = wcslen(abs_wpathname);
-        wpathname = (wchar_t *)malloc((str_len + 4) * sizeof(wchar_t));
+        wpathname = (wchar_t *)MVM_malloc((str_len + 4) * sizeof(wchar_t));
         wcscpy(wpathname, L"\\\\?\\");
         wcscat(wpathname, abs_wpathname);
     }
