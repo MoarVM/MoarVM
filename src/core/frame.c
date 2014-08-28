@@ -930,7 +930,8 @@ void MVM_frame_free_frame_pool(MVMThreadContext *tc) {
 
 /* Vivifies a lexical in a frame. */
 MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint16 idx) {
-    MVMuint8       *flags, flag;
+    MVMuint8       *flags;
+    MVMint16        flag;
     MVMRegister    *static_env;
     MVMuint16       effective_idx;
     MVMStaticFrame *effective_sf;
