@@ -921,7 +921,7 @@ MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MV
     MVMBytecodeAnnotation *ba = NULL;
     MVMuint32 i, j;
 
-    if (sfb->num_annotations && offset >= 0 && offset < sfb->bytecode_size) {
+    if (sfb->num_annotations && offset < sfb->bytecode_size) {
         MVMint8 *cur_anno = sfb->annotations_data;
         for (i = 0; i < sfb->num_annotations; i++) {
             MVMint32 ann_offset = read_int32(cur_anno, 0);
