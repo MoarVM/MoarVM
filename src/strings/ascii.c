@@ -14,11 +14,7 @@ MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type
     result->body.storage_type       = MVM_STRING_GRAPHEME_ASCII;
     result->body.storage.blob_ascii = malloc(bytes);
     for (i = 0; i < bytes; i++)
-        if (ascii[i] <= 127)
-            result->body.storage.blob_ascii[i] = ascii[i];
-        else
-            MVM_exception_throw_adhoc(tc,
-                "Will not decode invalid ASCII (code point > 127 found)");
+        result->body.storage.blob_ascii[i] = ascii[i];
 
     return result;
 }
