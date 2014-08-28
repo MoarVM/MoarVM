@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "platform/time.h"
 
 /* Initializes a new thread context. Note that this doesn't set up a
  * thread itself, it just creates the data structure that exists in
