@@ -558,7 +558,7 @@ findsym             w(obj) r(str) r(str)
 dropsym             r(obj)
 loadext             r(str) r(str)
 backendconfig       w(obj)
-getlexouter         w(obj) r(str) :pure
+getlexouter         w(obj) r(str) :pure :noinline
 getlexrel           w(obj) r(obj) r(str) :pure
 getlexreldyn        w(obj) r(obj) r(str) :pure
 getlexrelcaller     w(obj) r(obj) r(str) :pure
