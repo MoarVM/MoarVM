@@ -25,7 +25,7 @@ MVMuint64 MVM_gc_object_id(MVMThreadContext *tc, MVMObject *obj) {
              * in the persistent object ID hash. */
             entry            = calloc(1, sizeof(MVMObjectId));
             entry->current   = obj;
-            entry->gen2_addr = MVM_gc_gen2_allocate(tc->gen2, obj->header.size);
+            entry->gen2_addr = MVM_gc_gen2_allocate_zeroed(tc->gen2, obj->header.size);
             HASH_ADD_KEYPTR(hash_handle, tc->instance->object_ids, &(entry->current),
                 sizeof(MVMObject *), entry);
             obj->header.flags |= MVM_CF_HAS_OBJECT_ID;

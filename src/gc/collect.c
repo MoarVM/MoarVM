@@ -635,7 +635,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                     if (!(col->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
                         /* Object instance; call gc_free if needed. */
                         MVMObject *obj = (MVMObject *)col;
-                        if (REPR(obj)->gc_free)
+                        if (STABLE(obj) && REPR(obj)->gc_free)
                             REPR(obj)->gc_free(tc, obj);
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                         if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
