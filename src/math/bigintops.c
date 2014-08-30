@@ -281,20 +281,25 @@ static void two_complement_shl(mp_int *result, mp_int *value, MVMint64 count) {
 
 #define MVM_BIGINT_UNARY_OP(opname, SMALLINT_OP) \
 void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *source) { \
-    MVMP6bigintBody *ba = get_bigint_body(tc, source); \
     MVMP6bigintBody *bb = get_bigint_body(tc, result); \
-    if (MVM_BIGINT_IS_BIG(ba)) { \
-        mp_int *ia = ba->u.bigint; \
-        mp_int *ib = malloc(sizeof(mp_int)); \
-        mp_init(ib); \
-        mp_##opname(ia, ib); \
-        store_bigint_result(bb, ib); \
+    if (!IS_CONCRETE(source)) { \
+        store_int64_result(bb, 0); \
     } \
     else { \
-        MVMint64 sb; \
-        MVMint64 sa = ba->u.smallint.value; \
-        SMALLINT_OP; \
-        store_int64_result(bb, sb); \
+        MVMP6bigintBody *ba = get_bigint_body(tc, source); \
+        if (MVM_BIGINT_IS_BIG(ba)) { \
+            mp_int *ia = ba->u.bigint; \
+            mp_int *ib = malloc(sizeof(mp_int)); \
+            mp_init(ib); \
+            mp_##opname(ia, ib); \
+            store_bigint_result(bb, ib); \
+        } \
+        else { \
+            MVMint64 sb; \
+            MVMint64 sa = ba->u.smallint.value; \
+            SMALLINT_OP; \
+            store_int64_result(bb, sb); \
+        } \
     } \
 }
 
