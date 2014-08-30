@@ -651,6 +651,7 @@ spawnprocasync      w(obj) r(obj) r(obj) r(str) r(obj) r(obj)
 killprocasync       r(obj) r(int64)
 startprofile        r(obj)
 endprofile          w(obj)
+objectid            w(int64) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

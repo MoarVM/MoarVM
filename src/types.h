@@ -101,6 +101,7 @@ typedef struct MVMConcBlockingQueueBody MVMConcBlockingQueueBody;
 typedef struct MVMConcBlockingQueueNode MVMConcBlockingQueueNode;
 typedef struct MVMConcBlockingQueueLocks MVMConcBlockingQueueLocks;
 typedef struct MVMObject MVMObject;
+typedef struct MVMObjectId MVMObjectId;
 typedef struct MVMObjectStooge MVMObjectStooge;
 typedef struct MVMOpInfo MVMOpInfo;
 typedef struct MVMOSHandle MVMOSHandle;

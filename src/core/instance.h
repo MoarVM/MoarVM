@@ -68,6 +68,7 @@ struct MVMStringConsts {
     MVMString *write;
 };
 
+/* An entry in the representations registry. */
 struct MVMReprRegistry {
     /* name of the REPR */
     MVMString *name;
@@ -76,6 +77,20 @@ struct MVMReprRegistry {
     const MVMREPROps *repr;
 
     /* the uthash hash handle inline struct. */
+    UT_hash_handle hash_handle;
+};
+
+/* An entry in the persistent object IDs hash, used to give still-movable
+ * objects a lifetime-unique ID. */
+struct MVMObjectId {
+    /* The current object address. */
+    MVMObject *current;
+
+    /* Then gen2 address that forms the persistent ID, and where we'll move
+     * the object to if it lives long enough. */
+    MVMCollectable *gen2_addr;
+
+    /* Hash handle. */
     UT_hash_handle hash_handle;
 };
 
@@ -198,6 +213,11 @@ struct MVMInstance {
     AO_t gc_ack;
     /* Linked list (via forwarder) of STables to free. */
     MVMSTable *stables_to_free;
+
+    /* Persistent object ID hash, used to give nursery objects a lifetime
+     * unique ID. Plus a lock to protect it. */
+    MVMObjectId *object_ids;
+    uv_mutex_t    mutex_object_ids;
 
     /* MVMThreads completed starting, running, and/or exited. */
     /* note: used atomically */

@@ -94,6 +94,10 @@ OBJECTS = src/core/callsite@obj@ \
           src/gc/allocation@obj@ \
           src/gc/worklist@obj@ \
           src/gc/roots@obj@ \
+          src/gc/collect@obj@ \
+          src/gc/gen2@obj@ \
+          src/gc/wb@obj@ \
+          src/gc/objectid@obj@ \
           src/io/io@obj@ \
           src/io/eventloop@obj@ \
           src/io/syncfile@obj@ \
@@ -107,9 +111,6 @@ OBJECTS = src/core/callsite@obj@ \
           src/io/filewatchers@obj@ \
           src/io/signals@obj@ \
           src/io/asyncsocket@obj@ \
-          src/gc/collect@obj@ \
-          src/gc/gen2@obj@ \
-          src/gc/wb@obj@ \
           src/6model/reprs@obj@ \
           src/6model/reprconv@obj@ \
           src/6model/containers@obj@ \
@@ -238,6 +239,7 @@ HEADERS = src/moar.h \
           src/gc/roots.h \
           src/gc/gen2.h \
           src/gc/wb.h \
+          src/gc/objectid.h \
           src/6model/reprs.h \
           src/6model/reprconv.h \
           src/6model/bootstrap.h \

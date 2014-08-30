@@ -226,12 +226,15 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 printf("%d", ((MVMCollectable *)1)->owner);
             }
 
-            /* Did we see it in the nursery before? */
-            if (item->flags & MVM_CF_NURSERY_SEEN) {
+            /* Did we see it in the nursery before, or should we move it to
+             * gen2 anyway since it a persistent ID was requested? */
+            if (item->flags & (MVM_CF_NURSERY_SEEN | MVM_CF_HAS_OBJECT_ID)) {
                 /* Yes; we should move it to the second generation. Allocate
                  * space in the second generation. */
                 to_gen2 = 1;
-                new_addr = MVM_gc_gen2_allocate(gen2, item->size);
+                new_addr = item->flags & MVM_CF_HAS_OBJECT_ID
+                    ? MVM_gc_object_id_use_allocation(tc, item)
+                    : MVM_gc_gen2_allocate(gen2, item->size);
 
                 /* Add on to the promoted amount (used by profiler). */
                 tc->gc_promoted_bytes += item->size;
@@ -533,6 +536,8 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             if (dead && item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                 free(item->sc_forward_u.sci);
 #endif
+            if (dead && item->flags & MVM_CF_HAS_OBJECT_ID)
+                MVM_gc_object_id_clear(tc, item);
         }
         else if (item->flags & MVM_CF_TYPE_OBJECT) {
             /* Type object */
@@ -540,6 +545,8 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             if (dead && item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                 free(item->sc_forward_u.sci);
 #endif
+            if (dead && item->flags & MVM_CF_HAS_OBJECT_ID)
+                MVM_gc_object_id_clear(tc, item);
         }
         else if (item->flags & MVM_CF_STABLE) {
             MVMSTable *st = (MVMSTable *)item;

@@ -63,6 +63,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up container registry mutex. */
     init_mutex(instance->mutex_container_registry, "container registry");
 
+    /* Set up persistent object ID hash mutex. */
+    init_mutex(instance->mutex_object_ids, "object ID hash");
+
     /* Allocate all things during following setup steps directly in gen2, as
      * they will have program lifetime. */
     MVM_gc_allocate_gen2_default_set(instance->main_thread);

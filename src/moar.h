@@ -112,6 +112,7 @@ typedef double   MVMnum64;
 #include "gc/orchestrate.h"
 #include "gc/gen2.h"
 #include "gc/roots.h"
+#include "gc/objectid.h"
 #include "spesh/dump.h"
 #include "spesh/graph.h"
 #include "spesh/codegen.h"

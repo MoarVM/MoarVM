@@ -103,14 +103,18 @@ typedef enum {
      * objects list. */
     MVM_CF_IN_GEN2_ROOT_LIST = 32,
 
-    /* GC has found this object to be live. */
+    /* A full GC run has found this object to be live. */
     MVM_CF_GEN2_LIVE = 64,
+
     /* This object in fromspace is live with a valid forwarder. */
-    /* TODO - should be possible to use the same bit for these two flags. */
+    /* TODO - should be possible to use the same bit for this and GEN2_LIVE. */
     MVM_CF_FORWARDER_VALID = 128,
 
-    MVM_CF_SERIALZATION_INDEX_ALLOCATED = 256
+    /* Have we allocated memory to store a serialization index? */
+    MVM_CF_SERIALZATION_INDEX_ALLOCATED = 256,
 
+    /* Have we arranged a persistent object ID for this object? */
+    MVM_CF_HAS_OBJECT_ID = 512
 } MVMCollectableFlags;
 
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
