@@ -2819,10 +2819,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(getcodeobj): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
-                if (REPR(obj)->ID == MVM_REPR_ID_MVMCode)
-                    GET_REG(cur_op, 0).o = MVM_frame_get_code_object(tc, (MVMCode *)obj);
-                else
-                    MVM_exception_throw_adhoc(tc, "getcodeobj needs a code ref");
+                GET_REG(cur_op, 0).o = MVM_frame_get_code_object(tc, (MVMCode *)obj);
                 cur_op += 4;
                 goto NEXT;
             }
