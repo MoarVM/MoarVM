@@ -85,7 +85,7 @@ static MVMSpeshIns * add_named_used_ins(MVMThreadContext *tc, MVMSpeshGraph *g, 
 
 /* Handles a pos arg that needs unboxing. */
 static void pos_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                      MVMSpeshIns *ins, MVMOpInfo *unbox_op) {
+                      MVMSpeshIns *ins, const MVMOpInfo *unbox_op) {
     MVMSpeshOperand  temp  = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
     MVMSpeshIns     *unbox = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     unbox->info            = unbox_op;
@@ -100,8 +100,8 @@ static void pos_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 
 /* Handles a pos arg that needs boxing. */
 static void pos_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                    MVMSpeshIns *ins, MVMOpInfo *hlltype_op, MVMOpInfo *box_op,
-                    MVMOpInfo *arg_op, MVMuint8 kind) {
+                    MVMSpeshIns *ins, const MVMOpInfo *hlltype_op, const MVMOpInfo *box_op,
+                    const MVMOpInfo *arg_op, MVMuint8 kind) {
     MVMSpeshOperand  temp_bt, temp_arg;
     MVMSpeshIns     *hlltype, *box;
 

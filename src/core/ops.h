@@ -666,4 +666,4 @@
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
 
-MVM_PUBLIC MVMOpInfo * MVM_op_get_op(unsigned short op);
+MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op);

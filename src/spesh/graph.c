@@ -53,14 +53,14 @@ void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
 
 /* Looks up op info; doesn't sanity check, since we should be working on code
  * that already pass validation. */
-static MVMOpInfo * get_op_info(MVMThreadContext *tc, MVMCompUnit *cu, MVMuint16 opcode) {
+static const MVMOpInfo * get_op_info(MVMThreadContext *tc, MVMCompUnit *cu, MVMuint16 opcode) {
     if (opcode < MVM_OP_EXT_BASE) {
         return MVM_op_get_op(opcode);
     }
     else {
         MVMuint16       index  = opcode - MVM_OP_EXT_BASE;
         MVMExtOpRecord *record = &cu->body.extops[index];
-        return (MVMOpInfo *)MVM_ext_resolve_extop_record(tc, record);
+        return MVM_ext_resolve_extop_record(tc, record);
     }
 }
 
@@ -139,10 +139,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         byte_to_ins_flags[g->handlers[i].goto_offset] |= MVM_CFG_BB_START;
     while (pc < end) {
         /* Look up op info. */
-        MVMuint16  opcode   = *(MVMuint16 *)pc;
-        MVMuint8  *args     = pc + 2;
-        MVMuint8   arg_size = 0;
-        MVMOpInfo *info     = get_op_info(tc, cu, opcode);
+        MVMuint16  opcode     = *(MVMuint16 *)pc;
+        MVMuint8  *args       = pc + 2;
+        MVMuint8   arg_size   = 0;
+        const MVMOpInfo *info = get_op_info(tc, cu, opcode);
 
         /* Create an instruction node, add it, and record its position. */
         MVMSpeshIns *ins_node = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));

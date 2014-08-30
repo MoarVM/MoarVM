@@ -151,7 +151,7 @@ typedef struct {
     unsigned int  annotation_alloc;
 
     /* Current instruction info */
-    MVMOpInfo    *current_op_info;
+    const MVMOpInfo    *current_op_info;
 
     /* Zero-based index of current frame */
     unsigned int  current_frame_idx;
@@ -721,7 +721,7 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flag_node, MASTNod
 void compile_instruction(VM, WriterState *ws, MASTNode *node) {
     if (ISTYPE(vm, node, ws->types->Op)) {
         MAST_Op   *o = GET_Op(node);
-        MVMOpInfo *info;
+        const MVMOpInfo *info;
         int        i;
         unsigned char override_second_argument = 0;
 

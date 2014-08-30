@@ -201,7 +201,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         op_num = *((MVMint16 *)cur_op);
         cur_op += 2;
         if (op_num < MVM_OP_EXT_BASE) {
-            op_info = MVM_op_get_op(op_num);
+            op_info = (MVMOpInfo *)MVM_op_get_op(op_num);
         }
         else {
             MVMint16 ext_op_num = op_num - MVM_OP_EXT_BASE;

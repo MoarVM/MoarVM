@@ -2,7 +2,7 @@
 
 /* Ensures that a given compilation unit has access to the specified extop. */
 static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUnit *source_cu,
-                         MVMOpInfo *info) {
+                         const MVMOpInfo *info) {
     MVMExtOpRecord *extops;
     MVMuint16 i, num_extops;
 

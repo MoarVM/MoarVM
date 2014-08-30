@@ -166,7 +166,7 @@ struct MVMSpeshBB {
 /* An instruction in the spesh graph. */
 struct MVMSpeshIns {
     /* Instruction information. */
-    MVMOpInfo *info;
+    const MVMOpInfo *info;
 
     /* Operand information. */
     MVMSpeshOperand *operands;

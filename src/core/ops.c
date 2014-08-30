@@ -9,7 +9,7 @@
 #include "moar.h"
 #endif
 /* This file is generated from src/core/oplist by tools/update_ops.p6. */
-static MVMOpInfo MVM_op_infos[] = {
+static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_no_op,
         "no_op",
@@ -7270,9 +7270,9 @@ static MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static unsigned short MVM_op_counts = 661;
+static const unsigned short MVM_op_counts = 661;
 
-MVM_PUBLIC MVMOpInfo * MVM_op_get_op(unsigned short op) {
+MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
         return NULL;
     return &MVM_op_infos[op];
