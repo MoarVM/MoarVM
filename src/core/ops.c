@@ -1,13 +1,5 @@
-#ifdef PARROT_OPS_BUILD
-#define PARROT_IN_EXTENSION
-#include "parrot/parrot.h"
-#include "parrot/extend.h"
-#include "sixmodelobject.h"
-#include "nodes_parrot.h"
-#include "../../src/core/ops.h"
-#else
 #include "moar.h"
-#endif
+
 /* This file is generated from src/core/oplist by tools/update_ops.p6. */
 static const MVMOpInfo MVM_op_infos[] = {
     {
