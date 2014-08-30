@@ -174,7 +174,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 lineno = 0;
     MVMuint32 lineloc;
     MVMuint16 op_num;
-    MVMOpInfo *op_info;
+    const MVMOpInfo *op_info;
     MVMuint32 operand_size;
     unsigned char op_rw;
     unsigned char op_type;
@@ -201,7 +201,8 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         op_num = *((MVMint16 *)cur_op);
         cur_op += 2;
         if (op_num < MVM_OP_EXT_BASE) {
-            op_info = (MVMOpInfo *)MVM_op_get_op(op_num);
+            op_info = MVM_op_get_op(op_num);
+            a("%-12s ", op_info->name);
         }
         else {
             MVMint16 ext_op_num = op_num - MVM_OP_EXT_BASE;
@@ -217,17 +218,13 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                     else
                         break;
                 op_info = &tmp_extop_info;
+                a("%-12s ", tmp_extop_info.name);
+                free((void *)tmp_extop_info.name);
+                tmp_extop_info.name = NULL;
             }
             else {
                 MVM_exception_throw_adhoc(tc, "Extension op %d out of range", (int)op_num);
             }
-        }
-        if (!op_info)
-            MVM_exception_throw_adhoc(tc, "Unable to resolve op %d", (int)op_num);
-        a("%-12s ", op_info->name);
-        if (op_info == &tmp_extop_info) {
-            free((void *)op_info->name);
-            op_info->name = NULL;
         }
 
         for (i = 0; i < op_info->num_operands; i++) {
