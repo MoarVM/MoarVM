@@ -360,6 +360,7 @@ MVM_PUBLIC void MVM_repr_bind_attr_inso(MVMThreadContext *tc, MVMObject *object,
             STABLE(object), object, OBJECT_BODY(object),
             type, name,
             hint, value_reg, kind);
+    MVM_SC_WB_OBJ(tc, object);
 }
 
 MVM_PUBLIC MVMint64    MVM_repr_compare_repr_id(MVMThreadContext *tc, MVMObject *object, MVMuint32 REPRId) {
