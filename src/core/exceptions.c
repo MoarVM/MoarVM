@@ -665,6 +665,11 @@ void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMSt
     }
 }
 
+MVM_NO_RETURN
+void MVM_panic_allocation_failed(size_t len) {
+    MVM_panic(1, "Memory allocation failed; could not allocate %zu bytes", len);
+}
+
 /* Panics and shuts down the VM. Don't do this unless it's something quite
  * unrecoverable.
  * TODO: Some hook for embedders.
