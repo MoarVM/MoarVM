@@ -150,7 +150,8 @@ static void jgb_append_branch(MVMThreadContext *tc, JitGraphBuilder *jgb,
         if (ins->info->opcode == MVM_OP_goto) {
             bb = ins->operands[0].ins_bb;
         }
-        else if (ins->info->opcode == MVM_OP_indexat) {
+        else if (ins->info->opcode == MVM_OP_indexat ||
+                 ins->info->opcode == MVM_OP_indexnat) {
             bb = ins->operands[3].ins_bb;
         }
         else {
@@ -730,6 +731,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_unless_n:
     case MVM_OP_ifnonnull:
     case MVM_OP_indexat:
+    case MVM_OP_indexnat:
     case MVM_OP_if_s0:
     case MVM_OP_unless_s0:
         jgb_append_branch(tc, jgb, 0, ins);

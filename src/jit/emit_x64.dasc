@@ -1513,7 +1513,8 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
             | jmp =>(name);
             |1:
             break;
-        case MVM_OP_indexat: {
+        case MVM_OP_indexat:
+        case MVM_OP_indexnat: {
             MVMint16 offset = ins->operands[1].reg.orig;
             MVMuint32 str_idx = ins->operands[2].lit_str_idx;
             | mov ARG1, TC;
@@ -1521,8 +1522,17 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
             | mov ARG3, WORK[offset];
             | get_string ARG4, str_idx;
             | callp &MVM_string_char_at_in_string;
-            | cmp RV, 0;
-            | jl =>(name);
+            /* This subtlety is due to the value being overloaded to
+             * -2 if it ise out of bounds. Note that -1 is passed as a
+             * 32 bit integer, but this magically works in a 64 bit
+             * comparison because 32 bit values are sign-extended */
+            | cmp RV, -1;
+            if (ins->info->opcode == MVM_OP_indexat)
+                | jle =>(name);
+            else {
+
+                | jne =>(name);
+            }
             break;
         }
         default:
