@@ -1523,7 +1523,7 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitGraph *jg,
             | get_string ARG4, str_idx;
             | callp &MVM_string_char_at_in_string;
             /* This subtlety is due to the value being overloaded to
-             * -2 if it ise out of bounds. Note that -1 is passed as a
+             * -2 if it is out of bounds. Note that -1 is passed as a
              * 32 bit integer, but this magically works in a 64 bit
              * comparison because 32 bit values are sign-extended */
             | cmp RV, -1;
