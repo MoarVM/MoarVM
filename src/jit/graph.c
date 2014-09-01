@@ -241,6 +241,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_getattr_i: return &MVM_repr_get_attr_i;
     case MVM_OP_getattr_o: return &MVM_repr_get_attr_o;
     case MVM_OP_bindattr_i: case MVM_OP_bindattr_n: case MVM_OP_bindattr_s: case MVM_OP_bindattr_o: return &MVM_repr_bind_attr_inso;
+    case MVM_OP_bindattrs_i: case MVM_OP_bindattrs_n: case MVM_OP_bindattrs_s: case MVM_OP_bindattrs_o: return &MVM_repr_bind_attr_inso;
     case MVM_OP_elems: return &MVM_repr_elems;
     case MVM_OP_flattenropes: return &MVM_string_flatten;
     case MVM_OP_concat_s: return &MVM_string_concatenate;
@@ -1116,6 +1117,29 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, obj },
                                  { MVM_JIT_REG_VAL, typ },
                                  { MVM_JIT_STR_IDX, str_idx },
+                                 { MVM_JIT_LITERAL, hint },
+                                 { MVM_JIT_REG_VAL, val },
+                                 { MVM_JIT_LITERAL, kind } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 7, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_bindattrs_i:
+    case MVM_OP_bindattrs_n:
+    case MVM_OP_bindattrs_s:
+    case MVM_OP_bindattrs_o: {
+        MVMint16 obj = ins->operands[0].reg.orig;
+        MVMint16 typ = ins->operands[1].reg.orig;
+        MVMint16 str = ins->operands[2].reg.orig;
+        MVMint16 val = ins->operands[3].reg.orig;
+        MVMint16 hint = ins->operands[4].lit_i16;
+        MVMuint16 kind = op == MVM_OP_bindattrs_i ? MVM_reg_int64 :
+                         op == MVM_OP_bindattrs_n ? MVM_reg_num64 :
+                         op == MVM_OP_bindattrs_s ? MVM_reg_str :
+                         /* MVM_OP_bindattrs_o ? */ MVM_reg_obj;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, obj },
+                                 { MVM_JIT_REG_VAL, typ },
+                                 { MVM_JIT_REG_VAL, str },
                                  { MVM_JIT_LITERAL, hint },
                                  { MVM_JIT_REG_VAL, val },
                                  { MVM_JIT_LITERAL, kind } };
