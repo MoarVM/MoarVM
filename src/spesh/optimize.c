@@ -416,7 +416,7 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     MVMString *method_name;
     MVMint64 can_result;
 
-    if (!(obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) || !obj_facts->type)
+    if (!(obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) || MVM_is_null(tc, obj_facts->type))
         return;
 
     if (ins->info->opcode == MVM_OP_can_s) {
@@ -1098,9 +1098,8 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_can:
         case MVM_OP_can_s:
-            break; /* XXX This causes problems, Spesh: failed to fix up handlers (-1, 110, 110) */
-            /* optimize_can_op(tc, g, bb, ins);
-            break; */
+            optimize_can_op(tc, g, bb, ins);
+            break;
         case MVM_OP_create:
             optimize_repr_op(tc, g, bb, ins, 1);
             break;
