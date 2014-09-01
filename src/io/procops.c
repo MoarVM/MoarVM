@@ -485,7 +485,8 @@ static void write_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *workl
 
 /* Frees info for a write task. */
 static void write_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
-    MVM_free(data);
+    if (data)
+        MVM_free(data);
 }
 
 /* Operations table for async write task. */
