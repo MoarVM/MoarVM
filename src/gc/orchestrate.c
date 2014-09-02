@@ -250,7 +250,8 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
 }
 
 static MVMint32 is_full_collection(MVMThreadContext *tc) {
-    return MVM_load(&tc->instance->gc_seq_number) % MVM_GC_GEN2_RATIO == 0;
+    return MVM_load(&tc->instance->gc_promoted_bytes_since_last_full) > 30 * 1024 * 1024;
+    /* return MVM_load(&tc->instance->gc_seq_number) % MVM_GC_GEN2_RATIO == 0; */
 }
 
 static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
@@ -303,6 +304,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
  * will need to do that triggering, notifying other running threads that the
  * time has come to GC. */
 void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
+    AO_t decrement_total_promoted_by = 0;
 
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from allocate\n");
 
@@ -329,6 +331,13 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* If profiling, record that GC is starting. */
         if (tc->instance->profiling)
             MVM_profiler_log_gc_start(tc, is_full_collection(tc));
+
+        if (is_full_collection(tc)) {
+            decrement_total_promoted_by = MVM_load(&tc->instance->gc_promoted_bytes_since_last_full);
+        }
+
+        /* Zero promoted bytes counter. */
+        tc->gc_promoted_bytes = 0;
 
         /* Ensure our stolen list is empty. */
         tc->gc_work_count = 0;
@@ -388,6 +397,8 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Freeing STables if needed\n");
         MVM_gc_collect_free_stables(tc);
 
+        MVM_add(&tc->instance->gc_promoted_bytes_since_last_full, tc->gc_promoted_bytes - decrement_total_promoted_by);
+
         /* If profiling, record that GC is over. */
         if (tc->instance->profiling)
             MVM_profiler_log_gc_end(tc);
@@ -414,6 +425,9 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     if (tc->instance->profiling)
         MVM_profiler_log_gc_start(tc, is_full_collection(tc));
 
+    /* Zero promoted bytes counter. */
+    tc->gc_promoted_bytes = 0;
+
     /* We'll certainly take care of our own work. */
     tc->gc_work_count = 0;
     add_work(tc, tc);
@@ -436,6 +450,8 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entering run_gc\n");
     run_gc(tc, MVMGCWhatToDo_NoInstance);
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : GC complete\n");
+
+    MVM_add(&tc->instance->gc_promoted_bytes_since_last_full, tc->gc_promoted_bytes);
 
     /* If profiling, record that GC is over. */
     if (tc->instance->profiling)
