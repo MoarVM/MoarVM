@@ -37,7 +37,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     /* The ThreadContext has already been destroyed by the GC. */
     MVMReentrantMutex *rm = (MVMReentrantMutex *)obj;
     uv_mutex_destroy(rm->body.mutex);
-    free(rm->body.mutex);
+    MVM_free(rm->body.mutex);
 }
 
 

@@ -39,11 +39,11 @@ void MVM_args_proc_cleanup_for_cache(MVMThreadContext *tc, MVMArgProcContext *ct
     if (ctx->callsite && ctx->callsite->has_flattening) {
         if (ctx->arg_flags) {
             /* Free the generated flags. */
-            free(ctx->arg_flags);
+            MVM_free(ctx->arg_flags);
             ctx->arg_flags = NULL;
 
             /* Free the generated args buffer. */
-            free(ctx->args);
+            MVM_free(ctx->args);
             ctx->args = NULL;
         }
     }
@@ -778,7 +778,7 @@ void MVM_args_setup_thunk(MVMThreadContext *tc, MVMRegister *res_reg, MVMReturnT
 static void bind_error_return(MVMThreadContext *tc, void *sr_data) {
     MVMRegister *r   = (MVMRegister *)sr_data;
     MVMObject   *res = r->o;
-    free(r);
+    MVM_free(r);
     if (tc->cur_frame->caller)
         MVM_args_set_result_obj(tc, res, 0);
     else

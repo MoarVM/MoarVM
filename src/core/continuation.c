@@ -9,7 +9,7 @@ static void clear_tag(MVMThreadContext *tc, void *sr_data) {
     while (*update) {
         if (*update == sr_data) {
             *update = (*update)->next;
-            free(sr_data);
+            MVM_free(sr_data);
             return;
         }
         update = &((*update)->next);

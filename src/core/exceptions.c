@@ -253,7 +253,7 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     /* Clean up. */
     tc->active_handlers = ah->next_handler;
     MVM_frame_dec_ref(tc, ah->frame);
-    free(ah);
+    MVM_free(ah);
 
     /* Do the unwinding as needed. */
     if (exception && exception->body.return_after_unwind) {
@@ -275,7 +275,7 @@ static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data) {
     /* Clean up. */
     tc->active_handlers = ah->next_handler;
     MVM_frame_dec_ref(tc, ah->frame);
-    free(ah);
+    MVM_free(ah);
 }
 
 char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, MVMuint16 not_top) {
@@ -312,9 +312,9 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
     );
 
     if (tmp1)
-        free(tmp1);
+        MVM_free(tmp1);
     if (annot)
-        free(annot);
+        MVM_free(annot);
 
     return o;
 }
@@ -372,7 +372,7 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
         value = (MVMObject *)MVM_string_ascii_decode_nt(tc, tc->instance->VMString, line_number);
         value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, (MVMString *)value);
         MVM_repr_bind_key_o(tc, annotations, k_line, value);
-        free(line_number);
+        MVM_free(line_number);
 
         /* row will contain "sub" and "annotations" */
         row = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
@@ -413,7 +413,7 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
             MVMObject *line_obj = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, line_str);
             MVM_repr_push_o(tc, arr, line_obj);
             cur_frame = cur_frame->caller;
-            free(line);
+            MVM_free(line);
         }
     });
 
@@ -427,7 +427,7 @@ void MVM_dump_backtrace(MVMThreadContext *tc) {
     while (cur_frame != NULL) {
         char *line = MVM_exception_backtrace_line(tc, cur_frame, count++);
         fprintf(stderr, "%s\n", line);
-        free(line);
+        MVM_free(line);
         cur_frame = cur_frame->caller;
     }
 }
@@ -554,7 +554,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     ah = tc->active_handlers;
     tc->active_handlers = ah->next_handler;
     MVM_frame_dec_ref(tc, ah->frame);
-    free(ah);
+    MVM_free(ah);
 
     /* Unwind to the thrower of the exception; set PC. */
     MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL);
@@ -707,7 +707,7 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
         char      *c_message = MVM_malloc(1024);
         int        bytes     = vsnprintf(c_message, 1024, messageFormat, args);
         MVMString *message   = MVM_string_utf8_decode(tc, tc->instance->VMString, (MVMuint8 *)c_message, bytes);
-        free(c_message);
+        MVM_free(c_message);
         MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.message, message);
         if (tc->cur_frame) {
             ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);

@@ -60,7 +60,7 @@ MVMint64 MVM_platform_unlink(const char *pathname) {
             return -1;
         }
 
-        free(wpathname);
+        MVM_free(wpathname);
 
         str_len  = wcslen(abs_wpathname);
         wpathname = (wchar_t *)MVM_malloc((str_len + 4) * sizeof(wchar_t));
@@ -71,7 +71,7 @@ MVMint64 MVM_platform_unlink(const char *pathname) {
     attrs = GetFileAttributesW(wpathname);
 
     if (attrs == INVALID_FILE_ATTRIBUTES) {
-        free(wpathname);
+        MVM_free(wpathname);
         errno = ENOENT;
         return -1;
     }
@@ -89,7 +89,7 @@ MVMint64 MVM_platform_unlink(const char *pathname) {
 
     if (r == 0) {
         DWORD LastError = GetLastError();
-        free(wpathname);
+        MVM_free(wpathname);
 
         if (LastError == ERROR_FILE_NOT_FOUND) {
             errno = ENOENT;
@@ -102,7 +102,7 @@ MVMint64 MVM_platform_unlink(const char *pathname) {
         return -1;
     }
 
-    free(wpathname);
+    MVM_free(wpathname);
 
     return 0;
 }

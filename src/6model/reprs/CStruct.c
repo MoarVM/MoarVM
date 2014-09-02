@@ -586,11 +586,11 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMCStructBody *body = (MVMCStructBody *)data;
     if (body->child_objs)
-        free(body->child_objs);
+        MVM_free(body->child_objs);
     /* XXX For some reason, this causes crashes at the moment. Need to
      * work out why. */
     /*if (body->cstruct)
-        free(body->cstruct);*/
+        MVM_free(body->cstruct);*/
 }
 
 /* Called by the VM in order to free memory associated with this object. */

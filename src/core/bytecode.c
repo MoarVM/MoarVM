@@ -114,10 +114,10 @@ static double read_double(char *buffer, size_t offset) {
 /* Cleans up reader state. */
 static void cleanup_all(MVMThreadContext *tc, ReaderState *rs) {
     if (rs->frame_outer_fixups) {
-        free(rs->frame_outer_fixups);
+        MVM_free(rs->frame_outer_fixups);
         rs->frame_outer_fixups = NULL;
     }
-    free(rs);
+    MVM_free(rs);
 }
 
 /* Ensures we can read a certain amount of bytes without overrunning the end

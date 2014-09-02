@@ -81,13 +81,13 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMNativeCallBody *body = (MVMNativeCallBody *)data;
     if (body->lib_name)
-        free(body->lib_name);
+        MVM_free(body->lib_name);
     if (body->lib_handle)
         dlFreeLibrary(body->lib_handle);
     if (body->arg_types)
-        free(body->arg_types);
+        MVM_free(body->arg_types);
     if (body->arg_info)
-        free(body->arg_info);
+        MVM_free(body->arg_info);
 }
 
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {

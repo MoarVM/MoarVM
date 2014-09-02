@@ -643,9 +643,9 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     }
 
   cleanup:
-    free(pos_ins);
-    free(pos_bb);
-    free(pos_added);
-    free(named_ins);
-    free(named_bb);
+    MVM_free(pos_ins);
+    MVM_free(pos_bb);
+    MVM_free(pos_added);
+    MVM_free(named_ins);
+    MVM_free(named_bb);
 }

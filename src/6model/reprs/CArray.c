@@ -120,10 +120,10 @@ static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMCArrayBody *body = (MVMCArrayBody *)data;
 
     if (body->managed) {
-        free(body->storage);
+        MVM_free(body->storage);
 
         if (body->child_objs)
-            free(body->child_objs);
+            MVM_free(body->child_objs);
     }
 }
 

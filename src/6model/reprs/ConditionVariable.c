@@ -33,7 +33,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMConditionVariable *cv = (MVMConditionVariable *)obj;
     if (cv->body.condvar) {
         uv_cond_destroy(cv->body.condvar);
-        free(cv->body.condvar);
+        MVM_free(cv->body.condvar);
         cv->body.condvar = NULL;
     }
 }

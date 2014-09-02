@@ -1385,7 +1385,7 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
         emit_stack_arg(tc, jg, 8, i*8, Dst);
     }
     if (on_stack)
-        free(on_stack);
+        MVM_free(on_stack);
 }
 
 static void emit_win64_callargs(MVMThreadContext *tc, MVMJitGraph *jg,

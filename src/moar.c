@@ -215,7 +215,7 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     char *dump = MVM_bytecode_dump(tc, cu);
 
     printf("%s", dump);
-    free(dump);
+    MVM_free(dump);
 }
 
 /* Exits the process as quickly as is gracefully possible, respecting that
@@ -305,5 +305,5 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_tc_destroy(instance->main_thread);
 
     /* Clear up VM instance memory. */
-    free(instance);
+    MVM_free(instance);
 }

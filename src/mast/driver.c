@@ -47,7 +47,7 @@ void MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types,
         char *bytecode;
         MVM_gc_allocate_gen2_default_set(tc);
         bytecode = MVM_mast_compile(tc, mast, mnt, &size);
-        free(mnt);
+        MVM_free(mnt);
         MVM_gc_allocate_gen2_default_clear(tc);
 
         /* Load it as a compilation unit; it is a kind of MVMObject, so cast
@@ -86,7 +86,7 @@ void MVM_mast_to_file(MVMThreadContext *tc, MVMObject *mast, MVMObject *types, M
         char *bytecode;
         MVM_gc_allocate_gen2_default_set(tc);
         bytecode = MVM_mast_compile(tc, mast, mnt, &size);
-        free(mnt);
+        MVM_free(mnt);
         MVM_gc_allocate_gen2_default_clear(tc);
         
         /* Write it out to a file. (Not using VM-level IO for this right now;
@@ -96,7 +96,7 @@ void MVM_mast_to_file(MVMThreadContext *tc, MVMObject *mast, MVMObject *types, M
         if (fh = fopen(c_filename, "wb+")) {
             fwrite(bytecode, 1, size, fh);
             fclose(fh);
-            free(c_filename);
+            MVM_free(c_filename);
         }
         else {
             MVM_exception_throw_adhoc(tc, "Unable to write bytecode to '%s'", c_filename);

@@ -99,7 +99,7 @@ static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf) {
     sf->body.uninstrumented_handlers      = sf->body.handlers;
     sf->body.uninstrumented_bytecode_size = sf->body.bytecode_size;
     MVM_spesh_graph_destroy(tc, sg);
-    free(sc);
+    MVM_free(sc);
 }
 
 /* Instruments a static frame for profiling, or uses an existing

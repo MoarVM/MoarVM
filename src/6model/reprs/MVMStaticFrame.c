@@ -172,7 +172,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMStaticFrame *sf = (MVMStaticFrame *)obj;
     MVMStaticFrameBody *body = &sf->body;
     if (body->orig_bytecode != body->bytecode) {
-        free(body->bytecode);
+        MVM_free(body->bytecode);
         body->bytecode = body->orig_bytecode;
     }
 

@@ -100,7 +100,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 
     /* clear up the assembler */
     dasm_free(&state);
-    free(dasm_globals);
+    MVM_free(dasm_globals);
 
     if (tc->instance->jit_bytecode_dir) {
         MVM_jit_log_bytecode(tc, code);
@@ -112,7 +112,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 
 void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
     MVM_platform_free_pages(code->func_ptr, code->size);
-    free(code);
+    MVM_free(code);
 }
 
 /* Returns 1 if we should return from the frame, the function, 0 otherwise */

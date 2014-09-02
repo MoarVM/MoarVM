@@ -32,8 +32,8 @@ static char * jitcode_name(MVMThreadContext *tc, MVMJitCode *code) {
     memcpy(dst, name, name_len);
     dst += name_len;
     memcpy(dst, ".bin", 5);
-    free(name);
-    free(cuuid);
+    MVM_free(name);
+    MVM_free(cuuid);
     return filename;
 }
 
@@ -48,5 +48,5 @@ void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
     } else {
         MVM_jit_log(tc, "Could not dump bytecode in %s\n", filename);
     }
-    free(filename);
+    MVM_free(filename);
 }

@@ -874,10 +874,10 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                     char *c_cuid_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
                     printf("Can inline %s (%s) into %s (%s)\n",
                         c_name_i, c_cuid_i, c_name_t, c_cuid_t);
-                    free(c_name_i);
-                    free(c_cuid_i);
-                    free(c_name_t);
-                    free(c_cuid_t);*/
+                    MVM_free(c_name_i);
+                    MVM_free(c_cuid_i);
+                    MVM_free(c_name_t);
+                    MVM_free(c_cuid_t);*/
                     MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_code);
                 }
                 else {
@@ -1008,11 +1008,11 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
             bb->succ[0]             = goto_bbs[picked];
         }
 
-        free(in_handlers);
-        free(goto_bbs);
+        MVM_free(in_handlers);
+        MVM_free(goto_bbs);
     }
 
-    free(handlers_found);
+    MVM_free(handlers_found);
 }
 
 /* Visits the blocks in dominator tree order, recursively. */
@@ -1266,7 +1266,7 @@ static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
             cur_bb = cur_bb->linear_next;
         }
     }
-    free(seen);
+    MVM_free(seen);
 
     if (g->num_bbs != orig_bbs) {
         MVMint32    new_idx  = 0;

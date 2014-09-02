@@ -74,11 +74,11 @@ static void late_bound_find_method_return(MVMThreadContext *tc, void *sr_data) {
     if (MVM_is_null(tc, fm->res->o) || !IS_CONCRETE(fm->res->o)) {
         MVMObject *obj  = fm->obj;
         MVMString *name = fm->name;
-        free(fm);
+        MVM_free(fm);
         die_over_missing_method(tc, obj, name);
     }
     else {
-        free(fm);
+        MVM_free(fm);
     }
 }
 static void mark_find_method_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
@@ -261,7 +261,7 @@ void accepts_type_sr(MVMThreadContext *tc, void *sr_data) {
     MVMObject   *obj  = atd->obj;
     MVMObject   *type = atd->type;
     MVMRegister *res  = atd->res;
-    free(atd);
+    MVM_free(atd);
     if (!res->i64)
         do_accepts_type_check(tc, obj, type, res);
 }

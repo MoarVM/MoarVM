@@ -245,19 +245,19 @@ void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsi
 /* Cleans up all allocated memory related to a frame. */
 void cleanup_frame(VM, FrameState *fs) {
     if (fs->local_types)
-        free(fs->local_types);
+        MVM_free(fs->local_types);
     if (fs->lexical_types)
-        free(fs->lexical_types);
+        MVM_free(fs->lexical_types);
     if (fs->handlers)
-        free(fs->handlers);
+        MVM_free(fs->handlers);
     if (fs->labels) {
         MVMuint32 i;
         for (i = 0; i < fs->num_labels; i++)
             if (fs->labels[i].alloc_resolve)
-                free(fs->labels[i].resolve);
-        free(fs->labels);
+                MVM_free(fs->labels[i].resolve);
+        MVM_free(fs->labels);
     }
-    free(fs);
+    MVM_free(fs);
 }
 
 /* Cleans up all allocated memory related to this compilation. */
@@ -265,19 +265,19 @@ void cleanup_all(VM, WriterState *ws) {
     if (ws->cur_frame)
         cleanup_frame(vm, ws->cur_frame);
     if (ws->scdep_seg)
-        free(ws->scdep_seg);
+        MVM_free(ws->scdep_seg);
     if (ws->extops_seg)
-        free(ws->extops_seg);
+        MVM_free(ws->extops_seg);
     if (ws->frame_seg)
-        free(ws->frame_seg);
+        MVM_free(ws->frame_seg);
     if (ws->callsite_seg)
-        free(ws->callsite_seg);
+        MVM_free(ws->callsite_seg);
     if (ws->bytecode_seg)
-        free(ws->bytecode_seg);
+        MVM_free(ws->bytecode_seg);
     if (ws->annotation_seg)
-        free(ws->annotation_seg);
+        MVM_free(ws->annotation_seg);
     MVM_HASH_DESTROY(hash_handle, CallsiteReuseEntry, ws->callsite_reuse_head);
-    free(ws);
+    MVM_free(ws);
 }
 
 /* Gets the index of a string already in the string heap, or
@@ -444,7 +444,7 @@ static void add_label_and_resolve_fixups(VM, WriterState *ws, MAST_Label *l) {
                 fs->labels[i].alloc_resolve = 0;
                 fs->labels[i].num_resolve   = 0;
                 fs->unresolved_labels      -= nr;
-                free(fs->labels[i].resolve);
+                MVM_free(fs->labels[i].resolve);
             }
             else {
                 cleanup_all(vm, ws);
@@ -677,9 +677,9 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flag_node, MASTNod
     memcpy(identifier + elems, named_idxs, identifier_len - elems);
     HASH_FIND(hash_handle, ws->callsite_reuse_head, identifier, identifier_len, entry);
     if (entry) {
-        free(flags);
-        free(named_idxs);
-        free(identifier);
+        MVM_free(flags);
+        MVM_free(named_idxs);
+        MVM_free(identifier);
         return entry->callsite_id;
     }
     entry = (CallsiteReuseEntry *)MVM_malloc(sizeof(CallsiteReuseEntry));
@@ -706,8 +706,8 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flag_node, MASTNod
         }
     }
 
-    free(flags);
-    free(named_idxs);
+    MVM_free(flags);
+    MVM_free(named_idxs);
 
     return (unsigned short)ws->num_callsites++;
 }
@@ -1323,7 +1323,7 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
 
         /* Write string. */
         memcpy(heap + heap_size, utf8, bytelen);
-        free(utf8);
+        MVM_free(utf8);
         heap_size += bytelen;
 
         /* Add alignment. Whilst we never read this memory, it's useful to
@@ -1408,7 +1408,7 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     memcpy(output + pos, string_heap, string_heap_size);
     pos += string_heap_size;
     if (string_heap) {
-        free(string_heap);
+        MVM_free(string_heap);
         string_heap = NULL;
     }
 
@@ -1418,7 +1418,7 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
         write_int32(output, SCDATA_HEADER_OFFSET + 4, vm->serialized_size);
         memcpy(output + pos, vm->serialized, vm->serialized_size);
         pos += vm->serialized_size;
-        free(vm->serialized);
+        MVM_free(vm->serialized);
         vm->serialized = NULL;
         vm->serialized_size = 0;
     }
