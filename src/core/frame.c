@@ -10,7 +10,7 @@ static void grow_frame_pool(MVMThreadContext *tc, MVMuint32 pool_index) {
     do {
         new_size *= 2;
     } while (pool_index >= new_size);
-    tc->frame_pool_table = realloc(tc->frame_pool_table,
+    tc->frame_pool_table = MVM_realloc(tc->frame_pool_table,
         new_size * sizeof(MVMFrame *));
     memset(tc->frame_pool_table + old_size, 0,
         (new_size - old_size) * sizeof(MVMFrame *));

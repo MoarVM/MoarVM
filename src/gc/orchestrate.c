@@ -14,7 +14,7 @@ static void add_work(MVMThreadContext *tc, MVMThreadContext *stolen) {
     }
     else if (tc->gc_work_count == tc->gc_work_size) {
         tc->gc_work_size *= 2;
-        tc->gc_work = realloc(tc->gc_work, tc->gc_work_size * sizeof(MVMWorkThread));
+        tc->gc_work = MVM_realloc(tc->gc_work, tc->gc_work_size * sizeof(MVMWorkThread));
     }
     tc->gc_work[tc->gc_work_count++].tc = stolen;
 }

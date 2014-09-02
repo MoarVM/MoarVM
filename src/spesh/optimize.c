@@ -50,7 +50,7 @@ MVMint16 MVM_spesh_add_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCol
     if (g->num_spesh_slots >= g->alloc_spesh_slots) {
         g->alloc_spesh_slots += 8;
         if (g->spesh_slots)
-            g->spesh_slots = realloc(g->spesh_slots,
+            g->spesh_slots = MVM_realloc(g->spesh_slots,
                 g->alloc_spesh_slots * sizeof(MVMCollectable *));
         else
             g->spesh_slots = MVM_malloc(g->alloc_spesh_slots * sizeof(MVMCollectable *));

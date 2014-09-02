@@ -586,7 +586,7 @@ for (i = string->body.member + start; i < string->body.member + start + length; 
     if (dest->body.graphs == state->size) { \
         if (!state->size) state->size = 16; \
         else state->size *= 2; \
-        dest->body.dest_member = realloc(dest->body.dest_member, \
+        dest->body.dest_member = MVM_realloc(dest->body.dest_member, \
             state->size * sizeof(dest_size)); \
     } \
     dest->body.dest_member[dest->body.graphs++] = \
@@ -1065,7 +1065,7 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
         if (esc) {
             if (bpos + 2 > balloc) {
                 balloc += 32;
-                buffer = realloc(buffer, sizeof(MVMGrapheme32) * balloc);
+                buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * balloc);
             }
             buffer[bpos++] = '\\';
             buffer[bpos++] = esc;
@@ -1073,7 +1073,7 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
         else {
             if (bpos + 1 > balloc) {
                 balloc += 32;
-                buffer = realloc(buffer, sizeof(MVMGrapheme32) * balloc);
+                buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * balloc);
             }
             buffer[bpos++] = graph;
         }

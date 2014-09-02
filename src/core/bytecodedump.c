@@ -15,7 +15,7 @@ static void append_string(char **out, MVMuint32 *size,
     if (*length + len > *size) {
         while (*length + len > *size)
             *size = *size * 2;
-        *out = realloc(*out, *size);
+        *out = MVM_realloc(*out, *size);
     }
 
     memcpy(*out + *length, string, len);

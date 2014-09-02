@@ -580,7 +580,7 @@ static MVMObject* get_lexotic_for_handler_idx(MVMThreadContext *tc, MVMint32 han
         MVMuint32 orig_size = tc->lexotic_cache_size;
         tc->lexotic_cache_size = sf->body.pool_index + 1;
         tc->lexotic_cache = orig_size
-            ? realloc(tc->lexotic_cache, tc->lexotic_cache_size * sizeof(MVMLexotic *))
+            ? MVM_realloc(tc->lexotic_cache, tc->lexotic_cache_size * sizeof(MVMLexotic *))
             : MVM_malloc(tc->lexotic_cache_size * sizeof(MVMLexotic *));
         memset(tc->lexotic_cache + orig_size, 0,
             (tc->lexotic_cache_size - orig_size) * sizeof(MVMLexotic *));

@@ -208,7 +208,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
         switch(decode_utf8_byte(&state, &codepoint, *utf8)) {
         case UTF8_ACCEPT: /* got a codepoint */
             if (count == bufsize) { /* if the buffer's full make a bigger one */
-                buffer = realloc(buffer, sizeof(MVMGrapheme32) * (
+                buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (
                     bufsize >= UTF8_MAXINC ? (bufsize += UTF8_MAXINC) : (bufsize *= 2)
                 ));
             }
@@ -254,7 +254,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
      * we can add heuristics to resize it if we have enough free
      * memory */
     if (bufsize - count > 4) {
-        buffer = realloc(buffer, count * sizeof(MVMGrapheme32));
+        buffer = MVM_realloc(buffer, count * sizeof(MVMGrapheme32));
         bufsize = count;
     }
     result->body.storage.blob_32 = buffer;

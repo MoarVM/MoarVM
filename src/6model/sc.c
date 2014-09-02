@@ -62,7 +62,7 @@ void MVM_sc_add_all_scs_entry(MVMThreadContext *tc, MVMSerializationContextBody 
             tc->instance->all_scs_next_idx++;
         }
         else {
-            tc->instance->all_scs = realloc(tc->instance->all_scs,
+            tc->instance->all_scs = MVM_realloc(tc->instance->all_scs,
                 tc->instance->all_scs_alloc * sizeof(MVMSerializationContextBody *));
         }
     }
@@ -197,7 +197,7 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
             sc->body->alloc_objects *= 2;
             if (sc->body->alloc_objects < idx + 1)
                 sc->body->alloc_objects = idx + 1;
-            sc->body->root_objects = realloc(sc->body->root_objects,
+            sc->body->root_objects = MVM_realloc(sc->body->root_objects,
                 sc->body->alloc_objects * sizeof(MVMObject *));
             memset(sc->body->root_objects + orig_size, 0,
                 (sc->body->alloc_objects - orig_size) * sizeof(MVMObject *));
@@ -242,7 +242,7 @@ void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
             sc->body->alloc_stables += 32;
             if (sc->body->alloc_stables < idx + 1)
                 sc->body->alloc_stables = idx + 1;
-            sc->body->root_stables = realloc(sc->body->root_stables,
+            sc->body->root_stables = MVM_realloc(sc->body->root_stables,
                 sc->body->alloc_stables * sizeof(MVMSTable *));
             memset(sc->body->root_stables + orig_size, 0,
                 (sc->body->alloc_stables - orig_size) * sizeof(MVMSTable *));
@@ -258,7 +258,7 @@ void MVM_sc_push_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMST
     MVMint64 idx = sc->body->num_stables;
     if (idx == sc->body->alloc_stables) {
         sc->body->alloc_stables += 16;
-        sc->body->root_stables = realloc(sc->body->root_stables,
+        sc->body->root_stables = MVM_realloc(sc->body->root_stables,
             sc->body->alloc_stables * sizeof(MVMSTable *));
     }
     MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_stables[idx], st);

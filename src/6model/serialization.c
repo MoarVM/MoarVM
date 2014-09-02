@@ -279,11 +279,11 @@ static MVMuint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer,
     offset = num_deps * DEP_TABLE_ENTRY_SIZE;
     if (offset + DEP_TABLE_ENTRY_SIZE > writer->dependencies_table_alloc) {
         writer->dependencies_table_alloc *= 2;
-        writer->root.dependencies_table = (char *)realloc(writer->root.dependencies_table, writer->dependencies_table_alloc);
+        writer->root.dependencies_table = (char *)MVM_realloc(writer->root.dependencies_table, writer->dependencies_table_alloc);
     }
 
     /* Add dependency. */
-    writer->root.dependent_scs = realloc(writer->root.dependent_scs, sizeof(MVMSerializationContext *) * (writer->root.num_dependencies + 1));
+    writer->root.dependent_scs = MVM_realloc(writer->root.dependent_scs, sizeof(MVMSerializationContext *) * (writer->root.num_dependencies + 1));
     writer->root.dependent_scs[writer->root.num_dependencies] = sc;
     write_int32(writer->root.dependencies_table, offset,
         add_string_to_heap(tc, writer, MVM_sc_get_handle(tc, sc)));
@@ -315,7 +315,7 @@ static void get_stable_ref_info(MVMThreadContext *tc, MVMSerializationWriter *wr
 static void expand_storage_if_needed(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 need) {
     if (*(writer->cur_write_offset) + need > *(writer->cur_write_limit)) {
         *(writer->cur_write_limit) *= 2;
-        *(writer->cur_write_buffer) = (char *)realloc(*(writer->cur_write_buffer),
+        *(writer->cur_write_buffer) = (char *)MVM_realloc(*(writer->cur_write_buffer),
             *(writer->cur_write_limit));
     }
 }
@@ -518,7 +518,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
     MVMint32 offset = writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE;
     if (offset + CLOSURES_TABLE_ENTRY_SIZE > writer->closures_table_alloc) {
         writer->closures_table_alloc *= 2;
-        writer->root.closures_table = (char *)realloc(writer->root.closures_table, writer->closures_table_alloc);
+        writer->root.closures_table = (char *)MVM_realloc(writer->root.closures_table, writer->closures_table_alloc);
     }
 
     /* Get the index of the context (which will add it to the todo list if
@@ -809,7 +809,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     MVMint32 offset = writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE;
     if (offset + STABLES_TABLE_ENTRY_SIZE > writer->stables_table_alloc) {
         writer->stables_table_alloc *= 2;
-        writer->root.stables_table = (char *)realloc(writer->root.stables_table, writer->stables_table_alloc);
+        writer->root.stables_table = (char *)MVM_realloc(writer->root.stables_table, writer->stables_table_alloc);
     }
 
     /* Make STables table entry. */
@@ -904,7 +904,7 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
     offset = writer->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE;
     if (offset + OBJECTS_TABLE_ENTRY_SIZE > writer->objects_table_alloc) {
         writer->objects_table_alloc *= 2;
-        writer->root.objects_table = (char *)realloc(writer->root.objects_table, writer->objects_table_alloc);
+        writer->root.objects_table = (char *)MVM_realloc(writer->root.objects_table, writer->objects_table_alloc);
     }
 
     /* Make objects table entry. */
@@ -954,7 +954,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     offset = writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE;
     if (offset + CONTEXTS_TABLE_ENTRY_SIZE > writer->contexts_table_alloc) {
         writer->contexts_table_alloc *= 2;
-        writer->root.contexts_table = (char *)realloc(writer->root.contexts_table, writer->contexts_table_alloc);
+        writer->root.contexts_table = (char *)MVM_realloc(writer->root.contexts_table, writer->contexts_table_alloc);
     }
 
     /* Make contexts table entry. */
@@ -2089,7 +2089,7 @@ static void worklist_add_index(MVMThreadContext *tc, MVMDeserializeWorklist *wl,
             wl->alloc_indexes *= 2;
         else
             wl->alloc_indexes = 128;
-        wl->indexes = realloc(wl->indexes, wl->alloc_indexes * sizeof(MVMuint32));
+        wl->indexes = MVM_realloc(wl->indexes, wl->alloc_indexes * sizeof(MVMuint32));
     }
     wl->indexes[wl->num_indexes] = index;
     wl->num_indexes++;

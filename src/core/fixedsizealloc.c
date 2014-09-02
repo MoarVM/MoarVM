@@ -60,7 +60,7 @@ static void add_page(MVMFixedSizeAlloc *al, MVMuint32 bin) {
     /* Add the extra page. */
     MVMuint32 cur_page = al->size_classes[bin].num_pages;
     al->size_classes[bin].num_pages++;
-    al->size_classes[bin].pages = realloc(al->size_classes[bin].pages,
+    al->size_classes[bin].pages = MVM_realloc(al->size_classes[bin].pages,
         sizeof(void *) * al->size_classes[bin].num_pages);
     al->size_classes[bin].pages[cur_page] = MVM_malloc(page_size);
 
