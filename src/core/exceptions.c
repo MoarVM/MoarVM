@@ -682,6 +682,11 @@ void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) {
         exit(exitCode);
 }
 
+MVM_NO_RETURN
+void MVM_panic_allocation_failed(size_t len) {
+    MVM_panic(1, "Memory allocation failed; could not allocate %zu bytes", len);
+}
+
 /* Throws an ad-hoc (untyped) exception. */
 MVM_NO_RETURN
 void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, ...) {

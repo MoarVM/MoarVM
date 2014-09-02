@@ -159,6 +159,7 @@ typedef double   MVMnum64;
 #include "profiler/instrument.h"
 #include "profiler/log.h"
 #include "profiler/profile.h"
+#include "core/alloc.h"
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc);
 
