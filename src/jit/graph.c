@@ -504,6 +504,16 @@ static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshIns *ins) {
     return regs;
 }
 
+static void log_inline(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMint32 inline_idx, MVMint32 is_entry) {
+    MVMStaticFrame *sf = sg->inlines[inline_idx].code->body.sf;
+    char *name         = MVM_string_utf8_encode_C_string(tc, sf->body.name);
+    char *cuuid        = MVM_string_utf8_encode_C_string(tc, sf->body.cuuid);
+    MVM_jit_log(tc, "%s inline %d (name: %s, cuuid: %s)\n", is_entry ? "Entering" : "Leaving",
+                inline_idx, name, cuuid);
+    free(name);
+    free(cuuid);
+}
+
 static void jgb_before_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                            MVMSpeshBB *bb, MVMSpeshIns *ins) {
    MVMSpeshAnn *ann = ins->annotations;
@@ -553,6 +563,8 @@ static void jgb_before_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
             MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 0);
             jgb_append_label(tc, jgb, label); 
             jgb->inlines[ann->data.inline_idx].start_label = label;
+            if (tc->instance->jit_log_fh)
+                log_inline(tc, jgb->sg, ann->data.inline_idx, 1);
             break;
         }
         } /* switch */
@@ -586,6 +598,8 @@ static void jgb_after_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
             MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 1);
             jgb_append_label(tc, jgb, label);
             jgb->inlines[ann->data.inline_idx].end_label = label;
+            if (tc->instance->jit_log_fh)
+                log_inline(tc, jgb->sg, ann->data.inline_idx, 1);
         } else if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS /* ||
                                                                ann->type == MVM_SPESH_ANN_DEOPT_INLINE */) {
             /* An underlying assumption here is that this instruction
@@ -1629,9 +1643,10 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     if (!MVM_jit_support()) {
         return NULL;
     }
-    {
-        MVMuint8 *cuuid = MVM_string_ascii_encode_any(tc, sg->sf->body.cuuid);
-        MVMuint8 *name  = MVM_string_ascii_encode_any(tc, sg->sf->body.name);
+
+    if (tc->instance->jit_log_fh) {
+        char *cuuid = MVM_string_utf8_encode_C_string(tc, sg->sf->body.cuuid);
+        char *name  = MVM_string_utf8_encode_C_string(tc, sg->sf->body.name);
         MVM_jit_log(tc, "Constructing JIT graph (cuuid: %s, name: '%s')\n",
                     cuuid, name);
         free(cuuid);
