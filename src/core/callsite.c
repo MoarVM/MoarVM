@@ -62,7 +62,7 @@ void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {
                     interns->by_arity[num_flags],
                     sizeof(MVMCallsite *) * (interns->num_by_arity[num_flags] + 8));
             else
-                interns->by_arity[num_flags] = malloc(sizeof(MVMCallsite *) * 8);
+                interns->by_arity[num_flags] = MVM_malloc(sizeof(MVMCallsite *) * 8);
         }
         interns->by_arity[num_flags][interns->num_by_arity[num_flags]++] = cs;
         cs->is_interned = 1;

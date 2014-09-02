@@ -178,9 +178,9 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
 
     /* If there's no entries yet, need to do some allocation. */
     if (entries == 0) {
-        cache->arity_caches[num_args - 1].type_ids = malloc(num_args * sizeof(MVMuint64) * MVM_MULTICACHE_MAX_ENTRIES);
-        cache->arity_caches[num_args - 1].named_ok = malloc(sizeof(MVMuint8) * MVM_MULTICACHE_MAX_ENTRIES);
-        cache->arity_caches[num_args - 1].results  = malloc(sizeof(MVMObject *) * MVM_MULTICACHE_MAX_ENTRIES);
+        cache->arity_caches[num_args - 1].type_ids = MVM_malloc(num_args * sizeof(MVMuint64) * MVM_MULTICACHE_MAX_ENTRIES);
+        cache->arity_caches[num_args - 1].named_ok = MVM_malloc(sizeof(MVMuint8) * MVM_MULTICACHE_MAX_ENTRIES);
+        cache->arity_caches[num_args - 1].results  = MVM_malloc(sizeof(MVMObject *) * MVM_MULTICACHE_MAX_ENTRIES);
     }
 
     /* Add entry. */

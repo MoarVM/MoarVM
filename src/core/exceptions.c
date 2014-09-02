@@ -186,7 +186,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
     case MVM_EX_ACTION_INVOKE: {
         /* Create active handler record. */
-        MVMActiveHandler *ah = malloc(sizeof(MVMActiveHandler));
+        MVMActiveHandler *ah = MVM_malloc(sizeof(MVMActiveHandler));
 
         /* Find frame to invoke. */
         MVMObject *handler_code = MVM_frame_find_invokee(tc,
@@ -283,7 +283,7 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
     MVMString *name = cur_frame->static_info->body.name;
     /* XXX TODO: make the caller pass in a char ** and a length pointer so
      * we can update it if necessary, and the caller can cache it. */
-    char *o = malloc(1024);
+    char *o = MVM_malloc(1024);
     MVMuint8 *cur_op = not_top ? cur_frame->return_address : cur_frame->throw_address;
     MVMuint32 offset = cur_op - cur_frame->effective_bytecode;
     MVMuint32 instr = MVM_bytecode_offset_to_instr_idx(tc, cur_frame->static_info, offset);
@@ -353,7 +353,7 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
         MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
                                             offset > 0 ? offset - 1 : 0);
         MVMint32              fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
-        char            *line_number = malloc(16);
+        char            *line_number = MVM_malloc(16);
         snprintf(line_number, 16, "%d", annot ? annot->line_number : 1);
 
         /* annotations hash will contain "file" and "line" */
@@ -581,7 +581,7 @@ static MVMObject* get_lexotic_for_handler_idx(MVMThreadContext *tc, MVMint32 han
         tc->lexotic_cache_size = sf->body.pool_index + 1;
         tc->lexotic_cache = orig_size
             ? realloc(tc->lexotic_cache, tc->lexotic_cache_size * sizeof(MVMLexotic *))
-            : malloc(tc->lexotic_cache_size * sizeof(MVMLexotic *));
+            : MVM_malloc(tc->lexotic_cache_size * sizeof(MVMLexotic *));
         memset(tc->lexotic_cache + orig_size, 0,
             (tc->lexotic_cache_size - orig_size) * sizeof(MVMLexotic *));
     }
@@ -704,7 +704,7 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
     /* Create and set up an exception object. */
     MVMException *ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
     MVMROOT(tc, ex, {
-        char      *c_message = malloc(1024);
+        char      *c_message = MVM_malloc(1024);
         int        bytes     = vsnprintf(c_message, 1024, messageFormat, args);
         MVMString *message   = MVM_string_utf8_decode(tc, tc->instance->VMString, (MVMuint8 *)c_message, bytes);
         free(c_message);

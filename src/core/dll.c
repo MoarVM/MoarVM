@@ -34,7 +34,7 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
     free(cpath);
 
     if (!entry) {
-        entry = malloc(sizeof *entry);
+        entry = MVM_malloc(sizeof *entry);
         entry->name = name;
         entry->refcount = 0;
 

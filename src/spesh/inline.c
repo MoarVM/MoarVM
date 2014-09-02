@@ -25,7 +25,7 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
             MVMuint32 size = (target_cu->body.num_extops + 1) * sizeof(MVMExtOpRecord);
             target_cu->body.extops = target_cu->body.extops
                 ? realloc(target_cu->body.extops, size)
-                : malloc(size);
+                : MVM_malloc(size);
             memcpy(&target_cu->body.extops[target_cu->body.num_extops],
                 &extops[i], sizeof(MVMExtOpRecord));
             target_cu->body.num_extops++;
@@ -322,7 +322,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             inliner->deopt_addrs = realloc(inliner->deopt_addrs,
                 inliner->alloc_deopt_addrs * sizeof(MVMint32) * 2);
         else
-            inliner->deopt_addrs = malloc(inliner->alloc_deopt_addrs * sizeof(MVMint32) * 2);
+            inliner->deopt_addrs = MVM_malloc(inliner->alloc_deopt_addrs * sizeof(MVMint32) * 2);
         memcpy(inliner->deopt_addrs + inliner->num_deopt_addrs * 2,
             inlinee->deopt_addrs, inlinee->alloc_deopt_addrs * sizeof(MVMint32) * 2);
         inliner->num_deopt_addrs += inlinee->num_deopt_addrs;
@@ -332,7 +332,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     total_inlines = inliner->num_inlines + inlinee->num_inlines + 1;
     inliner->inlines = inliner->num_inlines
         ? realloc(inliner->inlines, total_inlines * sizeof(MVMSpeshInline))
-        : malloc(total_inlines * sizeof(MVMSpeshInline));
+        : MVM_malloc(total_inlines * sizeof(MVMSpeshInline));
     memcpy(inliner->inlines + inliner->num_inlines, inlinee->inlines,
         inlinee->num_inlines * sizeof(MVMSpeshInline));
     for (i = inliner->num_inlines; i < total_inlines - 1; i++) {
@@ -373,7 +373,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Create/update per-specialization local and lexical type maps. */
     if (!inliner->local_types) {
         MVMint32 local_types_size = inliner->num_locals * sizeof(MVMuint16);
-        inliner->local_types = malloc(local_types_size);
+        inliner->local_types = MVM_malloc(local_types_size);
         memcpy(inliner->local_types, inliner->sf->body.local_types, local_types_size);
     }
     inliner->local_types = realloc(inliner->local_types,
@@ -383,7 +383,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         inlinee->num_locals * sizeof(MVMuint16));
     if (!inliner->lexical_types) {
         MVMint32 lexical_types_size = inliner->num_lexicals * sizeof(MVMuint16);
-        inliner->lexical_types = malloc(lexical_types_size);
+        inliner->lexical_types = MVM_malloc(lexical_types_size);
         memcpy(inliner->lexical_types, inliner->sf->body.lexical_types, lexical_types_size);
     }
     inliner->lexical_types = realloc(inliner->lexical_types,
@@ -397,7 +397,7 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         MVMuint32 total_handlers = inliner->num_handlers + inlinee->num_handlers;
         if (inliner->handlers == inliner->sf->body.handlers) {
             /* Original handlers table; need a copy. */
-            MVMFrameHandler *new_handlers = malloc(total_handlers * sizeof(MVMFrameHandler));
+            MVMFrameHandler *new_handlers = MVM_malloc(total_handlers * sizeof(MVMFrameHandler));
             memcpy(new_handlers, inliner->handlers,
                 inliner->num_handlers * sizeof(MVMFrameHandler));
             inliner->handlers = new_handlers;

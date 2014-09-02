@@ -113,7 +113,7 @@ MVMObject * MVM_io_file_watch(MVMThreadContext *tc, MVMObject *queue,
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops   = &op_table;
-    watch_info       = malloc(sizeof(WatchInfo));
+    watch_info       = MVM_malloc(sizeof(WatchInfo));
     watch_info->path = c_path;
     task->body.data  = watch_info;
 

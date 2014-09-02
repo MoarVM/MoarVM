@@ -15,7 +15,7 @@
 static wchar_t * UTF8ToUnicode(char *str)
 {
      const int         len = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
-     wchar_t * const result = (wchar_t *)malloc(len * sizeof(wchar_t));
+     wchar_t * const result = (wchar_t *)MVM_malloc(len * sizeof(wchar_t));
 
      MultiByteToWideChar(CP_UTF8, 0, str, -1, result, len);
 
@@ -25,7 +25,7 @@ static wchar_t * UTF8ToUnicode(char *str)
 static char * UnicodeToUTF8(const wchar_t *str)
 {
      const int       len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
-     char * const result = (char *)malloc(len * sizeof(char));
+     char * const result = (char *)MVM_malloc(len * sizeof(char));
 
      WideCharToMultiByte(CP_UTF8, 0, str, -1, result, len, NULL, NULL);
 
@@ -108,7 +108,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
         free(wpathname);
 
         str_len  = wcslen(abs_dirname);
-        wpathname = (wchar_t *)malloc((str_len + 4) * sizeof(wchar_t));
+        wpathname = (wchar_t *)MVM_malloc((str_len + 4) * sizeof(wchar_t));
         wcscpy(wpathname, L"\\\\?\\");
         wcscat(wpathname, abs_dirname);
     }
@@ -258,11 +258,11 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
         free(wname);
 
         str_len  = wcslen(abs_dirname);
-        dir_name = (wchar_t *)malloc((str_len + 7) * sizeof(wchar_t));
+        dir_name = (wchar_t *)MVM_malloc((str_len + 7) * sizeof(wchar_t));
         wcscpy(dir_name, L"\\\\?\\");
         wcscat(dir_name, abs_dirname);
     } else {
-        dir_name = (wchar_t *)malloc((str_len + 3) * sizeof(wchar_t));
+        dir_name = (wchar_t *)MVM_malloc((str_len + 3) * sizeof(wchar_t));
         wcscpy(dir_name, wname);
         free(wname);
     }

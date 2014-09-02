@@ -231,15 +231,15 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMint32      i, hanlen;
 
     /* Initialize writer state. */
-    SpeshWriterState *ws     = malloc(sizeof(SpeshWriterState));
+    SpeshWriterState *ws     = MVM_malloc(sizeof(SpeshWriterState));
     ws->bytecode_pos    = 0;
     ws->bytecode_alloc  = 1024;
-    ws->bytecode        = malloc(ws->bytecode_alloc);
-    ws->bb_offsets      = malloc(g->num_bbs * sizeof(MVMint32));
+    ws->bytecode        = MVM_malloc(ws->bytecode_alloc);
+    ws->bb_offsets      = MVM_malloc(g->num_bbs * sizeof(MVMint32));
     ws->num_fixups      = 0;
     ws->alloc_fixups    = 64;
-    ws->fixup_locations = malloc(ws->alloc_fixups * sizeof(MVMint32));
-    ws->fixup_bbs       = malloc(ws->alloc_fixups * sizeof(MVMSpeshBB *));
+    ws->fixup_locations = MVM_malloc(ws->alloc_fixups * sizeof(MVMint32));
+    ws->fixup_bbs       = MVM_malloc(ws->alloc_fixups * sizeof(MVMSpeshBB *));
     for (i = 0; i < g->num_bbs; i++)
         ws->bb_offsets[i] = -1;
 
@@ -247,7 +247,7 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
      * updates. */
     hanlen = g->num_handlers * sizeof(MVMFrameHandler);
     if (hanlen) {
-        ws->handlers = malloc(hanlen);
+        ws->handlers = MVM_malloc(hanlen);
         memcpy(ws->handlers, g->handlers, hanlen);
         for (i = 0; i < g->sf->body.num_handlers; i++) {
             ws->handlers[i].start_offset = -1;
@@ -299,7 +299,7 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
             MVM_exception_throw_adhoc(tc, "Spesh: failed to fix up inline %d", i);
 
     /* Produce result data structure. */
-    res                = malloc(sizeof(MVMSpeshCode));
+    res                = MVM_malloc(sizeof(MVMSpeshCode));
     res->bytecode      = ws->bytecode;
     res->bytecode_size = ws->bytecode_pos;
     res->handlers      = ws->handlers;

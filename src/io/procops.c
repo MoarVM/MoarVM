@@ -25,7 +25,7 @@ extern char **environ;
 static wchar_t * ANSIToUnicode(MVMuint16 acp, const char *str)
 {
      const int          len = MultiByteToWideChar(acp, 0, str, -1, NULL, 0);
-     wchar_t * const result = (wchar_t *)malloc(len * sizeof(wchar_t));
+     wchar_t * const result = (wchar_t *)MVM_malloc(len * sizeof(wchar_t));
 
      MultiByteToWideChar(acp, 0, str, -1, (LPWSTR)result, len);
 
@@ -35,7 +35,7 @@ static wchar_t * ANSIToUnicode(MVMuint16 acp, const char *str)
 static char * UnicodeToUTF8(const wchar_t *str)
 {
      const int       len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
-     char * const result = (char *)malloc(len * sizeof(char));
+     char * const result = (char *)MVM_malloc(len * sizeof(char));
 
      WideCharToMultiByte(CP_UTF8, 0, str, -1, result, len, NULL, NULL);
 
@@ -172,7 +172,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     char * const _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
     const MVMuint64 size = MVM_repr_elems(tc, env);
     MVMIter * const iter = (MVMIter *)MVM_iter(tc, env);
-    char **_env = malloc((size + 1) * sizeof(char *));
+    char **_env = MVM_malloc((size + 1) * sizeof(char *));
 
 #ifdef _WIN32
     const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
@@ -204,7 +204,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
 
     if (readable) {
         /* We want to read from the child's stdout. */
-        out = malloc(sizeof(uv_pipe_t));
+        out = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(tc->loop, out, 0);
         uv_pipe_open(out, 0);
         process_stdio[0].flags       = UV_INHERIT_FD; // child's stdin
@@ -214,7 +214,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     }
     else {
         /* We want to print to the child's stdin. */
-        in  = malloc(sizeof(uv_pipe_t));
+        in  = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(tc->loop, in, 0);
         uv_pipe_open(in, 1);
         process_stdio[0].flags       = UV_CREATE_PIPE | UV_READABLE_PIPE; // child's stdin
@@ -261,7 +261,7 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     char * const _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
     const MVMuint64 size = MVM_repr_elems(tc, env);
     MVMIter * const iter = (MVMIter *)MVM_iter(tc, env);
-    char **_env = malloc((size + 1) * sizeof(char *));
+    char **_env = MVM_malloc((size + 1) * sizeof(char *));
 
 #ifdef _WIN32
     const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
@@ -313,9 +313,9 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
     char   * const      _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
     const MVMuint64     size = MVM_repr_elems(tc, env);
     MVMIter * const     iter = (MVMIter *)MVM_iter(tc, env);
-    char              **_env = malloc((size + 1) * sizeof(char *));
+    char              **_env = MVM_malloc((size + 1) * sizeof(char *));
     const MVMuint64  arg_size = MVM_repr_elems(tc, argv);
-    char             **args = malloc((arg_size + 1) * sizeof(char *));
+    char             **args = MVM_malloc((arg_size + 1) * sizeof(char *));
     MVMRegister        reg;
 
     i = 0;
@@ -444,7 +444,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     }
 
     /* Create and initialize write request. */
-    wi->req           = malloc(sizeof(uv_write_t));
+    wi->req           = MVM_malloc(sizeof(uv_write_t));
     wi->buf           = uv_buf_init(output, output_size);
     wi->req->data     = data;
     handle_data       = (MVMIOAsyncProcessData *)wi->handle->body.data;
@@ -674,7 +674,7 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
 /* Allocates a buffer of the suggested size. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
     size_t size = suggested_size > 0 ? suggested_size : 4;
-    buf->base   = malloc(size);
+    buf->base   = MVM_malloc(size);
     buf->len    = size;
 }
 
@@ -796,7 +796,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
     /* Create input/output handles as needed. */
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.write)) {
-        uv_pipe_t *pipe = malloc(sizeof(uv_pipe_t));
+        uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(tc->loop, pipe, 0);
         pipe->data = si;
         process_stdio[0].flags       = UV_CREATE_PIPE | UV_READABLE_PIPE;
@@ -808,7 +808,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[0].data.fd = 0;
     }
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_chars)) {
-        uv_pipe_t *pipe = malloc(sizeof(uv_pipe_t));
+        uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(tc->loop, pipe, 0);
         pipe->data = si;
         process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
@@ -818,7 +818,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         stdout_cb                    = &async_spawn_stdout_chars_read;
     }
     else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
-        uv_pipe_t *pipe = malloc(sizeof(uv_pipe_t));
+        uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(tc->loop, pipe, 0);
         pipe->data = si;
         process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
@@ -831,7 +831,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[1].data.fd = 1;
     }
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_chars)) {
-        uv_pipe_t *pipe = malloc(sizeof(uv_pipe_t));
+        uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(tc->loop, pipe, 0);
         uv_pipe_open(pipe, 0);
         pipe->data = si;
@@ -842,7 +842,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         stderr_cb                    = &async_spawn_stderr_chars_read;
     }
     else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
-        uv_pipe_t *pipe = malloc(sizeof(uv_pipe_t));
+        uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(tc->loop, pipe, 0);
         uv_pipe_open(pipe, 0);
         pipe->data = si;
@@ -991,7 +991,7 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
     arg_size = MVM_repr_elems(tc, argv);
     if (arg_size < 1)
         MVM_exception_throw_adhoc(tc, "spawnprocasync must have first arg for program");
-    args = malloc((arg_size + 1) * sizeof(char *));
+    args = MVM_malloc((arg_size + 1) * sizeof(char *));
     for (i = 0; i < arg_size; i++) {
         REPR(argv)->pos_funcs.at_pos(tc, STABLE(argv), argv, OBJECT_BODY(argv), i, &reg, MVM_reg_obj);
         args[i] = MVM_string_utf8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
@@ -1010,7 +1010,7 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
         /* Encode environment. */
         size = MVM_repr_elems(tc, env);
         iter = (MVMIter *)MVM_iter(tc, env);
-        _env = malloc((size + 1) * sizeof(char *));
+        _env = MVM_malloc((size + 1) * sizeof(char *));
         INIT_ENV();
 
         /* Create handle. */

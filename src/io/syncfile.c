@@ -91,7 +91,7 @@ static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) 
 
 /* Read a bunch of bytes into the current decode stream. */
 static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint32 bytes) {
-    char *buf = malloc(bytes);
+    char *buf = MVM_malloc(bytes);
     uv_fs_t req;
     MVMint32 read;
     if ((read = uv_fs_read(tc->loop, &req, data->fd, buf, bytes, -1, NULL)) < 0) {

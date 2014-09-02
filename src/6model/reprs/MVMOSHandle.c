@@ -24,7 +24,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Initializes the handle with the mutex all handles need. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMOSHandleBody *handle = (MVMOSHandleBody *)data;
-    handle->mutex = malloc(sizeof(uv_mutex_t));
+    handle->mutex = MVM_malloc(sizeof(uv_mutex_t));
     uv_mutex_init(handle->mutex);
 }
 

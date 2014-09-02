@@ -57,7 +57,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 l = 0;
     MVMuint32 i, j, k, q;
     char *o = calloc(sizeof(char) * s, 1);
-    char ***frame_lexicals = malloc(sizeof(char **) * cu->body.num_frames);
+    char ***frame_lexicals = MVM_malloc(sizeof(char **) * cu->body.num_frames);
     MVMString *name = MVM_string_utf8_decode(tc, tc->instance->VMString, "", 0);
 
     a("\nMoarVM dump of binary compilation unit:\n\n");
@@ -120,7 +120,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             MVM_bytecode_finish_frame(tc, cu, frame, 1);
         }
 
-        lexicals = (char **)malloc(sizeof(char *) * frame->body.num_lexicals);
+        lexicals = (char **)MVM_malloc(sizeof(char *) * frame->body.num_lexicals);
         frame_lexicals[k] = lexicals;
 
         HASH_ITER(hash_handle, frame->body.lexical_names, current, tmp) {
@@ -169,8 +169,8 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* positions in the bytestream that are starts of ops and goto targets */
     MVMuint8 *labels = calloc(bytecode_size, 1);
     MVMuint32 *jumps = calloc(sizeof(MVMuint32) * bytecode_size, 1);
-    char **lines = malloc(sizeof(char *) * bytecode_size);
-    MVMuint32 *linelocs = malloc(bytecode_size);
+    char **lines = MVM_malloc(sizeof(char *) * bytecode_size);
+    MVMuint32 *linelocs = MVM_malloc(bytecode_size);
     MVMuint32 lineno = 0;
     MVMuint32 lineloc;
     MVMuint16 op_num;

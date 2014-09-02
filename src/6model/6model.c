@@ -123,7 +123,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
     code = MVM_frame_find_invokee(tc, find_method, NULL);
     MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, &fm_callsite);
     {
-        FindMethodSRData *fm = malloc(sizeof(FindMethodSRData));
+        FindMethodSRData *fm = MVM_malloc(sizeof(FindMethodSRData));
         fm->obj  = obj;
         fm->name = name;
         fm->res  = res;
@@ -318,7 +318,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
             tc->cur_frame->args[1].o = obj;
             tc->cur_frame->args[2].o = type;
             if (mode & MVM_TYPE_CHECK_NEEDS_ACCEPTS) {
-                AcceptsTypeSRData *atd = malloc(sizeof(AcceptsTypeSRData));
+                AcceptsTypeSRData *atd = MVM_malloc(sizeof(AcceptsTypeSRData));
                 atd->obj = obj;
                 atd->type = type;
                 atd->res = res;

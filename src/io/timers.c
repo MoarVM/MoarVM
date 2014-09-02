@@ -73,7 +73,7 @@ MVMObject * MVM_io_timer_create(MVMThreadContext *tc, MVMObject *queue,
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops      = &op_table;
-    timer_info          = malloc(sizeof(TimerInfo));
+    timer_info          = MVM_malloc(sizeof(TimerInfo));
     timer_info->timeout = timeout;
     timer_info->repeat  = repeat;
     task->body.data     = timer_info;

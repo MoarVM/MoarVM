@@ -102,7 +102,7 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
             /* Add one, since MVM_incr returns original. */
 
         /* Create thread state, to pass to the thread start callback. */
-        ts = malloc(sizeof(ThreadStart));
+        ts = MVM_malloc(sizeof(ThreadStart));
         ts->tc = child_tc;
         ts->thread_obj = thread_obj;
 

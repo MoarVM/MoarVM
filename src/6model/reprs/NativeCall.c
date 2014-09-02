@@ -24,7 +24,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
     /* Need a fresh handle for resource management purposes. */
     if (src_body->lib_name) {
-        dest_body->lib_name = malloc(strlen(src_body->lib_name) + 1);
+        dest_body->lib_name = MVM_malloc(strlen(src_body->lib_name) + 1);
         strcpy(dest_body->lib_name, src_body->lib_name);
         dest_body->lib_handle = dlLoadLibrary(dest_body->lib_name);
     }
@@ -34,7 +34,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->convention = src_body->convention;
     dest_body->num_args = src_body->num_args;
     if (src_body->arg_types) {
-        dest_body->arg_types = malloc(sizeof(MVMint16) * (src_body->num_args ? src_body->num_args : 1));
+        dest_body->arg_types = MVM_malloc(sizeof(MVMint16) * (src_body->num_args ? src_body->num_args : 1));
         memcpy(dest_body->arg_types, src_body->arg_types, src_body->num_args * sizeof(MVMint16));
     }
     dest_body->ret_type = src_body->ret_type;

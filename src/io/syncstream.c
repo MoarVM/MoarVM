@@ -49,7 +49,7 @@ void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
  * read some data, and false if we hit EOF. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
     size_t size = suggested_size > 0 ? suggested_size : 4;
-    buf->base   = malloc(size);
+    buf->base   = MVM_malloc(size);
     buf->len    = size;
 }
 static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
@@ -188,7 +188,7 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
         output = (MVMuint8 *)realloc(output, ++output_size);
         output[output_size - 1] = '\n';
     }
-    req = malloc(sizeof(uv_write_t));
+    req = MVM_malloc(sizeof(uv_write_t));
     write_buf = uv_buf_init(output, output_size);
     uv_ref((uv_handle_t *)data->handle);
     if ((r = uv_write(req, data->handle, &write_buf, 1, write_cb)) < 0) {
@@ -209,7 +209,7 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
 /* Writes the specified bytes to the stream. */
 MVMint64 MVM_io_syncstream_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    uv_write_t *req = malloc(sizeof(uv_write_t));
+    uv_write_t *req = MVM_malloc(sizeof(uv_write_t));
     uv_buf_t write_buf = uv_buf_init(buf, bytes);
     int r;
     uv_ref((uv_handle_t *)data->handle);

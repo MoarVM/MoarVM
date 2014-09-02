@@ -10,7 +10,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVMArrayREPRData *repr_data = (MVMArrayREPRData *)malloc(sizeof(MVMArrayREPRData));
+        MVMArrayREPRData *repr_data = (MVMArrayREPRData *)MVM_malloc(sizeof(MVMArrayREPRData));
 
         repr_data->slot_type = MVM_ARRAY_OBJ;
         repr_data->elem_size = sizeof(MVMObject *);
@@ -38,7 +38,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         size_t  mem_size     = dest_body->ssize * repr_data->elem_size;
         size_t  start_pos    = src_body->start * repr_data->elem_size;
         char   *copy_start   = ((char *)src_body->slots.any) + start_pos;
-        dest_body->slots.any = malloc(mem_size);
+        dest_body->slots.any = MVM_malloc(mem_size);
         memcpy(dest_body->slots.any, copy_start, mem_size);
     }
     else {
@@ -331,7 +331,7 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64
     /* now allocate the new slot buffer */
     slots = (slots)
             ? realloc(slots, ssize * repr_data->elem_size)
-            : malloc(ssize * repr_data->elem_size);
+            : MVM_malloc(ssize * repr_data->elem_size);
 
     /* fill out any unused slots with NULL pointers or zero values */
     body->slots.any = slots;
@@ -1012,7 +1012,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 
 /* Deserializes representation data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)malloc(sizeof(MVMArrayREPRData));
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)MVM_malloc(sizeof(MVMArrayREPRData));
 
     MVMObject *type = reader->root.version >= 7 ? MVM_serialization_read_ref(tc, reader) : NULL;
     MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
@@ -1104,7 +1104,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     body->elems = MVM_serialization_read_varint(tc, reader);
     body->ssize = body->elems;
     if (body->ssize)
-        body->slots.any = malloc(body->ssize * repr_data->elem_size);
+        body->slots.any = MVM_malloc(body->ssize * repr_data->elem_size);
 
     for (i = 0; i < body->elems; i++) {
         switch (repr_data->slot_type) {

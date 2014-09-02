@@ -25,7 +25,7 @@ typedef struct {
 /* Allocates a buffer of the suggested size. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
     size_t size = suggested_size > 0 ? suggested_size : 4;
-    buf->base   = malloc(size);
+    buf->base   = MVM_malloc(size);
     buf->len    = size;
 }
 
@@ -313,7 +313,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     }
 
     /* Create and initialize write request. */
-    wi->req           = malloc(sizeof(uv_write_t));
+    wi->req           = MVM_malloc(sizeof(uv_write_t));
     wi->buf           = uv_buf_init(output, output_size);
     wi->req->data     = data;
     handle_data       = (MVMIOAsyncSocketData *)wi->handle->body.data;
@@ -557,8 +557,8 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
     MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
 
     /* Create and initialize socket and connection. */
-    ci->socket        = malloc(sizeof(uv_tcp_t));
-    ci->connect       = malloc(sizeof(uv_connect_t));
+    ci->socket        = MVM_malloc(sizeof(uv_tcp_t));
+    ci->connect       = MVM_malloc(sizeof(uv_connect_t));
     ci->connect->data = data;
     if ((r = uv_tcp_init(loop, ci->socket)) < 0 ||
         (r = uv_tcp_connect(ci->connect, ci->socket, ci->dest, on_connect)) < 0) {
@@ -657,7 +657,7 @@ static void on_connection(uv_stream_t *server, int status) {
     MVMAsyncTask     *t      = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
         tc->instance->event_loop_active, li->work_idx);
 
-    uv_tcp_t         *client = malloc(sizeof(uv_tcp_t));
+    uv_tcp_t         *client = MVM_malloc(sizeof(uv_tcp_t));
     int               r;
     uv_tcp_init(tc->loop, client);
 
@@ -704,7 +704,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
     MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
 
     /* Create and initialize socket and connection. */
-    li->socket        = malloc(sizeof(uv_tcp_t));
+    li->socket        = MVM_malloc(sizeof(uv_tcp_t));
     li->socket->data  = data;
     if ((r = uv_tcp_init(loop, li->socket)) < 0 ||
         (r = uv_tcp_bind(li->socket, li->dest, 0)) < 0) {

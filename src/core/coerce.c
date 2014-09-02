@@ -60,7 +60,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                 else {
                     /* Need to set up special return hook. */
                     MVMObject *code = MVM_frame_find_invokee(tc, bs->method, NULL);
-                    BoolMethReturnData *data = malloc(sizeof(BoolMethReturnData));
+                    BoolMethReturnData *data = MVM_malloc(sizeof(BoolMethReturnData));
                     data->true_addr  = true_addr;
                     data->false_addr = false_addr;
                     data->flip       = flip;
