@@ -112,7 +112,7 @@ static void decont_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 out_o
 static void wval_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_orig,
                        MVMuint16 tgt_i, MVMuint16 dep, MVMint64 idx) {
     MVMCompUnit *cu = g->sf->body.cu;
-    if (dep >= 0 && dep < cu->body.num_scs) {
+    if (dep < cu->body.num_scs) {
         MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
         if (sc)
             object_facts(tc, g, tgt_orig, tgt_i, MVM_sc_get_object(tc, sc, idx));
