@@ -14,7 +14,7 @@ void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Allocate extra permanent root space if needed. */
     if (tc->instance->num_permroots == tc->instance->alloc_permroots) {
         tc->instance->alloc_permroots *= 2;
-        tc->instance->permroots = realloc(tc->instance->permroots,
+        tc->instance->permroots = MVM_realloc(tc->instance->permroots,
             sizeof(MVMCollectable **) * tc->instance->alloc_permroots);
     }
 
@@ -129,7 +129,7 @@ void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Allocate extra temporary root space if needed. */
     if (tc->num_temproots == tc->alloc_temproots) {
         tc->alloc_temproots *= 2;
-        tc->temproots = realloc(tc->temproots,
+        tc->temproots = MVM_realloc(tc->temproots,
             sizeof(MVMCollectable **) * tc->alloc_temproots);
     }
 
@@ -195,7 +195,7 @@ void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c) {
     /* Allocate extra gen2 aggregate space if needed. */
     if (tc->num_gen2roots == tc->alloc_gen2roots) {
         tc->alloc_gen2roots *= 2;
-        tc->gen2roots = realloc(tc->gen2roots,
+        tc->gen2roots = MVM_realloc(tc->gen2roots,
             sizeof(MVMCollectable **) * tc->alloc_gen2roots);
     }
 

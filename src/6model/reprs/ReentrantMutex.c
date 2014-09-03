@@ -21,7 +21,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMReentrantMutexBody *rm = (MVMReentrantMutexBody *)data;
     int init_stat;
-    rm->mutex = malloc(sizeof(uv_mutex_t));
+    rm->mutex = MVM_malloc(sizeof(uv_mutex_t));
     if ((init_stat = uv_mutex_init(rm->mutex)) < 0)
         MVM_exception_throw_adhoc(tc, "Failed to initialize mutex: %s",
             uv_strerror(init_stat));
@@ -37,7 +37,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     /* The ThreadContext has already been destroyed by the GC. */
     MVMReentrantMutex *rm = (MVMReentrantMutex *)obj;
     uv_mutex_destroy(rm->body.mutex);
-    free(rm->body.mutex);
+    MVM_free(rm->body.mutex);
 }
 
 

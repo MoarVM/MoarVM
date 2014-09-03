@@ -47,7 +47,7 @@ void * MVM_gc_object_id_use_allocation(MVMThreadContext *tc, MVMCollectable *ite
     HASH_FIND(hash_handle, tc->instance->object_ids, (void *)&item, sizeof(MVMObject *), entry);
     addr = entry->gen2_addr;
     HASH_DELETE(hash_handle, tc->instance->object_ids, entry);
-    free(entry);
+    MVM_free(entry);
     item->flags ^= MVM_CF_HAS_OBJECT_ID;
     uv_mutex_unlock(&tc->instance->mutex_object_ids);
     return addr;
@@ -60,6 +60,6 @@ void MVM_gc_object_id_clear(MVMThreadContext *tc, MVMCollectable *item) {
     uv_mutex_lock(&tc->instance->mutex_object_ids);
     HASH_FIND(hash_handle, tc->instance->object_ids, (void *)&item, sizeof(MVMObject *), entry);
     HASH_DELETE(hash_handle, tc->instance->object_ids, entry);
-    free(entry);
+    MVM_free(entry);
     uv_mutex_unlock(&tc->instance->mutex_object_ids);
 }

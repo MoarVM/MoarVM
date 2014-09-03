@@ -110,18 +110,18 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
                 fprintf(tc->instance->spesh_log_fh,
                     "Before:\n%s\nAfter:\n%s\n\n========\n\n", before, after);
                 fflush(tc->instance->spesh_log_fh);
-                free(before);
-                free(after);
-                free(c_name);
-                free(c_cuid);
+                MVM_free(before);
+                MVM_free(after);
+                MVM_free(c_name);
+                MVM_free(c_cuid);
             }
             used = 1;
         }
     }
     if (result && !used) {
-        free(sc->bytecode);
+        MVM_free(sc->bytecode);
         if (sc->handlers)
-            free(sc->handlers);
+            MVM_free(sc->handlers);
         MVM_spesh_graph_destroy(tc, sg);
     }
     uv_mutex_unlock(&tc->instance->mutex_spesh_install);
@@ -130,7 +130,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     if (tc->instance->profiling)
         MVM_profiler_log_spesh_end(tc);
 
-    free(sc);
+    MVM_free(sc);
     return result;
 }
 
@@ -163,16 +163,16 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
         fprintf(tc->instance->spesh_log_fh,
             "%s\n\n========\n\n", dump);
         fflush(tc->instance->spesh_log_fh);
-        free(dump);
-        free(c_name);
-        free(c_cuid);
+        MVM_free(dump);
+        MVM_free(c_name);
+        MVM_free(c_cuid);
     }
 
     /* Generate code, and replace that in the candidate. */
     sc = MVM_spesh_codegen(tc, sg);
-    free(candidate->bytecode);
+    MVM_free(candidate->bytecode);
     if (candidate->handlers)
-        free(candidate->handlers);
+        MVM_free(candidate->handlers);
     candidate->bytecode      = sc->bytecode;
     candidate->bytecode_size = sc->bytecode_size;
     candidate->handlers      = sc->handlers;
@@ -186,7 +186,7 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     candidate->local_types   = sg->local_types;
     candidate->lexical_types = sg->lexical_types;
     calculate_work_env_sizes(tc, static_frame, candidate);
-    free(sc);
+    MVM_free(sc);
 
     /* Try to JIT compile the optimised graph. The JIT graph hangs from
      * the spesh graph and can safely be deleted with it. */

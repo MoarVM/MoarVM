@@ -15,7 +15,7 @@ static void append_string(char **out, MVMuint32 *size,
     if (*length + len > *size) {
         while (*length + len > *size)
             *size = *size * 2;
-        *out = realloc(*out, *size);
+        *out = MVM_realloc(*out, *size);
     }
 
     memcpy(*out + *length, string, len);
@@ -57,7 +57,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 l = 0;
     MVMuint32 i, j, k, q;
     char *o = calloc(sizeof(char) * s, 1);
-    char ***frame_lexicals = malloc(sizeof(char **) * cu->body.num_frames);
+    char ***frame_lexicals = MVM_malloc(sizeof(char **) * cu->body.num_frames);
     MVMString *name = MVM_string_utf8_decode(tc, tc->instance->VMString, "", 0);
 
     a("\nMoarVM dump of binary compilation unit:\n\n");
@@ -66,7 +66,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         char *tmpstr = MVM_string_utf8_encode_C_string(
             tc, cu->body.strings[cu->body.sc_handle_idxs[k]]);
         a("  SC_%u : %s\n", k, tmpstr);
-        free(tmpstr);
+        MVM_free(tmpstr);
     }
 
     for (k = 0; k < cu->body.num_callsites; k++) {
@@ -85,7 +85,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                     char *arg_name = MVM_string_utf8_encode_C_string(tc,
                         callsite->arg_names[nameds_count++]);
                     a(" named(%s)", arg_name);
-                    free(arg_name);
+                    MVM_free(arg_name);
                 }
                 else {
                     a(" named");
@@ -120,7 +120,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             MVM_bytecode_finish_frame(tc, cu, frame, 1);
         }
 
-        lexicals = (char **)malloc(sizeof(char *) * frame->body.num_lexicals);
+        lexicals = (char **)MVM_malloc(sizeof(char *) * frame->body.num_lexicals);
         frame_lexicals[k] = lexicals;
 
         HASH_ITER(hash_handle, frame->body.lexical_names, current, tmp) {
@@ -137,9 +137,9 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         fname = MVM_string_utf8_encode_C_string(tc, frame->body.name);
         a("  Frame_%u :\n", k);
         a("    cuuid : %s\n", cuuid);
-        free(cuuid);
+        MVM_free(cuuid);
         a("    name : %s\n", fname);
-        free(fname);
+        MVM_free(fname);
         for (j = 0; j < cu->body.num_frames; j++) {
             if (cu->body.frames[j] == frame->body.outer)
                 a("    outer : Frame_%u\n", j);
@@ -169,8 +169,8 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* positions in the bytestream that are starts of ops and goto targets */
     MVMuint8 *labels = calloc(bytecode_size, 1);
     MVMuint32 *jumps = calloc(sizeof(MVMuint32) * bytecode_size, 1);
-    char **lines = malloc(sizeof(char *) * bytecode_size);
-    MVMuint32 *linelocs = malloc(bytecode_size);
+    char **lines = MVM_malloc(sizeof(char *) * bytecode_size);
+    MVMuint32 *linelocs = MVM_malloc(bytecode_size);
     MVMuint32 lineno = 0;
     MVMuint32 lineloc;
     MVMuint16 op_num;
@@ -219,7 +219,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                         break;
                 op_info = &tmp_extop_info;
                 a("%-12s ", tmp_extop_info.name);
-                free((void *)tmp_extop_info.name);
+                MVM_free((void *)tmp_extop_info.name);
                 tmp_extop_info.name = NULL;
             }
             else {
@@ -274,7 +274,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                         /* XXX C-string-literal escape the \ and '
                             and line breaks and non-ascii someday */
                         a("'%s'", tmpstr);
-                        free(tmpstr);
+                        MVM_free(tmpstr);
                         break;
                     case MVM_operand_ins:
                         operand_size = 4;
@@ -360,12 +360,12 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 						shi < cu->body.num_strings ? shi : 0
 					]);
                 a("     annotation: %s:%u\n", tmpstr, GET_UI32(frame->body.annotations_data, (annotations[j] - 1)*12 + 8));
-                free(tmpstr);
+                MVM_free(tmpstr);
             }
             if (linelabels[j])
                 a("     label_%u:\n", linelabels[j]);
             a("%05d   %s", j, lines[j]);
-            free(lines[j]);
+            MVM_free(lines[j]);
             if (jumps[j]) {
                 /* horribly inefficient for large frames.  again, should use a hash */
                 line_number = 0;
@@ -374,22 +374,22 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             }
             a("\n");
         }
-        free(lines);
-        free(jumps);
-        free(linelocs);
-        free(linelabels);
-        free(labels);
-        free(annotations);
+        MVM_free(lines);
+        MVM_free(jumps);
+        MVM_free(linelocs);
+        MVM_free(linelabels);
+        MVM_free(labels);
+        MVM_free(annotations);
     }
 
         }
     }
     for (k = 0; k < cu->body.num_frames; k++) {
         for (j = 0; j < cu->body.frames[k]->body.num_lexicals; j++) {
-            free(frame_lexicals[k][j]);
+            MVM_free(frame_lexicals[k][j]);
         }
-        free(frame_lexicals[k]);
+        MVM_free(frame_lexicals[k]);
     }
-    free(frame_lexicals);
+    MVM_free(frame_lexicals);
     return o;
 }

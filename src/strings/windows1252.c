@@ -137,7 +137,7 @@ MVMString * MVM_string_windows1252_decode(MVMThreadContext *tc,
 
     result->body.num_graphs      = bytes;
     result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    result->body.storage.blob_32 = malloc(sizeof(MVMGrapheme32) * bytes);
+    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
     for (i = 0; i < bytes; i++)
         result->body.storage.blob_32[i] = WINDOWS1252_CHAR_TO_CP(windows1252[i]);
     return result;
@@ -161,7 +161,7 @@ MVMuint8 * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString 
     if (length < -1 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
-    result = malloc(lengthu + 1);
+    result = MVM_malloc(lengthu + 1);
     if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
         /* No encoding needed; directly copy. */
         memcpy(result, str->body.storage.blob_ascii, lengthu);

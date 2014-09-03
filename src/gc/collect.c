@@ -133,7 +133,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
      * the work passing threshold, then cleanup work passing list. */
     if (wtp.num_target_threads) {
         pass_leftover_work(tc, &wtp);
-        free(wtp.target_work);
+        MVM_free(wtp.target_work);
     }
 }
 
@@ -435,7 +435,7 @@ static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable
     /* If there's no entry for this target, create one. */
     if (target_info == NULL) {
         wtp->num_target_threads++;
-        wtp->target_work = realloc(wtp->target_work,
+        wtp->target_work = MVM_realloc(wtp->target_work,
             wtp->num_target_threads * sizeof(ThreadWork));
         target_info = &wtp->target_work[wtp->num_target_threads - 1];
         target_info->target = target;
@@ -490,7 +490,7 @@ static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklis
         MVMuint32 i;
         for (i = 0; i < head->num_items; i++)
             MVM_gc_worklist_add(tc, worklist, head->items[i]);
-        free(head);
+        MVM_free(head);
         head = next;
     }
 }
@@ -534,7 +534,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
                 REPR(obj)->gc_free(tc, obj);
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
             if (dead && item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
-                free(item->sc_forward_u.sci);
+                MVM_free(item->sc_forward_u.sci);
 #endif
             if (dead && item->flags & MVM_CF_HAS_OBJECT_ID)
                 MVM_gc_object_id_clear(tc, item);
@@ -543,7 +543,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
             /* Type object */
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
             if (dead && item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
-                free(item->sc_forward_u.sci);
+                MVM_free(item->sc_forward_u.sci);
 #endif
             if (dead && item->flags & MVM_CF_HAS_OBJECT_ID)
                 MVM_gc_object_id_clear(tc, item);
@@ -554,7 +554,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
 /*            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : enqueuing an STable %d in the nursery to be freed\n", item);*/
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                 if (item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
-                    free(item->sc_forward_u.sci);
+                    MVM_free(item->sc_forward_u.sci);
                     /* Arguably we don't need to do this, if we're always
                        consistent about what we put on the stable queue. */
                     item->flags &= ~MVM_CF_SERIALZATION_INDEX_ALLOCATED;
@@ -639,13 +639,13 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                             REPR(obj)->gc_free(tc, obj);
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                         if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
-                            free(col->sc_forward_u.sci);
+                            MVM_free(col->sc_forward_u.sci);
 #endif
                     }
                     else if (col->flags & MVM_CF_TYPE_OBJECT) {
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                         if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
-                            free(col->sc_forward_u.sci);
+                            MVM_free(col->sc_forward_u.sci);
 #endif
                     }
                     else if (col->flags & MVM_CF_STABLE) {
@@ -667,7 +667,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                                 assert(!(col->sc_forward_u.sci->sc_idx == 0
                                          && col->sc_forward_u.sci->idx
                                          == MVM_DIRECT_SC_IDX_SENTINEL));
-                                free(col->sc_forward_u.sci);
+                                MVM_free(col->sc_forward_u.sci);
                                 col->flags &= ~MVM_CF_SERIALZATION_INDEX_ALLOCATED;
                             }
 #endif
@@ -722,13 +722,13 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                         REPR(obj)->gc_free(tc, obj);
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                     if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
-                        free(col->sc_forward_u.sci);
+                        MVM_free(col->sc_forward_u.sci);
 #endif
                 }
                 else {
                     MVM_panic(MVM_exitcode_gcnursery, "Internal error: gen2 overflow contains non-object");
                 }
-                free(col);
+                MVM_free(col);
                 gen2->overflows[i] = NULL;
             }
         }

@@ -31,10 +31,10 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
         MVM_exception_throw_adhoc(tc, "failed to load library '%s'", cpath);
     }
 
-    free(cpath);
+    MVM_free(cpath);
 
     if (!entry) {
-        entry = malloc(sizeof *entry);
+        entry = MVM_malloc(sizeof *entry);
         entry->name = name;
         entry->refcount = 0;
 
@@ -105,7 +105,7 @@ MVMObject * MVM_dll_find_symbol(MVMThreadContext *tc, MVMString *lib,
 
     csym = MVM_string_utf8_encode_C_string(tc, sym);
     address = dlFindSymbol(entry->lib, csym);
-    free(csym);
+    MVM_free(csym);
 
     if (!address) {
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);

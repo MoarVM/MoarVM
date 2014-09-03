@@ -91,11 +91,11 @@ static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) 
 
 /* Read a bunch of bytes into the current decode stream. */
 static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint32 bytes) {
-    char *buf = malloc(bytes);
+    char *buf = MVM_malloc(bytes);
     uv_fs_t req;
     MVMint32 read;
     if ((read = uv_fs_read(tc->loop, &req, data->fd, buf, bytes, -1, NULL)) < 0) {
-        free(buf);
+        MVM_free(buf);
         MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
             uv_strerror(req.result));
     }
@@ -205,10 +205,10 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
     output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
     bytes_written = uv_fs_write(tc->loop, &req, data->fd, (const void *)output, output_size, -1, NULL);
     if (bytes_written < 0) {
-        free(output);
+        MVM_free(output);
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
     }
-    free(output);
+    MVM_free(output);
 
     if (newline) {
         if (uv_fs_write(tc->loop, &req, data->fd, "\n", 1, -1, NULL) < 0)
@@ -352,8 +352,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
         if (data->ds)
             MVM_string_decodestream_destory(tc, data->ds);
         if (data->filename)
-            free(data->filename);
-        free(data);
+            MVM_free(data->filename);
+        MVM_free(data);
     }
 }
 
@@ -397,14 +397,14 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     else if (0 == strcmp("wa", fmode))
         flag = O_CREAT | O_WRONLY | O_APPEND;
     else {
-        free(fname);
+        MVM_free(fname);
         MVM_exception_throw_adhoc(tc, "Invalid open mode: %d", fmode);
     }
-    free(fmode);
+    MVM_free(fmode);
 
     /* Try to open the file. */
     if ((fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, DEFAULT_MODE, NULL)) < 0) {
-        free(fname);
+        MVM_free(fname);
         MVM_exception_throw_adhoc(tc, "Failed to open file: %s", uv_strerror(req.result));
     }
 

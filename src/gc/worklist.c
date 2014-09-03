@@ -2,13 +2,13 @@
 
 /* Allocates a new GC worklist. */
 MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_gen2) {
-    MVMGCWorklist *worklist = malloc(sizeof(MVMGCWorklist));
+    MVMGCWorklist *worklist = MVM_malloc(sizeof(MVMGCWorklist));
     worklist->items = 0;
     worklist->frames = 0;
     worklist->alloc = MVM_GC_WORKLIST_START_SIZE;
     worklist->frames_alloc = MVM_GC_WORKLIST_START_SIZE;
-    worklist->list  = malloc(worklist->alloc * sizeof(MVMCollectable **));
-    worklist->frames_list  = malloc(worklist->frames_alloc * sizeof(MVMFrame *));
+    worklist->list  = MVM_malloc(worklist->alloc * sizeof(MVMCollectable **));
+    worklist->frames_list  = MVM_malloc(worklist->frames_alloc * sizeof(MVMFrame *));
     worklist->include_gen2 = include_gen2;
     return worklist;
 }
@@ -17,7 +17,7 @@ MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_ge
 void MVM_gc_worklist_add_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **item) {
     if (worklist->items == worklist->alloc) {
         worklist->alloc *= 2;
-        worklist->list = realloc(worklist->list, worklist->alloc * sizeof(MVMCollectable **));
+        worklist->list = MVM_realloc(worklist->list, worklist->alloc * sizeof(MVMCollectable **));
     }
     worklist->list[worklist->items++] = item;
 }
@@ -26,7 +26,7 @@ void MVM_gc_worklist_add_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVM
 void MVM_gc_worklist_add_frame_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame) {
     if (worklist->frames == worklist->frames_alloc) {
         worklist->frames_alloc *= 2;
-        worklist->frames_list = realloc(worklist->frames_list, worklist->frames_alloc * sizeof(MVMFrame *));
+        worklist->frames_list = MVM_realloc(worklist->frames_list, worklist->frames_alloc * sizeof(MVMFrame *));
     }
     worklist->frames_list[worklist->frames++] = frame;
 }
@@ -36,17 +36,17 @@ void MVM_gc_worklist_add_frame_slow(MVMThreadContext *tc, MVMGCWorklist *worklis
 void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMint32 items) {
     if (worklist->items + items >= worklist->alloc) {
         worklist->alloc = worklist->items + items;
-        worklist->list = realloc(worklist->list, worklist->alloc * sizeof(MVMCollectable **));
+        worklist->list = MVM_realloc(worklist->list, worklist->alloc * sizeof(MVMCollectable **));
     }
 }
 
 /* Free a worklist. */
 void MVM_gc_worklist_destroy(MVMThreadContext *tc, MVMGCWorklist *worklist) {
-    free(worklist->list);
+    MVM_free(worklist->list);
     worklist->list = NULL;
-    free(worklist->frames_list);
+    MVM_free(worklist->frames_list);
     worklist->frames_list = NULL;
-    free(worklist);
+    MVM_free(worklist);
 }
 
 /* Move things from the frames worklist to the object worklist. */

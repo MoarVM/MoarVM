@@ -24,7 +24,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Initializes the handle with the mutex all handles need. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMOSHandleBody *handle = (MVMOSHandleBody *)data;
-    handle->mutex = malloc(sizeof(uv_mutex_t));
+    handle->mutex = MVM_malloc(sizeof(uv_mutex_t));
     uv_mutex_init(handle->mutex);
 }
 
@@ -52,7 +52,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         handle->body.ops->gc_free(tc, obj, handle->body.data);
     if (handle->body.mutex) {
         uv_mutex_destroy(handle->body.mutex);
-        free(handle->body.mutex);
+        MVM_free(handle->body.mutex);
     }
 }
 
