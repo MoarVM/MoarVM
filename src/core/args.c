@@ -108,16 +108,16 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx);
 
 /* Checks that the passed arguments fall within the expected arity. */
 static void arity_fail(MVMThreadContext *tc, MVMuint16 got, MVMuint16 min, MVMuint16 max) {
-    char *problem = got > max ? "Too many" : "Not enough";
+    char *problem = got > max ? "Too many" : "Too few";
     if (min == max)
-        MVM_exception_throw_adhoc(tc, "%s positional parameters passed; got %d but expected %d",
-            problem, got, min);
+        MVM_exception_throw_adhoc(tc, "%s positionals passed; expected %d argument%s but got %d",
+            problem, min, (min == 1 ? "" : "s"), got);
     else if (max == 0xFFFF)
-        MVM_exception_throw_adhoc(tc, "%s positional parameters passed; got %d but expected at least %d",
-            problem, got, min);
+        MVM_exception_throw_adhoc(tc, "%s positionals passed; expected at least %d arguments but got only %d",
+            problem, min, got);
     else
-        MVM_exception_throw_adhoc(tc, "%s positional parameters passed; got %d but expected between %d and %d",
-            problem, got, min, max);
+        MVM_exception_throw_adhoc(tc, "%s positionals passed; expected %d %s %d arguments but got %d",
+            problem, min, (min + 1 == max ? "or" : "to"), max, got);
 }
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max) {
     MVMuint16 num_pos;
