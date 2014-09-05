@@ -152,9 +152,18 @@ if ($args{'has-sha'}) {
 }
 else { $config{shaincludedir} = '3rdparty/sha1' }
 
+# conditionally set include dirs and install rules
+$config{cincludes} //= '';
+$config{install}   //= '';
 if ($args{'has-libuv'}) {
     $defaults{-thirdparty}->{uv} = undef;
     unshift @{$config{usrlibs}}, 'uv';
+}
+else {
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libuv/include'
+                        . ' ' . $defaults{ccinc} . '3rdparty/libuv/src';
+    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/libuv\n"
+                        . "\t\$(CP) 3rdparty/libuv/include/*.h \$(DESTDIR)\$(PREFIX)/include/libuv\n";
 }
 
 if ($args{'has-libatomic_ops'}) {

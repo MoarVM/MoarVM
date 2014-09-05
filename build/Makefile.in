@@ -30,8 +30,7 @@ NOERR =
 
 PREFIX    = @prefix@
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
-CINCLUDES = @ccinc@3rdparty/libuv/include \
-            @ccinc@3rdparty/libuv/src \
+CINCLUDES = @cincludes@ \
             @ccinc@3rdparty/libatomic_ops/src \
             @ccinc@3rdparty/libtommath \
             @ccinc@@shaincludedir@ \
@@ -458,6 +457,7 @@ install: all
 	$(CP) 3rdparty/dyncall/dynload/*.h $(DESTDIR)$(PREFIX)/include/dyncall
 	$(CP) 3rdparty/dyncall/dyncall/*.h $(DESTDIR)$(PREFIX)/include/dyncall
 	$(CP) 3rdparty/dyncall/dyncallback/*.h $(DESTDIR)$(PREFIX)/include/dyncall
+@install@
 
 lib: @moar@
 
