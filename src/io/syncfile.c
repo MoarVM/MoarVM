@@ -199,12 +199,12 @@ static MVMint64 eof(MVMThreadContext *tc, MVMOSHandle *h) {
 /* Writes the specified string to the file handle, maybe with a newline. */
 static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, MVMint64 newline) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMuint8 *output;
     MVMint64 output_size, bytes_written;
+    MVMuint8 *output    = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
+    uv_buf_t write_buf  = uv_buf_init(output, output_size);
     uv_fs_t req;
 
-    output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
-    bytes_written = uv_fs_write(tc->loop, &req, data->fd, (const void *)output, output_size, -1, NULL);
+    bytes_written = uv_fs_write(tc->loop, &req, data->fd, &write_buf, 1, -1, NULL);
     if (bytes_written < 0) {
         MVM_free(output);
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
@@ -224,9 +224,10 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
 /* Writes the specified bytes to the file handle. */
 static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    uv_buf_t write_buf  = uv_buf_init(buf, bytes);
     uv_fs_t  req;
     MVMint64 bytes_written;
-    bytes_written = uv_fs_write(tc->loop, &req, data->fd, (const void *)buf, bytes, -1, NULL);
+    bytes_written = uv_fs_write(tc->loop, &req, data->fd, &write_buf, 1, -1, NULL);
     if (bytes_written < 0)
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
     return bytes_written;
