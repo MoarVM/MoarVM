@@ -1,5 +1,4 @@
 #include "moar.h"
-
 /* This file is generated from src/core/oplist by tools/update_ops.p6. */
 static const MVMOpInfo MVM_op_infos[] = {
     {
@@ -6759,6 +6758,17 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
+        MVM_OP_settypefinalize,
+        "settypefinalize",
+        "  ",
+        2,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
         MVM_OP_sp_log,
         "sp_log",
         ".s",
@@ -7262,7 +7272,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 661;
+static const unsigned short MVM_op_counts = 662;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

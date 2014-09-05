@@ -116,6 +116,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "gc/gen2.h"
 #include "gc/roots.h"
 #include "gc/objectid.h"
+#include "gc/finalize.h"
 #include "spesh/dump.h"
 #include "spesh/graph.h"
 #include "spesh/codegen.h"
