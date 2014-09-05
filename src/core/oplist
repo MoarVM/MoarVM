@@ -1,4 +1,4 @@
-# This is the authorative list of MoarVM instructions.
+# This is the authoritative list of MoarVM instructions.
 #
 # Changes to this file need to be followed by a call to
 # tools/update_ops.p6 to update various auto-generated files.
