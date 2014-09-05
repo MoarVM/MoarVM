@@ -10,7 +10,7 @@ typedef struct {
 } TimerInfo;
 
 /* Timer callback; dispatches schedulee to the queue. */
-static void timer_cb(uv_timer_t *handle, int status) {
+static void timer_cb(uv_timer_t *handle) {
     TimerInfo        *ti = (TimerInfo *)handle->data;
     MVMThreadContext *tc = ti->tc;
     MVMAsyncTask     *t  = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,

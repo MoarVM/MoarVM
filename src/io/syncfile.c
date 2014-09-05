@@ -91,10 +91,11 @@ static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) 
 
 /* Read a bunch of bytes into the current decode stream. */
 static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint32 bytes) {
-    char *buf = MVM_malloc(bytes);
+    char *buf         = MVM_malloc(bytes);
+    uv_buf_t read_buf = uv_buf_init(buf, bytes);
     uv_fs_t req;
     MVMint32 read;
-    if ((read = uv_fs_read(tc->loop, &req, data->fd, buf, bytes, -1, NULL)) < 0) {
+    if ((read = uv_fs_read(tc->loop, &req, data->fd, &read_buf, 1, -1, NULL)) < 0) {
         MVM_free(buf);
         MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
             uv_strerror(req.result));
@@ -211,7 +212,8 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
     MVM_free(output);
 
     if (newline) {
-        if (uv_fs_write(tc->loop, &req, data->fd, "\n", 1, -1, NULL) < 0)
+        uv_buf_t nl = uv_buf_init("\n", 1);
+        if (uv_fs_write(tc->loop, &req, data->fd, &nl, 1, -1, NULL) < 0)
             MVM_exception_throw_adhoc(tc, "Failed to write newline to filehandle: %s", uv_strerror(req.result));
         bytes_written++;
     }

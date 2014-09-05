@@ -150,14 +150,15 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
 MVMString * MVM_dir_cwd(MVMThreadContext *tc) {
 #ifdef _WIN32
     char path[MAX_PATH];
-    const size_t max_path = MAX_PATH;
+    size_t max_path = MAX_PATH;
+    int r;
 #else
     char path[PATH_MAX];
-    const size_t max_path = PATH_MAX;
-#endif
+    size_t max_path = PATH_MAX;
     int r;
+#endif
 
-    if ((r = uv_cwd(path, max_path)) < 0) {
+    if ((r = uv_cwd(path, (size_t *)&max_path)) < 0) {
         MVM_exception_throw_adhoc(tc, "chdir failed: %s", uv_strerror(r));
     }
 
