@@ -76,7 +76,7 @@ typedef double   MVMnum64;
 #  define MVM_USED_BY_JIT
 #endif
 
-const MVMint32 MVM_jit_support(void);
+MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 
 /* Headers for various other data structures and APIs. */
 #include "6model/6model.h"
