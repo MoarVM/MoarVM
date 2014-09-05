@@ -88,7 +88,7 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
 
     /* We can now form the name map. */
     num_classes = MVM_repr_elems(tc, class_list);
-    result = (MVMCStructNameMap *) malloc(sizeof(MVMCStructNameMap) * (1 + num_classes));
+    result = (MVMCStructNameMap *) MVM_malloc(sizeof(MVMCStructNameMap) * (1 + num_classes));
 
     for (i = 0; i < num_classes; i++) {
         result[i].class_key = MVM_repr_at_pos_o(tc, class_list, i);
@@ -130,8 +130,8 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
 
         /* Allocate location/offset arrays and GC mark info arrays. */
         repr_data->num_attributes      = num_attrs;
-        repr_data->attribute_locations = (MVMint32 *)   malloc(info_alloc * sizeof(MVMint32));
-        repr_data->struct_offsets      = (MVMint32 *)   malloc(info_alloc * sizeof(MVMint32));
+        repr_data->attribute_locations = (MVMint32 *)   MVM_malloc(info_alloc * sizeof(MVMint32));
+        repr_data->struct_offsets      = (MVMint32 *)   MVM_malloc(info_alloc * sizeof(MVMint32));
         repr_data->flattened_stables   = (MVMSTable **) calloc(info_alloc, sizeof(MVMObject *));
         repr_data->member_types        = (MVMObject **) calloc(info_alloc, sizeof(MVMObject *));
 
@@ -307,7 +307,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
     /* Allocate object body. */
     MVMCStructBody *body = (MVMCStructBody *)data;
-    body->cstruct = malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
+    body->cstruct = MVM_malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
     memset(body->cstruct, 0, repr_data->struct_size);
 
     /* Allocate child obj array. */
@@ -586,11 +586,11 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMCStructBody *body = (MVMCStructBody *)data;
     if (body->child_objs)
-        free(body->child_objs);
+        MVM_free(body->child_objs);
     /* XXX For some reason, this causes crashes at the moment. Need to
      * work out why. */
     /*if (body->cstruct)
-        free(body->cstruct);*/
+        MVM_free(body->cstruct);*/
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -653,17 +653,17 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 
 /* Deserializes the REPR data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMCStructREPRData *repr_data = (MVMCStructREPRData *) malloc(sizeof(MVMCStructREPRData));
+    MVMCStructREPRData *repr_data = (MVMCStructREPRData *) MVM_malloc(sizeof(MVMCStructREPRData));
     MVMint32 i, num_classes, num_slots;
 
     repr_data->struct_size = MVM_serialization_read_varint(tc, reader);
     repr_data->num_attributes = MVM_serialization_read_varint(tc, reader);
     repr_data->num_child_objs = MVM_serialization_read_varint(tc, reader);
 
-    repr_data->attribute_locations = (MVMint32 *)malloc(sizeof(MVMint32) * repr_data->num_attributes);
-    repr_data->struct_offsets      = (MVMint32 *)malloc(sizeof(MVMint32) * repr_data->num_attributes);
-    repr_data->flattened_stables   = (MVMSTable **)malloc(repr_data->num_attributes * sizeof(MVMSTable *));
-    repr_data->member_types        = (MVMObject **)malloc(repr_data->num_attributes * sizeof(MVMObject *));
+    repr_data->attribute_locations = (MVMint32 *)MVM_malloc(sizeof(MVMint32) * repr_data->num_attributes);
+    repr_data->struct_offsets      = (MVMint32 *)MVM_malloc(sizeof(MVMint32) * repr_data->num_attributes);
+    repr_data->flattened_stables   = (MVMSTable **)MVM_malloc(repr_data->num_attributes * sizeof(MVMSTable *));
+    repr_data->member_types        = (MVMObject **)MVM_malloc(repr_data->num_attributes * sizeof(MVMObject *));
 
     for(i = 0; i < repr_data->num_attributes; i++) {
         repr_data->attribute_locations[i] = MVM_serialization_read_varint(tc, reader);
@@ -680,7 +680,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     }
 
     num_classes = MVM_serialization_read_varint(tc, reader);
-    repr_data->name_to_index_mapping = (MVMCStructNameMap *)malloc(sizeof(MVMCStructNameMap) * (1 + num_classes));
+    repr_data->name_to_index_mapping = (MVMCStructNameMap *)MVM_malloc(sizeof(MVMCStructNameMap) * (1 + num_classes));
     for(i = 0; i < num_classes; i++){
         repr_data->name_to_index_mapping[i].class_key = MVM_serialization_read_ref(tc, reader);
         repr_data->name_to_index_mapping[i].name_map = MVM_serialization_read_ref(tc, reader);
@@ -689,7 +689,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->name_to_index_mapping[i].name_map = NULL;
 
     num_slots = MVM_serialization_read_varint(tc, reader);
-    repr_data->initialize_slots = (MVMint32 *)malloc(sizeof(MVMint32) * (1 + num_slots));
+    repr_data->initialize_slots = (MVMint32 *)MVM_malloc(sizeof(MVMint32) * (1 + num_slots));
     for(i = 0; i < num_slots; i++){
         repr_data->initialize_slots[i] = MVM_serialization_read_varint(tc, reader);
     }

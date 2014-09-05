@@ -1343,7 +1343,7 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMint32 num_gpr = 0, num_fpr = 0, num_stack = 0, i;
     MVMJitCallArg in_gpr[6], in_fpr[8], *on_stack = NULL;
     if (num_args > 6)
-        on_stack = malloc(sizeof(MVMJitCallArg) * (num_args - 6));
+        on_stack = MVM_malloc(sizeof(MVMJitCallArg) * (num_args - 6));
     /* divide in gpr, fpr, stack values */
     for (i = 0; i < num_args; i++) {
         switch (args[i].type) {
@@ -1385,7 +1385,7 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
         emit_stack_arg(tc, jg, 8, i*8, Dst);
     }
     if (on_stack)
-        free(on_stack);
+        MVM_free(on_stack);
 }
 
 static void emit_win64_callargs(MVMThreadContext *tc, MVMJitGraph *jg,

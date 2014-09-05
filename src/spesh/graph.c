@@ -33,7 +33,7 @@ void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
     }
     if (!result) {
         /* No block, or block was full. Add another. */
-        MVMSpeshMemBlock *block = malloc(sizeof(MVMSpeshMemBlock));
+        MVMSpeshMemBlock *block = MVM_malloc(sizeof(MVMSpeshMemBlock));
         block->buffer = calloc(MVM_SPESH_MEMBLOCK_SIZE, 1);
         block->alloc  = block->buffer;
         block->limit  = block->buffer + MVM_SPESH_MEMBLOCK_SIZE;
@@ -78,10 +78,10 @@ static void add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     if (g->num_deopt_addrs == g->alloc_deopt_addrs) {
         g->alloc_deopt_addrs += 4;
         if (g->deopt_addrs)
-            g->deopt_addrs = realloc(g->deopt_addrs,
+            g->deopt_addrs = MVM_realloc(g->deopt_addrs,
                 g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
         else
-            g->deopt_addrs = malloc(g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
+            g->deopt_addrs = MVM_malloc(g->alloc_deopt_addrs * sizeof(MVMint32) * 2);
     }
     g->deopt_addrs[2 * g->num_deopt_addrs] = pc - g->bytecode;
     g->num_deopt_addrs++;
@@ -525,16 +525,16 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     }
 
     /* Clear up the temporary arrays. */
-    free(byte_to_ins_flags);
-    free(ins_flat);
-    free(ins_to_bb);
+    MVM_free(byte_to_ins_flags);
+    MVM_free(ins_flat);
+    MVM_free(ins_to_bb);
 }
 
 /* Eliminates any unreachable basic blocks (that is, dead code). Not having
  * to consider them any further simplifies all that follows. */
 static void eliminate_dead(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Iterate to fixed point. */
-    MVMint8  *seen     = malloc(g->num_bbs);
+    MVMint8  *seen     = MVM_malloc(g->num_bbs);
     MVMint32  orig_bbs = g->num_bbs;
     MVMint8   death    = 1;
     while (death) {
@@ -562,7 +562,7 @@ static void eliminate_dead(MVMThreadContext *tc, MVMSpeshGraph *g) {
             cur_bb = cur_bb->linear_next;
         }
     }
-    free(seen);
+    MVM_free(seen);
 
     /* If we removed some, need to re-number so they're consecutive, for the
      * post-order and dominance calcs to be happy. */
@@ -613,7 +613,7 @@ static MVMSpeshBB ** reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMuint8    *seen = calloc(g->num_bbs, 1);
     MVMint32     ins  = g->num_bbs - 1;
     dfs(rpo, &ins, seen, g->entry);
-    free(seen);
+    MVM_free(seen);
     if (ins != -1) {
         printf("%s", MVM_spesh_dump(tc, g));
         MVM_spesh_graph_destroy(tc, g);
@@ -670,7 +670,7 @@ static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
 
     /* Create result list, with all initialized to undefined (use -1, as it's
      * not a valid basic block index). Start node dominates itself. */
-    MVMint32 *doms = malloc(g->num_bbs * sizeof(MVMint32));
+    MVMint32 *doms = MVM_malloc(g->num_bbs * sizeof(MVMint32));
     doms[0] = 0;
     for (i = 1; i < g->num_bbs; i++)
         doms[i] = -1;
@@ -817,7 +817,7 @@ SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
                     if (!found) {
                         if (var_info[written].num_ass_nodes % 8 == 0) {
                             MVMint32 new_size = var_info[written].num_ass_nodes + 8;
-                            var_info[written].ass_nodes = realloc(
+                            var_info[written].ass_nodes = MVM_realloc(
                                 var_info[written].ass_nodes,
                                 new_size * sizeof(MVMSpeshBB *));
                         }
@@ -904,9 +904,9 @@ static void insert_phi_functions(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarI
         }
     }
 
-    free(has_already);
-    free(work);
-    free(worklist);
+    MVM_free(has_already);
+    MVM_free(work);
+    MVM_free(worklist);
 }
 
 /* Renames the local variables such that we end up with SSA form. */
@@ -950,7 +950,7 @@ static void rename_locals(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarInfo *va
                         var_info[orig].stack_alloc *= 2;
                     else
                         var_info[orig].stack_alloc = 8;
-                    var_info[orig].stack = realloc(var_info[orig].stack,
+                    var_info[orig].stack = MVM_realloc(var_info[orig].stack,
                         var_info[orig].stack_alloc * sizeof(MVMint32));
                 }
                 var_info[orig].stack[++var_info[orig].stack_top] = reg_i;
@@ -1011,8 +1011,8 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMint32    *doms = compute_dominators(tc, g, rpo);
     add_children(tc, g, rpo, doms);
     add_dominance_frontiers(tc, g, rpo, doms);
-    free(rpo);
-    free(doms);
+    MVM_free(rpo);
+    MVM_free(doms);
 
     /* Initialize per-local data for SSA analysis. */
     var_info = initialize_ssa_var_info(tc, g);
@@ -1030,11 +1030,11 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
         g->fact_counts[i] = var_info[i].count;
         g->facts[i]       = MVM_spesh_alloc(tc, g, var_info[i].count * sizeof(MVMSpeshFacts));
         if (var_info[i].stack_alloc) {
-            free(var_info[i].stack);
-            free(var_info[i].ass_nodes);
+            MVM_free(var_info[i].stack);
+            MVM_free(var_info[i].ass_nodes);
         }
     }
-    free(var_info);
+    MVM_free(var_info);
 }
 
 /* Takes a static frame and creates a spesh graph for it. */
@@ -1141,11 +1141,11 @@ void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshMemBlock *cur_block = g->mem_block;
     while (cur_block) {
         MVMSpeshMemBlock *prev = cur_block->prev;
-        free(cur_block->buffer);
-        free(cur_block);
+        MVM_free(cur_block->buffer);
+        MVM_free(cur_block);
         cur_block = prev;
     }
 
     /* Free the graph itself. */
-    free(g);
+    MVM_free(g);
 }

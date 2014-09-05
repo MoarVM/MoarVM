@@ -16,14 +16,17 @@
  * While a normal type check asks a value if it supports another type, the
  * TYPE_CHECK_NEEDS_ACCEPTS flag results in a call to .accepts_type on the
  * HOW of the thing we're checking the value against, giving it a chance to
- * decide answer. */
+ * decide answer. These are set as the lower bits of mode_flags in MVMSTable. */
 #define MVM_TYPE_CHECK_CACHE_DEFINITIVE    0
 #define MVM_TYPE_CHECK_CACHE_THEN_METHOD   1
 #define MVM_TYPE_CHECK_NEEDS_ACCEPTS       2
 #define MVM_TYPE_CHECK_CACHE_FLAG_MASK     3
 
-/* This flag is set if we consider the method cache authoritative. */
+/* This STable mode flag is set if we consider the method cache authoritative. */
 #define MVM_METHOD_CACHE_AUTHORITATIVE     4
+
+/* This STable mode flag is set if the type needs finalization. */
+#define MVM_FINALIZE_TYPE                  8
 
 /* HLL type roles. */
 #define MVM_HLL_ROLE_NONE                   0

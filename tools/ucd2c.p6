@@ -134,7 +134,7 @@ MVMint32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
         for (plane = 0; plane < MVM_UNICODE_PLANES; plane++) {
             MVMuint32 codepoint = MVM_unicode_planes[plane].first_codepoint;
             for (; codepoint < MVM_unicode_planes[plane].first_codepoint + MVM_unicode_planes[plane].num_codepoints; codepoint++) {
-                MVMUnicodeNameHashEntry *entry = malloc(sizeof(MVMUnicodeNameHashEntry));
+                MVMUnicodeNameHashEntry *entry = MVM_malloc(sizeof(MVMUnicodeNameHashEntry));
                 MVMCodePoint codepoint_struct = MVM_unicode_codepoints[idx++];
                 char *name = codepoint_struct.name;
                 if (name) {
@@ -146,7 +146,7 @@ MVMint32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
         }
     }
     HASH_FIND_STR(codepoints_by_name, cname, result);
-    free(cname);
+    MVM_free(cname);
     return result ? result->codepoint : -1;
 }
 

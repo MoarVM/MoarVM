@@ -10,7 +10,7 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, MVMObject *result_typ
 
     result->body.num_graphs      = bytes;
     result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    result->body.storage.blob_32 = malloc(sizeof(MVMint32) * bytes);
+    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMint32) * bytes);
 
     for (i = 0; i < bytes; i++)
         result->body.storage.blob_32[i] = latin1[i];
@@ -40,7 +40,7 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 
     /* Take length of head buffer as initial guess. */
     bufsize = ds->bytes_head->length;
-    buffer = malloc(bufsize * sizeof(MVMGrapheme32));
+    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
@@ -54,7 +54,7 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                 /* We filled the buffer. Attach this one to the buffers
                  * linked list, and continue with a new one. */
                 MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                buffer = malloc(bufsize * sizeof(MVMGrapheme32));
+                buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
                 count = 0;
             }
             buffer[count++] = codepoint; /* XXX NFG needs this to change. */
@@ -95,7 +95,7 @@ MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str,
     if (length < -1 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
-    result = malloc(lengthu + 1);
+    result = MVM_malloc(lengthu + 1);
     if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
         /* No encoding needed; directly copy. */
         memcpy(result, str->body.storage.blob_ascii, lengthu);

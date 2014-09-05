@@ -59,7 +59,7 @@ else { \
     hashentry_type *current, *tmp; \
     HASH_ITER(hash_handle, head_node, current, tmp) { \
         if (current != head_node) \
-            free(current); \
+            MVM_free(current); \
     } \
     tmp = head_node; \
     HASH_CLEAR(hash_handle, head_node); \

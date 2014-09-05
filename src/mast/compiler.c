@@ -238,26 +238,26 @@ static void write_double(char *buffer, size_t offset, double value) {
 void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsigned int need) {
     if (pos + need > *alloc) {
         do { *alloc = *alloc * 2; } while (pos + need > *alloc);
-        *buffer = (char *)realloc(*buffer, *alloc);
+        *buffer = (char *)MVM_realloc(*buffer, *alloc);
     }
 }
 
 /* Cleans up all allocated memory related to a frame. */
 void cleanup_frame(VM, FrameState *fs) {
     if (fs->local_types)
-        free(fs->local_types);
+        MVM_free(fs->local_types);
     if (fs->lexical_types)
-        free(fs->lexical_types);
+        MVM_free(fs->lexical_types);
     if (fs->handlers)
-        free(fs->handlers);
+        MVM_free(fs->handlers);
     if (fs->labels) {
         MVMuint32 i;
         for (i = 0; i < fs->num_labels; i++)
             if (fs->labels[i].alloc_resolve)
-                free(fs->labels[i].resolve);
-        free(fs->labels);
+                MVM_free(fs->labels[i].resolve);
+        MVM_free(fs->labels);
     }
-    free(fs);
+    MVM_free(fs);
 }
 
 /* Cleans up all allocated memory related to this compilation. */
@@ -265,19 +265,19 @@ void cleanup_all(VM, WriterState *ws) {
     if (ws->cur_frame)
         cleanup_frame(vm, ws->cur_frame);
     if (ws->scdep_seg)
-        free(ws->scdep_seg);
+        MVM_free(ws->scdep_seg);
     if (ws->extops_seg)
-        free(ws->extops_seg);
+        MVM_free(ws->extops_seg);
     if (ws->frame_seg)
-        free(ws->frame_seg);
+        MVM_free(ws->frame_seg);
     if (ws->callsite_seg)
-        free(ws->callsite_seg);
+        MVM_free(ws->callsite_seg);
     if (ws->bytecode_seg)
-        free(ws->bytecode_seg);
+        MVM_free(ws->bytecode_seg);
     if (ws->annotation_seg)
-        free(ws->annotation_seg);
+        MVM_free(ws->annotation_seg);
     MVM_HASH_DESTROY(hash_handle, CallsiteReuseEntry, ws->callsite_reuse_head);
-    free(ws);
+    MVM_free(ws);
 }
 
 /* Gets the index of a string already in the string heap, or
@@ -365,7 +365,7 @@ static void add_label(VM, FrameState *fs, MAST_Label *l, MVMint32 offset) {
             fs->alloc_labels *= 2;
         else
             fs->alloc_labels = 8;
-        fs->labels = realloc(fs->labels, fs->alloc_labels * sizeof(LabelInfo));
+        fs->labels = MVM_realloc(fs->labels, fs->alloc_labels * sizeof(LabelInfo));
     }
     fs->labels[fs->num_labels].label         = l;
     fs->labels[fs->num_labels].offset        = offset;
@@ -412,7 +412,7 @@ static void write_label_or_add_fixup(VM, WriterState *ws, MAST_Label *l) {
             info->alloc_resolve *= 2;
         else
             info->alloc_resolve = 8;
-        info->resolve = realloc(info->resolve, info->alloc_resolve * sizeof(MVMuint32));
+        info->resolve = MVM_realloc(info->resolve, info->alloc_resolve * sizeof(MVMuint32));
     }
     info->resolve[info->num_resolve] = ws->bytecode_pos;
     info->num_resolve++;
@@ -444,7 +444,7 @@ static void add_label_and_resolve_fixups(VM, WriterState *ws, MAST_Label *l) {
                 fs->labels[i].alloc_resolve = 0;
                 fs->labels[i].num_resolve   = 0;
                 fs->unresolved_labels      -= nr;
-                free(fs->labels[i].resolve);
+                MVM_free(fs->labels[i].resolve);
             }
             else {
                 cleanup_all(vm, ws);
@@ -653,8 +653,8 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flag_node, MASTNod
 
     /* See if the callsite has any named args, and get string pool entries
      * for them if so. */
-    flags      = (unsigned char *)malloc(elems);
-    named_idxs = (unsigned int *)malloc(elems * sizeof(int));
+    flags      = (unsigned char *)MVM_malloc(elems);
+    named_idxs = (unsigned int *)MVM_malloc(elems * sizeof(int));
     for (i = 0; i < elems; i++) {
         flags[i] = (unsigned char)ATPOS_I_C(vm, flag_node, i);
         if (flags[i] & (MVM_CALLSITE_ARG_NAMED)) {
@@ -672,17 +672,17 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flag_node, MASTNod
 
     /* See if we already know this callsite. */
     identifier_len = elems + num_nameds * sizeof(int);
-    identifier     = malloc(identifier_len);
+    identifier     = MVM_malloc(identifier_len);
     memcpy(identifier, flags, elems);
     memcpy(identifier + elems, named_idxs, identifier_len - elems);
     HASH_FIND(hash_handle, ws->callsite_reuse_head, identifier, identifier_len, entry);
     if (entry) {
-        free(flags);
-        free(named_idxs);
-        free(identifier);
+        MVM_free(flags);
+        MVM_free(named_idxs);
+        MVM_free(identifier);
         return entry->callsite_id;
     }
-    entry = (CallsiteReuseEntry *)malloc(sizeof(CallsiteReuseEntry));
+    entry = (CallsiteReuseEntry *)MVM_malloc(sizeof(CallsiteReuseEntry));
     entry->callsite_id = (unsigned short)ws->num_callsites;
     HASH_ADD_KEYPTR(hash_handle, ws->callsite_reuse_head, identifier, identifier_len, entry);
 
@@ -706,8 +706,8 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flag_node, MASTNod
         }
     }
 
-    free(flags);
-    free(named_idxs);
+    MVM_free(flags);
+    MVM_free(named_idxs);
 
     return (unsigned short)ws->num_callsites++;
 }
@@ -988,10 +988,10 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 
         ws->cur_frame->num_handlers++;
         if (ws->cur_frame->handlers)
-            ws->cur_frame->handlers = (FrameHandler *)realloc(ws->cur_frame->handlers,
+            ws->cur_frame->handlers = (FrameHandler *)MVM_realloc(ws->cur_frame->handlers,
                 ws->cur_frame->num_handlers * sizeof(FrameHandler));
         else
-            ws->cur_frame->handlers = (FrameHandler *)malloc(
+            ws->cur_frame->handlers = (FrameHandler *)MVM_malloc(
                 ws->cur_frame->num_handlers * sizeof(FrameHandler));
 
         i = ws->cur_frame->num_handlers - 1;
@@ -1085,7 +1085,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     f = GET_Frame(node);
 
     /* Allocate frame state. */
-    fs = ws->cur_frame    = (FrameState *)malloc(sizeof(FrameState));
+    fs = ws->cur_frame    = (FrameState *)MVM_malloc(sizeof(FrameState));
     fs->bytecode_start    = ws->bytecode_pos;
     fs->frame_start       = ws->frame_pos;
     fs->labels            = NULL;
@@ -1177,7 +1177,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     ws->frame_pos += FRAME_HEADER_SIZE;
 
     /* Write locals, as well as collecting our own array of type info. */
-    fs->local_types = (short unsigned int *)malloc(sizeof(unsigned short) * fs->num_locals);
+    fs->local_types = (short unsigned int *)MVM_malloc(sizeof(unsigned short) * fs->num_locals);
     for (i = 0; i < fs->num_locals; i++) {
         unsigned short local_type = type_to_local_type(vm, ws, ATPOS(vm, f->local_types, i));
         fs->local_types[i] = local_type;
@@ -1186,7 +1186,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     }
 
     /* Write lexicals. */
-    fs->lexical_types = (short unsigned int *)malloc(sizeof(unsigned short) * fs->num_lexicals);
+    fs->lexical_types = (short unsigned int *)MVM_malloc(sizeof(unsigned short) * fs->num_lexicals);
     for (i = 0; i < fs->num_lexicals; i++) {
         unsigned short lexical_type = type_to_local_type(vm, ws, ATPOS(vm, f->lexical_types, i));
         fs->lexical_types[i] = lexical_type;
@@ -1302,7 +1302,7 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
     /* Allocate heap starting point (just a guess). */
     heap_size = 0;
     heap_alloc = num_strings * 32;
-    heap = (char *)malloc(heap_alloc);
+    heap = (char *)MVM_malloc(heap_alloc);
 
     /* Add each string to the heap. */
     for (i = 0; i < num_strings; i++) {
@@ -1314,7 +1314,7 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
         unsigned int   need  = 4 + bytelen + align;
         if (heap_size + need >= heap_alloc) {
             heap_alloc = umax(heap_alloc * 2, heap_size + need);
-            heap = (char *)realloc(heap, heap_alloc);
+            heap = (char *)MVM_realloc(heap, heap_alloc);
         }
 
         /* Write byte length into heap. */
@@ -1323,7 +1323,7 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
 
         /* Write string. */
         memcpy(heap + heap_size, utf8, bytelen);
-        free(utf8);
+        MVM_free(utf8);
         heap_size += bytelen;
 
         /* Add alignment. Whilst we never read this memory, it's useful to
@@ -1370,7 +1370,7 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
         size += vm->serialized_size;
 
     /* Allocate space for the bytecode output. */
-    output = (char *)malloc(size);
+    output = (char *)MVM_malloc(size);
     memset(output, 0, size);
 
     /* Generate start of header. */
@@ -1408,7 +1408,7 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     memcpy(output + pos, string_heap, string_heap_size);
     pos += string_heap_size;
     if (string_heap) {
-        free(string_heap);
+        MVM_free(string_heap);
         string_heap = NULL;
     }
 
@@ -1418,7 +1418,7 @@ char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
         write_int32(output, SCDATA_HEADER_OFFSET + 4, vm->serialized_size);
         memcpy(output + pos, vm->serialized, vm->serialized_size);
         pos += vm->serialized_size;
-        free(vm->serialized);
+        MVM_free(vm->serialized);
         vm->serialized = NULL;
         vm->serialized_size = 0;
     }
@@ -1472,30 +1472,30 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     cu = GET_CompUnit(node);
 
     /* Initialize the writer state structure. */
-    ws = (WriterState *)malloc(sizeof(WriterState));
+    ws = (WriterState *)MVM_malloc(sizeof(WriterState));
     ws->types            = types;
     ws->strings          = NEWLIST_S(vm);
     ws->seen_strings     = NEWHASH(vm);
     ws->cur_frame        = NULL;
     ws->scdep_bytes      = ELEMS(vm, cu->sc_handles) * SC_DEP_SIZE;
-    ws->scdep_seg        = ws->scdep_bytes ? (char *)malloc(ws->scdep_bytes) : NULL;
+    ws->scdep_seg        = ws->scdep_bytes ? (char *)MVM_malloc(ws->scdep_bytes) : NULL;
     ws->num_extops       = ELEMS(vm, cu->extop_names);
     ws->extops_bytes     = ws->num_extops * EXTOP_SIZE;
-    ws->extops_seg       = (char *)malloc(ws->extops_bytes);
+    ws->extops_seg       = (char *)MVM_malloc(ws->extops_bytes);
     ws->frame_pos        = 0;
     ws->frame_alloc      = 192 * ELEMS(vm, cu->frames);
-    ws->frame_seg        = (char *)malloc(ws->frame_alloc);
+    ws->frame_seg        = (char *)MVM_malloc(ws->frame_alloc);
     ws->num_frames       = 0;
     ws->callsite_pos     = 0;
     ws->callsite_alloc   = 4096;
-    ws->callsite_seg     = (char *)malloc(ws->callsite_alloc);
+    ws->callsite_seg     = (char *)MVM_malloc(ws->callsite_alloc);
     ws->num_callsites    = 0;
     ws->bytecode_pos     = 0;
     ws->bytecode_alloc   = 128 * ELEMS(vm, cu->frames);
-    ws->bytecode_seg     = (char *)malloc(ws->bytecode_alloc);
+    ws->bytecode_seg     = (char *)MVM_malloc(ws->bytecode_alloc);
     ws->annotation_pos   = 0;
     ws->annotation_alloc = 64 * ELEMS(vm, cu->frames);
-    ws->annotation_seg   = (char *)malloc(ws->annotation_alloc);
+    ws->annotation_seg   = (char *)MVM_malloc(ws->annotation_alloc);
     ws->cu               = cu;
     ws->current_frame_idx= 0;
 

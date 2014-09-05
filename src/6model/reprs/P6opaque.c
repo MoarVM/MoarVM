@@ -168,7 +168,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 
     /* If we replaced the object body, free the replacement. */
     if (((MVMP6opaque *)obj)->body.replaced) {
-        free(((MVMP6opaque *)obj)->body.replaced);
+        MVM_free(((MVMP6opaque *)obj)->body.replaced);
         ((MVMP6opaque *)obj)->body.replaced = NULL;
     }
 }
@@ -606,7 +606,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMString * const str_box_target = str_consts.box_target;
 
     /* Allocate the representation data. */
-    MVMP6opaqueREPRData *repr_data = malloc(sizeof(MVMP6opaqueREPRData));
+    MVMP6opaqueREPRData *repr_data = MVM_malloc(sizeof(MVMP6opaqueREPRData));
     memset(repr_data, 0, sizeof(MVMP6opaqueREPRData));
 
     /* Find attribute information. */
@@ -644,17 +644,17 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     /* Fill out and allocate other things we now can. */
     repr_data->num_attributes = total_attrs;
     if (total_attrs) {
-        repr_data->attribute_offsets   = malloc(total_attrs * sizeof(MVMuint16));
-        repr_data->flattened_stables   = malloc(total_attrs * sizeof(MVMSTable *));
-        repr_data->auto_viv_values     = malloc(total_attrs * sizeof(MVMObject *));
-        repr_data->gc_obj_mark_offsets = malloc(total_attrs * sizeof(MVMuint16));
+        repr_data->attribute_offsets   = MVM_malloc(total_attrs * sizeof(MVMuint16));
+        repr_data->flattened_stables   = MVM_malloc(total_attrs * sizeof(MVMSTable *));
+        repr_data->auto_viv_values     = MVM_malloc(total_attrs * sizeof(MVMObject *));
+        repr_data->gc_obj_mark_offsets = MVM_malloc(total_attrs * sizeof(MVMuint16));
         memset(repr_data->flattened_stables, 0, total_attrs * sizeof(MVMSTable *));
         memset(repr_data->auto_viv_values, 0, total_attrs * sizeof(MVMObject *));
     }
-    repr_data->name_to_index_mapping = malloc((mro_count + 1) * sizeof(MVMP6opaqueNameMap));
-    repr_data->initialize_slots      = malloc((total_attrs + 1) * sizeof(MVMuint16));
-    repr_data->gc_mark_slots         = malloc((total_attrs + 1) * sizeof(MVMuint16));
-    repr_data->gc_cleanup_slots      = malloc((total_attrs + 1) * sizeof(MVMuint16));
+    repr_data->name_to_index_mapping = MVM_malloc((mro_count + 1) * sizeof(MVMP6opaqueNameMap));
+    repr_data->initialize_slots      = MVM_malloc((total_attrs + 1) * sizeof(MVMuint16));
+    repr_data->gc_mark_slots         = MVM_malloc((total_attrs + 1) * sizeof(MVMuint16));
+    repr_data->gc_cleanup_slots      = MVM_malloc((total_attrs + 1) * sizeof(MVMuint16));
     memset(repr_data->name_to_index_mapping, 0, (mro_count + 1) * sizeof(MVMP6opaqueNameMap));
 
     /* -1 indicates no unboxing or delegate possible for a type. */
@@ -687,8 +687,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         MVM_ASSIGN_REF(tc, &(st->header), name_map->class_key, type_obj);
         name_map->num_attrs = num_attrs;
         if (num_attrs) {
-            name_map->names = malloc(num_attrs * sizeof(MVMString *));
-            name_map->slots = malloc(num_attrs * sizeof(MVMuint16));
+            name_map->names = MVM_malloc(num_attrs * sizeof(MVMString *));
+            name_map->slots = MVM_malloc(num_attrs * sizeof(MVMuint16));
         }
 
         /* Go over the attributes. */
@@ -949,11 +949,11 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     MVMuint16 i, j, num_classes, cur_offset;
     MVMint16 cur_initialize_slot, cur_gc_mark_slot, cur_gc_cleanup_slot;
 
-    MVMP6opaqueREPRData *repr_data = malloc(sizeof(MVMP6opaqueREPRData));
+    MVMP6opaqueREPRData *repr_data = MVM_malloc(sizeof(MVMP6opaqueREPRData));
 
     repr_data->num_attributes = (MVMuint16)MVM_serialization_read_varint(tc, reader);
 
-    repr_data->flattened_stables = (MVMSTable **)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMSTable *));
+    repr_data->flattened_stables = (MVMSTable **)MVM_malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMSTable *));
     for (i = 0; i < repr_data->num_attributes; i++)
         if (MVM_serialization_read_varint(tc, reader)) {
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->flattened_stables[i], MVM_serialization_read_stable_ref(tc, reader));
@@ -965,7 +965,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->mi = MVM_serialization_read_varint(tc, reader);
 
     if (MVM_serialization_read_varint(tc, reader)) {
-        repr_data->auto_viv_values = (MVMObject **)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMObject *));
+        repr_data->auto_viv_values = (MVMObject **)MVM_malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMObject *));
         for (i = 0; i < repr_data->num_attributes; i++)
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->auto_viv_values[i], MVM_serialization_read_ref(tc, reader));
     } else {
@@ -977,7 +977,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->unbox_str_slot = MVM_serialization_read_varint(tc, reader);
 
     if (MVM_serialization_read_varint(tc, reader)) {
-        repr_data->unbox_slots = (MVMP6opaqueBoxedTypeMap *)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMP6opaqueBoxedTypeMap));
+        repr_data->unbox_slots = (MVMP6opaqueBoxedTypeMap *)MVM_malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMP6opaqueBoxedTypeMap));
         for (i = 0; i < repr_data->num_attributes; i++) {
             repr_data->unbox_slots[i].repr_id = MVM_serialization_read_varint(tc, reader);
             repr_data->unbox_slots[i].slot = MVM_serialization_read_varint(tc, reader);
@@ -987,7 +987,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     }
 
     num_classes = (MVMuint16)MVM_serialization_read_varint(tc, reader);
-    repr_data->name_to_index_mapping = (MVMP6opaqueNameMap *)malloc((num_classes + 1) * sizeof(MVMP6opaqueNameMap));
+    repr_data->name_to_index_mapping = (MVMP6opaqueNameMap *)MVM_malloc((num_classes + 1) * sizeof(MVMP6opaqueNameMap));
     for (i = 0; i < num_classes; i++) {
         MVMint32 num_attrs = 0;
 
@@ -995,8 +995,8 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             MVM_serialization_read_ref(tc, reader));
 
         num_attrs = MVM_serialization_read_varint(tc, reader);
-        repr_data->name_to_index_mapping[i].names = (MVMString **)malloc(P6OMAX(num_attrs, 1) * sizeof(MVMString *));
-        repr_data->name_to_index_mapping[i].slots = (MVMuint16 *)malloc(P6OMAX(num_attrs, 1) * sizeof(MVMuint16));
+        repr_data->name_to_index_mapping[i].names = (MVMString **)MVM_malloc(P6OMAX(num_attrs, 1) * sizeof(MVMString *));
+        repr_data->name_to_index_mapping[i].slots = (MVMuint16 *)MVM_malloc(P6OMAX(num_attrs, 1) * sizeof(MVMuint16));
         for (j = 0; j < num_attrs; j++) {
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->name_to_index_mapping[i].names[j],
                 MVM_serialization_read_str(tc, reader));
@@ -1015,11 +1015,11 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 
     /* Re-calculate the remaining info, which is platform specific or
      * derived information. */
-    repr_data->attribute_offsets   = (MVMuint16 *)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
-    repr_data->gc_obj_mark_offsets = (MVMuint16 *)malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
-    repr_data->initialize_slots    = (MVMint16 *)malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
-    repr_data->gc_mark_slots       = (MVMint16 *)malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
-    repr_data->gc_cleanup_slots    = (MVMint16 *)malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
+    repr_data->attribute_offsets   = (MVMuint16 *)MVM_malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
+    repr_data->gc_obj_mark_offsets = (MVMuint16 *)MVM_malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
+    repr_data->initialize_slots    = (MVMint16 *)MVM_malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
+    repr_data->gc_mark_slots       = (MVMint16 *)MVM_malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
+    repr_data->gc_cleanup_slots    = (MVMint16 *)MVM_malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
     repr_data->gc_obj_mark_offsets_count = 0;
     cur_offset          = sizeof(MVMP6opaqueBody);
     cur_initialize_slot = 0;
@@ -1144,7 +1144,7 @@ void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_type) {
 
         /* Allocate new memory. */
         size_t  new_size = STABLE(new_type)->size - sizeof(MVMObject);
-        void   *new = malloc(new_size);
+        void   *new = MVM_malloc(new_size);
         memset((char *)new + (STABLE(obj)->size - sizeof(MVMObject)),
             0, new_size - (STABLE(obj)->size - sizeof(MVMObject)));
 
@@ -1155,7 +1155,7 @@ void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_type) {
         /* Pointer switch, taking care of existing body issues. */
         if (body->replaced) {
             body->replaced = new;
-            free(old);
+            MVM_free(old);
         }
         else {
             body->replaced = new;

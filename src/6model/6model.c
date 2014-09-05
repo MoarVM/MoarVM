@@ -74,11 +74,11 @@ static void late_bound_find_method_return(MVMThreadContext *tc, void *sr_data) {
     if (MVM_is_null(tc, fm->res->o) || !IS_CONCRETE(fm->res->o)) {
         MVMObject *obj  = fm->obj;
         MVMString *name = fm->name;
-        free(fm);
+        MVM_free(fm);
         die_over_missing_method(tc, obj, name);
     }
     else {
-        free(fm);
+        MVM_free(fm);
     }
 }
 static void mark_find_method_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
@@ -123,7 +123,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
     code = MVM_frame_find_invokee(tc, find_method, NULL);
     MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, &fm_callsite);
     {
-        FindMethodSRData *fm = malloc(sizeof(FindMethodSRData));
+        FindMethodSRData *fm = MVM_malloc(sizeof(FindMethodSRData));
         fm->obj  = obj;
         fm->name = name;
         fm->res  = res;
@@ -261,7 +261,7 @@ void accepts_type_sr(MVMThreadContext *tc, void *sr_data) {
     MVMObject   *obj  = atd->obj;
     MVMObject   *type = atd->type;
     MVMRegister *res  = atd->res;
-    free(atd);
+    MVM_free(atd);
     if (!res->i64)
         do_accepts_type_check(tc, obj, type, res);
 }
@@ -318,7 +318,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
             tc->cur_frame->args[1].o = obj;
             tc->cur_frame->args[2].o = type;
             if (mode & MVM_TYPE_CHECK_NEEDS_ACCEPTS) {
-                AcceptsTypeSRData *atd = malloc(sizeof(AcceptsTypeSRData));
+                AcceptsTypeSRData *atd = MVM_malloc(sizeof(AcceptsTypeSRData));
                 atd->obj = obj;
                 atd->type = type;
                 atd->res = res;

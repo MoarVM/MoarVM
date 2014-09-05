@@ -64,7 +64,7 @@ static char * base64_encode(const void *buf, size_t size)
 {
     static const char base64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-    char* str = (char*) malloc((size+3)*4/3 + 1);
+    char* str = (char*) MVM_malloc((size+3)*4/3 + 1);
 
     char* p = str;
     const unsigned char* q = (const unsigned char*) buf;
@@ -127,7 +127,7 @@ static void * base64_decode(const char *s, size_t *data_len)
     size_t len = strlen(s);
     if (len % 4)
         return NULL;
-    data = (unsigned char*) malloc(len/4*3);
+    data = (unsigned char*) MVM_malloc(len/4*3);
     q = (unsigned char*) data;
 
     for (p = s; *p; ) {
@@ -279,11 +279,11 @@ static MVMuint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer,
     offset = num_deps * DEP_TABLE_ENTRY_SIZE;
     if (offset + DEP_TABLE_ENTRY_SIZE > writer->dependencies_table_alloc) {
         writer->dependencies_table_alloc *= 2;
-        writer->root.dependencies_table = (char *)realloc(writer->root.dependencies_table, writer->dependencies_table_alloc);
+        writer->root.dependencies_table = (char *)MVM_realloc(writer->root.dependencies_table, writer->dependencies_table_alloc);
     }
 
     /* Add dependency. */
-    writer->root.dependent_scs = realloc(writer->root.dependent_scs, sizeof(MVMSerializationContext *) * (writer->root.num_dependencies + 1));
+    writer->root.dependent_scs = MVM_realloc(writer->root.dependent_scs, sizeof(MVMSerializationContext *) * (writer->root.num_dependencies + 1));
     writer->root.dependent_scs[writer->root.num_dependencies] = sc;
     write_int32(writer->root.dependencies_table, offset,
         add_string_to_heap(tc, writer, MVM_sc_get_handle(tc, sc)));
@@ -315,7 +315,7 @@ static void get_stable_ref_info(MVMThreadContext *tc, MVMSerializationWriter *wr
 static void expand_storage_if_needed(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 need) {
     if (*(writer->cur_write_offset) + need > *(writer->cur_write_limit)) {
         *(writer->cur_write_limit) *= 2;
-        *(writer->cur_write_buffer) = (char *)realloc(*(writer->cur_write_buffer),
+        *(writer->cur_write_buffer) = (char *)MVM_realloc(*(writer->cur_write_buffer),
             *(writer->cur_write_limit));
     }
 }
@@ -518,7 +518,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
     MVMint32 offset = writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE;
     if (offset + CLOSURES_TABLE_ENTRY_SIZE > writer->closures_table_alloc) {
         writer->closures_table_alloc *= 2;
-        writer->root.closures_table = (char *)realloc(writer->root.closures_table, writer->closures_table_alloc);
+        writer->root.closures_table = (char *)MVM_realloc(writer->root.closures_table, writer->closures_table_alloc);
     }
 
     /* Get the index of the context (which will add it to the todo list if
@@ -690,7 +690,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     output_size += writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE;
 
     /* Allocate a buffer that size. */
-    output = (char *)malloc(output_size);
+    output = (char *)MVM_malloc(output_size);
 
     /* Write version into header. */
     write_int32(output, 0, CURRENT_VERSION);
@@ -766,7 +766,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     if (tc->compiling_scs && MVM_repr_elems(tc, tc->compiling_scs) &&
             MVM_repr_at_pos_o(tc, tc->compiling_scs, 0) == (MVMObject *)writer->root.sc) {
         if (tc->serialized)
-            free(tc->serialized);
+            MVM_free(tc->serialized);
         tc->serialized = output;
         tc->serialized_size = output_size;
         return NULL;
@@ -774,14 +774,14 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
 
     /* Base 64 encode. */
     output_b64 = base64_encode(output, output_size);
-    free(output);
+    MVM_free(output);
     if (output_b64 == NULL)
         MVM_exception_throw_adhoc(tc,
             "Serialization error: failed to convert to base64");
 
     /* Make a MVMString containing it. */
     result = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, output_b64);
-    free(output_b64);
+    MVM_free(output_b64);
     return result;
 }
 
@@ -809,7 +809,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     MVMint32 offset = writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE;
     if (offset + STABLES_TABLE_ENTRY_SIZE > writer->stables_table_alloc) {
         writer->stables_table_alloc *= 2;
-        writer->root.stables_table = (char *)realloc(writer->root.stables_table, writer->stables_table_alloc);
+        writer->root.stables_table = (char *)MVM_realloc(writer->root.stables_table, writer->stables_table_alloc);
     }
 
     /* Make STables table entry. */
@@ -904,7 +904,7 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
     offset = writer->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE;
     if (offset + OBJECTS_TABLE_ENTRY_SIZE > writer->objects_table_alloc) {
         writer->objects_table_alloc *= 2;
-        writer->root.objects_table = (char *)realloc(writer->root.objects_table, writer->objects_table_alloc);
+        writer->root.objects_table = (char *)MVM_realloc(writer->root.objects_table, writer->objects_table_alloc);
     }
 
     /* Make objects table entry. */
@@ -954,7 +954,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     offset = writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE;
     if (offset + CONTEXTS_TABLE_ENTRY_SIZE > writer->contexts_table_alloc) {
         writer->contexts_table_alloc *= 2;
-        writer->root.contexts_table = (char *)realloc(writer->root.contexts_table, writer->contexts_table_alloc);
+        writer->root.contexts_table = (char *)MVM_realloc(writer->root.contexts_table, writer->contexts_table_alloc);
     }
 
     /* Make contexts table entry. */
@@ -1022,7 +1022,7 @@ static void serialize_repossessions(MVMThreadContext *tc, MVMSerializationWriter
     writer->root.num_repos = MVM_repr_elems(tc, rep_indexes);
     if (writer->root.num_repos == 0)
         return;
-    writer->root.repos_table = (char *)malloc(writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
+    writer->root.repos_table = (char *)MVM_malloc(writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
 
     /* Make entries. */
     for (i = 0; i < writer->root.num_repos; i++) {
@@ -1103,26 +1103,26 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer->codes_list          = sc->body->root_codes;
     writer->contexts_list       = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     writer->root.string_heap    = empty_string_heap;
-    writer->root.dependent_scs  = malloc(sizeof(MVMSerializationContext *));
+    writer->root.dependent_scs  = MVM_malloc(sizeof(MVMSerializationContext *));
     writer->seen_strings        = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
 
     /* Allocate initial memory space for storing serialized tables and data. */
     writer->dependencies_table_alloc = DEP_TABLE_ENTRY_SIZE * 4;
-    writer->root.dependencies_table  = (char *)malloc(writer->dependencies_table_alloc);
+    writer->root.dependencies_table  = (char *)MVM_malloc(writer->dependencies_table_alloc);
     writer->stables_table_alloc      = STABLES_TABLE_ENTRY_SIZE * STABLES_TABLE_ENTRIES_GUESS;
-    writer->root.stables_table       = (char *)malloc(writer->stables_table_alloc);
+    writer->root.stables_table       = (char *)MVM_malloc(writer->stables_table_alloc);
     writer->objects_table_alloc      = OBJECTS_TABLE_ENTRY_SIZE * MAX(sc_elems, 1);
-    writer->root.objects_table       = (char *)malloc(writer->objects_table_alloc);
+    writer->root.objects_table       = (char *)MVM_malloc(writer->objects_table_alloc);
     writer->stables_data_alloc       = DEFAULT_STABLE_DATA_SIZE;
-    writer->root.stables_data        = (char *)malloc(writer->stables_data_alloc);
+    writer->root.stables_data        = (char *)MVM_malloc(writer->stables_data_alloc);
     writer->objects_data_alloc       = OBJECT_SIZE_GUESS * MAX(sc_elems, 1);
-    writer->root.objects_data        = (char *)malloc(writer->objects_data_alloc);
+    writer->root.objects_data        = (char *)MVM_malloc(writer->objects_data_alloc);
     writer->closures_table_alloc     = CLOSURES_TABLE_ENTRY_SIZE * CLOSURES_TABLE_ENTRIES_GUESS;
-    writer->root.closures_table      = (char *)malloc(writer->closures_table_alloc);
+    writer->root.closures_table      = (char *)MVM_malloc(writer->closures_table_alloc);
     writer->contexts_table_alloc     = CONTEXTS_TABLE_ENTRY_SIZE * CONTEXTS_TABLE_ENTRIES_GUESS;
-    writer->root.contexts_table      = (char *)malloc(writer->contexts_table_alloc);
+    writer->root.contexts_table      = (char *)MVM_malloc(writer->contexts_table_alloc);
     writer->contexts_data_alloc      = DEFAULT_CONTEXTS_DATA_SIZE;
-    writer->root.contexts_data       = (char *)malloc(writer->contexts_data_alloc);
+    writer->root.contexts_data       = (char *)MVM_malloc(writer->contexts_data_alloc);
 
     /* Initialize MVMString heap so first entry is the NULL MVMString. */
     MVM_repr_push_s(tc, empty_string_heap, NULL);
@@ -1136,12 +1136,12 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     result = concatenate_outputs(tc, writer);
 
     /* Clear up afterwards. */
-    free(writer->root.dependencies_table);
-    free(writer->root.stables_table);
-    free(writer->root.stables_data);
-    free(writer->root.objects_table);
-    free(writer->root.objects_data);
-    free(writer);
+    MVM_free(writer->root.dependencies_table);
+    MVM_free(writer->root.stables_table);
+    MVM_free(writer->root.stables_data);
+    MVM_free(writer->root.objects_table);
+    MVM_free(writer->root.objects_data);
+    MVM_free(writer);
 
     /* Exit gen2 allocation. */
     MVM_gc_allocate_gen2_default_clear(tc);
@@ -1236,10 +1236,10 @@ static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reade
         const char *messageFormat, ...) {
     va_list args;
     if (reader->data_needs_free && reader->data)
-        free(reader->data);
+        MVM_free(reader->data);
     if (reader->contexts)
-        free(reader->contexts);
-    free(reader);
+        MVM_free(reader->contexts);
+    MVM_free(reader);
     MVM_gc_allocate_gen2_default_clear(tc);
     va_start(args, messageFormat);
     MVM_exception_throw_adhoc_va(tc, messageFormat, args);
@@ -1538,7 +1538,7 @@ static void check_and_dissect_input(MVMThreadContext *tc,
         /* Grab data from string. */
         char *data_b64 = (char *)MVM_string_ascii_encode(tc, data_str, NULL);
         data = (char *)base64_decode(data_b64, &data_len);
-        free(data_b64);
+        MVM_free(data_b64);
         reader->data_needs_free = 1;
     }
     else {
@@ -1682,7 +1682,7 @@ static void resolve_dependencies(MVMThreadContext *tc, MVMSerializationReader *r
     char      *table_pos = reader->root.dependencies_table;
     MVMuint32  num_deps  = reader->root.num_dependencies;
     MVMuint32  i;
-    reader->root.dependent_scs = malloc(MAX(num_deps, 1) * sizeof(MVMSerializationContext *));
+    reader->root.dependent_scs = MVM_malloc(MAX(num_deps, 1) * sizeof(MVMSerializationContext *));
     for (i = 0; i < num_deps; i++) {
         MVMString *handle = read_string_from_heap(tc, reader, read_int32(table_pos, 0));
         MVMSerializationContext *sc;
@@ -1996,7 +1996,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     /* Type check cache. */
     st->type_check_cache_length = MVM_serialization_read_int(tc, reader);
     if (st->type_check_cache_length > 0) {
-        st->type_check_cache = (MVMObject **)malloc(st->type_check_cache_length * sizeof(MVMObject *));
+        st->type_check_cache = (MVMObject **)MVM_malloc(st->type_check_cache_length * sizeof(MVMObject *));
         for (i = 0; i < st->type_check_cache_length; i++)
             MVM_ASSIGN_REF(tc, &(st->header), st->type_check_cache[i], MVM_serialization_read_ref(tc, reader));
     }
@@ -2006,7 +2006,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Boolification spec. */
     if (MVM_serialization_read_int(tc, reader)) {
-        st->boolification_spec = (MVMBoolificationSpec *)malloc(sizeof(MVMBoolificationSpec));
+        st->boolification_spec = (MVMBoolificationSpec *)MVM_malloc(sizeof(MVMBoolificationSpec));
         st->boolification_spec->mode = MVM_serialization_read_int(tc, reader);
         MVM_ASSIGN_REF(tc, &(st->header), st->boolification_spec->method, MVM_serialization_read_ref(tc, reader));
     }
@@ -2089,7 +2089,7 @@ static void worklist_add_index(MVMThreadContext *tc, MVMDeserializeWorklist *wl,
             wl->alloc_indexes *= 2;
         else
             wl->alloc_indexes = 128;
-        wl->indexes = realloc(wl->indexes, wl->alloc_indexes * sizeof(MVMuint32));
+        wl->indexes = MVM_realloc(wl->indexes, wl->alloc_indexes * sizeof(MVMuint32));
     }
     wl->indexes[wl->num_indexes] = index;
     wl->num_indexes++;
@@ -2387,9 +2387,9 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
 
     /* Size objects, STables, and contexts arrays. */
     if (sc->body->root_objects)
-        free(sc->body->root_objects);
+        MVM_free(sc->body->root_objects);
     if (sc->body->root_stables)
-        free(sc->body->root_stables);
+        MVM_free(sc->body->root_stables);
     sc->body->root_objects  = calloc(1, reader->root.num_objects * sizeof(MVMObject *));
     sc->body->num_objects   = reader->root.num_objects;
     sc->body->alloc_objects = reader->root.num_objects;
@@ -2446,6 +2446,6 @@ MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str) {
     SHA1Final(&context, output);
 
     /* Free the C-MVMString and put result into a new MVMString. */
-    free(cstr);
+    MVM_free(cstr);
     return MVM_string_ascii_decode(tc, tc->instance->VMString, output, 40);
 }

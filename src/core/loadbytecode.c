@@ -31,7 +31,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     MVMROOT(tc, filename, {
         char *c_filename = MVM_string_utf8_encode_C_string(tc, filename);
         cu = MVM_cu_map_from_file(tc, c_filename);
-        free(c_filename);
+        MVM_free(c_filename);
         cu->body.filename = filename;
 
         /* If there's a deserialization frame, need to run that. */

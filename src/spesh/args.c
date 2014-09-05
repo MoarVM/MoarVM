@@ -323,7 +323,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         /* Re-write the passed required positionals to spesh ops, and store
          * any gurads. */
         if (cs->arg_count)
-            g->arg_guards = malloc(2 * cs->arg_count * sizeof(MVMSpeshGuard));
+            g->arg_guards = MVM_malloc(2 * cs->arg_count * sizeof(MVMSpeshGuard));
         for (i = 0; i < cs->num_pos; i++) {
             MVMCallsiteEntry arg_flag = cs->arg_flags[i];
             switch (pos_ins[i]->info->opcode) {
@@ -643,9 +643,9 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     }
 
   cleanup:
-    free(pos_ins);
-    free(pos_bb);
-    free(pos_added);
-    free(named_ins);
-    free(named_bb);
+    MVM_free(pos_ins);
+    MVM_free(pos_bb);
+    MVM_free(pos_added);
+    MVM_free(named_ins);
+    MVM_free(named_bb);
 }

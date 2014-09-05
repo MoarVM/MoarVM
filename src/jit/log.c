@@ -19,7 +19,7 @@ static char * jitcode_name(MVMThreadContext *tc, MVMJitCode *code) {
                                               &name_len);
     MVMuint64 dirname_len = strlen(tc->instance->jit_bytecode_dir);
     // 4 chars for prefix, 3 chars for the separators, 4 for the postfix, 1 for the 0
-    char *filename = malloc(dirname_len + name_len + cuuid_len + 12);
+    char *filename = MVM_malloc(dirname_len + name_len + cuuid_len + 12);
     char *dst = filename;
     memcpy(dst, tc->instance->jit_bytecode_dir, dirname_len);
     dst[dirname_len] = '/';
@@ -32,8 +32,8 @@ static char * jitcode_name(MVMThreadContext *tc, MVMJitCode *code) {
     memcpy(dst, name, name_len);
     dst += name_len;
     memcpy(dst, ".bin", 5);
-    free(name);
-    free(cuuid);
+    MVM_free(name);
+    MVM_free(cuuid);
     return filename;
 }
 
@@ -48,5 +48,5 @@ void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
     } else {
         MVM_jit_log(tc, "Could not dump bytecode in %s\n", filename);
     }
-    free(filename);
+    MVM_free(filename);
 }

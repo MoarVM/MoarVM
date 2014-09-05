@@ -76,6 +76,8 @@ typedef double   MVMnum64;
 #  define MVM_USED_BY_JIT
 #endif
 
+MVM_PUBLIC const MVMint32 MVM_jit_support(void);
+
 /* Headers for various other data structures and APIs. */
 #include "6model/6model.h"
 #include "gc/wb.h"
@@ -85,6 +87,7 @@ typedef double   MVMnum64;
 #include "core/callsite.h"
 #include "core/args.h"
 #include "core/exceptions.h"
+#include "core/alloc.h"
 #include "core/frame.h"
 #include "core/validation.h"
 #include "core/compunit.h"
@@ -113,6 +116,7 @@ typedef double   MVMnum64;
 #include "gc/gen2.h"
 #include "gc/roots.h"
 #include "gc/objectid.h"
+#include "gc/finalize.h"
 #include "spesh/dump.h"
 #include "spesh/graph.h"
 #include "spesh/codegen.h"
@@ -189,7 +193,7 @@ MVM_PUBLIC void MVM_vm_destroy_instance(MVMInstance *instance);
 /* Convenience shortcut for use in gc_free routines. */
 #define MVM_checked_free_null(addr) do { \
     if ((addr)) { \
-        free((void *)(addr)); \
+        MVM_free((void *)(addr)); \
         (addr) = NULL; \
     } \
 } while (0)
