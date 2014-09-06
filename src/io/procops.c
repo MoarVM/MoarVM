@@ -155,9 +155,7 @@ static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_sign
     if (req->data)
         *(MVMint64 *)req->data = (exit_status << 8) | term_signal;
     uv_unref((uv_handle_t *)req);
-    /* XXX Closing this causes explosions in current libuv; needs further
-     * investigation. */
-    /*uv_close((uv_handle_t *)req, NULL);*/
+    uv_close((uv_handle_t *)req, NULL);
 }
 
 MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env, MVMString *err_path) {
