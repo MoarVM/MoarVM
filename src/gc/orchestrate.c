@@ -250,7 +250,9 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
 }
 
 static MVMint32 is_full_collection(MVMThreadContext *tc) {
-    return MVM_load(&tc->instance->gc_seq_number) % MVM_GC_GEN2_RATIO == 0;
+    MVMuint64 threshold = MVM_GC_GEN2_THRESHOLD_BASE +
+        (tc->instance->num_user_threads * MVM_GC_GEN2_THRESHOLD_THREAD);
+    return MVM_load(&tc->instance->gc_promoted_bytes_since_last_full) > threshold;
 }
 
 static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
@@ -261,12 +263,13 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     /* Decide nursery or full collection. */
     gen = is_full_collection(tc) ? MVMGCGenerations_Both : MVMGCGenerations_Nursery;
 
-    /* Do GC work for ourselve and any work threads. */
+    /* Do GC work for ourselves and any work threads. */
     for (i = 0, n = tc->gc_work_count ; i < n; i++) {
         MVMThreadContext *other = tc->gc_work[i].tc;
         tc->gc_work[i].limit = other->nursery_alloc;
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : starting collection for thread %d\n",
             other->thread_id);
+        other->gc_promoted_bytes = 0;
         MVM_gc_collect(other, (other == tc ? what_to_do : MVMGCWhatToDo_NoInstance), gen);
     }
 
@@ -283,6 +286,9 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         /* The thread might've been destroyed */
         if (!other)
             continue;
+
+        /* Contribute this thread's promoted bytes. */
+        MVM_add(&tc->instance->gc_promoted_bytes_since_last_full, other->gc_promoted_bytes);
 
         /* Collect nursery and gen2 as needed. */
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
@@ -303,6 +309,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
  * will need to do that triggering, notifying other running threads that the
  * time has come to GC. */
 void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
+    AO_t decrement_total_promoted_by = 0;
 
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from allocate\n");
 
@@ -310,6 +317,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     if (MVM_trycas(&tc->instance->gc_start, 0, 1)) {
         MVMThread *last_starter = NULL;
         MVMuint32 num_threads = 0;
+        MVMuint32 is_full;
 
         /* Need to wait for other threads to reset their gc_status. */
         while (MVM_load(&tc->instance->gc_ack)) {
@@ -326,9 +334,12 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             "Thread %d run %d : GC thread elected coordinator: starting gc seq %d\n",
             (int)MVM_load(&tc->instance->gc_seq_number));
 
+        /* Decide if it will be a full collection. */
+        is_full = is_full_collection(tc);
+
         /* If profiling, record that GC is starting. */
         if (tc->instance->profiling)
-            MVM_profiler_log_gc_start(tc, is_full_collection(tc));
+            MVM_profiler_log_gc_start(tc, is_full);
 
         /* Ensure our stolen list is empty. */
         tc->gc_work_count = 0;
@@ -372,6 +383,11 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         MVM_store(&tc->instance->gc_ack, num_threads + 2);
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : finish votes is %d\n",
             (int)MVM_load(&tc->instance->gc_finish));
+
+        /* Now we're ready to start, zero promoted since last full collection
+         * counter if this is a full collect. */
+        if (is_full)
+            MVM_store(&tc->instance->gc_promoted_bytes_since_last_full, 0);
 
         /* Signal to the rest to start */
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : coordinator signalling start\n");

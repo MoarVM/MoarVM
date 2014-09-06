@@ -3,10 +3,11 @@
  * the future, we'll make this adaptive rather than a constant.) */
 #define MVM_NURSERY_SIZE 4194304
 
-/* How often do we collect the second generation? This is specified as the
- * number of nursery runs that happen per full collection. For example, if
- * this is set to 10 then every tenth collection will involve the full heap. */
-#define MVM_GC_GEN2_RATIO 25
+/* How many bytes should have been promoted into gen2 before we decide to
+ * do a full GC run? The numbers below are used as a base amount plus an
+ * extra amount per extra thread we have running. */
+#define MVM_GC_GEN2_THRESHOLD_BASE      (30 * 1024 * 1024)
+#define MVM_GC_GEN2_THRESHOLD_THREAD    (2 * 1024 * 1024)
 
 /* What things should be processed in this GC run? */
 typedef enum {

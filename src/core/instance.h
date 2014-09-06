@@ -214,6 +214,10 @@ struct MVMInstance {
     /* Linked list (via forwarder) of STables to free. */
     MVMSTable *stables_to_free;
 
+    /* How many bytes of data have we promoted from the nursery to gen2
+     * since we last did a full collection? */
+    AO_t gc_promoted_bytes_since_last_full;
+
     /* Persistent object ID hash, used to give nursery objects a lifetime
      * unique ID. Plus a lock to protect it. */
     MVMObjectId *object_ids;

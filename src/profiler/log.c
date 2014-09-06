@@ -202,9 +202,6 @@ void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full) {
     ptd->gcs[ptd->num_gcs].cleared_bytes = (char *)tc->nursery_alloc -
                                            (char *)tc->nursery_tospace;
 
-    /* Zero promoted bytes counter. */
-    tc->gc_promoted_bytes = 0;
-
     /* Record start time. */
     ptd->cur_gc_start_time = uv_hrtime();
 }
