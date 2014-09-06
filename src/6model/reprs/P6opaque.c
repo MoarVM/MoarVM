@@ -1395,8 +1395,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         MVMSpeshFacts *ch_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[2]);
         MVMString     *name     = spesh_attr_name(tc, g, ins->operands[3], opcode == MVM_OP_getattrs_n);
         if (name && ch_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && ch_facts->type) {
-            MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type,
-                MVM_spesh_get_string(tc, g, ins->operands[3]));
+            MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
             if (slot >= 0 && repr_data->flattened_stables[slot]) {
                 MVMSTable      *flat_st = repr_data->flattened_stables[slot];
                 const MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
