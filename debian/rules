@@ -11,6 +11,7 @@ build-arch:
 
 configure-stamp: build-arch
 
+binary: binary-arch
 binary-arch: configure-stamp
 	dh_testdir
 	dh_prep
