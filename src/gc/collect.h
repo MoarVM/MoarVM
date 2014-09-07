@@ -19,7 +19,10 @@ typedef enum {
     MVMGCWhatToDo_NoInstance = 1,
 
     /* Only process the in-tray of work given by other threads. */
-    MVMGCWhatToDo_InTray = 2
+    MVMGCWhatToDo_InTray = 2,
+
+    /* Only process the finalizing list. */
+    MVMGCWhatToDo_Finalizing = 4
 } MVMGCWhatToDo;
 
 /* What generation(s) to collect? */

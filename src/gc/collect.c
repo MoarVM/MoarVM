@@ -48,10 +48,23 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
     wtp.num_target_threads = 0;
     wtp.target_work = NULL;
 
-    /* If we're starting a run (as opposed to just coming back here to do a
-     * little more work we got after we first thought we were done...) */
-    if (what_to_do != MVMGCWhatToDo_InTray) {
-        /* Swap fromspace and tospace. */
+    /* See what we need to work on this time. */
+    if (what_to_do == MVMGCWhatToDo_InTray) {
+        /* We just need to process anything in the in-tray. */
+        add_in_tray_to_worklist(tc, worklist);
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from in tray \n", worklist->items);
+        process_worklist(tc, worklist, &wtp, gen);
+    }
+    else if (what_to_do == MVMGCWhatToDo_Finalizing) {
+        /* Need to process the finalizing queue. */
+        MVMuint32 i;
+        for (i = 0; i < tc->num_finalizing; i++)
+            MVM_gc_worklist_add(tc, worklist, &(tc->finalizing[i]));
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from finalizing \n", worklist->items);
+        process_worklist(tc, worklist, &wtp, gen);
+    }
+    else {
+        /* Main collection run. Swap fromspace and tospace. */
         void * fromspace = tc->nursery_tospace;
         void * tospace   = tc->nursery_fromspace;
         tc->nursery_fromspace = fromspace;
@@ -118,12 +131,6 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
          * need to (only get more if another thread passes us more); zero
          * out the remaining tospace. */
         memset(tc->nursery_alloc, 0, (char *)tc->nursery_alloc_limit - (char *)tc->nursery_alloc);
-    }
-    else {
-        /* We just need to process anything in the in-tray. */
-        add_in_tray_to_worklist(tc, worklist);
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from in tray \n", worklist->items);
-        process_worklist(tc, worklist, &wtp, gen);
     }
 
     /* Destroy the worklist. */

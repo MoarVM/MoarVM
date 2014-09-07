@@ -139,6 +139,11 @@ struct MVMThreadContext {
     MVMuint32             alloc_finalize;
     MVMObject           **finalize;
 
+    /* List of objects we're in the process of finalizing. */
+    MVMuint32             num_finalizing;
+    MVMuint32             alloc_finalizing;
+    MVMObject           **finalizing;
+
     /* The GC's cross-thread in-tray of processing work. */
     MVMGCPassedWork *gc_in_tray;
 

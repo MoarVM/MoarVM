@@ -28,6 +28,18 @@ void MVM_gc_finalize_add_to_queue(MVMThreadContext *tc, MVMObject *obj) {
 /* Walks through the per-thread finalize queues, identifying objects that
  * should be finalized, pushing them onto a finalize list, and then marking
  * that list entry. Assumes the world is stopped. */
+static void add_to_finalizing(MVMThreadContext *tc, MVMObject *obj) {
+    if (tc->num_finalizing == tc->alloc_finalizing) {
+        if (tc->alloc_finalizing)
+            tc->alloc_finalizing *= 2;
+        else
+            tc->alloc_finalizing = 64;
+        tc->finalizing = MVM_realloc(tc->finalizing,
+            sizeof(MVMCollectable **) * tc->alloc_finalizing);
+    }
+    tc->finalizing[tc->num_finalizing] = obj;
+    tc->num_finalizing++;
+}
 void walk_thread_finalize_queue(MVMThreadContext *tc, MVMuint8 gen) {
     MVMuint32 collapse_pos = 0;
     MVMuint32 i;
@@ -46,8 +58,8 @@ void walk_thread_finalize_queue(MVMThreadContext *tc, MVMuint8 gen) {
                     : tc->finalize[i];
             }
             else {
-                /* Dead; needs finalizing. */
-                /* TODO */
+                /* Dead; needs finalizing, so pop it on the finalizing list. */
+                add_to_finalizing(tc, tc->finalize[i]);
             }
         }
     }
@@ -56,8 +68,10 @@ void walk_thread_finalize_queue(MVMThreadContext *tc, MVMuint8 gen) {
 void MVM_finalize_walk_queues(MVMThreadContext *tc, MVMuint8 gen) {
     MVMThread *cur_thread = (MVMThread *)MVM_load(&tc->instance->threads);
     while (cur_thread) {
-        if (cur_thread->body.tc)
+        if (cur_thread->body.tc) {
             walk_thread_finalize_queue(cur_thread->body.tc, gen);
+            MVM_gc_collect(tc, MVMGCWhatToDo_Finalizing, gen);
+        }
         cur_thread = cur_thread->body.next;
     }
 }
