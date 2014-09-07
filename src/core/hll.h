@@ -34,6 +34,10 @@ struct MVMHLLConfig {
     /* Language's handler to run at a block's exit time, if needed. */
     MVMObject *exit_handler;
 
+    /* Language's object finalize handler, which can take a list of objects
+     * which need to have a finalizer run. */
+    MVMObject *finalize_handler;
+
     /* Language's handler for various errors, if needed. */
     MVMObject *bind_error;
     MVMObject *method_not_found_error;
