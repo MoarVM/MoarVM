@@ -116,6 +116,19 @@ static int process_in_tray(MVMThreadContext *tc, MVMuint8 gen) {
 
 /* Called by a thread when it thinks it is done with GC. It may get some more
  * work yet, though. */
+static void clear_intrays(MVMThreadContext *tc, MVMuint8 gen) {
+    MVMuint32 did_work = 1;
+    while (did_work) {
+        MVMThread *cur_thread;
+        did_work = 0;
+        cur_thread = (MVMThread *)MVM_load(&tc->instance->threads);
+        while (cur_thread) {
+            if (cur_thread->body.tc)
+                did_work += process_in_tray(cur_thread->body.tc, gen);
+            cur_thread = cur_thread->body.next;
+        }
+    }
+}
 static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinator) {
     MVMuint32 i, did_work;
 
@@ -141,21 +154,19 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Termination agreed\n");
 
     /* Co-ordinator should do final check over all the in-trays, and trigger
-     * collection until all is settled. Rest should wait. */
+     * collection until all is settled. Rest should wait. Additionally, after
+     * in-trays are settled, coordinator walks threads looking for anything
+     * that needs adding to the finalize queue. It then will make another
+     * iteration over in-trays to handle cross-thread references to objects
+     * needing finalization. */
     if (is_coordinator) {
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : Co-ordinator handling in-tray clearing completion\n");
-        did_work = 1;
-        while (did_work) {
-            MVMThread *cur_thread;
-            did_work = 0;
-            cur_thread = (MVMThread *)MVM_load(&tc->instance->threads);
-            while (cur_thread) {
-                if (cur_thread->body.tc)
-                    did_work += process_in_tray(cur_thread->body.tc, gen);
-                cur_thread = cur_thread->body.next;
-            }
-        }
+        clear_intrays(tc, gen);
+
+        MVM_finalize_walk_queues(tc, gen);
+        clear_intrays(tc, gen);
+
         if (gen == MVMGCGenerations_Both) {
             MVMThread *cur_thread = (MVMThread *)MVM_load(&tc->instance->threads);
             while (cur_thread) {
