@@ -309,8 +309,6 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
  * will need to do that triggering, notifying other running threads that the
  * time has come to GC. */
 void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
-    AO_t decrement_total_promoted_by = 0;
-
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from allocate\n");
 
     /* Try to start the GC run. */
