@@ -133,6 +133,12 @@ struct MVMThreadContext {
     MVMuint32             alloc_gen2roots;
     MVMCollectable      **gen2roots;
 
+    /* Finalize queue objects, which need to have a finalizer invoked once
+     * they are no longer referenced from anywhere except this queue. */
+    MVMuint32             num_finalize;
+    MVMuint32             alloc_finalize;
+    MVMCollectable      **finalize;
+
     /* The GC's cross-thread in-tray of processing work. */
     MVMGCPassedWork *gc_in_tray;
 

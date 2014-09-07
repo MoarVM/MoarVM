@@ -90,6 +90,8 @@ MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
         if ((obj->header.flags & MVM_CF_SECOND_GEN))
             if (REPR(obj)->refs_frames)
                 MVM_gc_root_gen2_add(tc, (MVMCollectable *)obj);
+        if (st->mode_flags & MVM_FINALIZE_TYPE)
+            MVM_gc_finalize_add_to_queue(tc, obj);
     });
     return obj;
 }

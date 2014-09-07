@@ -1331,7 +1331,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
     switch (opcode) {
     case MVM_OP_create: {
         /* Create can be optimized if there are no initialization slots. */
-        if (repr_data->initialize_slots[0] < 0) {
+        if (repr_data->initialize_slots[0] < 0 && !(st->mode_flags & MVM_FINALIZE_TYPE)) {
             MVMSpeshOperand target   = ins->operands[0];
             MVMSpeshOperand type     = ins->operands[1];
             ins->info                = MVM_op_get_op(MVM_OP_sp_fastcreate);
