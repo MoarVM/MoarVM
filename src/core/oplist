@@ -653,6 +653,7 @@ startprofile        r(obj)
 endprofile          w(obj)
 objectid            w(int64) r(obj)
 settypefinalize     r(obj) r(int64)
+force_gc
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
