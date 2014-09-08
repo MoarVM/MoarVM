@@ -152,16 +152,6 @@ if ($args{'has-sha'}) {
 }
 else { $config{shaincludedir} = '3rdparty/sha1' }
 
-# After upgrading from libuv from 0.11.18 to 0.11.29 we see very weird erros
-# when the old libuv files are still around. Running a `make realclean` in
-# case we spot an old file and the Makefile is already there.
-if (-e '3rdparty/libuv/src/unix/threadpool' . $defaults{obj}
- && -e 'Makefile') {
-    print("\nMaking realclean after libuv version upgrade.\n"
-        . "Outdated files were detected.\n");
-    system($defaults{make}, 'realclean')
-}
-
 # conditionally set include dirs and install rules
 $config{cincludes} //= '';
 $config{install}   //= '';
