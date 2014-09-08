@@ -1,5 +1,9 @@
 #include "moar.h"
 
+/* Dummy one-arg callsite. */
+static MVMCallsiteEntry one_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
+static MVMCallsite     one_arg_callsite = { one_arg_flags, 1, 1, 0 };
+
 /* Turns finalization on or off for a type. */
 void MVM_gc_finalize_set(MVMThreadContext *tc, MVMObject *type, MVMint64 finalize) {
     MVMSTable *st        = STABLE(type);
@@ -23,6 +27,35 @@ void MVM_gc_finalize_add_to_queue(MVMThreadContext *tc, MVMObject *obj) {
     }
     tc->finalize[tc->num_finalize] = obj;
     tc->num_finalize++;
+}
+
+/* Sets the passed thread context's thread up so that we'll run a finalize
+ * handler on it in the near future. */
+static void finalize_handler_caller(MVMThreadContext *tc, void *sr_data) {
+    MVMObject *handler = MVM_hll_current(tc)->finalize_handler;
+    if (handler) {
+        /* Drain the finalizing queue to an array. */
+        MVMObject *drain = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+        while (tc->num_finalizing > 0)
+            MVM_repr_push_o(tc, drain, tc->finalizing[--tc->num_finalizing]);
+
+        /* Invoke the handler. */
+        handler = MVM_frame_find_invokee(tc, handler, NULL);
+        MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, &one_arg_callsite);
+        tc->cur_frame->args[0].o = drain;
+        STABLE(handler)->invoke(tc, handler, &one_arg_callsite, tc->cur_frame->args);
+    }
+}
+static void setup_finalize_handler_call(MVMThreadContext *tc) {
+    MVMFrame *install_on = tc->cur_frame;
+    while (install_on) {
+        if (!install_on->special_return)
+            if (install_on->static_info->body.cu->body.hll_config)
+                break;
+        install_on = install_on->caller;
+    }
+    if (install_on)
+        install_on->special_return = finalize_handler_caller;
 }
 
 /* Walks through the per-thread finalize queues, identifying objects that
@@ -70,7 +103,10 @@ void MVM_finalize_walk_queues(MVMThreadContext *tc, MVMuint8 gen) {
     while (cur_thread) {
         if (cur_thread->body.tc) {
             walk_thread_finalize_queue(cur_thread->body.tc, gen);
-            MVM_gc_collect(tc, MVMGCWhatToDo_Finalizing, gen);
+            if (cur_thread->body.tc->num_finalizing > 0) {
+                MVM_gc_collect(cur_thread->body.tc, MVMGCWhatToDo_Finalizing, gen);
+                setup_finalize_handler_call(cur_thread->body.tc);
+            }
         }
         cur_thread = cur_thread->body.next;
     }
