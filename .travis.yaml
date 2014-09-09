@@ -18,7 +18,10 @@ notifications:
     channels:
     - "irc.freenode.net#moarvm"
     on_success: change
-    on_failure: change
+    on_failure: always
+    template:
+      - "MoarVM build %{result}. %{author} '%{commit_message}'"
+      - "%{build_url} %{compare_url}"
 
 env:
   matrix:
