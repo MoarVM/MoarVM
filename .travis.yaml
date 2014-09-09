@@ -14,7 +14,11 @@ branches:
      - /smoke-me/
 
 notifications:
-  irc: "irc.freenode.net#moarvm"
+  irc:
+    channels:
+    - "irc.freenode.net#moarvm"
+    on_success: change
+    on_failure: change
 
 env:
   matrix:
