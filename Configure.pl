@@ -754,6 +754,6 @@ Disable the build of libatomic_ops.
 
 =item --enable-jit
 
-Enable JIT compiler for hot frames
+Enable JIT compiler for hot frames.
 
 =back
