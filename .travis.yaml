@@ -1,0 +1,31 @@
+language: "perl"
+perl:
+    - "5.10"
+install: "echo"
+before_script:
+    - gcc --version
+    - clang --version
+
+script: "perl Configure.pl $MVM_OPTIONS --debug --optimize --cc=\"$CC\"; make install"
+
+branches:
+   only:
+     - master
+     - /smoke-me/
+
+notifications:
+  irc:
+    channels:
+    - "irc.freenode.net#moarvm"
+    on_success: change
+    on_failure: always
+    template:
+      - "MoarVM build %{result}. %{author} '%{commit_message}'"
+      - "%{build_url} %{compare_url}"
+
+env:
+  matrix:
+    - MVM_OPTIONS="--enable-jit"  CC="gcc"
+    - MVM_OPTIONS=""              CC="gcc"
+    - MVM_OPTIONS="--enable-jit"  CC="clang"
+    - MVM_OPTIONS=""              CC="clang"
