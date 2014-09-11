@@ -72,7 +72,7 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
 }
 
 /* Does a decode run, selected by encoding. */
-static run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
+static void run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
     switch (ds->encoding) {
     case MVM_encoding_type_utf8:
         MVM_string_utf8_decodestream(tc, ds, stopper_chars, stopper_sep);
