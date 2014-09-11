@@ -344,7 +344,7 @@ UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/unix/stream@obj@ \
           3rdparty/libuv/src/unix/tcp@obj@ \
           3rdparty/libuv/src/unix/thread@obj@ \
-          3rdparty/libuv/src/threadpool@obj@ \
+          3rdparty/libuv/src/unix/threadpool@obj@ \
           3rdparty/libuv/src/unix/timer@obj@ \
           3rdparty/libuv/src/unix/tty@obj@ \
           3rdparty/libuv/src/unix/udp@obj@
