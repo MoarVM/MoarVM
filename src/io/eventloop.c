@@ -43,7 +43,7 @@ static MVMint64 cancel_work(MVMThreadContext *tc) {
 
 /* Sees if we have an event loop processing thread set up already, and
  * sets it up if not. */
-static void idle_handler(uv_idle_t *handle, int status) {
+static void idle_handler(uv_idle_t *handle) {
     MVMThreadContext *tc = (MVMThreadContext *)handle->data;
     GC_SYNC_POINT(tc);
     if (!setup_work(tc) && !cancel_work(tc))
