@@ -7,6 +7,8 @@ the NQP compiler toolchain.
 
 ## Build It
 
+[![Build Status](https://travis-ci.org/MoarVM/MoarVM.svg?branch=master)](https://travis-ci.org/MoarVM/MoarVM)
+
 Building the VM itself takes just:
 
     perl Configure.pl
