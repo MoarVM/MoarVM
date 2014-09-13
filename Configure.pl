@@ -181,6 +181,19 @@ if ($args{'has-libatomic_ops'}) {
 #    unshift @{$config{usrlibs}}, 'atomic_ops';
 }
 
+if ($args{'has-libtommath'}) {
+    unshift @{$config{usrlibs}}, 'tommath';
+
+    # only this objects are needed to build, if moar is linked together with
+    #  the libtommath library from the system
+    $defaults{-thirdparty}->{tom}->{objects} =
+        '3rdparty/libtommath/bn_mp_get_long.o 3rdparty/libtommath/bn_mp_set_long.o';
+}
+else {
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
+    $config{install}   .= "\t\$(CP) 3rdparty/libtommath/*.h \$(DESTDIR)\$(PREFIX)/include/libtommath\n";
+}
+
 if ($args{'enable-jit'}) {
     if ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
         $config{jit} = '$(JIT_POSIX_X64)';
@@ -203,7 +216,6 @@ $config{jit} //= '$(JIT_STUB)';
 $config{ldlibs} = join ' ',
     (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),
     (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
-$config{ldlibs} .= ' -ltommath' if $args{'has-libtommath'};
 $config{ldlibs} .= ' -lasan' if $args{asan};
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
@@ -365,10 +377,6 @@ write_backend_config();
 print "\n", <<TERM, "\n";
   3rdparty: $thirdpartylibs
 TERM
-
-# only this objects are needed to build, if moar is linked together with
-#  the libtommath library from the system
-$config{tomobjects} = '3rdparty/libtommath/bn_mp_get_long.o 3rdparty/libtommath/bn_mp_set_long.o' if $args{'has-libtommath'};
 
 # read list of files to generate
 

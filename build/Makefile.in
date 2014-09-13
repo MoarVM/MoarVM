@@ -32,7 +32,6 @@ PREFIX    = @prefix@
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @cincludes@ \
             @ccinc@3rdparty/libatomic_ops/src \
-            @ccinc@3rdparty/libtommath \
             @ccinc@@shaincludedir@ \
             @ccinc@3rdparty/linenoise \
             @ccinc@3rdparty/tinymt \
@@ -451,7 +450,6 @@ install: all
 	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/loadstore/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/loadstore
 	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/msftc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/msftc
 	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/sunc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/sunc
-	$(CP) 3rdparty/libtommath/*.h $(DESTDIR)$(PREFIX)/include/libtommath
 	$(CP) 3rdparty/msinttypes/*.h $(DESTDIR)$(PREFIX)/include/msinttypes
 	$(CP) 3rdparty/sha1/*.h $(DESTDIR)$(PREFIX)/include/sha1
 	$(CP) 3rdparty/linenoise/*.h $(DESTDIR)$(PREFIX)/include/linenoise
