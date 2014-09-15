@@ -570,6 +570,9 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
     else if (REPR(ref)->ID == MVM_REPR_ID_MVMMultiCache) {
         discrim = REFVAR_VM_NULL;
     }
+    else if (REPR(ref)->ID == MVM_REPR_ID_MVMOSHandle) {
+        discrim = REFVAR_VM_NULL;
+    }
     else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTInt)) {
         discrim = REFVAR_VM_INT;
     }
