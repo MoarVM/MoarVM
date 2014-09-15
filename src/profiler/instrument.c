@@ -1,5 +1,14 @@
 #include "moar.h"
 
+/* Adds an instruction to log an allocation. */
+static void add_allocation_logging(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshIns *alloc_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    alloc_ins->info        = MVM_op_get_op(MVM_OP_prof_allocated);
+    alloc_ins->operands    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
+    alloc_ins->operands[0] = ins->operands[0];
+    MVM_spesh_manipulate_insert_ins(tc, bb, ins, alloc_ins);
+}
+
 static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Insert entry instruction. */
     MVMSpeshBB *bb         = g->entry->linear_next;
@@ -71,14 +80,24 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_coerce_nI:
             case MVM_OP_coerce_sI:
             case MVM_OP_radix_I: {
-                /* Insert allocationg logging instruction. */
-                MVMSpeshIns *alloc_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-                alloc_ins->info        = MVM_op_get_op(MVM_OP_prof_allocated);
-                alloc_ins->operands    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
-                alloc_ins->operands[0] = ins->operands[0];
-                MVM_spesh_manipulate_insert_ins(tc, bb, ins, alloc_ins);
+                add_allocation_logging(tc, g, bb, ins);
                 break;
             }
+            default:
+                /* See if it's an allocating extop. */
+                if (ins->info->opcode == (MVMuint16)-1) {
+                    MVMExtOpRecord *extops     = g->sf->body.cu->body.extops;
+                    MVMuint16       num_extops = g->sf->body.cu->body.num_extops;
+                    MVMuint16       i;
+                    for (i = 0; i < num_extops; i++) {
+                        if (extops[i].info == ins->info) {
+                            if (extops[i].allocating && extops[i].info->num_operands >= 1)
+                                add_allocation_logging(tc, g, bb, ins);
+                            break;
+                        }
+                    }
+                }
+                break;
             }
             ins = ins->next;
         }
