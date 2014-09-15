@@ -17,6 +17,10 @@ struct MVMExtOpRecord {
      * to be used in an interpreter context. */
     MVMuint16 no_jit;
 
+    /* Indicates the extop allocates and that its output is some allocated
+     * object. Used by allocation profiling. */
+    MVMuint16 allocating;
+
     /* Read from the bytecode stream. */
     MVMuint8 operand_descriptor[MVM_MAX_OPERANDS];
 

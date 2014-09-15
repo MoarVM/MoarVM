@@ -157,9 +157,10 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     memcpy(entry->info.operands, operands, num_operands);
     memset(entry->info.operands + num_operands, 0,
             MVM_MAX_OPERANDS - num_operands);
-    entry->spesh    = spesh;
-    entry->discover = discover;
-    entry->no_jit   = flags & MVM_EXTOP_NO_JIT;
+    entry->spesh      = spesh;
+    entry->discover   = discover;
+    entry->no_jit     = flags & MVM_EXTOP_NO_JIT;
+    entry->allocating = flags & MVM_EXTOP_ALLOCATING;
 
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
     MVM_HASH_BIND(tc, tc->instance->extop_registry, name, entry);
@@ -188,11 +189,12 @@ const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
     }
 
     /* Resolve record. */
-    record->info     = &entry->info;
-    record->func     = entry->func;
-    record->spesh    = entry->spesh;
-    record->discover = entry->discover;
-    record->no_jit   = entry->no_jit;
+    record->info       = &entry->info;
+    record->func       = entry->func;
+    record->spesh      = entry->spesh;
+    record->discover   = entry->discover;
+    record->no_jit     = entry->no_jit;
+    record->allocating = entry->allocating;
 
     uv_mutex_unlock(&tc->instance->mutex_extop_registry);
 

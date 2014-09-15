@@ -7,6 +7,7 @@ typedef void MVMExtOpFactDiscover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 #define MVM_EXTOP_NOINLINE      2
 #define MVM_EXTOP_INVOKISH      4
 #define MVM_EXTOP_NO_JIT        8
+#define MVM_EXTOP_ALLOCATING    16
 
 struct MVMExtRegistry {
     MVMDLLSym *sym;
@@ -21,6 +22,7 @@ struct MVMExtOpRegistry {
     MVMExtOpSpesh *spesh;
     MVMExtOpFactDiscover *discover;
     MVMuint32 no_jit;
+    MVMuint32 allocating;
     UT_hash_handle hash_handle;
 };
 
