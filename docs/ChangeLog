@@ -1,3 +1,38 @@
+New in 2014.09
+
++ Add an instrumenting profiler, recording profiling information at routine
+  level and tracking use of specialized/JITted code and inlinings
++ Support profiling allocations and GC runs
++ Use arc4random on platforms that support it
++ Fix numerous warnings
++ JIT more big integer ops: div_I, div_In, mod_I, gcd_I, coerce_In, and bool_I
++ Specialization and JIT-compilation of various iteration-related instructions
++ JIT curcode and getcodeobj
++ Include filename in spesh log
++ Bump dyncall version
++ Fix negative division in JIT
++ Mark getlexouter as not inlinable
++ Add mechanism for objects to get a persistent ID, used in Perl 6's .WHICH
++ Fix regression on PowerPC
++ Add missing SC write barrier to MVM_repr_bind_attr_*
++ JIT getattrs_* and bindattrs_* ops
++ JIT more string operations: indexat, findcclass, and findnotcclass
++ Add JIT logging of inlines
++ Cleanly panic if allocation fails, rather than crashing
++ Fix the build on ARM 32 + gcc 4.8.2
++ Better style on arg count errors
++ Avoid unaligned reads on ARMv7
++ Conditionally set include dirs and install rules (e.g. --has-libuv)
++ Add type finalizer support to the GC
++ Update libuv from 0.11.18 to 0.11.29
++ Base full collections off promotion rate, often reducing full collections
++ Add force_gc instruction
++ Set up travis continuous integration
++ Fix mis-use of libuv: we are not supposed to open a child's pipe to our stdin
++ Fix pointer to pointer native cast
++ conditionally use/install our libtommath headers
++ Don't try to serialize file handles
+
 New in 2014.08
 
 + Add support for JIT compilation on x64 (when configured with --enable-jit);
