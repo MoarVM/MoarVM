@@ -9,7 +9,6 @@ New in 2014.09
 + Specialization and JIT-compilation of various iteration-related instructions
 + JIT curcode and getcodeobj
 + Include filename in spesh log
-+ Bump dyncall version
 + Fix negative division in JIT
 + Mark getlexouter as not inlinable
 + Add mechanism for objects to get a persistent ID, used in Perl 6's .WHICH
