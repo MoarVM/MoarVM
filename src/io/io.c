@@ -118,7 +118,7 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
         MVM_exception_throw_adhoc(tc, "read_fhb requires a native array of uint8 or int8");
 
     if (length < 1 || length > 99999999)
-        MVM_exception_throw_adhoc(tc, "read from filehandle length out of range");
+        MVM_exception_throw_adhoc(tc, "Out of range: attempted to read %d bytes from filehandle", length);
 
     if (handle->body.ops->sync_readable) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
