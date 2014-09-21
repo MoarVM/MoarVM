@@ -4642,6 +4642,47 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(sp_atpos_arr_8): {
+                MVMArray *arr = (MVMArray*)GET_REG(cur_op, 2).o;
+                MVMint64  idx = GET_REG(cur_op, 4).i64;
+                MVMuint8 *dat = arr->body.slots.u8;
+                if (idx < 0) idx += arr->body.elems;
+                idx          += arr->body.start;
+                GET_REG(cur_op, 0).i64 = dat[idx];
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(sp_atpos_arr_16): {
+                MVMArray  *arr = (MVMArray*)GET_REG(cur_op, 2).o;
+                MVMint64   idx = GET_REG(cur_op, 4).i64;
+                MVMuint16 *dat = arr->body.slots.u16;
+                if (idx < 0) idx += arr->body.elems;
+                idx          += arr->body.start;
+                GET_REG(cur_op, 0).i64 = dat[idx];
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(sp_atpos_arr_32): {
+                MVMArray  *arr = (MVMArray*)GET_REG(cur_op, 2).o;
+                MVMint64   idx = GET_REG(cur_op, 4).i64;
+                MVMuint32 *dat = arr->body.slots.u32;
+                if (idx < 0) idx += arr->body.elems;
+                idx           += arr->body.start;
+                GET_REG(cur_op, 0).i64 = dat[idx];
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(sp_atpos_arr_64): {
+                MVMArray  *arr = (MVMArray*)GET_REG(cur_op, 2).o;
+                MVMint64   idx = GET_REG(cur_op, 4).i64;
+                MVMuint64 *dat = arr->body.slots.u64;
+                if (idx < 0) idx += arr->body.elems;
+                idx           += arr->body.start;
+                GET_REG(cur_op, 0).i64 = dat[idx];
+                cur_op += 4;
+                goto NEXT;
+            }
+
             OP(prof_enter):
                 MVM_profile_log_enter(tc, tc->cur_frame->static_info,
                     MVM_PROFILE_ENTER_NORMAL);

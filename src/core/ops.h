@@ -660,11 +660,15 @@
 #define MVM_OP_sp_boolify_iter 656
 #define MVM_OP_sp_boolify_iter_arr 657
 #define MVM_OP_sp_boolify_iter_hash 658
-#define MVM_OP_prof_enter 659
-#define MVM_OP_prof_enterspesh 660
-#define MVM_OP_prof_enterinline 661
-#define MVM_OP_prof_exit 662
-#define MVM_OP_prof_allocated 663
+#define MVM_OP_sp_atpos_arr_8 659
+#define MVM_OP_sp_atpos_arr_16 660
+#define MVM_OP_sp_atpos_arr_32 661
+#define MVM_OP_sp_atpos_arr_64 662
+#define MVM_OP_prof_enter 663
+#define MVM_OP_prof_enterspesh 664
+#define MVM_OP_prof_enterinline 665
+#define MVM_OP_prof_exit 666
+#define MVM_OP_prof_allocated 667
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
