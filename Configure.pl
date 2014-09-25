@@ -647,7 +647,7 @@ __END__
                    [--debug] [--optimize] [--instrument]
                    [--static] [--use-readline] [--prefix]
                    [--has-libtommath] [--has-sha] [--has-libuv]
-                   [--has-libatomic_ops]
+                   [--has-libatomic_ops] [--asan]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
@@ -712,6 +712,11 @@ Currently supported compilers are C<gcc>, C<clang> and C<cl>.
 
 Explicitly set the compiler without affecting other configuration
 options.
+
+=item --asan
+
+Build with AddressSanitizer (ASAN) suport. Requires clang and LLVM 3.1 or newer.
+See L<https://code.google.com/p/address-sanitizer/wiki/AddressSanitizer>
 
 =item --ld <ld>
 
