@@ -716,7 +716,7 @@ options.
 
 =item --asan
 
-Build with AddressSanitizer (ASAN) suport. Requires clang and LLVM 3.1 or newer.
+Build with AddressSanitizer (ASAN) support. Requires clang and LLVM 3.1 or newer.
 See L<https://code.google.com/p/address-sanitizer/wiki/AddressSanitizer>
 
 =item --ld <ld>
