@@ -647,12 +647,13 @@ __END__
                    [--debug] [--optimize] [--instrument]
                    [--static] [--use-readline] [--prefix]
                    [--has-libtommath] [--has-sha] [--has-libuv]
-                   [--has-libatomic_ops] [--asan]
+                   [--has-libatomic_ops] [--asan] [--enable-jit]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
                    [--static] [--big-endian] [--prefix]
+                   [--lua] [--make-install]
 
 =head1 OPTIONS
 
@@ -778,5 +779,9 @@ Disable the build of libatomic_ops.
 =item --enable-jit
 
 Enable JIT compiler for hot frames.
+
+=item --lua=path/to/lua/executable
+
+Path to a lua executable. (Used during the build when JIT is enabled).
 
 =back
