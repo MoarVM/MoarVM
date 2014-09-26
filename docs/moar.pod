@@ -16,7 +16,7 @@ Machine). It can be used to execute C<.moarvm> bytecode files.
 
 =head1 ENVIRONMENT VARIABLES
 
-moar respectst he following environment variables:
+moar respects the following environment variables:
 
 =over
 
