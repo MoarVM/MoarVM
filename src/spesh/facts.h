@@ -34,6 +34,9 @@ struct MVMSpeshFacts {
 
     /* The log guard the facts depend on, if any. */
     MVMuint32 log_guard;
+
+    /* Escape tree entry, if any. */
+    MVMSpeshAllocation *escape_info;
 };
 
 /* Various fact flags. */

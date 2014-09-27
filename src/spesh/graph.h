@@ -90,6 +90,11 @@ struct MVMSpeshGraph {
     MVMuint16          num_temps;
     MVMuint16          alloc_temps;
     MVMSpeshTemporary *temps;
+
+    /* Allocation escape information. */
+    MVMSpeshAllocation **allocations;
+    MVMuint32            num_allocations;
+    MVMuint32            alloc_allocations;
 };
 
 /* The default allocation chunk size for memory blocks used to store spesh
