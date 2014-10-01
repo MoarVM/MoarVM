@@ -53,6 +53,7 @@ struct MVMOpInfo {
     MVMuint8    deopt_point;
     MVMuint8    no_inline;
     MVMuint8    jittivity;
+    MVMuint8    allocates;
     MVMuint8    operands[MVM_MAX_OPERANDS];
     MVMuint8    esc[MVM_MAX_OPERANDS];
 };
