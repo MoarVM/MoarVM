@@ -32,7 +32,7 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
-    build=s host=s big-endian enable-jit lua=s
+    build=s host=s big-endian jit! enable-jit lua=s
     prefix=s make-install asan),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 }
@@ -73,6 +73,9 @@ $args{'has-sha'}           //= 0;
 $args{'has-libuv'}         //= 0;
 $args{'has-libatomic_ops'} //= 0;
 $args{'asan'}              //= 0;
+
+# jit is default
+$args{'jit'}               //= 1;
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
@@ -194,7 +197,7 @@ else {
     $config{install}   .= "\t\$(CP) 3rdparty/libtommath/*.h \$(DESTDIR)\$(PREFIX)/include/libtommath\n";
 }
 
-if ($args{'enable-jit'}) {
+if ($args{'jit'}) {
     if ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
         $config{jit} = '$(JIT_POSIX_X64)';
     } elsif ($Config{archname} =~ /^MSWin32-x64/) {
@@ -398,6 +401,11 @@ while (<$listfile>) {
 close $listfile;
 
 # configuration completed
+
+if ($args{'enable-jit'}) {
+    print("\nThe --enable-jit flag is obsolete, as jit is enabled by default.\n");
+    print("You can use --no-jit to build without jit.");
+}
 
 print "\n", $failed ? <<TERM1 : <<TERM2;
 Configuration FAIL. You can try to salvage the generated Makefile.
