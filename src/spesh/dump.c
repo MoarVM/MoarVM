@@ -99,6 +99,30 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
             ann = ann->next;
         }
 
+        if (cur_ins->info->allocates) {
+            MVMuint32 found = 0;
+            append(ds, "      [Escape: ");
+            for (i = 0; i < g->num_allocations; i++) {
+                if (g->allocations[i]->allocating_ins == cur_ins) {
+                    switch (g->allocations[i]->escape_state) {
+                    case MVM_EA_NOESCAPE:
+                        append(ds, "no");
+                        break;
+                    case MVM_EA_ESCAPE:
+                        append(ds, "yes");
+                        break;
+                    default:
+                        append(ds, "UNKNOWN");
+                        break;
+                    }
+                    found = 1;
+                }
+            }
+            if (!found)
+                append(ds, "MISSING");
+            append(ds, "]\n");
+        }
+
         appendf(ds, "      %s ", cur_ins->info->name);
         if (cur_ins->info->opcode == MVM_SSA_PHI) {
             for (i = 0; i < cur_ins->info->num_operands; i++) {
