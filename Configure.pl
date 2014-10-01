@@ -197,10 +197,6 @@ else {
     $config{install}   .= "\t\$(CP) 3rdparty/libtommath/*.h \$(DESTDIR)\$(PREFIX)/include/libtommath\n";
 }
 
-if ($args{'enable-jit'}) {
-    print("The --enable-jit flag is obsolete, as jit is enabled by default. You can use --no-jit to build without jit\n");
-}
-
 if ($args{'jit'}) {
     if ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
         $config{jit} = '$(JIT_POSIX_X64)';
@@ -405,6 +401,11 @@ while (<$listfile>) {
 close $listfile;
 
 # configuration completed
+
+if ($args{'enable-jit'}) {
+    print("\nThe --enable-jit flag is obsolete, as jit is enabled by default.\n");
+    print("You can use --no-jit to build without jit.");
+}
 
 print "\n", $failed ? <<TERM1 : <<TERM2;
 Configuration FAIL. You can try to salvage the generated Makefile.
