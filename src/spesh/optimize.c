@@ -1295,4 +1295,5 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
     eliminate_dead_ins(tc, g);
     eliminate_dead_bbs(tc, g);
     eliminate_unused_log_guards(tc, g);
+    MVM_spesh_ea(tc, g);
 }

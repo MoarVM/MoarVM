@@ -11,3 +11,5 @@ struct MVMSpeshAllocation {
 
     MVMSpeshAllocation *equi_parent;
 };
+
+void MVM_spesh_ea(MVMThreadContext *tc, MVMSpeshGraph *g);
