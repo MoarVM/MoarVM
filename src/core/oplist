@@ -291,7 +291,7 @@ findmeth            w(obj) r(obj) str :pure :invokish
 findmeth_s          w(obj) r(obj) r(str) :pure :invokish
 can                 w(int64) r(obj) str :pure :invokish
 can_s               w(int64) r(obj) r(str) :pure :invokish
-create              w(obj) r(obj) :pure
+create              w(obj) r(obj) :pure :allocates
 clone               w(obj) r(obj) :pure
 isconcrete          w(int64) r(obj) :pure :esc(-, n)
 rebless             w(obj) r(obj) r(obj)
@@ -705,7 +705,7 @@ sp_findmeth      .s w(obj) r(obj) str sslot :pure
 
 # Create an object with the first int16's number of bytes size and then
 # set its STable to the STable in the spesh slot.
-sp_fastcreate    .s w(obj) int16 sslot :pure
+sp_fastcreate    .s w(obj) int16 sslot :pure :allocates
 
 # Retrieve or store a value by pointer offset.
 sp_get_o         .s w(obj) r(obj) int16 :pure
