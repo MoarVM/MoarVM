@@ -116,6 +116,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         break;
                     }
                     found = 1;
+                    break;
                 }
             }
             if (!found)
