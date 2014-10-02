@@ -2558,17 +2558,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(clone): {
                 MVMObject *value = GET_REG(cur_op, 2).o;
-                MVMROOT(tc, value, {
-                    MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
-                    /* Ordering here matters. We write the object into the
-                     * register before calling copy_to. This is because
-                     * if copy_to allocates, obj may have moved after
-                     * we called it. This saves us having to put things on
-                     * the temporary stack. The GC will know to update it
-                     * in the register if it moved. */
-                    GET_REG(cur_op, 0).o = cloned;
-                    REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
-                });
+                if (IS_CONCRETE(value)) {
+                    MVMROOT(tc, value, {
+                        MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
+                        /* Ordering here matters. We write the object into the
+                        * register before calling copy_to. This is because
+                        * if copy_to allocates, obj may have moved after
+                        * we called it. This saves us having to put things on
+                        * the temporary stack. The GC will know to update it
+                        * in the register if it moved. */
+                        GET_REG(cur_op, 0).o = cloned;
+                        REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
+                    });
+                }
+                else {
+                    GET_REG(cur_op, 0).o = value;
+                }
                 cur_op += 4;
                 goto NEXT;
             }
