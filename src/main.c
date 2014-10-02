@@ -59,6 +59,7 @@ The following environment variables are respected:\n\
     MVM_JIT_DISABLE             Disables JITting to machine code\n\
     MVM_SPESH_LOG               Specifies a dynamic optimizer log file\n\
     MVM_JIT_LOG                 Specifies a JIT-compiler log file\n\
+    MVM_JIT_BYTECODE_DIR        Specifies a directory for JIT bytecode dumps\n\
 ";
 
 static int cmp_flag(const void *key, const void *value)
