@@ -38,8 +38,9 @@ static const char *const FLAGS[] = {
 };
 
 static const char USAGE[] = "\
-USAGE: moar [--dump] [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [program args]\n\
-       moar [--help]\n\
+USAGE: moar [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [program args]\n\
+       moar --dump input.moarvm\n\
+       moar --help\n\
 \n\
     --help            display this message\n\
     --dump            dump the bytecode to stdout instead of executing\n\
@@ -47,7 +48,18 @@ USAGE: moar [--dump] [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [prog
     --crash           abort instead of exiting on unhandled exception\n\
     --libpath         specify path loadbytecode should search in\n\
     --version         show version information"
-    TRACING_USAGE;
+    TRACING_USAGE
+    "\n\
+\n\
+The following environment variables are respected:\n\
+\n\
+    MVM_SPESH_DISABLE           Disables all dynamic optimization\n\
+    MVM_SPESH_INLINE_DISABLE    Disables inlining\n\
+    MVM_SPESH_OSR_DISABLE       Disables on-stack replacement\n\
+    MVM_JIT_DISABLE             Disables JITting to machine code\n\
+    MVM_SPESH_LOG               Specifies a dynamic optimizer log file\n\
+    MVM_JIT_LOG                 Specifies a JIT-compiler log file\n\
+";
 
 static int cmp_flag(const void *key, const void *value)
 {
