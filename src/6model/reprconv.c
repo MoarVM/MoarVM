@@ -23,12 +23,15 @@ MVMObject * MVM_repr_alloc_init(MVMThreadContext *tc, MVMObject *type) {
 
 MVMObject * MVM_repr_clone(MVMThreadContext *tc, MVMObject *obj) {
     MVMObject *res;
-
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&obj);
-    res = REPR(obj)->allocate(tc, STABLE(obj));
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&res);
-    REPR(obj)->copy_to(tc, STABLE(obj), OBJECT_BODY(obj), res, OBJECT_BODY(res));
-    MVM_gc_root_temp_pop_n(tc, 2);
+    if (IS_CONCRETE(obj)) {
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&obj);
+        res = REPR(obj)->allocate(tc, STABLE(obj));
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&res);
+        REPR(obj)->copy_to(tc, STABLE(obj), OBJECT_BODY(obj), res, OBJECT_BODY(res));
+        MVM_gc_root_temp_pop_n(tc, 2);
+    } else {
+        res = obj;
+    }
     return res;
 }
 
