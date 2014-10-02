@@ -363,7 +363,7 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
 
     /* Scan locals. */
     if (frame->work && frame->tc) {
-        if (frame->spesh_cand && frame->spesh_cand->local_types) {
+        if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->local_types) {
             type_map = frame->spesh_cand->local_types;
             count    = frame->spesh_cand->num_locals;
         }
