@@ -1,4 +1,5 @@
-/* Representation for static code in the VM. */
+/* Representation for static code in the VM. Partially populated on first
+ * call or usage. */
 struct MVMStaticFrameBody {
     /* The start of the stream of bytecode for this routine. */
     MVMuint8 *bytecode;
@@ -23,10 +24,12 @@ struct MVMStaticFrameBody {
     MVMuint8 *static_env_flags;
 
     /* If the frame has state variables. */
-    MVMuint16 has_state_vars;
+    MVMuint32 has_state_vars;
 
-    /* Flag for if this frame has been invoked ever. */
-    MVMuint16 invoked;
+    /* Zero if the frame was never invoked. Above zero is the instrumentation
+     * level the VM was atlast time the frame was invoked. See MVMInstance for
+     * the VM instance wide field for this. */
+    MVMuint32 instrumentation_level;
 
     /* Rough call count. May be hit up by multiple threads, and lose the odd
      * count, but that's fine; it's just a rough indicator, used to make
@@ -89,8 +92,33 @@ struct MVMStaticFrameBody {
     /* Is the frame a thunk, and thus hidden to caller/outer? */
     MVMuint8 is_thunk;
 
+    /* Is the frame full deserialized? */
+    MVMuint8 fully_deserialized;
+
     /* The original bytecode for this frame (before endian swapping). */
     MVMuint8 *orig_bytecode;
+
+    /* The serialized data about this frame, used to set up the things above
+     * marked (lazy). Also, once we've done that, the static lexical wvals
+     * data pos; we may be able to re-use the same slot for these to. */
+    MVMuint8 *frame_data_pos;
+    MVMuint8 *frame_static_lex_pos;
+
+    /* Off-by-one SC dependency index (zero indicates invalid) for the code
+     * object, plus the index of it within that SC. This is relevant for the
+     * static_code only. */
+    MVMint32 code_obj_sc_dep_idx;
+    MVMint32 code_obj_sc_idx;
+
+    /* Profiling/instrumented version of the bytecode, if we're profiling.
+     * Also, a backup of the uninstrumented bytecode in case we turn off
+     * profiling. Same for handlers. */
+    MVMuint8        *instrumented_bytecode;
+    MVMuint8        *uninstrumented_bytecode;
+    MVMFrameHandler *instrumented_handlers;
+    MVMFrameHandler *uninstrumented_handlers;
+    MVMuint32        uninstrumented_bytecode_size;
+    MVMuint32        instrumented_bytecode_size;
 };
 struct MVMStaticFrame {
     MVMObject common;

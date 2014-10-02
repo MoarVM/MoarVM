@@ -25,6 +25,10 @@ typedef struct {
     MVMObject   *outer;
     MVMObject   *lexical_map;
     MVMint64     flags;
+    MVMint64     index;
+    MVMObject   *static_lex_values;
+    MVMint64     code_obj_sc_dep_idx;
+    MVMint64     code_obj_sc_idx;
 } MAST_Frame;
 
 /* MAST::Op */
@@ -63,7 +67,6 @@ typedef struct {
 /* MAST::Label */
 typedef struct {
     MVMP6opaque  p6o_header;
-    MVMString   *name;
 } MAST_Label;
 
 /* MAST::Local */
@@ -135,7 +138,7 @@ typedef MVMString VMSTR;
 #define vm tc
 
 /* Some macros for getting at and examining nodes data. */
-#define ISTYPE(VM, s, t)            (MVM_6model_istype_cache_only(VM, s, t))
+#define ISTYPE(VM, s, t)            (STABLE(s) == STABLE(t))
 #define DIE(vm, msg, ...)           MVM_exception_throw_adhoc(tc, msg, ## __VA_ARGS__)
 #define GET_CompUnit(n)             ((MAST_CompUnit *)n)
 #define GET_Frame(n)                ((MAST_Frame *)n)
@@ -169,7 +172,7 @@ typedef MVMString VMSTR;
 #define BINDKEY_I(vm, hash, k, v)   (MVM_repr_bind_key_o(vm, hash, k, MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, v)))
 #define EXISTSKEY(vm, hash, k)      (MVM_repr_exists_key(vm, hash, k))
 #define DELETEKEY(vm, hash, k)      (MVM_repr_delete_key(vm, hash, k))
-#define EMPTY_STRING(vm)            (MVM_string_ascii_decode_nt(tc, tc->instance->VMString, ""))
+#define EMPTY_STRING(vm)            (tc->instance->str_consts.empty)
 #define VM_STRING_IS_NULL(s)        (s == NULL)
 #define VM_OBJ_IS_NULL(o)           (o == NULL)
 #define VM_STRING_TO_C_STRING(vm, s) (MVM_string_ascii_encode_any(tc, s))

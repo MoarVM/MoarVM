@@ -13,17 +13,39 @@
 
 #else
 #error "Anonymous mmap() not supported. You need to define MVM_MAP_ANON manually if it is."
-
 #endif
 #endif
 
-void *MVM_platform_alloc_pages(size_t size, int executable)
+static int page_mode_to_prot_mode(int page_mode) {
+    switch (page_mode) {
+    case MVM_PAGE_READ:
+        return PROT_READ;
+    case MVM_PAGE_WRITE:
+        return PROT_WRITE;
+    case (MVM_PAGE_READ|MVM_PAGE_WRITE):
+        return PROT_READ|PROT_WRITE;
+    case MVM_PAGE_EXEC:
+        return PROT_EXEC;
+    case (MVM_PAGE_READ|MVM_PAGE_EXEC):
+        return PROT_READ|PROT_EXEC;
+    case (MVM_PAGE_WRITE|MVM_PAGE_EXEC):
+        return PROT_WRITE|PROT_EXEC;
+    case (MVM_PAGE_READ|MVM_PAGE_WRITE|MVM_PAGE_EXEC):
+        return PROT_READ|PROT_WRITE|PROT_EXEC;
+    }
+    return PROT_NONE;
+}
+
+void *MVM_platform_alloc_pages(size_t size, int page_mode)
 {
-    void *block = mmap(NULL, size,
-        executable ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_READ | PROT_WRITE,
-        MVM_MAP_ANON | MAP_PRIVATE, -1, 0);
-
+    int prot_mode = page_mode_to_prot_mode(page_mode);
+    void *block = mmap(NULL, size, prot_mode, MVM_MAP_ANON | MAP_PRIVATE, -1, 0);
     return block != MAP_FAILED ? block : NULL;
+}
+
+int MVM_platform_set_page_mode(void * block, size_t size, int page_mode) {
+    int prot_mode = page_mode_to_prot_mode(page_mode);
+    return mprotect(block, size, prot_mode) == 0;
 }
 
 int MVM_platform_free_pages(void *block, size_t size)

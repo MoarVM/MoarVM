@@ -41,7 +41,7 @@ class MAST::ExtOpRegistry {
 }
 
 # The extension of base number (everything below is internal).
-my $EXTOP_BASE := 1024;
+my int $EXTOP_BASE := 1024;
 
 # The base class for all nodes.
 class MAST::Node {
@@ -95,7 +95,9 @@ class MAST::CompUnit is MAST::Node {
     has @!extop_names;
 
     method add_frame($frame) {
-        @!frames[+@!frames] := $frame;
+        my int $idx := nqp::elems(@!frames);
+        $frame.set_index($idx);
+        nqp::push(@!frames, $frame);
     }
 
     method dump_lines(@lines, $indent) {
@@ -127,7 +129,7 @@ class MAST::CompUnit is MAST::Node {
     }
 
     method sc_idx($sc) {
-        my $handle := nqp::scgethandle($sc);
+        my str $handle := nqp::scgethandle($sc);
         if nqp::existskey(%!sc_lookup, $handle) {
             nqp::atkey(%!sc_lookup, $handle)
         }
@@ -141,12 +143,12 @@ class MAST::CompUnit is MAST::Node {
 
     # Gets the opcode for an extop in the current compilation unit. If this is
     # the first use of the extop, gives it an index for this compilation unit.
-    method get_extop_code($name) {
+    method get_extop_code(str $name) {
         if nqp::existskey(%!extop_idx, $name) {
             %!extop_idx{$name} + $EXTOP_BASE
         }
         else {
-            my $idx             := +@!extop_sigs;
+            my int $idx         := +@!extop_sigs;
             @!extop_names[$idx] := $name;
             @!extop_sigs[$idx]  := MAST::ExtOpRegistry.extop_signature($name);
             %!extop_idx{$name}  := $idx;
@@ -195,11 +197,28 @@ class MAST::Frame is MAST::Node {
     # Flag bits.
     my int $FRAME_FLAG_EXIT_HANDLER := 1;
     my int $FRAME_FLAG_IS_THUNK     := 2;
+    my int $FRAME_FLAG_HAS_CODE_OBJ := 4;
+    my int $FRAME_FLAG_HAS_INDEX    := 32768; # Can go after a rebootstrap.
+    my int $FRAME_FLAG_HAS_SLV      := 65536; # Can go after a rebootstrap.
     has int $!flags;
 
-    my $cuuid_src := 0;
+    # The frame index in the compilation unit (cached to aid assembly).
+    has int $!frame_idx;
+
+    # Integer array with 4 entries per static lexical value:
+    # - The lexical index in the frame
+    # - A flag (0 = static, 1 = container var, 2 = state var)
+    # - SC index in this compilation unit
+    # - Index of the object within that SC
+    has @!static_lex_values;
+
+    # Code object SC dependency index and SC index.
+    has int $!code_obj_sc_dep_idx;
+    has int $!code_obj_sc_idx;
+
+    my int $cuuid_src := 0;
     sub fresh_id() {
-        $cuuid_src := $cuuid_src + 1;
+        $cuuid_src++;
         "!MVM_CUUID_$cuuid_src"
     }
 
@@ -210,14 +229,20 @@ class MAST::Frame is MAST::Node {
     }
 
     method BUILD($cuuid, $name) {
-        $!cuuid         := $cuuid;
-        $!name          := $name;
-        @!lexical_types := nqp::list();
-        @!lexical_names := nqp::list();
-        @!local_types   := nqp::list();
-        @!instructions  := nqp::list();
-        $!outer         := MAST::Node;
-        %!lexical_map   := nqp::hash();
+        $!cuuid             := $cuuid;
+        $!name              := $name;
+        @!lexical_types     := nqp::list();
+        @!lexical_names     := nqp::list();
+        @!local_types       := nqp::list();
+        @!instructions      := nqp::list();
+        $!outer             := MAST::Node;
+        %!lexical_map       := nqp::hash();
+        @!static_lex_values := nqp::list_i();
+    }
+
+    method set_index(int $idx) {
+        $!frame_idx := $idx;
+        $!flags     := nqp::bitor_i($!flags, $FRAME_FLAG_HAS_INDEX);
     }
 
     method add_lexical($type, $name) {
@@ -232,6 +257,15 @@ class MAST::Frame is MAST::Node {
         nqp::existskey(%!lexical_map, $name) ??
             %!lexical_map{$name} !!
             nqp::die("No such lexical '$name'")
+    }
+
+    method add_static_lex_value($index, $flags, $sc_idx, $idx) {
+        my @slv := @!static_lex_values;
+        nqp::push_i(@slv, $index);
+        nqp::push_i(@slv, $flags);
+        nqp::push_i(@slv, $sc_idx);
+        nqp::push_i(@slv, $idx);
+        $!flags := nqp::bitor_i($!flags, $FRAME_FLAG_HAS_SLV);
     }
 
     method add_local($type) {
@@ -268,6 +302,12 @@ class MAST::Frame is MAST::Node {
             $!flags := nqp::bitor_i($!flags, $FRAME_FLAG_IS_THUNK);
         }
         nqp::bitand_i($!flags, $FRAME_FLAG_IS_THUNK)
+    }
+
+    method set_code_object_idxs(int $sc_dep_idx, int $sc_idx) {
+        $!code_obj_sc_dep_idx := $sc_dep_idx;
+        $!code_obj_sc_idx     := $sc_idx;
+        $!flags               := nqp::bitor_i($!flags, $FRAME_FLAG_HAS_CODE_OBJ);
     }
 
     method dump_lines(@lines, $indent) {
@@ -319,7 +359,15 @@ class MAST::Op is MAST::Node {
 
     my %op_codes := MAST::Ops.WHO<%codes>;
     my @op_names := MAST::Ops.WHO<@names>;
-    method new(:$op!, *@operands) {
+
+    method new(str :$op!, *@operands) {
+        my $obj := nqp::create(self);
+        nqp::bindattr_i($obj, MAST::Op, '$!op', %op_codes{$op});
+        nqp::bindattr($obj, MAST::Op, '@!operands', @operands);
+        $obj
+    }
+
+    method new_with_operand_array(@operands, str :$op!) {
         my $obj := nqp::create(self);
         nqp::bindattr_i($obj, MAST::Op, '$!op', %op_codes{$op});
         nqp::bindattr($obj, MAST::Op, '@!operands', @operands);
@@ -343,7 +391,15 @@ class MAST::ExtOp is MAST::Node {
     has @!operands;
     has str $!name;
 
-    method new(:$op!, :$cu!, *@operands) {
+    method new(str :$op!, :$cu!, *@operands) {
+        my $obj := nqp::create(self);
+        nqp::bindattr_i($obj, MAST::ExtOp, '$!op', $cu.get_extop_code($op));
+        nqp::bindattr($obj, MAST::ExtOp, '@!operands', @operands);
+        nqp::bindattr_s($obj, MAST::ExtOp, '$!name', $op);
+        $obj
+    }
+
+    method new_with_operand_array(@operands, str :$op!, :$cu!) {
         my $obj := nqp::create(self);
         nqp::bindattr_i($obj, MAST::ExtOp, '$!op', $cu.get_extop_code($op));
         nqp::bindattr($obj, MAST::ExtOp, '@!operands', @operands);
@@ -419,18 +475,13 @@ class MAST::NVal is MAST::Node {
 # Labels (used directly in the instruction stream indicates where the
 # label goes; can also be used as an instruction operand).
 class MAST::Label is MAST::Node {
-    has str $!name;
-
-    method new(:$name!) {
-        my $obj := nqp::create(self);
-        nqp::bindattr_s($obj, MAST::Label, '$!name', $name);
-        $obj
+    method new() {
+        nqp::create(self)
     }
 
-    method name() { $!name }
-
     method dump_lines(@lines, $indent) {
-        nqp::push(@lines, $indent~"MAST::Label name<$!name>");
+        my int $addr := nqp::where(self);
+        nqp::push(@lines, $indent ~ "MAST::Label <$addr>");
     }
 }
 

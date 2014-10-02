@@ -26,7 +26,7 @@ static MVMint16 get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMint16 is_
     MVMint16 result;
     if (strcmp(ctypename, "void") == 0) {
         if (!is_return) {
-            free(ctypename);
+            MVM_free(ctypename);
             MVM_exception_throw_adhoc(tc,
                 "Cannot use 'void' type except for on native call return values");
         }
@@ -62,14 +62,14 @@ static MVMint16 get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMint16 is_
         result = MVM_NATIVECALL_ARG_CALLBACK;
     else
         MVM_exception_throw_adhoc(tc, "Unknown type '%s' used for native call", ctypename);
-    free(ctypename);
+    MVM_free(ctypename);
     return result;
 }
 
 /* Maps a calling convention name to an ID. */
 static MVMint16 get_calling_convention(MVMThreadContext *tc, MVMString *name) {
     MVMint16 result = DC_CALL_C_DEFAULT;
-    if (name && NUM_GRAPHS(name) > 0) {
+    if (name && MVM_string_graphs(tc, name) > 0) {
         char *cname = MVM_string_utf8_encode_C_string(tc, name);
         if (strcmp(cname, "cdecl") == 0)
             result = DC_CALL_C_X86_CDECL;
@@ -80,7 +80,7 @@ static MVMint16 get_calling_convention(MVMThreadContext *tc, MVMString *name) {
         else
             MVM_exception_throw_adhoc(tc,
                 "Unknown calling convention '%s' used for native call", cname);
-        free(cname);
+        MVM_free(cname);
     }
     return result;
 }
@@ -144,7 +144,7 @@ MVMObject * make_str_result(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_
         }
         result = MVM_repr_box_str(tc, type, value);
         if (ret_type & MVM_NATIVECALL_ARG_FREE_STR)
-            free(cstring);
+            MVM_free(cstring);
     }
     return result;
 }
@@ -300,7 +300,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
     MVM_HASH_GET(tc, tc->native_callback_cache, cuid, callback_data_head);
 
     if (!callback_data_head) {
-        callback_data_head = malloc(sizeof(MVMNativeCallbackCacheHead));
+        callback_data_head = MVM_malloc(sizeof(MVMNativeCallbackCacheHead));
         callback_data_head->head = NULL;
 
         MVM_HASH_BIND(tc, tc->native_callback_cache, cuid, callback_data_head);
@@ -324,10 +324,10 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         MVMNativeCallback *callback_data;
 
         num_info                 = MVM_repr_elems(tc, sig_info);
-        callback_data            = malloc(sizeof(MVMNativeCallback));
+        callback_data            = MVM_malloc(sizeof(MVMNativeCallback));
         callback_data->num_types = num_info;
-        callback_data->typeinfos = malloc(num_info * sizeof(MVMint16));
-        callback_data->types     = malloc(num_info * sizeof(MVMObject *));
+        callback_data->typeinfos = MVM_malloc(num_info * sizeof(MVMint16));
+        callback_data->types     = MVM_malloc(num_info * sizeof(MVMObject *));
         callback_data->next      = NULL;
 
         /* A dyncall signature looks like this: xxx)x
@@ -335,13 +335,13 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         * num_info+1 must be NULL (zero-terminated string) and num_info-1
         * must be the ).
         */
-        signature = malloc(num_info + 2);
+        signature = MVM_malloc(num_info + 2);
         signature[num_info + 1] = '\0';
         signature[num_info - 1] = ')';
 
         /* We'll also build up a MoarVM callsite as we go. */
-        cs                 = malloc(sizeof(MVMCallsite));
-        cs->arg_flags      = malloc(num_info * sizeof(MVMCallsiteEntry));
+        cs                 = MVM_malloc(sizeof(MVMCallsite));
+        cs->arg_flags      = MVM_malloc(num_info * sizeof(MVMCallsiteEntry));
         cs->arg_count      = num_info - 1;
         cs->num_pos        = num_info - 1;
         cs->has_flattening = 0;
@@ -409,7 +409,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     MVMRegister res;
 
     /* Build a callsite and arguments buffer. */
-    MVMRegister *args = malloc(data->num_types * sizeof(MVMRegister));
+    MVMRegister *args = MVM_malloc(data->num_types * sizeof(MVMRegister));
     for (i = 1; i < data->num_types; i++) {
         MVMObject *type     = data->types[i];
         MVMint16   typeinfo = data->typeinfos[i];
@@ -549,7 +549,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     }
 
     /* Clean up. */
-    free(args);
+    MVM_free(args);
 
     /* Indicate what we're producing as a result. */
     return get_signature_char(data->typeinfos[0]);
@@ -569,7 +569,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     body->lib_name = lib_name;
     body->lib_handle = dlLoadLibrary(strlen(lib_name) ? lib_name : NULL);
     if (!body->lib_handle) {
-        free(sym_name);
+        MVM_free(sym_name);
         MVM_exception_throw_adhoc(tc, "Cannot locate native library '%s'", lib_name);
     }
 
@@ -578,15 +578,15 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     if (!body->entry_point)
         MVM_exception_throw_adhoc(tc, "Cannot locate symbol '%s' in native library '%s'",
             sym_name, lib_name);
-    free(sym_name);
+    MVM_free(sym_name);
 
     /* Set calling convention, if any. */
     body->convention = get_calling_convention(tc, conv);
 
     /* Transform each of the args info structures into a flag. */
     body->num_args  = MVM_repr_elems(tc, arg_info);
-    body->arg_types = malloc(sizeof(MVMint16) * (body->num_args ? body->num_args : 1));
-    body->arg_info  = malloc(sizeof(MVMObject *) * (body->num_args ? body->num_args : 1));
+    body->arg_types = MVM_malloc(sizeof(MVMint16) * (body->num_args ? body->num_args : 1));
+    body->arg_info  = MVM_malloc(sizeof(MVMObject *) * (body->num_args ? body->num_args : 1));
     for (i = 0; i < body->num_args; i++) {
         MVMObject *info = MVM_repr_at_pos_o(tc, arg_info, i);
         body->arg_types[i] = get_arg_type(tc, info, 0);
@@ -655,7 +655,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     char *str = unmarshal_string(tc, value, arg_types[i], &free);
                     if (free) {
                         if (!free_strs)
-                            free_strs = (char**)malloc(num_args * sizeof(char *));
+                            free_strs = (char**)MVM_malloc(num_args * sizeof(char *));
                         free_strs[num_strs] = str;
                         num_strs++;
                     }
@@ -742,8 +742,8 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     /* Free any memory that we need to. */
     if (free_strs) {
         for (i = 0; i < num_strs; i++)
-            free(free_strs[i]);
-        free(free_strs);
+            MVM_free(free_strs[i]);
+        MVM_free(free_strs);
     }
 
     /* Finally, free call VM. */
@@ -752,20 +752,57 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     return result;
 }
 
-MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObject *target_type, MVMObject *source) {
-    MVMObject *result        = NULL;
-    void      *cpointer_body = unmarshal_cpointer(tc, source);
+MVMObject * MVM_nativecall_global(MVMThreadContext *tc, MVMString *lib, MVMString *sym, MVMObject *target_spec, MVMObject *target_type) {
+    char *lib_name = MVM_string_utf8_encode_C_string(tc, lib);
+    char *sym_name = MVM_string_utf8_encode_C_string(tc, sym);
+    DLLib *lib_handle;
+    void *entry_point;
+    MVMObject *ret = NULL;
 
-    if (!source) return target_type;
+    /* Try to load the library. */
+    lib_handle = dlLoadLibrary(strlen(lib_name) ? lib_name : NULL);
+    if (!lib_handle) {
+        MVM_free(sym_name);
+        MVM_exception_throw_adhoc(tc, "Cannot locate native library '%s'", lib_name);
+    }
+
+    /* Try to locate the symbol. */
+    entry_point = dlFindSymbol(lib_handle, sym_name);
+    if (!entry_point)
+        MVM_exception_throw_adhoc(tc, "Cannot locate symbol '%s' in native library '%s'",
+            sym_name, lib_name);
+    MVM_free(sym_name);
+    MVM_free(lib_name);
+
+    if (REPR(target_type)->ID == MVM_REPR_ID_MVMCStr
+    ||  REPR(target_type)->ID == MVM_REPR_ID_P6str
+    || (REPR(target_type)->ID == MVM_REPR_ID_P6opaque
+        && REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec))->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)) {
+        entry_point = *(void **)entry_point;
+    }
+
+    ret = nativecall_cast(tc, target_spec, target_type, entry_point);
+    dlFreeLibrary(lib_handle);
+    return ret;
+}
+
+MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObject *target_type, MVMObject *source) {
+    if (!source)
+        return target_type;
+
+    return nativecall_cast(tc, target_spec, target_type, unmarshal_cpointer(tc, source));
+}
+MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObject *target_type, void *cpointer_body) {
+    MVMObject *result = NULL;
 
     MVMROOT(tc, target_spec, {
         MVMROOT(tc, target_type, {
             switch (REPR(target_type)->ID) {
                 case MVM_REPR_ID_P6opaque: {
-                    MVMStorageSpec ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
-                    if(ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT) {
+                    const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
+                    if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT) {
                         MVMint64 value = 0;
-                        switch(ss.bits) {
+                        switch(ss->bits) {
                             case 8:
                                 value = *(MVMint8 *)cpointer_body;
                                 break;
@@ -782,10 +819,10 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
                         
                         result = make_int_result(tc, target_type, value);
                     }
-                    else if(ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM) {
+                    else if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM) {
                         MVMnum64 value;
                     
-                        switch(ss.bits) {
+                        switch(ss->bits) {
                             case 32:
                                 value = *(MVMnum32 *)cpointer_body;
                                 break;
@@ -796,16 +833,16 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
                         
                         result = make_num_result(tc, target_type, value);
                     }
-                    else if(ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
+                    else if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
                         result = make_str_result(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR,
                         (char *)cpointer_body);
                     }
                     break;
                 }
                 case MVM_REPR_ID_P6int: {
-                    MVMStorageSpec ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
+                    const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
                     MVMint64 value;
-                    switch(ss.bits) {
+                    switch(ss->bits) {
                         case 8:
                             value = *(MVMint8 *)cpointer_body;
                             break;
@@ -823,10 +860,10 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
                     break;
                 }
                 case MVM_REPR_ID_P6num: {
-                    MVMStorageSpec ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
+                    const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
                     MVMnum64 value;
                     
-                    switch(ss.bits) {
+                    switch(ss->bits) {
                         case 32:
                             value = *(MVMnum32 *)cpointer_body;
                             break;
@@ -847,7 +884,7 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
                     result = MVM_nativecall_make_cstruct(tc, target_type, (void *)cpointer_body);
                     break;
                 case MVM_REPR_ID_MVMCPointer:
-                    result = MVM_nativecall_make_cpointer(tc, target_type, (void *)cpointer_body);
+                    result = MVM_nativecall_make_cpointer(tc, target_type, *(void **)cpointer_body);
                     break;
                 case MVM_REPR_ID_MVMCArray: {
                     result = MVM_nativecall_make_carray(tc, target_type, (void *)cpointer_body);

@@ -44,6 +44,7 @@ struct MVMOpInfo {
     MVMuint8    pure;
     MVMuint8    deopt_point;
     MVMuint8    no_inline;
+    MVMuint8    jittivity;
     MVMuint8    operands[MVM_MAX_OPERANDS];
 };
 

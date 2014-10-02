@@ -8,12 +8,14 @@
 	} \
 } while (0)
 
-/* Create a new instance of the VM. */
-static void string_consts(MVMThreadContext *tc);
 static void setup_std_handles(MVMThreadContext *tc);
+
+/* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
     char *spesh_log, *spesh_disable, *spesh_inline_disable, *spesh_osr_disable;
+    char *jit_log, *jit_disable, *jit_bytecode_dir;
+    char *dynvar_log;
     int init_stat;
 
     /* Set up instance data structure. */
@@ -31,7 +33,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up the permanent roots storage. */
     instance->num_permroots   = 0;
     instance->alloc_permroots = 16;
-    instance->permroots       = malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
+    instance->permroots       = MVM_malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
     init_mutex(instance->mutex_permroots, "permanent roots");
 
     /* Create fixed size allocator. */
@@ -60,6 +62,9 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up container registry mutex. */
     init_mutex(instance->mutex_container_registry, "container registry");
+
+    /* Set up persistent object ID hash mutex. */
+    init_mutex(instance->mutex_object_ids, "object ID hash");
 
     /* Allocate all things during following setup steps directly in gen2, as
      * they will have program lifetime. */
@@ -106,6 +111,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->callsite_interns = calloc(1, sizeof(MVMCallsiteInterns));
     init_mutex(instance->mutex_callsite_interns, "callsite interns");
 
+    /* Allocate int to str cache. */
+    instance->int_to_str_cache = calloc(MVM_INT_TO_STR_CACHE_SIZE, sizeof(MVMString *));
+
     /* Mutex for spesh installations, and check if we've a file we
      * should log specializations to. */
     init_mutex(instance->mutex_spesh_install, "spesh installations");
@@ -123,8 +131,27 @@ MVMInstance * MVM_vm_create_instance(void) {
             instance->spesh_osr_enabled = 1;
     }
 
+    jit_disable = getenv("MVM_JIT_DISABLE");
+    if (!jit_disable || strlen(jit_disable) == 0)
+        instance->jit_enabled = 1;
+    jit_log = getenv("MVM_JIT_LOG");
+    if (jit_log && strlen(jit_log))
+        instance->jit_log_fh = fopen(jit_log, "w");
+    jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
+    if (jit_bytecode_dir && strlen(jit_bytecode_dir))
+        instance->jit_bytecode_dir = jit_bytecode_dir;
+    dynvar_log = getenv("MVM_DYNVAR_LOG");
+    if (dynvar_log && strlen(dynvar_log))
+        instance->dynvar_log_fh = fopen(dynvar_log, "w");
+    else
+        instance->dynvar_log_fh = NULL;
+
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
+
+    /* Current instrumentation level starts at 1; used to trigger all frames
+     * to be verified before their first run. */
+    instance->instrumentation_level = 1;
 
     /* Back to nursery allocation, now we're set up. */
     MVM_gc_allocate_gen2_default_clear(instance->main_thread);
@@ -188,7 +215,7 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     char *dump = MVM_bytecode_dump(tc, cu);
 
     printf("%s", dump);
-    free(dump);
+    MVM_free(dump);
 }
 
 /* Exits the process as quickly as is gracefully possible, respecting that
@@ -199,9 +226,11 @@ void MVM_vm_exit(MVMInstance *instance) {
     /* Join any foreground threads. */
     MVM_thread_join_foreground(instance->main_thread);
 
-    /* Close any spesh log. */
+    /* Close any spesh or jit log. */
     if (instance->spesh_log_fh)
         fclose(instance->spesh_log_fh);
+    if (instance->jit_log_fh)
+        fclose(instance->jit_log_fh);
 
     /* And, we're done. */
     exit(0);
@@ -266,6 +295,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->mutex_spesh_install);
     if (instance->spesh_log_fh)
         fclose(instance->spesh_log_fh);
+    if (instance->jit_log_fh)
+        fclose(instance->jit_log_fh);
 
     /* Clean up event loop starting mutex. */
     uv_mutex_destroy(&instance->mutex_event_loop_start);
@@ -274,5 +305,5 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_tc_destroy(instance->main_thread);
 
     /* Clear up VM instance memory. */
-    free(instance);
+    MVM_free(instance);
 }

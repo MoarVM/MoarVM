@@ -40,15 +40,19 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     return body->orig;
 }
 
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE,       /* inlineable */
+    sizeof(void *) * 8,               /* bits */
+    ALIGNOF(void *),                  /* align */
+    MVM_STORAGE_SPEC_BP_STR,          /* boxed_primitive */
+    MVM_STORAGE_SPEC_CAN_BOX_STR,     /* can_box */
+    0,                                /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_STR;
-    spec.can_box = MVM_STORAGE_SPEC_CAN_BOX_STR;
-    spec.bits = sizeof(void *) * 8;
-    spec.align = ALIGNOF(void *);
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
@@ -59,7 +63,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCStr *cstr = (MVMCStr *)obj;
     if (obj && cstr->body.cstr)
-        free(cstr->body.cstr);
+        MVM_free(cstr->body.cstr);
 }
 
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {

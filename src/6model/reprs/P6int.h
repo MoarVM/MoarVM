@@ -15,8 +15,9 @@ struct MVMP6int {
 
 /* The bit width requirement is shared for all instances of the same type. */
 struct MVMP6intREPRData {
-    MVMint16 bits;
-    MVMint16 is_unsigned;
+    MVMint16       bits;
+    MVMint16       is_unsigned;
+    MVMStorageSpec storage_spec;
 };
 
 /* Function for REPR setup. */

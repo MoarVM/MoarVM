@@ -38,15 +38,20 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     return (MVMint64)body->ptr;
 }
 
+
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE,       /* inlineable */
+    sizeof(void *) * 8,               /* bits */
+    ALIGNOF(void *),                  /* align */
+    MVM_STORAGE_SPEC_BP_NONE,         /* boxed_primitive */
+    0,                                /* can_box */
+    0,                                /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box = 0;
-    spec.bits = sizeof(void *) * 8;
-    spec.align = ALIGNOF(void *);
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {

@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "platform/time.h"
 
 /* Initializes a new thread context. Note that this doesn't set up a
  * thread itself, it just creates the data structure that exists in
@@ -18,12 +19,12 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     /* Set up temporary root handling. */
     tc->num_temproots   = 0;
     tc->alloc_temproots = 16;
-    tc->temproots       = malloc(sizeof(MVMCollectable **) * tc->alloc_temproots);
+    tc->temproots       = MVM_malloc(sizeof(MVMCollectable **) * tc->alloc_temproots);
 
     /* Set up intergenerational root handling. */
     tc->num_gen2roots   = 0;
     tc->alloc_gen2roots = 64;
-    tc->gen2roots       = malloc(sizeof(MVMCollectable *) * tc->alloc_gen2roots);
+    tc->gen2roots       = MVM_malloc(sizeof(MVMCollectable *) * tc->alloc_gen2roots);
 
     /* Set up the second generation allocator. */
     tc->gen2 = MVM_gc_gen2_create(instance);
@@ -39,13 +40,6 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
 
     /* Initialize random number generator state. */
     MVM_proc_seed(tc, (MVM_platform_now() / 10000) * MVM_proc_getpid(tc));
-
-#if MVM_HLL_PROFILE_CALLS
-#define PROFILE_INITIAL_SIZE (1 << 29)
-    tc->profile_data_size = PROFILE_INITIAL_SIZE;
-    tc->profile_data = malloc(sizeof(MVMProfileRecord) * PROFILE_INITIAL_SIZE);
-    tc->profile_index = 0;
-#endif
 
     return tc;
 }
@@ -63,8 +57,8 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     MVM_frame_free_frame_pool(tc);
 
     /* Free the nursery. */
-    free(tc->nursery_fromspace);
-    free(tc->nursery_tospace);
+    MVM_free(tc->nursery_fromspace);
+    MVM_free(tc->nursery_tospace);
 
     /* Destroy the second generation allocator. */
     MVM_gc_gen2_destroy(tc->instance, tc->gen2);
@@ -79,7 +73,7 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
 
     /* Free the thread context itself. */
     memset(tc, 0, sizeof(MVMThreadContext));
-    free(tc);
+    MVM_free(tc);
 }
 
 /* Setting and clearing mutex to release on exception throw. */

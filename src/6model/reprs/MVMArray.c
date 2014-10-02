@@ -10,7 +10,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVMArrayREPRData *repr_data = (MVMArrayREPRData *)malloc(sizeof(MVMArrayREPRData));
+        MVMArrayREPRData *repr_data = (MVMArrayREPRData *)MVM_malloc(sizeof(MVMArrayREPRData));
 
         repr_data->slot_type = MVM_ARRAY_OBJ;
         repr_data->elem_size = sizeof(MVMObject *);
@@ -38,7 +38,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         size_t  mem_size     = dest_body->ssize * repr_data->elem_size;
         size_t  start_pos    = src_body->start * repr_data->elem_size;
         char   *copy_start   = ((char *)src_body->slots.any) + start_pos;
-        dest_body->slots.any = malloc(mem_size);
+        dest_body->slots.any = MVM_malloc(mem_size);
         memcpy(dest_body->slots.any, copy_start, mem_size);
     }
     else {
@@ -94,13 +94,20 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     MVM_checked_free_null(st->REPR_data);
 }
 
+
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
@@ -323,8 +330,8 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64
 
     /* now allocate the new slot buffer */
     slots = (slots)
-            ? realloc(slots, ssize * repr_data->elem_size)
-            : malloc(ssize * repr_data->elem_size);
+            ? MVM_realloc(slots, ssize * repr_data->elem_size)
+            : MVM_malloc(ssize * repr_data->elem_size);
 
     /* fill out any unused slots with NULL pointers or zero values */
     body->slots.any = slots;
@@ -917,12 +924,12 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     if (!MVM_is_null(tc, info)) {
         MVMObject *type = MVM_repr_at_key_o(tc, info, str_consts.type);
         if (!MVM_is_null(tc, type)) {
-            MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+            const MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
-            switch (spec.boxed_primitive) {
+            switch (spec->boxed_primitive) {
                 case MVM_STORAGE_SPEC_BP_INT:
-                    if (spec.is_unsigned) {
-                        switch (spec.bits) {
+                    if (spec->is_unsigned) {
+                        switch (spec->bits) {
                             case 64:
                                 repr_data->slot_type = MVM_ARRAY_U64;
                                 repr_data->elem_size = sizeof(MVMuint64);
@@ -945,7 +952,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                         }
                     }
                     else {
-                        switch (spec.bits) {
+                        switch (spec->bits) {
                             case 64:
                                 repr_data->slot_type = MVM_ARRAY_I64;
                                 repr_data->elem_size = sizeof(MVMint64);
@@ -969,7 +976,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                     }
                     break;
                 case MVM_STORAGE_SPEC_BP_NUM:
-                    switch (spec.bits) {
+                    switch (spec->bits) {
                         case 64:
                             repr_data->slot_type = MVM_ARRAY_N64;
                             repr_data->elem_size = sizeof(MVMnum64);
@@ -1000,25 +1007,27 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
-    writer->write_ref(tc, writer, repr_data->elem_type);
+    MVM_serialization_write_ref(tc, writer, repr_data->elem_type);
 }
 
 /* Deserializes representation data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)malloc(sizeof(MVMArrayREPRData));
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)MVM_malloc(sizeof(MVMArrayREPRData));
 
-    MVMObject *type = reader->root.version >= 7 ? reader->read_ref(tc, reader) : NULL;
+    MVMObject *type = reader->root.version >= 7 ? MVM_serialization_read_ref(tc, reader) : NULL;
     MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
     repr_data->slot_type = MVM_ARRAY_OBJ;
     repr_data->elem_size = sizeof(MVMObject *);
     st->REPR_data = repr_data;
 
     if (type) {
-        MVMStorageSpec spec = REPR(type)->get_storage_spec(tc, STABLE(type));
-        switch (spec.boxed_primitive) {
+        const MVMStorageSpec *spec;
+        MVM_serialization_force_stable(tc, reader, STABLE(type));
+        spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+        switch (spec->boxed_primitive) {
             case MVM_STORAGE_SPEC_BP_INT:
-                if (spec.is_unsigned) {
-                    switch (spec.bits) {
+                if (spec->is_unsigned) {
+                    switch (spec->bits) {
                         case 64:
                             repr_data->slot_type = MVM_ARRAY_U64;
                             repr_data->elem_size = sizeof(MVMuint64);
@@ -1041,7 +1050,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
                     }
                 }
                 else {
-                    switch (spec.bits) {
+                    switch (spec->bits) {
                         case 64:
                             repr_data->slot_type = MVM_ARRAY_I64;
                             repr_data->elem_size = sizeof(MVMint64);
@@ -1065,7 +1074,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
                 }
                 break;
             case MVM_STORAGE_SPEC_BP_NUM:
-                switch (spec.bits) {
+                switch (spec->bits) {
                     case 64:
                         repr_data->slot_type = MVM_ARRAY_N64;
                         repr_data->elem_size = sizeof(MVMnum64);
@@ -1092,48 +1101,48 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMint64 i;
 
-    body->elems = reader->read_varint(tc, reader);
+    body->elems = MVM_serialization_read_varint(tc, reader);
     body->ssize = body->elems;
     if (body->ssize)
-        body->slots.any = malloc(body->ssize * repr_data->elem_size);
+        body->slots.any = MVM_malloc(body->ssize * repr_data->elem_size);
 
     for (i = 0; i < body->elems; i++) {
         switch (repr_data->slot_type) {
             case MVM_ARRAY_OBJ:
-                MVM_ASSIGN_REF(tc, &(root->header), body->slots.o[i], reader->read_ref(tc, reader));
+                MVM_ASSIGN_REF(tc, &(root->header), body->slots.o[i], MVM_serialization_read_ref(tc, reader));
                 break;
             case MVM_ARRAY_STR:
-                MVM_ASSIGN_REF(tc, &(root->header), body->slots.s[i], reader->read_str(tc, reader));
+                MVM_ASSIGN_REF(tc, &(root->header), body->slots.s[i], MVM_serialization_read_str(tc, reader));
                 break;
             case MVM_ARRAY_I64:
-                body->slots.i64[i] = reader->read_varint(tc, reader);
+                body->slots.i64[i] = MVM_serialization_read_varint(tc, reader);
                 break;
             case MVM_ARRAY_I32:
-                body->slots.i32[i] = (MVMint32)reader->read_varint(tc, reader);
+                body->slots.i32[i] = (MVMint32)MVM_serialization_read_varint(tc, reader);
                 break;
             case MVM_ARRAY_I16:
-                body->slots.i16[i] = (MVMint16)reader->read_varint(tc, reader);
+                body->slots.i16[i] = (MVMint16)MVM_serialization_read_varint(tc, reader);
                 break;
             case MVM_ARRAY_I8:
-                body->slots.i8[i] = (MVMint8)reader->read_varint(tc, reader);
+                body->slots.i8[i] = (MVMint8)MVM_serialization_read_varint(tc, reader);
                 break;
             case MVM_ARRAY_U64:
-                body->slots.i64[i] = reader->read_varint(tc, reader);
+                body->slots.i64[i] = MVM_serialization_read_varint(tc, reader);
                 break;
             case MVM_ARRAY_U32:
-                body->slots.i32[i] = (MVMuint32)reader->read_varint(tc, reader);
+                body->slots.i32[i] = (MVMuint32)MVM_serialization_read_varint(tc, reader);
                 break;
             case MVM_ARRAY_U16:
-                body->slots.i16[i] = (MVMuint16)reader->read_varint(tc, reader);
+                body->slots.i16[i] = (MVMuint16)MVM_serialization_read_varint(tc, reader);
                 break;
             case MVM_ARRAY_U8:
-                body->slots.i8[i] = (MVMuint8)reader->read_varint(tc, reader);
+                body->slots.i8[i] = (MVMuint8)MVM_serialization_read_varint(tc, reader);
                 break;
             case MVM_ARRAY_N64:
-                body->slots.n64[i] = reader->read_num(tc, reader);
+                body->slots.n64[i] = MVM_serialization_read_num(tc, reader);
                 break;
             case MVM_ARRAY_N32:
-                body->slots.n32[i] = (MVMnum32)reader->read_num(tc, reader);
+                body->slots.n32[i] = (MVMnum32)MVM_serialization_read_num(tc, reader);
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
@@ -1146,44 +1155,44 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMint64 i;
 
-    writer->write_varint(tc, writer, body->elems);
+    MVM_serialization_write_varint(tc, writer, body->elems);
     for (i = 0; i < body->elems; i++) {
         switch (repr_data->slot_type) {
             case MVM_ARRAY_OBJ:
-                writer->write_ref(tc, writer, body->slots.o[body->start + i]);
+                MVM_serialization_write_ref(tc, writer, body->slots.o[body->start + i]);
                 break;
             case MVM_ARRAY_STR:
-                writer->write_str(tc, writer, body->slots.s[body->start + i]);
+                MVM_serialization_write_str(tc, writer, body->slots.s[body->start + i]);
                 break;
             case MVM_ARRAY_I64:
-                writer->write_varint(tc, writer, (MVMint64)body->slots.i64[body->start + i]);
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.i64[body->start + i]);
                 break;
             case MVM_ARRAY_I32:
-                writer->write_varint(tc, writer, (MVMint64)body->slots.i32[body->start + i]);
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.i32[body->start + i]);
                 break;
             case MVM_ARRAY_I16:
-                writer->write_varint(tc, writer, (MVMint64)body->slots.i16[body->start + i]);
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.i16[body->start + i]);
                 break;
             case MVM_ARRAY_I8:
-                writer->write_varint(tc, writer, (MVMint64)body->slots.i8[body->start + i]);
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.i8[body->start + i]);
                 break;
             case MVM_ARRAY_U64:
-                writer->write_varint(tc, writer, (MVMint64)body->slots.u64[body->start + i]);
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.u64[body->start + i]);
                 break;
             case MVM_ARRAY_U32:
-                writer->write_varint(tc, writer, (MVMint64)body->slots.u32[body->start + i]);
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.u32[body->start + i]);
                 break;
             case MVM_ARRAY_U16:
-                writer->write_varint(tc, writer, (MVMint64)body->slots.u16[body->start + i]);
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.u16[body->start + i]);
                 break;
             case MVM_ARRAY_U8:
-                writer->write_varint(tc, writer, (MVMint64)body->slots.u8[body->start + i]);
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.u8[body->start + i]);
                 break;
             case MVM_ARRAY_N64:
-                writer->write_num(tc, writer, (MVMnum64)body->slots.n64[body->start + i]);
+                MVM_serialization_write_num(tc, writer, (MVMnum64)body->slots.n64[body->start + i]);
                 break;
             case MVM_ARRAY_N32:
-                writer->write_num(tc, writer, (MVMnum64)body->slots.n32[body->start + i]);
+                MVM_serialization_write_num(tc, writer, (MVMnum64)body->slots.n32[body->start + i]);
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
@@ -1195,14 +1204,16 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
 static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     switch (ins->info->opcode) {
     case MVM_OP_create: {
-        MVMSpeshOperand target   = ins->operands[0];
-        MVMSpeshOperand type     = ins->operands[1];
-        ins->info                = MVM_op_get_op(MVM_OP_sp_fastcreate);
-        ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-        ins->operands[0]         = target;
-        ins->operands[1].lit_i16 = sizeof(MVMArray);
-        ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
-        MVM_spesh_get_facts(tc, g, type)->usages--;
+        if (!(st->mode_flags & MVM_FINALIZE_TYPE)) {
+            MVMSpeshOperand target   = ins->operands[0];
+            MVMSpeshOperand type     = ins->operands[1];
+            ins->info                = MVM_op_get_op(MVM_OP_sp_fastcreate);
+            ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0]         = target;
+            ins->operands[1].lit_i16 = sizeof(MVMArray);
+            ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+            MVM_spesh_get_facts(tc, g, type)->usages--;
+        }
         break;
     }
     }

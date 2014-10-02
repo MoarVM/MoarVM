@@ -22,6 +22,7 @@ struct MVMBootTypes {
     MVMObject *BOOTContinuation;
     MVMObject *BOOTQueue;
     MVMObject *BOOTAsync;
+    MVMObject *BOOTReentrantMutex;
 };
 
 /* Various raw types that don't need a HOW */
@@ -57,8 +58,17 @@ struct MVMStringConsts {
     MVMString *positional_delegate;
     MVMString *associative_delegate;
     MVMString *auto_viv_container;
+    MVMString *done;
+    MVMString *error;
+    MVMString *stdout_chars;
+    MVMString *stdout_bytes;
+    MVMString *stderr_chars;
+    MVMString *stderr_bytes;
+    MVMString *buf_type;
+    MVMString *write;
 };
 
+/* An entry in the representations registry. */
 struct MVMReprRegistry {
     /* name of the REPR */
     MVMString *name;
@@ -70,13 +80,19 @@ struct MVMReprRegistry {
     UT_hash_handle hash_handle;
 };
 
-#if MVM_HLL_PROFILE_CALLS
-typedef struct _MVMCallsiteProfileData {
-    MVMuint32 static_frame_id;
-    MVMuint8 *cuuid, *name;
+/* An entry in the persistent object IDs hash, used to give still-movable
+ * objects a lifetime-unique ID. */
+struct MVMObjectId {
+    /* The current object address. */
+    MVMObject *current;
 
-} MVMCallsiteProfileData;
-#endif
+    /* Then gen2 address that forms the persistent ID, and where we'll move
+     * the object to if it lives long enough. */
+    MVMCollectable *gen2_addr;
+
+    /* Hash handle. */
+    UT_hash_handle hash_handle;
+};
 
 /* Represents a MoarVM instance. */
 struct MVMInstance {
@@ -136,6 +152,9 @@ struct MVMInstance {
     /* Set of string constants. */
     MVMStringConsts str_consts;
 
+    /* int -> str cache */
+    MVMString **int_to_str_cache;
+
     /* Specialization installation mutex (global, as it's low contention, so
      * no real motivation to have it more fine-grained at present). */
     uv_mutex_t mutex_spesh_install;
@@ -143,10 +162,22 @@ struct MVMInstance {
     /* Log file for specializations, if we're to log them. */
     FILE *spesh_log_fh;
 
+    /* Log file for dynamic var performance, if we're to log it. */
+    FILE *dynvar_log_fh;
+
     /* Flag for if spesh (and certain spesh features) are enabled. */
     MVMint8 spesh_enabled;
     MVMint8 spesh_inline_enabled;
     MVMint8 spesh_osr_enabled;
+
+    /* Flag for if jit is enabled */
+    MVMint32 jit_enabled;
+
+    /* File for JIT logging */
+    FILE *jit_log_fh;
+
+    /* Directory name for JIT bytecode dumps */
+    char *jit_bytecode_dir;
 
     /* Number of representations registered so far. */
     MVMuint32 num_reprs;
@@ -182,6 +213,15 @@ struct MVMInstance {
     AO_t gc_ack;
     /* Linked list (via forwarder) of STables to free. */
     MVMSTable *stables_to_free;
+
+    /* How many bytes of data have we promoted from the nursery to gen2
+     * since we last did a full collection? */
+    AO_t gc_promoted_bytes_since_last_full;
+
+    /* Persistent object ID hash, used to give nursery objects a lifetime
+     * unique ID. Plus a lock to protect it. */
+    MVMObjectId *object_ids;
+    uv_mutex_t    mutex_object_ids;
 
     /* MVMThreads completed starting, running, and/or exited. */
     /* note: used atomically */
@@ -270,10 +310,13 @@ struct MVMInstance {
     /* Next type cache ID, to go in STable. */
     AO_t cur_type_cache_id;
 
-#if MVM_HLL_PROFILE_CALLS
-    /* allocated size of profile_data in count */
-    MVMuint32 callsite_index;
-    /* next index of record to store */
-    MVMuint32 profile_index;
-#endif
+    /* The current instrumentation level. Each time we turn on/off some kind
+     * of instrumentation, such as profiling, this is incremented. The next
+     * entry to a frame then knows it should instrument or switch back to an
+     * uninstrumented version. As a special case, when we start up this is set
+     * to 1 which also triggers frame verification. */
+    MVMuint32 instrumentation_level;
+
+    /* Whether profiling is turned on or not. */
+    MVMuint32 profiling;
 };

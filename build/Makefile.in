@@ -6,10 +6,14 @@ PERL   = @perl@
 RM     = @rm@
 CAT    = @cat@
 SHELL  = @sh@
+LUA    = @lua@
 CP     = $(PERL) -MExtUtils::Command -e cp
 MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 CHMOD  = $(PERL) -MExtUtils::Command -e chmod
 RM_RF  = $(PERL) -MExtUtils::Command -e rm_rf
+DYNASM = $(LUA) ./3rdparty/dynasm/dynasm.lua
+
+
 
 CONFIG    = @config@
 ADDCONFIG =
@@ -33,16 +37,15 @@ MASTDIR   = @mastdir@
 PKGCONFIGDIR = @prefix@/share/pkgconfig
 
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
-CINCLUDES = @ccinc@3rdparty/libuv/include \
-            @ccinc@3rdparty/libuv/src \
+CINCLUDES = @cincludes@ \
             @ccinc@3rdparty/libatomic_ops/src \
-            @ccinc@3rdparty/libtommath \
             @ccinc@@shaincludedir@ \
             @ccinc@3rdparty/linenoise \
             @ccinc@3rdparty/tinymt \
             @ccinc@3rdparty/dyncall/dynload \
             @ccinc@3rdparty/dyncall/dyncall \
             @ccinc@3rdparty/dyncall/dyncallback \
+            @ccinc@3rdparty/dynasm \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -59,6 +62,13 @@ PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
 PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
                  src/platform/posix/time@obj@ \
                  src/platform/posix/sys@obj@
+
+DASM_FLAGS_WIN32 = -D WIN32=1
+DASM_FLAGS_POSIX = -D POSIX=1
+JIT_WIN32_X64 = src/jit/emit_win32_x64@obj@
+JIT_POSIX_X64 = src/jit/emit_posix_x64@obj@
+JIT_STUB = src/jit/stub@obj@
+
 
 MAIN_OBJECTS = src/main@obj@
 
@@ -89,6 +99,11 @@ OBJECTS = src/core/callsite@obj@ \
           src/gc/allocation@obj@ \
           src/gc/worklist@obj@ \
           src/gc/roots@obj@ \
+          src/gc/collect@obj@ \
+          src/gc/gen2@obj@ \
+          src/gc/wb@obj@ \
+          src/gc/objectid@obj@ \
+          src/gc/finalize@obj@ \
           src/io/io@obj@ \
           src/io/eventloop@obj@ \
           src/io/syncfile@obj@ \
@@ -102,9 +117,6 @@ OBJECTS = src/core/callsite@obj@ \
           src/io/filewatchers@obj@ \
           src/io/signals@obj@ \
           src/io/asyncsocket@obj@ \
-          src/gc/collect@obj@ \
-          src/gc/gen2@obj@ \
-          src/gc/wb@obj@ \
           src/6model/reprs@obj@ \
           src/6model/reprconv@obj@ \
           src/6model/containers@obj@ \
@@ -166,6 +178,9 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/threshold@obj@ \
           src/spesh/inline@obj@ \
           src/spesh/osr@obj@ \
+          src/jit/graph@obj@ \
+          src/jit/compile@obj@ \
+          src/jit/log@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
@@ -175,8 +190,13 @@ OBJECTS = src/core/callsite@obj@ \
           src/strings/utf16@obj@ \
           src/strings/windows1252@obj@ \
           src/math/bigintops@obj@ \
+          src/profiler/instrument@obj@ \
+          src/profiler/log@obj@ \
+          src/profiler/profile@obj@ \
           src/moar@obj@ \
-          @platform@
+          @platform@ \
+          @jit@
+
 
 HEADERS = src/moar.h \
           src/types.h \
@@ -225,6 +245,8 @@ HEADERS = src/moar.h \
           src/gc/roots.h \
           src/gc/gen2.h \
           src/gc/wb.h \
+          src/gc/objectid.h \
+          src/gc/finalize.h \
           src/6model/reprs.h \
           src/6model/reprconv.h \
           src/6model/bootstrap.h \
@@ -289,17 +311,24 @@ HEADERS = src/moar.h \
           src/strings/decode_stream.h \
           src/strings/ascii.h \
           src/strings/utf8.h \
+          src/strings/iter.h \
           src/strings/ops.h \
           src/strings/unicode.h \
           src/strings/latin1.h \
           src/strings/utf16.h \
           src/strings/windows1252.h \
           src/math/bigintops.h \
+          src/profiler/instrument.h \
+          src/profiler/log.h \
+          src/profiler/profile.h \
           src/platform/mmap.h \
           src/platform/time.h \
           src/platform/threads.h \
           src/platform/io.h \
           src/platform/sys.h \
+          src/jit/graph.h \
+          src/jit/compile.h \
+          src/jit/log.h \
           src/gen/config.h \
           3rdparty/uthash.h
 
@@ -321,7 +350,7 @@ UV_UNIX = 3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/unix/stream@obj@ \
           3rdparty/libuv/src/unix/tcp@obj@ \
           3rdparty/libuv/src/unix/thread@obj@ \
-          3rdparty/libuv/src/unix/threadpool@obj@ \
+          3rdparty/libuv/src/threadpool@obj@ \
           3rdparty/libuv/src/unix/timer@obj@ \
           3rdparty/libuv/src/unix/tty@obj@ \
           3rdparty/libuv/src/unix/udp@obj@
@@ -385,8 +414,10 @@ install: all
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/mast
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/math
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/platform
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/profiler
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/spesh
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/strings
+	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/jit
 	$(CP) 3rdparty/*.h $(DESTDIR)$(PREFIX)/include/moar
 	$(CP) src/*.h $(DESTDIR)$(PREFIX)/include/moar
 	$(CP) src/6model/*.h $(DESTDIR)$(PREFIX)/include/moar/6model
@@ -398,8 +429,10 @@ install: all
 	$(CP) src/mast/*.h $(DESTDIR)$(PREFIX)/include/moar/mast
 	$(CP) src/math/*.h $(DESTDIR)$(PREFIX)/include/moar/math
 	$(CP) src/platform/*.h $(DESTDIR)$(PREFIX)/include/moar/platform
+	$(CP) src/profiler/*.h $(DESTDIR)$(PREFIX)/include/moar/profiler
 	$(CP) src/spesh/*.h $(DESTDIR)$(PREFIX)/include/moar/spesh
 	$(CP) src/strings/*.h $(DESTDIR)$(PREFIX)/include/moar/strings
+	$(CP) src/jit/*.h $(DESTDIR)$(PREFIX)/include/moar/jit
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libuv
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/armcc
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/gcc
@@ -427,7 +460,6 @@ install: all
 	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/loadstore/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/loadstore
 	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/msftc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/msftc
 	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/sunc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/sunc
-	$(CP) 3rdparty/libtommath/*.h $(DESTDIR)$(PREFIX)/include/libtommath
 	$(CP) 3rdparty/msinttypes/*.h $(DESTDIR)$(PREFIX)/include/msinttypes
 	$(CP) 3rdparty/sha1/*.h $(DESTDIR)$(PREFIX)/include/sha1
 	$(CP) 3rdparty/linenoise/*.h $(DESTDIR)$(PREFIX)/include/linenoise
@@ -435,6 +467,7 @@ install: all
 	$(CP) 3rdparty/dyncall/dynload/*.h $(DESTDIR)$(PREFIX)/include/dyncall
 	$(CP) 3rdparty/dyncall/dyncall/*.h $(DESTDIR)$(PREFIX)/include/dyncall
 	$(CP) 3rdparty/dyncall/dyncallback/*.h $(DESTDIR)$(PREFIX)/include/dyncall
+@install@
 
 lib: @moar@
 
@@ -495,6 +528,7 @@ switch no-tracing no-cgoto:
 	$(MSG) compiling $@
 	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @objflags@ $(CINCLUDES) @ccout@$@ $*.c
 
+
 src/main@obj@: src/main.c
 	$(MSG) compiling $@
 	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @mainflags@ $(CINCLUDES) @ccout@$@ $*.c
@@ -502,6 +536,17 @@ src/main@obj@: src/main.c
 src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(MSG) generating $@
 	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
+
+3rdparty/dynasm/minilua@exe@: 3rdparty/dynasm/minilua.c
+	$(CC) $(CFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
+
+src/jit/emit_posix_x64.c: $(LUA) src/jit/emit_x64.dasc
+	$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ src/jit/emit_x64.dasc
+
+src/jit/emit_win32_x64.c: $(LUA) src/jit/emit_x64.dasc
+	$(DYNASM) $(DASM_FLAGS_WIN32) -o $@ src/jit/emit_x64.dasc
+
+dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
 
 @uvlib@: $(UV_OBJECTS)
 	$(MSG) linking $@

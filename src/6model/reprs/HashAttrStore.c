@@ -31,7 +31,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     HASH_ITER(hash_handle, src_body->hash_head, current, tmp) {
         size_t klen;
         void *kdata;
-        MVMHashEntry *new_entry = malloc(sizeof(MVMHashEntry));
+        MVMHashEntry *new_entry = MVM_malloc(sizeof(MVMHashEntry));
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
         extract_key(tc, &kdata, &klen, new_entry->key);
@@ -88,7 +88,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         /* first check whether we must update the old entry. */
         HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
         if (!entry) {
-            entry = malloc(sizeof(MVMHashEntry));
+            entry = MVM_malloc(sizeof(MVMHashEntry));
             HASH_ADD_KEYPTR(hash_handle, body->hash_head, kdata, klen, entry);
         }
         else
@@ -117,13 +117,20 @@ static MVMint64 hint_for(MVMThreadContext *tc, MVMSTable *st, MVMObject *class_h
     return MVM_NO_HINT;
 }
 
+
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Compose the representation. */

@@ -8,13 +8,12 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, MVMObject *result_typ
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t i;
 
-    result->body.codes  = bytes;
-    result->body.graphs = bytes;
-    result->body.flags  = MVM_STRING_TYPE_INT32;
-    result->body.int32s = malloc(sizeof(MVMint32) * bytes);
+    result->body.num_graphs      = bytes;
+    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMint32) * bytes);
 
     for (i = 0; i < bytes; i++)
-        result->body.int32s[i] = latin1[i];
+        result->body.storage.blob_32[i] = latin1[i];
 
     return result;
 }
@@ -25,7 +24,7 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                     MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
     MVMint32 count = 0, total = 0;
     MVMint32 bufsize;
-    MVMCodepoint32 *buffer;
+    MVMGrapheme32 *buffer;
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
     MVMint32 last_accept_pos;
@@ -41,7 +40,7 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 
     /* Take length of head buffer as initial guess. */
     bufsize = ds->bytes_head->length;
-    buffer = malloc(bufsize * sizeof(MVMCodepoint32));
+    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
@@ -50,15 +49,15 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
         unsigned char *bytes = cur_bytes->bytes;
         while (pos < cur_bytes->length) {
-            MVMCodepoint32 codepoint = bytes[pos++];
+            MVMCodepoint codepoint = bytes[pos++];
             if (count == bufsize) {
                 /* We filled the buffer. Attach this one to the buffers
                  * linked list, and continue with a new one. */
                 MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                buffer = malloc(bufsize * sizeof(MVMCodepoint32));
+                buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
                 count = 0;
             }
-            buffer[count++] = codepoint;
+            buffer[count++] = codepoint; /* XXX NFG needs this to change. */
             last_accept_bytes = cur_bytes;
             last_accept_pos = pos;
             total++;
@@ -82,10 +81,10 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
  * will become a ?. The result string is NULL terminated, but the specified
  * size is the non-null part. */
 MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
-    /* latin-1 is a single byte encoding, so each grapheme will just become
+    /* Latin-1 is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
-    MVMStringIndex strgraphs = NUM_GRAPHS(str);
+    MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
     MVMuint8 *result;
     size_t i;
@@ -96,15 +95,26 @@ MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str,
     if (length < -1 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
-    result = malloc(lengthu + 1);
-    for (i = 0; i < lengthu; i++) {
-        MVMint32 codepoint = MVM_string_get_codepoint_at_nocheck(tc, str, start + i);
-        if (codepoint >= 0 && codepoint < 256)
-            result[i] = (MVMuint8)codepoint;
-        else
-            result[i] = '?';
+    result = MVM_malloc(lengthu + 1);
+    if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
+        /* No encoding needed; directly copy. */
+        memcpy(result, str->body.storage.blob_ascii, lengthu);
+        result[lengthu] = 0;
     }
-    result[i] = 0;
+    else {
+        MVMuint32 i = 0;
+        MVMCodepointIter ci;
+        MVM_string_ci_init(tc, &ci, str);
+        while (MVM_string_ci_has_more(tc, &ci)) {
+            MVMCodepoint ord = MVM_string_ci_get_codepoint(tc, &ci);
+            if (ord >= 0 && ord <= 255)
+                result[i] = (MVMuint8)ord;
+            else
+                result[i] = '?';
+            i++;
+        }
+        result[i] = 0;
+    }
     if (output_size)
         *output_size = lengthu;
     return result;

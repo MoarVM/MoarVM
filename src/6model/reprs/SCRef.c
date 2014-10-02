@@ -19,7 +19,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMObject *root_codes, *rep_indexes, *rep_scs, *owned_objects;
+    MVMObject *root_codes, *rep_indexes, *rep_scs, *owned_objects, *rm;
 
     MVMInstance       *instance     = tc->instance;
     MVMObject         *BOOTIntArray = instance->boot_types.BOOTIntArray;
@@ -29,6 +29,9 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
     rep_indexes = REPR(BOOTIntArray)->allocate(tc, STABLE(BOOTIntArray));
     MVM_ASSIGN_REF(tc, &(root->header), sc->rep_indexes, rep_indexes);
+
+    rm = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTReentrantMutex);
+    MVM_ASSIGN_REF(tc, &(root->header), sc->mutex, rm);
 
     root_codes = REPR(instance->boot_types.BOOTArray)->allocate(tc, STABLE(instance->boot_types.BOOTArray));
     MVM_ASSIGN_REF(tc, &(root->header), sc->root_codes, root_codes);
@@ -65,6 +68,17 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         MVM_gc_worklist_add(tc, worklist, &sc->root_stables[i]);
 
     MVM_gc_worklist_add(tc, worklist, &sc->sc);
+    MVM_gc_worklist_add(tc, worklist, &sc->mutex);
+
+    /* Mark serialization reader, if we have one. */
+    if (sc->sr) {
+        MVM_gc_worklist_add(tc, worklist, &(sc->sr->root.sc));
+        for (i = 0; i < sc->sr->root.num_dependencies; i++)
+            MVM_gc_worklist_add(tc, worklist, &(sc->sr->root.dependent_scs[i]));
+        MVM_gc_worklist_add(tc, worklist, &(sc->sr->root.string_heap));
+        MVM_gc_worklist_add(tc, worklist, &(sc->sr->codes_list));
+        MVM_gc_worklist_add(tc, worklist, &(sc->sr->current_object));
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -80,18 +94,33 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     tc->instance->all_scs[sc->body->sc_idx] = NULL;
     uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
 
-    /* Free manually managed STable list memory and body. */
+    /* Free manually managed STable list memory. */
     MVM_checked_free_null(sc->body->root_stables);
+
+    /* If we have a serialization reader, clean that up too. */
+    if (sc->body->sr) {
+        if (sc->body->sr->data_needs_free)
+            MVM_checked_free_null(sc->body->sr->data);
+        MVM_checked_free_null(sc->body->sr->contexts);
+        MVM_checked_free_null(sc->body->sr);
+    }
+
+    /* Free body. */
     MVM_checked_free_null(sc->body);
 }
 
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Compose the representation. */

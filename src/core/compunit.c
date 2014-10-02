@@ -8,18 +8,24 @@
 
 /* Creates a compilation unit from a byte array. */
 MVMCompUnit * MVM_cu_from_bytes(MVMThreadContext *tc, MVMuint8 *bytes, MVMuint32 size) {
-    /* Create compilation unit data structure. */
-    MVMCompUnit *cu = (MVMCompUnit *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTCompUnit);
+    /* Create compilation unit data structure. Allocate it in gen2 always, so
+     * it will never move (the JIT relies on this). */
+    MVMCompUnit *cu;
+    MVM_gc_allocate_gen2_default_set(tc);
+    cu = (MVMCompUnit *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTCompUnit);
     cu->body.data_start = bytes;
     cu->body.data_size  = size;
+    MVM_gc_allocate_gen2_default_clear(tc);
 
     /* Process the input. */
     MVMROOT(tc, cu, {
         MVM_bytecode_unpack(tc, cu);
     });
 
-    /* Resolve HLL config. */
+    /* Resolve HLL config. It may contain nursery pointers, so fire write
+     * barrier on it. */
     cu->body.hll_config = MVM_hll_get_config_for(tc, cu->body.hll_name);
+    MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
 
     return cu;
 }
@@ -66,7 +72,7 @@ MVMuint16 MVM_cu_callsite_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMCallsite
     MVMuint16 found = 0;
     MVMuint16 idx;
 
-    uv_mutex_lock(cu->body.update_pools_mutex);
+    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
 
     /* See if we already know this callsite. */
     for (idx = 0; idx < cu->body.num_callsites; idx++)
@@ -77,13 +83,13 @@ MVMuint16 MVM_cu_callsite_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMCallsite
     if (!found) {
         /* Not known; let's add it. */
         idx = cu->body.num_callsites;
-        cu->body.callsites = realloc(cu->body.callsites,
+        cu->body.callsites = MVM_realloc(cu->body.callsites,
             (idx + 1) * sizeof(MVMCallsite *));
         cu->body.callsites[idx] = cs;
         cu->body.num_callsites++;
     }
 
-    uv_mutex_unlock(cu->body.update_pools_mutex);
+    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
 
     return idx;
 }
@@ -93,7 +99,7 @@ MVMuint32 MVM_cu_string_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMString *st
     MVMuint32 found = 0;
     MVMuint32 idx;
 
-    uv_mutex_lock(cu->body.update_pools_mutex);
+    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
 
     /* See if we already know this string; only consider those added already by
      * inline, since we don't intern and don't want this to be costly to hunt. */
@@ -105,13 +111,13 @@ MVMuint32 MVM_cu_string_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMString *st
     if (!found) {
         /* Not known; let's add it. */
         idx = cu->body.num_strings;
-        cu->body.strings = realloc(cu->body.strings,
+        cu->body.strings = MVM_realloc(cu->body.strings,
             (idx + 1) * sizeof(MVMString *));
         cu->body.strings[idx] = str;
         cu->body.num_strings++;
     }
 
-    uv_mutex_unlock(cu->body.update_pools_mutex);
+    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
 
     return idx;
 }

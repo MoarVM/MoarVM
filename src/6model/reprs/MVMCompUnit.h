@@ -13,8 +13,22 @@ struct MVMExtOpRecord {
      * the instruction pointer. */
     MVMuint16 operand_bytes;
 
+    /* Indicates the JIT should not emit a call to this op, because it needs
+     * to be used in an interpreter context. */
+    MVMuint16 no_jit;
+
+    /* Indicates the extop allocates and that its output is some allocated
+     * object. Used by allocation profiling. */
+    MVMuint16 allocating;
+
     /* Read from the bytecode stream. */
     MVMuint8 operand_descriptor[MVM_MAX_OPERANDS];
+
+    /* Specialization function. */
+    MVMExtOpSpesh *spesh;
+
+    /* Discover facts for spesh. */
+    MVMExtOpFactDiscover *discover;
 };
 
 /* How to release memory. */
@@ -88,9 +102,14 @@ struct MVMCompUnitBody {
     /* Handle, if any, associated with a mapped file. */
     void *handle;
 
-    /* Lock to be taken if we want to add extra string, callsite, or coderef
-     * constants to the pools (done during inlining). */
-    uv_mutex_t *update_pools_mutex;
+    /* MVMReentrantLock to be taken if we want to add extra string,
+     * callsite, or coderef constants to the pools (done during
+     * inlining) or when we finish deserializing a frame, thus
+     * vivifying its lexicals. */
+    MVMObject *update_mutex;
+
+    /* Version of the bytecode format we deserialized this comp unit from. */
+    MVMuint16 bytecode_version;
 };
 struct MVMCompUnit {
     MVMObject common;

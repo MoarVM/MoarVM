@@ -44,10 +44,9 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
     utf16_end = utf16 + bytes;
 
     /* possibly allocating extra space; oh well */
-    result->body.int32s = malloc(sizeof(MVMint32) * bytes / 2);
+    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes / 2);
 
     for (; utf16 < utf16_end; utf16 += 2) {
-
         MVMuint32 value = (utf16[high] << 8) + utf16[low];
         MVMuint32 value2;
 
@@ -72,12 +71,12 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
             value = 0x10000 + ((value & 0x3FF) << 10) + (value2 & 0x3FF);
         }
         /* TODO: check for invalid values */
-        result->body.int32s[str_pos++] = (MVMint32)value;
+        result->body.storage.blob_32[str_pos++] = (MVMGrapheme32)value;
     }
 
     /* result->body.codes  = str_pos; */
-    result->body.flags = MVM_STRING_TYPE_INT32;
-    result->body.graphs = str_pos;
+    result->body.storage_type = MVM_STRING_GRAPHEME_32;
+    result->body.num_graphs   = str_pos;
 
     return result;
 }
@@ -87,11 +86,12 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
  * on the end.) */
 MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
     MVMuint32 startu = (MVMuint32)start;
-    MVMStringIndex strgraphs = NUM_GRAPHS(str);
+    MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - start : length);
     MVMuint16 *result;
     size_t str_pos;
     MVMuint16 *result_pos;
+    MVMCodepointIter ci;
 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
@@ -99,12 +99,12 @@ MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, 
     if (length < 0 || start + length > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
-    /* make the result grow as needed instead of allocating so much to start? */
-    result = malloc(length * 4 + 2);
+    /* Kke the result grow as needed instead of allocating so much to start? */
+    result = MVM_malloc(length * 4 + 2);
     result_pos = result;
-    for (str_pos = 0; str_pos < length; str_pos++) {
-        MVMCodepoint32 value = MVM_string_get_codepoint_at_nocheck(tc, str, start + str_pos);
-
+    MVM_string_ci_init(tc, &ci, str);
+    while (MVM_string_ci_has_more(tc, &ci)) {
+        MVMCodepoint value = MVM_string_ci_get_codepoint(tc, &ci);
         if (value < 0x10000) {
             result_pos[0] = value;
             result_pos++;
@@ -124,5 +124,5 @@ MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, 
 
 /* Encodes the whole string, double-NULL terminated. */
 MVMuint8 * MVM_string_utf16_encode(MVMThreadContext *tc, MVMString *str) {
-    return MVM_string_utf16_encode_substr(tc, str, NULL, 0, NUM_GRAPHS(str));
+    return MVM_string_utf16_encode_substr(tc, str, NULL, 0, MVM_string_graphs(tc, str));
 }

@@ -9,7 +9,7 @@ static void clear_tag(MVMThreadContext *tc, void *sr_data) {
     while (*update) {
         if (*update == sr_data) {
             *update = (*update)->next;
-            free(sr_data);
+            MVM_free(sr_data);
             return;
         }
         update = &((*update)->next);
@@ -19,7 +19,7 @@ static void clear_tag(MVMThreadContext *tc, void *sr_data) {
 void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag, 
                             MVMObject *code, MVMRegister *res_reg) {
     /* Save the tag. */
-    MVMContinuationTag *tag_record = malloc(sizeof(MVMContinuationTag));
+    MVMContinuationTag *tag_record = MVM_malloc(sizeof(MVMContinuationTag));
     tag_record->tag = tag;
     tag_record->active_handlers = tc->active_handlers;
     tag_record->next = tc->cur_frame->continuation_tags;
@@ -75,6 +75,9 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
         ((MVMContinuation *)cont)->body.addr    = *tc->interp_cur_op;
         ((MVMContinuation *)cont)->body.res_reg = res_reg;
         ((MVMContinuation *)cont)->body.root    = MVM_frame_inc_ref(tc, root_frame);
+        if (tc->instance->profiling)
+            ((MVMContinuation *)cont)->body.prof_cont =
+                MVM_profile_log_continuation_control(tc, root_frame);
     });
 
     /* Save and clear any active exception handler(s) added since reset. */
@@ -164,6 +167,10 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
         tc->active_handlers = cont->body.active_handlers;
         cont->body.active_handlers = NULL;
     }
+
+    /* If we're profiling, get it back in sync. */
+    if (cont->body.prof_cont && tc->instance->profiling)
+        MVM_profile_log_continuation_invoke(tc, cont->body.prof_cont);
 
     /* Provided we have it, invoke the specified code, putting its result in
      * the specified result register. Otherwise, put a NULL there. */

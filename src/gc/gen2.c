@@ -3,16 +3,16 @@
 /* Creates a new second generation allocator. */
 MVMGen2Allocator * MVM_gc_gen2_create(MVMInstance *i) {
     /* Create allocator data structure. */
-    MVMGen2Allocator *al = malloc(sizeof(MVMGen2Allocator));
+    MVMGen2Allocator *al = MVM_malloc(sizeof(MVMGen2Allocator));
 
     /* Create empty size classes array data structure. */
-    al->size_classes = malloc(sizeof(MVMGen2SizeClass) * MVM_GEN2_BINS);
+    al->size_classes = MVM_malloc(sizeof(MVMGen2SizeClass) * MVM_GEN2_BINS);
     memset(al->size_classes, 0, sizeof(MVMGen2SizeClass) * MVM_GEN2_BINS);
 
     /* Set up overflows area. */
     al->alloc_overflows = MVM_GEN2_OVERFLOWS;
     al->num_overflows = 0;
-    al->overflows = malloc(al->alloc_overflows * sizeof(MVMCollectable *));
+    al->overflows = MVM_malloc(al->alloc_overflows * sizeof(MVMCollectable *));
 
     return al;
 }
@@ -24,8 +24,8 @@ static void setup_bin(MVMGen2Allocator *al, MVMuint32 bin) {
 
     /* We'll just allocate a single page to start off with. */
     al->size_classes[bin].num_pages = 1;
-    al->size_classes[bin].pages     = malloc(sizeof(void *) * al->size_classes[bin].num_pages);
-    al->size_classes[bin].pages[0]  = malloc(page_size);
+    al->size_classes[bin].pages     = MVM_malloc(sizeof(void *) * al->size_classes[bin].num_pages);
+    al->size_classes[bin].pages[0]  = MVM_malloc(page_size);
 
     /* Set up allocation position and limit. */
     al->size_classes[bin].alloc_pos = al->size_classes[bin].pages[0];
@@ -43,9 +43,9 @@ static void add_page(MVMGen2Allocator *al, MVMuint32 bin) {
     /* Add the extra page. */
     MVMuint32 cur_page = al->size_classes[bin].num_pages;
     al->size_classes[bin].num_pages++;
-    al->size_classes[bin].pages = realloc(al->size_classes[bin].pages,
+    al->size_classes[bin].pages = MVM_realloc(al->size_classes[bin].pages,
         sizeof(void *) * al->size_classes[bin].num_pages);
-    al->size_classes[bin].pages[cur_page] = malloc(page_size);
+    al->size_classes[bin].pages[cur_page] = MVM_malloc(page_size);
 
     /* Set up allocation position and limit. */
     al->size_classes[bin].alloc_pos = al->size_classes[bin].pages[cur_page];
@@ -91,12 +91,12 @@ void * MVM_gc_gen2_allocate(MVMGen2Allocator *al, MVMuint32 size) {
     }
     else {
         /* We're beyond the size class bins, so resort to malloc. */
-        result = malloc(size);
+        result = MVM_malloc(size);
 
         /* Add to overflows list. */
         if (al->num_overflows == al->alloc_overflows) {
             al->alloc_overflows *= 2;
-            al->overflows = realloc(al->overflows,
+            al->overflows = MVM_realloc(al->overflows,
                 al->alloc_overflows * sizeof(MVMCollectable *));
         }
         al->overflows[al->num_overflows++] = result;
@@ -122,21 +122,21 @@ void MVM_gc_gen2_destroy(MVMInstance *i, MVMGen2Allocator *al) {
     /* Remove all pages. */
     for (j = 0; j < MVM_GEN2_BINS; j++) {
         for (k = 0; k < al->size_classes[j].num_pages; k++)
-            free(al->size_classes[j].pages[k]);
-        free(al->size_classes[j].pages);
+            MVM_free(al->size_classes[j].pages[k]);
+        MVM_free(al->size_classes[j].pages);
     }
 
     /* Free any allocated overflows. */
     for (j = 0; j < al->num_overflows; j++)
         if (al->overflows[j])
-            free(al->overflows[j]);
+            MVM_free(al->overflows[j]);
 
     /* Clean up allocator data structure. */
-    free(al->size_classes);
+    MVM_free(al->size_classes);
     al->size_classes = NULL;
-    free(al->overflows);
+    MVM_free(al->overflows);
     al->overflows = NULL;
-    free(al);
+    MVM_free(al);
 }
 
 /* blindly move pages from one gen2 to another */
@@ -165,14 +165,14 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
 
         if (dest_gen2->size_classes[bin].pages == NULL) {
             dest_gen2->size_classes[bin].pages
-                = malloc(sizeof(void *) * gen2->size_classes[bin].num_pages);
+                = MVM_malloc(sizeof(void *) * gen2->size_classes[bin].num_pages);
             dest_gen2->size_classes[bin].num_pages = gen2->size_classes[bin].num_pages;
         }
         else {
             dest_gen2->size_classes[bin].num_pages
                 += gen2->size_classes[bin].num_pages;
             dest_gen2->size_classes[bin].pages
-                = realloc(dest_gen2->size_classes[bin].pages,
+                = MVM_realloc(dest_gen2->size_classes[bin].pages,
                     sizeof(void *) * dest_gen2->size_classes[bin].num_pages);
         }
 
@@ -226,7 +226,7 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
         dest_gen2->size_classes[bin].alloc_pos = gen2->size_classes[bin].alloc_pos;
         dest_gen2->size_classes[bin].alloc_limit = gen2->size_classes[bin].alloc_limit;
 
-        free(gen2->size_classes[bin].pages);
+        MVM_free(gen2->size_classes[bin].pages);
         gen2->size_classes[bin].pages = NULL;
         gen2->size_classes[bin].num_pages = 0;
     }
@@ -237,7 +237,7 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
         }
         src->num_gen2roots = 0;
         src->alloc_gen2roots = 0;
-        free(src->gen2roots);
+        MVM_free(src->gen2roots);
         src->gen2roots = NULL;
     }
 }

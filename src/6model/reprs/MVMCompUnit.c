@@ -26,9 +26,10 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMCompUnitBody *body = (MVMCompUnitBody *)data;
-    body->update_pools_mutex = malloc(sizeof(uv_mutex_t));
-    uv_mutex_init(body->update_pools_mutex);
+    MVMROOT(tc, root, {
+        MVMObject *rm = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTReentrantMutex);
+        MVM_ASSIGN_REF(tc, &(root->header), ((MVMCompUnit *)root)->body.update_mutex, rm);
+    });
 }
 
 /* Copies the body of one object to another. */
@@ -65,6 +66,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         /* Unresolved sc bodies' handles are marked by the GC instance root marking. */
     }
 
+    MVM_gc_worklist_add(tc, worklist, &body->update_mutex);
+
     /* Add various other referenced strings, etc. */
     MVM_gc_worklist_add(tc, worklist, &body->hll_name);
     MVM_gc_worklist_add(tc, worklist, &body->filename);
@@ -98,18 +101,22 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     default:
         MVM_panic(MVM_exitcode_NYI, "Invalid deallocate of %u during MVMCompUnit gc_free", body->deallocate);
     }
-    uv_mutex_destroy(body->update_pools_mutex);
-    free(body->update_pools_mutex);
 }
 
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     /* XXX in the end we'll support inlining of this... */
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+    return &storage_spec;
 }
 
 /* Compose the representation. */

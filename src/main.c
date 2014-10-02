@@ -38,8 +38,9 @@ static const char *const FLAGS[] = {
 };
 
 static const char USAGE[] = "\
-USAGE: moar [--dump] [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [program args]\n\
-       moar [--help]\n\
+USAGE: moar [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [program args]\n\
+       moar --dump input.moarvm\n\
+       moar --help\n\
 \n\
     --help            display this message\n\
     --dump            dump the bytecode to stdout instead of executing\n\
@@ -47,7 +48,18 @@ USAGE: moar [--dump] [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [prog
     --crash           abort instead of exiting on unhandled exception\n\
     --libpath         specify path loadbytecode should search in\n\
     --version         show version information"
-    TRACING_USAGE;
+    TRACING_USAGE
+    "\n\
+\n\
+The following environment variables are respected:\n\
+\n\
+    MVM_SPESH_DISABLE           Disables all dynamic optimization\n\
+    MVM_SPESH_INLINE_DISABLE    Disables inlining\n\
+    MVM_SPESH_OSR_DISABLE       Disables on-stack replacement\n\
+    MVM_JIT_DISABLE             Disables JITting to machine code\n\
+    MVM_SPESH_LOG               Specifies a dynamic optimizer log file\n\
+    MVM_JIT_LOG                 Specifies a JIT-compiler log file\n\
+";
 
 static int cmp_flag(const void *key, const void *value)
 {
@@ -93,7 +105,6 @@ int main(int argc, char *argv[])
     int argi         = 1;
     int lib_path_i   = 0;
     int flag;
-
     for (; (flag = parse_flag(argv[argi])) != NOT_A_FLAG; ++argi) {
         switch (flag) {
             case FLAG_CRASH:
@@ -131,9 +142,25 @@ int main(int argc, char *argv[])
             lib_path[lib_path_i++] = argv[argi] + strlen("--libpath=");
             continue;
 
-            case FLAG_VERSION:
-            printf("This is MoarVM version %s\n", MVM_VERSION);
+            case FLAG_VERSION: {
+            char *spesh_disable;
+            char *jit_disable;
+
+            printf("This is MoarVM version %s", MVM_VERSION);
+            if (MVM_jit_support()) {
+                printf(" built with JIT support");
+
+                spesh_disable = getenv("MVM_SPESH_DISABLE");
+                jit_disable = getenv("MVM_JIT_DISABLE");
+                if (spesh_disable && strlen(spesh_disable) != 0) {
+                    printf(" (disabled via MVM_SPESH_DISABLE)");
+                } else if (jit_disable && strlen(jit_disable) != 0) {
+                    printf(" (disabled via MVM_JIT_DISABLE)");
+                }
+            }
+            printf("\n");
             return EXIT_SUCCESS;
+            }
 
             default:
             fprintf(stderr, "ERROR: Unknown flag %s.\n\n%s\n", argv[argi], USAGE);

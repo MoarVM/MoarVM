@@ -36,6 +36,22 @@ void MVM_repr_compose(MVMThreadContext *tc, MVMObject *type, MVMObject *obj) {
     REPR(type)->compose(tc, STABLE(type), obj);
 }
 
+MVM_PUBLIC void MVM_repr_pos_set_elems(MVMThreadContext *tc, MVMObject *obj, MVMint64 elems) {
+    REPR(obj)->pos_funcs.set_elems(tc, STABLE(obj), obj,
+        OBJECT_BODY(obj), elems);
+}
+
+MVM_PUBLIC void MVM_repr_pos_splice(MVMThreadContext *tc, MVMObject *obj, MVMObject *replacement, MVMint64 offset, MVMint64 count) {
+    REPR(obj)->pos_funcs.splice(tc, STABLE(obj), obj,
+        OBJECT_BODY(obj), replacement,
+        offset, count);
+}
+
+MVM_PUBLIC MVMint64 MVM_repr_exists_pos(MVMThreadContext *tc, MVMObject *obj, MVMint64 index) {
+    return REPR(obj)->pos_funcs.exists_pos(tc,
+        STABLE(obj), obj, OBJECT_BODY(obj), index);
+}
+
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
     MVMRegister value;
     REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
@@ -58,10 +74,13 @@ MVMString * MVM_repr_at_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx
 }
 
 MVMObject * MVM_repr_at_pos_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
-    MVMRegister value;
-    REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
-        idx, &value, MVM_reg_obj);
-    return value.o;
+    if (IS_CONCRETE(obj)) {
+            MVMRegister value;
+            REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                                        idx, &value, MVM_reg_obj);
+            return value.o;
+    }
+    return NULL;
 }
 
 void MVM_repr_bind_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVMint64 value) {
@@ -148,6 +167,34 @@ void MVM_repr_unshift_o(MVMThreadContext *tc, MVMObject *obj, MVMObject *unshift
         value, MVM_reg_obj);
 }
 
+MVMint64 MVM_repr_pop_i(MVMThreadContext *tc, MVMObject *obj) {
+    MVMRegister value;
+    REPR(obj)->pos_funcs.pop(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &value, MVM_reg_int64);
+    return value.i64;
+}
+
+MVMnum64 MVM_repr_pop_n(MVMThreadContext *tc, MVMObject *obj) {
+    MVMRegister value;
+    REPR(obj)->pos_funcs.pop(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &value, MVM_reg_num64);
+    return value.n64;
+}
+
+MVMString * MVM_repr_pop_s(MVMThreadContext *tc, MVMObject *obj) {
+    MVMRegister value;
+    REPR(obj)->pos_funcs.pop(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &value, MVM_reg_str);
+    return value.s;
+}
+
+MVMObject * MVM_repr_pop_o(MVMThreadContext *tc, MVMObject *obj) {
+    MVMRegister value;
+    REPR(obj)->pos_funcs.pop(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &value, MVM_reg_obj);
+    return value.o;
+}
+
 MVMint64 MVM_repr_shift_i(MVMThreadContext *tc, MVMObject *obj) {
     MVMRegister value;
     REPR(obj)->pos_funcs.shift(tc, STABLE(obj), obj, OBJECT_BODY(obj),
@@ -177,10 +224,13 @@ MVMObject * MVM_repr_shift_o(MVMThreadContext *tc, MVMObject *obj) {
 }
 
 MVMObject * MVM_repr_at_key_o(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
-    MVMRegister value;
-    REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
-        (MVMObject *)key, &value, MVM_reg_obj);
-    return value.o;
+    if (IS_CONCRETE(obj)) {
+        MVMRegister value;
+        REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                                    (MVMObject *)key, &value, MVM_reg_obj);
+        return value.o;
+    }
+    return NULL;
 }
 
 void MVM_repr_bind_key_o(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMObject *val) {
@@ -251,4 +301,68 @@ MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, MVMString *v
         MVM_repr_set_str(tc, res, val);
     });
     return res;
+}
+
+MVM_PUBLIC MVMint64 MVM_repr_get_attr_i(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint) {
+    MVMRegister result_reg;
+    if (!IS_CONCRETE(object))
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+    REPR(object)->attr_funcs.get_attribute(tc,
+            STABLE(object), object, OBJECT_BODY(object),
+            type, name,
+            hint, &result_reg, MVM_reg_int64);
+    return result_reg.i64;
+}
+
+MVM_PUBLIC MVMnum64 MVM_repr_get_attr_n(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint) {
+    MVMRegister result_reg;
+    if (!IS_CONCRETE(object))
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+    REPR(object)->attr_funcs.get_attribute(tc,
+            STABLE(object), object, OBJECT_BODY(object),
+            type, name,
+            hint, &result_reg, MVM_reg_num64);
+    return result_reg.n64;
+}
+
+MVM_PUBLIC MVMString * MVM_repr_get_attr_s(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint) {
+    MVMRegister result_reg;
+    if (!IS_CONCRETE(object))
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+    REPR(object)->attr_funcs.get_attribute(tc,
+            STABLE(object), object, OBJECT_BODY(object),
+            type, name,
+            hint, &result_reg, MVM_reg_str);
+    return result_reg.s;
+}
+
+MVM_PUBLIC MVMObject * MVM_repr_get_attr_o(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint) {
+    MVMRegister result_reg;
+    if (!IS_CONCRETE(object))
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+    REPR(object)->attr_funcs.get_attribute(tc,
+            STABLE(object), object, OBJECT_BODY(object),
+            type, name,
+            hint, &result_reg, MVM_reg_obj);
+    return result_reg.o;
+}
+
+
+MVM_PUBLIC void MVM_repr_bind_attr_inso(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint, MVMRegister value_reg, MVMuint16 kind) {
+    if (!IS_CONCRETE(object))
+        MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a type object");
+    REPR(object)->attr_funcs.bind_attribute(tc,
+            STABLE(object), object, OBJECT_BODY(object),
+            type, name,
+            hint, value_reg, kind);
+    MVM_SC_WB_OBJ(tc, object);
+}
+
+MVM_PUBLIC MVMint64    MVM_repr_compare_repr_id(MVMThreadContext *tc, MVMObject *object, MVMuint32 REPRId) {
+    return object && REPR(object)->ID == REPRId ? 1 : 0;
 }

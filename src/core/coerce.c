@@ -18,7 +18,11 @@ typedef struct {
 } BoolMethReturnData;
 
 MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
-    return str == NULL || !IS_CONCRETE(str) || NUM_GRAPHS(str) == 0 || (NUM_GRAPHS(str) == 1 && MVM_string_get_codepoint_at_nocheck(tc, str, 0) == 48) ? 0 : 1;
+    return str == NULL ||
+           !IS_CONCRETE(str) ||
+           MVM_string_graphs(tc, str) == 0 ||
+           (MVM_string_graphs(tc, str) == 1 && MVM_string_get_grapheme_at_nocheck(tc, str, 0) == 48)
+           ? 0 : 1;
 }
 
 /* Tries to do the boolification. It may be that a method call is needed. In
@@ -56,7 +60,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                 else {
                     /* Need to set up special return hook. */
                     MVMObject *code = MVM_frame_find_invokee(tc, bs->method, NULL);
-                    BoolMethReturnData *data = malloc(sizeof(BoolMethReturnData));
+                    BoolMethReturnData *data = MVM_malloc(sizeof(BoolMethReturnData));
                     data->true_addr  = true_addr;
                     data->false_addr = false_addr;
                     data->flip       = flip;
@@ -75,7 +79,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                 result = !IS_CONCRETE(obj) || REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj)) == 0.0 ? 0 : 1;
                 break;
             case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY:
-                result = !IS_CONCRETE(obj) || NUM_GRAPHS(REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj))) == 0 ? 0 : 1;
+                result = !IS_CONCRETE(obj) || MVM_string_graphs(tc, REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj))) == 0 ? 0 : 1;
                 break;
             case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO: {
                 MVMString *str;
@@ -128,7 +132,7 @@ void boolify_return(MVMThreadContext *tc, void *sr_data) {
         *(tc->interp_cur_op) = data->true_addr;
     else
         *(tc->interp_cur_op) = data->false_addr;
-    free(data);
+    MVM_free(data);
 }
 
 /* Callback to flip result. */
@@ -139,11 +143,27 @@ void flip_return(MVMThreadContext *tc, void *sr_data) {
 
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     char buffer[64];
-    int len = snprintf(buffer, 64, "%lld", (long long int)i);
-    if (len >= 0)
-        return MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
-    else
+    int len;
+
+    /* See if we can hit the cache. */
+    int cache = i >= 0 && i < MVM_INT_TO_STR_CACHE_SIZE;
+    if (cache) {
+        MVMString *cached = tc->instance->int_to_str_cache[i];
+        if (cached)
+            return cached;
+    }
+
+    /* Otherwise, need to do the work; cache it if in range. */
+    len = snprintf(buffer, 64, "%lld", (long long int)i);
+    if (len >= 0) {
+        MVMString *result = MVM_string_ascii_decode(tc, tc->instance->VMString, buffer, len);
+        if (cache)
+            tc->instance->int_to_str_cache[i] = result;
+        return result;
+    }
+    else {
         MVM_exception_throw_adhoc(tc, "Could not stringify integer");
+    }
 }
 
 MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
@@ -175,7 +195,7 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
 
 void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
     MVMObject *strmeth;
-    MVMStorageSpec ss;
+    const MVMStorageSpec *ss;
 
     /* Handle null case. */
     if (MVM_is_null(tc, obj)) {
@@ -185,7 +205,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
 
     /* If it can unbox as a string, that wins right off. */
     ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
-    if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR && IS_CONCRETE(obj)) {
+    if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR && IS_CONCRETE(obj)) {
         res_reg->s = REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         return;
     }
@@ -207,13 +227,11 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
     if (!IS_CONCRETE(obj))
         res_reg->s = tc->instance->str_consts.empty;
     else {
-        if (REPR(obj)->ID == MVM_REPR_ID_MVMString)
-            res_reg->s = (MVMString *)obj;
-        else if (REPR(obj)->ID == MVM_REPR_ID_MVMException)
+        if (REPR(obj)->ID == MVM_REPR_ID_MVMException)
             res_reg->s = ((MVMException *)obj)->body.message;
-        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
+        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
             res_reg->s = MVM_coerce_i_s(tc, REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
-        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
+        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
             res_reg->s = MVM_coerce_n_s(tc, REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else
             MVM_exception_throw_adhoc(tc, "cannot stringify this");
@@ -223,7 +241,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
 MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *s) {
     char     *enc = MVM_string_ascii_encode(tc, s, NULL);
     MVMint64  i   = strtoll(enc, NULL, 10);
-    free(enc);
+    MVM_free(enc);
     return i;
 }
 
@@ -240,7 +258,7 @@ MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s) {
         n = MVM_num_neginf(tc);
     else
         n = atof(enc);
-    free(enc);
+    MVM_free(enc);
     return n;
 }
 
@@ -271,12 +289,12 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
         res_reg->n64 = 0.0;
     }
     else {
-        MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
-        if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
+        const MVMStorageSpec *ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+        if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
             res_reg->n64 = (MVMnum64)REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
+        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
             res_reg->n64 = REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
+        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
             res_reg->n64 = MVM_coerce_s_n(tc, REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
             res_reg->n64 = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
@@ -295,12 +313,12 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
 
     /* Otherwise, guess something appropriate. */
     else {
-        MVMStorageSpec ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
-        if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
+        const MVMStorageSpec *ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+        if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
             return REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
+        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM)
             return (MVMint64)REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-        else if (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
+        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
             return MVM_coerce_s_i(tc, REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
             return REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
@@ -315,7 +333,7 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     MVMObject *result;
     MVMint64 zvalue = 0;
     MVMint64 zbase  = 1;
-    MVMint64 chars  = NUM_GRAPHS(str);
+    MVMint64 chars  = MVM_string_graphs(tc, str);
     MVMint64 value  = zvalue;
     MVMint64 base   = zbase;
     MVMint64   pos  = -1;
@@ -326,11 +344,11 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
         MVM_exception_throw_adhoc(tc, "Cannot convert radix of %d (max 36)", radix);
     }
 
-    ch = (offset < chars) ? MVM_string_get_codepoint_at_nocheck(tc, str, offset) : 0;
+    ch = (offset < chars) ? MVM_string_get_grapheme_at_nocheck(tc, str, offset) : 0;
     if ((flag & 0x02) && (ch == '+' || ch == '-')) {
         neg = (ch == '-');
         offset++;
-        ch = (offset < chars) ? MVM_string_get_codepoint_at_nocheck(tc, str, offset) : 0;
+        ch = (offset < chars) ? MVM_string_get_grapheme_at_nocheck(tc, str, offset) : 0;
     }
 
     while (offset < chars) {
@@ -344,11 +362,11 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
         offset++; pos = offset;
         if (ch != 0 || !(flag & 0x04)) { value=zvalue; base=zbase; }
         if (offset >= chars) break;
-        ch = MVM_string_get_codepoint_at_nocheck(tc, str, offset);
+        ch = MVM_string_get_grapheme_at_nocheck(tc, str, offset);
         if (ch != '_') continue;
         offset++;
         if (offset >= chars) break;
-        ch = MVM_string_get_codepoint_at_nocheck(tc, str, offset);
+        ch = MVM_string_get_grapheme_at_nocheck(tc, str, offset);
     }
 
     if (neg || flag & 0x01) { value = -value; }
@@ -368,4 +386,42 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     });
 
     return result;
+}
+
+
+void MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type,
+             MVMRegister * dst) {
+    MVMObject *box = MVM_intcache_get(tc, type, value);
+    if (box == 0) {
+        box = REPR(type)->allocate(tc, STABLE(type));
+        if (REPR(box)->initialize)
+            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+        REPR(box)->box_funcs.set_int(tc, STABLE(box), box,
+                                     OBJECT_BODY(box), value);
+    }     
+    dst->o = box;
+}
+
+void MVM_box_num(MVMThreadContext *tc, MVMnum64 value, MVMObject *type,
+                 MVMRegister * dst) {
+    MVMObject *box = REPR(type)->allocate(tc, STABLE(type));
+    if (REPR(box)->initialize)
+        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+    REPR(box)->box_funcs.set_num(tc, STABLE(box), box,
+                                 OBJECT_BODY(box), value);
+    dst->o = box;
+
+}
+
+void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type,
+                 MVMRegister * dst) {
+    MVMObject *box;
+    MVMROOT(tc, value, {
+            box = REPR(type)->allocate(tc, STABLE(type));
+            if (REPR(box)->initialize)
+                REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+            REPR(box)->box_funcs.set_str(tc, STABLE(box), box,
+                                         OBJECT_BODY(box), value);
+            dst->o = box;
+        });
 }

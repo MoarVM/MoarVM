@@ -17,7 +17,8 @@ void MVM_sc_push_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMST
 MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx);
 MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle);
 MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 dep);
-
+MVMObject * MVM_sc_get_sc_object(MVMThreadContext *tc, MVMCompUnit *cu,
+                                 MVMint16 dep, MVMint64 idx);
 MVM_STATIC_INLINE MVMuint32 MVM_get_idx_of_sc(MVMCollectable *col) {
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
@@ -46,7 +47,7 @@ MVM_STATIC_INLINE void MVM_set_idx_in_sc(MVMCollectable *col, MVMuint32 i) {
         col->sc_forward_u.sci->idx = i;
     } else if (i >= MVM_DIRECT_SC_IDX_SENTINEL) {
         struct MVMSerializationIndex *const sci
-            = malloc(sizeof(struct MVMSerializationIndex));
+            = MVM_malloc(sizeof(struct MVMSerializationIndex));
         sci->sc_idx = col->sc_forward_u.sc.sc_idx;
         sci->idx = i;
         col->sc_forward_u.sci = sci;
@@ -93,7 +94,7 @@ MVM_STATIC_INLINE void MVM_sc_set_collectable_sc(MVMThreadContext *tc, MVMCollec
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
         if (col->sc_forward_u.sc.sc_idx != sc->body->sc_idx) {
             struct MVMSerializationIndex *const sci
-                = malloc(sizeof(struct MVMSerializationIndex));
+                = MVM_malloc(sizeof(struct MVMSerializationIndex));
             sci->sc_idx = sc->body->sc_idx;
             sci->idx = ~0;
             col->sc_forward_u.sci = sci;

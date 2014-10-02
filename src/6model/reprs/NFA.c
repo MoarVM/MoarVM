@@ -52,13 +52,20 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_checked_free_null(nfa->body.num_state_edges);
 }
 
+
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Serializes the data. */
@@ -67,36 +74,38 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     MVMint64 i, j;
 
     /* Write fates. */
-    writer->write_ref(tc, writer, body->fates);
+    MVM_serialization_write_ref(tc, writer, body->fates);
 
     /* Write number of states. */
-    writer->write_varint(tc, writer, body->num_states);
+    MVM_serialization_write_varint(tc, writer, body->num_states);
 
     /* Write state edge list counts. */
     for (i = 0; i < body->num_states; i++)
-        writer->write_varint(tc, writer, body->num_state_edges[i]);
+        MVM_serialization_write_varint(tc, writer, body->num_state_edges[i]);
 
     /* Write state graph. */
     for (i = 0; i < body->num_states; i++) {
         for (j = 0; j < body->num_state_edges[i]; j++) {
-            writer->write_varint(tc, writer, body->states[i][j].act);
-            writer->write_varint(tc, writer, body->states[i][j].to);
+            MVM_serialization_write_varint(tc, writer, body->states[i][j].act);
+            MVM_serialization_write_varint(tc, writer, body->states[i][j].to);
             switch (body->states[i][j].act) {
                 case MVM_NFA_EDGE_FATE:
                 case MVM_NFA_EDGE_CODEPOINT:
                 case MVM_NFA_EDGE_CODEPOINT_NEG:
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
-                    writer->write_varint(tc, writer, body->states[i][j].arg.i);
+                    MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.i);
                     break;
                 case MVM_NFA_EDGE_CHARLIST:
                 case MVM_NFA_EDGE_CHARLIST_NEG:
-                    writer->write_str(tc, writer, body->states[i][j].arg.s);
+                    MVM_serialization_write_str(tc, writer, body->states[i][j].arg.s);
                     break;
                 case MVM_NFA_EDGE_CODEPOINT_I:
-                case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
-                    writer->write_varint(tc, writer, body->states[i][j].arg.uclc.lc);
-                    writer->write_varint(tc, writer, body->states[i][j].arg.uclc.uc);
+                case MVM_NFA_EDGE_CODEPOINT_I_NEG:
+                case MVM_NFA_EDGE_CHARRANGE:
+                case MVM_NFA_EDGE_CHARRANGE_NEG: {
+                    MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.uclc.lc);
+                    MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.uclc.uc);
                     break;
                 }
             }
@@ -110,42 +119,44 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMint64 i, j;
 
     /* Read fates. */
-    body->fates = reader->read_ref(tc, reader);
+    body->fates = MVM_serialization_read_ref(tc, reader);
 
     /* Read number of states. */
-    body->num_states = reader->read_varint(tc, reader);
+    body->num_states = MVM_serialization_read_varint(tc, reader);
 
     if (body->num_states > 0) {
         /* Read state edge list counts. */
-        body->num_state_edges = malloc(body->num_states * sizeof(MVMint64));
+        body->num_state_edges = MVM_malloc(body->num_states * sizeof(MVMint64));
         for (i = 0; i < body->num_states; i++)
-            body->num_state_edges[i] = reader->read_varint(tc, reader);
+            body->num_state_edges[i] = MVM_serialization_read_varint(tc, reader);
 
         /* Read state graph. */
-        body->states = malloc(body->num_states * sizeof(MVMNFAStateInfo *));
+        body->states = MVM_malloc(body->num_states * sizeof(MVMNFAStateInfo *));
         for (i = 0; i < body->num_states; i++) {
             MVMint64 edges = body->num_state_edges[i];
             if (edges > 0)
-                body->states[i] = malloc(edges * sizeof(MVMNFAStateInfo));
+                body->states[i] = MVM_malloc(edges * sizeof(MVMNFAStateInfo));
             for (j = 0; j < edges; j++) {
-                body->states[i][j].act = reader->read_varint(tc, reader);
-                body->states[i][j].to = reader->read_varint(tc, reader);
+                body->states[i][j].act = MVM_serialization_read_varint(tc, reader);
+                body->states[i][j].to = MVM_serialization_read_varint(tc, reader);
                 switch (body->states[i][j].act) {
                     case MVM_NFA_EDGE_FATE:
                     case MVM_NFA_EDGE_CODEPOINT:
                     case MVM_NFA_EDGE_CODEPOINT_NEG:
                     case MVM_NFA_EDGE_CHARCLASS:
                     case MVM_NFA_EDGE_CHARCLASS_NEG:
-                        body->states[i][j].arg.i = reader->read_varint(tc, reader);
+                        body->states[i][j].arg.i = MVM_serialization_read_varint(tc, reader);
                         break;
                     case MVM_NFA_EDGE_CHARLIST:
                     case MVM_NFA_EDGE_CHARLIST_NEG:
-                        MVM_ASSIGN_REF(tc, &(root->header), body->states[i][j].arg.s, reader->read_str(tc, reader));
+                        MVM_ASSIGN_REF(tc, &(root->header), body->states[i][j].arg.s, MVM_serialization_read_str(tc, reader));
                         break;
                     case MVM_NFA_EDGE_CODEPOINT_I:
-                    case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
-                        body->states[i][j].arg.uclc.lc = reader->read_varint(tc, reader);
-                        body->states[i][j].arg.uclc.uc = reader->read_varint(tc, reader);
+                    case MVM_NFA_EDGE_CODEPOINT_I_NEG:
+                    case MVM_NFA_EDGE_CHARRANGE:
+                    case MVM_NFA_EDGE_CHARRANGE_NEG: {
+                        body->states[i][j].arg.uclc.lc = MVM_serialization_read_varint(tc, reader);
+                        body->states[i][j].arg.uclc.uc = MVM_serialization_read_varint(tc, reader);
                         break;
                     }
                 }
@@ -216,8 +227,8 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
         num_states = MVM_repr_elems(tc, states) - 1;
         nfa->num_states = num_states;
         if (num_states > 0) {
-            nfa->num_state_edges = malloc(num_states * sizeof(MVMint64));
-            nfa->states = malloc(num_states * sizeof(MVMNFAStateInfo *));
+            nfa->num_state_edges = MVM_malloc(num_states * sizeof(MVMint64));
+            nfa->states = MVM_malloc(num_states * sizeof(MVMNFAStateInfo *));
         }
         for (i = 0; i < num_states; i++) {
             MVMObject *edge_info = MVM_repr_at_pos_o(tc, states, i + 1);
@@ -227,7 +238,7 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
 
             nfa->num_state_edges[i] = edges;
             if (edges > 0)
-                nfa->states[i] = malloc(edges * sizeof(MVMNFAStateInfo));
+                nfa->states[i] = MVM_malloc(edges * sizeof(MVMNFAStateInfo));
 
             for (j = 0; j < elems; j += 3) {
                 MVMint64 act = MVM_coerce_simple_intify(tc,
@@ -254,7 +265,11 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                         MVM_repr_get_str(tc, MVM_repr_at_pos_o(tc, edge_info, j + 1)));
                     break;
                 case MVM_NFA_EDGE_CODEPOINT_I:
-                case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
+                case MVM_NFA_EDGE_CODEPOINT_I_NEG:
+                /* That is not about uppercase/lowercase here, but lower and upper bounds
+                   of our range. */
+                case MVM_NFA_EDGE_CHARRANGE:
+                case MVM_NFA_EDGE_CHARRANGE_NEG: {
                     MVMObject *arg = MVM_repr_at_pos_o(tc, edge_info, j + 1);
                     nfa->states[i][cur_edge].arg.uclc.lc = MVM_coerce_simple_intify(tc,
                         MVM_repr_at_pos_o(tc, arg, 0));
@@ -311,23 +326,35 @@ static MVMint64 quicksort(MVMint64 *arr, MVMint64 elements) {
 /* Does a run of the NFA. Produces a list of integers indicating the
  * chosen ordering. */
 static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *target, MVMint64 offset, MVMint64 *total_fates_out) {
-    MVMint64  eos     = NUM_GRAPHS(target);
+    MVMint64  eos     = MVM_string_graphs(tc, target);
     MVMint64  gen     = 1;
     MVMint64  numcur  = 0;
     MVMint64  numnext = 0;
     MVMint64 *done, *fates, *curst, *nextst;
     MVMint64  i, fate_arr_len, num_states, total_fates, prev_fates;
 
-    /* Allocate "done states", "current states" and "next states" arrays. */
+    /* Obtain or (re)allocate "done states", "current states" and "next
+     * states" arrays. */
     num_states = nfa->num_states;
-    done   = (MVMint64 *)malloc((num_states + 1) * sizeof(MVMint64));
-    curst  = (MVMint64 *)malloc((num_states + 1) * sizeof(MVMint64));
-    nextst = (MVMint64 *)malloc((num_states + 1) * sizeof(MVMint64));
+    if (tc->nfa_alloc_states < num_states) {
+        size_t alloc   = (num_states + 1) * sizeof(MVMint64);
+        tc->nfa_done   = (MVMint64 *)MVM_realloc(tc->nfa_done, alloc);
+        tc->nfa_curst  = (MVMint64 *)MVM_realloc(tc->nfa_curst, alloc);
+        tc->nfa_nextst = (MVMint64 *)MVM_realloc(tc->nfa_nextst, alloc);
+        tc->nfa_alloc_states = num_states;
+    }
+    done   = tc->nfa_done;
+    curst  = tc->nfa_curst;
+    nextst = tc->nfa_nextst;
     memset(done, 0, (num_states + 1) * sizeof(MVMint64));
 
     /* Allocate fates array. */
     fate_arr_len = 1 + MVM_repr_elems(tc, nfa->fates);
-    fates = (MVMint64 *)malloc(sizeof(MVMint64) * fate_arr_len);
+    if (tc->nfa_fates_len < fate_arr_len) {
+        tc->nfa_fates     = (MVMint64 *)MVM_realloc(tc->nfa_fates, sizeof(MVMint64) * fate_arr_len);
+        tc->nfa_fates_len = fate_arr_len;
+    }
+    fates = tc->nfa_fates;
     total_fates = 0;
 
     nextst[numnext++] = 1;
@@ -379,9 +406,11 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                     }
                     else {
                         if (total_fates >= fate_arr_len) {
-                            fate_arr_len = total_fates + 1;
-                            fates = (MVMint64 *)realloc(fates,
+                            fate_arr_len      = total_fates + 1;
+                            tc->nfa_fates     = (MVMint64 *)MVM_realloc(tc->nfa_fates,
                                 sizeof(MVMint64) * fate_arr_len);
+                            tc->nfa_fates_len = fate_arr_len;
+                            fates             = tc->nfa_fates;
                         }
                         fates[total_fates++] = arg;
                     }
@@ -394,12 +423,12 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 }
                 else if (act == MVM_NFA_EDGE_CODEPOINT) {
                     MVMint64 arg = edge_info[i].arg.i;
-                    if (MVM_string_get_codepoint_at_nocheck(tc, target, offset) == arg)
+                    if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg)
                         nextst[numnext++] = to;
                 }
                 else if (act == MVM_NFA_EDGE_CODEPOINT_NEG) {
                     MVMint64 arg = edge_info[i].arg.i;
-                    if (MVM_string_get_codepoint_at_nocheck(tc, target, offset) != arg)
+                    if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) != arg)
                         nextst[numnext++] = to;
                 }
                 else if (act == MVM_NFA_EDGE_CHARCLASS) {
@@ -414,28 +443,43 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 }
                 else if (act == MVM_NFA_EDGE_CHARLIST) {
                     MVMString *arg    = edge_info[i].arg.s;
-                    MVMCodepoint32 cp = MVM_string_get_codepoint_at_nocheck(tc, target, offset);
-                    if (MVM_string_index_of_codepoint(tc, arg, cp) >= 0)
+                    MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                    if (MVM_string_index_of_grapheme(tc, arg, cp) >= 0)
                         nextst[numnext++] = to;
                 }
                 else if (act == MVM_NFA_EDGE_CHARLIST_NEG) {
                     MVMString *arg    = edge_info[i].arg.s;
-                    MVMCodepoint32 cp = MVM_string_get_codepoint_at_nocheck(tc, target, offset);
-                    if (MVM_string_index_of_codepoint(tc, arg, cp) < 0)
+                    MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                    if (MVM_string_index_of_grapheme(tc, arg, cp) < 0)
                         nextst[numnext++] = to;
                 }
                 else if (act == MVM_NFA_EDGE_CODEPOINT_I) {
-                    MVMCodepoint32 uc_arg = edge_info[i].arg.uclc.uc;
-                    MVMCodepoint32 lc_arg = edge_info[i].arg.uclc.lc;
-                    MVMCodepoint32 ord    = MVM_string_get_codepoint_at_nocheck(tc, target, offset);
+                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
                     if (ord == lc_arg || ord == uc_arg)
                         nextst[numnext++] = to;
                 }
                 else if (act == MVM_NFA_EDGE_CODEPOINT_I_NEG) {
-                    MVMCodepoint32 uc_arg = edge_info[i].arg.uclc.uc;
-                    MVMCodepoint32 lc_arg = edge_info[i].arg.uclc.lc;
-                    MVMCodepoint32 ord    = MVM_string_get_codepoint_at_nocheck(tc, target, offset);
+                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
                     if (ord != lc_arg && ord != uc_arg)
+                        nextst[numnext++] = to;
+                }
+                else if (act == MVM_NFA_EDGE_CHARRANGE) {
+                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                    if (ord >= lc_arg && ord <= uc_arg) /* TODO ignorecase? */
+                        nextst[numnext++] = to;
+                    
+                }
+                else if (act == MVM_NFA_EDGE_CHARRANGE_NEG) {
+                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                    if (ord < lc_arg || ord > uc_arg) /* TODO ignorecase? */
                         nextst[numnext++] = to;
                 }
             }
@@ -457,9 +501,6 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 fates[i] = -fates[i];
         }
     }
-    free(done);
-    free(curst);
-    free(nextst);
 
     *total_fates_out = total_fates;
     return fates;
@@ -476,7 +517,6 @@ MVMObject * MVM_nfa_run_proto(MVMThreadContext *tc, MVMObject *nfa, MVMString *t
     MVMObject *fateres = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
     for (i = 0; i < total_fates; i++)
         MVM_repr_bind_pos_i(tc, fateres, i, fates[i]);
-    free(fates);
 
     return fateres;
 }
@@ -501,5 +541,4 @@ void MVM_nfa_run_alt(MVMThreadContext *tc, MVMObject *nfa, MVMString *target,
         MVM_repr_push_i(tc, bstack, 0);
         MVM_repr_push_i(tc, bstack, caps);
     }
-    free(fates);
 }

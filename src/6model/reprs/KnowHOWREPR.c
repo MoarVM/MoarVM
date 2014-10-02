@@ -44,13 +44,18 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->name, src_body->name);
 }
 
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Adds held objects to the GC worklist. */
@@ -74,17 +79,17 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the data. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMKnowHOWREPRBody *body = (MVMKnowHOWREPRBody *)data;
-    writer->write_str(tc, writer, body->name);
-    writer->write_ref(tc, writer, body->attributes);
-    writer->write_ref(tc, writer, body->methods);
+    MVM_serialization_write_str(tc, writer, body->name);
+    MVM_serialization_write_ref(tc, writer, body->attributes);
+    MVM_serialization_write_ref(tc, writer, body->methods);
 }
 
 /* Deserializes the data. */
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMKnowHOWREPRBody *body = (MVMKnowHOWREPRBody *)data;
-    MVM_ASSIGN_REF(tc, &(root->header), body->name, reader->read_str(tc, reader));
-    MVM_ASSIGN_REF(tc, &(root->header), body->attributes, reader->read_ref(tc, reader));
-    MVM_ASSIGN_REF(tc, &(root->header), body->methods, reader->read_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, &(root->header), body->name, MVM_serialization_read_str(tc, reader));
+    MVM_ASSIGN_REF(tc, &(root->header), body->attributes, MVM_serialization_read_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, &(root->header), body->methods, MVM_serialization_read_ref(tc, reader));
 }
 
 /* Initializes the representation. */

@@ -1,0 +1,49 @@
+#!/usr/bin/perl
+
+use v5.18;
+use strict;
+
+my $TRIES;
+my %tries;
+
+my $FCOST;
+my $ICOST;
+my $ECOST;
+my $XCOST;
+
+my %fcost;
+my %icost;
+my %ecost;
+my %xcost;
+
+while (<>) {
+    my ($how, $name, $fcost, $icost, $ecost, $xcost) = split;
+
+    $TRIES++;
+    $tries{$name}++;
+
+    $FCOST += $fcost;
+    $ICOST += $icost;
+    $ECOST += $ecost;
+    $XCOST += $xcost;
+
+    $fcost{$name} += $fcost;
+    $icost{$name} += $icost;
+    $ecost{$name} += $ecost;
+    $xcost{$name} += $xcost;
+}
+
+say "                          TRIES       FRAMES            INLINES            EMPTY             TAKEN";
+say "                       ========  ===============   ===============   ===============   ===============";
+
+output("TOTAL", $TRIES, $FCOST, $ICOST, $ECOST, $XCOST);
+say "";
+
+for my $name (sort {$tries{$b} <=> $tries{$a}} keys %tries) {
+    output($name, $tries{$name}, $fcost{$name}, $icost{$name}, $ecost{$name}, $xcost{$name});
+}
+
+sub output {
+    my ($name, $t, $f, $i, $e, $x) = @_;
+    printf "%-22s %8d %9d %6.2f  %9d %6.2f  %9d %6.2f  %9d %6.2f\n", $name, $t, $f, $f/$t, $i, $i/$t, $e, $e/$t, $x, $x/$t;
+}

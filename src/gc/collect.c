@@ -48,10 +48,23 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
     wtp.num_target_threads = 0;
     wtp.target_work = NULL;
 
-    /* If we're starting a run (as opposed to just coming back here to do a
-     * little more work we got after we first thought we were done...) */
-    if (what_to_do != MVMGCWhatToDo_InTray) {
-        /* Swap fromspace and tospace. */
+    /* See what we need to work on this time. */
+    if (what_to_do == MVMGCWhatToDo_InTray) {
+        /* We just need to process anything in the in-tray. */
+        add_in_tray_to_worklist(tc, worklist);
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from in tray \n", worklist->items);
+        process_worklist(tc, worklist, &wtp, gen);
+    }
+    else if (what_to_do == MVMGCWhatToDo_Finalizing) {
+        /* Need to process the finalizing queue. */
+        MVMuint32 i;
+        for (i = 0; i < tc->num_finalizing; i++)
+            MVM_gc_worklist_add(tc, worklist, &(tc->finalizing[i]));
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from finalizing \n", worklist->items);
+        process_worklist(tc, worklist, &wtp, gen);
+    }
+    else {
+        /* Main collection run. Swap fromspace and tospace. */
         void * fromspace = tc->nursery_tospace;
         void * tospace   = tc->nursery_fromspace;
         tc->nursery_fromspace = fromspace;
@@ -119,12 +132,6 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
          * out the remaining tospace. */
         memset(tc->nursery_alloc, 0, (char *)tc->nursery_alloc_limit - (char *)tc->nursery_alloc);
     }
-    else {
-        /* We just need to process anything in the in-tray. */
-        add_in_tray_to_worklist(tc, worklist);
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from in tray \n", worklist->items);
-        process_worklist(tc, worklist, &wtp, gen);
-    }
 
     /* Destroy the worklist. */
     MVM_gc_worklist_destroy(tc, worklist);
@@ -133,7 +140,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
      * the work passing threshold, then cleanup work passing list. */
     if (wtp.num_target_threads) {
         pass_leftover_work(tc, &wtp);
-        free(wtp.target_work);
+        MVM_free(wtp.target_work);
     }
 }
 
@@ -226,12 +233,18 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 printf("%d", ((MVMCollectable *)1)->owner);
             }
 
-            /* Did we see it in the nursery before? */
-            if (item->flags & MVM_CF_NURSERY_SEEN) {
+            /* Did we see it in the nursery before, or should we move it to
+             * gen2 anyway since it a persistent ID was requested? */
+            if (item->flags & (MVM_CF_NURSERY_SEEN | MVM_CF_HAS_OBJECT_ID)) {
                 /* Yes; we should move it to the second generation. Allocate
                  * space in the second generation. */
                 to_gen2 = 1;
-                new_addr = MVM_gc_gen2_allocate(gen2, item->size);
+                new_addr = item->flags & MVM_CF_HAS_OBJECT_ID
+                    ? MVM_gc_object_id_use_allocation(tc, item)
+                    : MVM_gc_gen2_allocate(gen2, item->size);
+
+                /* Add on to the promoted amount (used by profiler). */
+                tc->gc_promoted_bytes += item->size;
 
                 /* Copy the object to the second generation and mark it as
                  * living there. */
@@ -343,11 +356,7 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
     else if (new_addr->flags & MVM_CF_STABLE) {
         /* Add all references in the STable to the work list. */
         MVMSTable *new_addr_st = (MVMSTable *)new_addr;
-        MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW);
-        MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHAT);
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->method_cache);
-        for (i = 0; i < new_addr_st->vtable_length; i++)
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->vtable[i]);
         for (i = 0; i < new_addr_st->type_check_cache_length; i++)
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->type_check_cache[i]);
         if (new_addr_st->container_spec)
@@ -364,6 +373,10 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->md_valid_attr_name);
         }
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHO);
+        MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHAT);
+        MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW);
+        MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW_sc);
+        MVM_gc_worklist_add(tc, worklist, &new_addr_st->method_cache_sc);
 
         /* If it needs to have its REPR data marked, do that. */
         if (new_addr_st->REPR->gc_mark_repr_data)
@@ -429,7 +442,7 @@ static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable
     /* If there's no entry for this target, create one. */
     if (target_info == NULL) {
         wtp->num_target_threads++;
-        wtp->target_work = realloc(wtp->target_work,
+        wtp->target_work = MVM_realloc(wtp->target_work,
             wtp->num_target_threads * sizeof(ThreadWork));
         target_info = &wtp->target_work[wtp->num_target_threads - 1];
         target_info->target = target;
@@ -484,7 +497,7 @@ static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklis
         MVMuint32 i;
         for (i = 0; i < head->num_items; i++)
             MVM_gc_worklist_add(tc, worklist, head->items[i]);
-        free(head);
+        MVM_free(head);
         head = next;
     }
 }
@@ -528,15 +541,19 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
                 REPR(obj)->gc_free(tc, obj);
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
             if (dead && item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
-                free(item->sc_forward_u.sci);
+                MVM_free(item->sc_forward_u.sci);
 #endif
+            if (dead && item->flags & MVM_CF_HAS_OBJECT_ID)
+                MVM_gc_object_id_clear(tc, item);
         }
         else if (item->flags & MVM_CF_TYPE_OBJECT) {
             /* Type object */
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
             if (dead && item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
-                free(item->sc_forward_u.sci);
+                MVM_free(item->sc_forward_u.sci);
 #endif
+            if (dead && item->flags & MVM_CF_HAS_OBJECT_ID)
+                MVM_gc_object_id_clear(tc, item);
         }
         else if (item->flags & MVM_CF_STABLE) {
             MVMSTable *st = (MVMSTable *)item;
@@ -544,7 +561,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
 /*            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : enqueuing an STable %d in the nursery to be freed\n", item);*/
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                 if (item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
-                    free(item->sc_forward_u.sci);
+                    MVM_free(item->sc_forward_u.sci);
                     /* Arguably we don't need to do this, if we're always
                        consistent about what we put on the stable queue. */
                     item->flags &= ~MVM_CF_SERIALZATION_INDEX_ALLOCATED;
@@ -625,17 +642,17 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                     if (!(col->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
                         /* Object instance; call gc_free if needed. */
                         MVMObject *obj = (MVMObject *)col;
-                        if (REPR(obj)->gc_free)
+                        if (STABLE(obj) && REPR(obj)->gc_free)
                             REPR(obj)->gc_free(tc, obj);
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                         if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
-                            free(col->sc_forward_u.sci);
+                            MVM_free(col->sc_forward_u.sci);
 #endif
                     }
                     else if (col->flags & MVM_CF_TYPE_OBJECT) {
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                         if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
-                            free(col->sc_forward_u.sci);
+                            MVM_free(col->sc_forward_u.sci);
 #endif
                     }
                     else if (col->flags & MVM_CF_STABLE) {
@@ -657,7 +674,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                                 assert(!(col->sc_forward_u.sci->sc_idx == 0
                                          && col->sc_forward_u.sci->idx
                                          == MVM_DIRECT_SC_IDX_SENTINEL));
-                                free(col->sc_forward_u.sci);
+                                MVM_free(col->sc_forward_u.sci);
                                 col->flags &= ~MVM_CF_SERIALZATION_INDEX_ALLOCATED;
                             }
 #endif
@@ -712,13 +729,13 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                         REPR(obj)->gc_free(tc, obj);
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                     if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
-                        free(col->sc_forward_u.sci);
+                        MVM_free(col->sc_forward_u.sci);
 #endif
                 }
                 else {
                     MVM_panic(MVM_exitcode_gcnursery, "Internal error: gen2 overflow contains non-object");
                 }
-                free(col);
+                MVM_free(col);
                 gen2->overflows[i] = NULL;
             }
         }

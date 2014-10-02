@@ -46,8 +46,8 @@ void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {
             /* Got a match! Free the one we were passed and replace it with
              * the interned one. */
             if (num_flags)
-                free(cs->arg_flags);
-            free(cs);
+                MVM_free(cs->arg_flags);
+            MVM_free(cs);
             *cs_ptr = interns->by_arity[num_flags][i];
             found = 1;
             break;
@@ -58,11 +58,11 @@ void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {
     if (!found) {
         if (interns->num_by_arity[num_flags] % 8 == 0) {
             if (interns->num_by_arity[num_flags])
-                interns->by_arity[num_flags] = realloc(
+                interns->by_arity[num_flags] = MVM_realloc(
                     interns->by_arity[num_flags],
                     sizeof(MVMCallsite *) * (interns->num_by_arity[num_flags] + 8));
             else
-                interns->by_arity[num_flags] = malloc(sizeof(MVMCallsite *) * 8);
+                interns->by_arity[num_flags] = MVM_malloc(sizeof(MVMCallsite *) * 8);
         }
         interns->by_arity[num_flags][interns->num_by_arity[num_flags]++] = cs;
         cs->is_interned = 1;

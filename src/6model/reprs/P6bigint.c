@@ -1,5 +1,27 @@
 #include "moar.h"
 
+/* A forced 64-bit version of mp_get_long, since on some platforms long is
+ * not all that long. */
+static MVMuint64 mp_get_int64(mp_int * a) {
+    int i;
+    MVMuint64 res;
+    
+    if (a->used == 0) {
+         return 0;
+    }
+    
+    /* get number of digits of the lsb we have to read */
+    i = MIN(a->used,(int)((sizeof(MVMuint64)*CHAR_BIT+DIGIT_BIT-1)/DIGIT_BIT))-1;
+    
+    /* get most significant digit of result */
+    res = DIGIT(a,i);
+     
+    while (--i >= 0) {
+        res = (res << DIGIT_BIT) | DIGIT(a,i);
+    }
+    return res;
+}
+
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
@@ -28,7 +50,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMP6bigintBody *src_body = (MVMP6bigintBody *)src;
     MVMP6bigintBody *dest_body = (MVMP6bigintBody *)dest;
     if (MVM_BIGINT_IS_BIG(src_body)) {
-        dest_body->u.bigint = malloc(sizeof(mp_int));
+        dest_body->u.bigint = MVM_malloc(sizeof(mp_int));
         mp_init_copy(dest_body->u.bigint, src_body->u.bigint);
     }
     else {
@@ -44,7 +66,7 @@ static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         body->u.smallint.value = (MVMint32)value;
     }
     else {
-        mp_int *i = malloc(sizeof(mp_int));
+        mp_int *i = MVM_malloc(sizeof(mp_int));
         mp_init(i);
         if (value >= 0) {
             MVM_bigint_mp_set_uint64(i, (MVMuint64)value);
@@ -63,12 +85,12 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         if (MP_LT == mp_cmp_d(i, 0)) {
             MVMint64 ret;
             mp_neg(i, i);
-            ret = mp_get_long(i);
+            ret = mp_get_int64(i);
             mp_neg(i, i);
             return -ret;
         }
         else {
-            return mp_get_long(i);
+            return mp_get_int64(i);
         }
     }
     else {
@@ -84,15 +106,20 @@ static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
         "P6bigint representation cannot unbox to other types");
 }
 
+
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_INLINED,      /* inlineable */
+    sizeof(MVMP6bigintBody) * 8,   /* bits */
+    ALIGNOF(MVMP6bigintBody),      /* align */
+    MVM_STORAGE_SPEC_BP_INT,       /* boxed_primitive */
+    MVM_STORAGE_SPEC_CAN_BOX_INT,  /* can_box */
+    0,                             /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
-    spec.bits            = sizeof(MVMP6bigintBody) * 8;
-    spec.align           = ALIGNOF(MVMP6bigintBody);
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
-    spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Compose the representation. */
@@ -104,7 +131,7 @@ static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     if (MVM_BIGINT_IS_BIG(body)) {
         mp_clear(body->u.bigint);
-        free(body->u.bigint);
+        MVM_free(body->u.bigint);
     }
 }
 
@@ -112,7 +139,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMP6bigintBody *body = &((MVMP6bigint *)obj)->body;
     if (MVM_BIGINT_IS_BIG(body)) {
         mp_clear(body->u.bigint);
-        free(body->u.bigint);
+        MVM_free(body->u.bigint);
     }
 }
 
@@ -125,21 +152,21 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         char *buf;
         MVMString *str;
         mp_radix_size(i, 10, &len);
-        buf = (char *)malloc(len);
+        buf = (char *)MVM_malloc(len);
         mp_toradix(i, buf, 10);
 
         /* len - 1 because buf is \0-terminated */
         str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
 
         /* write the "is small" flag */
-        writer->write_varint(tc, writer, 0);
-        writer->write_str(tc, writer, str);
-        free(buf);
+        MVM_serialization_write_varint(tc, writer, 0);
+        MVM_serialization_write_str(tc, writer, str);
+        MVM_free(buf);
     }
     else {
         /* write the "is small" flag */
-        writer->write_varint(tc, writer, 1);
-        writer->write_varint(tc, writer, body->u.smallint.value);
+        MVM_serialization_write_varint(tc, writer, 1);
+        MVM_serialization_write_varint(tc, writer, body->u.smallint.value);
     }
 }
 
@@ -155,9 +182,9 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     int read_bigint = 0;
 
     if (reader->root.version >= 10) {
-        if (reader->read_varint(tc, reader) == 1) {
+        if (MVM_serialization_read_varint(tc, reader) == 1) {
             body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-            body->u.smallint.value = reader->read_varint(tc, reader);
+            body->u.smallint.value = MVM_serialization_read_varint(tc, reader);
         } else {
             read_bigint = 1;
         }
@@ -165,8 +192,8 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         read_bigint = 1;
     }
     if (read_bigint) {
-        const char *buf = MVM_string_ascii_encode(tc, reader->read_str(tc, reader), &output_size);
-        body->u.bigint = malloc(sizeof(mp_int));
+        const char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), &output_size);
+        body->u.bigint = MVM_malloc(sizeof(mp_int));
         mp_init(body->u.bigint);
         mp_read_radix(body->u.bigint, buf, 10);
     }

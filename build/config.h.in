@@ -32,10 +32,6 @@
 #define MVM_HAS_READLINE @hasreadline@
 #endif
 
-#if @profilecalls@
-#define MVM_HLL_PROFILE_CALLS @profilecalls@
-#endif
-
 /* How this compiler does static inline functions. */
 #define MVM_STATIC_INLINE @static_inline@
 

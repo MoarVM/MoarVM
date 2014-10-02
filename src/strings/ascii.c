@@ -2,25 +2,23 @@
 
 /* Decodes the specified number of bytes of ASCII into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */
-MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type, const char *ascii, size_t bytes) {
+MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type, const MVMint8 *ascii, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t i;
 
-    /* There's no combining chars and such stuff in ASCII, so the codes
-     * count and grapheme count are trivially the same as the buffer
-     * length. */
-    result->body.codes  = bytes;
-    result->body.graphs = bytes;
+    /* There's no combining chars and such stuff in ASCII, so the grapheme count
+     * is trivially the same as the buffer length. */
+    result->body.num_graphs = bytes;
 
     /* Allocate grapheme buffer and decode the ASCII string. */
-    result->body.uint8s = malloc(sizeof(MVMCodepoint8) * bytes);
+    result->body.storage_type       = MVM_STRING_GRAPHEME_ASCII;
+    result->body.storage.blob_ascii = MVM_malloc(bytes);
     for (i = 0; i < bytes; i++)
-        if (ascii[i] <= 127)
-            result->body.uint8s[i] = ascii[i];
+        if (ascii[i] >= 0)
+            result->body.storage.blob_ascii[i] = ascii[i];
         else
             MVM_exception_throw_adhoc(tc,
-                "Will not decode invalid ASCII (code point > 127 found)");
-    result->body.flags = MVM_STRING_TYPE_UINT8;
+                "Will not decode invalid ASCII (code point < 0 found)");
 
     return result;
 }
@@ -35,9 +33,9 @@ MVMString * MVM_string_ascii_decode_nt(MVMThreadContext *tc, MVMObject *result_t
  * buffers, or until a stopper is reached. */
 void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                    MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
-    MVMint32 count = 0, total = 0;
-    MVMint32 bufsize;
-    MVMCodepoint32 *buffer;
+    MVMint32              count = 0, total = 0;
+    MVMint32              bufsize;
+    MVMGrapheme32        *buffer;
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
     MVMint32 last_accept_pos;
@@ -53,7 +51,7 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 
     /* Take length of head buffer as initial guess. */
     bufsize = ds->bytes_head->length;
-    buffer = malloc(bufsize * sizeof(MVMCodepoint32));
+    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
@@ -62,7 +60,7 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
         MVMint32  pos   = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
         char     *bytes = cur_bytes->bytes;
         while (pos < cur_bytes->length) {
-            MVMCodepoint32 codepoint = bytes[pos++];
+            MVMGrapheme32 codepoint = bytes[pos++];
             if (codepoint > 127)
                 MVM_exception_throw_adhoc(tc,
                     "Will not decode invalid ASCII (code point > 127 found)");
@@ -70,7 +68,7 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                 /* We filled the buffer. Attach this one to the buffers
                  * linked list, and continue with a new one. */
                 MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                buffer = malloc(bufsize * sizeof(MVMCodepoint32));
+                buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
                 count = 0;
             }
             buffer[count++] = codepoint;
@@ -99,11 +97,11 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 MVMuint8 * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
     /* ASCII is a single byte encoding, so each grapheme will just become
      * a single byte. */
-    MVMuint32 startu = (MVMuint32)start;
-    MVMStringIndex strgraphs = NUM_GRAPHS(str);
-    MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
-    MVMuint8 *result;
-    size_t i;
+    MVMuint32      startu    = (MVMuint32)start;
+    MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
+    MVMuint32      lengthu   = (MVMuint32)(length == -1 ? strgraphs - startu : length);
+    MVMuint8      *result;
+    size_t         i;
 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
@@ -111,23 +109,37 @@ MVMuint8 * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, 
     if (length < -1 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
-    result = malloc(lengthu + 1);
-    for (i = 0; i < lengthu; i++) {
-        MVMCodepoint32 ord = MVM_string_get_codepoint_at_nocheck(tc, str, start + i);
-        if (ord >= 0 && ord <= 127)
-            result[i] = (MVMuint8)ord;
-        else
-            result[i] = '?';
+    result = MVM_malloc(lengthu + 1);
+    if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
+        /* No encoding needed; directly copy. */
+        memcpy(result, str->body.storage.blob_ascii, lengthu);
+        result[lengthu] = 0;
     }
-    result[i] = 0;
+    else {
+        MVMuint32 i = 0;
+        MVMCodepointIter ci;
+        MVM_string_ci_init(tc, &ci, str);
+        while (MVM_string_ci_has_more(tc, &ci)) {
+            MVMCodepoint ord = MVM_string_ci_get_codepoint(tc, &ci);
+            if (ord >= 0 && ord <= 127)
+                result[i] = (MVMuint8)ord;
+            else
+                result[i] = '?';
+            i++;
+        }
+        result[i] = 0;
+    }
+
     if (output_size)
         *output_size = lengthu;
+
     return result;
 }
 
 /* Encodes the specified string to ASCII.  */
 MVMuint8 * MVM_string_ascii_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
-    return MVM_string_ascii_encode_substr(tc, str, output_size, 0, NUM_GRAPHS(str));
+    return MVM_string_ascii_encode_substr(tc, str, output_size, 0,
+        MVM_string_graphs(tc, str));
 }
 
 /* Encodes the specified string to ASCII not returning length.  */

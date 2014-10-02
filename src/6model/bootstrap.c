@@ -146,7 +146,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
     MVM_ASSIGN_REF(tc, &(STABLE(type_obj)->header), STABLE(type_obj)->method_cache, method_table);
     STABLE(type_obj)->mode_flags              = MVM_METHOD_CACHE_AUTHORITATIVE;
     STABLE(type_obj)->type_check_cache_length = 1;
-    STABLE(type_obj)->type_check_cache        = malloc(sizeof(MVMObject *));
+    STABLE(type_obj)->type_check_cache        = MVM_malloc(sizeof(MVMObject *));
     MVM_ASSIGN_REF(tc, &(STABLE(type_obj)->header), STABLE(type_obj)->type_check_cache[0], type_obj);
     attributes = ((MVMKnowHOWREPR *)self)->body.attributes;
 
@@ -475,7 +475,7 @@ static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject 
         });
 
         /* Also give it a boolification spec. */
-        bs = malloc(sizeof(MVMBoolificationSpec));
+        bs = MVM_malloc(sizeof(MVMBoolificationSpec));
         bs->mode = MVM_BOOL_MODE_HAS_ELEMS;
         bs->method = NULL;
         array->st->boolification_spec = bs;
@@ -559,6 +559,14 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(positional_delegate, "positional_delegate");
     string_creator(associative_delegate, "associative_delegate");
     string_creator(auto_viv_container, "auto_viv_container");
+    string_creator(done, "done");
+    string_creator(error, "error");
+    string_creator(stdout_chars, "stdout_chars");
+    string_creator(stdout_bytes, "stdout_bytes");
+    string_creator(stderr_chars, "stderr_chars");
+    string_creator(stderr_bytes, "stderr_bytes");
+    string_creator(buf_type, "buf_type");
+    string_creator(write, "write");
 }
 
 /* Drives the overall bootstrap process. */
@@ -576,13 +584,14 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
 
     /* Create stub VMNull, BOOTInt, BOOTNum, BOOTStr, BOOTArray, BOOTHash,
      * BOOTCCode, BOOTCode, BOOTThread, BOOTIter, BOOTContext, SCRef, Lexotic,
-     * CallCapture, BOOTIO, BOOTException, BOOTQueue, and BOOTAsync types. */
+     * CallCapture, BOOTIO, BOOTException, BOOTQueue, BOOTAsync,
+     * and BOOTReentrantMutex types. */
 #define create_stub_boot_type(tc, reprid, slot, makeboolspec, boolspec) do { \
     const MVMREPROps *repr = MVM_repr_get_by_id(tc, reprid); \
     MVMObject *type = tc->instance->slot = repr->type_object_for(tc, NULL); \
     if (makeboolspec) { \
         MVMBoolificationSpec *bs; \
-        bs = malloc(sizeof(MVMBoolificationSpec)); \
+        bs = MVM_malloc(sizeof(MVMBoolificationSpec)); \
         bs->mode = boolspec; \
         bs->method = NULL; \
         type->st->boolification_spec = bs; \
@@ -611,6 +620,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_boot_type(tc, MVM_REPR_ID_MVMThread, Thread, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_ConcBlockingQueue, boot_types.BOOTQueue, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMAsyncTask, boot_types.BOOTAsync, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+    create_stub_boot_type(tc, MVM_REPR_ID_ReentrantMutex, boot_types.BOOTReentrantMutex, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
 
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
@@ -644,6 +654,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     meta_objectifier(tc, Thread, "Thread");
     meta_objectifier(tc, boot_types.BOOTQueue, "BOOTQueue");
     meta_objectifier(tc, boot_types.BOOTAsync, "BOOTAsync");
+    meta_objectifier(tc, boot_types.BOOTReentrantMutex, "BOOTReentrantMutex");
 
     /* Create the KnowHOWAttribute type. */
     create_KnowHOWAttribute(tc);

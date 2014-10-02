@@ -191,6 +191,18 @@ Each frame starts with the following data.
     |    Remaining values reserved                            |
     | [NEW IN VERSION 2]                                      |
     +---------------------------------------------------------+
+    | Number of entries in static lexical values table        |
+    |    16-bit integer                                       |
+    | [NEW IN VERSION 4]                                      |
+    +---------------------------------------------------------+
+    | Code object SC dependency index + 1; 0 if none          |
+    |    32-bit unsigned integer                              |
+    | [NEW IN VERSION 4]                                      |
+    +---------------------------------------------------------+
+    | SC object index; ignored if above is 0                  |
+    |    32-bit unsigned integer                              |
+    | [NEW IN VERSION 4]                                      |
+    +---------------------------------------------------------+
 
 This is followed, for each local, by a number indicating what kind of
 local it is. These are stored as 16-bit unsigned integers.
@@ -233,6 +245,26 @@ Next comes the handlers table. Each handler has an entry as follows:
     | Handler address to go to, or where to unwind to after   |
     | an invoked handler. Offset from start of the frame's    |
     | bytecode.                                               |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+
+From version 4 and up, this is followed by a static lexical values
+table. Each entry is as follows:
+
+    +---------------------------------------------------------+
+    | Lexical index                                           |
+    |    16-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | Flag                                                    |
+    |    16-bit unsigned integer                              |
+    |    0 = static lexical value                             |
+    |    1 = container var (cloned per frame)                 |
+    |    2 = state var (cloned per closure)                   |
+    +---------------------------------------------------------+
+    | SC dependency index                                     |
+    |    32-bit unsigned integer                              |
+    +---------------------------------------------------------+
+    | SC object index                                         |
     |    32-bit unsigned integer                              |
     +---------------------------------------------------------+
 

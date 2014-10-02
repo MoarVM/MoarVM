@@ -13,5 +13,7 @@ struct MVMSpeshCallInfo {
 
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g);
 MVM_PUBLIC MVMint16 MVM_spesh_add_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCollectable *c);
+MVM_PUBLIC MVMSpeshFacts * MVM_spesh_get_and_use_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o);
 MVM_PUBLIC MVMSpeshFacts * MVM_spesh_get_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o);
+MVM_PUBLIC void MVM_spesh_use_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *f);
 MVM_PUBLIC MVMString * MVM_spesh_get_string(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o);

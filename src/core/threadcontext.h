@@ -22,18 +22,6 @@ typedef enum {
     MVMGCStatus_STOLEN = 3
 } MVMGCStatus;
 
-/* Are we allocating in the nursery, or direct into generation 2? (The
- * latter is used in the case of deserialization, when we know the
- * incoming objects are likely to survive, but also don't want to have
- * to worry about triggering GC in the deserialization process. */
-typedef enum {
-    /* Allocate in the nursery. */
-    MVMAllocate_Nursery = 0,
-
-    /* Allocate straight into generation 2. */
-    MVMAllocate_Gen2    = 1
-} MVMAllocationTarget;
-
 /* To manage memory more efficiently, we cache MVMFrame instances.
  * The initial frame pool table size sets the initial guess at the
  * number of different types of frame (that is, an MVMStaticFrame)
@@ -43,14 +31,6 @@ typedef enum {
  * keep around. */
 #define MVMInitialFramePoolTableSize    64
 #define MVMFramePoolLengthLimit         64
-
-#if MVM_HLL_PROFILE_CALLS
-typedef struct _MVMProfileRecord {
-    MVMuint32 callsite_id;
-    MVMuint32 code_id;
-    MVMuint64 duration_nanos;
-} MVMProfileRecord;
-#endif
 
 /* Information associated with an executing thread. */
 struct MVMThreadContext {
@@ -64,8 +44,9 @@ struct MVMThreadContext {
     /* This thread's GC status. */
     AO_t gc_status;
 
-    /* Where we're allocating. */
-    MVMAllocationTarget allocate_in;
+    /* Non-zero is we should allocate in gen2; incremented/decremented as we
+     * enter/leave a region wanting gen2 allocation. */
+    MVMuint32 allocate_in_gen2;
 
     /* Internal ID of the thread. */
     MVMuint32 thread_id;
@@ -127,10 +108,13 @@ struct MVMThreadContext {
     /* The second GC generation allocator. */
     MVMGen2Allocator *gen2;
 
+    /* Number of bytes promoted to gen2 in current GC run. */
+    MVMuint32 gc_promoted_bytes;
+
     /* Memory buffer pointing to the last thing we serialized, intended to go
      * into the next compilation unit we write. */
-    char         *serialized;
     MVMint32      serialized_size;
+    char         *serialized;
 
     /* Temporarily rooted objects. This is generally used by code written in
      * C that wants to keep references to objects. Since those may change
@@ -148,6 +132,17 @@ struct MVMThreadContext {
     MVMuint32             num_gen2roots;
     MVMuint32             alloc_gen2roots;
     MVMCollectable      **gen2roots;
+
+    /* Finalize queue objects, which need to have a finalizer invoked once
+     * they are no longer referenced from anywhere except this queue. */
+    MVMuint32             num_finalize;
+    MVMuint32             alloc_finalize;
+    MVMObject           **finalize;
+
+    /* List of objects we're in the process of finalizing. */
+    MVMuint32             num_finalizing;
+    MVMuint32             alloc_finalizing;
+    MVMObject           **finalizing;
 
     /* The GC's cross-thread in-tray of processing work. */
     MVMGCPassedWork *gc_in_tray;
@@ -193,14 +188,16 @@ struct MVMThreadContext {
      * near the end to keep the hotter stuff on the same cacheline. */
     jmp_buf interp_jump;
 
-#if MVM_HLL_PROFILE_CALLS
-    /* storage of profile timings */
-    MVMProfileRecord *profile_data;
-    /* allocated size of profile_data in count */
-    MVMuint32 profile_data_size;
-    /* next index of record to store */
-    MVMuint32 profile_index;
-#endif
+    /* NFA evaluator memory cache, to avoid many allocations; see NFA.c. */
+    MVMint64 *nfa_done;
+    MVMint64 *nfa_curst;
+    MVMint64 *nfa_nextst;
+    MVMint64  nfa_alloc_states;
+    MVMint64 *nfa_fates;
+    MVMint64  nfa_fates_len;
+
+    /* Profiling data collected for this thread, if profiling is on. */
+    MVMProfileThreadData *prof_data;
 };
 
 MVMThreadContext * MVM_tc_create(MVMInstance *instance);

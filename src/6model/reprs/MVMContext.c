@@ -48,6 +48,7 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             "Lexical with name '%s' does not exist in this frame",
                 MVM_string_utf8_encode_C_string(tc, name));
     }
+    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, lexical_names, name, entry);
     if (!entry) {
        MVM_exception_throw_adhoc(tc,
@@ -74,6 +75,7 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
             "Lexical with name '%s' does not exist in this frame",
                 MVM_string_utf8_encode_C_string(tc, name));
     }
+    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, lexical_names, name, entry);
     if (!entry) {
        MVM_exception_throw_adhoc(tc,
@@ -100,6 +102,7 @@ static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMString *name = (MVMString *)key;
     if (!lexical_names)
         return 0;
+    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, lexical_names, name, entry);
     return entry ? 1 : 0;
 }
@@ -117,14 +120,19 @@ static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st
     return spec;
 }
 
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    /* XXX in the end we'll support inlining of this... */
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Compose the representation. */

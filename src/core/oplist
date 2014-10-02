@@ -1,4 +1,4 @@
-# This is the authorative list of MoarVM instructions.
+# This is the authoritative list of MoarVM instructions.
 #
 # Changes to this file need to be followed by a call to
 # tools/update_ops.p6 to update various auto-generated files.
@@ -84,8 +84,8 @@ bindlex_ns          str r(str) :noinline
 bindlex_no          str r(obj) :noinline
 getlex_ng           w(obj) r(str) :pure :noinline
 bindlex_ng          r(str) r(obj) :noinline
-getdynlex           w(obj) r(str) :pure
-binddynlex          r(str) r(obj)
+getdynlex           w(obj) r(str) :pure :noinline
+binddynlex          r(str) r(obj) :noinline
 setlexvalue         r(obj) str r(obj) int16
 lexprimspec         w(int64) r(obj) r(str) :pure
 return_i         .r r(int64)
@@ -162,8 +162,8 @@ coerce_is           w(str) r(int64) :pure
 coerce_ns           w(str) r(num64) :pure
 coerce_si           w(int64) r(str) :pure
 coerce_sn           w(num64) r(str) :pure
-smrt_numify         w(num64) r(obj) :pure
-smrt_strify         w(str) r(obj) :pure
+smrt_numify         w(num64) r(obj) :pure :invokish
+smrt_strify         w(str) r(obj) :pure :invokish
 prepargs         +a callsite
 arg_i            *a int16 r(int64)
 arg_n            *a int16 r(num64)
@@ -213,12 +213,12 @@ throwlexotic        w(obj) r(obj)
 throwcatdyn         w(obj) int64
 throwcatlex         w(obj) int64
 throwcatlexotic     w(obj) int64
-die                 w(obj) r(str)
+die                 w(obj) r(str) :throwish
 rethrow             r(obj)
 resume              r(obj)
 takehandlerresult   w(obj)
-newlexotic          w(obj) ins :noinline
-lexoticresult       w(obj) r(obj) :noinline
+newlexotic          w(obj) ins
+lexoticresult       w(obj) r(obj)
 backtracestrings    w(obj) r(obj) :pure
 usecapture          w(obj) :noinline
 savecapture         w(obj) :noinline
@@ -287,15 +287,15 @@ isfalse_s           w(int64) r(str) :pure
 null                w(obj) :pure
 isnull              w(int64) r(obj) :pure
 ifnonnull           r(obj) ins
-findmeth            w(obj) r(obj) str :pure
-findmeth_s          w(obj) r(obj) r(str) :pure
-can                 w(int64) r(obj) str :pure
-can_s               w(int64) r(obj) r(str) :pure
+findmeth            w(obj) r(obj) str :pure :invokish
+findmeth_s          w(obj) r(obj) r(str) :pure :invokish
+can                 w(int64) r(obj) str :pure :invokish
+can_s               w(int64) r(obj) r(str) :pure :invokish
 create              w(obj) r(obj) :pure
 clone               w(obj) r(obj) :pure
 isconcrete          w(int64) r(obj) :pure
 rebless             w(obj) r(obj) r(obj)
-istype              w(int64) r(obj) r(obj) :pure
+istype              w(int64) r(obj) r(obj) :pure :invokish
 objprimspec         w(int64) r(obj) :pure
 gethow              w(obj) r(obj) :pure
 getwhat             w(obj) r(obj) :pure
@@ -374,8 +374,8 @@ setmethcacheauth    r(obj) r(int64)
 settypecache        r(obj) r(obj)
 settypecheckmode    r(obj) r(int64)
 setboolspec         r(obj) r(int64) r(obj)
-istrue              w(int64) r(obj)
-isfalse             w(int64) r(obj)
+istrue              w(int64) r(obj) :invokish
+isfalse             w(int64) r(obj) :invokish
 bootint             w(obj) :pure
 bootnum             w(obj) :pure
 bootstr             w(obj) :pure
@@ -403,8 +403,8 @@ gethllsym           w(obj) r(str) r(str) :pure
 bindhllsym          r(str) r(str) r(obj)
 settypehll          r(obj) r(str)
 settypehllrole      r(obj) r(int64)
-hllize              w(obj) r(obj) :pure
-hllizefor           w(obj) r(obj) r(str) :pure
+hllize              w(obj) r(obj) :pure :invokish
+hllizefor           w(obj) r(obj) r(str) :pure :invokish
 usecompileehllconfig
 usecompilerhllconfig
 iter                w(obj) r(obj) :pure
@@ -425,10 +425,10 @@ getstaticcode       w(obj) r(obj) :pure
 getcodecuid         w(str) r(obj) :pure
 setdispatcher       r(obj)
 takedispatcher      w(obj)
-assign              r(obj) r(obj)
-assignunchecked     r(obj) r(obj)
+assign              r(obj) r(obj) :invokish
+assignunchecked     r(obj) r(obj) :invokish
 iscont              w(int64) r(obj) :pure
-decont              w(obj) r(obj) :pure
+decont              w(obj) r(obj) :pure :invokish
 setcontspec         r(obj) r(str) r(obj)
 sha1                w(str) r(str) :pure
 createsc            w(obj) r(str)
@@ -558,7 +558,7 @@ findsym             w(obj) r(str) r(str)
 dropsym             r(obj)
 loadext             r(str) r(str)
 backendconfig       w(obj)
-getlexouter         w(obj) r(str) :pure
+getlexouter         w(obj) r(str) :pure :noinline
 getlexrel           w(obj) r(obj) r(str) :pure
 getlexreldyn        w(obj) r(obj) r(str) :pure
 getlexrelcaller     w(obj) r(obj) r(str) :pure
@@ -593,7 +593,7 @@ continuationcontrol w(obj) r(int64) r(obj) r(obj)
 continuationinvoke  w(obj) r(obj) r(obj)
 randscale_n         w(num64) r(num64) :pure
 uniisblock          w(int64) r(str) r(int64) r(str) :pure
-assertparamcheck    r(int64) :noinline
+assertparamcheck    r(int64) :noinline :invokish
 hintfor             w(int64) r(obj) r(str)
 paramnamesused      :noinline
 getuniname          w(str) r(int64)
@@ -647,6 +647,14 @@ param_on2_s         w(str) str str ins :noinline
 param_on2_o         w(obj) str str ins :noinline
 osrpoint            :osrpoint
 nativecallcast      w(obj) r(obj) r(obj) r(obj)
+spawnprocasync      w(obj) r(obj) r(obj) r(str) r(obj) r(obj)
+killprocasync       r(obj) r(int64)
+startprofile        r(obj)
+endprofile          w(obj)
+objectid            w(int64) r(obj)
+settypefinalize     r(obj) r(int64)
+force_gc
+nativecallglobal    w(obj) r(str) r(str) r(obj) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
@@ -692,6 +700,7 @@ sp_namedarg_used .s int16
 sp_getspeshslot  .s w(obj) sslot :pure
 
 # Find method, using spesh slot and the one after it as a cache.
+# Isn't marked invokish, since the check is implemented directly
 sp_findmeth      .s w(obj) r(obj) str sslot :pure
 
 # Create an object with the first int16's number of bytes size and then
@@ -721,3 +730,29 @@ sp_p6obind_o     .s r(obj) int16 r(obj)
 sp_p6obind_i     .s r(obj) int16 r(int64)
 sp_p6obind_n     .s r(obj) int16 r(num64)
 sp_p6obind_s     .s r(obj) int16 r(str)
+
+# Enter the JIT
+sp_jit_enter     .s w(obj)
+
+# we boolify iter objects all the time, but we have no op for it. until now!
+sp_boolify_iter       .s w(int64) r(obj) :pure
+sp_boolify_iter_arr   .s w(int64) r(obj) :pure
+sp_boolify_iter_hash  .s w(int64) r(obj) :pure
+
+# Profiler recording ops. Naming convention: start with prof_. Must all be
+# marked .s, which is how the validator knows to exclude them. (For that
+# purpose, we treat them as a kind of spesh op).
+
+# Entry of various forms. The inline one passes along the static frame of the
+# inlinee.
+prof_enter       .s
+prof_enterspesh  .s
+prof_enterinline .s sslot
+
+# Normal exit (exception throw and unwind is handled separately). Will always
+# be what we last entered, so no need for separate versions like above.
+prof_exit
+
+# Recording of allocated types (may not give full picture of allocations, but
+# is at least enough to get a picture).
+prof_allocated   .s r(obj)

@@ -47,7 +47,7 @@ static void code_pair_gc_free_data(MVMThreadContext *tc, MVMSTable *st) {
     CodePairContData *data = (CodePairContData *)st->container_data;
 
     if (data) {
-        free(data);
+        MVM_free(data);
         st->container_data = NULL;
     }
 }
@@ -55,15 +55,15 @@ static void code_pair_gc_free_data(MVMThreadContext *tc, MVMSTable *st) {
 static void code_pair_serialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     CodePairContData *data = (CodePairContData *)st->container_data;
 
-    writer->write_ref(tc, writer, data->fetch_code);
-    writer->write_ref(tc, writer, data->store_code);
+    MVM_serialization_write_ref(tc, writer, data->fetch_code);
+    MVM_serialization_write_ref(tc, writer, data->store_code);
 }
 
 static void code_pair_deserialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     CodePairContData *data = (CodePairContData *)st->container_data;
 
-    MVM_ASSIGN_REF(tc, &(st->header), data->fetch_code, reader->read_ref(tc, reader));
-    MVM_ASSIGN_REF(tc, &(st->header), data->store_code, reader->read_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, &(st->header), data->fetch_code, MVM_serialization_read_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, &(st->header), data->store_code, MVM_serialization_read_ref(tc, reader));
 }
 
 static const MVMContainerSpec code_pair_spec = {
@@ -80,7 +80,7 @@ static const MVMContainerSpec code_pair_spec = {
 };
 
 static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
-    CodePairContData *data = malloc(sizeof(CodePairContData));
+    CodePairContData *data = MVM_malloc(sizeof(CodePairContData));
 
     data->fetch_code   = NULL;
     data->store_code   = NULL;
@@ -132,7 +132,7 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
     HASH_FIND(hash_handle, tc->instance->container_registry, kdata, klen, entry);
 
     if (!entry) {
-        entry = malloc(sizeof(MVMContainerRegistry));
+        entry = MVM_malloc(sizeof(MVMContainerRegistry));
         entry->name = name;
         entry->configurer  = configurer;
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);

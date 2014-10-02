@@ -31,8 +31,30 @@ struct MVMGCWorklist {
     MVMuint8 include_gen2;
 };
 
+/* Turn this on to define a worklist addition that panics if it spots
+ * something untoward with an object being added to a worklist. */
+#define MVM_GC_WORKLIST_DEBUG_ADD 0
+
 /* Some macros for doing stuff fast with worklists, defined to look like
  * functions since perhaps they become them in the future if needed. */
+#if MVM_GC_WORKLIST_DEBUG_ADD
+#define MVM_gc_worklist_add(tc, worklist, item) \
+    do { \
+        MVMCollectable **item_to_add = (MVMCollectable **)(item);\
+        if (*item_to_add) { \
+            if ((*item_to_add)->owner == 0) \
+                MVM_panic(1, "Zeroed owner in item added to GC worklist"); \
+            if ((*item_to_add)->flags & MVM_CF_STABLE == 0 && !STABLE(*item_to_add)) \
+                MVM_panic(1, "NULL STable in time added to GC worklist"); \
+        } \
+        if (*item_to_add && (worklist->include_gen2 || !((*item_to_add)->flags & MVM_CF_SECOND_GEN))) { \
+            if (worklist->items == worklist->alloc) \
+                MVM_gc_worklist_add_slow(tc, worklist, item_to_add); \
+            else \
+                worklist->list[worklist->items++] = item_to_add; \
+        } \
+    } while (0)
+#else
 #define MVM_gc_worklist_add(tc, worklist, item) \
     do { \
         MVMCollectable **item_to_add = (MVMCollectable **)(item);\
@@ -43,6 +65,7 @@ struct MVMGCWorklist {
                 worklist->list[worklist->items++] = item_to_add; \
         } \
     } while (0)
+#endif
 
 #define MVM_gc_worklist_add_frame(tc, worklist, frame) \
     do { \

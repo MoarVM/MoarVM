@@ -39,11 +39,11 @@ void MVM_args_proc_cleanup_for_cache(MVMThreadContext *tc, MVMArgProcContext *ct
     if (ctx->callsite && ctx->callsite->has_flattening) {
         if (ctx->arg_flags) {
             /* Free the generated flags. */
-            free(ctx->arg_flags);
+            MVM_free(ctx->arg_flags);
             ctx->arg_flags = NULL;
 
             /* Free the generated args buffer. */
-            free(ctx->args);
+            MVM_free(ctx->args);
             ctx->args = NULL;
         }
     }
@@ -65,9 +65,9 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
  * one up. */
 MVMCallsite * MVM_args_proc_to_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     if (ctx->arg_flags) {
-        MVMCallsite      *res   = malloc(sizeof(MVMCallsite));
+        MVMCallsite      *res   = MVM_malloc(sizeof(MVMCallsite));
         MVMint32          fsize = ctx->num_pos + (ctx->arg_count - ctx->num_pos) / 2;
-        MVMCallsiteEntry *flags = fsize ? malloc(fsize) : NULL;
+        MVMCallsiteEntry *flags = fsize ? MVM_malloc(fsize) : NULL;
         memcpy(flags, ctx->arg_flags, fsize);
         res->arg_flags = flags;
         res->arg_count = ctx->arg_count;
@@ -93,20 +93,31 @@ MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
     return tc->cur_usecapture;
 }
 
+MVMCallsite * MVM_args_prepare(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 callsite_idx) {
+    /* Look up callsite. */
+    MVMCallsite * cs = cu->body.callsites[callsite_idx];
+    /* Also need to store it in cur_frame to make sure that
+     * the GC knows how to walk the args buffer, and must
+     * clear it in case we trigger GC while setting it up. */
+    tc->cur_frame->cur_args_callsite = cs;
+    memset(tc->cur_frame->args, 0, sizeof(MVMRegister) * cu->body.max_callsite_size);
+    return cs;
+}
+
 static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx);
 
 /* Checks that the passed arguments fall within the expected arity. */
 static void arity_fail(MVMThreadContext *tc, MVMuint16 got, MVMuint16 min, MVMuint16 max) {
-    char *problem = got > max ? "Too many" : "Not enough";
+    char *problem = got > max ? "Too many" : "Too few";
     if (min == max)
-        MVM_exception_throw_adhoc(tc, "%s positional parameters passed; got %d but expected %d",
-            problem, got, min);
+        MVM_exception_throw_adhoc(tc, "%s positionals passed; expected %d argument%s but got %d",
+            problem, min, (min == 1 ? "" : "s"), got);
     else if (max == 0xFFFF)
-        MVM_exception_throw_adhoc(tc, "%s positional parameters passed; got %d but expected at least %d",
-            problem, got, min);
+        MVM_exception_throw_adhoc(tc, "%s positionals passed; expected at least %d arguments but got only %d",
+            problem, min, got);
     else
-        MVM_exception_throw_adhoc(tc, "%s positional parameters passed; got %d but expected between %d and %d",
-            problem, got, min, max);
+        MVM_exception_throw_adhoc(tc, "%s positionals passed; expected %d %s %d arguments but got %d",
+            problem, min, (min + 1 == max ? "or" : "to"), max, got);
 }
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max) {
     MVMuint16 num_pos;
@@ -149,10 +160,10 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
     if (result.exists && !(result.flags & type_flag)) { \
         if (result.flags & MVM_CALLSITE_ARG_OBJ) { \
             MVMObject *obj; \
-            MVMStorageSpec ss; \
+            const MVMStorageSpec *ss; \
             obj = decont_arg(tc, result.arg.o); \
             ss = REPR(obj)->get_storage_spec(tc, STABLE(obj)); \
-            switch (ss.can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
+            switch (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
                 case MVM_STORAGE_SPEC_CAN_BOX_INT: \
                     result.arg.i64 = MVM_repr_get_int(tc, obj); \
                     result.flags = MVM_CALLSITE_ARG_INT; \
@@ -636,8 +647,8 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 
     if (!ctx->callsite->has_flattening) return;
 
-    new_arg_flags = malloc(new_arg_flags_size * sizeof(MVMCallsiteEntry));
-    new_args = malloc(new_args_size * sizeof(MVMRegister));
+    new_arg_flags = MVM_malloc(new_arg_flags_size * sizeof(MVMCallsiteEntry));
+    new_args = MVM_malloc(new_args_size * sizeof(MVMRegister));
 
     /* first flatten any positionals */
     for ( ; arg_pos < ctx->num_pos; arg_pos++) {
@@ -659,10 +670,10 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 
             for (i = 0; i < count; i++) {
                 if (new_arg_pos == new_args_size) {
-                    new_args = realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
+                    new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
                 }
                 if (new_flag_pos == new_arg_flags_size) {
-                    new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
+                    new_arg_flags = MVM_realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
                 }
 
                 switch (lss.inlineable ? lss.boxed_primitive : 0) {
@@ -687,10 +698,10 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         }
         else if (!(arg_info.flags & MVM_CALLSITE_ARG_FLAT_NAMED)) {
             if (new_arg_pos == new_args_size) {
-                new_args = realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
+                new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
             }
             if (new_flag_pos == new_arg_flags_size) {
-                new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
+                new_arg_flags = MVM_realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
             }
 
             *(new_args + new_arg_pos++) = arg_info.arg;
@@ -703,10 +714,10 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     for ( flag_pos = arg_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) {
 
         if (new_arg_pos + 1 >=  new_args_size) {
-            new_args = realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
+            new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
         }
         if (new_flag_pos == new_arg_flags_size) {
-            new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
+            new_arg_flags = MVM_realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
         }
 
         (new_args + new_arg_pos++)->s = (ctx->args + arg_pos)->s;
@@ -730,10 +741,10 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
             HASH_ITER(hash_handle, body->hash_head, current, tmp) {
 
                 if (new_arg_pos + 1 >= new_args_size) {
-                    new_args = realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
+                    new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
                 }
                 if (new_flag_pos == new_arg_flags_size) {
-                    new_arg_flags = realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
+                    new_arg_flags = MVM_realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
                 }
 
                 (new_args + new_arg_pos++)->s = (MVMString *)current->key;
@@ -767,7 +778,7 @@ void MVM_args_setup_thunk(MVMThreadContext *tc, MVMRegister *res_reg, MVMReturnT
 static void bind_error_return(MVMThreadContext *tc, void *sr_data) {
     MVMRegister *r   = (MVMRegister *)sr_data;
     MVMObject   *res = r->o;
-    free(r);
+    MVM_free(r);
     if (tc->cur_frame->caller)
         MVM_args_set_result_obj(tc, res, 0);
     else
@@ -788,7 +799,7 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
 
     /* Copy the arguments. */
     MVMuint32 arg_size = tc->cur_frame->params.arg_count * sizeof(MVMRegister);
-    MVMRegister *args = malloc(arg_size);
+    MVMRegister *args = MVM_malloc(arg_size);
     memcpy(args, tc->cur_frame->params.args, arg_size);
 
     /* Create effective callsite. */
@@ -796,7 +807,7 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
 
     /* Set up the call capture. */
     cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
-    cc->body.apc  = malloc(sizeof(MVMArgProcContext));
+    cc->body.apc  = MVM_malloc(sizeof(MVMArgProcContext));
     memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
     MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
 

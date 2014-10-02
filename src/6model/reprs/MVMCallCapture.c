@@ -23,10 +23,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMCallCaptureBody *dest_body = (MVMCallCaptureBody *)dest;
 
     MVMuint32 arg_size = src_body->apc->arg_count * sizeof(MVMRegister);
-    MVMRegister *args = malloc(arg_size);
+    MVMRegister *args = MVM_malloc(arg_size);
     memcpy(args, src_body->apc->args, arg_size);
 
-    dest_body->apc = malloc(sizeof(MVMArgProcContext));
+    dest_body->apc = MVM_malloc(sizeof(MVMArgProcContext));
     memset(dest_body->apc, 0, sizeof(MVMArgProcContext));
     dest_body->mode = MVM_CALL_CAPTURE_MODE_SAVE;
     dest_body->effective_callsite = src_body->effective_callsite;
@@ -82,13 +82,19 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     }
 }
 
+
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Compose the representation. */

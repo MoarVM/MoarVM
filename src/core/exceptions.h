@@ -55,6 +55,9 @@ struct MVMActiveHandler {
     /* The handler information itself. */
     MVMFrameHandler *handler;
 
+    /* Handler information for a JITted handler */
+    MVMJitHandler *jit_handler;
+
     /* The exception object. */
     MVMObject *ex_obj;
 
@@ -67,10 +70,13 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj);
 MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *exObj);
 void MVM_dump_backtrace(MVMThreadContext *tc);
 void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMRegister *resume_result);
+void MVM_exception_die(MVMThreadContext *tc, MVMString *str, MVMRegister *rr);
 void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exObj, MVMRegister *resume_result);
 void MVM_exception_resume(MVMThreadContext *tc, MVMObject *exObj);
 MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset);
+MVMObject * MVM_exception_newlexotic_from_jit(MVMThreadContext *tc, MVMint32 label);
 void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMStaticFrame *sf);
+MVM_PUBLIC MVM_NO_RETURN void MVM_panic_allocation_failed(size_t len) MVM_NO_RETURN_GCC;
 MVM_PUBLIC MVM_NO_RETURN void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) MVM_NO_RETURN_GCC;
 MVM_PUBLIC MVM_NO_RETURN void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, ...) MVM_NO_RETURN_GCC;
 MVM_NO_RETURN void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageFormat, va_list args) MVM_NO_RETURN_GCC;

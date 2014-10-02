@@ -48,14 +48,18 @@ struct MVMSerializationRoot {
     MVMObject *string_heap;
 };
 
+/* Indexes the deserializer still has to work on. */
+struct MVMDeserializeWorklist {
+    MVMuint32 *indexes;
+    MVMuint32  num_indexes;
+    MVMuint32  alloc_indexes;
+};
+
 /* Represents the serialization reader and the various functions available
  * on it. */
 struct MVMSerializationReader {
     /* Serialization root data. */
     MVMSerializationRoot root;
-
-    /* The object repossession conflicts list. */
-    MVMObject *repo_conflicts_list;
 
     /* Current offsets for the data chunks (also correspond to the amount of
      * data written in to them). */
@@ -75,25 +79,31 @@ struct MVMSerializationReader {
     MVMint32  *cur_read_offset;
     char     **cur_read_end;
 
-    /* Various reading functions. */
-    MVMint64    (*read_int)   (MVMThreadContext *tc, MVMSerializationReader *reader);
-    MVMint64    (*read_varint)(MVMThreadContext *tc, MVMSerializationReader *reader);
-    MVMnum64    (*read_num)   (MVMThreadContext *tc, MVMSerializationReader *reader);
-    MVMString * (*read_str)   (MVMThreadContext *tc, MVMSerializationReader *reader);
-    MVMObject * (*read_ref)   (MVMThreadContext *tc, MVMSerializationReader *reader);
-    MVMSTable * (*read_stable_ref) (MVMThreadContext *tc, MVMSerializationReader *reader);
-
     /* List of code objects (static first, then all the closures). */
     MVMObject *codes_list;
+
+    /* Number of static code objects. */
+    MVMuint32 num_static_codes;
 
     /* Array of contexts (num_contexts in length). */
     MVMFrame **contexts;
 
+    /* Set of current worklists, for things we need to fully desrialize. When
+     * they are all empty, the current (usually lazy) deserialization work is
+     * done, and we have the required object graph. */
+    MVMDeserializeWorklist wl_objects;
+    MVMDeserializeWorklist wl_stables;
+
+    /* Whether we're already working on these worklists. */
+    MVMuint32 working;
+
     /* The current object we're deserializing. */
     MVMObject *current_object;
 
-    /* The data, which we'll want to free after deserialization. */
-    char *data;
+    /* The data, which we may want to free when the SC goes away; a flag
+     * indicates when it should be. */
+    char      *data;
+    MVMuint32  data_needs_free;
 };
 
 /* Represents the serialization writer and the various functions available
@@ -138,14 +148,6 @@ struct MVMSerializationWriter {
     char      **cur_write_buffer;
     MVMuint32  *cur_write_offset;
     MVMuint32  *cur_write_limit;
-
-    /* Various writing functions. */
-    void (*write_int) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
-    void (*write_varint) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
-    void (*write_num) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value);
-    void (*write_str) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *value);
-    void (*write_ref) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *value);
-    void (*write_stable_ref) (MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st);
 };
 
 /* Core serialize and deserialize functions. */
@@ -155,3 +157,25 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
 MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str);
 MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationContext *sc,
     MVMObject *empty_string_heap);
+
+/* Functions for demanding an object/STable/code be made available (that is,
+ * by lazily deserializing it). */
+MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx);
+MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx);
+MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx);
+void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVMSTable *st);
+
+/* Reader/writer functions. */
+MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader *reader);
+MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader);
+MVMnum64 MVM_serialization_read_num(MVMThreadContext *tc, MVMSerializationReader *reader);
+MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationReader *reader);
+MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationReader *reader);
+MVMSTable * MVM_serialization_read_stable_ref(MVMThreadContext *tc, MVMSerializationReader *reader);
+void MVM_serialization_force_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MVMSTable *st);
+void MVM_serialization_write_int(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
+void MVM_serialization_write_varint(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
+void MVM_serialization_write_num(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value);
+void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *value);
+void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref);
+void MVM_serialization_write_stable_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st);

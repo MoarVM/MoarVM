@@ -36,6 +36,11 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             cur_ah = cur_ah->next_handler;
         }
     }
+    if (body->prof_cont) {
+        MVMuint64 i;
+        for (i = 0; i < body->prof_cont->num_sfs; i++)
+            MVM_gc_worklist_add(tc, worklist, &(body->prof_cont->sfs[i]));
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -50,19 +55,26 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         while (cur_ah != NULL) {
             MVMActiveHandler *next_ah = cur_ah->next_handler;
             MVM_frame_dec_ref(tc, cur_ah->frame);
-            free(cur_ah);
+            MVM_free(cur_ah);
             cur_ah = next_ah;
         }
     }
+    if (ctx->body.prof_cont)
+        MVM_free(ctx->body.prof_cont);
 }
 
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Compose the representation. */

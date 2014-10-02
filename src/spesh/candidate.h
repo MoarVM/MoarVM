@@ -75,9 +75,15 @@ struct MVMSpeshCandidate {
     MVMuint32 work_size;
     MVMuint32 env_size;
 
+    /* Number of handlers. */
+    MVMuint32 num_handlers;
+
     /* Whether this is a candidate we're in the process of doing OSR logging
      * on. */
     MVMuint32 osr_logging;
+
+    /* JIT-code structure */
+    MVMJitCode *jitcode;
 };
 
 /* The number of specializations we'll allow per static frame. */

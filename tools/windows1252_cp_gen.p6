@@ -116,7 +116,7 @@ MVMString * MVM_string_windows1252_decode(MVMThreadContext *tc,
     result->body.codes  = bytes;
     result->body.graphs = bytes;
 
-    result->body.int32s = malloc(sizeof(MVMint32) * bytes);
+    result->body.int32s = MVM_malloc(sizeof(MVMint32) * bytes);
     for (i = 0; i < bytes; i++)
         result->body.int32s[i] = WINDOWS1252_CHAR_TO_CP(windows1252[i]);
     result->body.flags = MVM_STRING_TYPE_INT32;
@@ -142,7 +142,7 @@ MVMuint8 * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString 
     if (length < 0 || start + length > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
-    result = malloc(length + 1);
+    result = MVM_malloc(length + 1);
     for (i = 0; i < length; i++) {
         MVMint32 codepoint = MVM_string_get_codepoint_at_nocheck(tc, str, start + i);
         if ((codepoint >= 0 && codepoint < 128) || (codepoint >= 152 && codepoint < 256)) {

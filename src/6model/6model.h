@@ -16,14 +16,17 @@
  * While a normal type check asks a value if it supports another type, the
  * TYPE_CHECK_NEEDS_ACCEPTS flag results in a call to .accepts_type on the
  * HOW of the thing we're checking the value against, giving it a chance to
- * decide answer. */
+ * decide answer. These are set as the lower bits of mode_flags in MVMSTable. */
 #define MVM_TYPE_CHECK_CACHE_DEFINITIVE    0
 #define MVM_TYPE_CHECK_CACHE_THEN_METHOD   1
 #define MVM_TYPE_CHECK_NEEDS_ACCEPTS       2
 #define MVM_TYPE_CHECK_CACHE_FLAG_MASK     3
 
-/* This flag is set if we consider the method cache authoritative. */
+/* This STable mode flag is set if we consider the method cache authoritative. */
 #define MVM_METHOD_CACHE_AUTHORITATIVE     4
+
+/* This STable mode flag is set if the type needs finalization. */
+#define MVM_FINALIZE_TYPE                  8
 
 /* HLL type roles. */
 #define MVM_HLL_ROLE_NONE                   0
@@ -103,14 +106,18 @@ typedef enum {
      * objects list. */
     MVM_CF_IN_GEN2_ROOT_LIST = 32,
 
-    /* GC has found this object to be live. */
+    /* A full GC run has found this object to be live. */
     MVM_CF_GEN2_LIVE = 64,
+
     /* This object in fromspace is live with a valid forwarder. */
-    /* TODO - should be possible to use the same bit for these two flags. */
+    /* TODO - should be possible to use the same bit for this and GEN2_LIVE. */
     MVM_CF_FORWARDER_VALID = 128,
 
-    MVM_CF_SERIALZATION_INDEX_ALLOCATED = 256
+    /* Have we allocated memory to store a serialization index? */
+    MVM_CF_SERIALZATION_INDEX_ALLOCATED = 256,
 
+    /* Have we arranged a persistent object ID for this object? */
+    MVM_CF_HAS_OBJECT_ID = 512
 } MVMCollectableFlags;
 
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
@@ -167,7 +174,12 @@ struct MVMCollectable {
 #  define MVM_DIRECT_SC_IDX_SENTINEL ~0
 #endif
 
-/* The common things every object has. */
+/* The common things every object has.
+ *
+ * NB - the assumption that MVMObject* can be safely cast into
+ * MVMCollectable* is spread throughout the codebase, as well
+ * as used directly in JIT. Thus, nothing may preceed the header!
+ */
 struct MVMObject {
     /* Commonalities that all collectable entities have. */
     MVMCollectable header;
@@ -213,29 +225,6 @@ struct MVMSTable {
      * header. */
     MVMuint32 size;
 
-    /* The meta-object. */
-    MVMObject *HOW;
-
-    /* The type-object. */
-    MVMObject *WHAT;
-
-    /* The underlying package stash. */
-    MVMObject *WHO;
-
-    /* By-name method dispatch cache. */
-    MVMObject *method_cache;
-
-    /* The computed v-table for static dispatch. */
-    MVMObject **vtable;
-
-    /* Array of type objects. If this is set, then it is expected to contain
-     * the type objects of all types that this type is equivalent to (e.g.
-     * all the things it isa and all the things it does). */
-    MVMObject **type_check_cache;
-
-    /* The length of the v-table. */
-    MVMuint16 vtable_length;
-
     /* The length of the type check cache. */
     MVMuint16 type_check_cache_length;
 
@@ -243,20 +232,19 @@ struct MVMSTable {
      * above). */
     MVMuint16 mode_flags;
 
+    /* Array of type objects. If this is set, then it is expected to contain
+     * the type objects of all types that this type is equivalent to (e.g.
+     * all the things it isa and all the things it does). */
+    MVMObject **type_check_cache;
+
+    /* By-name method dispatch cache. */
+    MVMObject *method_cache;
+
     /* An ID solely for use in caches that last a VM instance. Thus it
      * should never, ever be serialized and you should NEVER make a
      * type directory based upon this ID. Otherwise you'll create memory
      * leaks for anonymous types, and other such screwups. */
     MVMuint64 type_cache_id;
-
-    /* Invocation handler. If something tries to invoke this object,
-     * whatever hangs off this function pointer gets invoked to handle
-     * the invocation. If it's a call into C code it may do stuff right
-     * off the bat. However, normally it will do whatever is needed to
-     * arrange for setting up a callframe, twiddle the interpreter's
-     * PC as needed and return. */
-    void (*invoke) (MVMThreadContext *tc, MVMObject *invokee,
-        MVMCallsite *callsite, MVMRegister *args);
 
     /* If this is a container, then this contains information needed in
      * order to fetch the value in it. If not, it'll be null, which can
@@ -267,12 +255,6 @@ struct MVMSTable {
     /* Any data specific to this type that the REPR wants to keep. */
     void *container_data;
 
-    /*
-     * If this is invokable, then this contains information needed to
-     * figure out how to invoke it. If not, it'll be null.
-     */
-    MVMInvocationSpec *invocation_spec;
-
     /* Information - if any - about how we can turn something of this type
      * into a boolean. */
     MVMBoolificationSpec *boolification_spec;
@@ -282,6 +264,38 @@ struct MVMSTable {
     
     /* The role that the type plays in the HLL, if any. */
     MVMint64 hll_role;
+
+    /* Invocation handler. If something tries to invoke this object,
+     * whatever hangs off this function pointer gets invoked to handle
+     * the invocation. If it's a call into C code it may do stuff right
+     * off the bat. However, normally it will do whatever is needed to
+     * arrange for setting up a callframe, twiddle the interpreter's
+     * PC as needed and return. */
+    void (*invoke) (MVMThreadContext *tc, MVMObject *invokee,
+        MVMCallsite *callsite, MVMRegister *args);
+
+    /*
+     * If this is invokable, then this contains information needed to
+     * figure out how to invoke it. If not, it'll be null.
+     */
+    MVMInvocationSpec *invocation_spec;
+
+    /* The type-object. */
+    MVMObject *WHAT;
+
+    /* The underlying package stash. */
+    MVMObject *WHO;
+
+    /* The meta-object. */
+    MVMObject *HOW;
+
+    /* We lazily deserialize HOW; this is the SC and index if needed. */
+    MVMSerializationContext *HOW_sc;
+    MVMuint32                HOW_idx;
+
+    /* Also info we need to lazily deserialize the method cache. */
+    MVMuint32                method_cache_offset;
+    MVMSerializationContext *method_cache_sc;
 };
 
 /* The representation operations table. Note that representations are not
@@ -462,7 +476,7 @@ struct MVMREPROps {
         MVMObject *root, void *data);
 
     /* Gets the storage specification for this representation. */
-    MVMStorageSpec (*get_storage_spec) (MVMThreadContext *tc, MVMSTable *st);
+    const MVMStorageSpec * (*get_storage_spec) (MVMThreadContext *tc, MVMSTable *st);
 
     /* Handles an object changing its type. The representation is responsible
      * for doing any changes to the underlying data structure, and may reject
@@ -539,8 +553,12 @@ struct MVMREPROps {
 #define IS_CONCRETE(o)   (!(((MVMObject *)o)->header.flags & MVM_CF_TYPE_OBJECT))
 
 /* Some functions related to 6model core functionality. */
+MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st);
+MVMObject * MVM_6model_get_how_obj(MVMThreadContext *tc, MVMObject *st);
 void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res);
 MVM_PUBLIC MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name);
+MVMint32 MVM_6model_find_method_spesh(MVMThreadContext *tc, MVMObject *obj, MVMString *name,
+                                      MVMint32 ss_idx, MVMRegister *res);
 MVMint64 MVM_6model_can_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name);
 void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res);
 void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res);

@@ -24,7 +24,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
     /* Need a fresh handle for resource management purposes. */
     if (src_body->lib_name) {
-        dest_body->lib_name = malloc(strlen(src_body->lib_name) + 1);
+        dest_body->lib_name = MVM_malloc(strlen(src_body->lib_name) + 1);
         strcpy(dest_body->lib_name, src_body->lib_name);
         dest_body->lib_handle = dlLoadLibrary(dest_body->lib_name);
     }
@@ -34,21 +34,27 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->convention = src_body->convention;
     dest_body->num_args = src_body->num_args;
     if (src_body->arg_types) {
-        dest_body->arg_types = malloc(sizeof(MVMint16) * (src_body->num_args ? src_body->num_args : 1));
+        dest_body->arg_types = MVM_malloc(sizeof(MVMint16) * (src_body->num_args ? src_body->num_args : 1));
         memcpy(dest_body->arg_types, src_body->arg_types, src_body->num_args * sizeof(MVMint16));
     }
     dest_body->ret_type = src_body->ret_type;
 }
 
+
+
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_INLINED,       /* inlineable */
+    sizeof(MVMNativeCallBody) * 8,  /* bits */
+    ALIGNOF(MVMNativeCallBody),     /* align */
+    MVM_STORAGE_SPEC_BP_NONE,       /* boxed_primitive */
+    0,                              /* can_box */
+    0,                              /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
-    spec.bits            = sizeof(MVMNativeCallBody) * 8;
-    spec.align           = ALIGNOF(MVMNativeCallBody);
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* We can't actually serialize the handle, but since this REPR gets inlined
@@ -75,13 +81,13 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMNativeCallBody *body = (MVMNativeCallBody *)data;
     if (body->lib_name)
-        free(body->lib_name);
+        MVM_free(body->lib_name);
     if (body->lib_handle)
         dlFreeLibrary(body->lib_handle);
     if (body->arg_types)
-        free(body->arg_types);
+        MVM_free(body->arg_types);
     if (body->arg_info)
-        free(body->arg_info);
+        MVM_free(body->arg_info);
 }
 
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {

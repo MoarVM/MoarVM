@@ -138,13 +138,18 @@ static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st
     return spec;
 }
 
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Compose the representation. */
@@ -161,14 +166,16 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     switch (ins->info->opcode) {
     case MVM_OP_create: {
-        MVMSpeshOperand target   = ins->operands[0];
-        MVMSpeshOperand type     = ins->operands[1];
-        ins->info                = MVM_op_get_op(MVM_OP_sp_fastcreate);
-        ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-        ins->operands[0]         = target;
-        ins->operands[1].lit_i16 = sizeof(MVMHash);
-        ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
-        MVM_spesh_get_facts(tc, g, type)->usages--;
+        if (!(st->mode_flags & MVM_FINALIZE_TYPE)) {
+            MVMSpeshOperand target   = ins->operands[0];
+            MVMSpeshOperand type     = ins->operands[1];
+            ins->info                = MVM_op_get_op(MVM_OP_sp_fastcreate);
+            ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0]         = target;
+            ins->operands[1].lit_i16 = sizeof(MVMHash);
+            ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+            MVM_spesh_get_facts(tc, g, type)->usages--;
+        }
         break;
     }
     }

@@ -19,7 +19,7 @@ typedef struct {
 /* Creates the allocator data structure with bins. */
 MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
     int init_stat;
-    MVMFixedSizeAlloc *al = malloc(sizeof(MVMFixedSizeAlloc));
+    MVMFixedSizeAlloc *al = MVM_malloc(sizeof(MVMFixedSizeAlloc));
     al->size_classes = calloc(MVM_FSA_BINS, sizeof(MVMFixedSizeAllocSizeClass));
     if ((init_stat = uv_mutex_init(&(al->complex_alloc_mutex))) < 0)
         MVM_exception_throw_adhoc(tc, "Failed to initialize mutex: %s",
@@ -44,8 +44,8 @@ static void setup_bin(MVMFixedSizeAlloc *al, MVMuint32 bin) {
 
     /* We'll just allocate a single page to start off with. */
     al->size_classes[bin].num_pages = 1;
-    al->size_classes[bin].pages     = malloc(sizeof(void *) * al->size_classes[bin].num_pages);
-    al->size_classes[bin].pages[0]  = malloc(page_size);
+    al->size_classes[bin].pages     = MVM_malloc(sizeof(void *) * al->size_classes[bin].num_pages);
+    al->size_classes[bin].pages[0]  = MVM_malloc(page_size);
 
     /* Set up allocation position and limit. */
     al->size_classes[bin].alloc_pos = al->size_classes[bin].pages[0];
@@ -60,9 +60,9 @@ static void add_page(MVMFixedSizeAlloc *al, MVMuint32 bin) {
     /* Add the extra page. */
     MVMuint32 cur_page = al->size_classes[bin].num_pages;
     al->size_classes[bin].num_pages++;
-    al->size_classes[bin].pages = realloc(al->size_classes[bin].pages,
+    al->size_classes[bin].pages = MVM_realloc(al->size_classes[bin].pages,
         sizeof(void *) * al->size_classes[bin].num_pages);
-    al->size_classes[bin].pages[cur_page] = malloc(page_size);
+    al->size_classes[bin].pages[cur_page] = MVM_malloc(page_size);
 
     /* Set up allocation position and limit. */
     al->size_classes[bin].alloc_pos = al->size_classes[bin].pages[cur_page];
@@ -101,7 +101,7 @@ static void * alloc_slow_path(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVMui
 }
 void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t bytes) {
 #if FSA_SIZE_DEBUG
-    MVMFixedSizeAllocDebug *dbg = malloc(bytes + sizeof(MVMuint64));
+    MVMFixedSizeAllocDebug *dbg = MVM_malloc(bytes + sizeof(MVMuint64));
     dbg->alloc_size = bytes;
     return &(dbg->memory);
 #else
@@ -133,7 +133,7 @@ void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t 
         return alloc_slow_path(tc, al, bin);
     }
     else {
-        return malloc(bytes);
+        return MVM_malloc(bytes);
     }
 #endif
 }
@@ -152,7 +152,7 @@ void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t byt
     MVMFixedSizeAllocDebug *dbg = (MVMFixedSizeAllocDebug *)((char *)to_free - 8);
     if (dbg->alloc_size != bytes)
         MVM_panic(1, "Fixed size allocator: wrong size in free");
-    free(dbg);
+    MVM_free(dbg);
 #else
     MVMuint32 bin = bin_for(bytes);
     if (bin < MVM_FSA_BINS) {
@@ -175,7 +175,7 @@ void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t byt
     }
     else {
         /* Was malloc'd due to being oversize, so just free it. */
-        free(to_free);
+        MVM_free(to_free);
     }
 #endif
 }

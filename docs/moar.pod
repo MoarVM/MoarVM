@@ -1,0 +1,56 @@
+=encoding UTF-8
+
+=head1 NAME
+
+moar - a runtime for Perl 6
+
+=head1 SYNOPSIS
+
+    moar --version
+    moar [--dump] [--crash] [--libpath=...] [--full-cleanup] inputfile
+
+=head1 DESCRIPTION
+
+C<moar> is the binary of MoarVM, (short for Metamodel On A Runtime Virtual
+Machine). It can be used to execute C<.moarvm> bytecode files.
+
+=head1 ENVIRONMENT VARIABLES
+
+moar respects the following environment variables:
+
+=over
+
+=item MVM_JIT_DISABLE
+
+Disables the just-in-time compiler (JIT). This is ignored if MoarVM was built
+without JIT support.
+
+=item MVM_SPESH_DISABLE
+
+Disables the runtime bytecode specializer / optimizer.
+
+=item MVM_SPESH_INLINE_DISABLE
+
+Disables inlining of call frames inside the bytecode specializer.
+
+=item MVM_SPESH_OSR_DISABLE
+
+Disables the on-stack replacement feature of the bytecode specializer.
+
+=back
+
+=head1 REPORTING BUGS
+
+Please use the issue tracker at L<https://github.com/moarvm/moarvm/issues> to
+report bugs.
+
+=head1 COPYRIGHT
+
+Copyright (C) 2012-2014 by the MoarVM contributors. See the F<CREDITS> file for
+a list of contributors.
+
+License: Artistlic License 2.0. See the file F<Artistic2.txt> for more
+information.
+
+=cut
+

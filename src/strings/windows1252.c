@@ -135,13 +135,11 @@ MVMString * MVM_string_windows1252_decode(MVMThreadContext *tc,
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t i;
 
-    result->body.codes  = bytes;
-    result->body.graphs = bytes;
-
-    result->body.int32s = malloc(sizeof(MVMint32) * bytes);
+    result->body.num_graphs      = bytes;
+    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
     for (i = 0; i < bytes; i++)
-        result->body.int32s[i] = WINDOWS1252_CHAR_TO_CP(windows1252[i]);
-    result->body.flags = MVM_STRING_TYPE_INT32;
+        result->body.storage.blob_32[i] = WINDOWS1252_CHAR_TO_CP(windows1252[i]);
     return result;
 }
 
@@ -152,7 +150,7 @@ MVMuint8 * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString 
     /* Windows-1252 is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
-    MVMStringIndex strgraphs = NUM_GRAPHS(str);
+    MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
     MVMuint8 *result;
     size_t i;
@@ -163,21 +161,31 @@ MVMuint8 * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString 
     if (length < -1 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
-    result = malloc(lengthu + 1);
-    for (i = 0; i < lengthu; i++) {
-        MVMint32 codepoint = MVM_string_get_codepoint_at_nocheck(tc, str, start + i);
-        if ((codepoint >= 0 && codepoint < 128) || (codepoint >= 152 && codepoint < 256)) {
-            result[i] = (MVMuint8)codepoint;
-        }
-        else if (codepoint > 8364 || codepoint < 0) {
-            result[i] = '?';
-        }
-        else {
-            result[i] = windows1252_cp_to_char(codepoint);
-        }
+    result = MVM_malloc(lengthu + 1);
+    if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
+        /* No encoding needed; directly copy. */
+        memcpy(result, str->body.storage.blob_ascii, lengthu);
+        result[lengthu] = 0;
     }
-    result[i] = 0;
+    else {
+        MVMuint32 i = 0;
+        MVMCodepointIter ci;
+        MVM_string_ci_init(tc, &ci, str);
+        while (MVM_string_ci_has_more(tc, &ci)) {
+            MVMCodepoint codepoint = MVM_string_ci_get_codepoint(tc, &ci);
+            if ((codepoint >= 0 && codepoint < 128) || (codepoint >= 152 && codepoint < 256))
+                result[i] = (MVMuint8)codepoint;
+            else if (codepoint > 8364 || codepoint < 0)
+                result[i] = '?';
+            else
+                result[i] = windows1252_cp_to_char(codepoint);
+            i++;
+        }
+        result[i] = 0;
+    }
+
     if (output_size)
         *output_size = lengthu;
+
     return result;
 }

@@ -42,11 +42,11 @@ static void create_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 obj_o
     /* We know it's a concrete object. */
     obj_facts->flags |= MVM_SPESH_FACT_CONCRETE;
 
-    /* If we know the original value, then we can check the type to see if
+    /* If we know the type object, then we can check to see if
      * it's a container type. */
-    if (type_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-        MVMObject *value = type_facts->value.o;
-        if (value && !STABLE(value)->container_spec)
+    if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        MVMObject *type = type_facts->type;
+        if (type && !STABLE(type)->container_spec)
             obj_facts->flags |= MVM_SPESH_FACT_DECONTED;
     }
 }
@@ -112,11 +112,37 @@ static void decont_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 out_o
 static void wval_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_orig,
                        MVMuint16 tgt_i, MVMuint16 dep, MVMint64 idx) {
     MVMCompUnit *cu = g->sf->body.cu;
-    if (dep >= 0 && dep < cu->body.num_scs) {
+    if (dep < cu->body.num_scs) {
         MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
         if (sc)
             object_facts(tc, g, tgt_orig, tgt_i, MVM_sc_get_object(tc, sc, idx));
     }
+}
+
+/* Let's figure out what exact type of iter we'll get from an iter op */
+static void iter_facts(MVMThreadContext *tc, MVMSpeshGraph *g,
+                       MVMuint16 out_orig, MVMuint16 out_i,
+                       MVMuint16 in_orig, MVMuint16 in_i) {
+    MVMSpeshFacts *out_facts = &(g->facts[out_orig][out_i]);
+    MVMSpeshFacts *in_facts  = &(g->facts[in_orig][in_i]);
+
+    if (in_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+        switch (REPR(in_facts->type)->ID) {
+            case MVM_REPR_ID_MVMArray:
+                out_facts->type = g->sf->body.cu->body.hll_config->array_iterator_type;
+                out_facts->flags |= MVM_SPESH_FACT_ARRAY_ITER;
+                break;
+            case MVM_REPR_ID_MVMHash:
+            case MVM_REPR_ID_MVMContext:
+                out_facts->type = g->sf->body.cu->body.hll_config->hash_iterator_type;
+                out_facts->flags |= MVM_SPESH_FACT_HASH_ITER;
+                break;
+            default:
+                return;
+        }
+    }
+
+    out_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
 }
 
 /* constant ops on literals give us a specialize-time-known value */
@@ -156,6 +182,20 @@ static void literal_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
 }
 
+/* Discover facts from extops. */
+static void discover_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMExtOpRecord *extops     = g->sf->body.cu->body.extops;
+    MVMuint16       num_extops = g->sf->body.cu->body.num_extops;
+    MVMuint16       i;
+    for (i = 0; i < num_extops; i++) {
+        if (extops[i].info == ins->info) {
+            /* Found op; call its discovery function, if any. */
+            if (extops[i].discover)
+                extops[i].discover(tc, g, ins);
+            return;
+        }
+    }
+}
 /* Allocates space for keeping track of guards inserted from logging, and
  * their usage. */
 void allocate_log_guard_table(MVMThreadContext *tc, MVMSpeshGraph *g) {
@@ -324,6 +364,21 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[2].reg.orig, ins->operands[2].reg.i);
             break;
+        case MVM_OP_add_I:
+        case MVM_OP_sub_I:
+        case MVM_OP_mul_I:
+        case MVM_OP_div_I:
+        case MVM_OP_mod_I:
+            create_facts(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                ins->operands[3].reg.orig, ins->operands[3].reg.i);
+            break;
+        case MVM_OP_neg_I:
+        case MVM_OP_abs_I:
+            create_facts(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                ins->operands[2].reg.orig, ins->operands[2].reg.i);
+            break;
         case MVM_OP_bootint:
             object_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
@@ -404,6 +459,11 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[1].lit_i16, ins->operands[2].lit_i64);
             break;
+        case MVM_OP_iter:
+            iter_facts(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                ins->operands[1].reg.orig, ins->operands[1].reg.i);
+            break;
         case MVM_OP_const_i64:
         case MVM_OP_const_i32:
         case MVM_OP_const_i16:
@@ -423,6 +483,9 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 log_facts(tc, g, bb, ins);
             break;
         }
+        default:
+            if (ins->info->opcode == (MVMuint16)-1)
+                discover_extop(tc, g, ins);
         }
         ins = ins->next;
     }

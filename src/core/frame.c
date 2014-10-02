@@ -10,7 +10,7 @@ static void grow_frame_pool(MVMThreadContext *tc, MVMuint32 pool_index) {
     do {
         new_size *= 2;
     } while (pool_index >= new_size);
-    tc->frame_pool_table = realloc(tc->frame_pool_table,
+    tc->frame_pool_table = MVM_realloc(tc->frame_pool_table,
         new_size * sizeof(MVMFrame *));
     memset(tc->frame_pool_table + old_size, 0,
         (new_size - old_size) * sizeof(MVMFrame *));
@@ -22,6 +22,11 @@ static void grow_frame_pool(MVMThreadContext *tc, MVMuint32 pool_index) {
  * bytecode. */
 void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     MVMStaticFrameBody *static_frame_body = &static_frame->body;
+
+    /* Ensure the frame is fully deserialized. */
+    if (!static_frame_body->fully_deserialized)
+        MVM_bytecode_finish_frame(tc, static_frame_body->cu, static_frame, 0);
+
     /* Work size is number of locals/registers plus size of the maximum
      * call site argument list. */
     static_frame_body->work_size = sizeof(MVMRegister) *
@@ -50,9 +55,25 @@ void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *stati
 
     /* Set its spesh threshold. */
     static_frame_body->spesh_threshold = MVM_spesh_threshold(tc, static_frame);
+}
 
-    /* Mark frame as invoked, so we need not do these calculations again. */
-    static_frame_body->invoked = 1;
+/* When we don't match the current instrumentation level, we hit this. It may
+ * simply be that we never invoked the frame, in which case we prepare and
+ * verify it. It may also be because we need to instrument the code for
+ * profiling. */
+static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
+    /* Prepare and verify if needed. */
+    if (static_frame->body.instrumentation_level == 0)
+        prepare_and_verify_static_frame(tc, static_frame);
+
+    /* Mark frame as being at the current instrumentation level. */
+    static_frame->body.instrumentation_level = tc->instance->instrumentation_level;
+
+    /* Add profiling instrumentation if needed. */
+    if (tc->instance->profiling)
+        MVM_profile_instrument(tc, static_frame);
+    else
+        MVM_profile_ensure_uninstrumented(tc, static_frame);
 }
 
 /* Increases the reference count of a frame. */
@@ -102,6 +123,68 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
     return NULL;
 }
 
+/* Creates a frame for usage as a context only, possibly forcing all of the
+ * static lexicals to be deserialized if it's used for auto-close purposes. */
+static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
+        MVMObject *code_ref, MVMint32 autoclose) {
+    MVMFrame *frame;
+
+    /* If the frame was never invoked before, need initial calculations
+     * and verification. */
+    if (static_frame->body.instrumentation_level == 0)
+        instrumentation_level_barrier(tc, static_frame);
+
+    frame = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMFrame));
+
+    /* Copy thread context into the frame. */
+    frame->tc = tc;
+
+    /* Set static frame. */
+    frame->static_info = static_frame;
+
+    /* Store the code ref. */
+    frame->code_ref = code_ref;
+
+    /* Allocate space for lexicals, copying the default lexical environment
+     * into place and, if we're auto-closing, making sure anything we'd clone
+     * is vivified to prevent the clone (which is what creates the correct
+     * BEGIN/INIT semantics). */
+    if (static_frame->body.env_size) {
+        frame->env = MVM_fixed_size_alloc(tc, tc->instance->fsa, static_frame->body.env_size);
+        frame->allocd_env = static_frame->body.env_size;
+        if (autoclose) {
+            MVMuint16 i;
+            for (i = 0; i < static_frame->body.num_lexicals; i++) {
+                if (!static_frame->body.static_env[i].o && static_frame->body.static_env_flags[i] == 1) {
+                    MVMint32 scid, objid;
+                    if (MVM_bytecode_find_static_lexical_scref(tc, static_frame->body.cu, 
+                            static_frame, i, &scid, &objid)) {
+                        MVMSerializationContext *sc = MVM_sc_get_sc(tc, static_frame->body.cu, scid);
+                        if (sc == NULL)
+                            MVM_exception_throw_adhoc(tc,
+                                "SC not yet resolved; lookup failed");
+                        MVM_ASSIGN_REF(tc, &(static_frame->common.header),
+                            static_frame->body.static_env[i].o,
+                            MVM_sc_get_object(tc, sc, objid));
+                    }
+                }
+            }
+        }
+        memcpy(frame->env, static_frame->body.static_env, static_frame->body.env_size);
+    }
+
+    /* Initial reference count is 0 (will become referenced by being set as
+     * an outer context). So just return it now. */
+    return frame;
+}
+
+/* Creates a frame that is suitable for deserializing a context into. Does not
+ * try to use the frame pool, since we'll typically never recycle these. */
+MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
+        MVMObject *code_ref) {
+    return create_context_only(tc, static_frame, code_ref, 0);
+}
+
 /* Provides auto-close functionality, for the handful of cases where we have
  * not ever been in the outer frame of something we're invoking. In this case,
  * we fake up a frame based on the static lexical environment. */
@@ -117,7 +200,7 @@ MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
     }
 
     /* If not, fake up a frame See if it also needs an outer. */
-    result = MVM_frame_create_context_only(tc, needed, (MVMObject *)needed->body.static_code);
+    result = create_context_only(tc, needed, (MVMObject *)needed->body.static_code, 1);
     if (needed->body.outer) {
         /* See if the static code object has an outer. */
         MVMCode *outer_code = needed->body.outer->body.static_code;
@@ -185,6 +268,13 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
                 NULL;
             frame->cur_args_callsite = NULL;
 
+            /* Ensure frame return addres and dynlex cache key is cleared. (We
+             * must clear the return address to avoid bogus searching within
+             * inlines for dynamic variables). */
+            frame->return_address    = NULL;
+            frame->dynlex_cache_name = NULL;
+            frame->jit_entry_label   = NULL;
+
             return frame;
         }
     }
@@ -193,10 +283,14 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     frame = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMFrame));
     frame->params.named_used = NULL;
 
-    /* Ensure special return pointers and continuation tags are null. */
-    frame->special_return = NULL;
-    frame->special_unwind = NULL;
+    /* Ensure special return pointers, continuation tags, dynlex cache,
+     * and return address are null. */
+    frame->special_return    = NULL;
+    frame->special_unwind    = NULL;
     frame->continuation_tags = NULL;
+    frame->dynlex_cache_name = NULL;
+    frame->return_address    = NULL;
+    frame->jit_entry_label   = NULL;
 
     /* Allocate space for lexicals and work area, copying the default lexical
      * environment into place. */
@@ -229,6 +323,14 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     return frame;
 }
 
+/* This exists to reduce the amount of pointer-fiddling that has to be
+ * done by the JIT */
+void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
+                           MVMCallsite *callsite, MVMint32 spesh_cand) {
+    MVM_frame_invoke(tc, code->body.sf, callsite,  tc->cur_frame->args,
+                     code->body.outer, (MVMObject*)code, spesh_cand);
+}
+
 /* Takes a static frame and a thread context. Invokes the static frame. */
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
@@ -238,14 +340,15 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     int fresh = 0;
     MVMStaticFrameBody *static_frame_body = &static_frame->body;
 
-    /* If the frame was never invoked before, need initial calculations
-     * and verification. */
-    if (!static_frame_body->invoked)
-        prepare_and_verify_static_frame(tc, static_frame);
+    /* If the frame was never invoked before, or never before at the current
+     * instrumentation level, we need to trigger the instrumentation level
+     * barrier. */
+    if (static_frame_body->instrumentation_level != tc->instance->instrumentation_level)
+        instrumentation_level_barrier(tc, static_frame);
 
     /* See if any specializations apply. */
     found_spesh = 0;
-    if (spesh_cand >= 0) {
+    if (spesh_cand >= 0 && spesh_cand < static_frame_body->num_spesh_candidates) {
         MVMSpeshCandidate *chosen_cand = &static_frame_body->spesh_candidates[spesh_cand];
         if (!chosen_cand->sg) {
             frame = allocate_frame(tc, static_frame_body, chosen_cand);
@@ -324,7 +427,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 if (!chosen_cand->osr_logging && cur_idx < MVM_SPESH_LOG_RUNS) {
                     if (MVM_cas(&(chosen_cand->log_enter_idx), cur_idx, cur_idx + 1) == cur_idx) {
                         /* We get to log. */
-                        frame = allocate_frame(tc, static_frame_body, NULL); /* NULL as no inlines yet. */
+                        frame = allocate_frame(tc, static_frame_body, chosen_cand);
                         frame->effective_bytecode    = chosen_cand->bytecode;
                         frame->effective_handlers    = chosen_cand->handlers;
                         frame->effective_spesh_slots = chosen_cand->spesh_slots;
@@ -338,7 +441,13 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             else {
                 /* In the post-specialize phase; can safely used the code. */
                 frame = allocate_frame(tc, static_frame_body, chosen_cand);
-                frame->effective_bytecode    = chosen_cand->bytecode;
+                if (chosen_cand->jitcode) {
+                    frame->effective_bytecode = chosen_cand->jitcode->bytecode;
+                    frame->jit_entry_label    = chosen_cand->jitcode->labels[0];
+                }
+                else {
+                    frame->effective_bytecode = chosen_cand->bytecode;
+                }
                 frame->effective_handlers    = chosen_cand->handlers;
                 frame->effective_spesh_slots = chosen_cand->spesh_slots;
                 frame->spesh_cand            = chosen_cand;
@@ -353,21 +462,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame->effective_handlers = static_frame_body->handlers;
         frame->spesh_cand         = NULL;
     }
-
-#if MVM_HLL_PROFILE_CALLS
-    frame->profile_index = tc->profile_index;
-    tc->profile_data[frame->profile_index].duration_nanos = MVM_platform_now();
-    tc->profile_data[frame->profile_index].callsite_id = 0; /* XXX get a real callsite id */
-    tc->profile_data[frame->profile_index].code_id = 0; /* XXX get a real code id */
-
-    /* increment the profile data index */
-    ++tc->profile_index;
-
-    if (tc->profile_index == tc->profile_data_size) {
-        tc->profile_data_size *= 2;
-        tc->profile_data = realloc(tc->profile_data, tc->profile_data_size);
-    }
-#endif
 
     /* Copy thread context (back?) into the frame. */
     frame->tc = tc;
@@ -428,9 +522,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
     
-    /* Make sure there's no frame context pointer and special return data
-     * won't be marked. */
+    /* Make sure there's no frame context pointer and special return data. */
     frame->context_object = NULL;
+    frame->special_return_data = NULL;
     frame->mark_special_return_data = NULL;
 
     /* Clear frame flags. */
@@ -476,7 +570,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         }
                         else {
                             /* Allocate storage for state vars. */
-                            state = malloc(frame->static_info->body.env_size);
+                            state = MVM_malloc(frame->static_info->body.env_size);
                             memset(state, 0, frame->static_info->body.env_size);
                             ((MVMCode *)frame->code_ref)->body.state_vars = state;
                             state_act = 1;
@@ -499,41 +593,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     }
 }
 
-/* Creates a frame that is suitable for deserializing a context into. Does not
- * try to use the frame pool, since we'll typically never recycle these. */
-MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
-        MVMObject *code_ref) {
-    MVMFrame *frame;
-
-    /* If the frame was never invoked before, need initial calculations
-     * and verification. */
-    if (!static_frame->body.invoked)
-        prepare_and_verify_static_frame(tc, static_frame);
-
-    frame = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMFrame));
-
-    /* Copy thread context into the frame. */
-    frame->tc = tc;
-
-    /* Set static frame. */
-    frame->static_info = static_frame;
-
-    /* Store the code ref. */
-    frame->code_ref = code_ref;
-
-    /* Allocate space for lexicals, copying the default lexical environment
-     * into place. */
-    if (static_frame->body.env_size) {
-        frame->env = MVM_fixed_size_alloc(tc, tc->instance->fsa, static_frame->body.env_size);
-        frame->allocd_env = static_frame->body.env_size;
-        memcpy(frame->env, static_frame->body.static_env, static_frame->body.env_size);
-    }
-
-    /* Initial reference count is 0 (will become referenced by being set as
-     * an outer context). So just return it now. */
-    return frame;
-}
-
 /* Creates a frame for de-optimization purposes. */
 MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                                       MVMCode *code_ref) {
@@ -550,6 +609,7 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
     frame->ref_count                = 1; /* It'll be on the "stack". */
     frame->gc_seq_number            = 0;
     frame->context_object           = NULL;
+    frame->special_return_data      = NULL;
     frame->mark_special_return_data = NULL;
     frame->flags                    = 0;
     frame->params.callsite          = NULL; /* We only ever deopt after args handling. */
@@ -603,7 +663,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
             MVMContinuationTag *tag = returner->continuation_tags;
             while (tag) {
                 MVMContinuationTag *next = tag->next;
-                free(tag);
+                MVM_free(tag);
                 tag = next;
             }
             returner->continuation_tags = NULL;
@@ -624,12 +684,6 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         }
     }
 
-#if MVM_HLL_PROFILE_CALLS
-    tc->profile_data[returner->profile_index].duration_nanos =
-        MVM_platform_now() -
-        tc->profile_data[returner->profile_index].duration_nanos;
-#endif
-
     /* Decrement the frame's ref-count by the 1 it got by virtue of being the
      * currently executing frame. */
     MVM_frame_dec_ref(tc, returner);
@@ -644,15 +698,17 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
         /* Handle any special return hooks. */
         if (caller->special_return || caller->special_unwind) {
-            MVMSpecialReturn sr = caller->special_return;
-            MVMSpecialReturn su = caller->special_unwind;
-            caller->special_return = NULL;
-            caller->special_unwind = NULL;
-            if (unwind && su)
-                su(tc, caller->special_return_data);
-            else if (!unwind && sr)
-                sr(tc, caller->special_return_data);
+            MVMSpecialReturn  sr  = caller->special_return;
+            MVMSpecialReturn  su  = caller->special_unwind;
+            void             *srd = caller->special_return_data;
+            caller->special_return           = NULL;
+            caller->special_unwind           = NULL;
+            caller->special_return_data      = NULL;
             caller->mark_special_return_data = NULL;
+            if (unwind && su)
+                su(tc, srd);
+            else if (!unwind && sr)
+                sr(tc, srd);
         }
 
         return 1;
@@ -729,7 +785,7 @@ static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVMFrame *frame    = ud->frame;
     MVMuint8 *abs_addr = ud->abs_addr;
     MVMuint32 rel_addr = ud->rel_addr;
-    free(sr_data);
+    MVM_free(sr_data);
     MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL);
 }
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
@@ -754,7 +810,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             tc->cur_frame->args[1].o = NULL;
             tc->cur_frame->special_return = continue_unwind;
             {
-                MVMUnwindData *ud = malloc(sizeof(MVMUnwindData));
+                MVMUnwindData *ud = MVM_malloc(sizeof(MVMUnwindData));
                 ud->frame = frame;
                 ud->abs_addr = abs_addr;
                 ud->rel_addr = rel_addr;
@@ -768,6 +824,10 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             return;
         }
         else {
+            /* If we're profiling, log an exit. */
+            if (tc->instance->profiling)
+                MVM_profile_log_unwind(tc);
+
             /* No exit handler, so just remove the frame. */
             if (!remove_one_frame(tc, 1))
                 MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
@@ -779,6 +839,25 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
         *tc->interp_cur_op = *tc->interp_bytecode_start + rel_addr;
     if (return_value)
         MVM_args_set_result_obj(tc, return_value, 1);
+}
+
+/* Gets a code object for a frame, lazily deserializing it if needed. */
+MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
+    if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
+        MVM_exception_throw_adhoc(tc, "getcodeobj needs a code ref");
+    if (!code->body.code_object) {
+        MVMStaticFrame *sf = code->body.sf;
+        if (sf->body.code_obj_sc_dep_idx > 0) {
+            MVMSerializationContext *sc = MVM_sc_get_sc(tc, sf->body.cu,
+                sf->body.code_obj_sc_dep_idx - 1);
+            if (sc == NULL)
+                MVM_exception_throw_adhoc(tc,
+                    "SC not yet resolved; lookup failed");
+            MVM_ASSIGN_REF(tc, &(code->common.header), code->body.code_object,
+                MVM_sc_get_object(tc, sc, sf->body.code_obj_sc_idx));
+        }
+    }
+    return code->body.code_object;
 }
 
 /* Given the specified code object, sets its outer to the current scope. */
@@ -822,7 +901,9 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
     MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.sf, ((MVMCode *)code)->body.sf);
     MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.name, ((MVMCode *)code)->body.name);
     closure->body.outer = MVM_frame_inc_ref(tc, tc->cur_frame);
-    MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.code_object, ((MVMCode *)code)->body.code_object);
+
+    MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.code_object,
+        ((MVMCode *)code)->body.code_object);
 
     return (MVMObject *)closure;
 }
@@ -851,13 +932,16 @@ void MVM_frame_free_frame_pool(MVMThreadContext *tc) {
 
 /* Vivifies a lexical in a frame. */
 MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint16 idx) {
-    MVMuint8    *flags, flag;
-    MVMRegister *static_env;
-    MVMuint16 effective_idx;
+    MVMuint8       *flags;
+    MVMint16        flag;
+    MVMRegister    *static_env;
+    MVMuint16       effective_idx;
+    MVMStaticFrame *effective_sf;
     if (idx < f->static_info->body.num_lexicals) {
         flags         = f->static_info->body.static_env_flags;
         static_env    = f->static_info->body.static_env;
         effective_idx = idx;
+        effective_sf  = f->static_info;
     }
     else if (f->spesh_cand) {
         MVMint32 i;
@@ -866,8 +950,9 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
             MVMStaticFrame *isf = f->spesh_cand->inlines[i].code->body.sf;
             effective_idx = idx - f->spesh_cand->inlines[i].lexicals_start;
             if (effective_idx < isf->body.num_lexicals) {
-                flags      = isf->body.static_env_flags;
-                static_env = isf->body.static_env;
+                flags        = isf->body.static_env_flags;
+                static_env   = isf->body.static_env;
+                effective_sf = isf;
                 break;
             }
         }
@@ -876,6 +961,20 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
         flags = NULL;
     }
     flag  = flags ? flags[effective_idx] : -1;
+    if (flag != -1 && static_env[effective_idx].o == NULL) {
+        MVMStaticFrameBody *static_frame_body = &(f->static_info->body);
+        MVMint32 scid, objid;
+        if (MVM_bytecode_find_static_lexical_scref(tc, effective_sf->body.cu, 
+                effective_sf, effective_idx, &scid, &objid)) {
+            MVMSerializationContext *sc = MVM_sc_get_sc(tc, effective_sf->body.cu, scid);
+            if (sc == NULL)
+                MVM_exception_throw_adhoc(tc,
+                    "SC not yet resolved; lookup failed");
+            MVM_ASSIGN_REF(tc, &(f->static_info->common.header),
+                static_frame_body->static_env[effective_idx].o,
+                MVM_sc_get_object(tc, sc, objid));
+        }
+    }
     if (flag == 0) {
         MVMObject *viv = static_env[effective_idx].o;
         return f->env[idx].o = viv ? viv : tc->instance->VMNull;
@@ -924,6 +1023,16 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
         return NULL;
     MVM_exception_throw_adhoc(tc, "No lexical found with name '%s'",
         MVM_string_utf8_encode_C_string(tc, name));
+}
+
+/* Finds a lexical in the outer frame, throwing if it's not there. */
+MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name) {
+    MVMRegister *r = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer);
+    if (r)
+        return r->o;
+    else
+        MVM_exception_throw_adhoc(tc, "No lexical found with name '%s'",
+            MVM_string_utf8_encode_C_string(tc, name));
 }
 
 /* Looks up the address of the lexical with the specified name, starting with
@@ -994,27 +1103,165 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
 
 /* Looks up the address of the lexical with the specified name and the
  * specified type. Returns null if it does not exist. */
-MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify) {
-    if (!name) {
-        MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
+static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to, MVMString *name, MVMRegister *reg, MVMuint16 type, MVMuint32 fcost, MVMuint32 icost) {
+    MVMint32 next = 0;
+    MVMint32 frames = 0;
+    MVMuint32 desperation = 0;
+    
+    if (fcost+icost > 20)
+        desperation = 1;
+
+    while (from && from != to) {
+        frames++;
+        if (frames >= next) {
+            if (!from->dynlex_cache_name || (desperation && frames > 1)) {
+                from->dynlex_cache_name = name;
+                from->dynlex_cache_reg  = reg;
+                from->dynlex_cache_type = type;
+                if (desperation && next == 3) {
+                    next = fcost / 2;
+                }
+                else {
+                    if (next)
+                        return;
+                    next = 3;
+                }
+            }
+        }
+        from = from->caller;
     }
+}
+MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify) {
+    FILE *dlog = tc->instance->dynvar_log_fh;
+    MVMuint32 fcost = 0;  /* frames traversed */
+    MVMuint32 icost = 0;  /* inlines traversed */
+    MVMuint32 ecost = 0;  /* frames traversed with empty cache */
+    MVMuint32 xcost = 0;  /* frames traversed with wrong name */
+    char *c_name;
+
+    MVMFrame *initial_frame = cur_frame;
+    if (!name)
+        MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
+    if (dlog)
+        c_name = MVM_string_utf8_encode_C_string(tc, name);
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
-        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
-        if (lexical_names) {
+        MVMLexicalRegistry *lexical_names;
+        MVMSpeshCandidate  *cand     = cur_frame->spesh_cand;
+        /* See if we inside an inline. Note that this isn't actually
+         * correct for a leaf frame, but those aren't inlined and don't
+         * use getdynlex for their own lexicals since the compiler already
+         * knows where to find them */
+        if (cand && cand->num_inlines) {
+            if (cand->jitcode) { 
+                void      **labels = cand->jitcode->labels;
+                void *return_label = cur_frame->jit_entry_label;
+                MVMJitInline *inls = cand->jitcode->inlines;
+                MVMint32 i;
+                for (i = 0; i < cand->jitcode->num_inlines; i++) {
+                    icost++;
+                    if (return_label >= labels[inls[i].start_label] && return_label <= labels[inls[i].end_label]) {
+                        MVMStaticFrame *isf = cand->inlines[i].code->body.sf;
+                        if (lexical_names = isf->body.lexical_names) {
+                            MVMLexicalRegistry *entry;
+                            MVM_HASH_GET(tc, lexical_names, name, entry);
+                            if (entry) {
+                                MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
+                                MVMRegister *result = &cur_frame->env[lexidx];
+                                *type = cand->lexical_types[lexidx];
+                                if (vivify && *type == MVM_reg_obj && !result->o)
+                                    MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
+                                if (fcost+icost > 1)
+                                  try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
+                                if (dlog) {
+                                    fprintf(dlog, "I %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+                                    fflush(dlog);
+                                    MVM_free(c_name);
+                                }
+                                return result;
+                            }
+                        }
+                    }
+                }
+            } else {
+                MVMint32 ret_offset = cur_frame->return_address - cur_frame->effective_bytecode;
+                MVMint32 i;
+                for (i = 0; i < cand->num_inlines; i++) {
+                    icost++;
+                    if (ret_offset >= cand->inlines[i].start && ret_offset < cand->inlines[i].end) {
+                        MVMStaticFrame *isf = cand->inlines[i].code->body.sf;
+                        if (lexical_names = isf->body.lexical_names) {
+                            MVMLexicalRegistry *entry;
+                            MVM_HASH_GET(tc, lexical_names, name, entry);
+                            if (entry) {
+                                MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
+                                MVMRegister *result = &cur_frame->env[lexidx];
+                                *type = cand->lexical_types[lexidx];
+                                if (vivify && *type == MVM_reg_obj && !result->o)
+                                    MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
+                                if (fcost+icost > 1)
+                                  try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
+                                if (dlog) {
+                                    fprintf(dlog, "I %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+                                    fflush(dlog);
+                                    MVM_free(c_name);
+                                }
+                                return result;
+                            }
+
+                        }
+
+                    }
+                }
+            }
+        }
+
+        /* See if we've got it cached at this level. */
+        if (cur_frame->dynlex_cache_name) {
+            if (MVM_string_equal(tc, name, cur_frame->dynlex_cache_name)) {
+                MVMRegister *result = cur_frame->dynlex_cache_reg;
+                *type = cur_frame->dynlex_cache_type;
+                if (fcost+icost > 5)
+                    try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
+                if (dlog) {
+                    fprintf(dlog, "C %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+                    fflush(dlog);
+                    MVM_free(c_name);
+                }
+                return result;
+            }
+            else
+                xcost++;
+        }
+        else
+            ecost++;
+
+        /* Now look in the frame itself. */
+        if (lexical_names = cur_frame->static_info->body.lexical_names) {
             MVMLexicalRegistry *entry;
-
             MVM_HASH_GET(tc, lexical_names, name, entry)
-
             if (entry) {
                 MVMRegister *result = &cur_frame->env[entry->value];
                 *type = cur_frame->static_info->body.lexical_types[entry->value];
                 if (vivify && *type == MVM_reg_obj && !result->o)
                     MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
+                if (dlog) {
+                    fprintf(dlog, "F %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+                    fflush(dlog);
+                    MVM_free(c_name);
+                }
+                if (fcost+icost > 1)
+                    try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                 return result;
             }
         }
+        fcost++;
         cur_frame = cur_frame->caller;
+    }
+    if (dlog) {
+        fprintf(dlog, "N %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
+        fflush(dlog);
+        MVM_free(c_name);
     }
     return NULL;
 }
@@ -1177,9 +1424,9 @@ static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, 
                 *tweak_cs = orig->with_invocant;
             }
             else {
-                MVMCallsite *new   = malloc(sizeof(MVMCallsite));
+                MVMCallsite *new   = MVM_malloc(sizeof(MVMCallsite));
                 MVMint32     fsize = orig->num_pos + (orig->arg_count - orig->num_pos) / 2;
-                new->arg_flags     = malloc((fsize + 1) * sizeof(MVMCallsiteEntry));
+                new->arg_flags     = MVM_malloc((fsize + 1) * sizeof(MVMCallsiteEntry));
                 new->arg_flags[0]  = MVM_CALLSITE_ARG_OBJ;
                 memcpy(new->arg_flags + 1, orig->arg_flags, fsize);
                 new->arg_count      = orig->arg_count + 1;
@@ -1217,6 +1464,7 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCal
     return code;
 }
 
+MVM_USED_BY_JIT
 MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs, MVMRegister *args) {
     if (!code)
         MVM_exception_throw_adhoc(tc, "Cannot invoke null object");
@@ -1283,7 +1531,7 @@ MVMFrame * MVM_frame_clone(MVMThreadContext *tc, MVMFrame *f) {
         memcpy(clone->env, f->env, f->static_info->body.env_size);
     }
     if (f->static_info->body.work_size) {
-        clone->work = malloc(f->static_info->body.work_size);
+        clone->work = MVM_malloc(f->static_info->body.work_size);
         memcpy(clone->work, f->work, f->static_info->body.work_size);
         clone->args = clone->work + f->static_info->body.num_locals;
     }

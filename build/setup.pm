@@ -319,7 +319,7 @@ our %COMPILERS = (
 
         ldmiscflags  => '/nologo',
         ldoptiflags  => '/LTCG',
-        lddebugflags => '/debug',
+        lddebugflags => '/debug /pdb:$@.pdb',
         ldinstflags  => '/Profile',
 
         noreturnspecifier => '__declspec(noreturn)',

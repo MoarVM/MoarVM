@@ -41,14 +41,15 @@ MVMint64 MVM_io_syncstream_tell(MVMThreadContext *tc, MVMOSHandle *h) {
 void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) {
     /* For now, take last character. */
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    data->sep = (MVMCodepoint32)MVM_string_get_codepoint_at(tc, sep, NUM_GRAPHS(sep) - 1);
+    data->sep = (MVMGrapheme32)MVM_string_get_grapheme_at(tc, sep,
+        MVM_string_graphs(tc, sep) - 1);
 }
 
 /* Read a bunch of bytes into the current decode stream. Returns true if we
  * read some data, and false if we hit EOF. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
     size_t size = suggested_size > 0 ? suggested_size : 4;
-    buf->base   = malloc(size);
+    buf->base   = MVM_malloc(size);
     buf->len    = size;
 }
 static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
@@ -59,7 +60,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     else if (nread == UV_EOF) {
         data->eof = 1;
         if (buf->base)
-            free(buf->base);
+            MVM_free(buf->base);
     }
     uv_read_stop(handle);
     uv_unref((uv_handle_t*)handle);
@@ -172,7 +173,7 @@ MVMint64 MVM_io_syncstream_eof(MVMThreadContext *tc, MVMOSHandle *h) {
 /* Writes the specified string to the stream, maybe with a newline. */
 static void write_cb(uv_write_t* req, int status) {
     uv_unref((uv_handle_t *)req->handle);
-    free(req);
+    MVM_free(req);
 }
 MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, MVMint64 newline) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
@@ -184,21 +185,21 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
 
     output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
     if (newline) {
-        output = (MVMuint8 *)realloc(output, ++output_size);
+        output = (MVMuint8 *)MVM_realloc(output, ++output_size);
         output[output_size - 1] = '\n';
     }
-    req = malloc(sizeof(uv_write_t));
+    req = MVM_malloc(sizeof(uv_write_t));
     write_buf = uv_buf_init(output, output_size);
     uv_ref((uv_handle_t *)data->handle);
     if ((r = uv_write(req, data->handle, &write_buf, 1, write_cb)) < 0) {
         uv_unref((uv_handle_t *)data->handle);
-        free(req);
-        free(output);
+        MVM_free(req);
+        MVM_free(output);
         MVM_exception_throw_adhoc(tc, "Failed to write string to stream: %s", uv_strerror(r));
     }
     else {
         uv_run(tc->loop, UV_RUN_DEFAULT);
-        free(output);
+        MVM_free(output);
     }
 
     data->total_bytes_written += output_size;
@@ -208,13 +209,13 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
 /* Writes the specified bytes to the stream. */
 MVMint64 MVM_io_syncstream_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    uv_write_t *req = malloc(sizeof(uv_write_t));
+    uv_write_t *req = MVM_malloc(sizeof(uv_write_t));
     uv_buf_t write_buf = uv_buf_init(buf, bytes);
     int r;
     uv_ref((uv_handle_t *)data->handle);
     if ((r = uv_write(req, data->handle, &write_buf, 1, write_cb)) < 0) {
         uv_unref((uv_handle_t *)data->handle);
-        free(req);
+        MVM_free(req);
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to stream: %s", uv_strerror(r));
     }
     else {
@@ -263,7 +264,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
             MVM_string_decodestream_destory(tc, data->ds);
             data->ds = NULL;
         }
-        free(data);
+        MVM_free(data);
     }
 }
 

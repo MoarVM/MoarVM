@@ -33,18 +33,25 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMConditionVariable *cv = (MVMConditionVariable *)obj;
     if (cv->body.condvar) {
         uv_cond_destroy(cv->body.condvar);
-        free(cv->body.condvar);
+        MVM_free(cv->body.condvar);
         cv->body.condvar = NULL;
     }
 }
 
+
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Compose the representation. */
@@ -102,7 +109,7 @@ MVMObject * MVM_conditionvariable_from_lock(MVMThreadContext *tc, MVMReentrantMu
     MVMROOT(tc, lock, {
         cv = (MVMConditionVariable *)MVM_gc_allocate_object(tc, STABLE(type));
     });
-    cv->body.condvar = malloc(sizeof(uv_cond_t));
+    cv->body.condvar = MVM_malloc(sizeof(uv_cond_t));
     if ((init_stat = uv_cond_init(cv->body.condvar)) < 0)
         MVM_exception_throw_adhoc(tc, "Failed to initialize condition variable: %s",
             uv_strerror(init_stat));

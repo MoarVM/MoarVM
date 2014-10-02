@@ -25,24 +25,15 @@ sub MAIN($file = "src/core/oplist") {
     $hf.say("#define MVM_OP_EXT_BASE $EXT_BASE");
     $hf.say("#define MVM_OP_EXT_CU_LIMIT $EXT_CU_LIMIT");
     $hf.say('');
-    $hf.say('MVMOpInfo * MVM_op_get_op(unsigned short op);');
+    $hf.say('MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op);');
     $hf.close;
 
     # Generate C file
     my $cf = open("src/core/ops.c", :w);
-    $cf.say('#ifdef PARROT_OPS_BUILD');
-    $cf.say('#define PARROT_IN_EXTENSION');
-    $cf.say('#include "parrot/parrot.h"');
-    $cf.say('#include "parrot/extend.h"');
-    $cf.say('#include "sixmodelobject.h"');
-    $cf.say('#include "nodes_parrot.h"');
-    $cf.say('#include "../../src/core/ops.h"');
-    $cf.say('#else');
     $cf.say('#include "moar.h"');
-    $cf.say('#endif');
     $cf.say("/* This file is generated from $file by tools/update_ops.p6. */");
     $cf.say(opcode_details(@ops));
-    $cf.say('MVM_PUBLIC MVMOpInfo * MVM_op_get_op(unsigned short op) {');
+    $cf.say('MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {');
     $cf.say('    if (op >= MVM_op_counts)');
     $cf.say('        return NULL;');
     $cf.say('    return &MVM_op_infos[op];');
@@ -187,7 +178,7 @@ sub opcode_defines(@ops) {
 # Creates the static array of opcode info.
 sub opcode_details(@ops) {
     join "\n", gather {
-        take "static MVMOpInfo MVM_op_infos[] = \{";
+        take "static const MVMOpInfo MVM_op_infos[] = \{";
         for @ops -> $op {
             take "    \{";
             take "        MVM_OP_$op.name(),";
@@ -200,6 +191,8 @@ sub opcode_details(@ops) {
                 ($op.adverbs<deoptallpoint> ?? 2 !! 0) +
                 ($op.adverbs<osrpoint> ?? 4 !! 0)),";
             take "        $($op.adverbs<noinline> ?? '1' !! '0'),";
+            take "        $(($op.adverbs<invokish> ?? 1 !! 0) +
+                            ($op.adverbs<throwish> ?? 2 !! 0)),";
             if $op.operands {
                 take "        \{ $op.operands.map(&operand_flags).join(', ') }";
             }
@@ -207,7 +200,7 @@ sub opcode_details(@ops) {
             take "    },"
         }
         take "};\n";
-        take "static unsigned short MVM_op_counts = {+@ops};\n";
+        take "static const unsigned short MVM_op_counts = {+@ops};\n";
     }
 }
 

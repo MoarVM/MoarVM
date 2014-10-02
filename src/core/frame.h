@@ -134,6 +134,12 @@ struct MVMFrame {
     /* note: used atomically */
     MVMObject *context_object;
 
+    /* Cache for dynlex lookup; if the name is non-null, the cache is valid
+     * and the register can be accessed directly to find the contextual. */
+    MVMString   *dynlex_cache_name;
+    MVMRegister *dynlex_cache_reg;
+    MVMuint16    dynlex_cache_type;
+
     /* The allocated work/env sizes. */
     MVMuint16 allocd_work;
     MVMuint16 allocd_env;
@@ -158,10 +164,9 @@ struct MVMFrame {
      * trigger if the limit is hit. */
     MVMuint8 osr_counter;
 
-#if MVM_HLL_PROFILE_CALLS
-    /* Index of the profile data record. */
-    MVMuint32 profile_index;
-#endif
+    /* The 'entry label' is a sort of indirect return address
+       for the JIT */
+    void * jit_entry_label;
 };
 
 /* How do we invoke this thing? Specifies either an attribute to look at for
@@ -186,6 +191,8 @@ struct MVMInvocationSpec {
     MVMString *md_valid_attr_name;
 };
 
+void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
+                           MVMCallsite *callsite, MVMint32 spesh_cand);
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
                       MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand);
@@ -198,11 +205,13 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                          MVMuint32 rel_addr, MVMObject *return_value);
 MVM_PUBLIC MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
 MVM_PUBLIC MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
+MVM_PUBLIC MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code);
 MVM_PUBLIC void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code);
 MVM_PUBLIC MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
 void MVM_frame_free_frame_pool(MVMThreadContext *tc);
 MVM_PUBLIC MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint16 idx);
 MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type);
+MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name);
 MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
 MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame);
 MVM_PUBLIC MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify);

@@ -14,7 +14,7 @@ void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Allocate extra permanent root space if needed. */
     if (tc->instance->num_permroots == tc->instance->alloc_permroots) {
         tc->instance->alloc_permroots *= 2;
-        tc->instance->permroots = realloc(tc->instance->permroots,
+        tc->instance->permroots = MVM_realloc(tc->instance->permroots,
             sizeof(MVMCollectable **) * tc->instance->alloc_permroots);
     }
 
@@ -40,6 +40,8 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
 void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     MVMSerializationContextBody *current, *tmp;
     MVMLoadedCompUnitName       *current_lcun, *tmp_lcun;
+    MVMString                  **int_to_str_cache;
+    MVMuint32                    i;
 
     MVM_gc_worklist_add(tc, worklist, &tc->instance->threads);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->compiler_registry);
@@ -48,6 +50,10 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     MVM_gc_worklist_add(tc, worklist, &tc->instance->event_loop_todo_queue);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->event_loop_cancel_queue);
     MVM_gc_worklist_add(tc, worklist, &tc->instance->event_loop_active);
+
+    int_to_str_cache = tc->instance->int_to_str_cache;
+    for (i = 0; i < MVM_INT_TO_STR_CACHE_SIZE; i++)
+        MVM_gc_worklist_add(tc, worklist, &(int_to_str_cache[i]));
 
     /* okay, so this makes the weak hash slightly less weak.. for certain
      * keys of it anyway... */
@@ -109,6 +115,9 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
             entry = entry->next;
         }
     }
+
+    /* Profiling data. */
+    MVM_profile_mark_data(tc, worklist);
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */
@@ -120,7 +129,7 @@ void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Allocate extra temporary root space if needed. */
     if (tc->num_temproots == tc->alloc_temproots) {
         tc->alloc_temproots *= 2;
-        tc->temproots = realloc(tc->temproots,
+        tc->temproots = MVM_realloc(tc->temproots,
             sizeof(MVMCollectable **) * tc->alloc_temproots);
     }
 
@@ -186,7 +195,7 @@ void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c) {
     /* Allocate extra gen2 aggregate space if needed. */
     if (tc->num_gen2roots == tc->alloc_gen2roots) {
         tc->alloc_gen2roots *= 2;
-        tc->gen2roots = realloc(tc->gen2roots,
+        tc->gen2roots = MVM_realloc(tc->gen2roots,
             sizeof(MVMCollectable **) * tc->alloc_gen2roots);
     }
 
@@ -326,7 +335,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
         MVM_gc_worklist_add(tc, worklist, &cur_frame->context_object);
 
     /* Mark special return data, if needed. */
-    if (cur_frame->mark_special_return_data)
+    if (cur_frame->special_return_data && cur_frame->mark_special_return_data)
         cur_frame->mark_special_return_data(tc, cur_frame, worklist);
 
     /* Mark any continuation tags. */
@@ -337,6 +346,10 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
             tag = tag->next;
         }
     }
+
+    /* Mark any dyn lex cache. */
+    if (cur_frame->dynlex_cache_name)
+        MVM_gc_worklist_add(tc, worklist, &cur_frame->dynlex_cache_name);
 
     /* Scan the registers. */
     scan_registers(tc, worklist, cur_frame);
@@ -350,7 +363,7 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
 
     /* Scan locals. */
     if (frame->work && frame->tc) {
-        if (frame->spesh_cand && frame->spesh_cand->local_types) {
+        if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->local_types) {
             type_map = frame->spesh_cand->local_types;
             count    = frame->spesh_cand->num_locals;
         }

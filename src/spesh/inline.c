@@ -2,18 +2,18 @@
 
 /* Ensures that a given compilation unit has access to the specified extop. */
 static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUnit *source_cu,
-                         MVMOpInfo *info) {
+                         const MVMOpInfo *info) {
     MVMExtOpRecord *extops;
     MVMuint16 i, num_extops;
 
-    uv_mutex_lock(target_cu->body.update_pools_mutex);
+    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)target_cu->body.update_mutex);
 
     /* See if the target compunit already has the extop. */
     extops     = target_cu->body.extops;
     num_extops = target_cu->body.num_extops;
     for (i = 0; i < num_extops; i++)
         if (extops[i].info == info) {
-            uv_mutex_unlock(target_cu->body.update_pools_mutex);
+            MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)target_cu->body.update_mutex);
             return;
         }
 
@@ -24,18 +24,18 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
         if (extops[i].info == info) {
             MVMuint32 size = (target_cu->body.num_extops + 1) * sizeof(MVMExtOpRecord);
             target_cu->body.extops = target_cu->body.extops
-                ? realloc(target_cu->body.extops, size)
-                : malloc(size);
+                ? MVM_realloc(target_cu->body.extops, size)
+                : MVM_malloc(size);
             memcpy(&target_cu->body.extops[target_cu->body.num_extops],
                 &extops[i], sizeof(MVMExtOpRecord));
             target_cu->body.num_extops++;
-            uv_mutex_unlock(target_cu->body.update_pools_mutex);
+            MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)target_cu->body.update_mutex);
             return;
         }
     }
 
     /* Didn't find it; should be impossible. */
-    uv_mutex_unlock(target_cu->body.update_pools_mutex);
+    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)target_cu->body.update_mutex);
     MVM_exception_throw_adhoc(tc, "Spesh: inline failed to find source CU extop entry");
 }
 
@@ -63,12 +63,8 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     if (cand->sg)
         return NULL;
 
-    /* For now, if it has handlers, refuse to inline it. */
-    if (target->body.sf->body.num_handlers > 0)
-        return NULL;
-
     /* Build graph from the already-specialized bytecode. */
-    ig = MVM_spesh_graph_create_from_cand(tc, target->body.sf, cand);
+    ig = MVM_spesh_graph_create_from_cand(tc, target->body.sf, cand, 0);
 
     /* Traverse graph, looking for anything that might prevent inlining and
      * also building usage counts up. */
@@ -202,6 +198,11 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             MVMSpeshAnn *ann    = ins->annotations;
             while (ann) {
                 switch (ann->type) {
+                case MVM_SPESH_ANN_FH_START:
+                case MVM_SPESH_ANN_FH_END:
+                case MVM_SPESH_ANN_FH_GOTO:
+                    ann->data.frame_handler_index += inliner->num_handlers;
+                    break;
                 case MVM_SPESH_ANN_DEOPT_INLINE:
                     ann->data.deopt_idx += inliner->num_deopt_addrs;
                     break;
@@ -318,10 +319,10 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         assert(inlinee->deopt_addrs != inliner->deopt_addrs);
         inliner->alloc_deopt_addrs += inlinee->alloc_deopt_addrs;
         if (inliner->deopt_addrs)
-            inliner->deopt_addrs = realloc(inliner->deopt_addrs,
+            inliner->deopt_addrs = MVM_realloc(inliner->deopt_addrs,
                 inliner->alloc_deopt_addrs * sizeof(MVMint32) * 2);
         else
-            inliner->deopt_addrs = malloc(inliner->alloc_deopt_addrs * sizeof(MVMint32) * 2);
+            inliner->deopt_addrs = MVM_malloc(inliner->alloc_deopt_addrs * sizeof(MVMint32) * 2);
         memcpy(inliner->deopt_addrs + inliner->num_deopt_addrs * 2,
             inlinee->deopt_addrs, inlinee->alloc_deopt_addrs * sizeof(MVMint32) * 2);
         inliner->num_deopt_addrs += inlinee->num_deopt_addrs;
@@ -330,8 +331,8 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Merge inlines table, and add us an entry too. */
     total_inlines = inliner->num_inlines + inlinee->num_inlines + 1;
     inliner->inlines = inliner->num_inlines
-        ? realloc(inliner->inlines, total_inlines * sizeof(MVMSpeshInline))
-        : malloc(total_inlines * sizeof(MVMSpeshInline));
+        ? MVM_realloc(inliner->inlines, total_inlines * sizeof(MVMSpeshInline))
+        : MVM_malloc(total_inlines * sizeof(MVMSpeshInline));
     memcpy(inliner->inlines + inliner->num_inlines, inlinee->inlines,
         inlinee->num_inlines * sizeof(MVMSpeshInline));
     for (i = inliner->num_inlines; i < total_inlines - 1; i++) {
@@ -372,35 +373,60 @@ void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Create/update per-specialization local and lexical type maps. */
     if (!inliner->local_types) {
         MVMint32 local_types_size = inliner->num_locals * sizeof(MVMuint16);
-        inliner->local_types = malloc(local_types_size);
+        inliner->local_types = MVM_malloc(local_types_size);
         memcpy(inliner->local_types, inliner->sf->body.local_types, local_types_size);
     }
-    inliner->local_types = realloc(inliner->local_types,
+    inliner->local_types = MVM_realloc(inliner->local_types,
         (inliner->num_locals + inlinee->num_locals) * sizeof(MVMuint16));
     memcpy(inliner->local_types + inliner->num_locals,
         inlinee->local_types ? inlinee->local_types : inlinee->sf->body.local_types,
         inlinee->num_locals * sizeof(MVMuint16));
     if (!inliner->lexical_types) {
         MVMint32 lexical_types_size = inliner->num_lexicals * sizeof(MVMuint16);
-        inliner->lexical_types = malloc(lexical_types_size);
+        inliner->lexical_types = MVM_malloc(lexical_types_size);
         memcpy(inliner->lexical_types, inliner->sf->body.lexical_types, lexical_types_size);
     }
-    inliner->lexical_types = realloc(inliner->lexical_types,
+    inliner->lexical_types = MVM_realloc(inliner->lexical_types,
         (inliner->num_lexicals + inlinee->num_lexicals) * sizeof(MVMuint16));
     memcpy(inliner->lexical_types + inliner->num_lexicals,
         inlinee->lexical_types ? inlinee->lexical_types : inlinee->sf->body.lexical_types,
         inlinee->num_lexicals * sizeof(MVMuint16));
 
-    /* Update total locals, lexicals, and basic blocks of the inliner. */
+    /* Merge handlers. */
+    if (inlinee->num_handlers) {
+        MVMuint32 total_handlers = inliner->num_handlers + inlinee->num_handlers;
+        if (inliner->handlers == inliner->sf->body.handlers) {
+            /* Original handlers table; need a copy. */
+            MVMFrameHandler *new_handlers = MVM_malloc(total_handlers * sizeof(MVMFrameHandler));
+            memcpy(new_handlers, inliner->handlers,
+                inliner->num_handlers * sizeof(MVMFrameHandler));
+            inliner->handlers = new_handlers;
+        }
+        else {
+            /* Probably already did some inlines into this frame; resize. */
+            inliner->handlers = MVM_realloc(inliner->handlers,
+                total_handlers * sizeof(MVMFrameHandler));
+        }
+        memcpy(inliner->handlers + inliner->num_handlers, inlinee->handlers,
+            inlinee->num_handlers * sizeof(MVMFrameHandler));
+        for (i = inliner->num_handlers; i < total_handlers; i++) {
+            inliner->handlers[i].block_reg += inliner->num_locals;
+            inliner->handlers[i].label_reg += inliner->num_locals;
+        }
+    }
+
+    /* Update total locals, lexicals, basic blocks, and handlers of the
+     * inliner. */
     inliner->num_bbs      += inlinee->num_bbs - 1;
     inliner->num_locals   += inlinee->num_locals;
     inliner->num_lexicals += inlinee->num_lexicals;
+    inliner->num_handlers += inlinee->num_handlers;
 }
 
 /* Tweak the successor of a BB, also updating the target BBs pred. */
-static void tweak_succ(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *new_succ) {
+static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshBB *new_succ) {
     if (bb->num_succ == 0) {
-        bb->succ = malloc(sizeof(MVMSpeshBB *));
+        bb->succ = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
         bb->num_succ = 1;
     }
     if (bb->num_succ == 1)
@@ -408,7 +434,7 @@ static void tweak_succ(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *new_suc
     else
         MVM_exception_throw_adhoc(tc, "Spesh inline: unexpected num_succ");
     if (new_succ->num_pred == 0) {
-        new_succ->pred = malloc(sizeof(MVMSpeshBB *));
+        new_succ->pred = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
         new_succ->num_pred = 1;
         new_succ->pred[0] = bb;
     }
@@ -540,7 +566,7 @@ void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 if (invoke_ins->info->opcode == MVM_OP_invoke_v) {
                     MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                         invoke_bb->succ[0]);
-                    tweak_succ(tc, bb, invoke_bb->succ[0]);
+                    tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 }
                 else {
                     MVM_exception_throw_adhoc(tc,
@@ -550,25 +576,25 @@ void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             case MVM_OP_return_i:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 rewrite_int_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_n:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 rewrite_num_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_s:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 rewrite_str_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             case MVM_OP_return_o:
                 MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
                     invoke_bb->succ[0]);
-                tweak_succ(tc, bb, invoke_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 rewrite_obj_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
                 break;
             }
@@ -608,6 +634,7 @@ void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     arg_ins->info        = MVM_op_get_op(MVM_OP_set);
                     arg_ins->operands[0] = ins->operands[0];
                     MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
+                    MVM_spesh_get_facts(tc, inliner, arg_ins->operands[0])->usages++;
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc,
@@ -658,6 +685,15 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Merge inlinee's graph into the inliner. */
     merge_graph(tc, inliner, inlinee, inlinee_code, invoke_ins);
 
+    /* If we're profiling, note it's an inline. */
+    if (inlinee->entry->linear_next->first_ins->info->opcode == MVM_OP_prof_enterspesh) {
+        MVMSpeshIns *profenter         = inlinee->entry->linear_next->first_ins;
+        profenter->info                = MVM_op_get_op(MVM_OP_prof_enterinline);
+        profenter->operands            = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshOperand));
+        profenter->operands[0].lit_i16 = MVM_spesh_add_spesh_slot(tc, inliner,
+            (MVMCollectable *)inlinee->sf);
+    }
+
     /* Re-write returns to a set and goto. */
     rewrite_returns(tc, inliner, inlinee, invoke_bb, invoke_ins);
 
@@ -671,5 +707,5 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Finally, turn the invoke instruction into a goto. */
     invoke_ins->info = MVM_op_get_op(MVM_OP_goto);
     invoke_ins->operands[0].ins_bb = inlinee->entry->linear_next;
-    tweak_succ(tc, invoke_bb, inlinee->entry->linear_next);
+    tweak_succ(tc, inliner, invoke_bb, inlinee->entry->linear_next);
 }

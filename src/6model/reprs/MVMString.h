@@ -1,90 +1,69 @@
-/* Representation used by VM-level strings. */
+/* Representation used by VM-level strings.
+ *
+ * Strings come in one of 3 forms today, with 1 expected future form:
+ *   - 32-bit someday-NFG buffer of codepoints, maybe with synthetics
+ *   - 8-bit buffer of codepoints that all fall in the ASCII range
+ *   - Buffer of strands
+ *   - (LATER) 8-bit buffer of codepoints with negatives as synthetics (we
+ *     draw out a distinction with the ASCII range buffer because we can do
+ *     some I/O simplifications when we know all is in the ASCII range).
+ *
+ * A buffer of strands represents a string made up of other non-strand
+ * strings. That is, there's no recursive strands. This simplifies the
+ * process of iteration enormously. A strand may refer to just part of
+ * another string by specifying offsets. Furthermore, it may specify a
+ * repetition count.
+ */
 
-typedef MVMuint32 MVMStrandIndex;
-typedef MVMint32 MVMCodepoint32;
-/* 8-bit-only (optimization) strings don't have synthetics
-Note though that an enormous 8-bit string can have a tiny
-wide synthetic codepoint in the middle of it via the
-strands system.  Another thing to optimize someday [soon]. */
-typedef MVMuint8 MVMCodepoint8;
-typedef MVMuint64 MVMStringIndex;
+/* Kinds of grapheme we may hold in a string. */
+typedef MVMint32 MVMGrapheme32;
+typedef MVMint8  MVMGraphemeASCII;
+typedef MVMint8  MVMGrapheme8;       /* Future use */
 
-/* An entry in the strands table of a rope. */
-struct MVMStrand {
-    union {
-        /* The offset to compare the desired index against. */
-        MVMStringIndex compare_offset;
+/* What kind of data is a string storing? */
+#define MVM_STRING_GRAPHEME_32      0
+#define MVM_STRING_GRAPHEME_ASCII   1
+#define MVM_STRING_GRAPHEME_8       2
+#define MVM_STRING_STRAND           3
 
-        /* total length */
-        MVMStringIndex graphs;
-    };
+/* String index data type, for when we talk about indexes. */
+typedef MVMuint32 MVMStringIndex;
 
-    /* The string to which this strand refers. */
-    MVMString *string;
+/* Data type for a Unicode codepoint. */
+typedef MVMint32 MVMCodepoint;
 
-    union {
-        /* The offset into the referred string. The length
-            is calculated by subtracting the compare_offset
-            from the compare_offset of the next entry. */
-        MVMStringIndex string_offset;
+/* Maximum number of strands we will have. */
+#define MVM_STRING_MAX_STRANDS  64
 
-        /* on the last strand row, it's the depth of the tree. */
-        MVMStringIndex strand_depth;
-    };
-
-    /* repeat count. currently unused. */
-    /* MVMStringIndex repeat_count; */
-};
-
-#define MVM_STRING_TYPE_INT32 0
-#define MVM_STRING_TYPE_UINT8 1
-#define MVM_STRING_TYPE_ROPE 2
-#define MVM_STRING_TYPE_MASK 3
-
+/* The body of a string. */
 struct MVMStringBody {
-    /* The string data (signed integer or unsigned char array
-        of graphemes or strands). */
     union {
-        /* Array of the codepoints in a string. */
-        MVMCodepoint32 *int32s;
-
-        /* An optimization so strings containing only codepoints
-            that fit in 8 bits can take up only 1 byte each */
-        MVMCodepoint8 *uint8s;
-
-        /* For a rope, An array of MVMStrand, each representing a
-            segment of the string, up to the last one, which
-            represents the end of the string and has values
-            compare_offset=#graphs, string=null, string_offset=0,
-            lower_index=0, higher_index=0.  The first one has
-            compare_offset=0, and lower/higher_index=midpoint of
-            strand array. */
-        MVMStrand *strands;
-
-        /* generic pointer for the union */
-        void *storage;
-    };
-
-    union {
-        /* The number of graphemes that make up the string
-            (and in turn, the length of data in terms of the
-            number of 32-bit integers or bytes it has) */
-        MVMStringIndex graphs;
-        /* for ropes, the number of strands */
-        MVMStrandIndex num_strands;
-    };
-
-    /* The number of codepoints the string is
-        made up of were it not in NFG form. Lazily populated and cached.
-     */
-    MVMStringIndex codes;
-
-    /* Cached hash code. */
-    unsigned cached_hash_code;
-
-    /* Lowest 2 bits: type of string: int32, uint8, or Rope. */
-    MVMuint8 flags;
+        MVMGrapheme32    *blob_32;
+        MVMGraphemeASCII *blob_ascii;
+        MVMGrapheme8     *blob_8;
+        MVMStringStrand  *strands;
+        void             *any;
+    } storage;
+    MVMuint16 storage_type;
+    MVMuint16 num_strands;
+    MVMuint32 num_graphs;
+    MVMint32  cached_hash_code;
 };
+
+/* A strand of a string. */
+struct MVMStringStrand {
+    /* Another string that must some kind of grapheme string. */
+    MVMString *blob_string;
+
+    /* Start and end indexes we refer to in the blob string. */
+    MVMStringIndex start;
+    MVMStringIndex end;
+
+    /* Number of repetitions. */
+    MVMuint32 repetitions;
+};
+
+/* The MVMString, with header and body. */
 struct MVMString {
     MVMObject common;
     MVMStringBody body;

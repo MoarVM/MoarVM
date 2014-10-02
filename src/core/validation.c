@@ -58,7 +58,7 @@ static void fail(Validator *val, const char *msg, ...) {
 
     va_start(args, msg);
 
-    free(val->labels);
+    MVM_free(val->labels);
     MVM_exception_throw_adhoc_va(val->tc, msg, args);
 
     va_end(args);
@@ -599,7 +599,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
 
 #ifdef MVM_BIGENDIAN
     assert(fb->bytecode == fb->orig_bytecode);
-    val->bc_start = malloc(fb->bytecode_size);
+    val->bc_start = MVM_malloc(fb->bytecode_size);
     memset(val->bc_start, 0xDB, fb->bytecode_size);
     fb->bytecode = val->bc_start;
 #else

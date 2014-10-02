@@ -1,3 +1,127 @@
+New in 2014.09
+
++ Add an instrumenting profiler, recording profiling information at routine
+  level and tracking use of specialized/JITted code and inlinings
++ Support profiling allocations and GC runs
++ Use arc4random on platforms that support it
++ Fix numerous warnings
++ JIT more big integer ops: div_I, div_In, mod_I, gcd_I, coerce_In, and bool_I
++ Specialization and JIT-compilation of various iteration-related instructions
++ JIT curcode and getcodeobj
++ Include filename in spesh log
++ Fix negative division in JIT
++ Mark getlexouter as not inlinable
++ Add mechanism for objects to get a persistent ID, used in Perl 6's .WHICH
++ Fix regression on PowerPC
++ Add missing SC write barrier to MVM_repr_bind_attr_*
++ JIT getattrs_* and bindattrs_* ops
++ JIT more string operations: indexat, findcclass, and findnotcclass
++ Add JIT logging of inlines
++ Cleanly panic if allocation fails, rather than crashing
++ Fix the build on ARM 32 + gcc 4.8.2
++ Better style on arg count errors
++ Avoid unaligned reads on ARMv7
++ Conditionally set include dirs and install rules (e.g. --has-libuv)
++ Add type finalizer support to the GC
++ Update libuv from 0.11.18 to 0.11.29
++ Base full collections off promotion rate, often reducing full collections
++ Add force_gc instruction
++ Set up travis continuous integration
++ Fix mis-use of libuv: we are not supposed to open a child's pipe to our stdin
++ Fix pointer to pointer native cast
++ conditionally use/install our libtommath headers
++ Don't try to serialize file handles
+
+New in 2014.08
+
++ Add support for JIT compilation on x64 (when configured with --enable-jit);
+  supports basic arithmetic and logical operations, branching, method finding,
+  invocation with argument passing, basic parameter handling, boxing/unboxing,
+  attribute access, array and hash access, some big integer operations, some
+  string operations, type checks, and more. Integrated with deoptimization,
+  OSR (On Stack Replacement), extension ops, and exception handling.
++ Specialize various cases of istrue/isfalse to remove some indirections
++ Add charrange handling to the NFA evaluator
++ Update Unicode database generation script with latest string API
++ Add char name lookup aliases (LF, FF, CR and NEL) as line separators
++ Update moar-gdb.py for new structure of MVMString
++ Add Configure support for ASAN
++ Fix multi cache bug for no positionals, some nameds case
++ Make spesh dump show numeric literals and lexicals properly
++ Assorted OSR fixes for frames that deoptimized, then hit OSR points
++ Fix a number of SSA/dominance memory leaks
++ Fix memory leak in inlining
++ Make dead code elimination not cause unrequired guards to be kept
++ Add an API for extops to be involved in fact discovery and specialization
++ Add type and no-container facts for bigint ops
++ Support inlining of frames with handlers
++ Enable inlining of lexotic (return) handlers
++ Allow addition of temporary registers when specializing
++ Specialize boxing and unboxing of args, both named and positional
++ Avoid repeatedly allocating memory for NFAs
++ Cache frame index in MAST assembly, to avoid a linear scan
++ Fix various dynamic variable and inlining interaction bugs
++ Add a dynamic variable lookup cache
++ Devirtualize serialization read/write functions
++ Make full frame deserialization lazy, reducing memory and startup time
++ Handle static lexical values far more efficiently
++ Identify MAST nodes in assembler by exact type, cheapening assembly
++ Specialize smart stringify/numify into simpler ops in some cases
++ MAST::Label works on identify now, not name matching
++ Make "allocate in gen2" mode reentrant
++ Support lazy deserialization of static lexical values, method caches, and
+  meta-objects
++ Remove some unused fields from STable
++ Optimize some simple control exceptions into gotos
++ Don't redo dead instruction elim on inlinees
++ Make sure inlined args are always marked as used, fixing a bug
++ Add an int -> str cache for 0..^64
++ Add asynchronous process spawning, I/O, and killing
++ Check dll cache before searching through libpath, saving many stats
++ Make a better guess at MAST assembly output buffer sizes
++ Add a mechanism for debugging strand issues
++ Fix bug in string repeat of an already repeated strand
++ Complain properly about missing late-bound methods
++ Clear special return data more eagerly, fixing a double-free
++ Refactor get_storage_spec
++ Fix P6bigint unbox portability bug
+
+New in 2014.07
+
++ Make default file mode 0666
++ Auto-detect computed goto support and enable it when available
++ Implement On Stack Replacement for hot loops
++ Fix and enable isconcrete optimization
++ Use const_i64_16 in spesh-produced code for more compact output
++ Fix bug where [work|env]_alloc were not cleared, leading to mis-frees
++ Support inlining frames that use with extops
++ Add missing decl in header to quiet warnings
++ Fix logical bug in fixed-size-allocator
++ Fix capturelex race condition
++ Add missing MVMROOT in ConditionVariable setup
++ Don't share cached Lexotics over threads
++ Re-order code to avoid race on event loop startup
++ Add a bunch of missing MVMROOTing in asyncsocket
++ Make exit get out quickly
++ Close async sockets on event loop thread to avoid corruption
++ Make --no-optimize and --no-debug work in Configure
++ Implement (de)serializing of Array[uint]
++ Specialize getlexperinvtype_o (enables better roles optimization)
++ Allow pointer math using CPointer repr
++ Fix typo in CArray.elems error message
++ Add a cast to get rid of a warning in nativecall.c
++ Fix merging of inline table entries
++ Eliminate unused guard instructions at end of specialization
++ Update uthash to latest version
++ Correct computation of lexical vivifications
++ Add nativecallcast operation
++ Fix use-after-free bug with thread entry callsite
++ Cope with cross-deopt-point usage analysis
++ Give ContainerSpec a spesh function, use it for decont
++ Make various spesh things available publicly, for VM extensions
++ Significantly overhaul the strings code, fixing many performance issues
++ Optimize find_cclass and find_not_cclass
+
 New in 2014.06
 
 + Correct closure semantics of native callbacks

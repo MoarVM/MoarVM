@@ -34,7 +34,7 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
         MVM_exception_throw_adhoc(tc, "extension symbol not found");
     }
 
-    entry = malloc(sizeof *entry);
+    entry = MVM_malloc(sizeof *entry);
     entry->sym = sym;
     entry->name = name;
 
@@ -51,7 +51,8 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
 }
 
 int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
-        MVMExtOpFunc func, MVMuint8 num_operands, MVMuint8 operands[]) {
+        MVMExtOpFunc func, MVMuint8 num_operands, MVMuint8 operands[],
+        MVMExtOpSpesh *spesh, MVMExtOpFactDiscover *discover, MVMuint32 flags) {
     MVMExtOpRegistry *entry;
     MVMString *name = MVM_string_ascii_decode_nt(
             tc, tc->instance->VMString, cname);
@@ -141,20 +142,25 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
         }
     }
 
-    entry = malloc(sizeof *entry);
-    entry->name = name;
-    entry->func = func;
-    entry->info.name = cname;
-    entry->info.opcode = (MVMuint16)-1;
-    entry->info.mark[0] = '.';
-    entry->info.mark[1] = 'x';
+    entry                    = MVM_malloc(sizeof *entry);
+    entry->name              = name;
+    entry->func              = func;
+    entry->info.name         = cname;
+    entry->info.opcode       = (MVMuint16)-1;
+    entry->info.mark[0]      = '.';
+    entry->info.mark[1]      = 'x';
     entry->info.num_operands = num_operands;
-    entry->info.pure = 0;
-    entry->info.deopt_point = 0;
-    entry->info.no_inline = 0;
+    entry->info.pure         = flags & MVM_EXTOP_PURE;
+    entry->info.deopt_point  = 0;
+    entry->info.no_inline    = flags & MVM_EXTOP_NOINLINE;
+    entry->info.jittivity    = (flags & MVM_EXTOP_INVOKISH) ? MVM_JIT_INFO_INVOKISH : 0;
     memcpy(entry->info.operands, operands, num_operands);
     memset(entry->info.operands + num_operands, 0,
             MVM_MAX_OPERANDS - num_operands);
+    entry->spesh      = spesh;
+    entry->discover   = discover;
+    entry->no_jit     = flags & MVM_EXTOP_NO_JIT;
+    entry->allocating = flags & MVM_EXTOP_ALLOCATING;
 
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
     MVM_HASH_BIND(tc, tc->instance->extop_registry, name, entry);
@@ -183,8 +189,12 @@ const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
     }
 
     /* Resolve record. */
-    record->info = &entry->info;
-    record->func = entry->func;
+    record->info       = &entry->info;
+    record->func       = entry->func;
+    record->spesh      = entry->spesh;
+    record->discover   = entry->discover;
+    record->no_jit     = entry->no_jit;
+    record->allocating = entry->allocating;
 
     uv_mutex_unlock(&tc->instance->mutex_extop_registry);
 

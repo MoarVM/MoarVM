@@ -90,6 +90,8 @@ MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
         if ((obj->header.flags & MVM_CF_SECOND_GEN))
             if (REPR(obj)->refs_frames)
                 MVM_gc_root_gen2_add(tc, (MVMCollectable *)obj);
+        if (st->mode_flags & MVM_FINALIZE_TYPE)
+            MVM_gc_finalize_add_to_queue(tc, obj);
     });
     return obj;
 }
@@ -97,10 +99,10 @@ MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
 /* Sets allocate for this thread to be from the second generation by
  * default. */
 void MVM_gc_allocate_gen2_default_set(MVMThreadContext *tc) {
-    tc->allocate_in = MVMAllocate_Gen2;
+    tc->allocate_in_gen2++;
 }
 
 /* Sets allocation for this thread to be from the nursery by default. */
 void MVM_gc_allocate_gen2_default_clear(MVMThreadContext *tc) {
-    tc->allocate_in = MVMAllocate_Nursery;
+    tc->allocate_in_gen2--;
 }

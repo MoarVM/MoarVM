@@ -50,7 +50,7 @@ static const MVMuint8 utf8d[] = {
 };
 
 static MVMint32
-decode_utf8_byte(MVMint32 *state, MVMCodepoint32 *codep, MVMuint8 byte) {
+decode_utf8_byte(MVMint32 *state, MVMGrapheme32 *codep, MVMuint8 byte) {
   MVMint32 type = utf8d[byte];
 
   *codep = (*state != UTF8_ACCEPT) ?
@@ -96,7 +96,7 @@ enum
     U8_QUAD            = 1 << 8
 };
 
-static unsigned classify(MVMCodepoint32 cp)
+static unsigned classify(MVMCodepoint cp)
 {
     /* removing these two lines
     12:06 <not_gerd> if you want to encode NUL as a zero-byte
@@ -139,7 +139,7 @@ static unsigned classify(MVMCodepoint32 cp)
     return 0;
 }
 
-static void *utf8_encode(void *bytes, MVMCodepoint32 cp)
+static void *utf8_encode(void *bytes, MVMCodepoint cp)
 {
     unsigned cc = classify(cp);
     MVMuint8 *bp = bytes;
@@ -184,17 +184,18 @@ static void *utf8_encode(void *bytes, MVMCodepoint32 cp)
  /* end not_gerd section */
 
 #define UTF8_MAXINC (32 * 1024 * 1024)
+
 /* Decodes the specified number of bytes of utf8 into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR.
  * Only bring in the raw codepoints for now. */
 MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type, const MVMuint8 *utf8, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     MVMint32 count = 0;
-    MVMCodepoint32 codepoint;
+    MVMCodepoint codepoint;
     MVMint32 line_ending = 0;
     MVMint32 state = 0;
     MVMint32 bufsize = bytes;
-    MVMint32 *buffer = malloc(sizeof(MVMint32) * bufsize);
+    MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * bufsize);
     size_t orig_bytes;
     const char *orig_utf8;
     MVMint32 line;
@@ -207,11 +208,11 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
         switch(decode_utf8_byte(&state, &codepoint, *utf8)) {
         case UTF8_ACCEPT: /* got a codepoint */
             if (count == bufsize) { /* if the buffer's full make a bigger one */
-                buffer = realloc(buffer, sizeof(MVMint32) * (
+                buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (
                     bufsize >= UTF8_MAXINC ? (bufsize += UTF8_MAXINC) : (bufsize *= 2)
                 ));
             }
-            buffer[count++] = codepoint;
+            buffer[count++] = codepoint; /* XXX NFG needs a change here */
             break;
         case UTF8_REJECT:
             /* found a malformed sequence; parse it again this time tracking
@@ -253,14 +254,12 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
      * we can add heuristics to resize it if we have enough free
      * memory */
     if (bufsize - count > 4) {
-        buffer = realloc(buffer, count * sizeof(MVMint32));
+        buffer = MVM_realloc(buffer, count * sizeof(MVMGrapheme32));
         bufsize = count;
     }
-    result->body.int32s = buffer;
-
-    /* XXX set codes */
-    result->body.flags = MVM_STRING_TYPE_INT32;
-    result->body.graphs = count; /* XXX Ignore combining chars for now. */
+    result->body.storage.blob_32 = buffer;
+    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+    result->body.num_graphs      = count;
 
     return result;
 }
@@ -271,9 +270,9 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                   MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
     MVMint32 count = 0, total = 0, stopped = 0;
     MVMint32 state = 0;
-    MVMCodepoint32 codepoint = 0;
+    MVMCodepoint codepoint = 0;
     MVMint32 bufsize;
-    MVMCodepoint32 *buffer;
+    MVMGrapheme32 *buffer;
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
     MVMint32 last_accept_pos;
@@ -289,7 +288,7 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 
     /* Rough starting-size estimate is number of bytes in the head buffer. */
     bufsize = ds->bytes_head->length;
-    buffer = malloc(bufsize * sizeof(MVMCodepoint32));
+    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
@@ -305,10 +304,10 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                      * one to the buffers linked list, and continue with a new
                      * one. */
                     MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                    buffer = malloc(bufsize * sizeof(MVMCodepoint32));
+                    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
                     count = 0;
                 }
-                buffer[count++] = codepoint;
+                buffer[count++] = codepoint; /* XXX NFG needs a change here */
                 last_accept_bytes = cur_bytes;
                 last_accept_pos = pos;
                 total++;
@@ -338,10 +337,11 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
         MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
     /* XXX This is terribly wrong when we get to doing NFG properly too. One graph may
      * expand to loads of codepoints and overflow the buffer. */
-    MVMuint8 *result;
-    MVMuint8 *arr;
-    size_t i = start;
-    MVMStringIndex strgraphs = NUM_GRAPHS(str);
+    MVMuint8        *result;
+    MVMuint8        *arr;
+    MVMuint32        i;
+    MVMStringIndex   strgraphs = MVM_string_graphs(tc, str);
+    MVMCodepointIter ci;
 
     if (length == -1)
         length = strgraphs;
@@ -353,15 +353,18 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
         MVM_exception_throw_adhoc(tc, "length out of range");
 
     /* give it two spaces for padding in case `say` wants to append a \r\n or \n */
-    result = malloc(sizeof(MVMint32) * length + 2);
+    result = MVM_malloc(sizeof(MVMint32) * length + 2);
     arr = result;
 
     memset(result, 0, sizeof(MVMint32) * length + 2);
-    while (i < length && (arr = utf8_encode(arr, MVM_string_get_codepoint_at_nocheck(tc, str, i++))));
+    MVM_string_ci_init(tc, &ci, str);
+    i = 0;
+    while (i < length && (arr = utf8_encode(arr, MVM_string_ci_get_codepoint(tc, &ci))))
+        i++;
     if (!arr)
         MVM_exception_throw_adhoc(tc,
             "Error encoding UTF-8 string near grapheme position %d with codepoint %d",
-                i - 1, MVM_string_get_codepoint_at_nocheck(tc, str, i-1));
+                i - 1, MVM_string_get_grapheme_at_nocheck(tc, str, i-1));
 
     if (output_size)
         *output_size = (MVMuint64)(arr ? arr - result : 0);
@@ -371,7 +374,8 @@ MVMuint8 * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
 
 /* Encodes the specified string to UTF-8. */
 MVMuint8 * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
-    return MVM_string_utf8_encode_substr(tc, str, output_size, 0, NUM_GRAPHS(str));
+    return MVM_string_utf8_encode_substr(tc, str, output_size, 0,
+        MVM_string_graphs(tc, str));
 }
 
 /* Encodes the specified string to a UTF-8 C string. */
@@ -381,9 +385,9 @@ char * MVM_string_utf8_encode_C_string(MVMThreadContext *tc, MVMString *str) {
     MVMuint8 * utf8_string = MVM_string_utf8_encode(tc, str, &output_size);
     /* this is almost always called from error-handling code. Don't care if it
      * contains embedded NULs. XXX TODO: Make sure all uses of this free what it returns */
-    result = malloc(output_size + 1);
+    result = MVM_malloc(output_size + 1);
     memcpy(result, utf8_string, output_size);
-    free(utf8_string);
+    MVM_free(utf8_string);
     result[output_size] = (char)0;
     return result;
 }

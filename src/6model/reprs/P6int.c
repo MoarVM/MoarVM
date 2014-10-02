@@ -3,6 +3,22 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
+static void mk_storage_spec(MVMThreadContext *tc, MVMuint16 bits, MVMuint16 is_unsigned, MVMStorageSpec *spec) {
+    /* create storage spec */
+    spec->inlineable      = MVM_STORAGE_SPEC_INLINED;
+    spec->boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
+    spec->can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
+    spec->bits            = bits;
+    spec->is_unsigned     = is_unsigned;
+    switch (bits) {
+    case 64: spec->align = ALIGNOF(MVMint64); break;
+    case 32: spec->align = ALIGNOF(MVMint32); break;
+    case 16: spec->align = ALIGNOF(MVMint16); break;
+    default: spec->align = ALIGNOF(MVMint8);  break;
+    }
+}
+
+
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
@@ -10,14 +26,15 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
-        MVMP6intREPRData *repr_data = (MVMP6intREPRData *)malloc(sizeof(MVMP6intREPRData));
+        MVMP6intREPRData *repr_data = (MVMP6intREPRData *)MVM_malloc(sizeof(MVMP6intREPRData));
 
         repr_data->bits = sizeof(MVMint64) * 8;
         repr_data->is_unsigned = 0;
-
+        mk_storage_spec(tc, repr_data->bits, repr_data->is_unsigned, &repr_data->storage_spec);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMP6int);
         st->REPR_data = repr_data;
+
     });
 
     return st->WHAT;
@@ -61,30 +78,22 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     MVM_checked_free_null(st->REPR_data);
 }
 
+static const MVMStorageSpec default_storage_spec = {
+    MVM_STORAGE_SPEC_INLINED,     /* inlineable */
+    sizeof(MVMint64) * 8,         /* bits */
+    ALIGNOF(MVMint64),            /* align */
+    MVM_STORAGE_SPEC_BP_INT,      /* boxed_primitive */
+    MVM_STORAGE_SPEC_CAN_BOX_INT, /* can_box */
+    0,                            /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
-    spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
-
     if (repr_data && repr_data->bits)
-        spec.bits = repr_data->bits;
-    else
-        spec.bits = sizeof(MVMint64) * 8;
-    switch (spec.bits) {
-        case 64: spec.align = ALIGNOF(MVMint64); break;
-        case 32: spec.align = ALIGNOF(MVMint32); break;
-        case 16: spec.align = ALIGNOF(MVMint16); break;
-        default: spec.align = ALIGNOF(MVMint8);  break;
-    }
-    if (repr_data && repr_data->is_unsigned)
-        spec.is_unsigned = 1;
-    else
-        spec.is_unsigned = 0;
-
-    return spec;
+        return &repr_data->storage_spec;
+    return &default_storage_spec;
 }
 
 /* Compose the representation. */
@@ -108,6 +117,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             repr_data->is_unsigned = MVM_repr_get_int(tc, is_unsigned_o);
         }
     }
+    if (repr_data->bits)
+        mk_storage_spec(tc, repr_data->bits, repr_data->is_unsigned, &repr_data->storage_spec);
 }
 
 /* Set the size of the STable. */
@@ -118,31 +129,33 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
-    writer->write_varint(tc, writer, repr_data->bits);
-    writer->write_varint(tc, writer, repr_data->is_unsigned);
+    MVM_serialization_write_varint(tc, writer, repr_data->bits);
+    MVM_serialization_write_varint(tc, writer, repr_data->is_unsigned);
 }
 
 /* Deserializes representation data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMP6intREPRData *repr_data = (MVMP6intREPRData *)malloc(sizeof(MVMP6intREPRData));
+    MVMP6intREPRData *repr_data = (MVMP6intREPRData *)MVM_malloc(sizeof(MVMP6intREPRData));
 
 
-    repr_data->bits        = reader->read_varint(tc, reader);
-    repr_data->is_unsigned = reader->read_varint(tc, reader);
+    repr_data->bits        = MVM_serialization_read_varint(tc, reader);
+    repr_data->is_unsigned = MVM_serialization_read_varint(tc, reader);
 
     if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
      && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
         MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%dbit)", repr_data->bits);
 
+    mk_storage_spec(tc, repr_data->bits, repr_data->is_unsigned, &repr_data->storage_spec);
+
     st->REPR_data = repr_data;
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    set_int(tc, st, root, data, reader->read_varint(tc, reader));
+    set_int(tc, st, root, data, MVM_serialization_read_varint(tc, reader));
 }
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    writer->write_varint(tc, writer, get_int(tc, st, NULL, data));
+    MVM_serialization_write_varint(tc, writer, get_int(tc, st, NULL, data));
 }
 
 /* Initializes the representation. */

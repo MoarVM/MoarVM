@@ -19,62 +19,66 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMStringBody *src_body  = (MVMStringBody *)src;
-    MVMStringBody *dest_body = (MVMStringBody *)dest;
-    dest_body->codes  = src_body->codes;
-    dest_body->flags  = src_body->flags;
-    switch(src_body->flags & MVM_STRING_TYPE_MASK) {
-        case MVM_STRING_TYPE_INT32:
-            if ((dest_body->graphs = src_body->graphs)) {
-                dest_body->int32s = malloc(sizeof(MVMCodepoint32) * dest_body->graphs);
-                memcpy(dest_body->int32s, src_body->int32s, sizeof(MVMCodepoint32) * src_body->graphs);
+    MVMStringBody *src_body     = (MVMStringBody *)src;
+    MVMStringBody *dest_body    = (MVMStringBody *)dest;
+    dest_body->storage_type     = src_body->storage_type;
+    dest_body->num_strands      = src_body->num_strands;
+    dest_body->num_graphs       = src_body->num_graphs;
+    dest_body->cached_hash_code = src_body->cached_hash_code;
+    switch (dest_body->storage_type) {
+        case MVM_STRING_GRAPHEME_32:
+            if (dest_body->num_graphs) {
+                dest_body->storage.blob_32 = MVM_malloc(dest_body->num_graphs * sizeof(MVMGrapheme32));
+                memcpy(dest_body->storage.blob_32, src_body->storage.blob_32,
+                    dest_body->num_graphs * sizeof(MVMGrapheme32));
             }
             break;
-        case MVM_STRING_TYPE_UINT8:
-            if ((dest_body->graphs = src_body->graphs)) {
-                dest_body->uint8s = malloc(sizeof(MVMCodepoint8) * dest_body->graphs);
-                memcpy(dest_body->uint8s, src_body->uint8s, sizeof(MVMCodepoint8) * src_body->graphs);
+        case MVM_STRING_GRAPHEME_ASCII:
+        case MVM_STRING_GRAPHEME_8:
+            if (dest_body->num_graphs) {
+                dest_body->storage.blob_8 = MVM_malloc(dest_body->num_graphs);
+                memcpy(dest_body->storage.blob_8, src_body->storage.blob_8,
+                    dest_body->num_graphs);
             }
-            break;
-        case MVM_STRING_TYPE_ROPE: {
-            MVMStrandIndex strand_count = dest_body->num_strands = src_body->num_strands;
-            if (strand_count) {
-                dest_body->strands = malloc(sizeof(MVMStrand) * (strand_count + 1));
-                memcpy(dest_body->strands, src_body->strands, sizeof(MVMStrand) * (strand_count + 1));
-            }
-            break;
-        }
+        case MVM_STRING_STRAND:
+            dest_body->storage.strands = MVM_malloc(dest_body->num_strands * sizeof(MVMStringStrand));
+            memcpy(dest_body->storage.strands, src_body->storage.strands,
+                dest_body->num_strands * sizeof(MVMStringStrand));
         default:
-            MVM_exception_throw_adhoc(tc, "internal string corruption");
+            MVM_exception_throw_adhoc(tc, "Internal string corruption");
     }
 }
 
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVMStringBody *body  = (MVMStringBody *)data;
-    if ((body->flags & MVM_STRING_TYPE_MASK) == MVM_STRING_TYPE_ROPE) {
-        MVMStrand *strands = body->strands;
-        MVMStrandIndex index = 0;
-        MVMStrandIndex strand_count = body->num_strands;
-        while(index < strand_count)
-            MVM_gc_worklist_add(tc, worklist, &(strands + index++)->string);
+    MVMStringBody *body = (MVMStringBody *)data;
+    if (body->storage_type == MVM_STRING_STRAND) {
+        MVMStringStrand *strands = body->storage.strands;
+        MVMuint16 i;
+        for (i = 0; i < body->num_strands; i++)
+            MVM_gc_worklist_add(tc, worklist, &(strands[i].blob_string));
     }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMString *str = (MVMString *)obj;
-    MVM_checked_free_null(str->body.storage);
-    str->body.graphs = str->body.codes = str->body.flags = 0;
+    MVM_checked_free_null(str->body.storage.any);
+    str->body.num_graphs = str->body.num_strands = 0;
 }
 
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Compose the representation. */

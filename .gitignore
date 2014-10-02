@@ -1,9 +1,9 @@
 # Editor backups
 *~
 *.bak
-
-# Separately cloned repos
-tools/nqp-cross-compiler/nqp/
+# Emacs specfic in-use files
+\#*\#
+.#*
 
 # clangcheck files
 .clangcheck
@@ -44,11 +44,6 @@ src/gen/
 *.so
 *.dylib
 moar
-nqp-cc/*.moarvm
-nqp-cc/temp.output
-nqp-cc/*.mvmdump
-nqp-cc/*.mastdump
-nqp-cc/nqp-src/QASTMoar.nqp
 *.vsp
 *.psess
 /nmake.cmd
@@ -58,4 +53,9 @@ UNIDATA/*
 tags
 install/
 
-nqp-cc/nqp/
+# jit files
+jit-log.txt
+jit-*.bin
+
+# dynasm emitted files
+src/jit/emit_*.c

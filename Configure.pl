@@ -32,11 +32,12 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
-    build=s host=s big-endian
-    prefix=s bindir=s libdir=s mastdir=s make-install profilecalls),
+    build=s host=s big-endian jit! enable-jit lua=s
+    prefix=s bindir=s libdir=s mastdir=s make-install asan),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 }
 ) or die "See --help for further information\n";
+
 
 pod2usage(1) if $args{help};
 
@@ -70,7 +71,6 @@ $args{optimize}     = 1 if not defined $args{optimize} or $args{optimize} eq "";
 $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 $args{instrument} //= 0;
 $args{static}     //= 0;
-$args{profilecalls} //= 0;
 
 $args{'use-readline'}      //= 0;
 $args{'big-endian'}        //= 0;
@@ -78,6 +78,10 @@ $args{'has-libtommath'}    //= 0;
 $args{'has-sha'}           //= 0;
 $args{'has-libuv'}         //= 0;
 $args{'has-libatomic_ops'} //= 0;
+$args{'asan'}              //= 0;
+
+# jit is default
+$args{'jit'}               //= 1;
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
@@ -94,7 +98,7 @@ $config{perl}   = $^X;
 $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 $config{osname} = $^O;
 $config{osvers} = $Config{osvers};
-$config{profilecalls} = $args{profilecalls};
+$config{lua} = $args{lua} // './3rdparty/dynasm/minilua@exe@';
 
 # set options that take priority over all others
 my @keys = qw( cc ld make );
@@ -157,9 +161,28 @@ if ($args{'has-sha'}) {
 }
 else { $config{shaincludedir} = '3rdparty/sha1' }
 
+# After upgrading from libuv from 0.11.18 to 0.11.29 we see very weird erros
+# when the old libuv files are still around. Running a `make realclean` in
+# case we spot an old file and the Makefile is already there.
+if (-e '3rdparty/libuv/src/unix/threadpool' . $defaults{obj}
+ && -e 'Makefile') {
+    print("\nMaking realclean after libuv version upgrade.\n"
+        . "Outdated files were detected.\n");
+    system($defaults{make}, 'realclean')
+}
+
+# conditionally set include dirs and install rules
+$config{cincludes} //= '';
+$config{install}   //= '';
 if ($args{'has-libuv'}) {
     $defaults{-thirdparty}->{uv} = undef;
     unshift @{$config{usrlibs}}, 'uv';
+}
+else {
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libuv/include'
+                        . ' ' . $defaults{ccinc} . '3rdparty/libuv/src';
+    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/libuv\n"
+                        . "\t\$(CP) 3rdparty/libuv/include/*.h \$(DESTDIR)\$(PREFIX)/include/libuv\n";
 }
 
 if ($args{'has-libatomic_ops'}) {
@@ -167,12 +190,42 @@ if ($args{'has-libatomic_ops'}) {
 #    unshift @{$config{usrlibs}}, 'atomic_ops';
 }
 
+if ($args{'has-libtommath'}) {
+    unshift @{$config{usrlibs}}, 'tommath';
+
+    # only this objects are needed to build, if moar is linked together with
+    #  the libtommath library from the system
+    $defaults{-thirdparty}->{tom}->{objects} =
+        '3rdparty/libtommath/bn_mp_get_long.o 3rdparty/libtommath/bn_mp_set_long.o';
+}
+else {
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
+    $config{install}   .= "\t\$(CP) 3rdparty/libtommath/*.h \$(DESTDIR)\$(PREFIX)/include/libtommath\n";
+}
+
+if ($args{'jit'}) {
+    if ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
+        $config{jit} = '$(JIT_POSIX_X64)';
+    } elsif ($Config{archname} =~ /^MSWin32-x64/) {
+        $config{jit} = '$(JIT_WIN32_X64)';
+    } else {
+        say "JIT isn't supported on $Config{archname} yet.";
+    }
+}
+# fallback
+$config{jit} //= '$(JIT_STUB)';
+
+
+
+
+
+
+
 # mangle library names
 $config{ldlibs} = join ' ',
     (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),
     (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
-$config{ldlibs} .= ' -ltommath' if $args{'has-libtommath'};
-
+$config{ldlibs} .= ' -lasan' if $args{asan};
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
@@ -191,6 +244,7 @@ push @cflags, $config{ccinstflags}  if $args{instrument};
 push @cflags, $config{ccwarnflags};
 push @cflags, $config{ccdefflags};
 push @cflags, $config{ccshared}     unless $args{static};
+push @cflags, '-fno-omit-frame-pointer -fsanitize=address' if $args{asan};
 $config{cflags} = join ' ', @cflags;
 
 # generate LDFLAGS
@@ -199,6 +253,7 @@ push @ldflags, $config{ldoptiflags}  if $args{optimize};
 push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}       if $args{instrument};
 push @ldflags, $config{ldrpath}           unless $args{static};
+push @ldflags,  '-fsanitize=address' if $args{asan};
 $config{ldflags} = join ' ', @ldflags;
 
 # setup library names
@@ -332,10 +387,6 @@ print "\n", <<TERM, "\n";
   3rdparty: $thirdpartylibs
 TERM
 
-# only this objects are needed to build, if moar is linked together with
-#  the libtommath library from the system
-$config{tomobjects} = '3rdparty/libtommath/bn_mp_get_long.o 3rdparty/libtommath/bn_mp_set_long.o' if $args{'has-libtommath'};
-
 # read list of files to generate
 
 open my $listfile, '<', $GENLIST
@@ -356,6 +407,11 @@ while (<$listfile>) {
 close $listfile;
 
 # configuration completed
+
+if ($args{'enable-jit'}) {
+    print("\nThe --enable-jit flag is obsolete, as jit is enabled by default.\n");
+    print("You can use --no-jit to build without jit.");
+}
 
 print "\n", $failed ? <<TERM1 : <<TERM2;
 Configuration FAIL. You can try to salvage the generated Makefile.
@@ -605,12 +661,13 @@ __END__
                    [--debug] [--optimize] [--instrument]
                    [--static] [--use-readline] [--prefix]
                    [--has-libtommath] [--has-sha] [--has-libuv]
-                   [--has-libatomic_ops]
+                   [--has-libatomic_ops] [--asan] [--enable-jit]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
                    [--static] [--big-endian] [--prefix]
+                   [--lua] [--make-install]
 
 =head1 OPTIONS
 
@@ -670,6 +727,11 @@ Currently supported compilers are C<gcc>, C<clang> and C<cl>.
 
 Explicitly set the compiler without affecting other configuration
 options.
+
+=item --asan
+
+Build with AddressSanitizer (ASAN) support. Requires clang and LLVM 3.1 or newer.
+See L<https://code.google.com/p/address-sanitizer/wiki/AddressSanitizer>
 
 =item --ld <ld>
 
@@ -743,5 +805,13 @@ Link moar with the libuv library of the system.
 =item --has-libatomic_ops
 
 Disable the build of libatomic_ops.
+
+=item --enable-jit
+
+Enable JIT compiler for hot frames.
+
+=item --lua=path/to/lua/executable
+
+Path to a lua executable. (Used during the build when JIT is enabled).
 
 =back

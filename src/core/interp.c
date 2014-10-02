@@ -75,7 +75,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             trace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0);
             fprintf(stderr, "Op %d%s\n", (int)*((MVMuint16 *)cur_op), trace_line);
             /* slow tracing is slow. Feel free to speed it. */
-            free(trace_line);
+            MVM_free(trace_line);
         }
 #endif
 
@@ -116,7 +116,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(if_s): {
                 MVMString *str = GET_REG(cur_op, 0).s;
-                if (!str || NUM_GRAPHS(str) == 0)
+                if (!str || MVM_string_graphs(tc, str) == 0)
                     cur_op += 6;
                 else
                     cur_op = bytecode_start + GET_UI32(cur_op, 2);
@@ -125,7 +125,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(unless_s): {
                 MVMString *str = GET_REG(cur_op, 0).s;
-                if (!str || NUM_GRAPHS(str) == 0)
+                if (!str || MVM_string_graphs(tc, str) == 0)
                     cur_op = bytecode_start + GET_UI32(cur_op, 2);
                 else
                     cur_op += 6;
@@ -351,10 +351,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).ui64 = GET_REG(cur_op, 2).ui64 / GET_REG(cur_op, 4).ui64;
                 cur_op += 6;
                 goto NEXT;
-            OP(mod_i):
-                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 % GET_REG(cur_op, 4).i64;
+        OP(mod_i): {
+                MVMint64 numer = GET_REG(cur_op, 2).i64;
+                MVMint64 denom = GET_REG(cur_op, 4).i64;
+                if (denom == 0)
+                    MVM_exception_throw_adhoc(tc, "Modulation by zero");
+                GET_REG(cur_op, 0).i64 = numer % denom;
                 cur_op += 6;
                 goto NEXT;
+            }
             OP(mod_u):
                 GET_REG(cur_op, 0).ui64 = GET_REG(cur_op, 2).ui64 % GET_REG(cur_op, 4).ui64;
                 cur_op += 6;
@@ -390,16 +395,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(prepargs):
-                /* Look up callsite. */
-                cur_callsite = cu->body.callsites[GET_UI16(cur_op, 0)];
-
-                /* Also need to store it in cur_frame to make sure that
-                 * the GC knows how to walk the args buffer, and must
-                 * clear it in case we trigger GC while setting it up. */
-                tc->cur_frame->cur_args_callsite = cur_callsite;
-                memset(tc->cur_frame->args, 0,
-                    sizeof(MVMRegister) * cu->body.max_callsite_size);
-
+                cur_callsite = MVM_args_prepare(tc, cu, GET_UI16(cur_op, 0));
                 cur_op += 2;
                 goto NEXT;
             OP(arg_i):
@@ -904,6 +900,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(code) && REPR(code)->ID == MVM_REPR_ID_MVMCode) {
                     MVMStaticFrame *sf = ((MVMCode *)code)->body.sf;
                     MVMuint8 found = 0;
+                    if (!sf->body.fully_deserialized)
+                        MVM_bytecode_finish_frame(tc, sf->body.cu, sf, 0);
                     MVM_string_flatten(tc, name);
                     if (sf->body.lexical_names) {
                         MVMLexicalRegistry *entry;
@@ -1032,12 +1030,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(die): {
-                MVMException *ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
                 MVMRegister  *rr = &GET_REG(cur_op, 0);
-                ex->body.category = MVM_EX_CAT_CATCH;
-                MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.message, GET_REG(cur_op, 2).s);
+                MVMString   *str =  GET_REG(cur_op, 2).s;
                 cur_op += 4;
-                MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, (MVMObject *)ex, rr);
+                MVM_exception_die(tc, str, rr);
                 goto NEXT;
             }
             OP(takehandlerresult): {
@@ -1072,7 +1068,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
                 /* Copy the arguments. */
                 MVMuint32 arg_size = tc->cur_frame->params.arg_count * sizeof(MVMRegister);
-                MVMRegister *args = malloc(arg_size);
+                MVMRegister *args = MVM_malloc(arg_size);
                 memcpy(args, tc->cur_frame->params.args, arg_size);
 
                 /* Create effective callsite. */
@@ -1080,7 +1076,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
                 /* Set up the call capture. */
                 cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
-                cc->body.apc  = malloc(sizeof(MVMArgProcContext));
+                cc->body.apc  = MVM_malloc(sizeof(MVMArgProcContext));
                 memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
                 MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
 
@@ -1268,8 +1264,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(objprimspec): {
                 MVMObject *type = GET_REG(cur_op, 2).o;
                 if (type) {
-                    MVMStorageSpec ss = REPR(type)->get_storage_spec(tc, STABLE(type));
-                    GET_REG(cur_op, 0).i64 = ss.boxed_primitive;
+                    const MVMStorageSpec *ss = REPR(type)->get_storage_spec(tc, STABLE(type));
+                    GET_REG(cur_op, 0).i64 = ss->boxed_primitive;
                 }
                 else {
                     GET_REG(cur_op, 0).i64 = 0;
@@ -1369,11 +1365,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             OP(graphs_s):
-                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).s->body.graphs;
+                GET_REG(cur_op, 0).i64 = MVM_string_graphs(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(codes_s):
-                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).s->body.codes;
+                GET_REG(cur_op, 0).i64 = MVM_string_codes(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(eq_s):
@@ -1400,12 +1396,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 12;
                 goto NEXT;
             OP(getcp_s):
-                GET_REG(cur_op, 0).i64 = MVM_string_get_codepoint_at(tc,
+                GET_REG(cur_op, 0).i64 = MVM_string_get_grapheme_at(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
             OP(indexcp_s):
-                GET_REG(cur_op, 0).i64 = MVM_string_index_of_codepoint(tc,
+                GET_REG(cur_op, 0).i64 = MVM_string_index_of_grapheme(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
@@ -1511,39 +1507,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(chars):
-                GET_REG(cur_op, 0).i64 = NUM_GRAPHS(GET_REG(cur_op, 2).s);
+                GET_REG(cur_op, 0).i64 = MVM_string_graphs(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(chr): {
-                MVMint64 ord = GET_REG(cur_op, 2).i64;
-                MVMString *s;
-                if (ord < 0)
-                    MVM_exception_throw_adhoc(tc, "chr codepoint cannot be negative");
-                s = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
-                s->body.flags = MVM_STRING_TYPE_INT32;
-                s->body.int32s = malloc(sizeof(MVMCodepoint32));
-                s->body.int32s[0] = (MVMCodepoint32)ord;
-                s->body.graphs = 1;
-                s->body.codes = 1;
-                GET_REG(cur_op, 0).s = s;
+                GET_REG(cur_op, 0).s = MVM_string_chr(tc, (MVMGrapheme32)GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(ordfirst): {
                 MVMString *s = GET_REG(cur_op, 2).s;
-                if (!s || NUM_GRAPHS(s) == 0) {
-                    MVM_exception_throw_adhoc(tc, "ord string is null or blank");
-                }
-                GET_REG(cur_op, 0).i64 = MVM_string_get_codepoint_at(tc, s, 0);
+                GET_REG(cur_op, 0).i64 = MVM_string_get_grapheme_at(tc, s, 0);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(ordat): {
                 MVMString *s = GET_REG(cur_op, 2).s;
-                if (!s || NUM_GRAPHS(s) == 0) {
-                    MVM_exception_throw_adhoc(tc, "ord string is null or blank");
-                }
-                GET_REG(cur_op, 0).i64 = MVM_string_get_codepoint_at(tc, s, GET_REG(cur_op, 4).i64);
+                GET_REG(cur_op, 0).i64 = MVM_string_get_grapheme_at(tc, s, GET_REG(cur_op, 4).i64);
                 /* XXX what to do with synthetics?  return them? */
                 cur_op += 6;
                 goto NEXT;
@@ -1736,43 +1716,30 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_bigint_bool(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            OP(add_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_add(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+            OP(add_I):
+                GET_REG(cur_op, 0).o = MVM_bigint_add(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
-            }
-            OP(sub_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_sub(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+            OP(sub_I):
+                GET_REG(cur_op, 0).o = MVM_bigint_sub(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
-            }
-            OP(mul_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_mul(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+            OP(mul_I):
+                GET_REG(cur_op, 0).o = MVM_bigint_mul(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
-            }
             OP(div_I): {
                 MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_div(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+                GET_REG(cur_op, 0).o = MVM_bigint_div(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
             OP(mod_I): {
                 MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_mod(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+                GET_REG(cur_op, 0).o = MVM_bigint_mod(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
@@ -1785,21 +1752,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(gcd_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_gcd(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+                GET_REG(cur_op, 0).o = MVM_bigint_gcd(tc, GET_REG(cur_op, 6).o, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
-            OP(lcm_I): {
-                MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_lcm(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+            OP(lcm_I):
+                GET_REG(cur_op, 0).o = MVM_bigint_lcm(tc, GET_REG(cur_op, 6).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
-            }
             OP(bor_I): {
                 MVMObject *   const type = GET_REG(cur_op, 6).o;
                 MVMObject * const result = MVM_repr_alloc_init(tc, type);
@@ -1924,7 +1885,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint8  *buf = MVM_string_ascii_encode(tc, s, NULL);
                 MVMObject *a = MVM_repr_alloc_init(tc, type);
                 MVM_bigint_from_str(tc, a, buf);
-                free(buf);
+                MVM_free(buf);
                 GET_REG(cur_op, 0).o = a;
                 cur_op += 6;
                 goto NEXT;
@@ -2027,7 +1988,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(gethow):
-                GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->HOW;
+                GET_REG(cur_op, 0).o = MVM_6model_get_how(tc,
+                    STABLE(GET_REG(cur_op, 2).o));
                 cur_op += 4;
                 goto NEXT;
             OP(getwhat):
@@ -2340,49 +2302,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(box_i): {
-                MVMObject *type = GET_REG(cur_op, 4).o;
-                MVMObject *box;
-                box = MVM_intcache_get(tc, type, GET_REG(cur_op, 2).i64);
-                if (box == 0) {
-                    box = REPR(type)->allocate(tc, STABLE(type));
-                    MVMROOT(tc, box, {
-                        if (REPR(box)->initialize)
-                            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-                        REPR(box)->box_funcs.set_int(tc, STABLE(box), box,
-                            OBJECT_BODY(box), GET_REG(cur_op, 2).i64);
-                        GET_REG(cur_op, 0).o = box;
-                    });
-                } else {
-                    GET_REG(cur_op, 0).o = box;
-                }
+                MVM_box_int(tc, GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).o,
+                            &GET_REG(cur_op, 0));
                 cur_op += 6;
                 goto NEXT;
             }
             OP(box_n): {
-                MVMObject *type = GET_REG(cur_op, 4).o;
-                MVMObject *box  = REPR(type)->allocate(tc, STABLE(type));
-                MVMROOT(tc, box, {
-                    if (REPR(box)->initialize)
-                        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-                    REPR(box)->box_funcs.set_num(tc, STABLE(box), box,
-                        OBJECT_BODY(box), GET_REG(cur_op, 2).n64);
-                    GET_REG(cur_op, 0).o = box;
-                });
+                MVM_box_num(tc, GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).o,
+                            &GET_REG(cur_op, 0));
                 cur_op += 6;
                 goto NEXT;
             }
             OP(box_s): {
-                MVMObject *type = GET_REG(cur_op, 4).o;
-                MVMObject *box  = REPR(type)->allocate(tc, STABLE(type));
-                MVMROOT(tc, box, {
-                    if (REPR(box)->initialize)
-                        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-                    REPR(box)->box_funcs.set_str(tc, STABLE(box), box,
-                        OBJECT_BODY(box), GET_REG(cur_op, 2).s);
-                    GET_REG(cur_op, 0).o = box;
-                });
-                cur_op += 6;
-                goto NEXT;
+                 MVM_box_str(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o, &GET_REG(cur_op, 0));
+                 cur_op += 6;
+                 goto NEXT;
             }
             OP(unbox_i): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
@@ -2624,17 +2558,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(clone): {
                 MVMObject *value = GET_REG(cur_op, 2).o;
-                MVMROOT(tc, value, {
-                    MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
-                    /* Ordering here matters. We write the object into the
-                     * register before calling copy_to. This is because
-                     * if copy_to allocates, obj may have moved after
-                     * we called it. This saves us having to put things on
-                     * the temporary stack. The GC will know to update it
-                     * in the register if it moved. */
-                    GET_REG(cur_op, 0).o = cloned;
-                    REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
-                });
+                if (IS_CONCRETE(value)) {
+                    MVMROOT(tc, value, {
+                        MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
+                        /* Ordering here matters. We write the object into the
+                        * register before calling copy_to. This is because
+                        * if copy_to allocates, obj may have moved after
+                        * we called it. This saves us having to put things on
+                        * the temporary stack. The GC will know to update it
+                        * in the register if it moved. */
+                        GET_REG(cur_op, 0).o = cloned;
+                        REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
+                    });
+                }
+                else {
+                    GET_REG(cur_op, 0).o = value;
+                }
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2772,6 +2711,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
                 stable = STABLE(GET_REG(cur_op, 0).o);
                 MVM_ASSIGN_REF(tc, &(stable->header), stable->method_cache, cache);
+                stable->method_cache_sc = NULL;
                 MVM_SC_WB_ST(tc, stable);
 
                 cur_op += 4;
@@ -2792,13 +2732,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 MVMObject *types = GET_REG(cur_op, 2).o;
                 MVMint64 i, elems = REPR(types)->elems(tc, STABLE(types), types, OBJECT_BODY(types));
-                MVMObject **cache = malloc(sizeof(MVMObject *) * elems);
+                MVMObject **cache = MVM_malloc(sizeof(MVMObject *) * elems);
                 for (i = 0; i < elems; i++) {
                     MVM_ASSIGN_REF(tc, &(STABLE(obj)->header), cache[i], MVM_repr_at_pos_o(tc, types, i));
                 }
                 /* technically this free isn't thread safe */
                 if (STABLE(obj)->type_check_cache)
-                    free(STABLE(obj)->type_check_cache);
+                    MVM_free(STABLE(obj)->type_check_cache);
                 STABLE(obj)->type_check_cache = cache;
                 STABLE(obj)->type_check_cache_length = (MVMuint16)elems;
                 MVM_SC_WB_ST(tc, STABLE(obj));
@@ -2818,7 +2758,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_ASSIGN_REF(tc, &(st->header), is->invocation_handler, invocation_handler);
                 /* XXX not thread safe, but this should occur on non-shared objects anyway... */
                 if (st->invocation_spec)
-                    free(st->invocation_spec);
+                    MVM_free(st->invocation_spec);
                 st->invocation_spec = is;
                 cur_op += 8;
                 goto NEXT;
@@ -2849,7 +2789,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(setboolspec): {
                 MVMSTable            *st = GET_REG(cur_op, 0).o->st;
-                MVMBoolificationSpec *bs = malloc(sizeof(MVMBoolificationSpec));
+                MVMBoolificationSpec *bs = MVM_malloc(sizeof(MVMBoolificationSpec));
                 bs->mode = (MVMuint32)GET_REG(cur_op, 2).i64;
                 MVM_ASSIGN_REF(tc, &(st->header), bs->method, GET_REG(cur_op, 4).o);
                 st->boolification_spec = bs;
@@ -2884,10 +2824,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(getcodeobj): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
-                if (REPR(obj)->ID == MVM_REPR_ID_MVMCode)
-                    GET_REG(cur_op, 0).o = ((MVMCode *)obj)->body.code_object;
-                else
-                    MVM_exception_throw_adhoc(tc, "getcodeobj needs a code ref");
+                GET_REG(cur_op, 0).o = MVM_frame_get_code_object(tc, (MVMCode *)obj);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3131,7 +3068,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "freshcoderef requires a coderef");
                 ncr = (MVMCode *)(GET_REG(cur_op, 0).o = MVM_repr_clone(tc, cr));
                 MVMROOT(tc, ncr, {
-                    MVMStaticFrame *nsf = (MVMStaticFrame *)MVM_repr_clone(tc,
+                    MVMStaticFrame *nsf;
+                    if (!ncr->body.sf->body.fully_deserialized)
+                        MVM_bytecode_finish_frame(tc, ncr->body.sf->body.cu, ncr->body.sf, 0);
+                    nsf = (MVMStaticFrame *)MVM_repr_clone(tc,
                         (MVMObject *)ncr->body.sf);
                     MVM_ASSIGN_REF(tc, &(ncr->common.header), ncr->body.sf, nsf);
                     MVM_ASSIGN_REF(tc, &(ncr->common.header), ncr->body.sf->body.static_code, ncr);
@@ -3542,35 +3482,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(wval): {
                 MVMint16 dep = GET_I16(cur_op, 2);
                 MVMint16 idx = GET_I16(cur_op, 4);
-                if (dep >= 0 && dep < cu->body.num_scs) {
-                    MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
-                    if (sc == NULL)
-                        MVM_exception_throw_adhoc(tc,
-                            "SC not yet resolved; lookup failed");
-                    GET_REG(cur_op, 0).o = MVM_sc_get_object(tc, sc, idx);
-                    cur_op += 6;
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc,
-                        "Invalid SC index in bytecode stream");
-                }
+                GET_REG(cur_op, 0).o = MVM_sc_get_sc_object(tc, cu, dep, idx);
+                cur_op += 6;
                 goto NEXT;
             }
             OP(wval_wide): {
                 MVMint16 dep = GET_I16(cur_op, 2);
                 MVMint64 idx = MVM_BC_get_I64(cur_op, 4);
-                if (dep >= 0 && dep < cu->body.num_scs) {
-                    MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
-                    if (sc == NULL)
-                        MVM_exception_throw_adhoc(tc,
-                            "SC not yet resolved; lookup failed");
-                    GET_REG(cur_op, 0).o = MVM_sc_get_object(tc, sc, idx);
-                    cur_op += 12;
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc,
-                        "Invalid SC index in bytecode stream");
-                }
+                GET_REG(cur_op, 0).o = MVM_sc_get_sc_object(tc, cu, dep, idx);
+                cur_op += 12;
                 goto NEXT;
             }
             OP(scwbdisable):
@@ -3606,7 +3526,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *sc = GET_REG(cur_op, 2).o;
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc,
-                        "Must provide an SCRef operand to scgethandle");
+                        "Must provide an SCRef operand to scgetdesc");
                 GET_REG(cur_op, 0).s = MVM_sc_get_description(tc,
                     (MVMSerializationContext *)sc);
                 cur_op += 4;
@@ -3767,13 +3687,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(getlexouter): {
-                MVMRegister *r = MVM_frame_find_lexical_by_name_rel(tc,
-                    GET_REG(cur_op, 2).s, tc->cur_frame->outer);
-                if (r)
-                    GET_REG(cur_op, 0).o = r->o;
-                else
-                    MVM_exception_throw_adhoc(tc, "No lexical found with name '%s'",
-                        MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 2).s));
+                GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name_outer(tc,
+                    GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -4370,6 +4285,40 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o);
                 cur_op += 8;
                 goto NEXT;
+            OP(spawnprocasync):
+                GET_REG(cur_op, 0).o = MVM_proc_spawn_async(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
+                    GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o);
+                cur_op += 12;
+                goto NEXT;
+            OP(killprocasync):
+                MVM_proc_kill_async(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
+                cur_op += 4;
+                goto NEXT;
+            OP(startprofile):
+                MVM_profile_start(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
+            OP(endprofile):
+                GET_REG(cur_op, 0).o = MVM_profile_end(tc);
+                cur_op += 2;
+                goto NEXT;
+            OP(objectid):
+                GET_REG(cur_op, 0).i64 = (MVMint64)MVM_gc_object_id(tc, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            OP(settypefinalize):
+                MVM_gc_finalize_set(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
+                cur_op += 4;
+                goto NEXT;
+            OP(force_gc):
+                MVM_gc_enter_from_allocator(tc);
+                goto NEXT;
+            OP(nativecallglobal):
+                GET_REG(cur_op, 0).o = MVM_nativecall_global(tc, GET_REG(cur_op, 2).s,
+                    GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o);
+                cur_op += 10;
+                goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
@@ -4538,39 +4487,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if ((MVMSTable *)tc->cur_frame->effective_spesh_slots[idx] == STABLE(obj)) {
                     GET_REG(cur_op, 0).o = (MVMObject *)tc->cur_frame->effective_spesh_slots[idx + 1];
                     cur_op += 10;
-                    goto NEXT;
                 }
                 else {
-                    /* Missed mono-morph; try cache-only lookup. */
+                    /* May invoke, so pre-increment op counter */
                     MVMString *name = cu->body.strings[GET_UI32(cur_op, 4)];
-                    MVMObject *meth = MVM_6model_find_method_cache_only(tc, obj, name);
-                    if (!MVM_is_null(tc, meth)) {
-                        /* Got it; cache. Must be careful due to threads
-                         * reading, races, etc. */
-                        MVMStaticFrame *sf = tc->cur_frame->static_info;
-                        uv_mutex_lock(&tc->instance->mutex_spesh_install);
-                        if (!tc->cur_frame->effective_spesh_slots[idx + 1]) {
-                            MVM_ASSIGN_REF(tc, &(sf->common.header),
-                                tc->cur_frame->effective_spesh_slots[idx + 1],
-                                (MVMCollectable *)meth);
-                            MVM_barrier();
-                            MVM_ASSIGN_REF(tc, &(sf->common.header),
-                                tc->cur_frame->effective_spesh_slots[idx],
-                                (MVMCollectable *)STABLE(obj));
-                        }
-                        uv_mutex_unlock(&tc->instance->mutex_spesh_install);
-                        GET_REG(cur_op, 0).o = meth;
-                        cur_op += 10;
-                        goto NEXT;
-                    }
-                    else {
-                        /* Fully late-bound. */
-                        MVMRegister *res  = &GET_REG(cur_op, 0);
-                        cur_op += 10;
-                        MVM_6model_find_method(tc, obj, name, res);
-                        goto NEXT;
-                    }
+                    MVMRegister *res = &GET_REG(cur_op, 0);
+                    cur_op += 10;
+                    MVM_6model_find_method_spesh(tc, obj, name, idx, res);
+
                 }
+                goto NEXT;
             }
             OP(sp_fastcreate): {
                 /* Assume we're in normal code, so doing a nursery allocation.
@@ -4688,24 +4614,80 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_jit_enter): {
+                if (tc->cur_frame->spesh_cand->jitcode == NULL) {
+                    MVM_exception_throw_adhoc(tc, "Try to enter NULL jitcode");
+                }
+                // trampoline back to this opcode
+                cur_op -= 2;
+                if (MVM_jit_enter_code(tc, cu, tc->cur_frame->spesh_cand->jitcode)) {
+                    if (MVM_frame_try_return(tc) == 0)
+                        goto return_label;
+                }
+                goto NEXT;
+            }
+            OP(sp_boolify_iter): {
+                GET_REG(cur_op, 0).i64 = MVM_iter_istrue(tc, (MVMIter*)GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(sp_boolify_iter_arr): {
+                MVMIter *iter = (MVMIter *)GET_REG(cur_op, 2).o;
+
+                GET_REG(cur_op, 0).i64 = iter->body.array_state.index + 1 < iter->body.array_state.limit ? 1 : 0;
+
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(sp_boolify_iter_hash): {
+                MVMIter *iter = (MVMIter *)GET_REG(cur_op, 2).o;
+
+                GET_REG(cur_op, 0).i64 = iter->body.hash_state.next != NULL ? 1 : 0;
+
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(prof_enter):
+                MVM_profile_log_enter(tc, tc->cur_frame->static_info,
+                    MVM_PROFILE_ENTER_NORMAL);
+                goto NEXT;
+            OP(prof_enterspesh):
+                MVM_profile_log_enter(tc, tc->cur_frame->static_info,
+                    MVM_PROFILE_ENTER_SPESH);
+                goto NEXT;
+            OP(prof_enterinline):
+                MVM_profile_log_enter(tc,
+                    (MVMStaticFrame *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 0)],
+                    MVM_PROFILE_ENTER_SPESH_INLINE);
+                cur_op += 2;
+                goto NEXT;
+            OP(prof_exit):
+                MVM_profile_log_exit(tc);
+                goto NEXT;
+            OP(prof_allocated):
+                MVM_profile_log_allocated(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
+                MVMFrame *frame_before = tc->cur_frame;
                 MVMExtOpRecord *record = &cu->body.extops[op - MVM_OP_EXT_BASE];
-
-                record->func(tc);
-                cur_op += record->operand_bytes;
+                record->func(tc, cur_op);
+                if (tc->cur_frame == frame_before)
+                    cur_op += record->operand_bytes;
                 goto NEXT;
             }
 #else
             default: {
                 if (op >= MVM_OP_EXT_BASE
                         && (op - MVM_OP_EXT_BASE) < cu->body.num_extops) {
+                    MVMFrame *frame_before = tc->cur_frame;
                     MVMExtOpRecord *record =
                             &cu->body.extops[op - MVM_OP_EXT_BASE];
-
-                    record->func(tc);
-                    cur_op += record->operand_bytes;
+                    record->func(tc, cur_op);
+                    if (tc->cur_frame == frame_before)
+                        cur_op += record->operand_bytes;
                     goto NEXT;
                 }
 

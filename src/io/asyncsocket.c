@@ -25,7 +25,7 @@ typedef struct {
 /* Allocates a buffer of the suggested size. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
     size_t size = suggested_size > 0 ? suggested_size : 4;
-    buf->base   = malloc(size);
+    buf->base   = MVM_malloc(size);
     buf->len    = size;
 }
 
@@ -79,7 +79,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
         });
         });
         if (buf->base)
-            free(buf->base);
+            MVM_free(buf->base);
         uv_read_stop(handle);
     }
     else {
@@ -95,7 +95,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
         });
         });
         if (buf->base)
-            free(buf->base);
+            MVM_free(buf->base);
         uv_read_stop(handle);
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
@@ -148,7 +148,7 @@ static void read_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
         ReadInfo *ri = (ReadInfo *)data;
         if (ri->ds)
             MVM_string_decodestream_destory(tc, ri->ds);
-        free(data);
+        MVM_free(data);
     }
 }
 
@@ -284,8 +284,8 @@ static void on_write(uv_write_t *req, int status) {
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
     if (wi->str_data)
-        free(wi->buf.base);
-    free(wi->req);
+        MVM_free(wi->buf.base);
+    MVM_free(wi->req);
 }
 
 /* Does setup work for an asynchronous write. */
@@ -313,7 +313,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     }
 
     /* Create and initialize write request. */
-    wi->req           = malloc(sizeof(uv_write_t));
+    wi->req           = MVM_malloc(sizeof(uv_write_t));
     wi->buf           = uv_buf_init(output, output_size);
     wi->req->data     = data;
     handle_data       = (MVMIOAsyncSocketData *)wi->handle->body.data;
@@ -335,13 +335,13 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         });
 
         /* Cleanup handle. */
-        free(wi->req);
+        MVM_free(wi->req);
         wi->req = NULL;
     }
 }
 
 /* Marks objects for a write task. */
-void write_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
+static void write_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
     WriteInfo *wi = (WriteInfo *)data;
     MVM_gc_worklist_add(tc, worklist, &wi->handle);
     MVM_gc_worklist_add(tc, worklist, &wi->str_data);
@@ -351,7 +351,7 @@ void write_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
 /* Frees info for a write task. */
 static void write_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data)
-        free(data);
+        MVM_free(data);
 }
 
 /* Operations table for async write task. */
@@ -443,7 +443,7 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
 
 /* Does an asynchronous close (since it must run on the event loop). */
 static void close_cb(uv_handle_t *handle) {
-    free(handle);
+    MVM_free(handle);
 }
 static void close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     uv_close((uv_handle_t *)data, close_cb);
@@ -543,7 +543,7 @@ static void on_connect(uv_connect_t* req, int status) {
         });
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
-    free(req);
+    MVM_free(req);
 }
 
 /* Initilalize the connection on the event loop. */
@@ -557,8 +557,8 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
     MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
 
     /* Create and initialize socket and connection. */
-    ci->socket        = malloc(sizeof(uv_tcp_t));
-    ci->connect       = malloc(sizeof(uv_connect_t));
+    ci->socket        = MVM_malloc(sizeof(uv_tcp_t));
+    ci->connect       = MVM_malloc(sizeof(uv_connect_t));
     ci->connect->data = data;
     if ((r = uv_tcp_init(loop, ci->socket)) < 0 ||
         (r = uv_tcp_connect(ci->connect, ci->socket, ci->dest, on_connect)) < 0) {
@@ -579,9 +579,9 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
         });
 
         /* Cleanup handles. */
-        free(ci->socket);
+        MVM_free(ci->socket);
         ci->socket = NULL;
-        free(ci->connect);
+        MVM_free(ci->connect);
         ci->connect = NULL;
     }
 }
@@ -591,8 +591,8 @@ static void connect_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data) {
         ConnectInfo *ci = (ConnectInfo *)data;
         if (ci->dest)
-            free(ci->dest);
-        free(ci);
+            MVM_free(ci->dest);
+        MVM_free(ci);
     }
 }
 
@@ -657,7 +657,7 @@ static void on_connection(uv_stream_t *server, int status) {
     MVMAsyncTask     *t      = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
         tc->instance->event_loop_active, li->work_idx);
 
-    uv_tcp_t         *client = malloc(sizeof(uv_tcp_t));
+    uv_tcp_t         *client = MVM_malloc(sizeof(uv_tcp_t));
     int               r;
     uv_tcp_init(tc->loop, client);
 
@@ -678,7 +678,7 @@ static void on_connection(uv_stream_t *server, int status) {
     }
     else {
         uv_close((uv_handle_t*)client, NULL);
-        free(client);
+        MVM_free(client);
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
         MVMROOT(tc, arr, {
         MVMROOT(tc, t, {
@@ -704,7 +704,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
     MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
 
     /* Create and initialize socket and connection. */
-    li->socket        = malloc(sizeof(uv_tcp_t));
+    li->socket        = MVM_malloc(sizeof(uv_tcp_t));
     li->socket->data  = data;
     if ((r = uv_tcp_init(loop, li->socket)) < 0 ||
         (r = uv_tcp_bind(li->socket, li->dest, 0)) < 0) {
@@ -723,7 +723,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
             });
             MVM_repr_push_o(tc, t->body.queue, arr);
         });
-        free(li->socket);
+        MVM_free(li->socket);
         li->socket = NULL;
         return;
     }
@@ -743,8 +743,8 @@ static void listen_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data) {
         ListenInfo *li = (ListenInfo *)data;
         if (li->dest)
-            free(li->dest);
-        free(li);
+            MVM_free(li->dest);
+        MVM_free(li);
     }
 }
 

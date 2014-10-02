@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <setjmp.h>
+#include <stddef.h>
 
 /* Configuration. */
 #include "gen/config.h"
@@ -69,6 +70,14 @@ typedef double   MVMnum64;
 #  define MVM_USE_OVERFLOW_SERIALIZATION_INDEX
 #endif
 
+#if defined _MSC_VER
+#  define MVM_USED_BY_JIT __pragma(optimize( "g", off ))
+#else
+#  define MVM_USED_BY_JIT
+#endif
+
+MVM_PUBLIC const MVMint32 MVM_jit_support(void);
+
 /* Headers for various other data structures and APIs. */
 #include "6model/6model.h"
 #include "gc/wb.h"
@@ -78,6 +87,7 @@ typedef double   MVMnum64;
 #include "core/callsite.h"
 #include "core/args.h"
 #include "core/exceptions.h"
+#include "core/alloc.h"
 #include "core/frame.h"
 #include "core/validation.h"
 #include "core/compunit.h"
@@ -105,6 +115,8 @@ typedef double   MVMnum64;
 #include "gc/orchestrate.h"
 #include "gc/gen2.h"
 #include "gc/roots.h"
+#include "gc/objectid.h"
+#include "gc/finalize.h"
 #include "spesh/dump.h"
 #include "spesh/graph.h"
 #include "spesh/codegen.h"
@@ -122,6 +134,7 @@ typedef double   MVMnum64;
 #include "strings/ascii.h"
 #include "strings/utf8.h"
 #include "strings/utf16.h"
+#include "strings/iter.h"
 #include "strings/ops.h"
 #include "strings/unicode_gen.h"
 #include "strings/unicode.h"
@@ -144,6 +157,12 @@ typedef double   MVMnum64;
 #include "mast/driver.h"
 #include "core/intcache.h"
 #include "core/fixedsizealloc.h"
+#include "jit/graph.h"
+#include "jit/compile.h"
+#include "jit/log.h"
+#include "profiler/instrument.h"
+#include "profiler/log.h"
+#include "profiler/profile.h"
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc);
 
@@ -174,7 +193,7 @@ MVM_PUBLIC void MVM_vm_destroy_instance(MVMInstance *instance);
 /* Convenience shortcut for use in gc_free routines. */
 #define MVM_checked_free_null(addr) do { \
     if ((addr)) { \
-        free((void *)(addr)); \
+        MVM_free((void *)(addr)); \
         (addr) = NULL; \
     } \
 } while (0)

@@ -7,3 +7,6 @@
 [submodule "3rdparty/dyncall"]
 	path = 3rdparty/dyncall
 	url = https://github.com/MoarVM/dyncall.git
+[submodule "3rdparty/dynasm"]
+	path = 3rdparty/dynasm
+	url = https://github.com/MoarVM/dynasm.git

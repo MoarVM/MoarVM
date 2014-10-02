@@ -63,7 +63,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMConcBlockingQueueNode *cur = cbq->body.head;
     while (cur) {
         MVMConcBlockingQueueNode *next = cur->next;
-        free(cur);
+        MVM_free(cur);
         cur = next;
     }
     cbq->body.head = cbq->body.tail = NULL;
@@ -72,17 +72,22 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     uv_mutex_destroy(&cbq->body.locks->head_lock);
     uv_mutex_destroy(&cbq->body.locks->tail_lock);
     uv_cond_destroy(&cbq->body.locks->head_cond);
-    free(cbq->body.locks);
+    MVM_free(cbq->body.locks);
     cbq->body.locks = NULL;
 }
 
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    return &storage_spec;
 }
 
 /* Compose the representation. */
@@ -165,7 +170,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     }
 
     taken = cbq->head->next;
-    free(cbq->head);
+    MVM_free(cbq->head);
     cbq->head = taken;
     MVM_barrier();
     value->o = taken->value;
@@ -238,7 +243,7 @@ MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueu
 
     if (MVM_load(&cbq->body.elems) > 0) {
         taken = cbq->body.head->next;
-        free(cbq->body.head);
+        MVM_free(cbq->body.head);
         cbq->body.head = taken;
         MVM_barrier();
         result = taken->value;

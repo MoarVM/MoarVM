@@ -57,12 +57,12 @@ void MVM_sc_add_all_scs_entry(MVMThreadContext *tc, MVMSerializationContextBody 
         if (tc->instance->all_scs_next_idx == 0) {
             /* First time; allocate, and NULL first slot as it is
              * the "no SC" sentinel value. */
-            tc->instance->all_scs    = malloc(tc->instance->all_scs_alloc * sizeof(MVMSerializationContextBody *));
+            tc->instance->all_scs    = MVM_malloc(tc->instance->all_scs_alloc * sizeof(MVMSerializationContextBody *));
             tc->instance->all_scs[0] = NULL;
             tc->instance->all_scs_next_idx++;
         }
         else {
-            tc->instance->all_scs = realloc(tc->instance->all_scs,
+            tc->instance->all_scs = MVM_realloc(tc->instance->all_scs,
                 tc->instance->all_scs_alloc * sizeof(MVMSerializationContextBody *));
         }
     }
@@ -137,7 +137,7 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
         MVMSerializationContextBody *scb = cu->body.scs_to_resolve[dep];
         if (!scb)
             MVM_exception_throw_adhoc(tc,
-                "SC resolution; internal error");
+                "SC resolution: internal error");
         sc = scb->sc;
         if (sc == NULL)
             return NULL;
@@ -151,14 +151,27 @@ MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc,
     MVMObject **roots = sc->body->root_objects;
     MVMint64    count = sc->body->num_objects;
     if (idx >= 0 && idx < count)
-        return roots[idx];
+        return roots[idx] ? roots[idx] : MVM_serialization_demand_object(tc, sc, idx);
     else
         MVM_exception_throw_adhoc(tc,
             "No object at index %d", idx);
 }
 
+MVMObject * MVM_sc_get_sc_object(MVMThreadContext *tc, MVMCompUnit *cu,
+                                 MVMint16 dep, MVMint64 idx) {
+    if (dep >= 0 && dep < cu->body.num_scs) {
+        MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
+        if (sc == NULL)
+            MVM_exception_throw_adhoc(tc, "SC not yet resolved; lookup failed");
+        return MVM_sc_get_object(tc, sc, idx);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Invalid SC index in bytecode stream");
+    }
+}
+
 /* Given an SC and an index, fetch the object stored there, or return NULL if
- * there is none. */
+ * there is none. Does not cause lazy deserialization. */
 MVMObject * MVM_sc_try_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     MVMObject **roots = sc->body->root_objects;
     MVMint64    count = sc->body->num_objects;
@@ -184,7 +197,7 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
             sc->body->alloc_objects *= 2;
             if (sc->body->alloc_objects < idx + 1)
                 sc->body->alloc_objects = idx + 1;
-            sc->body->root_objects = realloc(sc->body->root_objects,
+            sc->body->root_objects = MVM_realloc(sc->body->root_objects,
                 sc->body->alloc_objects * sizeof(MVMObject *));
             memset(sc->body->root_objects + orig_size, 0,
                 (sc->body->alloc_objects - orig_size) * sizeof(MVMObject *));
@@ -196,15 +209,17 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
 
 /* Given an SC and an index, fetch the STable stored there. */
 MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
-    if (idx >= 0 && idx < sc->body->num_stables && sc->body->root_stables[idx])
-        return sc->body->root_stables[idx];
-    else
-        MVM_exception_throw_adhoc(tc,
-            "No STable at index %d", idx);
+    if (idx >= 0 && idx < sc->body->num_stables) {
+        MVMSTable *got = sc->body->root_stables[idx];
+        return got ? got : MVM_serialization_demand_stable(tc, sc, idx);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "No STable at index %d", idx);
+    }
 }
 
 /* Given an SC and an index, fetch the STable stored there, or return NULL if there
- * is none. */
+ * is none. Does not cause lazy deserialization. */
 MVMSTable * MVM_sc_try_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     if (idx >= 0 && idx < sc->body->num_stables)
         return sc->body->root_stables[idx];
@@ -227,7 +242,7 @@ void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
             sc->body->alloc_stables += 32;
             if (sc->body->alloc_stables < idx + 1)
                 sc->body->alloc_stables = idx + 1;
-            sc->body->root_stables = realloc(sc->body->root_stables,
+            sc->body->root_stables = MVM_realloc(sc->body->root_stables,
                 sc->body->alloc_stables * sizeof(MVMSTable *));
             memset(sc->body->root_stables + orig_size, 0,
                 (sc->body->alloc_stables - orig_size) * sizeof(MVMSTable *));
@@ -243,23 +258,27 @@ void MVM_sc_push_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMST
     MVMint64 idx = sc->body->num_stables;
     if (idx == sc->body->alloc_stables) {
         sc->body->alloc_stables += 16;
-        sc->body->root_stables = realloc(sc->body->root_stables,
+        sc->body->root_stables = MVM_realloc(sc->body->root_stables,
             sc->body->alloc_stables * sizeof(MVMSTable *));
     }
     MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_stables[idx], st);
     sc->body->num_stables++;
 }
 
-
 /* Given an SC and an index, fetch the code ref stored there. */
 MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     MVMObject *roots = sc->body->root_codes;
     MVMuint64   count = MVM_repr_elems(tc, roots);
-    if (idx < count)
-        return MVM_repr_at_pos_o(tc, roots, idx);
-    else
+    if (idx < count) {
+        MVMObject *found = MVM_repr_at_pos_o(tc, roots, idx);
+        return MVM_is_null(tc, found)
+            ? MVM_serialization_demand_code(tc, sc, idx)
+            : found;
+    }
+    else {
         MVM_exception_throw_adhoc(tc,
             "No code ref at index %d", idx);
+    }
 }
 
 /* Resolves an SC handle using the SC weakhash. */

@@ -28,6 +28,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMStaticFrameBody *src_body  = (MVMStaticFrameBody *)src;
     MVMStaticFrameBody *dest_body = (MVMStaticFrameBody *)dest;
 
+    if (!src_body->fully_deserialized)
+        MVM_exception_throw_adhoc(tc, "Can only clone a fully deserialized MVMFrame");
+
     dest_body->orig_bytecode = src_body->orig_bytecode;
     dest_body->bytecode_size = src_body->bytecode_size;
     if (src_body->bytecode == src_body->orig_bytecode) {
@@ -41,7 +44,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
            sophisticated. The easiest thing would be to bump the allocated size
            and value stored in bytecode by sizeof(MVMuint64), and use the extra
            space to store a reference count. */
-        dest_body->bytecode = malloc(src_body->bytecode_size);
+        dest_body->bytecode = MVM_malloc(src_body->bytecode_size);
         memcpy(dest_body->bytecode, src_body->bytecode, src_body->bytecode_size);
     }
 
@@ -53,8 +56,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->num_locals = src_body->num_locals;
     dest_body->num_lexicals = src_body->num_lexicals;
     {
-        MVMuint16 *local_types = malloc(sizeof(MVMuint16) * src_body->num_locals);
-        MVMuint16 *lexical_types = malloc(sizeof(MVMuint16) * src_body->num_lexicals);
+        MVMuint16 *local_types = MVM_malloc(sizeof(MVMuint16) * src_body->num_locals);
+        MVMuint16 *lexical_types = MVM_malloc(sizeof(MVMuint16) * src_body->num_lexicals);
         memcpy(local_types, src_body->local_types, sizeof(MVMuint16) * src_body->num_locals);
         memcpy(lexical_types, src_body->lexical_types, sizeof(MVMuint16) * src_body->num_lexicals);
         dest_body->local_types = local_types;
@@ -67,7 +70,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         HASH_ITER(hash_handle, src_body->lexical_names, current, tmp) {
             size_t klen;
             void *kdata;
-            MVMLexicalRegistry *new_entry = malloc(sizeof(MVMLexicalRegistry));
+            MVMLexicalRegistry *new_entry = MVM_malloc(sizeof(MVMLexicalRegistry));
 
             /* don't need to clone the string */
             MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
@@ -84,9 +87,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVMuint16  count    = src_body->num_lexicals;
         MVMuint16  i;
 
-        dest_body->static_env = malloc(src_body->env_size);
+        dest_body->static_env = MVM_malloc(src_body->env_size);
         memcpy(dest_body->static_env, src_body->static_env, src_body->env_size);
-        dest_body->static_env_flags = malloc(src_body->num_lexicals);
+        dest_body->static_env_flags = MVM_malloc(src_body->num_lexicals);
         memcpy(dest_body->static_env_flags, src_body->static_env_flags, src_body->num_lexicals);
 
         for (i = 0; i < count; i++) {
@@ -105,12 +108,13 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->outer, src_body->outer);
 
     dest_body->num_handlers = src_body->num_handlers;
-    dest_body->handlers = malloc(src_body->num_handlers * sizeof(MVMFrameHandler));
+    dest_body->handlers     = MVM_malloc(src_body->num_handlers * sizeof(MVMFrameHandler));
     memcpy(dest_body->handlers, src_body->handlers, src_body->num_handlers * sizeof(MVMFrameHandler));
-    dest_body->invoked = 0;
-    dest_body->pool_index = src_body->pool_index;
-    dest_body->num_annotations = src_body->num_annotations;
-    dest_body->annotations_data = src_body->annotations_data;
+    dest_body->instrumentation_level = 0;
+    dest_body->pool_index            = src_body->pool_index;
+    dest_body->num_annotations       = src_body->num_annotations;
+    dest_body->annotations_data      = src_body->annotations_data;
+    dest_body->fully_deserialized    = 1;
 }
 
 /* Adds held objects to the GC worklist. */
@@ -124,6 +128,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &body->name);
     MVM_gc_worklist_add(tc, worklist, &body->outer);
     MVM_gc_worklist_add(tc, worklist, &body->static_code);
+
+    /* If it's not fully deserialized, none of the following can apply. */
+    if (!body->fully_deserialized)
+        return;
 
     /* lexical names hash keys */
     HASH_ITER(hash_handle, body->lexical_names, current, tmp) {
@@ -163,28 +171,38 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMStaticFrame *sf = (MVMStaticFrame *)obj;
     MVMStaticFrameBody *body = &sf->body;
+    if (body->orig_bytecode != body->bytecode) {
+        MVM_free(body->bytecode);
+        body->bytecode = body->orig_bytecode;
+    }
+
+    /* If it's not fully deserialized, none of the following can apply. */
+    if (!body->fully_deserialized)
+        return;
+    MVM_checked_free_null(body->instr_offsets);
     MVM_checked_free_null(body->handlers);
     MVM_checked_free_null(body->static_env);
     MVM_checked_free_null(body->static_env_flags);
     MVM_checked_free_null(body->local_types);
     MVM_checked_free_null(body->lexical_types);
     MVM_checked_free_null(body->lexical_names_list);
-    MVM_checked_free_null(body->instr_offsets);
     MVM_HASH_DESTROY(hash_handle, MVMLexicalRegistry, body->lexical_names);
-    if (body->orig_bytecode != body->bytecode) {
-        free(body->bytecode);
-        body->bytecode = body->orig_bytecode;
-    }
 }
 
+static const MVMStorageSpec storage_spec = {
+    MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
+    0,                          /* bits */
+    0,                          /* align */
+    MVM_STORAGE_SPEC_BP_NONE,   /* boxed_primitive */
+    0,                          /* can_box */
+    0,                          /* is_unsigned */
+};
+
+
 /* Gets the storage specification for this representation. */
-static MVMStorageSpec get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     /* XXX in the end we'll support inlining of this... */
-    MVMStorageSpec spec;
-    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
-    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
-    spec.can_box         = 0;
-    return spec;
+    return &storage_spec;
 }
 
 /* Compose the representation. */

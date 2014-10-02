@@ -78,11 +78,18 @@ struct MVMSpeshGraph {
     /* The list of lexical types (only set up if we do inlines). */
     MVMuint16 *lexical_types;
 
-    /* The total number of locals, accounting for any inlining done. */
+    /* The total number of locals, accounting for any inlining done and
+     * added temporaries. */
     MVMuint16 num_locals;
 
     /* The total number of lexicals, accounting for any inlining done. */
     MVMuint16 num_lexicals;
+
+    /* Temporary local registers added to aid transformations, along with a
+     * count of the number we have and have allocated space for so far. */
+    MVMuint16          num_temps;
+    MVMuint16          alloc_temps;
+    MVMSpeshTemporary *temps;
 };
 
 /* The default allocation chunk size for memory blocks used to store spesh
@@ -102,6 +109,19 @@ struct MVMSpeshMemBlock {
 
     /* Previous, now full, memory block. */
     MVMSpeshMemBlock *prev;
+};
+
+/* A temporary register, added to support transformations. */
+struct MVMSpeshTemporary {
+    /* The number of the local along with the current SSA index. */
+    MVMuint16 orig;
+    MVMuint16 i;
+
+    /* What kind of register is it? */
+    MVMuint16 kind;
+
+    /* Is it currently in use? */
+    MVMuint16 in_use;
 };
 
 /* A basic block in the graph (sequences of instructions where control will
@@ -146,7 +166,7 @@ struct MVMSpeshBB {
 /* An instruction in the spesh graph. */
 struct MVMSpeshIns {
     /* Instruction information. */
-    MVMOpInfo *info;
+    const MVMOpInfo *info;
 
     /* Operand information. */
     MVMSpeshOperand *operands;
@@ -211,9 +231,9 @@ struct MVMSpeshAnn {
 #define MVM_SPESH_ANN_DEOPT_OSR     9
 
 /* Functions to create/destory the spesh graph. */
-MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf);
+MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint32 cfg_only);
 MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStaticFrame *sf,
-    MVMSpeshCandidate *cand);
+    MVMSpeshCandidate *cand, MVMuint32 cfg_only);
 MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search);
 void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist *worklist);
 void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g);
