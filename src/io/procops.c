@@ -1108,6 +1108,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
     MVMObject            *clargs = instance->clargs;
     if (!clargs) {
         clargs = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+#ifndef _WIN32
         MVMROOT(tc, clargs, {
             const MVMint64 num_clargs = instance->num_clargs;
             MVMint64 count;
@@ -1115,10 +1116,8 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
             MVMString *prog_string = MVM_string_utf8_decode(tc,
                 instance->VMString,
                 instance->prog_name, strlen(instance->prog_name));
-
             MVMObject *boxed_str = MVM_repr_box_str(tc,
                 instance->boot_types.BOOTStr, prog_string);
-
             MVM_repr_push_o(tc, clargs, boxed_str);
 
             for (count = 0; count < num_clargs; count++) {
@@ -1130,6 +1129,31 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
                 MVM_repr_push_o(tc, clargs, boxed_str);
             }
         });
+#else
+        MVMROOT(tc, clargs, {
+            const MVMuint16 acp = GetACP();
+            const MVMint64 num_clargs = instance->num_clargs;
+            MVMint64 count;
+
+            MVMString *prog_string = MVM_string_utf8_decode(tc,
+                instance->VMString,
+                instance->prog_name, strlen(instance->prog_name));
+            MVMObject *boxed_str = MVM_repr_box_str(tc,
+                instance->boot_types.BOOTStr, prog_string);
+            MVM_repr_push_o(tc, clargs, boxed_str);
+
+            for (count = 0; count < num_clargs; count++) {
+                char *raw_clarg = instance->raw_clargs[count];
+                char * const _tmp = ANSIToUTF8(acp, raw_clarg);
+                MVMString *string = MVM_string_utf8_decode(tc,
+                    instance->VMString, _tmp, strlen(_tmp));
+                free(_tmp);
+                boxed_str = MVM_repr_box_str(tc,
+                    instance->boot_types.BOOTStr, string);
+                MVM_repr_push_o(tc, clargs, boxed_str);
+            }
+        });
+#endif
 
         instance->clargs = clargs;
     }
