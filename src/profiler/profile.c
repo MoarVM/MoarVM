@@ -157,7 +157,7 @@ static void aggregate_nodes(MVMThreadContext *tc, ProfDumpStrs *pds, MVMProfileC
             /* add more total (inclusive) time. */
             MVM_repr_bind_key_o(tc, node_hash, pds->inclusive_time,
                 box_i(tc, pcn->total_time / 1000
-                      + MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, node_hash, pds->inclusive_time)) / 1000));
+                      + MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, node_hash, pds->inclusive_time))));
 
             /* OSR and deopt counts. */
             MVM_repr_bind_key_o(tc, node_hash, pds->osr,
