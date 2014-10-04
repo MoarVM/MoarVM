@@ -45,12 +45,11 @@ typedef struct {
     MVMString *deopt_one;
     MVMString *deopt_all;
     MVMString *spesh_time;
+    MVMString *is_collection;
 } ProfDumpStrs;
 
-/* Dumps a call graph node. */
-static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
-                                        MVMProfileCallNode *pcn) {
-    MVMObject *node_hash  = new_hash(tc);
+static void call_node_to_hash(MVMThreadContext *tc, ProfDumpStrs *pds,
+                              MVMProfileCallNode *pcn, MVMObject *node_hash) {
     MVMObject *alloc_list = new_array(tc);
     MVMuint32  i;
 
@@ -102,25 +101,6 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
     MVM_repr_bind_key_o(tc, node_hash, pds->deopt_all,
         box_i(tc, pcn->deopt_all_count));
 
-    /* Visit successors in the call graph, dumping them and working out the
-     * exclusive time. */
-    if (pcn->num_succ) {
-        MVMObject *callees        = new_array(tc);
-        MVMuint64  exclusive_time = pcn->total_time;
-        for (i = 0; i < pcn->num_succ; i++) {
-            MVM_repr_push_o(tc, callees,
-                dump_call_graph_node(tc, pds, pcn->succ[i]));
-            exclusive_time -= pcn->succ[i]->total_time;
-        }
-        MVM_repr_bind_key_o(tc, node_hash, pds->exclusive_time,
-            box_i(tc, exclusive_time / 1000));
-        MVM_repr_bind_key_o(tc, node_hash, pds->callees, callees);
-    }
-    else {
-        MVM_repr_bind_key_o(tc, node_hash, pds->exclusive_time,
-            box_i(tc, pcn->total_time / 1000));
-    }
-
     /* Emit allocations. */
     MVM_repr_bind_key_o(tc, node_hash, pds->allocations, alloc_list);
     for (i = 0; i < pcn->num_alloc; i++) {
@@ -133,8 +113,162 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
         MVM_repr_push_o(tc, alloc_list, alloc_info);
     }
 
+}
+
+static void aggregate_nodes(MVMThreadContext *tc, ProfDumpStrs *pds, MVMProfileCallNode *pcn,
+                            MVMObject *existing_hash, MVMObject *existing_callees) {
+    /* First, let's see if there's already an entry in the existing callees
+     * that has the same ID as our call data object */
+    MVMuint64 existing_elems = MVM_repr_elems(tc, existing_callees);
+    MVMuint64 target_id = (MVMuint64)pcn->sf;
+    MVMObject *node_hash;
+    MVMint64 index;
+
+    for (index = 0; index < existing_elems; index++) {
+        MVMObject *callee = MVM_repr_at_pos_o(tc, existing_callees, index);
+        MVMuint64 other_id = MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, callee, pds->id));
+
+        if (other_id == target_id) {
+            MVMint64 alloc_i;
+            MVMint64 alloc_k;
+            MVMint64 existing_allocations;
+
+            MVMObject *alloc_list;
+
+            node_hash = callee;
+
+            /* add up entry counts. */
+            MVM_repr_bind_key_o(tc, node_hash, pds->entries,
+                box_i(tc, pcn->total_entries
+                      + MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, node_hash, pds->entries))));
+
+            MVM_repr_bind_key_o(tc, node_hash, pds->spesh_entries,
+                  box_i(tc, pcn->specialized_entries
+                        + MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, node_hash, pds->spesh_entries))));
+
+            MVM_repr_bind_key_o(tc, node_hash, pds->jit_entries,
+                box_i(tc, pcn->jit_entries
+                      + MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, node_hash, pds->jit_entries))));
+
+            MVM_repr_bind_key_o(tc, node_hash, pds->inlined_entries,
+                box_i(tc, pcn->inlined_entries
+                      + MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, node_hash, pds->inlined_entries))));
+
+            /* add more total (inclusive) time. */
+            MVM_repr_bind_key_o(tc, node_hash, pds->inclusive_time,
+                box_i(tc, pcn->total_time / 1000
+                      + MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, node_hash, pds->inclusive_time)) / 1000));
+
+            /* OSR and deopt counts. */
+            MVM_repr_bind_key_o(tc, node_hash, pds->osr,
+                box_i(tc, pcn->osr_count
+                      + MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, node_hash, pds->osr))));
+            MVM_repr_bind_key_o(tc, node_hash, pds->deopt_one,
+                box_i(tc, pcn->deopt_one_count
+                      + MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, node_hash, pds->deopt_one))));
+            MVM_repr_bind_key_o(tc, node_hash, pds->deopt_all,
+                box_i(tc, pcn->deopt_all_count
+                      + MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, node_hash, pds->deopt_all))));
+
+            /* Merging allocations is a tiny bit more difficult,
+             * as we have to go through another list to find a matching entry
+             * to merge with. */
+
+            /* Emit allocations. */
+            alloc_list  = MVM_repr_at_key_o(tc, node_hash, pds->allocations);
+            existing_allocations = MVM_repr_elems(tc, alloc_list);
+            for (alloc_i = 0; alloc_i < pcn->num_alloc; alloc_i++) {
+                MVMObject *alloc_info = NULL;
+                for (alloc_k = 0; alloc_k < existing_allocations && alloc_info == NULL; alloc_k++) {
+                    alloc_info = MVM_repr_at_pos_o(tc, alloc_list, alloc_k);
+                    if (MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, alloc_info, pds->id)) != (MVMint64)pcn->alloc[alloc_i].type) {
+                        alloc_info = NULL;
+                    }
+                }
+                if (alloc_info != NULL) {
+                    MVM_repr_bind_key_o(tc, alloc_info, pds->count,
+                            box_i(tc, pcn->alloc[alloc_i].allocations
+                                  + MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, alloc_info, pds->count))));
+                } else {
+                    MVMObject *type       = pcn->alloc[alloc_i].type;
+                    MVMObject *alloc_info = new_hash(tc);
+                    MVM_repr_bind_key_o(tc, alloc_info, pds->id, box_i(tc, (MVMint64)type));
+                    MVM_repr_bind_key_o(tc, alloc_info, pds->type, type);
+                    MVM_repr_bind_key_o(tc, alloc_info, pds->count,
+                        box_i(tc, pcn->alloc[alloc_i].allocations));
+                    MVM_repr_push_o(tc, alloc_list, alloc_info);
+                }
+            }
+
+            goto do_successors;
+        }
+    }
+
+    {
+        node_hash  = new_hash(tc);
+
+        /* We got here, that means we have to generate a new node */
+        call_node_to_hash(tc, pds, pcn, node_hash);
+
+        MVM_repr_push_o(tc, existing_callees, node_hash);
+    }
+
+do_successors:
+
+    if (pcn->num_succ) {
+        MVMuint32 i;
+        MVMuint64  exclusive_time = pcn->total_time;
+        for (i = 0; i < pcn->num_succ; i++) {
+            MVM_repr_bind_key_o(tc, node_hash, pds->is_collection, box_i(tc, 1));
+            aggregate_nodes(tc, pds, pcn->succ[i], node_hash, existing_callees);
+            exclusive_time -= pcn->succ[i]->total_time;
+        }
+        MVM_repr_bind_key_o(tc, node_hash, pds->exclusive_time,
+            box_i(tc, exclusive_time / 1000));
+    }
+    else {
+        MVM_repr_bind_key_o(tc, node_hash, pds->exclusive_time,
+            box_i(tc, pcn->total_time / 1000));
+    }
+}
+
+/* Dumps a call graph node. */
+static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
+                                        MVMProfileCallNode *pcn, MVMuint8 depth) {
+    MVMObject *node_hash  = new_hash(tc);
+    MVMuint32 i;
+
+    call_node_to_hash(tc, pds, pcn, node_hash);
+
+    /* Visit successors in the call graph, dumping them and working out the
+     * exclusive time. */
+    if (pcn->num_succ) {
+        MVMObject *callees        = new_array(tc);
+        MVMuint64  exclusive_time = pcn->total_time;
+        for (i = 0; i < pcn->num_succ; i++) {
+            if (depth < 32) {
+                MVM_repr_push_o(tc, callees,
+                    dump_call_graph_node(tc, pds, pcn->succ[i], depth + 1));
+                exclusive_time -= pcn->succ[i]->total_time;
+            }
+            else {
+                MVM_repr_bind_key_o(tc, node_hash, pds->is_collection, box_i(tc, 1));
+                aggregate_nodes(tc, pds, pcn->succ[i], node_hash, callees);
+                exclusive_time -= pcn->succ[i]->total_time;
+            }
+        }
+        MVM_repr_bind_key_o(tc, node_hash, pds->exclusive_time,
+            box_i(tc, exclusive_time / 1000));
+        MVM_repr_bind_key_o(tc, node_hash, pds->callees, callees);
+    }
+    else {
+        MVM_repr_bind_key_o(tc, node_hash, pds->exclusive_time,
+            box_i(tc, pcn->total_time / 1000));
+    }
+
     return node_hash;
 }
+
 
 /* Dumps data from a single thread. */
 static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
@@ -150,7 +284,7 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
     /* Add call graph. */
     if (ptd->call_graph)
         MVM_repr_bind_key_o(tc, thread_hash, pds->call_graph,
-            dump_call_graph_node(tc, pds, ptd->call_graph));
+            dump_call_graph_node(tc, pds, ptd->call_graph, 0));
 
     /* Add GCs. */
     for (i = 0; i < ptd->num_gcs; i++) {
@@ -212,6 +346,7 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
     pds.deopt_one       = str(tc, "deopt_one");
     pds.deopt_all       = str(tc, "deopt_all");
     pds.spesh_time      = str(tc, "spesh_time");
+    pds.is_collection   = str(tc, "is_collection");
 
     /* Build up threads array. */
     /* XXX Only main thread for now. */
