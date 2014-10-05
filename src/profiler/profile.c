@@ -124,6 +124,8 @@ static void aggregate_nodes(MVMThreadContext *tc, ProfDumpStrs *pds, MVMProfileC
     MVMObject *node_hash;
     MVMint64 index;
 
+     /* XXX this function currently never touches existing_hash, but it really should. */
+
     for (index = 0; index < existing_elems; index++) {
         MVMObject *callee = MVM_repr_at_pos_o(tc, existing_callees, index);
         MVMuint64 other_id = MVM_repr_get_int(tc, MVM_repr_at_key_o(tc, callee, pds->id));
@@ -220,6 +222,7 @@ do_successors:
         MVMuint64  exclusive_time = pcn->total_time;
         for (i = 0; i < pcn->num_succ; i++) {
             MVM_repr_bind_key_o(tc, node_hash, pds->is_collection, box_i(tc, 1));
+            /* XXX In the next call, we should really pass existing_hash instead of node_hash */
             aggregate_nodes(tc, pds, pcn->succ[i], node_hash, existing_callees);
             exclusive_time -= pcn->succ[i]->total_time;
         }
