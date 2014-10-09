@@ -184,6 +184,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_capturelex: return &MVM_frame_capturelex;
     case MVM_OP_takeclosure: return &MVM_frame_takeclosure;
     case MVM_OP_newlexotic: return &MVM_exception_newlexotic_from_jit;
+    case MVM_OP_usecapture: return &MVM_args_use_capture;
+    case MVM_OP_savecapture: return &MVM_args_save_capture;
     case MVM_OP_return: return &MVM_args_assert_void_return_ok;
     case MVM_OP_return_i: return &MVM_args_set_result_int;
     case MVM_OP_return_s: return &MVM_args_set_result_str;
@@ -919,6 +921,14 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMint32 label = get_label_for_bb(tc, jgb, ins->operands[1].ins_bb);
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_LITERAL, label } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_usecapture:
+    case MVM_OP_savecapture: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_FRAME }};
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
