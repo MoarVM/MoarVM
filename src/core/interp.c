@@ -1063,24 +1063,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(savecapture): {
                 /* Create a new call capture object. */
-                MVMObject *cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
-                MVMCallCapture *cc = (MVMCallCapture *)cc_obj;
-
-                /* Copy the arguments. */
-                MVMuint32 arg_size = tc->cur_frame->params.arg_count * sizeof(MVMRegister);
-                MVMRegister *args = MVM_malloc(arg_size);
-                memcpy(args, tc->cur_frame->params.args, arg_size);
-
-                /* Create effective callsite. */
-                cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &tc->cur_frame->params);
-
-                /* Set up the call capture. */
-                cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
-                cc->body.apc  = MVM_malloc(sizeof(MVMArgProcContext));
-                memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
-                MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
-
-                GET_REG(cur_op, 0).o = cc_obj;
+                GET_REG(cur_op, 0).o = MVM_args_save_capture(tc, tc->cur_frame);
                 cur_op += 2;
                 goto NEXT;
             }

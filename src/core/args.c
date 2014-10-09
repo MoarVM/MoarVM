@@ -93,6 +93,26 @@ MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
     return tc->cur_usecapture;
 }
 
+MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
+    MVMObject *cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
+    MVMCallCapture *cc = (MVMCallCapture *)cc_obj;
+
+    /* Copy the arguments. */
+    MVMuint32 arg_size = frame->params.arg_count * sizeof(MVMRegister);
+    MVMRegister *args = MVM_malloc(arg_size);
+    memcpy(args, frame->params.args, arg_size);
+
+    /* Create effective callsite. */
+    cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &frame->params);
+
+    /* Set up the call capture. */
+    cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
+    cc->body.apc  = MVM_malloc(sizeof(MVMArgProcContext));
+    memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
+    MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
+    return cc_obj;
+}
+
 MVMCallsite * MVM_args_prepare(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 callsite_idx) {
     /* Look up callsite. */
     MVMCallsite * cs = cu->body.callsites[callsite_idx];
