@@ -742,6 +742,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_getlexperinvtype_o:
     case MVM_OP_paramnamesused:
     case MVM_OP_assertparamcheck:
+    case MVM_OP_getobjsc:
         /* Profiling */
     case MVM_OP_prof_enterspesh:
     case MVM_OP_prof_enterinline:
