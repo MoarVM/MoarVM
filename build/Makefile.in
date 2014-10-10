@@ -201,6 +201,7 @@ HEADERS = src/moar.h \
           src/core/args.h \
           src/core/exceptions.h \
           src/core/interp.h \
+          src/core/alloc.h \
           src/core/frame.h \
           src/core/compunit.h \
           src/core/bytecode.h \
