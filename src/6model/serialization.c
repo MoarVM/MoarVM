@@ -1100,7 +1100,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     MVM_gc_allocate_gen2_default_set(tc);
 
     /* Set up writer with some initial settings. */
-    writer                      = calloc(1, sizeof(MVMSerializationWriter));
+    writer                      = MVM_calloc(1, sizeof(MVMSerializationWriter));
     writer->root.version        = CURRENT_VERSION;
     writer->root.sc             = sc;
     writer->codes_list          = sc->body->root_codes;
@@ -2024,7 +2024,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Invocation spec. */
     if (MVM_serialization_read_int(tc, reader)) {
-        st->invocation_spec = (MVMInvocationSpec *)calloc(1, sizeof(MVMInvocationSpec));
+        st->invocation_spec = (MVMInvocationSpec *)MVM_calloc(1, sizeof(MVMInvocationSpec));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->class_handle, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
         st->invocation_spec->hint = MVM_serialization_read_int(tc, reader);
@@ -2353,7 +2353,7 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     MVMint32 scodes, i;
 
     /* Allocate and set up reader. */
-    MVMSerializationReader *reader = calloc(1, sizeof(MVMSerializationReader));
+    MVMSerializationReader *reader = MVM_calloc(1, sizeof(MVMSerializationReader));
     reader->root.sc          = sc;
     reader->root.string_heap = string_heap;
 
@@ -2393,13 +2393,13 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
         MVM_free(sc->body->root_objects);
     if (sc->body->root_stables)
         MVM_free(sc->body->root_stables);
-    sc->body->root_objects  = calloc(1, reader->root.num_objects * sizeof(MVMObject *));
+    sc->body->root_objects  = MVM_calloc(1, reader->root.num_objects * sizeof(MVMObject *));
     sc->body->num_objects   = reader->root.num_objects;
     sc->body->alloc_objects = reader->root.num_objects;
-    sc->body->root_stables  = calloc(1, reader->root.num_stables * sizeof(MVMSTable *));
+    sc->body->root_stables  = MVM_calloc(1, reader->root.num_stables * sizeof(MVMSTable *));
     sc->body->num_stables   = reader->root.num_stables;
     sc->body->alloc_stables = reader->root.num_stables;
-    reader->contexts        = calloc(reader->root.num_contexts, sizeof(MVMFrame *));
+    reader->contexts        = MVM_calloc(reader->root.num_contexts, sizeof(MVMFrame *));
 
     /* Increase size of code refs list to include closures we'll later
      * deserialize. */

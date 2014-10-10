@@ -301,7 +301,7 @@ static const MVMIOOps op_table = {
 /* Wraps a libuv stream (likely, libuv pipe or TTY) up in a sync stream. */
 MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *handle) {
     MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    MVMIOSyncStreamData * const data   = calloc(1, sizeof(MVMIOSyncStreamData));
+    MVMIOSyncStreamData * const data   = MVM_calloc(1, sizeof(MVMIOSyncStreamData));
     data->handle      = handle;
     data->encoding    = MVM_encoding_type_utf8;
     data->sep         = '\n';

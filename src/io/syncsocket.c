@@ -198,7 +198,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
         data->accept_server = NULL;
         if ((r = uv_accept(server, (uv_stream_t *)client)) == 0) {
             MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-            MVMIOSyncSocketData * const data   = calloc(1, sizeof(MVMIOSyncSocketData));
+            MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
             data->ss.handle   = (uv_stream_t *)client;
             data->ss.encoding = MVM_encoding_type_utf8;
             data->ss.sep      = '\n';
@@ -216,7 +216,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
 
 MVMObject * MVM_io_socket_create(MVMThreadContext *tc, MVMint64 listen) {
     MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    MVMIOSyncSocketData * const data   = calloc(1, sizeof(MVMIOSyncSocketData));
+    MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
     data->ss.handle   = NULL;
     data->ss.encoding = MVM_encoding_type_utf8;
     data->ss.sep      = '\n';

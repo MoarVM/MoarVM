@@ -16,7 +16,7 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
             MVM_string_flatten(tc, handle);
             MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
             if (!scb) {
-                sc->body = scb = calloc(1, sizeof(MVMSerializationContextBody));
+                sc->body = scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
                 MVM_ASSIGN_REF(tc, &(sc->common.header), scb->handle, handle);
                 MVM_HASH_BIND(tc, tc->instance->sc_weakhash, handle, scb);
                 /* Calling repr_init will allocate, BUT if it does so, and we

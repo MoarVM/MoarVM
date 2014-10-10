@@ -15,7 +15,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         HASH_FIND(hash_handle, tc->instance->compiler_hll_configs, kdata, klen, entry);
 
     if (!entry) {
-        entry = calloc(sizeof(MVMHLLConfig), 1);
+        entry = MVM_calloc(sizeof(MVMHLLConfig), 1);
         entry->name = name;
         entry->int_box_type = tc->instance->boot_types.BOOTInt;
         entry->num_box_type = tc->instance->boot_types.BOOTNum;

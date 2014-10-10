@@ -85,7 +85,7 @@ static const MVMIOOps op_table = {
 /* Creates a sync pipe handle. */
 MVMObject * MVM_io_syncpipe(MVMThreadContext *tc, uv_stream_t *handle, uv_process_t *process) {
     MVMOSHandle       * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    MVMIOSyncPipeData * const data   = calloc(1, sizeof(MVMIOSyncPipeData));
+    MVMIOSyncPipeData * const data   = MVM_calloc(1, sizeof(MVMIOSyncPipeData));
     data->process     = process;
     data->ss.handle   = handle;
     data->ss.encoding = MVM_encoding_type_utf8;

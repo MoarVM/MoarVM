@@ -52,7 +52,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
             /* No deserialize frame, so do load frame instead. */
             run_load(tc, cu);
         }
-        loaded_name = calloc(1, sizeof(MVMLoadedCompUnitName));
+        loaded_name = MVM_calloc(1, sizeof(MVMLoadedCompUnitName));
         loaded_name->filename = filename;
         MVM_HASH_BIND(tc, tc->instance->loaded_compunits, filename, loaded_name);
     });

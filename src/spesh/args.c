@@ -153,12 +153,12 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVMSpeshIns  *param_sn_ins       = NULL;
     MVMSpeshBB   *param_sn_bb        = NULL;
 
-    MVMSpeshIns **pos_ins    = calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
-    MVMSpeshBB  **pos_bb     = calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
-    MVMuint8     *pos_added  = calloc(MAX_POS_ARGS, sizeof(MVMuint8));
-    MVMSpeshIns **named_ins  = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
-    MVMSpeshBB  **named_bb   = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshBB *));
-    MVMSpeshIns **used_ins   = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
+    MVMSpeshIns **pos_ins    = MVM_calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
+    MVMSpeshBB  **pos_bb     = MVM_calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
+    MVMuint8     *pos_added  = MVM_calloc(MAX_POS_ARGS, sizeof(MVMuint8));
+    MVMSpeshIns **named_ins  = MVM_calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
+    MVMSpeshBB  **named_bb   = MVM_calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshBB *));
+    MVMSpeshIns **used_ins   = MVM_calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
     MVMint32      req_max    = -1;
     MVMint32      opt_min    = -1;
     MVMint32      opt_max    = -1;

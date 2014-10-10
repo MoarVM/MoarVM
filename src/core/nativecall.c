@@ -160,7 +160,7 @@ MVMObject * MVM_nativecall_make_cstruct(MVMThreadContext *tc, MVMObject *type, v
         result = REPR(type)->allocate(tc, STABLE(type));
         ((MVMCStruct *)result)->body.cstruct = cstruct;
         if (repr_data->num_child_objs)
-            ((MVMCStruct *)result)->body.child_objs = calloc(repr_data->num_child_objs, sizeof(MVMObject *));
+            ((MVMCStruct *)result)->body.child_objs = MVM_calloc(repr_data->num_child_objs, sizeof(MVMObject *));
     }
     return result;
 }

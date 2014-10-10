@@ -2732,7 +2732,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o, *ch = GET_REG(cur_op, 2).o,
                     *invocation_handler = GET_REG(cur_op, 6).o;
                 MVMString *name = GET_REG(cur_op, 4).s;
-                MVMInvocationSpec *is = calloc(1, sizeof(MVMInvocationSpec));
+                MVMInvocationSpec *is = MVM_calloc(1, sizeof(MVMInvocationSpec));
                 MVMSTable *st = STABLE(obj);
                 MVM_ASSIGN_REF(tc, &(st->header), is->class_handle, ch);
                 MVM_ASSIGN_REF(tc, &(st->header), is->attr_name, name);

@@ -11,7 +11,7 @@ MVM_STATIC_INLINE void * MVM_calloc(size_t num, size_t size) {
     void *ptr = calloc(num, size);
 
     if (!ptr)
-        MVM_panic_allocation_failed(size);
+        MVM_panic_allocation_failed(num * size);
 
     return ptr;
 }

@@ -776,7 +776,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
                         /* Also list in the by-repr unbox list. */
                         if (repr_data->unbox_slots == NULL)
-                            repr_data->unbox_slots = (MVMP6opaqueBoxedTypeMap *)calloc(total_attrs, sizeof(MVMP6opaqueBoxedTypeMap));
+                            repr_data->unbox_slots = (MVMP6opaqueBoxedTypeMap *)MVM_calloc(total_attrs, sizeof(MVMP6opaqueBoxedTypeMap));
                         repr_data->unbox_slots[cur_unbox_slot].repr_id = REPR(type)->ID;
                         repr_data->unbox_slots[cur_unbox_slot].slot = cur_slot;
                         cur_unbox_slot++;

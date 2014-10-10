@@ -34,7 +34,7 @@ void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
     if (!result) {
         /* No block, or block was full. Add another. */
         MVMSpeshMemBlock *block = MVM_malloc(sizeof(MVMSpeshMemBlock));
-        block->buffer = calloc(MVM_SPESH_MEMBLOCK_SIZE, 1);
+        block->buffer = MVM_calloc(MVM_SPESH_MEMBLOCK_SIZE, 1);
         block->alloc  = block->buffer;
         block->limit  = block->buffer + MVM_SPESH_MEMBLOCK_SIZE;
         block->prev   = g->mem_block;
@@ -111,7 +111,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
     /* Temporary array of all MVMSpeshIns we create (one per instruction).
      * Overestimate at size. Has the flat view, matching the bytecode. */
-    MVMSpeshIns **ins_flat = calloc(g->bytecode_size / 2, sizeof(MVMSpeshIns *));
+    MVMSpeshIns **ins_flat = MVM_calloc(g->bytecode_size / 2, sizeof(MVMSpeshIns *));
 
     /* Temporary array where each byte in the input bytecode gets a 32-bit
      * integer. This is used for two things:
@@ -122,7 +122,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
      *    a basic block. The second bit is "I can branch" - that is, end of
      *    a basic block. It's possible to have both bits set.
      * Anything that's just a zero has no instruction starting there. */
-    MVMuint32 *byte_to_ins_flags = calloc(g->bytecode_size, sizeof(MVMuint32));
+    MVMuint32 *byte_to_ins_flags = MVM_calloc(g->bytecode_size, sizeof(MVMuint32));
 
     /* Instruction to basic block mapping. Initialized later. */
     MVMSpeshBB **ins_to_bb = NULL;
@@ -374,7 +374,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     cur_bb                    = NULL;
     prev_bb                   = g->entry;
     last_ins                  = NULL;
-    ins_to_bb                 = calloc(ins_idx, sizeof(MVMSpeshBB *));
+    ins_to_bb                 = MVM_calloc(ins_idx, sizeof(MVMSpeshBB *));
     ins_idx                   = 0;
     bb_idx                    = 1;
     for (i = 0; i < g->bytecode_size; i++) {
@@ -609,8 +609,8 @@ static void dfs(MVMSpeshBB **rpo, MVMint32 *insert_pos, MVMuint8 *seen, MVMSpesh
     (*insert_pos)--;
 }
 static MVMSpeshBB ** reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    MVMSpeshBB **rpo  = calloc(g->num_bbs, sizeof(MVMSpeshBB *));
-    MVMuint8    *seen = calloc(g->num_bbs, 1);
+    MVMSpeshBB **rpo  = MVM_calloc(g->num_bbs, sizeof(MVMSpeshBB *));
+    MVMuint8    *seen = MVM_calloc(g->num_bbs, 1);
     MVMint32     ins  = g->num_bbs - 1;
     dfs(rpo, &ins, seen, g->entry);
     MVM_free(seen);
@@ -796,7 +796,7 @@ typedef struct {
 /* Creates an SSAVarInfo for each local, initializing it with a list of nodes
  * that assign to the local. */
 SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    SSAVarInfo *var_info = calloc(sizeof(SSAVarInfo), g->num_locals);
+    SSAVarInfo *var_info = MVM_calloc(sizeof(SSAVarInfo), g->num_locals);
     MVMint32 i;
 
     /* Visit all instructions, looking for local writes. */
@@ -858,9 +858,9 @@ static void place_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MV
     bb->first_ins       = ins;
 }
 static void insert_phi_functions(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarInfo *var_info) {
-    MVMint32    *has_already  = calloc(g->num_bbs, sizeof(MVMint32));
-    MVMint32    *work         = calloc(g->num_bbs, sizeof(MVMint32));
-    MVMSpeshBB **worklist     = calloc(g->num_bbs, sizeof(MVMSpeshBB *));
+    MVMint32    *has_already  = MVM_calloc(g->num_bbs, sizeof(MVMint32));
+    MVMint32    *work         = MVM_calloc(g->num_bbs, sizeof(MVMint32));
+    MVMSpeshBB **worklist     = MVM_calloc(g->num_bbs, sizeof(MVMSpeshBB *));
     MVMint32     worklist_top = 0;
     MVMint32     iter_count   = 0;
 
@@ -1040,7 +1040,7 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
 /* Takes a static frame and creates a spesh graph for it. */
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint32 cfg_only) {
     /* Create top-level graph object. */
-    MVMSpeshGraph *g = calloc(1, sizeof(MVMSpeshGraph));
+    MVMSpeshGraph *g = MVM_calloc(1, sizeof(MVMSpeshGraph));
     g->sf            = sf;
     g->bytecode      = sf->body.bytecode;
     g->bytecode_size = sf->body.bytecode_size;
@@ -1071,7 +1071,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
 MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStaticFrame *sf,
                                                  MVMSpeshCandidate *cand, MVMuint32 cfg_only) {
     /* Create top-level graph object. */
-    MVMSpeshGraph *g     = calloc(1, sizeof(MVMSpeshGraph));
+    MVMSpeshGraph *g     = MVM_calloc(1, sizeof(MVMSpeshGraph));
     g->sf                = sf;
     g->bytecode          = cand->bytecode;
     g->bytecode_size     = cand->bytecode_size;

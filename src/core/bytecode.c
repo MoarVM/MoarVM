@@ -336,7 +336,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         }
         else {
             if (!scb) {
-                scb = calloc(1, sizeof(MVMSerializationContextBody));
+                scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
                 scb->handle = handle;
                 MVM_HASH_BIND(tc, tc->instance->sc_weakhash, handle, scb);
                 MVM_sc_add_all_scs_entry(tc, scb);
@@ -358,7 +358,7 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
     if (num == 0)
         return NULL;
 
-    extops = calloc(num, sizeof *extops);
+    extops = MVM_calloc(num, sizeof *extops);
 
     pos = rs->extop_seg;
     for (i = 0; i < num; i++) {
@@ -660,7 +660,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         }
         for (j = 0; j < sf->body.num_lexicals; j++) {
             MVMString *name = get_heap_string(tc, cu, NULL, pos, 6 * j + 2);
-            MVMLexicalRegistry *entry = calloc(1, sizeof(MVMLexicalRegistry));
+            MVMLexicalRegistry *entry = MVM_calloc(1, sizeof(MVMLexicalRegistry));
 
             MVM_ASSIGN_REF(tc, &(sf->common.header), entry->key, name);
             sf->body.lexical_names_list[j] = entry;
@@ -696,8 +696,8 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
 
     /* Allocate default lexical environment storage. */
     sf->body.env_size         = sf->body.num_lexicals * sizeof(MVMRegister);
-    sf->body.static_env       = calloc(1, sf->body.env_size);
-    sf->body.static_env_flags = calloc(1, sf->body.num_lexicals);
+    sf->body.static_env       = MVM_calloc(1, sf->body.env_size);
+    sf->body.static_env_flags = MVM_calloc(1, sf->body.num_lexicals);
 
     /* Stash static lexical segment offset, so we can easily locate it to
      * resolve them later. */

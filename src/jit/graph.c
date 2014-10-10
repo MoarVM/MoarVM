@@ -496,7 +496,7 @@ static MVMint32 jgb_consume_jumplist(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
 static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshIns *ins) {
     /* XXX Need to be able to clear these up, some day. */
-    MVMuint16 *regs = calloc(ins->info->num_operands, sizeof(MVMuint16));
+    MVMuint16 *regs = MVM_calloc(ins->info->num_operands, sizeof(MVMuint16));
     MVMuint16 i;
     for (i = 0; i < ins->info->num_operands; i++) {
         switch (ins->info->operands[i] & MVM_operand_rw_mask) {

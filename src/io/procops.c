@@ -160,7 +160,7 @@ static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_sign
 
 MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env, MVMString *err_path) {
     MVMint64 spawn_result;
-    uv_process_t *process = calloc(1, sizeof(uv_process_t));
+    uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     int i;
@@ -250,7 +250,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
 
 MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
     MVMint64 result = 0, spawn_result;
-    uv_process_t *process = calloc(1, sizeof(uv_process_t));
+    uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     int i;
@@ -303,7 +303,7 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 
 MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env) {
     MVMint64 result = 0, spawn_result;
-    uv_process_t *process = calloc(1, sizeof(uv_process_t));
+    uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     int i;
@@ -521,7 +521,7 @@ static MVMAsyncTask * write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMObject 
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &write_op_table;
-    wi              = calloc(1, sizeof(SpawnWriteInfo));
+    wi              = MVM_calloc(1, sizeof(SpawnWriteInfo));
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->handle, h);
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->str_data, s);
     task->body.data = wi;
@@ -563,7 +563,7 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &write_op_table;
-    wi              = calloc(1, sizeof(SpawnWriteInfo));
+    wi              = MVM_calloc(1, sizeof(SpawnWriteInfo));
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->handle, h);
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->buf_data, buffer);
     task->body.data = wi;
@@ -779,7 +779,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     MVMint64 spawn_result;
 
     /* Process info setup. */
-    uv_process_t *process = calloc(1, sizeof(uv_process_t));
+    uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     uv_pipe_t *stdout_pipe = NULL;
@@ -1010,7 +1010,7 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
         INIT_ENV();
 
         /* Create handle. */
-        data              = calloc(1, sizeof(MVMIOAsyncProcessData));
+        data              = MVM_calloc(1, sizeof(MVMIOAsyncProcessData));
         handle            = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
         handle->body.ops  = &proc_op_table;
         handle->body.data = data;
@@ -1021,7 +1021,7 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
         });
         MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
         task->body.ops  = &spawn_op_table;
-        si              = calloc(1, sizeof(SpawnInfo));
+        si              = MVM_calloc(1, sizeof(SpawnInfo));
         si->prog        = prog;
         si->cwd         = _cwd;
         si->env         = _env;

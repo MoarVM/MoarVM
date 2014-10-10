@@ -585,7 +585,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->bc_size   = fb->bytecode_size;
     val->src_cur_op = fb->bytecode;
     val->src_bc_end = fb->bytecode + fb->bytecode_size;
-    val->labels    = calloc(fb->bytecode_size, 1);
+    val->labels    = MVM_calloc(fb->bytecode_size, 1);
     val->cur_info  = NULL;
     val->cur_mark  = NULL;
     val->cur_instr = 0;

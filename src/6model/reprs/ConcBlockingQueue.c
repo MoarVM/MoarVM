@@ -23,7 +23,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
     /* Initialize locks. */
     int init_stat;
-    cbq->locks = calloc(1, sizeof(MVMConcBlockingQueueLocks));
+    cbq->locks = MVM_calloc(1, sizeof(MVMConcBlockingQueueLocks));
     if ((init_stat = uv_mutex_init(&cbq->locks->head_lock)) < 0)
         MVM_exception_throw_adhoc(tc, "Failed to initialize mutex: %s",
             uv_strerror(init_stat));
@@ -35,7 +35,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
             uv_strerror(init_stat));
 
     /* Head and tail point to a null node. */
-    cbq->tail = cbq->head = calloc(1, sizeof(MVMConcBlockingQueueNode));
+    cbq->tail = cbq->head = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
 }
 
 /* Copies the body of one object to another. */
@@ -134,7 +134,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
         MVM_exception_throw_adhoc(tc,
             "Cannot store a null value in a concurrent blocking queue");
 
-    add = calloc(1, sizeof(MVMConcBlockingQueueNode));
+    add = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
     MVM_ASSIGN_REF(tc, &(root->header), add->value, value.o);
 
     uv_mutex_lock(&cbq->locks->tail_lock);

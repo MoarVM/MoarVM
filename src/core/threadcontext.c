@@ -5,14 +5,14 @@
  * thread itself, it just creates the data structure that exists in
  * MoarVM per thread. */
 MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
-    MVMThreadContext *tc = calloc(1, sizeof(MVMThreadContext));
+    MVMThreadContext *tc = MVM_calloc(1, sizeof(MVMThreadContext));
 
     /* Associate with VM instance. */
     tc->instance = instance;
 
     /* Set up GC nursery. */
-    tc->nursery_fromspace   = calloc(1, MVM_NURSERY_SIZE);
-    tc->nursery_tospace     = calloc(1, MVM_NURSERY_SIZE);
+    tc->nursery_fromspace   = MVM_calloc(1, MVM_NURSERY_SIZE);
+    tc->nursery_tospace     = MVM_calloc(1, MVM_NURSERY_SIZE);
     tc->nursery_alloc       = tc->nursery_tospace;
     tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
 
@@ -33,7 +33,7 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     /* XXX For non-first threads, make them start with the size of the
        main thread's table. or, look into lazily initializing this. */
     tc->frame_pool_table_size = MVMInitialFramePoolTableSize;
-    tc->frame_pool_table = calloc(MVMInitialFramePoolTableSize, sizeof(MVMFrame *));
+    tc->frame_pool_table = MVM_calloc(MVMInitialFramePoolTableSize, sizeof(MVMFrame *));
 
     /* Use default loop for main thread; create a new one for others. */
     tc->loop = instance->main_thread ? uv_loop_new() : uv_default_loop();

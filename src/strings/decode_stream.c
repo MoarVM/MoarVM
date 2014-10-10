@@ -10,7 +10,7 @@
 
 /* Creates a new decoding stream. */
 MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 encoding, MVMint64 abs_byte_pos) {
-    MVMDecodeStream *ds = calloc(1, sizeof(MVMDecodeStream));
+    MVMDecodeStream *ds = MVM_calloc(1, sizeof(MVMDecodeStream));
     ds->encoding        = encoding;
     ds->abs_byte_pos    = abs_byte_pos;
     return ds;
@@ -19,7 +19,7 @@ MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 
 /* Adds another byte buffer into the decoding stream. */
 void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, char *bytes, MVMint32 length) {
     if (length > 0) {
-        MVMDecodeStreamBytes *new_bytes = calloc(1, sizeof(MVMDecodeStreamBytes));
+        MVMDecodeStreamBytes *new_bytes = MVM_calloc(1, sizeof(MVMDecodeStreamBytes));
         new_bytes->bytes  = bytes;
         new_bytes->length = length;
         if (ds->bytes_tail)
@@ -32,7 +32,7 @@ void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds
 
 /* Adds another char result buffer into the decoding stream. */
 void MVM_string_decodestream_add_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 *chars, MVMint32 length) {
-    MVMDecodeStreamChars *new_chars = calloc(1, sizeof(MVMDecodeStreamChars));
+    MVMDecodeStreamChars *new_chars = MVM_calloc(1, sizeof(MVMDecodeStreamChars));
     new_chars->chars  = chars;
     new_chars->length = length;
     if (ds->chars_tail)

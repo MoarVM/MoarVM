@@ -132,8 +132,8 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
         repr_data->num_attributes      = num_attrs;
         repr_data->attribute_locations = (MVMint32 *)   MVM_malloc(info_alloc * sizeof(MVMint32));
         repr_data->struct_offsets      = (MVMint32 *)   MVM_malloc(info_alloc * sizeof(MVMint32));
-        repr_data->flattened_stables   = (MVMSTable **) calloc(info_alloc, sizeof(MVMObject *));
-        repr_data->member_types        = (MVMObject **) calloc(info_alloc, sizeof(MVMObject *));
+        repr_data->flattened_stables   = (MVMSTable **) MVM_calloc(info_alloc, sizeof(MVMObject *));
+        repr_data->member_types        = (MVMObject **) MVM_calloc(info_alloc, sizeof(MVMObject *));
 
         /* Go over the attributes and arrange their allocation. */
         for (i = 0; i < num_attrs; i++) {
@@ -166,7 +166,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     repr_data->flattened_stables[i] = STABLE(type);
                     if (REPR(type)->initialize) {
                         if (!repr_data->initialize_slots)
-                            repr_data->initialize_slots = (MVMint32 *) calloc(info_alloc + 1, sizeof(MVMint32));
+                            repr_data->initialize_slots = (MVMint32 *) MVM_calloc(info_alloc + 1, sizeof(MVMint32));
                         repr_data->initialize_slots[cur_init_slot] = i;
                         cur_init_slot++;
                     }
@@ -295,7 +295,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Composes the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *repr_info) {
     /* Compute allocation strategy. */
-    MVMCStructREPRData *repr_data = calloc(1, sizeof(MVMCStructREPRData));
+    MVMCStructREPRData *repr_data = MVM_calloc(1, sizeof(MVMCStructREPRData));
     MVMObject *attr_info = MVM_repr_at_key_o(tc, repr_info, tc->instance->str_consts.attribute);
     compute_allocation_strategy(tc, attr_info, repr_data);
     st->REPR_data = repr_data;
@@ -312,7 +312,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
     /* Allocate child obj array. */
     if (repr_data->num_child_objs > 0)
-        body->child_objs = (MVMObject **)calloc(repr_data->num_child_objs,
+        body->child_objs = (MVMObject **)MVM_calloc(repr_data->num_child_objs,
             sizeof(MVMObject *));
 
     /* Initialize the slots. */

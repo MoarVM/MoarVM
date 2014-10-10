@@ -951,8 +951,8 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
      * track of this in optimize_bb as it walks the dominance children, but
      * we need a linear view. */
     if (num_found) {
-        MVMint32    *in_handlers = calloc(g->sf->body.num_handlers, sizeof(MVMint32));
-        MVMSpeshBB **goto_bbs    = calloc(g->sf->body.num_handlers, sizeof(MVMSpeshBB *));
+        MVMint32    *in_handlers = MVM_calloc(g->sf->body.num_handlers, sizeof(MVMint32));
+        MVMSpeshBB **goto_bbs    = MVM_calloc(g->sf->body.num_handlers, sizeof(MVMSpeshBB *));
         MVMSpeshBB  *search_bb   = g->entry;
         MVMint32     picked      = -1;
         while (search_bb) {
