@@ -22,10 +22,10 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
         name = codepoint_names[codepoint_row];
         if (!name) {
             while (codepoint_row && !codepoint_names[codepoint_row])
-            codepoint_row--;
+                codepoint_row--;
             name = codepoint_names[codepoint_row];
             if (!name || name[0] != '<')
-            name = "<reserved>";
+                name = "<reserved>";
         }
     }
  
