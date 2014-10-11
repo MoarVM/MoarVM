@@ -27,6 +27,7 @@
 |.type CONTAINERSPEC, MVMContainerSpec
 |.type STORAGESPEC, MVMStorageSpec
 |.type HLLCONFIG, MVMHLLConfig;
+|.type SCREFBODY, MVMSerializationContextBody
 |.type U8, MVMuint8
 |.type U16, MVMuint16
 |.type U32, MVMuint32
@@ -1190,6 +1191,22 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | get_spesh_slot ARG2, spesh_idx;
         | mov ARG3, aword MVM_PROFILE_ENTER_JIT_INLINE;
         | callp &MVM_profile_log_enter;
+        break;
+    }
+    case MVM_OP_getobjsc: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[obj];
+        | mov TMP2d, dword COLLECTABLE:TMP1->sc_forward_u.sc.sc_idx;
+        | xor TMP3, TMP3;
+        | cmp TMP2d, 0;
+        | jle >1;
+        | mov TMP3, aword TC->instance;
+        | mov TMP3, aword MVMINSTANCE:TMP3->all_scs;
+        | mov TMP3, aword [TMP3 + TMP2d * 8];
+        | mov TMP3, SCREFBODY:TMP3->sc;
+        |1:
+        | mov aword WORK[dst], TMP3;
         break;
     }
     default:
