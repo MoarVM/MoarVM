@@ -1200,7 +1200,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP2d, dword COLLECTABLE:TMP1->sc_forward_u.sc.sc_idx;
         | xor TMP3, TMP3;
         | cmp TMP2d, 0;
-        | jl >1;
+        | jle >1;
         | mov TMP3, aword TC->instance;
         | mov TMP3, aword MVMINSTANCE:TMP3->all_scs;
         | mov TMP3, aword [TMP3 + TMP2d * 8];
