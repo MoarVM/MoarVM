@@ -129,6 +129,9 @@ MVMObject * make_str_result(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_
     MVMObject *result = type;
     if (cstring && type) {
         MVMString *value;
+
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&type);
+
         switch (ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
             case MVM_NATIVECALL_ARG_ASCIISTR:
                 value = MVM_string_ascii_decode(tc, tc->instance->VMString, cstring, strlen(cstring));
@@ -142,10 +145,13 @@ MVMObject * make_str_result(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_
             default:
                 MVM_exception_throw_adhoc(tc, "Internal error: unhandled encoding");
         }
+
+        MVM_gc_root_temp_pop(tc);
         result = MVM_repr_box_str(tc, type, value);
         if (ret_type & MVM_NATIVECALL_ARG_FREE_STR)
             MVM_free(cstring);
     }
+
     return result;
 }
 
@@ -816,12 +822,12 @@ MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObj
                             default:
                                 value = *(MVMint64 *)cpointer_body;
                         }
-                        
+
                         result = make_int_result(tc, target_type, value);
                     }
                     else if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM) {
                         MVMnum64 value;
-                    
+
                         switch(ss->bits) {
                             case 32:
                                 value = *(MVMnum32 *)cpointer_body;
@@ -830,7 +836,7 @@ MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObj
                             default:
                                 value = *(MVMnum64 *)cpointer_body;
                         }
-                        
+
                         result = make_num_result(tc, target_type, value);
                     }
                     else if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
@@ -862,7 +868,7 @@ MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObj
                 case MVM_REPR_ID_P6num: {
                     const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
                     MVMnum64 value;
-                    
+
                     switch(ss->bits) {
                         case 32:
                             value = *(MVMnum32 *)cpointer_body;
@@ -871,7 +877,7 @@ MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObj
                         default:
                             value = *(MVMnum64 *)cpointer_body;
                     }
-                    
+
                     result = make_num_result(tc, target_type, value);
                     break;
                 }
