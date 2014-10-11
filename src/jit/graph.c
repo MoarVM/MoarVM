@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "math.h"
 
 typedef struct {
     MVMSpeshGraph *sg;
@@ -287,6 +288,12 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_bool_I: return &MVM_bigint_bool;
     case MVM_OP_div_In: return &MVM_bigint_div_num;
     case MVM_OP_coerce_Is: case MVM_OP_base_I: return &MVM_bigint_to_str;
+    case MVM_OP_sin_n: return &sin;
+    case MVM_OP_cos_n: return &cos;
+    case MVM_OP_tan_n: return &tan;
+    case MVM_OP_asin_n: return &asin;
+    case MVM_OP_acos_n: return &acos;
+    case MVM_OP_atan_n: return &atan;
     case MVM_OP_sp_boolify_iter: return &MVM_iter_istrue;
     case MVM_OP_prof_allocated: return &MVM_profile_log_allocated;
     case MVM_OP_prof_exit: return &MVM_profile_log_exit;
@@ -1529,6 +1536,19 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, base } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args,
                           MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_sin_n:
+    case MVM_OP_cos_n:
+    case MVM_OP_tan_n:
+    case MVM_OP_asin_n:
+    case MVM_OP_acos_n:
+    case MVM_OP_atan_n: {
+        MVMint16 dst   = ins->operands[0].reg.orig;
+        MVMint16 src   = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_REG_VAL, src } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 1, args,
+                          MVM_JIT_RV_NUM, dst);
         break;
     }
         /* profiling */
