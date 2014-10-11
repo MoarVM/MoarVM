@@ -614,7 +614,7 @@ static void jgb_after_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
             jgb_append_label(tc, jgb, label);
             jgb->inlines[ann->data.inline_idx].end_label = label;
             if (tc->instance->jit_log_fh)
-                log_inline(tc, jgb->sg, ann->data.inline_idx, 1);
+                log_inline(tc, jgb->sg, ann->data.inline_idx, 0);
         } else if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS /* ||
                                                                ann->type == MVM_SPESH_ANN_DEOPT_INLINE */) {
             /* An underlying assumption here is that this instruction
