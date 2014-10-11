@@ -294,6 +294,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_asin_n: return &asin;
     case MVM_OP_acos_n: return &acos;
     case MVM_OP_atan_n: return &atan;
+    case MVM_OP_atan2_n: return &atan;
+    case MVM_OP_time_n: return &MVM_proc_time_n;
+    case MVM_OP_nativecallinvoke: return &MVM_nativecall_invoke;
     case MVM_OP_sp_boolify_iter: return &MVM_iter_istrue;
     case MVM_OP_prof_allocated: return &MVM_profile_log_allocated;
     case MVM_OP_prof_exit: return &MVM_profile_log_exit;
@@ -1543,12 +1546,33 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_tan_n:
     case MVM_OP_asin_n:
     case MVM_OP_acos_n:
-    case MVM_OP_atan_n: {
+    case MVM_OP_atan_n:
+    case MVM_OP_atan2_n: {
         MVMint16 dst   = ins->operands[0].reg.orig;
         MVMint16 src   = ins->operands[1].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_REG_VAL, src } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 1, args,
                           MVM_JIT_RV_NUM, dst);
+        break;
+    }
+    case MVM_OP_time_n: {
+        MVMint16 dst   = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 1, args,
+                          MVM_JIT_RV_NUM, dst);
+        break;
+    }
+    case MVM_OP_nativecallinvoke: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 restype = ins->operands[1].reg.orig;
+        MVMint16 site    = ins->operands[2].reg.orig;
+        MVMint16 cargs   = ins->operands[3].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, restype },
+                                 { MVM_JIT_REG_VAL, site },
+                                 { MVM_JIT_REG_VAL, cargs } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args,
+                          MVM_JIT_RV_PTR, dst);
         break;
     }
         /* profiling */
