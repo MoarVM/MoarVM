@@ -1,8 +1,5 @@
 #include "moar.h"
 
-/* Dummy, 0-arg callsite. */
-static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0 };
-
 /* Handles loading of bytecode, including triggering the deserialize and load
  * special frames. Takes place in two steps, with a callback between them which
  * is triggered by the special_return mechanism. */
@@ -45,7 +42,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
             tc->cur_frame->mark_special_return_data = mark_sr_data;
 
             /* Invoke the deserialization frame and return to the runloop. */
-            MVM_frame_invoke(tc, cu->body.deserialize_frame, &no_arg_callsite,
+            MVM_frame_invoke(tc, cu->body.deserialize_frame, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),
                 NULL, NULL, NULL, -1);
         }
         else {
@@ -73,7 +70,7 @@ static void run_load(MVMThreadContext *tc, void *sr_data) {
         tc->cur_frame->return_type  = MVM_RETURN_VOID;
 
         /* Invoke the load frame and return to the runloop. */
-        MVM_frame_invoke(tc, cu->body.load_frame, &no_arg_callsite,
+        MVM_frame_invoke(tc, cu->body.load_frame, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),
             NULL, NULL, NULL, -1);
     }
 }

@@ -24,8 +24,28 @@ typedef enum {
 } MVMCallsiteFlags;
 
 typedef enum {
-    /* Dummy, invocant-arg callsite. Taken from coerce.c */
-    MVM_CALLSITE_ID_INV_ARG = 1
+    /* Zero argument callsite. */
+    MVM_CALLSITE_ID_NULL_ARGS,
+
+    /* Dummy, invocant-arg callsite. Taken from coerce.c;
+     * OBJ */
+    MVM_CALLSITE_ID_INV_ARG,
+
+    /* Callsite for container store. Taken from containers.c;
+     * OBJ, OBJ */
+    MVM_CALLSITE_ID_TWO_OBJ,
+
+    /* Callsite for method not found errors. Taken from 6model.c;
+     * OBJ, STR */
+    MVM_CALLSITE_ID_METH_NOT_FOUND,
+
+    /* Callsite for finding methods. Taken from 6model.c;
+     * OBJ, OBJ, STR */
+    MVM_CALLSITE_ID_FIND_METHOD,
+
+    /* Callsite for typechecks. Taken from 6model.c;
+     * OBJ, OBJ, OBJ */
+    MVM_CALLSITE_ID_TYPECHECK,
 } MVMCommonCallsiteID;
 
 /* A callsite entry is just one of the above flags. */

@@ -1,9 +1,5 @@
 #include "moar.h"
 
-/* Dummy one-arg callsite. */
-static MVMCallsiteEntry one_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     one_arg_callsite = { one_arg_flags, 1, 1, 0 };
-
 static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 num) {
     if (ctx->named_used && ctx->named_used_size >= num) { /* reuse the old one */
         memset(ctx->named_used, 0, ctx->named_used_size * sizeof(MVMuint8));
@@ -837,10 +833,10 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
         MVM_exception_throw_adhoc(tc, "Bind erorr occurred, but HLL has no handler");
     bind_error = MVM_frame_find_invokee(tc, bind_error, NULL);
     res = MVM_calloc(1, sizeof(MVMRegister));
-    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, &one_arg_callsite);
+    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
     tc->cur_frame->special_return           = bind_error_return;
     tc->cur_frame->special_return_data      = res;
     tc->cur_frame->mark_special_return_data = mark_sr_data;
     tc->cur_frame->args[0].o = cc_obj;
-    STABLE(bind_error)->invoke(tc, bind_error, &one_arg_callsite, tc->cur_frame->args);
+    STABLE(bind_error)->invoke(tc, bind_error, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
 }

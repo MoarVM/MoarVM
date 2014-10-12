@@ -162,9 +162,6 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     return lh;
 }
 
-/* Dummy, 0-arg callsite for invoking handlers. */
-static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0 };
-
 /* Runs an exception handler (which really means updating interpreter state
  * so that when we return to the runloop, we're in the handler). If there is
  * an exception object already, it will be used; NULL can be passed if there
@@ -214,7 +211,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         tc->cur_frame->special_return_data = ah;
 
         /* Invoke the handler frame and return to runloop. */
-        STABLE(handler_code)->invoke(tc, handler_code, &no_arg_callsite,
+        STABLE(handler_code)->invoke(tc, handler_code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),
                                      tc->cur_frame->args);
         break;
     }

@@ -178,11 +178,8 @@ static void setup_std_handles(MVMThreadContext *tc) {
 /* This callback is passed to the interpreter code. It takes care of making
  * the initial invocation. */
 static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
-    /* Dummy, 0-arg callsite. */
-    static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0 };
-
     /* Create initial frame, which sets up all of the interpreter state also. */
-    MVM_frame_invoke(tc, (MVMStaticFrame *)data, &no_arg_callsite, NULL, NULL, NULL, -1);
+    MVM_frame_invoke(tc, (MVMStaticFrame *)data, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS), NULL, NULL, NULL, -1);
 }
 
 /* Loads bytecode from the specified file name and runs it. */

@@ -2,9 +2,6 @@
 #include "nodes_moar.h"
 #include "mast/compiler.h"
 
-/* Dummy, 0-arg callsite. */
-static MVMCallsite no_arg_callsite = { NULL, 0, 0 };
-
 /* Takes a hash of types and produces a MASTNodeTypes structure. */
 #define grab_type(name) do { \
     MVMString *key = MVM_string_utf8_decode(tc, tc->instance->VMString, #name, strlen(#name)); \
@@ -67,7 +64,7 @@ void MVM_mast_to_cu(MVMThreadContext *tc, MVMObject *mast, MVMObject *types,
         tc->cur_frame->return_type         = MVM_RETURN_VOID;
 
         /* Invoke the deserialization frame and return to the runloop. */
-        MVM_frame_invoke(tc, loaded->body.deserialize_frame, &no_arg_callsite,
+        MVM_frame_invoke(tc, loaded->body.deserialize_frame, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),
             NULL, NULL, NULL, -1);
     }
 }
