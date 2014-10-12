@@ -15,6 +15,28 @@ static MVMint32 callsites_equal(MVMThreadContext *tc, MVMCallsite *cs1, MVMCalls
     return 1;
 }
 
+static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
+static MVMCallsite     inv_arg_callsite = { obj_arg_flags, 1, 1, 0, 0, 0, 0 };
+static MVMCallsite    *callsite_inv_arg = &inv_arg_callsite;
+
+
+
+MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id) {
+    switch (id) {
+        case MVM_CALLSITE_ID_INV_ARG:
+            return callsite_inv_arg;
+        default:
+            MVM_exception_throw_adhoc(tc, "get_common_callsite: id %d unknown", id);
+            return NULL;
+    }
+}
+
+void MVM_callsite_initialize_common(MVMInstance *instance) {
+    if (callsite_inv_arg == NULL) {
+        MVM_callsite_try_intern(instance->main_thread, &callsite_inv_arg);
+    }
+}
+
 /* Tries to intern the callsite, freeing and updating the one passed in and
  * replacing it with an already interned one if we find it. */
 void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {

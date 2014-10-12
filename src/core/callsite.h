@@ -23,6 +23,11 @@ typedef enum {
     MVM_CALLSITE_ARG_FLAT_NAMED = 128
 } MVMCallsiteFlags;
 
+typedef enum {
+    /* Dummy, invocant-arg callsite. Taken from coerce.c */
+    MVM_CALLSITE_ID_INV_ARG = 1
+} MVMCommonCallsiteID;
+
 /* A callsite entry is just one of the above flags. */
 typedef MVMuint8 MVMCallsiteEntry;
 
@@ -71,6 +76,12 @@ struct MVMCallsiteInterns {
     /* Number of callsites we have interned by arity. */
     MVMint32 num_by_arity[MVM_INTERN_ARITY_LIMIT];
 };
+
+/* Initialize the "common" callsites */
+void MVM_callsite_initialize_common(MVMInstance *instance);
+
+/* Get any of the "common" callsites */
+MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id);
 
 /* Callsite interning function. */
 void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);

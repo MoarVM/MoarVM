@@ -114,6 +114,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Allocate int to str cache. */
     instance->int_to_str_cache = MVM_calloc(MVM_INT_TO_STR_CACHE_SIZE, sizeof(MVMString *));
 
+    /* There's some callsites we statically use all over the place. Intern
+     * them, so that spesh may end up optimizing more "internal" stuff. */
+    MVM_callsite_initialize_common(instance);
+
     /* Mutex for spesh installations, and check if we've a file we
      * should log specializations to. */
     init_mutex(instance->mutex_spesh_install, "spesh installations");
