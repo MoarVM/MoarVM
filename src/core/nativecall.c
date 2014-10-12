@@ -383,6 +383,8 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
             }
         }
 
+        MVM_callsite_try_intern(tc, &cs);
+
         callback_data->tc        = tc;
         callback_data->cs        = cs;
         callback_data->target    = callback;
