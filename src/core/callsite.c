@@ -32,9 +32,7 @@ MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID i
 }
 
 void MVM_callsite_initialize_common(MVMInstance *instance) {
-    if (callsite_inv_arg == NULL) {
-        MVM_callsite_try_intern(instance->main_thread, &callsite_inv_arg);
-    }
+    MVM_callsite_try_intern(instance->main_thread, &callsite_inv_arg);
 }
 
 /* Tries to intern the callsite, freeing and updating the one passed in and
