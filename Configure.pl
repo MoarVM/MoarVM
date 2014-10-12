@@ -666,7 +666,7 @@ __END__
                    [--static] [--use-readline] [--prefix]
                    [--has-libtommath] [--has-sha] [--has-libuv]
                    [--has-libatomic_ops] [--has-dynasm]
-                   [--lua <lua>] [--asan] [--enable-jit]
+                   [--lua <lua>] [--asan] [--no-jit]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
@@ -799,9 +799,9 @@ Disable the build of libatomic_ops.
 
 Use system's dynasm.
 
-=item --enable-jit
+=item --no-jit
 
-Enable JIT compiler for hot frames.
+Disable JIT compiler, which is enabled by default to JIT-compile hot frames.
 
 =item --lua=path/to/lua/executable
 
