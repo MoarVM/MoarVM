@@ -183,7 +183,7 @@ else {
 
 if ($args{'has-libatomic_ops'}) {
     $defaults{-thirdparty}->{lao} = undef;
-#    unshift @{$config{usrlibs}}, 'atomic_ops';
+    unshift @{$config{usrlibs}}, 'atomic_ops';
 }
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libatomic_ops/src';
