@@ -33,11 +33,7 @@ CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @cincludes@ \
             @ccinc@3rdparty/libatomic_ops/src \
             @ccinc@@shaincludedir@ \
-            @ccinc@3rdparty/linenoise \
             @ccinc@3rdparty/tinymt \
-            @ccinc@3rdparty/dyncall/dynload \
-            @ccinc@3rdparty/dyncall/dyncall \
-            @ccinc@3rdparty/dyncall/dyncallback \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -435,9 +431,7 @@ install: all
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libtommath
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/msinttypes
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/sha1
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/linenoise
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/tinymt
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/dyncall
 	$(CP) 3rdparty/libuv/include/*.h $(DESTDIR)$(PREFIX)/include/libuv
 	$(CP) 3rdparty/libatomic_ops/src/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops
 	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops
@@ -452,11 +446,7 @@ install: all
 	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/sunc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/sunc
 	$(CP) 3rdparty/msinttypes/*.h $(DESTDIR)$(PREFIX)/include/msinttypes
 	$(CP) 3rdparty/sha1/*.h $(DESTDIR)$(PREFIX)/include/sha1
-	$(CP) 3rdparty/linenoise/*.h $(DESTDIR)$(PREFIX)/include/linenoise
 	$(CP) 3rdparty/tinymt/*.h $(DESTDIR)$(PREFIX)/include/tinymt
-	$(CP) 3rdparty/dyncall/dynload/*.h $(DESTDIR)$(PREFIX)/include/dyncall
-	$(CP) 3rdparty/dyncall/dyncall/*.h $(DESTDIR)$(PREFIX)/include/dyncall
-	$(CP) 3rdparty/dyncall/dyncallback/*.h $(DESTDIR)$(PREFIX)/include/dyncall
 @install@
 
 lib: @moar@

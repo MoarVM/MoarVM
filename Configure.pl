@@ -32,6 +32,7 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
+    has-dyncall has-linenoise
     build=s host=s big-endian jit! enable-jit lua=s has-dynasm
     prefix=s make-install asan),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
@@ -205,6 +206,32 @@ if ($args{'has-dynasm'}) {
 else {
     $config{dynasmlua}  = './3rdparty/dynasm/dynasm.lua';
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dynasm';
+}
+
+if ($args{'has-dyncall'}) {
+    unshift @{$config{usrlibs}}, 'dyncall';
+    $defaults{-thirdparty}->{dc}  = undef;
+    $defaults{-thirdparty}->{dcb} = undef;
+    $defaults{-thirdparty}->{dl}  = undef;
+}
+else {
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dyncall/dynload'
+                        . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncall'
+                        . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncallback';
+    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/dyncall\n"
+                        . "\t\$(CP) 3rdparty/dyncall/dynload/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n"
+                        . "\t\$(CP) 3rdparty/dyncall/dyncall/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n"
+                        . "\t\$(CP) 3rdparty/dyncall/dyncallback/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n";
+}
+
+if ($args{'has-linenoise'}) {
+    unshift @{$config{usrlibs}}, 'linenoise';
+    $defaults{-thirdparty}->{ln} = undef;
+}
+else {
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/linenoise';
+    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/linenoise\n"
+                        . "\t\$(CP) 3rdparty/linenoise/*.h \$(DESTDIR)\$(PREFIX)/include/linenoise\n";
 }
 
 if ($args{'jit'}) {
@@ -781,23 +808,20 @@ Build and install MoarVM in addition to configuring it.
 
 =item --has-libtommath
 
-Link moar with the libtommath library of the system.
-
 =item --has-sha
-
-Build moar with the sha1 funktions from the sha library of the system.
 
 =item --has-libuv
 
-Link moar with the libuv library of the system.
-
 =item --has-libatomic_ops
-
-Disable the build of libatomic_ops.
 
 =item --has-dynasm
 
-Use system's dynasm.
+=item --has-dyncall
+
+=item --has-linenoise
+
+Link moar executable with libs provided by the system instead of building
+and installing an own version from MoarVM's source tree.
 
 =item --no-jit
 
