@@ -1541,6 +1541,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                           MVM_JIT_RV_PTR, dst);
         break;
     }
+    /*
     case MVM_OP_sin_n:
     case MVM_OP_cos_n:
     case MVM_OP_tan_n:
@@ -1555,6 +1556,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                           MVM_JIT_RV_NUM, dst);
         break;
     }
+    */
     case MVM_OP_time_n: {
         MVMint16 dst   = ins->operands[0].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC } };
