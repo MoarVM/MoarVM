@@ -385,7 +385,7 @@ MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj, M
 
 /* Default invoke function on STables; for non-invokable objects */
 void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
-    MVM_exception_throw_adhoc(tc, "non-invokable object is non-invokable");
+    MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s)", REPR(invokee)->name);
 }
 
 /* Clean up STable memory. */
