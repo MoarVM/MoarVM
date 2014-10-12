@@ -421,67 +421,80 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 else if (offset >= eos) {
                     /* Can't match, so drop state. */
                 }
-                else if (act == MVM_NFA_EDGE_CODEPOINT) {
-                    MVMint64 arg = edge_info[i].arg.i;
-                    if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg)
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CODEPOINT_NEG) {
-                    MVMint64 arg = edge_info[i].arg.i;
-                    if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) != arg)
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CHARCLASS) {
-                    MVMint64 arg = edge_info[i].arg.i;
-                    if (MVM_string_is_cclass(tc, arg, target, offset))
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CHARCLASS_NEG) {
-                    MVMint64 arg = edge_info[i].arg.i;
-                    if (!MVM_string_is_cclass(tc, arg, target, offset))
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CHARLIST) {
-                    MVMString *arg    = edge_info[i].arg.s;
-                    MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                    if (MVM_string_index_of_grapheme(tc, arg, cp) >= 0)
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CHARLIST_NEG) {
-                    MVMString *arg    = edge_info[i].arg.s;
-                    MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                    if (MVM_string_index_of_grapheme(tc, arg, cp) < 0)
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CODEPOINT_I) {
-                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
-                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                    if (ord == lc_arg || ord == uc_arg)
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CODEPOINT_I_NEG) {
-                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
-                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                    if (ord != lc_arg && ord != uc_arg)
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CHARRANGE) {
-                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
-                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                    if (ord >= lc_arg && ord <= uc_arg) /* TODO ignorecase? */
-                        nextst[numnext++] = to;
-                    
-                }
-                else if (act == MVM_NFA_EDGE_CHARRANGE_NEG) {
-                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
-                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                    if (ord < lc_arg || ord > uc_arg) /* TODO ignorecase? */
-                        nextst[numnext++] = to;
-                }
+		else {
+		    switch (act) {
+			case MVM_NFA_EDGE_CODEPOINT: {
+			    MVMint64 arg = edge_info[i].arg.i;
+			    if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg)
+				nextst[numnext++] = to;
+			    break;
+			}
+			case MVM_NFA_EDGE_CODEPOINT_NEG: {
+			    MVMint64 arg = edge_info[i].arg.i;
+			    if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) != arg)
+				nextst[numnext++] = to;
+			    break;
+			}
+			case MVM_NFA_EDGE_CHARCLASS: {
+			    MVMint64 arg = edge_info[i].arg.i;
+			    if (MVM_string_is_cclass(tc, arg, target, offset))
+				nextst[numnext++] = to;
+			    break;
+			}
+			case MVM_NFA_EDGE_CHARCLASS_NEG: {
+			    MVMint64 arg = edge_info[i].arg.i;
+			    if (!MVM_string_is_cclass(tc, arg, target, offset))
+				nextst[numnext++] = to;
+			    break;
+			}
+			case MVM_NFA_EDGE_CHARLIST: {
+			    MVMString *arg    = edge_info[i].arg.s;
+			    MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+			    if (MVM_string_index_of_grapheme(tc, arg, cp) >= 0)
+				nextst[numnext++] = to;
+			    break;
+			}
+			case MVM_NFA_EDGE_CHARLIST_NEG: {
+			    MVMString *arg    = edge_info[i].arg.s;
+			    MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+			    if (MVM_string_index_of_grapheme(tc, arg, cp) < 0)
+				nextst[numnext++] = to;
+			    break;
+			}
+			case MVM_NFA_EDGE_CODEPOINT_I: {
+			    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+			    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+			    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+			    if (ord == lc_arg || ord == uc_arg)
+				nextst[numnext++] = to;
+			    break;
+			}
+			case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
+			    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+			    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+			    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+			    if (ord != lc_arg && ord != uc_arg)
+				nextst[numnext++] = to;
+			    break;
+			}
+			case MVM_NFA_EDGE_CHARRANGE: {
+			    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+			    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+			    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+			    if (ord >= lc_arg && ord <= uc_arg) /* TODO ignorecase? */
+				nextst[numnext++] = to;
+			    break;
+			}
+			case MVM_NFA_EDGE_CHARRANGE_NEG: {
+			    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+			    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+			    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+			    if (ord < lc_arg || ord > uc_arg) /* TODO ignorecase? */
+				nextst[numnext++] = to;
+			    break;
+			}
+		    }
+		}
             }
         }
 
