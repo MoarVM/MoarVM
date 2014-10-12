@@ -185,6 +185,29 @@ if ($args{'has-libatomic_ops'}) {
     $defaults{-thirdparty}->{lao} = undef;
 #    unshift @{$config{usrlibs}}, 'atomic_ops';
 }
+else {
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libatomic_ops/src';
+    my $lao             = '$(DESTDIR)$(PREFIX)/include/libatomic_ops';
+    $config{install}   .= "\t\$(MKPATH) $lao/atomic_ops/sysdeps/armcc\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/gcc\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/hpc\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/ibmc\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/icc\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/loadstore\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/msftc\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/sunc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/*.h $lao\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/*.h $lao/atomic_ops\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/*.h $lao/atomic_ops/sysdeps\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/armcc/*.h $lao/atomic_ops/sysdeps/armcc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/gcc/*.h $lao/atomic_ops/sysdeps/gcc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/hpc/*.h $lao/atomic_ops/sysdeps/hpc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/ibmc/*.h $lao/atomic_ops/sysdeps/ibmc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/icc/*.h $lao/atomic_ops/sysdeps/icc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/loadstore/*.h $lao/atomic_ops/sysdeps/loadstore\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/msftc/*.h $lao/atomic_ops/sysdeps/msftc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/sunc/*.h $lao/atomic_ops/sysdeps/sunc\n";
+}
 
 if ($args{'has-libtommath'}) {
     unshift @{$config{usrlibs}}, 'tommath';
