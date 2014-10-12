@@ -32,7 +32,7 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
-    build=s host=s big-endian jit! enable-jit lua=s
+    build=s host=s big-endian jit! enable-jit lua=s has-dynasm
     prefix=s make-install asan),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 }
@@ -72,6 +72,7 @@ $args{'has-libtommath'}    //= 0;
 $args{'has-sha'}           //= 0;
 $args{'has-libuv'}         //= 0;
 $args{'has-libatomic_ops'} //= 0;
+$args{'has-dynasm'}        //= 0;
 $args{'asan'}              //= 0;
 
 # jit is default
@@ -195,6 +196,15 @@ if ($args{'has-libtommath'}) {
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
     $config{install}   .= "\t\$(CP) 3rdparty/libtommath/*.h \$(DESTDIR)\$(PREFIX)/include/libtommath\n";
+}
+
+if ($args{'has-dynasm'}) {
+    $config{dynasmlua}  = '-l dynasm.lua';
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '/usr/include/luajit-2.0';
+}
+else {
+    $config{dynasmlua}  = './3rdparty/dynasm/dynasm.lua';
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dynasm';
 }
 
 if ($args{'jit'}) {
@@ -655,13 +665,14 @@ __END__
                    [--debug] [--optimize] [--instrument]
                    [--static] [--use-readline] [--prefix]
                    [--has-libtommath] [--has-sha] [--has-libuv]
-                   [--has-libatomic_ops] [--asan] [--enable-jit]
+                   [--has-libatomic_ops] [--has-dynasm]
+                   [--lua <lua>] [--asan] [--enable-jit]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
                    [--static] [--big-endian] [--prefix]
-                   [--lua] [--make-install]
+                   [--lua <lua>] [--make-install]
 
 =head1 OPTIONS
 
@@ -783,6 +794,10 @@ Link moar with the libuv library of the system.
 =item --has-libatomic_ops
 
 Disable the build of libatomic_ops.
+
+=item --has-dynasm
+
+Use system's dynasm.
 
 =item --enable-jit
 

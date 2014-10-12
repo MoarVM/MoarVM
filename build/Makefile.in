@@ -10,7 +10,7 @@ LUA    = @lua@
 CP     = $(PERL) -MExtUtils::Command -e cp
 MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 CHMOD  = $(PERL) -MExtUtils::Command -e chmod
-DYNASM = $(LUA) ./3rdparty/dynasm/dynasm.lua
+DYNASM = $(LUA) @dynasmlua@
 
 
 
@@ -38,7 +38,6 @@ CINCLUDES = @cincludes@ \
             @ccinc@3rdparty/dyncall/dynload \
             @ccinc@3rdparty/dyncall/dyncall \
             @ccinc@3rdparty/dyncall/dyncallback \
-            @ccinc@3rdparty/dynasm \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
