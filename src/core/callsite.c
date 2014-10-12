@@ -20,6 +20,10 @@ static MVMCallsite   null_args_callsite = { NULL, 0, 0, 0, 0, 0, 0 };
 static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
 static MVMCallsite     inv_arg_callsite = { obj_arg_flags, 1, 1, 0, 0, 0, 0 };
 
+static MVMCallsiteEntry two_obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ,
+                                                MVM_CALLSITE_ARG_OBJ };
+static MVMCallsite    two_args_callsite = { two_obj_arg_flags, 2, 2, 0, 0, 0 };
+
 static MVMCallsiteEntry mnfe_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                          MVM_CALLSITE_ARG_STR };
 static MVMCallsite     methnotfound_callsite = { mnfe_flags, 2, 2, 0 };
@@ -40,6 +44,8 @@ MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID i
             return &inv_arg_callsite;
         case MVM_CALLSITE_ID_NULL_ARGS:
             return &null_args_callsite;
+        case MVM_CALLSITE_ID_TWO_OBJ:
+            return &two_args_callsite;
         case MVM_CALLSITE_ID_METH_NOT_FOUND:
             return &methnotfound_callsite;
         case MVM_CALLSITE_ID_FIND_METHOD:
@@ -60,6 +66,8 @@ void MVM_callsite_initialize_common(MVMInstance *instance) {
     ptr = &null_args_callsite;
     MVM_callsite_try_intern(instance->main_thread, &ptr);
     ptr = &methnotfound_callsite;
+    MVM_callsite_try_intern(instance->main_thread, &ptr);
+    ptr = &two_args_callsite;
     MVM_callsite_try_intern(instance->main_thread, &ptr);
     ptr = &findmeth_callsite;
     MVM_callsite_try_intern(instance->main_thread, &ptr);
