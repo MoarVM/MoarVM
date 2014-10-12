@@ -232,7 +232,7 @@ else {
 }
 
 if ($args{'has-dyncall'}) {
-    unshift @{$config{usrlibs}}, 'dyncall';
+    unshift @{$config{usrlibs}}, 'dyncall_s', 'dyncallback_s', 'dynload_s';
     $defaults{-thirdparty}->{dc}  = undef;
     $defaults{-thirdparty}->{dcb} = undef;
     $defaults{-thirdparty}->{dl}  = undef;
