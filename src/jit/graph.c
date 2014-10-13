@@ -176,6 +176,10 @@ static void jgb_append_label(MVMThreadContext *tc, JitGraphBuilder *jgb, MVMint3
     MVM_jit_log(tc, "append label: %d\n", node->u.label.name);
 }
 
+static double my_atan2(double a, double b) {
+    return atan2(a, b);
+}
+
 static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     switch(opcode) {
     case MVM_OP_checkarity: return &MVM_args_checkarity;
@@ -294,7 +298,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_asin_n: return &asin;
     case MVM_OP_acos_n: return &acos;
     case MVM_OP_atan_n: return &atan;
-    case MVM_OP_atan2_n: return &atan2;
+    case MVM_OP_atan2_n: return &my_atan2;
     case MVM_OP_time_n: return &MVM_proc_time_n;
     case MVM_OP_nativecallinvoke: return &MVM_nativecall_invoke;
     case MVM_OP_sp_boolify_iter: return &MVM_iter_istrue;
