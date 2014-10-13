@@ -34,6 +34,9 @@ typedef struct {
 
     /* Decode stream, for turning bytes from disk into strings. */
     MVMDecodeStream *ds;
+
+    /* Current separator codepoint. */
+    MVMGrapheme32 sep;
 } MVMIOFileData;
 
 /* Closes the file. */
@@ -86,7 +89,9 @@ static MVMint64 tell(MVMThreadContext *tc, MVMOSHandle *h) {
 
 /* Set the line separator. */
 static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) {
-    MVM_exception_throw_adhoc(tc, "set_separator NYI on file handles");
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    data->sep = (MVMGrapheme32)MVM_string_get_grapheme_at(tc, sep,
+        MVM_string_graphs(tc, sep) - 1);
 }
 
 /* Read a bunch of bytes into the current decode stream. */
@@ -118,7 +123,7 @@ static MVMString * read_line(MVMThreadContext *tc, MVMOSHandle *h) {
 
     /* Pull data until we can read a line. */
     do {
-        MVMString *line = MVM_string_decodestream_get_until_sep(tc, data->ds, '\n');
+        MVMString *line = MVM_string_decodestream_get_until_sep(tc, data->ds, data->sep);
         if (line != NULL)
             return line;
     } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);
