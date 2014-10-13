@@ -1549,7 +1549,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_atan_n: {
         MVMint16 dst   = ins->operands[0].reg.orig;
         MVMint16 src   = ins->operands[1].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_REG_VAL, src } };
+        MVMJitCallArg args[] = { { MVM_JIT_REG_VAL_F, src } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 1, args,
                           MVM_JIT_RV_NUM, dst);
         break;
@@ -1558,8 +1558,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMint16 dst   = ins->operands[0].reg.orig;
         MVMint16 a     = ins->operands[1].reg.orig;
         MVMint16 b     = ins->operands[2].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_REG_VAL, a },
-                                 { MVM_JIT_REG_VAL, b } };
+        MVMJitCallArg args[] = { { MVM_JIT_REG_VAL_F, a },
+                                 { MVM_JIT_REG_VAL_F, b } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args,
                           MVM_JIT_RV_NUM, dst);
         break;
