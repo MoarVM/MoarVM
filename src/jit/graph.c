@@ -294,7 +294,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_asin_n: return &asin;
     case MVM_OP_acos_n: return &acos;
     case MVM_OP_atan_n: return &atan;
-    case MVM_OP_atan2_n: return &atan;
+    case MVM_OP_atan2_n: return &atan2;
     case MVM_OP_time_n: return &MVM_proc_time_n;
     case MVM_OP_nativecallinvoke: return &MVM_nativecall_invoke;
     case MVM_OP_sp_boolify_iter: return &MVM_iter_istrue;
@@ -1541,7 +1541,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                           MVM_JIT_RV_PTR, dst);
         break;
     }
-    /*
     case MVM_OP_sin_n:
     case MVM_OP_cos_n:
     case MVM_OP_tan_n:
@@ -1556,7 +1555,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                           MVM_JIT_RV_NUM, dst);
         break;
     }
-    */
     case MVM_OP_time_n: {
         MVMint16 dst   = ins->operands[0].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC } };
