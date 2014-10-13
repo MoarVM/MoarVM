@@ -658,6 +658,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_sub_n:
     case MVM_OP_mul_n:
     case MVM_OP_div_n:
+    case MVM_OP_neg_n:
         /* number coercion */
     case MVM_OP_coerce_ni:
     case MVM_OP_coerce_in:

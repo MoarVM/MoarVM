@@ -735,6 +735,17 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], rax;
         break;
     }
+    case MVM_OP_neg_n: {
+        /* Negation is xor-ing the highest byte. Pretty simple right */
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov TMP1, 1;
+        | sal TMP1, 63;
+        | mov TMP2, qword WORK[src];
+        | xor TMP2, TMP1;
+        | mov qword WORK[dst], TMP2;
+        break;
+    }
     case MVM_OP_eq_i:
     case MVM_OP_eqaddr:
     case MVM_OP_ne_i:
