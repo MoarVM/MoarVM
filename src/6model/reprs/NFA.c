@@ -503,13 +503,17 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         gen++;
 
         /* If we got multiple fates at this offset, sort them by the
-         * declaration order (represented by the fate number). In the
-         * future, we'll want to factor in longest literal prefix too. */
+         * literal length and declaration order (both encoded in fate number).
+	 * The high 32 bits of the fat encodes literal length, while the low
+	 * 32 bits encode fate. Both want to be descending order. */
         if (total_fates - prev_fates > 1) {
             MVMint64 char_fates = total_fates - prev_fates;
             revquicksort(&fates[total_fates - char_fates], char_fates);
         }
     }
+    /* strip any literal lengths, leaving only fates */
+    for (i = 0; i < total_fates; i++)
+	fates[i] &= 0xffffffff;
 
     *total_fates_out = total_fates;
     return fates;
