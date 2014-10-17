@@ -35,8 +35,8 @@ typedef struct {
     /* Decode stream, for turning bytes from disk into strings. */
     MVMDecodeStream *ds;
 
-    /* Current separator codepoint. */
-    MVMGrapheme32 sep;
+    /* Current separator(s). */
+    MVMGrapheme32 **sep;
 } MVMIOFileData;
 
 /* Closes the file. */
@@ -89,9 +89,23 @@ static MVMint64 tell(MVMThreadContext *tc, MVMOSHandle *h) {
 
 /* Set the line separator. */
 static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) {
-    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    data->sep = (MVMGrapheme32)MVM_string_get_grapheme_at(tc, sep,
-        MVM_string_graphs(tc, sep) - 1);
+    MVMIOFileData  *data = (MVMIOFileData *)h->body.data;
+    MVMint64        end  = MVM_string_graphs(tc, sep);
+    MVMint64        pos;
+    MVMGraphemeIter gi;
+
+    data->sep    = MVM_malloc(sizeof(MVMGrapheme32 **) * 2);
+    data->sep[0] = MVM_malloc(sizeof(MVMGrapheme32) * (end + 1));
+    /* Since we need the grapheme count often, store it as first element.
+     * This also means that we don't need to agree on a stopper. */
+    data->sep[0][0] = end;
+
+    MVM_string_gi_init(tc, &gi, sep);
+    MVM_string_gi_move_to(tc, &gi, 0);
+    for (pos = 1; pos <= end; pos++)
+        data->sep[0][pos] = MVM_string_gi_get_grapheme(tc, &gi);
+
+    data->sep[1] = NULL;
 }
 
 /* Read a bunch of bytes into the current decode stream. */

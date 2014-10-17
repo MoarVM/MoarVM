@@ -267,7 +267,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                  MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
+                                  MVMint32 *stopper_chars, MVMGrapheme32 **stopper_sep) {
     MVMint32 count = 0, total = 0, stopped = 0;
     MVMint32 state = 0;
     MVMCodepoint codepoint = 0;
@@ -313,7 +313,7 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                 total++;
                 if (stopper_chars && *stopper_chars == total)
                     goto done;
-                if (stopper_sep && *stopper_sep == codepoint)
+                if (stopper_sep && MVM_string_decodestream_find_cp_in_separator(tc, ds, codepoint, stopper_sep))
                     goto done;
                 break;
             case UTF8_REJECT:

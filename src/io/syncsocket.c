@@ -201,7 +201,11 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
             MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
             data->ss.handle   = (uv_stream_t *)client;
             data->ss.encoding = MVM_encoding_type_utf8;
-            data->ss.sep      = '\n';
+            data->ss.sep       = MVM_malloc(sizeof(MVMGrapheme32 **) * 2);
+            data->ss.sep[0]    = MVM_malloc(sizeof(MVMGrapheme32) * 2);
+            data->ss.sep[0][0] = 1;
+            data->ss.sep[0][1] = '\n';
+            data->ss.sep[1]    = NULL;
             result->body.ops  = &op_table;
             result->body.data = data;
             return (MVMObject *)result;
@@ -219,7 +223,11 @@ MVMObject * MVM_io_socket_create(MVMThreadContext *tc, MVMint64 listen) {
     MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
     data->ss.handle   = NULL;
     data->ss.encoding = MVM_encoding_type_utf8;
-    data->ss.sep      = '\n';
+    data->ss.sep       = MVM_malloc(sizeof(MVMGrapheme32 **) * 2);
+    data->ss.sep[0]    = MVM_malloc(sizeof(MVMGrapheme32) * 2);
+    data->ss.sep[0][0] = 1;
+    data->ss.sep[0][1] = '\n';
+    data->ss.sep[1]    = NULL;
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;

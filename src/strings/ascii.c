@@ -32,7 +32,7 @@ MVMString * MVM_string_ascii_decode_nt(MVMThreadContext *tc, MVMObject *result_t
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                   MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
+                                   MVMint32 *stopper_chars, MVMGrapheme32 **stopper_sep) {
     MVMint32              count = 0, total = 0;
     MVMint32              bufsize;
     MVMGrapheme32        *buffer;
@@ -77,7 +77,7 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
             total++;
             if (stopper_chars && *stopper_chars == total)
                 goto done;
-            if (stopper_sep && *stopper_sep == codepoint)
+            if (stopper_sep && MVM_string_decodestream_find_cp_in_separator(tc, ds, codepoint, stopper_sep))
                 goto done;
         }
         cur_bytes = cur_bytes->next;

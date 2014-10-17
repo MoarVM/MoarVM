@@ -18,8 +18,8 @@ struct MVMIOSyncStreamData {
     /* Total bytes we've written. */
     MVMint64 total_bytes_written;
 
-    /* Current separator codepoint. */
-    MVMGrapheme32 sep;
+    /* Current separator(s). */
+    MVMGrapheme32 **sep;
 };
 
 void MVM_io_syncstream_set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding);

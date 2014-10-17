@@ -10,9 +10,11 @@
 
 /* Creates a new decoding stream. */
 MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 encoding, MVMint64 abs_byte_pos) {
-    MVMDecodeStream *ds = MVM_calloc(1, sizeof(MVMDecodeStream));
-    ds->encoding        = encoding;
-    ds->abs_byte_pos    = abs_byte_pos;
+    MVMDecodeStream    *ds = MVM_calloc(1, sizeof(MVMDecodeStream));
+    ds->encoding           = encoding;
+    ds->abs_byte_pos       = abs_byte_pos;
+    ds->partial_sep        = MVM_malloc(sizeof(MVMGrapheme32) * 32); ds->partial_sep[0]        = 0;
+    ds->sep_remainder_list = MVM_malloc(sizeof(MVMGrapheme32) * 32); ds->sep_remainder_list[0] = 0;
     return ds;
 }
 
@@ -72,7 +74,7 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
 }
 
 /* Does a decode run, selected by encoding. */
-static void run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
+static void run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 *stopper_chars, MVMGrapheme32 **stopper_sep) {
     switch (ds->encoding) {
     case MVM_encoding_type_utf8:
         MVM_string_utf8_decodestream(tc, ds, stopper_chars, stopper_sep);
@@ -158,33 +160,117 @@ MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStr
         return NULL;
 }
 
+/* This function is used to determine if it is a safe point to stop requesting more data from a stream because
+ * we already found a complete separator. */
+MVMint64 MVM_string_decodestream_find_cp_in_separator(MVMThreadContext *tc, MVMDecodeStream *ds,
+    MVMGrapheme32 codepoint, MVMGrapheme32 **stopper_sep) {
+    if (!stopper_sep)
+        return 0;
+
+    // loop over every seperator in list
+    MVMGrapheme32 **seplist = stopper_sep;
+    while (*seplist) {
+        MVMGrapheme32 *sep = *seplist;
+        unsigned int    ok = 1;
+        MVMint64       pos = 0;
+        MVMint64    seplen = sep[0];
+        MVMint64    parlen = ds->partial_sep[0];
+        /* Skip first element, which is the grapheme count. */
+        sep++;
+
+        /* Return success when we found the first complete separator. */
+        if (parlen < seplen && sep[parlen] == codepoint) {
+            while (ok && pos < parlen) {
+                ok = sep[pos] == ds->partial_sep[pos + 1] ? 1 : 0;
+                pos++;
+            }
+            if (!ok)
+                continue;
+
+            if (parlen == seplen - 1) {
+                ds->partial_sep[0] = 0; /* Whipe our mind about what we have found so far. */
+                return 1;
+            }
+
+            ds->partial_sep[0]++;
+            ds->partial_sep[ds->partial_sep[0]] = codepoint;
+            return 0;
+        }
+
+        seplist++;
+    }
+
+    return 0;
+}
+
 /* Gets characters up until the specified string is encountered. If we do
  * not encounter it, returns NULL. This may mean more input buffers are needed
  * or that we reached the end of the stream. */
-MVMint32 find_separator(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 sep) {
+MVMint32 find_separator(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 **stopper_sep) {
     MVMint32 sep_loc = 0;
     MVMDecodeStreamChars *cur_chars = ds->chars_head;
+    MVMint32 ret = 0;
+
+    if (!stopper_sep)
+        return 0;
+
     while (cur_chars) {
         MVMint32 start = cur_chars == ds->chars_head ? ds->chars_head_pos : 0;
         MVMint32 i = 0;
         for (i = start; i < cur_chars->length; i++) {
+            MVMGrapheme32 **seplist = stopper_sep;
+            while (*seplist) {
+                MVMGrapheme32 *sep = *seplist;
+                unsigned int    ok = 1;
+                MVMint64       pos = 0;
+                MVMint64       end = sep[0];
+                /* Skip first element, which is the grapheme count. */
+                sep++;
+
+                /* Return success when we found the first complete separator. */
+                while (ok && pos < end && i + pos < cur_chars->length) {
+                    ok = sep[pos] == cur_chars->chars[i + pos] ? 1 : 0;
+                    pos++;
+                }
+
+                if (ok) {
+                    ret = sep_loc + pos;
+                    /* This complicated piece of code will add possible remainders, so we can cut these
+                     * from the beginning of the next line so it looks like we are splitting lines by
+                     * longest separator. */
+                    if (ret) {
+                        MVMint64 left                = end - pos;
+                        MVMint64 off                 = pos;
+                        ds->sep_remainder_list       = MVM_malloc(sizeof(MVMGrapheme32 **) * 2);
+                        ds->sep_remainder_list[0]    = MVM_malloc(sizeof(MVMGrapheme32) * (left + 1));
+                        ds->sep_remainder_list[1]    = NULL;
+                        ds->sep_remainder_list[0][0] = left;
+                        while (pos < end) {
+                            ds->sep_remainder_list[0][pos - off] = sep[pos];
+                            pos++;
+                        }
+                    }
+                }
+
+                seplist++;
+            }
+            if (ret)
+                return ret;
             sep_loc++;
-            if (cur_chars->chars[i] == sep)
-                return sep_loc;
         }
         cur_chars = cur_chars->next;
     }
-    return 0;
+    return ret;
 }
-MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 sep) {
+MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 **stopper_sep) {
     MVMint32 sep_loc;
 
     /* Look for separator, trying more decoding if it fails. We get the place
      * just beyond the separator, so can use take_chars to get what's need. */
-    sep_loc = find_separator(tc, ds, sep);
+    sep_loc = find_separator(tc, ds, stopper_sep);
     if (!sep_loc) {
-        run_decode(tc, ds, NULL, &sep);
-        sep_loc = find_separator(tc, ds, sep);
+        run_decode(tc, ds, NULL, stopper_sep);
+        sep_loc = find_separator(tc, ds, stopper_sep);
     }
     if (sep_loc)
         return take_chars(tc, ds, sep_loc);

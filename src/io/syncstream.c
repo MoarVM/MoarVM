@@ -39,10 +39,23 @@ MVMint64 MVM_io_syncstream_tell(MVMThreadContext *tc, MVMOSHandle *h) {
 
 /* Set the line separator. */
 void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) {
-    /* For now, take last character. */
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    data->sep = (MVMGrapheme32)MVM_string_get_grapheme_at(tc, sep,
-        MVM_string_graphs(tc, sep) - 1);
+    MVMint64        end  = MVM_string_graphs(tc, sep);
+    MVMint64        pos;
+    MVMGraphemeIter gi;
+
+    data->sep    = MVM_malloc(sizeof(MVMGrapheme32 **) * 2);
+    data->sep[0] = MVM_malloc(sizeof(MVMGrapheme32) * (end + 1));
+    /* Since we need the grapheme count often, store it as first element.
+     * This also means that we don't need to agree on a stopper. */
+    data->sep[0][0] = end;
+
+    MVM_string_gi_init(tc, &gi, sep);
+    MVM_string_gi_move_to(tc, &gi, 0);
+    for (pos = 1; pos <= end; pos++)
+        data->sep[0][pos] = MVM_string_gi_get_grapheme(tc, &gi);
+
+    data->sep[1] = NULL;
 }
 
 /* Read a bunch of bytes into the current decode stream. Returns true if we
@@ -304,7 +317,11 @@ MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *h
     MVMIOSyncStreamData * const data   = MVM_calloc(1, sizeof(MVMIOSyncStreamData));
     data->handle      = handle;
     data->encoding    = MVM_encoding_type_utf8;
-    data->sep         = '\n';
+    data->sep         = MVM_malloc(sizeof(MVMGrapheme32 **) * 2);
+    data->sep[0]      = MVM_malloc(sizeof(MVMGrapheme32) * 2);
+    data->sep[0][0]   = 1;
+    data->sep[0][1]   = '\n';
+    data->sep[1]      = NULL;
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;
