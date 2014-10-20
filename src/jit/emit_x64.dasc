@@ -1716,8 +1716,8 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
             break;
         }
         default:
-            MVM_exception_throw_adhoc(tc, "JIT invoke: Can't add arg <%s>",
-                                      ins->info->name);
+            MVM_panic(1, "JIT invoke: Can't add arg <%s>",
+                      ins->info->name);
         }
     }
 
@@ -1725,7 +1725,7 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     if (sizeof(MVMReturnType) == 4) {
         | mov dword FRAME->return_type, invoke->return_type;
     } else {
-        MVM_exception_throw_adhoc(tc, "JIT: MVMReturnType has unexpected size");
+        MVM_panic(1, "JIT: MVMReturnType has unexpected size");
     }
     /* The register for our return value */
     if (invoke->return_type == MVM_RETURN_VOID) {
