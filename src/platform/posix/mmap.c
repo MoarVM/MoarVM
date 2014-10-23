@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <sys/mman.h>
 #include "platform/mmap.h"
+#include <errno.h>
 
 /* MAP_ANONYMOUS is Linux, MAP_ANON is BSD */
 #ifndef MVM_MAP_ANON
@@ -40,7 +41,11 @@ void *MVM_platform_alloc_pages(size_t size, int page_mode)
 {
     int prot_mode = page_mode_to_prot_mode(page_mode);
     void *block = mmap(NULL, size, prot_mode, MVM_MAP_ANON | MAP_PRIVATE, -1, 0);
-    return block != MAP_FAILED ? block : NULL;
+
+    if (block == MAP_FAILED)
+        MVM_panic(1, "MVM_platform_alloc_pages failed: %d", errno);
+
+    return block;
 }
 
 int MVM_platform_set_page_mode(void * block, size_t size, int page_mode) {
