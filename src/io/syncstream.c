@@ -240,7 +240,7 @@ static MVMint64 not_std_handle(MVMThreadContext *tc, MVMObject *h) {
            h != tc->instance->stdout_handle &&
            h != tc->instance->stderr_handle;
 }
-static void closefh(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
     if (data->handle && not_std_handle(tc, (MVMObject *)h)) {
          uv_close((uv_handle_t *)data->handle, NULL);
@@ -250,6 +250,7 @@ static void closefh(MVMThreadContext *tc, MVMOSHandle *h) {
             data->ds = NULL;
         }
     }
+    return 0;
 }
 
 /* Frees data associated with the handle, closing it if needed. */

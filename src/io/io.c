@@ -21,15 +21,17 @@ void release_mutex(MVMThreadContext *tc, uv_mutex_t *mutex) {
     MVM_tc_clear_ex_release_mutex(tc);
 }
 
-void MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle) {
+MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "close");
     if (handle->body.ops->closable) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        handle->body.ops->closable->close(tc, handle);
+        MVMint64 ret = handle->body.ops->closable->close(tc, handle);
         release_mutex(tc, mutex);
+        return ret;
     }
     else
         MVM_exception_throw_adhoc(tc, "Cannot close this kind of handle");
+    return 0;
 }
 
 void MVM_io_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {

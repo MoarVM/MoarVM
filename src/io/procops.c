@@ -164,7 +164,6 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     int i;
-    int status;
     int readable = 1;
     uv_pipe_t *out, *in;
 
@@ -230,6 +229,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     process_options.env         = _env;
     process_options.stdio_count = 3;
     process_options.exit_cb     = spawn_on_exit;
+    process->data               = MVM_calloc(1, sizeof(MVMint64));
     uv_ref((uv_handle_t *)process);
     spawn_result = uv_spawn(tc->loop, process, &process_options);
     if (spawn_result) {
@@ -597,7 +597,7 @@ static const MVMAsyncTaskOps close_op_table = {
     NULL
 };
 
-static void close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
     MVMAsyncTask          *spawn_task  = (MVMAsyncTask *)handle_data->async_task;
     SpawnInfo             *si          = spawn_task ? (SpawnInfo *)spawn_task->body.data : NULL;
@@ -611,6 +611,7 @@ static void close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
         task->body.data = si->stdin_handle;
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
     }
+    return 0;
 }
 
 /* IO ops table, for async process, populated with functions. */

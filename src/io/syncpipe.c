@@ -18,9 +18,10 @@ struct MVMIOSyncPipeData {
 };
 
 /* Closes the pipe. */
-static void do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
+static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
+    MVMint64 status = 0;
     if (data->ss.handle == NULL || uv_is_closing((uv_handle_t*)data->ss.handle))
-        return;
+        return 0;
     /* closing the in-/output std filehandle will shutdown the child process. */
     uv_unref((uv_handle_t*)data->ss.handle);
     uv_close((uv_handle_t*)data->ss.handle, NULL);
@@ -32,6 +33,10 @@ static void do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
 #else
         waitpid(data->process->pid, NULL, 0);
 #endif
+    if (data->process->data) {
+        status = *(MVMint64*)data->process->data;
+        MVM_free(data->process->data);
+    }
     uv_unref((uv_handle_t *)data->process);
     uv_run(tc->loop, UV_RUN_DEFAULT);
     data->process   = NULL;
@@ -40,16 +45,17 @@ static void do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
         MVM_string_decodestream_destory(tc, data->ss.ds);
         data->ss.ds = NULL;
     }
+    return status;
 }
-static void closefh(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncPipeData *data = (MVMIOSyncPipeData *)h->body.data;
-    do_close(tc, data);
+    return do_close(tc, data);
 }
 
 /* Frees data associated with the pipe, closing it if needed. */
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOSyncPipeData *data = (MVMIOSyncPipeData *)d;
-     do_close(tc, data);
+    do_close(tc, data);
 }
 
 /* IO ops table, populated with functions. */

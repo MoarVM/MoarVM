@@ -655,6 +655,7 @@ objectid            w(int64) r(obj)
 settypefinalize     r(obj) r(int64)
 force_gc
 nativecallglobal    w(obj) r(str) r(str) r(obj) r(obj)
+close_fhi           w(int64) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

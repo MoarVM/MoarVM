@@ -457,7 +457,7 @@ static const MVMAsyncTaskOps close_op_table = {
     NULL
 };
 
-static void close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOAsyncSocketData *data = (MVMIOAsyncSocketData *)h->body.data;
     if (data->handle) {
         MVMAsyncTask *task;
@@ -470,6 +470,7 @@ static void close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
         data->handle = NULL;
     }
+    return 0;
 }
 
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {

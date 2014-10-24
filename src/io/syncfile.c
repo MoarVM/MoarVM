@@ -40,7 +40,7 @@ typedef struct {
 } MVMIOFileData;
 
 /* Closes the file. */
-static void closefh(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     uv_fs_t req;
     if (data->ds) {
@@ -52,6 +52,7 @@ static void closefh(MVMThreadContext *tc, MVMOSHandle *h) {
         MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
     }
     data->fd = -1;
+    return 0;
 }
 
 /* Sets the encoding used for string-based I/O. */

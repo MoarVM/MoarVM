@@ -19,7 +19,7 @@ typedef struct {
     int          accept_status;
 } MVMIOSyncSocketData;
 
-static void do_close(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
+static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
     if (data->ss.handle) {
          uv_close((uv_handle_t *)data->ss.handle, NULL);
          data->ss.handle = NULL;
@@ -28,10 +28,11 @@ static void do_close(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
         MVM_string_decodestream_destory(tc, data->ss.ds);
         data->ss.ds = NULL;
     }
+    return 0;
 }
-static void close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-    do_close(tc, data);
+    return do_close(tc, data);
 }
 
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
