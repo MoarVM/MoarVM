@@ -220,7 +220,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_getlexouter: return &MVM_frame_find_lexical_by_name_outer;
     case MVM_OP_findmeth: case MVM_OP_findmeth_s: return &MVM_6model_find_method;
     case MVM_OP_multicacheadd: return &MVM_multi_cache_add;
-    case MVM_OP_multicachefind return &MVM_multi_cache_find;
+    case MVM_OP_multicachefind: return &MVM_multi_cache_find;
     case MVM_OP_can: case MVM_OP_can_s: return &MVM_6model_can_method;
     case MVM_OP_push_i: return &MVM_repr_push_i;
     case MVM_OP_push_n: return &MVM_repr_push_n;
@@ -1228,7 +1228,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMint16 cache = ins->operands[1].reg.orig;
         MVMint16 capture = ins->operands[2].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
-                                 { MVM_JIT_REG_VAL, obj },
                                  { MVM_JIT_REG_VAL, cache },
                                  { MVM_JIT_REG_VAL, capture } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_PTR, dst);
@@ -1240,7 +1239,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMint16 capture = ins->operands[2].reg.orig;
         MVMint16 result = ins->operands[3].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
-                                 { MVM_JIT_REG_VAL, obj },
                                  { MVM_JIT_REG_VAL, cache },
                                  { MVM_JIT_REG_VAL, capture },
                                  { MVM_JIT_REG_VAL, result } };
