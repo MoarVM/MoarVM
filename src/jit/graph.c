@@ -290,6 +290,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_bool_I: return &MVM_bigint_bool;
     case MVM_OP_div_In: return &MVM_bigint_div_num;
     case MVM_OP_coerce_Is: case MVM_OP_base_I: return &MVM_bigint_to_str;
+    case MVM_OP_radix_I: return &MVM_bigint_radix;
     case MVM_OP_sqrt_n: return &sqrt;
     case MVM_OP_sin_n: return &sin;
     case MVM_OP_cos_n: return &cos;
@@ -1555,6 +1556,23 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, src },
                                  { MVM_JIT_LITERAL, 10 } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args,
+                          MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_radix_I: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 radix = ins->operands[1].reg.orig;
+        MVMint16 string = ins->operands[2].reg.orig;
+        MVMint16 offset = ins->operands[3].reg.orig;
+        MVMint16 flag = ins->operands[4].reg.orig;
+        MVMint16 type = ins->operands[5].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, radix },
+                                 { MVM_JIT_REG_VAL, string },
+                                 { MVM_JIT_REG_VAL, offset },
+                                 { MVM_JIT_REG_VAL, flag },
+                                 { MVM_JIT_REG_VAL, type } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 6, args,
                           MVM_JIT_RV_PTR, dst);
         break;
     }
