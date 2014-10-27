@@ -321,7 +321,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     }
     case MVM_OP_getlex: {
-        MVMint16 *lexical_types;
+        MVMuint16 *lexical_types;
         MVMStaticFrame * sf = jg->sg->sf;
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 idx = ins->operands[1].lex.idx;
@@ -608,7 +608,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_mul_i:
     case MVM_OP_bor_i:
     case MVM_OP_band_i:
-    case MVM_OP_bxor_i: {
+    case MVM_OP_bxor_i:
+    case MVM_OP_blshift_i:
+    case MVM_OP_brshift_i: {
         MVMint32 reg_a = ins->operands[0].reg.orig;
         MVMint32 reg_b = ins->operands[1].reg.orig;
         MVMint32 reg_c = ins->operands[2].reg.orig;
@@ -631,6 +633,14 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             break;
         case MVM_OP_bxor_i:
             | xor rax, WORK[reg_c];
+            break;
+        case MVM_OP_blshift_i:
+            | mov cl, byte WORK[reg_c];
+            | shl rax, cl;
+            break;
+        case MVM_OP_brshift_i:
+            | mov cl, byte WORK[reg_c];
+            | shr rax, cl;
             break;
         }
         | mov WORK[reg_a], rax;
