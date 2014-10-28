@@ -31,9 +31,9 @@ static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
         if (!uv_is_closing((uv_handle_t*)data->process))
             uv_process_close(tc->loop, data->process);
 #else
-        waitpid(data->process->pid, NULL, 0);
+        waitpid(data->process->pid, (int *)&status, 0);
 #endif
-    if (data->process->data) {
+    if (!status && data->process->data) {
         status = *(MVMint64*)data->process->data;
         MVM_free(data->process->data);
     }
