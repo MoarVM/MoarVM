@@ -30,6 +30,7 @@ static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
 #ifdef _WIN32
         if (!uv_is_closing((uv_handle_t*)data->process))
             uv_process_close(tc->loop, data->process);
+        GetExitCodeProcess(data->process->process_handle, &(DWORD)status);
 #else
         waitpid(data->process->pid, (int *)&status, 0);
 #endif
