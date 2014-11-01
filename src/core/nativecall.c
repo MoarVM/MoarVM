@@ -798,7 +798,17 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
     if (!source)
         return target_type;
 
-    return nativecall_cast(tc, target_spec, target_type, unmarshal_cpointer(tc, source));
+    void *data_body;
+
+    if (REPR(source)->ID == MVM_REPR_ID_MVMCStruct) {
+        data_body = unmarshal_cstruct(tc, source);
+    } else if (REPR(source)->ID == MVM_REPR_ID_MVMCPointer) {
+        data_body = unmarshal_cpointer(tc, source);
+    } else {
+        MVM_exception_throw_adhoc(tc,
+            "Native call cast expected object with CPointer or CStruct representation, but got something else");
+    }
+    return nativecall_cast(tc, target_spec, target_type, data_body);
 }
 MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObject *target_type, void *cpointer_body) {
     MVMObject *result = NULL;
