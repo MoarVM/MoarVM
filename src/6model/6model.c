@@ -151,7 +151,11 @@ MVMint32 MVM_6model_find_method_spesh(MVMThreadContext *tc, MVMObject *obj, MVMS
 
 
 /* Locates a method by name. Returns 1 if it exists; otherwise 0. */
-void late_bound_can_return(MVMThreadContext *tc, void *sr_data);
+static void late_bound_can_return(MVMThreadContext *tc, void *sr_data) {
+    /* Transform to an integer result. */
+    MVMRegister *reg = (MVMRegister *)sr_data;
+    reg->i64 = !MVM_is_null(tc, reg->o) && IS_CONCRETE(reg->o) ? 1 : 0;
+}
 
 MVMint64 MVM_6model_can_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
     MVMObject *cache, *HOW, *find_method, *code;
@@ -207,11 +211,6 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
     tc->cur_frame->args[2].s = name;
     STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_FIND_METHOD), tc->cur_frame->args);
 }
-void late_bound_can_return(MVMThreadContext *tc, void *sr_data) {
-    /* Transform to an integer result. */
-    MVMRegister *reg = (MVMRegister *)sr_data;
-    reg->i64 = !MVM_is_null(tc, reg->o) && IS_CONCRETE(reg->o) ? 1 : 0;
-}
 
 /* Checks if an object has a given type, delegating to the type_check or
  * accepts_type methods as needed. */
@@ -239,7 +238,8 @@ typedef struct {
     MVMObject   *type;
     MVMRegister *res;
 } AcceptsTypeSRData;
-void accepts_type_sr(MVMThreadContext *tc, void *sr_data) {
+
+static void accepts_type_sr(MVMThreadContext *tc, void *sr_data) {
     AcceptsTypeSRData *atd = (AcceptsTypeSRData *)sr_data;
     MVMObject   *obj  = atd->obj;
     MVMObject   *type = atd->type;
@@ -248,11 +248,13 @@ void accepts_type_sr(MVMThreadContext *tc, void *sr_data) {
     if (!res->i64)
         do_accepts_type_check(tc, obj, type, res);
 }
+
 static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
     AcceptsTypeSRData *atd = (AcceptsTypeSRData *)frame->special_return_data;
     MVM_gc_worklist_add(tc, worklist, &atd->obj);
     MVM_gc_worklist_add(tc, worklist, &atd->type);
 }
+
 void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res) {
     MVMObject **cache;
     MVMSTable  *st;

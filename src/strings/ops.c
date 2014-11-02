@@ -39,7 +39,7 @@ static void copy_strands(MVMThreadContext *tc, MVMString *from, MVMuint16 from_o
 }
 
 /* Collapses a bunch of strands into a single blob string. */
-MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
+static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     MVMString       *result;
     MVMStringIndex   i;
     MVMuint32        ographs;
@@ -78,7 +78,7 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
         break;
     case MVM_STRING_GRAPHEME_ASCII:
     case MVM_STRING_GRAPHEME_8:
-        if (b->body.storage_type == MVM_STRING_GRAPHEME_ASCII || 
+        if (b->body.storage_type == MVM_STRING_GRAPHEME_ASCII ||
                 b->body.storage_type == MVM_STRING_GRAPHEME_8)
             return 0 == memcmp(
                 a->body.storage.blob_8 + starta,

@@ -921,7 +921,7 @@ static void spawn_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
 }
 
 /* Marks objects for a spawn task. */
-void spawn_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
+static void spawn_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
     SpawnInfo *si = (SpawnInfo *)data;
     MVM_gc_worklist_add(tc, worklist, &si->handle);
     MVM_gc_worklist_add(tc, worklist, &si->callbacks);

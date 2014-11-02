@@ -9,14 +9,14 @@ static MVMOSHandle * verify_is_handle(MVMThreadContext *tc, MVMObject *oshandle,
     return (MVMOSHandle *)oshandle;
 }
 
-uv_mutex_t * acquire_mutex(MVMThreadContext *tc, MVMOSHandle *handle) {
+static uv_mutex_t * acquire_mutex(MVMThreadContext *tc, MVMOSHandle *handle) {
     uv_mutex_t *mutex = handle->body.mutex;
     uv_mutex_lock(mutex);
     MVM_tc_set_ex_release_mutex(tc, mutex);
     return mutex;
 }
 
-void release_mutex(MVMThreadContext *tc, uv_mutex_t *mutex) {
+static void release_mutex(MVMThreadContext *tc, uv_mutex_t *mutex) {
     uv_mutex_unlock(mutex);
     MVM_tc_clear_ex_release_mutex(tc);
 }

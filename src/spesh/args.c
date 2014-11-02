@@ -7,7 +7,7 @@
 #define MAX_NAMED_ARGS 8
 
 /* Adds guards and facts for an object arg. */
-void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
+static void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
                           MVMObject *arg, MVMSpeshIns *arg_ins) {
     /* Grab type and concreteness. */
     MVMObject *type     = STABLE(arg)->WHAT;
@@ -272,21 +272,21 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             case MVM_OP_param_rp_i:
             case MVM_OP_param_op_i:
                 if (arg_flag != MVM_CALLSITE_ARG_INT)
-                    if (arg_flag != MVM_CALLSITE_ARG_OBJ || 
+                    if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
                             prim_spec(tc, args[i].o) != MVM_STORAGE_SPEC_BP_INT)
                         goto cleanup;
                 break;
             case MVM_OP_param_rp_n:
             case MVM_OP_param_op_n:
                 if (arg_flag != MVM_CALLSITE_ARG_NUM)
-                    if (arg_flag != MVM_CALLSITE_ARG_OBJ || 
+                    if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
                             prim_spec(tc, args[i].o) != MVM_STORAGE_SPEC_BP_NUM)
                         goto cleanup;
                 break;
             case MVM_OP_param_rp_s:
             case MVM_OP_param_op_s:
                 if (arg_flag != MVM_CALLSITE_ARG_STR)
-                    if (arg_flag != MVM_CALLSITE_ARG_OBJ || 
+                    if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
                             prim_spec(tc, args[i].o) != MVM_STORAGE_SPEC_BP_STR)
                         goto cleanup;
                 break;

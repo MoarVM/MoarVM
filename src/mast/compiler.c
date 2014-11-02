@@ -179,18 +179,18 @@ static void write_int32(char *buffer, size_t offset, unsigned int value);
 static void write_int16(char *buffer, size_t offset, unsigned short value);
 static void write_int8(char *buffer, size_t offset, unsigned char value);
 static void write_double(char *buffer, size_t offset, double value);
-void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsigned int need);
-void cleanup_frame(VM, FrameState *fs);
-void cleanup_all(VM, WriterState *ws);
-unsigned int get_string_heap_index(VM, WriterState *ws, VMSTR *strval);
-unsigned short get_frame_index(VM, WriterState *ws, MASTNode *frame);
-unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type);
-void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *operand);
-unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags, MASTNode *args);
-void compile_instruction(VM, WriterState *ws, MASTNode *node);
-void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx);
-char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size);
-char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size);
+static void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsigned int need);
+static void cleanup_frame(VM, FrameState *fs);
+static void cleanup_all(VM, WriterState *ws);
+static unsigned int get_string_heap_index(VM, WriterState *ws, VMSTR *strval);
+static unsigned short get_frame_index(VM, WriterState *ws, MASTNode *frame);
+static unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type);
+static void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *operand);
+static unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flags, MASTNode *args);
+static void compile_instruction(VM, WriterState *ws, MASTNode *node);
+static void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx);
+static char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size);
+static char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size);
 char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *size);
 
 static unsigned int umax(unsigned int a, unsigned int b) {
@@ -235,7 +235,7 @@ static void write_double(char *buffer, size_t offset, double value) {
 }
 
 /* Ensures the specified buffer has enough space and expands it if so. */
-void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsigned int need) {
+static void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsigned int need) {
     if (pos + need > *alloc) {
         do { *alloc = *alloc * 2; } while (pos + need > *alloc);
         *buffer = (char *)MVM_realloc(*buffer, *alloc);
@@ -243,7 +243,7 @@ void ensure_space(VM, char **buffer, unsigned int *alloc, unsigned int pos, unsi
 }
 
 /* Cleans up all allocated memory related to a frame. */
-void cleanup_frame(VM, FrameState *fs) {
+static void cleanup_frame(VM, FrameState *fs) {
     if (fs->local_types)
         MVM_free(fs->local_types);
     if (fs->lexical_types)
@@ -261,7 +261,7 @@ void cleanup_frame(VM, FrameState *fs) {
 }
 
 /* Cleans up all allocated memory related to this compilation. */
-void cleanup_all(VM, WriterState *ws) {
+static void cleanup_all(VM, WriterState *ws) {
     if (ws->cur_frame)
         cleanup_frame(vm, ws->cur_frame);
     if (ws->scdep_seg)
@@ -282,7 +282,7 @@ void cleanup_all(VM, WriterState *ws) {
 
 /* Gets the index of a string already in the string heap, or
  * adds it to the heap if it's not already there. */
-unsigned int get_string_heap_index(VM, WriterState *ws, VMSTR *strval) {
+static unsigned int get_string_heap_index(VM, WriterState *ws, VMSTR *strval) {
     if (EXISTSKEY(vm, ws->seen_strings, strval)) {
         return (unsigned int)ATKEY_I(vm, ws->seen_strings, strval);
     }
@@ -296,7 +296,7 @@ unsigned int get_string_heap_index(VM, WriterState *ws, VMSTR *strval) {
 }
 
 /* Locates the index of a frame. */
-unsigned short get_frame_index(VM, WriterState *ws, MASTNode *frame) {
+static unsigned short get_frame_index(VM, WriterState *ws, MASTNode *frame) {
     if (((MAST_Frame *)frame)->flags & FRAME_FLAG_HAS_INDEX) {
         return (short)((MAST_Frame *)frame)->index;
     }
@@ -312,7 +312,7 @@ unsigned short get_frame_index(VM, WriterState *ws, MASTNode *frame) {
 }
 
 /* Takes a 6model object type and turns it into a local/lexical type flag. */
-unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
+static unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
     const MVMStorageSpec *ss;
     if (VM_OBJ_IS_NULL(type))
         return MVM_reg_obj;
@@ -478,7 +478,7 @@ static MVMuint32 demand_label_offset(VM, WriterState *ws, MAST_Label *l,
 /* Compiles the operand to an instruction; this involves checking
  * that we have a node of the correct type for it and writing out
  * the appropriate thing to the bytecode stream. */
-void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *operand) {
+static void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *operand) {
     unsigned char op_rw   = op_flags & MVM_operand_rw_mask;
     unsigned char op_type = op_flags & MVM_operand_type_mask;
     unsigned short int local_type;
@@ -640,7 +640,7 @@ void compile_operand(VM, WriterState *ws, unsigned char op_flags, MASTNode *oper
 
 /* Takes a set of flags describing a callsite. Writes out a callsite
  * descriptor and returns the index of it. */
-unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flag_node, MASTNode *args) {
+static unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flag_node, MASTNode *args) {
     unsigned int        num_nameds = 0;
     unsigned short      i, identifier_len;
     unsigned char      *flags, *identifier;
@@ -718,7 +718,7 @@ unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flag_node, MASTNod
 /* Compiles an instruction (which may actaully be any of the
  * nodes valid directly in a Frame's instruction list, which
  * means labels are valid too). */
-void compile_instruction(VM, WriterState *ws, MASTNode *node) {
+static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
     if (ISTYPE(vm, node, ws->types->Op)) {
         MAST_Op   *o = GET_Op(node);
         const MVMOpInfo *info;
@@ -1070,7 +1070,7 @@ void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 }
 
 /* Compiles a frame. */
-void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
+static void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
     MAST_Frame  *f;
     FrameState  *fs;
     unsigned int i, num_ins, instructions_start;
@@ -1288,7 +1288,7 @@ void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short idx) {
 
 /* Takes all of the strings and joins them into a heap, encoding them as
  * UTF-8. */
-char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
+static char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
     char         *heap;
     unsigned int  i, num_strings, heap_size, heap_alloc;
 
@@ -1340,7 +1340,7 @@ char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_size) {
 }
 
 /* Takes all the pieces and forms the bytecode output. */
-char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
+static char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     unsigned int size    = 0;
     unsigned int pos     = 0;
     char         *output = NULL;

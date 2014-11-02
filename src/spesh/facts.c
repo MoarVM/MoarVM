@@ -198,7 +198,7 @@ static void discover_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *
 }
 /* Allocates space for keeping track of guards inserted from logging, and
  * their usage. */
-void allocate_log_guard_table(MVMThreadContext *tc, MVMSpeshGraph *g) {
+static void allocate_log_guard_table(MVMThreadContext *tc, MVMSpeshGraph *g) {
     g->log_guards = MVM_spesh_alloc(tc, g, g->num_log_slots * sizeof(MVMSpeshLogGuard));
 }
 
@@ -498,7 +498,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 /* Exception handlers that use a block to store the handler must not have the
  * instructions that install the block eliminated. This tweaks the usage of
  * them. */
-void tweak_block_handler_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
+static void tweak_block_handler_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMint32 i;
     for (i = 0; i < g->sf->body.num_handlers; i++) {
         if (g->sf->body.handlers[i].action == MVM_EX_ACTION_INVOKE)

@@ -69,7 +69,7 @@ static void add_to_finalizing(MVMThreadContext *tc, MVMObject *obj) {
     tc->finalizing[tc->num_finalizing] = obj;
     tc->num_finalizing++;
 }
-void walk_thread_finalize_queue(MVMThreadContext *tc, MVMuint8 gen) {
+static void walk_thread_finalize_queue(MVMThreadContext *tc, MVMuint8 gen) {
     MVMuint32 collapse_pos = 0;
     MVMuint32 i;
     for (i = 0; i < tc->num_finalize; i++) {

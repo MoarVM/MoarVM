@@ -1281,7 +1281,7 @@ static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
 /* Goes through the various log-based guard instructions and removes any that
  * are not being made use of. */
-void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) {
+static void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMint32 i;
     for (i = 0; i < g->num_log_guards; i++)
         if (!g->log_guards[i].used)

@@ -8,7 +8,7 @@ typedef struct {
     int               work_idx;
 } WatchInfo;
 
-void on_changed(uv_fs_event_t *handle, const char *filename, int events, int status) {
+static void on_changed(uv_fs_event_t *handle, const char *filename, int events, int status) {
     WatchInfo        *wi  = (WatchInfo *)handle->data;
     MVMThreadContext *tc  = wi->tc;
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
@@ -20,7 +20,7 @@ void on_changed(uv_fs_event_t *handle, const char *filename, int events, int sta
         MVMObject *filename_boxed;
         MVMObject *rename_boxed;
         if (filename) {
-            MVMString *filename_str = MVM_string_utf8_decode(tc, 
+            MVMString *filename_str = MVM_string_utf8_decode(tc,
                 tc->instance->VMString, filename, strlen(filename));
             filename_boxed = MVM_repr_box_str(tc,
                 tc->instance->boot_types.BOOTStr,

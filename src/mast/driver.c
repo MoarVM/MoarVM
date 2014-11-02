@@ -6,8 +6,9 @@
 #define grab_type(name) do { \
     MVMString *key = MVM_string_utf8_decode(tc, tc->instance->VMString, #name, strlen(#name)); \
     result->name   = MVM_repr_at_key_o(tc, types, key); \
-} while (0);
-MASTNodeTypes * node_types_struct(MVMThreadContext *tc, MVMObject *types) {
+} while (0)
+
+static MASTNodeTypes * node_types_struct(MVMThreadContext *tc, MVMObject *types) {
     MASTNodeTypes *result = MVM_malloc(sizeof(MASTNodeTypes));
     MVMROOT(tc, types, {
         grab_type(CompUnit);
@@ -74,7 +75,7 @@ void MVM_mast_to_file(MVMThreadContext *tc, MVMObject *mast, MVMObject *types, M
     MVMROOT(tc, mast, {
         FILE *fh;
         char *c_filename;
-        
+
         /* Get node types into struct. */
         MASTNodeTypes *mnt = node_types_struct(tc, types);
 
@@ -85,7 +86,7 @@ void MVM_mast_to_file(MVMThreadContext *tc, MVMObject *mast, MVMObject *types, M
         bytecode = MVM_mast_compile(tc, mast, mnt, &size);
         MVM_free(mnt);
         MVM_gc_allocate_gen2_default_clear(tc);
-        
+
         /* Write it out to a file. (Not using VM-level IO for this right now;
          * may want to do that, but really we just want to shove the bytes out
          * to disk, without having to go via string subsystem, etc. */

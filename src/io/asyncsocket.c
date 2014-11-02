@@ -136,7 +136,7 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
 }
 
 /* Marks objects for a read task. */
-void read_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
+static void read_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
     ReadInfo *ri = (ReadInfo *)data;
     MVM_gc_worklist_add(tc, worklist, &ri->buf_type);
     MVM_gc_worklist_add(tc, worklist, &ri->handle);

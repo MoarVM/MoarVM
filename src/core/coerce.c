@@ -27,8 +27,8 @@ MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
  * alternatively the true/false addresses to set the PC to should be set.
  * In the register case, expects that the current PC is already at the
  * next instruction before this is called. */
-void boolify_return(MVMThreadContext *tc, void *sr_data);
-void flip_return(MVMThreadContext *tc, void *sr_data);
+static void boolify_return(MVMThreadContext *tc, void *sr_data);
+static void flip_return(MVMThreadContext *tc, void *sr_data);
 void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg,
         MVMuint8 *true_addr, MVMuint8 *false_addr, MVMuint8 flip) {
     MVMint64 result;
@@ -119,7 +119,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
 }
 
 /* Callback after running boolification method. */
-void boolify_return(MVMThreadContext *tc, void *sr_data) {
+static void boolify_return(MVMThreadContext *tc, void *sr_data) {
     BoolMethReturnData *data = (BoolMethReturnData *)sr_data;
     MVMint64 result = data->res_reg.i64;
     if (data->flip)
@@ -132,7 +132,7 @@ void boolify_return(MVMThreadContext *tc, void *sr_data) {
 }
 
 /* Callback to flip result. */
-void flip_return(MVMThreadContext *tc, void *sr_data) {
+static void flip_return(MVMThreadContext *tc, void *sr_data) {
     MVMRegister *r = (MVMRegister *)sr_data;
     r->i64 = r->i64 ? 0 : 1;
 }
@@ -394,7 +394,7 @@ void MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type,
             REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
         REPR(box)->box_funcs.set_int(tc, STABLE(box), box,
                                      OBJECT_BODY(box), value);
-    }     
+    }
     dst->o = box;
 }
 

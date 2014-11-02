@@ -161,7 +161,7 @@ MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStr
 /* Gets characters up until the specified string is encountered. If we do
  * not encounter it, returns NULL. This may mean more input buffers are needed
  * or that we reached the end of the stream. */
-MVMint32 find_separator(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 sep) {
+static MVMint32 find_separator(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 sep) {
     MVMint32 sep_loc = 0;
     MVMDecodeStreamChars *cur_chars = ds->chars_head;
     while (cur_chars) {
@@ -206,7 +206,7 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
         result->body.storage.blob_32 = NULL;
         result->body.num_graphs      = 0;
     }
-    
+
     /* If there's exactly one resulting codepoint buffer and we swallowed none
      * of it, just use it. */
     else if (ds->chars_head == ds->chars_tail && ds->chars_head_pos == 0) {

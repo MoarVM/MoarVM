@@ -28,7 +28,7 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
                 name = "<reserved>";
         }
     }
- 
+
     return MVM_string_ascii_decode(tc, tc->instance->VMString, name, strlen(name));
 }
 
@@ -75,7 +75,7 @@ MVMGrapheme32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMGrapheme32 co
 /* XXX make all the statics members of the global MVM instance instead? */
 static MVMUnicodeNameRegistry *property_codes_by_names_aliases;
 
-void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
+static void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_property_keypairs;
 
     while (num_names--) {

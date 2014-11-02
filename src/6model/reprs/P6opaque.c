@@ -8,8 +8,8 @@ static const MVMREPROps this_repr;
 
 /* If an object gets mixed in to, we need to be sure we look at its real body,
  * which may have been moved to hang off the specified pointer.
- * 
- * NB: This has been hardcoded into the jit compilation. Thus, consider it 
+ *
+ * NB: This has been hardcoded into the jit compilation. Thus, consider it
  * set into stone :-). That is the price you pay for disintermediation. */
 MVM_PUBLIC void * MVM_p6opaque_real_data(MVMThreadContext *tc, void *data) {
     MVMP6opaqueBody *body = (MVMP6opaqueBody *)data;
@@ -1110,7 +1110,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
 }
 
 /* Performs a change of type, where possible. */
-void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_type) {
+static void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_type) {
     MVMP6opaqueREPRData *cur_repr_data = (MVMP6opaqueREPRData *)STABLE(obj)->REPR_data;
     MVMP6opaqueREPRData *new_repr_data = (MVMP6opaqueREPRData *)STABLE(new_type)->REPR_data;
     MVMP6opaqueNameMap *cur_map_entry, *new_map_entry;

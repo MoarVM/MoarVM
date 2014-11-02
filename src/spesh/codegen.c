@@ -2,7 +2,7 @@
 
 /* Here we turn a spesh tree back into MoarVM bytecode, after optimizations
  * have been applied to it. */
- 
+
 /* Writer state. */
 typedef struct {
     /* Bytecode output buffer. */
@@ -62,7 +62,7 @@ static void write_num64(SpeshWriterState *ws, MVMnum64 value) {
 }
 
 /* Writes instructions within a basic block boundary. */
-void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState *ws, MVMSpeshBB *bb) {
+static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWriterState *ws, MVMSpeshBB *bb) {
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
         MVMint32 i;

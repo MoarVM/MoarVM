@@ -16,7 +16,7 @@ static void grow_frame_pool(MVMThreadContext *tc, MVMuint32 pool_index) {
 /* Takes a static frame and does various one-off calculations about what
  * space it shall need. Also triggers bytecode verification of the frame's
  * bytecode. */
-void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
+static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     MVMStaticFrameBody *static_frame_body = &static_frame->body;
 
     /* Ensure the frame is fully deserialized. */
@@ -153,7 +153,7 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
             for (i = 0; i < static_frame->body.num_lexicals; i++) {
                 if (!static_frame->body.static_env[i].o && static_frame->body.static_env_flags[i] == 1) {
                     MVMint32 scid, objid;
-                    if (MVM_bytecode_find_static_lexical_scref(tc, static_frame->body.cu, 
+                    if (MVM_bytecode_find_static_lexical_scref(tc, static_frame->body.cu,
                             static_frame, i, &scid, &objid)) {
                         MVMSerializationContext *sc = MVM_sc_get_sc(tc, static_frame->body.cu, scid);
                         if (sc == NULL)
@@ -184,7 +184,7 @@ MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *s
 /* Provides auto-close functionality, for the handful of cases where we have
  * not ever been in the outer frame of something we're invoking. In this case,
  * we fake up a frame based on the static lexical environment. */
-MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
+static MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
     MVMFrame *result;
 
     /* First, see if we can find one on the call stack; return it if so. */
@@ -517,7 +517,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
-    
+
     /* Make sure there's no frame context pointer and special return data. */
     frame->context_object = NULL;
     frame->special_return_data = NULL;
@@ -570,7 +570,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                             memset(state, 0, frame->static_info->body.env_size);
                             ((MVMCode *)frame->code_ref)->body.state_vars = state;
                             state_act = 1;
-    
+
                             /* Note that this frame should run state init code. */
                             frame->flags |= MVM_FRAME_FLAG_STATE_INIT;
                         }
@@ -960,7 +960,7 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
     if (flag != -1 && static_env[effective_idx].o == NULL) {
         MVMStaticFrameBody *static_frame_body = &(f->static_info->body);
         MVMint32 scid, objid;
-        if (MVM_bytecode_find_static_lexical_scref(tc, effective_sf->body.cu, 
+        if (MVM_bytecode_find_static_lexical_scref(tc, effective_sf->body.cu,
                 effective_sf, effective_idx, &scid, &objid)) {
             MVMSerializationContext *sc = MVM_sc_get_sc(tc, effective_sf->body.cu, scid);
             if (sc == NULL)
@@ -1103,7 +1103,7 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
     MVMint32 next = 0;
     MVMint32 frames = 0;
     MVMuint32 desperation = 0;
-    
+
     if (fcost+icost > 20)
         desperation = 1;
 
@@ -1149,7 +1149,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
          * use getdynlex for their own lexicals since the compiler already
          * knows where to find them */
         if (cand && cand->num_inlines) {
-            if (cand->jitcode) { 
+            if (cand->jitcode) {
                 void      **labels = cand->jitcode->labels;
                 void *return_label = cur_frame->jit_entry_label;
                 MVMJitInline *inls = cand->jitcode->inlines;

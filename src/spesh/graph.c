@@ -795,7 +795,7 @@ typedef struct {
 
 /* Creates an SSAVarInfo for each local, initializing it with a list of nodes
  * that assign to the local. */
-SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
+static SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
     SSAVarInfo *var_info = MVM_calloc(sizeof(SSAVarInfo), g->num_locals);
     MVMint32 i;
 

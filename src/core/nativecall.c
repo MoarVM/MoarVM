@@ -117,15 +117,15 @@ static char get_signature_char(MVMint16 type_id) {
     }
 }
 
-MVMObject * make_int_result(MVMThreadContext *tc, MVMObject *type, MVMint64 value) {
+static MVMObject * make_int_result(MVMThreadContext *tc, MVMObject *type, MVMint64 value) {
     return type ? MVM_repr_box_int(tc, type, value) : NULL;
 }
 
-MVMObject * make_num_result(MVMThreadContext *tc, MVMObject *type, MVMnum64 value) {
+static MVMObject * make_num_result(MVMThreadContext *tc, MVMObject *type, MVMnum64 value) {
     return type ? MVM_repr_box_num(tc, type, value) : NULL;
 }
 
-MVMObject * make_str_result(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_type, char *cstring) {
+static MVMObject * make_str_result(MVMThreadContext *tc, MVMObject *type, MVMint16 ret_type, char *cstring) {
     MVMObject *result = type;
     if (cstring && type) {
         MVMString *value;
@@ -760,57 +760,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     return result;
 }
 
-MVMObject * MVM_nativecall_global(MVMThreadContext *tc, MVMString *lib, MVMString *sym, MVMObject *target_spec, MVMObject *target_type) {
-    char *lib_name = MVM_string_utf8_encode_C_string(tc, lib);
-    char *sym_name = MVM_string_utf8_encode_C_string(tc, sym);
-    DLLib *lib_handle;
-    void *entry_point;
-    MVMObject *ret = NULL;
-
-    /* Try to load the library. */
-    lib_handle = dlLoadLibrary(strlen(lib_name) ? lib_name : NULL);
-    if (!lib_handle) {
-        MVM_free(sym_name);
-        MVM_exception_throw_adhoc(tc, "Cannot locate native library '%s'", lib_name);
-    }
-
-    /* Try to locate the symbol. */
-    entry_point = dlFindSymbol(lib_handle, sym_name);
-    if (!entry_point)
-        MVM_exception_throw_adhoc(tc, "Cannot locate symbol '%s' in native library '%s'",
-            sym_name, lib_name);
-    MVM_free(sym_name);
-    MVM_free(lib_name);
-
-    if (REPR(target_type)->ID == MVM_REPR_ID_MVMCStr
-    ||  REPR(target_type)->ID == MVM_REPR_ID_P6str
-    || (REPR(target_type)->ID == MVM_REPR_ID_P6opaque
-        && REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec))->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)) {
-        entry_point = *(void **)entry_point;
-    }
-
-    ret = nativecall_cast(tc, target_spec, target_type, entry_point);
-    dlFreeLibrary(lib_handle);
-    return ret;
-}
-
-MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObject *target_type, MVMObject *source) {
-    if (!source)
-        return target_type;
-
-    void *data_body;
-
-    if (REPR(source)->ID == MVM_REPR_ID_MVMCStruct) {
-        data_body = unmarshal_cstruct(tc, source);
-    } else if (REPR(source)->ID == MVM_REPR_ID_MVMCPointer) {
-        data_body = unmarshal_cpointer(tc, source);
-    } else {
-        MVM_exception_throw_adhoc(tc,
-            "Native call cast expected object with CPointer or CStruct representation, but got something else");
-    }
-    return nativecall_cast(tc, target_spec, target_type, data_body);
-}
-MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObject *target_type, void *cpointer_body) {
+static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObject *target_type, void *cpointer_body) {
     MVMObject *result = NULL;
 
     MVMROOT(tc, target_spec, {
@@ -915,6 +865,57 @@ MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObj
     });
 
     return result;
+}
+
+MVMObject * MVM_nativecall_global(MVMThreadContext *tc, MVMString *lib, MVMString *sym, MVMObject *target_spec, MVMObject *target_type) {
+    char *lib_name = MVM_string_utf8_encode_C_string(tc, lib);
+    char *sym_name = MVM_string_utf8_encode_C_string(tc, sym);
+    DLLib *lib_handle;
+    void *entry_point;
+    MVMObject *ret = NULL;
+
+    /* Try to load the library. */
+    lib_handle = dlLoadLibrary(strlen(lib_name) ? lib_name : NULL);
+    if (!lib_handle) {
+        MVM_free(sym_name);
+        MVM_exception_throw_adhoc(tc, "Cannot locate native library '%s'", lib_name);
+    }
+
+    /* Try to locate the symbol. */
+    entry_point = dlFindSymbol(lib_handle, sym_name);
+    if (!entry_point)
+        MVM_exception_throw_adhoc(tc, "Cannot locate symbol '%s' in native library '%s'",
+            sym_name, lib_name);
+    MVM_free(sym_name);
+    MVM_free(lib_name);
+
+    if (REPR(target_type)->ID == MVM_REPR_ID_MVMCStr
+    ||  REPR(target_type)->ID == MVM_REPR_ID_P6str
+    || (REPR(target_type)->ID == MVM_REPR_ID_P6opaque
+        && REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec))->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)) {
+        entry_point = *(void **)entry_point;
+    }
+
+    ret = nativecall_cast(tc, target_spec, target_type, entry_point);
+    dlFreeLibrary(lib_handle);
+    return ret;
+}
+
+MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObject *target_type, MVMObject *source) {
+    void *data_body;
+
+    if (!source)
+        return target_type;
+
+    if (REPR(source)->ID == MVM_REPR_ID_MVMCStruct) {
+        data_body = unmarshal_cstruct(tc, source);
+    } else if (REPR(source)->ID == MVM_REPR_ID_MVMCPointer) {
+        data_body = unmarshal_cpointer(tc, source);
+    } else {
+        MVM_exception_throw_adhoc(tc,
+            "Native call cast expected object with CPointer or CStruct representation, but got something else");
+    }
+    return nativecall_cast(tc, target_spec, target_type, data_body);
 }
 
 /* Write-barriers a dyncall object so that delayed changes to the C-side of
