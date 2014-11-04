@@ -49,6 +49,7 @@ struct MVMSpeshFacts {
 #define MVM_SPESH_FACT_HASH_ITER            512 /* Is an iter over hashes. */
 #define MVM_SPESH_FACT_ARRAY_ITER           1024 /* Is an iter over arrays
                                                     (mutually exclusive with HASH_ITER, but neither of them is necessarily set) */
+#define MVM_SPESH_FACT_KNOWN_BOX_SRC        2048 /* We know what register this value was boxed from */
 
 /* Discovers spesh facts and builds up information about them. */
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g);

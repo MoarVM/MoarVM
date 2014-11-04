@@ -359,11 +359,14 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             break;
         case MVM_OP_box_s:
         case MVM_OP_box_i:
-        case MVM_OP_box_n:
-            create_facts(tc, g,
-                ins->operands[0].reg.orig, ins->operands[0].reg.i,
-                ins->operands[2].reg.orig, ins->operands[2].reg.i);
-            break;
+        case MVM_OP_box_n: {
+                MVMSpeshFacts *target_facts = &(g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i]);
+                create_facts(tc, g,
+                    ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                    ins->operands[2].reg.orig, ins->operands[2].reg.i);
+                target_facts->flags |= MVM_SPESH_FACT_KNOWN_BOX_SRC;
+                break;
+            }
         case MVM_OP_add_I:
         case MVM_OP_sub_I:
         case MVM_OP_mul_I:

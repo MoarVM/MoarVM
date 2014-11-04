@@ -118,7 +118,7 @@ multi sub MAIN($filename?, :$matcher?) {
 
     my Spesh $current;
 
-    for lines() {
+    for lines(:eager) {
         my $line = $_;
         $linecount++;
         when /^'  ' / {

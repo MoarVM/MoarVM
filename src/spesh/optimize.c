@@ -191,6 +191,28 @@ static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
     }
 }
 
+static void optimize_unbox_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *source_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMSpeshFacts *original_source_facts = source_facts;
+
+    if (source_facts->flags & MVM_SPESH_FACT_KNOWN_BOX_SRC) {
+        MVMSpeshFacts *box_src_facts;
+        while (source_facts->writer && source_facts->writer->info->opcode == MVM_OP_set) {
+            source_facts = MVM_spesh_get_facts(tc, g, source_facts->writer->operands[1]);
+        }
+
+        if (!source_facts->writer) {
+            return;
+        }
+
+        box_src_facts = MVM_spesh_get_facts(tc, g, source_facts->writer->operands[1]);
+        ins->info = MVM_op_get_op(MVM_OP_set);
+        ins->operands[1] = source_facts->writer->operands[1];
+        original_source_facts->usages--;
+        box_src_facts->usages++;
+    }
+}
+
 /* iffy ops that operate on a known value register can turn into goto
  * or be dropped. */
 static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
@@ -332,11 +354,11 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
 
             MVM_spesh_get_facts(tc, g, temp)->usages++;
 
-            /*optimize_repr_op(tc, g, bb, new_ins, 1);*/
-
             MVM_spesh_use_facts(tc, g, flag_facts);
 
             MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+            
+            optimize_unbox_op(tc, g, bb, new_ins);
         } else {
             return;
         }
@@ -1043,6 +1065,7 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
     MVM_free(handlers_found);
 }
 
+
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMSpeshCallInfo arg_info;
@@ -1172,9 +1195,14 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_unbox_i:
         case MVM_OP_unbox_n:
-        case MVM_OP_unbox_s:
-            optimize_repr_op(tc, g, bb, ins, 1);
-            break;
+        case MVM_OP_unbox_s: {
+                MVMint64 before = ins->info->opcode;
+                optimize_unbox_op(tc, g, bb, ins);
+                if (ins->info->opcode == before) {
+                    optimize_repr_op(tc, g, bb, ins, 1);
+                }
+                break;
+            }
         case MVM_OP_elems:
             optimize_repr_op(tc, g, bb, ins, 1);
             break;
