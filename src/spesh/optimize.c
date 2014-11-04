@@ -1029,6 +1029,42 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
     MVM_free(handlers_found);
 }
 
+static void constant_fold_int_arith(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *res_fact = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+    MVMint64 arity;
+
+    switch (ins->info->opcode) {
+        case MVM_OP_not_i:
+            arity = 1;
+            break;
+        default:
+            arity = -1;
+    }
+
+    if (arity == 1) {
+        MVMSpeshFacts *arg_fact = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+        if (arg_fact->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+            if (ins->info->opcode == MVM_OP_not_i) {
+                res_fact->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                res_fact->value.i64 = !arg_fact->value.i64;
+            } else {
+                return;
+            }
+
+            {
+                MVMSpeshOperand *new_ops = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+                new_ops[0] = ins->operands[0];
+                new_ops[1].lit_i16 = res_fact->value.i64;
+                ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
+                ins->operands = new_ops;
+            }
+
+            arg_fact->usages--;
+            MVM_spesh_use_facts(tc, g, arg_fact);
+        }
+    }
+}
+
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMSpeshCallInfo arg_info;
@@ -1175,6 +1211,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_getlexperinvtype_o:
             if (specialized_on_invocant(tc, g))
                 optimize_getlex_known(tc, g, bb, ins);
+            break;
+        case MVM_OP_not_i:
+            constant_fold_int_arith(tc, g, bb, ins);
             break;
         case MVM_OP_sp_log:
         case MVM_OP_sp_osrfinalize:
