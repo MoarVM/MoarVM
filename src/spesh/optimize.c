@@ -616,16 +616,26 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     /* Let's try to figure out the boolification spec. */
     if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
         MVMBoolificationSpec *bs = STABLE(facts->type)->boolification_spec;
+        MVMSpeshOperand  orig    = ins->operands[0];
+        MVMSpeshOperand  temp;
+
+        if (negated_op)
+           temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+
         switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
             case MVM_BOOL_MODE_UNBOX_INT:
                 /* We can just unbox the int and pretend it's a bool. */
                 ins->info = MVM_op_get_op(MVM_OP_unbox_i);
+                if (negated_op)
+                    ins->operands[0] = temp;
                 /* And then we might be able to optimize this even further. */
                 optimize_repr_op(tc, g, bb, ins, 1);
                 break;
             case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
                 /* This is the same as isconcrete. */
                 ins->info = MVM_op_get_op(MVM_OP_isconcrete);
+                if (negated_op)
+                    ins->operands[0] = temp;
                 /* And now defer another bit of optimization */
                 optimize_isconcrete(tc, g, ins);
                 break;
@@ -644,13 +654,17 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
              * way to get new registers crammed in the middle of things */
             new_ins->info = MVM_op_get_op(MVM_OP_not_i);
             new_ins->operands = operands;
-            operands[0] = ins->operands[0];
-            operands[1] = ins->operands[0];
+            operands[0] = orig;
+            operands[1] = temp;
             MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
+
+            MVM_spesh_get_facts(tc, g, temp)->usages++;
 
             /* If there's a known value, update the fact. */
             if (res_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)
                 res_facts->value.i64 = !res_facts->value.i64;
+
+            MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
         }
 
         MVM_spesh_use_facts(tc, g, facts);
