@@ -2424,6 +2424,12 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
         (*tc->interp_cu)->body.serialized_size = 0;
     }
 
+    for (i = 0; i < sc->body->num_objects; i++)
+        MVM_serialization_demand_object(tc, sc, i);
+
+    for (i = 0; i < sc->body->num_stables; i++)
+        MVM_serialization_demand_stable(tc, sc, i);
+
     /* Restore normal GC allocation. */
     MVM_gc_allocate_gen2_default_clear(tc);
 }
