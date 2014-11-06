@@ -197,6 +197,20 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     }
 }
 
+static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
+    MVMuint16 i;
+    appendf(ds, "Callsite %p (%d args, %d pos)\n", g->cs, g->cs->arg_count, g->cs->num_pos);
+    for (i = 0; i < (g->cs->arg_count - g->cs->num_pos) / 2; i++) {
+        MVMuint8 *argname_utf8;
+        if (g->cs->arg_names[i]) {
+            argname_utf8 = MVM_string_utf8_encode(tc, g->cs->arg_names[i], NULL);
+            appendf(ds, "  - %s\n", argname_utf8);
+            MVM_free(argname_utf8);
+        }
+    }
+    append(ds, "\n");
+}
+
 static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &g->sf->body, 0);
     MVMCompUnit            *cu = g->sf->body.cu;
@@ -231,7 +245,11 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     append_str(tc, &ds, g->sf->body.cuuid);
     append(&ds, ", file: ");
     dump_fileinfo(tc, &ds, g);
-    append(&ds, ")\n\n");
+    append(&ds, ")\n");
+    if (g->cs)
+        dump_callsite(tc, &ds, g);
+    else
+        append(&ds, "\n");
 
     /* Go over all the basic blocks and dump them. */
     cur_bb = g->entry;
