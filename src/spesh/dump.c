@@ -48,7 +48,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     MVMint64     i;
 
     /* Heading. */
-    appendf(ds, "  BB %d:\n", bb->idx);
+    appendf(ds, "  BB %d (%p):\n", bb->idx, bb);
 
     /* Instructions. */
     append(ds, "    Instructions:\n");
