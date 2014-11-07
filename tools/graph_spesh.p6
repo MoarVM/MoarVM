@@ -9,10 +9,14 @@ my %lit_str_serial;
 
 say 'digraph G {';
 say '  graph [rankdir="TB"];';
+say '  node [shape=record]';
 
 my $insnum = 0;
 my $in_subgraph = 0;
-my $last_ins;
+
+# if instruction-carrying lines appear before the first BB, we
+# shall gracefully invent a starting point.
+my $last_ins = "\"out of nowhere\"";
 
 my %bb_map;
 
@@ -151,7 +155,6 @@ for lines() :eager -> $_ is copy {
         }
         say "  subgraph ";
         say "\"cluster_{~$<addr>}\" \{";
-        say "    node [shape=record];";
         say "    rankdir = TB;";
         #say "    label = \"$<bbnum>\";";
         say "    \"entry_$<addr>\" [label=\"<op> entry of block $<bbnum>\"];";
