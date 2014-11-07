@@ -19,6 +19,8 @@ my %bb_map;
 my @connections;
 my %bb_connections;
 
+my %reg_writers;
+
 for lines() :eager -> $_ is copy {
     when / ^ '      ' <!before '['> $<opname>=[<[a..z 0..9 _]>+] \s+
             [ $<argument>=[
@@ -32,12 +34,15 @@ for lines() :eager -> $_ is copy {
               | '<nyi>'
               | '<nyi(lit)>'
             ] ]* % ', ' \s* $ / {
-        say "    \"{$<opname>}_{$insnum}\" ";
+        say "";
+        print "    \"{$<opname>}_{$insnum}\" ";
         say "    [";
 
         my $previous_ins = $last_ins;
         my $current_ins = "\"{$<opname>}_{$insnum}\"";
         $last_ins = $current_ins ~ ":op";
+
+        my @back_connections;
 
         my @labelparts = qq[ <op> $<opname>  ];
 
@@ -83,22 +88,31 @@ for lines() :eager -> $_ is copy {
                     flags => 0,
                     rwmasked => (my $boringtype = %MAST::Ops::flags<MVM_operand_read_reg>),
                     type => $boringtype,
-                    targets_reg => 1,
+                    targets_reg => @<argument>[$_] ~~ /r<digit>+'('<digit>+')'/ ?? 1 !! 0,
                     writes_tgt => 0 ) };
         }
 
-        #note @props.perl;
-
         if $arity && @props[0]<writes_tgt> {
-            @labelparts = @<argument>[0], @labelparts[0];
-        } elsif $arity {
-            @labelparts ,= @<argument>[0];
+            if @props[0]<targets_reg> {
+                #note "recording: the writer of {@<argument>[0]} is us!";
+                %reg_writers{@<argument>[0]} = $current_ins ~ ":0";
+            }
         }
 
-        if $arity > 1 {
-            for @<argument>[1..*]:kv -> $k, $v {
-                @labelparts.push: "<$k> $v";
+        my $first_read = @props[0]<writes_tgt> ?? 1 !! 0;
+        for @<argument>.kv -> $k, $v {
+            if $k >= $first_read and @props[$k]<targets_reg> {
+                if %reg_writers{$v}:exists {
+                    @back_connections.push: %reg_writers{$v} => $current_ins ~ ":$k";
+                } else {
+                    note "found register without writer: $v for instruction $current_ins argument $k"
+                }
             }
+            @labelparts.push: "<$k> $v";
+        }
+
+        if $arity && @props[0]<writes_tgt> {
+            @labelparts = @labelparts[1, 0], @labelparts[2..*];
         }
 
         # find outgoing connections
@@ -113,14 +127,21 @@ for lines() :eager -> $_ is copy {
             }
         }
 
-        say "    label=\"{ @labelparts.join(" | ") }\"";
-        say "    rank=$insnum";
+        print "    label=\"{ @labelparts.join(" | ") }\" rank=$insnum";
 
         $insnum++;
 
         say "    ];";
 
-        say "    $previous_ins -> $last_ins;";
+        say "";
+        say "    $previous_ins -> $last_ins [color=lightgrey];";
+        say "";
+
+        for @back_connections {
+            say "      $_.key() -> $_.value();";
+        }
+        say "";
+        say "";
     }
     when / ^ '  BB ' <bbnum=.digit>+ ' (' ~ ')' $<addr>=<[0..9 a..f x]>+ ':' $ / {
         %bb_map{~$<bbnum>} = ~$<addr>;
@@ -156,9 +177,9 @@ for @connections {
 
 for %bb_connections.kv -> $k, $v {
     # bb 0 is special and has successors that it won't jump to.
-    note "marking successors for block $k";
-    note $v.perl;
-    note "";
+    #note "marking successors for block $k";
+    #note $v.perl;
+    #note "";
     my @candidates = do %bb_map{$k} == "0"
         ?? %bb_map{@$v}
         !! %bb_map{$v[*-1]};
