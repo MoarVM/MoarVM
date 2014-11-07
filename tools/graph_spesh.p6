@@ -175,6 +175,16 @@ for lines() :eager -> $_ is copy {
     when / ^ '    ' 'Successors: ' [$<succ>=[<.digit>+]]+ % ', ' $ / {
         %bb_connections{$current_bb} = @<succ>>>.Str;
     }
+    when / ^ '      ' '[Annotation: ' $<annotation>=[<[a..z A..Z 0..9 \ ]>+] / {
+        my $previous_ins = $last_ins;
+        $last_ins = "\"annotation_{$current_bb}_{$<annotation>}_{(state $)++}\"";
+        say "    $last_ins [label=\"{$<annotation>}\" shape=cds];";
+        if $last_ins ~~ / entry / {
+            say "    $previous_ins -> $last_ins [style=dotted];";
+        } else {
+            say "    $previous_ins -> $last_ins [color=lightgrey];";
+        }
+    }
     when / ^ '    ' r $<regnum>=[<.digit>+] '(' $<regver>=[<.digit>+] ')' ':' / {
         
     }
