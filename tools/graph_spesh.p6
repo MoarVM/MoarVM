@@ -75,7 +75,6 @@ for lines() :eager -> $_ is copy {
         } else {
             # we have an extop here. assume it writes to its first register and
             # has exactly as many arguments as it says in the spesh log.
-
             $arity = @<argument>.elems;
 
             @props = $%(
@@ -88,13 +87,12 @@ for lines() :eager -> $_ is copy {
                     flags => 0,
                     rwmasked => (my $boringtype = %MAST::Ops::flags<MVM_operand_read_reg>),
                     type => $boringtype,
-                    targets_reg => @<argument>[$_] ~~ /r<digit>+'('<digit>+')'/ ?? 1 !! 0,
+                    targets_reg => @<argument>[$_].match(/r<digit>+'('<digit>+')'/) ?? 1 !! 0,
                     writes_tgt => 0 ) };
         }
 
         if $arity && @props[0]<writes_tgt> {
             if @props[0]<targets_reg> {
-                #note "recording: the writer of {@<argument>[0]} is us!";
                 %reg_writers{@<argument>[0]} = $current_ins ~ ":0";
             }
         }
@@ -143,7 +141,7 @@ for lines() :eager -> $_ is copy {
         say "";
         say "";
     }
-    when / ^ '  BB ' <bbnum=.digit>+ ' (' ~ ')' $<addr>=<[0..9 a..f x]>+ ':' $ / {
+    when / ^ '  BB ' $<bbnum>=[<.digit>+] ' (' ~ ')' $<addr>=<[0..9 a..f x]>+ ':' $ / {
         %bb_map{~$<bbnum>} = ~$<addr>;
         %bb_map{~$<addr>} = ~$<bbnum>;
         if $in_subgraph {
