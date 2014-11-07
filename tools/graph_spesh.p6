@@ -42,6 +42,10 @@ for lines() :eager -> $_ is copy {
         print "    \"{$<opname>}_{$insnum}\" ";
         say "    [";
 
+        if $<opname> eq "set" | "decont" {
+            say "       shape=Mrecord";
+        }
+
         my $previous_ins = $last_ins;
         my $current_ins = "\"{$<opname>}_{$insnum}\"";
         $last_ins = $current_ins ~ ":op";
@@ -138,7 +142,11 @@ for lines() :eager -> $_ is copy {
         say "    ];";
 
         say "";
-        say "    $previous_ins -> $last_ins [color=lightgrey];";
+        if $previous_ins ~~ / entry / {
+            say "    $previous_ins -> $last_ins [style=dotted];";
+        } else {
+            say "    $previous_ins -> $last_ins [color=lightgrey];";
+        }
         say "";
 
         for @back_connections {
@@ -152,7 +160,7 @@ for lines() :eager -> $_ is copy {
         %bb_map{~$<addr>} = ~$<bbnum>;
         if $in_subgraph {
             say "    \"exit_$current_bb\";";
-            say "    $last_ins -> \"exit_$current_bb\";";
+            say "    $last_ins -> \"exit_$current_bb\" [style=dotted];";
             say "  }" if $in_subgraph;
         }
         say "  subgraph ";
@@ -175,7 +183,7 @@ for lines() :eager -> $_ is copy {
 say "  }" if $in_subgraph;
 
 for @connections {
-    say "$_.<source_ins> -> \"entry_{ %bb_map{.<target_block>} }\";";
+    say "$_.<source_ins> -> \"entry_{ %bb_map{.<target_block>} }\" [style=dotted];";
 }
 
 for %bb_connections.kv -> $k, $v {
@@ -187,7 +195,7 @@ for %bb_connections.kv -> $k, $v {
         ?? %bb_map{@$v}
         !! %bb_map{$v[*-1]};
     for @candidates -> $cand {
-        say "\"exit_$k\" -> \"entry_$cand\";";
+        say "\"exit_$k\" -> \"entry_$cand\" [style=dotted];";
     }
 }
 
