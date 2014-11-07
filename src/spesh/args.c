@@ -166,10 +166,11 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVMint32      named_used = 0;
     MVMint32      got_named  = cs->num_pos != cs->arg_count;
 
+    MVMSpeshBB *bb = g->entry;
+
     g->cs = cs;
 
     /* Walk through the graph, looking for arg related instructions. */
-    MVMSpeshBB *bb = g->entry;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
