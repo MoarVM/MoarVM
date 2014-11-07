@@ -95,14 +95,16 @@ for lines() :eager -> $_ is copy {
                     writes_tgt => 0 ) };
         }
 
+        my @argument_names = @<argument>>>.Str>>.trans( "<" => "«", ">" => "»" );
+
         if $arity && @props[0]<writes_tgt> {
             if @props[0]<targets_reg> {
-                %reg_writers{@<argument>[0]} = $current_ins ~ ":0";
+                %reg_writers{@argument_names[0]} = $current_ins ~ ":0";
             }
         }
 
         my $first_read = @props[0]<writes_tgt> ?? 1 !! 0;
-        for @<argument>.kv -> $k, $v {
+        for @argument_names.kv -> $k, $v {
             if $k >= $first_read and @props[$k]<targets_reg> {
                 if %reg_writers{$v}:exists {
                     @back_connections.push: %reg_writers{$v} => $current_ins ~ ":$k";
@@ -119,7 +121,7 @@ for lines() :eager -> $_ is copy {
 
         # find outgoing connections
 
-        for @<argument>[]:kv -> $k, $_ {
+        for @argument_names.kv -> $k, $_ {
             if m/ BB '(' $<target>=[<digit>+] ')' / -> $/ {
                 @connections.push: $%(
                     source_block => $current_bb,
