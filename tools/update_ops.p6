@@ -164,6 +164,8 @@ BEGIN {
 }',
         P6 => '
 module MAST::Ops;
+our %flags is export = ('~
+    join(",\n    ", $value_map.pairs.map({ $_.perl }) )~');
 our @offsets is export = '~
     join(",\n    ", @offsets)~';
 our @counts = '~
