@@ -1,22 +1,5 @@
 #include "moar.h"
 
-/* Dummy callsite for find_method. */
-static MVMCallsiteEntry fm_flags[] = { MVM_CALLSITE_ARG_OBJ,
-                                       MVM_CALLSITE_ARG_OBJ,
-                                       MVM_CALLSITE_ARG_STR };
-static MVMCallsite     fm_callsite = { fm_flags, 3, 3, 0 };
-
-/* Dummy callsite for method not found errors. */
-static MVMCallsiteEntry mnfe_flags[] = { MVM_CALLSITE_ARG_OBJ,
-                                         MVM_CALLSITE_ARG_STR };
-static MVMCallsite     mnfe_callsite = { mnfe_flags, 2, 2, 0 };
-
-/* Dummy callsite for type_check. */
-static MVMCallsiteEntry tc_flags[] = { MVM_CALLSITE_ARG_OBJ,
-                                       MVM_CALLSITE_ARG_OBJ,
-                                       MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     tc_callsite = { tc_flags, 3, 3, 0 };
-
 /* Gets the HOW (meta-object), which may be lazily deserialized. */
 MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st) {
     MVMObject *HOW = st->HOW;
@@ -57,10 +40,10 @@ static void die_over_missing_method(MVMThreadContext *tc, MVMObject *obj, MVMStr
     MVMObject *handler = MVM_hll_current(tc)->method_not_found_error;
     if (!MVM_is_null(tc, handler)) {
         handler = MVM_frame_find_invokee(tc, handler, NULL);
-        MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, &mnfe_callsite);
+        MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_METH_NOT_FOUND));
         tc->cur_frame->args[0].o = obj;
         tc->cur_frame->args[1].s = name;
-        STABLE(handler)->invoke(tc, handler, &mnfe_callsite, tc->cur_frame->args);
+        STABLE(handler)->invoke(tc, handler, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_METH_NOT_FOUND), tc->cur_frame->args);
         return;
     }
     else {
@@ -121,7 +104,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
 
     /* Set up the call, using the result register as the target. */
     code = MVM_frame_find_invokee(tc, find_method, NULL);
-    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, &fm_callsite);
+    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_FIND_METHOD));
     {
         FindMethodSRData *fm = MVM_malloc(sizeof(FindMethodSRData));
         fm->obj  = obj;
@@ -134,7 +117,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
     tc->cur_frame->args[0].o = HOW;
     tc->cur_frame->args[1].o = obj;
     tc->cur_frame->args[2].s = name;
-    STABLE(code)->invoke(tc, code, &fm_callsite, tc->cur_frame->args);
+    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_FIND_METHOD), tc->cur_frame->args);
 }
 
 MVMint32 MVM_6model_find_method_spesh(MVMThreadContext *tc, MVMObject *obj, MVMString *name,
@@ -168,7 +151,11 @@ MVMint32 MVM_6model_find_method_spesh(MVMThreadContext *tc, MVMObject *obj, MVMS
 
 
 /* Locates a method by name. Returns 1 if it exists; otherwise 0. */
-void late_bound_can_return(MVMThreadContext *tc, void *sr_data);
+static void late_bound_can_return(MVMThreadContext *tc, void *sr_data) {
+    /* Transform to an integer result. */
+    MVMRegister *reg = (MVMRegister *)sr_data;
+    reg->i64 = !MVM_is_null(tc, reg->o) && IS_CONCRETE(reg->o) ? 1 : 0;
+}
 
 MVMint64 MVM_6model_can_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
     MVMObject *cache, *HOW, *find_method, *code;
@@ -216,18 +203,13 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
     /* Set up the call, using the result register as the target. A little bad
      * as we're really talking about     */
     code = MVM_frame_find_invokee(tc, find_method, NULL);
-    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, &fm_callsite);
+    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_FIND_METHOD));
     tc->cur_frame->special_return      = late_bound_can_return;
     tc->cur_frame->special_return_data = res;
     tc->cur_frame->args[0].o = HOW;
     tc->cur_frame->args[1].o = obj;
     tc->cur_frame->args[2].s = name;
-    STABLE(code)->invoke(tc, code, &fm_callsite, tc->cur_frame->args);
-}
-void late_bound_can_return(MVMThreadContext *tc, void *sr_data) {
-    /* Transform to an integer result. */
-    MVMRegister *reg = (MVMRegister *)sr_data;
-    reg->i64 = !MVM_is_null(tc, reg->o) && IS_CONCRETE(reg->o) ? 1 : 0;
+    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_FIND_METHOD), tc->cur_frame->args);
 }
 
 /* Checks if an object has a given type, delegating to the type_check or
@@ -239,11 +221,11 @@ static void do_accepts_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObjec
     if (!MVM_is_null(tc, meth)) {
         /* Set up the call, using the result register as the target. */
         MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
-        MVM_args_setup_thunk(tc, res, MVM_RETURN_INT, &tc_callsite);
+        MVM_args_setup_thunk(tc, res, MVM_RETURN_INT, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TYPECHECK));
         tc->cur_frame->args[0].o = HOW;
         tc->cur_frame->args[1].o = type;
         tc->cur_frame->args[2].o = obj;
-        STABLE(code)->invoke(tc, code, &tc_callsite, tc->cur_frame->args);
+        STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TYPECHECK), tc->cur_frame->args);
         return;
     }
     else {
@@ -256,7 +238,8 @@ typedef struct {
     MVMObject   *type;
     MVMRegister *res;
 } AcceptsTypeSRData;
-void accepts_type_sr(MVMThreadContext *tc, void *sr_data) {
+
+static void accepts_type_sr(MVMThreadContext *tc, void *sr_data) {
     AcceptsTypeSRData *atd = (AcceptsTypeSRData *)sr_data;
     MVMObject   *obj  = atd->obj;
     MVMObject   *type = atd->type;
@@ -265,11 +248,13 @@ void accepts_type_sr(MVMThreadContext *tc, void *sr_data) {
     if (!res->i64)
         do_accepts_type_check(tc, obj, type, res);
 }
+
 static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
     AcceptsTypeSRData *atd = (AcceptsTypeSRData *)frame->special_return_data;
     MVM_gc_worklist_add(tc, worklist, &atd->obj);
     MVM_gc_worklist_add(tc, worklist, &atd->type);
 }
+
 void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res) {
     MVMObject **cache;
     MVMSTable  *st;
@@ -313,7 +298,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
         if (!MVM_is_null(tc, meth)) {
             /* Set up the call, using the result register as the target. */
             MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
-            MVM_args_setup_thunk(tc, res, MVM_RETURN_INT, &tc_callsite);
+            MVM_args_setup_thunk(tc, res, MVM_RETURN_INT, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TYPECHECK));
             tc->cur_frame->args[0].o = HOW;
             tc->cur_frame->args[1].o = obj;
             tc->cur_frame->args[2].o = type;
@@ -326,7 +311,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
                 tc->cur_frame->special_return_data      = atd;
                 tc->cur_frame->mark_special_return_data = mark_sr_data;
             }
-            STABLE(code)->invoke(tc, code, &tc_callsite, tc->cur_frame->args);
+            STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TYPECHECK), tc->cur_frame->args);
             return;
         }
     }
@@ -385,7 +370,7 @@ MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj, M
 
 /* Default invoke function on STables; for non-invokable objects */
 void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
-    MVM_exception_throw_adhoc(tc, "non-invokable object is non-invokable");
+    MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s)", REPR(invokee)->name);
 }
 
 /* Clean up STable memory. */

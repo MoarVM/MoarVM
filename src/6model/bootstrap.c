@@ -309,10 +309,6 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
     STABLE(knowhow_how)->method_cache = knowhow_how->body.methods;
     STABLE(knowhow_how)->mode_flags   = MVM_METHOD_CACHE_AUTHORITATIVE;
 
-    /* Associate the created objects with the initial core serialization
-     * context. */
-    /* XXX TODO */
-
     /* Stash the created KnowHOW. */
     tc->instance->KnowHOW = (MVMObject *)knowhow;
     MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->KnowHOW);

@@ -89,7 +89,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     if (repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_NUMERIC)
         body->child_objs = NULL;
     else
-        body->child_objs = (MVMObject **) calloc(4, sizeof(MVMObject *));
+        body->child_objs = (MVMObject **) MVM_calloc(4, sizeof(MVMObject *));
 
     body->allocated = 4;
     body->elems = 0;

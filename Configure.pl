@@ -32,7 +32,8 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
-    build=s host=s big-endian jit! enable-jit lua=s
+    has-dyncall has-linenoise
+    build=s host=s big-endian jit! enable-jit lua=s has-dynasm
     prefix=s bindir=s libdir=s mastdir=s make-install asan),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 }
@@ -78,6 +79,7 @@ $args{'has-libtommath'}    //= 0;
 $args{'has-sha'}           //= 0;
 $args{'has-libuv'}         //= 0;
 $args{'has-libatomic_ops'} //= 0;
+$args{'has-dynasm'}        //= 0;
 $args{'asan'}              //= 0;
 
 # jit is default
@@ -187,7 +189,30 @@ else {
 
 if ($args{'has-libatomic_ops'}) {
     $defaults{-thirdparty}->{lao} = undef;
-#    unshift @{$config{usrlibs}}, 'atomic_ops';
+    unshift @{$config{usrlibs}}, 'atomic_ops';
+}
+else {
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libatomic_ops/src';
+    my $lao             = '$(DESTDIR)$(PREFIX)/include/libatomic_ops';
+    $config{install}   .= "\t\$(MKPATH) $lao/atomic_ops/sysdeps/armcc\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/gcc\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/hpc\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/ibmc\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/icc\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/loadstore\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/msftc\n"
+                        . "\t\$(MKPATH) $lao/atomic_ops/sysdeps/sunc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/*.h $lao\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/*.h $lao/atomic_ops\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/*.h $lao/atomic_ops/sysdeps\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/armcc/*.h $lao/atomic_ops/sysdeps/armcc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/gcc/*.h $lao/atomic_ops/sysdeps/gcc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/hpc/*.h $lao/atomic_ops/sysdeps/hpc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/ibmc/*.h $lao/atomic_ops/sysdeps/ibmc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/icc/*.h $lao/atomic_ops/sysdeps/icc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/loadstore/*.h $lao/atomic_ops/sysdeps/loadstore\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/msftc/*.h $lao/atomic_ops/sysdeps/msftc\n"
+                        . "\t\$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/sunc/*.h $lao/atomic_ops/sysdeps/sunc\n";
 }
 
 if ($args{'has-libtommath'}) {
@@ -201,6 +226,41 @@ if ($args{'has-libtommath'}) {
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
     $config{install}   .= "\t\$(CP) 3rdparty/libtommath/*.h \$(DESTDIR)\$(PREFIX)/include/libtommath\n";
+}
+
+if ($args{'has-dynasm'}) {
+    $config{dynasmlua}  = '-l dynasm.lua';
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '/usr/include/luajit-2.0';
+}
+else {
+    $config{dynasmlua}  = './3rdparty/dynasm/dynasm.lua';
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dynasm';
+}
+
+if ($args{'has-dyncall'}) {
+    unshift @{$config{usrlibs}}, 'dyncall_s', 'dyncallback_s', 'dynload_s';
+    $defaults{-thirdparty}->{dc}  = undef;
+    $defaults{-thirdparty}->{dcb} = undef;
+    $defaults{-thirdparty}->{dl}  = undef;
+}
+else {
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dyncall/dynload'
+                        . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncall'
+                        . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncallback';
+    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/dyncall\n"
+                        . "\t\$(CP) 3rdparty/dyncall/dynload/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n"
+                        . "\t\$(CP) 3rdparty/dyncall/dyncall/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n"
+                        . "\t\$(CP) 3rdparty/dyncall/dyncallback/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n";
+}
+
+if ($args{'has-linenoise'}) {
+    unshift @{$config{usrlibs}}, 'linenoise';
+    $defaults{-thirdparty}->{ln} = undef;
+}
+else {
+    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/linenoise';
+    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/linenoise\n"
+                        . "\t\$(CP) 3rdparty/linenoise/*.h \$(DESTDIR)\$(PREFIX)/include/linenoise\n";
 }
 
 if ($args{'jit'}) {
@@ -661,13 +721,14 @@ __END__
                    [--debug] [--optimize] [--instrument]
                    [--static] [--use-readline] [--prefix]
                    [--has-libtommath] [--has-sha] [--has-libuv]
-                   [--has-libatomic_ops] [--asan] [--enable-jit]
+                   [--has-libatomic_ops] [--has-dynasm]
+                   [--lua <lua>] [--asan] [--no-jit]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
                    [--static] [--big-endian] [--prefix]
-                   [--lua] [--make-install]
+                   [--lua <lua>] [--make-install]
 
 =head1 OPTIONS
 
@@ -792,23 +853,24 @@ Build and install MoarVM in addition to configuring it.
 
 =item --has-libtommath
 
-Link moar with the libtommath library of the system.
-
 =item --has-sha
-
-Build moar with the sha1 funktions from the sha library of the system.
 
 =item --has-libuv
 
-Link moar with the libuv library of the system.
-
 =item --has-libatomic_ops
 
-Disable the build of libatomic_ops.
+=item --has-dynasm
 
-=item --enable-jit
+=item --has-dyncall
 
-Enable JIT compiler for hot frames.
+=item --has-linenoise
+
+Link moar executable with libs provided by the system instead of building
+and installing an own version from MoarVM's source tree.
+
+=item --no-jit
+
+Disable JIT compiler, which is enabled by default to JIT-compile hot frames.
 
 =item --lua=path/to/lua/executable
 

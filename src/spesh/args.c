@@ -7,7 +7,7 @@
 #define MAX_NAMED_ARGS 8
 
 /* Adds guards and facts for an object arg. */
-void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
+static void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
                           MVMObject *arg, MVMSpeshIns *arg_ins) {
     /* Grab type and concreteness. */
     MVMObject *type     = STABLE(arg)->WHAT;
@@ -153,12 +153,12 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVMSpeshIns  *param_sn_ins       = NULL;
     MVMSpeshBB   *param_sn_bb        = NULL;
 
-    MVMSpeshIns **pos_ins    = calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
-    MVMSpeshBB  **pos_bb     = calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
-    MVMuint8     *pos_added  = calloc(MAX_POS_ARGS, sizeof(MVMuint8));
-    MVMSpeshIns **named_ins  = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
-    MVMSpeshBB  **named_bb   = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshBB *));
-    MVMSpeshIns **used_ins   = calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
+    MVMSpeshIns **pos_ins    = MVM_calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
+    MVMSpeshBB  **pos_bb     = MVM_calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
+    MVMuint8     *pos_added  = MVM_calloc(MAX_POS_ARGS, sizeof(MVMuint8));
+    MVMSpeshIns **named_ins  = MVM_calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
+    MVMSpeshBB  **named_bb   = MVM_calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshBB *));
+    MVMSpeshIns **used_ins   = MVM_calloc(MAX_NAMED_ARGS, sizeof(MVMSpeshIns *));
     MVMint32      req_max    = -1;
     MVMint32      opt_min    = -1;
     MVMint32      opt_max    = -1;
@@ -166,8 +166,11 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVMint32      named_used = 0;
     MVMint32      got_named  = cs->num_pos != cs->arg_count;
 
-    /* Walk through the graph, looking for arg related instructions. */
     MVMSpeshBB *bb = g->entry;
+
+    g->cs = cs;
+
+    /* Walk through the graph, looking for arg related instructions. */
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
         while (ins) {
@@ -272,21 +275,21 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             case MVM_OP_param_rp_i:
             case MVM_OP_param_op_i:
                 if (arg_flag != MVM_CALLSITE_ARG_INT)
-                    if (arg_flag != MVM_CALLSITE_ARG_OBJ || 
+                    if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
                             prim_spec(tc, args[i].o) != MVM_STORAGE_SPEC_BP_INT)
                         goto cleanup;
                 break;
             case MVM_OP_param_rp_n:
             case MVM_OP_param_op_n:
                 if (arg_flag != MVM_CALLSITE_ARG_NUM)
-                    if (arg_flag != MVM_CALLSITE_ARG_OBJ || 
+                    if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
                             prim_spec(tc, args[i].o) != MVM_STORAGE_SPEC_BP_NUM)
                         goto cleanup;
                 break;
             case MVM_OP_param_rp_s:
             case MVM_OP_param_op_s:
                 if (arg_flag != MVM_CALLSITE_ARG_STR)
-                    if (arg_flag != MVM_CALLSITE_ARG_OBJ || 
+                    if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
                             prim_spec(tc, args[i].o) != MVM_STORAGE_SPEC_BP_STR)
                         goto cleanup;
                 break;

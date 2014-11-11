@@ -160,11 +160,10 @@ static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_sign
 
 MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env, MVMString *err_path) {
     MVMint64 spawn_result;
-    uv_process_t *process = calloc(1, sizeof(uv_process_t));
+    uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     int i;
-    int status;
     int readable = 1;
     uv_pipe_t *out, *in;
 
@@ -230,6 +229,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     process_options.env         = _env;
     process_options.stdio_count = 3;
     process_options.exit_cb     = spawn_on_exit;
+    process->data               = MVM_calloc(1, sizeof(MVMint64));
     uv_ref((uv_handle_t *)process);
     spawn_result = uv_spawn(tc->loop, process, &process_options);
     if (spawn_result) {
@@ -250,7 +250,7 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
 
 MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
     MVMint64 result = 0, spawn_result;
-    uv_process_t *process = calloc(1, sizeof(uv_process_t));
+    uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     int i;
@@ -303,7 +303,7 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 
 MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env) {
     MVMint64 result = 0, spawn_result;
-    uv_process_t *process = calloc(1, sizeof(uv_process_t));
+    uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     int i;
@@ -521,7 +521,7 @@ static MVMAsyncTask * write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMObject 
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &write_op_table;
-    wi              = calloc(1, sizeof(SpawnWriteInfo));
+    wi              = MVM_calloc(1, sizeof(SpawnWriteInfo));
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->handle, h);
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->str_data, s);
     task->body.data = wi;
@@ -563,7 +563,7 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &write_op_table;
-    wi              = calloc(1, sizeof(SpawnWriteInfo));
+    wi              = MVM_calloc(1, sizeof(SpawnWriteInfo));
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->handle, h);
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->buf_data, buffer);
     task->body.data = wi;
@@ -597,7 +597,7 @@ static const MVMAsyncTaskOps close_op_table = {
     NULL
 };
 
-static void close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
     MVMAsyncTask          *spawn_task  = (MVMAsyncTask *)handle_data->async_task;
     SpawnInfo             *si          = spawn_task ? (SpawnInfo *)spawn_task->body.data : NULL;
@@ -611,6 +611,7 @@ static void close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
         task->body.data = si->stdin_handle;
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
     }
+    return 0;
 }
 
 /* IO ops table, for async process, populated with functions. */
@@ -779,7 +780,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     MVMint64 spawn_result;
 
     /* Process info setup. */
-    uv_process_t *process = calloc(1, sizeof(uv_process_t));
+    uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
     uv_pipe_t *stdout_pipe = NULL;
@@ -920,7 +921,7 @@ static void spawn_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
 }
 
 /* Marks objects for a spawn task. */
-void spawn_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
+static void spawn_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
     SpawnInfo *si = (SpawnInfo *)data;
     MVM_gc_worklist_add(tc, worklist, &si->handle);
     MVM_gc_worklist_add(tc, worklist, &si->callbacks);
@@ -1010,7 +1011,7 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
         INIT_ENV();
 
         /* Create handle. */
-        data              = calloc(1, sizeof(MVMIOAsyncProcessData));
+        data              = MVM_calloc(1, sizeof(MVMIOAsyncProcessData));
         handle            = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
         handle->body.ops  = &proc_op_table;
         handle->body.data = data;
@@ -1021,7 +1022,7 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
         });
         MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
         task->body.ops  = &spawn_op_table;
-        si              = calloc(1, sizeof(SpawnInfo));
+        si              = MVM_calloc(1, sizeof(SpawnInfo));
         si->prog        = prog;
         si->cwd         = _cwd;
         si->env         = _env;
@@ -1108,6 +1109,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
     MVMObject            *clargs = instance->clargs;
     if (!clargs) {
         clargs = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+#ifndef _WIN32
         MVMROOT(tc, clargs, {
             const MVMint64 num_clargs = instance->num_clargs;
             MVMint64 count;
@@ -1115,10 +1117,8 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
             MVMString *prog_string = MVM_string_utf8_decode(tc,
                 instance->VMString,
                 instance->prog_name, strlen(instance->prog_name));
-
             MVMObject *boxed_str = MVM_repr_box_str(tc,
                 instance->boot_types.BOOTStr, prog_string);
-
             MVM_repr_push_o(tc, clargs, boxed_str);
 
             for (count = 0; count < num_clargs; count++) {
@@ -1130,6 +1130,31 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
                 MVM_repr_push_o(tc, clargs, boxed_str);
             }
         });
+#else
+        MVMROOT(tc, clargs, {
+            const MVMuint16 acp = GetACP();
+            const MVMint64 num_clargs = instance->num_clargs;
+            MVMint64 count;
+
+            MVMString *prog_string = MVM_string_utf8_decode(tc,
+                instance->VMString,
+                instance->prog_name, strlen(instance->prog_name));
+            MVMObject *boxed_str = MVM_repr_box_str(tc,
+                instance->boot_types.BOOTStr, prog_string);
+            MVM_repr_push_o(tc, clargs, boxed_str);
+
+            for (count = 0; count < num_clargs; count++) {
+                char *raw_clarg = instance->raw_clargs[count];
+                char * const _tmp = ANSIToUTF8(acp, raw_clarg);
+                MVMString *string = MVM_string_utf8_decode(tc,
+                    instance->VMString, _tmp, strlen(_tmp));
+                free(_tmp);
+                boxed_str = MVM_repr_box_str(tc,
+                    instance->boot_types.BOOTStr, string);
+                MVM_repr_push_o(tc, clargs, boxed_str);
+            }
+        });
+#endif
 
         instance->clargs = clargs;
     }

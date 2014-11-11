@@ -1,7 +1,7 @@
 #include "moar.h"
 
 /* Locates deopt index matching OSR point. */
-MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
+static MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
     /* Calculate offset. */
     MVMint32 offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start));
 
@@ -16,7 +16,7 @@ MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
 }
 
 /* Locates deopt index matching OSR finalize point. */
-MVMint32 get_osr_deopt_finalize_index(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
+static MVMint32 get_osr_deopt_finalize_index(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
     /* Calculate offset. */
     MVMint32 offset = ((*(tc->interp_cur_op) - *(tc->interp_bytecode_start))) - 2;
 

@@ -1,9 +1,5 @@
 #include "moar.h"
 
-static MVMCallsite      no_arg_callsite = { NULL, 0, 0, 0 };
-static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     obj_arg_callsite = { obj_arg_flags, 1, 1, 0 };
-
 static void clear_tag(MVMThreadContext *tc, void *sr_data) {
     MVMContinuationTag **update = &tc->cur_frame->continuation_tags;
     while (*update) {
@@ -33,10 +29,10 @@ void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag,
     else {
         /* Run the passed code. */
         code = MVM_frame_find_invokee(tc, code, NULL);
-        MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, &no_arg_callsite);
+        MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS));
         tc->cur_frame->special_return = clear_tag;
         tc->cur_frame->special_return_data = tag_record;
-        STABLE(code)->invoke(tc, code, &no_arg_callsite, tc->cur_frame->args);
+        STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS), tc->cur_frame->args);
     }
 }
 
@@ -122,9 +118,9 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
      * interpreter to run this, which then returns control to the
      * original reset or invoke. */
     code = MVM_frame_find_invokee(tc, code, NULL);
-    MVM_args_setup_thunk(tc, tc->cur_frame->return_value, tc->cur_frame->return_type, &obj_arg_callsite);
+    MVM_args_setup_thunk(tc, tc->cur_frame->return_value, tc->cur_frame->return_type, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
     tc->cur_frame->args[0].o = cont;
-    STABLE(code)->invoke(tc, code, &obj_arg_callsite, tc->cur_frame->args);
+    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
 }
 
 void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
@@ -179,8 +175,8 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     }
     else {
         code = MVM_frame_find_invokee(tc, code, NULL);
-        MVM_args_setup_thunk(tc, cont->body.res_reg, MVM_RETURN_OBJ, &no_arg_callsite);
-        STABLE(code)->invoke(tc, code, &no_arg_callsite, tc->cur_frame->args);
+        MVM_args_setup_thunk(tc, cont->body.res_reg, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS));
+        STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS), tc->cur_frame->args);
     }
 }
 

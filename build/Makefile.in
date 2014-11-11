@@ -11,7 +11,7 @@ CP     = $(PERL) -MExtUtils::Command -e cp
 MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 CHMOD  = $(PERL) -MExtUtils::Command -e chmod
 RM_RF  = $(PERL) -MExtUtils::Command -e rm_rf
-DYNASM = $(LUA) ./3rdparty/dynasm/dynasm.lua
+DYNASM = $(LUA) @dynasmlua@
 
 
 
@@ -38,14 +38,8 @@ PKGCONFIGDIR = @prefix@/share/pkgconfig
 
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @cincludes@ \
-            @ccinc@3rdparty/libatomic_ops/src \
             @ccinc@@shaincludedir@ \
-            @ccinc@3rdparty/linenoise \
             @ccinc@3rdparty/tinymt \
-            @ccinc@3rdparty/dyncall/dynload \
-            @ccinc@3rdparty/dyncall/dyncall \
-            @ccinc@3rdparty/dyncall/dyncallback \
-            @ccinc@3rdparty/dynasm \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -208,6 +202,7 @@ HEADERS = src/moar.h \
           src/core/args.h \
           src/core/exceptions.h \
           src/core/interp.h \
+          src/core/alloc.h \
           src/core/frame.h \
           src/core/compunit.h \
           src/core/bytecode.h \
@@ -434,39 +429,14 @@ install: all
 	$(CP) src/strings/*.h $(DESTDIR)$(PREFIX)/include/moar/strings
 	$(CP) src/jit/*.h $(DESTDIR)$(PREFIX)/include/moar/jit
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libuv
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/armcc
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/gcc
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/hpc
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/ibmc
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/icc
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/loadstore
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/msftc
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/sunc
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libtommath
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/msinttypes
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/sha1
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/linenoise
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/tinymt
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/dyncall
 	$(CP) 3rdparty/libuv/include/*.h $(DESTDIR)$(PREFIX)/include/libuv
-	$(CP) 3rdparty/libatomic_ops/src/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops
-	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops
-	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps
-	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/armcc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/armcc
-	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/gcc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/gcc
-	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/hpc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/hpc
-	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/ibmc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/ibmc
-	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/icc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/icc
-	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/loadstore/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/loadstore
-	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/msftc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/msftc
-	$(CP) 3rdparty/libatomic_ops/src/atomic_ops/sysdeps/sunc/*.h $(DESTDIR)$(PREFIX)/include/libatomic_ops/atomic_ops/sysdeps/sunc
 	$(CP) 3rdparty/msinttypes/*.h $(DESTDIR)$(PREFIX)/include/msinttypes
 	$(CP) 3rdparty/sha1/*.h $(DESTDIR)$(PREFIX)/include/sha1
-	$(CP) 3rdparty/linenoise/*.h $(DESTDIR)$(PREFIX)/include/linenoise
 	$(CP) 3rdparty/tinymt/*.h $(DESTDIR)$(PREFIX)/include/tinymt
-	$(CP) 3rdparty/dyncall/dynload/*.h $(DESTDIR)$(PREFIX)/include/dyncall
-	$(CP) 3rdparty/dyncall/dyncall/*.h $(DESTDIR)$(PREFIX)/include/dyncall
-	$(CP) 3rdparty/dyncall/dyncallback/*.h $(DESTDIR)$(PREFIX)/include/dyncall
 @install@
 
 lib: @moar@

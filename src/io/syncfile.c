@@ -34,10 +34,13 @@ typedef struct {
 
     /* Decode stream, for turning bytes from disk into strings. */
     MVMDecodeStream *ds;
+
+    /* Current separator codepoint. */
+    MVMGrapheme32 sep;
 } MVMIOFileData;
 
 /* Closes the file. */
-static void closefh(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     uv_fs_t req;
     if (data->ds) {
@@ -49,6 +52,7 @@ static void closefh(MVMThreadContext *tc, MVMOSHandle *h) {
         MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
     }
     data->fd = -1;
+    return 0;
 }
 
 /* Sets the encoding used for string-based I/O. */
@@ -86,7 +90,9 @@ static MVMint64 tell(MVMThreadContext *tc, MVMOSHandle *h) {
 
 /* Set the line separator. */
 static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) {
-    MVM_exception_throw_adhoc(tc, "set_separator NYI on file handles");
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    data->sep = (MVMGrapheme32)MVM_string_get_grapheme_at(tc, sep,
+        MVM_string_graphs(tc, sep) - 1);
 }
 
 /* Read a bunch of bytes into the current decode stream. */
@@ -118,7 +124,7 @@ static MVMString * read_line(MVMThreadContext *tc, MVMOSHandle *h) {
 
     /* Pull data until we can read a line. */
     do {
-        MVMString *line = MVM_string_decodestream_get_until_sep(tc, data->ds, '\n');
+        MVMString *line = MVM_string_decodestream_get_until_sep(tc, data->ds, data->sep);
         if (line != NULL)
             return line;
     } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);
@@ -387,7 +393,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     char          * const fname  = MVM_string_utf8_encode_C_string(tc, filename);
     char          * const fmode  = MVM_string_utf8_encode_C_string(tc, mode);
     MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    MVMIOFileData * const data   = calloc(1, sizeof(MVMIOFileData));
+    MVMIOFileData * const data   = MVM_calloc(1, sizeof(MVMIOFileData));
     uv_fs_t req;
     uv_file fd;
 
@@ -424,7 +430,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
 /* Opens a file, returning a synchronous file handle. */
 MVMObject * MVM_file_handle_from_fd(MVMThreadContext *tc, uv_file fd) {
     MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    MVMIOFileData * const data   = calloc(1, sizeof(MVMIOFileData));
+    MVMIOFileData * const data   = MVM_calloc(1, sizeof(MVMIOFileData));
     data->fd          = fd;
     data->encoding    = MVM_encoding_type_utf8;
     result->body.ops  = &op_table;

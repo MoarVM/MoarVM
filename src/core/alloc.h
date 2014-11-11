@@ -1,20 +1,28 @@
-MVM_STATIC_INLINE void * MVM_malloc(size_t len) {
-    void *p;
-    p = malloc(len);
-    if (!p)
-        MVM_panic_allocation_failed(len);
+MVM_STATIC_INLINE void * MVM_malloc(size_t size) {
+    void *ptr = malloc(size);
 
-    return p;
+    if (!ptr)
+        MVM_panic_allocation_failed(size);
+
+    return ptr;
 }
 
-MVM_STATIC_INLINE void * MVM_realloc(void *p, size_t len) {
-    void *n;
-    n = realloc(p, len);
+MVM_STATIC_INLINE void * MVM_calloc(size_t num, size_t size) {
+    void *ptr = calloc(num, size);
 
-    if (!n && len > 0)
-        MVM_panic_allocation_failed(len);
+    if (!ptr)
+        MVM_panic_allocation_failed(num * size);
 
-    return n;
+    return ptr;
+}
+
+MVM_STATIC_INLINE void * MVM_realloc(void *p, size_t size) {
+    void *ptr = realloc(p, size);
+
+    if (!ptr && size > 0)
+        MVM_panic_allocation_failed(size);
+
+    return ptr;
 }
 
 MVM_STATIC_INLINE void MVM_free(void *p) {

@@ -15,7 +15,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         HASH_FIND(hash_handle, tc->instance->compiler_hll_configs, kdata, klen, entry);
 
     if (!entry) {
-        entry = calloc(sizeof(MVMHLLConfig), 1);
+        entry = MVM_calloc(sizeof(MVMHLLConfig), 1);
         entry->name = name;
         entry->int_box_type = tc->instance->boot_types.BOOTInt;
         entry->num_box_type = tc->instance->boot_types.BOOTNum;
@@ -127,10 +127,6 @@ void MVM_hll_leave_compilee_mode(MVMThreadContext *tc) {
     uv_mutex_unlock(&tc->instance->mutex_hllconfigs);
 }
 
-/* Single object arg callsite. */
-static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     obj_arg_callsite = { obj_arg_flags, 1, 1, 0 };
-
 /* Checks if an object belongs to the correct HLL, and does a type mapping
  * of it if not. */
 void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMRegister *res_reg) {
@@ -175,9 +171,9 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
                 if (hll->foreign_transform_array) {
                     /* Invoke and set result register as return location. */
                     MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_array, NULL);
-                    MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, &obj_arg_callsite);
+                    MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
                     tc->cur_frame->args[0].o = obj;
-                    STABLE(code)->invoke(tc, code, &obj_arg_callsite, tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
                 }
                 else {
                     res_reg->o = obj;
@@ -187,9 +183,9 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
                 if (hll->foreign_transform_hash) {
                     /* Invoke and set result register as return location. */
                     MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_hash, NULL);
-                    MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, &obj_arg_callsite);
+                    MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
                     tc->cur_frame->args[0].o = obj;
-                    STABLE(code)->invoke(tc, code, &obj_arg_callsite, tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
                 }
                 else {
                     res_reg->o = obj;
@@ -199,9 +195,9 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
                 if (hll->foreign_transform_code) {
                     /* Invoke and set result register as return location. */
                     MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_code, NULL);
-                    MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, &obj_arg_callsite);
+                    MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
                     tc->cur_frame->args[0].o = obj;
-                    STABLE(code)->invoke(tc, code, &obj_arg_callsite, tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
                 }
                 else {
                     res_reg->o = obj;

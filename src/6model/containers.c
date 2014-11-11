@@ -9,31 +9,25 @@ typedef struct {
     MVMObject *store_code;
 } CodePairContData;
 
-/* Dummy, code pair fetch and store arg callsite. */
-static MVMCallsiteEntry fetch_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
-static MVMCallsiteEntry store_arg_flags[] = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     fetch_arg_callsite = { fetch_arg_flags, 1, 1, 0 };
-static MVMCallsite     store_arg_callsite = { store_arg_flags, 2, 2, 0 };
-
 static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
     CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
     MVMObject             *code   = MVM_frame_find_invokee(tc, data->fetch_code, NULL);
 
-    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, &fetch_arg_callsite);
+    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
     tc->cur_frame->args[0].o      = cont;
 
-    STABLE(code)->invoke(tc, code, &fetch_arg_callsite, tc->cur_frame->args);
+    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
 }
 
 static void code_pair_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *obj) {
     CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
     MVMObject             *code   = MVM_frame_find_invokee(tc, data->store_code, NULL);
 
-    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, &store_arg_callsite);
+    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ));
     tc->cur_frame->args[0].o      = cont;
     tc->cur_frame->args[1].o      = obj;
 
-    STABLE(code)->invoke(tc, code, &store_arg_callsite, tc->cur_frame->args);
+    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ), tc->cur_frame->args);
 }
 
 static void code_pair_gc_mark_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {

@@ -27,6 +27,7 @@
 |.type CONTAINERSPEC, MVMContainerSpec
 |.type STORAGESPEC, MVMStorageSpec
 |.type HLLCONFIG, MVMHLLConfig;
+|.type SCREFBODY, MVMSerializationContextBody
 |.type U8, MVMuint8
 |.type U16, MVMuint16
 |.type U32, MVMuint32
@@ -320,7 +321,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     }
     case MVM_OP_getlex: {
-        MVMint16 *lexical_types;
+        MVMuint16 *lexical_types;
         MVMStaticFrame * sf = jg->sg->sf;
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 idx = ins->operands[1].lex.idx;
@@ -607,7 +608,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_mul_i:
     case MVM_OP_bor_i:
     case MVM_OP_band_i:
-    case MVM_OP_bxor_i: {
+    case MVM_OP_bxor_i:
+    case MVM_OP_blshift_i:
+    case MVM_OP_brshift_i: {
         MVMint32 reg_a = ins->operands[0].reg.orig;
         MVMint32 reg_b = ins->operands[1].reg.orig;
         MVMint32 reg_c = ins->operands[2].reg.orig;
@@ -630,6 +633,14 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             break;
         case MVM_OP_bxor_i:
             | xor rax, WORK[reg_c];
+            break;
+        case MVM_OP_blshift_i:
+            | mov cl, byte WORK[reg_c];
+            | shl rax, cl;
+            break;
+        case MVM_OP_brshift_i:
+            | mov cl, byte WORK[reg_c];
+            | shr rax, cl;
             break;
         }
         | mov WORK[reg_a], rax;
@@ -732,6 +743,17 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         /* convert double precision to simple intege */
         | cvttsd2si rax, qword WORK[src];
         | mov WORK[dst], rax;
+        break;
+    }
+    case MVM_OP_neg_n: {
+        /* Negation is xor-ing the highest byte. Pretty simple right */
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | mov TMP1, 1;
+        | sal TMP1, 63;
+        | mov TMP2, qword WORK[src];
+        | xor TMP2, TMP1;
+        | mov qword WORK[dst], TMP2;
         break;
     }
     case MVM_OP_eq_i:
@@ -1190,6 +1212,22 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | get_spesh_slot ARG2, spesh_idx;
         | mov ARG3, aword MVM_PROFILE_ENTER_JIT_INLINE;
         | callp &MVM_profile_log_enter;
+        break;
+    }
+    case MVM_OP_getobjsc: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[obj];
+        | mov TMP2d, dword COLLECTABLE:TMP1->sc_forward_u.sc.sc_idx;
+        | xor TMP3, TMP3;
+        | cmp TMP2d, 0;
+        | jle >1;
+        | mov TMP3, aword TC->instance;
+        | mov TMP3, aword MVMINSTANCE:TMP3->all_scs;
+        | mov TMP3, aword [TMP3 + TMP2d * 8];
+        | mov TMP3, SCREFBODY:TMP3->sc;
+        |1:
+        | mov aword WORK[dst], TMP3;
         break;
     }
     default:
@@ -1688,8 +1726,8 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
             break;
         }
         default:
-            MVM_exception_throw_adhoc(tc, "JIT invoke: Can't add arg <%s>",
-                                      ins->info->name);
+            MVM_panic(1, "JIT invoke: Can't add arg <%s>",
+                      ins->info->name);
         }
     }
 
@@ -1697,7 +1735,7 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     if (sizeof(MVMReturnType) == 4) {
         | mov dword FRAME->return_type, invoke->return_type;
     } else {
-        MVM_exception_throw_adhoc(tc, "JIT: MVMReturnType has unexpected size");
+        MVM_panic(1, "JIT: MVMReturnType has unexpected size");
     }
     /* The register for our return value */
     if (invoke->return_type == MVM_RETURN_VOID) {

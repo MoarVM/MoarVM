@@ -79,6 +79,6 @@ void MVM_spesh_log_add_logging(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 
 
     /* Allocate space for logging storage. */
     g->log_slots = g->num_log_slots
-        ? calloc(g->num_log_slots * MVM_SPESH_LOG_RUNS, sizeof(MVMCollectable *))
+        ? MVM_calloc(g->num_log_slots * MVM_SPESH_LOG_RUNS, sizeof(MVMCollectable *))
         : NULL;
 }

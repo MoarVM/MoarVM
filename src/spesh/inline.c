@@ -120,7 +120,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
 }
 
 /* Finds the deopt index of the return. */
-MVMint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *invoke_ins) {
+static MVMint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *invoke_ins) {
     MVMSpeshAnn *ann = invoke_ins->annotations;
     while (ann) {
         if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS)
@@ -176,7 +176,7 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 }
 
 /* Merges the inlinee's spesh graph into the inliner. */
-void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMCode *inlinee_code,
                  MVMSpeshIns *invoke_ins) {
     MVMSpeshBB     *last_bb;
@@ -455,14 +455,15 @@ static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, M
 
 /* Finds return instructions and re-writes them into gotos, doing any needed
  * boxing or unboxing. */
-void return_to_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *return_ins, MVMSpeshOperand target) {
+static void return_to_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *return_ins, MVMSpeshOperand target) {
     MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
     operands[0]               = target;
     operands[1]               = return_ins->operands[0];
     return_ins->info          = MVM_op_get_op(MVM_OP_set);
     return_ins->operands      = operands;
 }
-void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *return_bb,
+
+static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *return_bb,
                    MVMSpeshIns *return_ins, MVMSpeshOperand target,
                    MVMuint16 box_type_op, MVMuint16 box_op) {
     /* Create and insert boxing instruction after current return instruction. */
@@ -480,7 +481,8 @@ void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *return_bb
     return_ins->info        = MVM_op_get_op(box_type_op);
     return_ins->operands[0] = target;
 }
-void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
+
+static void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
                         MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
                         MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
     switch (invoke_ins->info->opcode) {
@@ -499,7 +501,7 @@ void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
             "Spesh inline: unhandled case of return_i");
     }
 }
-void rewrite_num_return(MVMThreadContext *tc, MVMSpeshGraph *g,
+static void rewrite_num_return(MVMThreadContext *tc, MVMSpeshGraph *g,
                         MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
                         MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
     switch (invoke_ins->info->opcode) {
@@ -518,7 +520,8 @@ void rewrite_num_return(MVMThreadContext *tc, MVMSpeshGraph *g,
             "Spesh inline: unhandled case of return_n");
     }
 }
-void rewrite_str_return(MVMThreadContext *tc, MVMSpeshGraph *g,
+
+static void rewrite_str_return(MVMThreadContext *tc, MVMSpeshGraph *g,
                         MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
                         MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
     switch (invoke_ins->info->opcode) {
@@ -537,7 +540,8 @@ void rewrite_str_return(MVMThreadContext *tc, MVMSpeshGraph *g,
             "Spesh inline: unhandled case of return_s");
     }
 }
-void rewrite_obj_return(MVMThreadContext *tc, MVMSpeshGraph *g,
+
+static void rewrite_obj_return(MVMThreadContext *tc, MVMSpeshGraph *g,
                         MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
                         MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
     switch (invoke_ins->info->opcode) {
@@ -552,7 +556,8 @@ void rewrite_obj_return(MVMThreadContext *tc, MVMSpeshGraph *g,
             "Spesh inline: unhandled case of return_o");
     }
 }
-void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+
+static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                      MVMSpeshGraph *inlinee, MVMSpeshBB *invoke_bb,
                      MVMSpeshIns *invoke_ins) {
     /* Locate return instructions. */
@@ -606,7 +611,7 @@ void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 
 /* Re-writes argument passing and parameter taking instructions to simple
  * register set operations. */
-void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                   MVMSpeshGraph *inlinee, MVMSpeshBB *invoke_bb,
                   MVMSpeshCallInfo *call_info) {
     /* Look for param-taking instructions. Track what arg instructions we
@@ -654,7 +659,7 @@ void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 
 /* Annotates first and last instruction in post-processed inlinee with start
  * and end inline annotations. */
-void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+static void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                                MVMSpeshGraph *inlinee, MVMint32 idx) {
     /* Annotate first instruction. */
     MVMSpeshAnn *start_ann     = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));

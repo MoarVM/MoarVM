@@ -136,7 +136,7 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
 }
 
 /* Marks objects for a read task. */
-void read_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
+static void read_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
     ReadInfo *ri = (ReadInfo *)data;
     MVM_gc_worklist_add(tc, worklist, &ri->buf_type);
     MVM_gc_worklist_add(tc, worklist, &ri->handle);
@@ -184,7 +184,7 @@ static MVMAsyncTask * read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &read_op_table;
-    ri              = calloc(1, sizeof(ReadInfo));
+    ri              = MVM_calloc(1, sizeof(ReadInfo));
     ri->ds          = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0);
     MVM_ASSIGN_REF(tc, &(task->common.header), ri->handle, h);
     task->body.data = ri;
@@ -229,7 +229,7 @@ static MVMAsyncTask * read_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &read_op_table;
-    ri              = calloc(1, sizeof(ReadInfo));
+    ri              = MVM_calloc(1, sizeof(ReadInfo));
     MVM_ASSIGN_REF(tc, &(task->common.header), ri->buf_type, buf_type);
     MVM_ASSIGN_REF(tc, &(task->common.header), ri->handle, h);
     task->body.data = ri;
@@ -388,7 +388,7 @@ static MVMAsyncTask * write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMObject 
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &write_op_table;
-    wi              = calloc(1, sizeof(WriteInfo));
+    wi              = MVM_calloc(1, sizeof(WriteInfo));
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->handle, h);
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->str_data, s);
     task->body.data = wi;
@@ -430,7 +430,7 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &write_op_table;
-    wi              = calloc(1, sizeof(WriteInfo));
+    wi              = MVM_calloc(1, sizeof(WriteInfo));
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->handle, h);
     MVM_ASSIGN_REF(tc, &(task->common.header), wi->buf_data, buffer);
     task->body.data = wi;
@@ -457,7 +457,7 @@ static const MVMAsyncTaskOps close_op_table = {
     NULL
 };
 
-static void close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOAsyncSocketData *data = (MVMIOAsyncSocketData *)h->body.data;
     if (data->handle) {
         MVMAsyncTask *task;
@@ -470,6 +470,7 @@ static void close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
         data->handle = NULL;
     }
+    return 0;
 }
 
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
@@ -521,7 +522,7 @@ static void on_connect(uv_connect_t* req, int status) {
         MVMROOT(tc, arr, {
         MVMROOT(tc, t, {
             MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-            MVMIOAsyncSocketData *data   = calloc(1, sizeof(MVMIOAsyncSocketData));
+            MVMIOAsyncSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncSocketData));
             data->handle                 = (uv_stream_t *)ci->socket;
             result->body.ops             = &op_table;
             result->body.data            = data;
@@ -631,7 +632,7 @@ MVMObject * MVM_io_socket_connect_async(MVMThreadContext *tc, MVMObject *queue,
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &connect_op_table;
-    ci              = calloc(1, sizeof(ConnectInfo));
+    ci              = MVM_calloc(1, sizeof(ConnectInfo));
     ci->dest        = dest;
     task->body.data = ci;
 
@@ -667,7 +668,7 @@ static void on_connection(uv_stream_t *server, int status) {
         MVMROOT(tc, arr, {
         MVMROOT(tc, t, {
             MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-            MVMIOAsyncSocketData *data   = calloc(1, sizeof(MVMIOAsyncSocketData));
+            MVMIOAsyncSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncSocketData));
             data->handle                 = (uv_stream_t *)client;
             result->body.ops             = &op_table;
             result->body.data            = data;
@@ -783,7 +784,7 @@ MVMObject * MVM_io_socket_listen_async(MVMThreadContext *tc, MVMObject *queue,
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &listen_op_table;
-    li              = calloc(1, sizeof(ListenInfo));
+    li              = MVM_calloc(1, sizeof(ListenInfo));
     li->dest        = dest;
     task->body.data = li;
 

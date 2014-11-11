@@ -19,24 +19,26 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
     const char *name = (codepoint < 0 || codepoint > 0x10ffff) ? "<illegal>" : "<unassigned>";
 
     if (codepoint_row != -1) {
-	name = codepoint_names[codepoint_row];
-	if (!name) {
-	    while (codepoint_row && !codepoint_names[codepoint_row])
-		codepoint_row--;
-	    name = codepoint_names[codepoint_row];
-	    if (!name || name[0] != '<')
-		name = "<reserved>";
-	}
+        name = codepoint_names[codepoint_row];
+        if (!name) {
+            while (codepoint_row && !codepoint_names[codepoint_row])
+                codepoint_row--;
+            name = codepoint_names[codepoint_row];
+            if (!name || name[0] != '<')
+                name = "<reserved>";
+        }
     }
- 
+
     return MVM_string_ascii_decode(tc, tc->instance->VMString, name, strlen(name));
 }
 
 MVMString * MVM_unicode_codepoint_get_property_str(MVMThreadContext *tc, MVMGrapheme32 codepoint, MVMint64 property_code) {
-    const char *s = MVM_unicode_get_property_str(tc, codepoint, property_code);
-    if (!s)
-	s = "";
-    return MVM_string_ascii_decode(tc, tc->instance->VMString, s, strlen(s));
+    const char * const str = MVM_unicode_get_property_str(tc, codepoint, property_code);
+
+    if (!str)
+        return tc->instance->str_consts.empty;
+
+    return MVM_string_ascii_decode(tc, tc->instance->VMString, str, strlen(str));
 }
 
 MVMint64 MVM_unicode_codepoint_get_property_int(MVMThreadContext *tc, MVMGrapheme32 codepoint, MVMint64 property_code) {
@@ -73,7 +75,7 @@ MVMGrapheme32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMGrapheme32 co
 /* XXX make all the statics members of the global MVM instance instead? */
 static MVMUnicodeNameRegistry *property_codes_by_names_aliases;
 
-void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
+static void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_property_keypairs;
 
     while (num_names--) {
@@ -99,7 +101,7 @@ MVMint32 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name
 
 static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
     /* XXX make this synchronized, I guess... */
-    MVMUnicodeNameRegistry **hash_array = calloc(sizeof(MVMUnicodeNameRegistry *), MVMNUMPROPERTYCODES);
+    MVMUnicodeNameRegistry **hash_array = MVM_calloc(sizeof(MVMUnicodeNameRegistry *), MVMNUMPROPERTYCODES);
     MVMuint32 index = 0;
     MVMUnicodeNameRegistry *entry = NULL, *binaries = NULL;
     for ( ; index < num_unicode_property_value_keypairs; index++) {

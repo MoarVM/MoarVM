@@ -289,7 +289,7 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
 }
 
 /* This public-domain C quick sort implementation by Darel Rex Finley. */
-static MVMint64 quicksort(MVMint64 *arr, MVMint64 elements) {
+static MVMint64 revquicksort(MVMint64 *arr, MVMint64 elements) {
     #define MAX_LEVELS 100
     MVMint64 piv, beg[MAX_LEVELS], end[MAX_LEVELS], i = 0, L, R ;
     beg[0] = 0;
@@ -302,11 +302,11 @@ static MVMint64 quicksort(MVMint64 *arr, MVMint64 elements) {
             if (i == MAX_LEVELS - 1)
                 return 0;
             while (L < R) {
-                while (arr[R] >= piv && L < R)
+                while (arr[R] <= piv && L < R)
                     R--;
                 if (L < R)
                     arr[L++] = arr[R];
-                while (arr[L] <= piv && L < R)
+                while (arr[L] >= piv && L < R)
                     L++;
                 if (L < R)
                     arr[R--]  =arr[L];
@@ -421,66 +421,79 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 else if (offset >= eos) {
                     /* Can't match, so drop state. */
                 }
-                else if (act == MVM_NFA_EDGE_CODEPOINT) {
-                    MVMint64 arg = edge_info[i].arg.i;
-                    if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg)
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CODEPOINT_NEG) {
-                    MVMint64 arg = edge_info[i].arg.i;
-                    if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) != arg)
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CHARCLASS) {
-                    MVMint64 arg = edge_info[i].arg.i;
-                    if (MVM_string_is_cclass(tc, arg, target, offset))
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CHARCLASS_NEG) {
-                    MVMint64 arg = edge_info[i].arg.i;
-                    if (!MVM_string_is_cclass(tc, arg, target, offset))
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CHARLIST) {
-                    MVMString *arg    = edge_info[i].arg.s;
-                    MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                    if (MVM_string_index_of_grapheme(tc, arg, cp) >= 0)
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CHARLIST_NEG) {
-                    MVMString *arg    = edge_info[i].arg.s;
-                    MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                    if (MVM_string_index_of_grapheme(tc, arg, cp) < 0)
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CODEPOINT_I) {
-                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
-                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                    if (ord == lc_arg || ord == uc_arg)
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CODEPOINT_I_NEG) {
-                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
-                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                    if (ord != lc_arg && ord != uc_arg)
-                        nextst[numnext++] = to;
-                }
-                else if (act == MVM_NFA_EDGE_CHARRANGE) {
-                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
-                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                    if (ord >= lc_arg && ord <= uc_arg) /* TODO ignorecase? */
-                        nextst[numnext++] = to;
-                    
-                }
-                else if (act == MVM_NFA_EDGE_CHARRANGE_NEG) {
-                    MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
-                    MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
-                    MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                    if (ord < lc_arg || ord > uc_arg) /* TODO ignorecase? */
-                        nextst[numnext++] = to;
+                else {
+                    switch (act) {
+                        case MVM_NFA_EDGE_CODEPOINT: {
+                            MVMint64 arg = edge_info[i].arg.i;
+                            if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg)
+                                nextst[numnext++] = to;
+                            break;
+                        }
+                        case MVM_NFA_EDGE_CODEPOINT_NEG: {
+                            MVMint64 arg = edge_info[i].arg.i;
+                            if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) != arg)
+                                nextst[numnext++] = to;
+                            break;
+                        }
+                        case MVM_NFA_EDGE_CHARCLASS: {
+                            MVMint64 arg = edge_info[i].arg.i;
+                            if (MVM_string_is_cclass(tc, arg, target, offset))
+                                nextst[numnext++] = to;
+                            break;
+                        }
+                        case MVM_NFA_EDGE_CHARCLASS_NEG: {
+                            MVMint64 arg = edge_info[i].arg.i;
+                            if (!MVM_string_is_cclass(tc, arg, target, offset))
+                                nextst[numnext++] = to;
+                            break;
+                        }
+                        case MVM_NFA_EDGE_CHARLIST: {
+                            MVMString *arg    = edge_info[i].arg.s;
+                            MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                            if (MVM_string_index_of_grapheme(tc, arg, cp) >= 0)
+                                nextst[numnext++] = to;
+                            break;
+                        }
+                        case MVM_NFA_EDGE_CHARLIST_NEG: {
+                            MVMString *arg    = edge_info[i].arg.s;
+                            MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                            if (MVM_string_index_of_grapheme(tc, arg, cp) < 0)
+                                nextst[numnext++] = to;
+                            break;
+                        }
+                        case MVM_NFA_EDGE_CODEPOINT_I: {
+                            MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                            MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                            MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                            if (ord == lc_arg || ord == uc_arg)
+                                nextst[numnext++] = to;
+                            break;
+                        }
+                        case MVM_NFA_EDGE_CODEPOINT_I_NEG: {
+                            MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                            MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                            MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                            if (ord != lc_arg && ord != uc_arg)
+                                nextst[numnext++] = to;
+                            break;
+                        }
+                        case MVM_NFA_EDGE_CHARRANGE: {
+                            MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                            MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                            MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                            if (ord >= lc_arg && ord <= uc_arg) /* TODO ignorecase? */
+                                nextst[numnext++] = to;
+                            break;
+                        }
+                        case MVM_NFA_EDGE_CHARRANGE_NEG: {
+                            MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                            MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                            MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                            if (ord < lc_arg || ord > uc_arg) /* TODO ignorecase? */
+                                nextst[numnext++] = to;
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -490,17 +503,17 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         gen++;
 
         /* If we got multiple fates at this offset, sort them by the
-         * declaration order (represented by the fate number). In the
-         * future, we'll want to factor in longest literal prefix too. */
+         * literal length and declaration order (both encoded in fate number).
+         * The high 32 bits of the fat encodes literal length, while the low
+         * 32 bits encode fate. Both want to be descending order. */
         if (total_fates - prev_fates > 1) {
             MVMint64 char_fates = total_fates - prev_fates;
-            for (i = total_fates - char_fates; i < total_fates; i++)
-                fates[i] = -fates[i];
-            quicksort(&fates[total_fates - char_fates], char_fates);
-            for (i = total_fates - char_fates; i < total_fates; i++)
-                fates[i] = -fates[i];
+            revquicksort(&fates[total_fates - char_fates], char_fates);
         }
     }
+    /* strip any literal lengths, leaving only fates */
+    for (i = 0; i < total_fates; i++)
+        fates[i] &= 0xffffffff;
 
     *total_fates_out = total_fates;
     return fates;

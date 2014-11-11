@@ -19,7 +19,7 @@ typedef struct {
     int          accept_status;
 } MVMIOSyncSocketData;
 
-static void do_close(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
+static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
     if (data->ss.handle) {
          uv_close((uv_handle_t *)data->ss.handle, NULL);
          data->ss.handle = NULL;
@@ -28,10 +28,11 @@ static void do_close(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
         MVM_string_decodestream_destory(tc, data->ss.ds);
         data->ss.ds = NULL;
     }
+    return 0;
 }
-static void close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-    do_close(tc, data);
+    return do_close(tc, data);
 }
 
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
@@ -198,7 +199,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
         data->accept_server = NULL;
         if ((r = uv_accept(server, (uv_stream_t *)client)) == 0) {
             MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-            MVMIOSyncSocketData * const data   = calloc(1, sizeof(MVMIOSyncSocketData));
+            MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
             data->ss.handle   = (uv_stream_t *)client;
             data->ss.encoding = MVM_encoding_type_utf8;
             data->ss.sep      = '\n';
@@ -216,7 +217,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
 
 MVMObject * MVM_io_socket_create(MVMThreadContext *tc, MVMint64 listen) {
     MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    MVMIOSyncSocketData * const data   = calloc(1, sizeof(MVMIOSyncSocketData));
+    MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
     data->ss.handle   = NULL;
     data->ss.encoding = MVM_encoding_type_utf8;
     data->ss.sep      = '\n';

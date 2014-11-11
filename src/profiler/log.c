@@ -3,7 +3,7 @@
 /* Gets the current thread's profiling data structure, creating it if needed. */
 static MVMProfileThreadData * get_thread_data(MVMThreadContext *tc) {
     if (!tc->prof_data) {
-        tc->prof_data = calloc(1, sizeof(MVMProfileThreadData));
+        tc->prof_data = MVM_calloc(1, sizeof(MVMProfileThreadData));
         tc->prof_data->start_time = uv_hrtime();
     }
     return tc->prof_data;
@@ -24,7 +24,7 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
     /* If we didn't find a call graph node, then create one and add it to the
      * graph. */
     if (!pcn) {
-        pcn     = calloc(1, sizeof(MVMProfileCallNode));
+        pcn     = MVM_calloc(1, sizeof(MVMProfileCallNode));
         pcn->sf = sf;
         if (ptd->current_call) {
             MVMProfileCallNode *pred = ptd->current_call;

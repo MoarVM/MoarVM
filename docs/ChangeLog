@@ -1,3 +1,29 @@
+New in 2014.10
+
++ Added op nativecallglobal
++ Update DynASM
++ [Configure] document --asan option,
+  Implement --has-linenoise, --has-dyncall and --has-dynasm
++ Build and install libatomic_ops conditionally
++ Improve usage, include environment variables.
++ Document bytecode directory environment flag
++ Add beginnings of a manual page in docs/moar.pod
++ Don't mark inlined locals for logging frames.
++ Fix crash upon trying to clone a type object.
++ Fix concreteness test for the reprconv
++ Fix handling of command line args on Win32
++ Build with jit by default, add --no-jit option
++ Prettify --enable-jit obsoletion notice
++ JIT savecapture, usecapture, getobjsc, sin, cos, tan, asin, acos, atan.
+  atan2_n, time_n, pow_n and sqrt_n, nativecallinvoke and numeric negation
++ Added MVM_calloc function
++ Make "cannot invoke" errors consistent.
++ Improve err msg about oob in io_read_bytes
++ Optimize out non-interned static callsites
++ Attempt interning the callsites we use in nativecall callbacks
++ Implement set_separator for syncfiles
++ Panic if MVM_platform_alloc_pages failed on posix system
+
 New in 2014.09
 
 + Add an instrumenting profiler, recording profiling information at routine

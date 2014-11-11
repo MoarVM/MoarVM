@@ -1,9 +1,5 @@
 #include "moar.h"
 
-/* Dummy one-arg callsite. */
-static MVMCallsiteEntry one_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     one_arg_callsite = { one_arg_flags, 1, 1, 0 };
-
 static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 num) {
     if (ctx->named_used && ctx->named_used_size >= num) { /* reuse the old one */
         memset(ctx->named_used, 0, ctx->named_used_size * sizeof(MVMuint8));
@@ -91,6 +87,26 @@ MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
     capture->body.apc                = &f->params;
     capture->body.effective_callsite = MVM_args_proc_to_callsite(tc, &f->params);
     return tc->cur_usecapture;
+}
+
+MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
+    MVMObject *cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
+    MVMCallCapture *cc = (MVMCallCapture *)cc_obj;
+
+    /* Copy the arguments. */
+    MVMuint32 arg_size = frame->params.arg_count * sizeof(MVMRegister);
+    MVMRegister *args = MVM_malloc(arg_size);
+    memcpy(args, frame->params.args, arg_size);
+
+    /* Create effective callsite. */
+    cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &frame->params);
+
+    /* Set up the call capture. */
+    cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
+    cc->body.apc  = MVM_malloc(sizeof(MVMArgProcContext));
+    memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
+    MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
+    return cc_obj;
 }
 
 MVMCallsite * MVM_args_prepare(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 callsite_idx) {
@@ -816,11 +832,11 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
     if (!bind_error)
         MVM_exception_throw_adhoc(tc, "Bind erorr occurred, but HLL has no handler");
     bind_error = MVM_frame_find_invokee(tc, bind_error, NULL);
-    res = calloc(1, sizeof(MVMRegister));
-    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, &one_arg_callsite);
+    res = MVM_calloc(1, sizeof(MVMRegister));
+    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
     tc->cur_frame->special_return           = bind_error_return;
     tc->cur_frame->special_return_data      = res;
     tc->cur_frame->mark_special_return_data = mark_sr_data;
     tc->cur_frame->args[0].o = cc_obj;
-    STABLE(bind_error)->invoke(tc, bind_error, &one_arg_callsite, tc->cur_frame->args);
+    STABLE(bind_error)->invoke(tc, bind_error, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
 }

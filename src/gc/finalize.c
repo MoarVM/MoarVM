@@ -1,9 +1,5 @@
 #include "moar.h"
 
-/* Dummy one-arg callsite. */
-static MVMCallsiteEntry one_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     one_arg_callsite = { one_arg_flags, 1, 1, 0 };
-
 /* Turns finalization on or off for a type. */
 void MVM_gc_finalize_set(MVMThreadContext *tc, MVMObject *type, MVMint64 finalize) {
     MVMSTable *st        = STABLE(type);
@@ -41,9 +37,9 @@ static void finalize_handler_caller(MVMThreadContext *tc, void *sr_data) {
 
         /* Invoke the handler. */
         handler = MVM_frame_find_invokee(tc, handler, NULL);
-        MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, &one_arg_callsite);
+        MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
         tc->cur_frame->args[0].o = drain;
-        STABLE(handler)->invoke(tc, handler, &one_arg_callsite, tc->cur_frame->args);
+        STABLE(handler)->invoke(tc, handler, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
     }
 }
 static void setup_finalize_handler_call(MVMThreadContext *tc) {
@@ -73,7 +69,7 @@ static void add_to_finalizing(MVMThreadContext *tc, MVMObject *obj) {
     tc->finalizing[tc->num_finalizing] = obj;
     tc->num_finalizing++;
 }
-void walk_thread_finalize_queue(MVMThreadContext *tc, MVMuint8 gen) {
+static void walk_thread_finalize_queue(MVMThreadContext *tc, MVMuint8 gen) {
     MVMuint32 collapse_pos = 0;
     MVMuint32 i;
     for (i = 0; i < tc->num_finalize; i++) {

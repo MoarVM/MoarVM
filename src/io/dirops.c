@@ -232,7 +232,7 @@ static const MVMIOOps op_table = {
 /* Open a filehandle, returning a handle. */
 MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     MVMOSHandle  * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    MVMIODirIter * const data   = calloc(1, sizeof(MVMIODirIter));
+    MVMIODirIter * const data   = MVM_calloc(1, sizeof(MVMIODirIter));
 #ifdef _WIN32
     char *name;
     int str_len;

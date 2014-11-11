@@ -47,14 +47,23 @@ sub MAIN($file = "src/core/oplist") {
     $lf.say(op_labels(@ops));
     $lf.close;
 
+    my %op_constants = op_constants(@ops);
+
     # Generate NQP Ops file.
     my $nf = open("lib/MAST/Ops.nqp", :w);
     $nf.say("# This file is generated from $file by tools/update_ops.p6.");
     $nf.say("");
-    $nf.say(op_constants(@ops));
+    $nf.say(%op_constants<NQP>);
     $nf.close;
 
-    say "Wrote src/core/ops.h, src/core/ops.c, src/core/oplabels.h and lib/MAST/Ops.nqp";
+    # Generate a p6 Ops file into the tools directory
+    my $pf = open("tools/lib/MAST/Ops.pm", :w);
+    $pf.say("# This file is generated from $file by tools/update_ops.p6.");
+    $pf.say("");
+    $pf.say(%op_constants<P6>);
+    $pf.close;
+
+    say "Wrote src/core/ops.h, src/core/ops.c, src/core/oplabels.h, tools/lib/MAST/Ops.pm, and lib/MAST/Ops.nqp";
 }
 
 # Parses ops and produces a bunch of Op objects.
@@ -138,7 +147,8 @@ sub op_constants(@ops) {
         }
         @counts.push($values_idx - $last_idx);
     }
-    return '
+    return (
+        NQP => '
 class MAST::Ops {}
 BEGIN {
     MAST::Ops.WHO<@offsets> := nqp::list_i('~
@@ -151,7 +161,23 @@ BEGIN {
         join(",\n    ", @ops.map({ "'$_.name()', $_.code()" }))~');
     MAST::Ops.WHO<@names> := nqp::list('~
         join(",\n    ", @ops.map({ "'$_.name()'" }))~');
-}';
+}',
+        P6 => '
+module MAST::Ops;
+our %flags is export = ('~
+    join(",\n    ", $value_map.pairs.map({ $_.perl }) )~');
+our @offsets is export = '~
+    join(",\n    ", @offsets)~';
+our @counts = '~
+    join(",\n    ", @counts)~';
+our @values is export = '~
+    join(",\n    ", @values)~';
+our %codes is export = '~
+    join(",\n    ", @ops.map({ "'$_.name()', $_.code()" }))~';
+our @names is export = '~
+    join(",\n    ", @ops.map({ "'$_.name()'" }))~';
+',
+        ).hash;
 }
 
 # Generate labels for cgoto dispatch

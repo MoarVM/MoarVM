@@ -19,7 +19,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     int init_stat;
 
     /* Set up instance data structure. */
-    instance = calloc(1, sizeof(MVMInstance));
+    instance = MVM_calloc(1, sizeof(MVMInstance));
 
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(instance);
@@ -71,7 +71,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVM_gc_allocate_gen2_default_set(instance->main_thread);
 
     init_mutex(instance->mutex_int_const_cache, "int constant cache");
-    instance->int_const_cache = calloc(1, sizeof(MVMIntConstCache));
+    instance->int_const_cache = MVM_calloc(1, sizeof(MVMIntConstCache));
 
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
@@ -108,11 +108,15 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVM_string_cclass_init(instance->main_thread);
 
     /* Create callsite intern pool. */
-    instance->callsite_interns = calloc(1, sizeof(MVMCallsiteInterns));
+    instance->callsite_interns = MVM_calloc(1, sizeof(MVMCallsiteInterns));
     init_mutex(instance->mutex_callsite_interns, "callsite interns");
 
     /* Allocate int to str cache. */
-    instance->int_to_str_cache = calloc(MVM_INT_TO_STR_CACHE_SIZE, sizeof(MVMString *));
+    instance->int_to_str_cache = MVM_calloc(MVM_INT_TO_STR_CACHE_SIZE, sizeof(MVMString *));
+
+    /* There's some callsites we statically use all over the place. Intern
+     * them, so that spesh may end up optimizing more "internal" stuff. */
+    MVM_callsite_initialize_common(instance);
 
     /* Mutex for spesh installations, and check if we've a file we
      * should log specializations to. */
@@ -174,11 +178,8 @@ static void setup_std_handles(MVMThreadContext *tc) {
 /* This callback is passed to the interpreter code. It takes care of making
  * the initial invocation. */
 static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
-    /* Dummy, 0-arg callsite. */
-    static MVMCallsite no_arg_callsite = { NULL, 0, 0, 0 };
-
     /* Create initial frame, which sets up all of the interpreter state also. */
-    MVM_frame_invoke(tc, (MVMStaticFrame *)data, &no_arg_callsite, NULL, NULL, NULL, -1);
+    MVM_frame_invoke(tc, (MVMStaticFrame *)data, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS), NULL, NULL, NULL, -1);
 }
 
 /* Loads bytecode from the specified file name and runs it. */

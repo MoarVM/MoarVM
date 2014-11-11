@@ -18,9 +18,10 @@ struct MVMIOSyncPipeData {
 };
 
 /* Closes the pipe. */
-static void do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
+static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
+    MVMint64 status = 0;
     if (data->ss.handle == NULL || uv_is_closing((uv_handle_t*)data->ss.handle))
-        return;
+        return 0;
     /* closing the in-/output std filehandle will shutdown the child process. */
     uv_unref((uv_handle_t*)data->ss.handle);
     uv_close((uv_handle_t*)data->ss.handle, NULL);
@@ -29,9 +30,14 @@ static void do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
 #ifdef _WIN32
         if (!uv_is_closing((uv_handle_t*)data->process))
             uv_process_close(tc->loop, data->process);
+        GetExitCodeProcess(data->process->process_handle, &(DWORD)status);
 #else
-        waitpid(data->process->pid, NULL, 0);
+        waitpid(data->process->pid, (int *)&status, 0);
 #endif
+    if (!status && data->process->data) {
+        status = *(MVMint64*)data->process->data;
+        MVM_free(data->process->data);
+    }
     uv_unref((uv_handle_t *)data->process);
     uv_run(tc->loop, UV_RUN_DEFAULT);
     data->process   = NULL;
@@ -40,16 +46,17 @@ static void do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
         MVM_string_decodestream_destory(tc, data->ss.ds);
         data->ss.ds = NULL;
     }
+    return status;
 }
-static void closefh(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncPipeData *data = (MVMIOSyncPipeData *)h->body.data;
-    do_close(tc, data);
+    return do_close(tc, data);
 }
 
 /* Frees data associated with the pipe, closing it if needed. */
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOSyncPipeData *data = (MVMIOSyncPipeData *)d;
-     do_close(tc, data);
+    do_close(tc, data);
 }
 
 /* IO ops table, populated with functions. */
@@ -85,7 +92,7 @@ static const MVMIOOps op_table = {
 /* Creates a sync pipe handle. */
 MVMObject * MVM_io_syncpipe(MVMThreadContext *tc, uv_stream_t *handle, uv_process_t *process) {
     MVMOSHandle       * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    MVMIOSyncPipeData * const data   = calloc(1, sizeof(MVMIOSyncPipeData));
+    MVMIOSyncPipeData * const data   = MVM_calloc(1, sizeof(MVMIOSyncPipeData));
     data->process     = process;
     data->ss.handle   = handle;
     data->ss.encoding = MVM_encoding_type_utf8;

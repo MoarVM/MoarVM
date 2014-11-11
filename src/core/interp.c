@@ -1063,24 +1063,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(savecapture): {
                 /* Create a new call capture object. */
-                MVMObject *cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
-                MVMCallCapture *cc = (MVMCallCapture *)cc_obj;
-
-                /* Copy the arguments. */
-                MVMuint32 arg_size = tc->cur_frame->params.arg_count * sizeof(MVMRegister);
-                MVMRegister *args = MVM_malloc(arg_size);
-                memcpy(args, tc->cur_frame->params.args, arg_size);
-
-                /* Create effective callsite. */
-                cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &tc->cur_frame->params);
-
-                /* Set up the call capture. */
-                cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
-                cc->body.apc  = MVM_malloc(sizeof(MVMArgProcContext));
-                memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
-                MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
-
-                GET_REG(cur_op, 0).o = cc_obj;
+                GET_REG(cur_op, 0).o = MVM_args_save_capture(tc, tc->cur_frame);
                 cur_op += 2;
                 goto NEXT;
             }
@@ -2749,7 +2732,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o, *ch = GET_REG(cur_op, 2).o,
                     *invocation_handler = GET_REG(cur_op, 6).o;
                 MVMString *name = GET_REG(cur_op, 4).s;
-                MVMInvocationSpec *is = calloc(1, sizeof(MVMInvocationSpec));
+                MVMInvocationSpec *is = MVM_calloc(1, sizeof(MVMInvocationSpec));
                 MVMSTable *st = STABLE(obj);
                 MVM_ASSIGN_REF(tc, &(st->header), is->class_handle, ch);
                 MVM_ASSIGN_REF(tc, &(st->header), is->attr_name, name);
@@ -4318,6 +4301,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_nativecall_global(tc, GET_REG(cur_op, 2).s,
                     GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o);
                 cur_op += 10;
+                goto NEXT;
+            OP(close_fhi):
+                GET_REG(cur_op, 0).i64 = MVM_io_close(tc, GET_REG(cur_op, 2).o);
+                cur_op += 4;
                 goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {

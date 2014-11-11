@@ -4,6 +4,9 @@ struct MVMSpeshGraph {
     /* The static frame this is the spesh graph for. */
     MVMStaticFrame *sf;
 
+    /* The callsite this spesh graph has been tailored to. */
+    MVMCallsite *cs;
+
     /* The bytecode we're building the graph out of. */
     MVMuint8 *bytecode;
 

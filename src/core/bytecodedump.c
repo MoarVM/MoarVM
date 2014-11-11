@@ -56,7 +56,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 s = 1024;
     MVMuint32 l = 0;
     MVMuint32 i, j, k, q;
-    char *o = calloc(sizeof(char) * s, 1);
+    char *o = MVM_calloc(sizeof(char) * s, 1);
     char ***frame_lexicals = MVM_malloc(sizeof(char **) * cu->body.num_frames);
     MVMString *name = MVM_string_utf8_decode(tc, tc->instance->VMString, "", 0);
 
@@ -167,8 +167,8 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* current position in the bytestream */
     MVMuint8 *cur_op = bytecode_start;
     /* positions in the bytestream that are starts of ops and goto targets */
-    MVMuint8 *labels = calloc(bytecode_size, 1);
-    MVMuint32 *jumps = calloc(sizeof(MVMuint32) * bytecode_size, 1);
+    MVMuint8 *labels = MVM_calloc(bytecode_size, 1);
+    MVMuint32 *jumps = MVM_calloc(sizeof(MVMuint32) * bytecode_size, 1);
     char **lines = MVM_malloc(sizeof(char *) * bytecode_size);
     MVMuint32 *linelocs = MVM_malloc(bytecode_size);
     MVMuint32 lineno = 0;
@@ -190,7 +190,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         /* allocate a line buffer */
         s = 200;
         l = 0;
-        o = calloc(sizeof(char) * s, 1);
+        o = MVM_calloc(sizeof(char) * s, 1);
 
         lineloc = cur_op - bytecode_start;
         /* mark that this line starts at this point in the bytestream */
@@ -322,11 +322,11 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         lines[lineno++] = o;
     }
     {
-        MVMuint32 *linelabels = calloc(lineno, sizeof(MVMuint32));
+        MVMuint32 *linelabels = MVM_calloc(lineno, sizeof(MVMuint32));
         MVMuint32 byte_offset = 0;
         MVMuint32 line_number = 0;
         MVMuint32 label_number = 1;
-        MVMuint32 *annotations = calloc(lineno, sizeof(MVMuint32));
+        MVMuint32 *annotations = MVM_calloc(lineno, sizeof(MVMuint32));
 
         for (; byte_offset < bytecode_size; byte_offset++) {
             if (labels[byte_offset] & MVM_val_branch_target) {
