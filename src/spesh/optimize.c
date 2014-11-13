@@ -62,6 +62,20 @@ MVMint16 MVM_spesh_add_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCol
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                              MVMSpeshIns *ins, MVMint32 type_operand);
 
+static void optimize_findmeth_s_perhaps_constant(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *name_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
+
+    if (name_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        if (name_facts->writer && name_facts->writer->info->opcode == MVM_OP_const_s) {
+            name_facts->usages--;
+            ins->info = MVM_op_get_op(MVM_OP_findmeth);
+            ins->operands[2].lit_i64 = 0;
+            ins->operands[2].lit_str_idx = name_facts->writer->operands[1].lit_str_idx;
+            MVM_spesh_use_facts(tc, g, name_facts);
+        }
+    }
+}
+
 /* Performs optimization on a method lookup. If we know the type that we'll
  * be dispatching on, resolve it right off. If not, add a cache. */
 static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
@@ -1107,6 +1121,10 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_isstr:
             optimize_is_reprid(tc, g, ins);
             break;
+        case MVM_OP_findmeth_s:
+            optimize_findmeth_s_perhaps_constant(tc, g, ins);
+            if (ins->info->opcode == MVM_OP_findmeth_s)
+                break;
         case MVM_OP_findmeth:
             optimize_method_lookup(tc, g, ins);
             break;
