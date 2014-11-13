@@ -28,7 +28,7 @@ my @callsite_args;
 my %reg_writers;
 
 for lines() :eager -> $_ is copy {
-    when / ^ '      ' <!before '['> $<opname>=[<[a..z 0..9 _]>+] \s+
+    when / ^ '      ' <!before '['> $<opname>=[<[a..z I 0..9 _]>+] \s+
             [ $<argument>=[
               | r $<regnum>=[<.digit>+] '(' $<regver>=[<.digit>+] ')'
               | liti <.digit>+ '(' ~ ')' <-[)]>+
