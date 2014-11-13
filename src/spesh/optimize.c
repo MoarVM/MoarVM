@@ -339,6 +339,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                     ins->operands[0] = cur->operands[1];
                     flag_facts->usages--;
                     MVM_spesh_get_and_use_facts(tc, g, cur->operands[1])->usages++;
+                    optimize_iffy(tc, g, ins, bb);
                     return;
                 }
             }
