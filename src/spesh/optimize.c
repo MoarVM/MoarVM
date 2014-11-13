@@ -1276,6 +1276,18 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             if (ins->info->opcode == (MVMuint16)-1)
                 optimize_extop(tc, g, bb, ins);
         }
+
+        if (ins->prev && ins->prev->info->opcode == MVM_OP_set && ins->info->opcode == MVM_OP_set) {
+            if (ins->operands[0].reg.i == ins->prev->operands[1].reg.i + 1 &&
+                    ins->operands[0].reg.orig == ins->prev->operands[1].reg.orig &&
+                    ins->operands[1].reg.i == ins->prev->operands[0].reg.i &&
+                    ins->operands[1].reg.orig == ins->prev->operands[0].reg.orig) {
+                MVMSpeshIns *previous = ins->prev;
+                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+                ins = previous;
+            }
+        }
+
         ins = ins->next;
     }
 
