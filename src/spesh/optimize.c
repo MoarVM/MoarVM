@@ -284,28 +284,62 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         }
 
         if (cur) {
+            MVMSpeshIns *safety_cur;
             MVMuint8 orig_operand_type = cur->info->operands[1] & MVM_operand_type_mask;
             MVMuint8 succ = 0;
 
-            switch (orig_operand_type) {
-                case MVM_operand_int64:
-                    ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_i : MVM_OP_if_i);
-                    succ = 1;
+            /* now we have to be extra careful. any operation that writes to
+             * our "unboxed flag" register (in any register version) will be
+             * trouble. Also, we'd have to take more care with PHI nodes,
+             * which we'll just consider immediate failure for now. */
+
+            safety_cur = ins;
+            while (safety_cur) {
+                if (safety_cur == cur) {
+                    /* If we've made it to here without finding anything
+                     * dangerous, we can consider this optimization
+                     * a winner. */
                     break;
-                case MVM_operand_num64:
-                    ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_n : MVM_OP_if_n);
-                    succ = 1;
+                }
+                if (safety_cur->info->opcode == MVM_SSA_PHI) {
+                    /* Oh dear god in heaven! A PHI! */
+                    safety_cur = NULL;
                     break;
-                case MVM_operand_str:
-                    ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_s : MVM_OP_if_s);
-                    succ = 1;
+                }
+                if ((safety_cur->info->operands[0] & MVM_operand_rw_mask == MVM_operand_write_reg)
+                    && (safety_cur->operands[0].reg.orig == cur->operands[1].reg.orig)) {
+                    /* Someone's clobbering our register between the boxing and
+                     * our attempt to unbox it. we shall give up.
+                     * Maybe in the future we can be clever/sneaky and use
+                     * some other register for bridging the gap? */
+                    safety_cur = NULL;
                     break;
+                }
+                safety_cur = safety_cur->prev;
             }
 
-            if (succ) {
-                ins->operands[0] = cur->operands[1];
-                flag_facts->usages--;
-                return;
+            if (safety_cur) {
+                switch (orig_operand_type) {
+                    case MVM_operand_int64:
+                        ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_i : MVM_OP_if_i);
+                        succ = 1;
+                        break;
+                    case MVM_operand_num64:
+                        ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_n : MVM_OP_if_n);
+                        succ = 1;
+                        break;
+                    case MVM_operand_str:
+                        ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_s : MVM_OP_if_s);
+                        succ = 1;
+                        break;
+                }
+
+                if (succ) {
+                    ins->operands[0] = cur->operands[1];
+                    flag_facts->usages--;
+                    MVM_spesh_get_and_use_facts(tc, g, cur->operands[1])->usages++;
+                    return;
+                }
             }
         }
     }
