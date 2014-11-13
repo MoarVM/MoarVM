@@ -191,28 +191,6 @@ static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
     }
 }
 
-static void optimize_unbox_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
-    MVMSpeshFacts *source_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
-    MVMSpeshFacts *original_source_facts = source_facts;
-
-    if (source_facts->flags & MVM_SPESH_FACT_KNOWN_BOX_SRC) {
-        MVMSpeshFacts *box_src_facts;
-        while (source_facts->writer && source_facts->writer->info->opcode == MVM_OP_set) {
-            source_facts = MVM_spesh_get_facts(tc, g, source_facts->writer->operands[1]);
-        }
-
-        if (!source_facts->writer) {
-            return;
-        }
-
-        box_src_facts = MVM_spesh_get_facts(tc, g, source_facts->writer->operands[1]);
-        ins->info = MVM_op_get_op(MVM_OP_set);
-        ins->operands[1] = source_facts->writer->operands[1];
-        original_source_facts->usages--;
-        box_src_facts->usages++;
-    }
-}
-
 /* iffy ops that operate on a known value register can turn into goto
  * or be dropped. */
 static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
@@ -292,7 +270,46 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
         }
-    } else if (flag_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && flag_facts->type) {
+    }
+    /* Sometimes our code-gen ends up boxing an integer and immediately
+     * calling if_o or unless_o on it. If we if_i/unless_i/... instead,
+     * we can get rid of the unboxing and perhaps the boxing as well. */
+    if ((ins->info->opcode == MVM_OP_if_o || ins->info->opcode == MVM_OP_unless_o)
+            && flag_facts->flags & MVM_SPESH_FACT_KNOWN_BOX_SRC && flag_facts->writer) {
+        /* We may have to go through several layers of set instructions to find
+         * the proper writer. */
+        MVMSpeshIns *cur = flag_facts->writer;
+        while (cur && cur->info->opcode == MVM_OP_set) {
+            cur = MVM_spesh_get_facts(tc, g, cur->operands[1])->writer;
+        }
+
+        if (cur) {
+            MVMuint8 orig_operand_type = cur->info->operands[1] & MVM_operand_type_mask;
+            MVMuint8 succ = 0;
+
+            switch (orig_operand_type) {
+                case MVM_operand_int64:
+                    ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_i : MVM_OP_if_i);
+                    succ = 1;
+                    break;
+                case MVM_operand_num64:
+                    ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_n : MVM_OP_if_n);
+                    succ = 1;
+                    break;
+                case MVM_operand_str:
+                    ins->info = MVM_op_get_op(negated_op ? MVM_OP_unless_s : MVM_OP_if_s);
+                    succ = 1;
+                    break;
+            }
+
+            if (succ) {
+                ins->operands[0] = cur->operands[1];
+                flag_facts->usages--;
+                return;
+            }
+        }
+    }
+    if (flag_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && flag_facts->type) {
         if (ins->info->opcode == MVM_OP_if_o || ins->info->opcode == MVM_OP_unless_o) {
             MVMObject *type            = flag_facts->type;
             MVMBoolificationSpec *bs   = type->st->boolification_spec;
@@ -340,7 +357,6 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                     break;
                 default:
                     return;
-
             }
 
             operands[0] = temp;
@@ -357,8 +373,6 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             MVM_spesh_use_facts(tc, g, flag_facts);
 
             MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
-            
-            optimize_unbox_op(tc, g, bb, new_ins);
         } else {
             return;
         }
@@ -1193,16 +1207,6 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_box_s:
             optimize_repr_op(tc, g, bb, ins, 2);
             break;
-        case MVM_OP_unbox_i:
-        case MVM_OP_unbox_n:
-        case MVM_OP_unbox_s: {
-                MVMint64 before = ins->info->opcode;
-                optimize_unbox_op(tc, g, bb, ins);
-                if (ins->info->opcode == before) {
-                    optimize_repr_op(tc, g, bb, ins, 1);
-                }
-                break;
-            }
         case MVM_OP_elems:
             optimize_repr_op(tc, g, bb, ins, 1);
             break;
