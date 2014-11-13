@@ -23,6 +23,8 @@ my %bb_map;
 my @connections;
 my %bb_connections;
 
+my @callsite_args;
+
 my %reg_writers;
 
 for lines() :eager -> $_ is copy {
@@ -172,7 +174,7 @@ for lines() :eager -> $_ is copy {
         $current_bb = ~$<addr>;
         $last_ins = "\"entry_$<addr>\"";
     }
-    when / ^ '    ' 'Successors: ' [$<succ>=[<.digit>+]]+ % ', ' $ / {
+    when / ^ '    ' 'Successors: ' [$<succ>=[<.digit>+]]* % ', ' $ / {
         %bb_connections{$current_bb} = @<succ>>>.Str;
     }
     when / ^ '      ' '[Annotation: ' $<annotation>=[<[a..z A..Z 0..9 \ ]>+] / {
@@ -185,12 +187,33 @@ for lines() :eager -> $_ is copy {
             say "    $previous_ins -> $last_ins [color=lightgrey];";
         }
     }
-    when / ^ '    ' r $<regnum>=[<.digit>+] '(' $<regver>=[<.digit>+] ')' ':' / {
-        
+    when / ^ 'Finished specialization of ' / { }
+    when / ^ '    ' r $<regnum>=[<.digit>+] '(' $<regver>=[<.digit>+] ')' ':' / { }
+    when / ^ '    ' [ 'Instructions' | 'Predeccessors' | 'Dominance children' ] / { }
+    when /^ [ 'Facts' | '='+ ] / { }
+    when /^ 'Spesh of \'' $<methname>=[<[a..z 0..9 _ ' -]>*]
+            '\' (cuid: ' $<cuid>=[<[a..z A..Z 0..9 _ . -]>+]
+            ', file: ' $<filename>=[<-[:]>*] ':' $<lineno>=[<digit>+] ')' $ / {
+        say "    file [shape=record label=\"\{ {$<methname>} | {$<filename>}:{$<lineno>} | {$<cuid>} \}\"];";
+    }
+    when / ^ \s* $ / { }
+    when /^ 'Callsite ' $<uniqid>=[<[a..f A..F 0..9 x]>+] ' (' $<argc>=[<digit>+] ' args, ' $<posc>=[<digit>+] ' pos)' $/ {
+        say "    callsite [shape=record label=\"\{ Callsite | {$<argc>} arguments, {$<posc>} of them positionals | {$<uniqid>} \}\"];";
+    }
+    when / ^ '  - ' $<argument_name>=[<[a..z A..B 0..9 _ ' -]>+] $ / {
+        @callsite_args.push: ~$<argument_name>;
+    }
+    default {
+        say "    unparsed_line_{(state $)++} [label=\"{$_}\"];";
     }
 }
 
 say "  }" if $in_subgraph;
+
+if @callsite_args {
+    say @callsite_args.map({ "\"arg_{(state $)++}\" [label=\"$_\"]" }).join(';');
+    say "callsite -> " ~ (^@callsite_args).map({"\"arg_$_\""}).join(" -> ") ~ ";";
+}
 
 for @connections {
     say "$_.<source_ins> -> \"entry_{ %bb_map{.<target_block>} }\" [style=dotted];";
@@ -201,6 +224,7 @@ for %bb_connections.kv -> $k, $v {
     #note "marking successors for block $k";
     #note $v.perl;
     #note "";
+    next unless @$v;
     my @candidates = do %bb_map{$k} == "0"
         ?? %bb_map{@$v}
         !! %bb_map{$v[*-1]};
