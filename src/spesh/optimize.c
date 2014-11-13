@@ -270,6 +270,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
         }
+        return;
     }
     /* Sometimes our code-gen ends up boxing an integer and immediately
      * calling if_o or unless_o on it. If we if_i/unless_i/... instead,
