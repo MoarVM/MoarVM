@@ -390,10 +390,10 @@ all: moar@exe@ pkgconfig/moar.pc
 
 install: all
 	$(MKPATH) $(DESTDIR)$(BINDIR)
-	$(CP) moar@exe@ $(DESTDIR)$(BINDIR)/
+	$(CP) moar@exe@ $(DESTDIR)$(BINDIR)
 	$(CHMOD) 755 $(DESTDIR)$(BINDIR)/moar@exe@
-	$(MKPATH) $(DESTDIR)/$(LIBDIR)
-	$(CP) @moar@ @impinst@ $(DESTDIR)/$(LIBDIR)
+	$(MKPATH) $(DESTDIR)$(LIBDIR)
+	$(CP) @moar@ @impinst@ $(DESTDIR)$(LIBDIR)
 	$(MKPATH) $(DESTDIR)$(MASTDIR)
 	$(CP) lib/MAST/Nodes.nqp $(DESTDIR)$(MASTDIR)
 	$(CP) lib/MAST/Ops.nqp $(DESTDIR)$(MASTDIR)
