@@ -332,6 +332,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     MVMint64  numnext = 0;
     MVMint64 *done, *fates, *curst, *nextst;
     MVMint64  i, fate_arr_len, num_states, total_fates, prev_fates;
+    int nfadeb = getenv("MVM_NFA_DEB") ? 1 : 0;
 
     /* Obtain or (re)allocate "done states", "current states" and "next
      * states" arrays. */
@@ -347,6 +348,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     curst  = tc->nfa_curst;
     nextst = tc->nfa_nextst;
     memset(done, 0, (num_states + 1) * sizeof(MVMint64));
+    if (nfadeb) fprintf(stderr,"Starting with %d states\n", num_states);
 
     /* Allocate fates array. */
     fate_arr_len = 1 + MVM_repr_elems(tc, nfa->fates);
@@ -369,6 +371,8 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         /* Save how many fates we have before this position is considered. */
         prev_fates = total_fates;
 
+	MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+	if (nfadeb) fprintf(stderr,"char %c with %d states\n",cp,numcur);
         while (numcur) {
             MVMNFAStateInfo *edge_info;
             MVMint64         edge_info_elems;
@@ -508,12 +512,27 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
          * 24 bits encode fate. Both want to be descending order. */
         if (total_fates - prev_fates > 1) {
             MVMint64 char_fates = total_fates - prev_fates;
+	    if (nfadeb) {
+		fprintf(stderr,"    sorting %d\n",char_fates);
+		for (i = prev_fates; i < total_fates; i++) {
+		    fprintf(stderr, "\t%08llx\n", fates[i]);
+		}
+	    }
             revquicksort(&fates[total_fates - char_fates], char_fates);
+	    if (nfadeb) {
+		fprintf(stderr,"    result\n");
+		for (i = prev_fates; i < total_fates; i++) {
+		    fprintf(stderr, "\t%08llx\n", fates[i]);
+		}
+	    }
         }
     }
     /* strip any literal lengths, leaving only fates */
-    for (i = 0; i < total_fates; i++)
+    if (nfadeb) fprintf(stderr,"Final\n");
+    for (i = 0; i < total_fates; i++) {
+	if (nfadeb) fprintf(stderr, "\t%08llx\n", fates[i]);
         fates[i] &= 0xffffff;
+    }
 
     *total_fates_out = total_fates;
     return fates;
