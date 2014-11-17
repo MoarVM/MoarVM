@@ -371,8 +371,15 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         /* Save how many fates we have before this position is considered. */
         prev_fates = total_fates;
 
-	MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-	if (nfadeb) fprintf(stderr,"char %c with %d states\n",cp,numcur);
+	if (nfadeb) {
+	    if (offset < eos) {
+		MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+		fprintf(stderr,"char %c with %d states\n",cp,numcur);
+	    }
+	    else {
+		fprintf(stderr,"EOS with %d states\n",numcur);
+	    }
+	}
         while (numcur) {
             MVMNFAStateInfo *edge_info;
             MVMint64         edge_info_elems;
