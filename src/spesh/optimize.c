@@ -1277,14 +1277,23 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
                 optimize_extop(tc, g, bb, ins);
         }
 
-        if (ins->prev && ins->prev->info->opcode == MVM_OP_set && ins->info->opcode == MVM_OP_set) {
-            if (ins->operands[0].reg.i == ins->prev->operands[1].reg.i + 1 &&
-                    ins->operands[0].reg.orig == ins->prev->operands[1].reg.orig &&
-                    ins->operands[1].reg.i == ins->prev->operands[0].reg.i &&
-                    ins->operands[1].reg.orig == ins->prev->operands[0].reg.orig) {
+        if (ins->prev && ins->info->opcode == MVM_OP_set) {
+            /* Due to shoddy code-gen followed by spesh discarding lots of ops,
+             * we get quite a few redundant set instructions.
+             * They are not costly, but we can easily kick them out. */
+            if (ins->operands[0].reg.orig == ins->operands[1].reg.orig) {
                 MVMSpeshIns *previous = ins->prev;
                 MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                 ins = previous;
+            } else if (ins->prev->info->opcode == MVM_OP_set) {
+                if (ins->operands[0].reg.i == ins->prev->operands[1].reg.i + 1 &&
+                        ins->operands[0].reg.orig == ins->prev->operands[1].reg.orig &&
+                        ins->operands[1].reg.i == ins->prev->operands[0].reg.i &&
+                        ins->operands[1].reg.orig == ins->prev->operands[0].reg.orig) {
+                    MVMSpeshIns *previous = ins->prev;
+                    MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+                    ins = previous;
+                }
             }
         }
 
