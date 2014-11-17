@@ -34,7 +34,7 @@ GetOptions(\%args, qw(
     static use-readline has-libtommath has-libatomic_ops
     has-dyncall has-linenoise
     build=s host=s big-endian jit! enable-jit lua=s has-dynasm
-    prefix=s make-install asan),
+    prefix=s bindir=s libdir=s mastdir=s make-install asan),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 }
 ) or die "See --help for further information\n";
@@ -52,6 +52,12 @@ if (-e 'README.markdown' && -e "$config{prefix}/README.markdown"
 Configuration FAIL. Installing to MoarVM root folder is not allowed.
 Please specify another installation target by using --prefix=PATH.
 ENOTTOCWD
+}
+
+# Override default target directories with command line argumets
+my @target_dirs = qw{bindir libdir mastdir};
+for my $target (@target_dirs) {
+    $config{$target} = $args{$target} if $args{$target};
 }
 
 if (-d '.git') {
@@ -319,7 +325,6 @@ unless ($args{static}) {
     $config{objflags}  = '@ccdef@MVM_BUILD_SHARED @ccshared@';
     $config{mainflags} = '@ccdef@MVM_SHARED';
     $config{moar}      = '@moardll@';
-    $config{moarinst}  = $config{shareddir};
     $config{impinst}   = $config{sharedlib},
     $config{mainlibs}  = '@lddir@. ' .
         sprintf($config{ldimp} // $config{ldusr}, $NAME);
@@ -328,9 +333,10 @@ else {
     $config{objflags}  = '';
     $config{mainflags} = '';
     $config{moar}      = '@moarlib@';
-    $config{moarinst}  = $config{staticdir};
     $config{impinst}   = $config{staticlib};
     $config{mainlibs}  = '@moarlib@ @thirdpartylibs@ $(LDLIBS)';
+    # Install static library in default location
+    $config{libdir}    = '@prefix@/lib' if ! $args{libdir};
 }
 
 # some toolchains generate garbage
@@ -824,6 +830,22 @@ builds, the byte order is auto-detected.
 
 Install files in subdirectory /bin, /lib and /include of the supplied path.
 The default prefix is "install" if this option is not passed.
+
+=item --bindir
+
+Install executable files in the supplied path.  The default is
+"@prefix@/bin" if this option is not passed.
+
+=item --libdir
+
+Install library in the supplied path.  The default is "@prefix@/lib"
+for POSIX toolchain and “@bindir@” for MSVC if this option is not
+passed.
+
+=item --mastdir
+
+Install NQP libraries in the supplied path.  The default is
+"@prefix@/share/nqp/lib/MAST" if this option is not passed.
 
 =item --make-install
 

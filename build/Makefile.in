@@ -10,6 +10,7 @@ LUA    = @lua@
 CP     = $(PERL) -MExtUtils::Command -e cp
 MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 CHMOD  = $(PERL) -MExtUtils::Command -e chmod
+RM_RF  = $(PERL) -MExtUtils::Command -e rm_rf
 DYNASM = $(LUA) @dynasmlua@
 
 
@@ -29,6 +30,12 @@ NOERR =
 @mknoisy@
 
 PREFIX    = @prefix@
+BINDIR    = @bindir@
+LIBDIR    = @libdir@
+MASTDIR   = @mastdir@
+
+PKGCONFIGDIR = @prefix@/share/pkgconfig
+
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @cincludes@ \
             @ccinc@@shaincludedir@ \
@@ -379,16 +386,19 @@ THIRDPARTY = @thirdpartylibs@
 
 .SUFFIXES: .c @obj@ .i @asm@
 
-all: moar@exe@
+all: moar@exe@ pkgconfig/moar.pc
 
 install: all
-	$(MKPATH) $(DESTDIR)$(PREFIX)/bin
-	$(CP) moar@exe@ $(DESTDIR)$(PREFIX)/bin
-	$(CHMOD) 755 $(DESTDIR)$(PREFIX)/bin/moar@exe@
-	$(MKPATH) $(DESTDIR)$(PREFIX)/lib/MAST
-	$(CP) @moar@ @impinst@ $(DESTDIR)$(PREFIX)/@moarinst@
-	$(CP) lib/MAST/Nodes.nqp $(DESTDIR)$(PREFIX)/lib/MAST
-	$(CP) lib/MAST/Ops.nqp $(DESTDIR)$(PREFIX)/lib/MAST
+	$(MKPATH) $(DESTDIR)$(BINDIR)
+	$(CP) moar@exe@ $(DESTDIR)$(BINDIR)
+	$(CHMOD) 755 $(DESTDIR)$(BINDIR)/moar@exe@
+	$(MKPATH) $(DESTDIR)$(LIBDIR)
+	$(CP) @moar@ @impinst@ $(DESTDIR)$(LIBDIR)
+	$(MKPATH) $(DESTDIR)$(MASTDIR)
+	$(CP) lib/MAST/Nodes.nqp $(DESTDIR)$(MASTDIR)
+	$(CP) lib/MAST/Ops.nqp $(DESTDIR)$(MASTDIR)
+	$(MKPATH) $(DESTDIR)$(PKGCONFIGDIR)
+	$(CP) pkgconfig/moar.pc $(DESTDIR)$(PKGCONFIGDIR)
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar
 	$(CP) src/gen/config.h $(DESTDIR)$(PREFIX)/include/moar
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/6model/reprs
@@ -539,6 +549,9 @@ dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
 
 @dcblib@ @dllib@: @dclib@
 
+pkgconfig/moar.pc: build/mk-moar-pc.pl
+	$(PERL) build/mk-moar-pc.pl $@
+
 clean:
 	$(MSG) remove build files
 	-$(CMD)$(RM) $(MAIN_OBJECTS) $(OBJECTS) $(NOOUT) $(NOERR)
@@ -560,6 +573,7 @@ distclean: realclean
 	-$(CMD)$(RM) moar@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
 	$(MSG) remove configuration and generated files
 	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c tools/check.mk $(NOOUT) $(NOERR)
+	-$(CMD)$(RM_RF) build/mk-moar-pc.pl pkgconfig/ $(NOOUT) $(NOERR)
 
 release:
 	[ -n "$(VERSION)" ] || ( echo "\nTry 'make release VERSION=yyyy.mm'\n\n"; exit 1 )

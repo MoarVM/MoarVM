@@ -129,7 +129,7 @@ our %TC_POSIX = (
     ccshared   => '-fPIC',
     ldshared   => '-shared @ccshared@',
     moarshared => '',
-    ldrpath    => '-Wl,-rpath,@prefix@/lib',
+    ldrpath    => '-Wl,-rpath,@libdir@',
 
     arflags => 'rcs',
     arout   => '',
@@ -142,10 +142,11 @@ our %TC_POSIX = (
     dll => 'lib%s.so',
     asm => '.s',
 
-    shareddir => 'lib',
+    bindir    => '@prefix@/bin',
+    libdir    => '@prefix@/lib',
+    mastdir   => '@prefix@/share/nqp/lib/MAST',
     sharedlib => '',
 
-    staticdir => 'lib',
     staticlib => '',
 
     -auxfiles => [],
@@ -229,10 +230,11 @@ TERM
     dll => '%s.dll',
     asm => '.asm',
 
-    shareddir => 'bin',
+    bindir    => '@prefix@/bin',
+    libdir    => '@bindir@',
+    mastdir   => '@prefix@/share/nqp/lib/MAST',
     sharedlib => '@moardll@.lib',
 
-    staticdir => 'lib',
     staticlib => '',
 
     -auxfiles => [ qw( @name@.ilk @name@.pdb @moardll@.lib @moardll@.exp vc100.pdb ) ],

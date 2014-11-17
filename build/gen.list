@@ -9,3 +9,6 @@ build/Makefile.in
 
 tools/check.mk
 build/check.mk.in
+
+build/mk-moar-pc.pl
+build/mk-moar-pc.in
