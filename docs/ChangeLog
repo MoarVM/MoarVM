@@ -8,7 +8,8 @@ New in 2014.11
 + Allow nativecasting a CStruct to another CStruct
 + Fix temp register usage in optimize_istrue_isfalse
 + Fix a regression by eagerly deserializing stables/objects
-+ Added tool to colorize registers in spesh logs
++ Added tool to colorize registers in spesh logs and another
+  to turn spesh logs into a data-flow and control-flow graph.
 + Let update_ops.p6 also write a perl6 module with ops data
 + Add --bindir, --libdir and --mastdir as Configure options
 + Create pkgconfig file as pkgconfig/moar.pc
