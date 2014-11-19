@@ -839,7 +839,7 @@ Install executable files in the supplied path.  The default is
 =item --libdir
 
 Install library in the supplied path.  The default is "@prefix@/lib"
-for POSIX toolchain and “@bindir@” for MSVC if this option is not
+for POSIX toolchain and "@bindir@" for MSVC if this option is not
 passed.
 
 =item --mastdir
