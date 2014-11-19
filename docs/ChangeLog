@@ -1,3 +1,18 @@
+New in 2014.11
+
++ JIT multicacheadd, multicachefind, radix_I, bindpos_n, bindpos_s,
+  escape, blshift_i,  brshift_i, write_fhs, cmp_I
++ Optimize out a bunch of unnecessary "set" instructions
++ Turn a bunch of const_s + findmeth_s into cheaper findmeth
++ Implement nqp::closefh_i which retuns the exit code of a pipe
++ Allow nativecasting a CStruct to another CStruct
++ Fix temp register usage in optimize_istrue_isfalse
++ Fix a regression by eagerly deserializing stables/objects
++ Added tool to colorize registers in spesh logs
++ Let update_ops.p6 also write a perl6 module with ops data
++ Add --bindir, --libdir and --mastdir as Configure options
++ Create pkgconfig file as pkgconfig/moar.pc
+
 New in 2014.10
 
 + Added op nativecallglobal
