@@ -322,16 +322,16 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         for (i = 0; i < ins->info->num_operands; i++) {
             /* Reads need usage tracking; if the read is after a deopt point
              * relative to the write then give it an extra usage bump. */
-            if (is_phi && i > 0 || !is_phi &&
-                    (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg) {
+            if ((is_phi && i > 0)
+                || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)) {
                 MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
                 facts->usages += facts->deopt_idx == cur_deopt_idx ? 1 : 2;
             }
 
             /* Writes need the current deopt index and the writing instruction
              * to be specified. */
-            if (is_phi && i == 0 || !is_phi &&
-                    (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
+            if ((is_phi && i == 0)
+                || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg)) {
                 MVMSpeshFacts *facts = &(g->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i]);
                 facts->deopt_idx = cur_deopt_idx;
                 facts->writer    = ins;

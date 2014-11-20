@@ -221,8 +221,10 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     MVMint32  env_size, work_size;
 
     /* See if we can just go with a default-size frame. */
-    if (!spesh_cand || spesh_cand->num_locals == static_frame_body->num_locals &&
-                       spesh_cand->num_lexicals == static_frame_body->num_lexicals) {
+    if (!spesh_cand ||
+          (spesh_cand->num_locals == static_frame_body->num_locals &&
+           spesh_cand->num_lexicals == static_frame_body->num_lexicals)
+        ) {
         /* Yes, everything is the default sizes; try the pool. */
         MVMuint32 pool_index = static_frame_body->pool_index;
         if (pool_index >= tc->frame_pool_table_size)

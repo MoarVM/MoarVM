@@ -373,7 +373,7 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
          * absolute (XXX wants a platform abstraction, and doing better). */
         char *orig_cstr = MVM_string_utf8_encode_C_string(tc, orig);
         int  absolute   = orig_cstr[0] == '/' || orig_cstr[0] == '\\' ||
-                          orig_cstr[1] == ':' && orig_cstr[2] == '\\';
+                          (orig_cstr[1] == ':' && orig_cstr[2] == '\\');
         if (absolute) {
             /* Nothing more to do; we have an absolute path. */
             MVM_free(orig_cstr);

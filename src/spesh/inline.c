@@ -77,8 +77,8 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
             MVMint32 is_phi = opcode == MVM_SSA_PHI;
             MVMuint8 i;
             for (i = 0; i < ins->info->num_operands; i++)
-                if (is_phi && i > 0 || !is_phi &&
-                    (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
+                if ((is_phi && i > 0)
+                    || (!is_phi && (ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg))
                     ig->facts[ins->operands[i].reg.orig][ins->operands[i].reg.i].usages++;
             if (opcode == MVM_OP_inc_i || opcode == MVM_OP_inc_u ||
                     opcode == MVM_OP_dec_i || opcode == MVM_OP_dec_u)
