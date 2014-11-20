@@ -52,6 +52,8 @@ UNIDATA/*
 *.class
 tags
 install/
+pkgconfig/
+build/mk-moar-pc.pl
 
 # jit files
 jit-log.txt
