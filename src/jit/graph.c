@@ -354,7 +354,7 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVMint16      spesh_cand;
     MVMint16      is_fast;
 
-    while (ins = ins->next) {
+    while ((ins = ins->next)) {
         switch(ins->info->opcode) {
         case MVM_OP_arg_i:
         case MVM_OP_arg_n:
