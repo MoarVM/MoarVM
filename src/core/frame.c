@@ -1158,7 +1158,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                     icost++;
                     if (return_label >= labels[inls[i].start_label] && return_label <= labels[inls[i].end_label]) {
                         MVMStaticFrame *isf = cand->inlines[i].code->body.sf;
-                        if (lexical_names = isf->body.lexical_names) {
+                        if ((lexical_names = isf->body.lexical_names)) {
                             MVMLexicalRegistry *entry;
                             MVM_HASH_GET(tc, lexical_names, name, entry);
                             if (entry) {
@@ -1186,7 +1186,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                     icost++;
                     if (ret_offset >= cand->inlines[i].start && ret_offset < cand->inlines[i].end) {
                         MVMStaticFrame *isf = cand->inlines[i].code->body.sf;
-                        if (lexical_names = isf->body.lexical_names) {
+                        if ((lexical_names = isf->body.lexical_names)) {
                             MVMLexicalRegistry *entry;
                             MVM_HASH_GET(tc, lexical_names, name, entry);
                             if (entry) {
@@ -1233,7 +1233,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
             ecost++;
 
         /* Now look in the frame itself. */
-        if (lexical_names = cur_frame->static_info->body.lexical_names) {
+        if ((lexical_names = cur_frame->static_info->body.lexical_names)) {
             MVMLexicalRegistry *entry;
             MVM_HASH_GET(tc, lexical_names, name, entry)
             if (entry) {
