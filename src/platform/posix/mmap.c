@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <sys/mman.h>
+#include "moar.h"
 #include "platform/mmap.h"
 #include <errno.h>
 
