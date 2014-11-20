@@ -307,7 +307,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                     safety_cur = NULL;
                     break;
                 }
-                if ((safety_cur->info->operands[0] & MVM_operand_rw_mask == MVM_operand_write_reg)
+                if (((safety_cur->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg)
                     && (safety_cur->operands[0].reg.orig == cur->operands[1].reg.orig)) {
                     /* Someone's clobbering our register between the boxing and
                      * our attempt to unbox it. we shall give up.
