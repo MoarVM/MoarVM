@@ -1858,7 +1858,7 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
 
 /* Deserializes a closure, though without attaching outer (that comes in a
  * later step). */
-static deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i) {
+static void deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i) {
     /* Calculate location of closure's table row. */
     char *table_row = reader->root.closures_table + i * CLOSURES_TABLE_ENTRY_SIZE;
 
