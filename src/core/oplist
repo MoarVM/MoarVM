@@ -138,8 +138,8 @@ mod_n               w(num64) r(num64) r(num64) :pure
 neg_n               w(num64) r(num64) :pure
 abs_n               w(num64) r(num64) :pure
 pow_n               w(num64) r(num64) r(num64) :pure
-ceil_n              w(int64) r(num64) :pure
-floor_n             w(int64) r(num64) :pure
+ceil_n              w(num64) r(num64) :pure
+floor_n             w(num64) r(num64) :pure
 sin_n               w(num64) r(num64) :pure
 asin_n              w(num64) r(num64) :pure
 cos_n               w(num64) r(num64) :pure

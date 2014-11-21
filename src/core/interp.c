@@ -1205,18 +1205,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(ceil_n):{
-                MVMnum64 num = GET_REG(cur_op, 2).n64;
-                MVMint64 abs = (MVMint64)num;
-                if (num > abs) num = ++abs;
-                GET_REG(cur_op, 0).i64 = num;
+                GET_REG(cur_op, 0).n64 = ceil(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(floor_n): {
-                MVMnum64 num = GET_REG(cur_op, 2).n64;
-                MVMint64 abs = (MVMint64)num;
-                if (num < abs) num = --abs;
-                GET_REG(cur_op, 0).i64 = num;
+                GET_REG(cur_op, 0).n64 = floor(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
                 goto NEXT;
             }
