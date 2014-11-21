@@ -313,7 +313,7 @@ push @ldflags, $config{ldoptiflags}  if $args{optimize};
 push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}       if $args{instrument};
 push @ldflags, $config{ldrpath}           unless $args{static};
-push @ldflags,  '-fsanitize=address' if $args{asan};
+push @ldflags, $^O eq 'darwin' ? '-faddress-sanitizer' : '-fsanitize=address' if $args{asan};
 $config{ldflags} = join ' ', @ldflags;
 
 # setup library names
