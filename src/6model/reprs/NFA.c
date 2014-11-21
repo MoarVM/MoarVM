@@ -348,7 +348,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     curst  = tc->nfa_curst;
     nextst = tc->nfa_nextst;
     memset(done, 0, (num_states + 1) * sizeof(MVMint64));
-    if (nfadeb) fprintf(stderr,"Starting with %d states\n", num_states);
+    if (nfadeb) fprintf(stderr,"Starting with %d states\n", (int)num_states);
 
     /* Allocate fates array. */
     fate_arr_len = 1 + MVM_repr_elems(tc, nfa->fates);
@@ -374,10 +374,10 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 	if (nfadeb) {
 	    if (offset < eos) {
 		MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-		fprintf(stderr,"char %c with %d states\n",cp,numcur);
+		fprintf(stderr,"char %c with %d states\n",cp,(int)numcur);
 	    }
 	    else {
-		fprintf(stderr,"EOS with %d states\n",numcur);
+		fprintf(stderr,"EOS with %d states\n",(int)numcur);
 	    }
 	}
         while (numcur) {
@@ -520,16 +520,16 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         if (total_fates - prev_fates > 1) {
             MVMint64 char_fates = total_fates - prev_fates;
 	    if (nfadeb) {
-		fprintf(stderr,"    sorting %d\n",char_fates);
+		fprintf(stderr,"    sorting %d\n",(int)char_fates);
 		for (i = prev_fates; i < total_fates; i++) {
-		    fprintf(stderr, "\t%08llx\n", fates[i]);
+		    fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
 		}
 	    }
             revquicksort(&fates[total_fates - char_fates], char_fates);
 	    if (nfadeb) {
 		fprintf(stderr,"    result\n");
 		for (i = prev_fates; i < total_fates; i++) {
-		    fprintf(stderr, "\t%08llx\n", fates[i]);
+		    fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
 		}
 	    }
         }
@@ -537,7 +537,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     /* strip any literal lengths, leaving only fates */
     if (nfadeb) fprintf(stderr,"Final\n");
     for (i = 0; i < total_fates; i++) {
-	if (nfadeb) fprintf(stderr, "\t%08llx\n", fates[i]);
+	if (nfadeb) fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
         fates[i] &= 0xffffff;
     }
 
