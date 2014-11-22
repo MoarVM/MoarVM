@@ -1278,6 +1278,12 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         }
 
         if (ins->prev && ins->info->opcode == MVM_OP_set) {
+            /* We may have turned some complex instruction into a simple set
+             * in the big switch/case up there, but we wouldn't have called
+             * "copy_facts" on the registers yet, so we have to do it here
+             * unless we want to lose some important facts */
+            copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+
             /* Due to shoddy code-gen followed by spesh discarding lots of ops,
              * we get quite a few redundant set instructions.
              * They are not costly, but we can easily kick them out. */
