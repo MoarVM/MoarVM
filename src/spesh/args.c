@@ -533,6 +533,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             case MVM_OP_param_on_i:
                 if (found_idx == -1) {
                     MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], named_ins[i]);
+                    MVM_spesh_manipulate_remove_successor(tc, named_bb[i], named_ins[i]->operands[2].ins_bb);
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_INT) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
@@ -555,6 +556,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             case MVM_OP_param_on_n:
                 if (found_idx == -1) {
                     MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], named_ins[i]);
+                    MVM_spesh_manipulate_remove_successor(tc, named_bb[i], named_ins[i]->operands[2].ins_bb);
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_NUM) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
@@ -577,6 +579,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             case MVM_OP_param_on_s:
                 if (found_idx == -1) {
                     MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], named_ins[i]);
+                    MVM_spesh_manipulate_remove_successor(tc, named_bb[i], named_ins[i]->operands[2].ins_bb);
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_STR) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
@@ -599,6 +602,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             case MVM_OP_param_on_o:
                 if (found_idx == -1) {
                     MVM_spesh_manipulate_delete_ins(tc, g, named_bb[i], named_ins[i]);
+                    MVM_spesh_manipulate_remove_successor(tc, named_bb[i], named_ins[i]->operands[2].ins_bb);
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_OBJ) {
                     MVMuint16 arg_idx = found_idx + 1;
