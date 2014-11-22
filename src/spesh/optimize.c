@@ -1115,6 +1115,17 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
     MVM_free(handlers_found);
 }
 
+static void trivial_constant_folding_unary(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *arg_facts = get_facts_direct(tc, g, ins->operands[1]);
+    if (arg_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        MVMSpeshFacts *tgt_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
+
+        if (ins->info->opcode == MVM_OP_not_i) {
+            tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+            tgt_facts->value.i64 = !arg_facts->value.i64;
+        }
+    }
+}
 
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
@@ -1245,6 +1256,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_elems:
             optimize_repr_op(tc, g, bb, ins, 1);
+            break;
+        case MVM_OP_not_i:
+            trivial_constant_folding_unary(tc, g, bb, ins);
             break;
         case MVM_OP_hllize:
             optimize_hllize(tc, g, ins);
