@@ -210,7 +210,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint16 outers = GET_UI16(cur_op, 2);
                 while (outers) {
                     if (!f)
-                        MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");
+                        MVM_exception_throw_adhoc(tc, "bindlex: outer index out of range");
                     f = f->outer;
                     outers--;
                 }
