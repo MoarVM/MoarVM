@@ -53,6 +53,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
                 break;
             }
+            case MVM_OP_takeclosure:
             case MVM_OP_create:
             case MVM_OP_clone:
             case MVM_OP_box_i:
