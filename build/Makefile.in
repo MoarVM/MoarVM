@@ -114,6 +114,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/reprs@obj@ \
           src/6model/reprconv@obj@ \
           src/6model/containers@obj@ \
+          src/6model/parametric@obj@ \
           src/6model/reprs/MVMString@obj@ \
           src/6model/reprs/MVMArray@obj@ \
           src/6model/reprs/MVMHash@obj@ \
@@ -247,6 +248,7 @@ HEADERS = src/moar.h \
           src/6model/bootstrap.h \
           src/6model/serialization.h \
           src/6model/containers.h \
+          src/6model/parametric.h \
           src/6model/reprs/MVMString.h \
           src/6model/reprs/MVMArray.h \
           src/6model/reprs/MVMHash.h \

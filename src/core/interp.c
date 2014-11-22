@@ -4310,11 +4310,30 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(setparameterizer):
-            OP(parameterizetype):
+                MVM_6model_parametric_setup(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            OP(parameterizetype): {
+                MVMObject   *type   = GET_REG(cur_op, 2).o;
+                MVMObject   *params = GET_REG(cur_op, 4).o;
+                MVMRegister *result = &(GET_REG(cur_op, 0));
+                cur_op += 6;
+                MVM_6model_parametric_parameterize(tc, type, params, result);
+                goto NEXT;
+            }
             OP(typeparameterized):
+                GET_REG(cur_op, 0).o = MVM_6model_parametric_type_parameterized(tc, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(typeparameters):
+                GET_REG(cur_op, 0).o = MVM_6model_parametric_type_parameters(tc, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(typeparameterat):
-                MVM_exception_throw_adhoc(tc, "Parametric 6model ops NYI");
+                GET_REG(cur_op, 0).o = MVM_6model_parametric_type_parameter_at(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
