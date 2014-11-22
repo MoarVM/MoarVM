@@ -1294,6 +1294,25 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
                     MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
                     ins = previous;
                 }
+            } else if ((ins->prev->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg &&
+                       ins->prev->operands[0].reg.orig == ins->operands[1].reg.orig &&
+                       ins->prev->operands[0].reg.i == ins->operands[1].reg.i) {
+                /* If a regular operation is immediately followed by a set,
+                 * we have to look at the usages of the intermediate register
+                 * and make sure it's only ever read by the set, and not, for
+                 * example, required by a deopt barrier to have a copy of the
+                 * value. */
+                MVMSpeshFacts *facts = get_facts_direct(tc, g, ins->operands[1]);
+                if (facts->usages <= 1) {
+                    /* Cool, we can move the register into the original ins
+                     * and throw out the set instruction. */
+                    MVMSpeshIns *previous = ins->prev;
+                    ins->prev->operands[0].reg = ins->operands[0].reg;
+
+                    MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+                    ins = previous;
+                    facts->usages--;
+                }
             }
         }
 
