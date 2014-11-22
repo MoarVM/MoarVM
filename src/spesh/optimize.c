@@ -497,7 +497,7 @@ static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MV
 }
 
 static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
-    /* XXX This causes problems, Spesh: failed to fix up handlers (-1, 110, 110) */
+    /* This used to cause problems, Spesh: failed to fix up handlers (-1, 110, 110) */
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     MVMString *method_name;
     MVMint64 can_result;
@@ -1203,9 +1203,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_can:
         case MVM_OP_can_s:
-            break; /* XXX This causes problems, Spesh: failed to fix up handlers (-1, 110, 110) */
-            /* optimize_can_op(tc, g, bb, ins);
-            break; */
+            break; /* This used to cause problems, Spesh: failed to fix up handlers (-1, 110, 110) */
+            optimize_can_op(tc, g, bb, ins);
+            break;
         case MVM_OP_create:
             optimize_repr_op(tc, g, bb, ins, 1);
             break;
