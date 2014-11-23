@@ -149,6 +149,7 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->dynvar_log_fh = fopen(dynvar_log, "w");
     else
         instance->dynvar_log_fh = NULL;
+    instance->nfa_debug_enabled = getenv("MVM_NFA_DEB") ? 1 : 0;
 
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);

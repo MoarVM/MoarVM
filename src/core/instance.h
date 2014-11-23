@@ -170,6 +170,9 @@ struct MVMInstance {
     MVMint8 spesh_inline_enabled;
     MVMint8 spesh_osr_enabled;
 
+    /* Flag for if NFA debugging is enabled. */
+    MVMint8 nfa_debug_enabled;
+
     /* Flag for if jit is enabled */
     MVMint32 jit_enabled;
 
