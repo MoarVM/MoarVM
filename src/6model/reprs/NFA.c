@@ -332,6 +332,8 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     MVMint64  numnext = 0;
     MVMint64 *done, *fates, *curst, *nextst;
     MVMint64  i, fate_arr_len, num_states, total_fates, prev_fates;
+    MVMint64  longlit = 0;
+    MVMint64  begoffset = offset;
     int nfadeb = getenv("MVM_NFA_DEB") ? 1 : 0;
 
     /* Obtain or (re)allocate "done states", "current states" and "next
@@ -404,6 +406,8 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 			MVMint64 arg = edge_info[i].arg.i;
 			MVMint64 j;
 			MVMint64 found_fate = 0;
+			if (longlit)
+			    arg = (arg & 0xffffff) | (-longlit << 24);
 			for (j = 0; j < total_fates; j++) {
 			    if (found_fate)
 				fates[j - 1] = fates[j];
@@ -439,6 +443,9 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 }
                 else {
                     switch (act) {
+                        case MVM_NFA_EDGE_CODEPOINT_LL:
+			    longlit = offset - begoffset;
+                            /* FALLTHROUGH */
                         case MVM_NFA_EDGE_CODEPOINT: {
                             MVMint64 arg = edge_info[i].arg.i;
                             if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg)
@@ -477,6 +484,9 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                                 nextst[numnext++] = to;
                             break;
                         }
+                        case MVM_NFA_EDGE_CODEPOINT_I_LL:
+			    longlit = offset - begoffset;
+                            /* FALLTHROUGH */
                         case MVM_NFA_EDGE_CODEPOINT_I: {
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
