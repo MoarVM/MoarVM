@@ -1077,6 +1077,10 @@ MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
     return tinymt64_generate_double(tc->rand_state);
 }
 
+MVMnum64 MVM_proc_randscale_n(MVMThreadContext *tc, MVMnum64 scale) {
+    return tinymt64_generate_double(tc->rand_state) * scale;
+}
+
 /* seed random number generator */
 void MVM_proc_seed(MVMThreadContext *tc, MVMint64 seed) {
     /* Seed our one, plus the normal C srand for libtommath. */

@@ -8,6 +8,7 @@ void MVM_proc_kill_async(MVMThreadContext *tc, MVMObject *handle, MVMint64 signa
 MVMint64 MVM_proc_getpid(MVMThreadContext *tc);
 MVMint64 MVM_proc_rand_i(MVMThreadContext *tc);
 MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc);
+MVMnum64 MVM_proc_randscale_n(MVMThreadContext *tc, MVMnum64 scale);
 void MVM_proc_seed(MVMThreadContext *tc, MVMint64 seed);
 MVMint64 MVM_proc_time_i(MVMThreadContext *tc);
 MVMObject * MVM_proc_clargs(MVMThreadContext *tc);
