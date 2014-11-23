@@ -81,7 +81,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Initialize event loop thread starting mutex. */
     init_mutex(instance->mutex_event_loop_start, "event loop thread start");
-    
+
     /* Create main thread object, and also make it the start of the all threads
      * linked list. */
     MVM_store(&instance->threads,
@@ -116,7 +116,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* There's some callsites we statically use all over the place. Intern
      * them, so that spesh may end up optimizing more "internal" stuff. */
-    MVM_callsite_initialize_common(instance);
+    MVM_callsite_initialize_common(instance->main_thread);
 
     /* Mutex for spesh installations, and check if we've a file we
      * should log specializations to. */

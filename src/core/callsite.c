@@ -40,10 +40,10 @@ static MVMCallsite     typecheck_callsite = { tc_flags, 3, 3, 0 };
 
 MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id) {
     switch (id) {
-        case MVM_CALLSITE_ID_INV_ARG:
-            return &inv_arg_callsite;
         case MVM_CALLSITE_ID_NULL_ARGS:
             return &null_args_callsite;
+        case MVM_CALLSITE_ID_INV_ARG:
+            return &inv_arg_callsite;
         case MVM_CALLSITE_ID_TWO_OBJ:
             return &two_args_callsite;
         case MVM_CALLSITE_ID_METH_NOT_FOUND:
@@ -58,21 +58,21 @@ MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID i
     }
 }
 
-void MVM_callsite_initialize_common(MVMInstance *instance) {
+void MVM_callsite_initialize_common(MVMThreadContext *tc) {
     MVMCallsite *ptr;
 
     ptr = &inv_arg_callsite;
-    MVM_callsite_try_intern(instance->main_thread, &ptr);
+    MVM_callsite_try_intern(tc, &ptr);
     ptr = &null_args_callsite;
-    MVM_callsite_try_intern(instance->main_thread, &ptr);
+    MVM_callsite_try_intern(tc, &ptr);
     ptr = &methnotfound_callsite;
-    MVM_callsite_try_intern(instance->main_thread, &ptr);
+    MVM_callsite_try_intern(tc, &ptr);
     ptr = &two_args_callsite;
-    MVM_callsite_try_intern(instance->main_thread, &ptr);
+    MVM_callsite_try_intern(tc, &ptr);
     ptr = &findmeth_callsite;
-    MVM_callsite_try_intern(instance->main_thread, &ptr);
+    MVM_callsite_try_intern(tc, &ptr);
     ptr = &typecheck_callsite;
-    MVM_callsite_try_intern(instance->main_thread, &ptr);
+    MVM_callsite_try_intern(tc, &ptr);
 }
 
 /* Tries to intern the callsite, freeing and updating the one passed in and

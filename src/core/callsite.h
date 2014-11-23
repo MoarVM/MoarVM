@@ -98,7 +98,7 @@ struct MVMCallsiteInterns {
 };
 
 /* Initialize the "common" callsites */
-void MVM_callsite_initialize_common(MVMInstance *instance);
+void MVM_callsite_initialize_common(MVMThreadContext *tc);
 
 /* Get any of the "common" callsites */
 MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id);
