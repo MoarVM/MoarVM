@@ -119,10 +119,27 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             cur_ins->operands[i].reg.i);
                         break;
                     case MVM_operand_read_lex:
-                    case MVM_operand_write_lex:
-                        appendf(ds, "lex(idx=%d,outers=%d)", cur_ins->operands[i].lex.idx,
+                    case MVM_operand_write_lex: {
+                        MVMStaticFrameBody *cursor = &g->sf->body;
+                        MVMuint32 ascension;
+                        appendf(ds, "lex(idx=%d,outers=%d", cur_ins->operands[i].lex.idx,
                             cur_ins->operands[i].lex.outers);
+                        for (ascension = 0;
+                                ascension < cur_ins->operands[i].lex.outers;
+                                ascension++, cursor = &cursor->outer->body) { };
+                        if (cursor->fully_deserialized) {
+                            if (cur_ins->operands[i].lex.idx < cursor->num_lexicals) {
+                                char *cstr = MVM_string_utf8_encode_C_string(tc, cursor->lexical_names_list[cur_ins->operands[i].lex.idx]->key);
+                                appendf(ds, ",%s)", cstr);
+                                MVM_free(cstr);
+                            } else {
+                                append(ds, ",<out of bounds>)");
+                            }
+                        } else {
+                            append(ds, ",<pending deserialization>)");
+                        }
                         break;
+                    }
                     case MVM_operand_literal: {
                         MVMuint32 type = cur_ins->info->operands[i] & MVM_operand_type_mask;
                         switch (type) {
