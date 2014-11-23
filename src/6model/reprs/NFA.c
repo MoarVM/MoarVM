@@ -397,39 +397,44 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 MVMint64 act = edge_info[i].act;
                 MVMint64 to  = edge_info[i].to;
 
-                if (act == MVM_NFA_EDGE_FATE) {
-                    /* Crossed a fate edge. Check if we already saw this, and
-                     * if so bump the entry we already saw. */
-                    MVMint64 arg = edge_info[i].arg.i;
-                    MVMint64 j;
-                    MVMint64 found_fate = 0;
-                    for (j = 0; j < total_fates; j++) {
-                        if (found_fate)
-                            fates[j - 1] = fates[j];
-                        if (fates[j] == arg) {
-                            found_fate = 1;
-                            if (j < prev_fates)
-                                prev_fates--;
-                        }
-                    }
-                    if (found_fate) {
-                        fates[total_fates - 1] = arg;
-                    }
-                    else {
-                        if (total_fates >= fate_arr_len) {
-                            fate_arr_len      = total_fates + 1;
-                            tc->nfa_fates     = (MVMint64 *)MVM_realloc(tc->nfa_fates,
-                                sizeof(MVMint64) * fate_arr_len);
-                            tc->nfa_fates_len = fate_arr_len;
-                            fates             = tc->nfa_fates;
-                        }
-                        fates[total_fates++] = arg;
-                    }
-                }
-                else if (act == MVM_NFA_EDGE_EPSILON && to <= num_states && done[to] != gen) {
-                    curst[numcur++] = to;
-                }
-                else if (offset >= eos) {
+		if (act <= MVM_NFA_EDGE_EPSILON) {
+		    if (act == MVM_NFA_EDGE_FATE) {
+			/* Crossed a fate edge. Check if we already saw this, and
+			 * if so bump the entry we already saw. */
+			MVMint64 arg = edge_info[i].arg.i;
+			MVMint64 j;
+			MVMint64 found_fate = 0;
+			for (j = 0; j < total_fates; j++) {
+			    if (found_fate)
+				fates[j - 1] = fates[j];
+			    if (fates[j] == arg) {
+				found_fate = 1;
+				if (j < prev_fates)
+				    prev_fates--;
+			    }
+			}
+			if (found_fate) {
+			    fates[total_fates - 1] = arg;
+			}
+			else {
+			    if (total_fates >= fate_arr_len) {
+				fate_arr_len      = total_fates + 1;
+				tc->nfa_fates     = (MVMint64 *)MVM_realloc(tc->nfa_fates,
+				    sizeof(MVMint64) * fate_arr_len);
+				tc->nfa_fates_len = fate_arr_len;
+				fates             = tc->nfa_fates;
+			    }
+			    fates[total_fates++] = arg;
+			}
+			continue;
+		    }
+		    else if (act == MVM_NFA_EDGE_EPSILON && to <= num_states && done[to] != gen) {
+			curst[numcur++] = to;
+			continue;
+		    }
+		}
+
+                if (offset >= eos) {
                     /* Can't match, so drop state. */
                 }
                 else {
