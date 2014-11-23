@@ -38,7 +38,7 @@ static MVMCallsiteEntry tc_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_OBJ };
 static MVMCallsite     typecheck_callsite = { tc_flags, 3, 3, 0 };
 
-MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id) {
+MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id) {
     switch (id) {
         case MVM_CALLSITE_ID_NULL_ARGS:
             return &null_args_callsite;
@@ -77,7 +77,7 @@ void MVM_callsite_initialize_common(MVMThreadContext *tc) {
 
 /* Tries to intern the callsite, freeing and updating the one passed in and
  * replacing it with an already interned one if we find it. */
-void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {
+MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {
     MVMCallsiteInterns *interns    = tc->instance->callsite_interns;
     MVMCallsite        *cs         = *cs_ptr;
     MVMint32            num_nameds = (cs->arg_count - cs->num_pos) / 2;
