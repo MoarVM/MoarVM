@@ -801,17 +801,17 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint32 reg_a = ins->operands[0].reg.orig;
         MVMint32 reg_b = ins->operands[1].reg.orig;
         MVMint32 reg_c = ins->operands[2].reg.orig;
-        | mov rax, WORK[reg_b];
+        | mov TMP1, WORK[reg_b];
         /* comparison result in the setting bits in the rflags register */
-        | cmp rax, WORK[reg_c];
+        | cmp TMP1, WORK[reg_c];
         /* copy the right comparison bit to the lower byte of the rax
            register */
-        | setg al;
-        | movzx rax, al;
-        | setl al;
-        | movzx TMP3, al;
-        | sub rax, TMP3;
-        | mov WORK[reg_a], rax;
+        | setg TMP2b;
+        | movzx TMP2, TMP2b;
+        | setl TMP3b;
+        | movzx TMP3, TMP3b;
+        | sub TMP2, TMP3;
+        | mov WORK[reg_a], TMP2;
         break;
     }
     case MVM_OP_not_i: {
