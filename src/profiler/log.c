@@ -164,26 +164,40 @@ void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, MVMProfileContinu
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
     MVMProfileThreadData *ptd  = get_thread_data(tc);
     MVMProfileCallNode   *pcn  = ptd->current_call;
-    MVMObject            *what = STABLE(obj)->WHAT;
     if (pcn) {
-        /* See if there's an existing node to update. */
-        MVMuint32 i;
-        for (i = 0; i < pcn->num_alloc; i++) {
-            if (pcn->alloc[i].type == what) {
-                pcn->alloc[i].allocations++;
-                return;
-            }
+        /* First, let's see if the allocation is actually at the end of the
+         * nursery; we may have generated some "allocated" log instructions
+         * after operations that may or may not allocate what they return.
+         */
+        MVMuint32 distance = ((MVMuint64)tc->nursery_alloc - (MVMuint64)obj);
+
+        if (!obj) {
+            return;
         }
 
-        /* No entry; create one. */
-        if (pcn->num_alloc == pcn->alloc_alloc) {
-            pcn->alloc_alloc += 8;
-            pcn->alloc = MVM_realloc(pcn->alloc,
-                pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
+        /* Since some ops first allocate, then call something else that may
+         * also allocate, we may have to allow for a bit of grace distance. */
+        if ((MVMuint64)obj > (MVMuint64)tc->nursery_tospace && distance <= obj->header.size) {
+            /* See if there's an existing node to update. */
+            MVMObject            *what = STABLE(obj)->WHAT;
+            MVMuint32 i;
+            for (i = 0; i < pcn->num_alloc; i++) {
+                if (pcn->alloc[i].type == what) {
+                    pcn->alloc[i].allocations++;
+                    return;
+                }
+            }
+
+            /* No entry; create one. */
+            if (pcn->num_alloc == pcn->alloc_alloc) {
+                pcn->alloc_alloc += 8;
+                pcn->alloc = MVM_realloc(pcn->alloc,
+                    pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
+            }
+            pcn->alloc[pcn->num_alloc].type        = what;
+            pcn->alloc[pcn->num_alloc].allocations = 1;
+            pcn->num_alloc++;
         }
-        pcn->alloc[pcn->num_alloc].type        = what;
-        pcn->alloc[pcn->num_alloc].allocations = 1;
-        pcn->num_alloc++;
     }
 }
 
