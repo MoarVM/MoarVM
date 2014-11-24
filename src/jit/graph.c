@@ -745,6 +745,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_hllboxtype_s:
     case MVM_OP_null_s:
     case MVM_OP_isnull_s:
+    case MVM_OP_cmp_i:
     case MVM_OP_not_i:
     case MVM_OP_isnull:
     case MVM_OP_isnonnull:
