@@ -661,14 +661,14 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | cqo;  // convert quadword to octoword. look it up :-)
         | idiv rcx; // rcx was the denominator
         if (op == MVM_OP_div_i) {
-            | mov r8, rax;
-            | dec r8;
+            | mov TMP3, rax;
+            | dec TMP3;
             | cmp rax, 0; // quotient < 0
             | setl ch;
             | test rdx, rdx; // remainder != 0
             | setnz cl;
             | test ch, cl;
-            | cmovnz rax, r8;
+            | cmovnz rax, TMP3;
             | mov WORK[dst], rax;
         } else {
             | mov WORK[dst], rdx;
@@ -797,6 +797,23 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[reg_a], rax;
         break;
     }
+    case MVM_OP_cmp_i : {
+        MVMint32 reg_a = ins->operands[0].reg.orig;
+        MVMint32 reg_b = ins->operands[1].reg.orig;
+        MVMint32 reg_c = ins->operands[2].reg.orig;
+        | mov TMP1, WORK[reg_b];
+        /* comparison result in the setting bits in the rflags register */
+        | cmp TMP1, WORK[reg_c];
+        /* copy the right comparison bit to the lower byte of the rax
+           register */
+        | setg TMP2b;
+        | movzx TMP2, TMP2b;
+        | setl TMP3b;
+        | movzx TMP3, TMP3b;
+        | sub TMP2, TMP3;
+        | mov WORK[reg_a], TMP2;
+        break;
+    }
     case MVM_OP_not_i: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
@@ -842,6 +859,22 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         }
         | movzx TMP1, TMP1b;
         | mov WORK[dst], TMP1;
+        break;
+    }
+    case MVM_OP_cmp_n: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 a   = ins->operands[1].reg.orig;
+        MVMint16 b   = ins->operands[2].reg.orig;
+        | movsd xmm0, qword WORK[a];
+        | movsd xmm1, qword WORK[b];
+        | ucomisd xmm0, xmm1
+        | seta TMP1b;
+        | movzx rax, TMP1b;
+        | ucomisd xmm1, xmm0
+        | seta TMP1b;
+        | movzx TMP1, TMP1b;
+        | sub rax, TMP1;
+        | mov WORK[dst], rax;
         break;
     }
     case MVM_OP_eq_I:
