@@ -195,6 +195,8 @@ struct MVMThreadContext {
     MVMint64  nfa_alloc_states;
     MVMint64 *nfa_fates;
     MVMint64  nfa_fates_len;
+    MVMint64 *nfa_longlit;
+    MVMint64  nfa_longlit_len;
 
     /* Profiling data collected for this thread, if profiling is on. */
     MVMProfileThreadData *prof_data;
