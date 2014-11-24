@@ -773,6 +773,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         /* Profiling */
     case MVM_OP_prof_enterspesh:
     case MVM_OP_prof_enterinline:
+    case MVM_OP_invokewithcapture:
         jgb_append_primitive(tc, jgb, ins);
         break;
         /* branches */

@@ -230,7 +230,7 @@ captureposarg_s     w(str) r(obj) r(int64) :pure
 captureposprimspec  w(int64) r(obj) r(int64) :pure
 captureexistsnamed  w(int64) r(obj) r(str) :pure
 capturehasnameds    w(int64) r(obj) :pure
-invokewithcapture   w(obj) r(obj) r(obj)
+invokewithcapture   w(obj) r(obj) r(obj) :invokish
 multicacheadd       w(obj) r(obj) r(obj) r(obj)
 multicachefind      w(obj) r(obj) r(obj)
 null_s              w(str) :pure
