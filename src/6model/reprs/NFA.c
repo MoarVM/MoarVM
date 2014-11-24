@@ -415,10 +415,6 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 MVMint64 act = edge_info[i].act;
                 MVMint64 to  = edge_info[i].to;
 
-<<<<<<< HEAD
-		if (act <= MVM_NFA_EDGE_EPSILON) {
-		    if (act == MVM_NFA_EDGE_FATE) {
-=======
 		/* All the special cases are under one test. */
 		if (act <= MVM_NFA_EDGE_EPSILON) {
 		    if (act < 0) {
@@ -427,20 +423,14 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 			act &= 0xff;
 		    }
 		    else if (act == MVM_NFA_EDGE_FATE) {
->>>>>>> longlit5
 			/* Crossed a fate edge. Check if we already saw this, and
 			 * if so bump the entry we already saw. */
 			MVMint64 arg = edge_info[i].arg.i;
 			MVMint64 j;
 			MVMint64 found_fate = 0;
-<<<<<<< HEAD
-			if (longlit)
-			    arg = (arg & 0xffffff) | (-longlit << 24);
-=======
 			arg &= 0xffffff;
 			if (nfadeb)
 			    fprintf(stderr, "fate edge = %08llx\n", (long long unsigned int)arg);
->>>>>>> longlit5
 			for (j = 0; j < total_fates; j++) {
 			    if (found_fate)
 				fates[j - 1] = fates[j];
@@ -450,10 +440,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 				    prev_fates--;
 			    }
 			}
-<<<<<<< HEAD
-=======
 			arg -= longlit[arg] << 24;
->>>>>>> longlit5
 			if (found_fate) {
 			    fates[total_fates - 1] = arg;
 			}
@@ -480,11 +467,6 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 }
                 else {
                     switch (act) {
-<<<<<<< HEAD
-                        case MVM_NFA_EDGE_CODEPOINT_LL:
-			    longlit = offset - begoffset;
-                            /* FALLTHROUGH */
-=======
                         case MVM_NFA_EDGE_CODEPOINT_LL: {
                             MVMint64 fate = (edge_info[i].act >> 8) & 0xffffff;
                             MVMint64 arg = edge_info[i].arg.i;
@@ -494,7 +476,6 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 			    }
                             break;
                         }
->>>>>>> longlit5
                         case MVM_NFA_EDGE_CODEPOINT: {
                             MVMint64 arg = edge_info[i].arg.i;
                             if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg)
@@ -533,11 +514,6 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                                 nextst[numnext++] = to;
                             break;
                         }
-<<<<<<< HEAD
-                        case MVM_NFA_EDGE_CODEPOINT_I_LL:
-			    longlit = offset - begoffset;
-                            /* FALLTHROUGH */
-=======
                         case MVM_NFA_EDGE_CODEPOINT_I_LL: {
                             MVMint64 fate = (edge_info[i].act >> 8) & 0xffffff;
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
@@ -549,7 +525,6 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 			    }
                             break;
                         }
->>>>>>> longlit5
                         case MVM_NFA_EDGE_CODEPOINT_I: {
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
