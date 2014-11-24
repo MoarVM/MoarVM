@@ -808,7 +808,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
            register */
         | setg al;
         | movzx rax, al;
-        | setle al;
+        | setl al;
         | movzx TMP3, al;
         | sub rax, TMP3;
         | mov WORK[reg_a], rax;
