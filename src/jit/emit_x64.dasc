@@ -661,14 +661,14 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | cqo;  // convert quadword to octoword. look it up :-)
         | idiv rcx; // rcx was the denominator
         if (op == MVM_OP_div_i) {
-            | mov r8, rax;
-            | dec r8;
+            | mov TMP3, rax;
+            | dec TMP3;
             | cmp rax, 0; // quotient < 0
             | setl ch;
             | test rdx, rdx; // remainder != 0
             | setnz cl;
             | test ch, cl;
-            | cmovnz rax, r8;
+            | cmovnz rax, TMP3;
             | mov WORK[dst], rax;
         } else {
             | mov WORK[dst], rdx;
@@ -809,8 +809,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | setg al;
         | movzx rax, al;
         | setle al;
-        | movzx r8, al;
-        | sub rax, r8;
+        | movzx TMP3, al;
+        | sub rax, TMP3;
         | mov WORK[reg_a], rax;
         break;
     }
@@ -859,6 +859,22 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         }
         | movzx TMP1, TMP1b;
         | mov WORK[dst], TMP1;
+        break;
+    }
+    case MVM_OP_cmp_n: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 a   = ins->operands[1].reg.orig;
+        MVMint16 b   = ins->operands[2].reg.orig;
+        | movsd xmm0, qword WORK[a];
+        | movsd xmm1, qword WORK[b];
+        | ucomisd xmm0, xmm1
+        | seta TMP1b;
+        | movzx rax, TMP1b;
+        | ucomisd xmm1, xmm0
+        | seta TMP1b;
+        | movzx TMP1, TMP1b;
+        | sub rax, TMP1;
+        | mov WORK[dst], rax;
         break;
     }
     case MVM_OP_eq_I:

@@ -683,6 +683,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_le_i:
     case MVM_OP_gt_i:
     case MVM_OP_ge_i:
+    case MVM_OP_cmp_i:
         /* comparison (numbers) */
     case MVM_OP_eq_n:
     case MVM_OP_ne_n:
@@ -690,6 +691,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_gt_n:
     case MVM_OP_lt_n:
     case MVM_OP_le_n:
+    case MVM_OP_cmp_n:
         /* comparison (objects) */
     case MVM_OP_eqaddr:
     case MVM_OP_isconcrete:
@@ -746,7 +748,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_hllboxtype_s:
     case MVM_OP_null_s:
     case MVM_OP_isnull_s:
-    case MVM_OP_cmp_i:
     case MVM_OP_not_i:
     case MVM_OP_isnull:
     case MVM_OP_isnonnull:
