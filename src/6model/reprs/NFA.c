@@ -334,7 +334,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     MVMint64  i, fate_arr_len, num_states, total_fates, prev_fates;
     MVMint64  longlit = 0;
     MVMint64  begoffset = offset;
-    int nfadeb = getenv("MVM_NFA_DEB") ? 1 : 0;
+    int nfadeb = tc->instance->nfa_debug_enabled;
 
     /* Obtain or (re)allocate "done states", "current states" and "next
      * states" arrays. */

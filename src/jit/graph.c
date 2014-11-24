@@ -306,6 +306,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_atan2_n: return &atan2;
     case MVM_OP_pow_n: return &pow;
     case MVM_OP_time_n: return &MVM_proc_time_n;
+    case MVM_OP_randscale_n: return &MVM_proc_randscale_n;
+    case MVM_OP_isnanorinf: return &MVM_num_isnanorinf;
     case MVM_OP_nativecallinvoke: return &MVM_nativecall_invoke;
     case MVM_OP_sp_boolify_iter: return &MVM_iter_istrue;
     case MVM_OP_prof_allocated: return &MVM_profile_log_allocated;
@@ -681,6 +683,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_le_i:
     case MVM_OP_gt_i:
     case MVM_OP_ge_i:
+    case MVM_OP_cmp_i:
         /* comparison (numbers) */
     case MVM_OP_eq_n:
     case MVM_OP_ne_n:
@@ -688,6 +691,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_gt_n:
     case MVM_OP_lt_n:
     case MVM_OP_le_n:
+    case MVM_OP_cmp_n:
         /* comparison (objects) */
     case MVM_OP_eqaddr:
     case MVM_OP_isconcrete:
@@ -1649,6 +1653,22 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 1, args,
                           MVM_JIT_RV_NUM, dst);
+        break;
+    }
+    case MVM_OP_randscale_n: {
+        MVMint16 dst   = ins->operands[0].reg.orig;
+        MVMint16 scale = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL_F, scale } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_NUM, dst);
+        break;
+    }
+    case MVM_OP_isnanorinf: {
+        MVMint16 dst   = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL_F, src } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_nativecallinvoke: {

@@ -54,7 +54,11 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 break;
             }
             case MVM_OP_takeclosure:
+            case MVM_OP_getattr_o:
+            case MVM_OP_getattrs_o:
+            case MVM_OP_sp_p6ogetvc_o:
             case MVM_OP_create:
+            case MVM_OP_sp_fastcreate:
             case MVM_OP_clone:
             case MVM_OP_box_i:
             case MVM_OP_box_n:
@@ -82,6 +86,23 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_coerce_sI:
             case MVM_OP_radix_I: {
                 add_allocation_logging(tc, g, bb, ins);
+                break;
+            }
+            case MVM_OP_getlex:
+            case MVM_OP_getlex_no:
+            case MVM_OP_getlexstatic_o:
+            case MVM_OP_getlexperinvtype_o:
+            case MVM_OP_getlexouter:
+            case MVM_OP_getlexrel:
+            case MVM_OP_getlexreldyn:
+            case MVM_OP_getlexrelcaller:
+            case MVM_OP_getlexcaller:
+            {
+                /* We have to check if the target register is actually
+                 * an object register. */
+                if ((g->local_types && g->local_types[ins->operands[0].reg.orig] == MVM_reg_obj)
+                    || (!g->local_types && g->sf->body.local_types[ins->operands[0].reg.orig] == MVM_reg_obj))
+                    add_allocation_logging(tc, g, bb, ins);
                 break;
             }
             default:

@@ -101,7 +101,7 @@ struct MVMCallsiteInterns {
 void MVM_callsite_initialize_common(MVMThreadContext *tc);
 
 /* Get any of the "common" callsites */
-MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id);
+MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id);
 
 /* Callsite interning function. */
-void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
+MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
