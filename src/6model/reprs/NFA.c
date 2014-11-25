@@ -468,7 +468,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 else {
                     switch (act) {
                         case MVM_NFA_EDGE_CODEPOINT_LL: {
-                            MVMint64 fate = (edge_info[i].act >> 8) & 0xffffff;
+                            MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
                             MVMint64 arg = edge_info[i].arg.i;
                             if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg) {
                                 nextst[numnext++] = to;
@@ -515,7 +515,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             break;
                         }
                         case MVM_NFA_EDGE_CODEPOINT_I_LL: {
-                            MVMint64 fate = (edge_info[i].act >> 8) & 0xffffff;
+                            MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
                             MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
