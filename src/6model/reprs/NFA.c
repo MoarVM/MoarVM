@@ -337,7 +337,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     MVMint64  numcur  = 0;
     MVMint64  numnext = 0;
     MVMint64 *done, *fates, *curst, *nextst, *longlit;
-    MVMint64  i, fate_arr_len, num_states, total_fates, prev_fates;
+    MVMint64  i, fate_arr_len, num_states, total_fates, prev_fates, usedlonglit;
     MVMint64  orig_offset = offset;
     int nfadeb = tc->instance->nfa_debug_enabled;
 
@@ -374,8 +374,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 	tc->nfa_longlit_len  = fate_arr_len;
     }
     longlit = tc->nfa_longlit;
-    for (i = 0; i < fate_arr_len; i++)
-	longlit[i] = 0;
+    usedlonglit = 0;
 
     nextst[numnext++] = 1;
     while (numnext && offset <= eos) {
@@ -428,7 +427,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 			MVMint64 arg = edge_info[i].arg.i;
 			MVMint64 j;
 			MVMint64 found_fate = 0;
-			arg &= 0xffffff;
+			arg &= 0xffffff;   /* can go away after rebootstrap? */
 			if (nfadeb)
 			    fprintf(stderr, "fate edge = %08llx\n", (long long unsigned int)arg);
 			for (j = 0; j < total_fates; j++) {
@@ -440,7 +439,8 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 				    prev_fates--;
 			    }
 			}
-			arg -= longlit[arg] << 24;
+			if (arg < usedlonglit)
+			    arg -= longlit[arg] << 24;
 			if (found_fate) {
 			    fates[total_fates - 1] = arg;
 			}
@@ -468,10 +468,12 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 else {
                     switch (act) {
                         case MVM_NFA_EDGE_CODEPOINT_LL: {
-                            MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
                             MVMint64 arg = edge_info[i].arg.i;
                             if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg) {
+				MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
                                 nextst[numnext++] = to;
+				while (usedlonglit <= fate)
+				    longlit[usedlonglit++] = 0;
 				longlit[fate] = offset - orig_offset + 1;
 			    }
                             break;
@@ -515,12 +517,14 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             break;
                         }
                         case MVM_NFA_EDGE_CODEPOINT_I_LL: {
-                            MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
                             MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
                             if (ord == lc_arg || ord == uc_arg) {
+				MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
                                 nextst[numnext++] = to;
+				while (usedlonglit <= fate)
+				    longlit[usedlonglit++] = 0;
 				longlit[fate] = offset - orig_offset + 1;
 			    }
                             break;
@@ -588,10 +592,12 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         }
     }
     /* strip any literal lengths, leaving only fates */
-    if (nfadeb) fprintf(stderr,"Final\n");
-    for (i = 0; i < total_fates; i++) {
-	if (nfadeb) fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
-        fates[i] &= 0xffffff;
+    if (usedlonglit) {
+	if (nfadeb) fprintf(stderr,"Final\n");
+	for (i = 0; i < total_fates; i++) {
+	    if (nfadeb) fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
+	    fates[i] &= 0xffffff;
+	}
     }
 
     *total_fates_out = total_fates;
