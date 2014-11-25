@@ -663,7 +663,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | idiv rcx; // rcx was the denominator
         if (op == MVM_OP_div_i) {
             | mov TMP3, rax;
-            | dec TMP3;
+            | sub TMP3, 1;
             | cmp rax, 0; // quotient < 0
             | setl ch;
             | test rdx, rdx; // remainder != 0
@@ -679,12 +679,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
 
     case MVM_OP_inc_i: {
          MVMint32 reg = ins->operands[0].reg.orig;
-         | inc qword WORK[reg];
+         | add qword WORK[reg], 1;
          break;
     }
     case MVM_OP_dec_i: {
         MVMint32 reg = ins->operands[0].reg.orig;
-        | dec qword WORK[reg];
+        | sub qword WORK[reg], 1;
         break;
     }
     case MVM_OP_bnot_i: {
@@ -955,7 +955,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 obj = ins->operands[1].reg.orig;
         | mov TMP1, aword WORK[obj];
         | mov TMP2, MVMITER:TMP1->body.array_state.index;
-        | inc TMP2;
+        | add TMP2, 1;
         | mov TMP3, MVMITER:TMP1->body.array_state.limit;
         /* index - limit will give a carry flag when index < limit */
         | cmp TMP2, TMP3;
@@ -1166,7 +1166,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_scwbdisable: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov TMP1d, dword TC->sc_wb_disable_depth;
-        | inc TMP1d;
+        | add TMP1d, 1;
         | mov dword TC->sc_wb_disable_depth, TMP1d;
         | mov qword WORK[dst], TMP1;
         break;
@@ -1174,7 +1174,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_scwbenable: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov TMP1d, dword TC->sc_wb_disable_depth; // should do zero-extension
-        | dec TMP1d;
+        | sub TMP1d, 1;
         | mov dword TC->sc_wb_disable_depth, TMP1d;
         | mov qword WORK[dst], TMP1; 
         break;
