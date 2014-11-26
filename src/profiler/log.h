@@ -25,6 +25,11 @@ struct MVMProfileThreadData {
 
     /* Current GC start time, if any. */
     MVMuint64 cur_gc_start_time;
+
+    /* We have to make sure to not count the newest allocation infinitely
+     * often if there's a conditionally-allocating operation (like getlex)
+     * that gets called multiple times with no actual allocations in between */
+    MVMObject *last_counted_allocation;
 };
 
 /* Information collected about a GC run. */

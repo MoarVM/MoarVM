@@ -177,7 +177,7 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
 
         /* Since some ops first allocate, then call something else that may
          * also allocate, we may have to allow for a bit of grace distance. */
-        if ((MVMuint64)obj > (MVMuint64)tc->nursery_tospace && distance <= obj->header.size) {
+        if ((MVMuint64)obj > (MVMuint64)tc->nursery_tospace && distance <= obj->header.size && obj != ptd->last_counted_allocation) {
             /* See if there's an existing node to update. */
             MVMObject            *what = STABLE(obj)->WHAT;
             MVMuint32 i;
@@ -199,6 +199,7 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
                         pcn->alloc[i].allocations_spesh++;
                     else if (allocation_target == 2)
                         pcn->alloc[i].allocations_jit++;
+                    ptd->last_counted_allocation = obj;
                     return;
                 }
             }
@@ -213,6 +214,7 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
             pcn->alloc[pcn->num_alloc].allocations_interp = allocation_target == 0;
             pcn->alloc[pcn->num_alloc].allocations_spesh  = allocation_target == 1;
             pcn->alloc[pcn->num_alloc].allocations_jit    = allocation_target == 2;
+            ptd->last_counted_allocation = obj;
             pcn->num_alloc++;
         }
     }
