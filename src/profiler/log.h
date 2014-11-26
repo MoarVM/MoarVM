@@ -103,7 +103,14 @@ struct MVMProfileAllocationCount {
     MVMObject *type;
 
     /* The number of allocations we've counted. */
-    MVMuint64 allocations;
+    /* a) in regularly interpreted code */
+    MVMuint64 allocations_interp;
+
+    /* b) in spesh'd code */
+    MVMuint64 allocations_spesh;
+
+    /* c) in jitted code */
+    MVMuint64 allocations_jit;
 };
 
 /* When a continuation is taken, we attach one of these to it. It carries the

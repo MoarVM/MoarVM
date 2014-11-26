@@ -181,9 +181,24 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
             /* See if there's an existing node to update. */
             MVMObject            *what = STABLE(obj)->WHAT;
             MVMuint32 i;
+
+            MVMuint8 allocation_target;
+            if (pcn->entry_mode == MVM_PROFILE_ENTER_SPESH || pcn->entry_mode == MVM_PROFILE_ENTER_SPESH_INLINE) {
+                allocation_target = 1;
+            } else if (pcn->entry_mode == MVM_PROFILE_ENTER_JIT || pcn->entry_mode == MVM_PROFILE_ENTER_JIT_INLINE) {
+                allocation_target = 2;
+            } else {
+                allocation_target = 0;
+            }
+
             for (i = 0; i < pcn->num_alloc; i++) {
                 if (pcn->alloc[i].type == what) {
-                    pcn->alloc[i].allocations++;
+                    if (allocation_target == 0)
+                        pcn->alloc[i].allocations_interp++;
+                    else if (allocation_target == 1)
+                        pcn->alloc[i].allocations_spesh++;
+                    else if (allocation_target == 2)
+                        pcn->alloc[i].allocations_jit++;
                     return;
                 }
             }
@@ -195,7 +210,9 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
                     pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
             }
             pcn->alloc[pcn->num_alloc].type        = what;
-            pcn->alloc[pcn->num_alloc].allocations = 1;
+            pcn->alloc[pcn->num_alloc].allocations_interp = allocation_target == 0;
+            pcn->alloc[pcn->num_alloc].allocations_spesh  = allocation_target == 1;
+            pcn->alloc[pcn->num_alloc].allocations_jit    = allocation_target == 2;
             pcn->num_alloc++;
         }
     }

@@ -33,6 +33,8 @@ typedef struct {
     MVMString *exclusive_time;
     MVMString *callees;
     MVMString *allocations;
+    MVMString *spesh;
+    MVMString *jit;
     MVMString *type;
     MVMString *count;
     MVMString *gcs;
@@ -128,8 +130,14 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
         MVMObject *type       = pcn->alloc[i].type;
         MVM_repr_bind_key_o(tc, alloc_info, pds->id, box_i(tc, (MVMint64)type));
         MVM_repr_bind_key_o(tc, alloc_info, pds->type, type);
+        MVM_repr_bind_key_o(tc, alloc_info, pds->spesh,
+            box_i(tc, pcn->alloc[i].allocations_spesh));
+        MVM_repr_bind_key_o(tc, alloc_info, pds->jit,
+            box_i(tc, pcn->alloc[i].allocations_jit));
         MVM_repr_bind_key_o(tc, alloc_info, pds->count,
-            box_i(tc, pcn->alloc[i].allocations));
+            box_i(tc, pcn->alloc[i].allocations_interp
+                      + pcn->alloc[i].allocations_spesh
+                      + pcn->alloc[i].allocations_jit));
         MVM_repr_push_o(tc, alloc_list, alloc_info);
     }
 
@@ -202,6 +210,8 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
     pds.allocations     = str(tc, "allocations");
     pds.type            = str(tc, "type");
     pds.count           = str(tc, "count");
+    pds.spesh           = str(tc, "spesh");
+    pds.jit             = str(tc, "jit");
     pds.gcs             = str(tc, "gcs");
     pds.time            = str(tc, "time");
     pds.full            = str(tc, "full");
