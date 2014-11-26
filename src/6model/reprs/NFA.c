@@ -370,8 +370,8 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     /* longlit will be updated on a fate whenever NFA passes through final char of a literal. */
     /* These edges are specially marked to indicate which fate they influence the fate of. */
     if (tc->nfa_longlit_len < fate_arr_len) {
-	tc->nfa_longlit = (MVMint64 *)MVM_realloc(tc->nfa_longlit, sizeof(MVMint64) * fate_arr_len);
-	tc->nfa_longlit_len  = fate_arr_len;
+        tc->nfa_longlit = (MVMint64 *)MVM_realloc(tc->nfa_longlit, sizeof(MVMint64) * fate_arr_len);
+        tc->nfa_longlit_len  = fate_arr_len;
     }
     longlit = tc->nfa_longlit;
     usedlonglit = 0;
@@ -388,15 +388,15 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         /* Save how many fates we have before this position is considered. */
         prev_fates = total_fates;
 
-	if (nfadeb) {
-	    if (offset < eos) {
-		MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-		fprintf(stderr,"char %c with %d states\n",cp,(int)numcur);
-	    }
-	    else {
-		fprintf(stderr,"EOS with %d states\n",(int)numcur);
-	    }
-	}
+        if (nfadeb) {
+            if (offset < eos) {
+                MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
+                fprintf(stderr,"char %c with %d states\n",cp,(int)numcur);
+            }
+            else {
+                fprintf(stderr,"EOS with %d states\n",(int)numcur);
+            }
+        }
         while (numcur) {
             MVMNFAStateInfo *edge_info;
             MVMint64         edge_info_elems;
@@ -414,53 +414,53 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 MVMint64 act = edge_info[i].act;
                 MVMint64 to  = edge_info[i].to;
 
-		/* All the special cases are under one test. */
-		if (act <= MVM_NFA_EDGE_EPSILON) {
-		    if (act < 0) {
-			/* Negative indicates a fate is encoded in the act of the codepoint edge. */
-			/* These will redispatch to one of the _LL cases below */
-			act &= 0xff;
-		    }
-		    else if (act == MVM_NFA_EDGE_FATE) {
-			/* Crossed a fate edge. Check if we already saw this, and
-			 * if so bump the entry we already saw. */
-			MVMint64 arg = edge_info[i].arg.i;
-			MVMint64 j;
-			MVMint64 found_fate = 0;
-			arg &= 0xffffff;   /* can go away after rebootstrap? */
-			if (nfadeb)
-			    fprintf(stderr, "fate edge = %08llx\n", (long long unsigned int)arg);
-			for (j = 0; j < total_fates; j++) {
-			    if (found_fate)
-				fates[j - 1] = fates[j];
-			    if (fates[j] == arg) {
-				found_fate = 1;
-				if (j < prev_fates)
-				    prev_fates--;
-			    }
-			}
-			if (arg < usedlonglit)
-			    arg -= longlit[arg] << 24;
-			if (found_fate) {
-			    fates[total_fates - 1] = arg;
-			}
-			else {
-			    if (total_fates >= fate_arr_len) {
-				fate_arr_len      = total_fates + 1;
-				tc->nfa_fates     = (MVMint64 *)MVM_realloc(tc->nfa_fates,
-				    sizeof(MVMint64) * fate_arr_len);
-				tc->nfa_fates_len = fate_arr_len;
-				fates             = tc->nfa_fates;
-			    }
-			    fates[total_fates++] = arg;
-			}
-			continue;
-		    }
-		    else if (act == MVM_NFA_EDGE_EPSILON && to <= num_states && done[to] != gen) {
-			curst[numcur++] = to;
-			continue;
-		    }
-		}
+                /* All the special cases are under one test. */
+                if (act <= MVM_NFA_EDGE_EPSILON) {
+                    if (act < 0) {
+                        /* Negative indicates a fate is encoded in the act of the codepoint edge. */
+                        /* These will redispatch to one of the _LL cases below */
+                        act &= 0xff;
+                    }
+                    else if (act == MVM_NFA_EDGE_FATE) {
+                        /* Crossed a fate edge. Check if we already saw this, and
+                         * if so bump the entry we already saw. */
+                        MVMint64 arg = edge_info[i].arg.i;
+                        MVMint64 j;
+                        MVMint64 found_fate = 0;
+                        arg &= 0xffffff;   /* can go away after rebootstrap? */
+                        if (nfadeb)
+                            fprintf(stderr, "fate edge = %08llx\n", (long long unsigned int)arg);
+                        for (j = 0; j < total_fates; j++) {
+                            if (found_fate)
+                                fates[j - 1] = fates[j];
+                            if (fates[j] == arg) {
+                                found_fate = 1;
+                                if (j < prev_fates)
+                                    prev_fates--;
+                            }
+                        }
+                        if (arg < usedlonglit)
+                            arg -= longlit[arg] << 24;
+                        if (found_fate) {
+                            fates[total_fates - 1] = arg;
+                        }
+                        else {
+                            if (total_fates >= fate_arr_len) {
+                                fate_arr_len      = total_fates + 1;
+                                tc->nfa_fates     = (MVMint64 *)MVM_realloc(tc->nfa_fates,
+                                    sizeof(MVMint64) * fate_arr_len);
+                                tc->nfa_fates_len = fate_arr_len;
+                                fates             = tc->nfa_fates;
+                            }
+                            fates[total_fates++] = arg;
+                        }
+                        continue;
+                    }
+                    else if (act == MVM_NFA_EDGE_EPSILON && to <= num_states && done[to] != gen) {
+                        curst[numcur++] = to;
+                        continue;
+                    }
+                }
 
                 if (offset >= eos) {
                     /* Can't match, so drop state. */
@@ -471,12 +471,12 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         case MVM_NFA_EDGE_CODEPOINT_LL: {
                             MVMint64 arg = edge_info[i].arg.i;
                             if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg) {
-				MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
+                                MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
                                 nextst[numnext++] = to;
-				while (usedlonglit <= fate)
-				    longlit[usedlonglit++] = 0;
-				longlit[fate] = offset - orig_offset + 1;
-			    }
+                                while (usedlonglit <= fate)
+                                    longlit[usedlonglit++] = 0;
+                                longlit[fate] = offset - orig_offset + 1;
+                            }
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT: {
@@ -522,12 +522,12 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
                             MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
                             if (ord == lc_arg || ord == uc_arg) {
-				MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
+                                MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
                                 nextst[numnext++] = to;
-				while (usedlonglit <= fate)
-				    longlit[usedlonglit++] = 0;
-				longlit[fate] = offset - orig_offset + 1;
-			    }
+                                while (usedlonglit <= fate)
+                                    longlit[usedlonglit++] = 0;
+                                longlit[fate] = offset - orig_offset + 1;
+                            }
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT_I: {
@@ -577,28 +577,28 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
          * 24 bits encode fate. Both want to be descending order. */
         if (total_fates - prev_fates > 1) {
             MVMint64 char_fates = total_fates - prev_fates;
-	    if (nfadeb) {
-		fprintf(stderr,"    sorting %d\n",(int)char_fates);
-		for (i = prev_fates; i < total_fates; i++) {
-		    fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
-		}
-	    }
+            if (nfadeb) {
+                fprintf(stderr,"    sorting %d\n",(int)char_fates);
+                for (i = prev_fates; i < total_fates; i++) {
+                    fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
+                }
+            }
             revquicksort(&fates[total_fates - char_fates], char_fates);
-	    if (nfadeb) {
-		fprintf(stderr,"    result\n");
-		for (i = prev_fates; i < total_fates; i++) {
-		    fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
-		}
-	    }
+            if (nfadeb) {
+                fprintf(stderr,"    result\n");
+                for (i = prev_fates; i < total_fates; i++) {
+                    fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
+                }
+            }
         }
     }
     /* strip any literal lengths, leaving only fates */
     if (usedlonglit) {
-	if (nfadeb) fprintf(stderr,"Final\n");
-	for (i = 0; i < total_fates; i++) {
-	    if (nfadeb) fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
-	    fates[i] &= 0xffffff;
-	}
+        if (nfadeb) fprintf(stderr,"Final\n");
+        for (i = 0; i < total_fates; i++) {
+            if (nfadeb) fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
+            fates[i] &= 0xffffff;
+        }
     }
 
     *total_fates_out = total_fates;
