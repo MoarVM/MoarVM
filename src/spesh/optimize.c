@@ -502,19 +502,27 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     MVMString *method_name;
     MVMint64 can_result;
 
-    if (!(obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) || !obj_facts->type)
-        return;
-
     if (ins->info->opcode == MVM_OP_can_s) {
         MVMSpeshFacts *name_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
         if (!(name_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)) {
             return;
         }
         method_name = name_facts->value.s;
+
+        name_facts->usages--;
+        ins->info = MVM_op_get_op(MVM_OP_can);
+        ins->operands[2].lit_str_idx = name_facts->writer->operands[1].lit_str_idx;
     } else {
         method_name = MVM_spesh_get_string(tc, g, ins->operands[2]);
     }
 
+    if (!(obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) || !obj_facts->type) {
+        return;
+    }
+
+    return; /* When compiling rakudo, we get a "cannot lookup method on null
+               object" and i don't know why the previous guard doesn't help.
+               but at least we can turn a bunch of can_s into can. */
     can_result = MVM_6model_can_method_cache_only(tc, obj_facts->type, method_name);
 
     if (can_result == -1) {
@@ -1203,7 +1211,6 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_can:
         case MVM_OP_can_s:
-            break; /* This used to cause problems, Spesh: failed to fix up handlers (-1, 110, 110) */
             optimize_can_op(tc, g, bb, ins);
             break;
         case MVM_OP_create:
