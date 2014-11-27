@@ -23,7 +23,7 @@
     If you get an error that MAST::Ops could not be found, please run
     C<tools/update_ops.p6> to generate that module.
 
-=end
+=end pod
 
 use lib $?FILE.path.parent.child("lib");
 
