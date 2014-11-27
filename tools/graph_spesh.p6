@@ -1,3 +1,30 @@
+#!/usr/bin/env perl6
+
+=begin pod
+
+    The Speshlog Excerpt Grapher
+
+    This little script will eat a piece of speshlog (it expects to be fed an
+    excerpt that contains only a single Frame with all its BBs, but it'll get
+    only slightly confused if BBs are missing) and outputs Graphviz' C<DOT>
+    Language to stdout.
+
+    Ideally, you'd use C<dot> to generate an image file from the result or have
+    it display the result "interactively" in a window:
+
+    =code
+        perl6 graph_spesh.p6 a_nice_excerpt.txt | dot -Tsvg > helpful_graph.svg
+        perl6 graph_spesh.p6 a_nice_excerpt.txt | dot -Tpng > huge_image.png
+        perl6 graph_spesh.p6 a_nice_excerpt.txt | dot -Tx11
+
+    The -T flag for dot selects the output format. Using K<-Tx11> will open a
+    window in which you can pan and zoom around in.
+
+    If you get an error that MAST::Ops could not be found, please run
+    C<tools/update_ops.p6> to generate that module.
+
+=end
+
 use lib $?FILE.path.parent.child("lib");
 
 use MAST::Ops;
@@ -115,7 +142,7 @@ for lines() :eager -> $_ is copy {
                 if %reg_writers{$v}:exists {
                     @back_connections.push: %reg_writers{$v} => $current_ins ~ ":$k";
                 } else {
-                    note "found register without writer: $v for instruction $current_ins argument $k"
+                    note "found register without writer: $v for instruction $current_ins argument $k (this is harmless)"
                 }
             }
             @labelparts.push: "<$k> $v";
