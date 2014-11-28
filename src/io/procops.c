@@ -80,6 +80,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
         MVMuint32 index = MVM_string_index(tc, str, needle, 0);
 
         MVMString *key, *val;
+        MVMObject *box;
 
 #ifdef _WIN32
         MVM_free(_env);
@@ -90,8 +91,8 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
 
         val  = MVM_string_substring(tc, str, index + 1, -1);
-        MVM_repr_bind_key_o(tc, env_hash, key,
-            MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, val));
+        box  = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, val);
+        MVM_repr_bind_key_o(tc, env_hash, key, box);
 
         MVM_gc_root_temp_pop_n(tc, 2);
     }
