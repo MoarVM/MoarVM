@@ -294,41 +294,6 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
     return nfa_obj;
 }
 
-/* This public-domain C quick sort implementation by Darel Rex Finley. */
-static MVMint64 revquicksort(MVMint64 *arr, MVMint64 elements) {
-    #define MAX_LEVELS 100
-    MVMint64 piv, beg[MAX_LEVELS], end[MAX_LEVELS], i = 0, L, R ;
-    beg[0] = 0;
-    end[0] = elements;
-    while (i >= 0) {
-        L = beg[i];
-        R = end[i] - 1;
-        if (L < R) {
-            piv = arr[L];
-            if (i == MAX_LEVELS - 1)
-                return 0;
-            while (L < R) {
-                while (arr[R] <= piv && L < R)
-                    R--;
-                if (L < R)
-                    arr[L++] = arr[R];
-                while (arr[L] >= piv && L < R)
-                    L++;
-                if (L < R)
-                    arr[R--]  =arr[L];
-            }
-            arr[L] = piv;
-            beg[i+1] = L + 1;
-            end[i+1] = end[i];
-            end[i++] = L;
-        }
-        else {
-            i--;
-        }
-    }
-    return 1;
-}
-
 /* Does a run of the NFA. Produces a list of integers indicating the
  * chosen ordering. */
 static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *target, MVMint64 offset, MVMint64 *total_fates_out) {
@@ -355,8 +320,6 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     curst  = tc->nfa_curst;
     nextst = tc->nfa_nextst;
     memset(done, 0, (num_states + 1) * sizeof(MVMint64));
-    if (nfadeb) fprintf(stderr,"Starting with %d states\n", (int)num_states);
-
 
     /* Allocate fates array. */
     fate_arr_len = 1 + MVM_repr_elems(tc, nfa->fates);
@@ -366,6 +329,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     }
     fates = tc->nfa_fates;
     total_fates = 0;
+    if (nfadeb) fprintf(stderr,"======================================\nStarting with %d fates in %d states\n", (int)fate_arr_len, (int)num_states) ;
 
     /* longlit will be updated on a fate whenever NFA passes through final char of a literal. */
     /* These edges are specially marked to indicate which fate they influence the fate of. */
@@ -391,10 +355,10 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         if (nfadeb) {
             if (offset < eos) {
                 MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                fprintf(stderr,"char %c with %d states\n",cp,(int)numcur);
+                fprintf(stderr,"%c with %ds\n",cp,(int)numcur);
             }
             else {
-                fprintf(stderr,"EOS with %d states\n",(int)numcur);
+                fprintf(stderr,"EOS with %ds\n",(int)numcur);
             }
         }
         while (numcur) {
@@ -410,6 +374,8 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 
             edge_info = nfa->states[st - 1];
             edge_info_elems = nfa->num_state_edges[st - 1];
+            if (nfadeb)
+                fprintf(stderr,"\t%d\t%d\t",(int)st, (int)edge_info_elems);
             for (i = 0; i < edge_info_elems; i++) {
                 MVMint64 act = edge_info[i].act;
                 MVMint64 to  = edge_info[i].to;
@@ -429,11 +395,11 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         MVMint64 found_fate = 0;
                         arg &= 0xffffff;   /* can go away after rebootstrap? */
                         if (nfadeb)
-                            fprintf(stderr, "fate edge = %08llx\n", (long long unsigned int)arg);
+                            fprintf(stderr, "fate(%08llx) ", (long long unsigned int)arg);
                         for (j = 0; j < total_fates; j++) {
                             if (found_fate)
                                 fates[j - 1] = fates[j];
-                            if (fates[j] == arg) {
+                            if ((fates[j] & 0xffffff) == arg) {
                                 found_fate = 1;
                                 if (j < prev_fates)
                                     prev_fates--;
@@ -441,10 +407,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         }
                         if (arg < usedlonglit)
                             arg -= longlit[arg] << 24;
-                        if (found_fate) {
-                            fates[total_fates - 1] = arg;
-                        }
-                        else {
+                        if (!found_fate) {
                             if (total_fates >= fate_arr_len) {
                                 fate_arr_len      = total_fates + 1;
                                 tc->nfa_fates     = (MVMint64 *)MVM_realloc(tc->nfa_fates,
@@ -452,8 +415,14 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                                 tc->nfa_fates_len = fate_arr_len;
                                 fates             = tc->nfa_fates;
                             }
-                            fates[total_fates++] = arg;
+                            total_fates++;
                         }
+                        /* a small insertion sort */
+                        j = total_fates - 1;
+                        while (--j >= prev_fates && fates[j] < arg) {
+                            fates[j + 1] = fates[j];
+                        }
+                        fates[++j] = arg;
                         continue;
                     }
                     else if (act == MVM_NFA_EDGE_EPSILON && to <= num_states && done[to] != gen) {
@@ -476,13 +445,18 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                                 while (usedlonglit <= fate)
                                     longlit[usedlonglit++] = 0;
                                 longlit[fate] = offset - orig_offset + 1;
+                                if (nfadeb)
+                                    fprintf(stderr, "%d->%d ", (int)i, (int)to);
                             }
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT: {
                             MVMint64 arg = edge_info[i].arg.i;
-                            if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg)
+                            if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg) {
                                 nextst[numnext++] = to;
+                                if (nfadeb)
+                                    fprintf(stderr, "%d->%d ", (int)i, (int)to);
+                            }
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT_NEG: {
@@ -565,38 +539,18 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                     }
                 }
             }
+            if (nfadeb) fprintf(stderr,"\n");
         }
 
         /* Move to next character and generation. */
         offset++;
         gen++;
-
-        /* If we got multiple fates at this offset, sort them by the
-         * literal length and declaration order (both encoded in fate number).
-         * The high 40 bits of the fate encodes literal length, while the low
-         * 24 bits encode fate. Both want to be descending order. */
-        if (total_fates - prev_fates > 1) {
-            MVMint64 char_fates = total_fates - prev_fates;
-            if (nfadeb) {
-                fprintf(stderr,"    sorting %d\n",(int)char_fates);
-                for (i = prev_fates; i < total_fates; i++) {
-                    fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
-                }
-            }
-            revquicksort(&fates[total_fates - char_fates], char_fates);
-            if (nfadeb) {
-                fprintf(stderr,"    result\n");
-                for (i = prev_fates; i < total_fates; i++) {
-                    fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
-                }
-            }
-        }
     }
     /* strip any literal lengths, leaving only fates */
-    if (usedlonglit) {
+    if (usedlonglit || nfadeb) {
         if (nfadeb) fprintf(stderr,"Final\n");
         for (i = 0; i < total_fates; i++) {
-            if (nfadeb) fprintf(stderr, "\t%08llx\n", (long long unsigned int)fates[i]);
+            if (nfadeb) fprintf(stderr, "  %08llx\n", (long long unsigned int)fates[i]);
             fates[i] &= 0xffffff;
         }
     }
