@@ -552,42 +552,40 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMRegister *state     = NULL;
         MVMint64     state_act = 0; /* 0 = none so far, 1 = first time, 2 = later */
         MVMint64 i;
-        MVMROOT(tc, state, {
-            for (i = 0; i < numlex; i++) {
-                if (flags[i] == 2) {
-                    redo_state:
-                    switch (state_act) {
-                    case 0:
-                        if (!frame->code_ref)
-                            MVM_exception_throw_adhoc(tc,
-                                "Frame must have code-ref to have state variables");
-                        state = ((MVMCode *)frame->code_ref)->body.state_vars;
-                        if (state) {
-                            /* Already have state vars; pull them from this. */
-                            state_act = 2;
-                        }
-                        else {
-                            /* Allocate storage for state vars. */
-                            state = MVM_malloc(frame->static_info->body.env_size);
-                            memset(state, 0, frame->static_info->body.env_size);
-                            ((MVMCode *)frame->code_ref)->body.state_vars = state;
-                            state_act = 1;
-
-                            /* Note that this frame should run state init code. */
-                            frame->flags |= MVM_FRAME_FLAG_STATE_INIT;
-                        }
-                        goto redo_state;
-                    case 1:
-                        frame->env[i].o = MVM_repr_clone(tc, env[i].o);
-                        MVM_ASSIGN_REF(tc, &(frame->code_ref->header), state[i].o, frame->env[i].o);
-                        break;
-                    case 2:
-                        frame->env[i].o = state[i].o;
-                        break;
+        for (i = 0; i < numlex; i++) {
+            if (flags[i] == 2) {
+                redo_state:
+                switch (state_act) {
+                case 0:
+                    if (!frame->code_ref)
+                        MVM_exception_throw_adhoc(tc,
+                            "Frame must have code-ref to have state variables");
+                    state = ((MVMCode *)frame->code_ref)->body.state_vars;
+                    if (state) {
+                        /* Already have state vars; pull them from this. */
+                        state_act = 2;
                     }
+                    else {
+                        /* Allocate storage for state vars. */
+                        state = MVM_malloc(frame->static_info->body.env_size);
+                        memset(state, 0, frame->static_info->body.env_size);
+                        ((MVMCode *)frame->code_ref)->body.state_vars = state;
+                        state_act = 1;
+
+                        /* Note that this frame should run state init code. */
+                        frame->flags |= MVM_FRAME_FLAG_STATE_INIT;
+                    }
+                    goto redo_state;
+                case 1:
+                    frame->env[i].o = MVM_repr_clone(tc, env[i].o);
+                    MVM_ASSIGN_REF(tc, &(frame->code_ref->header), state[i].o, frame->env[i].o);
+                    break;
+                case 2:
+                    frame->env[i].o = state[i].o;
+                    break;
                 }
             }
-        });
+        }
     }
 }
 
