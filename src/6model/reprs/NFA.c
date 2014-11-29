@@ -388,34 +388,37 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         act &= 0xff;
                     }
                     else if (act == MVM_NFA_EDGE_FATE) {
-                        /* Crossed a fate edge. Check if we already saw this, and
-                         * if so bump the entry we already saw. */
+                        /* Crossed a fate edge. Check if we already saw this fate, and
+                         * if so remove the entry so we can re-add at the new token length. */
                         MVMint64 arg = edge_info[i].arg.i;
                         MVMint64 j;
                         MVMint64 found_fate = 0;
-                        arg &= 0xffffff;   /* can go away after rebootstrap? */
+                        arg &= 0xffffff;   /* XXX can go away after rebootstrap */
                         if (nfadeb)
-                            fprintf(stderr, "fate(%08llx) ", (long long unsigned int)arg);
+                            fprintf(stderr, "fate(%016llx) ", (long long unsigned int)arg);
                         for (j = 0; j < total_fates; j++) {
                             if (found_fate)
-                                fates[j - 1] = fates[j];
+                                fates[j - found_fate] = fates[j];
                             if ((fates[j] & 0xffffff) == arg) {
-                                found_fate = 1;
+                                found_fate++;
                                 if (j < prev_fates)
                                     prev_fates--;
                             }
                         }
+                        total_fates -= found_fate;
                         if (arg < usedlonglit)
                             arg -= longlit[arg] << 24;
-                        if (!found_fate) {
-                            if (total_fates >= fate_arr_len) {
-                                fate_arr_len      = total_fates + 1;
-                                tc->nfa_fates     = (MVMint64 *)MVM_realloc(tc->nfa_fates,
-                                    sizeof(MVMint64) * fate_arr_len);
-                                tc->nfa_fates_len = fate_arr_len;
-                                fates             = tc->nfa_fates;
+                        if (++total_fates > fate_arr_len) {
+                            /* should never happen if nfa->fates is correct and dedup above works right */
+                            fprintf(stderr, "oops adding %016llx to\n", (long long unsigned int)arg);
+                            for (j = 0; j < total_fates - 1; j++) {
+                                fprintf(stderr, "  %016llx\n", (long long unsigned int)fates[j]);
                             }
-                            total_fates++;
+                            fate_arr_len      = total_fates + 10;
+                            tc->nfa_fates     = (MVMint64 *)MVM_realloc(tc->nfa_fates,
+                                sizeof(MVMint64) * fate_arr_len);
+                            tc->nfa_fates_len = fate_arr_len;
+                            fates             = tc->nfa_fates;
                         }
                         /* a small insertion sort */
                         j = total_fates - 1;
