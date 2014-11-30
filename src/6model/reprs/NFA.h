@@ -7,6 +7,7 @@
 #define MVM_NFA_EDGE_CHARCLASS_NEG     5
 #define MVM_NFA_EDGE_CHARLIST          6
 #define MVM_NFA_EDGE_CHARLIST_NEG      7
+#define MVM_NFA_EDGE_SUBRULE           8
 #define MVM_NFA_EDGE_CODEPOINT_I       9
 #define MVM_NFA_EDGE_CODEPOINT_I_NEG   10
 #define MVM_NFA_EDGE_GENERIC_VAR       11

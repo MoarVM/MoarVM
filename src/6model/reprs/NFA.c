@@ -539,6 +539,10 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                                 nextst[numnext++] = to;
                             continue;
                         }
+                        case MVM_NFA_EDGE_SUBRULE:
+                            if (nfadeb)
+                                fprintf(stderr, "IGNORING SUBRULE\n");
+                            continue;
                     }
                 }
             }
