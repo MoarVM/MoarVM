@@ -351,7 +351,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).ui64 = GET_REG(cur_op, 2).ui64 / GET_REG(cur_op, 4).ui64;
                 cur_op += 6;
                 goto NEXT;
-        OP(mod_i): {
+            OP(mod_i): {
                 MVMint64 numer = GET_REG(cur_op, 2).i64;
                 MVMint64 denom = GET_REG(cur_op, 4).i64;
                 if (denom == 0)

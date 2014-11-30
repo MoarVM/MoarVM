@@ -169,7 +169,10 @@ typedef MVMString VMSTR;
 #define ATKEY(vm, hash, k)          (MVM_repr_at_key_o(vm, hash, k))
 #define ATKEY_I(vm, hash, k)        (MVM_repr_get_int(tc, MVM_repr_at_key_o(vm, hash, k)))
 #define BINDKEY(vm, hash, k, v)     (MVM_repr_bind_key_o(vm, hash, k, v))
-#define BINDKEY_I(vm, hash, k, v)   (MVM_repr_bind_key_o(vm, hash, k, MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, v)))
+#define BINDKEY_I(vm, hash, k, v)   do {                                          \
+    MVMObject *boxed = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, v); \
+    MVM_repr_bind_key_o(vm, hash, k, boxed);                                      \
+} while (0)
 #define EXISTSKEY(vm, hash, k)      (MVM_repr_exists_key(vm, hash, k))
 #define DELETEKEY(vm, hash, k)      (MVM_repr_delete_key(vm, hash, k))
 #define EMPTY_STRING(vm)            (tc->instance->str_consts.empty)
