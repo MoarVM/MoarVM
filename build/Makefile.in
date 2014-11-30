@@ -288,7 +288,7 @@ HEADERS = src/moar.h \
           src/6model/sc.h \
           src/mast/compiler.h \
           src/mast/driver.h \
-          src/mast/nodes_moar.h \
+          src/mast/nodes.h \
           src/spesh/dump.h \
           src/spesh/graph.h \
           src/spesh/codegen.h \
