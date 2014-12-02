@@ -303,7 +303,10 @@ struct MVMSTable {
             /* The code object to use to produce a new parameterization. */
             MVMObject *parameterizer;
 
-            /* Lookup table of existing parameterizations. */
+            /* Lookup table of existing parameterizations. For now, just a VM
+             * array with alternating pairs of [arg array], object. Could in
+             * the future we something lower level or hashy; we've yet to see
+             * how hot-path lookups end up being in reality. */
             MVMObject *lookup;
         } ric;
         struct {

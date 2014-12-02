@@ -43,7 +43,10 @@ static void finish_parameterizing(MVMThreadContext *tc, void *sr_data) {
         prd->parameters);
     new_stable->mode_flags |= MVM_PARAMETERIZED_TYPE;
 
-    /* XXX TODO: add to lookup table, handle possible race. */
+    /* Add to lookup table. */
+    /* XXX handle possible race. */
+    MVM_repr_push_o(tc, prd->parametric_type->st->paramet.ric.lookup, prd->parameters);
+    MVM_repr_push_o(tc, prd->parametric_type->st->paramet.ric.lookup, prd->result->o);
 }
 static void mark_parameterize_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
     ParameterizeReturnData *prd = (ParameterizeReturnData *)frame->special_return_data;
@@ -54,13 +57,36 @@ void MVM_6model_parametric_parameterize(MVMThreadContext *tc, MVMObject *type, M
                                         MVMRegister *result) {
     ParameterizeReturnData *prd;
     MVMObject *code;
+    MVMint64 i, j, num_lookups, params_elems;
 
     /* Ensure we have a parametric type. */
     MVMSTable *st = STABLE(type);
     if (!(st->mode_flags & MVM_PARAMETRIC_TYPE))
         MVM_exception_throw_adhoc(tc, "This type is not parametric");
 
-    /* XXX TODO: Lookup. */
+    /* Do a lookup in the parameterizations array. */
+    num_lookups  = MVM_repr_elems(tc, st->paramet.ric.lookup);
+    params_elems = MVM_repr_elems(tc, params);
+    for (i = 0; i < num_lookups; i += 2) {
+        MVMObject *compare       = MVM_repr_at_pos_o(tc, st->paramet.ric.lookup, i);
+        MVMint64   compare_elems = MVM_repr_elems(tc, compare);
+        if (params_elems == compare_elems) {
+            MVMint64 match = 1;
+            for (j = 0; j < params_elems; j++) {
+                MVMObject *want = MVM_repr_at_pos_o(tc, params, j);
+                MVMObject *got  = MVM_repr_at_pos_o(tc, compare, j);
+                /* XXX More cases to consider here. */
+                if (want != got) {
+                    match = 0;
+                    break;
+                }
+            }
+            if (match) {
+                result->o = MVM_repr_at_pos_o(tc, st->paramet.ric.lookup, i + 1);
+                return;
+            }
+        }
+    }
 
     /* It wasn't found; run parameterizer. */
     code = MVM_frame_find_invokee(tc, st->paramet.ric.parameterizer, NULL);
