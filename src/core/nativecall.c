@@ -363,7 +363,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
             typehash = MVM_repr_at_pos_o(tc, sig_info, i);
             callback_data->types[i] = MVM_repr_at_key_o(tc, typehash,
                 tc->instance->str_consts.typeobj);
-            callback_data->typeinfos[i] = get_arg_type(tc, typehash, 0);
+            callback_data->typeinfos[i] = get_arg_type(tc, typehash, 0) & ~MVM_NATIVECALL_ARG_FREE_STR;
             signature[i - 1] = get_signature_char(callback_data->typeinfos[i]);
             switch (callback_data->typeinfos[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
                 case MVM_NATIVECALL_ARG_CHAR:
