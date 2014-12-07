@@ -258,6 +258,9 @@ void MVM_profiler_log_gc_end(MVMThreadContext *tc) {
     /* Tweak cleared bytes count. */
     ptd->gcs[ptd->num_gcs].cleared_bytes -= (retained_bytes + tc->gc_promoted_bytes);
 
+    /* Record number of gen 2 roots (from gen2 to nursery) */
+    ptd->gcs[ptd->num_gcs].num_gen2roots = tc->num_gen2roots;
+
     /* Increment the number of GCs we've done. */
     ptd->num_gcs++;
 

@@ -44,6 +44,9 @@ struct MVMProfileGC {
     MVMuint32 cleared_bytes;
     MVMuint32 retained_bytes;
     MVMuint32 promoted_bytes;
+
+    /* Inter-generation links count */
+    MVMuint32 num_gen2roots;
 };
 
 /* Call graph node, which is kept per thread. */
