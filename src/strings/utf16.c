@@ -96,11 +96,11 @@ MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (length < 0 || start + length > strgraphs)
+    if (lengthu < 0 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
     /* Kke the result grow as needed instead of allocating so much to start? */
-    result = MVM_malloc(length * 4 + 2);
+    result = MVM_malloc(lengthu * 4 + 2);
     result_pos = result;
     MVM_string_ci_init(tc, &ci, str);
     while (MVM_string_ci_has_more(tc, &ci)) {
