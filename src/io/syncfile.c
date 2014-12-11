@@ -190,11 +190,7 @@ static MVMint64 eof(MVMThreadContext *tc, MVMOSHandle *h) {
     uv_fs_t  req;
     if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))
         return 0;
-    if (data->filename) {
-        if (MVM_file_stat_follow_symlink(tc, data->filename, &req) < 0)
-            MVM_exception_throw_adhoc(tc, "Failed to stat in filehandle: %s", uv_strerror(req.result));
-    }
-    else if (uv_fs_fstat(tc->loop, &req, data->fd, NULL) == -1) {
+    if (uv_fs_fstat(tc->loop, &req, data->fd, NULL) == -1) {
         MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s", uv_strerror(req.result));
     }
     if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
