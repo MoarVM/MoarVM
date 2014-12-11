@@ -127,8 +127,13 @@ extern "C" {
    #define DIGIT_BIT     ((int)((CHAR_BIT * sizeof(mp_digit) - 1)))  /* bits per digit */
 #endif
 
-/* some platforms can do with a better rand function */
+/* platforms that can use a better rand function */
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+    #define MP_USE_ALT_RAND 1
+#endif
+
+/* use arc4random on platforms that support it */
+#ifdef MP_USE_ALT_RAND
     #define MP_GEN_RANDOM()    arc4random()
 #else
     #define MP_GEN_RANDOM()    rand()

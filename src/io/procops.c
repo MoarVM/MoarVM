@@ -1086,7 +1086,10 @@ MVMnum64 MVM_proc_randscale_n(MVMThreadContext *tc, MVMnum64 scale) {
 void MVM_proc_seed(MVMThreadContext *tc, MVMint64 seed) {
     /* Seed our one, plus the normal C srand for libtommath. */
     tinymt64_init(tc->rand_state, (MVMuint64)seed);
+/* do not call srand if we are not using rand */
+#ifndef MP_USE_ALT_RAND
     srand((MVMuint32)seed);
+#endif
 }
 
 /* gets the system time since the epoch truncated to integral seconds */
