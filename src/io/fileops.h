@@ -24,7 +24,6 @@
 #define MVM_STAT_PLATFORM_BLOCKSIZE -6
 #define MVM_STAT_PLATFORM_BLOCKS    -7
 
-MVMint64 MVM_file_stat_follow_symlink(MVMThreadContext *tc, char *filename, uv_fs_t *req);
 MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status);
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest);

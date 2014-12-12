@@ -41,21 +41,6 @@ static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename) {
     return req.statbuf;
 }
 
-/* This will modify req and at the end it will be something other than a symlink. */
-MVMint64 MVM_file_stat_follow_symlink(MVMThreadContext *tc, char *filename, uv_fs_t *req) {
-    if (uv_fs_lstat(tc->loop, req, filename, NULL) < 0)
-        return -1;
-
-    if ((req->statbuf.st_mode & S_IFMT) == S_IFLNK) {
-        if (uv_fs_readlink(tc->loop, req, filename, NULL) < 0)
-            return -1;
-
-        return MVM_file_stat_follow_symlink(tc, (char *)req->ptr, req);
-    }
-
-    return 0;
-}
-
 MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status) {
     MVMint64 r = -1;
 
