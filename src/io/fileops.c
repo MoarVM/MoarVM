@@ -65,10 +65,11 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
                 char * const a = MVM_string_utf8_encode_C_string(tc, filename);
                 uv_fs_t req;
 
-                if (MVM_file_stat_follow_symlink(tc, a, &req) < 0) {
+                if (uv_fs_stat(tc->loop, &req, a, NULL) < 0) {
                     MVM_free(a);
                     MVM_exception_throw_adhoc(tc, "Failed to stat file: %s", uv_strerror(req.result));
                 }
+                MVM_free(a);
 
                 r = req.statbuf.st_size;
                 break;
