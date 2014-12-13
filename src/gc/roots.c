@@ -222,14 +222,9 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
     MVMuint32 insert_pos = 0;
 
     /* We'll use an intermediate worklist, which is used as the target when
-     * we mark each object on the gen2 roots list. Only things really in the
-     * nursery make it onto the real worklist that was passed in. */
+     * we mark each object on the gen2 roots list. It filters out anything
+     * that is not a nursery pointer. */
     MVMGCWorklist *per_obj_worklist = MVM_gc_worklist_create(tc, 0);
-
-    /* The original worklist will only accept nursery things, but here we need
-     * to override that and accept everything. */
-    MVMuint8 orig_include_gen2 = worklist->include_gen2;
-    worklist->include_gen2 = 1;
 
     /* Guess that we'll end up with around num_roots entries, to avoid some
      * worklist growth reallocations. */
@@ -241,14 +236,14 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
 
         assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
 
-        /* Mark it, putting marks into temporary worklist. */
+        /* Put things it references into temporary worklist. */
         MVM_gc_mark_collectable(tc, per_obj_worklist, gen2roots[i]);
 
-        /* For any referenced objects not in gen2, copy marks and count the
+        /* For any referenced objects (not in gen2), copy marks and count the
          * number of things we copy. Also copy frames, which always count as
          * potential nursery. */
         while ((cur_item_ptr = MVM_gc_worklist_get(tc, per_obj_worklist))) {
-            if (*cur_item_ptr && !((*cur_item_ptr)->flags & MVM_CF_SECOND_GEN)) {
+            if (*cur_item_ptr) {
                 MVM_gc_worklist_add(tc, worklist, cur_item_ptr);
                 num_in_nursery++;
             }
@@ -279,9 +274,6 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
 
     /* Clear up the temporary, per-object worklist. */
     MVM_gc_worklist_destroy(tc, per_obj_worklist);
-
-    /* Restore main worklist's include_gen2 flag. */
-    worklist->include_gen2 = orig_include_gen2;
 }
 
 /* Visits all of the roots in the gen2 list and removes those that have been
