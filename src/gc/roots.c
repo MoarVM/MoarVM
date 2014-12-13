@@ -221,44 +221,27 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
      * slide all that stay towards the start of the array. */
     MVMuint32 insert_pos = 0;
 
-    /* We'll use an intermediate worklist, which is used as the target when
-     * we mark each object on the gen2 roots list. It filters out anything
-     * that is not a nursery pointer. */
-    MVMGCWorklist *per_obj_worklist = MVM_gc_worklist_create(tc, 0);
-
     /* Guess that we'll end up with around num_roots entries, to avoid some
      * worklist growth reallocations. */
     MVM_gc_worklist_presize_for(tc, worklist, num_roots);
 
     /* Visit each gen2 root and... */
     for (i = 0; i < num_roots; i++) {
-        int num_in_nursery = 0;
+        /* Count items on worklist before we mark it. */
+        MVMuint32 items_before_mark  = worklist->items;
+        MVMuint32 frames_before_mark = worklist->frames;
 
+        /* Put things it references into the worklist; since the worklist will
+         * be set not to include gen2 things, only nursery things will make it
+         * in. */
         assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
+        MVM_gc_mark_collectable(tc, worklist, gen2roots[i]);
 
-        /* Put things it references into temporary worklist. */
-        MVM_gc_mark_collectable(tc, per_obj_worklist, gen2roots[i]);
-
-        /* For any referenced objects (not in gen2), copy marks and count the
-         * number of things we copy. Also copy frames, which always count as
-         * potential nursery. */
-        while ((cur_item_ptr = MVM_gc_worklist_get(tc, per_obj_worklist))) {
-            if (*cur_item_ptr) {
-                MVM_gc_worklist_add(tc, worklist, cur_item_ptr);
-                num_in_nursery++;
-            }
-        }
-        while ((cur_frame = MVM_gc_worklist_get_frame(tc, per_obj_worklist))) {
-            MVM_gc_worklist_add_frame_no_seq_check(tc, worklist, cur_frame);
-            num_in_nursery++;
-        }
-        if (!num_in_nursery && !(gen2roots[i]->flags & MVM_CF_STABLE)
-            && REPR(gen2roots[i])->refs_frames)
-            num_in_nursery = 1;
-
-        /* If there were any nursery objects, then this root should stay. Put
-         * it at the insert position. */
-        if (num_in_nursery) {
+        /* If we added any nursery objects or frames, or if we are marked as
+         * referencing frames, then we need to stay in this list. */
+        if (worklist->items != items_before_mark ||
+                worklist->frames != frames_before_mark ||
+                !(gen2roots[i]->flags & MVM_CF_STABLE) && REPR(gen2roots[i])->refs_frames) {
             gen2roots[insert_pos] = gen2roots[i];
             insert_pos++;
         }
@@ -271,9 +254,6 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
 
     /* New number of entries after sliding is the final insert position. */
     tc->num_gen2roots = insert_pos;
-
-    /* Clear up the temporary, per-object worklist. */
-    MVM_gc_worklist_destroy(tc, per_obj_worklist);
 }
 
 /* Visits all of the roots in the gen2 list and removes those that have been
