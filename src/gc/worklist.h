@@ -77,16 +77,6 @@ struct MVMGCWorklist {
         } \
     } while (0)
 
-#define MVM_gc_worklist_add_frame_no_seq_check(tc, worklist, frame) \
-    do { \
-        if (frame) { \
-            if (worklist->frames == worklist->frames_alloc) \
-                MVM_gc_worklist_add_frame_slow(tc, worklist, (frame)); \
-            else \
-                worklist->frames_list[worklist->frames++] = (frame); \
-        } \
-    } while (0)
-
 #define MVM_gc_worklist_get(tc, worklist) \
     (worklist->items ? \
         worklist->list[--worklist->items] : \
