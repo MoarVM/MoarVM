@@ -37,6 +37,7 @@ static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
     if (!status && data->process->data) {
         status = *(MVMint64*)data->process->data;
         MVM_free(data->process->data);
+        data->process->data = NULL;
     }
     uv_unref((uv_handle_t *)data->process);
     uv_run(tc->loop, UV_RUN_DEFAULT);
