@@ -230,6 +230,9 @@ for lines() :eager -> $_ is copy {
     when / ^ '  - ' $<argument_name>=[<[a..z A..B 0..9 _ ' -]>+] $ / {
         @callsite_args.push: ~$<argument_name>;
     }
+    when / ^ '      PHI' / {
+        # we don't have a nice way to show PHI nodes yet, sadly.
+    }
     default {
         say "    unparsed_line_{(state $)++} [label=\"{$_}\"];";
     }
