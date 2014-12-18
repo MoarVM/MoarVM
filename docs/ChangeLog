@@ -1,3 +1,40 @@
+New in 2014.12
+
++ Various warnings produced by clang fixed
++ Fixed ceil_n and floor_n to return n64, not i64
++ Pass -faddress-sanitizer when --asan is set
++ Eliminate various unneeded set instructions
++ Properly update successors for non-passed optional parameters
++ Optimize can operations
++ When bindlex fails, we should report "bindlex", not "getlex"
++ Mark takeclosure as an popular allocating op in the profiler
++ Expose callsite interning for extops
++ JIT randscale_n
++ Dump lexical names when dumping spesh graph
++ Only look at MVM_NFA_DEB environment variable once, not every NFA run
++ Implement longest literal tie-breaker in NFA
++ JIT cmp_i
++ JIT isnanorinf
++ JIT cmp_n
++ Handle sometimes-allocating ops in the profiler
++ JIT invokewithcapture
++ Count allocs in spesh'd/jitted frames separately in profiler
++ Turn a bunch of can_s ops into can ops instead.
++ Give graph_spesh.p6 a little introduction text
++ Avoid a pointer getting outdated on the stack in environment access
++ Replace quicksort with insertion sort in NFA fate sorting
++ Fix MVMROOT of a non-collectable in state variable handling
++ Detect useless SUBRULE edges in NFA, and trap epsilons to 0
++ Mark callback Str parameters as not to be freed
++ Record size of gen2_roots list after each GC when profiling
++ Do not call srand() if not using rand()
++ Don't use filename to determine EOFness
++ Allow passing of length = -1 to MVM_string_utf16_encode_substr
++ Don't resolve symlinks by hand
++ Avoid some duplicate work in inter-gen root processing
++ Fix a use-after-free in openpipe, which occurred quite often on OSX
++ Don't include PHIs when rendering spesh graph diagrams
+
 New in 2014.11
 
 + JIT multicacheadd, multicachefind, radix_I, bindpos_n, bindpos_s,
