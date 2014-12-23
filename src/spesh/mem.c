@@ -68,10 +68,11 @@ static AliasResult aa_ahref(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     MVMSpeshOperand keya = insa->operands[2], keyb = insb->operands[2];
     MVMuint16     opcode = insa->info->opcode;
 
-    MVMSpeshIns *keya_writer, *keyb_writer;
-
     if (insa == insb)
         return ALIAS_MUST;  /* Shortcut for same refs. */
+
+    if (opcode != insb->info->opcode)
+        return ALIAS_NO;      /* Different opcode types of array and hash access. */
 
     if (keya.lit_i64 == keyb.lit_i64) {
         if (obja.lit_i64 == objb.lit_i64)
@@ -80,17 +81,17 @@ static AliasResult aa_ahref(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
             return aa_object(tc, g, obja, objb);  /* Same key, possibly different object. */
     }
 
-    keya_writer = MVM_spesh_get_facts(tc, g, keya)->writer;
-    keyb_writer = MVM_spesh_get_facts(tc, g, keyb)->writer;
-
     if (opcode == MVM_OP_atpos_i || opcode == MVM_OP_atpos_n
         || opcode == MVM_OP_atpos_s || opcode == MVM_OP_atpos_o) {
+
         /* Disambiguate array references based on index arithmetic. */
+        MVMSpeshIns *keya_writer, *keyb_writer;
         MVMint32 offseta = 0, offsetb = 0;
         MVMSpeshOperand basea = keya, baseb = keyb;
         assert(insb->info->opcode == MVM_OP_atpos_i || insb->info->opcode == MVM_OP_atpos_n
             || insb->info->opcode == MVM_OP_atpos_s || insb->info->opcode == MVM_OP_atpos_o);
 
+        keya_writer = MVM_spesh_get_facts(tc, g, keya)->writer;
         opcode = keya_writer->info->opcode;
 
         /* Gather base and offset from array[base] or array[base +/- offset]. */
@@ -106,6 +107,7 @@ static AliasResult aa_ahref(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
                 return ALIAS_NO;  /* array[base +/- offset] vs. array[base]. */
         }
 
+        keyb_writer = MVM_spesh_get_facts(tc, g, keyb)->writer;
         opcode = keyb_writer->info->opcode;
         if (opcode == MVM_OP_add_i || opcode == MVM_OP_sub_i) { /* XXX: maybe needs mul_i and div_i/div_u? */
             MVMSpeshFacts *keyb_writer_facts = MVM_spesh_get_facts(tc, g, keyb_writer->operands[2]);
@@ -133,8 +135,7 @@ static AliasResult aa_ahref(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
             && (insb->info->opcode == MVM_OP_atkey_i || insb->info->opcode == MVM_OP_atkey_n
             || insb->info->opcode == MVM_OP_atkey_s || insb->info->opcode == MVM_OP_atkey_o));
 
-        if (insa->info->opcode != insb->info->opcode)
-            return ALIAS_NO;      /* Different key types. */
+        /* XXX: nothing to do yet */
     }
 
     if (obja.lit_i64 == objb.lit_i64)
