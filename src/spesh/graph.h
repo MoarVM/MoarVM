@@ -198,8 +198,13 @@ union MVMSpeshOperand {
         MVMuint16 outers;
     } lex;
     struct {
+#if MVM_BIGENDIAN
         MVMuint16 orig; /* Original register number. */
-        MVMint32  i;    /* SSA-computed version. */
+        MVMint32  i;          /* SSA-computed version. */
+#else
+        MVMint32  i;          /* SSA-computed version. */
+        MVMuint16 orig;  /* Original register number. */
+#endif
     } reg;
 };
 

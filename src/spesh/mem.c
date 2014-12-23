@@ -52,8 +52,8 @@ static AliasResult aa_object(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOpe
 
 /* Alias analysis for array and hash access using key-based disambiguation. */
 static AliasResult aa_ahref(MVMSpeshGraph *g, MVMSpeshIns *insa, MVMSpeshIns *insb) {
-    MVMSpeshOperand oa = insa->operands[2];
-    MVMSpeshOperand ob = insb->operands[2];
+    MVMSpeshOperand obja = insa->operands[1], objb = insb->operands[1];
+    MVMSpeshOperand keya = insa->operands[2], keyb = insb->operands[2];
     MVMSpeshIns *keya, *keyb;
     
     if (insa == insb)
@@ -61,4 +61,20 @@ static AliasResult aa_ahref(MVMSpeshGraph *g, MVMSpeshIns *insa, MVMSpeshIns *in
 
     keya = MVM_spesh_get_facts(tc, g, oa)->writer;
     keyb = MVM_spesh_get_facts(tc, g, ob)->writer;
+    
+    if (oa.lit_i64 == ob.lit_i64) {
+        if (obja == objb)
+            return ALIAS_MUST;  /* Same key, same object. */
+        else
+            return aa_object(J, obja, objb);  /* Same key, possibly different object. */
+    }
+    
+    if (refa->o == MVM_OP_atpos_i || MVM_OP_atpos_n || MVM_OP_atpos_s || MVM_OP_atpos_o) {
+    } else {
+    }
+    
+    if (obja == objb)
+        return ALIAS_MAY;  /* Same object, cannot disambiguate keys. */
+    else
+        return aa_object(J, obja, obja);  /* Try to disambiguate objects. */
 }
