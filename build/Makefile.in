@@ -165,6 +165,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/manipulate@obj@ \
           src/spesh/args@obj@ \
           src/spesh/facts@obj@ \
+          src/spesh/mem@obj@ \
           src/spesh/optimize@obj@ \
           src/spesh/deopt@obj@ \
           src/spesh/log@obj@ \
