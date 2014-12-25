@@ -70,10 +70,10 @@ static AliasResult aa_object(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOpe
     return aa_escape(g, insa, insb);
 }
 
-/* Alias analysis for array and hash get using index-based/key-based disambiguation. */
-static AliasResult aa_ah_get(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *insa, MVMSpeshIns *insb) {
+/* Alias analysis for array and hash and object get
+ * using index-based/key-based/attribute-name-based disambiguation. */
+static AliasResult aa_aho_get(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *insa, MVMSpeshIns *insb) {
     MVMSpeshOperand obja = insa->operands[1], objb = insb->operands[1];
-    MVMSpeshOperand keya = insa->operands[2], keyb = insb->operands[2];
     MVMuint16     opcode = insa->info->opcode;
 
     if (insa == insb)
@@ -82,25 +82,27 @@ static AliasResult aa_ah_get(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns
     if (opcode != insb->info->opcode)
         return ALIAS_NO;      /* Different opcode types of array and hash access. */
 
-    if (Operand_is_eq(keya, keyb)) {
-        if (Operand_is_eq(obja, objb))
-            return ALIAS_MUST;  /* Same key, same object. */
-        else
-            return aa_object(tc, g, obja, objb);  /* Same key, possibly different object. */
-    }
-
-    if (opcode >= MVM_OP_atpos_i || opcode <= MVM_OP_atpos_o) {
-        /* Disambiguate array references based on index arithmetic. */
+    if (opcode = MVM_OP_atpos_o) { /* The object is from a array value */
+        MVMSpeshOperand keya = insa->operands[2], keyb = insb->operands[2];
         MVMSpeshIns *keya_writer, *keyb_writer;
         MVMint32 offseta = 0, offsetb = 0;
         MVMSpeshOperand basea = keya, baseb = keyb;
-        assert(insb->info->opcode >= MVM_OP_atpos_i && insb->info->opcode <= MVM_OP_atpos_o);
+        assert(insb->info->opcode == MVM_OP_atpos_o);
 
+        if (Operand_is_eq(keya, keyb)) {
+            if (Operand_is_eq(obja, objb))
+                return ALIAS_MUST;  /* Same key, same object. */
+            else
+                return aa_object(tc, g, obja, objb);  /* Same key, possibly different object. */
+        }
+
+        /* Disambiguate array references based on index arithmetic. */
         keya_writer = MVM_spesh_get_facts(tc, g, keya)->writer;
         opcode = keya_writer->info->opcode;
 
-        /* Gather base and offset from array[base] or array[base +/- offset]. */
-        if (opcode == MVM_OP_add_i || opcode == MVM_OP_sub_i) { /* XXX: maybe needs mul_i and div_i/div_u? */
+        /* Gather base and offset from array[base] or array[base +/-/x/÷/% offset]. */
+        if ((opcode >= MVM_OP_add_i && opcode <= MVM_OP_sub_i)
+          || (opcode >= MVM_OP_band_i && opcode <= MVM_OP_pow_i))  {
             MVMSpeshFacts *keya_writer_facts = MVM_spesh_get_facts(tc, g, keya_writer->operands[2]);
             basea = keya_writer->operands[1];
 
@@ -109,12 +111,13 @@ static AliasResult aa_ah_get(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns
             offseta = (keya_writer_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && keya_writer_facts->value.i64 != 0;
 
             if (Operand_is_eq(basea, keyb) && offseta)
-                return ALIAS_NO;  /* array[base +/- offset] vs. array[base]. */
+                return ALIAS_NO;  /* array[base +/-/x/÷/% offset] vs. array[base]. */
         }
 
         keyb_writer = MVM_spesh_get_facts(tc, g, keyb)->writer;
         opcode = keyb_writer->info->opcode;
-        if (opcode == MVM_OP_add_i || opcode == MVM_OP_sub_i) { /* XXX: maybe needs mul_i and div_i/div_u? */
+        if ((opcode >= MVM_OP_add_i && opcode <= MVM_OP_sub_i)
+          || (opcode >= MVM_OP_band_i && opcode <= MVM_OP_pow_i))  {
             MVMSpeshFacts *keyb_writer_facts = MVM_spesh_get_facts(tc, g, keyb_writer->operands[2]);
             baseb = keyb_writer->operands[1];
 
@@ -123,7 +126,7 @@ static AliasResult aa_ah_get(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns
             offsetb = (keyb_writer_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && keyb_writer_facts->value.i64 != 0;
 
             if (Operand_is_eq(keya, baseb) && offsetb)
-                return ALIAS_NO;  /* t[base] vs. t[base +/- offset]. */
+                return ALIAS_NO;  /* t[base] vs. t[base +/-/x/÷/% offset]. */
         }
 
         if (Operand_is_eq(basea, baseb)) {
@@ -133,12 +136,49 @@ static AliasResult aa_ah_get(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns
               || Operand_is_not_eq(keya_writer_operands[2], keyb_writer_operands[2]))
                 return ALIAS_NO;  /* t[base +/- offseta] vs. t[base +/- offsetb] and offseta != offsetb. */
         }
-    } else {
-        /* Disambiguate hash references based on the type of their keys. */
-        assert((insa->info->opcode >= MVM_OP_atkey_i && insa->info->opcode <= MVM_OP_atkey_o)
-            || (insb->info->opcode >= MVM_OP_atkey_i && insb->info->opcode <= MVM_OP_atkey_o));
+    } else if (opcode == MVM_OP_atkey_o) {
+        MVMSpeshOperand keya = insa->operands[2], keyb = insb->operands[2];
+        assert(insb->info->opcode == MVM_OP_atkey_o);
 
-        /* XXX: nothing to do yet */
+        /* Disambiguate hash references based on the type of their keys. */
+        if (Operand_is_eq(keya, keyb)) {
+            if (Operand_is_eq(obja, objb))
+                return ALIAS_MUST;  /* Same key, same object. */
+            else
+                return aa_object(tc, g, obja, objb);  /* Same key, possibly different object. */
+        }
+    } else if (opcode == MVM_OP_getattr_o || opcode == MVM_OP_getattrs_o) {
+        MVMSpeshOperand obja = insa->operands[1], objb = insb->operands[1];
+        MVMSpeshOperand classnamea = insa->operands[2], classnameb = insb->operands[2];
+        MVMSpeshOperand attrnamea = insa->operands[3], attrnameb = insb->operands[3];
+
+        assert(insb->info->opcode == MVM_OP_atkey_o);
+
+        if (Operand_is_eq(attrnamea, attrnameb)) {
+            if (Operand_is_eq(classnamea, classnameb)) {
+                if (Operand_is_eq(obja, objb))
+                    return ALIAS_MUST;  /* Same attribute, same class, same object. */
+            } else {
+                /* class name always come from wval/wval_wide op */
+                MVMSpeshIns *wvala =  MVM_spesh_get_facts(tc, g, classnamea)->writer;
+                MVMSpeshIns *wvalb =  MVM_spesh_get_facts(tc, g, classnameb)->writer;
+                MVMSpeshOperand depa = wvala->operands[1], depb = wvalb->operands[1];
+                MVMSpeshOperand idxa = wvala->operands[2], idxb = wvalb->operands[2];
+
+                assert((wvala->info->opcode == MVM_OP_wval
+                    || wvala->info->opcode == MVM_OP_wval_wide)
+                  && (wvalb->info->opcode == MVM_OP_wval
+                    || wvalb->info->opcode == MVM_OP_wval_wide));
+
+                /* if wval has the same Operand, means the class name is the same */
+                if (Operand_is_eq(depa, depb) && Operand_is_eq(idxa, idxb)) {
+                    if (Operand_is_eq(obja, objb))
+                        return ALIAS_MUST;  /* Same attribute, same class, same object. */
+                }
+            }
+
+            return aa_object(tc, g, obja, objb);  /* only Same attribute, possibly different object. */
+        }
     }
 
     if (Operand_is_eq(obja, objb))
@@ -147,27 +187,6 @@ static AliasResult aa_ah_get(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns
         return aa_object(tc, g, obja, obja);  /* Try to disambiguate objects. */
 }
 
-/* Alias analysis for object attribute-name-based get disambiguation. */
-static AliasResult aa_obj_get(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *insa, MVMSpeshIns *insb) {
-    MVMSpeshOperand obja = insa->operands[1], objb = insb->operands[1];
-    MVMSpeshOperand keya = insa->operands[2], keyb = insb->operands[2];
-    MVMuint16     opcode = insa->info->opcode;
-
-    if (insa == insb)
-        return ALIAS_MUST;  /* Shortcut for same refs. */
-
-    if (opcode != insb->info->opcode)
-        return ALIAS_NO;      /* Different opcode types of array and hash access. */
-
-    if (Operand_is_eq(keya, keyb)) {
-        if (Operand_is_eq(obja, objb))
-            return ALIAS_MUST;  /* Same key, same object. */
-        else
-            return aa_object(tc, g, obja, objb);  /* Same key, possibly different object. */
-    }
-
-    /* XXX: TODO */
-}
 
 /* Array and hash value and object attribute get forwarding. */
 static MVMSpeshOperand aho_get_forward(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand operand) {
