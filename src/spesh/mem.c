@@ -152,7 +152,7 @@ static AliasResult aa_aho_get(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIn
         MVMSpeshOperand classnamea = insa->operands[2], classnameb = insb->operands[2];
         MVMSpeshOperand attrnamea = insa->operands[3], attrnameb = insb->operands[3];
 
-        assert(insb->info->opcode == MVM_OP_atkey_o);
+        assert(insb->info->opcode == MVM_OP_getattr_o || insb->info->opcode == MVM_OP_getattrs_o);
 
         if (Operand_is_eq(attrnamea, attrnameb)) {
             if (Operand_is_eq(classnamea, classnameb)) {
@@ -184,7 +184,7 @@ static AliasResult aa_aho_get(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIn
     if (Operand_is_eq(obja, objb))
         return ALIAS_MAY;  /* Same object, cannot disambiguate keys. */
     else
-        return aa_object(tc, g, obja, obja);  /* Try to disambiguate objects. */
+        return aa_object(tc, g, obja, objb);  /* Try to disambiguate objects. */
 }
 
 
