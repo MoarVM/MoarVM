@@ -3910,104 +3910,104 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(lock): {
                 MVMObject *lock = GET_REG(cur_op, 0).o;
-                if (REPR(lock)->ID == MVM_REPR_ID_ReentrantMutex)
+                if (REPR(lock)->ID == MVM_REPR_ID_ReentrantMutex && IS_CONCRETE(lock))
                     MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)lock);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "lock requires an object with REPR ReentrantMutex");
+                        "lock requires a concrete object with REPR ReentrantMutex");
                 cur_op += 2;
                 goto NEXT;
             }
             OP(unlock): {
                 MVMObject *lock = GET_REG(cur_op, 0).o;
-                if (REPR(lock)->ID == MVM_REPR_ID_ReentrantMutex)
+                if (REPR(lock)->ID == MVM_REPR_ID_ReentrantMutex && IS_CONCRETE(lock))
                     MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)lock);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "lock requires an object with REPR ReentrantMutex");
+                        "lock requires a concrete object with REPR ReentrantMutex");
                 cur_op += 2;
                 goto NEXT;
             }
             OP(semacquire): {
                 MVMObject *sem = GET_REG(cur_op, 0).o;
-                if (REPR(sem)->ID == MVM_REPR_ID_Semaphore)
+                if (REPR(sem)->ID == MVM_REPR_ID_Semaphore && IS_CONCRETE(sem))
                     MVM_semaphore_acquire(tc, (MVMSemaphore *)sem);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "semacquire requires an object with REPR Semaphore");
+                        "semacquire requires a concrete object with REPR Semaphore");
                 cur_op += 2;
                 goto NEXT;
             }
             OP(semtryacquire): {
                 MVMObject *sem = GET_REG(cur_op, 2).o;
-                if (REPR(sem)->ID == MVM_REPR_ID_Semaphore)
+                if (REPR(sem)->ID == MVM_REPR_ID_Semaphore && IS_CONCRETE(sem))
                     GET_REG(cur_op, 0).i64 = MVM_semaphore_tryacquire(tc,
                         (MVMSemaphore *)sem);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "semtryacquire requires an object with REPR Semaphore");
+                        "semtryacquire requires a concrete object with REPR Semaphore");
                 cur_op += 4;
                 goto NEXT;
             }
             OP(semrelease): {
                 MVMObject *sem = GET_REG(cur_op, 0).o;
-                if (REPR(sem)->ID == MVM_REPR_ID_Semaphore)
+                if (REPR(sem)->ID == MVM_REPR_ID_Semaphore && IS_CONCRETE(sem))
                     MVM_semaphore_release(tc, (MVMSemaphore *)sem);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "semrelease requires an object with REPR Semaphore");
+                        "semrelease requires a concrete object with REPR Semaphore");
                 cur_op += 2;
                 goto NEXT;
             }
             OP(getlockcondvar): {
                 MVMObject *lock = GET_REG(cur_op, 2).o;
-                if (REPR(lock)->ID == MVM_REPR_ID_ReentrantMutex)
+                if (REPR(lock)->ID == MVM_REPR_ID_ReentrantMutex && IS_CONCRETE(lock))
                     GET_REG(cur_op, 0).o = MVM_conditionvariable_from_lock(tc,
                         (MVMReentrantMutex *)lock, GET_REG(cur_op, 4).o);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "getlockcondvar requires an object with REPR ReentrantMutex");
+                        "getlockcondvar requires a concrete object with REPR ReentrantMutex");
                 cur_op += 6;
                 goto NEXT;
             }
             OP(condwait): {
                 MVMObject *cv = GET_REG(cur_op, 0).o;
-                if (REPR(cv)->ID == MVM_REPR_ID_ConditionVariable)
+                if (REPR(cv)->ID == MVM_REPR_ID_ConditionVariable && IS_CONCRETE(cv))
                     MVM_conditionvariable_wait(tc, (MVMConditionVariable *)cv);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "condwait requires an object with REPR ConditionVariable");
+                        "condwait requires a concrete object with REPR ConditionVariable");
                 cur_op += 2;
                 goto NEXT;
             }
             OP(condsignalone): {
                 MVMObject *cv = GET_REG(cur_op, 0).o;
-                if (REPR(cv)->ID == MVM_REPR_ID_ConditionVariable)
+                if (REPR(cv)->ID == MVM_REPR_ID_ConditionVariable && IS_CONCRETE(cv))
                     MVM_conditionvariable_signal_one(tc, (MVMConditionVariable *)cv);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "condsignalone requires an object with REPR ConditionVariable");
+                        "condsignalone requires a concrete object with REPR ConditionVariable");
                 cur_op += 2;
                 goto NEXT;
             }
             OP(condsignalall): {
                 MVMObject *cv = GET_REG(cur_op, 0).o;
-                if (REPR(cv)->ID == MVM_REPR_ID_ConditionVariable)
+                if (REPR(cv)->ID == MVM_REPR_ID_ConditionVariable && IS_CONCRETE(cv))
                     MVM_conditionvariable_signal_all(tc, (MVMConditionVariable *)cv);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "condsignalall requires an object with REPR ConditionVariable");
+                        "condsignalall requires a concrete object with REPR ConditionVariable");
                 cur_op += 2;
                 goto NEXT;
             }
             OP(queuepoll): {
                 MVMObject *queue = GET_REG(cur_op, 2).o;
-                if (REPR(queue)->ID == MVM_REPR_ID_ConcBlockingQueue)
+                if (REPR(queue)->ID == MVM_REPR_ID_ConcBlockingQueue && IS_CONCRETE(queue))
                     GET_REG(cur_op, 0).o = MVM_concblockingqueue_poll(tc,
                         (MVMConcBlockingQueue *)queue);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "queuepoll requires an object with REPR ConcBlockingQueue");
+                        "queuepoll requires a concrete object with REPR ConcBlockingQueue");
                 cur_op += 4;
                 goto NEXT;
             }
