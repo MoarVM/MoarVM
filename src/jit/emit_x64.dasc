@@ -1665,7 +1665,7 @@ void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
                         MVMJitGuard *guard, dasm_State **Dst) {
     MVMint16 op        = guard->ins->info->opcode;
-    MVMint16 obj       = guard->ins->operands[0].lit_i16;
+    MVMint16 obj       = guard->ins->operands[0].reg.orig;
     MVMint16 spesh_idx = guard->ins->operands[1].lit_i16;
     MVM_jit_log(tc, "emit guard <%s>\n", guard->ins->info->name);
     /* load object and spesh slot value */
