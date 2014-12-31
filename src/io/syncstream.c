@@ -75,9 +75,9 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncStreamData *data, 
             MVM_exception_throw_adhoc(tc, "Reading from stream failed: %s",
                 uv_strerror(r));
         uv_ref((uv_handle_t *)data->handle);
-        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
-        uv_run(tc->loop, UV_RUN_DEFAULT);
-        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
+        uv_mutex_lock((uv_mutex_t *) data->handle->loop->data);
+        uv_run(data->handle->loop, UV_RUN_DEFAULT);
+        uv_mutex_unlock((uv_mutex_t *) data->handle->loop->data);
         return 1;
     }
     else {
