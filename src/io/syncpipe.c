@@ -25,11 +25,16 @@ static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
     /* closing the in-/output std filehandle will shutdown the child process. */
     uv_unref((uv_handle_t*)data->ss.handle);
     uv_close((uv_handle_t*)data->ss.handle, NULL);
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     uv_run(tc->loop, UV_RUN_DEFAULT);
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
     if (data->process) {
 #ifdef _WIN32
-        if (!uv_is_closing((uv_handle_t*)data->process))
+        if (!uv_is_closing((uv_handle_t*)data->process)) {
+            uv_mutex_lock((uv_mutex_t *) tc->loop->data);
             uv_process_close(tc->loop, data->process);
+            uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
+        }
         GetExitCodeProcess(data->process->process_handle, &(DWORD)status);
 #else
         waitpid(data->process->pid, (int *)&status, 0);
@@ -41,7 +46,9 @@ static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
         data->process->data = NULL;
     }
     uv_unref((uv_handle_t *)data->process);
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     uv_run(tc->loop, UV_RUN_DEFAULT);
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
     data->process   = NULL;
     data->ss.handle = NULL;
     if (data->ss.ds) {

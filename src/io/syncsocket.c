@@ -88,8 +88,10 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
 
         data->ss.cur_tc = tc;
         connect->data   = data;
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         if ((r = uv_tcp_init(tc->loop, socket)) < 0 ||
                 (r = uv_tcp_connect(connect, socket, dest, on_connect)) < 0) {
+            uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
             MVM_free(socket);
             MVM_free(connect);
             MVM_free(dest);
@@ -97,6 +99,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         }
         uv_ref((uv_handle_t *)socket);
         uv_run(tc->loop, UV_RUN_DEFAULT);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 
         data->ss.handle = (uv_stream_t *)socket;
 
@@ -123,12 +126,15 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         uv_tcp_t        *socket  = MVM_malloc(sizeof(uv_tcp_t));
         int r;
 
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         if ((r = uv_tcp_init(tc->loop, socket)) < 0 ||
                 (r = uv_tcp_bind(socket, dest, 0)) < 0) {
+            uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
             MVM_free(socket);
             MVM_free(dest);
             MVM_exception_throw_adhoc(tc, "Failed to bind: %s", uv_strerror(r));
         }
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_free(dest);
 
         /* Start listening, but unref the socket so it won't get in the way of
@@ -184,7 +190,9 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
 
     while (!data->accept_server) {
         uv_ref((uv_handle_t *)data->ss.handle);
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         uv_run(tc->loop, UV_RUN_DEFAULT);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
     }
 
     /* Check the accept worked out. */
@@ -195,7 +203,9 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
         uv_tcp_t *client    = MVM_malloc(sizeof(uv_tcp_t));
         uv_stream_t *server = data->accept_server;
         int r;
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         uv_tcp_init(tc->loop, client);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         data->accept_server = NULL;
         if ((r = uv_accept(server, (uv_stream_t *)client)) == 0) {
             MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);

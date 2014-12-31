@@ -145,11 +145,16 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     process_options.stdio_count = 3; \
     process_options.exit_cb     = spawn_on_exit; \
     uv_ref((uv_handle_t *)process); \
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data); \
     spawn_result = uv_spawn(tc->loop, process, &process_options); \
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data); \
     if (spawn_result) \
         result = spawn_result; \
-    else \
+    else { \
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data); \
         uv_run(tc->loop, UV_RUN_DEFAULT); \
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data); \
+    } \
 } while (0)
 
 static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
@@ -205,7 +210,9 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     if (readable) {
         /* We want to read from the child's stdout. */
         out = MVM_malloc(sizeof(uv_pipe_t));
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         uv_pipe_init(tc->loop, out, 0);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         process_stdio[0].flags       = UV_INHERIT_FD; // child's stdin
         process_stdio[0].data.fd     = 0;
         process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE; // child's stdout
@@ -214,7 +221,9 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     else {
         /* We want to print to the child's stdin. */
         in  = MVM_malloc(sizeof(uv_pipe_t));
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         uv_pipe_init(tc->loop, in, 0);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         process_stdio[0].flags       = UV_CREATE_PIPE | UV_READABLE_PIPE; // child's stdin
         process_stdio[0].data.stream = (uv_stream_t*)in;
         process_stdio[1].flags       = UV_INHERIT_FD; // child's stdout
@@ -232,7 +241,9 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     process_options.exit_cb     = spawn_on_exit;
     process->data               = MVM_calloc(1, sizeof(MVMint64));
     uv_ref((uv_handle_t *)process);
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     spawn_result = uv_spawn(tc->loop, process, &process_options);
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
     if (spawn_result) {
         FREE_ENV();
         MVM_free(_cwd);
@@ -797,7 +808,9 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Create input/output handles as needed. */
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.write)) {
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         uv_pipe_init(tc->loop, pipe, 0);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         pipe->data = si;
         process_stdio[0].flags       = UV_CREATE_PIPE | UV_READABLE_PIPE;
         process_stdio[0].data.stream = (uv_stream_t *)pipe;
@@ -809,7 +822,9 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     }
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_chars)) {
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         uv_pipe_init(tc->loop, pipe, 0);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         pipe->data = si;
         process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         process_stdio[1].data.stream = (uv_stream_t *)pipe;
@@ -819,7 +834,9 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     }
     else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         uv_pipe_init(tc->loop, pipe, 0);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         pipe->data = si;
         process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         process_stdio[1].data.stream = (uv_stream_t *)pipe;
@@ -832,7 +849,9 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     }
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_chars)) {
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         uv_pipe_init(tc->loop, pipe, 0);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         pipe->data = si;
         process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         process_stdio[2].data.stream = (uv_stream_t *)pipe;
@@ -842,7 +861,9 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     }
     else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         uv_pipe_init(tc->loop, pipe, 0);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         pipe->data = si;
         process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         process_stdio[2].data.stream = (uv_stream_t *)pipe;
@@ -866,7 +887,9 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
     /* Attach data, spawn, report any error. */
     process->data = si;
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     spawn_result  = uv_spawn(tc->loop, process, &process_options);
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
     if (spawn_result) {
         MVMObject *error_cb = MVM_repr_at_key_o(tc, si->callbacks,
             tc->instance->str_consts.error);

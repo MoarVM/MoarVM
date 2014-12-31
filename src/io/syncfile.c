@@ -47,10 +47,13 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
         MVM_string_decodestream_destory(tc, data->ds);
         data->ds = NULL;
     }
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     if (uv_fs_close(tc->loop, &req, data->fd, NULL) < 0) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         data->fd = -1;
         MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
     }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
     data->fd = -1;
     return 0;
 }
@@ -101,11 +104,14 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint
     uv_buf_t read_buf = uv_buf_init(buf, bytes);
     uv_fs_t req;
     MVMint32 read;
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     if ((read = uv_fs_read(tc->loop, &req, data->fd, &read_buf, 1, -1, NULL)) < 0) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_free(buf);
         MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
             uv_strerror(req.result));
     }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
     MVM_string_decodestream_add_bytes(tc, data->ds, buf, read);
     return read;
 }
@@ -141,9 +147,12 @@ static MVMString * slurp(MVMThreadContext *tc, MVMOSHandle *h) {
 
     /* Typically we're slurping an entire file, so just request the bytes
      * until the end; repeat to ensure we get 'em all. */
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     if (uv_fs_fstat(tc->loop, &req, data->fd, NULL) < 0) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_exception_throw_adhoc(tc, "slurp from filehandle failed: %s", uv_strerror(req.result));
     }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
     while (read_to_buffer(tc, data, req.statbuf.st_size) > 0)
         ;
     return MVM_string_decodestream_get_all(tc, data->ds);
@@ -190,9 +199,12 @@ static MVMint64 eof(MVMThreadContext *tc, MVMOSHandle *h) {
     uv_fs_t  req;
     if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))
         return 0;
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     if (uv_fs_fstat(tc->loop, &req, data->fd, NULL) == -1) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s", uv_strerror(req.result));
     }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
     if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     return req.statbuf.st_size == seek_pos;
@@ -206,8 +218,10 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
     uv_buf_t write_buf  = uv_buf_init(output, output_size);
     uv_fs_t req;
 
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     bytes_written = uv_fs_write(tc->loop, &req, data->fd, &write_buf, 1, -1, NULL);
     if (bytes_written < 0) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_free(output);
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
     }
@@ -215,10 +229,13 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
 
     if (newline) {
         uv_buf_t nl = uv_buf_init("\n", 1);
-        if (uv_fs_write(tc->loop, &req, data->fd, &nl, 1, -1, NULL) < 0)
+        if (uv_fs_write(tc->loop, &req, data->fd, &nl, 1, -1, NULL) < 0) {
+            uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
             MVM_exception_throw_adhoc(tc, "Failed to write newline to filehandle: %s", uv_strerror(req.result));
+        }
         bytes_written++;
     }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 
     return bytes_written;
 }
@@ -229,7 +246,9 @@ static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
     uv_buf_t write_buf  = uv_buf_init(buf, bytes);
     uv_fs_t  req;
     MVMint64 bytes_written;
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     bytes_written = uv_fs_write(tc->loop, &req, data->fd, &write_buf, 1, -1, NULL);
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
     if (bytes_written < 0)
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
     return bytes_written;
@@ -239,16 +258,24 @@ static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
 static void flush(MVMThreadContext *tc, MVMOSHandle *h){
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     uv_fs_t req;
-    if (uv_fs_fsync(tc->loop, &req, data->fd, NULL) < 0 )
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
+    if (uv_fs_fsync(tc->loop, &req, data->fd, NULL) < 0 ) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_exception_throw_adhoc(tc, "Failed to flush filehandle: %s", uv_strerror(req.result));
+    }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 }
 
 /* Truncates the file handle. */
 static void truncatefh(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     uv_fs_t req;
-    if(uv_fs_ftruncate(tc->loop, &req, data->fd, bytes, NULL) < 0 )
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
+    if(uv_fs_ftruncate(tc->loop, &req, data->fd, bytes, NULL) < 0 ) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_exception_throw_adhoc(tc, "Failed to truncate filehandle: %s", uv_strerror(req.result));
+    }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 }
 
 /* Locks a file. */
@@ -408,10 +435,13 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     MVM_free(fmode);
 
     /* Try to open the file. */
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     if ((fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, DEFAULT_MODE, NULL)) < 0) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_free(fname);
         MVM_exception_throw_adhoc(tc, "Failed to open file: %s", uv_strerror(req.result));
     }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 
     /* Set up handle. */
     data->fd          = fd;

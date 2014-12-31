@@ -18,7 +18,9 @@ static MVMint64 setup_work(MVMThreadContext *tc) {
 
     while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
         MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         task->body.ops->setup(tc, tc->loop, task_obj, task->body.data);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         setup = 1;
     }
 
@@ -33,8 +35,11 @@ static MVMint64 cancel_work(MVMThreadContext *tc) {
 
     while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
         MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
-        if (task->body.ops->cancel)
+        if (task->body.ops->cancel) {
+            uv_mutex_lock((uv_mutex_t *) tc->loop->data);
             task->body.ops->cancel(tc, tc->loop, task_obj, task->body.data);
+            uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
+        }
         cancelled = 1;
     }
 
@@ -52,12 +57,18 @@ static void idle_handler(uv_idle_t *handle) {
 
 static void enter_loop(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     uv_idle_t idle;
-    if (uv_idle_init(tc->loop, &idle) != 0)
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
+    if (uv_idle_init(tc->loop, &idle) != 0) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_panic(1, "Unable to initialize idle worker for event loop");
+    }
     idle.data = tc;
-    if (uv_idle_start(&idle, idle_handler) != 0)
+    if (uv_idle_start(&idle, idle_handler) != 0) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_panic(1, "Unable to start idle worker for event loop");
+    }
     uv_run(tc->loop, UV_RUN_DEFAULT);
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
     MVM_panic(1, "Supposedly unending event loop thread ended");
 }
 

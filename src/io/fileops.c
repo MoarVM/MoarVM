@@ -32,10 +32,13 @@ static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename) {
     char * const a = MVM_string_utf8_encode_C_string(tc, filename);
     uv_fs_t req;
 
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     if (uv_fs_lstat(tc->loop, &req, a, NULL) < 0) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_free(a);
         MVM_exception_throw_adhoc(tc, "Failed to stat file: %s", uv_strerror(req.result));
     }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 
     MVM_free(a);
     return req.statbuf;
@@ -50,10 +53,13 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
                 char * const a = MVM_string_utf8_encode_C_string(tc, filename);
                 uv_fs_t req;
 
+                uv_mutex_lock((uv_mutex_t *) tc->loop->data);
                 if (uv_fs_stat(tc->loop, &req, a, NULL) < 0) {
+                    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
                     MVM_free(a);
                     MVM_exception_throw_adhoc(tc, "Failed to stat file: %s", uv_strerror(req.result));
                 }
+                uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
                 MVM_free(a);
 
                 r = req.statbuf.st_size;
@@ -95,6 +101,7 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
     uv_fs_t req;
     char *       const a = MVM_string_utf8_encode_C_string(tc, src);
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     const uv_file  in_fd = uv_fs_open(tc->loop, &req, (const char *)a, O_RDONLY, 0, NULL);
 
     if (in_fd >= 0 && uv_fs_stat(tc->loop, &req, a, NULL) >= 0) {
@@ -108,13 +115,16 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
 
             if (uv_fs_close(tc->loop, &req, in_fd, NULL) < 0) {
                 uv_fs_close(tc->loop, &req, out_fd, NULL); /* should close out_fd before throw. */
+                uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
                 MVM_exception_throw_adhoc(tc, "Failed to close file: %s", uv_strerror(req.result));
             }
 
             if (uv_fs_close(tc->loop, &req, out_fd, NULL) < 0) {
+                uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
                 MVM_exception_throw_adhoc(tc, "Failed to close file: %s", uv_strerror(req.result));
             }
 
+            uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
             return;
         }
         else
@@ -123,6 +133,7 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
     else
         MVM_free(a);
 
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
     MVM_exception_throw_adhoc(tc, "Failed to copy file: %s", uv_strerror(req.result));
 }
 
@@ -132,11 +143,14 @@ void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
     char * const b = MVM_string_utf8_encode_C_string(tc, dest);
     uv_fs_t req;
 
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     if(uv_fs_rename(tc->loop, &req, a, b, NULL) < 0 ) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_free(a);
         MVM_free(b);
         MVM_exception_throw_adhoc(tc, "Failed to rename file: %s", uv_strerror(req.result));
     }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 
     MVM_free(a);
     MVM_free(b);
@@ -155,7 +169,9 @@ void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
     }
 
 #else
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     const int r = uv_fs_unlink(tc->loop, &req, a, NULL);
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 
     if( r < 0 && r != UV_ENOENT) {
         MVM_free(a);
@@ -170,10 +186,13 @@ void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
     char * const a = MVM_string_utf8_encode_C_string(tc, f);
     uv_fs_t req;
 
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     if(uv_fs_chmod(tc->loop, &req, a, flag, NULL) < 0 ) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_free(a);
         MVM_exception_throw_adhoc(tc, "Failed to set permissions on path: %s", uv_strerror(req.result));
     }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 
     MVM_free(a);
 }
@@ -181,7 +200,9 @@ void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
 MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
     uv_fs_t req;
     char * const a = MVM_string_utf8_encode_C_string(tc, f);
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     const MVMint64 result = uv_fs_stat(tc->loop, &req, a, NULL) < 0 ? 0 : 1;
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 
     MVM_free(a);
 
@@ -323,7 +344,9 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
     switch(uv_guess_handle(type)) {
         case UV_TTY: {
             uv_tty_t * const handle = MVM_malloc(sizeof(uv_tty_t));
+            uv_mutex_lock((uv_mutex_t *) tc->loop->data);
             uv_tty_init(tc->loop, handle, type, readable);
+            uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 #ifdef _WIN32
             uv_stream_set_blocking((uv_stream_t *)handle, 1);
 #else
@@ -335,7 +358,9 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
             return MVM_file_handle_from_fd(tc, type);
         case UV_NAMED_PIPE: {
             uv_pipe_t * const handle = MVM_malloc(sizeof(uv_pipe_t));
+            uv_mutex_lock((uv_mutex_t *) tc->loop->data);
             uv_pipe_init(tc->loop, handle, 0);
+            uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 #ifdef _WIN32
             uv_stream_set_blocking((uv_stream_t *)handle, 1);
 #else
@@ -416,11 +441,14 @@ void MVM_file_link(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath)
     char * const oldpath_s = MVM_string_utf8_encode_C_string(tc, oldpath);
     char * const newpath_s = MVM_string_utf8_encode_C_string(tc, newpath);
 
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     if (uv_fs_link(tc->loop, &req, oldpath_s, newpath_s, NULL)) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_free(oldpath_s);
         MVM_free(newpath_s);
         MVM_exception_throw_adhoc(tc, "Failed to link file: %s", uv_strerror(req.result));
     }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 
     MVM_free(oldpath_s);
     MVM_free(newpath_s);
@@ -431,11 +459,14 @@ void MVM_file_symlink(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpa
     char * const oldpath_s = MVM_string_utf8_encode_C_string(tc, oldpath);
     char * const newpath_s = MVM_string_utf8_encode_C_string(tc, newpath);
 
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     if (uv_fs_symlink(tc->loop, &req, oldpath_s, newpath_s, 0, NULL)) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_free(oldpath_s);
         MVM_free(newpath_s);
         MVM_exception_throw_adhoc(tc, "Failed to symlink file: %s", uv_strerror(req.result));
     }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 
     MVM_free(oldpath_s);
     MVM_free(newpath_s);

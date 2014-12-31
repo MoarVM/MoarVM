@@ -75,7 +75,9 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncStreamData *data, 
             MVM_exception_throw_adhoc(tc, "Reading from stream failed: %s",
                 uv_strerror(r));
         uv_ref((uv_handle_t *)data->handle);
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         uv_run(tc->loop, UV_RUN_DEFAULT);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         return 1;
     }
     else {
@@ -198,7 +200,9 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
         MVM_exception_throw_adhoc(tc, "Failed to write string to stream: %s", uv_strerror(r));
     }
     else {
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         uv_run(tc->loop, UV_RUN_DEFAULT);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_free(output);
     }
 
@@ -219,7 +223,9 @@ MVMint64 MVM_io_syncstream_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, cha
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to stream: %s", uv_strerror(r));
     }
     else {
+        uv_mutex_lock((uv_mutex_t *) tc->loop->data);
         uv_run(tc->loop, UV_RUN_DEFAULT);
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
     }
     data->total_bytes_written += bytes;
     return bytes;

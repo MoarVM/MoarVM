@@ -5,7 +5,8 @@
  * thread itself, it just creates the data structure that exists in
  * MoarVM per thread. */
 MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
-    MVMThreadContext *tc = MVM_calloc(1, sizeof(MVMThreadContext));
+    MVMThreadContext *tc   = MVM_calloc(1, sizeof(MVMThreadContext));
+    uv_mutex_t *loop_mutex = MVM_calloc(1, sizeof(uv_mutex_t));
 
     /* Associate with VM instance. */
     tc->instance = instance;
@@ -37,6 +38,8 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
 
     /* Use default loop for main thread; create a new one for others. */
     tc->loop = instance->main_thread ? uv_loop_new() : uv_default_loop();
+    uv_mutex_init(loop_mutex);
+    tc->loop->data = loop_mutex;
 
     /* Initialize random number generator state. */
     MVM_proc_seed(tc, (MVM_platform_now() / 10000) * MVM_proc_getpid(tc));
@@ -51,6 +54,7 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
  * that is true should this be called. */
 void MVM_tc_destroy(MVMThreadContext *tc) {
     /* We run once again (non-blocking) to eventually close filehandles. */
+    // XXX lock here?
     uv_run(tc->loop, UV_RUN_NOWAIT);
 
     /* Destroy the frame pool. */

@@ -138,10 +138,13 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
     char * const pathname = MVM_string_utf8_encode_C_string(tc, path);
     uv_fs_t req;
 
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     if(uv_fs_rmdir(tc->loop, &req, pathname, NULL) < 0 ) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_free(pathname);
         MVM_exception_throw_adhoc(tc, "Failed to rmdir: %s", uv_strerror(req.result));
     }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 
     MVM_free(pathname);
 }

@@ -40,7 +40,9 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
     uv_fs_t req;
 
     /* Ensure the file exists, and get its size. */
+    uv_mutex_lock((uv_mutex_t *) tc->loop->data);
     if (uv_fs_stat(tc->loop, &req, filename, NULL) < 0) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_exception_throw_adhoc(tc, "While looking for '%s': %s", filename, uv_strerror(req.result));
     }
 
@@ -48,6 +50,7 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
 
     /* Map the bytecode file into memory. */
     if ((fd = uv_fs_open(tc->loop, &req, filename, O_RDONLY, 0, NULL)) < 0) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_exception_throw_adhoc(tc, "While trying to open '%s': %s", filename, uv_strerror(req.result));
     }
 
@@ -57,8 +60,10 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
     }
 
     if (uv_fs_close(tc->loop, &req, fd, NULL) < 0) {
+        uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
         MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
     }
+    uv_mutex_unlock((uv_mutex_t *) tc->loop->data);
 
     /* Turn it into a compilation unit. */
     cu = MVM_cu_from_bytes(tc, (MVMuint8 *)block, (MVMuint32)size);
