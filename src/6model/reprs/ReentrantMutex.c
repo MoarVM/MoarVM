@@ -3,6 +3,15 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
+/* Populates the object body with a mutex. */
+static void initialize_mutex(MVMThreadContext *tc, MVMReentrantMutexBody *rm) {
+    int init_stat;
+    rm->mutex = MVM_malloc(sizeof(uv_mutex_t));
+    if ((init_stat = uv_mutex_init(rm->mutex)) < 0)
+        MVM_exception_throw_adhoc(tc, "Failed to initialize mutex: %s",
+            uv_strerror(init_stat));
+}
+
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
@@ -19,12 +28,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMReentrantMutexBody *rm = (MVMReentrantMutexBody *)data;
-    int init_stat;
-    rm->mutex = MVM_malloc(sizeof(uv_mutex_t));
-    if ((init_stat = uv_mutex_init(rm->mutex)) < 0)
-        MVM_exception_throw_adhoc(tc, "Failed to initialize mutex: %s",
-            uv_strerror(init_stat));
+    initialize_mutex(tc, (MVMReentrantMutexBody *)data);
 }
 
 /* Copies the body of one object to another. */
@@ -65,6 +69,15 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMReentrantMutex);
 }
 
+/* Serializing a mutex doesn't save anything; we will re-create it upon
+ * deserialization. Makes data structures that just happen to have a lock in
+ * them serializable. */
+static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+}
+static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    initialize_mutex(tc, (MVMReentrantMutexBody *)data);
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMReentrantMutex_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -82,8 +95,8 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */
-    NULL, /* serialize */
-    NULL, /* deserialize */
+    serialize,
+    deserialize,
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
     deserialize_stable_size,
