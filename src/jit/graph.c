@@ -795,7 +795,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
          * making this decision - namely, MVM_coerse_istrue - expects
          * to take a return register address /or/ two bytecode
          * addresses.  This is a reasonable decision with regards to
-         * invokation nesting in the interpreter, but not for the
+         * invocation nesting in the interpreter, but not for the
          * JIT. Hence, we will transform this into the istrue /
          * isfalse primitive combined with the if_i branch. A special
          * problem is that there really isn't any 'real' work space

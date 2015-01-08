@@ -315,6 +315,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | mov TMP1, STABLE:TMP1->HOW;
         } else if (op == MVM_OP_getwho) {
             | mov TMP1, STABLE:TMP1->WHO;
+            | get_vmnull TMP2;
+            | test TMP1, TMP1;
+            | cmovz TMP1, TMP2;
         } else {
             | mov TMP1, STABLE:TMP1->WHAT;
         }
