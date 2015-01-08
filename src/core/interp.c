@@ -2892,10 +2892,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(getwho):
-                GET_REG(cur_op, 0).o = STABLE(GET_REG(cur_op, 2).o)->WHO;
+            OP(getwho): {
+                MVMObject *who = STABLE(GET_REG(cur_op, 2).o)->WHO;
+                GET_REG(cur_op, 0).o = who ? who : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(setwho): {
                 MVMSTable *st = STABLE(GET_REG(cur_op, 2).o);
                 MVM_ASSIGN_REF(tc, &(st->header), st->WHO, GET_REG(cur_op, 4).o);
