@@ -2832,15 +2832,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(forceouterctx): {
                 MVMObject *obj = GET_REG(cur_op, 0).o, *ctx = GET_REG(cur_op, 2).o;
-                MVMFrame *orig     = ((MVMCode *)obj)->body.outer;
-                MVMFrame *context  = ((MVMContext *)ctx)->body.context;
-                MVMStaticFrame *sf = ((MVMCode *)obj)->body.sf;
+                MVMFrame *orig;
+                MVMFrame *context;
+                MVMStaticFrame *sf;
                 if (REPR(obj)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(obj)) {
                     MVM_exception_throw_adhoc(tc, "forceouterctx needs a code ref");
                 }
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx)) {
                     MVM_exception_throw_adhoc(tc, "forceouterctx needs a context");
                 }
+
+                orig = ((MVMCode *)obj)->body.outer;
+                sf = ((MVMCode *)obj)->body.sf;
+                context = ((MVMContext *)ctx)->body.context;
+
                 MVM_ASSIGN_REF(tc, &(((MVMObject *)sf)->header), sf->body.outer, context->static_info);
                 if (orig != context) {
                     ((MVMCode *)obj)->body.outer = context;
