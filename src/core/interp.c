@@ -2706,19 +2706,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(settypecache): {
-                MVMObject *obj = GET_REG(cur_op, 0).o;
-                MVMObject *types = GET_REG(cur_op, 2).o;
+                MVMObject *obj    = GET_REG(cur_op, 0).o;
+                MVMObject *types  = GET_REG(cur_op, 2).o;
+                MVMSTable *st     = STABLE(obj);
                 MVMint64 i, elems = REPR(types)->elems(tc, STABLE(types), types, OBJECT_BODY(types));
                 MVMObject **cache = MVM_malloc(sizeof(MVMObject *) * elems);
                 for (i = 0; i < elems; i++) {
-                    MVM_ASSIGN_REF(tc, &(STABLE(obj)->header), cache[i], MVM_repr_at_pos_o(tc, types, i));
+                    MVM_ASSIGN_REF(tc, &(st->header), cache[i], MVM_repr_at_pos_o(tc, types, i));
                 }
                 /* technically this free isn't thread safe */
-                if (STABLE(obj)->type_check_cache)
-                    MVM_free(STABLE(obj)->type_check_cache);
-                STABLE(obj)->type_check_cache = cache;
-                STABLE(obj)->type_check_cache_length = (MVMuint16)elems;
-                MVM_SC_WB_ST(tc, STABLE(obj));
+                if (st->type_check_cache)
+                    MVM_free(st->type_check_cache);
+                st->type_check_cache = cache;
+                st->type_check_cache_length = (MVMuint16)elems;
+                MVM_SC_WB_ST(tc, st);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2831,18 +2832,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(forceouterctx): {
                 MVMObject *obj = GET_REG(cur_op, 0).o, *ctx = GET_REG(cur_op, 2).o;
-                MVMFrame *orig;
+                MVMFrame *orig     = ((MVMCode *)obj)->body.outer;
+                MVMFrame *context  = ((MVMContext *)ctx)->body.context;
+                MVMStaticFrame *sf = ((MVMCode *)obj)->body.sf;
                 if (REPR(obj)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(obj)) {
                     MVM_exception_throw_adhoc(tc, "forceouterctx needs a code ref");
                 }
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx)) {
                     MVM_exception_throw_adhoc(tc, "forceouterctx needs a context");
                 }
-                orig = ((MVMCode *)obj)->body.outer;
-                ((MVMCode *)obj)->body.outer = ((MVMContext *)ctx)->body.context;
-                ((MVMCode *)obj)->body.sf->body.outer = ((MVMContext *)ctx)->body.context->static_info;
-                if (orig != ((MVMContext *)ctx)->body.context) {
-                    MVM_frame_inc_ref(tc, ((MVMContext *)ctx)->body.context);
+                MVM_ASSIGN_REF(tc, &(((MVMObject *)sf)->header), sf->body.outer, context->static_info);
+                if (orig != context) {
+                    ((MVMCode *)obj)->body.outer = context;
+                    MVM_frame_inc_ref(tc, context);
                     if (orig) {
                         orig = MVM_frame_dec_ref(tc, orig);
                     }
