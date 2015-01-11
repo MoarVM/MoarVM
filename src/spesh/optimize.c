@@ -176,6 +176,28 @@ static void optimize_is_reprid(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshI
     }
 }
 
+static void optimize_gethow(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMObject       *how_obj = NULL;
+    if (obj_facts->flags & (MVM_SPESH_FACT_KNOWN_TYPE)) {
+        how_obj = MVM_6model_get_how(tc, STABLE(obj_facts->type));
+    }
+    /* There may be other valid ways to get the facts (known value?) */
+    if (how_obj && how_obj->header.flags & MVM_CF_SECOND_GEN) {
+        /* Transform gethow lookup to spesh slot lookup */
+        MVMint16 spesh_slot = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable*)how_obj);
+        MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
+        ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+        ins->operands[1].lit_i16 = spesh_slot;
+        /* Store facts about the value in the write operand */
+        MVMSpeshFacts *how_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        how_facts->flags  |= (MVM_SPESH_FACT_KNOWN_VALUE | MVM_SPESH_FACT_KNOWN_TYPE);
+        how_facts->value.o = how_obj;
+        how_facts->type    = STABLE(how_obj)->WHAT;
+    }
+}
+
+
 /* Sees if we can resolve an isconcrete at compile time. */
 static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
@@ -1215,6 +1237,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_create:
             optimize_repr_op(tc, g, bb, ins, 1);
+            break;
+        case MVM_OP_gethow:
+            optimize_gethow(tc, g, ins);
             break;
         case MVM_OP_isconcrete:
             optimize_isconcrete(tc, g, ins);
