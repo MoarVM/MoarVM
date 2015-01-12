@@ -183,7 +183,7 @@ static void optimize_gethow(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
         how_obj = MVM_6model_get_how(tc, STABLE(obj_facts->type));
     }
     /* There may be other valid ways to get the facts (known value?) */
-    if (how_obj && how_obj->header.flags & MVM_CF_SECOND_GEN) {
+    if (how_obj) {
         MVMSpeshFacts *how_facts;
         /* Transform gethow lookup to spesh slot lookup */
         MVMint16 spesh_slot = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable*)how_obj);
