@@ -201,8 +201,8 @@ union MVMSpeshOperand {
         MVMuint16 outers;
     } lex;
     struct {
-        MVMuint16 orig; /* Original register number. */
         MVMint32  i;    /* SSA-computed version. */
+        MVMuint16 orig; /* Original register number. */
     } reg;
 };
 
