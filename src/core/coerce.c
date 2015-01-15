@@ -38,20 +38,21 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
     else {
         MVMBoolificationSpec *bs = obj->st->boolification_spec;
         switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
-            case MVM_BOOL_MODE_CALL_METHOD:
+            case MVM_BOOL_MODE_CALL_METHOD: {
+                MVMObject *code = MVM_frame_find_invokee(tc, bs->method, NULL);
+                MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
                 if (res_reg) {
                     /* We need to do the invocation, and set this register
                      * the result. Then we just do the call. For the flip
                      * case, just set up special return handler to flip
                      * the register. */
-                    MVMObject *code = MVM_frame_find_invokee(tc, bs->method, NULL);
-                    MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_INT, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
+                    MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_INT, inv_arg_callsite);
                     tc->cur_frame->args[0].o = obj;
                     if (flip) {
                         tc->cur_frame->special_return      = flip_return;
                         tc->cur_frame->special_return_data = res_reg;
                     }
-                    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
                 }
                 else {
                     /* Need to set up special return hook. */
@@ -62,12 +63,13 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                     data->flip       = flip;
                     tc->cur_frame->special_return      = boolify_return;
                     tc->cur_frame->special_return_data = data;
-                    MVM_args_setup_thunk(tc, &data->res_reg, MVM_RETURN_INT, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
+                    MVM_args_setup_thunk(tc, &data->res_reg, MVM_RETURN_INT, inv_arg_callsite);
                     tc->cur_frame->args[0].o = obj;
-                    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
+                    STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
                     return;
                 }
                 break;
+            }
             case MVM_BOOL_MODE_UNBOX_INT:
                 result = !IS_CONCRETE(obj) || REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)) == 0 ? 0 : 1;
                 break;
@@ -213,9 +215,11 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
         MVMObject *code = MVM_frame_find_invokee(tc, strmeth, NULL);
-        MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_STR, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
+        MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+
+        MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_STR, inv_arg_callsite);
         tc->cur_frame->args[0].o = obj;
-        STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
+        STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
         return;
     }
 
@@ -274,9 +278,11 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
         MVMObject *code = MVM_frame_find_invokee(tc, nummeth, NULL);
-        MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_NUM, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
+        MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+
+        MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_NUM, inv_arg_callsite);
         tc->cur_frame->args[0].o = obj;
-        STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
+        STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
         return;
     }
 

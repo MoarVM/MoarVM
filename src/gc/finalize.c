@@ -30,6 +30,8 @@ void MVM_gc_finalize_add_to_queue(MVMThreadContext *tc, MVMObject *obj) {
 static void finalize_handler_caller(MVMThreadContext *tc, void *sr_data) {
     MVMObject *handler = MVM_hll_current(tc)->finalize_handler;
     if (handler) {
+        MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+
         /* Drain the finalizing queue to an array. */
         MVMObject *drain = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
         while (tc->num_finalizing > 0)
@@ -37,9 +39,9 @@ static void finalize_handler_caller(MVMThreadContext *tc, void *sr_data) {
 
         /* Invoke the handler. */
         handler = MVM_frame_find_invokee(tc, handler, NULL);
-        MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
+        MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, inv_arg_callsite);
         tc->cur_frame->args[0].o = drain;
-        STABLE(handler)->invoke(tc, handler, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
+        STABLE(handler)->invoke(tc, handler, inv_arg_callsite, tc->cur_frame->args);
     }
 }
 static void setup_finalize_handler_call(MVMThreadContext *tc) {

@@ -184,10 +184,10 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
     case MVM_EX_ACTION_INVOKE: {
         /* Create active handler record. */
         MVMActiveHandler *ah = MVM_malloc(sizeof(MVMActiveHandler));
+        MVMFrame *cur_frame = tc->cur_frame;
 
         /* Find frame to invoke. */
-        MVMObject *handler_code = MVM_frame_find_invokee(tc,
-                                                         lh.frame->work[lh.handler->block_reg].o, NULL);
+        MVMObject *handler_code = MVM_frame_find_invokee(tc, lh.frame->work[lh.handler->block_reg].o, NULL);
 
         /* Ensure we have an exception object. */
         /* TODO: Can make one up. */
@@ -204,15 +204,15 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
         /* Set up special return to unwinding after running the
          * handler. */
-        tc->cur_frame->return_value        = (MVMRegister *)&tc->last_handler_result;
-        tc->cur_frame->return_type         = MVM_RETURN_OBJ;
-        tc->cur_frame->special_return      = unwind_after_handler;
-        tc->cur_frame->special_unwind      = cleanup_active_handler;
-        tc->cur_frame->special_return_data = ah;
+        cur_frame->return_value        = (MVMRegister *)&tc->last_handler_result;
+        cur_frame->return_type         = MVM_RETURN_OBJ;
+        cur_frame->special_return      = unwind_after_handler;
+        cur_frame->special_unwind      = cleanup_active_handler;
+        cur_frame->special_return_data = ah;
 
         /* Invoke the handler frame and return to runloop. */
         STABLE(handler_code)->invoke(tc, handler_code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),
-                                     tc->cur_frame->args);
+                                     cur_frame->args);
         break;
     }
     default:

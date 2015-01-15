@@ -722,14 +722,17 @@ static void remove_after_handler(MVMThreadContext *tc, void *sr_data) {
     remove_one_frame(tc, 0);
 }
 MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
-    if (tc->cur_frame->static_info->body.has_exit_handler &&
-            !(tc->cur_frame->flags & MVM_FRAME_FLAG_EXIT_HAND_RUN)) {
+    MVMFrame *cur_frame = tc->cur_frame;
+
+    if (cur_frame->static_info->body.has_exit_handler &&
+            !(cur_frame->flags & MVM_FRAME_FLAG_EXIT_HAND_RUN)) {
         /* Set us up to run exit handler, and make it so we'll really exit the
          * frame when that has been done. */
-        MVMFrame     *caller = tc->cur_frame->caller;
+        MVMFrame     *caller = cur_frame->caller;
         MVMHLLConfig *hll    = MVM_hll_current(tc);
         MVMObject    *handler;
         MVMObject    *result;
+        MVMCallsite *two_args_callsite;
 
         if (!caller)
             MVM_exception_throw_adhoc(tc, "Entry point frame cannot have an exit handler");
@@ -752,14 +755,15 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
             default:
                 result = NULL;
         }
-
-        MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ));
-        tc->cur_frame->args[0].o = tc->cur_frame->code_ref;
-        tc->cur_frame->args[1].o = result;
-        tc->cur_frame->special_return = remove_after_handler;
-        tc->cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
+        
         handler = MVM_frame_find_invokee(tc, hll->exit_handler, NULL);
-        STABLE(handler)->invoke(tc, handler, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ), tc->cur_frame->args);
+        two_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ);
+        MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
+        cur_frame->args[0].o = cur_frame->code_ref;
+        cur_frame->args[1].o = result;
+        cur_frame->special_return = remove_after_handler;
+        cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
+        STABLE(handler)->invoke(tc, handler, two_args_callsite, cur_frame->args);
         return 1;
     }
     else {
@@ -787,24 +791,28 @@ static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
                          MVMuint32 rel_addr, MVMObject *return_value) {
     while (tc->cur_frame != frame) {
-        if (tc->cur_frame->static_info->body.has_exit_handler &&
-                !(tc->cur_frame->flags & MVM_FRAME_FLAG_EXIT_HAND_RUN)) {
+        MVMFrame *cur_frame = tc->cur_frame;
+        if (cur_frame->static_info->body.has_exit_handler &&
+                !(cur_frame->flags & MVM_FRAME_FLAG_EXIT_HAND_RUN)) {
             /* We're unwinding a frame with an exit handler. Thus we need to
              * pause the unwind, run the exit handler, and keep enough info
              * around in order to finish up the unwind afterwards. */
-            MVMFrame     *caller = tc->cur_frame->caller;
+            MVMFrame     *caller = cur_frame->caller;
             MVMHLLConfig *hll    = MVM_hll_current(tc);
             MVMObject    *handler;
+            MVMCallsite *two_args_callsite;
 
             if (!caller)
                 MVM_exception_throw_adhoc(tc, "Entry point frame cannot have an exit handler");
-            if (tc->cur_frame == tc->thread_entry_frame)
+            if (cur_frame == tc->thread_entry_frame)
                 MVM_exception_throw_adhoc(tc, "Thread entry point frame cannot have an exit handler");
 
-            MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ));
-            tc->cur_frame->args[0].o = tc->cur_frame->code_ref;
-            tc->cur_frame->args[1].o = NULL;
-            tc->cur_frame->special_return = continue_unwind;
+            handler = MVM_frame_find_invokee(tc, hll->exit_handler, NULL);
+            two_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ);
+            MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
+            cur_frame->args[0].o = cur_frame->code_ref;
+            cur_frame->args[1].o = NULL;
+            cur_frame->special_return = continue_unwind;
             {
                 MVMUnwindData *ud = MVM_malloc(sizeof(MVMUnwindData));
                 ud->frame = frame;
@@ -812,11 +820,10 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 ud->rel_addr = rel_addr;
                 if (return_value)
                     MVM_exception_throw_adhoc(tc, "return_value + exit_handler case NYI");
-                tc->cur_frame->special_return_data = ud;
+                cur_frame->special_return_data = ud;
             }
-            tc->cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
-            handler = MVM_frame_find_invokee(tc, hll->exit_handler, NULL);
-            STABLE(handler)->invoke(tc, handler, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ), tc->cur_frame->args);
+            cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
+            STABLE(handler)->invoke(tc, handler, two_args_callsite, cur_frame->args);
             return;
         }
         else {

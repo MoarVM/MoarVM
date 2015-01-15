@@ -28,11 +28,12 @@ void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag,
     }
     else {
         /* Run the passed code. */
+        MVMCallsite *null_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS);
         code = MVM_frame_find_invokee(tc, code, NULL);
-        MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS));
+        MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, null_args_callsite);
         tc->cur_frame->special_return = clear_tag;
         tc->cur_frame->special_return_data = tag_record;
-        STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS), tc->cur_frame->args);
+        STABLE(code)->invoke(tc, code, null_args_callsite, tc->cur_frame->args);
     }
 }
 
@@ -40,6 +41,7 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
                               MVMObject *tag, MVMObject *code,
                               MVMRegister *res_reg) {
     MVMObject *cont;
+    MVMCallsite *inv_arg_callsite;
 
     /* Hunt the tag on the stack; mark frames as being incorporated into a
      * continuation as we go to avoid a second pass. */
@@ -118,9 +120,10 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
      * interpreter to run this, which then returns control to the
      * original reset or invoke. */
     code = MVM_frame_find_invokee(tc, code, NULL);
-    MVM_args_setup_thunk(tc, tc->cur_frame->return_value, tc->cur_frame->return_type, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
+    inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+    MVM_args_setup_thunk(tc, tc->cur_frame->return_value, tc->cur_frame->return_type, inv_arg_callsite);
     tc->cur_frame->args[0].o = cont;
-    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
+    STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
 }
 
 void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
@@ -174,9 +177,10 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
         cont->body.res_reg->o = tc->instance->VMNull;
     }
     else {
+        MVMCallsite *null_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS);
         code = MVM_frame_find_invokee(tc, code, NULL);
-        MVM_args_setup_thunk(tc, cont->body.res_reg, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS));
-        STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS), tc->cur_frame->args);
+        MVM_args_setup_thunk(tc, cont->body.res_reg, MVM_RETURN_OBJ, null_args_callsite);
+        STABLE(code)->invoke(tc, code, null_args_callsite, tc->cur_frame->args);
     }
 }
 

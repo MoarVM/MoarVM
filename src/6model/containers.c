@@ -10,24 +10,26 @@ typedef struct {
 } CodePairContData;
 
 static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
-    CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
-    MVMObject             *code   = MVM_frame_find_invokee(tc, data->fetch_code, NULL);
+    CodePairContData        *data = (CodePairContData *)STABLE(cont)->container_data;
+    MVMObject               *code = MVM_frame_find_invokee(tc, data->fetch_code, NULL);
+    MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
 
-    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG));
+    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, inv_arg_callsite);
     tc->cur_frame->args[0].o      = cont;
 
-    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG), tc->cur_frame->args);
+    STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
 }
 
 static void code_pair_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *obj) {
-    CodePairContData      *data   = (CodePairContData *)STABLE(cont)->container_data;
-    MVMObject             *code   = MVM_frame_find_invokee(tc, data->store_code, NULL);
+    CodePairContData         *data = (CodePairContData *)STABLE(cont)->container_data;
+    MVMObject                *code = MVM_frame_find_invokee(tc, data->store_code, NULL);
+    MVMCallsite *two_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ);
 
-    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ));
-    tc->cur_frame->args[0].o      = cont;
-    tc->cur_frame->args[1].o      = obj;
+    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
+    tc->cur_frame->args[0].o       = cont;
+    tc->cur_frame->args[1].o       = obj;
 
-    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ), tc->cur_frame->args);
+    STABLE(code)->invoke(tc, code, two_args_callsite, tc->cur_frame->args);
 }
 
 static void code_pair_gc_mark_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
