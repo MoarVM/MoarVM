@@ -241,7 +241,7 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
          * referencing frames, then we need to stay in this list. */
         if (worklist->items != items_before_mark ||
                 worklist->frames != frames_before_mark ||
-                !(gen2roots[i]->flags & MVM_CF_STABLE) && REPR(gen2roots[i])->refs_frames) {
+                (!(gen2roots[i]->flags & MVM_CF_STABLE) && REPR(gen2roots[i])->refs_frames)) {
             gen2roots[insert_pos] = gen2roots[i];
             insert_pos++;
         }
