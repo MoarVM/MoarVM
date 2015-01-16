@@ -73,7 +73,7 @@ struct MVMCompUnitBody {
 
     /* Serialized data, if any. */
     MVMint32  serialized_size;
-    char     *serialized;
+    MVMuint8 *serialized;
 
     /* Array of the resolved serialization contexts, and how many we
      * have. A null in the list indicates not yet resolved */
