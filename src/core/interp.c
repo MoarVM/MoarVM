@@ -1655,7 +1655,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(gcd_i): {
-                MVMint64 a = abs(GET_REG(cur_op, 2).i64), b = abs(GET_REG(cur_op, 4).i64), c;
+                MVMint64 a = labs(GET_REG(cur_op, 2).i64), b = labs(GET_REG(cur_op, 4).i64), c;
                 while ( b != 0 ) {
                     c = a % b; a = b; b = c;
                 }
