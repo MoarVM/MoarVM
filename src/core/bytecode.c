@@ -133,7 +133,7 @@ static void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *
 
 /* Reads a string index, looks up the string and returns it. Bounds
  * checks the string heap index too. */
-static MVMString * get_heap_string(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, char *buffer, size_t offset) {
+static MVMString * get_heap_string(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, MVMuint8 *buffer, size_t offset) {
     MVMCompUnitBody *cu_body = &cu->body;
     MVMuint32 heap_index = read_int32(buffer, offset);
     if (heap_index >= cu_body->num_strings) {
@@ -922,7 +922,7 @@ MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MV
     MVMuint32 i, j;
 
     if (sfb->num_annotations && offset < sfb->bytecode_size) {
-        MVMint8 *cur_anno = sfb->annotations_data;
+        MVMuint8 *cur_anno = sfb->annotations_data;
         for (i = 0; i < sfb->num_annotations; i++) {
             MVMint32 ann_offset = read_int32(cur_anno, 0);
             if (ann_offset > offset)
