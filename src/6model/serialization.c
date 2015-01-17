@@ -222,7 +222,7 @@ static size_t varintsize(int64_t value) {
 }
 
 static size_t write_varint9(char *c_buffer, size_t offset, int64_t value) {
-    // do we hvae to compare < or <= ?
+    // do we have to compare < or <= ?
     MVMuint8 *buffer = (MVMuint8 *)c_buffer;
     size_t position;
     size_t needed_bytes = varintsize(value);
