@@ -655,4 +655,5 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVM_free(pos_added);
     MVM_free(named_ins);
     MVM_free(named_bb);
+    MVM_free(used_ins);
 }
