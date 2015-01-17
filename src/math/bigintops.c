@@ -383,7 +383,7 @@ void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *a, 
     } \
 }
 
-MVM_BIGINT_UNARY_OP(abs, { sb = abs(sa); })
+MVM_BIGINT_UNARY_OP(abs, { sb = labs(sa); })
 MVM_BIGINT_UNARY_OP(neg, { sb = -sa; })
 
 /* unused */
