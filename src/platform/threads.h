@@ -4,6 +4,7 @@
 #include <sched.h>
 #define MVM_platform_thread_yield sched_yield
 #else
+int pthread_yield(void); /* As including pthread.h seems not enough... */
 #define MVM_platform_thread_yield pthread_yield
 #endif
 
