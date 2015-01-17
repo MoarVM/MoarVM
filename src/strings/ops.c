@@ -877,8 +877,10 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     }
 
     /* We now know the total eventual number of graphemes. */
-    if (total_graphs == 0)
+    if (total_graphs == 0) {
+        free(pieces);
         return tc->instance->str_consts.empty;
+    }
     result->body.num_graphs = total_graphs;
 
     /* If we just collect all the things as strands, are we within bounds, and
