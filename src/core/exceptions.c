@@ -289,7 +289,7 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
 
     MVMuint32 line_number = annot ? annot->line_number : 1;
     MVMuint16 string_heap_index = annot ? annot->filename_string_heap_index : 0;
-    MVMuint8 *tmp1 = annot && string_heap_index < cur_frame->static_info->body.cu->body.num_strings
+    char *tmp1 = annot && string_heap_index < cur_frame->static_info->body.cu->body.num_strings
         ? MVM_string_utf8_encode(tc,
             cur_frame->static_info->body.cu->body.strings[string_heap_index], NULL)
         : NULL;
@@ -301,10 +301,10 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
 
     snprintf(o, 1024, " %s %s:%u  (%s:%s:%u)",
         not_top ? "from" : "  at",
-        tmp1 ? tmp1 : (MVMuint8 *)"<unknown>",
+        tmp1 ? tmp1 : "<unknown>",
         line_number,
-        filename ? (char *) MVM_string_utf8_encode(tc, filename, NULL) : "<ephemeral file>",
-        name ? (char *) MVM_string_utf8_encode(tc, name, NULL) : "<anonymous frame>",
+        filename ? MVM_string_utf8_encode(tc, filename, NULL) : "<ephemeral file>",
+        name ? MVM_string_utf8_encode(tc, name, NULL) : "<anonymous frame>",
         instr
     );
 
@@ -406,7 +406,7 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
         MVMuint32 count = 0;
         while (cur_frame != NULL) {
             char      *line     = MVM_exception_backtrace_line(tc, cur_frame, count++);
-            MVMString *line_str = MVM_string_utf8_decode(tc, tc->instance->VMString, (MVMuint8 *)line, strlen(line));
+            MVMString *line_str = MVM_string_utf8_decode(tc, tc->instance->VMString, line, strlen(line));
             MVMObject *line_obj = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, line_str);
             MVM_repr_push_o(tc, arr, line_obj);
             cur_frame = cur_frame->caller;
@@ -703,7 +703,7 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
     MVMROOT(tc, ex, {
         char      *c_message = MVM_malloc(1024);
         int        bytes     = vsnprintf(c_message, 1024, messageFormat, args);
-        MVMString *message   = MVM_string_utf8_decode(tc, tc->instance->VMString, (MVMuint8 *)c_message, bytes);
+        MVMString *message   = MVM_string_utf8_decode(tc, tc->instance->VMString, c_message, bytes);
         MVM_free(c_message);
         MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.message, message);
         if (tc->cur_frame) {

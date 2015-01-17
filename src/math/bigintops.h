@@ -27,7 +27,7 @@ void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MV
 
 MVMint64 MVM_bigint_cmp(MVMThreadContext *tc, MVMObject *a, MVMObject *b);
 
-void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, MVMuint8 *buf);
+void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, char *buf);
 MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base);
 MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a);
 void MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *a, MVMnum64 n);

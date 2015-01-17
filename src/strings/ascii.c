@@ -2,7 +2,7 @@
 
 /* Decodes the specified number of bytes of ASCII into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */
-MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type, const MVMint8 *ascii, size_t bytes) {
+MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type, const char *ascii, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t i;
 
@@ -94,7 +94,7 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 /* Encodes the specified substring to ASCII. Anything outside of ASCII range
  * will become a ?. The result string is NULL terminated, but the specified
  * size is the non-null part. */
-MVMuint8 * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
+char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
     /* ASCII is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32      startu    = (MVMuint32)start;
@@ -133,17 +133,17 @@ MVMuint8 * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, 
     if (output_size)
         *output_size = lengthu;
 
-    return result;
+    return (char *)result;
 }
 
 /* Encodes the specified string to ASCII.  */
-MVMuint8 * MVM_string_ascii_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
+char * MVM_string_ascii_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
     return MVM_string_ascii_encode_substr(tc, str, output_size, 0,
         MVM_string_graphs(tc, str));
 }
 
 /* Encodes the specified string to ASCII not returning length.  */
-MVMuint8 * MVM_string_ascii_encode_any(MVMThreadContext *tc, MVMString *str) {
+char * MVM_string_ascii_encode_any(MVMThreadContext *tc, MVMString *str) {
     MVMuint64 output_size;
     return MVM_string_ascii_encode(tc, str, &output_size);
 }

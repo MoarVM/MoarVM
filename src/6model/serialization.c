@@ -221,8 +221,9 @@ static size_t varintsize(int64_t value) {
     return 9;
 }
 
-static size_t write_varint9(MVMuint8 *buffer, size_t offset, int64_t value) {
+static size_t write_varint9(char *c_buffer, size_t offset, int64_t value) {
     // do we hvae to compare < or <= ?
+    MVMuint8 *buffer = (MVMuint8 *)c_buffer;
     size_t position;
     size_t needed_bytes = varintsize(value);
     for (position = 0; position < needed_bytes && position != 8; position++) {
@@ -1199,7 +1200,8 @@ static MVMnum64 read_double(const char *buffer, size_t offset) {
 
 /* Reads an int64 from up to 128bits of storage.
  * Returns how far to advance the offset. */
-static size_t read_varint9(const MVMuint8 *buffer, size_t offset, int64_t *value) {
+static size_t read_varint9(const char *c_buffer, size_t offset, int64_t *value) {
+    MVMuint8 *buffer = (MVMuint8 *)c_buffer;
     size_t inner_offset = 0;
     size_t shift_amount = 0;
     int64_t negation_mask = 0;
@@ -1546,7 +1548,7 @@ static void check_and_dissect_input(MVMThreadContext *tc,
     }
     else {
         /* Try to get it from the current compilation unit. */
-        data = (*tc->interp_cu)->body.serialized;
+        data = (char *)(*tc->interp_cu)->body.serialized;
         if (!data)
         fail_deserialize(tc, reader,
             "Failed to find deserialization data in compilation unit");

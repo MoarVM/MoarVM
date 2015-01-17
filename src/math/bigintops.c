@@ -716,11 +716,11 @@ void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MV
     clear_temp_bigints(tmp, 3);
 }
 
-void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, MVMuint8 *buf) {
+void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, char *buf) {
     MVMP6bigintBody *body = get_bigint_body(tc, a);
     mp_int *i = MVM_malloc(sizeof(mp_int));
     mp_init(i);
-    mp_read_radix(i, (const char *)buf, 10);
+    mp_read_radix(i, buf, 10);
     if (can_be_smallint(i)) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
         body->u.smallint.value = SIGN(i) ? -DIGIT(i, 0) : DIGIT(i, 0);

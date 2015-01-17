@@ -165,7 +165,7 @@ MVMint64 MVM_io_write_string(MVMThreadContext *tc, MVMObject *oshandle, MVMStrin
 
 void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *buffer) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "write bytes");
-    MVMuint8 *output;
+    char *output;
     MVMint64 output_size;
     MVMint64 bytes_written;
 
@@ -176,7 +176,7 @@ void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *bu
         && ((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_I8)
         MVM_exception_throw_adhoc(tc, "write_fhb requires a native array of uint8 or int8");
 
-    output = ((MVMArray *)buffer)->body.slots.i8 + ((MVMArray *)buffer)->body.start;
+    output = (char *)(((MVMArray *)buffer)->body.slots.i8 + ((MVMArray *)buffer)->body.start);
     output_size = ((MVMArray *)buffer)->body.elems;
 
     if (handle->body.ops->sync_writable) {

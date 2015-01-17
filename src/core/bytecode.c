@@ -285,7 +285,7 @@ static MVMString ** deserialize_strings(MVMThreadContext *tc, MVMCompUnit *cu, R
         /* Ensure we can read in the string of this size, and decode
          * it if so. */
         ensure_can_read(tc, cu, rs, pos, ss);
-        MVM_ASSIGN_REF(tc, &(cu->common.header), strings[i], MVM_string_utf8_decode(tc, tc->instance->VMString, pos, ss));
+        MVM_ASSIGN_REF(tc, &(cu->common.header), strings[i], MVM_string_utf8_decode(tc, tc->instance->VMString, (char *)pos, ss));
         pos += ss;
 
         /* Add alignment. */

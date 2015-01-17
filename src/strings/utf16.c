@@ -9,10 +9,11 @@
  into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */
 MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
-        MVMObject *result_type, MVMuint8 *utf16, size_t bytes) {
+        MVMObject *result_type, char *utf16_chars, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t byte_pos = 0;
     size_t str_pos = 0;
+    MVMuint8 *utf16 = (MVMuint8 *)utf16_chars;
     MVMuint8 *utf16_end;
     /* set the default byte order */
 #ifdef MVM_BIGENDIAN
@@ -84,7 +85,7 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
 /* Encodes the specified substring to utf16. The result string is NULL terminated, but
  * the specified size is the non-null part. (This being UTF-16, there are 2 null bytes
  * on the end.) */
-MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
+char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
     MVMuint32 startu = (MVMuint32)start;
     MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - start : length);
@@ -96,7 +97,7 @@ MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
-    if (lengthu < 0 || start + lengthu > strgraphs)
+    if (start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
     /* Kke the result grow as needed instead of allocating so much to start? */
@@ -119,10 +120,10 @@ MVMuint8 * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, 
     result_pos[0] = 0;
     if (output_size)
         *output_size = (char *)result_pos - (char *)result;
-    return (MVMuint8 *)result;
+    return (char *)result;
 }
 
 /* Encodes the whole string, double-NULL terminated. */
-MVMuint8 * MVM_string_utf16_encode(MVMThreadContext *tc, MVMString *str) {
+char * MVM_string_utf16_encode(MVMThreadContext *tc, MVMString *str) {
     return MVM_string_utf16_encode_substr(tc, str, NULL, 0, MVM_string_graphs(tc, str));
 }

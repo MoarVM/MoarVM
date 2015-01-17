@@ -177,15 +177,15 @@ static void write_cb(uv_write_t* req, int status) {
 }
 MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, MVMint64 newline) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    MVMuint8 *output;
-    MVMint64 output_size;
+    char *output;
+    MVMuint64 output_size;
     uv_write_t *req;
     uv_buf_t write_buf;
     int r;
 
     output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
     if (newline) {
-        output = (MVMuint8 *)MVM_realloc(output, ++output_size);
+        output = (char *)MVM_realloc(output, ++output_size);
         output[output_size - 1] = '\n';
     }
     req = MVM_malloc(sizeof(uv_write_t));

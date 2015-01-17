@@ -4,7 +4,8 @@
  * creating a result of the specified type. The type must have the MVMString
  * REPR. */
 MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, MVMObject *result_type,
-                                     MVMuint8 *latin1, size_t bytes) {
+                                     char *latin1_c, size_t bytes) {
+    MVMuint8  *latin1 = (MVMuint8 *)latin1_c;
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t i;
 
@@ -47,7 +48,7 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
-        unsigned char *bytes = cur_bytes->bytes;
+        unsigned char *bytes = (unsigned char *)cur_bytes->bytes;
         while (pos < cur_bytes->length) {
             MVMCodepoint codepoint = bytes[pos++];
             if (count == bufsize) {
@@ -80,7 +81,7 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 /* Encodes the specified substring to latin-1. Anything outside of latin-1 range
  * will become a ?. The result string is NULL terminated, but the specified
  * size is the non-null part. */
-MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
+char * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
     /* Latin-1 is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
@@ -117,5 +118,5 @@ MVMuint8 * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str,
     }
     if (output_size)
         *output_size = lengthu;
-    return result;
+    return (char *)result;
 }

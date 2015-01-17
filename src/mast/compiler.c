@@ -1307,7 +1307,7 @@ static char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_si
     /* Add each string to the heap. */
     for (i = 0; i < num_strings; i++) {
         MVMuint64 bytelen;
-        MVMuint8 *utf8 = MVM_string_utf8_encode(tc, ATPOS_S(vm, ws->strings, i), &bytelen);
+        char *utf8 = MVM_string_utf8_encode(tc, ATPOS_S(vm, ws->strings, i), &bytelen);
 
         /* Ensure we have space. */
         unsigned short align = bytelen & 3 ? 4 - (bytelen & 3) : 0;

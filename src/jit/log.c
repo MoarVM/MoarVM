@@ -13,9 +13,9 @@ void MVM_jit_log(MVMThreadContext *tc, const char * fmt, ...) {
 static char * jitcode_name(MVMThreadContext *tc, MVMJitCode *code) {
     MVMuint64 cuuid_len;
     MVMuint64 name_len;
-    MVMuint8 *cuuid = MVM_string_ascii_encode(tc, code->sf->body.cuuid,
+    char *cuuid = MVM_string_ascii_encode(tc, code->sf->body.cuuid,
                                               &cuuid_len);
-    MVMuint8 *name  = MVM_string_ascii_encode(tc, code->sf->body.name,
+    char *name  = MVM_string_ascii_encode(tc, code->sf->body.name,
                                               &name_len);
     MVMuint64 dirname_len = strlen(tc->instance->jit_bytecode_dir);
     // 4 chars for prefix, 3 chars for the separators, 4 for the postfix, 1 for the 0

@@ -461,7 +461,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
 }
 
 void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
-    MVMuint8 *utf8_encoded;
+    char *utf8_encoded;
     MVMuint64 utf8_encoded_length;
 
     if (!IS_CONCRETE((MVMObject *)a)) {
@@ -478,7 +478,7 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
 }
 
 void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
-    MVMuint8 *utf8_encoded;
+    char *utf8_encoded;
     MVMuint64 utf8_encoded_length;
 
     if (!IS_CONCRETE((MVMObject *)a)) {
@@ -650,7 +650,7 @@ MVMString * MVM_string_decode(MVMThreadContext *tc,
 }
 
 /* Encodes an MVMString to a C buffer, dependent on the encoding type flag */
-MVMuint8 * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag) {
+char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag) {
     switch(encoding_flag) {
         case MVM_encoding_type_utf8:
             return MVM_string_utf8_encode_substr(tc, s, output_size, start, length);
@@ -702,7 +702,7 @@ void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc
     MVMROOT(tc, buf, {
     MVMROOT(tc, s, {
         const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, enc_name);
-        encoded = MVM_string_encode(tc, s, 0, MVM_string_graphs(tc, s), &output_size,
+        encoded = (MVMuint8 *)MVM_string_encode(tc, s, 0, MVM_string_graphs(tc, s), &output_size,
             encoding_flag);
     });
     });
@@ -744,7 +744,7 @@ MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVM
         encoding_flag = MVM_string_find_encoding(tc, enc_name);
     });
     return MVM_string_decode(tc, tc->instance->VMString,
-        ((MVMArray *)buf)->body.slots.i8 + ((MVMArray *)buf)->body.start,
+        (char *)(((MVMArray *)buf)->body.slots.i8 + ((MVMArray *)buf)->body.start),
         ((MVMArray *)buf)->body.elems * elem_size,
         encoding_flag);
 }

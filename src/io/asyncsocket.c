@@ -56,7 +56,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
             }
             else {
                 MVMArray *res_buf      = (MVMArray *)MVM_repr_alloc_init(tc, ri->buf_type);
-                res_buf->body.slots.i8 = buf->base;
+                res_buf->body.slots.i8 = (MVMint8 *)buf->base;
                 res_buf->body.start    = 0;
                 res_buf->body.ssize    = nread;
                 res_buf->body.elems    = nread;
@@ -308,7 +308,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     }
     else {
         MVMArray *buffer = (MVMArray *)wi->buf_data;
-        output = buffer->body.slots.i8 + buffer->body.start;
+        output = (char *)(buffer->body.slots.i8 + buffer->body.start);
         output_size = (int)buffer->body.elems;
     }
 

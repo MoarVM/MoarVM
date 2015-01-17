@@ -31,7 +31,7 @@ static void appendf(DumpStr *ds, const char *fmt, ...) {
 
 /* Turns a MoarVM string into a C string and appends it. */
 static void append_str(MVMThreadContext *tc, DumpStr *ds, MVMString *s) {
-    MVMuint8 *cs = MVM_string_utf8_encode_C_string(tc, s);
+    char *cs = MVM_string_utf8_encode_C_string(tc, s);
     append(ds, cs);
     MVM_free(cs);
 }
@@ -218,9 +218,8 @@ static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     MVMuint16 i;
     appendf(ds, "Callsite %p (%d args, %d pos)\n", g->cs, g->cs->arg_count, g->cs->num_pos);
     for (i = 0; i < (g->cs->arg_count - g->cs->num_pos) / 2; i++) {
-        MVMuint8 *argname_utf8;
         if (g->cs->arg_names[i]) {
-            argname_utf8 = MVM_string_utf8_encode(tc, g->cs->arg_names[i], NULL);
+            char * argname_utf8 = MVM_string_utf8_encode(tc, g->cs->arg_names[i], NULL);
             appendf(ds, "  - %s\n", argname_utf8);
             MVM_free(argname_utf8);
         }
@@ -234,7 +233,7 @@ static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     MVMint32           str_idx = ann ? ann->filename_string_heap_index : 0;
     MVMint32           line_nr = ann ? ann->line_number : 1;
     MVMString        *filename = cu->body.filename;
-    MVMuint8    *filename_utf8 = "<unknown>";
+    char        *filename_utf8 = "<unknown>";
     if (ann && str_idx < cu->body.num_strings) {
         filename = cu->body.strings[str_idx];
     }

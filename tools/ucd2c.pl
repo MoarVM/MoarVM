@@ -804,7 +804,7 @@ sub emit_block_lookup {
     my $out  = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block) {
     MVMGrapheme32 ord = MVM_string_get_grapheme_at_nocheck(tc, str, pos);
     MVMuint64 size;
-    const char *bname = MVM_string_ascii_encode(tc, block, &size);
+    char *bname = MVM_string_ascii_encode(tc, block, &size);
 ";
 
     my $else = '';

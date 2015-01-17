@@ -201,8 +201,9 @@ static MVMint64 eof(MVMThreadContext *tc, MVMOSHandle *h) {
 /* Writes the specified string to the file handle, maybe with a newline. */
 static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, MVMint64 newline) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 output_size, bytes_written;
-    MVMuint8 *output    = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
+    MVMuint64 output_size;
+    MVMint64 bytes_written;
+    char *output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
     uv_buf_t write_buf  = uv_buf_init(output, output_size);
     uv_fs_t req;
 

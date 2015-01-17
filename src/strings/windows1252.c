@@ -131,7 +131,8 @@ static MVMuint8 windows1252_cp_to_char(MVMint32 codepoint) {
  * creating a result of the specified type. The type must have the MVMString
  * REPR. */
 MVMString * MVM_string_windows1252_decode(MVMThreadContext *tc,
-        MVMObject *result_type, MVMuint8 *windows1252, size_t bytes) {
+        MVMObject *result_type, char *windows1252_c, size_t bytes) {
+    MVMuint8 *windows1252 = (MVMuint8 *)windows1252_c;
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t i;
 
@@ -146,7 +147,7 @@ MVMString * MVM_string_windows1252_decode(MVMThreadContext *tc,
 /* Encodes the specified substring to Windows-1252. Anything outside of Windows-1252 range
  * will become a ?. The result string is NULL terminated, but the specified
  * size is the non-null part. */
-MVMuint8 * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
+char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
     /* Windows-1252 is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
@@ -187,5 +188,5 @@ MVMuint8 * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString 
     if (output_size)
         *output_size = lengthu;
 
-    return result;
+    return (char *)result;
 }
