@@ -1413,6 +1413,23 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
 /* Eliminates any unreachable basic blocks (that is, dead code). Not having
  * to consider them any further simplifies all that follows. */
+static MVMint64 has_handler_anns(MVMThreadContext *tc, MVMSpeshBB *bb) {
+    MVMSpeshIns *ins = bb->first_ins;
+    while (ins) {
+        MVMSpeshAnn *ann = ins->annotations;
+        while (ann) {
+            switch (ann->type) {
+            case MVM_SPESH_ANN_FH_START:
+            case MVM_SPESH_ANN_FH_END:
+            case MVM_SPESH_ANN_FH_GOTO:
+                return 1;
+            }
+            ann = ann->next;
+        }
+        ins = ins->next;
+    }
+    return 0;
+}
 static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Iterate to fixed point. */
     MVMint8  *seen     = MVM_malloc(g->num_bbs);
@@ -1431,12 +1448,15 @@ static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
             cur_bb = cur_bb->linear_next;
         }
 
-        /* Second pass: eliminate dead BBs from consideration. */
+        /* Second pass: eliminate dead BBs from consideration. Do not get
+         * rid of any that are from inlines or that contain handler related
+         * annotations. */
         death = 0;
         cur_bb = g->entry;
         while (cur_bb->linear_next) {
-            if (!seen[cur_bb->linear_next->idx]) {
-                if (!cur_bb->linear_next->inlined) {
+            MVMSpeshBB *death_cand = cur_bb->linear_next;
+            if (!seen[death_cand->idx]) {
+                if (!death_cand->inlined && !has_handler_anns(tc, death_cand)) {
                     cur_bb->linear_next = cur_bb->linear_next->linear_next;
                     g->num_bbs--;
                     death = 1;
