@@ -337,10 +337,13 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
             else
                 MVM_exception_throw_adhoc(tc, "Wrong kind of access to numeric CArray");
             break;
-        case MVM_CARRAY_ELEM_KIND_STRING:
-            bind_wrapper_and_ptr(tc, root, body, index, value.o,
-                MVM_string_utf8_encode_C_string(tc, MVM_repr_get_str(tc, value.o)));
+        case MVM_CARRAY_ELEM_KIND_STRING: {
+            char *string = IS_CONCRETE(value.o)
+                         ? MVM_string_utf8_encode_C_string(tc, MVM_repr_get_str(tc, value.o))
+                         : NULL;
+            bind_wrapper_and_ptr(tc, root, body, index, value.o, string);
             break;
+        }
         case MVM_CARRAY_ELEM_KIND_CPOINTER:
             if (REPR(value.o)->ID != MVM_REPR_ID_MVMCPointer)
                 MVM_exception_throw_adhoc(tc, "CArray of CPointer passed non-CPointer object");
