@@ -8,7 +8,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 11
+#define CURRENT_VERSION 12
 #define MIN_VERSION     9
 
 /* Various sizes (in bytes). */
@@ -885,6 +885,10 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
         MVM_serialization_write_str(tc, writer, st->hll_owner->name);
     else
         MVM_serialization_write_str(tc, writer, NULL);
+
+    /* If it's a parametric type, save parameterizer. */
+    if (st->mode_flags & MVM_PARAMETRIC_TYPE)
+        MVM_serialization_write_ref(tc, writer, st->paramet.ric.parameterizer);
 
     /* Store offset we save REPR data at. */
     write_int32(writer->root.stables_table, offset + 8, writer->stables_data_offset);
@@ -2045,6 +2049,19 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         MVMString *hll_name = MVM_serialization_read_str(tc, reader);
         if (hll_name)
             st->hll_owner = MVM_hll_get_config_for(tc, hll_name);
+    }
+
+    /* If it's a parametric type... */
+    if (reader->root.version >= 12) {
+        if (st->mode_flags & MVM_PARAMETRIC_TYPE) {
+            /* Create empty lookup table. */
+            MVMObject *lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+            MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.lookup, lookup);
+
+            /* Deserialize parameterizer. */
+            MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.parameterizer,
+                MVM_serialization_read_ref(tc, reader));
+        }
     }
 
     /* If the REPR has a function to deserialize representation data, call it. */

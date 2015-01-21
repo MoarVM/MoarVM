@@ -109,6 +109,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "6model/containers.h"
 #include "6model/sc.h"
 #include "6model/serialization.h"
+#include "6model/parametric.h"
 #include "gc/allocation.h"
 #include "gc/worklist.h"
 #include "gc/collect.h"

@@ -127,7 +127,10 @@ MVMint64 MVM_sc_find_code_idx(MVMThreadContext *tc, MVMSerializationContext *sc,
             return i;
     }
     MVM_exception_throw_adhoc(tc,
-        "Code ref does not exist in serialization context");
+        "Code ref '%s' does not exist in serialization context",
+        REPR(obj)->ID == MVM_REPR_ID_MVMCode
+            ? MVM_string_utf8_encode_C_string(tc, ((MVMCode *)obj)->body.name)
+            : "<NOT A CODE OBJECT>");
 }
 
 /* Given a compilation unit and dependency index, returns that SC. */

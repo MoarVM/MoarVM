@@ -28,6 +28,14 @@
 /* This STable mode flag is set if the type needs finalization. */
 #define MVM_FINALIZE_TYPE                  8
 
+/* This STable mode flag is set if the type is parametric (and so can be
+ * parameterized). */
+#define MVM_PARAMETRIC_TYPE                 16
+
+/* This STable mode flag is set if the type is a parameterization of some
+ * parametric type. */
+#define MVM_PARAMETERIZED_TYPE              32
+
 /* HLL type roles. */
 #define MVM_HLL_ROLE_NONE                   0
 #define MVM_HLL_ROLE_INT                    1
@@ -288,6 +296,27 @@ struct MVMSTable {
 
     /* The meta-object. */
     MVMObject *HOW;
+
+    /* Parametricity. Mode flags indicate what, if any, of this union is valid. */
+    union {
+        struct {
+            /* The code object to use to produce a new parameterization. */
+            MVMObject *parameterizer;
+
+            /* Lookup table of existing parameterizations. For now, just a VM
+             * array with alternating pairs of [arg array], object. Could in
+             * the future we something lower level or hashy; we've yet to see
+             * how hot-path lookups end up being in reality. */
+            MVMObject *lookup;
+        } ric;
+        struct {
+            /* The type that we are a parameterization of. */
+            MVMObject *parametric_type;
+
+            /* Our type parameters. */
+            MVMObject *parameters;
+        } erized;
+    } paramet;
 
     /* We lazily deserialize HOW; this is the SC and index if needed. */
     MVMSerializationContext *HOW_sc;
