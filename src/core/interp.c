@@ -236,7 +236,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getlex_no): {
                 MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
                     cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_obj);
-                GET_REG(cur_op, 0).o = found ? found->o : NULL;
+                GET_REG(cur_op, 0).o = found ? found->o : tc->instance->VMNull;
                 cur_op += 6;
                 goto NEXT;
             }
@@ -805,7 +805,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 while (caller && depth-- > 0) /* keep the > 0. */
                     caller = caller->caller;
 
-                GET_REG(cur_op, 0).o = caller ? caller->code_ref : NULL;
+                GET_REG(cur_op, 0).o = caller ? caller->code_ref : tc->instance->VMNull;
 
                 cur_op += 4;
                 goto NEXT;
@@ -924,7 +924,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(exception):
                 GET_REG(cur_op, 0).o = tc->active_handlers
                     ? tc->active_handlers->ex_obj
-                    : NULL;
+                    : tc->instance->VMNull;
                 cur_op += 2;
                 goto NEXT;
             OP(bindexmessage): {
@@ -1037,7 +1037,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(takehandlerresult): {
-                GET_REG(cur_op, 0).o = tc->last_handler_result;
+                GET_REG(cur_op, 0).o = tc->last_handler_result
+                    ? tc->last_handler_result
+                    : tc->instance->VMNull;
                 tc->last_handler_result = NULL;
                 cur_op += 2;
                 goto NEXT;
@@ -1276,8 +1278,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(iscompunit): {
                 MVMObject *maybe_cu = GET_REG(cur_op, 2).o;
-                GET_REG(cur_op, 0).i64 = maybe_cu != NULL &&
-                    REPR(maybe_cu)->ID == MVM_REPR_ID_MVMCompUnit;
+                GET_REG(cur_op, 0).i64 = REPR(maybe_cu)->ID == MVM_REPR_ID_MVMCompUnit;
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2000,7 +2001,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
                         (MVMObject *)GET_REG(cur_op, 4).s, &GET_REG(cur_op, 0), MVM_reg_obj);
                 else
-                    GET_REG(cur_op, 0).o = NULL;
+                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
                 cur_op += 6;
                 goto NEXT;
             }
@@ -2107,7 +2108,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
                         &GET_REG(cur_op, 0), MVM_reg_obj);
                 else
-                    GET_REG(cur_op, 0).o = NULL;
+                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
                 cur_op += 6;
                 goto NEXT;
             }
@@ -2751,7 +2752,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(iscont): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
-                GET_REG(cur_op, 0).i64 = obj == NULL || STABLE(obj)->container_spec == NULL ? 0 : 1;
+                GET_REG(cur_op, 0).i64 = MVM_is_null(tc, obj) || STABLE(obj)->container_spec == NULL ? 0 : 1;
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2950,7 +2951,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 0).o = ctx;
                 }
                 else {
-                    GET_REG(cur_op, 0).o = NULL;
+                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
                 }
                 cur_op += 4;
                 goto NEXT;
@@ -2965,7 +2966,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
                     ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
                 }
-                GET_REG(cur_op, 0).o = ctx;
+                GET_REG(cur_op, 0).o = ctx ? ctx : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2985,7 +2986,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(callercode): {
                 GET_REG(cur_op, 0).o = tc->cur_frame->caller
                     ? tc->cur_frame->caller->code_ref
-                    : NULL;
+                    : tc->instance->VMNull;
                 cur_op += 2;
                 goto NEXT;
             }
@@ -3637,7 +3638,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(takedispatcher):
-                GET_REG(cur_op, 0).o = tc->cur_dispatcher;
+                GET_REG(cur_op, 0).o = tc->cur_dispatcher ? tc->cur_dispatcher : tc->instance->VMNull;
                 tc->cur_dispatcher = NULL;
                 cur_op += 2;
                 goto NEXT;
@@ -3705,14 +3706,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "getlexrelcaller needs a context");
                 res = MVM_frame_find_lexical_by_name_rel_caller(tc, GET_REG(cur_op, 4).s,
                     ((MVMContext *)ctx)->body.context);
-                GET_REG(cur_op, 0).o = res ? res->o : NULL;
+                GET_REG(cur_op, 0).o = res ? res->o : tc->instance->VMNull;
                 cur_op += 6;
                 goto NEXT;
             }
             OP(getlexcaller): {
                 MVMRegister *res = MVM_frame_find_lexical_by_name_rel_caller(tc,
                     GET_REG(cur_op, 2).s, tc->cur_frame->caller);
-                GET_REG(cur_op, 0).o = res ? res->o : NULL;
+                GET_REG(cur_op, 0).o = res ? res->o : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
             }
@@ -4055,7 +4056,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 0).o = ctx;
                 }
                 else {
-                    GET_REG(cur_op, 0).o = NULL;
+                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
                 }
                 cur_op += 4;
                 goto NEXT;
@@ -4073,7 +4074,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
                     ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
                 }
-                GET_REG(cur_op, 0).o = ctx;
+                GET_REG(cur_op, 0).o = ctx ? ctx : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
             }
@@ -4136,7 +4137,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getlexperinvtype_o): {
                 MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
                     GET_REG(cur_op, 2).s, MVM_reg_obj);
-                GET_REG(cur_op, 0).o = found ? found->o : NULL;
+                GET_REG(cur_op, 0).o = found ? found->o : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
             }
