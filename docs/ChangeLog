@@ -1,3 +1,26 @@
+New in 2015.01
+
+* Decrement usage of class type for setattr ops, enabling wval elimination
+* Add missing concreteness checks in concurrency ops
+* First operand of sp_guad* is r(obj) not int16
+* Make ReentrantMutex not prevent serialization
+* Fix various ops that could return real NULL pointers and cause SEGVs
+* Spesh gethow (can be spesh slot lookup)
+* Start documenting the parametric 6model design
+* Implement parametric 6model ops
+* Avoid calling MVM_callsite_get_common twice in many situations
+* Use labs instead of abs to avoid truncation on 64-bit values
+* Fix signed/unsigned warnings in bytecode handling
+* Big signed/unsigned cleanup in string/buffer handling
+* Fix leak when join returns early
+* Fix missing free in args spesh
+* Tweak fixed size alloc configuration for a small memory saving
+* Improve missing SC code ref error reporting
+* Start integrating 6model parametrics with serialization
+* Don't delete BBs with handler annotations
+* Handle assigning Str to a CArray[Str] slot (to assign NULL)
+* Simplify and optimize varint serialization/deserialization
+
 New in 2014.12
 
 + Various warnings produced by clang fixed
