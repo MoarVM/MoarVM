@@ -658,9 +658,6 @@ static MVMint32 intersect(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **r
 }
 
 /* Computes dominator information about the basic blocks. */
-static MVMint32 rpo_idx(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo, MVMSpeshBB *bb) {
-    return bb->rpo_idx;
-}
 static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo) {
     MVMint32 i, j, changed;
 
@@ -684,7 +681,7 @@ static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
             MVMint32 chosen_pred = -1;
             MVMint32 new_idom;
             for (j = 0; j < b->num_pred; j++) {
-                new_idom = rpo_idx(tc, g, rpo, b->pred[j]);
+                new_idom = b->pred[j]->rpo_idx;
                 if (doms[new_idom] != -1)
                 {
                     chosen_pred = j;
@@ -697,7 +694,7 @@ static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
             }
             for (j = 0; j < b->num_pred; j++) {
                 if (j != chosen_pred) {
-                    MVMint32 p_idx = rpo_idx(tc, g, rpo, b->pred[j]);
+                    MVMint32 p_idx = b->pred[j]->rpo_idx;
                     if (doms[p_idx] != -1)
                         new_idom = intersect(tc, g, rpo, doms, p_idx, new_idom);
                 }
@@ -762,8 +759,8 @@ static void add_dominance_frontiers(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     while (b) {
         if (b->num_pred >= 2) { /* Thus it's a join point */
             for (j = 0; j < b->num_pred; j++) {
-                MVMint32 runner      = rpo_idx(tc, g, rpo, b->pred[j]);
-                MVMint32 finish_line = doms[rpo_idx(tc, g, rpo, b)];
+                MVMint32 runner      = b->pred[j]->rpo_idx;
+                MVMint32 finish_line = doms[b->rpo_idx];
                 while (runner != finish_line) {
                     add_to_frontier_set(tc, g, rpo[runner], b);
                     runner = doms[runner];
