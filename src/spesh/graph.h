@@ -159,6 +159,10 @@ struct MVMSpeshBB {
      * the block identifier in dominance computation and for debug output. */
     MVMint32 idx;
 
+    /* The block's reverse post-order index, assinged when computing
+     * dominance. */
+    MVMint32 rpo_idx;
+
     /* Is this block an inlining of another one? */
     MVMint32 inlined;
 };

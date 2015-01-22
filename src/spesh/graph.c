@@ -606,6 +606,7 @@ static void dfs(MVMSpeshBB **rpo, MVMint32 *insert_pos, MVMuint8 *seen, MVMSpesh
             dfs(rpo, insert_pos, seen, succ);
     }
     rpo[*insert_pos] = bb;
+    bb->rpo_idx = *insert_pos;
     (*insert_pos)--;
 }
 static MVMSpeshBB ** reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g) {
@@ -658,12 +659,7 @@ static MVMint32 intersect(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **r
 
 /* Computes dominator information about the basic blocks. */
 static MVMint32 rpo_idx(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo, MVMSpeshBB *bb) {
-    MVMint32 i;
-    for (i = 0; i < g->num_bbs; i++)
-        if (rpo[i] == bb)
-            return i;
-    MVM_spesh_graph_destroy(tc, g);
-    MVM_exception_throw_adhoc(tc, "Spesh: could not find block in reverse postorder");
+    return bb->rpo_idx;
 }
 static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo) {
     MVMint32 i, j, changed;
