@@ -2,7 +2,7 @@ New in 2015.01
 
 * Decrement usage of class type for setattr ops, enabling wval elimination
 * Add missing concreteness checks in concurrency ops
-* First operand of sp_guad* is r(obj) not int16
+* First operand of sp_guard* is r(obj) not int16
 * Make ReentrantMutex not prevent serialization
 * Fix various ops that could return real NULL pointers and cause SEGVs
 * Spesh gethow (can be spesh slot lookup)
