@@ -540,8 +540,8 @@ static void log_inline(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMint32 inline_
     char *cuuid        = MVM_string_utf8_encode_C_string(tc, sf->body.cuuid);
     MVM_jit_log(tc, "%s inline %d (name: %s, cuuid: %s)\n", is_entry ? "Entering" : "Leaving",
                 inline_idx, name, cuuid);
-    free(name);
-    free(cuuid);
+    MVM_free(name);
+    MVM_free(cuuid);
 }
 
 static void jgb_before_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,

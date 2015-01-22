@@ -1156,7 +1156,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
                 char * const _tmp = ANSIToUTF8(acp, raw_clarg);
                 MVMString *string = MVM_string_utf8_decode(tc,
                     instance->VMString, _tmp, strlen(_tmp));
-                free(_tmp);
+                MVM_free(_tmp);
                 boxed_str = MVM_repr_box_str(tc,
                     instance->boot_types.BOOTStr, string);
                 MVM_repr_push_o(tc, clargs, boxed_str);
