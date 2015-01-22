@@ -68,7 +68,7 @@ if (-d '.git') {
 }
 
 # fiddle with flags
-$args{optimize}     = 1 if not defined $args{optimize} or $args{optimize} eq "";
+$args{optimize}     = 2 if not defined $args{optimize} or $args{optimize} eq "";
 $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 $args{instrument} //= 0;
 $args{static}     //= 0;
