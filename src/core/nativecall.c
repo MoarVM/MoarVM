@@ -162,7 +162,7 @@ MVMObject * MVM_nativecall_make_cstruct(MVMThreadContext *tc, MVMObject *type, v
         MVMCStructREPRData *repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
         if (REPR(type)->ID != MVM_REPR_ID_MVMCStruct)
             MVM_exception_throw_adhoc(tc,
-                "Native call expected return type with CStruct representation, but got something else");
+                "Native call expected return type with CStruct representation, but got a %s", REPR(type)->name);
         result = REPR(type)->allocate(tc, STABLE(type));
         ((MVMCStruct *)result)->body.cstruct = cstruct;
         if (repr_data->num_child_objs)
@@ -177,7 +177,7 @@ MVMObject * MVM_nativecall_make_cpointer(MVMThreadContext *tc, MVMObject *type, 
     if (ptr && type) {
         if (REPR(type)->ID != MVM_REPR_ID_MVMCPointer)
             MVM_exception_throw_adhoc(tc,
-                "Native call expected return type with CPointer representation, but got something else");
+                "Native call expected return type with CPointer representation, but got a %s", REPR(type)->name);
         result = REPR(type)->allocate(tc, STABLE(type));
         ((MVMCPointer *)result)->body.ptr = ptr;
     }
@@ -190,7 +190,7 @@ MVMObject * MVM_nativecall_make_carray(MVMThreadContext *tc, MVMObject *type, vo
     if (carray && type) {
         if (REPR(type)->ID != MVM_REPR_ID_MVMCArray)
             MVM_exception_throw_adhoc(tc,
-                "Native call expected return type with CArray representation, but got something else");
+                "Native call expected return type with CArray representation, but got a %s", REPR(type)->name);
         result = REPR(type)->allocate(tc, STABLE(type));
         ((MVMCArray *)result)->body.storage = carray;
     }
@@ -266,7 +266,7 @@ static void * unmarshal_cstruct(MVMThreadContext *tc, MVMObject *value) {
         return ((MVMCStruct *)value)->body.cstruct;
     else
         MVM_exception_throw_adhoc(tc,
-            "Native call expected object with CStruct representation, but got something else");
+            "Native call expected return type with CStruct representation, but got a %s", REPR(value)->name);
 }
 
 static void * unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value) {
@@ -276,7 +276,7 @@ static void * unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value) {
         return ((MVMCPointer *)value)->body.ptr;
     else
         MVM_exception_throw_adhoc(tc,
-            "Native call expected object with CPointer representation, but got something else");
+            "Native call expected return type with CPointer representation, but got a %s", REPR(value)->name);
 }
 
 static void * unmarshal_carray(MVMThreadContext *tc, MVMObject *value) {
@@ -286,7 +286,7 @@ static void * unmarshal_carray(MVMThreadContext *tc, MVMObject *value) {
         return ((MVMCArray *)value)->body.storage;
     else
         MVM_exception_throw_adhoc(tc,
-            "Native call expected object with CArray representation, but got something else");
+            "Native call expected return type with CArray representation, but got a %s", REPR(value)->name);
 }
 
 /* Sets up a callback, caching the information to avoid duplicate work. */
@@ -913,7 +913,7 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
         data_body = unmarshal_cpointer(tc, source);
     } else {
         MVM_exception_throw_adhoc(tc,
-            "Native call cast expected object with CPointer or CStruct representation, but got something else");
+            "Native call expected return type with CPointer or CStruct representation, but got a %s", REPR(source)->name);
     }
     return nativecall_cast(tc, target_spec, target_type, data_body);
 }
