@@ -82,7 +82,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     if (!repr_data)
         MVM_exception_throw_adhoc(tc, "CArray type must be composed before use");
 
-    body->storage = MVM_malloc(4 * repr_data->elem_size);
+    body->storage = MVM_calloc(4, repr_data->elem_size);
     body->managed = 1;
 
     /* Don't need child_objs for numerics. */
@@ -182,8 +182,13 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
     if (min_size > next_size)
         next_size = min_size;
 
-    if (body->managed)
-        body->storage = MVM_realloc(body->storage, next_size * repr_data->elem_size);
+    if (body->managed) {
+        const size_t old_size = body->allocated * repr_data->elem_size;
+        const size_t new_size = next_size * repr_data->elem_size;
+
+        body->storage = MVM_realloc(body->storage, new_size);
+        memset((char *)body->storage + old_size, 0, new_size - old_size);
+    }
 
     is_complex = (repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CARRAY
                || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CPOINTER
