@@ -852,7 +852,7 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                     result = MVM_nativecall_make_cstruct(tc, target_type, (void *)cpointer_body);
                     break;
                 case MVM_REPR_ID_MVMCPointer:
-                    result = MVM_nativecall_make_cpointer(tc, target_type, *(void **)cpointer_body);
+                    result = MVM_nativecall_make_cpointer(tc, target_type, (void *)cpointer_body);
                     break;
                 case MVM_REPR_ID_MVMCArray: {
                     result = MVM_nativecall_make_carray(tc, target_type, (void *)cpointer_body);
