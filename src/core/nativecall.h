@@ -14,7 +14,8 @@
 #define MVM_NATIVECALL_ARG_CARRAY          24
 #define MVM_NATIVECALL_ARG_CALLBACK        26
 #define MVM_NATIVECALL_ARG_CPOINTER        28
-#define MVM_NATIVECALL_ARG_TYPE_MASK       30
+#define MVM_NATIVECALL_ARG_VMARRAY         30
+#define MVM_NATIVECALL_ARG_TYPE_MASK       62
 
 /* Flag for whether we should free a string after passing it or not. */
 #define MVM_NATIVECALL_ARG_NO_FREE_STR     0

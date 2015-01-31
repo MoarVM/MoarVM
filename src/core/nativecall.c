@@ -58,6 +58,8 @@ static MVMint16 get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMint16 is_
         result = MVM_NATIVECALL_ARG_CPOINTER;
     else if (strcmp(ctypename, "carray") == 0)
         result = MVM_NATIVECALL_ARG_CARRAY;
+    else if (strcmp(ctypename, "vmarray") == 0)
+        result = MVM_NATIVECALL_ARG_VMARRAY;
     else if (strcmp(ctypename, "callback") == 0)
         result = MVM_NATIVECALL_ARG_CALLBACK;
     else
@@ -110,6 +112,7 @@ static char get_signature_char(MVMint16 type_id) {
         case MVM_NATIVECALL_ARG_CSTRUCT:
         case MVM_NATIVECALL_ARG_CPOINTER:
         case MVM_NATIVECALL_ARG_CARRAY:
+        case MVM_NATIVECALL_ARG_VMARRAY:
         case MVM_NATIVECALL_ARG_CALLBACK:
             return 'p';
         default:
@@ -287,6 +290,20 @@ static void * unmarshal_carray(MVMThreadContext *tc, MVMObject *value) {
     else
         MVM_exception_throw_adhoc(tc,
             "Native call expected object with CArray representation, but got something else");
+}
+
+static void * unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value) {
+    if (!IS_CONCRETE(value))
+        return NULL;
+    else if (REPR(value)->ID == MVM_REPR_ID_MVMArray) {
+        MVMArrayBody *body = &((MVMArray *)value)->body;
+        MVMArrayREPRData *repr_data = ((MVMArray *)value)->common.st->REPR_data;
+        size_t start_pos = body->start * repr_data->elem_size;
+        return ((char *)body->slots.any) + start_pos;
+    }
+    else
+        MVM_exception_throw_adhoc(tc,
+            "Native call expected object with Array representation, but got something else");
 }
 
 /* Sets up a callback, caching the information to avoid duplicate work. */
@@ -548,6 +565,9 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         case MVM_NATIVECALL_ARG_CARRAY:
             cb_result->p = unmarshal_carray(data->tc, res.o);
             break;
+        case MVM_NATIVECALL_ARG_VMARRAY:
+            cb_result->p = unmarshal_vmarray(data->tc, res.o);
+            break;
         case MVM_NATIVECALL_ARG_CALLBACK:
             cb_result->p = unmarshal_callback(data->tc, res.o, data->types[0]);
             break;
@@ -678,6 +698,9 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 break;
             case MVM_NATIVECALL_ARG_CARRAY:
                 dcArgPointer(vm, unmarshal_carray(tc, value));
+                break;
+            case MVM_NATIVECALL_ARG_VMARRAY:
+                dcArgPointer(vm, unmarshal_vmarray(tc, value));
                 break;
             case MVM_NATIVECALL_ARG_CALLBACK:
                 dcArgPointer(vm, unmarshal_callback(tc, value, body->arg_info[i]));
