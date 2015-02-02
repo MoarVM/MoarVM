@@ -296,14 +296,14 @@ static void * unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_MVMArray) {
-        MVMArrayBody *body = &((MVMArray *)value)->body;
-        MVMArrayREPRData *repr_data = ((MVMArray *)value)->common.st->REPR_data;
-        size_t start_pos = body->start * repr_data->elem_size;
+        MVMArrayBody *body          = &((MVMArray *)value)->body;
+        MVMArrayREPRData *repr_data = (MVMArrayREPRData *)STABLE(value)->REPR_data;
+        size_t start_pos            = body->start * repr_data->elem_size;
         return ((char *)body->slots.any) + start_pos;
     }
     else
         MVM_exception_throw_adhoc(tc,
-            "Native call expected object with Array representation, but got something else");
+            "Native call expected object with Array representation, but got a %s", REPR(value)->name);
 }
 
 /* Sets up a callback, caching the information to avoid duplicate work. */
