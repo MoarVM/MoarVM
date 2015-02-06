@@ -27,14 +27,6 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         entry->foreign_type_int = tc->instance->boot_types.BOOTInt;
         entry->foreign_type_num = tc->instance->boot_types.BOOTNum;
         entry->foreign_type_str = tc->instance->boot_types.BOOTStr;
-        entry->foreign_transform_array = NULL;
-        entry->foreign_transform_hash = NULL;
-        entry->foreign_transform_code = NULL;
-        entry->null_value = NULL;
-        entry->exit_handler = NULL;
-        entry->finalize_handler = NULL;
-        entry->bind_error = NULL;
-        entry->method_not_found_error = NULL;
         if (tc->instance->hll_compilee_depth)
             HASH_ADD_KEYPTR(hash_handle, tc->instance->compilee_hll_configs, kdata, klen, entry);
         else
