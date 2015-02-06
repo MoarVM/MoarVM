@@ -4339,10 +4339,27 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(iscont_n):
             OP(iscont_s):
                 MVM_exception_throw_adhoc(tc, "Native iscont ops NYI");
-            OP(assign_i):
-            OP(assign_n):
-            OP(assign_s):
-                MVM_exception_throw_adhoc(tc, "Native assign ops NYI");
+            OP(assign_i): {
+                MVMObject *cont  = GET_REG(cur_op, 0).o;
+                MVMint64   value = GET_REG(cur_op, 2).i64;
+                cur_op += 4;
+                MVM_6model_container_assign_i(tc, cont, value);
+                goto NEXT;
+            }
+            OP(assign_n): {
+                MVMObject *cont  = GET_REG(cur_op, 0).o;
+                MVMnum64   value = GET_REG(cur_op, 2).n64;
+                cur_op += 4;
+                MVM_6model_container_assign_n(tc, cont, value);
+                goto NEXT;
+            }
+            OP(assign_s): {
+                MVMObject *cont  = GET_REG(cur_op, 0).o;
+                MVMString *value = GET_REG(cur_op, 2).s;
+                cur_op += 4;
+                MVM_6model_container_assign_s(tc, cont, value);
+                goto NEXT;
+            }
             OP(decont_i): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMRegister *r = &GET_REG(cur_op, 0);

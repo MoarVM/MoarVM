@@ -233,3 +233,30 @@ void MVM_6model_container_decont_s(MVMThreadContext *tc, MVMObject *cont, MVMReg
     else
         res->s = MVM_repr_get_str(tc, cont);
 }
+
+/* Checks we have a container, and provided we do, assigns an int into it. */
+void MVM_6model_container_assign_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
+    const MVMContainerSpec *cs = STABLE(cont)->container_spec;
+    if (cs && IS_CONCRETE(cont))
+        cs->store_i(tc, cont, value);
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
+}
+
+/* Checks we have a container, and provided we do, assigns a num into it. */
+void MVM_6model_container_assign_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value) {
+    const MVMContainerSpec *cs = STABLE(cont)->container_spec;
+    if (cs && IS_CONCRETE(cont))
+        cs->store_n(tc, cont, value);
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
+}
+
+/* Checks we have a container, and provided we do, assigns a str into it. */
+void MVM_6model_container_assign_s(MVMThreadContext *tc, MVMObject *cont, MVMString *value) {
+    const MVMContainerSpec *cs = STABLE(cont)->container_spec;
+    if (cs && IS_CONCRETE(cont))
+        cs->store_s(tc, cont, value);
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
+}
