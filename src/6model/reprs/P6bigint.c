@@ -5,17 +5,17 @@
 static MVMuint64 mp_get_int64(mp_int * a) {
     int i;
     MVMuint64 res;
-    
+
     if (a->used == 0) {
          return 0;
     }
-    
+
     /* get number of digits of the lsb we have to read */
     i = MIN(a->used,(int)((sizeof(MVMuint64)*CHAR_BIT+DIGIT_BIT-1)/DIGIT_BIT))-1;
-    
+
     /* get most significant digit of result */
     res = DIGIT(a,i);
-     
+
     while (--i >= 0) {
         res = (res << DIGIT_BIT) | DIGIT(a,i);
     }
@@ -179,10 +179,10 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
 
-    if (MVM_serialization_read_varint(tc, reader) == 1) { // Is it small int?
+    if (MVM_serialization_read_varint(tc, reader) == 1) { /* Is it small int? */
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
         body->u.smallint.value = MVM_serialization_read_varint(tc, reader);
-    } else {  // big int
+    } else {  /* big int */
         char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), NULL);
         body->u.bigint = MVM_malloc(sizeof(mp_int));
         mp_init(body->u.bigint);
