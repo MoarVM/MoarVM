@@ -440,3 +440,14 @@ void MVM_file_symlink(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpa
     MVM_free(oldpath_s);
     MVM_free(newpath_s);
 }
+
+MVMString * MVM_file_readlink(MVMThreadContext *tc, MVMString *path) {
+    uv_fs_t req;
+    char * const path_s = MVM_string_utf8_encode_C_string(tc, path);
+    int pathlen = uv_fs_readlink(tc->loop, &req, path_s, NULL);
+    MVM_free(path_s);
+    if (pathlen) {
+        return MVM_string_utf8_decode(tc, tc->instance->VMString, req.ptr, pathlen);
+    }
+    MVM_exception_throw_adhoc(tc, "Failed to readlink file: %s", uv_strerror(req.result));
+}

@@ -40,3 +40,4 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
 MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig);
 void MVM_file_link(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath);
 void MVM_file_symlink(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath);
+MVMString * MVM_file_readlink(MVMThreadContext *tc, MVMString *path);
