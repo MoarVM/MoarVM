@@ -4335,6 +4335,34 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
+            OP(iscont_i):
+            OP(iscont_n):
+            OP(iscont_s):
+            OP(assign_i):
+            OP(assign_n):
+            OP(assign_s):
+            OP(decont_i):
+            OP(decont_n):
+            OP(decont_s):
+            OP(getregref_i):
+            OP(getregref_n):
+            OP(getregref_s):
+            OP(getlexref_i):
+            OP(getlexref_n):
+            OP(getlexref_s):
+            OP(getlexref_ni):
+            OP(getlexref_nn):
+            OP(getlexref_ns):
+            OP(atposref_i):
+            OP(atposref_n):
+            OP(atposref_s):
+            OP(getattrref_i):
+            OP(getattrref_n):
+            OP(getattrref_s):
+            OP(getattrsref_i):
+            OP(getattrsref_n):
+            OP(getattrsref_s):
+                MVM_exception_throw_adhoc(tc, "Native reference ops NYI");
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
