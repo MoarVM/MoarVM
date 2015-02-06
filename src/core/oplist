@@ -661,7 +661,7 @@ parameterizetype    w(obj) r(obj) r(obj)
 typeparameterized   w(obj) r(obj)
 typeparameters      w(obj) r(obj)
 typeparameterat     w(obj) r(obj) r(int64)
-readlink            r(str)
+readlink            w(str) r(str)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
