@@ -443,11 +443,17 @@ void MVM_file_symlink(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpa
 
 MVMString * MVM_file_readlink(MVMThreadContext *tc, MVMString *path) {
     uv_fs_t req;
+    MVMString *result;
+
     char * const path_s = MVM_string_utf8_encode_C_string(tc, path);
     if (uv_fs_readlink(tc->loop, &req, path_s, NULL) < 0) {
         MVM_free(path_s);
         MVM_exception_throw_adhoc(tc, "Failed to readlink file: %s", uv_strerror(req.result));
     }
+
     MVM_free(path_s);
-    return MVM_string_utf8_decode(tc, tc->instance->VMString, req.ptr, strlen(req.ptr));
+    result = MVM_string_utf8_decode(tc, tc->instance->VMString, req.ptr, strlen(req.ptr));
+    MVM_free(req.ptr);
+
+    return result;
 }
