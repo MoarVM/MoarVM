@@ -199,3 +199,37 @@ void MVM_6model_containers_setup(MVMThreadContext *tc) {
     MVM_6model_add_container_config(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "code_pair"), &ContainerConfigurer);
 }
+
+/* ***************************************************************************
+ * Native container/reference operations
+ * ***************************************************************************/
+
+/* If it's a container, do a fetch_i. Otherwise, try to unbox the received
+ * value as a native integer. */
+void MVM_6model_container_decont_i(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    const MVMContainerSpec *cs = STABLE(cont)->container_spec;
+    if (cs && IS_CONCRETE(cont))
+        cs->fetch_i(tc, cont, res);
+    else
+        res->i64 = MVM_repr_get_int(tc, cont);
+}
+
+/* If it's a container, do a fetch_n. Otherwise, try to unbox the received
+ * value as a native number. */
+void MVM_6model_container_decont_n(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    const MVMContainerSpec *cs = STABLE(cont)->container_spec;
+    if (cs && IS_CONCRETE(cont))
+        cs->fetch_n(tc, cont, res);
+    else
+        res->n64 = MVM_repr_get_num(tc, cont);
+}
+
+/* If it's a container, do a fetch_s. Otherwise, try to unbox the received
+ * value as a native string. */
+void MVM_6model_container_decont_s(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    const MVMContainerSpec *cs = STABLE(cont)->container_spec;
+    if (cs && IS_CONCRETE(cont))
+        cs->fetch_s(tc, cont, res);
+    else
+        res->s = MVM_repr_get_str(tc, cont);
+}

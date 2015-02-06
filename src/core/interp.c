@@ -4338,12 +4338,32 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(iscont_i):
             OP(iscont_n):
             OP(iscont_s):
+                MVM_exception_throw_adhoc(tc, "Native iscont ops NYI");
             OP(assign_i):
             OP(assign_n):
             OP(assign_s):
-            OP(decont_i):
-            OP(decont_n):
-            OP(decont_s):
+                MVM_exception_throw_adhoc(tc, "Native assign ops NYI");
+            OP(decont_i): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                cur_op += 4;
+                MVM_6model_container_decont_i(tc, obj, r);
+                goto NEXT;
+            }
+            OP(decont_n): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                cur_op += 4;
+                MVM_6model_container_decont_n(tc, obj, r);
+                goto NEXT;
+            }
+            OP(decont_s): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                cur_op += 4;
+                MVM_6model_container_decont_s(tc, obj, r);
+                goto NEXT;
+            }
             OP(getregref_i):
             OP(getregref_n):
             OP(getregref_s):
@@ -4362,7 +4382,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattrsref_i):
             OP(getattrsref_n):
             OP(getattrsref_s):
-                MVM_exception_throw_adhoc(tc, "Native reference ops NYI");
+                MVM_exception_throw_adhoc(tc, "Native reference taking ops NYI");
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

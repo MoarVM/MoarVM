@@ -73,3 +73,6 @@ struct MVMContainerRegistry {
 MVM_PUBLIC void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name, const MVMContainerConfigurer *configurer);
 const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name);
 void MVM_6model_containers_setup(MVMThreadContext *tc);
+void MVM_6model_container_decont_i(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
+void MVM_6model_container_decont_n(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
+void MVM_6model_container_decont_s(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
