@@ -178,24 +178,16 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Deserializes the bigint. */
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
-    MVMuint64 output_size;
-    int read_bigint = 0;
 
-    if (reader->root.version >= 10) {
-        if (MVM_serialization_read_varint(tc, reader) == 1) {
-            body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-            body->u.smallint.value = MVM_serialization_read_varint(tc, reader);
-        } else {
-            read_bigint = 1;
-        }
-    } else {
-        read_bigint = 1;
-    }
-    if (read_bigint) {
-        const char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), &output_size);
+    if (MVM_serialization_read_varint(tc, reader) == 1) { // Is it small int?
+        body->u.smallint.flag = MVM_BIGINT_32_FLAG;
+        body->u.smallint.value = MVM_serialization_read_varint(tc, reader);
+    } else {  // big int
+        char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), NULL);
         body->u.bigint = MVM_malloc(sizeof(mp_int));
         mp_init(body->u.bigint);
         mp_read_radix(body->u.bigint, buf, 10);
+        MVM_free(buf);
     }
 }
 
