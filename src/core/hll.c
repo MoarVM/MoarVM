@@ -71,6 +71,14 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     MVMObject *val = MVM_repr_at_key_o((tc), (hash), key); \
     if (!MVM_is_null(tc, val)) (config)->member = val; \
 } while (0)
+#define check_config_key_reftype(tc, hash, name, member, config, wantprim, wantkind) do { \
+    MVMString *key = MVM_string_utf8_decode((tc), (tc)->instance->VMString, (name), strlen((name))); \
+    MVMObject *val = MVM_repr_at_key_o((tc), (hash), key); \
+    if (!MVM_is_null(tc, val)) { \
+        MVM_nativeref_ensure(tc, val, wantprim, wantkind, name); \
+        (config)->member = val; \
+    }\
+} while (0)
 
 MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject *config_hash) {
     MVMHLLConfig *config;
@@ -102,15 +110,24 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key(tc, config_hash, "finalize_handler", finalize_handler, config);
             check_config_key(tc, config_hash, "bind_error", bind_error, config);
             check_config_key(tc, config_hash, "method_not_found_error", method_not_found_error, config);
-            check_config_key(tc, config_hash, "int_lex_ref", int_lex_ref, config);
-            check_config_key(tc, config_hash, "num_lex_ref", num_lex_ref, config);
-            check_config_key(tc, config_hash, "str_lex_ref", str_lex_ref, config);
-            check_config_key(tc, config_hash, "int_attr_ref", int_attr_ref, config);
-            check_config_key(tc, config_hash, "num_attr_ref", num_attr_ref, config);
-            check_config_key(tc, config_hash, "str_attr_ref", str_attr_ref, config);
-            check_config_key(tc, config_hash, "int_pos_ref", int_pos_ref, config);
-            check_config_key(tc, config_hash, "num_pos_ref", num_pos_ref, config);
-            check_config_key(tc, config_hash, "str_pos_ref", str_pos_ref, config);
+            check_config_key_reftype(tc, config_hash, "int_lex_ref", int_lex_ref,
+                config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_LEXICAL);
+            check_config_key_reftype(tc, config_hash, "num_lex_ref", num_lex_ref,
+                config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_LEXICAL);
+            check_config_key_reftype(tc, config_hash, "str_lex_ref", str_lex_ref,
+                config, MVM_STORAGE_SPEC_BP_STR, MVM_NATIVEREF_LEXICAL);
+            check_config_key_reftype(tc, config_hash, "int_attr_ref", int_attr_ref,
+                config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_ATTRIBUTE);
+            check_config_key_reftype(tc, config_hash, "num_attr_ref", num_attr_ref,
+                config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_ATTRIBUTE);
+            check_config_key_reftype(tc, config_hash, "str_attr_ref", str_attr_ref,
+                config, MVM_STORAGE_SPEC_BP_STR, MVM_NATIVEREF_ATTRIBUTE);
+            check_config_key_reftype(tc, config_hash, "int_pos_ref", int_pos_ref,
+                config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_POSITIONAL);
+            check_config_key_reftype(tc, config_hash, "num_pos_ref", num_pos_ref,
+                config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_POSITIONAL);
+            check_config_key_reftype(tc, config_hash, "str_pos_ref", str_pos_ref,
+                config, MVM_STORAGE_SPEC_BP_STR, MVM_NATIVEREF_POSITIONAL);
         });
 
     MVM_intcache_for(tc, config->int_box_type);

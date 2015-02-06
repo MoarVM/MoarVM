@@ -146,3 +146,20 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_NativeRef,
     1, /* refs_frames */
 };
+
+/* Validates the given type is a native reference of the required primitive
+ * type and reference kind. */
+void MVM_nativeref_ensure(MVMThreadContext *tc, MVMObject *type, MVMuint16 wantprim, MVMuint16 wantkind, char *guilty) {
+    if (REPR(type)->ID == MVM_REPR_ID_NativeRef) {
+        MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(type)->REPR_data;
+        if (!repr_data)
+            MVM_exception_throw_adhoc(tc, "%s set to NativeRef that is not yet composed", guilty);
+        if (repr_data->primitive_type != wantprim)
+            MVM_exception_throw_adhoc(tc, "%s set to NativeRef of wrong primitive type", guilty);
+        if (repr_data->ref_kind != wantkind)
+            MVM_exception_throw_adhoc(tc, "%s set to NativeRef of wrong reference kind", guilty);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "%s requires a type with REPR NativeRef", guilty);
+    }
+}

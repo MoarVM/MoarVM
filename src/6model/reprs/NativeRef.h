@@ -38,3 +38,6 @@ struct MVMNativeRefREPRData {
 
 /* Function for REPR setup. */
 const MVMREPROps * MVMNativeRef_initialize(MVMThreadContext *tc);
+
+/* Operations on a nativeref REPR. */
+void MVM_nativeref_ensure(MVMThreadContext *tc, MVMObject *val, MVMuint16 wantprim, MVMuint16 wantkind, char *guilty);
