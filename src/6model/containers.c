@@ -146,9 +146,85 @@ static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *
     });
 }
 
-static const MVMContainerConfigurer ContainerConfigurer = {
+static const MVMContainerConfigurer CodePairContainerConfigurer = {
     code_pair_set_container_spec,
     code_pair_configure_container_spec
+};
+
+/* ***************************************************************************
+ * Native reference container configuration
+ * ***************************************************************************/
+
+static void native_ref_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+
+static void native_ref_fetch_i(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+
+static void native_ref_fetch_n(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+
+static void native_ref_fetch_s(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+
+static void native_ref_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *obj) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+
+static void native_ref_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+
+static void native_ref_store_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+
+static void native_ref_store_s(MVMThreadContext *tc, MVMObject *cont, MVMString *value) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+
+static void native_ref_serialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
+    /* Nothing to do. */
+}
+
+static void native_ref_deserialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    /* Nothing to do. */
+}
+
+static const MVMContainerSpec native_ref_spec = {
+    "native_ref",
+    native_ref_fetch,
+    native_ref_fetch_i,
+    native_ref_fetch_n,
+    native_ref_fetch_s,
+    native_ref_store,
+    native_ref_store_i,
+    native_ref_store_n,
+    native_ref_store_s,
+    native_ref_store,
+    NULL, /* spesh */
+    NULL, /* gc_mark_data */
+    NULL, /* gc_free_data */
+    native_ref_serialize,
+    native_ref_deserialize,
+    1
+};
+
+static void native_ref_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
+    st->container_spec = &native_ref_spec;
+}
+
+static void native_ref_configure_container_spec(MVMThreadContext *tc, MVMSTable *st, MVMObject *config) {
+    /* Nothing to do. */
+}
+
+static const MVMContainerConfigurer NativeRefContainerConfigurer = {
+    native_ref_set_container_spec,
+    native_ref_configure_container_spec
 };
 
 /* ***************************************************************************
@@ -197,7 +273,9 @@ const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext 
 void MVM_6model_containers_setup(MVMThreadContext *tc) {
     /* Add built-in configurations. */
     MVM_6model_add_container_config(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "code_pair"), &ContainerConfigurer);
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "code_pair"), &CodePairContainerConfigurer);
+    MVM_6model_add_container_config(tc,
+        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "native_ref"), &NativeRefContainerConfigurer);
 }
 
 /* ***************************************************************************
