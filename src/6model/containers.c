@@ -4,32 +4,67 @@
  * CodePair container configuration: container with FETCH/STORE code refs
  * ***************************************************************************/
 
-typedef struct {
+ typedef struct {
     MVMObject *fetch_code;
     MVMObject *store_code;
 } CodePairContData;
 
-static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+static void code_pair_fetch_internal(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res, MVMReturnType res_type) {
     CodePairContData        *data = (CodePairContData *)STABLE(cont)->container_data;
     MVMObject               *code = MVM_frame_find_invokee(tc, data->fetch_code, NULL);
     MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
-
-    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, inv_arg_callsite);
+    MVM_args_setup_thunk(tc, res, res_type, inv_arg_callsite);
     tc->cur_frame->args[0].o      = cont;
-
     STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
 }
 
-static void code_pair_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *obj) {
+static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    code_pair_fetch_internal(tc, cont, res, MVM_RETURN_OBJ);
+}
+
+static void code_pair_fetch_i(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    code_pair_fetch_internal(tc, cont, res, MVM_RETURN_INT);
+}
+
+static void code_pair_fetch_n(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    code_pair_fetch_internal(tc, cont, res, MVM_RETURN_NUM);
+}
+
+static void code_pair_fetch_s(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    code_pair_fetch_internal(tc, cont, res, MVM_RETURN_STR);
+}
+
+static void code_pair_store_internal(MVMThreadContext *tc, MVMObject *cont, MVMRegister value, MVMCallsite *cs) {
     CodePairContData         *data = (CodePairContData *)STABLE(cont)->container_data;
     MVMObject                *code = MVM_frame_find_invokee(tc, data->store_code, NULL);
-    MVMCallsite *two_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ);
-
-    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
+    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, cs);
     tc->cur_frame->args[0].o       = cont;
-    tc->cur_frame->args[1].o       = obj;
+    tc->cur_frame->args[1]         = value;
+    STABLE(code)->invoke(tc, code, cs, tc->cur_frame->args);
+}
 
-    STABLE(code)->invoke(tc, code, two_args_callsite, tc->cur_frame->args);
+static void code_pair_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *obj) {
+    MVMRegister r;
+    r.o = obj;
+    code_pair_store_internal(tc, cont, r, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ));
+}
+
+static void code_pair_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
+    MVMRegister r;
+    r.i64 = value;
+    code_pair_store_internal(tc, cont, r, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_INT));
+}
+
+static void code_pair_store_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value) {
+    MVMRegister r;
+    r.n64 = value;
+    code_pair_store_internal(tc, cont, r, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_NUM));
+}
+
+static void code_pair_store_s(MVMThreadContext *tc, MVMObject *cont, MVMString *value) {
+    MVMRegister r;
+    r.s = value;
+    code_pair_store_internal(tc, cont, r, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_STR));
 }
 
 static void code_pair_gc_mark_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
@@ -65,7 +100,13 @@ static void code_pair_deserialize(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 static const MVMContainerSpec code_pair_spec = {
     "code_pair",
     code_pair_fetch,
+    code_pair_fetch_i,
+    code_pair_fetch_n,
+    code_pair_fetch_s,
     code_pair_store,
+    code_pair_store_i,
+    code_pair_store_n,
+    code_pair_store_s,
     code_pair_store,
     NULL, /* spesh */
     code_pair_gc_mark_data,

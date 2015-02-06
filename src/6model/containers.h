@@ -10,8 +10,18 @@ struct MVMContainerSpec {
     /* Fetches a value out of a container. Used for decontainerization. */
     void (*fetch) (MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
 
+    /* Native value fetches. */
+    void (*fetch_i) (MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
+    void (*fetch_n) (MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
+    void (*fetch_s) (MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
+
     /* Stores a value in a container. Used for assignment. */
     void (*store) (MVMThreadContext *tc, MVMObject *cont, MVMObject *obj);
+
+    /* Native container stores. */
+    void (*store_i) (MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
+    void (*store_n) (MVMThreadContext *tc, MVMObject *cont, MVMnum64 value);
+    void (*store_s) (MVMThreadContext *tc, MVMObject *cont, MVMString *value);
 
     /* Stores a value in a container, without any checking of it (this
      * assumes an optimizer or something else already did it). Used for
