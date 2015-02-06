@@ -27,6 +27,27 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMNativeRef);
 }
 
+/* Serializes the REPR data. */
+static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
+    MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)st->REPR_data;
+    if (repr_data) {
+        MVM_serialization_write_varint(tc, writer, repr_data->primitive_type);
+        MVM_serialization_write_varint(tc, writer, repr_data->ref_kind);
+    }
+    else {
+        MVM_serialization_write_varint(tc, writer, 0);
+        MVM_serialization_write_varint(tc, writer, 0);
+    }
+}
+
+/* Deserializes REPR data. */
+static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
+    MVMNativeRefREPRData *repr_data = MVM_malloc(sizeof(MVMNativeRefREPRData));
+    repr_data->primitive_type = MVM_serialization_read_varint(tc, reader);
+    repr_data->ref_kind       = MVM_serialization_read_varint(tc, reader);
+    st->REPR_data = repr_data;
+}
+
 /* Called by the VM to mark any GCable items. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMNativeRefBody *ref = (MVMNativeRefBody *)data;
@@ -132,8 +153,8 @@ static const MVMREPROps this_repr = {
     NULL, /* change_type */
     NULL, /* serialize */
     NULL, /* deserialize */
-    NULL, /* serialize_repr_data */
-    NULL, /* deserialize_repr_data */
+    serialize_repr_data,
+    deserialize_repr_data,
     deserialize_stable_size,
     gc_mark,
     gc_free,
