@@ -278,13 +278,16 @@ MVMString * MVM_nativeref_read_attribute_s(MVMThreadContext *tc, MVMObject *ref_
         ref->body.u.attribute.class_handle, ref->body.u.attribute.name, MVM_NO_HINT);
 }
 MVMint64 MVM_nativeref_read_positional_i(MVMThreadContext *tc, MVMObject *ref_obj) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    return MVM_repr_at_pos_i(tc, ref->body.u.positional.obj, ref->body.u.positional.idx);
 }
 MVMnum64 MVM_nativeref_read_positional_n(MVMThreadContext *tc, MVMObject *ref_obj) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    return MVM_repr_at_pos_n(tc, ref->body.u.positional.obj, ref->body.u.positional.idx);
 }
 MVMString * MVM_nativeref_read_positional_s(MVMThreadContext *tc, MVMObject *ref_obj) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    return MVM_repr_at_pos_s(tc, ref->body.u.positional.obj, ref->body.u.positional.idx);
 }
 
 /* Reference write functions. Same (non-checking) rules as the reads above. */
@@ -319,11 +322,14 @@ void MVM_nativeref_write_attribute_s(MVMThreadContext *tc, MVMObject *ref_obj, M
         ref->body.u.attribute.name, MVM_NO_HINT, r, MVM_reg_str);
 }
 void MVM_nativeref_write_positional_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVM_repr_bind_pos_i(tc, ref->body.u.positional.obj, ref->body.u.positional.idx, value);
 }
 void MVM_nativeref_write_positional_n(MVMThreadContext *tc, MVMObject *ref_obj, MVMnum64 value) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVM_repr_bind_pos_n(tc, ref->body.u.positional.obj, ref->body.u.positional.idx, value);
 }
 void MVM_nativeref_write_positional_s(MVMThreadContext *tc, MVMObject *ref_obj, MVMString *value) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVM_repr_bind_pos_s(tc, ref->body.u.positional.obj, ref->body.u.positional.idx, value);
 }
