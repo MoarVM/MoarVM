@@ -224,30 +224,36 @@ MVMObject * MVM_nativeref_attr_s(MVMThreadContext *tc, MVMObject *obj, MVMObject
  * they are more suited to calling from optimized code. The checking path is
  * in the native ref container implementation, in containers.c; after checks,
  * they delegate here. */
-MVMint64 MVM_nativeref_read_lexical_i(MVMThreadContext *tc, MVMObject *ref) {
+MVMint64 MVM_nativeref_read_lexical_i(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVM_exception_throw_adhoc(tc, "NYI");
 }
-MVMnum64 MVM_nativeref_read_lexical_n(MVMThreadContext *tc, MVMObject *ref) {
+MVMnum64 MVM_nativeref_read_lexical_n(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVM_exception_throw_adhoc(tc, "NYI");
 }
-MVMString * MVM_nativeref_read_lexical_s(MVMThreadContext *tc, MVMObject *ref) {
+MVMString * MVM_nativeref_read_lexical_s(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVM_exception_throw_adhoc(tc, "NYI");
 }
-MVMint64 MVM_nativeref_read_attribute_i(MVMThreadContext *tc, MVMObject *ref) {
+MVMint64 MVM_nativeref_read_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    return MVM_repr_get_attr_i(tc, ref->body.u.attribute.obj,
+        ref->body.u.attribute.class_handle, ref->body.u.attribute.name, MVM_NO_HINT);
+}
+MVMnum64 MVM_nativeref_read_attribute_n(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    return MVM_repr_get_attr_n(tc, ref->body.u.attribute.obj,
+        ref->body.u.attribute.class_handle, ref->body.u.attribute.name, MVM_NO_HINT);
+}
+MVMString * MVM_nativeref_read_attribute_s(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    return MVM_repr_get_attr_s(tc, ref->body.u.attribute.obj,
+        ref->body.u.attribute.class_handle, ref->body.u.attribute.name, MVM_NO_HINT);
+}
+MVMint64 MVM_nativeref_read_positional_i(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVM_exception_throw_adhoc(tc, "NYI");
 }
-MVMnum64 MVM_nativeref_read_attribute_n(MVMThreadContext *tc, MVMObject *ref) {
+MVMnum64 MVM_nativeref_read_positional_n(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVM_exception_throw_adhoc(tc, "NYI");
 }
-MVMString * MVM_nativeref_read_attribute_s(MVMThreadContext *tc, MVMObject *ref) {
-    MVM_exception_throw_adhoc(tc, "NYI");
-}
-MVMint64 MVM_nativeref_read_positional_i(MVMThreadContext *tc, MVMObject *ref) {
-    MVM_exception_throw_adhoc(tc, "NYI");
-}
-MVMnum64 MVM_nativeref_read_positional_n(MVMThreadContext *tc, MVMObject *ref) {
-    MVM_exception_throw_adhoc(tc, "NYI");
-}
-MVMString * MVM_nativeref_read_positional_s(MVMThreadContext *tc, MVMObject *ref) {
+MVMString * MVM_nativeref_read_positional_s(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVM_exception_throw_adhoc(tc, "NYI");
 }
