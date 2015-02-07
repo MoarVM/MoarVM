@@ -254,13 +254,16 @@ MVMObject * MVM_nativeref_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 i
  * in the native ref container implementation, in containers.c; after checks,
  * they delegate here. */
 MVMint64 MVM_nativeref_read_lexical_i(MVMThreadContext *tc, MVMObject *ref_obj) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    return ref->body.u.lexical.var->i64;
 }
 MVMnum64 MVM_nativeref_read_lexical_n(MVMThreadContext *tc, MVMObject *ref_obj) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    return ref->body.u.lexical.var->n64;
 }
 MVMString * MVM_nativeref_read_lexical_s(MVMThreadContext *tc, MVMObject *ref_obj) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    return ref->body.u.lexical.var->s;
 }
 MVMint64 MVM_nativeref_read_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
@@ -292,13 +295,16 @@ MVMString * MVM_nativeref_read_positional_s(MVMThreadContext *tc, MVMObject *ref
 
 /* Reference write functions. Same (non-checking) rules as the reads above. */
 void MVM_nativeref_write_lexical_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    ref->body.u.lexical.var->i64 = value;
 }
 void MVM_nativeref_write_lexical_n(MVMThreadContext *tc, MVMObject *ref_obj, MVMnum64 value) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    ref->body.u.lexical.var->n64 = value;
 }
 void MVM_nativeref_write_lexical_s(MVMThreadContext *tc, MVMObject *ref_obj, MVMString *value) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    ref->body.u.lexical.var->s = value;
 }
 void MVM_nativeref_write_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
