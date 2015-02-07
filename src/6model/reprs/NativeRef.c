@@ -218,3 +218,36 @@ MVMObject * MVM_nativeref_attr_s(MVMThreadContext *tc, MVMObject *obj, MVMObject
         return attrref(tc, ref_type, obj, class_handle, name);
     MVM_exception_throw_adhoc(tc, "No str attribute reference type registered for current HLL");
 }
+
+/* Reference read functions. These do no checks that the reference is of the
+ * right kind and primitive type, they just go ahead and do the read. Thus
+ * they are more suited to calling from optimized code. The checking path is
+ * in the native ref container implementation, in containers.c; after checks,
+ * they delegate here. */
+MVMint64 MVM_nativeref_read_lexical_i(MVMThreadContext *tc, MVMObject *ref) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+MVMnum64 MVM_nativeref_read_lexical_n(MVMThreadContext *tc, MVMObject *ref) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+MVMString * MVM_nativeref_read_lexical_s(MVMThreadContext *tc, MVMObject *ref) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+MVMint64 MVM_nativeref_read_attribute_i(MVMThreadContext *tc, MVMObject *ref) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+MVMnum64 MVM_nativeref_read_attribute_n(MVMThreadContext *tc, MVMObject *ref) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+MVMString * MVM_nativeref_read_attribute_s(MVMThreadContext *tc, MVMObject *ref) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+MVMint64 MVM_nativeref_read_positional_i(MVMThreadContext *tc, MVMObject *ref) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+MVMnum64 MVM_nativeref_read_positional_n(MVMThreadContext *tc, MVMObject *ref) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+MVMString * MVM_nativeref_read_positional_s(MVMThreadContext *tc, MVMObject *ref) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
