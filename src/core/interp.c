@@ -4384,13 +4384,37 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getregref_i):
             OP(getregref_n):
             OP(getregref_s):
+                MVM_exception_throw_adhoc(tc, "Native register reference taking ops NYI");
             OP(getlexref_i):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_i(tc,
+                    GET_UI16(cur_op, 2), GET_UI16(cur_op, 4));
+                cur_op += 6;
+                goto NEXT;
             OP(getlexref_n):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_n(tc,
+                    GET_UI16(cur_op, 2), GET_UI16(cur_op, 4));
+                cur_op += 6;
+                goto NEXT;
             OP(getlexref_s):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_s(tc,
+                    GET_UI16(cur_op, 2), GET_UI16(cur_op, 4));
+                cur_op += 6;
+                goto NEXT;
             OP(getlexref_ni):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_name_i(tc,
+                    cu->body.strings[GET_UI32(cur_op, 2)]);
+                cur_op += 6;
+                goto NEXT;
             OP(getlexref_nn):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_name_n(tc,
+                    cu->body.strings[GET_UI32(cur_op, 2)]);
+                cur_op += 6;
+                goto NEXT;
             OP(getlexref_ns):
-                MVM_exception_throw_adhoc(tc, "Native reference taking ops NYI");
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_name_s(tc,
+                    cu->body.strings[GET_UI32(cur_op, 2)]);
+                cur_op += 6;
+                goto NEXT;
             OP(atposref_i):
                 GET_REG(cur_op, 0).o = MVM_nativeref_pos_i(tc,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);

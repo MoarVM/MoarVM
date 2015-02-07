@@ -185,6 +185,26 @@ void MVM_nativeref_ensure(MVMThreadContext *tc, MVMObject *type, MVMuint16 wantp
     }
 }
 
+/* Creation of native references for lexicals. */
+MVMObject * MVM_nativeref_lex_i(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+MVMObject * MVM_nativeref_lex_n(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+MVMObject * MVM_nativeref_lex_name_i(MVMThreadContext *tc, MVMString *name) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+MVMObject * MVM_nativeref_lex_name_n(MVMThreadContext *tc, MVMString *name) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+MVMObject * MVM_nativeref_lex_name_s(MVMThreadContext *tc, MVMString *name) {
+    MVM_exception_throw_adhoc(tc, "NYI");
+}
+
 /* Creation of native references for attributes. */
 static MVMObject * attrref(MVMThreadContext *tc, MVMObject *type, MVMObject *obj, MVMObject *class_handle, MVMString *name) {
     MVMNativeRef *ref;
