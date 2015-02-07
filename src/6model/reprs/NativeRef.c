@@ -219,6 +219,35 @@ MVMObject * MVM_nativeref_attr_s(MVMThreadContext *tc, MVMObject *obj, MVMObject
     MVM_exception_throw_adhoc(tc, "No str attribute reference type registered for current HLL");
 }
 
+/* Creation of native references for positionals. */
+static MVMObject * posref(MVMThreadContext *tc, MVMObject *type, MVMObject *obj, MVMint64 idx) {
+    MVMNativeRef *ref;
+    MVMROOT(tc, obj, {
+        ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
+        MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.positional.obj, obj);
+        ref->body.u.positional.idx = idx;
+    });
+    return (MVMObject *)ref;
+}
+MVMObject * MVM_nativeref_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
+    MVMObject *ref_type = MVM_hll_current(tc)->int_pos_ref;
+    if (ref_type)
+        return posref(tc, ref_type, obj, idx);
+    MVM_exception_throw_adhoc(tc, "No int positional reference type registered for current HLL");
+}
+MVMObject * MVM_nativeref_pos_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
+    MVMObject *ref_type = MVM_hll_current(tc)->num_pos_ref;
+    if (ref_type)
+        return posref(tc, ref_type, obj, idx);
+    MVM_exception_throw_adhoc(tc, "No num positional reference type registered for current HLL");
+}
+MVMObject * MVM_nativeref_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
+    MVMObject *ref_type = MVM_hll_current(tc)->str_pos_ref;
+    if (ref_type)
+        return posref(tc, ref_type, obj, idx);
+    MVM_exception_throw_adhoc(tc, "No str positional reference type registered for current HLL");
+}
+
 /* Reference read functions. These do no checks that the reference is of the
  * right kind and primitive type, they just go ahead and do the read. Thus
  * they are more suited to calling from optimized code. The checking path is

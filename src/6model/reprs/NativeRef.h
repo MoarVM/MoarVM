@@ -44,6 +44,9 @@ void MVM_nativeref_ensure(MVMThreadContext *tc, MVMObject *val, MVMuint16 wantpr
 MVMObject * MVM_nativeref_attr_i(MVMThreadContext *tc, MVMObject *obj, MVMObject *class_handle, MVMString *name);
 MVMObject * MVM_nativeref_attr_n(MVMThreadContext *tc, MVMObject *obj, MVMObject *class_handle, MVMString *name);
 MVMObject * MVM_nativeref_attr_s(MVMThreadContext *tc, MVMObject *obj, MVMObject *class_handle, MVMString *name);
+MVMObject * MVM_nativeref_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx);
+MVMObject * MVM_nativeref_pos_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx);
+MVMObject * MVM_nativeref_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx);
 MVMint64 MVM_nativeref_read_lexical_i(MVMThreadContext *tc, MVMObject *ref);
 MVMnum64 MVM_nativeref_read_lexical_n(MVMThreadContext *tc, MVMObject *ref);
 MVMString * MVM_nativeref_read_lexical_s(MVMThreadContext *tc, MVMObject *ref);
