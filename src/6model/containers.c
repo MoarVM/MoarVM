@@ -234,19 +234,77 @@ static void native_ref_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister 
 }
 
 static void native_ref_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
+    if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_INT)
+        MVM_exception_throw_adhoc(tc, "This container does not reference a native integer");
+    switch (repr_data->ref_kind) {
+        case MVM_NATIVEREF_LEXICAL:
+            MVM_nativeref_write_lexical_i(tc, cont, value);
+            break;
+        case MVM_NATIVEREF_ATTRIBUTE:
+            MVM_nativeref_write_attribute_i(tc, cont, value);
+            break;
+        case MVM_NATIVEREF_POSITIONAL:
+            MVM_nativeref_write_positional_i(tc, cont, value);
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unknown native int reference kind");
+    }
 }
 
 static void native_ref_store_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
+    if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_NUM)
+        MVM_exception_throw_adhoc(tc, "This container does not reference a native number");
+    switch (repr_data->ref_kind) {
+        case MVM_NATIVEREF_LEXICAL:
+            MVM_nativeref_write_lexical_n(tc, cont, value);
+            break;
+        case MVM_NATIVEREF_ATTRIBUTE:
+            MVM_nativeref_write_attribute_n(tc, cont, value);
+            break;
+        case MVM_NATIVEREF_POSITIONAL:
+            MVM_nativeref_write_positional_n(tc, cont, value);
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unknown native num reference kind");
+    }
 }
 
 static void native_ref_store_s(MVMThreadContext *tc, MVMObject *cont, MVMString *value) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
+    if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_STR)
+        MVM_exception_throw_adhoc(tc, "This container does not reference a native string");
+    switch (repr_data->ref_kind) {
+        case MVM_NATIVEREF_LEXICAL:
+            MVM_nativeref_write_lexical_s(tc, cont, value);
+            break;
+        case MVM_NATIVEREF_ATTRIBUTE:
+            MVM_nativeref_write_attribute_s(tc, cont, value);
+            break;
+        case MVM_NATIVEREF_POSITIONAL:
+            MVM_nativeref_write_positional_s(tc, cont, value);
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unknown native str reference kind");
+    }
 }
 
 static void native_ref_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *obj) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
+    switch (repr_data->primitive_type) {
+        case MVM_STORAGE_SPEC_BP_INT:
+            native_ref_store_i(tc, cont, MVM_repr_get_int(tc, obj));
+            break;
+        case MVM_STORAGE_SPEC_BP_NUM:
+            native_ref_store_n(tc, cont, MVM_repr_get_num(tc, obj));
+            break;
+        case MVM_STORAGE_SPEC_BP_STR:
+            native_ref_store_s(tc, cont, MVM_repr_get_str(tc, obj));
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unknown native reference primitive type");
+    }
 }
 
 static void native_ref_serialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
