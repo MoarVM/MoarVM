@@ -186,6 +186,12 @@ void MVM_nativeref_ensure(MVMThreadContext *tc, MVMObject *type, MVMuint16 wantp
 }
 
 /* Creation of native references for lexicals. */
+static MVMObject * lexref(MVMThreadContext *tc, MVMObject *type, MVMFrame *f, MVMRegister *r) {
+    MVMNativeRef *ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
+    ref->body.u.lexical.frame = MVM_frame_inc_ref(tc, f);
+    ref->body.u.lexical.var   = r;
+    return (MVMObject *)ref;
+}
 MVMObject * MVM_nativeref_lex_i(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
     MVM_exception_throw_adhoc(tc, "NYI");
 }
@@ -195,14 +201,47 @@ MVMObject * MVM_nativeref_lex_n(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
 MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
     MVM_exception_throw_adhoc(tc, "NYI");
 }
+static MVMObject * lexref_by_name(MVMThreadContext *tc, MVMObject *type, MVMString *name, MVMuint16 kind) {
+    MVMFrame *cur_frame = tc->cur_frame;
+    MVM_string_flatten(tc, name);
+    while (cur_frame != NULL) {
+        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
+        if (lexical_names) {
+            MVMLexicalRegistry *entry;
+            MVM_HASH_GET(tc, lexical_names, name, entry)
+            if (entry) {
+                if (cur_frame->static_info->body.lexical_types[entry->value] == kind) {
+                    return lexref(tc, type, cur_frame, &cur_frame->env[entry->value]);
+                }
+                else {
+                   MVM_exception_throw_adhoc(tc,
+                        "Lexical with name '%s' has wrong type",
+                            MVM_string_utf8_encode_C_string(tc, name));
+                }
+            }
+        }
+        cur_frame = cur_frame->outer;
+    }
+    MVM_exception_throw_adhoc(tc, "No lexical found with name '%s'",
+        MVM_string_utf8_encode_C_string(tc, name));
+}
 MVMObject * MVM_nativeref_lex_name_i(MVMThreadContext *tc, MVMString *name) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMObject *ref_type = MVM_hll_current(tc)->int_lex_ref;
+    if (ref_type)
+        return lexref_by_name(tc, ref_type, name, MVM_reg_int64);
+    MVM_exception_throw_adhoc(tc, "No int lexical reference type registered for current HLL");
 }
 MVMObject * MVM_nativeref_lex_name_n(MVMThreadContext *tc, MVMString *name) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMObject *ref_type = MVM_hll_current(tc)->num_lex_ref;
+    if (ref_type)
+        return lexref_by_name(tc, ref_type, name, MVM_reg_num64);
+    MVM_exception_throw_adhoc(tc, "No num lexical reference type registered for current HLL");
 }
 MVMObject * MVM_nativeref_lex_name_s(MVMThreadContext *tc, MVMString *name) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMObject *ref_type = MVM_hll_current(tc)->str_lex_ref;
+    if (ref_type)
+        return lexref_by_name(tc, ref_type, name, MVM_reg_str);
+    MVM_exception_throw_adhoc(tc, "No str lexical reference type registered for current HLL");
 }
 
 /* Creation of native references for attributes. */
