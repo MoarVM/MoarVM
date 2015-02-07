@@ -53,3 +53,12 @@ MVMString * MVM_nativeref_read_attribute_s(MVMThreadContext *tc, MVMObject *ref)
 MVMint64 MVM_nativeref_read_positional_i(MVMThreadContext *tc, MVMObject *ref);
 MVMnum64 MVM_nativeref_read_positional_n(MVMThreadContext *tc, MVMObject *ref);
 MVMString * MVM_nativeref_read_positional_s(MVMThreadContext *tc, MVMObject *ref);
+void MVM_nativeref_write_lexical_i(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
+void MVM_nativeref_write_lexical_n(MVMThreadContext *tc, MVMObject *ref, MVMnum64 value);
+void MVM_nativeref_write_lexical_s(MVMThreadContext *tc, MVMObject *ref, MVMString *value);
+void MVM_nativeref_write_attribute_i(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
+void MVM_nativeref_write_attribute_n(MVMThreadContext *tc, MVMObject *ref, MVMnum64 value);
+void MVM_nativeref_write_attribute_s(MVMThreadContext *tc, MVMObject *ref, MVMString *value);
+void MVM_nativeref_write_positional_i(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
+void MVM_nativeref_write_positional_n(MVMThreadContext *tc, MVMObject *ref, MVMnum64 value);
+void MVM_nativeref_write_positional_s(MVMThreadContext *tc, MVMObject *ref, MVMString *value);
