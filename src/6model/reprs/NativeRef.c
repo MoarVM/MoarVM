@@ -269,13 +269,25 @@ void MVM_nativeref_write_lexical_s(MVMThreadContext *tc, MVMObject *ref_obj, MVM
     MVM_exception_throw_adhoc(tc, "NYI");
 }
 void MVM_nativeref_write_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVMRegister r;
+    r.i64 = value;
+    MVM_repr_bind_attr_inso(tc, ref->body.u.attribute.obj, ref->body.u.attribute.class_handle,
+        ref->body.u.attribute.name, MVM_NO_HINT, r, MVM_reg_int64);
 }
 void MVM_nativeref_write_attribute_n(MVMThreadContext *tc, MVMObject *ref_obj, MVMnum64 value) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVMRegister r;
+    r.n64 = value;
+    MVM_repr_bind_attr_inso(tc, ref->body.u.attribute.obj, ref->body.u.attribute.class_handle,
+        ref->body.u.attribute.name, MVM_NO_HINT, r, MVM_reg_num64);
 }
 void MVM_nativeref_write_attribute_s(MVMThreadContext *tc, MVMObject *ref_obj, MVMString *value) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVMRegister r;
+    r.s = value;
+    MVM_repr_bind_attr_inso(tc, ref->body.u.attribute.obj, ref->body.u.attribute.class_handle,
+        ref->body.u.attribute.name, MVM_NO_HINT, r, MVM_reg_str);
 }
 void MVM_nativeref_write_positional_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
     MVM_exception_throw_adhoc(tc, "NYI");
