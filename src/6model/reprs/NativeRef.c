@@ -184,3 +184,37 @@ void MVM_nativeref_ensure(MVMThreadContext *tc, MVMObject *type, MVMuint16 wantp
         MVM_exception_throw_adhoc(tc, "%s requires a type with REPR NativeRef", guilty);
     }
 }
+
+/* Creation of native references for attributes. */
+static MVMObject * attrref(MVMThreadContext *tc, MVMObject *type, MVMObject *obj, MVMObject *class_handle, MVMString *name) {
+    MVMNativeRef *ref;
+    MVMROOT(tc, obj, {
+    MVMROOT(tc, class_handle, {
+    MVMROOT(tc, name, {
+        ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
+        MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.attribute.obj, obj);
+        MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.attribute.class_handle, class_handle);
+        MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.attribute.name, name);
+    });
+    });
+    });
+    return (MVMObject *)ref;
+}
+MVMObject * MVM_nativeref_attr_i(MVMThreadContext *tc, MVMObject *obj, MVMObject *class_handle, MVMString *name) {
+    MVMObject *ref_type = MVM_hll_current(tc)->int_attr_ref;
+    if (ref_type)
+        return attrref(tc, ref_type, obj, class_handle, name);
+    MVM_exception_throw_adhoc(tc, "No int attribute reference type registered for current HLL");
+}
+MVMObject * MVM_nativeref_attr_n(MVMThreadContext *tc, MVMObject *obj, MVMObject *class_handle, MVMString *name) {
+    MVMObject *ref_type = MVM_hll_current(tc)->num_attr_ref;
+    if (ref_type)
+        return attrref(tc, ref_type, obj, class_handle, name);
+    MVM_exception_throw_adhoc(tc, "No num attribute reference type registered for current HLL");
+}
+MVMObject * MVM_nativeref_attr_s(MVMThreadContext *tc, MVMObject *obj, MVMObject *class_handle, MVMString *name) {
+    MVMObject *ref_type = MVM_hll_current(tc)->str_attr_ref;
+    if (ref_type)
+        return attrref(tc, ref_type, obj, class_handle, name);
+    MVM_exception_throw_adhoc(tc, "No str attribute reference type registered for current HLL");
+}

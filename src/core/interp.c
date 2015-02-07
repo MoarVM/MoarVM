@@ -4393,13 +4393,43 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(atposref_i):
             OP(atposref_n):
             OP(atposref_s):
-            OP(getattrref_i):
-            OP(getattrref_n):
-            OP(getattrref_s):
-            OP(getattrsref_i):
-            OP(getattrsref_n):
-            OP(getattrsref_s):
                 MVM_exception_throw_adhoc(tc, "Native reference taking ops NYI");
+            OP(getattrref_i):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_i(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    cu->body.strings[GET_UI32(cur_op, 6)]);
+                cur_op += 12;
+                goto NEXT;
+            OP(getattrref_n):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_n(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    cu->body.strings[GET_UI32(cur_op, 6)]);
+                cur_op += 12;
+                goto NEXT;
+            OP(getattrref_s):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_s(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    cu->body.strings[GET_UI32(cur_op, 6)]);
+                cur_op += 12;
+                goto NEXT;
+            OP(getattrsref_i):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_i(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    GET_REG(cur_op, 6).s);
+                cur_op += 8;
+                goto NEXT;
+            OP(getattrsref_n):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_n(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    GET_REG(cur_op, 6).s);
+                cur_op += 8;
+                goto NEXT;
+            OP(getattrsref_s):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_s(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    GET_REG(cur_op, 6).s);
+                cur_op += 8;
+                goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
