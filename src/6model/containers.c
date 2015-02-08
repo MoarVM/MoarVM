@@ -402,6 +402,25 @@ void MVM_6model_containers_setup(MVMThreadContext *tc) {
  * Native container/reference operations
  * ***************************************************************************/
 
+/* Check if this is a container referencing a given native. */
+static MVMint64 get_container_primitive(MVMThreadContext *tc, MVMObject *cont) {
+    if (IS_CONCRETE(cont)) {
+        const MVMContainerSpec *cs = STABLE(cont)->container_spec;
+        if (cs == &native_ref_spec && REPR(cont)->ID == MVM_REPR_ID_NativeRef)
+            return ((MVMNativeRefREPRData *)STABLE(cont)->REPR_data)->primitive_type;
+    }
+    return MVM_STORAGE_SPEC_BP_NONE;
+}
+MVMint64 MVM_6model_container_iscont_i(MVMThreadContext *tc, MVMObject *cont) {
+    return get_container_primitive(tc, cont) == MVM_STORAGE_SPEC_BP_INT;
+}
+MVMint64 MVM_6model_container_iscont_n(MVMThreadContext *tc, MVMObject *cont) {
+    return get_container_primitive(tc, cont) == MVM_STORAGE_SPEC_BP_NUM;
+}
+MVMint64 MVM_6model_container_iscont_s(MVMThreadContext *tc, MVMObject *cont) {
+    return get_container_primitive(tc, cont) == MVM_STORAGE_SPEC_BP_STR;
+}
+
 /* If it's a container, do a fetch_i. Otherwise, try to unbox the received
  * value as a native integer. */
 void MVM_6model_container_decont_i(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {

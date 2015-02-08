@@ -4336,9 +4336,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(iscont_i):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_iscont_i(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(iscont_n):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_iscont_n(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(iscont_s):
-                MVM_exception_throw_adhoc(tc, "Native iscont ops NYI");
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_iscont_s(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(assign_i): {
                 MVMObject *cont  = GET_REG(cur_op, 0).o;
                 MVMint64   value = GET_REG(cur_op, 2).i64;
