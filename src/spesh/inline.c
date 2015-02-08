@@ -99,6 +99,15 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                     goto not_inlinable;
             }
 
+            /* Check we don't have too many args for inlining to work out. */
+            if (ins->info->opcode == MVM_OP_sp_getarg_o ||
+                    ins->info->opcode == MVM_OP_sp_getarg_i ||
+                    ins->info->opcode == MVM_OP_sp_getarg_n ||
+                    ins->info->opcode == MVM_OP_sp_getarg_s) {
+                if (ins->operands[1].lit_i16 >= MAX_ARGS_FOR_OPT)
+                    goto not_inlinable;
+            }
+
             /* Ext-ops need special care in inter-comp-unit inlines. */
             if (ins->info->opcode == (MVMuint16)-1) {
                 MVMCompUnit *target_cu = inliner->sf->body.cu;
