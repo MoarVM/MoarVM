@@ -192,14 +192,42 @@ static MVMObject * lexref(MVMThreadContext *tc, MVMObject *type, MVMFrame *f, MV
     ref->body.u.lexical.var   = r;
     return (MVMObject *)ref;
 }
+static MVMFrame * get_lexical_outer(MVMThreadContext *tc, MVMuint16 outers) {
+    MVMFrame *f = tc->cur_frame;
+    while (outers) {
+        if (!f)
+            MVM_exception_throw_adhoc(tc, "getlexref_*: outer index out of range");
+        f = f->outer;
+        outers--;
+    }
+    return f;
+}
 MVMObject * MVM_nativeref_lex_i(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMFrame  *f = get_lexical_outer(tc, outers);
+    MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
+        ? f->spesh_cand->lexical_types
+        : f->static_info->body.lexical_types;
+    if (lexical_types[idx] != MVM_reg_int64)
+        MVM_exception_throw_adhoc(tc, "getlexref_i: lexical is not an int");
+    return lexref(tc, MVM_hll_current(tc)->int_lex_ref, f, &(f->env[idx]));
 }
 MVMObject * MVM_nativeref_lex_n(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMFrame  *f = get_lexical_outer(tc, outers);
+    MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
+        ? f->spesh_cand->lexical_types
+        : f->static_info->body.lexical_types;
+    if (lexical_types[idx] != MVM_reg_num64)
+        MVM_exception_throw_adhoc(tc, "getlexref_n: lexical is not a num");
+    return lexref(tc, MVM_hll_current(tc)->num_lex_ref, f, &(f->env[idx]));
 }
 MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
-    MVM_exception_throw_adhoc(tc, "NYI");
+    MVMFrame  *f = get_lexical_outer(tc, outers);
+    MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
+        ? f->spesh_cand->lexical_types
+        : f->static_info->body.lexical_types;
+    if (lexical_types[idx] != MVM_reg_str)
+        MVM_exception_throw_adhoc(tc, "getlexref_s: lexical is not a str (%d, %d)", outers, idx);
+    return lexref(tc, MVM_hll_current(tc)->str_lex_ref, f, &(f->env[idx]));
 }
 static MVMObject * lexref_by_name(MVMThreadContext *tc, MVMObject *type, MVMString *name, MVMuint16 kind) {
     MVMFrame *cur_frame = tc->cur_frame;
