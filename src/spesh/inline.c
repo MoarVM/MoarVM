@@ -652,6 +652,24 @@ static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
                     MVM_spesh_get_facts(tc, inliner, arg_ins->operands[0])->usages++;
                     break;
+                case MVM_OP_argconst_i:
+                    arg_ins->info        = MVM_op_get_op(MVM_OP_const_i64);
+                    arg_ins->operands[0] = ins->operands[0];
+                    MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
+                    MVM_spesh_get_facts(tc, inliner, arg_ins->operands[0])->usages++;
+                    break;
+                case MVM_OP_argconst_n:
+                    arg_ins->info        = MVM_op_get_op(MVM_OP_const_n64);
+                    arg_ins->operands[0] = ins->operands[0];
+                    MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
+                    MVM_spesh_get_facts(tc, inliner, arg_ins->operands[0])->usages++;
+                    break;
+                case MVM_OP_argconst_s:
+                    arg_ins->info        = MVM_op_get_op(MVM_OP_const_s);
+                    arg_ins->operands[0] = ins->operands[0];
+                    MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
+                    MVM_spesh_get_facts(tc, inliner, arg_ins->operands[0])->usages++;
+                    break;
                 default:
                     MVM_exception_throw_adhoc(tc,
                         "Spesh inline: unhandled arg instruction %d",
