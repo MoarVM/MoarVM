@@ -4398,17 +4398,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "Native register reference taking ops NYI");
             OP(getlexref_i):
                 GET_REG(cur_op, 0).o = MVM_nativeref_lex_i(tc,
-                    GET_UI16(cur_op, 2), GET_UI16(cur_op, 4));
+                    GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
                 cur_op += 6;
                 goto NEXT;
             OP(getlexref_n):
                 GET_REG(cur_op, 0).o = MVM_nativeref_lex_n(tc,
-                    GET_UI16(cur_op, 2), GET_UI16(cur_op, 4));
+                    GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
                 cur_op += 6;
                 goto NEXT;
             OP(getlexref_s):
                 GET_REG(cur_op, 0).o = MVM_nativeref_lex_s(tc,
-                    GET_UI16(cur_op, 2), GET_UI16(cur_op, 4));
+                    GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
                 cur_op += 6;
                 goto NEXT;
             OP(getlexref_ni):
