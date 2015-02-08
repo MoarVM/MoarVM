@@ -654,7 +654,8 @@ static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc,
-                        "Spesh inline: unhandled arg instruction");
+                        "Spesh inline: unhandled arg instruction %d",
+                        arg_ins->info->opcode);
                 }
                 break;
             }
