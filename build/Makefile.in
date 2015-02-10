@@ -154,6 +154,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/reprs/ConcBlockingQueue@obj@ \
           src/6model/reprs/MVMAsyncTask@obj@ \
           src/6model/reprs/MVMNull@obj@ \
+          src/6model/reprs/CPPStruct@obj@ \
           src/6model/6model@obj@ \
           src/6model/bootstrap@obj@ \
           src/6model/sc@obj@ \
@@ -287,6 +288,7 @@ HEADERS = src/moar.h \
           src/6model/reprs/ConcBlockingQueue.h \
           src/6model/reprs/MVMAsyncTask.h \
           src/6model/reprs/MVMNull.h \
+          src/6model/reprs/CPPStruct.h \
           src/6model/sc.h \
           src/mast/compiler.h \
           src/mast/driver.h \

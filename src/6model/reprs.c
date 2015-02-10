@@ -217,6 +217,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(ConcBlockingQueue);
     register_core_repr(AsyncTask);
     register_core_repr(Null);
+    register_core_repr(CPPStruct);
 
     tc->instance->num_reprs = MVM_REPR_CORE_COUNT;
 }
