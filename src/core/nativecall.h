@@ -15,6 +15,7 @@
 #define MVM_NATIVECALL_ARG_CALLBACK        26
 #define MVM_NATIVECALL_ARG_CPOINTER        28
 #define MVM_NATIVECALL_ARG_VMARRAY         30
+#define MVM_NATIVECALL_ARG_CPPSTRUCT       32
 #define MVM_NATIVECALL_ARG_TYPE_MASK       62
 
 /* Flag for whether we should free a string after passing it or not. */
@@ -76,5 +77,6 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
     MVMObject *res_type, MVMObject *obj);
 void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy);
 MVMObject * MVM_nativecall_make_cstruct(MVMThreadContext *tc, MVMObject *type, void *cstruct);
+MVMObject * MVM_nativecall_make_cppstruct(MVMThreadContext *tc, MVMObject *type, void *cppstruct);
 MVMObject * MVM_nativecall_make_cpointer(MVMThreadContext *tc, MVMObject *type, void *ptr);
 MVMObject * MVM_nativecall_make_carray(MVMThreadContext *tc, MVMObject *type, void *carray);
