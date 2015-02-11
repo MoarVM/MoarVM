@@ -214,19 +214,22 @@ static void native_ref_fetch_s(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
 
 static void native_ref_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
     MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
-    MVMRegister tmp;
+    MVMHLLConfig         *hll       = STABLE(cont)->hll_owner;
+    MVMRegister           tmp;
+    if (!hll)
+        hll = MVM_hll_current(tc);
     switch (repr_data->primitive_type) {
         case MVM_STORAGE_SPEC_BP_INT:
             native_ref_fetch_i(tc, cont, &tmp);
-            res->o = MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, tmp.i64);
+            res->o = MVM_repr_box_int(tc, hll->int_box_type, tmp.i64);
             break;
         case MVM_STORAGE_SPEC_BP_NUM:
             native_ref_fetch_n(tc, cont, &tmp);
-            res->o = MVM_repr_box_num(tc, MVM_hll_current(tc)->num_box_type, tmp.n64);
+            res->o = MVM_repr_box_num(tc, hll->num_box_type, tmp.n64);
             break;
         case MVM_STORAGE_SPEC_BP_STR:
             native_ref_fetch_s(tc, cont, &tmp);
-            res->o = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, tmp.s);
+            res->o = MVM_repr_box_str(tc, hll->str_box_type, tmp.s);
             break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native reference primitive type");
