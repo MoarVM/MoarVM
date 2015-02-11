@@ -53,6 +53,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMNativeRefBody *ref = (MVMNativeRefBody *)data;
     MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)st->REPR_data;
     switch (repr_data->ref_kind) {
+        case MVM_NATIVEREF_LEXICAL:
+            MVM_gc_worklist_add_frame(tc, worklist, ref->u.lexical.frame);
+            break;
         case MVM_NATIVEREF_ATTRIBUTE:
             MVM_gc_worklist_add(tc, worklist, &ref->u.attribute.obj);
             MVM_gc_worklist_add(tc, worklist, &ref->u.attribute.class_handle);
