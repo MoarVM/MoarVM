@@ -28,11 +28,14 @@ extern "C" {
 #include <linenoise.h>
 #endif
 
-static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename) {
+static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) {
     char * const a = MVM_string_utf8_encode_C_string(tc, filename);
     uv_fs_t req;
 
-    if (uv_fs_lstat(tc->loop, &req, a, NULL) < 0) {
+    if ((use_lstat
+      ? uv_fs_lstat(tc->loop, &req, a, NULL)
+      :  uv_fs_stat(tc->loop, &req, a, NULL)
+    ) < 0) {
         MVM_free(a);
         MVM_exception_throw_adhoc(tc, "Failed to stat file: %s", uv_strerror(req.result));
     }
@@ -41,16 +44,21 @@ static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename) {
     return req.statbuf;
 }
 
-MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status) {
+MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status, MVMint32 use_lstat) {
     MVMint64 r = -1;
 
     switch (status) {
-        case MVM_STAT_EXISTS:             r = MVM_file_exists(tc, filename); break;
+
+        case MVM_STAT_EXISTS:             r = MVM_file_exists(tc, filename, use_lstat); break;
+
         case MVM_STAT_FILESIZE: {
                 char * const a = MVM_string_utf8_encode_C_string(tc, filename);
                 uv_fs_t req;
 
-                if (uv_fs_stat(tc->loop, &req, a, NULL) < 0) {
+                if ((use_lstat
+                  ? uv_fs_lstat(tc->loop, &req, a, NULL)
+                  :  uv_fs_stat(tc->loop, &req, a, NULL)
+                ) < 0) {
                     MVM_free(a);
                     MVM_exception_throw_adhoc(tc, "Failed to stat file: %s", uv_strerror(req.result));
                 }
@@ -59,10 +67,13 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
                 r = req.statbuf.st_size;
                 break;
             }
-        case MVM_STAT_ISDIR:              r = (file_info(tc, filename).st_mode & S_IFMT) == S_IFDIR; break;
-        case MVM_STAT_ISREG:              r = (file_info(tc, filename).st_mode & S_IFMT) == S_IFREG; break;
+
+        case MVM_STAT_ISDIR:              r = (file_info(tc, filename, use_lstat).st_mode & S_IFMT) == S_IFDIR; break;
+
+        case MVM_STAT_ISREG:              r = (file_info(tc, filename, use_lstat).st_mode & S_IFMT) == S_IFREG; break;
+
         case MVM_STAT_ISDEV: {
-            const int mode = file_info(tc, filename).st_mode;
+            const int mode = file_info(tc, filename, use_lstat).st_mode;
 #ifdef _WIN32
             r = mode & S_IFMT == S_IFCHR;
 #else
@@ -70,21 +81,37 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
 #endif
             break;
         }
-        case MVM_STAT_CREATETIME:         r = file_info(tc, filename).st_ctim.tv_sec; break;
-        case MVM_STAT_ACCESSTIME:         r = file_info(tc, filename).st_atim.tv_sec; break;
-        case MVM_STAT_MODIFYTIME:         r = file_info(tc, filename).st_mtim.tv_sec; break;
-        case MVM_STAT_CHANGETIME:         r = file_info(tc, filename).st_ctim.tv_sec; break;
-        case MVM_STAT_BACKUPTIME:         r = -1; break;
-        case MVM_STAT_UID:                r = file_info(tc, filename).st_uid; break;
-        case MVM_STAT_GID:                r = file_info(tc, filename).st_gid; break;
-        case MVM_STAT_ISLNK:              r = (file_info(tc, filename).st_mode & S_IFMT) == S_IFLNK; break;
-        case MVM_STAT_PLATFORM_DEV:       r = file_info(tc, filename).st_dev; break;
-        case MVM_STAT_PLATFORM_INODE:     r = file_info(tc, filename).st_ino; break;
-        case MVM_STAT_PLATFORM_MODE:      r = file_info(tc, filename).st_mode; break;
-        case MVM_STAT_PLATFORM_NLINKS:    r = file_info(tc, filename).st_nlink; break;
-        case MVM_STAT_PLATFORM_DEVTYPE:   r = file_info(tc, filename).st_rdev; break;
-        case MVM_STAT_PLATFORM_BLOCKSIZE: r = file_info(tc, filename).st_blksize; break;
-        case MVM_STAT_PLATFORM_BLOCKS:    r = file_info(tc, filename).st_blocks; break;
+
+        case MVM_STAT_CREATETIME:         r = file_info(tc, filename, use_lstat).st_ctim.tv_sec; break;
+
+        case MVM_STAT_ACCESSTIME:         r = file_info(tc, filename, use_lstat).st_atim.tv_sec; break;
+
+        case MVM_STAT_MODIFYTIME:         r = file_info(tc, filename, use_lstat).st_mtim.tv_sec; break;
+
+        case MVM_STAT_CHANGETIME:         r = file_info(tc, filename, use_lstat).st_ctim.tv_sec; break;
+
+/*        case MVM_STAT_BACKUPTIME:         r = -1; break;  */
+
+        case MVM_STAT_UID:                r = file_info(tc, filename, use_lstat).st_uid; break;
+
+        case MVM_STAT_GID:                r = file_info(tc, filename, use_lstat).st_gid; break;
+
+        case MVM_STAT_ISLNK:              r = (file_info(tc, filename, use_lstat).st_mode & S_IFMT) == S_IFLNK; break;
+
+        case MVM_STAT_PLATFORM_DEV:       r = file_info(tc, filename, use_lstat).st_dev; break;
+
+        case MVM_STAT_PLATFORM_INODE:     r = file_info(tc, filename, use_lstat).st_ino; break;
+
+        case MVM_STAT_PLATFORM_MODE:      r = file_info(tc, filename, use_lstat).st_mode; break;
+
+        case MVM_STAT_PLATFORM_NLINKS:    r = file_info(tc, filename, use_lstat).st_nlink; break;
+
+        case MVM_STAT_PLATFORM_DEVTYPE:   r = file_info(tc, filename, use_lstat).st_rdev; break;
+
+        case MVM_STAT_PLATFORM_BLOCKSIZE: r = file_info(tc, filename, use_lstat).st_blksize; break;
+
+        case MVM_STAT_PLATFORM_BLOCKS:    r = file_info(tc, filename, use_lstat).st_blocks; break;
+
         default: break;
     }
 
@@ -178,10 +205,13 @@ void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
     MVM_free(a);
 }
 
-MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
+MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f, MVMint32 use_lstat) {
     uv_fs_t req;
     char * const a = MVM_string_utf8_encode_C_string(tc, f);
-    const MVMint64 result = uv_fs_stat(tc->loop, &req, a, NULL) < 0 ? 0 : 1;
+    const MVMint64 result = (use_lstat
+      ? uv_fs_lstat(tc->loop, &req, a, NULL)
+      :  uv_fs_stat(tc->loop, &req, a, NULL)
+    ) < 0 ? 0 : 1;
 
     MVM_free(a);
 
@@ -190,23 +220,23 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f) {
 
 #ifdef _WIN32
 #define FILE_IS(name, rwx) \
-    MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename) { \
-        if (!MVM_file_exists(tc, filename)) \
+    MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) { \
+        if (!MVM_file_exists(tc, filename, use_lstat)) \
             return 0; \
         else { \
-            uv_stat_t statbuf = file_info(tc, filename); \
+            uv_stat_t statbuf = file_info(tc, filename, use_lstat); \
             MVMint64 r = (statbuf.st_mode & S_I ## rwx ); \
             return r ? 1 : 0; \
         } \
     }
 FILE_IS(readable, READ)
 FILE_IS(writable, WRITE)
-MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename) {
-    if (!MVM_file_exists(tc, filename))
+MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) {
+    if (!MVM_file_exists(tc, filename, use_lstat))
         return 0;
     else {
         MVMint64 r = 0;
-        uv_stat_t statbuf = file_info(tc, filename);
+        uv_stat_t statbuf = file_info(tc, filename, use_lstat);
         if ((statbuf.st_mode & S_IFMT) == S_IFDIR)
             return 1;
         else {
@@ -236,11 +266,11 @@ MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename) {
 }
 #else
 #define FILE_IS(name, rwx) \
-    MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename) { \
-        if (!MVM_file_exists(tc, filename)) \
+    MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) { \
+        if (!MVM_file_exists(tc, filename, use_lstat)) \
             return 0; \
         else { \
-            uv_stat_t statbuf = file_info(tc, filename); \
+            uv_stat_t statbuf = file_info(tc, filename, use_lstat); \
             MVMint64 r = (statbuf.st_mode & S_I ## rwx ## OTH) \
                       || (statbuf.st_uid == geteuid() && (statbuf.st_mode & S_I ## rwx ## USR)) \
                       || (statbuf.st_uid == getegid() && (statbuf.st_mode & S_I ## rwx ## GRP)); \
@@ -388,7 +418,7 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
                 }
                 result = MVM_string_utf8_decode(tc, tc->instance->VMString, new_path, new_len);
                 MVM_free(new_path);
-                if (!MVM_file_exists(tc, result))
+                if (!MVM_file_exists(tc, result, 1))
                     result = orig;
                 else {
                     MVM_free(orig_cstr);
@@ -397,7 +427,7 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
                 }
                 lib_path_i++;
             }
-            if (!result || !MVM_file_exists(tc, result))
+            if (!result || !MVM_file_exists(tc, result, 1))
                 result = orig;
             MVM_free(orig_cstr);
             MVM_gc_root_temp_pop_n(tc, 2); /* orig and result */

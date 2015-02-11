@@ -24,15 +24,15 @@
 #define MVM_STAT_PLATFORM_BLOCKSIZE -6
 #define MVM_STAT_PLATFORM_BLOCKS    -7
 
-MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status);
+MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status, MVMint32 use_lstat);
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f);
 void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag);
-MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f);
-MVMint64 MVM_file_isreadable(MVMThreadContext *tc, MVMString *filename);
-MVMint64 MVM_file_iswritable(MVMThreadContext *tc, MVMString *filename);
-MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename);
+MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f, MVMint32 use_lstat);
+MVMint64 MVM_file_isreadable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
+MVMint64 MVM_file_iswritable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
+MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
 MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *prompt);
 MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString *encoding);
 void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename, MVMString *encoding);
