@@ -157,9 +157,11 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
                 if (contspec && IS_CONCRETE(arg)) {
                     if (contspec->fetch_never_invokes) {
-                        MVMRegister r;
-                        contspec->fetch(tc, arg, &r);
-                        arg = r.o;
+                        if (REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
+                            MVMRegister r;
+                            contspec->fetch(tc, arg, &r);
+                            arg = r.o;
+                        }
                     }
                     else {
                         return cache_obj;
@@ -240,9 +242,11 @@ MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache_obj, MVM
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
                 if (contspec && IS_CONCRETE(arg)) {
                     if (contspec->fetch_never_invokes) {
-                        MVMRegister r;
-                        contspec->fetch(tc, arg, &r);
-                        arg = r.o;
+                        if (REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
+                            MVMRegister r;
+                            contspec->fetch(tc, arg, &r);
+                            arg = r.o;
+                        }
                     }
                     else {
                         return NULL;
@@ -318,9 +322,11 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
                 if (contspec && IS_CONCRETE(arg)) {
                     if (contspec->fetch_never_invokes) {
-                        MVMRegister r;
-                        contspec->fetch(tc, arg, &r);
-                        arg = r.o;
+                        if (REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
+                            MVMRegister r;
+                            contspec->fetch(tc, arg, &r);
+                            arg = r.o;
+                        }
                     }
                     else {
                         return NULL;
