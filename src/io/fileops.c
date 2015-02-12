@@ -96,7 +96,7 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
 
         case MVM_STAT_GID:                r = file_info(tc, filename, use_lstat).st_gid; break;
 
-        case MVM_STAT_ISLNK:              r = (file_info(tc, filename, use_lstat).st_mode & S_IFMT) == S_IFLNK; break;
+        case MVM_STAT_ISLNK:              r = (file_info(tc, filename, 1).st_mode & S_IFMT) == S_IFLNK; break;
 
         case MVM_STAT_PLATFORM_DEV:       r = file_info(tc, filename, use_lstat).st_dev; break;
 
