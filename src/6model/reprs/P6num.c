@@ -95,6 +95,13 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
         if (!MVM_is_null(tc, bits_o)) {
             repr_data->bits = MVM_repr_get_int(tc, bits_o);
+
+            switch (repr_data->bits) {
+                case MVM_P6NUM_C_TYPE_FLOAT:      repr_data->bits = sizeof(float);       break;
+                case MVM_P6NUM_C_TYPE_DOUBLE:     repr_data->bits = sizeof(double);      break;
+                case MVM_P6NUM_C_TYPE_LONGDOUBLE: repr_data->bits = sizeof(long double); break;
+            }
+
             if (repr_data->bits != 32 && repr_data->bits != 64)
                 MVM_exception_throw_adhoc(tc, "MVMP6num: Unsupported num size (%dbit)", repr_data->bits);
         }

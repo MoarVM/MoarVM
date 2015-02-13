@@ -1,3 +1,9 @@
+#define MVM_P6INT_C_TYPE_CHAR      -1
+#define MVM_P6INT_C_TYPE_SHORT     -2
+#define MVM_P6INT_C_TYPE_INT       -3
+#define MVM_P6INT_C_TYPE_LONG      -4
+#define MVM_P6INT_C_TYPE_LONGLONG  -5
+
 /* Representation used by P6 native ints. */
 struct MVMP6intBody {
     /* Integer storage slot. */
