@@ -66,6 +66,10 @@ struct MVMStringConsts {
     MVMString *stderr_bytes;
     MVMString *buf_type;
     MVMString *write;
+    MVMString *nativeref;
+    MVMString *refkind;
+    MVMString *positional;
+    MVMString *lexical;
 };
 
 /* An entry in the representations registry. */

@@ -1128,6 +1128,10 @@ static void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_typ
     /* Ensure the MRO prefixes match up. */
     cur_map_entry = cur_repr_data->name_to_index_mapping;
     new_map_entry = new_repr_data->name_to_index_mapping;
+    while (cur_map_entry->class_key != NULL && cur_map_entry->num_attrs == 0)
+        cur_map_entry++;
+    while (new_map_entry->class_key != NULL && new_map_entry->num_attrs == 0)
+        new_map_entry++;
     while (cur_map_entry->class_key != NULL) {
         if (new_map_entry->class_key == NULL || new_map_entry->class_key != cur_map_entry->class_key)
             MVM_exception_throw_adhoc(tc,

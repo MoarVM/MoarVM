@@ -563,6 +563,10 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(stderr_bytes, "stderr_bytes");
     string_creator(buf_type, "buf_type");
     string_creator(write, "write");
+    string_creator(nativeref, "nativeref");
+    string_creator(refkind, "refkind");
+    string_creator(positional, "positional");
+    string_creator(lexical, "lexical");
 }
 
 /* Drives the overall bootstrap process. */

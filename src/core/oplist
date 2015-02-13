@@ -663,6 +663,33 @@ typeparameters      w(obj) r(obj)
 typeparameterat     w(obj) r(obj) r(int64)
 readlink            w(str) r(str)
 lstat               w(int64) r(str) r(int64)
+iscont_i            w(int64) r(obj) :pure
+iscont_n            w(int64) r(obj) :pure
+iscont_s            w(int64) r(obj) :pure
+assign_i            r(obj) r(int64) :invokish
+assign_n            r(obj) r(num64) :invokish
+assign_s            r(obj) r(str) :invokish
+decont_i            w(int64) r(obj) :pure :invokish
+decont_n            w(num64) r(obj) :pure :invokish
+decont_s            w(str) r(obj) :pure :invokish
+getregref_i         w(obj) r(int64) :pure :noinline
+getregref_n         w(obj) r(num64) :pure :noinline
+getregref_s         w(obj) r(str) :pure :noinline
+getlexref_i         w(obj) rl(int64) :pure :noinline
+getlexref_n         w(obj) rl(num64) :pure :noinline
+getlexref_s         w(obj) rl(str) :pure :noinline
+getlexref_ni        w(obj) str :pure :noinline
+getlexref_nn        w(obj) str :pure :noinline
+getlexref_ns        w(obj) str :pure :noinline
+atposref_i          w(obj) r(obj) r(int64) :pure
+atposref_n          w(obj) r(obj) r(int64) :pure
+atposref_s          w(obj) r(obj) r(int64) :pure
+getattrref_i        w(obj) r(obj) r(obj) str int16 :pure
+getattrref_n        w(obj) r(obj) r(obj) str int16 :pure
+getattrref_s        w(obj) r(obj) r(obj) str int16 :pure
+getattrsref_i       w(obj) r(obj) r(obj) r(str) :pure
+getattrsref_n       w(obj) r(obj) r(obj) r(str) :pure
+getattrsref_s       w(obj) r(obj) r(obj) r(str) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

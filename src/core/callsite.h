@@ -46,6 +46,15 @@ typedef enum {
     /* Callsite for typechecks. Taken from 6model.c;
      * OBJ, OBJ, OBJ */
     MVM_CALLSITE_ID_TYPECHECK,
+
+    /* Callsite OBJ, INT */
+    MVM_CALLSITE_ID_OBJ_INT,
+
+    /* Callsite OBJ, INT */
+    MVM_CALLSITE_ID_OBJ_NUM,
+
+    /* Callsite OBJ, STR */
+    MVM_CALLSITE_ID_OBJ_STR,
 } MVMCommonCallsiteID;
 
 /* A callsite entry is just one of the above flags. */
