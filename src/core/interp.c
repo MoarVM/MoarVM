@@ -4343,6 +4343,148 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 1);
                 cur_op += 6;
                 goto NEXT;
+            OP(iscont_i):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_iscont_i(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            OP(iscont_n):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_iscont_n(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            OP(iscont_s):
+                GET_REG(cur_op, 0).i64 = MVM_6model_container_iscont_s(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            OP(assign_i): {
+                MVMObject *cont  = GET_REG(cur_op, 0).o;
+                MVMint64   value = GET_REG(cur_op, 2).i64;
+                cur_op += 4;
+                MVM_6model_container_assign_i(tc, cont, value);
+                goto NEXT;
+            }
+            OP(assign_n): {
+                MVMObject *cont  = GET_REG(cur_op, 0).o;
+                MVMnum64   value = GET_REG(cur_op, 2).n64;
+                cur_op += 4;
+                MVM_6model_container_assign_n(tc, cont, value);
+                goto NEXT;
+            }
+            OP(assign_s): {
+                MVMObject *cont  = GET_REG(cur_op, 0).o;
+                MVMString *value = GET_REG(cur_op, 2).s;
+                cur_op += 4;
+                MVM_6model_container_assign_s(tc, cont, value);
+                goto NEXT;
+            }
+            OP(decont_i): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                cur_op += 4;
+                MVM_6model_container_decont_i(tc, obj, r);
+                goto NEXT;
+            }
+            OP(decont_n): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                cur_op += 4;
+                MVM_6model_container_decont_n(tc, obj, r);
+                goto NEXT;
+            }
+            OP(decont_s): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                cur_op += 4;
+                MVM_6model_container_decont_s(tc, obj, r);
+                goto NEXT;
+            }
+            OP(getregref_i):
+            OP(getregref_n):
+            OP(getregref_s):
+                MVM_exception_throw_adhoc(tc, "Native register reference taking ops NYI");
+            OP(getlexref_i):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_i(tc,
+                    GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
+                cur_op += 6;
+                goto NEXT;
+            OP(getlexref_n):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_n(tc,
+                    GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
+                cur_op += 6;
+                goto NEXT;
+            OP(getlexref_s):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_s(tc,
+                    GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
+                cur_op += 6;
+                goto NEXT;
+            OP(getlexref_ni):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_name_i(tc,
+                    cu->body.strings[GET_UI32(cur_op, 2)]);
+                cur_op += 6;
+                goto NEXT;
+            OP(getlexref_nn):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_name_n(tc,
+                    cu->body.strings[GET_UI32(cur_op, 2)]);
+                cur_op += 6;
+                goto NEXT;
+            OP(getlexref_ns):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_name_s(tc,
+                    cu->body.strings[GET_UI32(cur_op, 2)]);
+                cur_op += 6;
+                goto NEXT;
+            OP(atposref_i):
+                GET_REG(cur_op, 0).o = MVM_nativeref_pos_i(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
+            OP(atposref_n):
+                GET_REG(cur_op, 0).o = MVM_nativeref_pos_n(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
+            OP(atposref_s):
+                GET_REG(cur_op, 0).o = MVM_nativeref_pos_s(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
+            OP(getattrref_i):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_i(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    cu->body.strings[GET_UI32(cur_op, 6)]);
+                cur_op += 12;
+                goto NEXT;
+            OP(getattrref_n):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_n(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    cu->body.strings[GET_UI32(cur_op, 6)]);
+                cur_op += 12;
+                goto NEXT;
+            OP(getattrref_s):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_s(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    cu->body.strings[GET_UI32(cur_op, 6)]);
+                cur_op += 12;
+                goto NEXT;
+            OP(getattrsref_i):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_i(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    GET_REG(cur_op, 6).s);
+                cur_op += 8;
+                goto NEXT;
+            OP(getattrsref_n):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_n(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    GET_REG(cur_op, 6).s);
+                cur_op += 8;
+                goto NEXT;
+            OP(getattrsref_s):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_s(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    GET_REG(cur_op, 6).s);
+                cur_op += 8;
+                goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

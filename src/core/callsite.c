@@ -38,6 +38,18 @@ static MVMCallsiteEntry tc_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_OBJ };
 static MVMCallsite     typecheck_callsite = { tc_flags, 3, 3, 0 };
 
+static MVMCallsiteEntry obj_int_flags[] = { MVM_CALLSITE_ARG_OBJ,
+                                            MVM_CALLSITE_ARG_INT };
+static MVMCallsite    obj_int_callsite = { obj_int_flags, 2, 2, 0, 0, 0 };
+
+static MVMCallsiteEntry obj_num_flags[] = { MVM_CALLSITE_ARG_OBJ,
+                                            MVM_CALLSITE_ARG_NUM };
+static MVMCallsite    obj_num_callsite = { obj_num_flags, 2, 2, 0, 0, 0 };
+
+static MVMCallsiteEntry obj_str_flags[] = { MVM_CALLSITE_ARG_OBJ,
+                                            MVM_CALLSITE_ARG_STR };
+static MVMCallsite    obj_str_callsite = { obj_str_flags, 2, 2, 0, 0, 0 };
+
 MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id) {
     switch (id) {
         case MVM_CALLSITE_ID_NULL_ARGS:
@@ -52,6 +64,12 @@ MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonC
             return &findmeth_callsite;
         case MVM_CALLSITE_ID_TYPECHECK:
             return &typecheck_callsite;
+        case MVM_CALLSITE_ID_OBJ_INT:
+            return &obj_int_callsite;
+        case MVM_CALLSITE_ID_OBJ_NUM:
+            return &obj_num_callsite;
+        case MVM_CALLSITE_ID_OBJ_STR:
+            return &obj_str_callsite;
         default:
             MVM_exception_throw_adhoc(tc, "get_common_callsite: id %d unknown", id);
             return NULL;

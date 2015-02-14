@@ -42,6 +42,17 @@ struct MVMHLLConfig {
     MVMObject *bind_error;
     MVMObject *method_not_found_error;
 
+    /* Native reference types. */
+    MVMObject *int_lex_ref;
+    MVMObject *num_lex_ref;
+    MVMObject *str_lex_ref;
+    MVMObject *int_attr_ref;
+    MVMObject *num_attr_ref;
+    MVMObject *str_attr_ref;
+    MVMObject *int_pos_ref;
+    MVMObject *num_pos_ref;
+    MVMObject *str_pos_ref;
+
     /* Array of types to pass to compiler.c */
     MVMObject *mast_types;
 
