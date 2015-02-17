@@ -39,6 +39,7 @@
 #include "6model/reprs/MVMAsyncTask.h"
 #include "6model/reprs/MVMNull.h"
 #include "6model/reprs/CPPStruct.h"
+#include "6model/reprs/NativeRef.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -87,7 +88,11 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_ConcBlockingQueue       36
 #define MVM_REPR_ID_MVMAsyncTask            37
 #define MVM_REPR_ID_MVMNull                 38
+<<<<<<< HEAD
 #define MVM_REPR_ID_MVMCPPStruct            39
+=======
+#define MVM_REPR_ID_NativeRef               39
+>>>>>>> 4312d9564f0d0f14f235a780048b2d28f916aa83
 
 #define MVM_REPR_CORE_COUNT                 40
 #define MVM_REPR_MAX_COUNT                  64
