@@ -289,11 +289,8 @@ HEADERS = src/moar.h \
           src/6model/reprs/ConcBlockingQueue.h \
           src/6model/reprs/MVMAsyncTask.h \
           src/6model/reprs/MVMNull.h \
-<<<<<<< HEAD
           src/6model/reprs/CPPStruct.h \
-=======
           src/6model/reprs/NativeRef.h \
->>>>>>> 4312d9564f0d0f14f235a780048b2d28f916aa83
           src/6model/sc.h \
           src/mast/compiler.h \
           src/mast/driver.h \
