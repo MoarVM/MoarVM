@@ -1370,6 +1370,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                         (MVMCollectable *)av_value);
                 }
                 else {
+                    if (opcode == MVM_OP_getattrs_o)
+                        MVM_spesh_get_facts(tc, g, ins->operands[3])->usages--;
                     MVM_spesh_get_facts(tc, g, ins->operands[2])->usages--;
                     ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_o);
                     ins->operands[2].lit_i16 = repr_data->attribute_offsets[slot];
