@@ -1,3 +1,15 @@
+New in 2015.02
+
+* -O2 is now the default optimization level
+* Better error messages in NativeCall
+* CArrays are now zero-filled by default
+* MVMArrays can now be casted and passed to native functions
+* Dyncall dependency is now at version 0.9
+* libuv dependency is now at version 1.0.0
+* Addition of lstat op and general symlink compatibility
+* P6int and P6num can now be "C sized"
+* References to native attributes and values are now supported
+
 New in 2015.01
 
 * Decrement usage of class type for setattr ops, enabling wval elimination
