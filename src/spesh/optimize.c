@@ -1310,7 +1310,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
                 optimize_extop(tc, g, bb, ins);
         }
 
-        if (ins->prev && ins->info->opcode == MVM_OP_set) {
+        if (0 && ins->prev && ins->info->opcode == MVM_OP_set) {
             /* We may have turned some complex instruction into a simple set
              * in the big switch/case up there, but we wouldn't have called
              * "copy_facts" on the registers yet, so we have to do it here
