@@ -1,3 +1,25 @@
+New in 2015.02
+
+* Fix memory leak in P6bigint
+* -O2 is now the default optimization level in clang/GCC
+* Improve performance of SSA form calculation
+* Dyncall dependency is now at version 0.9
+* Better error messages in NativeCall
+* CArrays are now zero-filled by default
+* MVMArrays can now be casted and passed to native functions
+* Addition of readlink and lstat ops, and general symlink compatibility
+* libuv dependency is now at version 1.0.0
+* P6int and P6num can now be "C sized"
+* Implemented native references to lexicals, attributes, and array elements
+* Added native_ref container specification
+* Added iscont_[ins] and decont_[ins] ops
+* Make multi-dispatch cache aware of native containers
+* Mixin prefix test in P6opaque now disregards attribute-free parents
+* Fix buffer overflow when trying to inline calls with many args
+* Handle argconst_[ins] instructions in inlining
+* Fix a crash from trying to unbox type objects passed to native args
+* Decrement usage counts in some optimizations, killing more dead code
+
 New in 2015.01
 
 * Decrement usage of class type for setattr ops, enabling wval elimination
