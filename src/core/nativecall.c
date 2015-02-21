@@ -945,11 +945,11 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
 
 MVMint64 MVM_nativecall_sizeof(MVMThreadContext *tc, MVMObject *obj) {
     if (REPR(obj)->ID == MVM_REPR_ID_MVMCStruct)
-        return ((MVMCStructREPRData *)STABLE(obj)->REPR_data)->struct_size * 8;
+        return ((MVMCStructREPRData *)STABLE(obj)->REPR_data)->struct_size;
     else if (REPR(obj)->ID == MVM_REPR_ID_P6int)
-        return ((MVMP6intREPRData *)STABLE(obj)->REPR_data)->bits;
+        return ((MVMP6intREPRData *)STABLE(obj)->REPR_data)->bits / 8;
     else if (REPR(obj)->ID == MVM_REPR_ID_P6num)
-        return ((MVMP6numREPRData *)STABLE(obj)->REPR_data)->bits;
+        return ((MVMP6numREPRData *)STABLE(obj)->REPR_data)->bits / 8;
     else if (REPR(obj)->ID == MVM_REPR_ID_MVMCPointer
           || REPR(obj)->ID == MVM_REPR_ID_MVMCArray
           || REPR(obj)->ID == MVM_REPR_ID_MVMCStr
