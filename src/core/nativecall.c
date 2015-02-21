@@ -943,6 +943,24 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
     return nativecall_cast(tc, target_spec, target_type, data_body);
 }
 
+MVMint64 MVM_nativecall_sizeof(MVMThreadContext *tc, MVMObject *obj) {
+    if (REPR(obj)->ID == MVM_REPR_ID_MVMCStruct)
+        return ((MVMCStructREPRData *)STABLE(obj)->REPR_data)->struct_size * 8;
+    else if (REPR(obj)->ID == MVM_REPR_ID_P6int)
+        return ((MVMP6intREPRData *)STABLE(obj)->REPR_data)->bits;
+    else if (REPR(obj)->ID == MVM_REPR_ID_P6num)
+        return ((MVMP6numREPRData *)STABLE(obj)->REPR_data)->bits;
+    else if (REPR(obj)->ID == MVM_REPR_ID_MVMCPointer
+          || REPR(obj)->ID == MVM_REPR_ID_MVMCArray
+          || REPR(obj)->ID == MVM_REPR_ID_MVMCStr
+          || REPR(obj)->ID == MVM_REPR_ID_P6str)
+        return sizeof(void *);
+    else
+        MVM_exception_throw_adhoc(tc,
+            "NativeCall op sizeof expected type with CPointer, CStruct, CArray, P6int or P6num representation, but got a %s",
+            REPR(obj)->name);
+}
+
 /* Write-barriers a dyncall object so that delayed changes to the C-side of
  * objects are propagated to the HLL side. All CArray and CStruct arguments to
  * C functions are write-barriered automatically, so this should be necessary

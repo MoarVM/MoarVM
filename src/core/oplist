@@ -690,6 +690,7 @@ getattrref_s        w(obj) r(obj) r(obj) str int16 :pure
 getattrsref_i       w(obj) r(obj) r(obj) r(str) :pure
 getattrsref_n       w(obj) r(obj) r(obj) r(str) :pure
 getattrsref_s       w(obj) r(obj) r(obj) r(str) :pure
+nativecallsizeof    w(int64) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
