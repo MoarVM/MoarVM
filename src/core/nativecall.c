@@ -1,5 +1,4 @@
 #include "moar.h"
-#include "math.h"
 
 /* Grabs a NativeCall body. */
 static MVMNativeCallBody * get_nc_body(MVMThreadContext *tc, MVMObject *obj) {
@@ -732,7 +731,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     if (i == 0 && !IS_CONCRETE(value)) {
                         MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)STABLE(res_type)->REPR_data;
                         /* Allocate a full byte aligned area where the C++ structure fits into. */
-                        ptr    = MVM_malloc( ceil((double)repr_data->struct_size / 8) * 8 );
+                        ptr    = MVM_malloc(repr_data->struct_size);
                         result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
 
                         dcArgPointer(vm, ptr);
