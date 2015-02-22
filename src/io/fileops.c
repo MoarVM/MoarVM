@@ -118,40 +118,82 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
     return r;
 }
 
-/* copy a file from one to another. */
-void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
+/* copy a file from one to another */
+void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString * dest) {
+    /* TODO: on Windows we can use the CopyFile API, which is probaly
+       more efficient, not to mention easier to use. */
     uv_fs_t req;
-    char *       const a = MVM_string_utf8_encode_C_string(tc, src);
-    const uv_file  in_fd = uv_fs_open(tc->loop, &req, (const char *)a, O_RDONLY, 0, NULL);
+    char * a, * b;
+    uv_file in_fd = -1, out_fd = -1;
+    MVMuint64 size, offset;
 
-    if (in_fd >= 0 && uv_fs_stat(tc->loop, &req, a, NULL) >= 0) {
-        char *       const b = MVM_string_utf8_encode_C_string(tc, dest);
-        const uv_file out_fd = uv_fs_open(tc->loop, &req, (const char *)b, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_MODE, NULL);
-        MVM_free(a);
+    a = MVM_string_utf8_encode_C_string(tc, src);
+    b = MVM_string_utf8_encode_C_string(tc, dest);
 
-        if (out_fd >= 0
-        && uv_fs_sendfile(tc->loop, &req, out_fd, in_fd, 0, req.statbuf.st_size, NULL) >= 0) {
-            MVM_free(b);
+    /* If the file cannot be stat(), there is little point in going any further. */
+    if (uv_fs_stat(tc->loop, &req, a, NULL) < 0)
+        goto failure;
+    size = req.statbuf.st_size;
 
-            if (uv_fs_close(tc->loop, &req, in_fd, NULL) < 0) {
-                uv_fs_close(tc->loop, &req, out_fd, NULL); /* should close out_fd before throw. */
-                MVM_exception_throw_adhoc(tc, "Failed to close file: %s", uv_strerror(req.result));
-            }
-
-            if (uv_fs_close(tc->loop, &req, out_fd, NULL) < 0) {
-                MVM_exception_throw_adhoc(tc, "Failed to close file: %s", uv_strerror(req.result));
-            }
-
-            return;
-        }
-        else
-            MVM_free(b);
+    in_fd = uv_fs_open(tc->loop, &req, (const char *)a, O_RDONLY, 0, NULL);
+    if (in_fd < 0) {
+        goto failure;
     }
-    else
-        MVM_free(a);
 
-    MVM_exception_throw_adhoc(tc, "Failed to copy file: %s", uv_strerror(req.result));
+    out_fd = uv_fs_open(tc->loop, &req, (const char *)b, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_MODE, NULL);
+    if (out_fd < 0) {
+        goto failure;
+    }
+
+    offset = 0;
+    do {
+        /* sendfile() traditionally takes offset as a pointer argument
+         * used a both input and output. libuv deviates by making
+         * offset an integer and returning the number of bytes
+         * sent. So it is necessary to add these explicitly. */
+        MVMint64 sent = uv_fs_sendfile(tc->loop, &req, out_fd, in_fd, offset, size - offset, NULL);
+        if (sent < 0) {
+            goto failure;
+        }
+        offset += sent;
+    } while (offset < size);
+
+    /* Cleanup */
+    if(uv_fs_close(tc->loop, &req, in_fd, NULL) < 0) {
+        goto failure;
+    }
+    in_fd = -1;
+
+    if (uv_fs_close(tc->loop, &req, out_fd, NULL) < 0) {
+        goto failure;
+    }
+    out_fd = -1;
+
+    MVM_free(b);
+    MVM_free(a);
+    return;
+
+ failure: {
+        /* First get the error, since it may be overwritten further on. */
+        const char * error = uv_strerror(req.result);
+        /* Basic premise: dealing with all failure cases is hard.
+         * So to simplify, a and b are allocated in all conditions.
+         * Also to simplify, in_fd are nonnegative if open, negative
+         * otherwise. */
+        MVM_free(b);
+        MVM_free(a);
+        /* If any of these fail there is nothing
+         * further to do, since we're already failing */
+        if (in_fd >= 0)
+            uv_fs_close(tc->loop, &req, in_fd, NULL);
+        if (out_fd >= 0)
+            uv_fs_close(tc->loop, &req, out_fd, NULL);
+        /* This function only throws adhoc errors, so the message is for
+         * progammer eyes only */
+        MVM_exception_throw_adhoc(tc, "Failed to copy file: %s", error);
+    }
 }
+
 
 /* rename one file to another. */
 void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
