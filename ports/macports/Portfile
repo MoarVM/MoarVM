@@ -1,0 +1,25 @@
+# $Id$
+
+PortSystem          1.0
+
+name                MoarVM
+version             2015.02
+categories          lang devel
+platforms           darwin
+license             Artistic, etc. (see homepage for details)
+maintainers         coleda.com:will
+description         A virtual machine for Perl 6
+long_description    MoarVM is a virtual machine built especially for \
+                    Rakudo Perl 6 and the NQP Compiler Toolchain.
+homepage            http://moarvm.org/
+master_sites        http://moarvm.org/releases/
+
+checksums           rmd160  853c106a02040f832b11dff0fa1bde14f6f890fa \
+                    sha256  4093ff80e6b40f215dd238282a464de59bbd5c2ef42cb9099e9ef68f07fe8d1b
+depends_build           bin:perl:perl5
+
+configure.cmd           perl Configure.pl
+configure.pre_args      --prefix=${prefix}
+
+destroot.target         install
+destroot.args           DESTDIR=${destroot}
