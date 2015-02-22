@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "math.h"
 
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
@@ -119,6 +120,9 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
     else {
         /* We track the size of the struct, which is what we'll want offsets into. */
         MVMint32 cur_size = 0;
+        /* The structure itself will be the multiple of its biggest element in size.
+         * So we keep track of that biggest element. */
+        MVMint32 multiple_of = 0;
 
         /* Get number of attributes and set up various counters. */
         MVMint32 num_attrs        = MVM_repr_elems(tc, flat_list);
@@ -221,11 +225,14 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
 
             repr_data->struct_offsets[i] = cur_size;
             cur_size += bits / 8;
+
+            if (bits / 8 > multiple_of)
+                multiple_of = bits / 8;
         }
 
         /* Finally, put computed allocation size in place; it's body size plus
          * header size. Also number of markables and sentinels. */
-        repr_data->struct_size = cur_size;
+        repr_data->struct_size = ceil((double)cur_size / (double)multiple_of) * multiple_of;
         if (repr_data->initialize_slots)
             repr_data->initialize_slots[cur_init_slot] = -1;
     }
