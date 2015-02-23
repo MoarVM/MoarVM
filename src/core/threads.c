@@ -54,7 +54,7 @@ static void start_thread(void *data) {
     MVMThreadContext *tc = ts->tc;
 
     /* Stash thread ID. */
-    tc->thread_obj->body.thread_id = uv_thread_self();
+    tc->thread_obj->body.thread_id = MVM_platform_thread_id();
 
     /* wait for the GC to finish if it's not finished stealing us. */
     MVM_gc_mark_thread_unblocked(tc);

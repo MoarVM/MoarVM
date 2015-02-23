@@ -1,4 +1,5 @@
 #include "moar.h"
+#include <platform/threads.h>
 
 #define init_mutex(loc, name) do { \
     if ((init_stat = uv_mutex_init(&loc)) < 0) { \
@@ -90,7 +91,7 @@ MVMInstance * MVM_vm_create_instance(void) {
                 instance->main_thread, STABLE(instance->boot_types.BOOTThread))));
     instance->threads->body.stage = MVM_thread_stage_started;
     instance->threads->body.tc = instance->main_thread;
-    instance->threads->body.thread_id = uv_thread_self();
+    instance->threads->body.thread_id = MVM_platform_thread_id();
 
     /* Create compiler registry */
     instance->compiler_registry = MVM_repr_alloc_init(instance->main_thread, instance->boot_types.BOOTHash);
