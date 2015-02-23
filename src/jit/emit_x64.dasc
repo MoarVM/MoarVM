@@ -3,6 +3,9 @@
 #include <dasm_x86.h>
 #include "emit.h"
 
+#ifdef _MSC_VER
+#pragma warning( disable : 4129 )
+#endif
 
 |.arch x64
 |.actionlist actions
