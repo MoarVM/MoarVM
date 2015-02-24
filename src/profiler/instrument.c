@@ -105,6 +105,26 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                     add_allocation_logging(tc, g, bb, ins);
                 break;
             }
+            case MVM_OP_getregref_i:
+            case MVM_OP_getregref_n:
+            case MVM_OP_getregref_s:
+            case MVM_OP_getlexref_i:
+            case MVM_OP_getlexref_n:
+            case MVM_OP_getlexref_s:
+            case MVM_OP_getlexref_ni:
+            case MVM_OP_getlexref_nn:
+            case MVM_OP_getlexref_ns:
+            case MVM_OP_atposref_i:
+            case MVM_OP_atposref_n:
+            case MVM_OP_atposref_s:
+            case MVM_OP_getattrref_i:
+            case MVM_OP_getattrref_n:
+            case MVM_OP_getattrref_s:
+            case MVM_OP_getattrsref_i:
+            case MVM_OP_getattrsref_n:
+            case MVM_OP_getattrsref_s:
+                add_allocation_logging(tc, g, bb, ins);
+                break;
             default:
                 /* See if it's an allocating extop. */
                 if (ins->info->opcode == (MVMuint16)-1) {
