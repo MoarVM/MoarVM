@@ -320,8 +320,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
     /* Allocate object body. */
     MVMCPPStructBody *body = (MVMCPPStructBody *)data;
-    body->cppstruct = MVM_malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
-    memset(body->cppstruct, 0, repr_data->struct_size);
+    body->cppstruct = MVM_calloc(1, repr_data->struct_size > 0 ? repr_data->struct_size : 1);
 
     /* Allocate child obj array. */
     if (repr_data->num_child_objs > 0)
