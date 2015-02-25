@@ -309,6 +309,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_randscale_n: return &MVM_proc_randscale_n;
     case MVM_OP_isnanorinf: return &MVM_num_isnanorinf;
     case MVM_OP_nativecallinvoke: return &MVM_nativecall_invoke;
+    case MVM_OP_assign_i: return &MVM_6model_container_assign_i;
+    case MVM_OP_assign_n: return &MVM_6model_container_assign_n;
+    case MVM_OP_assign_s: return &MVM_6model_container_assign_s;
     case MVM_OP_getlexref_i: return &MVM_nativeref_lex_i;
     case MVM_OP_getlexref_n: return &MVM_nativeref_lex_n;
     case MVM_OP_getlexref_s: return &MVM_nativeref_lex_s;
@@ -1688,7 +1691,18 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                           MVM_JIT_RV_PTR, dst);
         break;
     }
-        /* native references (as functions for now) */
+        /* native references (as simple function calls for now) */
+    case MVM_OP_assign_i:
+    case MVM_OP_assign_n:
+    case MVM_OP_assign_s: {
+        MVMint16 target = ins->operands[0].reg.orig;
+        MVMint16 value  = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, target },
+                                 { MVM_JIT_REG_VAL, value } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
     case MVM_OP_getlexref_i:
     case MVM_OP_getlexref_n:
     case MVM_OP_getlexref_s: {
