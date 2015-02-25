@@ -53,8 +53,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMNativeRefBody *ref = (MVMNativeRefBody *)data;
     MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)st->REPR_data;
     switch (repr_data->ref_kind) {
-        case MVM_NATIVEREF_LEXICAL:
-            MVM_gc_worklist_add_frame(tc, worklist, ref->u.lexical.frame);
+        case MVM_NATIVEREF_REG_OR_LEX:
+            MVM_gc_worklist_add_frame(tc, worklist, ref->u.reg_or_lex.frame);
             break;
         case MVM_NATIVEREF_ATTRIBUTE:
             MVM_gc_worklist_add(tc, worklist, &ref->u.attribute.obj);
@@ -71,8 +71,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMNativeRef *ref = (MVMNativeRef *)obj;
     MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(obj)->REPR_data;
-    if (repr_data->ref_kind == MVM_NATIVEREF_LEXICAL)
-        MVM_frame_dec_ref(tc, ref->body.u.lexical.frame);
+    if (repr_data->ref_kind == MVM_NATIVEREF_REG_OR_LEX)
+        MVM_frame_dec_ref(tc, ref->body.u.reg_or_lex.frame);
 }
 
 /* Frees the representation data, if any. */
@@ -107,7 +107,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                 MVMuint16 kind;
                 MVMString *refkind_s = MVM_repr_get_str(tc, refkind);
                 if (MVM_string_equal(tc, refkind_s, str_consts->lexical)) {
-                    kind = MVM_NATIVEREF_LEXICAL;
+                    kind = MVM_NATIVEREF_REG_OR_LEX;
                 }
                 else if (MVM_string_equal(tc, refkind_s, str_consts->attribute)) {
                     kind = MVM_NATIVEREF_ATTRIBUTE;
@@ -188,13 +188,24 @@ void MVM_nativeref_ensure(MVMThreadContext *tc, MVMObject *type, MVMuint16 wantp
     }
 }
 
-/* Creation of native references for lexicals. */
-static MVMObject * lexref(MVMThreadContext *tc, MVMObject *type, MVMFrame *f, MVMRegister *r) {
+/* Creation of native references for registers. */
+static MVMObject * reg_or_lex_ref(MVMThreadContext *tc, MVMObject *type, MVMFrame *f, MVMRegister *r) {
     MVMNativeRef *ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
-    ref->body.u.lexical.frame = MVM_frame_inc_ref(tc, f);
-    ref->body.u.lexical.var   = r;
+    ref->body.u.reg_or_lex.frame = MVM_frame_inc_ref(tc, f);
+    ref->body.u.reg_or_lex.var   = r;
     return (MVMObject *)ref;
 }
+MVMObject * MVM_nativeref_reg_i(MVMThreadContext *tc, MVMFrame *f, MVMRegister *r) {
+    return reg_or_lex_ref(tc, MVM_hll_current(tc)->int_lex_ref, f, r);
+}
+MVMObject * MVM_nativeref_reg_n(MVMThreadContext *tc, MVMFrame *f, MVMRegister *r) {
+    return reg_or_lex_ref(tc, MVM_hll_current(tc)->num_lex_ref, f, r);
+}
+MVMObject * MVM_nativeref_reg_s(MVMThreadContext *tc, MVMFrame *f, MVMRegister *r) {
+    return reg_or_lex_ref(tc, MVM_hll_current(tc)->str_lex_ref, f, r);
+}
+
+/* Creation of native references for lexicals. */
 static MVMFrame * get_lexical_outer(MVMThreadContext *tc, MVMuint16 outers) {
     MVMFrame *f = tc->cur_frame;
     while (outers) {
@@ -212,7 +223,7 @@ MVMObject * MVM_nativeref_lex_i(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
         : f->static_info->body.lexical_types;
     if (lexical_types[idx] != MVM_reg_int64)
         MVM_exception_throw_adhoc(tc, "getlexref_i: lexical is not an int");
-    return lexref(tc, MVM_hll_current(tc)->int_lex_ref, f, &(f->env[idx]));
+    return reg_or_lex_ref(tc, MVM_hll_current(tc)->int_lex_ref, f, &(f->env[idx]));
 }
 MVMObject * MVM_nativeref_lex_n(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
     MVMFrame  *f = get_lexical_outer(tc, outers);
@@ -221,7 +232,7 @@ MVMObject * MVM_nativeref_lex_n(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
         : f->static_info->body.lexical_types;
     if (lexical_types[idx] != MVM_reg_num64)
         MVM_exception_throw_adhoc(tc, "getlexref_n: lexical is not a num");
-    return lexref(tc, MVM_hll_current(tc)->num_lex_ref, f, &(f->env[idx]));
+    return reg_or_lex_ref(tc, MVM_hll_current(tc)->num_lex_ref, f, &(f->env[idx]));
 }
 MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
     MVMFrame  *f = get_lexical_outer(tc, outers);
@@ -230,7 +241,7 @@ MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
         : f->static_info->body.lexical_types;
     if (lexical_types[idx] != MVM_reg_str)
         MVM_exception_throw_adhoc(tc, "getlexref_s: lexical is not a str (%d, %d)", outers, idx);
-    return lexref(tc, MVM_hll_current(tc)->str_lex_ref, f, &(f->env[idx]));
+    return reg_or_lex_ref(tc, MVM_hll_current(tc)->str_lex_ref, f, &(f->env[idx]));
 }
 static MVMObject * lexref_by_name(MVMThreadContext *tc, MVMObject *type, MVMString *name, MVMuint16 kind) {
     MVMFrame *cur_frame = tc->cur_frame;
@@ -242,7 +253,7 @@ static MVMObject * lexref_by_name(MVMThreadContext *tc, MVMObject *type, MVMStri
             MVM_HASH_GET(tc, lexical_names, name, entry)
             if (entry) {
                 if (cur_frame->static_info->body.lexical_types[entry->value] == kind) {
-                    return lexref(tc, type, cur_frame, &cur_frame->env[entry->value]);
+                    return reg_or_lex_ref(tc, type, cur_frame, &cur_frame->env[entry->value]);
                 }
                 else {
                    MVM_exception_throw_adhoc(tc,
@@ -343,17 +354,17 @@ MVMObject * MVM_nativeref_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 i
  * they are more suited to calling from optimized code. The checking path is
  * in the native ref container implementation, in containers.c; after checks,
  * they delegate here. */
-MVMint64 MVM_nativeref_read_lexical_i(MVMThreadContext *tc, MVMObject *ref_obj) {
+MVMint64 MVM_nativeref_read_reg_or_lex_i(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
-    return ref->body.u.lexical.var->i64;
+    return ref->body.u.reg_or_lex.var->i64;
 }
-MVMnum64 MVM_nativeref_read_lexical_n(MVMThreadContext *tc, MVMObject *ref_obj) {
+MVMnum64 MVM_nativeref_read_reg_or_lex_n(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
-    return ref->body.u.lexical.var->n64;
+    return ref->body.u.reg_or_lex.var->n64;
 }
-MVMString * MVM_nativeref_read_lexical_s(MVMThreadContext *tc, MVMObject *ref_obj) {
+MVMString * MVM_nativeref_read_reg_or_lex_s(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
-    return ref->body.u.lexical.var->s;
+    return ref->body.u.reg_or_lex.var->s;
 }
 MVMint64 MVM_nativeref_read_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
@@ -384,17 +395,17 @@ MVMString * MVM_nativeref_read_positional_s(MVMThreadContext *tc, MVMObject *ref
 }
 
 /* Reference write functions. Same (non-checking) rules as the reads above. */
-void MVM_nativeref_write_lexical_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
+void MVM_nativeref_write_reg_or_lex_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
-    ref->body.u.lexical.var->i64 = value;
+    ref->body.u.reg_or_lex.var->i64 = value;
 }
-void MVM_nativeref_write_lexical_n(MVMThreadContext *tc, MVMObject *ref_obj, MVMnum64 value) {
+void MVM_nativeref_write_reg_or_lex_n(MVMThreadContext *tc, MVMObject *ref_obj, MVMnum64 value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
-    ref->body.u.lexical.var->n64 = value;
+    ref->body.u.reg_or_lex.var->n64 = value;
 }
-void MVM_nativeref_write_lexical_s(MVMThreadContext *tc, MVMObject *ref_obj, MVMString *value) {
+void MVM_nativeref_write_reg_or_lex_s(MVMThreadContext *tc, MVMObject *ref_obj, MVMString *value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
-    ref->body.u.lexical.var->s = value;
+    ref->body.u.reg_or_lex.var->s = value;
 }
 void MVM_nativeref_write_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
