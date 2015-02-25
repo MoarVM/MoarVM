@@ -309,6 +309,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_randscale_n: return &MVM_proc_randscale_n;
     case MVM_OP_isnanorinf: return &MVM_num_isnanorinf;
     case MVM_OP_nativecallinvoke: return &MVM_nativecall_invoke;
+    case MVM_OP_getlexref_i: return &MVM_nativeref_lex_i;
+    case MVM_OP_getlexref_n: return &MVM_nativeref_lex_n;
+    case MVM_OP_getlexref_s: return &MVM_nativeref_lex_s;
     case MVM_OP_sp_boolify_iter: return &MVM_iter_istrue;
     case MVM_OP_prof_allocated: return &MVM_profile_log_allocated;
     case MVM_OP_prof_exit: return &MVM_profile_log_exit;
@@ -1683,6 +1686,19 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, cargs } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args,
                           MVM_JIT_RV_PTR, dst);
+        break;
+    }
+        /* native references (as functions for now) */
+    case MVM_OP_getlexref_i:
+    case MVM_OP_getlexref_n:
+    case MVM_OP_getlexref_s: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMuint16 outers = ins->operands[1].lex.outers;
+        MVMuint16 idx    = ins->operands[1].lex.idx;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_LITERAL, outers },
+                                 { MVM_JIT_LITERAL, idx } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
         /* profiling */
