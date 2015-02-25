@@ -25,10 +25,20 @@ void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
 #endif
 
     if (g->mem_block) {
-        MVMSpeshMemBlock *block = g->mem_block;
-        if (block->alloc + bytes < block->limit) {
+        MVMSpeshMemBlock *block;
+        if (g->mem_block->prev) {
+            block = g->mem_block->prev;
+            if (block->alloc + bytes < block->limit) {
+                result = block->alloc;
+                block->alloc += bytes;
+                /*fprintf(stderr, "allocd in previous block %d %x\n", bytes, g);*/
+            }
+        }
+        block = g->mem_block;
+        if (!result && block->alloc + bytes < block->limit) {
             result = block->alloc;
             block->alloc += bytes;
+            /*fprintf(stderr, "allocd in current block %d %x\n", bytes, g);*/
         }
     }
     if (!result) {
@@ -39,6 +49,8 @@ void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
         block->limit  = block->buffer + MVM_SPESH_MEMBLOCK_SIZE;
         block->prev   = g->mem_block;
         g->mem_block  = block;
+
+        /*fprintf(stderr, "allocd in new block %d %x\n", bytes, g);*/
 
         /* Now allocate out of it. */
         if (bytes > MVM_SPESH_MEMBLOCK_SIZE) {
@@ -1074,6 +1086,15 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     g->num_locals    = sf->body.num_locals;
     g->num_lexicals  = sf->body.num_lexicals;
 
+    MVMSpeshMemBlock *block = MVM_malloc(sizeof(MVMSpeshMemBlock));
+    block->buffer = MVM_calloc(MVM_SPESH_MEMBLOCK_SIZE / 4, 1);
+    block->alloc  = block->buffer;
+    block->limit  = block->buffer + MVM_SPESH_MEMBLOCK_SIZE / 4;
+    block->prev   = g->mem_block;
+    g->mem_block  = block;
+
+    /*fprintf(stderr, "created %x\n", g);*/
+
     /* Ensure the frame is validated, since we'll rely on this. */
     if (sf->body.instrumentation_level == 0) {
         MVM_spesh_graph_destroy(tc, g);
@@ -1087,6 +1108,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
         add_predecessors(tc, g);
         ssa(tc, g);
     }
+
 
     /* Hand back the completed graph. */
     return g;
@@ -1113,6 +1135,15 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->lexical_types     = cand->lexical_types;
     g->spesh_slots       = cand->spesh_slots;
     g->num_spesh_slots   = cand->num_spesh_slots;
+
+    MVMSpeshMemBlock *block = MVM_malloc(sizeof(MVMSpeshMemBlock));
+    block->buffer = MVM_calloc(MVM_SPESH_MEMBLOCK_SIZE / 4, 1);
+    block->alloc  = block->buffer;
+    block->limit  = block->buffer + MVM_SPESH_MEMBLOCK_SIZE / 4;
+    block->prev   = g->mem_block;
+    g->mem_block  = block;
+
+    /*fprintf(stderr, "created %x\n", g);*/
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (sf->body.instrumentation_level == 0) {
@@ -1170,6 +1201,8 @@ void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
         MVM_free(cur_block);
         cur_block = prev;
     }
+
+    /*fprintf(stderr, "destroyed %x\n", g);*/
 
     /* Free the graph itself. */
     MVM_free(g);
