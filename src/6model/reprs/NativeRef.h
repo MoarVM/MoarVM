@@ -4,6 +4,7 @@ struct MVMNativeRefBody {
         struct {
             MVMFrame *frame;
             MVMRegister *var;
+            MVMuint16 type;
         } reg_or_lex;
         struct {
             MVMObject *obj;
