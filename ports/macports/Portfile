@@ -6,7 +6,7 @@ name                MoarVM
 version             2015.02
 categories          lang devel
 platforms           darwin
-license             ARTISTIC-2 MIT BSD ISC PUBLIC-DOMAIN
+license             Artistic-2 MIT BSD ISC public-domain
 maintainers         coleda.com:will
 description         A virtual machine for Perl 6
 long_description    MoarVM is a virtual machine built especially for \
