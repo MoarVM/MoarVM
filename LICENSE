@@ -19,3 +19,15 @@ Unofficial summary of the intended application of the Artistic License 2.0:
 - You may bundle it with software you sell, or you may link/embed it.
 
 - You may fork and release modified builds if you thoroughly rename it.
+
+-- 3rdparty/ license information
+
+- dynasm     MIT
+- dyncall    MIT
+- libtommath Public Domain
+- libuv      MIT,BSD,ISC
+- linenoise  BSD
+- msinttypes MIT
+- sha1       Public Domain
+- tinymt     MIT
+- uthash.h   MIT
