@@ -451,8 +451,8 @@ static void optimize_objprimspec(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
-        result_facts->value.i16     = REPR(obj_facts->type)->get_storage_spec(tc, STABLE(obj_facts->type))->boxed_primitive;
-        ins->operands[1].lit_i16    = result_facts->value.i16;
+        result_facts->value.i64     = REPR(obj_facts->type)->get_storage_spec(tc, STABLE(obj_facts->type))->boxed_primitive;
+        ins->operands[1].lit_i16    = result_facts->value.i64;
 
         MVM_spesh_use_facts(tc, g, obj_facts);
         obj_facts->usages--;
