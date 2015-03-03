@@ -19,7 +19,3 @@ checksums           rmd160  853c106a02040f832b11dff0fa1bde14f6f890fa \
 depends_build           bin:perl:perl5
 
 configure.cmd           perl Configure.pl
-configure.pre_args      --prefix=${prefix}
-
-destroot.target         install
-destroot.args           DESTDIR=${destroot}
