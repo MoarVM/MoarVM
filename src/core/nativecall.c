@@ -434,7 +434,9 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     MVMRegister res;
 
     /* Build a callsite and arguments buffer. */
+    MVMThreadContext *tc = data->tc;
     MVMRegister *args = MVM_malloc(data->num_types * sizeof(MVMRegister));
+    num_roots = 0;
     for (i = 1; i < data->num_types; i++) {
         MVMObject *type     = data->types[i];
         MVMint16   typeinfo = data->typeinfos[i];
@@ -463,20 +465,28 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
             case MVM_NATIVECALL_ARG_ASCIISTR:
             case MVM_NATIVECALL_ARG_UTF8STR:
             case MVM_NATIVECALL_ARG_UTF16STR:
-                args[i - 1].o = make_str_result(data->tc, type, typeinfo,
+                args[i - 1].o = make_str_result(tc, type, typeinfo,
                     (char *)dcbArgPointer(cb_args));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
+                num_roots++;
                 break;
             case MVM_NATIVECALL_ARG_CSTRUCT:
-                args[i - 1].o = MVM_nativecall_make_cstruct(data->tc, type,
+                args[i - 1].o = MVM_nativecall_make_cstruct(tc, type,
                     dcbArgPointer(cb_args));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
+                num_roots++;
                 break;
             case MVM_NATIVECALL_ARG_CPOINTER:
-                args[i - 1].o = MVM_nativecall_make_cpointer(data->tc, type,
+                args[i - 1].o = MVM_nativecall_make_cpointer(tc, type,
                     dcbArgPointer(cb_args));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
+                num_roots++;
                 break;
             case MVM_NATIVECALL_ARG_CARRAY:
-                args[i - 1].o = MVM_nativecall_make_carray(data->tc, type,
+                args[i - 1].o = MVM_nativecall_make_carray(tc, type,
                     dcbArgPointer(cb_args));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
+                num_roots++;
                 break;
             case MVM_NATIVECALL_ARG_CALLBACK:
                 /* TODO: A callback -return- value means that we have a C method
@@ -484,11 +494,14 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                 * sub. */
                 dcbArgPointer(cb_args);
                 args[i - 1].o = type;
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
+                num_roots++;
             default:
-                MVM_exception_throw_adhoc(data->tc,
+                MVM_exception_throw_adhoc(tc,
                     "Internal error: unhandled dyncall callback argument type");
         }
     }
+    MVM_gc_root_temp_pop_n(tc, num_roots);
 
     /* Call into a nested interpreter (since we already are in one). Need to
      * save a bunch of state around each side of this. */
@@ -496,7 +509,6 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     cid.args    = args;
     cid.cs      = data->cs;
     {
-        MVMThreadContext *tc = data->tc;
         MVMuint8 **backup_interp_cur_op         = tc->interp_cur_op;
         MVMuint8 **backup_interp_bytecode_start = tc->interp_bytecode_start;
         MVMRegister **backup_interp_reg_base    = tc->interp_reg_base;
