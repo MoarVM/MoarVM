@@ -150,28 +150,28 @@ static void literal_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     MVMSpeshFacts *tgt_facts = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
     switch (ins->info->opcode) {
         case MVM_OP_const_i64:
-            tgt_facts->value.i64 = ins->operands[1].lit_i64;
+            tgt_facts->value.i = ins->operands[1].lit_i64;
             break;
         case MVM_OP_const_i32:
-            tgt_facts->value.i64 = ins->operands[1].lit_i32;
+            tgt_facts->value.i = ins->operands[1].lit_i32;
             break;
         case MVM_OP_const_i16:
-            tgt_facts->value.i64 = ins->operands[1].lit_i16;
+            tgt_facts->value.i = ins->operands[1].lit_i16;
             break;
         case MVM_OP_const_i8:
-            tgt_facts->value.i64 = ins->operands[1].lit_i8;
+            tgt_facts->value.i = ins->operands[1].lit_i8;
             break;
         case MVM_OP_const_n32:
-            tgt_facts->value.n64 = ins->operands[1].lit_n32;
+            tgt_facts->value.n = ins->operands[1].lit_n32;
             break;
         case MVM_OP_const_n64:
-            tgt_facts->value.n64 = ins->operands[1].lit_n64;
+            tgt_facts->value.n = ins->operands[1].lit_n64;
             break;
         case MVM_OP_const_i64_32:
-            tgt_facts->value.i64 = ins->operands[1].lit_i32;
+            tgt_facts->value.i = ins->operands[1].lit_i32;
             break;
         case MVM_OP_const_i64_16:
-            tgt_facts->value.i64 = ins->operands[1].lit_i16;
+            tgt_facts->value.i = ins->operands[1].lit_i16;
             break;
         case MVM_OP_const_s:
             tgt_facts->value.s   = g->sf->body.cu->body.strings[ins->operands[1].lit_str_idx];

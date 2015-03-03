@@ -134,7 +134,7 @@ static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
         result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
         ins->operands[1].lit_i16 = result;
-        result_facts->value.i64  = result;
+        result_facts->value.i  = result;
 
         obj_facts->usages--;
         type_facts->usages--;
@@ -170,7 +170,7 @@ static void optimize_is_reprid(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshI
         ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
         ins->operands[1].lit_i16 = 0;
         result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
-        result_facts->value.i64 = 0;
+        result_facts->value.i = 0;
     } else {
         ins->info = MVM_op_get_op(MVM_OP_isnonnull);
     }
@@ -206,8 +206,8 @@ static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
         MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
-        result_facts->value.i64     = obj_facts->flags & MVM_SPESH_FACT_CONCRETE ? 1 : 0;
-        ins->operands[1].lit_i16    = result_facts->value.i64;
+        result_facts->value.i     = obj_facts->flags & MVM_SPESH_FACT_CONCRETE ? 1 : 0;
+        ins->operands[1].lit_i16    = result_facts->value.i;
 
         MVM_spesh_use_facts(tc, g, obj_facts);
         obj_facts->usages--;
@@ -243,7 +243,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         switch (ins->info->opcode) {
             case MVM_OP_if_i:
             case MVM_OP_unless_i:
-                truthvalue = flag_facts->value.i64;
+                truthvalue = flag_facts->value.i;
                 break;
             case MVM_OP_if_o:
             case MVM_OP_unless_o: {
@@ -270,7 +270,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             }
             case MVM_OP_if_n:
             case MVM_OP_unless_n:
-                truthvalue = flag_facts->value.n64 != 0.0;
+                truthvalue = flag_facts->value.n != 0.0;
                 break;
             default:
                 return;
@@ -451,8 +451,8 @@ static void optimize_objprimspec(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
-        result_facts->value.i64     = REPR(obj_facts->type)->get_storage_spec(tc, STABLE(obj_facts->type))->boxed_primitive;
-        ins->operands[1].lit_i16    = result_facts->value.i64;
+        result_facts->value.i     = REPR(obj_facts->type)->get_storage_spec(tc, STABLE(obj_facts->type))->boxed_primitive;
+        ins->operands[1].lit_i16    = result_facts->value.i;
 
         MVM_spesh_use_facts(tc, g, obj_facts);
         obj_facts->usages--;
@@ -512,7 +512,7 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
 /* Optimize away assertparamcheck if we know it will pass. */
 static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-    if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE && facts->value.i64) {
+    if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE && facts->value.i) {
         MVM_spesh_use_facts(tc, g, facts);
         facts->usages--;
         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
@@ -560,7 +560,7 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
         ins->operands[1].lit_i16    = can_result;
-        result_facts->value.i64     = can_result;
+        result_facts->value.i     = can_result;
 
         obj_facts->usages--;
         MVM_spesh_use_facts(tc, g, obj_facts);
@@ -573,7 +573,7 @@ static void optimize_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
 
     if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
         MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-        MVMnum64 result = facts->value.i64;
+        MVMnum64 result = facts->value.i;
 
         MVM_spesh_use_facts(tc, g, facts);
         facts->usages--;
@@ -582,7 +582,7 @@ static void optimize_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         ins->operands[1].lit_n64 = result;
 
         result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
-        result_facts->value.n64 = result;
+        result_facts->value.n = result;
     }
 }
 
@@ -779,7 +779,7 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
 
             /* If there's a known value, update the fact. */
             if (res_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)
-                res_facts->value.i64 = !res_facts->value.i64;
+                res_facts->value.i = !res_facts->value.i;
 
             MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
         }
