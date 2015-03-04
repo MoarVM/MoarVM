@@ -501,7 +501,6 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                     "Internal error: unhandled dyncall callback argument type");
         }
     }
-    MVM_gc_root_temp_pop_n(tc, num_roots);
 
     /* Call into a nested interpreter (since we already are in one). Need to
      * save a bunch of state around each side of this. */
@@ -589,6 +588,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     }
 
     /* Clean up. */
+    MVM_gc_root_temp_pop_n(tc, num_roots);
     MVM_free(args);
 
     /* Indicate what we're producing as a result. */
