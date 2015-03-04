@@ -324,7 +324,7 @@ void MVM_serialization_write_varint(MVMThreadContext *tc, MVMSerializationWriter
     offset = *(writer->cur_write_offset);
 
     while (--count) {
-        buffer[offset++] = value & 0x7F | 0x80;
+        buffer[offset++] = (value & 0x7F) | 0x80;
         value = value >> 7;
     }
     if (storage_needed == 9) {
