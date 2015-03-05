@@ -50,6 +50,8 @@ my %bb_map;
 my @connections;
 my %bb_connections;
 
+my @dominance_conns;
+
 my @callsite_args;
 
 my %reg_writers;
@@ -216,7 +218,12 @@ for lines() :eager -> $_ is copy {
     }
     when / ^ 'Finished specialization of ' / { }
     when / ^ '    ' r $<regnum>=[<.digit>+] '(' $<regver>=[<.digit>+] ')' ':' / { }
-    when / ^ '    ' [ 'Instructions' | 'Predeccessors' | 'Dominance children' ] / { }
+    when / ^ '    ' 'Dominance children: ' [$<child>=[<.digit>+]]* % [',' <.ws>] / {
+        for $<child>.list -> $child {
+            @dominance_conns.push($current_bb => $child.Int);
+        }
+    }
+    when / ^ '    ' [ 'Instructions' | 'Predeccessors' ] / { }
     when /^ [ 'Facts' | '='+ ] / { }
     when /^ 'Spesh of \'' $<methname>=[<[a..z 0..9 _ ' -]>*]
             '\' (cuid: ' $<cuid>=[<[a..z A..Z 0..9 _ . -]>+]
@@ -247,6 +254,10 @@ if @callsite_args {
 
 for @connections {
     say "$_.<source_ins> -> \"entry_{ %bb_map{.<target_block>} }\" [style=dotted];";
+}
+
+for @dominance_conns {
+    say "\"exit_$_.key()\" -> \"entry_%bb_map{$_.value}\" [style=tapered;penwidth=10;arrowhead=none;color=grey];";
 }
 
 for %bb_connections.kv -> $k, $v {
