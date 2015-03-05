@@ -176,15 +176,15 @@ MVMint64 MVM_string_index_from_end(MVMThreadContext *tc, MVMString *haystack, MV
     if (!hgraphs)
         return -1;
 
+    if (ngraphs > hgraphs || ngraphs < 1)
+        return -1;
+
     if (start == -1)
         start = hgraphs - ngraphs;
 
     if (start < 0 || start >= hgraphs)
         /* maybe return -1 instead? */
         MVM_exception_throw_adhoc(tc, "index start offset out of range");
-
-    if (ngraphs > hgraphs || ngraphs < 1)
-        return -1;
 
     index = start;
 
