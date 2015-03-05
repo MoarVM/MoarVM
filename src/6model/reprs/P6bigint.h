@@ -13,7 +13,7 @@ struct MVMP6bigintBody {
          * so that the flag sets the lower bits of any 64-bit pointer, which
          * should never happen in a real pointer due to alignment. */
         struct {
-#if MVM_BIGENDIAN
+#if MVM_BIGENDIAN && MVM_PTR_SIZE > 4
             MVMint32  value;
             MVMuint32 flag;
 #else
