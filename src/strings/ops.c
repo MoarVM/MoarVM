@@ -176,7 +176,7 @@ MVMint64 MVM_string_index_from_end(MVMThreadContext *tc, MVMString *haystack, MV
     if (!hgraphs)
         return -1;
 
-    if (ngraphs > hgraphs || ngraphs < 1)
+    if (ngraphs + start > hgraphs || ngraphs < 1)
         return -1;
 
     if (start == -1)
