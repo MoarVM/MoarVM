@@ -176,7 +176,7 @@ MVMint64 MVM_string_index_from_end(MVMThreadContext *tc, MVMString *haystack, MV
     if (!hgraphs)
         return -1;
 
-    if (ngraphs + start > hgraphs || ngraphs < 1)
+    if (ngraphs > hgraphs || ngraphs < 1)
         return -1;
 
     if (start == -1)
@@ -187,6 +187,10 @@ MVMint64 MVM_string_index_from_end(MVMThreadContext *tc, MVMString *haystack, MV
         MVM_exception_throw_adhoc(tc, "index start offset out of range");
 
     index = start;
+
+    if (index + ngraphs > hgraphs) {
+        index = hgraphs - ngraphs;
+    }
 
     /* brute force for now. horrible, yes. halp. */
     do {
