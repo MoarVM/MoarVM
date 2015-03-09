@@ -134,7 +134,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
     }
 
     if (!ngraphs)
-        return 0; /* the empty string is in any other string */
+        return start <= hgraphs ? start : -1; /* the empty string is in any other string */
 
     if (!hgraphs)
         return -1;
