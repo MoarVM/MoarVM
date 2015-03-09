@@ -30,4 +30,4 @@ depends_build       bin:perl:perl5
 # try to re-enable this.
 universal_variant   no
 
-configure.cmd       perl Configure.pl
+configure.cmd       ${prefix}/bin/perl Configure.pl
