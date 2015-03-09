@@ -133,8 +133,8 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
         MVM_exception_throw_adhoc(tc, "index needs a concrete search term");
     }
 
-    if (!ngraphs && !hgraphs)
-        return 0; /* the empty strings are equal and start at zero */
+    if (!ngraphs)
+        return 0; /* the empty string is in any other string */
 
     if (!hgraphs)
         return -1;
