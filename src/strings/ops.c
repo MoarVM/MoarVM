@@ -133,8 +133,8 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
         MVM_exception_throw_adhoc(tc, "index needs a concrete search term");
     }
 
-    if (!ngraphs && !hgraphs)
-        return 0; /* the empty strings are equal and start at zero */
+    if (!ngraphs)
+        return start <= hgraphs ? start : -1; /* the empty string is in any other string */
 
     if (!hgraphs)
         return -1;
@@ -170,10 +170,17 @@ MVMint64 MVM_string_index_from_end(MVMThreadContext *tc, MVMString *haystack, MV
         MVM_exception_throw_adhoc(tc, "index needs a concrete search term");
     }
 
-    if (!ngraphs && !hgraphs)
-        return 0; /* the empty strings are equal and start at zero */
+    if (!ngraphs) {
+	if (start >= 0)
+	    return start <= hgraphs ? start : -1; /* the empty string is in any other string */
+	else
+	    return hgraphs; /* no start, so return end */
+    }
 
     if (!hgraphs)
+        return -1;
+
+    if (ngraphs > hgraphs || ngraphs < 1)
         return -1;
 
     if (start == -1)
@@ -183,10 +190,11 @@ MVMint64 MVM_string_index_from_end(MVMThreadContext *tc, MVMString *haystack, MV
         /* maybe return -1 instead? */
         MVM_exception_throw_adhoc(tc, "index start offset out of range");
 
-    if (ngraphs > hgraphs || ngraphs < 1)
-        return -1;
-
     index = start;
+
+    if (index + ngraphs > hgraphs) {
+        index = hgraphs - ngraphs;
+    }
 
     /* brute force for now. horrible, yes. halp. */
     do {

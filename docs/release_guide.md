@@ -34,6 +34,10 @@ be made, they should be numbered as 2041.01.1, 2041.01.2, etc.
 7. Upload it, or ask on the MoarVM channel if you don't have access or know
    how to do that.
 
-8. Do something fun to celebrate. Like watching nyan cat, or having a beer. Or
+8. Optionally, update the ports/macports/Portfile to reflect this latest
+   version, and open a ticket at https://trac.macports.org/newticket to get
+   the macport updated. (For now, just make Coke do it.)
+
+9. Do something fun to celebrate. Like watching nyan cat, or having a beer. Or
    why not both?
 

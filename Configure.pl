@@ -570,7 +570,7 @@ sub setup_cross {
     my $crossconf = "--build=$build --host=$host";
 
     for (\$build, \$host) {
-        if ($$_ =~ /-(\w+)$/) {
+        if ($$_ =~ /-(\w+)-\w+$/) {
             $$_ = $1;
             if (!exists $::SYSTEMS{$1}) {
                 softfail("unknown OS '$1'");

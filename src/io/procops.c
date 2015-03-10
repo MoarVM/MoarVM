@@ -183,6 +183,8 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
         MVMint64 len = strlen(cmdin);
         MVMint64 i;
         for (i = 0; i < len; i++)
+            if (cmdin[i] == ' ')
+                break;
             if (cmdin[i] == '/')
                 cmdin[i] = '\\';
     }
