@@ -19,7 +19,11 @@ struct MVMIOSyncPipeData {
 
 /* Closes the pipe. */
 static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
-    MVMint64 status = 0;
+#ifdef _WIN32
+    DWORD status = 0;
+#else
+    int status = 0;
+#endif
     if (data->ss.handle == NULL || uv_is_closing((uv_handle_t*)data->ss.handle))
         return 0;
     /* closing the in-/output std filehandle will shutdown the child process. */
@@ -30,9 +34,9 @@ static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
 #ifdef _WIN32
         if (!uv_is_closing((uv_handle_t*)data->process))
             uv_process_close(tc->loop, data->process);
-        GetExitCodeProcess(data->process->process_handle, &(DWORD)status);
+        GetExitCodeProcess(data->process->process_handle, &status);
 #else
-        waitpid(data->process->pid, (int *)&status, 0);
+        waitpid(data->process->pid, &status, 0);
 #endif
     }
     if (!status && data->process->data) {
