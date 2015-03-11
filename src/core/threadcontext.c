@@ -35,6 +35,8 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     tc->frame_pool_table_size = MVMInitialFramePoolTableSize;
     tc->frame_pool_table = MVM_calloc(MVMInitialFramePoolTableSize, sizeof(MVMFrame *));
 
+    tc->phi_infos = MVM_calloc(MVMPhiNodeCacheSize, sizeof(MVMOpInfo));
+
     /* Use default loop for main thread; create a new one for others. */
     tc->loop = instance->main_thread ? uv_loop_new() : uv_default_loop();
 
@@ -67,6 +69,8 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     MVM_checked_free_null(tc->gc_work);
     MVM_checked_free_null(tc->temproots);
     MVM_checked_free_null(tc->gen2roots);
+
+    MVM_checked_free_null(tc->phi_infos);
 
     /* Destroy the libuv event loop */
     uv_loop_delete(tc->loop);

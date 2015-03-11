@@ -834,14 +834,46 @@ static SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph 
     return var_info;
 }
 
+MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 nrargs) {
+    MVMOpInfo *result = NULL;
+
+    /* Up to 64 args, almost every number is represented, but after that
+     * we have a sparse array through which we must search */
+    if (nrargs - 2 < MVMPhiNodeCacheSparseBegin) {
+        result = &tc->phi_infos[nrargs - 2];
+    } else {
+        MVMint32 cache_idx;
+
+        for (cache_idx = MVMPhiNodeCacheSparseBegin; !result && cache_idx < MVMPhiNodeCacheSize; cache_idx++) {
+            if (tc->phi_infos[cache_idx].opcode == MVM_SSA_PHI) {
+                if (tc->phi_infos[cache_idx].num_operands == nrargs) {
+                    result = &tc->phi_infos[cache_idx];
+                }
+            } else {
+                result = &tc->phi_infos[cache_idx];
+            }
+        }
+    }
+
+    if (result == NULL) {
+        result = MVM_spesh_alloc(tc, g, sizeof(MVMOpInfo));
+        result->opcode = 0;
+    }
+
+    if (result->opcode != MVM_SSA_PHI) {
+        result->opcode       = MVM_SSA_PHI;
+        result->name         = "PHI";
+        result->num_operands = nrargs;
+    }
+
+    return result;
+}
+
 /* Inserts SSA phi functions at the required places in the graph. */
 static void place_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMint32 n, MVMuint16 var) {
     MVMint32     i;
+    MVMOpInfo   *phi_op  = get_phi(tc, g, n + 1);
     MVMSpeshIns *ins     = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-    MVMOpInfo   *phi_op  = MVM_spesh_alloc(tc, g, sizeof(MVMOpInfo));
-    phi_op->opcode       = MVM_SSA_PHI;
-    phi_op->name         = "PHI";
-    phi_op->num_operands = n + 1;
     ins->info            = phi_op;
     ins->operands        = MVM_spesh_alloc(tc, g, phi_op->num_operands * sizeof(MVMSpeshOperand));
     for (i = 0; i < phi_op->num_operands; i++)
