@@ -5,7 +5,23 @@ constant MEM_BLOCKSIZE = 32768;
 my %graphs;
 my @allocsizes;
 
+my $abort-loop = Promise.new();
+
+my int $linenum;
+
+my int $destroyed;
+
+signal(SIGINT).Promise.then({ say "aborting ..."; $abort-loop.keep });
+
 for lines() {
+    $linenum++;
+    if $linenum %% 10000 {
+        $linenum.say;
+        if $abort-loop {
+            say "aborted";
+            last
+        }
+    }
     when / "allocd in current block " (<digit>+) " " (<xdigit>+) / {
         %graphs{$1}[*-1]<usage> += $0;
         @allocsizes.push: +$0
@@ -22,7 +38,7 @@ for lines() {
         %graphs{$0} = [ { size => MEM_BLOCKSIZE div 4, usage => 0 } ]
     }
     when / "destroyed " (<xdigit>+) / {
-        
+        $destroyed++;
     }
     default {
         .note
@@ -57,6 +73,8 @@ say "all in all:";
 say "$wastesum wasted at inner block-ends";
 say "$lb-wastesum wasted at the very ends of graphs";
 
+say "out of the {+%graphs} graphs, only $destroyed were destroyed ({100 * $destroyed / +%graphs}%)";
+
 @allocsizes .= sort;
 
 say "allocation sizes:";
@@ -76,6 +94,8 @@ for @waste_per_size.pairs {
     try {
         my @allocsizes = .value.sort;
         say (@allocsizes R/ [+] @allocsizes), " average";
+        printf "%10s  %10s  %10s    %10s\n",
+            "25th", "50th", "75th", "maximum";
         printf "%10d  %10d  %10d    %10d\n",
             @allocsizes[* div 4],
             @allocsizes[* div 2],
