@@ -32,9 +32,6 @@ typedef enum {
 #define MVMInitialFramePoolTableSize    64
 #define MVMFramePoolLengthLimit         64
 
-#define MVMPhiNodeCacheSize             48
-#define MVMPhiNodeCacheSparseBegin      32
-
 /* Information associated with an executing thread. */
 struct MVMThreadContext {
     /* The current allocation pointer, where the next object to be allocated
@@ -200,12 +197,6 @@ struct MVMThreadContext {
     MVMint64  nfa_fates_len;
     MVMint64 *nfa_longlit;
     MVMint64  nfa_longlit_len;
-
-    /* Inside spesh, we need to create new MVMOpInfo structs for each number
-     * of arguments a PHI node can take. We cache them here, so that we
-     * allocate fewer of them in our spesh alloc blocks.
-     */
-    MVMOpInfo *phi_infos;
 
     /* Profiling data collected for this thread, if profiling is on. */
     MVMProfileThreadData *prof_data;

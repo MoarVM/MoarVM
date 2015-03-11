@@ -840,17 +840,17 @@ MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 nrargs) {
     /* Up to 64 args, almost every number is represented, but after that
      * we have a sparse array through which we must search */
     if (nrargs - 2 < MVMPhiNodeCacheSparseBegin) {
-        result = &tc->phi_infos[nrargs - 2];
+        result = &g->phi_infos[nrargs - 2];
     } else {
         MVMint32 cache_idx;
 
         for (cache_idx = MVMPhiNodeCacheSparseBegin; !result && cache_idx < MVMPhiNodeCacheSize; cache_idx++) {
-            if (tc->phi_infos[cache_idx].opcode == MVM_SSA_PHI) {
-                if (tc->phi_infos[cache_idx].num_operands == nrargs) {
-                    result = &tc->phi_infos[cache_idx];
+            if (g->phi_infos[cache_idx].opcode == MVM_SSA_PHI) {
+                if (g->phi_infos[cache_idx].num_operands == nrargs) {
+                    result = &g->phi_infos[cache_idx];
                 }
             } else {
-                result = &tc->phi_infos[cache_idx];
+                result = &g->phi_infos[cache_idx];
             }
         }
     }
@@ -1074,6 +1074,17 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     g->num_locals    = sf->body.num_locals;
     g->num_lexicals  = sf->body.num_lexicals;
 
+    MVMSpeshMemBlock *block = MVM_malloc(sizeof(MVMSpeshMemBlock));
+    block->buffer = MVM_calloc(MVM_SPESH_MEMBLOCK_SIZE / 4, 1);
+    block->alloc  = block->buffer;
+    block->limit  = block->buffer + MVM_SPESH_MEMBLOCK_SIZE / 4;
+    block->prev   = g->mem_block;
+    g->mem_block  = block;
+
+    g->phi_infos = MVM_spesh_alloc(tc, g, MVMPhiNodeCacheSize * sizeof(MVMOpInfo));
+
+    /*fprintf(stderr, "created %x\n", g);*/
+
     /* Ensure the frame is validated, since we'll rely on this. */
     if (sf->body.instrumentation_level == 0) {
         MVM_spesh_graph_destroy(tc, g);
@@ -1113,6 +1124,17 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->lexical_types     = cand->lexical_types;
     g->spesh_slots       = cand->spesh_slots;
     g->num_spesh_slots   = cand->num_spesh_slots;
+
+    MVMSpeshMemBlock *block = MVM_malloc(sizeof(MVMSpeshMemBlock));
+    block->buffer = MVM_calloc(MVM_SPESH_MEMBLOCK_SIZE / 4, 1);
+    block->alloc  = block->buffer;
+    block->limit  = block->buffer + MVM_SPESH_MEMBLOCK_SIZE / 4;
+    block->prev   = g->mem_block;
+    g->mem_block  = block;
+
+    g->phi_infos = MVM_spesh_alloc(tc, g, MVMPhiNodeCacheSize * sizeof(MVMOpInfo));
+
+    /*fprintf(stderr, "created %x\n", g);*/
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (sf->body.instrumentation_level == 0) {
