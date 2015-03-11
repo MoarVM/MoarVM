@@ -214,75 +214,6 @@ static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
     }
 }
 
-static void treat_maybe_unreachable_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
-    if (bb->num_pred == 0) {
-        /* First, let's go through and debump all usage counts on
-         * registers we read from and mark things we've written to to be
-         * "from a dead BB" so that PHI nodes can be kicked out. */
-        MVMSpeshIns *ins = bb->first_ins;
-        MVMint32 bbi;
-
-        while (ins && ins->info->opcode == MVM_SSA_PHI) {
-            ins = ins->next;
-        }
-
-        while (ins) {
-            MVMint32 i;
-            for (i = 0; i < ins->info->num_operands; i++) {
-                if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg) {
-                    get_facts_direct(tc, g, ins->operands[i])->usages--;
-                }
-
-                if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
-                    get_facts_direct(tc, g, ins->operands[i])->flags |= MVM_SPESH_FACT_FROM_DEAD_BB;
-                }
-            }
-            ins = ins->next;
-        }
-
-        /* Now we can go through the succs of this BB and do a tiny bit of PHI cleanup ... maybe */
-        for (bbi = 0; bbi < bb->num_succ; bbi++) {
-            MVMSpeshBB *bbs = bb->succ[bbi];
-
-            if (bbs->num_pred == 1) {
-                continue;
-            }
-
-            ins = bbs->first_ins;
-
-            while (ins && ins->info->opcode == MVM_SSA_PHI) {
-                MVMint32 operand;
-                MVMint32 write_to;
-
-                for (operand = 1, write_to = 1; operand < ins->info->num_operands;) {
-                    MVMint32 flags = get_facts_direct(tc, g, ins->operands[operand])->flags;
-                    if (flags & MVM_SPESH_FACT_FROM_DEAD_BB) {
-                        operand++;
-                    } else {
-                        operand++;
-                        write_to++;
-                    }
-                    if (write_to != operand) {
-                        ins->operands[write_to] = ins->operands[operand];
-                    }
-                }
-
-                if (write_to < operand) {
-                    ins->info = get_phi(tc, g, write_to);
-                }
-                if (write_to == 1) {
-                    /* The whole PHI node can just be thrown out and facts
-                     * about the only remaining register can be put into the
-                     * target register */
-                    copy_facts(tc, g, ins->operands[0], ins->operands[1]);
-                }
-
-                ins = ins->next;
-            }
-        }
-    }
-}
-
 /* iffy ops that operate on a known value register can turn into goto
  * or be dropped. */
 static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
@@ -357,11 +288,9 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             /* since we have an unconditional jump now, we can remove the successor
              * that's in the linear_next */
             MVM_spesh_manipulate_remove_successor(tc, bb, bb->linear_next);
-            treat_maybe_unreachable_bb(tc, g, bb->linear_next);
         } else {
             /* this conditional can be dropped completely */
             MVM_spesh_manipulate_remove_successor(tc, bb, ins->operands[1].ins_bb);
-            treat_maybe_unreachable_bb(tc, g, ins->operands[1].ins_bb);
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
         }
         return;
