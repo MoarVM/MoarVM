@@ -270,7 +270,7 @@ static void treat_maybe_unreachable_bb(MVMThreadContext *tc, MVMSpeshGraph *g, M
                 if (write_to < operand) {
                     ins->info = get_phi(tc, g, write_to);
                 }
-                if (write_to == 1) {
+                if (write_to == 2) {
                     /* The whole PHI node can just be thrown out and facts
                      * about the only remaining register can be put into the
                      * target register */
