@@ -32,7 +32,7 @@ void *MVM_platform_alloc_pages(size_t size, int page_mode)
 
 int MVM_platform_set_page_mode(void * pages, size_t size, int page_mode) {
     int prot_mode = page_mode_to_prot_mode(page_mode);
-    int oldMode;
+    DWORD oldMode;
     return VirtualProtect(pages, size, prot_mode, &oldMode);
 }
 
