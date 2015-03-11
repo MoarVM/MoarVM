@@ -44,9 +44,13 @@ void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
     if (!result) {
         /* No block, or block was full. Add another. */
         MVMSpeshMemBlock *block = MVM_malloc(sizeof(MVMSpeshMemBlock));
-        block->buffer = MVM_calloc(MVM_SPESH_MEMBLOCK_SIZE, 1);
+        MVMint32 size = MVM_SPESH_MEMBLOCK_SIZE;
+        if (g->mem_block->prev != NULL && g->mem_block->prev == NULL) {
+            size /= 2;
+        }
+        block->buffer = MVM_calloc(size, 1);
         block->alloc  = block->buffer;
-        block->limit  = block->buffer + MVM_SPESH_MEMBLOCK_SIZE;
+        block->limit  = block->buffer + size;
         block->prev   = g->mem_block;
         g->mem_block  = block;
 
