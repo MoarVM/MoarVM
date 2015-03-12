@@ -2278,6 +2278,9 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
     /* Do appropriate type of repossession. */
     MVMint32 repo_type = read_int32(table_row, 0);
     if (repo_type == 0) {
+        char *obj_table_row;
+        MVMSTable *updated_st;
+
         /* Get object to repossess. */
         MVMSerializationContext *orig_sc = locate_sc(tc, reader, read_int32(table_row, 8));
         MVMObject *orig_obj = MVM_sc_get_object(tc, orig_sc, read_int32(table_row, 12));
@@ -2311,6 +2314,15 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
          * it on deserialization. */
         if (REPR(orig_obj)->gc_free)
             REPR(orig_obj)->gc_free(tc, orig_obj);
+
+        /* The object's STable may have changed as a result of the
+         * repossession (perhaps due to mixing in to it), so put the
+         * STable it should now have in place. */
+        obj_table_row = reader->root.objects_table + slot * OBJECTS_TABLE_ENTRY_SIZE;
+        updated_st = lookup_stable(tc, reader,
+            read_int32(obj_table_row, 0),   /* The SC in the dependencies table, + 1 */
+            read_int32(obj_table_row, 4));  /* The index in that SC */
+        MVM_ASSIGN_REF(tc, &(orig_obj->header), orig_obj->st, updated_st);
 
         /* Put this on the list of things we should deserialize right away. */
         worklist_add_index(tc, &(reader->wl_objects), slot);
