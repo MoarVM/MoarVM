@@ -105,8 +105,9 @@ struct MVMSpeshGraph {
 };
 
 /* The default allocation chunk size for memory blocks used to store spesh
- * graph nodes. Power of two is best. */
-#define MVM_SPESH_MEMBLOCK_SIZE 32768
+ * graph nodes. Power of two is best; we start small also. */
+#define MVM_SPESH_FIRST_MEMBLOCK_SIZE 32768
+#define MVM_SPESH_MEMBLOCK_SIZE       8192
 
 /* A block of bump-pointer allocated memory. */
 struct MVMSpeshMemBlock {
