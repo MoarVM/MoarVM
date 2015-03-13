@@ -197,13 +197,22 @@ static MVMObject * reg_or_lex_ref(MVMThreadContext *tc, MVMObject *type, MVMFram
     return (MVMObject *)ref;
 }
 MVMObject * MVM_nativeref_reg_i(MVMThreadContext *tc, MVMFrame *f, MVMRegister *r) {
-    return reg_or_lex_ref(tc, MVM_hll_current(tc)->int_lex_ref, f, r, MVM_reg_int64);
+    MVMObject *ref_type = MVM_hll_current(tc)->int_lex_ref;
+    if (ref_type)
+        return reg_or_lex_ref(tc, ref_type, f, r, MVM_reg_int64);
+    MVM_exception_throw_adhoc(tc, "No int lexical reference type registered for current HLL");
 }
 MVMObject * MVM_nativeref_reg_n(MVMThreadContext *tc, MVMFrame *f, MVMRegister *r) {
-    return reg_or_lex_ref(tc, MVM_hll_current(tc)->num_lex_ref, f, r, MVM_reg_num64);
+    MVMObject *ref_type = MVM_hll_current(tc)->num_lex_ref;
+    if (ref_type)
+        return reg_or_lex_ref(tc, ref_type, f, r, MVM_reg_num64);
+    MVM_exception_throw_adhoc(tc, "No num lexical reference type registered for current HLL");
 }
 MVMObject * MVM_nativeref_reg_s(MVMThreadContext *tc, MVMFrame *f, MVMRegister *r) {
-    return reg_or_lex_ref(tc, MVM_hll_current(tc)->str_lex_ref, f, r, MVM_reg_str);
+    MVMObject *ref_type = MVM_hll_current(tc)->str_lex_ref;
+    if (ref_type)
+        return reg_or_lex_ref(tc, ref_type, f, r, MVM_reg_str);
+    MVM_exception_throw_adhoc(tc, "No str lexical reference type registered for current HLL");
 }
 
 /* Creation of native references for lexicals. */
@@ -218,34 +227,46 @@ static MVMFrame * get_lexical_outer(MVMThreadContext *tc, MVMuint16 outers) {
     return f;
 }
 MVMObject * MVM_nativeref_lex_i(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
-    MVMFrame  *f = get_lexical_outer(tc, outers);
-    MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
-        ? f->spesh_cand->lexical_types
-        : f->static_info->body.lexical_types;
-    MVMuint16 type = lexical_types[idx];
-    if (type != MVM_reg_int64 && type != MVM_reg_int32 &&
-            type != MVM_reg_int16 && type != MVM_reg_int8)
-        MVM_exception_throw_adhoc(tc, "getlexref_i: lexical is not an int");
-    return reg_or_lex_ref(tc, MVM_hll_current(tc)->int_lex_ref, f, &(f->env[idx]), type);
+    MVMObject *ref_type = MVM_hll_current(tc)->int_lex_ref;
+    if (ref_type) {
+        MVMFrame  *f = get_lexical_outer(tc, outers);
+        MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
+            ? f->spesh_cand->lexical_types
+            : f->static_info->body.lexical_types;
+        MVMuint16 type = lexical_types[idx];
+        if (type != MVM_reg_int64 && type != MVM_reg_int32 &&
+                type != MVM_reg_int16 && type != MVM_reg_int8)
+            MVM_exception_throw_adhoc(tc, "getlexref_i: lexical is not an int");
+        return reg_or_lex_ref(tc, ref_type, f, &(f->env[idx]), type);
+    }
+    MVM_exception_throw_adhoc(tc, "No int lexical reference type registered for current HLL");
 }
 MVMObject * MVM_nativeref_lex_n(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
-    MVMFrame  *f = get_lexical_outer(tc, outers);
-    MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
-        ? f->spesh_cand->lexical_types
-        : f->static_info->body.lexical_types;
-    MVMuint16 type = lexical_types[idx];
-    if (type != MVM_reg_num64 && type != MVM_reg_num32)
-        MVM_exception_throw_adhoc(tc, "getlexref_n: lexical is not a num");
-    return reg_or_lex_ref(tc, MVM_hll_current(tc)->num_lex_ref, f, &(f->env[idx]), type);
+    MVMObject *ref_type = MVM_hll_current(tc)->num_lex_ref;
+    if (ref_type) {
+        MVMFrame  *f = get_lexical_outer(tc, outers);
+        MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
+            ? f->spesh_cand->lexical_types
+            : f->static_info->body.lexical_types;
+        MVMuint16 type = lexical_types[idx];
+        if (type != MVM_reg_num64 && type != MVM_reg_num32)
+            MVM_exception_throw_adhoc(tc, "getlexref_n: lexical is not a num");
+        return reg_or_lex_ref(tc, ref_type, f, &(f->env[idx]), type);
+    }
+    MVM_exception_throw_adhoc(tc, "No num lexical reference type registered for current HLL");
 }
 MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
-    MVMFrame  *f = get_lexical_outer(tc, outers);
-    MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
-        ? f->spesh_cand->lexical_types
-        : f->static_info->body.lexical_types;
-    if (lexical_types[idx] != MVM_reg_str)
-        MVM_exception_throw_adhoc(tc, "getlexref_s: lexical is not a str (%d, %d)", outers, idx);
-    return reg_or_lex_ref(tc, MVM_hll_current(tc)->str_lex_ref, f, &(f->env[idx]), MVM_reg_str);
+    MVMObject *ref_type = MVM_hll_current(tc)->str_lex_ref;
+    if (ref_type) {
+        MVMFrame  *f = get_lexical_outer(tc, outers);
+        MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
+            ? f->spesh_cand->lexical_types
+            : f->static_info->body.lexical_types;
+        if (lexical_types[idx] != MVM_reg_str)
+            MVM_exception_throw_adhoc(tc, "getlexref_s: lexical is not a str (%d, %d)", outers, idx);
+        return reg_or_lex_ref(tc, ref_type, f, &(f->env[idx]), MVM_reg_str);
+    }
+    MVM_exception_throw_adhoc(tc, "No str lexical reference type registered for current HLL");
 }
 static MVMObject * lexref_by_name(MVMThreadContext *tc, MVMObject *type, MVMString *name, MVMuint16 kind) {
     MVMFrame *cur_frame = tc->cur_frame;
