@@ -1168,6 +1168,24 @@ void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist 
     }
 }
 
+/* Re-computes the dominance children and dominance frontiers for the graph,
+ * presumably because inlining caused changes to the CFG. */
+void MVM_spesh_graph_recompute_dominance(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    /* Walk graph and clear existing computation (can just NULL, it's all
+     * memory spesh_alloc'd). */
+    MVMSpeshBB *cur_bb = g->entry;
+    while (cur_bb) {
+        cur_bb->num_children = 0;
+        cur_bb->children = NULL;
+        cur_bb->num_df = 0;
+        cur_bb->df = NULL;
+        cur_bb = cur_bb->linear_next;
+    }
+
+    /* Do fresh computation. */
+    compute_dominance_info(tc, g);
+}
+
 /* Destroys a spesh graph, deallocating all its associated memory. */
 void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Free all of the allocated node memory. */
