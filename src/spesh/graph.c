@@ -772,6 +772,17 @@ static void add_dominance_frontiers(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     }
 }
 
+/* Computes the dominator tree and dominance frontiers and adds them to the
+ * graph. */
+static void compute_dominance_info(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMSpeshBB **rpo  = reverse_postorder(tc, g);
+    MVMint32    *doms = compute_dominators(tc, g, rpo);
+    add_children(tc, g, rpo, doms);
+    add_dominance_frontiers(tc, g, rpo, doms);
+    MVM_free(rpo);
+    MVM_free(doms);
+}
+
 /* Per-local SSA info. */
 typedef struct {
     /* Nodes that assign to the variable. */
@@ -1032,14 +1043,6 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
     SSAVarInfo *var_info;
     MVMint32 i, num_locals;
 
-    /* Compute dominance frontiers. */
-    MVMSpeshBB **rpo  = reverse_postorder(tc, g);
-    MVMint32    *doms = compute_dominators(tc, g, rpo);
-    add_children(tc, g, rpo, doms);
-    add_dominance_frontiers(tc, g, rpo, doms);
-    MVM_free(rpo);
-    MVM_free(doms);
-
     /* Initialize per-local data for SSA analysis. */
     var_info = initialize_ssa_var_info(tc, g);
 
@@ -1087,6 +1090,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     if (!cfg_only) {
         eliminate_dead(tc, g);
         add_predecessors(tc, g);
+        compute_dominance_info(tc, g);
         ssa(tc, g);
     }
 
@@ -1128,6 +1132,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     if (!cfg_only) {
         eliminate_dead(tc, g);
         add_predecessors(tc, g);
+        compute_dominance_info(tc, g);
         ssa(tc, g);
     }
 
