@@ -531,9 +531,9 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     MVM_free(ins_to_bb);
 }
 
-/* Eliminates any unreachable basic blocks (that is, dead code). Not having
- * to consider them any further simplifies all that follows. */
-static void eliminate_dead(MVMThreadContext *tc, MVMSpeshGraph *g) {
+/* Eliminates any unreachable basic blocks (that is, dead code). This is a
+ * pre-requisite for dominance computation. */
+void MVM_spesh_graph_eliminate_unreachable(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Iterate to fixed point. */
     MVMint8  *seen     = MVM_malloc(g->num_bbs);
     MVMint32  orig_bbs = g->num_bbs;
@@ -1088,7 +1088,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     /* Build the CFG out of the static frame, and transform it to SSA. */
     build_cfg(tc, g, sf, NULL, 0);
     if (!cfg_only) {
-        eliminate_dead(tc, g);
+        MVM_spesh_graph_eliminate_unreachable(tc, g);
         add_predecessors(tc, g);
         compute_dominance_info(tc, g);
         ssa(tc, g);
@@ -1130,7 +1130,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     /* Build the CFG out of the static frame, and transform it to SSA. */
     build_cfg(tc, g, sf, cand->deopts, cand->num_deopts);
     if (!cfg_only) {
-        eliminate_dead(tc, g);
+        MVM_spesh_graph_eliminate_unreachable(tc, g);
         add_predecessors(tc, g);
         compute_dominance_info(tc, g);
         ssa(tc, g);
