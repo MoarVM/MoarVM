@@ -533,7 +533,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
 /* Eliminates any unreachable basic blocks (that is, dead code). This is a
  * pre-requisite for dominance computation. */
-void MVM_spesh_graph_eliminate_unreachable(MVMThreadContext *tc, MVMSpeshGraph *g) {
+void MVM_spesh_graph_eliminate_unreachable(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOnBBRemoval on_remove) {
     /* Iterate to fixed point. */
     MVMint8  *seen     = MVM_malloc(g->num_bbs);
     MVMint32  orig_bbs = g->num_bbs;
@@ -555,8 +555,11 @@ void MVM_spesh_graph_eliminate_unreachable(MVMThreadContext *tc, MVMSpeshGraph *
         death = 0;
         cur_bb = g->entry;
         while (cur_bb->linear_next) {
-            if (!seen[cur_bb->linear_next->idx]) {
-                cur_bb->linear_next = cur_bb->linear_next->linear_next;
+            MVMSpeshBB *victim = cur_bb->linear_next;
+            if (!seen[victim->idx]) {
+                if (on_remove)
+                    on_remove(tc, g, victim);
+                cur_bb->linear_next = victim->linear_next;
                 g->num_bbs--;
                 death = 1;
             }
@@ -1088,7 +1091,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     /* Build the CFG out of the static frame, and transform it to SSA. */
     build_cfg(tc, g, sf, NULL, 0);
     if (!cfg_only) {
-        MVM_spesh_graph_eliminate_unreachable(tc, g);
+        MVM_spesh_graph_eliminate_unreachable(tc, g, NULL);
         add_predecessors(tc, g);
         compute_dominance_info(tc, g);
         ssa(tc, g);
@@ -1130,7 +1133,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     /* Build the CFG out of the static frame, and transform it to SSA. */
     build_cfg(tc, g, sf, cand->deopts, cand->num_deopts);
     if (!cfg_only) {
-        MVM_spesh_graph_eliminate_unreachable(tc, g);
+        MVM_spesh_graph_eliminate_unreachable(tc, g, NULL);
         add_predecessors(tc, g);
         compute_dominance_info(tc, g);
         ssa(tc, g);
