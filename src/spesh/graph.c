@@ -535,14 +535,14 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
  * pre-requisite for dominance computation. */
 void MVM_spesh_graph_eliminate_unreachable(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOnBBRemoval on_remove) {
     /* Iterate to fixed point. */
-    MVMint8  *seen     = MVM_malloc(g->num_bbs);
     MVMint32  orig_bbs = g->num_bbs;
+    MVMint8  *seen     = MVM_malloc(orig_bbs);
     MVMint8   death    = 1;
     while (death) {
         /* First pass: mark every basic block that is the entry point or the
          * successor of some other block. */
         MVMSpeshBB *cur_bb = g->entry;
-        memset(seen, 0, g->num_bbs);
+        memset(seen, 0, orig_bbs);
         seen[0] = 1;
         while (cur_bb) {
             MVMuint16 i;
@@ -563,7 +563,9 @@ void MVM_spesh_graph_eliminate_unreachable(MVMThreadContext *tc, MVMSpeshGraph *
                 g->num_bbs--;
                 death = 1;
             }
-            cur_bb = cur_bb->linear_next;
+            else {
+                cur_bb = cur_bb->linear_next;
+            }
         }
     }
     MVM_free(seen);
