@@ -83,7 +83,7 @@ static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64
 }
 
 /* Get curernt position in the file. */
-static MVMint64 tell(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 mytell(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     return data->ds ? MVM_string_decodestream_tell_bytes(tc, data->ds) : 0;
 }
@@ -183,7 +183,7 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
 }
 
 /* Checks if the end of file has been reached. */
-static MVMint64 eof(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 myeof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     MVMint64 r;
     MVMint64 seek_pos;
@@ -366,9 +366,9 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 /* IO ops table, populated with functions. */
 static const MVMIOClosable     closable      = { closefh };
 static const MVMIOEncodable    encodable     = { set_encoding };
-static const MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, eof };
+static const MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, myeof };
 static const MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncatefh };
-static const MVMIOSeekable     seekable      = { seek, tell };
+static const MVMIOSeekable     seekable      = { seek, mytell };
 static const MVMIOLockable     lockable      = { lock, unlock };
 static const MVMIOOps op_table = {
     &closable,
