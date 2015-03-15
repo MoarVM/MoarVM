@@ -1184,10 +1184,13 @@ void MVM_spesh_graph_recompute_dominance(MVMThreadContext *tc, MVMSpeshGraph *g)
         cur_bb->children = NULL;
         cur_bb->num_df = 0;
         cur_bb->df = NULL;
+        cur_bb->num_pred = 0;   /* XXX fix optimizer not to need this */
+        cur_bb->pred = NULL;    /* XXX fix optimizer not to need this */
         cur_bb = cur_bb->linear_next;
     }
 
     /* Do fresh computation. */
+    add_predecessors(tc, g);    /* XXX fix optimizer not to need this */
     compute_dominance_info(tc, g);
 }
 
