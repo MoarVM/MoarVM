@@ -1512,9 +1512,28 @@ static void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) 
 
 /* Drives the overall optimization work taking place on a spesh graph. */
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    /* The first pass does many specializing optimizations, driven primarily
+     * by type information we can get from constants and from assumptions we
+     * make and enforce by guards. */
     optimize_bb(tc, g, g->entry);
-    eliminate_dead_ins(tc, g);
+
+    /* The previous step may cause some code to become unreachable, and may
+     * perform inlining. Both change the organization of the CFG. Thus, we
+     * eliminate any unreachable basic blocks, and then re-compute dominance
+     * info before continuing. */
     eliminate_dead_bbs(tc, g);
-    eliminate_unused_log_guards(tc, g);
+    /* TODO: re-use garph.c elimination logic. */
+    /* TODO: actually recompute dominators. */
+
+    /* The post-inlining graph is now walked again to perform a range of
+     * "value propagation" optimizations, which can be used to eliminte
+     * unrequired set instructions, box/unbox pairs, and native ref/deref
+     * pairs. Note this just decrements usage, and lets dead instruction
+     * removal kill off instructions. */
     value_propagation(tc, g, g->entry);
+
+    /* Finally, remove and log guards we didn't make use of, and toss all
+     * dead instructions. */
+    eliminate_unused_log_guards(tc, g);
+    eliminate_dead_ins(tc, g);
 }
