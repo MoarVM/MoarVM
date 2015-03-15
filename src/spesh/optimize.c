@@ -1367,7 +1367,14 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
     }
 }
 
-static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+/* Perform various value-propagation optimizations.
+ * TODO: box/unbox case
+ * TODO: native-reg-ref/deref case
+ * TODO: native-lex-ref/deref case
+ * TODO: native-attr-ref/deref case
+ * TODO: native-pos-ref/deref case
+ */
+static void value_propagation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMSpeshCallInfo arg_info;
     MVMint32 i;
 
@@ -1423,7 +1430,7 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
     }
     /* Visit children. */
     for (i = 0; i < bb->num_children; i++)
-        second_pass(tc, g, bb->children[i]);
+        value_propagation(tc, g, bb->children[i]);
 }
 
 /* Eliminates any unreachable basic blocks (that is, dead code). Not having
@@ -1509,5 +1516,5 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
     eliminate_dead_ins(tc, g);
     eliminate_dead_bbs(tc, g);
     eliminate_unused_log_guards(tc, g);
-    second_pass(tc, g, g->entry);
+    value_propagation(tc, g, g->entry);
 }
