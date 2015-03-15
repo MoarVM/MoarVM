@@ -19,7 +19,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
     MVMuint32      last_return_deopt_idx;
     MVMint32 i;
     for (i = 0; i < cand->num_inlines; i++) {
-        if (offset >= cand->inlines[i].start && offset < cand->inlines[i].end) {
+        if (offset >= cand->inlines[i].start && offset <= cand->inlines[i].end) {
             /* Create the frame. */
             MVMCode        *ucode = cand->inlines[i].code;
             MVMStaticFrame *usf   = ucode->body.sf;
