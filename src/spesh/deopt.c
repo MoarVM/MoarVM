@@ -286,9 +286,17 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
             else {
                 /* Not JITted; see if we can find the return address in the deopt table. */
                 MVMint32 ret_offset = f->return_address - f->effective_bytecode;
+                MVMint32 num_deopts = f->spesh_cand->num_deopts * 2;
                 MVMint32 i;
-                for (i = 0; i < f->spesh_cand->num_deopts * 2; i += 2) {
+                for (i = 0; i < num_deopts; i += 2) {
                     if (f->spesh_cand->deopts[i + 1] == ret_offset) {
+#if MVM_DEOPT_DUMP
+                        fprintf(stderr, "Found deopt ret_offset %d in frame '%s' (cuid '%s')\n",
+                            ret_offset,
+                            MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
+                            MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid));
+#endif
+
                         /* Switch frame itself back to the original code. */
                         f->effective_bytecode    = f->static_info->body.bytecode;
                         f->effective_handlers    = f->static_info->body.handlers;
@@ -307,6 +315,13 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                         break;
                     }
                 }
+#if MVM_DEOPT_DUMP
+                if (i == num_deopts)
+                    fprintf(stderr, "Cannot find deopt ret_offset %d for frame '%s' (cuid '%s')\n",
+                        ret_offset,
+                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
+                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid));
+#endif
             }
         }
         l = f;
