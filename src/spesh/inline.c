@@ -108,6 +108,21 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                     goto not_inlinable;
             }
 
+            /* Any invoke instruction's write register must be a usage bump
+             * over what it would normally had to represent the register's
+             * role during de-opt. This prevents us re-writing it to store
+             * the result in the inlining routine's register frame, meaning
+             * we mis-calculate the new register address when uninlining. */
+            if (ins->info->opcode == MVM_OP_invoke_o ||
+                    ins->info->opcode == MVM_OP_invoke_i ||
+                    ins->info->opcode == MVM_OP_invoke_n ||
+                    ins->info->opcode == MVM_OP_invoke_s ||
+                    ins->info->opcode == MVM_OP_sp_fastinvoke_o ||
+                    ins->info->opcode == MVM_OP_sp_fastinvoke_i ||
+                    ins->info->opcode == MVM_OP_sp_fastinvoke_n ||
+                    ins->info->opcode == MVM_OP_sp_fastinvoke_s)
+                ig->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i].usages++;
+
             /* Ext-ops need special care in inter-comp-unit inlines. */
             if (ins->info->opcode == (MVMuint16)-1) {
                 MVMCompUnit *target_cu = inliner->sf->body.cu;
