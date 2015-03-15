@@ -4,6 +4,8 @@
  * back out of it, because some assumption it made has been invalidated. This
  * file contains implementations of those various forms of de-opt. */
 
+#define MVM_DEOPT_DUMP 0
+
 /* If we have to deopt inside of a frame containing inlines, and we're in
  * an inlined frame at the point we hit deopt, we need to undo the inlining
  * by switching all levels of inlined frame out for a bunch of frames that
@@ -22,9 +24,11 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             MVMCode        *ucode = cand->inlines[i].code;
             MVMStaticFrame *usf   = ucode->body.sf;
             MVMFrame       *uf    = MVM_frame_create_for_deopt(tc, usf, ucode);
-            /*fprintf(stderr, "Recreated frame '%s' (cuid '%s')\n",
+#if MVM_DEOPT_DUMP
+            fprintf(stderr, "Recreated frame '%s' (cuid '%s')\n",
                 MVM_string_utf8_encode_C_string(tc, usf->body.name),
-                MVM_string_utf8_encode_C_string(tc, usf->body.cuuid));*/
+                MVM_string_utf8_encode_C_string(tc, usf->body.cuuid));
+#endif
 
             /* Copy the locals and lexicals into place. */
             memcpy(uf->work, f->work + cand->inlines[i].locals_start,
@@ -153,10 +157,12 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
         f->effective_handlers    = f->static_info->body.handlers;
         f->effective_spesh_slots = NULL;
         f->spesh_cand            = NULL;
-        /*fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s'), idx = %i, with uninlining\n",
+#if MVM_DEOPT_DUMP
+        fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s'), %d -> %d, with uninlining\n",
           MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
           MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid),
-          i / 2);*/
+          deopt_offset, deopt_target);
+#endif
     }
     else {
         /* No inlining; simple case. Switch back to the original code. */
@@ -166,10 +172,12 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
         *(tc->interp_bytecode_start) = f->effective_bytecode;
         f->effective_spesh_slots     = NULL;
         f->spesh_cand                = NULL;
-        /*fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s'), idx = %i\n",
+#if MVM_DEOPT_DUMP
+        fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s'), %d -> %d\n",
           MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
           MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid),
-          i / 2);*/
+          deopt_offset, deopt_target);
+#endif
     }
 
 }
@@ -180,9 +188,11 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
     MVMFrame *f = tc->cur_frame;
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_one(tc);
-    /*fprintf(stderr, "deopt_one requested in frame '%s' (cuid '%s')\n",
+#if MVM_DEOPT_DUMP
+    fprintf(stderr, "deopt_one requested in frame '%s' (cuid '%s')\n",
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));*/
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
     if (f->effective_bytecode != f->static_info->body.bytecode) {
         MVMint32 deopt_offset = *(tc->interp_cur_op) - f->effective_bytecode;
         MVMint32 deopt_target = find_deopt_target(tc, f, deopt_offset);
@@ -230,14 +240,14 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                 MVMint32 i;
                 for (i = 0; i < num_deopts; i++) {
                     if (labels[deopts[i].label] == f->jit_entry_label) {
-                        /*
-                        fprintf(stderr, "Found deopt label for JIT (%d) (label %d idx %d)\n", i,
-                                deopts[i].label, deopts[i].idx);
-                        */
                         /* Resolve offset and target. */
                         MVMint32 deopt_idx    = deopts[i].idx;
                         MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
                         MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
+#if MVM_DEOPT_DUMP
+                        fprintf(stderr, "Found deopt label for JIT (%d) (label %d idx %d)\n", i,
+                                deopts[i].label, deopts[i].idx);
+#endif
 
                         /* Switch frame itself back to the original code. */
                         f->effective_bytecode    = f->static_info->body.bytecode;
@@ -258,10 +268,10 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                         break;
                     }
                 }
-                /*
+#if MVM_DEOPT_DUMP
                 if (i == num_deopts)
                     fprintf(stderr, "JIT: can't find deopt all idx");
-                */
+#endif
             }
 
             else {
