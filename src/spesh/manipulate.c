@@ -34,6 +34,7 @@ void MVM_spesh_manipulate_delete_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
                 break;
             case MVM_SPESH_ANN_FH_END:
             case MVM_SPESH_ANN_DEOPT_ONE_INS:
+            case MVM_SPESH_ANN_DEOPT_INLINE:
                 if (!prev) {
                     MVMSpeshBB *prev_bb = MVM_spesh_graph_linear_prev(tc, g, bb);
                     if (prev_bb)
