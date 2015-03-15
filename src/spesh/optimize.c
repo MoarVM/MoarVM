@@ -1146,7 +1146,6 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
     MVM_free(handlers_found);
 }
 
-
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMSpeshCallInfo arg_info;
@@ -1310,7 +1309,6 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
                 optimize_extop(tc, g, bb, ins);
         }
 
-
         ins = ins->next;
     }
 
@@ -1319,70 +1317,39 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         optimize_bb(tc, g, bb->children[i]);
 }
 
-/* Eliminates any unreachable basic blocks (that is, dead code). Not having
- * to consider them any further simplifies all that follows. */
-static MVMint64 has_handler_anns(MVMThreadContext *tc, MVMSpeshBB *bb) {
+/* Moves annotations when we remove a basic block. */
+static void move_anns(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+    /* We'll move them all onto the last instruction of the preceding basic
+     * block. */
+    MVMSpeshBB  *prev     = MVM_spesh_graph_linear_prev(tc, g, bb);
+    MVMSpeshIns *b_target = prev->last_ins;
+    MVMSpeshIns *f_target = bb->linear_next ? bb->linear_next->first_ins : b_target;
+
+    /* Go through finding and moving annotations. */
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
         MVMSpeshAnn *ann = ins->annotations;
         while (ann) {
+            MVMSpeshAnn *next = ann->next;
             switch (ann->type) {
-            case MVM_SPESH_ANN_FH_START:
-            case MVM_SPESH_ANN_FH_END:
-            case MVM_SPESH_ANN_FH_GOTO:
-                return 1;
+                case MVM_SPESH_ANN_FH_START:
+                case MVM_SPESH_ANN_INLINE_START:
+                case MVM_SPESH_ANN_INLINE_END:
+                    ann->next = b_target->annotations;
+                    b_target->annotations = ann;
+                    break;
+                case MVM_SPESH_ANN_FH_END:
+                    ann->next = f_target->annotations;
+                    f_target->annotations = ann;
+                    break;
+                case MVM_SPESH_ANN_FH_GOTO:
+                    MVM_exception_throw_adhoc(tc,
+                        "Spesh: should not be eliminating handler target block");
+                    break;
             }
-            ann = ann->next;
+            ann = next;
         }
         ins = ins->next;
-    }
-    return 0;
-}
-static void eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    /* Iterate to fixed point. */
-    MVMint8  *seen     = MVM_malloc(g->num_bbs);
-    MVMint32  orig_bbs = g->num_bbs;
-    MVMint8   death    = 1;
-    while (death) {
-        /* First pass: mark every basic block that is the entry point or the
-         * successor of some other block. */
-        MVMSpeshBB *cur_bb = g->entry;
-        memset(seen, 0, g->num_bbs);
-        seen[0] = 1;
-        while (cur_bb) {
-            MVMuint16 i;
-            for (i = 0; i < cur_bb->num_succ; i++)
-                seen[cur_bb->succ[i]->idx] = 1;
-            cur_bb = cur_bb->linear_next;
-        }
-
-        /* Second pass: eliminate dead BBs from consideration. Do not get
-         * rid of any that are from inlines or that contain handler related
-         * annotations. */
-        death = 0;
-        cur_bb = g->entry;
-        while (cur_bb->linear_next) {
-            MVMSpeshBB *death_cand = cur_bb->linear_next;
-            if (!seen[death_cand->idx]) {
-                if (!death_cand->inlined && !has_handler_anns(tc, death_cand)) {
-                    cur_bb->linear_next = cur_bb->linear_next->linear_next;
-                    g->num_bbs--;
-                    death = 1;
-                }
-            }
-            cur_bb = cur_bb->linear_next;
-        }
-    }
-    MVM_free(seen);
-
-    if (g->num_bbs != orig_bbs) {
-        MVMint32    new_idx  = 0;
-        MVMSpeshBB *cur_bb   = g->entry;
-        while (cur_bb) {
-            cur_bb->idx = new_idx;
-            new_idx++;
-            cur_bb = cur_bb->linear_next;
-        }
     }
 }
 
@@ -1447,6 +1414,7 @@ static void value_propagation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
 
         ins = ins->next;
     }
+
     /* Visit children. */
     for (i = 0; i < bb->num_children; i++)
         value_propagation(tc, g, bb->children[i]);
@@ -1460,6 +1428,7 @@ static void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) 
         if (!g->log_guards[i].used)
             MVM_spesh_manipulate_delete_ins(tc, g, g->log_guards[i].bb,
                 g->log_guards[i].ins);
+            /* TODO: decrement any usages incremented due to log guards. */
 }
 
 /* Eliminates any unused instructions. */
@@ -1521,9 +1490,8 @@ void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
      * perform inlining. Both change the organization of the CFG. Thus, we
      * eliminate any unreachable basic blocks, and then re-compute dominance
      * info before continuing. */
-    eliminate_dead_bbs(tc, g);
-    /* TODO: re-use garph.c elimination logic. */
-    /* TODO: actually recompute dominators. */
+    MVM_spesh_graph_eliminate_unreachable(tc, g, move_anns);
+    MVM_spesh_graph_recompute_dominance(tc, g);
 
     /* The post-inlining graph is now walked again to perform a range of
      * "value propagation" optimizations, which can be used to eliminte
