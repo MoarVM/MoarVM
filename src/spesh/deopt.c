@@ -230,6 +230,11 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
     MVMFrame *f = tc->cur_frame->caller;
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_all(tc);
+#if MVM_DEOPT_DUMP
+        fprintf(stderr, "Starting deopt_all in '%s' (cuid '%s')\n",
+          MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+          MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
     while (f) {
         if (f->effective_bytecode != f->static_info->body.bytecode && f->spesh_log_idx < 0) {
             /* Found one. Is it JITted code? */
@@ -245,8 +250,10 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                         MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
                         MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
 #if MVM_DEOPT_DUMP
-                        fprintf(stderr, "Found deopt label for JIT (%d) (label %d idx %d)\n", i,
-                                deopts[i].label, deopts[i].idx);
+                        fprintf(stderr, "Found deopt label for JIT (%d) (label %d idx %d) in frame '%s' (cuid '%s')\n",
+                            i, deopts[i].label, deopts[i].idx,
+                            MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
+                            MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid));
 #endif
 
                         /* Switch frame itself back to the original code. */
@@ -270,7 +277,9 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                 }
 #if MVM_DEOPT_DUMP
                 if (i == num_deopts)
-                    fprintf(stderr, "JIT: can't find deopt all idx");
+                    fprintf(stderr, "JIT: can't find deopt all idx in frame '%s' (cuid '%s')\n",
+                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
+                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid));
 #endif
             }
 
