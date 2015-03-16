@@ -140,9 +140,9 @@ static void iter_facts(MVMThreadContext *tc, MVMSpeshGraph *g,
             default:
                 return;
         }
+        out_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
     }
 
-    out_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
 }
 
 /* constant ops on literals give us a specialize-time-known value */
