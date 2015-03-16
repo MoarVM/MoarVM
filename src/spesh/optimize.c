@@ -1254,7 +1254,72 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
     MVM_free(handlers_found);
 }
 
+static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMuint32 operand;
+    MVMint32 common_flags;
+    MVMObject *common_type;
+    MVMObject *common_decont_type;
+    MVMSpeshFacts *target_facts = get_facts_direct(tc, g, ins->operands[0]);
 
+    common_flags       = get_facts_direct(tc, g, ins->operands[1])->flags;
+    common_type        = get_facts_direct(tc, g, ins->operands[1])->type;
+    common_decont_type = get_facts_direct(tc, g, ins->operands[1])->decont_type;
+
+    for(operand = 2; operand < ins->info->num_operands; operand++) {
+        common_flags = common_flags & get_facts_direct(tc, g, ins->operands[operand])->flags;
+        common_type = common_type == get_facts_direct(tc, g, ins->operands[operand])->type && common_type ? common_type : NULL;
+        common_decont_type = common_decont_type == get_facts_direct(tc, g, ins->operands[operand])->decont_type && common_decont_type ? common_decont_type : NULL;
+    }
+
+    if (common_flags) {
+        /*fprintf(stderr, "at a PHI node of %d operands: ", ins->info->num_operands);*/
+        if (common_flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+            /*fprintf(stderr, "type ");*/
+            if (common_type) {
+                /*fprintf(stderr, "(same type) ");*/
+                target_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+                target_facts->type = common_type;
+            }
+            /*else fprintf(stderr, "(diverging type) ");*/
+        }
+        /*if (common_flags & MVM_SPESH_FACT_KNOWN_VALUE) fprintf(stderr, "value ");*/
+        if (common_flags & MVM_SPESH_FACT_DECONTED) {
+            /*fprintf(stderr, "deconted ");*/
+            target_facts->flags |= MVM_SPESH_FACT_DECONTED;
+        }
+        if (common_flags & MVM_SPESH_FACT_CONCRETE) {
+            /*fprintf(stderr, "concrete ");*/
+            target_facts->flags |= MVM_SPESH_FACT_CONCRETE;
+        }
+        if (common_flags & MVM_SPESH_FACT_TYPEOBJ) {
+            /*fprintf(stderr, "type_object ");*/
+        }
+        if (common_flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
+            /*fprintf(stderr, "decont_type ");*/
+            if (common_decont_type) {
+                /*fprintf(stderr, "(same type) ");*/
+                target_facts->flags |= MVM_SPESH_FACT_KNOWN_DECONT_TYPE;
+                target_facts->decont_type = common_decont_type;
+            }
+            /*else fprintf(stderr, "(diverging type) ");*/
+        }
+        if (common_flags & MVM_SPESH_FACT_DECONT_CONCRETE) {
+            /*fprintf(stderr, "decont_concrete ");*/
+            target_facts->flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
+        }
+        if (common_flags & MVM_SPESH_FACT_DECONT_TYPEOBJ) {
+            /*fprintf(stderr, "decont_typeobj ");*/
+            target_facts->flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
+        }
+        /*if (common_flags & MVM_SPESH_FACT_FROM_LOG_GUARD) fprintf(stderr, "from_log_guard ");*/
+        /*if (common_flags & MVM_SPESH_FACT_HASH_ITER) fprintf(stderr, "hash_iter ");*/
+        /*if (common_flags & MVM_SPESH_FACT_ARRAY_ITER) fprintf(stderr, "array_iter ");*/
+        /*if (common_flags & MVM_SPESH_FACT_KNOWN_BOX_SRC) fprintf(stderr, "box_source ");*/
+        /*fprintf(stderr, "\n");*/
+    } else {
+        return; fprintf(stderr, "a PHI node of %d operands had no intersecting flags\n", ins->info->num_operands);
+    }
+}
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMSpeshCallInfo arg_info;
@@ -1264,6 +1329,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
         switch (ins->info->opcode) {
+        case MVM_SSA_PHI:
+            analyze_phi(tc, g, ins);
+            break;
         case MVM_OP_set:
             copy_facts(tc, g, ins->operands[0], ins->operands[1]);
             break;
