@@ -315,7 +315,8 @@ push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}       if $args{instrument};
 push @ldflags, $config{ldrpath}           unless $args{static};
 push @ldflags, $^O eq 'darwin' ? '-faddress-sanitizer' : '-fsanitize=address' if $args{asan};
-push @ldflags, $ENV{LDFLAGS} if $ENV{LDFLAGS};
+push @ldflags, $ENV{LDFLAGS}  if $ENV{LDFLAGS};
+push @ldflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
 $config{ldflags} = join ' ', @ldflags;
 
 # setup library names
