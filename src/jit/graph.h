@@ -99,6 +99,8 @@ typedef enum {
     MVM_JIT_LITERAL_F,
     MVM_JIT_LITERAL_64,
     MVM_JIT_LITERAL_PTR,
+    MVM_JIT_REG_STABLE,
+    MVM_JIT_REG_OBJBODY,
 } MVMJitArgType;
 
 struct MVMJitCallArg {

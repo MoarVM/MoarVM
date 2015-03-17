@@ -1361,6 +1361,20 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_JIT_LITERAL_F:
         | mov64 TMP6, arg.v.lit_i64;
         break;
+    case MVM_JIT_REG_STABLE: {
+        size_t stable_offset = offsetof(MVMObject, st);
+        fprintf(stderr, "stable_offset is %d\n", stable_offset);
+        | mov TMP6, qword WORK[arg.v.reg];
+        | add TMP6, stable_offset;
+        break;
+        }
+    case MVM_JIT_REG_OBJBODY: {
+        size_t objbody_offset = offsetof(MVMObjectStooge, data);
+        fprintf(stderr, "objbody_offset is %d\n", objbody_offset);
+        | mov TMP6, qword WORK[arg.v.reg];
+        | add TMP6, objbody_offset;
+        break;
+        }
     }
 }
 
@@ -1469,6 +1483,8 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_JIT_INTERP_VAR:
         case MVM_JIT_REG_VAL:
         case MVM_JIT_REG_ADDR:
+        case MVM_JIT_REG_OBJBODY:
+        case MVM_JIT_REG_STABLE:
         case MVM_JIT_STR_IDX:
         case MVM_JIT_LITERAL:
         case MVM_JIT_LITERAL_64:
