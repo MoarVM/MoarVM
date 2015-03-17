@@ -22,6 +22,7 @@
 |.type MVMITER, MVMIter
 |.type MVMINSTANCE, MVMInstance
 |.type OBJECT, MVMObject
+|.type STOOGE, MVMObjectStooge
 |.type COLLECTABLE, MVMCollectable
 |.type STABLE, MVMSTable
 |.type REPR, MVMREPROps
@@ -1361,20 +1362,14 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_JIT_LITERAL_F:
         | mov64 TMP6, arg.v.lit_i64;
         break;
-    case MVM_JIT_REG_STABLE: {
-        size_t stable_offset = offsetof(MVMObject, st);
-        fprintf(stderr, "stable_offset is %d\n", stable_offset);
+    case MVM_JIT_REG_STABLE:
         | mov TMP6, qword WORK[arg.v.reg];
-        | add TMP6, stable_offset;
+        | mov TMP6, OBJECT:TMP6->st;
         break;
-        }
-    case MVM_JIT_REG_OBJBODY: {
-        size_t objbody_offset = offsetof(MVMObjectStooge, data);
-        fprintf(stderr, "objbody_offset is %d\n", objbody_offset);
+    case MVM_JIT_REG_OBJBODY:
         | mov TMP6, qword WORK[arg.v.reg];
-        | add TMP6, objbody_offset;
+        | lea TMP6, STOOGE:TMP6->data;
         break;
-        }
     }
 }
 
