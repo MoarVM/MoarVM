@@ -1278,7 +1278,10 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
         common_type = common_type == get_facts_direct(tc, g, ins->operands[operand])->type && common_type ? common_type : NULL;
         common_decont_type = common_decont_type == get_facts_direct(tc, g, ins->operands[operand])->decont_type && common_decont_type ? common_decont_type : NULL;
 
-        /* Here's a fun one. We can't propagate "from log guard" facts through PHI yet. */
+        /* We have to be a bit more careful if one or more of the facts we're
+         * merging came from a log guard, as that means we'll have to propagate
+         * the information what guards have been relied upon back "outwards"
+         * through the PHI node we've merged stuff with. */
         if (get_facts_direct(tc, g, ins->operands[operand])->flags & MVM_SPESH_FACT_FROM_LOG_GUARD)
             needs_merged_with_log_guard = 1;
     }
