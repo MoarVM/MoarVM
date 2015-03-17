@@ -12,8 +12,7 @@ static MVMSpeshFacts * get_facts_direct(MVMThreadContext *tc, MVMSpeshGraph *g, 
 /* Obtains facts for an operand, indicating they are being used. */
 MVMSpeshFacts * MVM_spesh_get_and_use_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
     MVMSpeshFacts *facts = get_facts_direct(tc, g, o);
-    if (facts->flags & MVM_SPESH_FACT_FROM_LOG_GUARD)
-        g->log_guards[facts->log_guard].used = 1;
+    MVM_spesh_use_facts(tc, g, facts);
     return facts;
 }
 
@@ -23,9 +22,17 @@ MVMSpeshFacts * MVM_spesh_get_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
 }
 
 /* Mark facts for an operand as being relied upon */
-void MVM_spesh_use_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *f) {
-    if (f->flags & MVM_SPESH_FACT_FROM_LOG_GUARD)
-        g->log_guards[f->log_guard].used = 1;
+void MVM_spesh_use_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *facts) {
+    if (facts->flags & MVM_SPESH_FACT_FROM_LOG_GUARD)
+        g->log_guards[facts->log_guard].used = 1;
+    if (facts->flags & MVM_SPESH_FACT_MERGED_WITH_LOG_GUARD) {
+        MVMSpeshIns *thePHI = facts->writer;
+        MVMuint32 op_i;
+
+        for (op_i = 1; op_i < thePHI->info->num_operands; op_i++) {
+            MVM_spesh_get_and_use_facts(tc, g, thePHI->operands[op_i]);
+        }
+    }
 }
 
 /* Obtains a string constant. */
@@ -1259,6 +1266,7 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
     MVMint32 common_flags;
     MVMObject *common_type;
     MVMObject *common_decont_type;
+    MVMuint32 needs_merged_with_log_guard = 0;
     MVMSpeshFacts *target_facts = get_facts_direct(tc, g, ins->operands[0]);
 
     common_flags       = get_facts_direct(tc, g, ins->operands[1])->flags;
@@ -1269,6 +1277,10 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
         common_flags = common_flags & get_facts_direct(tc, g, ins->operands[operand])->flags;
         common_type = common_type == get_facts_direct(tc, g, ins->operands[operand])->type && common_type ? common_type : NULL;
         common_decont_type = common_decont_type == get_facts_direct(tc, g, ins->operands[operand])->decont_type && common_decont_type ? common_decont_type : NULL;
+
+        /* Here's a fun one. We can't propagate "from log guard" facts through PHI yet. */
+        if (get_facts_direct(tc, g, ins->operands[operand])->flags & MVM_SPESH_FACT_FROM_LOG_GUARD)
+            needs_merged_with_log_guard = 1;
     }
 
     if (common_flags) {
@@ -1316,6 +1328,10 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
         /*if (common_flags & MVM_SPESH_FACT_ARRAY_ITER) fprintf(stderr, "array_iter ");*/
         /*if (common_flags & MVM_SPESH_FACT_KNOWN_BOX_SRC) fprintf(stderr, "box_source ");*/
         /*fprintf(stderr, "\n");*/
+
+        if (needs_merged_with_log_guard) {
+            target_facts->flags |= MVM_SPESH_FACT_MERGED_WITH_LOG_GUARD;
+        }
     } else {
         return; fprintf(stderr, "a PHI node of %d operands had no intersecting flags\n", ins->info->num_operands);
     }
