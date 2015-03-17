@@ -237,7 +237,7 @@ sub unaligned_access {
             if ($arch =~ /^(?:x86_64|amd64|i[0-9]86)$/) {
                 # Don't know alignment constraints for ARMv8
                 _gen_unaligned_access($config, 'all');
-            } elsif ($arch =~ /^armv(?:6|7)/) {
+            } elsif ($arch =~ /armv(?:6|7)/) {
                 _gen_unaligned_access($config, 'int32');
             } else {
                 # ARMv5 and earlier do "interesting" things on unaligned 32 bit
