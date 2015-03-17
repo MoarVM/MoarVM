@@ -720,7 +720,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVMint32 invocant = ins->operands[1].reg.orig;
                 MVMint32 value    = ins->operands[2].reg.orig;
 
-                fprintf(stderr, "atpos_* %d %d %d\n", dst, invocant, value);
+                MVM_jit_log(tc, "atpos_* %d %d %d\n", dst, invocant, value);
 
                 void *function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.at_pos;
 
@@ -736,7 +736,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                              op == MVM_OP_atpos_s ? MVM_reg_str :
                                                                     MVM_reg_obj } };
                 jgb_append_call_c(tc, jgb, function, 7, args, MVM_JIT_RV_VOID, -1);
-                fprintf(stderr, "emitted an atpos_* via jgb_consume_reprop\n");
+                MVM_jit_log(tc, "emitted an atpos_* via jgb_consume_reprop\n");
                 break;
             }
             default:
