@@ -679,6 +679,14 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         case MVM_OP_unshift_n:
         case MVM_OP_unshift_s:
         case MVM_OP_unshift_o:
+        case MVM_OP_bindkey_i:
+        case MVM_OP_bindkey_n:
+        case MVM_OP_bindkey_s:
+        case MVM_OP_bindkey_o:
+        case MVM_OP_bindpos_i:
+        case MVM_OP_bindpos_n:
+        case MVM_OP_bindpos_s:
+        case MVM_OP_bindpos_o:
         case MVM_OP_pop_i:
         case MVM_OP_pop_n:
         case MVM_OP_pop_s:
@@ -809,9 +817,9 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                          { MVM_JIT_REG_VAL,  key },
                                          { MVM_JIT_REG_ADDR, value },
                                          { MVM_JIT_LITERAL,
-                                             op == MVM_OP_atpos_i || op == MVM_OP_atkey_i ? MVM_reg_int64 :
-                                             op == MVM_OP_atpos_n || op == MVM_OP_atkey_n ? MVM_reg_num64 :
-                                             op == MVM_OP_atpos_s || op == MVM_OP_atkey_s ? MVM_reg_str :
+                                             op == MVM_OP_bindpos_i || op == MVM_OP_bindkey_i ? MVM_reg_int64 :
+                                             op == MVM_OP_bindpos_n || op == MVM_OP_bindkey_n ? MVM_reg_num64 :
+                                             op == MVM_OP_bindpos_s || op == MVM_OP_bindkey_s ? MVM_reg_str :
                                                                     MVM_reg_obj } };
                 jgb_append_call_c(tc, jgb, function, 7, args, MVM_JIT_RV_VOID, -1);
                 MVM_jit_log(tc, "emitted a bindpos_* or bindkey_* via jgb_consume_reprop\n");
