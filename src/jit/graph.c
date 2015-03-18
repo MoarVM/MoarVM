@@ -846,14 +846,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         break;
     }
     case MVM_OP_shift_s:
-    case MVM_OP_pop_s: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint32 invocant = ins->operands[1].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
-                                 { MVM_JIT_REG_VAL, invocant } };
-        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
-        break;
-    }
+    case MVM_OP_pop_s:
     case MVM_OP_shift_o:
     case MVM_OP_pop_o: {
         MVMint16 dst = ins->operands[0].reg.orig;
@@ -914,17 +907,6 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 5, args, MVM_JIT_RV_VOID, -1);
         break;
     }
-    case MVM_OP_atpos_o:
-    case MVM_OP_atkey_o: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint32 invocant = ins->operands[1].reg.orig;
-        MVMint32 position = ins->operands[2].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
-                                 { MVM_JIT_REG_VAL, invocant },
-                                 { MVM_JIT_REG_VAL, position } };
-        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
-        break;
-    }
     case MVM_OP_existspos:
     case MVM_OP_atkey_i:
     case MVM_OP_atpos_i: {
@@ -948,6 +930,8 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_NUM, dst);
         break;
     }
+    case MVM_OP_atpos_o:
+    case MVM_OP_atkey_o:
     case MVM_OP_atkey_s:
     case MVM_OP_atpos_s: {
         MVMint16 dst = ins->operands[0].reg.orig;
