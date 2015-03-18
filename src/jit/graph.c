@@ -955,6 +955,9 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_bindpos_n:
     case MVM_OP_bindpos_s:
     case MVM_OP_bindpos_o:
+    case MVM_OP_bindkey_i:
+    case MVM_OP_bindkey_n:
+    case MVM_OP_bindkey_s:
     case MVM_OP_bindkey_o: {
         MVMint32 invocant = ins->operands[0].reg.orig;
         MVMint32 key_pos = ins->operands[1].reg.orig;
@@ -962,7 +965,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_REG_VAL, invocant },
                                  { MVM_JIT_REG_VAL, key_pos },
-                                 { op == MVM_OP_bindpos_n ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL, value } };
+                                 { op == MVM_OP_bindpos_n || op == MVM_OP_bindkey_n ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL, value } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
@@ -1445,6 +1448,9 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_bindpos_n:
     case MVM_OP_bindpos_s:
     case MVM_OP_bindpos_o:
+    case MVM_OP_bindkey_i:
+    case MVM_OP_bindkey_n:
+    case MVM_OP_bindkey_s:
     case MVM_OP_bindkey_o:
     case MVM_OP_getattr_i:
     case MVM_OP_getattr_n:
