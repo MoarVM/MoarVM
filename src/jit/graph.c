@@ -771,6 +771,52 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVM_jit_log(tc, "emitted an atpos_* or atkey_* via jgb_consume_reprop\n");
                 return 1;
             }
+            case MVM_OP_bindkey_i:
+            case MVM_OP_bindkey_n:
+            case MVM_OP_bindkey_s:
+            case MVM_OP_bindkey_o:
+                alternative = 1;
+            case MVM_OP_bindpos_i:
+            case MVM_OP_bindpos_n:
+            case MVM_OP_bindpos_s:
+            case MVM_OP_bindpos_o: {
+                /*bindpos_i           r(obj) r(int64) r(int64)*/
+                /*bindkey_i           r(obj) r(str) r(int64)*/
+
+                /* void (*bind_pos) (MVMThreadContext *tc, MVMSTable *st,
+                      MVMObject *root, void *data, MVMint64 index,
+                      MVMRegister value, MVMuint16 kind); */
+
+                /* void (*bind_key) (MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+                      void *data, MVMObject *key, MVMRegister value, MVMuint16 kind); */
+
+                MVMint32 invocant = ins->operands[0].reg.orig;
+                MVMint32 key      = ins->operands[1].reg.orig;
+                MVMint32 value    = ins->operands[2].reg.orig;
+
+                void *function;
+                if (alternative)
+                    function = ((MVMObject*)type_facts->type)->st->REPR->ass_funcs.bind_key;
+                else
+                    function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.bind_pos;
+
+                MVM_jit_log(tc, "bindpos_* or bindkey_* %d %d %d\n", invocant, key, value);
+
+                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                         { MVM_JIT_REG_STABLE,  invocant },
+                                         { MVM_JIT_REG_VAL,     invocant },
+                                         { MVM_JIT_REG_OBJBODY, invocant },
+                                         { MVM_JIT_REG_VAL,  key },
+                                         { MVM_JIT_REG_ADDR, value },
+                                         { MVM_JIT_LITERAL,
+                                             op == MVM_OP_atpos_i || op == MVM_OP_atkey_i ? MVM_reg_int64 :
+                                             op == MVM_OP_atpos_n || op == MVM_OP_atkey_n ? MVM_reg_num64 :
+                                             op == MVM_OP_atpos_s || op == MVM_OP_atkey_s ? MVM_reg_str :
+                                                                    MVM_reg_obj } };
+                jgb_append_call_c(tc, jgb, function, 7, args, MVM_JIT_RV_VOID, -1);
+                MVM_jit_log(tc, "emitted a bindpos_* or bindkey_* via jgb_consume_reprop\n");
+                return 1;
+            }
         }
     }
 
