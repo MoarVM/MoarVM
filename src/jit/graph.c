@@ -825,7 +825,28 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVM_jit_log(tc, "emitted a bindpos_* or bindkey_* via jgb_consume_reprop\n");
                 return 1;
             }
+            case MVM_OP_elems: {
+                /*elems               w(int64) r(obj) :pure*/
+
+                MVMint32 dst       = ins->operands[0].reg.orig;
+                MVMint32 invocant  = ins->operands[1].reg.orig;
+
+                void *function = ((MVMObject*)type_facts->type)->st->REPR->elems;
+
+                MVM_jit_log(tc, "elems %d %d\n", dst, invocant);
+
+                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                         { MVM_JIT_REG_STABLE,  invocant },
+                                         { MVM_JIT_REG_VAL,     invocant },
+                                         { MVM_JIT_REG_OBJBODY, invocant } };
+                jgb_append_call_c(tc, jgb, function, 4, args, MVM_JIT_RV_INT, dst);
+                MVM_jit_log(tc, "emitted a elems via jgb_consume_reprop\n");
+                return 1;
+            }
         }
+        MVM_jit_log(tc, "emit repr op %s\n", ins->info->name);
+    } else {
+        MVM_jit_log(tc, "repr op %s couldn't be devirtualized: type unknown\n", ins->info->name);
     }
 
     switch(op) {
