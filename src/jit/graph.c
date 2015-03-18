@@ -815,7 +815,8 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                          { MVM_JIT_REG_VAL,     invocant },
                                          { MVM_JIT_REG_OBJBODY, invocant },
                                          { MVM_JIT_REG_VAL,  key },
-                                         { MVM_JIT_REG_ADDR, value },
+                                         { op == MVM_OP_bindpos_n || op == MVM_OP_bindkey_n
+                                             ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL, value },
                                          { MVM_JIT_LITERAL,
                                              op == MVM_OP_bindpos_i || op == MVM_OP_bindkey_i ? MVM_reg_int64 :
                                              op == MVM_OP_bindpos_n || op == MVM_OP_bindkey_n ? MVM_reg_num64 :
