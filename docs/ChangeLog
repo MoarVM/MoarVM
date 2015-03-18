@@ -1,3 +1,37 @@
+New in 2015.03
+
++ Add a macports Portfile
++ Implement nativecallsizeof op
++ Rewrite MVM_file_copy so it handles files larger than 2GB
++ Mostly quiet MSVC warnings when compiling the JIT emitter
++ Chase libuv thread ID API change, and fix thread ID lookup on Windows
++ Teach profiler about native ref taking ops
++ Fix allocating an empty (no members) CStruct
++ JIT compilation for native reference related operations
++ Implement native register references
++ Support references to sized int and num lexicals
++ Fix missing GC rooting of callback object arguments
++ Fix big endian bug in if/unless optimization
++ Simplify known value handling in the optimizer
++ Make graph_spesh.p6 also show the dominance tree
++ Fix bugs in string_index_from_end
++ Bump dyncall revision
++ Fix big endian bug in the P6bigint REPR
++ Fix system detection in triple for cross compilation
++ Stop fiddling with slashes in openpipe on Windows
++ Make index('foo','') return 0, and handle null needle when start > 0
++ Type specialization for the bindattrs_s op
++ Optimize out many set instructions
++ Add helper functions so embedders won't need to poke into MVMInstance so much
++ Use CFLAGS, CPPFLAGS, and LDFLAGS from the environment, if set
++ Re-use allocated PHI node descriptors, to reduce allocations during optimization
++ Improve optimizer memory allocation block scheme to decrease waste
++ Allow STable changes in repossessed objects
++ Fix JIT of bindpos_n
++ Fix bogus pointer casts and libc name clashes to fix MinGW build
++ Fix a bug in iter optimization
++ Better armv6 and v7 detection
+
 New in 2015.02
 
 * Fix memory leak in P6bigint
