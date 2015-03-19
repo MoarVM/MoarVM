@@ -1,4 +1,4 @@
-When updating the Portfile to reflect the new revision:
+When updating the Portfile to reflect the new release:
 
 1) update the version
 2) remove the revision, if any is currently specified.
