@@ -870,7 +870,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                     MVMint32 invocant  = ins->operands[1].reg.orig;
                     MVMint32 type      = ins->operands[2].reg.orig;
                     MVMint32 attrname  = is_name_direct ? ins->operands[3].lit_str_idx : ins->operands[3].reg.orig;
-                    MVMint32 attrhint  = is_name_direct ? ins->operands[4].reg.orig : -1;
+                    MVMint32 attrhint  = is_name_direct ? ins->operands[4].lit_i16 : -1;
 
                     void *function = ((MVMObject*)type_facts->type)->st->REPR->attr_funcs.get_attribute;
 
