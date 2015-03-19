@@ -900,6 +900,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
             case MVM_OP_unshift_n:
             case MVM_OP_unshift_s:
             case MVM_OP_unshift_o: {
+                                       break;
                 MVMint32 invocant = ins->operands[0].reg.orig;
                 MVMint32 value    = ins->operands[1].reg.orig;
 
