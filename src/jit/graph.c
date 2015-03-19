@@ -843,6 +843,61 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVM_jit_log(tc, "emitted an elems via jgb_consume_reprop\n");
                 return 1;
             }
+            case MVM_OP_getattr_i:
+            case MVM_OP_getattr_n:
+            case MVM_OP_getattr_s:
+            case MVM_OP_getattr_o:
+            case MVM_OP_getattrs_i:
+            case MVM_OP_getattrs_n:
+            case MVM_OP_getattrs_s:
+            case MVM_OP_getattrs_o: {
+                /*getattr_i           w(int64) r(obj) r(obj) str int16*/
+                /*getattrs_i          w(int64) r(obj) r(obj) r(str)*/
+                /*static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,*/
+                /*        void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,*/
+                /*      MVMRegister *result_reg, MVMuint16 kind) {*/
+
+                /* reprconv and interp.c check for concreteness, so we'd either
+                 * have to emit a bit of code to check and throw or just rely
+                 * on a concreteness fact */
+
+                MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, jgb->sg, ins->operands[1]);
+
+                if (object_facts->flags & MVM_SPESH_FACT_CONCRETE) {
+                    MVMint32 is_name_direct = ins->info->num_operands == 5;
+
+                    MVMint32 dst       = ins->operands[0].reg.orig;
+                    MVMint32 invocant  = ins->operands[1].reg.orig;
+                    MVMint32 type      = ins->operands[2].reg.orig;
+                    MVMint32 attrname  = is_name_direct ? ins->operands[3].lit_str_idx : ins->operands[3].reg.orig;
+                    MVMint32 attrhint  = is_name_direct ? ins->operands[4].reg.orig : -1;
+
+                    void *function = ((MVMObject*)type_facts->type)->st->REPR->attr_funcs.get_attribute;
+
+
+                    MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                             { MVM_JIT_REG_STABLE,  invocant },
+                                             { MVM_JIT_REG_VAL,     invocant },
+                                             { MVM_JIT_REG_OBJBODY, invocant },
+                                             { MVM_JIT_REG_VAL,     type },
+                                             { is_name_direct ? MVM_JIT_STR_IDX : MVM_JIT_REG_VAL,
+                                                                    attrname },
+                                             { MVM_JIT_LITERAL,     attrhint },
+                                             { MVM_JIT_REG_ADDR,    dst },
+                                             { MVM_JIT_LITERAL,
+                                                 op == MVM_OP_getattr_i || op == MVM_OP_getattrs_i ? MVM_reg_int64 :
+                                                 op == MVM_OP_getattr_n || op == MVM_OP_getattrs_n ? MVM_reg_num64 :
+                                                 op == MVM_OP_getattr_s || op == MVM_OP_getattrs_s ? MVM_reg_str :
+                                                                        MVM_reg_obj } };
+                    MVM_jit_log(tc, "%s %d %d %d %d %d (%d) -> %p\n", ins->info->name, dst, invocant, type, attrname, attrhint, args[8].v.lit_i64, function);
+                    jgb_append_call_c(tc, jgb, function, 9, args, MVM_JIT_RV_VOID, -1);
+
+                    return 1;
+                } else {
+                    MVM_jit_log(tc, "couldn't %s; concreteness not sure\n", ins->info->name);
+                    break;
+                }
+            }
         }
         MVM_jit_log(tc, "emit repr op %s\n", ins->info->name);
     } else {
