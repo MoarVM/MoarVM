@@ -19,9 +19,8 @@ master_sites        http://moarvm.org/releases/
 # openssl rmd160 <file>
 # openssl sha256 <file>
 
-checksums           rmd160 77d46b9bdbc596131d8a02c573b70b2884865a3a \
- 
-                    sha256 a569b4840338eac4e693bdc15ffbb5a7b401c41e7b117110f7a7292e3ca92ccc
+checksums           rmd160  0c5fe2447f5d7d59365aed9822fa34b65ad419fd \
+                    sha256  fc4bfae9a004c9f266c53881ae375955daeb84936b9055ae486194e06caec4a0
 
 # FIXME: may need ExtUtil::Command if by chance our default perl5 binary
 # does not match what Apple ships.
