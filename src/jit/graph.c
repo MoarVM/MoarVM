@@ -667,14 +667,6 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVMint32 alternative = 0;
 
     switch (op) {
-        case MVM_OP_bindattr_i:
-        case MVM_OP_bindattr_n:
-        case MVM_OP_bindattr_s:
-        case MVM_OP_bindattr_o:
-        case MVM_OP_bindattrs_i:
-        case MVM_OP_bindattrs_n:
-        case MVM_OP_bindattrs_s:
-        case MVM_OP_bindattrs_o:
         case MVM_OP_unshift_i:
         case MVM_OP_unshift_n:
         case MVM_OP_unshift_s:
@@ -693,14 +685,14 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         case MVM_OP_pop_o:
             type_operand = ins->operands[0];
             break;
-        case MVM_OP_getattr_i:
-        case MVM_OP_getattr_n:
-        case MVM_OP_getattr_s:
-        case MVM_OP_getattr_o:
-        case MVM_OP_getattrs_i:
-        case MVM_OP_getattrs_n:
-        case MVM_OP_getattrs_s:
-        case MVM_OP_getattrs_o:
+        case MVM_OP_bindattr_i:
+        case MVM_OP_bindattr_n:
+        case MVM_OP_bindattr_s:
+        case MVM_OP_bindattr_o:
+        case MVM_OP_bindattrs_i:
+        case MVM_OP_bindattrs_n:
+        case MVM_OP_bindattrs_s:
+        case MVM_OP_bindattrs_o:
         case MVM_OP_atpos_i:
         case MVM_OP_atpos_n:
         case MVM_OP_atpos_s:
@@ -723,6 +715,14 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         case MVM_OP_box_i:
         case MVM_OP_box_n:
         case MVM_OP_box_s:
+        case MVM_OP_getattr_i:
+        case MVM_OP_getattr_n:
+        case MVM_OP_getattr_s:
+        case MVM_OP_getattr_o:
+        case MVM_OP_getattrs_i:
+        case MVM_OP_getattrs_n:
+        case MVM_OP_getattrs_s:
+        case MVM_OP_getattrs_o:
             type_operand = ins->operands[2];
             break;
         default:
