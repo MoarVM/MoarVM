@@ -891,6 +891,38 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                     break;
                 }
             }
+            case MVM_OP_push_i:
+            case MVM_OP_push_n:
+            case MVM_OP_push_s:
+            case MVM_OP_push_o:
+                alternative = 1;
+            case MVM_OP_unshift_i:
+            case MVM_OP_unshift_n:
+            case MVM_OP_unshift_s:
+            case MVM_OP_unshift_o: {
+                MVMint32 invocant = ins->operands[0].reg.orig;
+                MVMint32 value    = ins->operands[1].reg.orig;
+
+                void *function;
+                if (alternative)
+                    function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.push;
+                else
+                    function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.unshift;
+
+                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                         { MVM_JIT_REG_STABLE,  invocant },
+                                         { MVM_JIT_REG_VAL,     invocant },
+                                         { MVM_JIT_REG_OBJBODY, invocant },
+                                         { MVM_JIT_REG_VAL,     value },
+                                         { MVM_JIT_LITERAL,
+                                             op == MVM_OP_push_i || op == MVM_OP_unshift_i ? MVM_reg_int64 :
+                                             op == MVM_OP_push_n || op == MVM_OP_unshift_n ? MVM_reg_num64 :
+                                             op == MVM_OP_push_s || op == MVM_OP_unshift_s ? MVM_reg_str :
+                                                                    MVM_reg_obj } };
+                jgb_append_call_c(tc, jgb, function, 6, args, MVM_JIT_RV_VOID, -1);
+                MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
+                return 1;
+            }
         }
         MVM_jit_log(tc, "devirt: please implement emitting repr op %s\n", ins->info->name);
     } else {
