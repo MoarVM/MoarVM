@@ -762,7 +762,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 else
                     function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.at_pos;
 
-                MVM_jit_log(tc, "atpos_* or atkey_* %d %d %d\n", dst, invocant, value);
+                MVM_jit_log(tc, "%s %d %d %d\n", ins->info->name, dst, invocant, value);
 
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
@@ -776,7 +776,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                              op == MVM_OP_atpos_s || op == MVM_OP_atkey_s ? MVM_reg_str :
                                                                     MVM_reg_obj } };
                 jgb_append_call_c(tc, jgb, function, 7, args, MVM_JIT_RV_VOID, -1);
-                MVM_jit_log(tc, "emitted an atpos_* or atkey_* via jgb_consume_reprop\n");
+                MVM_jit_log(tc, "emitted an %s via jgb_consume_reprop\n", ins->info->name);
                 return 1;
             }
             case MVM_OP_bindkey_i:
@@ -808,7 +808,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 else
                     function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.bind_pos;
 
-                MVM_jit_log(tc, "bindpos_* or bindkey_* %d %d %d\n", invocant, key, value);
+                MVM_jit_log(tc, "%s %d %d %d\n", ins->info->name, invocant, key, value);
 
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
@@ -822,7 +822,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                              op == MVM_OP_bindpos_s || op == MVM_OP_bindkey_s ? MVM_reg_str :
                                                                     MVM_reg_obj } };
                 jgb_append_call_c(tc, jgb, function, 7, args, MVM_JIT_RV_VOID, -1);
-                MVM_jit_log(tc, "emitted a bindpos_* or bindkey_* via jgb_consume_reprop\n");
+                MVM_jit_log(tc, "emitted a %s via jgb_consume_reprop\n", ins->info->name);
                 return 1;
             }
             case MVM_OP_elems: {
@@ -840,7 +840,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                          { MVM_JIT_REG_VAL,     invocant },
                                          { MVM_JIT_REG_OBJBODY, invocant } };
                 jgb_append_call_c(tc, jgb, function, 4, args, MVM_JIT_RV_INT, dst);
-                MVM_jit_log(tc, "emitted a elems via jgb_consume_reprop\n");
+                MVM_jit_log(tc, "emitted an elems via jgb_consume_reprop\n");
                 return 1;
             }
         }
