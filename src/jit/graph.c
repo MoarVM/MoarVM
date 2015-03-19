@@ -1011,8 +1011,9 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
                 return 1;
             }
+            default:
+                MVM_jit_log(tc, "devirt: please implement emitting repr op %s\n", ins->info->name);
         }
-        MVM_jit_log(tc, "devirt: please implement emitting repr op %s\n", ins->info->name);
     } else {
         MVM_jit_log(tc, "devirt: repr op %s couldn't be devirtualized: type unknown\n", ins->info->name);
     }
