@@ -762,8 +762,6 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 else
                     function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.at_pos;
 
-                MVM_jit_log(tc, "%s %d %d %d\n", ins->info->name, dst, invocant, value);
-
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
                                          { MVM_JIT_REG_VAL,     invocant },
@@ -776,7 +774,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                              op == MVM_OP_atpos_s || op == MVM_OP_atkey_s ? MVM_reg_str :
                                                                     MVM_reg_obj } };
                 jgb_append_call_c(tc, jgb, function, 7, args, MVM_JIT_RV_VOID, -1);
-                MVM_jit_log(tc, "emitted an %s via jgb_consume_reprop\n", ins->info->name);
+                MVM_jit_log(tc, "devirt: emitted an %s via jgb_consume_reprop\n", ins->info->name);
                 return 1;
             }
             case MVM_OP_bindkey_i:
@@ -808,8 +806,6 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 else
                     function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.bind_pos;
 
-                MVM_jit_log(tc, "%s %d %d %d\n", ins->info->name, invocant, key, value);
-
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
                                          { MVM_JIT_REG_VAL,     invocant },
@@ -822,7 +818,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                              op == MVM_OP_bindpos_s || op == MVM_OP_bindkey_s ? MVM_reg_str :
                                                                     MVM_reg_obj } };
                 jgb_append_call_c(tc, jgb, function, 7, args, MVM_JIT_RV_VOID, -1);
-                MVM_jit_log(tc, "emitted a %s via jgb_consume_reprop\n", ins->info->name);
+                MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
                 return 1;
             }
             case MVM_OP_elems: {
@@ -833,14 +829,12 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
                 void *function = ((MVMObject*)type_facts->type)->st->REPR->elems;
 
-                MVM_jit_log(tc, "elems %d %d\n", dst, invocant);
-
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
                                          { MVM_JIT_REG_VAL,     invocant },
                                          { MVM_JIT_REG_OBJBODY, invocant } };
                 jgb_append_call_c(tc, jgb, function, 4, args, MVM_JIT_RV_INT, dst);
-                MVM_jit_log(tc, "emitted an elems via jgb_consume_reprop\n");
+                MVM_jit_log(tc, "devirt: emitted an elems via jgb_consume_reprop\n");
                 return 1;
             }
             case MVM_OP_getattr_i:
@@ -874,7 +868,6 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
                     void *function = ((MVMObject*)type_facts->type)->st->REPR->attr_funcs.get_attribute;
 
-
                     MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                              { MVM_JIT_REG_STABLE,  invocant },
                                              { MVM_JIT_REG_VAL,     invocant },
@@ -889,19 +882,19 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                                  op == MVM_OP_getattr_n || op == MVM_OP_getattrs_n ? MVM_reg_num64 :
                                                  op == MVM_OP_getattr_s || op == MVM_OP_getattrs_s ? MVM_reg_str :
                                                                         MVM_reg_obj } };
-                    MVM_jit_log(tc, "%s %d %d %d %d %d (%d) -> %p\n", ins->info->name, dst, invocant, type, attrname, attrhint, args[8].v.lit_i64, function);
+                    MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
                     jgb_append_call_c(tc, jgb, function, 9, args, MVM_JIT_RV_VOID, -1);
 
                     return 1;
                 } else {
-                    MVM_jit_log(tc, "couldn't %s; concreteness not sure\n", ins->info->name);
+                    MVM_jit_log(tc, "devirt: couldn't %s; concreteness not sure\n", ins->info->name);
                     break;
                 }
             }
         }
-        MVM_jit_log(tc, "emit repr op %s\n", ins->info->name);
+        MVM_jit_log(tc, "devirt: please implement emitting repr op %s\n", ins->info->name);
     } else {
-        MVM_jit_log(tc, "repr op %s couldn't be devirtualized: type unknown\n", ins->info->name);
+        MVM_jit_log(tc, "devirt: repr op %s couldn't be devirtualized: type unknown\n", ins->info->name);
     }
 
     switch(op) {
