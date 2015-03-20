@@ -662,7 +662,7 @@ static void jgb_after_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
 static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                    MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMint16 op = ins->info->opcode;
-    MVMSpeshOperand *type_operand = 0;
+    MVMSpeshOperand type_operand;
     MVMSpeshFacts *type_facts = 0;
     MVMint32 alternative = 0;
 
@@ -683,7 +683,10 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         case MVM_OP_pop_n:
         case MVM_OP_pop_s:
         case MVM_OP_pop_o:
-            type_operand = &ins->operands[0];
+        case MVM_OP_deletekey:
+        case MVM_OP_setelemspos:
+        case MVM_OP_splice:
+            type_operand = ins->operands[0];
             break;
         case MVM_OP_bindattr_i:
         case MVM_OP_bindattr_n:
@@ -710,7 +713,9 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         case MVM_OP_push_n:
         case MVM_OP_push_s:
         case MVM_OP_push_o:
-            type_operand = &ins->operands[1];
+        case MVM_OP_existskey:
+        case MVM_OP_existspos:
+            type_operand = ins->operands[1];
             break;
         case MVM_OP_box_i:
         case MVM_OP_box_n:
@@ -723,12 +728,14 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         case MVM_OP_getattrs_n:
         case MVM_OP_getattrs_s:
         case MVM_OP_getattrs_o:
-            type_operand = &ins->operands[2];
+            type_operand = ins->operands[2];
             break;
+        default:
+            MVM_jit_log(tc, "devirt: couldn't figure out type operand for op %s\n", ins->info->name);
+
     }
 
-    if (type_operand)
-        type_facts = MVM_spesh_get_facts(tc, jgb->sg, *type_operand);
+    type_facts = MVM_spesh_get_facts(tc, jgb->sg, type_operand);
 
     if (type_facts && type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && type_facts->type) {
         switch(op) {
