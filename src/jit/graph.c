@@ -1659,7 +1659,11 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_bindattrs_s:
     case MVM_OP_bindattrs_o:
     case MVM_OP_elems:
-        return jgb_consume_reprop(tc, jgb, bb, ins);
+        if (!jgb_consume_reprop(tc, jgb, bb, ins)) {
+            MVM_jit_log(tc, "BAIL: op <%s>\n", ins->info->name);
+            return 0;
+        }
+        break;
     case MVM_OP_iterkey_s:
     case MVM_OP_iterval:
     case MVM_OP_iter: {
