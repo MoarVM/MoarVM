@@ -433,6 +433,7 @@ static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
 
 static MVMint64 exists_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
     MVMArrayBody     *body      = (MVMArrayBody *)data;
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
 
     /* Handle negative indexes. */
     if (index < 0) {
@@ -443,7 +444,7 @@ static MVMint64 exists_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         return 0;
     }
 
-    return !MVM_is_null(tc, body->slots.o[body->start + index]);
+    return repr_data->slot_type != MVM_ARRAY_OBJ || !MVM_is_null(tc, body->slots.o[body->start + index]);
 }
 
 static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
