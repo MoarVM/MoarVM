@@ -662,8 +662,8 @@ static void jgb_after_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
 static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                    MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMint16 op = ins->info->opcode;
-    MVMSpeshOperand type_operand;
-    MVMSpeshFacts *type_facts;
+    MVMSpeshOperand *type_operand = 0;
+    MVMSpeshFacts *type_facts = 0;
     MVMint32 alternative = 0;
 
     switch (op) {
@@ -683,7 +683,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         case MVM_OP_pop_n:
         case MVM_OP_pop_s:
         case MVM_OP_pop_o:
-            type_operand = ins->operands[0];
+            type_operand = &ins->operands[0];
             break;
         case MVM_OP_bindattr_i:
         case MVM_OP_bindattr_n:
@@ -710,7 +710,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         case MVM_OP_push_n:
         case MVM_OP_push_s:
         case MVM_OP_push_o:
-            type_operand = ins->operands[1];
+            type_operand = &ins->operands[1];
             break;
         case MVM_OP_box_i:
         case MVM_OP_box_n:
@@ -723,13 +723,12 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         case MVM_OP_getattrs_n:
         case MVM_OP_getattrs_s:
         case MVM_OP_getattrs_o:
-            type_operand = ins->operands[2];
+            type_operand = &ins->operands[2];
             break;
-        default:
-            return 0;
     }
 
-    type_facts = MVM_spesh_get_facts(tc, jgb->sg, type_operand);
+    if (type_operand)
+        type_facts = MVM_spesh_get_facts(tc, jgb->sg, *type_operand);
 
     if (type_facts && type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && type_facts->type) {
         switch(op) {
@@ -1660,7 +1659,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_bindattrs_o:
     case MVM_OP_elems:
         if (!jgb_consume_reprop(tc, jgb, bb, ins)) {
-            MVM_jit_log(tc, "BAIL: op <%s>\n", ins->info->name);
+            MVM_jit_log(tc, "BAIL: op <%s> (devirt attempted)\n", ins->info->name);
             return 0;
         }
         break;
