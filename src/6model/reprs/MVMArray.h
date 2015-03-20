@@ -45,6 +45,12 @@ struct MVMArray {
 #define MVM_ARRAY_U32   9
 #define MVM_ARRAY_U16   10
 #define MVM_ARRAY_U8    11
+#define MVM_ARRAY_U4    12
+#define MVM_ARRAY_U2    13
+#define MVM_ARRAY_U1    14
+#define MVM_ARRAY_I4    15
+#define MVM_ARRAY_I2    16
+#define MVM_ARRAY_I1    17
 
 /* Function for REPR setup. */
 const MVMREPROps * MVMArray_initialize(MVMThreadContext *tc);
