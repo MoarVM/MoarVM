@@ -6,6 +6,9 @@
     #define MAX(x, y) ((y) > (x) ? (y) : (x))
 #endif
 
+/* Whether we deserialize lazily or not. */
+#define MVM_SERIALIZATION_LAZY 1
+
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
 #define CURRENT_VERSION 12
@@ -2448,11 +2451,13 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
         (*tc->interp_cu)->body.serialized_size = 0;
     }
 
+    /* If lazy deserialization is disabled, deserialize everything. */
+#if !MVM_SERIALIZATION_LAZY
     for (i = 0; i < sc->body->num_objects; i++)
         MVM_serialization_demand_object(tc, sc, i);
-
     for (i = 0; i < sc->body->num_stables; i++)
         MVM_serialization_demand_stable(tc, sc, i);
+#endif
 
     /* Restore normal GC allocation. */
     MVM_gc_allocate_gen2_default_clear(tc);
