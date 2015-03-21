@@ -590,7 +590,9 @@ static void optimize_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
  * representation. */
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                              MVMSpeshIns *ins, MVMint32 type_operand) {
-    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[type_operand]);
+    /* Immediately mark guards as used, as the JIT would like to devirtualize
+     * repr ops later and we don't want guards to be thrown out before that */
+    MVMSpeshFacts *facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[type_operand]);
     if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && facts->type)
         if (REPR(facts->type)->spesh) {
             REPR(facts->type)->spesh(tc, STABLE(facts->type), g, bb, ins);
@@ -1236,9 +1238,6 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_can_s:
             optimize_can_op(tc, g, bb, ins);
             break;
-        case MVM_OP_create:
-            optimize_repr_op(tc, g, bb, ins, 1);
-            break;
         case MVM_OP_gethow:
             optimize_gethow(tc, g, ins);
             break;
@@ -1251,6 +1250,25 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_objprimspec:
             optimize_objprimspec(tc, g, ins);
             break;
+        case MVM_OP_unshift_i:
+        case MVM_OP_unshift_n:
+        case MVM_OP_unshift_s:
+        case MVM_OP_unshift_o:
+        case MVM_OP_bindkey_i:
+        case MVM_OP_bindkey_n:
+        case MVM_OP_bindkey_s:
+        case MVM_OP_bindkey_o:
+        case MVM_OP_bindpos_i:
+        case MVM_OP_bindpos_n:
+        case MVM_OP_bindpos_s:
+        case MVM_OP_bindpos_o:
+        case MVM_OP_pop_i:
+        case MVM_OP_pop_n:
+        case MVM_OP_pop_s:
+        case MVM_OP_pop_o:
+        case MVM_OP_deletekey:
+        case MVM_OP_setelemspos:
+        case MVM_OP_splice:
         case MVM_OP_bindattr_i:
         case MVM_OP_bindattr_n:
         case MVM_OP_bindattr_s:
@@ -1261,6 +1279,25 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_bindattrs_o:
             optimize_repr_op(tc, g, bb, ins, 0);
             break;
+        case MVM_OP_atpos_i:
+        case MVM_OP_atpos_n:
+        case MVM_OP_atpos_s:
+        case MVM_OP_atpos_o:
+        case MVM_OP_atkey_i:
+        case MVM_OP_atkey_n:
+        case MVM_OP_atkey_s:
+        case MVM_OP_atkey_o:
+        case MVM_OP_elems:
+        case MVM_OP_shift_i:
+        case MVM_OP_shift_n:
+        case MVM_OP_shift_s:
+        case MVM_OP_shift_o:
+        case MVM_OP_push_i:
+        case MVM_OP_push_n:
+        case MVM_OP_push_s:
+        case MVM_OP_push_o:
+        case MVM_OP_existskey:
+        case MVM_OP_existspos:
         case MVM_OP_getattr_i:
         case MVM_OP_getattr_n:
         case MVM_OP_getattr_s:
@@ -1269,15 +1306,13 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_getattrs_n:
         case MVM_OP_getattrs_s:
         case MVM_OP_getattrs_o:
+        case MVM_OP_create:
             optimize_repr_op(tc, g, bb, ins, 1);
             break;
         case MVM_OP_box_i:
         case MVM_OP_box_n:
         case MVM_OP_box_s:
             optimize_repr_op(tc, g, bb, ins, 2);
-            break;
-        case MVM_OP_elems:
-            optimize_repr_op(tc, g, bb, ins, 1);
             break;
         case MVM_OP_hllize:
             optimize_hllize(tc, g, ins);
