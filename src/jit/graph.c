@@ -1032,6 +1032,30 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
                 return 1;
             }
+            case MVM_OP_existspos:
+                /*existspos           w(int64) r(obj) r(int64)*/
+                alternative = 1;
+            case MVM_OP_existskey: {
+                /*existskey           w(int64) r(obj) r(str) :pure*/
+                MVMint32 dst      = ins->operands[0].reg.orig;
+                MVMint32 invocant = ins->operands[1].reg.orig;
+                MVMint32 keyidx   = ins->operands[2].reg.orig;
+
+                void *function;
+                if (alternative)
+                    function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.exists_pos;
+                else
+                    function = ((MVMObject*)type_facts->type)->st->REPR->ass_funcs.exists_key;
+
+                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                         { MVM_JIT_REG_STABLE,  invocant },
+                                         { MVM_JIT_REG_VAL,     invocant },
+                                         { MVM_JIT_REG_OBJBODY, invocant },
+                                         { MVM_JIT_REG_VAL,     keyidx } };
+                jgb_append_call_c(tc, jgb, function, 6, args, MVM_JIT_RV_INT, dst);
+                MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
+                return 1;
+            }
             default:
                 MVM_jit_log(tc, "devirt: please implement emitting repr op %s\n", ins->info->name);
         }
