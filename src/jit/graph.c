@@ -925,8 +925,9 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMint16 dst  = ins->operands[0].reg.orig;
         MVMint16 name = ins->operands[1].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
-                                 { MVM_JIT_REG_VAL, name }};
-        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+                                 { MVM_JIT_REG_VAL, name },
+                                 { MVM_JIT_LITERAL, 0 }};
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_isfalse:

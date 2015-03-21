@@ -580,13 +580,19 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         frame->flags |= MVM_FRAME_FLAG_STATE_INIT;
                     }
                     goto redo_state;
-                case 1:
-                    frame->env[i].o = MVM_repr_clone(tc, env[i].o);
-                    MVM_ASSIGN_REF(tc, &(frame->code_ref->header), state[i].o, frame->env[i].o);
+                case 1: {
+                    MVMObject *state_val = MVM_repr_clone(tc, env[i].o);
+                    frame->env[i].o = state_val;
+                    MVM_gc_frame_lexical_write_barrier(tc, frame, (MVMCollectable *)state_val);
+                    MVM_ASSIGN_REF(tc, &(frame->code_ref->header), state[i].o, state_val);
                     break;
-                case 2:
-                    frame->env[i].o = state[i].o;
+                }
+                case 2: {
+                    MVMObject *state_val = state[i].o;
+                    frame->env[i].o = state_val;
+                    MVM_gc_frame_lexical_write_barrier(tc, frame, (MVMCollectable *)state_val);
                     break;
+                }
                 }
             }
         }
@@ -984,10 +990,12 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
     }
     if (flag == 0) {
         MVMObject *viv = static_env[effective_idx].o;
+        MVM_gc_frame_lexical_write_barrier(tc, f, (MVMCollectable *)viv);
         return f->env[idx].o = viv ? viv : tc->instance->VMNull;
     }
     else if (flag == 1) {
         MVMObject *viv = static_env[effective_idx].o;
+        MVM_gc_frame_lexical_write_barrier_unc(tc, f);
         return f->env[idx].o = MVM_repr_clone(tc, viv);
     }
     else {
@@ -999,7 +1007,7 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
  * specified type. Non-existing object lexicals produce NULL, expected
  * (for better or worse) by various things. Otherwise, an error is thrown
  * if it does not exist. Incorrect type always throws. */
-MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
+MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMint32 for_bind) {
     MVMFrame *cur_frame = tc->cur_frame;
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
@@ -1013,7 +1021,9 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
             if (entry) {
                 if (cur_frame->static_info->body.lexical_types[entry->value] == type) {
                     MVMRegister *result = &cur_frame->env[entry->value];
-                    if (type == MVM_reg_obj && !result->o)
+                    if (for_bind)
+                        MVM_gc_frame_lexical_write_barrier_unc(tc, cur_frame);
+                    else if (type == MVM_reg_obj && !result->o)
                         MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
                     return result;
                 }
@@ -1033,8 +1043,8 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
 }
 
 /* Finds a lexical in the outer frame, throwing if it's not there. */
-MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name) {
-    MVMRegister *r = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer);
+MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name, MVMint32 for_bind) {
+    MVMRegister *r = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer, for_bind);
     if (r)
         return r->o;
     else
@@ -1044,7 +1054,7 @@ MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString
 
 /* Looks up the address of the lexical with the specified name, starting with
  * the specified frame. Only works if it's an object lexical.  */
-MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
+MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame, MVMint32 for_bind) {
     MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
@@ -1057,7 +1067,9 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
             if (entry) {
                 if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj) {
                     MVMRegister *result = &cur_frame->env[entry->value];
-                    if (!result->o)
+                    if (for_bind)
+                        MVM_gc_frame_lexical_write_barrier_unc(tc, cur_frame);
+                    else if (!result->o)
                         MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
                     return result;
                 }
@@ -1075,7 +1087,7 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
 
 /* Looks up the address of the lexical with the specified name, starting with
  * the specified frame. It checks all outer frames of the caller frame chain.  */
-MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame) {
+MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame, MVMint32 for_bind) {
     MVM_string_flatten(tc, name);
     while (cur_caller_frame != NULL) {
         MVMFrame *cur_frame = cur_caller_frame;
@@ -1090,7 +1102,9 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
                 if (entry) {
                     if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj) {
                         MVMRegister *result = &cur_frame->env[entry->value];
-                        if (!result->o)
+                        if (for_bind)
+                            MVM_gc_frame_lexical_write_barrier_unc(tc, cur_frame);
+                        else if (!result->o)
                             MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
                         return result;
                     }
@@ -1122,9 +1136,10 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
         frames++;
         if (frames >= next) {
             if (!from->dynlex_cache_name || (desperation && frames > 1)) {
-                from->dynlex_cache_name = name;
-                from->dynlex_cache_reg  = reg;
-                from->dynlex_cache_type = type;
+                from->dynlex_cache_name  = name;
+                from->dynlex_cache_reg   = reg;
+                from->dynlex_cache_frame = to;
+                from->dynlex_cache_type  = type;
                 if (desperation && next == 3) {
                     next = fcost / 2;
                 }
@@ -1138,7 +1153,7 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
         from = from->caller;
     }
 }
-MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify) {
+MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 for_bind) {
     FILE *dlog = tc->instance->dynvar_log_fh;
     MVMuint32 fcost = 0;  /* frames traversed */
     MVMuint32 icost = 0;  /* inlines traversed */
@@ -1176,7 +1191,9 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
                                 MVMRegister *result = &cur_frame->env[lexidx];
                                 *type = cand->lexical_types[lexidx];
-                                if (vivify && *type == MVM_reg_obj && !result->o)
+                                if (for_bind)
+                                    MVM_gc_frame_lexical_write_barrier_unc(tc, cur_frame);
+                                else if (*type == MVM_reg_obj && !result->o)
                                     MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
                                 if (fcost+icost > 1)
                                   try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
@@ -1204,7 +1221,9 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 MVMuint16    lexidx = cand->inlines[i].lexicals_start + entry->value;
                                 MVMRegister *result = &cur_frame->env[lexidx];
                                 *type = cand->lexical_types[lexidx];
-                                if (vivify && *type == MVM_reg_obj && !result->o)
+                                if (for_bind)
+                                    MVM_gc_frame_lexical_write_barrier_unc(tc, cur_frame);
+                                else if (*type == MVM_reg_obj && !result->o)
                                     MVM_frame_vivify_lexical(tc, cur_frame, lexidx);
                                 if (fcost+icost > 1)
                                   try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
@@ -1228,6 +1247,8 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
             if (MVM_string_equal(tc, name, cur_frame->dynlex_cache_name)) {
                 MVMRegister *result = cur_frame->dynlex_cache_reg;
                 *type = cur_frame->dynlex_cache_type;
+                if (for_bind)
+                    MVM_gc_frame_lexical_write_barrier_unc(tc, cur_frame->dynlex_cache_frame);
                 if (fcost+icost > 5)
                     try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                 if (dlog) {
@@ -1250,7 +1271,9 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
             if (entry) {
                 MVMRegister *result = &cur_frame->env[entry->value];
                 *type = cur_frame->static_info->body.lexical_types[entry->value];
-                if (vivify && *type == MVM_reg_obj && !result->o)
+                if (for_bind)
+                    MVM_gc_frame_lexical_write_barrier_unc(tc, cur_frame);
+                else if (*type == MVM_reg_obj && !result->o)
                     MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
                 if (dlog) {
                     fprintf(dlog, "F %s %d %d %d %d\n", c_name, fcost, icost, ecost, xcost);
@@ -1275,7 +1298,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
 
 MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
     MVMuint16 type;
-    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 1);
+    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 0);
     MVMObject *result = NULL, *result_type = NULL;
     if (lex_reg) {
         switch (type) {
@@ -1327,7 +1350,7 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame 
 
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame) {
     MVMuint16 type;
-    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 0);
+    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 1);
     if (!lex_reg) {
         MVM_exception_throw_adhoc(tc, "No contextual found with name '%s'",
             MVM_string_utf8_encode_C_string(tc, name));

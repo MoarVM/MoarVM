@@ -145,6 +145,7 @@ struct MVMFrame {
      * and the register can be accessed directly to find the contextual. */
     MVMString   *dynlex_cache_name;
     MVMRegister *dynlex_cache_reg;
+    MVMFrame    *dynlex_cache_frame;
     MVMuint16    dynlex_cache_type;
 
     /* The allocated work/env sizes. */
@@ -217,11 +218,11 @@ MVM_PUBLIC void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code);
 MVM_PUBLIC MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
 void MVM_frame_free_frame_pool(MVMThreadContext *tc);
 MVM_PUBLIC MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint16 idx);
-MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type);
-MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name);
-MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
-MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame);
-MVM_PUBLIC MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify);
+MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMint32 for_bind);
+MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name, MVMint32 for_bind);
+MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame, MVMint32 for_bind);
+MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame, MVMint32 for_bind);
+MVM_PUBLIC MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 for_bind);
 MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame);
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name);

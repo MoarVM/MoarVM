@@ -396,6 +396,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         for (i = 0; i < out; i++) {
             | mov TMP1, FRAME:TMP1->outer;
         }
+        if (out > 0) {
+            /* Unconditionally clear the "known to ref gen2 only" flag; we
+             * could emit a more sophisticated barrier here, or it may not be
+             * worth the cost the check. */
+            | mov dword FRAME:TMP1->refs_gen2_only, 0
+        }
         | mov TMP1, FRAME:TMP1->env;
         | mov TMP2, WORK[src];
         | mov REGISTER:TMP1[idx], TMP2;
@@ -1210,6 +1216,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov ARG1, TC;
         | mov ARG2, aword WORK[name];
         | mov ARG3, MVM_reg_obj;
+        | mov ARG4, 0;
         | callp &MVM_frame_find_lexical_by_name;
         | test RV, RV;
         | jz >1;

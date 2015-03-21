@@ -88,6 +88,10 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
                 MVM_string_utf8_encode_C_string(tc, name));
     }
     frame->env[entry->value] = value;
+    if (kind == MVM_reg_obj)
+        MVM_gc_frame_lexical_write_barrier(tc, frame, (MVMCollectable *)value.o);
+    else if (kind == MVM_reg_str)
+        MVM_gc_frame_lexical_write_barrier(tc, frame, (MVMCollectable *)value.s);
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {

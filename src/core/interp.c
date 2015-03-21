@@ -213,6 +213,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_exception_throw_adhoc(tc, "bindlex: outer index out of range");
                     f = f->outer;
                     outers--;
+                    if (!outers)
+                        MVM_gc_frame_lexical_write_barrier_unc(tc, f);
                 }
                 GET_LEX(cur_op, 0, f) = GET_REG(cur_op, 4);
                 cur_op += 6;
@@ -220,44 +222,44 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getlex_ni):
                 GET_REG(cur_op, 0).i64 = MVM_frame_find_lexical_by_name(tc,
-                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_int64)->i64;
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_int64, 0)->i64;
                 cur_op += 6;
                 goto NEXT;
             OP(getlex_nn):
                 GET_REG(cur_op, 0).n64 = MVM_frame_find_lexical_by_name(tc,
-                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_num64)->n64;
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_num64, 0)->n64;
                 cur_op += 6;
                 goto NEXT;
             OP(getlex_ns):
                 GET_REG(cur_op, 0).s = MVM_frame_find_lexical_by_name(tc,
-                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_str)->s;
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_str, 0)->s;
                 cur_op += 6;
                 goto NEXT;
             OP(getlex_no): {
                 MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
-                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_obj);
+                    cu->body.strings[GET_UI32(cur_op, 2)], MVM_reg_obj, 0);
                 GET_REG(cur_op, 0).o = found ? found->o : tc->instance->VMNull;
                 cur_op += 6;
                 goto NEXT;
             }
             OP(bindlex_ni):
                 MVM_frame_find_lexical_by_name(tc, cu->body.strings[GET_UI32(cur_op, 0)],
-                    MVM_reg_int64)->i64 = GET_REG(cur_op, 4).i64;
+                    MVM_reg_int64, 1)->i64 = GET_REG(cur_op, 4).i64;
                 cur_op += 6;
                 goto NEXT;
             OP(bindlex_nn):
                 MVM_frame_find_lexical_by_name(tc, cu->body.strings[GET_UI32(cur_op, 0)],
-                    MVM_reg_num64)->n64 = GET_REG(cur_op, 4).n64;
+                    MVM_reg_num64, 1)->n64 = GET_REG(cur_op, 4).n64;
                 cur_op += 6;
                 goto NEXT;
             OP(bindlex_ns):
                 MVM_frame_find_lexical_by_name(tc, cu->body.strings[GET_UI32(cur_op, 0)],
-                    MVM_reg_str)->s = GET_REG(cur_op, 4).s;
+                    MVM_reg_str, 1)->s = GET_REG(cur_op, 4).s;
                 cur_op += 6;
                 goto NEXT;
             OP(bindlex_no): {
                 MVMString *str = cu->body.strings[GET_UI32(cur_op, 0)];
-                MVMRegister *r = MVM_frame_find_lexical_by_name(tc, str, MVM_reg_obj);
+                MVMRegister *r = MVM_frame_find_lexical_by_name(tc, str, MVM_reg_obj, 1);
                 if (r)
                     r->o = GET_REG(cur_op, 4).o;
                 else
@@ -3675,7 +3677,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(getlexouter): {
                 GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name_outer(tc,
-                    GET_REG(cur_op, 2).s);
+                    GET_REG(cur_op, 2).s, 0);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3685,7 +3687,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "getlexrel needs a context");
                 r = MVM_frame_find_lexical_by_name_rel(tc,
-                    GET_REG(cur_op, 4).s, ((MVMContext *)ctx)->body.context);
+                    GET_REG(cur_op, 4).s, ((MVMContext *)ctx)->body.context, 0);
                 GET_REG(cur_op, 0).o = r ? r->o : NULL;
                 cur_op += 6;
                 goto NEXT;
@@ -3705,14 +3707,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx))
                     MVM_exception_throw_adhoc(tc, "getlexrelcaller needs a context");
                 res = MVM_frame_find_lexical_by_name_rel_caller(tc, GET_REG(cur_op, 4).s,
-                    ((MVMContext *)ctx)->body.context);
+                    ((MVMContext *)ctx)->body.context, 0);
                 GET_REG(cur_op, 0).o = res ? res->o : tc->instance->VMNull;
                 cur_op += 6;
                 goto NEXT;
             }
             OP(getlexcaller): {
                 MVMRegister *res = MVM_frame_find_lexical_by_name_rel_caller(tc,
-                    GET_REG(cur_op, 2).s, tc->cur_frame->caller);
+                    GET_REG(cur_op, 2).s, tc->cur_frame->caller, 0);
                 GET_REG(cur_op, 0).o = res ? res->o : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
@@ -4136,7 +4138,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getlexstatic_o):
             OP(getlexperinvtype_o): {
                 MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
-                    GET_REG(cur_op, 2).s, MVM_reg_obj);
+                    GET_REG(cur_op, 2).s, MVM_reg_obj, 0);
                 GET_REG(cur_op, 0).o = found ? found->o : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;

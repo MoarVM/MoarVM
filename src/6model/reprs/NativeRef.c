@@ -465,6 +465,7 @@ void MVM_nativeref_write_reg_or_lex_n(MVMThreadContext *tc, MVMObject *ref_obj, 
 void MVM_nativeref_write_reg_or_lex_s(MVMThreadContext *tc, MVMObject *ref_obj, MVMString *value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     ref->body.u.reg_or_lex.var->s = value;
+    MVM_gc_frame_lexical_write_barrier(tc, ref->body.u.reg_or_lex.frame, (MVMCollectable *)value);
 }
 void MVM_nativeref_write_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
