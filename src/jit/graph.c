@@ -1017,6 +1017,21 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
                 return 1;
             }
+            case MVM_OP_setelemspos: {
+                MVMint32 invocant = ins->operands[0].reg.orig;
+                MVMint32 amount   = ins->operands[1].reg.orig;
+
+                void *function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.set_elems;
+
+                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                         { MVM_JIT_REG_STABLE,  invocant },
+                                         { MVM_JIT_REG_VAL,     invocant },
+                                         { MVM_JIT_REG_OBJBODY, invocant },
+                                         { MVM_JIT_REG_VAL,     amount } };
+                jgb_append_call_c(tc, jgb, function, 5, args, MVM_JIT_RV_VOID, -1);
+                MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
+                return 1;
+            }
             default:
                 MVM_jit_log(tc, "devirt: please implement emitting repr op %s\n", ins->info->name);
         }
