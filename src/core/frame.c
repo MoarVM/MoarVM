@@ -1540,8 +1540,14 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
         ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, f);
 
         if (MVM_casptr(&f->context_object, NULL, ctx) != NULL) {
+            /* Lost the race. */
             ((MVMContext *)ctx)->body.context = MVM_frame_dec_ref(tc, f);
             ctx = (MVMObject *)MVM_load(&f->context_object);
+        }
+        else {
+            /* Won the race; invalidate any gen2-only given we just shoved a
+             * newly allocated object onto the frame. */
+            MVM_gc_frame_lexical_write_barrier_unc(tc, f);
         }
     }
 

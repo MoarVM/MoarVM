@@ -301,10 +301,6 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     MVM_gc_worklist_add_frame(tc, worklist, cur_frame->caller);
     MVM_gc_worklist_add_frame(tc, worklist, cur_frame->outer);
 
-    /* Add any context object. */
-    if (cur_frame->context_object)
-        MVM_gc_worklist_add(tc, worklist, &cur_frame->context_object);
-
     /* Some things we can avoid marking in a nursery collect. For this to be
      * the case, the frame must be marked as only referencing gen2 things,
      * and it must already have become inactive (so it's only used for its
@@ -318,6 +314,10 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
         if (cur_frame->code_ref)
             MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
         MVM_gc_worklist_add(tc, worklist, &cur_frame->static_info);
+
+        /* Add any context object. */
+        if (cur_frame->context_object)
+            MVM_gc_worklist_add(tc, worklist, &cur_frame->context_object);
 
         /* Mark any continuation tags. */
         if (cur_frame->continuation_tags) {
