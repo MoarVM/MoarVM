@@ -1,5 +1,9 @@
 #include "moar.h"
 
+/* Turn this on to get sanity checking that frames marked as pointing to
+ * gen2 things only really only do point to gen2 things. */
+#define MVM_GC_GEN2_FRAME_SANITY_CHECK 0
+
 static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 
 /* Adds a location holding a collectable object to the permanent list of GC
@@ -323,8 +327,28 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     if (cur_frame->dynlex_cache_name)
         MVM_gc_worklist_add(tc, worklist, &cur_frame->dynlex_cache_name);
 
-    /* Scan the registers. */
-    scan_registers(tc, worklist, cur_frame);
+    /* Scan the registers/lexicals if needed. */
+    if (cur_frame->tc || worklist->include_gen2 || !cur_frame->refs_gen2_only) {
+        scan_registers(tc, worklist, cur_frame);
+    }
+#if MVM_GC_GEN2_FRAME_SANITY_CHECK
+    else {
+        MVMuint16  i, count, flag;
+        MVMuint16 *type_map;
+        if (cur_frame->spesh_cand && cur_frame->spesh_log_idx == -1 && cur_frame->spesh_cand->lexical_types) {
+            type_map = cur_frame->spesh_cand->lexical_types;
+            count    = cur_frame->spesh_cand->num_lexicals;
+        }
+        else {
+            type_map = cur_frame->static_info->body.lexical_types;
+            count    = cur_frame->static_info->body.num_lexicals;
+        }
+        for (i = 0; i < count; i++)
+            if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
+                if (cur_frame->env[i].o && !(cur_frame->env[i].o->header.flags & MVM_CF_SECOND_GEN))
+                    MVM_panic(1, "Found nursery object in refs_gen2_only frame");
+    }
+#endif
 }
 
 /* Takes a frame, scans its registers and adds them to the roots. */
@@ -332,6 +356,9 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
     MVMuint16  i, count, flag;
     MVMuint16 *type_map;
     MVMuint8  *flag_map;
+
+    /* Remember how many items were on the GC worklist before we began. */
+    MVMuint32 orig_worklist_items = worklist->items;
 
     /* Scan locals. */
     if (frame->work && frame->tc) {
@@ -394,4 +421,9 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
                 MVM_gc_worklist_add(tc, worklist, &ctx->args[i].o);
         }
     }
+
+    /* If we are marking nursery only and we added no items, we can flag the
+     * frame as referencing no gen2 items. */
+    if (!frame->tc && !worklist->include_gen2 && worklist->items == orig_worklist_items)
+        frame->refs_gen2_only = 1;
 }
