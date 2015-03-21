@@ -273,6 +273,9 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
             frame->dynlex_cache_name = NULL;
             frame->jit_entry_label   = NULL;
 
+            /* Must also clear the gen2 refs only flag on a new frame. */
+            frame->refs_gen2_only = 0;
+
             return frame;
         }
     }
@@ -282,13 +285,14 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     frame->params.named_used = NULL;
 
     /* Ensure special return pointers, continuation tags, dynlex cache,
-     * and return address are null. */
+     * and return address are null, along with refs gen2 only flag. */
     frame->special_return    = NULL;
     frame->special_unwind    = NULL;
     frame->continuation_tags = NULL;
     frame->dynlex_cache_name = NULL;
     frame->return_address    = NULL;
     frame->jit_entry_label   = NULL;
+    frame->refs_gen2_only    = 0;
 
     /* Allocate space for lexicals and work area, copying the default lexical
      * environment into place. */

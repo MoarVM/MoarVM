@@ -122,6 +122,13 @@ struct MVMFrame {
     /* GC run sequence number that we last saw this frame during. */
     AO_t gc_seq_number;
 
+    /* Set when the GC determines the frame references gen2 objects only.
+     * Can only be set on frames where ->work is cleared, meaning lexicals
+     * are now only reachable from inner frames. A frame marked as touching
+     * gen2 lexicals only will not need to mark them during a nursery GC
+     * run. */
+    MVMint32 refs_gen2_only;
+
     /* Address of the last op executed that threw an exeption; used just
      * for error reporting. */
     MVMuint8 *throw_address;
