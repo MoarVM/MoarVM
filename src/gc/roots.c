@@ -310,15 +310,6 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     if (cur_frame->context_object)
         MVM_gc_worklist_add(tc, worklist, &cur_frame->context_object);
 
-    /* Mark any continuation tags. */
-    if (cur_frame->continuation_tags) {
-        MVMContinuationTag *tag = cur_frame->continuation_tags;
-        while (tag) {
-            MVM_gc_worklist_add(tc, worklist, &tag->tag);
-            tag = tag->next;
-        }
-    }
-
     /* Some things we can avoid marking in a nursery collect. For this to be
      * the case, the frame must be marked as only referencing gen2 things,
      * and it must already have become inactive (so it's only used for its
@@ -326,6 +317,15 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     if (cur_frame->tc || worklist->include_gen2 || !cur_frame->refs_gen2_only) {
         /* Remember how many items were on the GC worklist before we began. */
         MVMuint32 orig_worklist_items = worklist->items;
+
+        /* Mark any continuation tags. */
+        if (cur_frame->continuation_tags) {
+            MVMContinuationTag *tag = cur_frame->continuation_tags;
+            while (tag) {
+                MVM_gc_worklist_add(tc, worklist, &tag->tag);
+                tag = tag->next;
+            }
+        }
 
         /* Mark special return data, if needed. */
         if (cur_frame->special_return_data && cur_frame->mark_special_return_data)
