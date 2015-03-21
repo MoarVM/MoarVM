@@ -301,11 +301,6 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     MVM_gc_worklist_add_frame(tc, worklist, cur_frame->caller);
     MVM_gc_worklist_add_frame(tc, worklist, cur_frame->outer);
 
-    /* add code_ref to work list unless we're the top-level frame. */
-    if (cur_frame->code_ref)
-        MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
-    MVM_gc_worklist_add(tc, worklist, &cur_frame->static_info);
-
     /* Add any context object. */
     if (cur_frame->context_object)
         MVM_gc_worklist_add(tc, worklist, &cur_frame->context_object);
@@ -317,6 +312,12 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     if (cur_frame->tc || worklist->include_gen2 || !cur_frame->refs_gen2_only) {
         /* Remember how many items were on the GC worklist before we began. */
         MVMuint32 orig_worklist_items = worklist->items;
+
+        /* Add code_ref (if we have one - top-level frames don't) and static
+         * code object. */
+        if (cur_frame->code_ref)
+            MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
+        MVM_gc_worklist_add(tc, worklist, &cur_frame->static_info);
 
         /* Mark any continuation tags. */
         if (cur_frame->continuation_tags) {
