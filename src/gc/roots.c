@@ -328,6 +328,9 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
      * and it must already have become inactive (so it's only used for its
      * closure semantics). */
     if (cur_frame->tc || worklist->include_gen2 || !cur_frame->refs_gen2_only) {
+        /* Remember how many items were on the GC worklist before we began. */
+        MVMuint32 orig_worklist_items = worklist->items;
+
         /* Mark any dynamic variable cache name; this one never levels beyond
          * frame->tc becoming NULL, so isn't actually barried anywhere. */
         if (cur_frame->dynlex_cache_name)
@@ -335,6 +338,12 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
 
         /* Scan the registers/lexicals. */
         scan_registers(tc, worklist, cur_frame);
+
+        /* If we are marking nursery only, have an inactive frame, and we
+         * added no items, we can flag the frame as referencing no gen2
+         * items. */
+        if (!cur_frame->tc && !worklist->include_gen2 && worklist->items == orig_worklist_items)
+            cur_frame->refs_gen2_only = 1;
     }
 #if MVM_GC_GEN2_FRAME_SANITY_CHECK
     else {
@@ -361,9 +370,6 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
     MVMuint16  i, count, flag;
     MVMuint16 *type_map;
     MVMuint8  *flag_map;
-
-    /* Remember how many items were on the GC worklist before we began. */
-    MVMuint32 orig_worklist_items = worklist->items;
 
     /* Scan locals. */
     if (frame->work && frame->tc) {
@@ -426,9 +432,4 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
                 MVM_gc_worklist_add(tc, worklist, &ctx->args[i].o);
         }
     }
-
-    /* If we are marking nursery only and we added no items, we can flag the
-     * frame as referencing no gen2 items. */
-    if (!frame->tc && !worklist->include_gen2 && worklist->items == orig_worklist_items)
-        frame->refs_gen2_only = 1;
 }
