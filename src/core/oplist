@@ -353,7 +353,7 @@ unshift_s           r(obj) r(str)
 unshift_o           r(obj) r(obj)
 splice              r(obj) r(obj) r(int64) r(int64)
 setelemspos         r(obj) r(int64)
-existspos           w(int64) r(obj) r(int64)
+existspos           w(int64) r(obj) r(int64) :pure
 atkey_i             w(int64) r(obj) r(str)
 atkey_n             w(num64) r(obj) r(str)
 atkey_s             w(str) r(obj) r(str)
