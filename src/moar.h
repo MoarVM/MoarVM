@@ -21,6 +21,7 @@
 #include <uv.h>
 
 /* libatomic_ops */
+#define AO_REQUIRE_CAS
 #include <atomic_ops.h>
 
 /* dynload/dyncall/dyncallback */
