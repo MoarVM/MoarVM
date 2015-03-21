@@ -323,12 +323,17 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
         }
     }
 
-    /* Mark any dyn lex cache. */
-    if (cur_frame->dynlex_cache_name)
-        MVM_gc_worklist_add(tc, worklist, &cur_frame->dynlex_cache_name);
-
-    /* Scan the registers/lexicals if needed. */
+    /* Some things we can avoid marking in a nursery collect. For this to be
+     * the case, the frame must be marked as only referencing gen2 things,
+     * and it must already have become inactive (so it's only used for its
+     * closure semantics). */
     if (cur_frame->tc || worklist->include_gen2 || !cur_frame->refs_gen2_only) {
+        /* Mark any dynamic variable cache name; this one never levels beyond
+         * frame->tc becoming NULL, so isn't actually barried anywhere. */
+        if (cur_frame->dynlex_cache_name)
+            MVM_gc_worklist_add(tc, worklist, &cur_frame->dynlex_cache_name);
+
+        /* Scan the registers/lexicals. */
         scan_registers(tc, worklist, cur_frame);
     }
 #if MVM_GC_GEN2_FRAME_SANITY_CHECK

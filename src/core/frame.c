@@ -266,11 +266,10 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
                 NULL;
             frame->cur_args_callsite = NULL;
 
-            /* Ensure frame return addres and dynlex cache key is cleared. (We
-             * must clear the return address to avoid bogus searching within
-             * inlines for dynamic variables). */
+            /* Ensure frame return address is cleared. (We must clear the
+             * return address to avoid bogus searching within inlines for
+             * dynamic variables). */
             frame->return_address    = NULL;
-            frame->dynlex_cache_name = NULL;
             frame->jit_entry_label   = NULL;
 
             /* Must also clear the gen2 refs only flag on a new frame. */
@@ -674,6 +673,9 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
             }
             returner->continuation_tags = NULL;
         }
+
+        /* Clear any cached dynamic lexical name. */
+        returner->dynlex_cache_name = NULL;
 
         /* Signal to the GC to ignore ->work */
         returner->tc = NULL;
