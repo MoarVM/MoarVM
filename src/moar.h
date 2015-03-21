@@ -80,7 +80,6 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 
 /* Headers for various other data structures and APIs. */
 #include "6model/6model.h"
-#include "gc/wb.h"
 #include "core/threadcontext.h"
 #include "core/instance.h"
 #include "core/interp.h"
@@ -89,6 +88,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "core/exceptions.h"
 #include "core/alloc.h"
 #include "core/frame.h"
+#include "gc/wb.h"
 #include "core/validation.h"
 #include "core/compunit.h"
 #include "core/bytecode.h"

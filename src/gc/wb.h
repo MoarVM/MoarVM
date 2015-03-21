@@ -19,3 +19,17 @@ MVM_STATIC_INLINE void MVM_gc_write_barrier(MVMThreadContext *tc, MVMCollectable
         MVM_gc_write_barrier(tc, update_root, (MVMCollectable *)_r); \
         update_addr = _r; \
     }
+
+/* Unconditional frame lexical write barrier. It's always safe to clear the
+ * "only references gen2" flag even if it's an overestimate, and we can put
+ * it back in place next GC if we're wrong about needing it. This is used if
+ * we don't cheaply know if we're writing to an object lexical. */
+MVM_STATIC_INLINE void MVM_gc_frame_lexical_write_barrier_unc(MVMThreadContext *tc, MVMFrame *f) {
+    f->refs_gen2_only = 0;
+}
+
+/* Frame lexical write barrier using the specified collectable. */
+MVM_STATIC_INLINE void MVM_gc_frame_lexical_write_barrier(MVMThreadContext *tc, MVMFrame *f, MVMCollectable *c) {
+    if (c && !(c->flags & MVM_CF_SECOND_GEN))
+        f->refs_gen2_only = 0;
+}
