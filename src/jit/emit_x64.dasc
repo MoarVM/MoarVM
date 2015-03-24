@@ -1500,7 +1500,33 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
             break;
         }
     }
-    for (i = 0; i < num_gpr; i++) {
+    /* Since the very first argument is almost always TC, we'll take a shortcut
+     * without the TMP6 argument here */
+
+    i = 0;
+
+    if (in_gpr[0].type == MVM_JIT_INTERP_VAR && in_gpr[0].v.ivar == MVM_JIT_INTERP_TC) {
+        | mov ARG1, TC;
+        i = 1;
+
+        /* And devirtualized repr ops always have the same four initial
+         * arguments, so why not optimize a tiny bit there, too? */
+        if (num_gpr >= 4
+            && in_gpr[1].type == MVM_JIT_REG_STABLE
+            && in_gpr[2].type == MVM_JIT_REG_VAL
+            && in_gpr[3].type == MVM_JIT_REG_OBJBODY
+            && in_gpr[1].v.reg == in_gpr[2].v.reg
+            && in_gpr[1].v.reg == in_gpr[3].v.reg) {
+
+            | mov ARG3, qword WORK[in_gpr[2].v.reg];
+            | mov ARG2, OBJECT:ARG3->st;
+            | lea ARG4, STOOGE:ARG3->data;
+
+            i = 4;
+        }
+    }
+
+    for (; i < num_gpr; i++) {
         load_call_arg(tc, jg, in_gpr[i], Dst);
         emit_gpr_arg(tc, jg, i, Dst);
     }
