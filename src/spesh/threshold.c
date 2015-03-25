@@ -5,11 +5,11 @@
 MVMuint32 MVM_spesh_threshold(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMuint32 bs = sf->body.bytecode_size;
     if (bs <= 256)
-        return 10;
+        return 150;
     else if (bs <= 512)
-        return 25;
+        return 200;
     else if (bs <= 2048)
-        return 50;
+        return 250;
     else
-        return 100;
+        return 300;
 }
