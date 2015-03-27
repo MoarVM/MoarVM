@@ -2524,6 +2524,48 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
     }
 }
 
+/* This goes through the entries in the parameterized types interning section,
+ * if any. For each, if we already deserialized the parameterization from a
+ * different compilation unit or created it in something we already compiled,
+ * we just use that existing parameterization. */
+static void resolve_param_interns(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint32 iidx;
+
+    /* Switch to reading the parameterization segment. */
+    reader->cur_read_buffer = &(reader->root.param_interns_data);
+    reader->cur_read_offset = &(reader->param_interns_data_offset);
+    reader->cur_read_end    = &(reader->param_interns_data_end);
+
+    /* Go over all the interns we have. */
+    for (iidx = 0; iidx < reader->root.num_param_interns; iidx++) {
+        MVMObject *params, *matching;
+        MVMint32   num_params, i;
+
+        /* Resolve the parametric type. */
+        MVMObject *ptype = read_obj_ref(tc, reader);
+
+        /* Read indexes where type object and STable will get placed if a
+         * matching intern is found. */
+        MVMint32 type_idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        MVMint32 st_idx   = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset) + 4);
+        *(reader->cur_read_offset) += 8;
+
+        /* Read parameters and push into array. */
+        num_params = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 4;
+        params = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+        for (i = 0; i < num_params; i++)
+            MVM_repr_push_o(tc, params, read_obj_ref(tc, reader));
+
+        /* Try to find a matching parameterization. */
+        matching = MVM_6model_parametric_try_find_parameterization(tc, STABLE(ptype), params);
+        if (matching) {
+            MVM_sc_set_object(tc, reader->root.sc, type_idx, matching);
+            MVM_sc_set_stable(tc, reader->root.sc, st_idx, STABLE(matching));
+        }
+    }
+}
+
 /* Takes serialized data, an empty SerializationContext to deserialize it into,
  * a strings heap and the set of static code refs for the compilation unit.
  * Deserializes the data into the required objects and STables. */
@@ -2586,6 +2628,10 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     REPR(codes_static)->pos_funcs.set_elems(tc, STABLE(codes_static),
         codes_static, OBJECT_BODY(codes_static),
         scodes + reader->root.num_closures);
+
+    /* Handle any type parameterization interning, menaing we should not
+     * deserialize our own versions of things. */
+    resolve_param_interns(tc, reader);
 
     /* If we're repossessing STables and objects from other SCs, then first
       * get those raw objects into our root set. Note we do all the STables,
