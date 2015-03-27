@@ -1,9 +1,5 @@
 #include "moar.h"
 
-#ifndef _WIN32
-#include <sys/wait.h>
-#endif
-
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 

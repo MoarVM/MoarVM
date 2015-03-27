@@ -2,8 +2,6 @@
 #include "platform/time.h"
 #include "tinymt64.h"
 
-#include <math.h>
-
 /* concatenating with "" ensures that only literal strings are accepted as argument. */
 #define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
 

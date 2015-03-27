@@ -1,6 +1,5 @@
 #include <moar.h>
 #include <sha1.h>
-#include <math.h>
 
 #ifndef MAX
     #define MAX(x, y) ((y) > (x) ? (y) : (x))

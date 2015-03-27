@@ -1,8 +1,6 @@
 #include "moar.h"
-#include "platform/io.h"
 
 #ifndef _WIN32
-#include <sys/wait.h>
 #include <sys/types.h>
 #include <unistd.h>
 #define DEFAULT_MODE 0x01B6
