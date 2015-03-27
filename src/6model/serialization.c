@@ -11,7 +11,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 12
+#define CURRENT_VERSION 13
 #define MIN_VERSION     9
 
 /* Various sizes (in bytes). */
@@ -802,6 +802,7 @@ static void serialize_how_lazy(MVMThreadContext *tc, MVMSerializationWriter *wri
 
 /* This handles the serialization of an STable, and calls off to serialize
  * its representation data also. */
+static MVMint16 read_int16(const char *buffer, size_t offset);
 static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
     MVMint64  i;
 
@@ -885,6 +886,54 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     /* If it's a parametric type, save parameterizer. */
     if (st->mode_flags & MVM_PARAMETRIC_TYPE)
         MVM_serialization_write_ref(tc, writer, st->paramet.ric.parameterizer);
+
+    /* If it's a parameterized type, we may also need to make an intern table
+     * entry as well as writing out the parameter details. */
+    if (st->mode_flags & MVM_PARAMETERIZED_TYPE) {
+        MVMint64 i, num_params;
+
+        /* To deserve an entry in the intern table, we need that both the type
+         * being parameterized and all of the arguments are from an SC other
+         * than the one we're currently serializing. Otherwise, there is no
+         * way the parameterized type in question could have been produced by
+         * another compilation unit. We keep a counter of things, which should
+         * add up to parameters + 1 if we need the intern entry. */
+        MVMuint32 internability = 0;
+
+        /* Write a reference to the type being parameterized, and increment the
+         * internability if it's from a different SC (easier to check that after,
+         * as writing the ref will be sure to mark it as being in this one if it
+         * has no SC yet). */
+        MVM_serialization_write_ref(tc, writer, st->paramet.erized.parametric_type);
+        if (MVM_sc_get_obj_sc(tc, st->paramet.erized.parametric_type) != writer->root.sc)
+            internability++;
+
+        /* Write the parameters. We write them like an array, but an element at a
+         * time so we can check if an intern table entry is needed. */
+        num_params = MVM_repr_elems(tc, st->paramet.erized.parameters);
+        expand_storage_if_needed(tc, writer, 4);
+        write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), num_params);
+        *(writer->cur_write_offset) += 4;
+        for (i = 0; i < num_params; i++) {
+            /* Save where we were before writing this parameter. */
+            size_t pre_write_mark = *(writer->cur_write_offset);
+
+            /* Write parameter. */
+            MVMObject *parameter = MVM_repr_at_pos_o(tc, st->paramet.erized.parameters, i);
+            MVM_serialization_write_ref(tc, writer, parameter);
+
+            /* If what we write was an object reference and it's from another
+             * SC, add to the internability count. */
+            if (read_int16(*(writer->cur_write_buffer), pre_write_mark) == REFVAR_OBJECT)
+                if (MVM_sc_get_obj_sc(tc, parameter) != writer->root.sc)
+                    internability++;
+        }
+
+        /* Make intern table entry if needed. */
+        if (internability == num_params + 1) {
+            /* XXX TODO */
+        }
+    }
 
     /* Store offset we save REPR data at. */
     write_int32(writer->root.stables_table, offset + 8, writer->stables_data_offset);
@@ -1994,6 +2043,9 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Mode flags. */
     st->mode_flags = MVM_serialization_read_int(tc, reader);
+    if (st->mode_flags & MVM_PARAMETRIC_TYPE && st->mode_flags & MVM_PARAMETERIZED_TYPE)
+        fail_deserialize(tc, reader,
+            "STable mode flags cannot indicate both parametric and parameterized");
 
     /* Boolification spec. */
     if (MVM_serialization_read_int(tc, reader)) {
@@ -2036,13 +2088,39 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     /* If it's a parametric type... */
     if (reader->root.version >= 12) {
         if (st->mode_flags & MVM_PARAMETRIC_TYPE) {
-            /* Create empty lookup table. */
-            MVMObject *lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-            MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.lookup, lookup);
+            /* Create empty lookup table, unless we were beat to it. */
+            if (!st->paramet.ric.lookup) {
+                MVMObject *lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+                MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.lookup, lookup);
+            }
 
             /* Deserialize parameterizer. */
             MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.parameterizer,
                 MVM_serialization_read_ref(tc, reader));
+        }
+    }
+
+    /* If it's a parameterized type... */
+    if (reader->root.version >= 13) {
+        if (st->mode_flags & MVM_PARAMETERIZED_TYPE) {
+            MVMObject *lookup;
+
+            /* Deserialize parametric type and parameters. */
+            MVMObject *ptype  = MVM_serialization_read_ref(tc, reader);
+            MVMObject *params = read_array_var(tc, reader);
+
+            /* Attach them to the STable. */
+            MVM_ASSIGN_REF(tc, &(st->header), st->paramet.erized.parametric_type, ptype);
+            MVM_ASSIGN_REF(tc, &(st->header), st->paramet.erized.parameters, params);
+
+            /* Add a mapping into the lookup list of the parameteric type. */
+            lookup = STABLE(ptype)->paramet.ric.lookup;
+            if (!lookup) {
+                lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+                MVM_ASSIGN_REF(tc, &(STABLE(ptype)->header), STABLE(ptype)->paramet.ric.lookup, lookup);
+            }
+            MVM_repr_push_o(tc, lookup, params);
+            MVM_repr_push_o(tc, lookup, st->WHAT);
         }
     }
 
