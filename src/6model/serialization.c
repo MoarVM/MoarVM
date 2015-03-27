@@ -202,7 +202,7 @@ static void * base64_decode(const char *s, size_t *data_len)
 /* Writes an int64 into a buffer. */
 static void write_int64(char *buffer, size_t offset, MVMint64 value) {
     memcpy(buffer + offset, &value, 8);
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
     switch_endian(buffer + offset, 8);
 #endif
 }
@@ -210,7 +210,7 @@ static void write_int64(char *buffer, size_t offset, MVMint64 value) {
 /* Writes an int32 into a buffer. */
 static void write_int32(char *buffer, size_t offset, MVMint32 value) {
     memcpy(buffer + offset, &value, 4);
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
     switch_endian(buffer + offset, 4);
 #endif
 }
@@ -218,7 +218,7 @@ static void write_int32(char *buffer, size_t offset, MVMint32 value) {
 /* Writes an double into a buffer. */
 static void write_double(char *buffer, size_t offset, double value) {
     memcpy(buffer + offset, &value, 8);
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
     switch_endian(buffer + offset, 8);
 #endif
 }
@@ -351,7 +351,7 @@ void MVM_serialization_write_varint(MVMThreadContext *tc, MVMSerializationWriter
     } else if (storage_needed == 9) {
         buffer[offset++] = 0x00;
         memcpy(buffer + offset, &value, 8);
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
         switch_endian(buffer + offset, 8);
 #endif
     } else {
@@ -362,7 +362,7 @@ void MVM_serialization_write_varint(MVMThreadContext *tc, MVMSerializationWriter
         assert((nybble >> 3) == 0
                || (nybble >> 3) == ~(MVMuint64)0);
         buffer[offset++] = (rest << 4) | (nybble & 0xF);
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
         memcpy(buffer + offset, (char *)&value + 8 - rest, rest);
         switch_endian(buffer + offset, rest);
 #else
@@ -1486,7 +1486,7 @@ MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationRea
 
     /* The remaining 1 to 7 lower bytes follow next in the serialization stream.
      */
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
     {
         MVMuint8 *write_to = (MVMuint8 *)&result + 8 - need;
         memcpy(write_to, read_at, need);
