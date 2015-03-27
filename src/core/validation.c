@@ -25,7 +25,7 @@ enum {
     MARK_sequence = ':',
     MARK_head     = '+',
     MARK_body     = '*',
-    MARK_tail     = '-',
+    MARK_tail     = '-'
 };
 
 typedef struct {
