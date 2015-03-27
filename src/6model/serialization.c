@@ -25,12 +25,13 @@
 #define REPOS_TABLE_ENTRY_SIZE      16
 
 /* Some guesses. */
-#define DEFAULT_STABLE_DATA_SIZE     4096
-#define STABLES_TABLE_ENTRIES_GUESS  16
-#define OBJECT_SIZE_GUESS            8
-#define CLOSURES_TABLE_ENTRIES_GUESS 16
-#define CONTEXTS_TABLE_ENTRIES_GUESS 4
-#define DEFAULT_CONTEXTS_DATA_SIZE   1024
+#define DEFAULT_STABLE_DATA_SIZE        4096
+#define STABLES_TABLE_ENTRIES_GUESS     16
+#define OBJECT_SIZE_GUESS               8
+#define CLOSURES_TABLE_ENTRIES_GUESS    16
+#define CONTEXTS_TABLE_ENTRIES_GUESS    4
+#define DEFAULT_CONTEXTS_DATA_SIZE      1024
+#define DEFAULT_PARAM_INTERNS_DATA_SIZE 128
 
 /* Possible reference types we can serialize. */
 #define REFVAR_NULL                 1
@@ -809,6 +810,56 @@ static void serialize_how_lazy(MVMThreadContext *tc, MVMSerializationWriter *wri
     }
 }
 
+/* Adds an entry to the parameterized type intern section. */
+static void add_param_intern(MVMThreadContext *tc, MVMSerializationWriter *writer,
+                             MVMObject *type, MVMObject *ptype, MVMObject *params) {
+    MVMint64 num_params, i;
+
+    /* Save previous write buffer. */
+    char      **orig_write_buffer = writer->cur_write_buffer;
+    MVMuint32  *orig_write_offset = writer->cur_write_offset;
+    MVMuint32  *orig_write_limit  = writer->cur_write_limit;
+
+    /* Switch to intern data buffer. */
+    writer->cur_write_buffer = &(writer->root.param_interns_data);
+    writer->cur_write_offset = &(writer->param_interns_data_offset);
+    writer->cur_write_limit  = &(writer->param_interns_data_alloc);
+
+    /* Parametric type object reference. */
+    write_obj_ref(tc, writer, ptype);
+
+    /* Indexes in this SC of type object and STable. */
+    expand_storage_if_needed(tc, writer, 12);
+    if (MVM_sc_get_obj_sc(tc, type) != writer->root.sc)
+        MVM_exception_throw_adhoc(tc,
+            "Serialization error: parameterized type to intern not in current SC");
+    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset),
+        MVM_sc_find_object_idx(tc, writer->root.sc, type));
+    *(writer->cur_write_offset) += 4;
+    if (MVM_sc_get_stable_sc(tc, STABLE(type)) != writer->root.sc)
+        MVM_exception_throw_adhoc(tc,
+            "Serialization error: STable of parameterized type to intern not in current SC");
+    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset),
+        MVM_sc_find_stable_idx(tc, writer->root.sc, STABLE(type)));
+    *(writer->cur_write_offset) += 4;
+
+    /* Write parameter count and parameter object refs. */
+    num_params = MVM_repr_elems(tc, params);
+    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset),
+        (MVMint32)num_params);
+    *(writer->cur_write_offset) += 4;
+    for (i = 0; i < num_params; i++)
+        write_obj_ref(tc, writer, MVM_repr_at_pos_o(tc, params, i));
+
+    /* Increment number of parameterization interns. */
+    writer->root.num_param_interns++;
+
+    /* Restore original output buffer. */
+    writer->cur_write_buffer = orig_write_buffer;
+    writer->cur_write_offset = orig_write_offset;
+    writer->cur_write_limit  = orig_write_limit;
+}
+
 /* This handles the serialization of an STable, and calls off to serialize
  * its representation data also. */
 static MVMint16 read_int16(const char *buffer, size_t offset);
@@ -913,13 +964,15 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
          * internability if it's from a different SC (easier to check that after,
          * as writing the ref will be sure to mark it as being in this one if it
          * has no SC yet). */
-        MVM_serialization_write_ref(tc, writer, st->paramet.erized.parametric_type);
-        if (MVM_sc_get_obj_sc(tc, st->paramet.erized.parametric_type) != writer->root.sc)
+        MVMObject *ptype  = st->paramet.erized.parametric_type;
+        MVMObject *params = st->paramet.erized.parameters;
+        MVM_serialization_write_ref(tc, writer, ptype);
+        if (MVM_sc_get_obj_sc(tc, ptype) != writer->root.sc)
             internability++;
 
         /* Write the parameters. We write them like an array, but an element at a
          * time so we can check if an intern table entry is needed. */
-        num_params = MVM_repr_elems(tc, st->paramet.erized.parameters);
+        num_params = MVM_repr_elems(tc, params);
         expand_storage_if_needed(tc, writer, 4);
         write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), num_params);
         *(writer->cur_write_offset) += 4;
@@ -928,7 +981,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
             size_t pre_write_mark = *(writer->cur_write_offset);
 
             /* Write parameter. */
-            MVMObject *parameter = MVM_repr_at_pos_o(tc, st->paramet.erized.parameters, i);
+            MVMObject *parameter = MVM_repr_at_pos_o(tc, params, i);
             MVM_serialization_write_ref(tc, writer, parameter);
 
             /* If what we write was an object reference and it's from another
@@ -939,9 +992,8 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
         }
 
         /* Make intern table entry if needed. */
-        if (internability == num_params + 1) {
-            /* XXX TODO */
-        }
+        if (internability == num_params + 1)
+            add_param_intern(tc, writer, st->WHAT, ptype, params);
     }
 
     /* Store offset we save REPR data at. */
@@ -1042,7 +1094,6 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     writer->cur_write_limit  = &(writer->contexts_data_alloc);
 
     /* Serialize lexicals. */
-
     MVM_serialization_write_int(tc, writer, sf->body.num_lexicals);
     for (i = 0; i < sf->body.num_lexicals; i++) {
         MVM_serialization_write_str(tc, writer, lexnames[i]->key);
@@ -1185,6 +1236,8 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer->root.contexts_table      = (char *)MVM_malloc(writer->contexts_table_alloc);
     writer->contexts_data_alloc      = DEFAULT_CONTEXTS_DATA_SIZE;
     writer->root.contexts_data       = (char *)MVM_malloc(writer->contexts_data_alloc);
+    writer->param_interns_data_alloc = DEFAULT_PARAM_INTERNS_DATA_SIZE;
+    writer->root.param_interns_data  = (char *)MVM_malloc(writer->param_interns_data_alloc);
 
     /* Initialize MVMString heap so first entry is the NULL MVMString. */
     MVM_repr_push_s(tc, empty_string_heap, NULL);
@@ -1203,6 +1256,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     MVM_free(writer->root.stables_data);
     MVM_free(writer->root.objects_table);
     MVM_free(writer->root.objects_data);
+    MVM_free(writer->root.param_interns_data);
     MVM_free(writer);
 
     /* Exit gen2 allocation. */
