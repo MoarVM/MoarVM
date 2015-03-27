@@ -469,7 +469,6 @@ static void write_array_str(MVMThreadContext *tc, MVMSerializationWriter *writer
 }
 
 /* Writes a hash where each key is a MVMString and each value a variant reference. */
-void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref);
 static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *hash) {
     MVMint32 elems = (MVMint32)MVM_repr_elems(tc, hash);
     MVMObject *iter = MVM_iter(tc, hash);
