@@ -208,14 +208,14 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
 
         /* Run deserialization frame, if there is one. */
         if (cu->body.deserialize_frame) {
-            MVM_interp_run(tc, &toplevel_initial_invoke, cu->body.deserialize_frame);
+            MVM_interp_run(tc, toplevel_initial_invoke, cu->body.deserialize_frame);
         }
     });
 
     /* Run the frame marked main, or if there is none then fall back to the
      * first frame. */
     start_frame = cu->body.main_frame ? cu->body.main_frame : cu->body.frames[0];
-    MVM_interp_run(tc, &toplevel_initial_invoke, start_frame);
+    MVM_interp_run(tc, toplevel_initial_invoke, start_frame);
 }
 
 /* Loads bytecode from the specified file name and dumps it. */
