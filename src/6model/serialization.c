@@ -16,6 +16,7 @@
 
 /* Various sizes (in bytes). */
 #define HEADER_SIZE                 (4 * 16)
+#define HEADER_SIZE_V13             (4 * 18)
 #define DEP_TABLE_ENTRY_SIZE        8
 #define STABLES_TABLE_ENTRY_SIZE    12
 #define OBJECTS_TABLE_ENTRY_SIZE    16
@@ -678,7 +679,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     MVMString *result;
 
     /* Calculate total size. */
-    output_size += HEADER_SIZE;
+    output_size += HEADER_SIZE_V13;
     output_size += writer->root.num_dependencies * DEP_TABLE_ENTRY_SIZE;
     output_size += writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE;
     output_size += writer->stables_data_offset;
@@ -688,13 +689,14 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     output_size += writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE;
     output_size += writer->contexts_data_offset;
     output_size += writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE;
+    output_size += writer->param_interns_data_offset;
 
     /* Allocate a buffer that size. */
     output = (char *)MVM_malloc(output_size);
 
     /* Write version into header. */
     write_int32(output, 0, CURRENT_VERSION);
-    offset += HEADER_SIZE;
+    offset += HEADER_SIZE_V13;
 
     /* Put dependencies table in place and set location/rows in header. */
     write_int32(output, 4, offset);
@@ -755,6 +757,13 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     memcpy(output + offset, writer->root.repos_table,
         writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
     offset += writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE;
+
+    /* Put parameterized type intern data in place. */
+    write_int32(output, 64, offset);
+    write_int32(output, 68, writer->root.num_param_interns);
+    memcpy(output + offset, writer->root.param_interns_data,
+        writer->param_interns_data_offset);
+    offset += writer->param_interns_data_offset;
 
     /* Sanity check. */
     if (offset != output_size)
@@ -1571,6 +1580,7 @@ MVMSTable * MVM_serialization_read_stable_ref(MVMThreadContext *tc, MVMSerializa
 static void check_and_dissect_input(MVMThreadContext *tc,
         MVMSerializationReader *reader, MVMString *data_str) {
     size_t  data_len;
+    size_t  header_size;
     char   *data;
     char   *prov_pos;
     char   *data_end;
@@ -1608,11 +1618,14 @@ static void check_and_dissect_input(MVMThreadContext *tc,
             "Unsupported serialization format version %d (current version is %d)",
             reader->root.version, CURRENT_VERSION);
 
+    /* Pick header size by version. */
+    header_size = reader->root.version >= 13 ? HEADER_SIZE_V13 : HEADER_SIZE;
+
     /* Ensure that the data is at least as long as the header is expected to be. */
-    if (data_len < HEADER_SIZE)
+    if (data_len < header_size)
         fail_deserialize(tc, reader,
-            "Serialized data shorter than header (< %d bytes)", HEADER_SIZE);
-    prov_pos += HEADER_SIZE;
+            "Serialized data shorter than header (< %d bytes)", header_size);
+    prov_pos += header_size;
 
     /* Get size and location of dependencies table. */
     reader->root.dependencies_table = data + read_int32(data, 4);
@@ -1710,10 +1723,24 @@ static void check_and_dissect_input(MVMThreadContext *tc,
         fail_deserialize(tc, reader,
             "Corruption detected (repossessions table overruns end of data)");
 
+    /* Get location and number of entries in the interns data section. */
+    if (reader->root.version >= 13) {
+        reader->root.param_interns_data = data + read_int32(data, 64);
+        reader->root.num_param_interns  = read_int32(data, 68);
+        if (reader->root.param_interns_data < prov_pos)
+            fail_deserialize(tc, reader,
+                "Corruption detected (parameterization interns data starts before repossessions table ends)");
+        prov_pos = reader->root.param_interns_data;
+        if (prov_pos > data_end)
+            fail_deserialize(tc, reader,
+                "Corruption detected (parameterization interns data overruns end of data)");
+    }
+
     /* Set reading limits for data chunks. */
-    reader->stables_data_end = reader->root.objects_table;
-    reader->objects_data_end = reader->root.closures_table;
-    reader->contexts_data_end = reader->root.repos_table;
+    reader->stables_data_end       = reader->root.objects_table;
+    reader->objects_data_end       = reader->root.closures_table;
+    reader->contexts_data_end      = reader->root.repos_table;
+    reader->param_interns_data_end = data_end;
 }
 
 /* Goes through the dependencies table and resolves the dependencies that it
