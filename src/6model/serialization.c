@@ -200,12 +200,10 @@ static void write_double(char *buffer, size_t offset, double value) {
 #endif
 }
 
-#define STRING_IS_NULL(s) ((s) == NULL)
-
 /* Adds an item to the MVMString heap if needed, and returns the index where
  * it may be found. */
 static MVMint32 add_string_to_heap(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *s) {
-    if (STRING_IS_NULL(s)) {
+    if (s == NULL) {
         /* We ensured that the first entry in the heap represents the null MVMString,
          * so can just hand back 0 here. */
         return 0;
