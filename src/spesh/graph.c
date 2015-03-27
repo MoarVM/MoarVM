@@ -257,8 +257,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                         "Spesh: unknown operand type %d in graph building (op %s)",
                         (int)type, ins_node->info->name);
                 }
+                break;
             }
-            break;
             }
         }
 
