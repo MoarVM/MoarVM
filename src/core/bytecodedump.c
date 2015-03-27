@@ -149,13 +149,13 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
         for (j = 0; j < frame->body.num_locals; j++) {
             if (!j)
-            a("    Locals :\n");
+                a("    Locals :\n");
             a("  %6u: loc_%u_%s\n", j, j, get_typename(frame->body.local_types[j]));
         }
 
         for (j = 0; j < frame->body.num_lexicals; j++) {
             if (!j)
-            a("    Lexicals :\n");
+                a("    Lexicals :\n");
             a("  %6u: lex_Frame_%u_%s_%s\n", j, k, frame_lexicals[k][j], get_typename(frame->body.lexical_types[j]));
         }
         a("    Instructions :\n");

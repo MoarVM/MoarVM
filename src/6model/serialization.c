@@ -1732,8 +1732,8 @@ static void check_and_dissect_input(MVMThreadContext *tc,
         /* Try to get it from the current compilation unit. */
         data = (char *)(*tc->interp_cu)->body.serialized;
         if (!data)
-        fail_deserialize(tc, reader,
-            "Failed to find deserialization data in compilation unit");
+            fail_deserialize(tc, reader,
+                "Failed to find deserialization data in compilation unit");
         data_len = (*tc->interp_cu)->body.serialized_size;
     }
     prov_pos = data;
