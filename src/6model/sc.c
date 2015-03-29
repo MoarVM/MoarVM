@@ -157,7 +157,8 @@ MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc,
         return roots[idx] ? roots[idx] : MVM_serialization_demand_object(tc, sc, idx);
     else
         MVM_exception_throw_adhoc(tc,
-            "No object at index %d", idx);
+            "Probable version skew in pre-compiled '%s' (cause: no object at index %d)",
+            MVM_string_utf8_encode_C_string(tc, sc->body->description), idx);
 }
 
 MVMObject * MVM_sc_get_sc_object(MVMThreadContext *tc, MVMCompUnit *cu,
@@ -217,7 +218,9 @@ MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc,
         return got ? got : MVM_serialization_demand_stable(tc, sc, idx);
     }
     else {
-        MVM_exception_throw_adhoc(tc, "No STable at index %d", idx);
+        MVM_exception_throw_adhoc(tc,
+            "Probable version skew in pre-compiled '%s' (cause: no STable at index %d)",
+            MVM_string_utf8_encode_C_string(tc, sc->body->description), idx);
     }
 }
 
@@ -280,7 +283,8 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "No code ref at index %d", idx);
+            "Probable version skew in pre-compiled '%s' (cause: no code ref at index %d)",
+            MVM_string_utf8_encode_C_string(tc, sc->body->description), idx);
     }
 }
 
