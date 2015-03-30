@@ -410,7 +410,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     /* Try to open the file. */
     if ((fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, DEFAULT_MODE, NULL)) < 0) {
         MVM_free(fname);
-        MVM_exception_throw_adhoc(tc, "Failed to open file: %s", uv_strerror(req.result));
+        MVM_exception_throw_adhoc(tc, "Failed to open file %s: %s", fname, uv_strerror(req.result));
     }
 
     /* Set up handle. */
