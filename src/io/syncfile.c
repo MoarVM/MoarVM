@@ -403,7 +403,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         flag = O_CREAT | O_WRONLY | O_APPEND;
     else {
         MVM_free(fname);
-        MVM_exception_throw_adhoc(tc, "Invalid open mode: %d", fmode);
+        MVM_exception_throw_adhoc(tc, "Invalid open mode: %s", fmode);
     }
     MVM_free(fmode);
 
