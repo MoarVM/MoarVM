@@ -55,7 +55,7 @@ enum {
 char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 s = 1024;
     MVMuint32 l = 0;
-    MVMuint32 i, j, k, q;
+    MVMuint32 i, j, k;
     char *o = MVM_calloc(sizeof(char) * s, 1);
     char ***frame_lexicals = MVM_malloc(sizeof(char **) * cu->body.num_frames);
     MVMString *name = MVM_string_utf8_decode(tc, tc->instance->VMString, "", 0);

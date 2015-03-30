@@ -268,7 +268,6 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
 
 /* Loads the string heap. */
 static MVMString ** deserialize_strings(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
-    MVMCompUnitBody *cu_body = &cu->body;
     MVMString **strings;
     MVMuint8   *pos;
     MVMuint32   i, ss;
@@ -489,10 +488,9 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
 /* Loads the static frame information (what locals we have, bytecode offset,
  * lexicals, etc.) */
 static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
-    MVMCompUnitBody *cu_body = &cu->body;
     MVMStaticFrame **frames;
     MVMuint8        *pos;
-    MVMuint32        bytecode_pos, bytecode_size, num_locals, i, j;
+    MVMuint32        bytecode_pos, bytecode_size, i, j;
 
     /* Allocate frames array. */
     if (rs->expected_frames == 0) {
@@ -923,7 +921,7 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
 /* returns the annotation for that bytecode offset */
 MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MVMStaticFrameBody *sfb, MVMuint32 offset) {
     MVMBytecodeAnnotation *ba = NULL;
-    MVMuint32 i, j;
+    MVMuint32 i;
 
     if (sfb->num_annotations && offset < sfb->bytecode_size) {
         MVMuint8 *cur_anno = sfb->annotations_data;

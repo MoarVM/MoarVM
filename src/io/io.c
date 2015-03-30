@@ -109,7 +109,6 @@ MVMString * MVM_io_read_string(MVMThreadContext *tc, MVMObject *oshandle, MVMint
 void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "read bytes");
     MVMint64 bytes_read;
-    uv_fs_t req;
     char *buf;
 
     /* Ensure the target is in the correct form. */
@@ -167,7 +166,6 @@ void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *bu
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "write bytes");
     char *output;
     MVMint64 output_size;
-    MVMint64 bytes_written;
 
     /* Ensure the target is in the correct form. */
     if (!IS_CONCRETE(buffer) || REPR(buffer)->ID != MVM_REPR_ID_MVMArray)

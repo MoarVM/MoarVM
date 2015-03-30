@@ -128,7 +128,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
         MVMint32 num_attrs        = MVM_repr_elems(tc, flat_list);
         MVMint32 info_alloc       = num_attrs == 0 ? 1 : num_attrs;
         MVMint32 cur_obj_attr     = 0;
-        MVMint32 cur_str_attr     = 0;
         MVMint32 cur_init_slot    = 0;
         MVMint32 i;
 
@@ -334,9 +333,6 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 /* Copies to the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMCStructREPRData * repr_data = (MVMCStructREPRData *) st->REPR_data;
-    MVMCStructBody *src_body = (MVMCStructBody *)src;
-    MVMCStructBody *dest_body = (MVMCStructBody *)dest;
     MVM_exception_throw_adhoc(tc, "cloning a CStruct is NYI");
 }
 

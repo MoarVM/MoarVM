@@ -450,7 +450,6 @@ MVMint64 MVM_bigint_cmp(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
         return r;
     }
     else {
-        MVMint64 sc;
         MVMint64 sa = ba->u.smallint.value;
         MVMint64 sb = bb->u.smallint.value;
         return sa == sb ? 0 : sa <  sb ? -1 : 1;

@@ -2606,7 +2606,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(newtype): {
-                MVMObject *type_obj, *how = GET_REG(cur_op, 2).o;
+                MVMObject *how = GET_REG(cur_op, 2).o;
                 MVMString *repr_name = GET_REG(cur_op, 4).s;
                 const MVMREPROps *repr = MVM_repr_get_by_name(tc, repr_name);
                 GET_REG(cur_op, 0).o = repr->type_object_for(tc, how);

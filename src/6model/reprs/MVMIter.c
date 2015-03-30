@@ -19,8 +19,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMIterBody *src_body  = (MVMIterBody *)src;
-    MVMIterBody *dest_body = (MVMIterBody *)dest;
     MVM_exception_throw_adhoc(tc, "Cannot copy object with representation VMIter");
 }
 
@@ -32,7 +30,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMIter *iter = (MVMIter *)obj;
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -131,7 +128,6 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
 /* This whole splice optimization can be optimized for the case we have two
  * MVMIter representation objects. */
 static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMuint64 count) {
-    MVMIterBody *body = (MVMIterBody *)data;
 }
 
 static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {

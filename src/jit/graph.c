@@ -1873,8 +1873,6 @@ static MVMJitGraph *jgb_build(MVMThreadContext *tc, JitGraphBuilder *jgb) {
 
 MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     JitGraphBuilder jgb;
-    MVMJitGraph * jg;
-    int i;
     if (!MVM_jit_support()) {
         return NULL;
     }

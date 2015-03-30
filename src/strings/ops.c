@@ -100,7 +100,6 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
 
 /* Returns the codepoint without doing checks, for internal VM use only. */
 MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
-    MVMStringIndex idx = (MVMStringIndex)index;
     switch (a->body.storage_type) {
     case MVM_STRING_GRAPHEME_32:
         return a->body.storage.blob_32[index];
@@ -1153,7 +1152,7 @@ MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     MVMStringIndex    blen = MVM_string_graphs(tc, b);
     MVMStringIndex sgraphs = alen < blen ? alen : blen;
     MVMGrapheme32  *buffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
-    MVMStringIndex i, scanlen;
+    MVMStringIndex i;
 
     /* Binary-and up to the length of the shortest string. */
     for (i = 0; i < sgraphs; i++)

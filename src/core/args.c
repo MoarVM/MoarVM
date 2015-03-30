@@ -656,7 +656,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
 }
 
 static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    MVMArgInfo arg_info, key_info, val_info;
+    MVMArgInfo arg_info;
     MVMuint16 flag_pos = 0, arg_pos = 0, new_arg_pos = 0,
         new_arg_flags_size = ctx->arg_count > 0x7FFF ? ctx->arg_count : ctx->arg_count * 2,
         new_args_size = new_arg_flags_size, i, new_flag_pos = 0, new_num_pos = 0;

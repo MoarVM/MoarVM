@@ -185,7 +185,6 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
 /* Checks if the end of file has been reached. */
 static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 r;
     MVMint64 seek_pos;
     uv_fs_t  req;
     if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))

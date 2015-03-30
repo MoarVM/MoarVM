@@ -268,7 +268,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
  * buffers, or until a stopper is reached. */
 void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                   MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
-    MVMint32 count = 0, total = 0, stopped = 0;
+    MVMint32 count = 0, total = 0;
     MVMint32 state = 0;
     MVMCodepoint codepoint = 0;
     MVMint32 bufsize;
@@ -380,7 +380,7 @@ char * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *o
 
 /* Encodes the specified string to a UTF-8 C string. */
 char * MVM_string_utf8_encode_C_string(MVMThreadContext *tc, MVMString *str) {
-    MVMuint64 output_size, i;
+    MVMuint64 output_size;
     char * result;
     char * utf8_string = MVM_string_utf8_encode(tc, str, &output_size);
     /* this is almost always called from error-handling code. Don't care if it

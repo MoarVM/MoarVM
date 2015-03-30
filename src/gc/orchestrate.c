@@ -61,8 +61,6 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
     }
 }
 static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t, MVMThread *tail) {
-    MVMInstance *ins = tc->instance;
-    MVMuint32 i;
     MVMuint32 count = 0;
     MVMThread *next;
     if (!t) {
@@ -268,7 +266,6 @@ static MVMint32 is_full_collection(MVMThreadContext *tc) {
 
 static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     MVMuint8   gen;
-    MVMThread *child;
     MVMuint32  i, n;
 
     /* Decide nursery or full collection. */

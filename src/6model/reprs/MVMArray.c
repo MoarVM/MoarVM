@@ -601,7 +601,6 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     if (body->start < 1) {
         MVMuint64 n = 8;
         MVMuint64 elems = body->elems;
-        MVMuint64 i;
 
         /* grow the array */
         set_size_internal(tc, body, elems + n, repr_data);

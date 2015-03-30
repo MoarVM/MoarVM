@@ -190,7 +190,6 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMCode *inlinee_code,
                  MVMSpeshIns *invoke_ins) {
-    MVMSpeshBB     *last_bb;
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
     MVMint32        i, total_inlines, orig_deopt_addrs;

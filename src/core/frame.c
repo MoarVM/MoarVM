@@ -335,7 +335,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand) {
     MVMFrame *frame;
     MVMuint32 found_spesh;
-    int fresh = 0;
     MVMStaticFrameBody *static_frame_body = &static_frame->body;
 
     /* If the frame was never invoked before, or never before at the current

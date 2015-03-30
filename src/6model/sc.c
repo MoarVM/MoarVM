@@ -187,8 +187,6 @@ MVMObject * MVM_sc_try_get_object(MVMThreadContext *tc, MVMSerializationContext 
 
 /* Given an SC, an index, and an object, store the object at that index. */
 void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *obj) {
-    MVMObject **roots = sc->body->root_objects;
-    MVMint64    count = sc->body->num_objects;
     if (idx < 0)
         MVM_exception_throw_adhoc(tc, "Invalid (negative) object root index %d", idx);
     if (idx < sc->body->num_objects) {
