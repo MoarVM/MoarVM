@@ -231,30 +231,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
     }
 }
 
-/* Helper for reading an int at the specified offset. */
-static MVMint32 get_int_at_offset(void *data, MVMint32 offset) {
-    void *location = (char *)data + offset;
-    return *((MVMint32 *)location);
-}
-
-/* Helper for writing an int at the specified offset. */
-static void set_int_at_offset(void *data, MVMint32 offset, MVMint32 value) {
-    void *location = (char *)data + offset;
-    *((MVMint32 *)location) = value;
-}
-
-/* Helper for reading a num at the specified offset. */
-static MVMnum32 get_num_at_offset(void *data, MVMint32 offset) {
-    void *location = (char *)data + offset;
-    return *((MVMnum32 *)location);
-}
-
-/* Helper for writing a num at the specified offset. */
-static void set_num_at_offset(void *data, MVMint32 offset, MVMnum32 value) {
-    void *location = (char *)data + offset;
-    *((MVMnum32 *)location) = value;
-}
-
 /* Helper for reading a pointer at the specified offset. */
 static void * get_ptr_at_offset(void *data, MVMint32 offset) {
     void *location = (char *)data + offset;

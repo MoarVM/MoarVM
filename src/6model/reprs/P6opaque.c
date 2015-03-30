@@ -17,30 +17,6 @@ MVM_PUBLIC void * MVM_p6opaque_real_data(MVMThreadContext *tc, void *data) {
 }
 
 /* Helpers for reading/writing values. */
-static MVMint64 get_int_at_offset(void *data, MVMint64 offset) {
-    void *location = (char *)data + offset;
-    return *((MVMint64 *)location);
-}
-static void set_int_at_offset(void *data, MVMint64 offset, MVMint64 value) {
-    void *location = (char *)data + offset;
-    *((MVMint64 *)location) = value;
-}
-static MVMnum64 get_num_at_offset(void *data, MVMint64 offset) {
-    void *location = (char *)data + offset;
-    return *((MVMnum64 *)location);
-}
-static void set_num_at_offset(void *data, MVMint64 offset, MVMnum64 value) {
-    void *location = (char *)data + offset;
-    *((MVMnum64 *)location) = value;
-}
-static MVMString * get_str_at_offset(void *data, MVMint64 offset) {
-    void *location = (char *)data + offset;
-    return *((MVMString **)location);
-}
-static void set_str_at_offset(MVMThreadContext *tc, MVMObject *root, void *data, MVMint64 offset, MVMString *value) {
-    void *location = (char *)data + offset;
-    MVM_ASSIGN_REF(tc, &(root->header), *((MVMString **)location), value);
-}
 static MVMObject * get_obj_at_offset(void *data, MVMint64 offset) {
     void *location = (char *)data + offset;
     return *((MVMObject **)location);
