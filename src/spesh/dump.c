@@ -19,6 +19,7 @@ static void append(DumpStr *ds, char *to_add) {
 }
 
 /* Formats a string and then appends it. */
+MVM_FORMAT(printf, 2, 3)
 static void appendf(DumpStr *ds, const char *fmt, ...) {
     char *c_message = MVM_malloc(1024);
     va_list args;

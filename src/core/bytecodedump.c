@@ -1,6 +1,7 @@
 #include "moar.h"
 
 #define line_length 1024
+MVM_FORMAT(printf, 4, 5)
 static void append_string(char **out, MVMuint32 *size,
         MVMuint32 *length, char *str, ...) {
     char string[line_length];

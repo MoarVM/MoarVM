@@ -15,6 +15,7 @@
 /* Various compiler-specific pragmii. */
 #define MVM_NO_RETURN @noreturnspecifier@
 #define MVM_NO_RETURN_GCC @noreturnattribute@
+#define MVM_FORMAT(X, Y, Z) @formatattribute@
 
 /* DLL interface definitions. */
 #define MVM_DLL_IMPORT @dllimport@

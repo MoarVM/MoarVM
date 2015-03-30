@@ -53,6 +53,7 @@ typedef struct {
 } Validator;
 
 
+MVM_FORMAT(printf, 2, 3)
 static void fail(Validator *val, const char *msg, ...) {
     va_list args;
 
