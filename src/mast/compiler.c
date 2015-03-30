@@ -472,7 +472,7 @@ static MVMuint32 demand_label_offset(VM, WriterState *ws, MAST_Label *l,
         }
     }
     cleanup_all(vm, ws);
-    DIE(vm, error);
+    DIE(vm, "%s", error);
 }
 
 /* Compiles the operand to an instruction; this involves checking
