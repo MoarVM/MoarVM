@@ -19,7 +19,7 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 }
 #define STRAND_CHECK(tc, s) check_strand_sanity(tc, s);
 #else
-#define STRAND_CHECK(tc, s) 0
+#define STRAND_CHECK(tc, s)
 #endif
 
 /* Allocates strand storage. */
