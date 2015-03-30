@@ -78,12 +78,14 @@ static void memcpy_endian(void *dest, MVMuint8 *src, size_t size) {
 #endif
 }
 
+#if 0
 /* Reads a uint64 from a buffer. */
 static MVMuint64 read_int64(MVMuint8 *buffer, size_t offset) {
     MVMuint64 value;
     memcpy_endian(&value, buffer + offset, 8);
     return value;
 }
+#endif
 
 /* Reads a uint32 from a buffer. */
 static MVMuint32 read_int32(MVMuint8 *buffer, size_t offset) {
@@ -104,12 +106,14 @@ static MVMuint8 read_int8(MVMuint8 *buffer, size_t offset) {
     return buffer[offset];
 }
 
+#if 0
 /* Reads double from a buffer. */
 static double read_double(char *buffer, size_t offset) {
     double value;
     memcpy(&value, buffer + offset, 8);
     return value;
 }
+#endif
 
 /* Cleans up reader state. */
 static void cleanup_all(MVMThreadContext *tc, ReaderState *rs) {
