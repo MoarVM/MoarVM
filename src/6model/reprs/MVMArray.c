@@ -864,6 +864,8 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             case MVM_ARRAY_U8:
                 kind = MVM_reg_int64;
                 break;
+            default:
+                abort(); /* never reached, silence compiler warnings */
         }
         for (i = 0; i < elems1; i++) {
             MVMRegister to_copy;

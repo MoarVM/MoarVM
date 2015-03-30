@@ -288,6 +288,9 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                     case MVM_operand_obj:
                         /* not sure what a literal object is */
                         operand_size = 4;
+                        break;
+                    default:
+                        abort(); /* never reached, silence compiler warnings */
                 }
             }
             else if (op_rw == MVM_operand_read_reg || op_rw == MVM_operand_write_reg) {
