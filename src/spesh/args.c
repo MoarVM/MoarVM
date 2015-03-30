@@ -148,10 +148,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
     MVMSpeshBB   *checkarity_bb      = NULL;
     MVMSpeshIns  *paramnamesused_ins = NULL;
     MVMSpeshBB   *paramnamesused_bb  = NULL;
-    MVMSpeshIns  *param_sp_ins       = NULL;
-    MVMSpeshBB   *param_sp_bb        = NULL;
     MVMSpeshIns  *param_sn_ins       = NULL;
-    MVMSpeshBB   *param_sn_bb        = NULL;
 
     MVMSpeshIns **pos_ins    = MVM_calloc(MAX_POS_ARGS, sizeof(MVMSpeshIns *));
     MVMSpeshBB  **pos_bb     = MVM_calloc(MAX_POS_ARGS, sizeof(MVMSpeshBB *));
@@ -231,12 +228,9 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 num_named++;
                 break;
             case MVM_OP_param_sp:
-                param_sp_ins = ins;
-                param_sp_bb  = bb;
                 break;
             case MVM_OP_param_sn:
                 param_sn_ins = ins;
-                param_sn_bb  = bb;
                 break;
             case MVM_OP_usecapture:
             case MVM_OP_savecapture:
