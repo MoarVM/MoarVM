@@ -179,7 +179,7 @@ void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *bu
 
     if (handle->body.ops->sync_writable) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        bytes_written = handle->body.ops->sync_writable->write_bytes(tc, handle, output, output_size);
+        handle->body.ops->sync_writable->write_bytes(tc, handle, output, output_size);
         release_mutex(tc, mutex);
     }
     else

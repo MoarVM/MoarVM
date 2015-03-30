@@ -828,7 +828,7 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         MAST_Call *c           = GET_Call(node);
         unsigned char call_op  = MVM_OP_invoke_v;
         unsigned char res_type = 0;
-        unsigned short num_flags, num_args, flag_pos, arg_pos;
+        unsigned short num_flags, flag_pos, arg_pos;
 
         /* Emit callsite (may re-use existing one) and emit loading of it. */
         unsigned short callsite_id = get_callsite_id(vm, ws, c->flags, c->args);
@@ -844,7 +844,6 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
 
         /* Set up args. */
         num_flags = (unsigned short)ELEMS(vm, c->flags);
-        num_args = (unsigned short)ELEMS(vm, c->args);
         arg_pos = 0;
         for (flag_pos = 0; flag_pos < num_flags; flag_pos++) {
             /* Handle any special flags. */
