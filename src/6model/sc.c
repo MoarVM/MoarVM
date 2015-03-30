@@ -157,7 +157,7 @@ MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc,
         return roots[idx] ? roots[idx] : MVM_serialization_demand_object(tc, sc, idx);
     else
         MVM_exception_throw_adhoc(tc,
-            "Probable version skew in pre-compiled '%s' (cause: no object at index %d)",
+            "Probable version skew in pre-compiled '%s' (cause: no object at index %"PRId64")",
             MVM_string_utf8_encode_C_string(tc, sc->body->description), idx);
 }
 
@@ -188,7 +188,7 @@ MVMObject * MVM_sc_try_get_object(MVMThreadContext *tc, MVMSerializationContext 
 /* Given an SC, an index, and an object, store the object at that index. */
 void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *obj) {
     if (idx < 0)
-        MVM_exception_throw_adhoc(tc, "Invalid (negative) object root index %d", idx);
+        MVM_exception_throw_adhoc(tc, "Invalid (negative) object root index %"PRId64"", idx);
     if (idx < sc->body->num_objects) {
         /* Just updating an existing one. */
         MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_objects[idx], obj);
@@ -217,7 +217,7 @@ MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc,
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "Probable version skew in pre-compiled '%s' (cause: no STable at index %d)",
+            "Probable version skew in pre-compiled '%s' (cause: no STable at index %"PRId64")",
             MVM_string_utf8_encode_C_string(tc, sc->body->description), idx);
     }
 }
@@ -281,7 +281,7 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "Probable version skew in pre-compiled '%s' (cause: no code ref at index %d)",
+            "Probable version skew in pre-compiled '%s' (cause: no code ref at index %"PRId64")",
             MVM_string_utf8_encode_C_string(tc, sc->body->description), idx);
     }
 }

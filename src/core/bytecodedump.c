@@ -238,19 +238,19 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                 switch (op_type) {
                     case MVM_operand_int8:
                         operand_size = 1;
-                        a("%d", GET_I8(cur_op, 0));
+                        a("%"PRId8, GET_I8(cur_op, 0));
                         break;
                     case MVM_operand_int16:
                         operand_size = 2;
-                        a("%d", GET_I16(cur_op, 0));
+                        a("%"PRId16, GET_I16(cur_op, 0));
                         break;
                     case MVM_operand_int32:
                         operand_size = 4;
-                        a("%d", GET_I32(cur_op, 0));
+                        a("%"PRId32, GET_I32(cur_op, 0));
                         break;
                     case MVM_operand_int64:
                         operand_size = 8;
-                        a("%d", MVM_BC_get_I64(cur_op, 0));
+                        a("%"PRId64, MVM_BC_get_I64(cur_op, 0));
                         break;
                     case MVM_operand_num32:
                         operand_size = 4;
@@ -262,11 +262,11 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                         break;
                     case MVM_operand_callsite:
                         operand_size = 2;
-                        a("Callsite_%u", GET_UI16(cur_op, 0));
+                        a("Callsite_%"PRIu16, GET_UI16(cur_op, 0));
                         break;
                     case MVM_operand_coderef:
                         operand_size = 2;
-                        a("Frame_%u", GET_UI16(cur_op, 0));
+                        a("Frame_%"PRIu16, GET_UI16(cur_op, 0));
                         break;
                     case MVM_operand_str:
                         operand_size = 4;

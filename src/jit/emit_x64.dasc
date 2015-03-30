@@ -1871,7 +1871,7 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
 void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitGraph *jg,
                            MVMJitJumpList *jumplist, dasm_State **Dst) {
     MVMint32 i;
-    MVM_jit_log(tc, "Emit jumplist (%d labels)\n", jumplist->num_labels);
+    MVM_jit_log(tc, "Emit jumplist (%"PRId64" labels)\n", jumplist->num_labels);
     | mov TMP1, WORK[jumplist->reg];
     | cmp TMP1, 0;
     | jl >2;

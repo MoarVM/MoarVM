@@ -162,7 +162,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
 
                     if (bits % 8) {
                          MVM_exception_throw_adhoc(tc,
-                            "CStruct only supports native types that are a multiple of 8 bits wide (was passed: %ld)", bits);
+                            "CStruct only supports native types that are a multiple of 8 bits wide (was passed: %"PRId32")", bits);
                     }
 
                     repr_data->attribute_locations[i] = (bits << MVM_CSTRUCT_ATTR_SHIFT) | MVM_CSTRUCT_ATTR_IN_STRUCT;

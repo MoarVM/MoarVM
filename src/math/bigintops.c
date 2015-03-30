@@ -890,7 +890,7 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     MVMint64   pos  = -1;
 
     if (radix > 36) {
-        MVM_exception_throw_adhoc(tc, "Cannot convert radix of %d (max 36)", radix);
+        MVM_exception_throw_adhoc(tc, "Cannot convert radix of %"PRId64" (max 36)", radix);
     }
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&str);
