@@ -235,7 +235,7 @@ MVMSTable * MVM_sc_try_get_stable(MVMThreadContext *tc, MVMSerializationContext 
 void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMSTable *st) {
     if (idx < 0)
         MVM_exception_throw_adhoc(tc,
-            "Invalid (negative) STable index", idx);
+            "Invalid (negative) STable index %"PRId64, idx);
     if (idx < sc->body->num_stables) {
         /* Just updating an existing one. */
         MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_stables[idx], st);
