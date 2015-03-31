@@ -1661,7 +1661,7 @@ static void check_and_dissect_input(MVMThreadContext *tc,
     /* Ensure that the data is at least as long as the header is expected to be. */
     if (data_len < header_size)
         fail_deserialize(tc, reader,
-            "Serialized data shorter than header (< %zu bytes)", header_size);
+            "Serialized data shorter than header (< %"MVM_PRSz" bytes)", header_size);
     prov_pos += header_size;
 
     /* Get size and location of dependencies table. */
