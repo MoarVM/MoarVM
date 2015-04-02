@@ -948,9 +948,11 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
         data_body = unmarshal_cpointer(tc, source);
     } else if (REPR(source)->ID == MVM_REPR_ID_MVMCArray) {
         data_body = unmarshal_carray(tc, source);
+    } else if (REPR(source)->ID == MVM_REPR_ID_MVMArray) {
+        data_body = unmarshal_vmarray(tc, source);
     } else {
         MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CPointer, CStruct, or CArray representation, but got a %s", REPR(source)->name);
+            "Native call expected return type with CPointer, CStruct, CArray, or VMArray representation, but got a %s", REPR(source)->name);
     }
     return nativecall_cast(tc, target_spec, target_type, data_body);
 }
