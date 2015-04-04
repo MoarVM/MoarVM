@@ -42,6 +42,16 @@ static MVMint16 get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMint16 is_
         result = MVM_NATIVECALL_ARG_LONG;
     else if (strcmp(ctypename, "longlong") == 0)
         result = MVM_NATIVECALL_ARG_LONGLONG;
+    else if (strcmp(ctypename, "uchar") == 0)
+        result = MVM_NATIVECALL_ARG_UCHAR;
+    else if (strcmp(ctypename, "ushort") == 0)
+        result = MVM_NATIVECALL_ARG_USHORT;
+    else if (strcmp(ctypename, "uint") == 0)
+        result = MVM_NATIVECALL_ARG_UINT;
+    else if (strcmp(ctypename, "ulong") == 0)
+        result = MVM_NATIVECALL_ARG_ULONG;
+    else if (strcmp(ctypename, "ulonglong") == 0)
+        result = MVM_NATIVECALL_ARG_ULONGLONG;
     else if (strcmp(ctypename, "float") == 0)
         result = MVM_NATIVECALL_ARG_FLOAT;
     else if (strcmp(ctypename, "double") == 0)
@@ -115,6 +125,16 @@ static char get_signature_char(MVMint16 type_id) {
         case MVM_NATIVECALL_ARG_VMARRAY:
         case MVM_NATIVECALL_ARG_CALLBACK:
             return 'p';
+        case MVM_NATIVECALL_ARG_UCHAR:
+            return 'C';
+        case MVM_NATIVECALL_ARG_USHORT:
+            return 'S';
+        case MVM_NATIVECALL_ARG_UINT:
+            return 'I';
+        case MVM_NATIVECALL_ARG_ULONG:
+            return 'J';
+        case MVM_NATIVECALL_ARG_ULONGLONG:
+            return 'L';
         default:
             return '\0';
     }
@@ -122,6 +142,10 @@ static char get_signature_char(MVMint16 type_id) {
 
 static MVMObject * make_int_result(MVMThreadContext *tc, MVMObject *type, MVMint64 value) {
     return type ? MVM_repr_box_int(tc, type, value) : NULL;
+}
+
+static MVMObject * make_uint_result(MVMThreadContext *tc, MVMObject *type, MVMuint64 value) {
+    return type ? MVM_repr_box_int(tc, type, (MVMint64)value) : NULL;
 }
 
 static MVMObject * make_num_result(MVMThreadContext *tc, MVMObject *type, MVMnum64 value) {
@@ -218,6 +242,26 @@ static DClong unmarshal_long(MVMThreadContext *tc, MVMObject *value) {
 
 static DClonglong unmarshal_longlong(MVMThreadContext *tc, MVMObject *value) {
     return (DClonglong)MVM_repr_get_int(tc, value);
+}
+
+static DCuchar unmarshal_uchar(MVMThreadContext *tc, MVMObject *value) {
+    return (DCuchar)MVM_repr_get_int(tc, value);
+}
+
+static DCushort unmarshal_ushort(MVMThreadContext *tc, MVMObject *value) {
+    return (DCushort)MVM_repr_get_int(tc, value);
+}
+
+static DCuint unmarshal_uint(MVMThreadContext *tc, MVMObject *value) {
+    return (DCuint)MVM_repr_get_int(tc, value);
+}
+
+static DCulong unmarshal_ulong(MVMThreadContext *tc, MVMObject *value) {
+    return (DCulong)MVM_repr_get_int(tc, value);
+}
+
+static DCulonglong unmarshal_ulonglong(MVMThreadContext *tc, MVMObject *value) {
+    return (DCulonglong)MVM_repr_get_int(tc, value);
 }
 
 static DCfloat unmarshal_float(MVMThreadContext *tc, MVMObject *value) {
@@ -390,6 +434,14 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
                 case MVM_NATIVECALL_ARG_LONGLONG:
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
                     break;
+                case MVM_NATIVECALL_ARG_UCHAR:
+                case MVM_NATIVECALL_ARG_USHORT:
+                case MVM_NATIVECALL_ARG_UINT:
+                case MVM_NATIVECALL_ARG_ULONG:
+                case MVM_NATIVECALL_ARG_ULONGLONG:
+                    /* TODO: should probably be UINT, when we can support that. */
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                    break;
                 case MVM_NATIVECALL_ARG_FLOAT:
                 case MVM_NATIVECALL_ARG_DOUBLE:
                     cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_NUM;
@@ -496,6 +548,21 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                 args[i - 1].o = type;
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
                 num_roots++;
+            case MVM_NATIVECALL_ARG_UCHAR:
+                args[i - 1].i64 = dcbArgUChar(cb_args);
+                break;
+            case MVM_NATIVECALL_ARG_USHORT:
+                args[i - 1].i64 = dcbArgUShort(cb_args);
+                break;
+            case MVM_NATIVECALL_ARG_UINT:
+                args[i - 1].i64 = dcbArgUInt(cb_args);
+                break;
+            case MVM_NATIVECALL_ARG_ULONG:
+                args[i - 1].i64 = dcbArgULong(cb_args);
+                break;
+            case MVM_NATIVECALL_ARG_ULONGLONG:
+                args[i - 1].i64 = dcbArgULongLong(cb_args);
+                break;
             default:
                 MVM_exception_throw_adhoc(tc,
                     "Internal error: unhandled dyncall callback argument type");
@@ -581,6 +648,21 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
             break;
         case MVM_NATIVECALL_ARG_CALLBACK:
             cb_result->p = unmarshal_callback(data->tc, res.o, data->types[0]);
+            break;
+        case MVM_NATIVECALL_ARG_UCHAR:
+            cb_result->c = unmarshal_uchar(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_USHORT:
+            cb_result->s = unmarshal_ushort(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_UINT:
+            cb_result->i = unmarshal_uint(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_ULONG:
+            cb_result->j = unmarshal_ulong(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_ULONGLONG:
+            cb_result->l = unmarshal_ulonglong(data->tc, res.o);
             break;
         default:
             MVM_exception_throw_adhoc(data->tc,
@@ -717,6 +799,21 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             case MVM_NATIVECALL_ARG_CALLBACK:
                 dcArgPointer(vm, unmarshal_callback(tc, value, body->arg_info[i]));
                 break;
+            case MVM_NATIVECALL_ARG_UCHAR:
+                dcArgChar(vm, unmarshal_uchar(tc, value));
+                break;
+            case MVM_NATIVECALL_ARG_USHORT:
+                dcArgShort(vm, unmarshal_ushort(tc, value));
+                break;
+            case MVM_NATIVECALL_ARG_UINT:
+                dcArgInt(vm, unmarshal_uint(tc, value));
+                break;
+            case MVM_NATIVECALL_ARG_ULONG:
+                dcArgLong(vm, unmarshal_ulong(tc, value));
+                break;
+            case MVM_NATIVECALL_ARG_ULONGLONG:
+                dcArgLongLong(vm, unmarshal_ulonglong(tc, value));
+                break;
             default:
                 MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall argument type");
         }
@@ -772,6 +869,22 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 * sub. */
                 dcCallPointer(vm, body->entry_point);
                 result = res_type;
+                break;
+            case MVM_NATIVECALL_ARG_UCHAR:
+                result = make_uint_result(tc, res_type, (DCuchar)dcCallChar(vm, entry_point));
+                break;
+            case MVM_NATIVECALL_ARG_USHORT:
+                result = make_uint_result(tc, res_type, (DCushort)dcCallShort(vm, entry_point));
+                break;
+            case MVM_NATIVECALL_ARG_UINT:
+                result = make_uint_result(tc, res_type, (DCuint)dcCallInt(vm, entry_point));
+                break;
+            case MVM_NATIVECALL_ARG_ULONG:
+                result = make_uint_result(tc, res_type, (DCulong)dcCallLong(vm, entry_point));
+                break;
+            case MVM_NATIVECALL_ARG_ULONGLONG:
+                result = make_uint_result(tc, res_type, (DCulonglong)dcCallLongLong(vm, entry_point));
+                break;
             default:
                 MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall return type");
         }
