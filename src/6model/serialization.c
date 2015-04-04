@@ -1795,8 +1795,9 @@ static void resolve_dependencies(MVMThreadContext *tc, MVMSerializationReader *r
             MVMString *desc = read_string_from_heap(tc, reader, read_int32(table_pos, 4));
             if (!desc) desc = handle;
             fail_deserialize(tc, reader,
-                "Missing or wrong version of dependency '%s'",
-                MVM_string_ascii_encode(tc, desc, NULL));
+                "Missing or wrong version of dependency '%s' (from '%s')",
+                MVM_string_ascii_encode(tc, desc, NULL),
+                MVM_string_ascii_encode(tc, reader->root.sc->body->description, NULL));
         }
         reader->root.dependent_scs[i] = sc;
         table_pos += 8;
