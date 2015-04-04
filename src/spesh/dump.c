@@ -171,6 +171,16 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             MVM_free(cstr);
                             break;
                         }
+                        case MVM_operand_callsite: {
+                            MVMCallsite *callsite = g->sf->body.cu->body.callsites[cur_ins->operands[i].callsite_idx];
+                            appendf(ds, "callsite(%p, %d arg, %d pos, %s, %s)",
+                                    callsite,
+                                    callsite->arg_count, callsite->num_pos,
+                                    callsite->has_flattening ? "flattening" : "nonflattening",
+                                    callsite->is_interned ? "interned" : "noninterned");
+                            break;
+
+                        }
                         case MVM_operand_spesh_slot:
                             appendf(ds, "sslot(%"PRId16")", cur_ins->operands[i].lit_i16);
                             break;
