@@ -929,7 +929,7 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
         ch = (offset < chars) ? MVM_string_get_grapheme_at_nocheck(tc, str, offset) : 0;
     }
 
-   while (offset < chars) {
+    while (offset < chars) {
         if (ch >= '0' && ch <= '9') ch = ch - '0';
         else if (ch >= 'a' && ch <= 'z') ch = ch - 'a' + 10;
         else if (ch >= 'A' && ch <= 'Z') ch = ch - 'A' + 10;

@@ -879,10 +879,10 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     total_graphs  = 0;
     total_strands = 0;
     for (i = 0; i < elems; i++) {
-         /* Get piece of the string. */
-         MVMString *piece;
-         MVMint64   piece_graphs;
-         if (is_str_array) {
+        /* Get piece of the string. */
+        MVMString *piece;
+        MVMint64   piece_graphs;
+        if (is_str_array) {
             piece = MVM_repr_at_pos_s(tc, input, i);
             if (!piece)
                 continue;

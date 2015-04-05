@@ -2696,7 +2696,7 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     reader->num_static_codes = scodes;
 
     /* Mark all the static code refs we've been provided with as static. */
-     for (i = 0; i < scodes; i++) {
+    for (i = 0; i < scodes; i++) {
         MVMObject *scr = MVM_repr_at_pos_o(tc, reader->codes_list, i);
         ((MVMCode *)scr)->body.is_static = 1;
         MVM_sc_set_obj_sc(tc, scr, sc);
