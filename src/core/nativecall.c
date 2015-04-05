@@ -738,7 +738,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     body->ret_type = get_arg_type(tc, ret_info, 1);
 }
 
-#define handle_arg(cont_X, dc_type, reg_slot, dc_fun, unmarshal_fun) do { \
+#define handle_arg(what, cont_X, dc_type, reg_slot, dc_fun, unmarshal_fun) do { \
     if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) { \
         if (MVM_6model_container_is ## cont_X(tc, value)) { \
             dc_type *rw = (dc_type *)MVM_malloc(sizeof(dc_type *)); \
@@ -752,7 +752,9 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
             dcArgPointer(vm, rw); \
         } \
         else \
-            MVM_exception_throw_adhoc(tc, "ENOSUCHCONT"); \
+            MVM_exception_throw_adhoc(tc, \
+                "Native call expected argument that references a native %s, but got %s", \
+                what, REPR(value)->name); \
     } \
     else \
         dc_fun(vm, unmarshal_fun(tc, value)); \
@@ -784,25 +786,25 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         MVMObject *value = MVM_repr_at_pos_o(tc, args, i);
         switch (arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
             case MVM_NATIVECALL_ARG_CHAR:
-                handle_arg(cont_i, DCchar, i64, dcArgChar, unmarshal_char);
+                handle_arg("integer", cont_i, DCchar, i64, dcArgChar, unmarshal_char);
                 break;
             case MVM_NATIVECALL_ARG_SHORT:
-                handle_arg(cont_i, DCshort, i64, dcArgShort, unmarshal_short);
+                handle_arg("integer", cont_i, DCshort, i64, dcArgShort, unmarshal_short);
                 break;
             case MVM_NATIVECALL_ARG_INT:
-                handle_arg(cont_i, DCint, i64, dcArgInt, unmarshal_int);
+                handle_arg("integer", cont_i, DCint, i64, dcArgInt, unmarshal_int);
                 break;
             case MVM_NATIVECALL_ARG_LONG:
-                handle_arg(cont_i, DClong, i64, dcArgLong, unmarshal_long);
+                handle_arg("integer", cont_i, DClong, i64, dcArgLong, unmarshal_long);
                 break;
             case MVM_NATIVECALL_ARG_LONGLONG:
-                handle_arg(cont_i, DClonglong, i64, dcArgLongLong, unmarshal_longlong);
+                handle_arg("integer", cont_i, DClonglong, i64, dcArgLongLong, unmarshal_longlong);
                 break;
             case MVM_NATIVECALL_ARG_FLOAT:
-                handle_arg(cont_n, DCfloat, n64, dcArgFloat, unmarshal_float);
+                handle_arg("number", cont_n, DCfloat, n64, dcArgFloat, unmarshal_float);
                 break;
             case MVM_NATIVECALL_ARG_DOUBLE:
-                handle_arg(cont_n, DCdouble, n64, dcArgDouble, unmarshal_double);
+                handle_arg("number", cont_n, DCdouble, n64, dcArgDouble, unmarshal_double);
                 break;
             case MVM_NATIVECALL_ARG_ASCIISTR:
             case MVM_NATIVECALL_ARG_UTF8STR:
@@ -835,19 +837,19 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 dcArgPointer(vm, unmarshal_callback(tc, value, body->arg_info[i]));
                 break;
             case MVM_NATIVECALL_ARG_UCHAR:
-                handle_arg(cont_i, DCuchar, i64, dcArgChar, unmarshal_uchar);
+                handle_arg("integer", cont_i, DCuchar, i64, dcArgChar, unmarshal_uchar);
                 break;
             case MVM_NATIVECALL_ARG_USHORT:
-                handle_arg(cont_i, DCushort, i64, dcArgShort, unmarshal_ushort);
+                handle_arg("integer", cont_i, DCushort, i64, dcArgShort, unmarshal_ushort);
                 break;
             case MVM_NATIVECALL_ARG_UINT:
-                handle_arg(cont_i, DCuint, i64, dcArgInt, unmarshal_uint);
+                handle_arg("integer", cont_i, DCuint, i64, dcArgInt, unmarshal_uint);
                 break;
             case MVM_NATIVECALL_ARG_ULONG:
-                handle_arg(cont_i, DCulong, i64, dcArgLong, unmarshal_ulong);
+                handle_arg("integer", cont_i, DCulong, i64, dcArgLong, unmarshal_ulong);
                 break;
             case MVM_NATIVECALL_ARG_ULONGLONG:
-                handle_arg(cont_i, DCulonglong, i64, dcArgLongLong, unmarshal_ulonglong);
+                handle_arg("integer", cont_i, DCulonglong, i64, dcArgLongLong, unmarshal_ulonglong);
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall argument type");
