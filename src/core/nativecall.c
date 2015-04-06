@@ -739,10 +739,10 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
 }
 
 #define handle_arg(what, cont_X, dc_type, reg_slot, dc_fun, unmarshal_fun) do { \
+    MVMRegister r; \
     if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) { \
         if (MVM_6model_container_is ## cont_X(tc, value)) { \
             dc_type *rw = (dc_type *)MVM_malloc(sizeof(dc_type *)); \
-            MVMRegister r; \
             MVM_6model_container_de ## cont_X(tc, value, &r); \
             *rw = (dc_type)r. reg_slot ; \
             if (!free_rws) \
@@ -756,8 +756,15 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
                 "Native call expected argument that references a native %s, but got %s", \
                 what, REPR(value)->name); \
     } \
-    else \
-        dc_fun(vm, unmarshal_fun(tc, value)); \
+    else { \
+        if (value && IS_CONCRETE(value) && STABLE(value)->container_spec) { \
+            STABLE(value)->container_spec->fetch(tc, value, &r); \
+            dc_fun(vm, unmarshal_fun(tc, r.o)); \
+        } \
+        else { \
+            dc_fun(vm, unmarshal_fun(tc, value)); \
+        } \
+    } \
 } while (0)
 
 MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
