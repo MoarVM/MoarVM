@@ -21,10 +21,6 @@ static MVMObject * get_obj_at_offset(void *data, MVMint64 offset) {
     void *location = (char *)data + offset;
     return *((MVMObject **)location);
 }
-static MVMObject * get_obj_at_offset_direct(void *data, MVMint64 offset) {
-    void *location = (char *)data + offset;
-    return *((MVMObject **)location);
-}
 static void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, void *data, MVMint64 offset, MVMObject *value) {
     void *location = (char *)data + offset;
     MVM_ASSIGN_REF(tc, &(root->header), *((MVMObject **)location), value);
@@ -241,7 +237,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         case MVM_reg_obj:
         {
             if (!attr_st) {
-                MVMObject *result = get_obj_at_offset_direct(data, repr_data->attribute_offsets[slot]);
+                MVMObject *result = get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
                 if (result) {
                     result_reg->o = result;
                 }
