@@ -1358,7 +1358,7 @@ static MVMSTable * lookup_stable(MVMThreadContext *tc, MVMSerializationReader *r
 }
 
 /* Ensure that we aren't going to read off the end of the buffer. */
-static void assert_can_read(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 amount) {
+MVM_STATIC_INLINE void assert_can_read(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 amount) {
     char *read_end = *(reader->cur_read_buffer) + *(reader->cur_read_offset) + amount;
     if (read_end > *(reader->cur_read_end))
         fail_deserialize(tc, reader,
