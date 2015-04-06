@@ -17,7 +17,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
-static void extract_key(MVMThreadContext *tc, void **kdata, size_t *klen, MVMObject *key) {
+MVM_STATIC_INLINE void extract_key(MVMThreadContext *tc, void **kdata, size_t *klen, MVMObject *key) {
     MVM_HASH_EXTRACT_KEY(tc, kdata, klen, key, "MVMHash representation requires MVMString keys")
 }
 
