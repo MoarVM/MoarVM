@@ -6,22 +6,12 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
-/* If an object gets mixed in to, we need to be sure we look at its real body,
- * which may have been moved to hang off the specified pointer.
- *
- * NB: This has been hardcoded into the jit compilation. Thus, consider it
- * set into stone :-). That is the price you pay for disintermediation. */
-MVM_PUBLIC void * MVM_p6opaque_real_data(MVMThreadContext *tc, void *data) {
-    MVMP6opaqueBody *body = (MVMP6opaqueBody *)data;
-    return body->replaced ? body->replaced : data;
-}
-
 /* Helpers for reading/writing values. */
-static MVMObject * get_obj_at_offset(void *data, MVMint64 offset) {
+MVM_STATIC_INLINE MVMObject * get_obj_at_offset(void *data, MVMint64 offset) {
     void *location = (char *)data + offset;
     return *((MVMObject **)location);
 }
-static void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, void *data, MVMint64 offset, MVMObject *value) {
+MVM_STATIC_INLINE void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, void *data, MVMint64 offset, MVMObject *value) {
     void *location = (char *)data + offset;
     MVM_ASSIGN_REF(tc, &(root->header), *((MVMObject **)location), value);
 }
