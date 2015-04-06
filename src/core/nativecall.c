@@ -109,7 +109,7 @@ static MVMint16 get_calling_convention(MVMThreadContext *tc, MVMString *name) {
 
 /* Map argument type ID to dyncall character ID. */
 static char get_signature_char(MVMint16 type_id) {
-    if (type_id & MVM_NATIVECALL_ARG_RW_MASK == MVM_NATIVECALL_ARG_RW)
+    if ( (type_id & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW)
         return 'p';
 
     switch (type_id & MVM_NATIVECALL_ARG_TYPE_MASK) {
