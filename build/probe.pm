@@ -312,7 +312,9 @@ EOT
 
     print ::dots('    probing computed goto support');
     my $can_cgoto = compile($config, 'try');
-    $can_cgoto  &&= !system './try';
+    unless ($config->{crossconf}) {
+        $can_cgoto  &&= !system './try';
+    }
     print $can_cgoto ? "YES\n": "NO\n";
     $config->{cancgoto} = $can_cgoto || 0
 }
