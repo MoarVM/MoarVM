@@ -361,6 +361,11 @@ char * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
     i = 0;
     while (i < length && (arr = utf8_encode(arr, MVM_string_ci_get_codepoint(tc, &ci))))
         i++;
+
+    /* Fix throwing exception when position 0 already is invalid utf8. */
+    if (i <= 0)
+        i = 1;
+
     if (!arr)
         MVM_exception_throw_adhoc(tc,
             "Error encoding UTF-8 string near grapheme position %d with codepoint %d",
