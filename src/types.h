@@ -75,6 +75,7 @@ typedef struct MVMNativeCallBody MVMNativeCallBody;
 typedef struct MVMNativeRef MVMNativeRef;
 typedef struct MVMNativeRefBody MVMNativeRefBody;
 typedef struct MVMNativeRefREPRData MVMNativeRefREPRData;
+typedef struct MVMNormalizer MVMNormalizer;
 typedef struct MVMNull MVMNull;
 typedef struct MVMNullBody MVMNullBody;
 typedef struct MVMCStr MVMCStr;
