@@ -86,6 +86,13 @@ void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNorm
     n->buffer_start    = 0;
     n->buffer_end      = 0;
     n->buffer_norm_end = 0;
+    switch (n->form) {
+        case MVM_NORMALIZE_NFD:  n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFD;  break;
+        case MVM_NORMALIZE_NFKD: n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFKD; break;
+        case MVM_NORMALIZE_NFC:  n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFC;  break;
+        case MVM_NORMALIZE_NFKC: n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFKC; break;
+        case MVM_NORMALIZE_NFG:  n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFC;  break;
+    }
 }
 
 /* Cleanup an MVMNormalization once we're done normalizing. */
@@ -93,6 +100,34 @@ void MVM_unicode_normalizer_cleanup(MVMThreadContext *tc, MVMNormalizer *n) {
     free(n->buffer);
 }
 
+/* Adds a codepoint into the buffer, making sure there's space. */
+static void add_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint cp) {
+    if (n->buffer_end == n->buffer_size) {
+        MVM_panic(1, "Resize of codepoint buffer NYI");
+    }
+    n->buffer[n->buffer_end++] = cp;
+}
+
+/* Called when the very fast case of normalization fails (that is, when we get
+ * any two codepoints in a row where at least one is greater than the first
+ * significant codepoint identified by a quick check for the target form). We
+ * may find the quick check itself is enough; if not, we have to do real work
+ * compute the normalization. */
+MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out) {
+    /* If our buffer is empty, can only add to it and we're done. */
+    if (n->buffer_start == n->buffer_end) {
+        add_codepoint_to_buffer(tc, n, in);
+        return 0;
+    }
+
+    /* TODO: actually normalize. */
+    *out = n->buffer[n->buffer_start];
+    n->buffer[n->buffer_start] = in;
+    return 1;
+}
+
 /* Called when we are expecting no more codepoints. */
 void MVM_unicode_normalizer_eof(MVMThreadContext *tc, MVMNormalizer *n) {
+    /* TODO: actually normalize. */
+    n->buffer_norm_end = n->buffer_end;
 }

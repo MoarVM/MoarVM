@@ -11,6 +11,13 @@ typedef enum {
     MVM_NORMALIZE_NFG   = 6
 } MVMNormalization;
 
+/* First codepoint where we have to actually do a real check and maybe some
+ * work when normalizing. */
+#define MVM_NORMALIZE_FIRST_SIG_NFD     0x00C0
+#define MVM_NORMALIZE_FIRST_SIG_NFC     0x0300
+#define MVM_NORMALIZE_FIRST_SIG_NFKD    0x00A0
+#define MVM_NORMALIZE_FIRST_SIG_NFKC    0x00A0
+
 /* Streaming Unicode normalizer structure. */
 struct MVMNormalizer {
     /* What form of normalization are we doing? */
@@ -30,6 +37,11 @@ struct MVMNormalizer {
 
     /* End offset in the buffer for things we've normalized and so can return. */
     MVMint32 buffer_norm_end;
+
+    /* The first significant codepoint in this normalization form that we may
+     * have to do something with. If we see two things beneath the limit in a
+     * row then we know the first one below it is good to spit out. */
+    MVMCodepoint first_significant;
 };
 
 /* Takes a codepoint to process for normalization as the "in" parameter. If we
@@ -38,9 +50,17 @@ struct MVMNormalizer {
  * codepoints now available including the one we just passed out. If we can't
  * produce a normalized codepoint right now, we return a 0. */
 MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out) {
-    /* TODO: Implement normalization! */
-    *out = in;
-    return 1;
+    /* Fast-path when it's one-in-one-out. */
+    if (n->buffer_end - n->buffer_start == 1 && in < n->first_significant) {
+        if (n->buffer[n->buffer_start] < n->first_significant) {
+            *out = n->buffer[n->buffer_start];
+            n->buffer[n->buffer_start] = in;
+            return 1;
+        }
+    }
+
+    /* Fall back to slow path. */
+    return MVM_unicode_normalizer_process_codepoint_full(tc, n, in, out);
 }
 
 /* TODO: grapheme version of the above. */
@@ -75,4 +95,4 @@ void MVM_unicode_normalizer_cleanup(MVMThreadContext *tc, MVMNormalizer *n);
 void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, MVMObject *in, MVMObject *out, MVMNormalization form);
 
 /* Guts-y functions, called by the API level ones above. */
-/* TODO: many of these. */
+MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out);
