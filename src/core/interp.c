@@ -3233,12 +3233,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_io_accept(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            OP(DEPRECATED_1):
-                MVM_exception_throw_adhoc(tc, "Deprecated opcode executed");
-                goto NEXT;
-            OP(DEPRECATED_2):
-                MVM_exception_throw_adhoc(tc, "Deprecated opcode executed");
-                goto NEXT;
+            OP(decodetocodes):
+            OP(encodefromcodes):
+                MVM_exception_throw_adhoc(tc, "NYI");
             OP(setencoding):
                 MVM_io_set_encoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
                 cur_op += 4;
@@ -4500,6 +4497,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_nativecall_sizeof(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
+            OP(encodenorm):
+            OP(normalizecodes):
+            OP(strfromcodes):
+            OP(strtocodes):
+                MVM_exception_throw_adhoc(tc, "NYI");
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

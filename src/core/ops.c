@@ -3480,7 +3480,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "existspos",
         "  ",
         3,
-        0,
+        1,
         0,
         0,
         0,
@@ -5399,24 +5399,26 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_1,
-        "DEPRECATED_1",
+        MVM_OP_decodetocodes,
+        "decodetocodes",
         "  ",
+        4,
         0,
         0,
         0,
         0,
-        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_2,
-        "DEPRECATED_2",
+        MVM_OP_encodefromcodes,
+        "encodefromcodes",
         "  ",
+        3,
         0,
         0,
         0,
         0,
-        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_setencoding,
@@ -7186,6 +7188,50 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
+        MVM_OP_encodenorm,
+        "encodenorm",
+        "  ",
+        4,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_normalizecodes,
+        "normalizecodes",
+        "  ",
+        3,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_strfromcodes,
+        "strfromcodes",
+        "  ",
+        2,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_strtocodes,
+        "strtocodes",
+        "  ",
+        3,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_sp_log,
         "sp_log",
         ".s",
@@ -7689,7 +7735,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 700;
+static const unsigned short MVM_op_counts = 704;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
