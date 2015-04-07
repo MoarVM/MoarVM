@@ -80,11 +80,17 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, MVMObject *in, MVMOb
 /* Initialize the MVMNormalizer pointed to to perform the specified kind of
  * normalization. */
 void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNormalization form) {
-    n->form = form;
+    n->form            = form;
+    n->buffer_size     = 32;
+    n->buffer          = MVM_malloc(n->buffer_size * sizeof(MVMCodepoint));
+    n->buffer_start    = 0;
+    n->buffer_end      = 0;
+    n->buffer_norm_end = 0;
 }
 
 /* Cleanup an MVMNormalization once we're done normalizing. */
 void MVM_unicode_normalizer_cleanup(MVMThreadContext *tc, MVMNormalizer *n) {
+    free(n->buffer);
 }
 
 /* Called when we are expecting no more codepoints. */

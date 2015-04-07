@@ -16,7 +16,20 @@ struct MVMNormalizer {
     /* What form of normalization are we doing? */
     MVMNormalization form;
 
-    /* TODO: much more here. */
+    /* Current buffer of codepoints we're working to normalize. */
+    MVMCodepoint *buffer;
+
+    /* Size of the normalization buffer. */
+    MVMint32 buffer_size;
+
+    /* Start offset in the buffer where we're still processing. */
+    MVMint32 buffer_start;
+
+    /* End offset in the buffer, and where to add the next thing to process. */
+    MVMint32 buffer_end;
+
+    /* End offset in the buffer for things we've normalized and so can return. */
+    MVMint32 buffer_norm_end;
 };
 
 /* Takes a codepoint to process for normalization as the "in" parameter. If we
@@ -34,7 +47,7 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
 
 /* Get the number of codepoints/graphemes ready to fetch. */
 MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_available(MVMThreadContext *tc, MVMNormalizer *n) {
-    return 0;
+    return n->buffer_norm_end - n->buffer_start;
 }
     
 /* Indicate that we've reached the end of the input stream. Any codepoints
@@ -45,7 +58,9 @@ void MVM_unicode_normalizer_eof(MVMThreadContext *tc, MVMNormalizer *n);
  * known to be available, either because normalize_to_codepoint returned a
  * value greater than 1, or normalize_available returned a non-zero value. */
 MVM_STATIC_INLINE MVMCodepoint MVM_unicode_normalizer_get_codepoint(MVMThreadContext *tc, MVMNormalizer *n) {
-    MVM_exception_throw_adhoc(tc, "Normalization: illegal call to get codepoint");
+    if (n->buffer_norm_end == n->buffer_start)
+        MVM_exception_throw_adhoc(tc, "Normalization: illegal call to get codepoint");
+    return n->buffer[n->buffer_start++];
 }
 
 /* TODO: grapheme version of the above. */
