@@ -127,8 +127,36 @@ static void add_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, MVMC
 
 /* Decompose the codepoint and add it into the buffer. */
 static void decomp_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint cp) {
-    /* XXX TODO: decompose. */
-    add_codepoint_to_buffer(tc, n, cp);
+    /* See if we actually need to decompose (can skip if the decomposition
+     * type is None, or we're only doing Canonical decomposition and it is
+     * anything except Canonical). */
+    const char *type = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE);
+    MVMint64 decompose = 1;
+    if (!type)
+        decompose = 0;
+    else if (strcmp(type, "None") == 0)
+        decompose = 0;
+    else if (!MVM_NORMALIZE_COMPAT_DECOMP(n->form) && strcmp(type, "Canonical") != 0)
+        decompose = 0;
+    if (decompose) {
+        /* We need to decompose. Get the decomp spec and go over the things in
+         * it. */
+        char *spec = (char *)MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_DECOMP_SPEC);
+        if (spec) {
+            char *end = spec + strlen(spec);
+            while (spec < end) {
+                /* Parse hex character code, and then recurse to do any further
+                * decomposition on it; this recursion terminates when we find a
+                * non-decomposable thing and add it to the buffer. */
+                MVMCodepoint decomp_char = (MVMCodepoint)strtol(spec, &spec, 16);
+                decomp_codepoint_to_buffer(tc, n, decomp_char);
+            }
+        }
+    }
+    else {
+        /* Don't need to decompose; add it right into the buffer. */
+        add_codepoint_to_buffer(tc, n, cp);
+    }
 }
 
 /* Checks if the specified character answers "yes" on the appropriate quick check. */
