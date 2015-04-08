@@ -12,11 +12,10 @@
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
 #define CURRENT_VERSION 13
-#define MIN_VERSION     9
+#define MIN_VERSION     13
 
 /* Various sizes (in bytes). */
-#define HEADER_SIZE                 (4 * 16)
-#define HEADER_SIZE_V13             (4 * 18)
+#define HEADER_SIZE                 (4 * 18)
 #define DEP_TABLE_ENTRY_SIZE        8
 #define STABLES_TABLE_ENTRY_SIZE    12
 #define OBJECTS_TABLE_ENTRY_SIZE    16
@@ -680,7 +679,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     MVMString *result;
 
     /* Calculate total size. */
-    output_size += HEADER_SIZE_V13;
+    output_size += HEADER_SIZE;
     output_size += writer->root.num_dependencies * DEP_TABLE_ENTRY_SIZE;
     output_size += writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE;
     output_size += writer->stables_data_offset;
@@ -697,7 +696,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
 
     /* Write version into header. */
     write_int32(output, 0, CURRENT_VERSION);
-    offset += HEADER_SIZE_V13;
+    offset += HEADER_SIZE;
 
     /* Put dependencies table in place and set location/rows in header. */
     write_int32(output, 4, offset);
@@ -1656,7 +1655,8 @@ static void check_and_dissect_input(MVMThreadContext *tc,
             reader->root.version, CURRENT_VERSION);
 
     /* Pick header size by version. */
-    header_size = reader->root.version >= 13 ? HEADER_SIZE_V13 : HEADER_SIZE;
+    /* See blame history for the next line if you change the header size:  */
+    header_size = HEADER_SIZE;
 
     /* Ensure that the data is at least as long as the header is expected to be. */
     if (data_len < header_size)
@@ -1761,17 +1761,15 @@ static void check_and_dissect_input(MVMThreadContext *tc,
             "Corruption detected (repossessions table overruns end of data)");
 
     /* Get location and number of entries in the interns data section. */
-    if (reader->root.version >= 13) {
-        reader->root.param_interns_data = data + read_int32(data, 64);
-        reader->root.num_param_interns  = read_int32(data, 68);
-        if (reader->root.param_interns_data < prov_pos)
-            fail_deserialize(tc, reader,
-                "Corruption detected (parameterization interns data starts before repossessions table ends)");
-        prov_pos = reader->root.param_interns_data;
-        if (prov_pos > data_end)
-            fail_deserialize(tc, reader,
-                "Corruption detected (parameterization interns data overruns end of data)");
-    }
+    reader->root.param_interns_data = data + read_int32(data, 64);
+    reader->root.num_param_interns  = read_int32(data, 68);
+    if (reader->root.param_interns_data < prov_pos)
+        fail_deserialize(tc, reader,
+            "Corruption detected (parameterization interns data starts before repossessions table ends)");
+    prov_pos = reader->root.param_interns_data;
+    if (prov_pos > data_end)
+        fail_deserialize(tc, reader,
+            "Corruption detected (parameterization interns data overruns end of data)");
 
     /* Set reading limits for data chunks. */
     reader->stables_data_end       = reader->root.objects_table;
@@ -2081,6 +2079,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Calculate location of STable's table row. */
     char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
+    MVMString *hll_name;
 
     /* Set STable read position, and set current read buffer to the correct thing. */
     reader->stables_data_offset = read_int32(st_table_row, 4);
@@ -2134,59 +2133,51 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
         st->invocation_spec->hint = MVM_serialization_read_int(tc, reader);
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->invocation_handler, MVM_serialization_read_ref(tc, reader));
-        if (reader->root.version >= 11) {
-            MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_class_handle, MVM_serialization_read_ref(tc, reader));
-            MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_cache_attr_name, MVM_serialization_read_str(tc, reader));
-            st->invocation_spec->md_cache_hint = MVM_serialization_read_int(tc, reader);
-            MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_valid_attr_name, MVM_serialization_read_str(tc, reader));
-            st->invocation_spec->md_valid_hint = MVM_serialization_read_int(tc, reader);
-        }
+        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_class_handle, MVM_serialization_read_ref(tc, reader));
+        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_cache_attr_name, MVM_serialization_read_str(tc, reader));
+        st->invocation_spec->md_cache_hint = MVM_serialization_read_int(tc, reader);
+        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_valid_attr_name, MVM_serialization_read_str(tc, reader));
+        st->invocation_spec->md_valid_hint = MVM_serialization_read_int(tc, reader);
     }
 
     /* HLL owner. */
-    if (reader->root.version >= 11) {
-        MVMString *hll_name = MVM_serialization_read_str(tc, reader);
-        if (hll_name)
-            st->hll_owner = MVM_hll_get_config_for(tc, hll_name);
-    }
+    hll_name = MVM_serialization_read_str(tc, reader);
+    if (hll_name)
+        st->hll_owner = MVM_hll_get_config_for(tc, hll_name);
 
     /* If it's a parametric type... */
-    if (reader->root.version >= 12) {
-        if (st->mode_flags & MVM_PARAMETRIC_TYPE) {
-            /* Create empty lookup table, unless we were beat to it. */
-            if (!st->paramet.ric.lookup) {
-                MVMObject *lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-                MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.lookup, lookup);
-            }
-
-            /* Deserialize parameterizer. */
-            MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.parameterizer,
-                MVM_serialization_read_ref(tc, reader));
+    if (st->mode_flags & MVM_PARAMETRIC_TYPE) {
+        /* Create empty lookup table, unless we were beat to it. */
+        if (!st->paramet.ric.lookup) {
+            MVMObject *lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+            MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.lookup, lookup);
         }
+
+        /* Deserialize parameterizer. */
+        MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.parameterizer,
+                       MVM_serialization_read_ref(tc, reader));
     }
 
     /* If it's a parameterized type... */
-    if (reader->root.version >= 13) {
-        if (st->mode_flags & MVM_PARAMETERIZED_TYPE) {
-            MVMObject *lookup;
+    if (st->mode_flags & MVM_PARAMETERIZED_TYPE) {
+        MVMObject *lookup;
 
-            /* Deserialize parametric type and parameters. */
-            MVMObject *ptype  = MVM_serialization_read_ref(tc, reader);
-            MVMObject *params = read_array_var(tc, reader);
+        /* Deserialize parametric type and parameters. */
+        MVMObject *ptype  = MVM_serialization_read_ref(tc, reader);
+        MVMObject *params = read_array_var(tc, reader);
 
-            /* Attach them to the STable. */
-            MVM_ASSIGN_REF(tc, &(st->header), st->paramet.erized.parametric_type, ptype);
-            MVM_ASSIGN_REF(tc, &(st->header), st->paramet.erized.parameters, params);
+        /* Attach them to the STable. */
+        MVM_ASSIGN_REF(tc, &(st->header), st->paramet.erized.parametric_type, ptype);
+        MVM_ASSIGN_REF(tc, &(st->header), st->paramet.erized.parameters, params);
 
-            /* Add a mapping into the lookup list of the parameteric type. */
-            lookup = STABLE(ptype)->paramet.ric.lookup;
-            if (!lookup) {
-                lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-                MVM_ASSIGN_REF(tc, &(STABLE(ptype)->header), STABLE(ptype)->paramet.ric.lookup, lookup);
-            }
-            MVM_repr_push_o(tc, lookup, params);
-            MVM_repr_push_o(tc, lookup, st->WHAT);
+        /* Add a mapping into the lookup list of the parameteric type. */
+        lookup = STABLE(ptype)->paramet.ric.lookup;
+        if (!lookup) {
+            lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+            MVM_ASSIGN_REF(tc, &(STABLE(ptype)->header), STABLE(ptype)->paramet.ric.lookup, lookup);
         }
+        MVM_repr_push_o(tc, lookup, params);
+        MVM_repr_push_o(tc, lookup, st->WHAT);
     }
 
     /* If the REPR has a function to deserialize representation data, call it. */
