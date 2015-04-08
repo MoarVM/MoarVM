@@ -20,7 +20,7 @@ static void assert_codepoint_array(MVMThreadContext *tc, MVMObject *arr, char *e
         if (slot_type == MVM_ARRAY_I32 || slot_type == MVM_ARRAY_U32)
             return;
     }
-    MVM_exception_throw_adhoc(tc, error);
+    MVM_exception_throw_adhoc(tc, "%s", error);
 }
 MVM_STATIC_INLINE void maybe_grow_result(MVMCodepoint **result, MVMint64 *result_alloc, MVMint64 needed) {
     if (needed >= *result_alloc) {
