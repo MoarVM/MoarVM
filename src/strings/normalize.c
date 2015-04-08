@@ -125,6 +125,30 @@ static void add_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, MVMC
     n->buffer[n->buffer_end++] = cp;
 }
 
+/* Decomposes a Hangul codepoint and add it into the buffer. */
+static void decomp_hangul_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint s) {
+    /* Algorithm from Unicode spec 3.12, following naming convention from spec. */
+    static int
+        SBase = 0xAC00,
+        LBase = 0x1100, VBase = 0x1161, TBase = 0x11A7,
+        LCount = 19, VCount = 21, TCount = 28,
+        NCount = 588, /* VCount * TCount */
+        SCount = 11172; /* LCount * NCount */
+    int SIndex = s - SBase;
+    if (SIndex < 0 || SIndex >= SCount) {
+        add_codepoint_to_buffer(tc, n, s);
+    }
+    else {
+        int L = LBase + SIndex / NCount;
+        int V = VBase + (SIndex % NCount) / TCount;
+        int T = TBase + SIndex % TCount;
+        add_codepoint_to_buffer(tc, n, (MVMCodepoint)L);
+        add_codepoint_to_buffer(tc, n, (MVMCodepoint)V);
+        if (T != TBase)
+            add_codepoint_to_buffer(tc, n, (MVMCodepoint)T);
+    }
+}
+
 /* Decompose the codepoint and add it into the buffer. */
 static void decomp_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint cp) {
     /* See if we actually need to decompose (can skip if the decomposition
@@ -140,9 +164,10 @@ static void decomp_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, M
         decompose = 0;
     if (decompose) {
         /* We need to decompose. Get the decomp spec and go over the things in
-         * it. */
+         * it; things without a decomp spec are presumably Hangul and need the
+         * algorithmic treatment. */
         char *spec = (char *)MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_DECOMP_SPEC);
-        if (spec) {
+        if (spec && spec[0]) {
             char *end = spec + strlen(spec);
             while (spec < end) {
                 /* Parse hex character code, and then recurse to do any further
@@ -151,6 +176,9 @@ static void decomp_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, M
                 MVMCodepoint decomp_char = (MVMCodepoint)strtol(spec, &spec, 16);
                 decomp_codepoint_to_buffer(tc, n, decomp_char);
             }
+        }
+        else {
+            decomp_hangul_to_buffer(tc, n, cp);
         }
     }
     else {
