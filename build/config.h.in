@@ -33,6 +33,11 @@
 #define MVM_HAS_READLINE @hasreadline@
 #endif
 
+/* pthread_yield() detection */
+#if @has_pthread_yield@
+#define MVM_HAS_PTHREAD_YIELD @has_pthread_yield@
+#endif
+
 /* How this compiler does static inline functions. */
 #define MVM_STATIC_INLINE @static_inline@
 
