@@ -195,7 +195,31 @@ static MVMint64 passes_quickcheck(MVMThreadContext *tc, MVMNormalizer *n, MVMCod
 
 /* Gets the canonical combining class for a codepoint. */
 static MVMint64 ccc(MVMThreadContext *tc, MVMCodepoint cp) {
-    return MVM_unicode_codepoint_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
+    const char *ccc_str = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
+    return !ccc_str || strlen(ccc_str) > 3 ? 0 : atoi(ccc_str);
+}
+
+/* Implements the Unicode Canonical Ordering algorithm (3.11, D109). */
+static void canonical_sort(MVMThreadContext *tc, MVMNormalizer *n, MVMint32 from, MVMint32 to) {
+    /* Yes, this is the simplest possible thing. Key thing if you decide to
+     * replace it with something more optimal: it must not re-order code
+     * points with equal CCC. */
+    MVMint32 reordered = 1;
+    while (reordered) {
+        MVMint32 i = from;
+        reordered = 0;
+        while (i < to - 1) {
+            MVMint64 cccA = ccc(tc, n->buffer[i]);
+            MVMint64 cccB = ccc(tc, n->buffer[i + 1]);
+            if (cccA > cccB && cccB > 0) {
+                MVMCodepoint tmp = n->buffer[i];
+                n->buffer[i] = n->buffer[i + 1];
+                n->buffer[i + 1] = tmp;
+                reordered = 1;
+            }
+            i++;
+        }
+    }
 }
 
 /* Called when the very fast case of normalization fails (that is, when we get
@@ -204,18 +228,19 @@ static MVMint64 ccc(MVMThreadContext *tc, MVMCodepoint cp) {
  * may find the quick check itself is enough; if not, we have to do real work
  * compute the normalization. */
 MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out) {
-    /* Do a quickcheck on the codepoint we got in. */
-    MVMint64 qc = passes_quickcheck(tc, n, in);
+    /* Do a quickcheck on the codepoint we got in and get its CCC. */
+    MVMint64 qc_in  = passes_quickcheck(tc, n, in);
+    MVMint64 ccc_in = ccc(tc, in);
 
-    /* Fast cases when we pass quick check. */
-    if (qc) {
+    /* Fast cases when we pass quick check and what we got in has CCC = 0. */
+    if (qc_in && ccc_in == 0) {
         if (MVM_NORMALIZE_COMPOSE(n->form)) {
             /* We're composing. If we have exactly one thing in the buffer and
              * it also passes the quick check, and both it and the thing in the
              * buffer have a CCC of zero, we can hand back the first of the
              * two - effectively replacing what's in the buffer with the new
              * codepoint coming in. */
-            if (n->buffer_end - n->buffer_start == 1 && ccc(tc, in) == 0) {
+            if (n->buffer_end - n->buffer_start == 1) {
                 MVMCodepoint maybe_result = n->buffer[n->buffer_start];
                 if (passes_quickcheck(tc, n, maybe_result) && ccc(tc, maybe_result) == 0) {
                     *out = n->buffer[n->buffer_start];
@@ -234,18 +259,54 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
         }
     }
 
-    /* Add decomposition to the buffer. */
-    decomp_codepoint_to_buffer(tc, n, in);
+    /* If we didn't pass quick check, add decomposition to the buffer. We can
+     * do no more at this point. */
+    if (!qc_in) {
+        decomp_codepoint_to_buffer(tc, n, in);
+        return 0;
+    }
 
-    /* TODO: canonical sorting, composition, etc. Cheat for now while just
-     * working on decomposition: claim all in the buffer is normalized. */
-    n->buffer_norm_end = n->buffer_end;
+    /* Since anything we have at this point does pass quick check, add it to
+     * the buffer directly. */
+    add_codepoint_to_buffer(tc, n, in);
+
+    /* If the codepoint has a CCC that is non-zero, it's not a starter so we
+     * should see more before normalizing. */
+    if (ccc_in > 0)
+        return 0;
+
+    /* If we don't have at least one codepoint in the buffer, it's too early
+     * to hand anything back. */
+    if (n->buffer_end - n->buffer_start <= 1)
+        return 0;
+
+    /* Perform canonical sorting on everything from the start of the buffer
+     * up to but excluding the quick-check-passing thing we just added. */
+    canonical_sort(tc, n, n->buffer_start, n->buffer_end - 1);
+
+    /* Perform canonical composition if needed. */
+    if (MVM_NORMALIZE_COMPOSE(n->form)) {
+        /* TODO: composition. */
+    }
+
+    /* We've now normalized all except the latest, quick-check-passing
+     * codepoint. */
+    n->buffer_norm_end = n->buffer_end - 1;
+
+    /* Hand back a codepoint, and flag how many more are available. */
     *out = n->buffer[n->buffer_start];
     return n->buffer_norm_end - n->buffer_start++;
 }
 
 /* Called when we are expecting no more codepoints. */
 void MVM_unicode_normalizer_eof(MVMThreadContext *tc, MVMNormalizer *n) {
-    /* TODO: actually normalize. */
+    /* Perform canonical ordering and, if needed, canonical composition on
+     * what remains. */
+    canonical_sort(tc, n, n->buffer_start, n->buffer_end);
+    if (MVM_NORMALIZE_COMPOSE(n->form)) {
+        /* TODO: composition. */
+    }
+
+    /* We've now normalized all that remains. */
     n->buffer_norm_end = n->buffer_end;
 }
