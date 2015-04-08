@@ -362,6 +362,7 @@ else {
 }
 
 build::probe::computed_goto(\%config, \%defaults);
+build::probe::pthread_yield(\%config, \%defaults);
 
 my $order = $config{be} ? 'big endian' : 'little endian';
 
