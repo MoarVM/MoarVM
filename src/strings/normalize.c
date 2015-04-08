@@ -125,22 +125,67 @@ static void add_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, MVMC
     n->buffer[n->buffer_end++] = cp;
 }
 
+/* Decompose the codepoint and add it into the buffer. */
+static void decomp_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint cp) {
+    /* XXX TODO: decompose. */
+    add_codepoint_to_buffer(tc, n, cp);
+}
+
+/* Checks if the specified character answers "yes" on the appropriate quick check. */
+static MVMint64 passes_quickcheck(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint cp) {
+    const char *pval = MVM_unicode_codepoint_get_property_cstr(tc, cp, n->quick_check_property);
+    return pval && pval[0] == 'Y';
+}
+
+/* Gets the canonical combining class for a codepoint. */
+static MVMint64 ccc(MVMThreadContext *tc, MVMCodepoint cp) {
+    return MVM_unicode_codepoint_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
+}
+
 /* Called when the very fast case of normalization fails (that is, when we get
  * any two codepoints in a row where at least one is greater than the first
  * significant codepoint identified by a quick check for the target form). We
  * may find the quick check itself is enough; if not, we have to do real work
  * compute the normalization. */
 MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out) {
-    /* If our buffer is empty, can only add to it and we're done. */
-    if (n->buffer_start == n->buffer_end) {
-        add_codepoint_to_buffer(tc, n, in);
-        return 0;
+    /* Do a quickcheck on the codepoint we got in. */
+    MVMint64 qc = passes_quickcheck(tc, n, in);
+
+    /* Fast cases when we pass quick check. */
+    if (qc) {
+        if (MVM_NORMALIZE_COMPOSE(n->form)) {
+            /* We're composing. If we have exactly one thing in the buffer and
+             * it also passes the quick check, and both it and the thing in the
+             * buffer have a CCC of zero, we can hand back the first of the
+             * two - effectively replacing what's in the buffer with the new
+             * codepoint coming in. */
+            if (n->buffer_end - n->buffer_start == 1 && ccc(tc, in) == 0) {
+                MVMCodepoint maybe_result = n->buffer[n->buffer_start];
+                if (passes_quickcheck(tc, n, maybe_result) && ccc(tc, maybe_result) == 0) {
+                    *out = n->buffer[n->buffer_start];
+                    n->buffer[n->buffer_start] = in;
+                    return 1;
+                }
+            }
+        }
+        else {
+            /* We're only decomposing. There should probably be nothing in the
+             * buffer in this case; if so we can simply return the codepoint. */
+            if (n->buffer_start == n->buffer_end) {
+                *out = in;
+                return 1;
+            }
+        }
     }
 
-    /* TODO: actually normalize. */
+    /* Add decomposition to the buffer. */
+    decomp_codepoint_to_buffer(tc, n, in);
+
+    /* TODO: canonical sorting, composition, etc. Cheat for now while just
+     * working on decomposition: claim all in the buffer is normalized. */
+    n->buffer_norm_end = n->buffer_end;
     *out = n->buffer[n->buffer_start];
-    n->buffer[n->buffer_start] = in;
-    return 1;
+    return n->buffer_norm_end - n->buffer_start++;
 }
 
 /* Called when we are expecting no more codepoints. */
