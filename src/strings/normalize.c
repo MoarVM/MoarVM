@@ -87,11 +87,28 @@ void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNorm
     n->buffer_end      = 0;
     n->buffer_norm_end = 0;
     switch (n->form) {
-        case MVM_NORMALIZE_NFD:  n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFD;  break;
-        case MVM_NORMALIZE_NFKD: n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFKD; break;
-        case MVM_NORMALIZE_NFC:  n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFC;  break;
-        case MVM_NORMALIZE_NFKC: n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFKC; break;
-        case MVM_NORMALIZE_NFG:  n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFC;  break;
+        case MVM_NORMALIZE_NFD:
+            n->first_significant    = MVM_NORMALIZE_FIRST_SIG_NFD;
+            n->quick_check_property = MVM_UNICODE_PROPERTY_NFD_QC;
+            break;
+        case MVM_NORMALIZE_NFKD:
+            n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFKD;
+            n->quick_check_property = MVM_UNICODE_PROPERTY_NFKD_QC;
+            break;
+        case MVM_NORMALIZE_NFC:
+            n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFC;
+            n->quick_check_property = MVM_UNICODE_PROPERTY_NFC_QC;
+            break;
+        case MVM_NORMALIZE_NFKC:
+            n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFKC;
+            n->quick_check_property = MVM_UNICODE_PROPERTY_NFKC_QC;
+            break;
+        case MVM_NORMALIZE_NFG:
+            n->quick_check_property = MVM_UNICODE_PROPERTY_NFC_QC;
+            n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFC;
+            break;
+        default:
+            abort();
     }
 }
 

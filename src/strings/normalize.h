@@ -42,6 +42,9 @@ struct MVMNormalizer {
      * have to do something with. If we see two things beneath the limit in a
      * row then we know the first one below it is good to spit out. */
     MVMCodepoint first_significant;
+
+    /* The quickcheck property for the normalization form in question. */
+    MVMint32 quick_check_property;
 };
 
 /* Takes a codepoint to process for normalization as the "in" parameter. If we
