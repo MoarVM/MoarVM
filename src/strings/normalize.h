@@ -57,12 +57,28 @@ struct MVMNormalizer {
  * codepoints now available including the one we just passed out. If we can't
  * produce a normalized codepoint right now, we return a 0. */
 MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out) {
-    /* Fast-path when it's one-in-one-out. */
-    if (n->buffer_end - n->buffer_start == 1 && in < n->first_significant) {
-        if (n->buffer[n->buffer_start] < n->first_significant) {
-            *out = n->buffer[n->buffer_start];
-            n->buffer[n->buffer_start] = in;
-            return 1;
+    /* Fast-paths apply when the codepoint to consider is too low to have any
+     * interesting properties in the target normalization form. */
+    if (in < n->first_significant) {
+        if (MVM_NORMALIZE_COMPOSE(n->form)) {
+            /* For the composition fast path we always have to know that we've
+            * seen two codepoints in a row that are below those needing a full
+            * check. Then we can spit out the first one. */
+            if (n->buffer_end - n->buffer_start == 1) {
+                if (n->buffer[n->buffer_start] < n->first_significant) {
+                    *out = n->buffer[n->buffer_start];
+                    n->buffer[n->buffer_start] = in;
+                    return 1;
+                }
+            }
+        }
+        else {
+            /* For decomposition fast-path, the buffer should be empty. In
+             * that case, we just hand back what we got. */
+            if (n->buffer_start == n->buffer_end) {
+                *out = in;
+                return 1;
+            }
         }
     }
 
