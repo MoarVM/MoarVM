@@ -138,38 +138,34 @@ MVM_PUBLIC MVMObject * MVM_code_location(MVMThreadContext *tc, MVMObject *code) 
         MVMCompUnit            *cu = body->sf->body.cu;
         MVMint32           str_idx = ann ? ann->filename_string_heap_index : 0;
         MVMint32           line_nr = ann ? ann->line_number : 1;
-        MVMString        *filename = cu->body.filename;
+        MVMString        *filename;
 
         MVMObject   *filename_boxed;
         MVMObject *linenumber_boxed;
-        MVMString *filename_key;
+        MVMString *filename_key, *linenumber_key;
 
-        MMVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
 
-        MVMString *filename_key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "file");
-        MMVM_gc_root_temp_push(tc, (MVMCollectable **)&filename_key);
+        filename_key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "file");
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&filename_key);
 
-        MVMString *linenumber_key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "line");
-        MMVM_gc_root_temp_push(tc, (MVMCollectable **)&linenumber_key);
+        linenumber_key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "line");
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&linenumber_key);
 
         if (ann && str_idx < cu->body.num_strings) {
             filename = cu->body.strings[str_idx];
+        } else {
+            filename = cu->body.filename;
         }
 
-        filename_boxed = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, filename)
-        MMVM_gc_root_temp_push(tc, (MVMCollectable **)&filename_boxed);
+        filename_boxed = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, filename);
 
-        linenumber_boxed = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, line_nr)
+        MVM_repr_bind_key_o(tc, result, filename_key, filename_boxed);
 
-        MVM_repr_bind_key_o(tc, result, filename_key,
-                    filename_boxed
-                );
+        linenumber_boxed = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, line_nr);
+        MVM_repr_bind_key_o(tc, result, linenumber_key, linenumber_boxed);
 
-        MVM_repr_bind_key_o(tc, result, linenumber_key,
-                    linenumber_boxed
-                );
-
-        MVM_gc_root_temp_pop_n(tc, 4);
+        MVM_gc_root_temp_pop_n(tc, 3);
 
         return result;
     }
