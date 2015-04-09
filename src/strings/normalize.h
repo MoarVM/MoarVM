@@ -51,6 +51,9 @@ struct MVMNormalizer {
     MVMint32 quick_check_property;
 };
 
+/* Guts-y functions, called by the API level ones below. */
+MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out);
+
 /* Takes a codepoint to process for normalization as the "in" parameter. If we
  * are able to produce one or more normalized codepoints right off, then we
  * put it into the location pointed to by "out", and return the number of
@@ -116,6 +119,3 @@ void MVM_unicode_normalizer_cleanup(MVMThreadContext *tc, MVMNormalizer *n);
 /* High-level normalize implementation, working from an input array of
  * codepoints and producing an output array of codepoints. */
 void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, MVMObject *in, MVMObject *out, MVMNormalization form);
-
-/* Guts-y functions, called by the API level ones above. */
-MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out);
