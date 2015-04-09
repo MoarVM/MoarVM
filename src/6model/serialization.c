@@ -1375,7 +1375,7 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
 
 /* Reading function for variable-sized integers, using between 1 and 9 bytes of
  * storage for an int64. */
-MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
+static MVMint64 read_varint_v13(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint64 result = 0;
     MVMuint8 *const start = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
     MVMuint8 *const read_end = (MVMuint8 *) *(reader->cur_read_end);
@@ -1415,6 +1415,58 @@ MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationRea
 
     *(reader->cur_read_offset) += p + 1 - start;
     return result;
+}
+
+/* The format chosen may not be quite the most space efficient for the values
+   that we store, but the intent it is that close to smallest whilst very
+   efficient to read. In particular, it doesn't require any looping, and
+   has at most two length overrun checks.  */
+
+MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint64 result;
+    const MVMuint8 *read_at = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
+    MVMuint8 *const read_end = (MVMuint8 *) *(reader->cur_read_end);
+    MVMuint8 first;
+    MVMuint8 need;
+
+    if (reader->root.version <= 13)
+        return read_varint_v13(tc, reader);
+
+    if (read_at >= read_end)
+        fail_deserialize(tc, reader,
+                         "Read past end of serialization data buffer");
+
+    first = *read_at++;
+
+    /* Top bit set means remaining 7 bits are a value between -1 and 126.
+       (That turns out to be the most common 7 bit range that we serialize.)  */
+    if (first & 0x80) {
+        *(reader->cur_read_offset) += 1;
+        /* Value we have is 128 to 255. Map it back to the range we need:  */
+        return (MVMint64) first - 129;
+    }
+
+    /* Otherwise next 3 bits indicate how many more bytes follow. */
+    need = first >> 4;
+    if (!need) {
+        /* Have to read all 8 bytes. Ignore the bottom nybble.
+           In future, we may want to use it to also store 15 possible "common"
+           values. Not clear if that whould be best as a fixed table, a single
+           table sent as part of the serialization blob, or multiple tables for
+           different contexts (int32, int64, nativeint, others?)  */
+        if (read_at + 8 > read_end)
+            fail_deserialize(tc, reader,
+                             "Read past end of serialization data buffer");
+
+        memcpy(&result, read_at, 8);
+#ifdef MVM_BIGENDIAN
+        switch_endian(&result, 8);
+#endif
+        *(reader->cur_read_offset) += 9;
+        return result;
+    }
+    /* NYI */
+    abort();
 }
 
 /* Reading function for native numbers. */
