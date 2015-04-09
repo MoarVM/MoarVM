@@ -695,6 +695,8 @@ encodenorm          r(str) r(str) r(int64) r(obj)
 normalizecodes      r(obj) r(int64) r(obj)
 strfromcodes        w(str) r(obj)
 strtocodes          r(str) r(int64) r(obj)
+getcodelocation     w(obj) r(obj) :pure
+
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

@@ -125,3 +125,44 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_MVMCode,
     1, /* refs_frames */
 };
+
+MVM_PUBLIC MVMObject * MVM_code_location(MVMThreadContext *tc, MVMObject *code) {
+    MVMObject *BOOTHash = tc->instance->boot_types.BOOTHash;
+    MVMCodeBody *body = &((MVMCode*)code)->body;
+
+    if (REPR(code)->ID != MVM_REPR_ID_MVMCode) {
+        MVM_exception_throw_adhoc(tc, "getcodelocation needs an object of MVMCode REPR, got %s instead", REPR(code)->name);
+    } else {
+        MVMObject * result = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
+        MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &body->sf->body, 0);
+        MVMCompUnit            *cu = body->sf->body.cu;
+        MVMint32           str_idx = ann ? ann->filename_string_heap_index : 0;
+        MVMint32           line_nr = ann ? ann->line_number : 1;
+        MVMString        *filename = cu->body.filename;
+
+        MVMROOT(tc, result, {
+            MVMString *filename_key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "file");
+            MVMROOT(tc, filename_key, {
+                MVMString *linenumber_key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "line");
+
+                if (ann && str_idx < cu->body.num_strings) {
+                    filename = cu->body.strings[str_idx];
+                }
+
+                MVMROOT(tc, linenumber_key, {
+                    MVM_repr_bind_key_o(tc, result, filename_key,
+                                MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, filename)
+                            );
+
+                    MVM_repr_bind_key_o(tc, result, linenumber_key,
+                                MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, line_nr)
+                            );
+                });
+            });
+        });
+
+        return result;
+    }
+
+    return NULL;
+}
