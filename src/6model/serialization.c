@@ -11,7 +11,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 13
+#define CURRENT_VERSION 14
 #define MIN_VERSION     13
 
 /* Various sizes (in bytes). */
@@ -289,50 +289,35 @@ void MVM_serialization_write_int(MVMThreadContext *tc, MVMSerializationWriter *w
     *(writer->cur_write_offset) += 8;
 }
 
-/* Size of the variable length encoding for a given value. */
-static int varintsize(int64_t value) {
-    if(value < 0)
-        value = -value - 1;
-    if(value < 64) /* 7 bits */
-        return 1;
-    if(value < 8192) /* 14 bits */
-        return 2;
-    if(value < 1048576) /* 21 bits */
-        return 3;
-    if(value < 134217728) /* 28 bits */
-        return 4;
-    if(value < 17179869184LL) /* 35 bits */
-        return 5;
-    if(value < 2199023255552LL) /* 42 bits */
-        return 6;
-    if(value < 281474976710656LL) /* 49 bits */
-        return 7;
-    if(value < 36028797018963968LL) /* 56 bits */
-        return 8;
-    return 9;
-}
-
 /* Writing function for variable sized integers. Writes out a 64 bit value
    using between 1 and 9 bytes. */
 void MVM_serialization_write_varint(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value) {
-    size_t storage_needed = varintsize(value);
-    size_t count = storage_needed;
+    MVMuint8 storage_needed;
     char *buffer;
     size_t offset;
+
+    if (value >= -1 && value <= 126) {
+        storage_needed = 1;
+    } else {
+        storage_needed = 9;
+    }
 
     expand_storage_if_needed(tc, writer, storage_needed);
 
     buffer = *(writer->cur_write_buffer);
     offset = *(writer->cur_write_offset);
 
-    while (--count) {
-        buffer[offset++] = (value & 0x7F) | 0x80;
-        value = value >> 7;
-    }
-    if (storage_needed == 9) {
-        buffer[offset] = value;
+    if (storage_needed == 1) {
+        buffer[offset] = 0x80 | (value + 129);
+    } else if (storage_needed == 9) {
+        buffer[offset++] = 0x00;
+        memcpy(buffer + offset, &value, 8);
+#if MVM_BIGENDIAN
+        switch_endian(buffer + offset, 8);
+#endif
     } else {
-        buffer[offset] = value & 0x7F;
+        /* NYI */
+        abort();
     }
 
     *(writer->cur_write_offset) += storage_needed;
