@@ -299,7 +299,24 @@ void MVM_serialization_write_varint(MVMThreadContext *tc, MVMSerializationWriter
     if (value >= -1 && value <= 126) {
         storage_needed = 1;
     } else {
-        storage_needed = 9;
+        const MVMint64 abs_val = value < 0 ? -value - 1 : value;
+
+        if (abs_val <= 0x7FF)
+            storage_needed = 2;
+        else if (abs_val <= 0x000000000007FFFF)
+            storage_needed = 3;
+        else if (abs_val <= 0x0000000007FFFFFF)
+            storage_needed = 4;
+        else if (abs_val <= 0x00000007FFFFFFFF)
+            storage_needed = 5;
+        else if (abs_val <= 0x000007FFFFFFFFFFLL)
+            storage_needed = 6;
+        else if (abs_val <= 0x0007FFFFFFFFFFFFLL)
+            storage_needed = 7;
+        else if (abs_val <= 0x07FFFFFFFFFFFFFFLL)
+            storage_needed = 8;
+        else
+            storage_needed = 9;
     }
 
     expand_storage_if_needed(tc, writer, storage_needed);
@@ -316,8 +333,19 @@ void MVM_serialization_write_varint(MVMThreadContext *tc, MVMSerializationWriter
         switch_endian(buffer + offset, 8);
 #endif
     } else {
-        /* NYI */
-        abort();
+        MVMuint8 rest = storage_needed - 1;
+        MVMint64 nybble = value >> 8 * rest;
+        /* All the other high bits should be the same as the top bit of the
+           nybble we keep. Or we have a bug.  */
+        assert((nybble >> 3) == 0
+               || (nybble >> 3) == ~(MVMuint64)0);
+        buffer[offset++] = (rest << 4) | (nybble & 0xF);
+#if MVM_BIGENDIAN
+        memcpy(buffer + offset, (char *)&value + 8 - rest, rest);
+        switch_endian(buffer + offset, rest);
+#else
+        memcpy(buffer + offset, &value, rest);
+#endif
     }
 
     *(writer->cur_write_offset) += storage_needed;
@@ -1450,8 +1478,34 @@ MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationRea
         *(reader->cur_read_offset) += 9;
         return result;
     }
-    /* NYI */
-    abort();
+
+    if (read_at + need > read_end)
+        fail_deserialize(tc, reader,
+                         "Read past end of serialization data buffer");
+
+    /* The bottom nybble of the first byte is the highest byte of the final
+       value with any bits set. Right now the top nybble is garbage, but it
+       gets flushed away with the sign extension shifting later.  */
+    result = (MVMint64)first << 8 * need;
+
+    /* The remaining 1 to 7 lower bytes follow next in the serialization stream.
+     */
+#if MVM_BIGENDIAN
+    {
+        MVMuint8 *write_to = (MVMuint8 *)&result + 8 - need;
+        memcpy(write_to, read_at, need);
+        switch_endian(write_to, need);
+    }
+#else
+    memcpy(&result, read_at, need);
+#endif
+
+    /* Having pieced the (unsigned) value back together, sign extend it:  */
+    result = result << (64 - 4 - 8 * need);
+    result = result >> (64 - 4 - 8 * need);
+
+    *(reader->cur_read_offset) += need + 1;
+    return result;
 }
 
 /* Reading function for native numbers. */
