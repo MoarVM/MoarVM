@@ -353,7 +353,7 @@ unshift_s           r(obj) r(str)
 unshift_o           r(obj) r(obj)
 splice              r(obj) r(obj) r(int64) r(int64)
 setelemspos         r(obj) r(int64)
-existspos           w(int64) r(obj) r(int64)
+existspos           w(int64) r(obj) r(int64) :pure
 atkey_i             w(int64) r(obj) r(str)
 atkey_n             w(num64) r(obj) r(str)
 atkey_s             w(str) r(obj) r(str)
@@ -528,8 +528,8 @@ socket              w(obj) r(int64)
 bind_sk             r(obj) r(str) r(int64)
 setinputlinesep_fh  r(obj) r(str)
 accept_sk           w(obj) r(obj)
-DEPRECATED_1
-DEPRECATED_2
+decodetocodes       r(obj) r(str) r(int64) r(obj)
+encodefromcodes     r(obj) r(str) r(obj)
 setencoding         r(obj) r(str)
 print               r(str)
 say                 r(str)
@@ -691,6 +691,12 @@ getattrsref_i       w(obj) r(obj) r(obj) r(str) :pure
 getattrsref_n       w(obj) r(obj) r(obj) r(str) :pure
 getattrsref_s       w(obj) r(obj) r(obj) r(str) :pure
 nativecallsizeof    w(int64) r(obj)
+encodenorm          r(str) r(str) r(int64) r(obj)
+normalizecodes      r(obj) r(int64) r(obj)
+strfromcodes        w(str) r(obj)
+strtocodes          r(str) r(int64) r(obj)
+getcodelocation     w(obj) r(obj) :pure
+
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

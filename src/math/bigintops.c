@@ -450,7 +450,6 @@ MVMint64 MVM_bigint_cmp(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
         return r;
     }
     else {
-        MVMint64 sc;
         MVMint64 sa = ba->u.smallint.value;
         MVMint64 sb = bb->u.smallint.value;
         return sa == sb ? 0 : sa <  sb ? -1 : 1;
@@ -891,7 +890,7 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     MVMint64   pos  = -1;
 
     if (radix > 36) {
-        MVM_exception_throw_adhoc(tc, "Cannot convert radix of %d (max 36)", radix);
+        MVM_exception_throw_adhoc(tc, "Cannot convert radix of %"PRId64" (max 36)", radix);
     }
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&str);

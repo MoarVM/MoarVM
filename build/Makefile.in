@@ -182,6 +182,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/strings/utf8@obj@ \
           src/strings/ops@obj@ \
           src/strings/unicode@obj@ \
+          src/strings/normalize@obj@ \
           src/strings/latin1@obj@ \
           src/strings/utf16@obj@ \
           src/strings/windows1252@obj@ \
@@ -307,6 +308,7 @@ HEADERS = src/moar.h \
           src/spesh/inline.h \
           src/spesh/osr.h \
           src/strings/unicode_gen.h \
+          src/strings/normalize.h \
           src/strings/decode_stream.h \
           src/strings/ascii.h \
           src/strings/utf8.h \

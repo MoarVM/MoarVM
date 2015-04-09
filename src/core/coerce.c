@@ -342,7 +342,7 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     MVMint64   ch;
 
     if (radix > 36) {
-        MVM_exception_throw_adhoc(tc, "Cannot convert radix of %d (max 36)", radix);
+        MVM_exception_throw_adhoc(tc, "Cannot convert radix of %"PRId64" (max 36)", radix);
     }
 
     ch = (offset < chars) ? MVM_string_get_grapheme_at_nocheck(tc, str, offset) : 0;

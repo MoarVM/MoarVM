@@ -8,7 +8,7 @@ static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *w
     MVM_gc_worklist_add(tc, worklist, &frame->special_return_data);
 }
 void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
-    MVMCompUnit *cu, *try_cu;
+    MVMCompUnit *cu;
     MVMLoadedCompUnitName *loaded_name;
 
     /* Work out actual filename to use, taking --libpath into account. */

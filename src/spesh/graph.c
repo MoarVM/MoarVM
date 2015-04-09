@@ -34,17 +34,18 @@ void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
     if (!result) {
         /* No block, or block was full. Add another. */
         MVMSpeshMemBlock *block = MVM_malloc(sizeof(MVMSpeshMemBlock));
-        block->buffer = MVM_calloc(MVM_SPESH_MEMBLOCK_SIZE, 1);
+        size_t buffer_size = g->mem_block
+            ? MVM_SPESH_MEMBLOCK_SIZE
+            : MVM_SPESH_FIRST_MEMBLOCK_SIZE;
+        if (buffer_size < bytes)
+            buffer_size = bytes;
+        block->buffer = MVM_calloc(buffer_size, 1);
         block->alloc  = block->buffer;
-        block->limit  = block->buffer + MVM_SPESH_MEMBLOCK_SIZE;
+        block->limit  = block->buffer + buffer_size;
         block->prev   = g->mem_block;
         g->mem_block  = block;
 
         /* Now allocate out of it. */
-        if (bytes > MVM_SPESH_MEMBLOCK_SIZE) {
-            MVM_spesh_graph_destroy(tc, g);
-            MVM_exception_throw_adhoc(tc, "MVM_spesh_alloc: requested oversized block");
-        }
         result = block->alloc;
         block->alloc += bytes;
     }
@@ -754,7 +755,7 @@ static void add_to_frontier_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
     target->num_df++;
 }
 static void add_dominance_frontiers(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo, MVMint32 *doms) {
-    MVMint32 i, j;
+    MVMint32 j;
     MVMSpeshBB *b = g->entry;
     while (b) {
         if (b->num_pred >= 2) { /* Thus it's a join point */
@@ -834,14 +835,46 @@ static SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph 
     return var_info;
 }
 
+MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 nrargs) {
+    MVMOpInfo *result = NULL;
+
+    /* Up to 64 args, almost every number is represented, but after that
+     * we have a sparse array through which we must search */
+    if (nrargs - 2 < MVMPhiNodeCacheSparseBegin) {
+        result = &g->phi_infos[nrargs - 2];
+    } else {
+        MVMint32 cache_idx;
+
+        for (cache_idx = MVMPhiNodeCacheSparseBegin; !result && cache_idx < MVMPhiNodeCacheSize; cache_idx++) {
+            if (g->phi_infos[cache_idx].opcode == MVM_SSA_PHI) {
+                if (g->phi_infos[cache_idx].num_operands == nrargs) {
+                    result = &g->phi_infos[cache_idx];
+                }
+            } else {
+                result = &g->phi_infos[cache_idx];
+            }
+        }
+    }
+
+    if (result == NULL) {
+        result = MVM_spesh_alloc(tc, g, sizeof(MVMOpInfo));
+        result->opcode = 0;
+    }
+
+    if (result->opcode != MVM_SSA_PHI) {
+        result->opcode       = MVM_SSA_PHI;
+        result->name         = "PHI";
+        result->num_operands = nrargs;
+    }
+
+    return result;
+}
+
 /* Inserts SSA phi functions at the required places in the graph. */
 static void place_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMint32 n, MVMuint16 var) {
     MVMint32     i;
+    MVMOpInfo   *phi_op  = get_phi(tc, g, n + 1);
     MVMSpeshIns *ins     = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-    MVMOpInfo   *phi_op  = MVM_spesh_alloc(tc, g, sizeof(MVMOpInfo));
-    phi_op->opcode       = MVM_SSA_PHI;
-    phi_op->name         = "PHI";
-    phi_op->num_operands = n + 1;
     ins->info            = phi_op;
     ins->operands        = MVM_spesh_alloc(tc, g, phi_op->num_operands * sizeof(MVMSpeshOperand));
     for (i = 0; i < phi_op->num_operands; i++)
@@ -1041,6 +1074,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     g->num_handlers  = sf->body.num_handlers;
     g->num_locals    = sf->body.num_locals;
     g->num_lexicals  = sf->body.num_lexicals;
+    g->phi_infos     = MVM_spesh_alloc(tc, g, MVMPhiNodeCacheSize * sizeof(MVMOpInfo));
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (sf->body.instrumentation_level == 0) {
@@ -1081,6 +1115,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->lexical_types     = cand->lexical_types;
     g->spesh_slots       = cand->spesh_slots;
     g->num_spesh_slots   = cand->num_spesh_slots;
+    g->phi_infos         = MVM_spesh_alloc(tc, g, MVMPhiNodeCacheSize * sizeof(MVMOpInfo));
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (sf->body.instrumentation_level == 0) {

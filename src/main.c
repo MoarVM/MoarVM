@@ -180,12 +180,10 @@ int main(int argc, char *argv[])
     input_file = argv[argi++];
 
     /* stash the rest of the raw command line args in the instance */
-    instance->num_clargs = argc - argi;
-    instance->raw_clargs = argv + argi;
-    instance->prog_name  = input_file;
-    instance->exec_name  = executable_name;
-    for( argi = 0; argi < lib_path_i; argi++)
-        instance->lib_path[argi] = lib_path[argi];
+    MVM_vm_set_clargs(instance, argc - argi, argv + argi);
+    MVM_vm_set_prog_name(instance, input_file);
+    MVM_vm_set_exec_name(instance, executable_name);
+    MVM_vm_set_lib_path(instance, lib_path_i, lib_path);
 
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);

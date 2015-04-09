@@ -179,15 +179,6 @@ MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *c
     char * const _cmd = ANSIToUTF8(acp, getenv("ComSpec"));
     char *args[3];
     args[0] = "/c";
-    {
-        MVMint64 len = strlen(cmdin);
-        MVMint64 i;
-        for (i = 0; i < len; i++)
-            if (cmdin[i] == ' ')
-                break;
-            if (cmdin[i] == '/')
-                cmdin[i] = '\\';
-    }
     args[1] = cmdin;
     args[2] = NULL;
 #else
@@ -269,16 +260,6 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     char * const _cmd = ANSIToUTF8(acp, getenv("ComSpec"));
     char *args[3];
     args[0] = "/c";
-    {
-        MVMint64 len = strlen(cmdin);
-        MVMint64 i;
-        for (i = 0; i < len; i++) {
-            if (cmdin[i] == ' ')
-                break;
-            if (cmdin[i] == '/')
-                cmdin[i] = '\\';
-        }
-    }
     args[1] = cmdin;
     args[2] = NULL;
 #else

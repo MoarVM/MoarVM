@@ -154,7 +154,6 @@ char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str
     MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
     MVMuint8 *result;
-    size_t i;
 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)

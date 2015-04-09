@@ -2606,7 +2606,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(newtype): {
-                MVMObject *type_obj, *how = GET_REG(cur_op, 2).o;
+                MVMObject *how = GET_REG(cur_op, 2).o;
                 MVMString *repr_name = GET_REG(cur_op, 4).s;
                 const MVMREPROps *repr = MVM_repr_get_by_name(tc, repr_name);
                 GET_REG(cur_op, 0).o = repr->type_object_for(tc, how);
@@ -3233,12 +3233,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_io_accept(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            OP(DEPRECATED_1):
-                MVM_exception_throw_adhoc(tc, "Deprecated opcode executed");
-                goto NEXT;
-            OP(DEPRECATED_2):
-                MVM_exception_throw_adhoc(tc, "Deprecated opcode executed");
-                goto NEXT;
+            OP(decodetocodes):
+            OP(encodefromcodes):
+                MVM_exception_throw_adhoc(tc, "NYI");
             OP(setencoding):
                 MVM_io_set_encoding(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
                 cur_op += 4;
@@ -4498,6 +4495,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(nativecallsizeof):
                 GET_REG(cur_op, 0).i64 = MVM_nativecall_sizeof(tc, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            OP(encodenorm):
+                MVM_exception_throw_adhoc(tc, "NYI");
+            OP(normalizecodes):
+                MVM_unicode_normalize_codepoints(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 4).o,
+                    MVN_unicode_normalizer_form(tc, GET_REG(cur_op, 2).i64));
+                cur_op += 6;
+                goto NEXT;
+            OP(strfromcodes):
+            OP(strtocodes):
+                MVM_exception_throw_adhoc(tc, "NYI");
+            OP(getcodelocation):
+                GET_REG(cur_op, 0).o = MVM_code_location(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(sp_log):

@@ -11,7 +11,6 @@
 MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
         MVMObject *result_type, char *utf16_chars, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
-    size_t byte_pos = 0;
     size_t str_pos = 0;
     MVMuint8 *utf16 = (MVMuint8 *)utf16_chars;
     MVMuint8 *utf16_end;
@@ -86,11 +85,9 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
  * the specified size is the non-null part. (This being UTF-16, there are 2 null bytes
  * on the end.) */
 char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
-    MVMuint32 startu = (MVMuint32)start;
     MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - start : length);
     MVMuint16 *result;
-    size_t str_pos;
     MVMuint16 *result_pos;
     MVMCodepointIter ci;
 

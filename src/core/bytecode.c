@@ -78,12 +78,14 @@ static void memcpy_endian(void *dest, MVMuint8 *src, size_t size) {
 #endif
 }
 
+#if 0
 /* Reads a uint64 from a buffer. */
 static MVMuint64 read_int64(MVMuint8 *buffer, size_t offset) {
     MVMuint64 value;
     memcpy_endian(&value, buffer + offset, 8);
     return value;
 }
+#endif
 
 /* Reads a uint32 from a buffer. */
 static MVMuint32 read_int32(MVMuint8 *buffer, size_t offset) {
@@ -104,12 +106,14 @@ static MVMuint8 read_int8(MVMuint8 *buffer, size_t offset) {
     return buffer[offset];
 }
 
+#if 0
 /* Reads double from a buffer. */
 static double read_double(char *buffer, size_t offset) {
     double value;
     memcpy(&value, buffer + offset, 8);
     return value;
 }
+#endif
 
 /* Cleans up reader state. */
 static void cleanup_all(MVMThreadContext *tc, ReaderState *rs) {
@@ -264,7 +268,6 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
 
 /* Loads the string heap. */
 static MVMString ** deserialize_strings(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
-    MVMCompUnitBody *cu_body = &cu->body;
     MVMString **strings;
     MVMuint8   *pos;
     MVMuint32   i, ss;
@@ -485,10 +488,9 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
 /* Loads the static frame information (what locals we have, bytecode offset,
  * lexicals, etc.) */
 static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
-    MVMCompUnitBody *cu_body = &cu->body;
     MVMStaticFrame **frames;
     MVMuint8        *pos;
-    MVMuint32        bytecode_pos, bytecode_size, num_locals, i, j;
+    MVMuint32        bytecode_pos, bytecode_size, i, j;
 
     /* Allocate frames array. */
     if (rs->expected_frames == 0) {
@@ -919,7 +921,7 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
 /* returns the annotation for that bytecode offset */
 MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MVMStaticFrameBody *sfb, MVMuint32 offset) {
     MVMBytecodeAnnotation *ba = NULL;
-    MVMuint32 i, j;
+    MVMuint32 i;
 
     if (sfb->num_annotations && offset < sfb->bytecode_size) {
         MVMuint8 *cur_anno = sfb->annotations_data;

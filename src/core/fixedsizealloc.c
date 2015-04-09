@@ -107,8 +107,6 @@ void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t 
 #else
     MVMuint32 bin = bin_for(bytes);
     if (bin < MVM_FSA_BINS) {
-        char *allocd;
-
         /* Try and take from the free list (fast path). */
         MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
         MVMFixedSizeAllocFreeListEntry *fle;

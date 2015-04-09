@@ -95,7 +95,7 @@ static uv_loop_t *get_or_vivify_loop(MVMThreadContext *tc) {
 /* Adds a work item into the event loop work queue. */
 void MVM_io_eventloop_queue_work(MVMThreadContext *tc, MVMObject *work) {
     MVMROOT(tc, work, {
-        uv_loop_t *loop = get_or_vivify_loop(tc);
+        get_or_vivify_loop(tc);
         MVM_repr_push_o(tc, tc->instance->event_loop_todo_queue, work);
     });
 }
@@ -104,7 +104,7 @@ void MVM_io_eventloop_queue_work(MVMThreadContext *tc, MVMObject *work) {
 void MVM_io_eventloop_cancel_work(MVMThreadContext *tc, MVMObject *task_obj) {
     if (REPR(task_obj)->ID == MVM_REPR_ID_MVMAsyncTask) {
         MVMROOT(tc, task_obj, {
-            uv_loop_t *loop = get_or_vivify_loop(tc);
+            get_or_vivify_loop(tc);
             MVM_repr_push_o(tc, tc->instance->event_loop_cancel_queue, task_obj);
         });
     }

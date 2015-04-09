@@ -83,7 +83,7 @@ static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64
 }
 
 /* Get curernt position in the file. */
-static MVMint64 tell(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     return data->ds ? MVM_string_decodestream_tell_bytes(tc, data->ds) : 0;
 }
@@ -183,9 +183,8 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
 }
 
 /* Checks if the end of file has been reached. */
-static MVMint64 eof(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 r;
     MVMint64 seek_pos;
     uv_fs_t  req;
     if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))
@@ -366,9 +365,9 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 /* IO ops table, populated with functions. */
 static const MVMIOClosable     closable      = { closefh };
 static const MVMIOEncodable    encodable     = { set_encoding };
-static const MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, eof };
+static const MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, mvm_eof };
 static const MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncatefh };
-static const MVMIOSeekable     seekable      = { seek, tell };
+static const MVMIOSeekable     seekable      = { seek, mvm_tell };
 static const MVMIOLockable     lockable      = { lock, unlock };
 static const MVMIOOps op_table = {
     &closable,
@@ -404,14 +403,14 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         flag = O_CREAT | O_WRONLY | O_APPEND;
     else {
         MVM_free(fname);
-        MVM_exception_throw_adhoc(tc, "Invalid open mode: %d", fmode);
+        MVM_exception_throw_adhoc(tc, "Invalid open mode: %s", fmode);
     }
     MVM_free(fmode);
 
     /* Try to open the file. */
     if ((fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, DEFAULT_MODE, NULL)) < 0) {
         MVM_free(fname);
-        MVM_exception_throw_adhoc(tc, "Failed to open file: %s", uv_strerror(req.result));
+        MVM_exception_throw_adhoc(tc, "Failed to open file %s: %s", fname, uv_strerror(req.result));
     }
 
     /* Set up handle. */

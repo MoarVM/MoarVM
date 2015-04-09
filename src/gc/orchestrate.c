@@ -55,14 +55,12 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : thread %d already stolen (it was a spawning child)\n", to_signal->thread_id);
                 return 0;
             default:
-                MVM_panic(MVM_exitcode_gcorch, "invalid status %d in GC orchestrate\n", MVM_load(&to_signal->gc_status));
+                MVM_panic(MVM_exitcode_gcorch, "invalid status %"MVM_PRSz" in GC orchestrate\n", MVM_load(&to_signal->gc_status));
                 return 0;
         }
     }
 }
 static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t, MVMThread *tail) {
-    MVMInstance *ins = tc->instance;
-    MVMuint32 i;
     MVMuint32 count = 0;
     MVMThread *next;
     if (!t) {
@@ -92,7 +90,7 @@ static MVMuint32 signal_all_but(MVMThreadContext *tc, MVMThread *t, MVMThread *t
                 /* will be cleaned up (removed from the lists) shortly */
                 break;
             default:
-                MVM_panic(MVM_exitcode_gcorch, "Corrupted MVMThread or running threads list: invalid thread stage %d", MVM_load(&t->body.stage));
+                MVM_panic(MVM_exitcode_gcorch, "Corrupted MVMThread or running threads list: invalid thread stage %"MVM_PRSz"", MVM_load(&t->body.stage));
         }
     } while (next && (t = next));
     if (tail)
@@ -268,7 +266,6 @@ static MVMint32 is_full_collection(MVMThreadContext *tc) {
 
 static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     MVMuint8   gen;
-    MVMThread *child;
     MVMuint32  i, n;
 
     /* Decide nursery or full collection. */
@@ -384,7 +381,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         if (!MVM_trycas(&tc->instance->threads, NULL, last_starter))
             MVM_panic(MVM_exitcode_gcorch, "threads list corrupted\n");
         if (MVM_load(&tc->instance->gc_finish) != 0)
-            MVM_panic(MVM_exitcode_gcorch, "Finish votes was %d\n", MVM_load(&tc->instance->gc_finish));
+            MVM_panic(MVM_exitcode_gcorch, "Finish votes was %"MVM_PRSz"\n", MVM_load(&tc->instance->gc_finish));
 
         /* gc_ack gets an extra so the final acknowledger
          * can also free the STables. */
@@ -401,7 +398,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* Signal to the rest to start */
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : coordinator signalling start\n");
         if (MVM_decr(&tc->instance->gc_start) != 1)
-            MVM_panic(MVM_exitcode_gcorch, "Start votes was %d\n", MVM_load(&tc->instance->gc_start));
+            MVM_panic(MVM_exitcode_gcorch, "Start votes was %"MVM_PRSz"\n", MVM_load(&tc->instance->gc_start));
 
         /* Start collecting. */
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : coordinator entering run_gc\n");

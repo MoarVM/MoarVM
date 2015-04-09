@@ -21,6 +21,7 @@
 #include <uv.h>
 
 /* libatomic_ops */
+#define AO_REQUIRE_CAS
 #include <atomic_ops.h>
 
 /* dynload/dyncall/dyncallback */
@@ -131,6 +132,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "spesh/threshold.h"
 #include "spesh/inline.h"
 #include "spesh/osr.h"
+#include "strings/normalize.h"
 #include "strings/decode_stream.h"
 #include "strings/ascii.h"
 #include "strings/utf8.h"
@@ -171,8 +173,12 @@ MVMObject *MVM_backend_config(MVMThreadContext *tc);
 MVM_PUBLIC MVMInstance * MVM_vm_create_instance(void);
 MVM_PUBLIC void MVM_vm_run_file(MVMInstance *instance, const char *filename);
 MVM_PUBLIC void MVM_vm_dump_file(MVMInstance *instance, const char *filename);
-MVM_PUBLIC void MVM_vm_exit(MVMInstance *instance);
+MVM_PUBLIC MVM_NO_RETURN void MVM_vm_exit(MVMInstance *instance) MVM_NO_RETURN_GCC;
 MVM_PUBLIC void MVM_vm_destroy_instance(MVMInstance *instance);
+MVM_PUBLIC void MVM_vm_set_clargs(MVMInstance *instance, int argc, char **argv);
+MVM_PUBLIC void MVM_vm_set_exec_name(MVMInstance *instance, const char *exec_name);
+MVM_PUBLIC void MVM_vm_set_prog_name(MVMInstance *instance, const char *prog_name);
+MVM_PUBLIC void MVM_vm_set_lib_path(MVMInstance *instance, int count, const char **lib_path);
 
 /* Returns original. Use only on AO_t-sized values (including pointers). */
 #define MVM_incr(addr) AO_fetch_and_add1_full((volatile AO_t *)(addr))

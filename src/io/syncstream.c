@@ -24,7 +24,6 @@ void MVM_io_syncstream_set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint
 
 /* Cannot seek a TTY of named pipe (could fake the forward case, probably). */
 void MVM_io_syncstream_seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64 whence) {
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
     MVM_exception_throw_adhoc(tc, "Cannot seek this kind of handle");
 }
 

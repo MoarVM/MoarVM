@@ -1,3 +1,6 @@
+#define MVMPhiNodeCacheSize             48
+#define MVMPhiNodeCacheSparseBegin      32
+
 /* Top level of a spesh graph, representing a particular static frame (and
  * potentially having others inlined into it). */
 struct MVMSpeshGraph {
@@ -93,11 +96,18 @@ struct MVMSpeshGraph {
     MVMuint16          num_temps;
     MVMuint16          alloc_temps;
     MVMSpeshTemporary *temps;
+
+    /* We need to create new MVMOpInfo structs for each number of
+     * arguments a PHI node can take. We cache them here, so that we
+     * allocate fewer of them across our spesh alloc blocks.
+     */
+    MVMOpInfo *phi_infos;
 };
 
 /* The default allocation chunk size for memory blocks used to store spesh
- * graph nodes. Power of two is best. */
-#define MVM_SPESH_MEMBLOCK_SIZE 32768
+ * graph nodes. Power of two is best; we start small also. */
+#define MVM_SPESH_FIRST_MEMBLOCK_SIZE 32768
+#define MVM_SPESH_MEMBLOCK_SIZE       8192
 
 /* A block of bump-pointer allocated memory. */
 struct MVMSpeshMemBlock {
@@ -245,3 +255,4 @@ MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g,
 void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist *worklist);
 void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g);
 MVM_PUBLIC void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes);
+MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 nrargs);

@@ -418,7 +418,7 @@ static void attr_box_target(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegi
 
 /* Creates and installs the KnowHOWAttribute type. */
 static void create_KnowHOWAttribute(MVMThreadContext *tc) {
-    MVMObject      *knowhow_how, *meta_obj, *type_obj;
+    MVMObject      *meta_obj, *type_obj;
     MVMString      *name_str;
     const MVMREPROps     *repr;
 
@@ -542,6 +542,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(name, "name");
     string_creator(attribute, "attribute");
     string_creator(of, "of");
+    string_creator(rw, "rw");
     string_creator(type, "type");
     string_creator(typeobj, "typeobj");
     string_creator(free_str, "free_str");

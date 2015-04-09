@@ -19,8 +19,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMContextBody *src_body  = (MVMContextBody *)src;
-    MVMContextBody *dest_body = (MVMContextBody *)dest;
     MVM_panic(MVM_exitcode_NYI, "MVMContext copy_to NYI");
 }
 

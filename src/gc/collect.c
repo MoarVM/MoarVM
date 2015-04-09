@@ -150,7 +150,6 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
     MVMCollectable   **item_ptr;
     MVMCollectable    *new_addr;
     MVMuint32          gen2count;
-    MVMuint16          i;
 
     /* Grab the second generation allocator; we may move items into the
      * old generation. */
@@ -397,7 +396,6 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
 
 /* Adds a chunk of work to another thread's in-tray. */
 static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, MVMGCPassedWork *work) {
-    MVMint32 j;
     MVMGCPassedWork * volatile *target_tray;
 
     /* Locate the thread to pass the work to. */
@@ -435,7 +433,6 @@ static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable
     ThreadWork *target_info = NULL;
     MVMuint32   target      = (*item_ptr)->owner;
     MVMuint32   j;
-    MVMInstance *i          = tc->instance;
 
     /* Find any existing thread work passing list for the target. */
     if (target == 0)
@@ -628,7 +625,6 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
             char *end_ptr = page + 1 == gen2->size_classes[bin].num_pages
                 ? gen2->size_classes[bin].alloc_pos
                 : cur_ptr + obj_size * MVM_GEN2_PAGE_ITEMS;
-            char **last_insert_pos = NULL;
             while (cur_ptr < end_ptr) {
                 MVMCollectable *col = (MVMCollectable *)cur_ptr;
 

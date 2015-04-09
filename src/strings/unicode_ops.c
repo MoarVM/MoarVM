@@ -41,6 +41,10 @@ MVMString * MVM_unicode_codepoint_get_property_str(MVMThreadContext *tc, MVMGrap
     return MVM_string_ascii_decode(tc, tc->instance->VMString, str, strlen(str));
 }
 
+const char * MVM_unicode_codepoint_get_property_cstr(MVMThreadContext *tc, MVMGrapheme32 codepoint, MVMint64 property_code) {
+    return MVM_unicode_get_property_str(tc, codepoint, property_code);
+}
+
 MVMint64 MVM_unicode_codepoint_get_property_int(MVMThreadContext *tc, MVMGrapheme32 codepoint, MVMint64 property_code) {
     if (property_code == 0)
         return 0;

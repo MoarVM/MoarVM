@@ -68,7 +68,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC);
 
 
-    MVM_jit_log(tc, "Bytecode size: %d\n", codesize);
+    MVM_jit_log(tc, "Bytecode size: %"MVM_PRSz"\n", codesize);
     /* Create code segment */
     code = MVM_malloc(sizeof(MVMJitCode));
     code->func_ptr   = (MVMJitFunc)memory;

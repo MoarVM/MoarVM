@@ -433,6 +433,7 @@ static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
 
 static MVMint64 exists_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
     MVMArrayBody     *body      = (MVMArrayBody *)data;
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
 
     /* Handle negative indexes. */
     if (index < 0) {
@@ -443,7 +444,7 @@ static MVMint64 exists_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         return 0;
     }
 
-    return !MVM_is_null(tc, body->slots.o[body->start + index]);
+    return repr_data->slot_type != MVM_ARRAY_OBJ || !MVM_is_null(tc, body->slots.o[body->start + index]);
 }
 
 static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
@@ -600,7 +601,6 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     if (body->start < 1) {
         MVMuint64 n = 8;
         MVMuint64 elems = body->elems;
-        MVMuint64 i;
 
         /* grow the array */
         set_size_internal(tc, body, elems + n, repr_data);
@@ -864,6 +864,8 @@ static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             case MVM_ARRAY_U8:
                 kind = MVM_reg_int64;
                 break;
+            default:
+                abort(); /* never reached, silence compiler warnings */
         }
         for (i = 0; i < elems1; i++) {
             MVMRegister to_copy;
@@ -916,6 +918,101 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
 }
 
 /* Compose the representation. */
+static void spec_to_repr_data(MVMThreadContext *tc, MVMArrayREPRData *repr_data, const MVMStorageSpec *spec) {
+    switch (spec->boxed_primitive) {
+        case MVM_STORAGE_SPEC_BP_INT:
+            if (spec->is_unsigned) {
+                switch (spec->bits) {
+                    case 64:
+                        repr_data->slot_type = MVM_ARRAY_U64;
+                        repr_data->elem_size = sizeof(MVMuint64);
+                        break;
+                    case 32:
+                        repr_data->slot_type = MVM_ARRAY_U32;
+                        repr_data->elem_size = sizeof(MVMuint32);
+                        break;
+                    case 16:
+                        repr_data->slot_type = MVM_ARRAY_U16;
+                        repr_data->elem_size = sizeof(MVMuint16);
+                        break;
+                    case 8:
+                        repr_data->slot_type = MVM_ARRAY_U8;
+                        repr_data->elem_size = sizeof(MVMuint8);
+                        break;
+                    case 4:
+                        repr_data->slot_type = MVM_ARRAY_U4;
+                        repr_data->elem_size = 0;
+                        break;
+                    case 2:
+                        repr_data->slot_type = MVM_ARRAY_U2;
+                        repr_data->elem_size = 0;
+                        break;
+                    case 1:
+                        repr_data->slot_type = MVM_ARRAY_U1;
+                        repr_data->elem_size = 0;
+                        break;
+                    default:
+                        MVM_exception_throw_adhoc(tc,
+                            "MVMArray: Unsupported uint size");
+                }
+            }
+            else {
+                switch (spec->bits) {
+                    case 64:
+                        repr_data->slot_type = MVM_ARRAY_I64;
+                        repr_data->elem_size = sizeof(MVMint64);
+                        break;
+                    case 32:
+                        repr_data->slot_type = MVM_ARRAY_I32;
+                        repr_data->elem_size = sizeof(MVMint32);
+                        break;
+                    case 16:
+                        repr_data->slot_type = MVM_ARRAY_I16;
+                        repr_data->elem_size = sizeof(MVMint16);
+                        break;
+                    case 8:
+                        repr_data->slot_type = MVM_ARRAY_I8;
+                        repr_data->elem_size = sizeof(MVMint8);
+                        break;
+                    case 4:
+                        repr_data->slot_type = MVM_ARRAY_I4;
+                        repr_data->elem_size = 0;
+                        break;
+                    case 2:
+                        repr_data->slot_type = MVM_ARRAY_I2;
+                        repr_data->elem_size = 0;
+                        break;
+                    case 1:
+                        repr_data->slot_type = MVM_ARRAY_I1;
+                        repr_data->elem_size = 0;
+                        break;
+                    default:
+                        MVM_exception_throw_adhoc(tc,
+                            "MVMArray: Unsupported int size");
+                }
+            }
+            break;
+        case MVM_STORAGE_SPEC_BP_NUM:
+            switch (spec->bits) {
+                case 64:
+                    repr_data->slot_type = MVM_ARRAY_N64;
+                    repr_data->elem_size = sizeof(MVMnum64);
+                    break;
+                case 32:
+                    repr_data->slot_type = MVM_ARRAY_N32;
+                    repr_data->elem_size = sizeof(MVMnum32);
+                    break;
+                default:
+                    MVM_exception_throw_adhoc(tc,
+                        "MVMArray: Unsupported num size");
+            }
+            break;
+        case MVM_STORAGE_SPEC_BP_STR:
+            repr_data->slot_type = MVM_ARRAY_STR;
+            repr_data->elem_size = sizeof(MVMString *);
+            break;
+    }
+}
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMStringConsts         str_consts = tc->instance->str_consts;
     MVMArrayREPRData * const repr_data = (MVMArrayREPRData *)st->REPR_data;
@@ -926,75 +1023,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         if (!MVM_is_null(tc, type)) {
             const MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
-            switch (spec->boxed_primitive) {
-                case MVM_STORAGE_SPEC_BP_INT:
-                    if (spec->is_unsigned) {
-                        switch (spec->bits) {
-                            case 64:
-                                repr_data->slot_type = MVM_ARRAY_U64;
-                                repr_data->elem_size = sizeof(MVMuint64);
-                                break;
-                            case 32:
-                                repr_data->slot_type = MVM_ARRAY_U32;
-                                repr_data->elem_size = sizeof(MVMuint32);
-                                break;
-                            case 16:
-                                repr_data->slot_type = MVM_ARRAY_U16;
-                                repr_data->elem_size = sizeof(MVMuint16);
-                                break;
-                            case 8:
-                                repr_data->slot_type = MVM_ARRAY_U8;
-                                repr_data->elem_size = sizeof(MVMuint8);
-                                break;
-                            default:
-                                MVM_exception_throw_adhoc(tc,
-                                    "MVMArray: Unsupported uint size");
-                        }
-                    }
-                    else {
-                        switch (spec->bits) {
-                            case 64:
-                                repr_data->slot_type = MVM_ARRAY_I64;
-                                repr_data->elem_size = sizeof(MVMint64);
-                                break;
-                            case 32:
-                                repr_data->slot_type = MVM_ARRAY_I32;
-                                repr_data->elem_size = sizeof(MVMint32);
-                                break;
-                            case 16:
-                                repr_data->slot_type = MVM_ARRAY_I16;
-                                repr_data->elem_size = sizeof(MVMint16);
-                                break;
-                            case 8:
-                                repr_data->slot_type = MVM_ARRAY_I8;
-                                repr_data->elem_size = sizeof(MVMint8);
-                                break;
-                            default:
-                                MVM_exception_throw_adhoc(tc,
-                                    "MVMArray: Unsupported int size");
-                        }
-                    }
-                    break;
-                case MVM_STORAGE_SPEC_BP_NUM:
-                    switch (spec->bits) {
-                        case 64:
-                            repr_data->slot_type = MVM_ARRAY_N64;
-                            repr_data->elem_size = sizeof(MVMnum64);
-                            break;
-                        case 32:
-                            repr_data->slot_type = MVM_ARRAY_N32;
-                            repr_data->elem_size = sizeof(MVMnum32);
-                            break;
-                        default:
-                            MVM_exception_throw_adhoc(tc,
-                                "MVMArray: Unsupported num size");
-                    }
-                    break;
-                case MVM_STORAGE_SPEC_BP_STR:
-                    repr_data->slot_type = MVM_ARRAY_STR;
-                    repr_data->elem_size = sizeof(MVMString *);
-                    break;
-            }
+            spec_to_repr_data(tc, repr_data, spec);
         }
     }
 }
@@ -1024,75 +1053,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         const MVMStorageSpec *spec;
         MVM_serialization_force_stable(tc, reader, STABLE(type));
         spec = REPR(type)->get_storage_spec(tc, STABLE(type));
-        switch (spec->boxed_primitive) {
-            case MVM_STORAGE_SPEC_BP_INT:
-                if (spec->is_unsigned) {
-                    switch (spec->bits) {
-                        case 64:
-                            repr_data->slot_type = MVM_ARRAY_U64;
-                            repr_data->elem_size = sizeof(MVMuint64);
-                            break;
-                        case 32:
-                            repr_data->slot_type = MVM_ARRAY_U32;
-                            repr_data->elem_size = sizeof(MVMuint32);
-                            break;
-                        case 16:
-                            repr_data->slot_type = MVM_ARRAY_U16;
-                            repr_data->elem_size = sizeof(MVMuint16);
-                            break;
-                        case 8:
-                            repr_data->slot_type = MVM_ARRAY_U8;
-                            repr_data->elem_size = sizeof(MVMuint8);
-                            break;
-                        default:
-                            MVM_exception_throw_adhoc(tc,
-                                "MVMArray: Unsupported uint size");
-                    }
-                }
-                else {
-                    switch (spec->bits) {
-                        case 64:
-                            repr_data->slot_type = MVM_ARRAY_I64;
-                            repr_data->elem_size = sizeof(MVMint64);
-                            break;
-                        case 32:
-                            repr_data->slot_type = MVM_ARRAY_I32;
-                            repr_data->elem_size = sizeof(MVMint32);
-                            break;
-                        case 16:
-                            repr_data->slot_type = MVM_ARRAY_I16;
-                            repr_data->elem_size = sizeof(MVMint16);
-                            break;
-                        case 8:
-                            repr_data->slot_type = MVM_ARRAY_I8;
-                            repr_data->elem_size = sizeof(MVMint8);
-                            break;
-                        default:
-                            MVM_exception_throw_adhoc(tc,
-                                "MVMArray: Unsupported int size");
-                    }
-                }
-                break;
-            case MVM_STORAGE_SPEC_BP_NUM:
-                switch (spec->bits) {
-                    case 64:
-                        repr_data->slot_type = MVM_ARRAY_N64;
-                        repr_data->elem_size = sizeof(MVMnum64);
-                        break;
-                    case 32:
-                        repr_data->slot_type = MVM_ARRAY_N32;
-                        repr_data->elem_size = sizeof(MVMnum32);
-                        break;
-                    default:
-                        MVM_exception_throw_adhoc(tc,
-                            "MVMArray: Unsupported num size");
-                }
-                break;
-            case MVM_STORAGE_SPEC_BP_STR:
-                repr_data->slot_type = MVM_ARRAY_STR;
-                repr_data->elem_size = sizeof(MVMString *);
-                break;
-        }
+        spec_to_repr_data(tc, repr_data, spec);
     }
 }
 

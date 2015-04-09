@@ -128,7 +128,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
         MVMint32 num_attrs        = MVM_repr_elems(tc, flat_list);
         MVMint32 info_alloc       = num_attrs == 0 ? 1 : num_attrs;
         MVMint32 cur_obj_attr     = 0;
-        MVMint32 cur_str_attr     = 0;
         MVMint32 cur_init_slot    = 0;
         MVMint32 i;
 
@@ -163,7 +162,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
 
                     if (bits % 8) {
                          MVM_exception_throw_adhoc(tc,
-                            "CStruct only supports native types that are a multiple of 8 bits wide (was passed: %ld)", bits);
+                            "CStruct only supports native types that are a multiple of 8 bits wide (was passed: %"PRId32")", bits);
                     }
 
                     repr_data->attribute_locations[i] = (bits << MVM_CSTRUCT_ATTR_SHIFT) | MVM_CSTRUCT_ATTR_IN_STRUCT;
@@ -230,30 +229,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
         if (repr_data->initialize_slots)
             repr_data->initialize_slots[cur_init_slot] = -1;
     }
-}
-
-/* Helper for reading an int at the specified offset. */
-static MVMint32 get_int_at_offset(void *data, MVMint32 offset) {
-    void *location = (char *)data + offset;
-    return *((MVMint32 *)location);
-}
-
-/* Helper for writing an int at the specified offset. */
-static void set_int_at_offset(void *data, MVMint32 offset, MVMint32 value) {
-    void *location = (char *)data + offset;
-    *((MVMint32 *)location) = value;
-}
-
-/* Helper for reading a num at the specified offset. */
-static MVMnum32 get_num_at_offset(void *data, MVMint32 offset) {
-    void *location = (char *)data + offset;
-    return *((MVMnum32 *)location);
-}
-
-/* Helper for writing a num at the specified offset. */
-static void set_num_at_offset(void *data, MVMint32 offset, MVMnum32 value) {
-    void *location = (char *)data + offset;
-    *((MVMnum32 *)location) = value;
 }
 
 /* Helper for reading a pointer at the specified offset. */
@@ -334,9 +309,6 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 /* Copies to the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMCStructREPRData * repr_data = (MVMCStructREPRData *) st->REPR_data;
-    MVMCStructBody *src_body = (MVMCStructBody *)src;
-    MVMCStructBody *dest_body = (MVMCStructBody *)dest;
     MVM_exception_throw_adhoc(tc, "cloning a CStruct is NYI");
 }
 
