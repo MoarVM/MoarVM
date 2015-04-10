@@ -14,11 +14,7 @@ typedef struct {
 } BoolMethReturnData;
 
 MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
-    return str == NULL ||
-           !IS_CONCRETE(str) ||
-           MVM_string_graphs(tc, str) == 0 ||
-           (MVM_string_graphs(tc, str) == 1 && MVM_string_get_grapheme_at_nocheck(tc, str, 0) == 48)
-           ? 0 : 1;
+    return str == NULL || !IS_CONCRETE(str) || MVM_string_graphs(tc, str) == 0 ? 0 : 1;
 }
 
 /* Tries to do the boolification. It may be that a method call is needed. In
