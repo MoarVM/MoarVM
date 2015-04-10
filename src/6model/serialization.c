@@ -906,7 +906,6 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     if (!st->method_cache)
         MVM_serialization_finish_deserialize_method_cache(tc, st);
     MVM_serialization_write_ref(tc, writer, st->method_cache);
-    MVM_serialization_write_int(tc, writer, 0); /* Used to be v-table length. */
 
     /* Type check cache. */
     MVM_serialization_write_int(tc, writer, st->type_check_cache_length);
@@ -2183,10 +2182,13 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, read_obj_ref(tc, reader));
     MVM_ASSIGN_REF(tc, &(st->header), st->WHO, MVM_serialization_read_ref(tc, reader));
 
-    /* Method cache and legacy v-table. */
+    /* Method cache. */
     deserialize_method_cache_lazy(tc, st, reader);
-    if (MVM_serialization_read_int(tc, reader) != 0)
-        MVM_exception_throw_adhoc(tc, "Unexpected deprecated STable vtable entries");
+    if (reader->root.version <= 13) {
+        /* legacy v-table. */
+        if (MVM_serialization_read_int(tc, reader) != 0)
+            MVM_exception_throw_adhoc(tc, "Unexpected deprecated STable vtable entries");
+    }
 
     /* Type check cache. */
     st->type_check_cache_length = MVM_serialization_read_int(tc, reader);
