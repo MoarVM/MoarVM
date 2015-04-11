@@ -185,14 +185,6 @@ static void write_int32(char *buffer, size_t offset, MVMint32 value) {
 #endif
 }
 
-/* Writes an int16 into a buffer. */
-static void write_int16(char *buffer, size_t offset, MVMint16 value) {
-    memcpy(buffer + offset, &value, 2);
-#if MVM_BIGENDIAN
-    switch_endian(buffer + offset, 2);
-#endif
-}
-
 /* Writes an double into a buffer. */
 static void write_double(char *buffer, size_t offset, double value) {
     memcpy(buffer + offset, &value, 8);
@@ -571,7 +563,9 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
 /* Writing function for references to things. */
 void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref) {
     /* Work out what kind of thing we have and determine the discriminator. */
-    MVMint16 discrim = 0;
+    /* Note, we could use 0xFF as the sentinel value, and 0 as a "valid" value.
+     */
+    MVMuint8 discrim = 0;
     if (ref == NULL) {
         discrim = REFVAR_NULL;
     }
@@ -627,9 +621,9 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
     }
 
     /* Write the discriminator. */
-    expand_storage_if_needed(tc, writer, 2);
-    write_int16(*(writer->cur_write_buffer), *(writer->cur_write_offset), discrim);
-    *(writer->cur_write_offset) += 2;
+    expand_storage_if_needed(tc, writer, 1);
+    *(*(writer->cur_write_buffer) + *(writer->cur_write_offset)) = discrim;
+    ++*(writer->cur_write_offset);
 
     /* Now take appropriate action. */
     switch (discrim) {
@@ -1006,7 +1000,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
 
             /* If what we write was an object reference and it's from another
              * SC, add to the internability count. */
-            if (read_int16(*(writer->cur_write_buffer), pre_write_mark) == REFVAR_OBJECT)
+            if (*(*(writer->cur_write_buffer) + pre_write_mark) == REFVAR_OBJECT)
                 if (MVM_sc_get_obj_sc(tc, parameter) != writer->root.sc)
                     internability++;
         }
@@ -1627,14 +1621,19 @@ static MVMObject * read_code_ref(MVMThreadContext *tc, MVMSerializationReader *r
 
 /* Read the reference type discriminator from the buffer. */
 MVM_STATIC_INLINE MVMuint8 read_discrim(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMint16 value;
+    if (reader->root.version < 14) {
+        MVMint16 value;
 
-    assert_can_read(tc, reader, 2);
-    memcpy(&value, *(reader->cur_read_buffer) + *(reader->cur_read_offset), 2);
+        assert_can_read(tc, reader, 2);
+        memcpy(&value, *(reader->cur_read_buffer) + *(reader->cur_read_offset), 2);
 #ifdef MVM_BIGENDIAN
-    switch_endian(&value, 2);
+        switch_endian(&value, 2);
 #endif
-    return value;
+        return value;
+    }
+
+    assert_can_read(tc, reader, 1);
+    return *(*(reader->cur_read_buffer) + *(reader->cur_read_offset));
 }
 
 /* Reading function for references. */
@@ -1642,7 +1641,7 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
     MVMObject *result;
 
     /* Read the discriminator. */
-    const int discrim_size = 2;
+    const int discrim_size = reader->root.version >= 14 ? 1 : 2;
     const MVMuint8 discrim = read_discrim(tc, reader);
     *(reader->cur_read_offset) += discrim_size;
 
@@ -2111,7 +2110,7 @@ static void deserialize_how_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSeriali
  * skips over it. */
 static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     /* Peek ahead at the discriminator. */
-    const int discrim_size = 2;
+    const int discrim_size = reader->root.version >= 14 ? 1 : 2;
     const MVMuint8 discrim = read_discrim(tc, reader);
 
     /* We only know how to lazily handle a hash of code refs or code objects;
