@@ -1310,16 +1310,6 @@ static MVMint32 read_int32(const char *buffer, size_t offset) {
     return value;
 }
 
-/* Read the reference type discriminator from the buffer. */
-MVM_STATIC_INLINE MVMint16 read_discrim(const char *buffer, size_t offset) {
-    MVMint16 value;
-    memcpy(&value, buffer + offset, 2);
-#ifdef MVM_BIGENDIAN
-    switch_endian(&value, 2);
-#endif
-    return value;
-}
-
 /* Reads double from a buffer. */
 static MVMnum64 read_double(const char *buffer, size_t offset) {
     MVMnum64 value;
@@ -1635,15 +1625,25 @@ static MVMObject * read_code_ref(MVMThreadContext *tc, MVMSerializationReader *r
     return MVM_sc_get_code(tc, locate_sc(tc, reader, sc_id), idx);
 }
 
+/* Read the reference type discriminator from the buffer. */
+MVM_STATIC_INLINE MVMuint8 read_discrim(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint16 value;
+
+    assert_can_read(tc, reader, 2);
+    memcpy(&value, *(reader->cur_read_buffer) + *(reader->cur_read_offset), 2);
+#ifdef MVM_BIGENDIAN
+    switch_endian(&value, 2);
+#endif
+    return value;
+}
+
 /* Reading function for references. */
 MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMObject *result;
 
     /* Read the discriminator. */
     const int discrim_size = 2;
-    short discrim;
-    assert_can_read(tc, reader, discrim_size);
-    discrim = read_discrim(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    const MVMuint8 discrim = read_discrim(tc, reader);
     *(reader->cur_read_offset) += discrim_size;
 
     /* Decide what to do based on it. */
@@ -2112,9 +2112,7 @@ static void deserialize_how_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSeriali
 static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     /* Peek ahead at the discriminator. */
     const int discrim_size = 2;
-    short discrim;
-    assert_can_read(tc, reader, discrim_size);
-    discrim = read_discrim(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    const MVMuint8 discrim = read_discrim(tc, reader);
 
     /* We only know how to lazily handle a hash of code refs or code objects;
      * for anything else, don't do it lazily. */
@@ -2137,7 +2135,7 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
 
             /* Ensure we've a coderef or code object. */
             assert_can_read(tc, reader, discrim_size);
-            switch (read_discrim(*(reader->cur_read_buffer), *(reader->cur_read_offset))) {
+            switch (read_discrim(tc, reader)) {
             case REFVAR_OBJECT:
             case REFVAR_STATIC_CODEREF:
             case REFVAR_CLONED_CODEREF:
