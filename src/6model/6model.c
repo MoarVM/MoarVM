@@ -161,7 +161,7 @@ static void late_bound_can_return(MVMThreadContext *tc, void *sr_data) {
 }
 
 MVMint64 MVM_6model_can_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
-    MVMObject *cache, *HOW, *find_method, *code;
+    MVMObject *cache;
 
     if (MVM_is_null(tc, obj))
         MVM_exception_throw_adhoc(tc,
@@ -183,7 +183,7 @@ MVMint64 MVM_6model_can_method_cache_only(MVMThreadContext *tc, MVMObject *obj, 
 }
 
 void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res) {
-    MVMObject *cache, *HOW, *find_method, *code;
+    MVMObject *HOW, *find_method, *code;
     MVMCallsite *findmeth_callsite;
 
     MVMint64 can_cached = MVM_6model_can_method_cache_only(tc, obj, name);
@@ -360,7 +360,6 @@ MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj, M
         MVMuint16 i, elems = STABLE(obj)->type_check_cache_length;
         MVMObject  **cache = STABLE(obj)->type_check_cache;
         if (cache) {
-            MVMint64 mode;
             for (i = 0; i < elems; i++) {
                 if (cache[i] == type) {
                     *result = 1;

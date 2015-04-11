@@ -109,7 +109,6 @@ MVMString * MVM_io_read_string(MVMThreadContext *tc, MVMObject *oshandle, MVMint
 void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "read bytes");
     MVMint64 bytes_read;
-    uv_fs_t req;
     char *buf;
 
     /* Ensure the target is in the correct form. */
@@ -120,7 +119,7 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
         MVM_exception_throw_adhoc(tc, "read_fhb requires a native array of uint8 or int8");
 
     if (length < 1 || length > 99999999)
-        MVM_exception_throw_adhoc(tc, "Out of range: attempted to read %d bytes from filehandle", length);
+        MVM_exception_throw_adhoc(tc, "Out of range: attempted to read %"PRId64" bytes from filehandle", length);
 
     if (handle->body.ops->sync_readable) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
@@ -167,7 +166,6 @@ void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *bu
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "write bytes");
     char *output;
     MVMint64 output_size;
-    MVMint64 bytes_written;
 
     /* Ensure the target is in the correct form. */
     if (!IS_CONCRETE(buffer) || REPR(buffer)->ID != MVM_REPR_ID_MVMArray)
@@ -181,7 +179,7 @@ void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *bu
 
     if (handle->body.ops->sync_writable) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        bytes_written = handle->body.ops->sync_writable->write_bytes(tc, handle, output, output_size);
+        handle->body.ops->sync_writable->write_bytes(tc, handle, output, output_size);
         release_mutex(tc, mutex);
     }
     else

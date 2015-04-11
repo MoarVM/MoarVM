@@ -1,10 +1,11 @@
 #if defined _WIN32
 #define MVM_platform_thread_yield SwitchToThread
-#elif defined(__APPLE__) || defined(__sun) || defined(__NetBSD__) || defined(_POSIX_PRIORITY_SCHEDULING)
+#elif defined MVM_HAS_PTHREAD_YIELD
+#include <pthread.h>
+#define MVM_platform_thread_yield pthread_yield
+#else
 #include <sched.h>
 #define MVM_platform_thread_yield sched_yield
-#else
-#define MVM_platform_thread_yield pthread_yield
 #endif
 
 #if defined _WIN32

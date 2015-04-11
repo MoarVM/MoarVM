@@ -132,7 +132,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 }
 
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
     MVMCArrayBody *body = (MVMCArrayBody *)data;
     const MVMint32 elems = body->elems;
     MVMint32 i;

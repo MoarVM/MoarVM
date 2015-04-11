@@ -53,6 +53,7 @@ typedef struct {
 } Validator;
 
 
+MVM_NO_RETURN static void fail(Validator *val, const char *msg, ...) MVM_FORMAT(printf, 2, 3) MVM_NO_RETURN_GCC;
 static void fail(Validator *val, const char *msg, ...) {
     va_list args;
 
@@ -109,7 +110,7 @@ static void ensure_no_remaining_positionals(Validator *val) {
 }
 
 
-static const MVMOpInfo * get_info(Validator *val, MVMuint16 opcode) {
+MVM_STATIC_INLINE const MVMOpInfo * get_info(Validator *val, MVMuint16 opcode) {
     const MVMOpInfo *info;
 
     if (opcode < MVM_OP_EXT_BASE) {
@@ -137,7 +138,7 @@ static const MVMOpInfo * get_info(Validator *val, MVMuint16 opcode) {
 }
 
 
-static void read_op(Validator *val) {
+MVM_STATIC_INLINE void read_op(Validator *val) {
     MVMuint16  opcode;
     const MVMOpInfo *info;
     MVMuint32  pos;

@@ -57,7 +57,7 @@ sub compile {
         push @objs, $obj;
     }
 
-    my $command = "$config->{ld} $config->{ldout}$leaf @objs  >$devnull 2>&1";
+    my $command = "$config->{ld} $config->{ldout}$leaf @objs $config->{ldlibs} >$devnull 2>&1";
     system $command
         and return;
     return 1;
@@ -312,9 +312,30 @@ EOT
 
     print ::dots('    probing computed goto support');
     my $can_cgoto = compile($config, 'try');
-    $can_cgoto  &&= !system './try';
+    unless ($config->{crossconf}) {
+        $can_cgoto  &&= !system './try';
+    }
     print $can_cgoto ? "YES\n": "NO\n";
     $config->{cancgoto} = $can_cgoto || 0
+}
+
+sub pthread_yield {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    _spew('try.c', <<'EOT');
+#include <stdlib.h>
+#include <pthread.h>
+
+int main(int argc, char **argv) {
+    pthread_yield();
+    return EXIT_SUCCESS;
+}
+EOT
+
+    print ::dots('    probing pthread_yield support');
+    my $has_pthread_yield = compile($config, 'try');
+    print $has_pthread_yield ? "YES\n": "NO\n";
+    $config->{has_pthread_yield} = $has_pthread_yield || 0
 }
 
 '00';

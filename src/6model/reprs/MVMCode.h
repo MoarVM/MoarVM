@@ -16,3 +16,5 @@ struct MVMCode {
 
 /* Function for REPR setup. */
 const MVMREPROps * MVMCode_initialize(MVMThreadContext *tc);
+
+MVM_PUBLIC MVMObject * MVM_code_location(MVMThreadContext *tc, MVMObject *code);

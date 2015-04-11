@@ -44,7 +44,12 @@ struct MVMSerializationRoot {
     MVMint32  num_repos;
     char     *repos_table;
 
-    /* Array of STRINGs. */
+    /* The number of parameterized type intern entries, and the data segment
+     * containing them. */
+    MVMint32  num_param_interns;
+    char     *param_interns_data;
+
+    /* Array of strings making up the string heap. */
     MVMObject *string_heap;
 };
 
@@ -66,11 +71,13 @@ struct MVMSerializationReader {
     MVMint32 stables_data_offset;
     MVMint32 objects_data_offset;
     MVMint32 contexts_data_offset;
+    MVMint32 param_interns_data_offset;
 
     /* Limits up to where we can read stables, objects and contexts data. */
     char *stables_data_end;
     char *objects_data_end;
     char *contexts_data_end;
+    char *param_interns_data_end;
 
     /* Where to find details related to the current buffer we're reading from:
      * the buffer pointer itself, the current offset and the amount that is
@@ -135,12 +142,14 @@ struct MVMSerializationWriter {
     MVMuint32 contexts_table_alloc;
     MVMuint32 contexts_data_alloc;
     MVMuint32 repos_table_alloc;
+    MVMuint32 param_interns_data_alloc;
 
     /* Current offsets for the data chunks (also correspond to the amount of
      * data written in to them). */
     MVMuint32 stables_data_offset;
     MVMuint32 objects_data_offset;
     MVMuint32 contexts_data_offset;
+    MVMuint32 param_interns_data_offset;
 
     /* Where to find details related to the current buffer we're writing in
      * to: the buffer pointer itself, the current offset and the amount that

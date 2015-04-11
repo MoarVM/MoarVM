@@ -282,6 +282,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '',
         noreturnattribute => '__attribute__((noreturn))',
+        formatattribute   => '__attribute__((format(X, Y, Z)))',
     },
 
     clang => {
@@ -303,6 +304,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '',
         noreturnattribute => '__attribute__((noreturn))',
+        formatattribute   => '__attribute__((format(X, Y, Z)))',
     },
 
     cl => {
@@ -324,6 +326,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '__declspec(noreturn)',
         noreturnattribute => '',
+        formatattribute   => '', # TODO
     },
 
     cc => {
@@ -345,6 +348,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '',
         noreturnattribute => '',
+        formatattribute   => '',
     },
 );
 

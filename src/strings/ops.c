@@ -19,7 +19,7 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 }
 #define STRAND_CHECK(tc, s) check_strand_sanity(tc, s);
 #else
-#define STRAND_CHECK(tc, s) 0
+#define STRAND_CHECK(tc, s)
 #endif
 
 /* Allocates strand storage. */
@@ -100,7 +100,6 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
 
 /* Returns the codepoint without doing checks, for internal VM use only. */
 MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index) {
-    MVMStringIndex idx = (MVMStringIndex)index;
     switch (a->body.storage_type) {
     case MVM_STRING_GRAPHEME_32:
         return a->body.storage.blob_32[index];
@@ -220,7 +219,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
 
     /* -1 signifies go to the end of the string; anything less is a bug */
     if (length < -1)
-        MVM_exception_throw_adhoc(tc, "Substring length (%lld) cannot be negative", length);
+        MVM_exception_throw_adhoc(tc, "Substring length (%"PRId64") cannot be negative", length);
 
     /* negative offsets count from the end */
     start_pos = offset < 0 ? offset + agraphs : offset;
@@ -233,7 +232,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
     }
 
     if (end_pos < 0)
-        MVM_exception_throw_adhoc(tc, "Substring end (%lld) cannot be less than 0", end_pos);
+        MVM_exception_throw_adhoc(tc, "Substring end (%"PRId64") cannot be less than 0", end_pos);
 
     /* Ensure we're within bounds. */
     if (start_pos < 0)
@@ -427,9 +426,9 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     if (count == 1)
         return a;
     if (count < 0)
-        MVM_exception_throw_adhoc(tc, "repeat count (%lld) cannot be negative", count);
+        MVM_exception_throw_adhoc(tc, "repeat count (%"PRId64") cannot be negative", count);
     if (count > (1 << 30))
-        MVM_exception_throw_adhoc(tc, "repeat count > %lld arbitrarily unsupported...", (1 << 30));
+        MVM_exception_throw_adhoc(tc, "repeat count > %d arbitrarily unsupported...", (1 << 30));
 
     /* If input string is empty, repeating it is empty. */
     agraphs = MVM_string_graphs(tc, a);
@@ -570,7 +569,7 @@ MVMint64 MVM_string_get_grapheme_at(MVMThreadContext *tc, MVMString *a, MVMint64
     agraphs = MVM_string_graphs(tc, a);
 
     if (index < 0 || index >= agraphs)
-        MVM_exception_throw_adhoc(tc, "Invalid string index: max %lld, got %lld",
+        MVM_exception_throw_adhoc(tc, "Invalid string index: max %"PRId32", got %"PRId64,
             agraphs - 1, index);
 
     return (MVMint64)MVM_string_get_grapheme_at_nocheck(tc, a, index);
@@ -652,7 +651,7 @@ MVMString * MVM_string_decode(MVMThreadContext *tc,
         case MVM_encoding_type_windows1252:
             return MVM_string_windows1252_decode(tc, type_object, Cbuf, byte_length);
         default:
-            MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", encoding_flag);
+            MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
     }
     return NULL;
 }
@@ -671,7 +670,7 @@ char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVM
         case MVM_encoding_type_windows1252:
             return MVM_string_windows1252_encode_substr(tc, s, output_size, start, length);
         default:
-            MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %d", encoding_flag);
+            MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
     }
     return NULL;
 }
@@ -1153,7 +1152,7 @@ MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     MVMStringIndex    blen = MVM_string_graphs(tc, b);
     MVMStringIndex sgraphs = alen < blen ? alen : blen;
     MVMGrapheme32  *buffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
-    MVMStringIndex i, scanlen;
+    MVMStringIndex i;
 
     /* Binary-and up to the length of the shortest string. */
     for (i = 0; i < sgraphs; i++)

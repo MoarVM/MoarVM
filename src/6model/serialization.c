@@ -11,11 +11,11 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 12
-#define MIN_VERSION     9
+#define CURRENT_VERSION 14
+#define MIN_VERSION     13
 
 /* Various sizes (in bytes). */
-#define HEADER_SIZE                 (4 * 16)
+#define HEADER_SIZE                 (4 * 18)
 #define DEP_TABLE_ENTRY_SIZE        8
 #define STABLES_TABLE_ENTRY_SIZE    12
 #define OBJECTS_TABLE_ENTRY_SIZE    16
@@ -24,12 +24,13 @@
 #define REPOS_TABLE_ENTRY_SIZE      16
 
 /* Some guesses. */
-#define DEFAULT_STABLE_DATA_SIZE     4096
-#define STABLES_TABLE_ENTRIES_GUESS  16
-#define OBJECT_SIZE_GUESS            8
-#define CLOSURES_TABLE_ENTRIES_GUESS 16
-#define CONTEXTS_TABLE_ENTRIES_GUESS 4
-#define DEFAULT_CONTEXTS_DATA_SIZE   1024
+#define DEFAULT_STABLE_DATA_SIZE        4096
+#define STABLES_TABLE_ENTRIES_GUESS     16
+#define OBJECT_SIZE_GUESS               8
+#define CLOSURES_TABLE_ENTRIES_GUESS    16
+#define CONTEXTS_TABLE_ENTRIES_GUESS    4
+#define DEFAULT_CONTEXTS_DATA_SIZE      1024
+#define DEFAULT_PARAM_INTERNS_DATA_SIZE 128
 
 /* Possible reference types we can serialize. */
 #define REFVAR_NULL                 1
@@ -200,12 +201,10 @@ static void write_double(char *buffer, size_t offset, double value) {
 #endif
 }
 
-#define STRING_IS_NULL(s) ((s) == NULL)
-
 /* Adds an item to the MVMString heap if needed, and returns the index where
  * it may be found. */
 static MVMint32 add_string_to_heap(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *s) {
-    if (STRING_IS_NULL(s)) {
+    if (s == NULL) {
         /* We ensured that the first entry in the heap represents the null MVMString,
          * so can just hand back 0 here. */
         return 0;
@@ -290,50 +289,63 @@ void MVM_serialization_write_int(MVMThreadContext *tc, MVMSerializationWriter *w
     *(writer->cur_write_offset) += 8;
 }
 
-/* Size of the variable length encoding for a given value. */
-static int varintsize(int64_t value) {
-    if(value < 0)
-        value = -value - 1;
-    if(value < 64) /* 7 bits */
-        return 1;
-    if(value < 8192) /* 14 bits */
-        return 2;
-    if(value < 1048576) /* 21 bits */
-        return 3;
-    if(value < 134217728) /* 28 bits */
-        return 4;
-    if(value < 17179869184LL) /* 35 bits */
-        return 5;
-    if(value < 2199023255552LL) /* 42 bits */
-        return 6;
-    if(value < 281474976710656LL) /* 49 bits */
-        return 7;
-    if(value < 36028797018963968LL) /* 56 bits */
-        return 8;
-    return 9;
-}
-
 /* Writing function for variable sized integers. Writes out a 64 bit value
    using between 1 and 9 bytes. */
 void MVM_serialization_write_varint(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value) {
-    size_t storage_needed = varintsize(value);
-    size_t count = storage_needed;
+    MVMuint8 storage_needed;
     char *buffer;
     size_t offset;
+
+    if (value >= -1 && value <= 126) {
+        storage_needed = 1;
+    } else {
+        const MVMint64 abs_val = value < 0 ? -value - 1 : value;
+
+        if (abs_val <= 0x7FF)
+            storage_needed = 2;
+        else if (abs_val <= 0x000000000007FFFF)
+            storage_needed = 3;
+        else if (abs_val <= 0x0000000007FFFFFF)
+            storage_needed = 4;
+        else if (abs_val <= 0x00000007FFFFFFFF)
+            storage_needed = 5;
+        else if (abs_val <= 0x000007FFFFFFFFFFLL)
+            storage_needed = 6;
+        else if (abs_val <= 0x0007FFFFFFFFFFFFLL)
+            storage_needed = 7;
+        else if (abs_val <= 0x07FFFFFFFFFFFFFFLL)
+            storage_needed = 8;
+        else
+            storage_needed = 9;
+    }
 
     expand_storage_if_needed(tc, writer, storage_needed);
 
     buffer = *(writer->cur_write_buffer);
     offset = *(writer->cur_write_offset);
 
-    while (--count) {
-        buffer[offset++] = (value & 0x7F) | 0x80;
-        value = value >> 7;
-    }
-    if (storage_needed == 9) {
-        buffer[offset] = value;
+    if (storage_needed == 1) {
+        buffer[offset] = 0x80 | (value + 129);
+    } else if (storage_needed == 9) {
+        buffer[offset++] = 0x00;
+        memcpy(buffer + offset, &value, 8);
+#if MVM_BIGENDIAN
+        switch_endian(buffer + offset, 8);
+#endif
     } else {
-        buffer[offset] = value & 0x7F;
+        MVMuint8 rest = storage_needed - 1;
+        MVMint64 nybble = value >> 8 * rest;
+        /* All the other high bits should be the same as the top bit of the
+           nybble we keep. Or we have a bug.  */
+        assert((nybble >> 3) == 0
+               || (nybble >> 3) == ~(MVMuint64)0);
+        buffer[offset++] = (rest << 4) | (nybble & 0xF);
+#if MVM_BIGENDIAN
+        memcpy(buffer + offset, (char *)&value + 8 - rest, rest);
+        switch_endian(buffer + offset, rest);
+#else
+        memcpy(buffer + offset, &value, rest);
+#endif
     }
 
     *(writer->cur_write_offset) += storage_needed;
@@ -690,6 +702,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     output_size += writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE;
     output_size += writer->contexts_data_offset;
     output_size += writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE;
+    output_size += writer->param_interns_data_offset;
 
     /* Allocate a buffer that size. */
     output = (char *)MVM_malloc(output_size);
@@ -758,6 +771,13 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
         writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
     offset += writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE;
 
+    /* Put parameterized type intern data in place. */
+    write_int32(output, 64, offset);
+    write_int32(output, 68, writer->root.num_param_interns);
+    memcpy(output + offset, writer->root.param_interns_data,
+        writer->param_interns_data_offset);
+    offset += writer->param_interns_data_offset;
+
     /* Sanity check. */
     if (offset != output_size)
         MVM_exception_throw_adhoc(tc,
@@ -802,8 +822,59 @@ static void serialize_how_lazy(MVMThreadContext *tc, MVMSerializationWriter *wri
     }
 }
 
+/* Adds an entry to the parameterized type intern section. */
+static void add_param_intern(MVMThreadContext *tc, MVMSerializationWriter *writer,
+                             MVMObject *type, MVMObject *ptype, MVMObject *params) {
+    MVMint64 num_params, i;
+
+    /* Save previous write buffer. */
+    char      **orig_write_buffer = writer->cur_write_buffer;
+    MVMuint32  *orig_write_offset = writer->cur_write_offset;
+    MVMuint32  *orig_write_limit  = writer->cur_write_limit;
+
+    /* Switch to intern data buffer. */
+    writer->cur_write_buffer = &(writer->root.param_interns_data);
+    writer->cur_write_offset = &(writer->param_interns_data_offset);
+    writer->cur_write_limit  = &(writer->param_interns_data_alloc);
+
+    /* Parametric type object reference. */
+    write_obj_ref(tc, writer, ptype);
+
+    /* Indexes in this SC of type object and STable. */
+    expand_storage_if_needed(tc, writer, 12);
+    if (MVM_sc_get_obj_sc(tc, type) != writer->root.sc)
+        MVM_exception_throw_adhoc(tc,
+            "Serialization error: parameterized type to intern not in current SC");
+    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset),
+        MVM_sc_find_object_idx(tc, writer->root.sc, type));
+    *(writer->cur_write_offset) += 4;
+    if (MVM_sc_get_stable_sc(tc, STABLE(type)) != writer->root.sc)
+        MVM_exception_throw_adhoc(tc,
+            "Serialization error: STable of parameterized type to intern not in current SC");
+    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset),
+        MVM_sc_find_stable_idx(tc, writer->root.sc, STABLE(type)));
+    *(writer->cur_write_offset) += 4;
+
+    /* Write parameter count and parameter object refs. */
+    num_params = MVM_repr_elems(tc, params);
+    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset),
+        (MVMint32)num_params);
+    *(writer->cur_write_offset) += 4;
+    for (i = 0; i < num_params; i++)
+        write_obj_ref(tc, writer, MVM_repr_at_pos_o(tc, params, i));
+
+    /* Increment number of parameterization interns. */
+    writer->root.num_param_interns++;
+
+    /* Restore original output buffer. */
+    writer->cur_write_buffer = orig_write_buffer;
+    writer->cur_write_offset = orig_write_offset;
+    writer->cur_write_limit  = orig_write_limit;
+}
+
 /* This handles the serialization of an STable, and calls off to serialize
  * its representation data also. */
+static MVMint16 read_int16(const char *buffer, size_t offset);
 static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
     MVMint64  i;
 
@@ -835,7 +906,6 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     if (!st->method_cache)
         MVM_serialization_finish_deserialize_method_cache(tc, st);
     MVM_serialization_write_ref(tc, writer, st->method_cache);
-    MVM_serialization_write_int(tc, writer, 0); /* Used to be v-table length. */
 
     /* Type check cache. */
     MVM_serialization_write_int(tc, writer, st->type_check_cache_length);
@@ -887,6 +957,55 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     /* If it's a parametric type, save parameterizer. */
     if (st->mode_flags & MVM_PARAMETRIC_TYPE)
         MVM_serialization_write_ref(tc, writer, st->paramet.ric.parameterizer);
+
+    /* If it's a parameterized type, we may also need to make an intern table
+     * entry as well as writing out the parameter details. */
+    if (st->mode_flags & MVM_PARAMETERIZED_TYPE) {
+        MVMint64 i, num_params;
+
+        /* To deserve an entry in the intern table, we need that both the type
+         * being parameterized and all of the arguments are from an SC other
+         * than the one we're currently serializing. Otherwise, there is no
+         * way the parameterized type in question could have been produced by
+         * another compilation unit. We keep a counter of things, which should
+         * add up to parameters + 1 if we need the intern entry. */
+        MVMuint32 internability = 0;
+
+        /* Write a reference to the type being parameterized, and increment the
+         * internability if it's from a different SC (easier to check that after,
+         * as writing the ref will be sure to mark it as being in this one if it
+         * has no SC yet). */
+        MVMObject *ptype  = st->paramet.erized.parametric_type;
+        MVMObject *params = st->paramet.erized.parameters;
+        MVM_serialization_write_ref(tc, writer, ptype);
+        if (MVM_sc_get_obj_sc(tc, ptype) != writer->root.sc)
+            internability++;
+
+        /* Write the parameters. We write them like an array, but an element at a
+         * time so we can check if an intern table entry is needed. */
+        num_params = MVM_repr_elems(tc, params);
+        expand_storage_if_needed(tc, writer, 4);
+        write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), num_params);
+        *(writer->cur_write_offset) += 4;
+        for (i = 0; i < num_params; i++) {
+            /* Save where we were before writing this parameter. */
+            size_t pre_write_mark = *(writer->cur_write_offset);
+
+            /* Write parameter. */
+            MVMObject *parameter = MVM_repr_at_pos_o(tc, params, i);
+            MVM_serialization_write_ref(tc, writer, parameter);
+
+            /* If what we write was an object reference and it's from another
+             * SC, add to the internability count. */
+            if (read_int16(*(writer->cur_write_buffer), pre_write_mark) == REFVAR_OBJECT)
+                if (MVM_sc_get_obj_sc(tc, parameter) != writer->root.sc)
+                    internability++;
+        }
+
+        /* Make intern table entry if needed. */
+        if (internability == num_params + 1)
+            add_param_intern(tc, writer, st->WHAT, ptype, params);
+    }
 
     /* Store offset we save REPR data at. */
     write_int32(writer->root.stables_table, offset + 8, writer->stables_data_offset);
@@ -986,7 +1105,6 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     writer->cur_write_limit  = &(writer->contexts_data_alloc);
 
     /* Serialize lexicals. */
-
     MVM_serialization_write_int(tc, writer, sf->body.num_lexicals);
     for (i = 0; i < sf->body.num_lexicals; i++) {
         MVM_serialization_write_str(tc, writer, lexnames[i]->key);
@@ -1129,6 +1247,8 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer->root.contexts_table      = (char *)MVM_malloc(writer->contexts_table_alloc);
     writer->contexts_data_alloc      = DEFAULT_CONTEXTS_DATA_SIZE;
     writer->root.contexts_data       = (char *)MVM_malloc(writer->contexts_data_alloc);
+    writer->param_interns_data_alloc = DEFAULT_PARAM_INTERNS_DATA_SIZE;
+    writer->root.param_interns_data  = (char *)MVM_malloc(writer->param_interns_data_alloc);
 
     /* Initialize MVMString heap so first entry is the NULL MVMString. */
     MVM_repr_push_s(tc, empty_string_heap, NULL);
@@ -1147,6 +1267,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     MVM_free(writer->root.stables_data);
     MVM_free(writer->root.objects_table);
     MVM_free(writer->root.objects_data);
+    MVM_free(writer->root.param_interns_data);
     MVM_free(writer);
 
     /* Exit gen2 allocation. */
@@ -1203,7 +1324,7 @@ static MVMnum64 read_double(const char *buffer, size_t offset) {
 /* If deserialization should fail, cleans up before throwing an exception. */
 MVM_NO_RETURN
 static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
-                             const char *messageFormat, ...) MVM_NO_RETURN_GCC;
+                             const char *messageFormat, ...) MVM_NO_RETURN_GCC MVM_FORMAT(printf, 3, 4);
 MVM_NO_RETURN
 static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reader,
         const char *messageFormat, ...) {
@@ -1248,7 +1369,7 @@ static MVMSTable * lookup_stable(MVMThreadContext *tc, MVMSerializationReader *r
 }
 
 /* Ensure that we aren't going to read off the end of the buffer. */
-static void assert_can_read(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 amount) {
+MVM_STATIC_INLINE void assert_can_read(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 amount) {
     char *read_end = *(reader->cur_read_buffer) + *(reader->cur_read_offset) + amount;
     if (read_end > *(reader->cur_read_end))
         fail_deserialize(tc, reader,
@@ -1266,7 +1387,7 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
 
 /* Reading function for variable-sized integers, using between 1 and 9 bytes of
  * storage for an int64. */
-MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
+static MVMint64 read_varint_v13(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint64 result = 0;
     MVMuint8 *const start = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
     MVMuint8 *const read_end = (MVMuint8 *) *(reader->cur_read_end);
@@ -1305,6 +1426,84 @@ MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationRea
     }
 
     *(reader->cur_read_offset) += p + 1 - start;
+    return result;
+}
+
+/* The format chosen may not be quite the most space efficient for the values
+   that we store, but the intent it is that close to smallest whilst very
+   efficient to read. In particular, it doesn't require any looping, and
+   has at most two length overrun checks.  */
+
+MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint64 result;
+    const MVMuint8 *read_at = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
+    MVMuint8 *const read_end = (MVMuint8 *) *(reader->cur_read_end);
+    MVMuint8 first;
+    MVMuint8 need;
+
+    if (reader->root.version <= 13)
+        return read_varint_v13(tc, reader);
+
+    if (read_at >= read_end)
+        fail_deserialize(tc, reader,
+                         "Read past end of serialization data buffer");
+
+    first = *read_at++;
+
+    /* Top bit set means remaining 7 bits are a value between -1 and 126.
+       (That turns out to be the most common 7 bit range that we serialize.)  */
+    if (first & 0x80) {
+        *(reader->cur_read_offset) += 1;
+        /* Value we have is 128 to 255. Map it back to the range we need:  */
+        return (MVMint64) first - 129;
+    }
+
+    /* Otherwise next 3 bits indicate how many more bytes follow. */
+    need = first >> 4;
+    if (!need) {
+        /* Have to read all 8 bytes. Ignore the bottom nybble.
+           In future, we may want to use it to also store 15 possible "common"
+           values. Not clear if that whould be best as a fixed table, a single
+           table sent as part of the serialization blob, or multiple tables for
+           different contexts (int32, int64, nativeint, others?)  */
+        if (read_at + 8 > read_end)
+            fail_deserialize(tc, reader,
+                             "Read past end of serialization data buffer");
+
+        memcpy(&result, read_at, 8);
+#ifdef MVM_BIGENDIAN
+        switch_endian(&result, 8);
+#endif
+        *(reader->cur_read_offset) += 9;
+        return result;
+    }
+
+    if (read_at + need > read_end)
+        fail_deserialize(tc, reader,
+                         "Read past end of serialization data buffer");
+
+    /* The bottom nybble of the first byte is the highest byte of the final
+       value with any bits set. Right now the top nybble is garbage, but it
+       gets flushed away with the sign extension shifting later.  */
+    result = (MVMint64)first << 8 * need;
+
+    /* The remaining 1 to 7 lower bytes follow next in the serialization stream.
+     */
+#if MVM_BIGENDIAN
+    {
+        MVMuint8 *write_to = (MVMuint8 *)&result + 8 - need;
+        memcpy(write_to, read_at, need);
+        switch_endian(write_to, need);
+    }
+#else
+    memcpy(&result, read_at, need);
+#endif
+
+    /* Having pieced the (unsigned) value back together, sign extend it:  */
+    result = result << (64 - 4 - 8 * need);
+    result = result >> (64 - 4 - 8 * need);
+
+    *(reader->cur_read_offset) += need + 1;
     return result;
 }
 
@@ -1378,23 +1577,6 @@ static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReade
 
     /* Set the SC. */
     MVM_sc_set_obj_sc(tc, result, reader->root.sc);
-
-    return result;
-}
-
-/* Reads in an array of integers. */
-static MVMObject * read_array_int(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
-    MVMint32 elems, i;
-
-    /* Read the element count. */
-    assert_can_read(tc, reader, 4);
-    elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-    *(reader->cur_read_offset) += 4;
-
-    /* Read in the elements. */
-    for (i = 0; i < elems; i++)
-        MVM_repr_bind_pos_i(tc, result, i, MVM_serialization_read_int(tc, reader));
 
     return result;
 }
@@ -1524,6 +1706,7 @@ MVMSTable * MVM_serialization_read_stable_ref(MVMThreadContext *tc, MVMSerializa
 static void check_and_dissect_input(MVMThreadContext *tc,
         MVMSerializationReader *reader, MVMString *data_str) {
     size_t  data_len;
+    size_t  header_size;
     char   *data;
     char   *prov_pos;
     char   *data_end;
@@ -1561,11 +1744,15 @@ static void check_and_dissect_input(MVMThreadContext *tc,
             "Unsupported serialization format version %d (current version is %d)",
             reader->root.version, CURRENT_VERSION);
 
+    /* Pick header size by version. */
+    /* See blame history for the next line if you change the header size:  */
+    header_size = HEADER_SIZE;
+
     /* Ensure that the data is at least as long as the header is expected to be. */
-    if (data_len < HEADER_SIZE)
+    if (data_len < header_size)
         fail_deserialize(tc, reader,
-            "Serialized data shorter than header (< %d bytes)", HEADER_SIZE);
-    prov_pos += HEADER_SIZE;
+            "Serialized data shorter than header (< %"MVM_PRSz" bytes)", header_size);
+    prov_pos += header_size;
 
     /* Get size and location of dependencies table. */
     reader->root.dependencies_table = data + read_int32(data, 4);
@@ -1663,10 +1850,22 @@ static void check_and_dissect_input(MVMThreadContext *tc,
         fail_deserialize(tc, reader,
             "Corruption detected (repossessions table overruns end of data)");
 
+    /* Get location and number of entries in the interns data section. */
+    reader->root.param_interns_data = data + read_int32(data, 64);
+    reader->root.num_param_interns  = read_int32(data, 68);
+    if (reader->root.param_interns_data < prov_pos)
+        fail_deserialize(tc, reader,
+            "Corruption detected (parameterization interns data starts before repossessions table ends)");
+    prov_pos = reader->root.param_interns_data;
+    if (prov_pos > data_end)
+        fail_deserialize(tc, reader,
+            "Corruption detected (parameterization interns data overruns end of data)");
+
     /* Set reading limits for data chunks. */
-    reader->stables_data_end = reader->root.objects_table;
-    reader->objects_data_end = reader->root.closures_table;
-    reader->contexts_data_end = reader->root.repos_table;
+    reader->stables_data_end       = reader->root.objects_table;
+    reader->objects_data_end       = reader->root.closures_table;
+    reader->contexts_data_end      = reader->root.repos_table;
+    reader->param_interns_data_end = data_end;
 }
 
 /* Goes through the dependencies table and resolves the dependencies that it
@@ -1684,8 +1883,9 @@ static void resolve_dependencies(MVMThreadContext *tc, MVMSerializationReader *r
             MVMString *desc = read_string_from_heap(tc, reader, read_int32(table_pos, 4));
             if (!desc) desc = handle;
             fail_deserialize(tc, reader,
-                "Missing or wrong version of dependency '%s'",
-                MVM_string_ascii_encode(tc, desc, NULL));
+                "Missing or wrong version of dependency '%s' (from '%s')",
+                MVM_string_ascii_encode(tc, desc, NULL),
+                MVM_string_ascii_encode(tc, reader->root.sc->body->description, NULL));
         }
         reader->root.dependent_scs[i] = sc;
         table_pos += 8;
@@ -1969,6 +2169,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Calculate location of STable's table row. */
     char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
+    MVMString *hll_name;
 
     /* Set STable read position, and set current read buffer to the correct thing. */
     reader->stables_data_offset = read_int32(st_table_row, 4);
@@ -1981,10 +2182,13 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, read_obj_ref(tc, reader));
     MVM_ASSIGN_REF(tc, &(st->header), st->WHO, MVM_serialization_read_ref(tc, reader));
 
-    /* Method cache and legacy v-table. */
+    /* Method cache. */
     deserialize_method_cache_lazy(tc, st, reader);
-    if (MVM_serialization_read_int(tc, reader) != 0)
-        MVM_exception_throw_adhoc(tc, "Unexpected deprecated STable vtable entries");
+    if (reader->root.version <= 13) {
+        /* legacy v-table. */
+        if (MVM_serialization_read_int(tc, reader) != 0)
+            MVM_exception_throw_adhoc(tc, "Unexpected deprecated STable vtable entries");
+    }
 
     /* Type check cache. */
     st->type_check_cache_length = MVM_serialization_read_int(tc, reader);
@@ -1996,6 +2200,9 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Mode flags. */
     st->mode_flags = MVM_serialization_read_int(tc, reader);
+    if (st->mode_flags & MVM_PARAMETRIC_TYPE && st->mode_flags & MVM_PARAMETERIZED_TYPE)
+        fail_deserialize(tc, reader,
+            "STable mode flags cannot indicate both parametric and parameterized");
 
     /* Boolification spec. */
     if (MVM_serialization_read_int(tc, reader)) {
@@ -2019,33 +2226,51 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
         st->invocation_spec->hint = MVM_serialization_read_int(tc, reader);
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->invocation_handler, MVM_serialization_read_ref(tc, reader));
-        if (reader->root.version >= 11) {
-            MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_class_handle, MVM_serialization_read_ref(tc, reader));
-            MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_cache_attr_name, MVM_serialization_read_str(tc, reader));
-            st->invocation_spec->md_cache_hint = MVM_serialization_read_int(tc, reader);
-            MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_valid_attr_name, MVM_serialization_read_str(tc, reader));
-            st->invocation_spec->md_valid_hint = MVM_serialization_read_int(tc, reader);
-        }
+        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_class_handle, MVM_serialization_read_ref(tc, reader));
+        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_cache_attr_name, MVM_serialization_read_str(tc, reader));
+        st->invocation_spec->md_cache_hint = MVM_serialization_read_int(tc, reader);
+        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_valid_attr_name, MVM_serialization_read_str(tc, reader));
+        st->invocation_spec->md_valid_hint = MVM_serialization_read_int(tc, reader);
     }
 
     /* HLL owner. */
-    if (reader->root.version >= 11) {
-        MVMString *hll_name = MVM_serialization_read_str(tc, reader);
-        if (hll_name)
-            st->hll_owner = MVM_hll_get_config_for(tc, hll_name);
-    }
+    hll_name = MVM_serialization_read_str(tc, reader);
+    if (hll_name)
+        st->hll_owner = MVM_hll_get_config_for(tc, hll_name);
 
     /* If it's a parametric type... */
-    if (reader->root.version >= 12) {
-        if (st->mode_flags & MVM_PARAMETRIC_TYPE) {
-            /* Create empty lookup table. */
+    if (st->mode_flags & MVM_PARAMETRIC_TYPE) {
+        /* Create empty lookup table, unless we were beat to it. */
+        if (!st->paramet.ric.lookup) {
             MVMObject *lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
             MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.lookup, lookup);
-
-            /* Deserialize parameterizer. */
-            MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.parameterizer,
-                MVM_serialization_read_ref(tc, reader));
         }
+
+        /* Deserialize parameterizer. */
+        MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.parameterizer,
+                       MVM_serialization_read_ref(tc, reader));
+    }
+
+    /* If it's a parameterized type... */
+    if (st->mode_flags & MVM_PARAMETERIZED_TYPE) {
+        MVMObject *lookup;
+
+        /* Deserialize parametric type and parameters. */
+        MVMObject *ptype  = MVM_serialization_read_ref(tc, reader);
+        MVMObject *params = read_array_var(tc, reader);
+
+        /* Attach them to the STable. */
+        MVM_ASSIGN_REF(tc, &(st->header), st->paramet.erized.parametric_type, ptype);
+        MVM_ASSIGN_REF(tc, &(st->header), st->paramet.erized.parameters, params);
+
+        /* Add a mapping into the lookup list of the parameteric type. */
+        lookup = STABLE(ptype)->paramet.ric.lookup;
+        if (!lookup) {
+            lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+            MVM_ASSIGN_REF(tc, &(STABLE(ptype)->header), STABLE(ptype)->paramet.ric.lookup, lookup);
+        }
+        MVM_repr_push_o(tc, lookup, params);
+        MVM_repr_push_o(tc, lookup, st->WHAT);
     }
 
     /* If the REPR has a function to deserialize representation data, call it. */
@@ -2367,6 +2592,48 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
     }
 }
 
+/* This goes through the entries in the parameterized types interning section,
+ * if any. For each, if we already deserialized the parameterization from a
+ * different compilation unit or created it in something we already compiled,
+ * we just use that existing parameterization. */
+static void resolve_param_interns(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint32 iidx;
+
+    /* Switch to reading the parameterization segment. */
+    reader->cur_read_buffer = &(reader->root.param_interns_data);
+    reader->cur_read_offset = &(reader->param_interns_data_offset);
+    reader->cur_read_end    = &(reader->param_interns_data_end);
+
+    /* Go over all the interns we have. */
+    for (iidx = 0; iidx < reader->root.num_param_interns; iidx++) {
+        MVMObject *params, *matching;
+        MVMint32   num_params, i;
+
+        /* Resolve the parametric type. */
+        MVMObject *ptype = read_obj_ref(tc, reader);
+
+        /* Read indexes where type object and STable will get placed if a
+         * matching intern is found. */
+        MVMint32 type_idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        MVMint32 st_idx   = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset) + 4);
+        *(reader->cur_read_offset) += 8;
+
+        /* Read parameters and push into array. */
+        num_params = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 4;
+        params = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+        for (i = 0; i < num_params; i++)
+            MVM_repr_push_o(tc, params, read_obj_ref(tc, reader));
+
+        /* Try to find a matching parameterization. */
+        matching = MVM_6model_parametric_try_find_parameterization(tc, STABLE(ptype), params);
+        if (matching) {
+            MVM_sc_set_object(tc, reader->root.sc, type_idx, matching);
+            MVM_sc_set_stable(tc, reader->root.sc, st_idx, STABLE(matching));
+        }
+    }
+}
+
 /* Takes serialized data, an empty SerializationContext to deserialize it into,
  * a strings heap and the set of static code refs for the compilation unit.
  * Deserializes the data into the required objects and STables. */
@@ -2429,6 +2696,10 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     REPR(codes_static)->pos_funcs.set_elems(tc, STABLE(codes_static),
         codes_static, OBJECT_BODY(codes_static),
         scodes + reader->root.num_closures);
+
+    /* Handle any type parameterization interning, menaing we should not
+     * deserialize our own versions of things. */
+    resolve_param_interns(tc, reader);
 
     /* If we're repossessing STables and objects from other SCs, then first
       * get those raw objects into our root set. Note we do all the STables,

@@ -185,7 +185,6 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
 /* Checks if the end of file has been reached. */
 static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 r;
     MVMint64 seek_pos;
     uv_fs_t  req;
     if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))
@@ -404,14 +403,14 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         flag = O_CREAT | O_WRONLY | O_APPEND;
     else {
         MVM_free(fname);
-        MVM_exception_throw_adhoc(tc, "Invalid open mode: %d", fmode);
+        MVM_exception_throw_adhoc(tc, "Invalid open mode: %s", fmode);
     }
     MVM_free(fmode);
 
     /* Try to open the file. */
     if ((fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, DEFAULT_MODE, NULL)) < 0) {
         MVM_free(fname);
-        MVM_exception_throw_adhoc(tc, "Failed to open file: %s", uv_strerror(req.result));
+        MVM_exception_throw_adhoc(tc, "Failed to open file %s: %s", fname, uv_strerror(req.result));
     }
 
     /* Set up handle. */

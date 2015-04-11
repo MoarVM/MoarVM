@@ -32,7 +32,6 @@ void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
 MVMObject *MVM_intcache_get(MVMThreadContext *tc, MVMObject *type, MVMint64 value) {
     int type_index;
     int right_slot = -1;
-    MVMObject *result;
 
     if (value < 0 || value >= 16)
         return NULL;

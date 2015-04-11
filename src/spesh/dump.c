@@ -19,6 +19,7 @@ static void append(DumpStr *ds, char *to_add) {
 }
 
 /* Formats a string and then appends it. */
+MVM_FORMAT(printf, 2, 3)
 static void appendf(DumpStr *ds, const char *fmt, ...) {
     char *c_message = MVM_malloc(1024);
     va_list args;
@@ -147,16 +148,16 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             appendf(ds, "BB(%d)", cur_ins->operands[i].ins_bb->idx);
                             break;
                         case MVM_operand_int8:
-                            appendf(ds, "liti8(%d)", cur_ins->operands[i].lit_i8);
+                            appendf(ds, "liti8(%"PRId8")", cur_ins->operands[i].lit_i8);
                             break;
                         case MVM_operand_int16:
-                            appendf(ds, "liti16(%d)", cur_ins->operands[i].lit_i16);
+                            appendf(ds, "liti16(%"PRId16")", cur_ins->operands[i].lit_i16);
                             break;
                         case MVM_operand_int32:
-                            appendf(ds, "liti32(%d)", cur_ins->operands[i].lit_i32);
+                            appendf(ds, "liti32(%"PRId32")", cur_ins->operands[i].lit_i32);
                             break;
                         case MVM_operand_int64:
-                            appendf(ds, "liti64(%d)", cur_ins->operands[i].lit_i64);
+                            appendf(ds, "liti64(%"PRId64")", cur_ins->operands[i].lit_i64);
                             break;
                         case MVM_operand_num32:
                             appendf(ds, "litn32(%f)", cur_ins->operands[i].lit_n32);
@@ -170,8 +171,18 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             MVM_free(cstr);
                             break;
                         }
+                        case MVM_operand_callsite: {
+                            MVMCallsite *callsite = g->sf->body.cu->body.callsites[cur_ins->operands[i].callsite_idx];
+                            appendf(ds, "callsite(%p, %d arg, %d pos, %s, %s)",
+                                    callsite,
+                                    callsite->arg_count, callsite->num_pos,
+                                    callsite->has_flattening ? "flattening" : "nonflattening",
+                                    callsite->is_interned ? "interned" : "noninterned");
+                            break;
+
+                        }
                         case MVM_operand_spesh_slot:
-                            appendf(ds, "sslot(%d)", cur_ins->operands[i].lit_i16);
+                            appendf(ds, "sslot(%"PRId16")", cur_ins->operands[i].lit_i16);
                             break;
                         default:
                             append(ds, "<nyi(lit)>");

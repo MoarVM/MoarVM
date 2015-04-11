@@ -15,6 +15,7 @@
 /* Various compiler-specific pragmii. */
 #define MVM_NO_RETURN @noreturnspecifier@
 #define MVM_NO_RETURN_GCC @noreturnattribute@
+#define MVM_FORMAT(X, Y, Z) @formatattribute@
 
 /* DLL interface definitions. */
 #define MVM_DLL_IMPORT @dllimport@
@@ -30,6 +31,11 @@
 /* Readline detection */
 #if @hasreadline@
 #define MVM_HAS_READLINE @hasreadline@
+#endif
+
+/* pthread_yield() detection */
+#if @has_pthread_yield@
+#define MVM_HAS_PTHREAD_YIELD @has_pthread_yield@
 #endif
 
 /* How this compiler does static inline functions. */

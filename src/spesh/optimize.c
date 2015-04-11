@@ -1403,7 +1403,6 @@ static void eliminate_dead_ins(MVMThreadContext *tc, MVMSpeshGraph *g) {
 }
 
 static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
-    MVMSpeshCallInfo arg_info;
     MVMint32 i;
 
     /* Look for instructions that are interesting to optimize. */

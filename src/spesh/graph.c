@@ -755,7 +755,7 @@ static void add_to_frontier_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
     target->num_df++;
 }
 static void add_dominance_frontiers(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo, MVMint32 *doms) {
-    MVMint32 i, j;
+    MVMint32 j;
     MVMSpeshBB *b = g->entry;
     while (b) {
         if (b->num_pred >= 2) { /* Thus it's a join point */

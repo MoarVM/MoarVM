@@ -30,7 +30,7 @@ GetOptions(\%args, qw(
     help|?
     debug:s optimize:s instrument!
     os=s shell=s toolchain=s compiler=s
-    cc=s ld=s make=s has-sha has-libuv
+    ar=s cc=s ld=s make=s has-sha has-libuv
     static use-readline has-libtommath has-libatomic_ops
     has-dyncall has-linenoise
     build=s host=s big-endian jit! enable-jit lua=s has-dynasm
@@ -103,7 +103,7 @@ $config{osvers} = $Config{osvers};
 $config{lua} = $args{lua} // './3rdparty/dynasm/minilua@exe@';
 
 # set options that take priority over all others
-my @keys = qw( cc ld make );
+my @keys = qw( ar cc ld make );
 @config{@keys} = @args{@keys};
 
 for (keys %defaults) {
@@ -362,6 +362,7 @@ else {
 }
 
 build::probe::computed_goto(\%config, \%defaults);
+build::probe::pthread_yield(\%config, \%defaults);
 
 my $order = $config{be} ? 'big endian' : 'little endian';
 
@@ -720,7 +721,7 @@ __END__
 
     ./Configure.pl [--os <os>] [--shell <shell>]
                    [--toolchain <toolchain>] [--compiler <compiler>]
-                   [--cc <cc>] [--ld <ld>] [--make <make>]
+                   [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
                    [--static] [--use-readline] [--prefix]
                    [--has-libtommath] [--has-sha] [--has-libuv]
@@ -728,7 +729,7 @@ __END__
                    [--lua <lua>] [--asan] [--no-jit]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
-                   [--cc <cc>] [--ld <ld>] [--make <make>]
+                   [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
                    [--static] [--big-endian] [--prefix]
                    [--lua <lua>] [--make-install]
@@ -786,6 +787,11 @@ Currently supported toolchains are C<posix>, C<gnu>, C<bsd> and C<msvc>.
 =item --compiler <compiler>
 
 Currently supported compilers are C<gcc>, C<clang> and C<cl>.
+
+=item --ar <ar>
+
+Explicitly set the archiver without affecting other configuration
+options.
 
 =item --cc <cc>
 

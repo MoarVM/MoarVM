@@ -6,50 +6,12 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
-/* If an object gets mixed in to, we need to be sure we look at its real body,
- * which may have been moved to hang off the specified pointer.
- *
- * NB: This has been hardcoded into the jit compilation. Thus, consider it
- * set into stone :-). That is the price you pay for disintermediation. */
-MVM_PUBLIC void * MVM_p6opaque_real_data(MVMThreadContext *tc, void *data) {
-    MVMP6opaqueBody *body = (MVMP6opaqueBody *)data;
-    return body->replaced ? body->replaced : data;
-}
-
 /* Helpers for reading/writing values. */
-static MVMint64 get_int_at_offset(void *data, MVMint64 offset) {
-    void *location = (char *)data + offset;
-    return *((MVMint64 *)location);
-}
-static void set_int_at_offset(void *data, MVMint64 offset, MVMint64 value) {
-    void *location = (char *)data + offset;
-    *((MVMint64 *)location) = value;
-}
-static MVMnum64 get_num_at_offset(void *data, MVMint64 offset) {
-    void *location = (char *)data + offset;
-    return *((MVMnum64 *)location);
-}
-static void set_num_at_offset(void *data, MVMint64 offset, MVMnum64 value) {
-    void *location = (char *)data + offset;
-    *((MVMnum64 *)location) = value;
-}
-static MVMString * get_str_at_offset(void *data, MVMint64 offset) {
-    void *location = (char *)data + offset;
-    return *((MVMString **)location);
-}
-static void set_str_at_offset(MVMThreadContext *tc, MVMObject *root, void *data, MVMint64 offset, MVMString *value) {
-    void *location = (char *)data + offset;
-    MVM_ASSIGN_REF(tc, &(root->header), *((MVMString **)location), value);
-}
-static MVMObject * get_obj_at_offset(void *data, MVMint64 offset) {
+MVM_STATIC_INLINE MVMObject * get_obj_at_offset(void *data, MVMint64 offset) {
     void *location = (char *)data + offset;
     return *((MVMObject **)location);
 }
-static MVMObject * get_obj_at_offset_direct(void *data, MVMint64 offset) {
-    void *location = (char *)data + offset;
-    return *((MVMObject **)location);
-}
-static void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, void *data, MVMint64 offset, MVMObject *value) {
+MVM_STATIC_INLINE void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, void *data, MVMint64 offset, MVMObject *value) {
     void *location = (char *)data + offset;
     MVM_ASSIGN_REF(tc, &(root->header), *((MVMObject **)location), value);
 }
@@ -265,7 +227,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         case MVM_reg_obj:
         {
             if (!attr_st) {
-                MVMObject *result = get_obj_at_offset_direct(data, repr_data->attribute_offsets[slot]);
+                MVMObject *result = get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
                 if (result) {
                     result_reg->o = result;
                 }
@@ -1428,7 +1390,6 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
             if (slot >= 0 && repr_data->flattened_stables[slot]) {
                 MVMSTable      *flat_st = repr_data->flattened_stables[slot];
-                const MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
                 if (flat_st->REPR->ID == MVM_REPR_ID_P6str) {
                     if (opcode == MVM_OP_getattrs_s)
                         MVM_spesh_get_facts(tc, g, ins->operands[3])->usages--;
@@ -1507,7 +1468,6 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             MVMint64 slot = try_get_slot(tc, repr_data, ch_facts->type, name);
             if (slot >= 0 && repr_data->flattened_stables[slot]) {
                 MVMSTable      *flat_st = repr_data->flattened_stables[slot];
-                const MVMStorageSpec *flat_ss = flat_st->REPR->get_storage_spec(tc, flat_st);
                 if (flat_st->REPR->ID == MVM_REPR_ID_P6str) {
                     if (opcode == MVM_OP_bindattrs_s)
                         MVM_spesh_get_facts(tc, g, ins->operands[2])->usages--;

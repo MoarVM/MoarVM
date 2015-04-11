@@ -214,8 +214,6 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
     MVMCollectable **gen2roots = tc->gen2roots;
     MVMuint32        num_roots = tc->num_gen2roots;
     MVMuint32        i;
-    MVMCollectable **cur_item_ptr;
-    MVMFrame        *cur_frame;
 
     /* We'll remove some entries from this list. The algorithm is simply to
      * slide all that stay towards the start of the array. */

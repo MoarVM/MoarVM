@@ -34,8 +34,6 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMCompUnitBody *src_body  = (MVMCompUnitBody *)src;
-    MVMCompUnitBody *dest_body = (MVMCompUnitBody *)dest;
     MVM_exception_throw_adhoc(tc, "this representation (CompUnit) cannot be cloned");
 }
 

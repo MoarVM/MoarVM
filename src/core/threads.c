@@ -201,7 +201,7 @@ void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head) {
                 this->body.next = NULL;
                 break;
             default:
-                MVM_panic(MVM_exitcode_threads, "Thread in unknown stage: %d\n", this->body.stage);
+                MVM_panic(MVM_exitcode_threads, "Thread in unknown stage: %"MVM_PRSz"\n", this->body.stage);
         }
         this = next;
     }

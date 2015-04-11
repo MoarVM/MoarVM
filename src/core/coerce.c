@@ -14,11 +14,7 @@ typedef struct {
 } BoolMethReturnData;
 
 MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
-    return str == NULL ||
-           !IS_CONCRETE(str) ||
-           MVM_string_graphs(tc, str) == 0 ||
-           (MVM_string_graphs(tc, str) == 1 && MVM_string_get_grapheme_at_nocheck(tc, str, 0) == 48)
-           ? 0 : 1;
+    return str == NULL || !IS_CONCRETE(str) || MVM_string_graphs(tc, str) == 0 ? 0 : 1;
 }
 
 /* Tries to do the boolification. It may be that a method call is needed. In
@@ -342,7 +338,7 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     MVMint64   ch;
 
     if (radix > 36) {
-        MVM_exception_throw_adhoc(tc, "Cannot convert radix of %d (max 36)", radix);
+        MVM_exception_throw_adhoc(tc, "Cannot convert radix of %"PRId64" (max 36)", radix);
     }
 
     ch = (offset < chars) ? MVM_string_get_grapheme_at_nocheck(tc, str, offset) : 0;
