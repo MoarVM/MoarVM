@@ -160,3 +160,20 @@ MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 
         return result ? result->codepoint : 0;
     }
 }
+
+/* Look up the primary composite for a pair of codepoints, if it exists.
+ * Returns 0 if not. */
+MVMCodepoint MVM_unicode_find_primary_composite(MVMThreadContext *tc, MVMCodepoint l, MVMCodepoint c) {
+    MVMint32 lower = l & 0xFF;
+    MVMint32 upper = (l >> 8) & 0xFF;
+    MVMint32 plane = (l >> 16) & 0xF;
+    MVMint32 *pcs  = comp_p[plane][upper][lower];
+    if (pcs) {
+        MVMint32 entries = pcs[0];
+        MVMint32 i;
+        for (i = 1; i < entries; i += 2)
+            if (pcs[i] == c)
+                return pcs[i + 1];
+    }
+    return 0;
+}
