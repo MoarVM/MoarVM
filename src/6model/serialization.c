@@ -11,13 +11,14 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 14
+#define CURRENT_VERSION 15
 #define MIN_VERSION     14
 
 /* Various sizes (in bytes). */
 #define HEADER_SIZE                 (4 * 18)
 #define DEP_TABLE_ENTRY_SIZE        8
 #define STABLES_TABLE_ENTRY_SIZE    12
+#define OBJECTS_TABLE_ENTRY_SIZE_v14 16
 #define OBJECTS_TABLE_ENTRY_SIZE    16
 #define CLOSURES_TABLE_ENTRY_SIZE   24
 #define CONTEXTS_TABLE_ENTRY_SIZE   16
@@ -1737,7 +1738,7 @@ static void check_and_dissect_input(MVMThreadContext *tc,
     if (reader->root.objects_table < prov_pos)
         fail_deserialize(tc, reader,
             "Corruption detected (objects table starts before STables data ends)");
-    prov_pos = reader->root.objects_table + reader->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE;
+    prov_pos = reader->root.objects_table + reader->root.num_objects * (reader->root.version > 14 ? OBJECTS_TABLE_ENTRY_SIZE : OBJECTS_TABLE_ENTRY_SIZE_v14);
     if (prov_pos > data_end)
         fail_deserialize(tc, reader,
             "Corruption detected (objects table overruns end of data)");
@@ -1893,22 +1894,37 @@ static void stub_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MV
     }
 }
 
+/* This is slightly misnamed because it doesn't read objects_data_offset.
+   However, we never need that at the same time as we need the other data, so it
+   makes sense not to over generalise this code. */
+static MVMSTable *read_object_table_entry(MVMThreadContext *tc, MVMSerializationReader *reader, MVMuint32 i, MVMint32 *concrete) {
+    MVMint32 si;        /* The SC in the dependencies table, + 1 */
+    MVMint32 si_idx;    /* The index in that SC */
+
+    /* Calculate location of object's table row. */
+    const char *const obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE_v14;
+
+    if (concrete)
+        *concrete = read_int32(obj_table_row, 12);
+
+    si = read_int32(obj_table_row, 0);
+    si_idx = read_int32(obj_table_row, 4);
+
+    /* Resolve the STable. */
+    return lookup_stable(tc, reader, si, si_idx);
+}
+
 /* Stubs an object we need to deserialize, setting their REPR and type object
  * flag. */
 static void stub_object(MVMThreadContext *tc, MVMSerializationReader *reader, MVMuint32 i) {
-    /* Calculate location of object's table row. */
-    char *obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE;
-
-    /* Resolve the STable. */
-    MVMSTable *st = lookup_stable(tc, reader,
-        read_int32(obj_table_row, 0),   /* The SC in the dependencies table, + 1 */
-        read_int32(obj_table_row, 4));  /* The index in that SC */
+    MVMint32 concrete;
+    MVMSTable *st = read_object_table_entry(tc, reader, i, &concrete);
 
     /* Allocate and store stub object, unless it's already there due to a
      * repossession. */
     MVMObject *obj = MVM_sc_try_get_object(tc, reader->root.sc, i);
     if (!obj) {
-        if ((read_int32(obj_table_row, 12) & 1))
+        if (concrete)
             obj = st->REPR->allocate(tc, st);
         else
             obj = MVM_gc_allocate_type_object(tc, st);
@@ -2233,7 +2249,7 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
     /* We've no more to do for type objects. */
     if (IS_CONCRETE(obj)) {
         /* Calculate location of object's table row. */
-        char *obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE;
+        char *obj_table_row = reader->root.objects_table + i * (reader->root.version > 14 ? OBJECTS_TABLE_ENTRY_SIZE : OBJECTS_TABLE_ENTRY_SIZE_v14);
 
         /* Set current read buffer to the correct thing. */
         reader->cur_read_buffer = &(reader->root.objects_data);
@@ -2451,7 +2467,6 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
     if (repo_type != type)
         return;
     if (repo_type == 0) {
-        char      *obj_table_row;
         MVMSTable *updated_st;
 
         /* Get object to repossess. */
@@ -2492,10 +2507,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         /* The object's STable may have changed as a result of the
          * repossession (perhaps due to mixing in to it), so put the
          * STable it should now have in place. */
-        obj_table_row = reader->root.objects_table + slot * OBJECTS_TABLE_ENTRY_SIZE;
-        updated_st = lookup_stable(tc, reader,
-            read_int32(obj_table_row, 0),   /* The SC in the dependencies table, + 1 */
-            read_int32(obj_table_row, 4));  /* The index in that SC */
+        updated_st = read_object_table_entry(tc, reader, slot, NULL);
         MVM_ASSIGN_REF(tc, &(orig_obj->header), orig_obj->st, updated_st);
 
         /* Put this on the list of things we should deserialize right away. */
