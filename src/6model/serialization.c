@@ -1027,19 +1027,19 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
         writer->root.objects_table = (char *)MVM_realloc(writer->root.objects_table, writer->objects_table_alloc);
     }
 
+    /* Increment count of objects in the table. */
+    writer->root.num_objects++;
+
+    /* Make sure we're going to write repr data to the correct place. */
+    writer->cur_write_buffer = &(writer->root.objects_data);
+    writer->cur_write_offset = &(writer->objects_data_offset);
+    writer->cur_write_limit  = &(writer->objects_data_alloc);
+
     /* Make objects table entry. */
     write_int32(writer->root.objects_table, offset, sc);
     write_int32(writer->root.objects_table, offset + 4, sc_idx);
     write_int32(writer->root.objects_table, offset + 8, writer->objects_data_offset);
     write_int32(writer->root.objects_table, offset + 12, IS_CONCRETE(obj) ? 1 : 0);
-
-    /* Increment count of objects in the table. */
-    writer->root.num_objects++;
-
-    /* Make sure we're going to write to the correct place. */
-    writer->cur_write_buffer = &(writer->root.objects_data);
-    writer->cur_write_offset = &(writer->objects_data_offset);
-    writer->cur_write_limit  = &(writer->objects_data_alloc);
 
     /* Delegate to its serialization REPR function. */
     if (IS_CONCRETE(obj)) {
