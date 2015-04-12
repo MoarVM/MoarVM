@@ -578,28 +578,28 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
     else if (REPR(ref)->ID == MVM_REPR_ID_MVMOSHandle) {
         discrim = REFVAR_VM_NULL;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTInt)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTInt) && IS_CONCRETE(ref)) {
         discrim = REFVAR_VM_INT;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTNum)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTNum) && IS_CONCRETE(ref)) {
         discrim = REFVAR_VM_NUM;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTStr)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTStr) && IS_CONCRETE(ref)) {
         discrim = REFVAR_VM_STR;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTArray)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTArray) && IS_CONCRETE(ref)) {
         discrim = REFVAR_VM_ARR_VAR;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTIntArray)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTIntArray) && IS_CONCRETE(ref)) {
         discrim = REFVAR_VM_ARR_INT;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTStrArray)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTStrArray) && IS_CONCRETE(ref)) {
         discrim = REFVAR_VM_ARR_STR;
     }
-    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTHash)) {
+    else if (STABLE(ref) == STABLE(tc->instance->boot_types.BOOTHash) && IS_CONCRETE(ref)) {
         discrim = REFVAR_VM_HASH_STR_VAR;
     }
-    else if (REPR(ref)->ID == MVM_REPR_ID_MVMCode) {
+    else if (REPR(ref)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(ref)) {
         if (MVM_sc_get_obj_sc(tc, ref) && ((MVMCode *)ref)->body.is_static) {
             /* Static code reference. */
             discrim = REFVAR_STATIC_CODEREF;
