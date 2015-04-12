@@ -179,8 +179,6 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
             const MVMStorageSpec *ss; \
             obj = decont_arg(tc, result.arg.o); \
             ss = REPR(obj)->get_storage_spec(tc, STABLE(obj)); \
-            if (!IS_CONCRETE(obj)) \
-                MVM_exception_throw_adhoc(tc, "Cannot unbox a type object"); \
             switch (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
                 case MVM_STORAGE_SPEC_CAN_BOX_INT: \
                     result.arg.i64 = MVM_repr_get_int(tc, obj); \
