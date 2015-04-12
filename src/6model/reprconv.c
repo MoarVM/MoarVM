@@ -258,14 +258,20 @@ MVMuint64 MVM_repr_elems(MVMThreadContext *tc, MVMObject *obj) {
 }
 
 MVMint64 MVM_repr_get_int(MVMThreadContext *tc, MVMObject *obj) {
+    if (!IS_CONCRETE(obj))
+        MVM_exception_throw_adhoc(tc, "Cannot unbox a type object");
     return REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 }
 
 MVMnum64 MVM_repr_get_num(MVMThreadContext *tc, MVMObject *obj) {
+    if (!IS_CONCRETE(obj))
+        MVM_exception_throw_adhoc(tc, "Cannot unbox a type object");
     return REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 }
 
 MVMString * MVM_repr_get_str(MVMThreadContext *tc, MVMObject *obj) {
+    if (!IS_CONCRETE(obj))
+        MVM_exception_throw_adhoc(tc, "Cannot unbox a type object");
     return REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 }
 
