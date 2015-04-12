@@ -127,7 +127,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
 
 /* This whole splice optimization can be optimized for the case we have two
  * MVMIter representation objects. */
-static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMuint64 count) {
+static void isplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMuint64 count) {
 }
 
 static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
@@ -169,7 +169,7 @@ static const MVMREPROps this_repr = {
         MVM_REPR_DEFAULT_POP,
         MVM_REPR_DEFAULT_UNSHIFT,
         shift,
-        splice,
+        isplice,
         get_elem_storage_spec
     },    /* pos_funcs */
     MVM_REPR_DEFAULT_ASS_FUNCS,

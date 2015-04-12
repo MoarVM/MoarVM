@@ -764,7 +764,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
 
 /* This whole splice optimization can be optimized for the case we have two
  * MVMArray representation objects. */
-static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMuint64 count) {
+static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMuint64 count) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
 
@@ -1201,7 +1201,7 @@ static const MVMREPROps this_repr = {
         pop,
         unshift,
         shift,
-        splice,
+        asplice,
         get_elem_storage_spec
     },    /* pos_funcs */
     MVM_REPR_DEFAULT_ASS_FUNCS,
