@@ -269,6 +269,51 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
         /* Move on to the next character. */
         c_idx++;
     }
+
+    /* Make another pass for the Hangul special case. (A future optimization
+     * may be to incorporate this into the above loop.) */
+    c_idx = from;
+    while (c_idx < to - 1) {
+        /* Do we have a potential LPart? */
+        MVMCodepoint LPart = n->buffer[c_idx];
+        if (LPart >= LBase && LPart <= (LBase + LCount)) {
+            /* Yes, now see if it's followed by a VPart (always safe to look
+             * due to "to - 1" in loop condition above). */
+            MVMCodepoint LIndex = LPart - LBase;
+            MVMCodepoint VPart  = n->buffer[c_idx + 1];
+            if (VPart >= VBase && VPart <= (VBase + VCount)) {
+                /* Certainly something to compose; compute that. */
+                MVMCodepoint VIndex = VPart - VBase;
+                MVMCodepoint LVIndex = LIndex * NCount + VIndex * TCount;
+                MVMCodepoint s = SBase + LVIndex;
+                MVMint32 composed = 1;
+
+                /* Is there a TPart too? */
+                if (c_idx < to - 2) {
+                    MVMCodepoint TPart  = n->buffer[c_idx + 2];
+                    if (TPart >= TBase && TPart <= (TBase + TCount)) {
+                        /* We need to compose 3 things. */
+                        MVMCodepoint TIndex = TPart - TBase;
+                        s += TIndex;
+                        composed = 2;
+                    }
+                }
+
+                /* Put composed codepoint into the buffer. */
+                n->buffer[c_idx] = s;
+
+                /* Shuffle codepoints after this in the buffer back. */
+                memmove(n->buffer + c_idx + 1, n->buffer + c_idx + 1 + composed,
+                        (n->buffer_end - (c_idx + 1 + composed)) * sizeof(MVMCodepoint));
+                n->buffer_end -= composed;
+                n->buffer_norm_end -= composed;
+
+                /* Sync to with updated buffer size. */
+                to -= composed;
+            }
+        }
+        c_idx++;
+    }
 }
 
 /* Called when the very fast case of normalization fails (that is, when we get
