@@ -222,6 +222,52 @@ static void canonical_sort(MVMThreadContext *tc, MVMNormalizer *n, MVMint32 from
     }
 }
 
+/* Implements the Unicode Canonical Composition algorithm (3.11, D117). */
+static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint32 from, MVMint32 to) {
+    MVMint32 c_idx = from + 1;
+    while (c_idx < to) {
+        /* Search for the last non-blocked starter. */
+        MVMint32 ss_idx = c_idx - 1;
+        MVMint32 c_ccc  = ccc(tc, n->buffer[c_idx]);
+        while (ss_idx >= from) {
+            /* Make sure we don't go past a code point that blocks a starter
+             * from the current character we're considering. */
+            MVMint32 ss_ccc = ccc(tc, n->buffer[ss_idx]);
+            if (ss_ccc >= c_ccc)
+                break;
+
+            /* Have we found a starter? */
+            if (ss_ccc == 0) {
+                /* See if there's a primary composite for the starter and the
+                 * current code point under consideration. */
+                MVMCodepoint pc = MVM_unicode_find_primary_composite(tc, n->buffer[ss_idx], n->buffer[c_idx]);
+                if (pc > 0) {
+                    /* Replace the starter with the primary composite. */
+                    n->buffer[ss_idx] = pc;
+
+                    /* Move the rest of the buffer back one position. */
+                    memmove(n->buffer + c_idx, n->buffer + c_idx + 1,
+                        (n->buffer_end - (c_idx + 1)) * sizeof(MVMCodepoint));
+                    n->buffer_end--;
+                    n->buffer_norm_end--;
+
+                    /* Sync cc_idx and to with the change. */
+                    c_idx--;
+                    to--;
+                }
+
+                /* Don't look back beyond this starter; covers the ccc(B) = 0
+                 * case of D105. */
+                break;
+            }
+            ss_idx--;
+        }
+
+        /* Move on to the next character. */
+        c_idx++;
+    }
+}
+
 /* Called when the very fast case of normalization fails (that is, when we get
  * any two codepoints in a row where at least one is greater than the first
  * significant codepoint identified by a quick check for the target form). We
@@ -259,9 +305,20 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
         }
     }
 
-    /* If we didn't pass quick check, add decomposition to the buffer. We can
-     * do no more at this point. */
+    /* If we didn't pass quick check... */
     if (!qc_in) {
+        /* If we're composing, then decompose the last thing placed in the
+         * buffer, if any. We need to do this since it may have passed
+         * quickcheck, but having seen some character that does pass then we
+         * must make sure we decomposed the prior passing one too. */
+        if (MVM_NORMALIZE_COMPOSE(n->form) && n->buffer_end != n->buffer_start) {
+            MVMCodepoint decomp = n->buffer[n->buffer_end - 1];
+            n->buffer_end--;
+            decomp_codepoint_to_buffer(tc, n, decomp);
+        }
+
+        /* Decompose this new character into the buffer. We'll need to see
+         * more before we can go any further. */
         decomp_codepoint_to_buffer(tc, n, in);
         return 0;
     }
@@ -285,9 +342,8 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
     canonical_sort(tc, n, n->buffer_start, n->buffer_end - 1);
 
     /* Perform canonical composition if needed. */
-    if (MVM_NORMALIZE_COMPOSE(n->form)) {
-        /* TODO: composition. */
-    }
+    if (MVM_NORMALIZE_COMPOSE(n->form))
+        canonical_composition(tc, n, n->buffer_start, n->buffer_end - 1);
 
     /* We've now normalized all except the latest, quick-check-passing
      * codepoint. */
@@ -303,9 +359,8 @@ void MVM_unicode_normalizer_eof(MVMThreadContext *tc, MVMNormalizer *n) {
     /* Perform canonical ordering and, if needed, canonical composition on
      * what remains. */
     canonical_sort(tc, n, n->buffer_start, n->buffer_end);
-    if (MVM_NORMALIZE_COMPOSE(n->form)) {
-        /* TODO: composition. */
-    }
+    if (MVM_NORMALIZE_COMPOSE(n->form))
+        canonical_composition(tc, n, n->buffer_start, n->buffer_end);
 
     /* We've now normalized all that remains. */
     n->buffer_norm_end = n->buffer_end;
