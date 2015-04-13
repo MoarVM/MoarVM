@@ -1035,6 +1035,12 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
     writer->cur_write_offset = &(writer->objects_data_offset);
     writer->cur_write_limit  = &(writer->objects_data_alloc);
 
+    expand_storage_if_needed(tc, writer, 8);
+    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc);
+    *(writer->cur_write_offset) += 4;
+    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_idx);
+    *(writer->cur_write_offset) += 4;
+
     /* Make objects table entry. */
     write_int32(writer->root.objects_table, offset + 8, sc);
     write_int32(writer->root.objects_table, offset + 12, sc_idx);
@@ -1913,12 +1919,17 @@ static MVMSTable *read_object_table_entry(MVMThreadContext *tc, MVMSerialization
     } else {
         /* Calculate location of object's table row. */
         const char *const obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE;
+        const char *const overflow_data
+          = reader->root.objects_data + read_int32(obj_table_row, 4) - 8;
+        si = read_int32(overflow_data, 0);
+        si_idx = read_int32(overflow_data, 4);
+
 
         if (concrete)
             *concrete = read_int32(obj_table_row, 0);
 
-        si = read_int32(obj_table_row, 8);
-        si_idx = read_int32(obj_table_row, 12);
+        assert(si == read_int32(obj_table_row, 8));
+        assert(si_idx == read_int32(obj_table_row, 12));
     }
 
     /* Resolve the STable. */
