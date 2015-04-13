@@ -78,6 +78,7 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
             box_s(tc, tc->instance->str_consts.empty));
     MVM_repr_bind_key_o(tc, node_hash, pds->line,
         box_i(tc, annot ? (MVMint32)annot->line_number : -1));
+    MVM_free(annot);
 
     /* Use static frame memory address to get a unique ID. */
     MVM_repr_bind_key_o(tc, node_hash, pds->id,

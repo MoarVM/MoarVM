@@ -377,6 +377,8 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
         MVM_repr_bind_key_o(tc, row, k_anno, annotations);
 
         MVM_repr_push_o(tc, arr, row);
+        MVM_free(annot);
+
         cur_frame = cur_frame->caller;
         while (cur_frame && cur_frame->static_info->body.is_thunk)
             cur_frame = cur_frame->caller;

@@ -253,6 +253,7 @@ static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     appendf(ds, "%s:%d", filename_utf8, line_nr);
     if (filename)
         MVM_free(filename_utf8);
+    MVM_free(ann);
 }
 
 /* Dump a spesh graph into string form, for debugging purposes. */
