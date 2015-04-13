@@ -47,6 +47,15 @@
 #define REFVAR_STATIC_CODEREF       11
 #define REFVAR_CLONED_CODEREF       12
 
+/* For the packed format, for "small" values of si and idx */
+#define OBJECTS_TABLE_ENTRY_SC_MASK     0x7FF
+#define OBJECTS_TABLE_ENTRY_SC_IDX_MASK 0x000FFFFF
+#define OBJECTS_TABLE_ENTRY_SC_MAX      0x7FE
+#define OBJECTS_TABLE_ENTRY_SC_IDX_MAX  0x000FFFFF
+#define OBJECTS_TABLE_ENTRY_SC_SHIFT    20
+#define OBJECTS_TABLE_ENTRY_SC_OVERFLOW 0x7FF
+#define OBJECTS_TABLE_ENTRY_IS_CONCRETE 0x80000000
+
 /* Endian translation (file format is little endian, so on big endian we need
  * to twiddle. */
 #ifdef MVM_BIGENDIAN
@@ -1018,6 +1027,7 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
     /* Get index of SC that holds the STable and its index. */
     MVMuint32 sc;
     MVMuint32 sc_idx;
+    MVMuint32 packed;
     get_stable_ref_info(tc, writer, STABLE(obj), &sc, &sc_idx);
 
     /* Ensure there's space in the objects table; grow if not. */
@@ -1035,6 +1045,14 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
     writer->cur_write_offset = &(writer->objects_data_offset);
     writer->cur_write_limit  = &(writer->objects_data_alloc);
 
+    packed = IS_CONCRETE(obj) ? OBJECTS_TABLE_ENTRY_IS_CONCRETE : 0;
+
+    if (sc <= OBJECTS_TABLE_ENTRY_SC_MAX && sc_idx <= OBJECTS_TABLE_ENTRY_SC_IDX_MAX) {
+        packed |= (sc << OBJECTS_TABLE_ENTRY_SC_SHIFT) | sc_idx;
+    } else {
+        packed |= OBJECTS_TABLE_ENTRY_SC_OVERFLOW << OBJECTS_TABLE_ENTRY_SC_SHIFT;
+    }
+
     expand_storage_if_needed(tc, writer, 8);
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc);
     *(writer->cur_write_offset) += 4;
@@ -1044,8 +1062,8 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
     /* Make objects table entry. */
     write_int32(writer->root.objects_table, offset + 8, sc);
     write_int32(writer->root.objects_table, offset + 12, sc_idx);
+    write_int32(writer->root.objects_table, offset + 0, packed);
     write_int32(writer->root.objects_table, offset + 4, writer->objects_data_offset);
-    write_int32(writer->root.objects_table, offset + 0, IS_CONCRETE(obj) ? 1 : 0);
 
     /* Delegate to its serialization REPR function. */
     if (IS_CONCRETE(obj)) {
@@ -1919,6 +1937,7 @@ static MVMSTable *read_object_table_entry(MVMThreadContext *tc, MVMSerialization
     } else {
         /* Calculate location of object's table row. */
         const char *const obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE;
+        const MVMuint32 packed = read_int32(obj_table_row, 0);
         const char *const overflow_data
           = reader->root.objects_data + read_int32(obj_table_row, 4) - 8;
         si = read_int32(overflow_data, 0);
@@ -1926,7 +1945,7 @@ static MVMSTable *read_object_table_entry(MVMThreadContext *tc, MVMSerialization
 
 
         if (concrete)
-            *concrete = read_int32(obj_table_row, 0);
+            *concrete = packed & OBJECTS_TABLE_ENTRY_IS_CONCRETE;
 
         assert(si == read_int32(obj_table_row, 8));
         assert(si_idx == read_int32(obj_table_row, 12));
