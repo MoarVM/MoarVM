@@ -1036,10 +1036,10 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
     writer->cur_write_limit  = &(writer->objects_data_alloc);
 
     /* Make objects table entry. */
-    write_int32(writer->root.objects_table, offset, sc);
-    write_int32(writer->root.objects_table, offset + 4, sc_idx);
-    write_int32(writer->root.objects_table, offset + 8, writer->objects_data_offset);
-    write_int32(writer->root.objects_table, offset + 12, IS_CONCRETE(obj) ? 1 : 0);
+    write_int32(writer->root.objects_table, offset + 8, sc);
+    write_int32(writer->root.objects_table, offset + 12, sc_idx);
+    write_int32(writer->root.objects_table, offset + 4, writer->objects_data_offset);
+    write_int32(writer->root.objects_table, offset + 0, IS_CONCRETE(obj) ? 1 : 0);
 
     /* Delegate to its serialization REPR function. */
     if (IS_CONCRETE(obj)) {
@@ -1901,14 +1901,25 @@ static MVMSTable *read_object_table_entry(MVMThreadContext *tc, MVMSerialization
     MVMint32 si;        /* The SC in the dependencies table, + 1 */
     MVMint32 si_idx;    /* The index in that SC */
 
-    /* Calculate location of object's table row. */
-    const char *const obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE_v14;
+    if (reader->root.version < 15) {
+        /* Calculate location of object's table row. */
+        const char *const obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE_v14;
 
-    if (concrete)
-        *concrete = read_int32(obj_table_row, 12);
+        if (concrete)
+            *concrete = read_int32(obj_table_row, 12);
 
-    si = read_int32(obj_table_row, 0);
-    si_idx = read_int32(obj_table_row, 4);
+        si = read_int32(obj_table_row, 0);
+        si_idx = read_int32(obj_table_row, 4);
+    } else {
+        /* Calculate location of object's table row. */
+        const char *const obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE;
+
+        if (concrete)
+            *concrete = read_int32(obj_table_row, 0);
+
+        si = read_int32(obj_table_row, 8);
+        si_idx = read_int32(obj_table_row, 12);
+    }
 
     /* Resolve the STable. */
     return lookup_stable(tc, reader, si, si_idx);
@@ -2258,7 +2269,7 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
 
         /* Delegate to its deserialization REPR function. */
         reader->current_object = obj;
-        reader->objects_data_offset = read_int32(obj_table_row, 8);
+        reader->objects_data_offset = read_int32(obj_table_row, reader->root.version > 14 ? 4 : 8);
         if (REPR(obj)->deserialize)
             REPR(obj)->deserialize(tc, STABLE(obj), obj, OBJECT_BODY(obj), reader);
         else
