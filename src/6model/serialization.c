@@ -1060,8 +1060,8 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
     *(writer->cur_write_offset) += 4;
 
     /* Make objects table entry. */
-    write_int32(writer->root.objects_table, offset + 8, sc);
-    write_int32(writer->root.objects_table, offset + 12, sc_idx);
+    write_int32(writer->root.objects_table, offset + 8, 0xDEADBEEF);
+    write_int32(writer->root.objects_table, offset + 12, 0xDECAF00);
     write_int32(writer->root.objects_table, offset + 0, packed);
     write_int32(writer->root.objects_table, offset + 4, writer->objects_data_offset);
 
@@ -1940,15 +1940,19 @@ static MVMSTable *read_object_table_entry(MVMThreadContext *tc, MVMSerialization
         const MVMuint32 packed = read_int32(obj_table_row, 0);
         const char *const overflow_data
           = reader->root.objects_data + read_int32(obj_table_row, 4) - 8;
-        si = read_int32(overflow_data, 0);
-        si_idx = read_int32(overflow_data, 4);
-
 
         if (concrete)
             *concrete = packed & OBJECTS_TABLE_ENTRY_IS_CONCRETE;
 
-        assert(si == read_int32(obj_table_row, 8));
-        assert(si_idx == read_int32(obj_table_row, 12));
+        si = (packed >> OBJECTS_TABLE_ENTRY_SC_SHIFT) & OBJECTS_TABLE_ENTRY_SC_MASK;
+        if (si == OBJECTS_TABLE_ENTRY_SC_OVERFLOW) {
+            si = read_int32(overflow_data, 0);
+            si_idx = read_int32(overflow_data, 4);
+        } else {
+            si_idx = packed & OBJECTS_TABLE_ENTRY_SC_IDX_MASK;
+            assert(si == read_int32(overflow_data, 0));
+            assert(si_idx == read_int32(overflow_data, 4));
+        }
     }
 
     /* Resolve the STable. */
