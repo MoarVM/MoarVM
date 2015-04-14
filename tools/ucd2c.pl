@@ -837,7 +837,7 @@ sub emit_block_lookup {
 sub emit_names_hash_builder {
     my $num_extents = scalar(@$extents);
     my $out = "
-static MVMint32 codepoint_extents[".($num_extents + 1)."][3] = {\n";
+static const MVMint32 codepoint_extents[".($num_extents + 1)."][3] = {\n";
     $estimated_total_bytes += 4 * 2 * ($num_extents + 1);
     for my $extent (@$extents) {
         $out .= sprintf("    {0x%04x,%d,%d},\n",
@@ -1154,9 +1154,9 @@ sub emit_composition_lookup {
     my $l_table_idx = 0;
     my $u_table_idx = 0;
     my $entries     = '';
-    my $l_tables    = 'static MVMint32 *comp_l_empty[] = {' . ('NULL,' x 256) . "};\n";
-    my $u_tables    = 'static MVMint32 **comp_u_empty[] = {' . ('NULL,' x 256) . "};\n";
-    my $p_table     = 'static MVMint32 ***comp_p[] = {';
+    my $l_tables    = 'static const MVMint32 *comp_l_empty[] = {' . ('NULL,' x 256) . "};\n";
+    my $u_tables    = 'static const MVMint32 **comp_u_empty[] = {' . ('NULL,' x 256) . "};\n";
+    my $p_table     = 'static const MVMint32 ***comp_p[] = {';
     for (my $p = 0; $p < 17; $p++) {
         unless ($lookup[$p]) {
             $p_table .= 'comp_u_empty,';
@@ -1164,7 +1164,7 @@ sub emit_composition_lookup {
         }
 
         my $u_table_name = 'comp_u_' . $u_table_idx++;
-        $u_tables .= 'static MVMint32 **' . $u_table_name . '[] = {';
+        $u_tables .= 'static const MVMint32 **' . $u_table_name . '[] = {';
         for (my $u = 0; $u < 256; $u++) {
             unless ($lookup[$p]->[$u]) {
                 $u_tables .= 'comp_l_empty,';
@@ -1172,12 +1172,12 @@ sub emit_composition_lookup {
             }
 
             my $l_table_name = 'comp_l_' . $l_table_idx++;
-            $l_tables .= 'static MVMint32 *' . $l_table_name . '[] = {';
+            $l_tables .= 'static const MVMint32 *' . $l_table_name . '[] = {';
             for (my $l = 0; $l < 256; $l++) {
                 if ($lookup[$p]->[$u]->[$l]) {
                     my @values = @{$lookup[$p]->[$u]->[$l]};
                     my $entry_name = 'comp_entry_' . $entry_idx++;
-                    $entries .= 'static MVMint32 ' . $entry_name . '[] = {';
+                    $entries .= 'static const MVMint32 ' . $entry_name . '[] = {';
                     $entries .= join(',', scalar(@values), @values) . "};\n";
                     $l_tables .= $entry_name . ',';
                 }
