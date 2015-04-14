@@ -1370,11 +1370,6 @@ static MVMSerializationContext * locate_sc(MVMThreadContext *tc, MVMSerializatio
     return sc;
 }
 
-/* Looks up an STable. */
-static MVMSTable * lookup_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 sc_id, MVMint32 idx) {
-    return MVM_sc_get_stable(tc, locate_sc(tc, reader, sc_id), idx);
-}
-
 /* Ensure that we aren't going to read off the end of the buffer. */
 MVM_STATIC_INLINE void assert_can_read(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 amount) {
     char *read_end = *(reader->cur_read_buffer) + *(reader->cur_read_offset) + amount;
@@ -1952,7 +1947,7 @@ static MVMSTable *read_object_table_entry(MVMThreadContext *tc, MVMSerialization
     }
 
     /* Resolve the STable. */
-    return lookup_stable(tc, reader, si, si_idx);
+    return MVM_sc_get_stable(tc, locate_sc(tc, reader, si), si_idx);
 }
 
 /* Stubs an object we need to deserialize, setting their REPR and type object
