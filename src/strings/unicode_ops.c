@@ -167,7 +167,7 @@ MVMCodepoint MVM_unicode_find_primary_composite(MVMThreadContext *tc, MVMCodepoi
     MVMint32 lower = l & 0xFF;
     MVMint32 upper = (l >> 8) & 0xFF;
     MVMint32 plane = (l >> 16) & 0xF;
-    MVMint32 *pcs  = comp_p[plane][upper][lower];
+    const MVMint32 *pcs  = comp_p[plane][upper][lower];
     if (pcs) {
         MVMint32 entries = pcs[0];
         MVMint32 i;
