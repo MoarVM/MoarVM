@@ -1489,17 +1489,29 @@ MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationRea
     return result;
 }
 
-/* Reads in and resolves an object references. */
-static MVMObject * read_obj_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMint32 sc_id, idx;
+/* The SC id,idx pair is used in various ways, but common to them all is to
+   look up the SC, then use the index to call some other function. Putting the
+   common parts into one function permits the serialized representation to be
+   changed, but frustratingly it requires two return values, which is a bit of
+   a pain in (real) C. Hence this rather ungainly function: */
+MVM_STATIC_INLINE MVMSerializationContext *read_locate_sc_and_index(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 *idx) {
+    MVMint32 sc_id;
 
     assert_can_read(tc, reader, 8);
     sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
     *(reader->cur_read_offset) += 4;
-    idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
     *(reader->cur_read_offset) += 4;
 
-    return MVM_sc_get_object(tc, locate_sc(tc, reader, sc_id), idx);
+    return locate_sc(tc, reader, sc_id);
+}
+
+/* Reads in and resolves an object references. */
+static MVMObject * read_obj_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint32 idx;
+    MVMSerializationContext *sc = read_locate_sc_and_index(tc, reader, &idx);
+    /* sequence point... */
+    return MVM_sc_get_object(tc, sc, idx);
 }
 
 /* Reads in an array of variant references. */
@@ -1578,15 +1590,9 @@ static MVMObject * read_array_str(MVMThreadContext *tc, MVMSerializationReader *
 
 /* Reads in a code reference. */
 static MVMObject * read_code_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMint32 sc_id, idx;
-
-    assert_can_read(tc, reader, 8);
-    sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-    *(reader->cur_read_offset) += 4;
-    idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-    *(reader->cur_read_offset) += 4;
-
-    return MVM_sc_get_code(tc, locate_sc(tc, reader, sc_id), idx);
+    MVMint32 idx;
+    MVMSerializationContext *sc = read_locate_sc_and_index(tc, reader, &idx);
+    return MVM_sc_get_code(tc, sc, idx);
 }
 
 /* Read the reference type discriminator from the buffer. */
@@ -1657,15 +1663,9 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
 
 /* Reading function for STable references. */
 MVMSTable * MVM_serialization_read_stable_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMint32 sc_id, idx;
-
-    assert_can_read(tc, reader, 8);
-    sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-    *(reader->cur_read_offset) += 4;
-    idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-    *(reader->cur_read_offset) += 4;
-
-    return lookup_stable(tc, reader, sc_id, idx);
+    MVMint32 idx;
+    MVMSerializationContext *sc = read_locate_sc_and_index(tc, reader, &idx);
+    return MVM_sc_get_stable(tc, sc, idx);
 }
 
 /* Checks the header looks sane and all of the places it points to make sense.
@@ -2091,12 +2091,9 @@ static void deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *re
 
 /* Reads in what we need to lazily deserialize ->HOW later. */
 static void deserialize_how_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    assert_can_read(tc, reader, 8);
-    MVM_ASSIGN_REF(tc, &(st->header), st->HOW_sc, locate_sc(tc, reader,
-        read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset))));
-    *(reader->cur_read_offset) += 4;
-    st->HOW_idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-    *(reader->cur_read_offset) += 4;
+    MVMSerializationContext *sc = read_locate_sc_and_index(tc, reader, &st->HOW_idx);
+
+    MVM_ASSIGN_REF(tc, &(st->header), st->HOW_sc, sc);
 }
 
 /* Stashes what we need to deserialize the method cache lazily later, and then
