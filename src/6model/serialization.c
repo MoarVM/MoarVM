@@ -56,6 +56,12 @@
 #define OBJECTS_TABLE_ENTRY_SC_OVERFLOW 0x7FF
 #define OBJECTS_TABLE_ENTRY_IS_CONCRETE 0x80000000
 
+#define PACKED_SC_IDX_MASK  0x000FFFFF
+#define PACKED_SC_MAX       0xFFE
+#define PACKED_SC_IDX_MAX   0x000FFFFF
+#define PACKED_SC_SHIFT     20
+#define PACKED_SC_OVERFLOW  0xFFF
+
 /* Endian translation (file format is little endian, so on big endian we need
  * to twiddle. */
 #ifdef MVM_BIGENDIAN
@@ -371,7 +377,11 @@ void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *w
 /* Writes the ID, index pair that identifies an entry in a Serialization
    context. */
 static void write_sc_id_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint32 sc_id, MVMint32 idx) {
-    expand_storage_if_needed(tc, writer, 8);
+    MVMuint32 packed = (sc_id << PACKED_SC_SHIFT) | (idx & PACKED_SC_IDX_MAX);
+    expand_storage_if_needed(tc, writer, 12);
+
+    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), packed);
+    *(writer->cur_write_offset) += 4;
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_id);
     *(writer->cur_write_offset) += 4;
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), idx);
@@ -1485,11 +1495,25 @@ MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationRea
 MVM_STATIC_INLINE MVMSerializationContext *read_locate_sc_and_index(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 *idx) {
     MVMint32 sc_id;
 
-    assert_can_read(tc, reader, 8);
-    sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-    *(reader->cur_read_offset) += 4;
-    *idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-    *(reader->cur_read_offset) += 4;
+    if (reader->root.version <= 14) {
+        assert_can_read(tc, reader, 8);
+        sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 4;
+        *idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 4;
+    } else {
+        MVMuint32 packed;
+
+        assert_can_read(tc, reader, 12);
+        packed = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 4;
+        sc_id = packed >> PACKED_SC_SHIFT;
+        *idx = packed & PACKED_SC_IDX_MASK;
+        assert(sc_id == read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset)));
+        *(reader->cur_read_offset) += 4;
+        assert(*idx == read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset)));
+        *(reader->cur_read_offset) += 4;
+    }
 
     return locate_sc(tc, reader, sc_id);
 }
@@ -2116,8 +2140,13 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
             case REFVAR_OBJECT:
             case REFVAR_STATIC_CODEREF:
             case REFVAR_CLONED_CODEREF:
-                assert_can_read(tc, reader, discrim_size + 8);
-                *(reader->cur_read_offset) += discrim_size + 8;
+                if (reader->root.version <= 14) {
+                    assert_can_read(tc, reader, discrim_size + 8);
+                    *(reader->cur_read_offset) += discrim_size + 8;
+                } else {
+                    assert_can_read(tc, reader, discrim_size + 12);
+                    *(reader->cur_read_offset) += discrim_size + 12;
+                }
                 break;
             default:
                 valid = 0;
