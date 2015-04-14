@@ -368,6 +368,16 @@ void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *w
     *(writer->cur_write_offset) += 4;
 }
 
+/* Writes the ID, index pair that identifies an entry in a Serialization
+   context. */
+static void write_sc_id_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint32 sc_id, MVMint32 idx) {
+    expand_storage_if_needed(tc, writer, 8);
+    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_id);
+    *(writer->cur_write_offset) += 4;
+    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), idx);
+    *(writer->cur_write_offset) += 4;
+}
+
 /* Writes an object reference. */
 static void write_obj_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref) {
     MVMint32 sc_id, idx;
@@ -380,12 +390,7 @@ static void write_obj_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, 
     }
     sc_id = get_sc_id(tc, writer, MVM_sc_get_obj_sc(tc, ref));
     idx   = (MVMint32)MVM_sc_find_object_idx(tc, MVM_sc_get_obj_sc(tc, ref), ref);
-
-    expand_storage_if_needed(tc, writer, 8);
-    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_id);
-    *(writer->cur_write_offset) += 4;
-    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), idx);
-    *(writer->cur_write_offset) += 4;
+    write_sc_id_idx(tc, writer, sc_id, idx);
 }
 
 /* Writes an array where each item is a variant reference. */
@@ -455,11 +460,7 @@ static void write_code_ref(MVMThreadContext *tc, MVMSerializationWriter *writer,
     MVMSerializationContext *sc = MVM_sc_get_obj_sc(tc, code);
     MVMint32  sc_id   = get_sc_id(tc, writer, sc);
     MVMint32  idx     = (MVMint32)MVM_sc_find_code_idx(tc, sc, code);
-    expand_storage_if_needed(tc, writer, 8);
-    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_id);
-    *(writer->cur_write_offset) += 4;
-    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), idx);
-    *(writer->cur_write_offset) += 4;
+    write_sc_id_idx(tc, writer, sc_id, idx);
 }
 
 /* Given a closure, locate the static code reference it was originally cloned
@@ -680,11 +681,7 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
 void MVM_serialization_write_stable_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
     MVMuint32 sc_id, idx;
     get_stable_ref_info(tc, writer, st, &sc_id, &idx);
-    expand_storage_if_needed(tc, writer, 8);
-    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_id);
-    *(writer->cur_write_offset) += 4;
-    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), idx);
-    *(writer->cur_write_offset) += 4;
+    write_sc_id_idx(tc, writer, sc_id, idx);
 }
 
 /* Concatenates the various output segments into a single binary MVMString. */
@@ -818,11 +815,7 @@ static void serialize_how_lazy(MVMThreadContext *tc, MVMSerializationWriter *wri
     }
     else {
         MVMint32 sc_id = get_sc_id(tc, writer, st->HOW_sc);
-        expand_storage_if_needed(tc, writer, 8);
-        write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_id);
-        *(writer->cur_write_offset) += 4;
-        write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), st->HOW_idx);
-        *(writer->cur_write_offset) += 4;
+        write_sc_id_idx(tc, writer, sc_id, st->HOW_idx);
     }
 }
 
