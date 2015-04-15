@@ -56,6 +56,19 @@
 #define OBJECTS_TABLE_ENTRY_SC_OVERFLOW 0x7FF
 #define OBJECTS_TABLE_ENTRY_IS_CONCRETE 0x80000000
 
+/* In the main serialization data blobs we have 1 more bit to play with.
+   The format is either 32 bits, with a packed value.
+   or 32 bits with an overflow flag, 32 bits of ID, and 32 bits of index.
+   The packed ID could be in the range 0..4094, the packed index 0..1048575.
+   With these ranges, overflow isn't even needed for compiling the setting.
+   An alternative format would be 8 bits of ID (so 0..254) and then 32 bits of
+   index (0..65535), or 8 bits for an overflow flag, then 32 and 32.
+   For this format, it turns out that currently for the setting, 296046 entries
+   would pack into 3 bytes, and 59757 would overflow and need 9.
+   296046 * 3 + 59757 * 9 == 1425951
+   (296046 + 59757) * 4   == 1423212
+   Hence that format is not quite as space efficient. */
+
 #define PACKED_SC_IDX_MASK  0x000FFFFF
 #define PACKED_SC_MAX       0xFFE
 #define PACKED_SC_IDX_MAX   0x000FFFFF
@@ -377,7 +390,7 @@ void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *w
 /* Writes the ID, index pair that identifies an entry in a Serialization
    context. */
 static void write_sc_id_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint32 sc_id, MVMint32 idx) {
-    if (0 && sc_id <= PACKED_SC_MAX && idx <= PACKED_SC_IDX_MAX) {
+    if (sc_id <= PACKED_SC_MAX && idx <= PACKED_SC_IDX_MAX) {
         MVMuint32 packed = (sc_id << PACKED_SC_SHIFT) | (idx & PACKED_SC_IDX_MASK);
 
         expand_storage_if_needed(tc, writer, 4);
@@ -2157,12 +2170,16 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
                     *(reader->cur_read_offset) += discrim_size + 8;
                 } else {
                     MVMuint32 packed;
-                    assert_can_read(tc, reader, discrim_size + 12);
+                    assert_can_read(tc, reader, discrim_size + 4);
                     packed = read_int32(*(reader->cur_read_buffer),
                                         *(reader->cur_read_offset) + discrim_size);
 
-                    assert(packed == PACKED_SC_OVERFLOW << PACKED_SC_SHIFT);
-                    *(reader->cur_read_offset) += discrim_size + 12;
+                    if(packed == (PACKED_SC_OVERFLOW << PACKED_SC_SHIFT)) {
+                        assert_can_read(tc, reader, discrim_size + 12);
+                        *(reader->cur_read_offset) += discrim_size + 12;
+                    } else {
+                        *(reader->cur_read_offset) += discrim_size + 4;
+                    }
                 }
                 break;
             default:
