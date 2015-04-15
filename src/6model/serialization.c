@@ -12,7 +12,7 @@
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
 #define CURRENT_VERSION 14
-#define MIN_VERSION     13
+#define MIN_VERSION     14
 
 /* Various sizes (in bytes). */
 #define HEADER_SIZE                 (4 * 18)
@@ -869,15 +869,6 @@ static void add_param_intern(MVMThreadContext *tc, MVMSerializationWriter *write
 /* This handles the serialization of an STable, and calls off to serialize
  * its representation data also. */
 
-static MVMint16 read_int16(const char *buffer, size_t offset) {
-    MVMint16 value;
-    memcpy(&value, buffer + offset, 2);
-#ifdef MVM_BIGENDIAN
-    switch_endian(&value, 2);
-#endif
-    return value;
-}
-
 static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
     MVMint64  i;
 
@@ -1379,53 +1370,12 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
 }
 
 /* Reading function for variable-sized integers, using between 1 and 9 bytes of
- * storage for an int64. */
-static MVMint64 read_varint_v13(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMint64 result = 0;
-    MVMuint8 *const start = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
-    MVMuint8 *const read_end = (MVMuint8 *) *(reader->cur_read_end);
-    MVMuint8 *const ninth = start + 8;
-    MVMuint8 *p = start;
-    int shift_amount = 0;
-
-    /* We can't know how many bytes we need to read without actually reading
-       them, so it's easiest to inline the over-the-end test into the loop.
-       read_end is exclusive - it's the address of the first thing we can't
-       read. Therefore if we're about to read at it, we're too far. */
-    if (p == read_end)
-        fail_deserialize(tc, reader,
-                         "Read past end of serialization data buffer");
-
-    while (*p & 0x80 && p < ninth) {
-        result |= ((MVMint64)(*p & 0x7F) << shift_amount);
-        shift_amount += 7;
-        ++p;
-        if (p == read_end)
-            fail_deserialize(tc, reader,
-                             "Read past end of serialization data buffer");
-    }
-    if (p == ninth) {
-        /* our last byte will be a full byte, so that we reach the full 64 bits
-           As we have the full 64 bits, no need to sign extend. */
-        result |= ((MVMint64)(*p) << shift_amount);
-    } else {
-        /* As the loop above terminated before the ninth byte, the top bit must
-           be clear. */
-        assert(!(*p & 0x80));
-        result |= ((MVMint64)(*p) << shift_amount);
-        /* Now sign extend the highest bit that we read. */
-        result = result << (57 - shift_amount);
-        result = result >> (57 - shift_amount);
-    }
-
-    *(reader->cur_read_offset) += p + 1 - start;
-    return result;
-}
-
-/* The format chosen may not be quite the most space efficient for the values
-   that we store, but the intent it is that close to smallest whilst very
-   efficient to read. In particular, it doesn't require any looping, and
-   has at most two length overrun checks.  */
+ * storage for an int64.
+ *
+ * The format chosen may not be quite the most space efficient for the values
+ * that we store, but the intent it is that close to smallest whilst very
+ * efficient to read. In particular, it doesn't require any looping, and
+ * has at most two length overrun checks.  */
 
 MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint64 result;
@@ -1433,9 +1383,6 @@ MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationRea
     MVMuint8 *const read_end = (MVMuint8 *) *(reader->cur_read_end);
     MVMuint8 first;
     MVMuint8 need;
-
-    if (reader->root.version <= 13)
-        return read_varint_v13(tc, reader);
 
     if (read_at >= read_end)
         fail_deserialize(tc, reader,
@@ -1621,17 +1568,6 @@ static MVMObject * read_code_ref(MVMThreadContext *tc, MVMSerializationReader *r
 
 /* Read the reference type discriminator from the buffer. */
 MVM_STATIC_INLINE MVMuint8 read_discrim(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    if (reader->root.version < 14) {
-        MVMint16 value;
-
-        assert_can_read(tc, reader, 2);
-        memcpy(&value, *(reader->cur_read_buffer) + *(reader->cur_read_offset), 2);
-#ifdef MVM_BIGENDIAN
-        switch_endian(&value, 2);
-#endif
-        return value;
-    }
-
     assert_can_read(tc, reader, 1);
     return *(*(reader->cur_read_buffer) + *(reader->cur_read_offset));
 }
@@ -1641,7 +1577,7 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
     MVMObject *result;
 
     /* Read the discriminator. */
-    const int discrim_size = reader->root.version >= 14 ? 1 : 2;
+    const int discrim_size = 1;
     const MVMuint8 discrim = read_discrim(tc, reader);
     *(reader->cur_read_offset) += discrim_size;
 
@@ -2110,7 +2046,7 @@ static void deserialize_how_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSeriali
  * skips over it. */
 static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     /* Peek ahead at the discriminator. */
-    const int discrim_size = reader->root.version >= 14 ? 1 : 2;
+    const int discrim_size = 1;
     const MVMuint8 discrim = read_discrim(tc, reader);
 
     /* We only know how to lazily handle a hash of code refs or code objects;
@@ -2192,11 +2128,6 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Method cache. */
     deserialize_method_cache_lazy(tc, st, reader);
-    if (reader->root.version <= 13) {
-        /* legacy v-table. */
-        if (MVM_serialization_read_int(tc, reader) != 0)
-            MVM_exception_throw_adhoc(tc, "Unexpected deprecated STable vtable entries");
-    }
 
     /* Type check cache. */
     st->type_check_cache_length = MVM_serialization_read_int(tc, reader);
