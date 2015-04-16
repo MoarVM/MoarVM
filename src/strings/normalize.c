@@ -77,7 +77,7 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, MVMObject *in, MVMOb
     ((MVMArray *)out)->body.elems     = result_pos;
 }
 
-/* Takes an objects, which must be of VMArray representation and holding
+/* Takes an object, which must be of VMArray representation and holding
  * 32-bit integers. Treats them as Unicode codepoints, normalizes them at
  * Grapheme level, and returns the resulting NFG string. */
 MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, MVMObject *codes) {
