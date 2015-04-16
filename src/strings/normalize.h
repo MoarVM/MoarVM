@@ -89,13 +89,19 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
     return MVM_unicode_normalizer_process_codepoint_full(tc, n, in, out);
 }
 
-/* TODO: grapheme version of the above. */
+/* Grapheme version of the above. Note that this exists mostly for API clarity
+ * rather than adding any semantics; the normalizer must be configured to
+ * produce NFG to get synthetics out. */
+MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint_to_grapheme(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMGrapheme32 *out) {
+    assert(sizeof(MVMCodepoint) == sizeof(MVMGrapheme32));
+    return MVM_unicode_normalizer_process_codepoint(tc, n, in, (MVMGrapheme32 *)out);
+}
 
 /* Get the number of codepoints/graphemes ready to fetch. */
 MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_available(MVMThreadContext *tc, MVMNormalizer *n) {
     return n->buffer_norm_end - n->buffer_start;
 }
-    
+
 /* Indicate that we've reached the end of the input stream. Any codepoints
  * left to normalize now can be. */
 void MVM_unicode_normalizer_eof(MVMThreadContext *tc, MVMNormalizer *n);
@@ -109,7 +115,15 @@ MVM_STATIC_INLINE MVMCodepoint MVM_unicode_normalizer_get_codepoint(MVMThreadCon
     return n->buffer[n->buffer_start++];
 }
 
-/* TODO: grapheme version of the above. */
+/* Grapheme version of the above. Note that this exists mostly for API clarity
+ * rather than adding any semantics; the normalizer must be configured to
+ * produce NFG to get synthetics out. */
+MVM_STATIC_INLINE MVMGrapheme32 MVM_unicode_normalizer_get_grapheme(MVMThreadContext *tc, MVMNormalizer *n) {
+    assert(sizeof(MVMCodepoint) == sizeof(MVMGrapheme32));
+    if (n->buffer_norm_end == n->buffer_start)
+        MVM_exception_throw_adhoc(tc, "Normalization: illegal call to get grapheme");
+    return (MVMGrapheme32)n->buffer[n->buffer_start++];
+}
 
 /* Setup and teardown of the MVMNormalizer struct. */
 MVMNormalization MVN_unicode_normalizer_form(MVMThreadContext *tc, MVMint64 form_in);
