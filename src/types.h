@@ -161,6 +161,7 @@ typedef struct MVMStringBody MVMStringBody;
 typedef struct MVMStringConsts MVMStringConsts;
 typedef struct MVMStringStrand MVMStringStrand;
 typedef struct MVMGraphemeIter MVMGraphemeIter;
+typedef struct MVMCodepointIter MVMCodepointIter;
 typedef struct MVMThread MVMThread;
 typedef struct MVMThreadBody MVMThreadBody;
 typedef struct MVMThreadContext MVMThreadContext;
