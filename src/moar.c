@@ -155,6 +155,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
 
+    /* Set up NFG state mutation mutex. */
+    instance->nfg = calloc(1, sizeof(MVMNFGState));
+    init_mutex(instance->nfg->update_mutex, "NFG update mutex");
+
     /* Current instrumentation level starts at 1; used to trigger all frames
      * to be verified before their first run. */
     instance->instrumentation_level = 1;

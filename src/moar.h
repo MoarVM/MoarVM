@@ -138,6 +138,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "strings/utf8.h"
 #include "strings/utf16.h"
 #include "strings/iter.h"
+#include "strings/nfg.h"
 #include "strings/ops.h"
 #include "strings/unicode_gen.h"
 #include "strings/unicode.h"

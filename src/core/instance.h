@@ -315,6 +315,9 @@ struct MVMInstance {
     /* Fixed size allocator. */
     MVMFixedSizeAlloc *fsa;
 
+    /* Normal Form Grapheme state (synthetics table, lookup, etc.). */
+    MVMNFGState *nfg;
+
     /* Next type cache ID, to go in STable. */
     AO_t cur_type_cache_id;
 
