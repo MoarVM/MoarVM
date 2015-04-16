@@ -405,14 +405,21 @@ void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *w
                                   "Serialization error: string offset %d can't be serialized",
                                   heap_loc);
 
-    expand_storage_if_needed(tc, writer, 4);
-    write_uint16(*(writer->cur_write_buffer), *(writer->cur_write_offset),
-                 (heap_loc >> STRING_HEAP_LOC_PACKED_SHIFT)
-                 | STRING_HEAP_LOC_PACKED_OVERFLOW);
-    *(writer->cur_write_offset) += 2;
-    write_uint16(*(writer->cur_write_buffer), *(writer->cur_write_offset),
-                 heap_loc & STRING_HEAP_LOC_PACKED_LOW_MASK);
-    *(writer->cur_write_offset) += 2;
+    if (heap_loc <= STRING_HEAP_LOC_PACKED_MAX) {
+        expand_storage_if_needed(tc, writer, 2);
+        write_uint16(*(writer->cur_write_buffer), *(writer->cur_write_offset),
+                     heap_loc);
+        *(writer->cur_write_offset) += 2;
+    } else {
+        expand_storage_if_needed(tc, writer, 4);
+        write_uint16(*(writer->cur_write_buffer), *(writer->cur_write_offset),
+                     (heap_loc >> STRING_HEAP_LOC_PACKED_SHIFT)
+                     | STRING_HEAP_LOC_PACKED_OVERFLOW);
+        *(writer->cur_write_offset) += 2;
+        write_uint16(*(writer->cur_write_buffer), *(writer->cur_write_offset),
+                     heap_loc & STRING_HEAP_LOC_PACKED_LOW_MASK);
+        *(writer->cur_write_offset) += 2;
+    }
 }
 
 /* Writes the ID, index pair that identifies an entry in a Serialization
