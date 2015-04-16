@@ -368,6 +368,44 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
     }
 }
 
+/* Performs grapheme composition (to get Normal Form Grapheme) on the range of
+ * codepoints provided. This algorithm is as follows (laid out here because
+ * this is not one of the Unicode standard ones):
+ * 1) If we only have one code point in the range to normalize, then NFC was
+ *    already sufficient here. Return.
+ * 2) Take the from position as the location of the current "starterish".
+ * 3) Walk codepoints until we reach "to" or the next codepoint is a starter.
+ * 4) Take the codepoints from and including the last starterish up to the
+ *    current one, and get a synthetic for them. Replace them with the
+ *    synthetic.
+ * 5) If we didn't reach "to", take the next codepoint as our next starterish
+ *    and goto step 3.
+ * Note that this is specified to handle strings starting with non-starter
+ * code point sequences.
+ */
+static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint32 from, MVMint32 to) {
+    if (to - from >= 2) {
+        MVMint32 starterish = from;
+        MVMint32 insert_pos = from;
+        MVMint32 pos        = from;
+        while (pos < to) {
+            MVMint32 next_pos = pos + 1;
+            if (next_pos == to || ccc(tc, n->buffer[next_pos]) == 0) {
+                /* Last in buffer or next code point is a non-starter; turn
+                 * sequence into a synthetic. */
+                MVMGrapheme32 g = MVM_nfg_codes_to_grapheme(tc, n->buffer + starterish, next_pos - starterish);
+                n->buffer[insert_pos++] = g;
+
+                /* The next code point is our new starterish (harmless if we
+                 * are already at the end of the buffer). */
+                starterish = next_pos;
+            }
+            pos++;
+        }
+        n->buffer_end -= to - insert_pos;
+    }
+}
+
 /* Called when the very fast case of normalization fails (that is, when we get
  * any two codepoints in a row where at least one is greater than the first
  * significant codepoint identified by a quick check for the target form). We
@@ -441,9 +479,12 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
      * up to but excluding the quick-check-passing thing we just added. */
     canonical_sort(tc, n, n->buffer_start, n->buffer_end - 1);
 
-    /* Perform canonical composition if needed. */
-    if (MVM_NORMALIZE_COMPOSE(n->form))
+    /* Perform canonical composition and grapheme composition if needed. */
+    if (MVM_NORMALIZE_COMPOSE(n->form)) {
         canonical_composition(tc, n, n->buffer_start, n->buffer_end - 1);
+        if (MVM_NORMALIZE_GRAPHEME(n->form))
+            grapheme_composition(tc, n, n->buffer_start, n->buffer_end - 1);
+    }
 
     /* We've now normalized all except the latest, quick-check-passing
      * codepoint. */
@@ -459,8 +500,11 @@ void MVM_unicode_normalizer_eof(MVMThreadContext *tc, MVMNormalizer *n) {
     /* Perform canonical ordering and, if needed, canonical composition on
      * what remains. */
     canonical_sort(tc, n, n->buffer_start, n->buffer_end);
-    if (MVM_NORMALIZE_COMPOSE(n->form))
+    if (MVM_NORMALIZE_COMPOSE(n->form)) {
         canonical_composition(tc, n, n->buffer_start, n->buffer_end);
+        if (MVM_NORMALIZE_GRAPHEME(n->form))
+            grapheme_composition(tc, n, n->buffer_start, n->buffer_end);
+    }
 
     /* We've now normalized all that remains. */
     n->buffer_norm_end = n->buffer_end;

@@ -14,6 +14,7 @@ typedef enum {
 /* Ways of checking various properties of the normalization form. */
 #define MVM_NORMALIZE_COMPAT_DECOMP(form) (form & 1)
 #define MVM_NORMALIZE_COMPOSE(form)       (form & 2)
+#define MVM_NORMALIZE_GRAPHEME(form)      (form & 4)
 
 /* First codepoint where we have to actually do a real check and maybe some
  * work when normalizing. */
