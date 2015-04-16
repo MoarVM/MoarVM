@@ -77,6 +77,58 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, MVMObject *in, MVMOb
     ((MVMArray *)out)->body.elems     = result_pos;
 }
 
+/* Takes an objects, which must be of VMArray representation and holding
+ * 32-bit integers. Treats them as Unicode codepoints, normalizes them at
+ * Grapheme level, and returns the resulting NFG string. */
+MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, MVMObject *codes) {
+    MVMNormalizer  norm;
+    MVMCodepoint  *input;
+    MVMGrapheme32 *result;
+    MVMint64       input_pos, input_codes, result_pos, result_alloc;
+    MVMint32       ready;
+    MVMString     *str;
+
+    /* Get input array; if it's empty, we're done already. */
+    assert_codepoint_array(tc, codes, "Code points to string input must be native array of 32-bit integers");
+    input       = (MVMCodepoint *)((MVMArray *)codes)->body.slots.u32 + ((MVMArray *)codes)->body.start;
+    input_codes = ((MVMArray *)codes)->body.elems;
+    if (input_codes == 0)
+        return tc->instance->str_consts.empty;
+
+    /* Guess output size based on input size. */
+    result_alloc = input_codes;
+    result       = MVM_malloc(result_alloc * sizeof(MVMCodepoint));
+
+    /* Perform normalization at grapheme level. */
+    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+    input_pos  = 0;
+    result_pos = 0;
+    while (input_pos < input_codes) {
+        MVMGrapheme32 g;
+        ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, input[input_pos], &g);
+        if (ready) {
+            maybe_grow_result(&result, &result_alloc, result_pos + ready);
+            result[result_pos++] = g;
+            while (--ready > 0)
+                result[result_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        }
+        input_pos++;
+    }
+    MVM_unicode_normalizer_eof(tc, &norm);
+    ready = MVM_unicode_normalizer_available(tc, &norm);
+    maybe_grow_result(&result, &result_alloc, result_pos + ready);
+    while (ready--)
+        result[result_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+    MVM_unicode_normalizer_cleanup(tc, &norm);
+
+    /* Produce an MVMString of the result. */
+    str = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    str->body.storage.blob_32 = result;
+    str->body.storage_type    = MVM_STRING_GRAPHEME_32;
+    str->body.num_graphs      = result_pos;
+    return str;
+}
+
 /* Initialize the MVMNormalizer pointed to to perform the specified kind of
  * normalization. */
 void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNormalization form) {

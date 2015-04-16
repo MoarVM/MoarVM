@@ -133,3 +133,7 @@ void MVM_unicode_normalizer_cleanup(MVMThreadContext *tc, MVMNormalizer *n);
 /* High-level normalize implementation, working from an input array of
  * codepoints and producing an output array of codepoints. */
 void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, MVMObject *in, MVMObject *out, MVMNormalization form);
+
+/* High-level function to produces an NFG string from an input array of
+ * codepoints. */
+MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, MVMObject *codes);

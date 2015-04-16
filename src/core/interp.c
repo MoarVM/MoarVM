@@ -4505,6 +4505,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(strfromcodes):
+                GET_REG(cur_op, 0).s = MVM_unicode_codepoints_to_nfg_string(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(strtocodes):
                 MVM_exception_throw_adhoc(tc, "NYI");
             OP(getcodelocation):
