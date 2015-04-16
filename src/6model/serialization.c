@@ -10,7 +10,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 15
+#define CURRENT_VERSION 16
 #define MIN_VERSION     15
 
 /* Various sizes (in bytes). */
@@ -72,6 +72,12 @@
 #define PACKED_SC_IDX_MAX   0x000FFFFF
 #define PACKED_SC_SHIFT     20
 #define PACKED_SC_OVERFLOW  0xFFF
+
+#define STRING_HEAP_LOC_MAX             0x7FFFFFFF
+#define STRING_HEAP_LOC_PACKED_MAX      0x00007FFF
+#define STRING_HEAP_LOC_PACKED_OVERFLOW 0x00008000
+#define STRING_HEAP_LOC_PACKED_LOW_MASK 0x0000FFFF
+#define STRING_HEAP_LOC_PACKED_SHIFT    16
 
 /* Endian translation (file format is little endian, so on big endian we need
  * to twiddle. */
@@ -213,6 +219,14 @@ static void write_int32(char *buffer, size_t offset, MVMint32 value) {
     memcpy(buffer + offset, &value, 4);
 #ifdef MVM_BIGENDIAN
     switch_endian(buffer + offset, 4);
+#endif
+}
+
+/* Writes a uint16 into a buffer. */
+static void write_uint16(char *buffer, size_t offset, MVMuint16 value) {
+    memcpy(buffer + offset, &value, 2);
+#if MVM_BIGENDIAN
+    switch_endian(buffer + offset, 2);
 #endif
 }
 
@@ -384,9 +398,21 @@ void MVM_serialization_write_num(MVMThreadContext *tc, MVMSerializationWriter *w
 /* Writing function for native strings. */
 void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *value) {
     MVMint32 heap_loc = add_string_to_heap(tc, writer, value);
+
+    /* avoid warnings that heap_loc > STRING_HEAP_LOC_MAX is always false */
+    if (!(heap_loc >= 0 && heap_loc <= STRING_HEAP_LOC_MAX))
+        MVM_exception_throw_adhoc(tc,
+                                  "Serialization error: string offset %d can't be serialized",
+                                  heap_loc);
+
     expand_storage_if_needed(tc, writer, 4);
-    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), heap_loc);
-    *(writer->cur_write_offset) += 4;
+    write_uint16(*(writer->cur_write_buffer), *(writer->cur_write_offset),
+                 (heap_loc >> STRING_HEAP_LOC_PACKED_SHIFT)
+                 | STRING_HEAP_LOC_PACKED_OVERFLOW);
+    *(writer->cur_write_offset) += 2;
+    write_uint16(*(writer->cur_write_buffer), *(writer->cur_write_offset),
+                 heap_loc & STRING_HEAP_LOC_PACKED_LOW_MASK);
+    *(writer->cur_write_offset) += 2;
 }
 
 /* Writes the ID, index pair that identifies an entry in a Serialization
@@ -1347,6 +1373,15 @@ static MVMint32 read_int32(const char *buffer, size_t offset) {
     return value;
 }
 
+static MVMuint16 read_uint16(const char *buffer, size_t offset) {
+    MVMuint16 value;
+    memcpy(&value, buffer + offset, 2);
+#ifdef MVM_BIGENDIAN
+    switch_endian(&value, 2);
+#endif
+    return value;
+}
+
 /* Reads double from a buffer. */
 static MVMnum64 read_double(const char *buffer, size_t offset) {
     MVMnum64 value;
@@ -1524,12 +1559,25 @@ MVMnum64 MVM_serialization_read_num(MVMThreadContext *tc, MVMSerializationReader
  * of deserialize_method_cache_lazy(). See the note before
  * MVM_serialization_read_ref(). */
 MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMString *result;
-    assert_can_read(tc, reader, 4);
-    result = read_string_from_heap(tc, reader,
-        read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset)));
-    *(reader->cur_read_offset) += 4;
-    return result;
+    MVMint32 offset;
+
+    if (reader->root.version <= 15) {
+        assert_can_read(tc, reader, 4);
+        offset = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 4;
+    } else {
+        assert_can_read(tc, reader, 2);
+        offset = read_uint16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 2;
+        if (offset & STRING_HEAP_LOC_PACKED_OVERFLOW) {
+            assert_can_read(tc, reader, 2);
+            offset ^= STRING_HEAP_LOC_PACKED_OVERFLOW;
+            offset <<= STRING_HEAP_LOC_PACKED_SHIFT;
+            offset |= read_uint16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+            *(reader->cur_read_offset) += 2;
+        }
+    }
+    return read_string_from_heap(tc, reader, offset);
 }
 
 /* The SC id,idx pair is used in various ways, but common to them all is to
@@ -2193,8 +2241,19 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
             MVMuint32 packed;
             MVMuint8 inner_discrim;
             /* Skip string. */
-            assert_can_read(tc, reader, 4);
-            *(reader->cur_read_offset) += 4;
+            if (reader->root.version <= 15) {
+                assert_can_read(tc, reader, 4);
+                *(reader->cur_read_offset) += 4;
+            } else {
+                MVMint32 offset;
+                assert_can_read(tc, reader, 2);
+                offset = read_uint16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+                *(reader->cur_read_offset) += 2;
+                if (offset & STRING_HEAP_LOC_PACKED_OVERFLOW) {
+                    assert_can_read(tc, reader, 2);
+                    *(reader->cur_read_offset) += 2;
+                }
+            }
 
             /* Ensure we've a coderef or code object. */
             assert_can_read(tc, reader, discrim_size);
