@@ -177,3 +177,47 @@ void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t byt
     }
 #endif
 }
+
+/* Queues a piece of memory of the specified size to be freed at the next
+ * global safe point, using the FSA. A global safe point is defined as one in
+ * which all threads, since we requested the freeing of the memory, have
+ * reached a safe point. */
+void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t bytes, void *to_free) {
+#if FSA_SIZE_DEBUG
+    MVMFixedSizeAllocDebug *dbg = (MVMFixedSizeAllocDebug *)((char *)to_free - 8);
+    if (dbg->alloc_size != bytes)
+        MVM_panic(1, "Fixed size allocator: wrong size in free");
+    MVM_free(dbg);
+#else
+    MVMuint32 bin = bin_for(bytes);
+    if (bin < MVM_FSA_BINS) {
+        /* Came from a bin; put into free list. */
+        MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
+        MVMFixedSizeAllocFreeListEntry *to_add  = (MVMFixedSizeAllocFreeListEntry *)to_free;
+        MVMFixedSizeAllocFreeListEntry *orig;
+        if (tc->instance->next_user_thread_id != 2) {
+            /* Multi-threaded; race to add it to the "free at next safe point"
+             * list. */
+            MVM_panic(1, "MVM_fixed_size_free_at_safepoint not yet fully implemented");
+        }
+        else {
+            /* Single-threaded, so no global safepoint issues to care for; put
+             * it on the free list right away. */
+            to_add->next       = bin_ptr->free_list;
+            bin_ptr->free_list = to_add;
+        }
+    }
+    else {
+        /* Was malloc'd due to being oversize. */
+        if (tc->instance->next_user_thread_id != 2) {
+            /* Multi-threaded; race to add it to the "free at next safe point"
+             * list. */
+            MVM_panic(1, "MVM_fixed_size_free_at_safepoint not yet fully implemented");
+        }
+        else {
+            /* Single threaded, so free it immediately. */
+            MVM_free(to_free);
+        }
+    }
+#endif
+}
