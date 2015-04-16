@@ -60,3 +60,6 @@ struct MVMNGFTrieNodeEntry {
     /* Trie node to traverse to if we find this node. */
     MVMNFGTrieNode *node;
 };
+
+/* Functions related to grapheme handling. */
+MVMGrapheme32 MVM_nfg_codes_to_grapheme(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes);
