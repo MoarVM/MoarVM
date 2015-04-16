@@ -129,6 +129,43 @@ MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, MVMObject
     return str;
 }
 
+/* Takes an NFG string and populates the array out, which must be a 32-bit
+ * integer array, with codepoints normalized according to the specified
+ * normalization form. */
+void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNormalization form, MVMObject *out) {
+    MVMNormalizer     norm;
+    MVMCodepoint     *result;
+    MVMint64          result_pos, result_alloc;
+    MVMCodepointIter  ci;
+
+    /* Validate output array and set up result storage. */
+    assert_codepoint_array(tc, out, "Normalization output must be native array of 32-bit integers");
+    result_alloc = s->body.num_graphs;
+    result       = MVM_malloc(result_alloc * sizeof(MVMCodepoint));
+    result_pos   = 0;
+
+    /* Create codepoint iterator. */
+    MVM_string_ci_init(tc, &ci, s);
+
+    /* If we want NFC, just iterate, since NFG is constructed out of NFC. */
+    if (form == MVM_NORMALIZE_NFC) {
+        while (MVM_string_ci_has_more(tc, &ci)) {
+            maybe_grow_result(&result, &result_alloc, result_pos + 1);
+            result[result_pos++] = MVM_string_ci_get_codepoint(tc, &ci);
+        }
+    }
+
+    /* Otherwise, need to feed it through a normalizer. */
+    else {
+        MVM_panic(1, "Non-NFC Str coercions are NYI");
+    }
+
+    /* Put result into array body. */
+    ((MVMArray *)out)->body.slots.u32 = result;
+    ((MVMArray *)out)->body.start     = 0;
+    ((MVMArray *)out)->body.elems     = result_pos;
+}
+
 /* Initialize the MVMNormalizer pointed to to perform the specified kind of
  * normalization. */
 void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNormalization form) {
