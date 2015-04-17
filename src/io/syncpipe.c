@@ -29,7 +29,6 @@ static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
     /* closing the in-/output std filehandle will shutdown the child process. */
     uv_unref((uv_handle_t*)data->ss.handle);
     uv_close((uv_handle_t*)data->ss.handle, NULL);
-    uv_run(tc->loop, UV_RUN_DEFAULT);
     if (data->process) {
 #ifdef _WIN32
         if (!uv_is_closing((uv_handle_t*)data->process))
