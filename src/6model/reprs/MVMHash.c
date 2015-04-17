@@ -135,6 +135,9 @@ static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st
     spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
     spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
     spec.can_box         = 0;
+    spec.bits            = 0;
+    spec.align           = 0;
+    spec.is_unsigned     = 0;
     return spec;
 }
 
