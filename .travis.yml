@@ -25,7 +25,7 @@ notifications:
 
 env:
   matrix:
-    - MVM_OPTIONS="--enable-jit"  CC="gcc"
-    - MVM_OPTIONS=""              CC="gcc"
-    - MVM_OPTIONS="--enable-jit"  CC="clang"
-    - MVM_OPTIONS=""              CC="clang"
+    - MVM_OPTIONS="--no-jit"  CC="gcc"
+    - MVM_OPTIONS=""          CC="gcc"
+    - MVM_OPTIONS="--no-jit"  CC="clang"
+    - MVM_OPTIONS=""          CC="clang"
