@@ -546,25 +546,6 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     return; /* When compiling rakudo, we get a "cannot lookup method on null
                object" and i don't know why the previous guard doesn't help.
                but at least we can turn a bunch of can_s into can. */
-    can_result = MVM_6model_can_method_cache_only(tc, obj_facts->type, method_name);
-
-    if (can_result == -1) {
-        return;
-    } else {
-        MVMSpeshFacts *result_facts;
-
-        if (ins->info->opcode == MVM_OP_can_s)
-            MVM_spesh_get_facts(tc, g, ins->operands[2])->usages--;
-
-        result_facts                = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-        ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
-        result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
-        ins->operands[1].lit_i16    = can_result;
-        result_facts->value.i     = can_result;
-
-        obj_facts->usages--;
-        MVM_spesh_use_facts(tc, g, obj_facts);
-    }
 }
 
 /* If we have a const_i and a coerce_in, we can emit a const_n instead. */
