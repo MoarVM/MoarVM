@@ -1003,6 +1003,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         }
     }
 
+    MVM_free(pieces);
     STRAND_CHECK(tc, result);
     return concats_stable ? result : re_nfg(tc, result);
 }
