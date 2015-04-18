@@ -177,8 +177,10 @@ static void * base64_decode(const char *s, size_t *data_len)
          || n[3] == -2
          || n[0] == -1
          || n[1] == -1
-         || (n[2] == -1 && n[3] != -1))
+         || (n[2] == -1 && n[3] != -1)) {
+            MVM_free(data);
             return NULL;
+        }
 
         q[0] = (n[0] << 2) + (n[1] >> 4);
         if (n[2] != -1)
