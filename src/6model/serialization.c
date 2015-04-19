@@ -1518,7 +1518,11 @@ MVMnum64 MVM_serialization_read_num(MVMThreadContext *tc, MVMSerializationReader
     return result;
 }
 
-/* Reading function for native strings. */
+/* Reading function for native strings.
+ *
+ * BEWARE - logic in this function is partly duplicated in the skip calculations
+ * of deserialize_method_cache_lazy(). See the note before
+ * MVM_serialization_read_ref(). */
 MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMString *result;
     assert_can_read(tc, reader, 4);
@@ -1532,7 +1536,11 @@ MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationRea
    look up the SC, then use the index to call some other function. Putting the
    common parts into one function permits the serialized representation to be
    changed, but frustratingly it requires two return values, which is a bit of
-   a pain in (real) C. Hence this rather ungainly function: */
+   a pain in (real) C. Hence this rather ungainly function.
+
+   BEWARE - logic in this function is partly duplicated in the skip calculations
+   of deserialize_method_cache_lazy(). See the note before
+   MVM_serialization_read_ref(). */
 MVM_STATIC_INLINE MVMSerializationContext *read_locate_sc_and_index(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 *idx) {
     MVMint32 sc_id;
     MVMuint32 packed;
@@ -1554,7 +1562,11 @@ MVM_STATIC_INLINE MVMSerializationContext *read_locate_sc_and_index(MVMThreadCon
     return locate_sc(tc, reader, sc_id);
 }
 
-/* Reads in and resolves an object references. */
+/* Reads in and resolves an object references.
+ *
+ * BEWARE - logic in this function is partly duplicated in the skip calculations
+ * of deserialize_method_cache_lazy(). See the note before
+ * MVM_serialization_read_ref(). */
 static MVMObject * read_obj_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint32 idx;
     MVMSerializationContext *sc = read_locate_sc_and_index(tc, reader, &idx);
@@ -1582,7 +1594,11 @@ static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *
     return result;
 }
 
-/* Reads in an hash with string keys and variant references. */
+/* Reads in an hash with string keys and variant references.
+ *
+ * BEWARE - logic in this function is partly duplicated in the skip calculations
+ * of deserialize_method_cache_lazy(). See the note before
+ * MVM_serialization_read_ref(). */
 static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
     MVMint32 elems, i;
@@ -1636,7 +1652,11 @@ static MVMObject * read_array_str(MVMThreadContext *tc, MVMSerializationReader *
     return result;
 }
 
-/* Reads in a code reference. */
+/* Reads in a code reference.
+ *
+ * BEWARE - logic in this function is partly duplicated in the skip calculations
+ * of deserialize_method_cache_lazy(). See the note before
+ * MVM_serialization_read_ref(). */
 static MVMObject * read_code_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint32 idx;
     MVMSerializationContext *sc = read_locate_sc_and_index(tc, reader, &idx);
@@ -1649,7 +1669,15 @@ MVM_STATIC_INLINE MVMuint8 read_discrim(MVMThreadContext *tc, MVMSerializationRe
     return *(*(reader->cur_read_buffer) + *(reader->cur_read_offset));
 }
 
-/* Reading function for references. */
+/* Reading function for references.
+ *
+ * BEWARE - logic in this function is partly duplicated in
+ * deserialize_method_cache_lazy(). If you change the format (or sizes) of
+ * things read here (including of course, things read down the calltree) you may
+ * need to update the corresponding skip count logic in
+ * deserialize_method_cache_lazy().
+ */
+
 MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMObject *result;
 
@@ -2135,7 +2163,13 @@ static void deserialize_how_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSeriali
 }
 
 /* Stashes what we need to deserialize the method cache lazily later, and then
- * skips over it. */
+ * skips over it.
+ *
+ * This function is cruel and unforgiving if you change other parts of the
+ * serialization format, but don't remember (or realise) that you need to update
+ * its idea of sizes. Its "failure" mode is silent, and everything still passes
+ * tests. Only if you benchmark do you realise that everything takes longer,
+ * because the lazy paths are now no longer taken. */
 static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     /* Peek ahead at the discriminator. */
     const int discrim_size = 1;
