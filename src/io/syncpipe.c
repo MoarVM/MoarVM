@@ -36,7 +36,10 @@ static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
         GetExitCodeProcess(data->process->process_handle, &status);
         status = status << 8;
 #else
-        waitpid(data->process->pid, &status, 0);
+        pid_t wpid;
+        do
+            wpid = waitpid(data->process->pid, &status, 0);
+        while (wpid == -1 && errno == EINTR);
 #endif
     }
     if (!status && data->process->data) {
