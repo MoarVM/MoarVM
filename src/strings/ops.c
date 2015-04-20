@@ -1428,11 +1428,11 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
 /* Checks if the character at the specified offset is a member of the
  * indicated character class. */
 MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset) {
-    MVMGrapheme32 cp;
+    MVMGrapheme32 g;
     if (offset < 0 || offset >= MVM_string_graphs(tc, s))
         return 0;
-    cp = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
-    return grapheme_is_cclass(tc, cclass, cp);
+    g = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
+    return grapheme_is_cclass(tc, cclass, g);
 }
 
 /* Searches for the next char that is in the specified character class. */
