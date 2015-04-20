@@ -36,6 +36,7 @@ struct MVMNFGSynthetic {
     MVMGrapheme32 case_uc;
     MVMGrapheme32 case_lc;
     MVMGrapheme32 case_tc;
+    MVMGrapheme32 case_fc;
 };
 
 /* A node in the NFG trie. */
