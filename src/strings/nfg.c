@@ -90,3 +90,17 @@ MVMGrapheme32 MVM_nfg_codes_to_grapheme(MVMThreadContext *tc, MVMCodepoint *code
     else
         return lookup_or_add_synthetic(tc, codes, num_codes);
 }
+
+/* Does a lookup of information held about a synthetic. The synth parameter
+ * must be a synthetic codepoint (that is, negative). The memory returned is
+ * not to be freed by the caller; it also is only valid until the next GC
+ * safe point. */
+MVMNFGSynthetic * MVM_nfg_get_synthetic_info(MVMThreadContext *tc, MVMGrapheme32 synth) {
+    MVMNFGState *nfg       = tc->instance->nfg;
+    MVMint32     synth_idx = -synth - 1;
+    if (synth >= 0)
+        MVM_panic(1, "MVM_nfg_get_synthetic_info illegally called on codepoint >= 0");
+    if (synth_idx >= nfg->num_synthetics)
+        MVM_panic(1, "MVM_nfg_get_synthetic_info called with out-of-range synthetic");
+    return &(nfg->synthetics[synth_idx]);
+}
