@@ -439,6 +439,7 @@ static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint3
             }
             pos++;
         }
+        memmove(n->buffer + insert_pos, n->buffer + to, (n->buffer_end - to) * sizeof(MVMCodepoint));
         n->buffer_end -= to - insert_pos;
     }
 }
