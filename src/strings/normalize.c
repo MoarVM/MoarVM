@@ -133,7 +133,6 @@ MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, MVMObject
  * integer array, with codepoints normalized according to the specified
  * normalization form. */
 void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNormalization form, MVMObject *out) {
-    MVMNormalizer     norm;
     MVMCodepoint     *result;
     MVMint64          result_pos, result_alloc;
     MVMCodepointIter  ci;
@@ -157,7 +156,25 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
 
     /* Otherwise, need to feed it through a normalizer. */
     else {
-        MVM_panic(1, "Non-NFC Str coercions are NYI");
+        MVMNormalizer norm;
+        MVMint32      ready;
+        MVM_unicode_normalizer_init(tc, &norm, form);
+        while (MVM_string_ci_has_more(tc, &ci)) {
+            MVMCodepoint cp;
+            ready = MVM_unicode_normalizer_process_codepoint(tc, &norm, MVM_string_ci_get_codepoint(tc, &ci), &cp);
+            if (ready) {
+                maybe_grow_result(&result, &result_alloc, result_pos + ready);
+                result[result_pos++] = cp;
+                while (--ready > 0)
+                    result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
+            }
+        }
+        MVM_unicode_normalizer_eof(tc, &norm);
+        ready = MVM_unicode_normalizer_available(tc, &norm);
+        maybe_grow_result(&result, &result_alloc, result_pos + ready);
+        while (ready--)
+            result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
+        MVM_unicode_normalizer_cleanup(tc, &norm);
     }
 
     /* Put result into array body. */
