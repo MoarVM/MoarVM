@@ -1323,16 +1323,16 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
 
         case MVM_CCLASS_WORD:
             if (cp <= 'z') {  /* short circuit common case */
-		if (cp >= 'a' || cp == '_' || (cp >= 'A' && cp <= 'Z') || (cp >= '0' && cp <= '9'))
-		    return 1;
-		else
-		    return 0;
-	    }
+                if (cp >= 'a' || cp == '_' || (cp >= 'A' && cp <= 'Z') || (cp >= '0' && cp <= '9'))
+                    return 1;
+                else
+                    return 0;
+            }
             /* Deliberate fall-through; word is _ or digit or alphabetic. */
 
         case MVM_CCLASS_ALPHANUMERIC:
-	    if (cp <= '9' && cp >= '0')  /* short circuit common case */
-		return 1;
+            if (cp <= '9' && cp >= '0')  /* short circuit common case */
+                return 1;
             if (MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Nd))
                 return 1;
@@ -1340,11 +1340,11 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
 
         case MVM_CCLASS_ALPHABETIC:
             if (cp <= 'z') {  /* short circuit common case */
-		if (cp >= 'a' || (cp >= 'A' && cp <= 'Z'))
-		    return 1;
-		else
-		    return 0;
-	    }
+                if (cp >= 'a' || (cp >= 'A' && cp <= 'Z'))
+                    return 1;
+                else
+                    return 0;
+            }
             return
                 MVM_unicode_codepoint_has_property_value(tc, cp,
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lo) /* lots of CJK chars */
@@ -1358,8 +1358,8 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Lm);
 
         case MVM_CCLASS_NUMERIC:
-	    if (cp <= '9' && cp >= '0')  /* short circuit common case */
-		return 1;
+            if (cp <= '9' && cp >= '0')  /* short circuit common case */
+                return 1;
             return MVM_unicode_codepoint_has_property_value(tc, cp,
                 MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Nd);
 
@@ -1368,12 +1368,12 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
                 MVM_UNICODE_PROPERTY_ASCII_HEX_DIGIT, 1);
 
         case MVM_CCLASS_WHITESPACE:
-	    if (cp <= '~') {
-		if (cp == ' ' || (cp <= 13 && cp >= 9))
-		    return 1;
-		else
-		    return 0;
-	    }
+            if (cp <= '~') {
+                if (cp == ' ' || (cp <= 13 && cp >= 9))
+                    return 1;
+                else
+                    return 0;
+            }
             return MVM_unicode_codepoint_has_property_value(tc, cp,
                 MVM_UNICODE_PROPERTY_WHITE_SPACE, 1);
 
