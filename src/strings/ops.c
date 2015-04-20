@@ -1305,9 +1305,13 @@ void MVM_string_cclass_init(MVMThreadContext *tc) {
 }
 
 /* Checks if the specified grapheme is in the given character class. */
-static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 cp) {
-    if (cp < 0)
-        MVM_exception_throw_adhoc(tc, "Negative character fed to cclass: '%d'", cp);
+static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 g) {
+    /* If it's a synthetic, then grab the base codepoint. */
+    MVMCodepoint cp;
+    if (g >= 0)
+        cp = (MVMCodepoint)g;
+    else
+        cp = MVM_nfg_get_synthetic_info(tc, g)->base;
 
     switch (cclass) {
         case MVM_CCLASS_ANY:
