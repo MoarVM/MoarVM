@@ -1006,15 +1006,21 @@ MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint
 }
 
 MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMString *s, MVMint64 offset, MVMint64 property_code, MVMint64 property_value_code) {
+    MVMGrapheme32 g;
+    MVMCodepoint  cp;
+
     if (!IS_CONCRETE((MVMObject *)s)) {
         MVM_exception_throw_adhoc(tc, "uniprop lookup needs a concrete string");
     }
-
     if (offset < 0 || offset >= MVM_string_graphs(tc, s))
         return 0;
 
-    return MVM_unicode_codepoint_has_property_value(tc,
-        MVM_string_get_grapheme_at_nocheck(tc, s, offset), property_code, property_value_code);
+    g = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
+    if (g >= 0)
+        cp = (MVMCodepoint)g;
+    else
+        cp = MVM_nfg_get_synthetic_info(tc, g)->base;
+    return MVM_unicode_codepoint_has_property_value(tc, cp, property_code, property_value_code);
 }
 
 /* Normalizes a string to a flat MVMGrapheme32 buffer, for the benefit of
