@@ -523,10 +523,13 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
 }
 
 MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
-    MVMString *lca = MVM_string_lc(tc, a);
+    MVMString *lca;
     MVMString *lcb;
-    MVMROOT(tc, lca, {
-        lcb = MVM_string_lc(tc, b);
+    MVMROOT(tc, b, {
+        lca = MVM_string_lc(tc, a);
+        MVMROOT(tc, lca, {
+            lcb = MVM_string_lc(tc, b);
+        });
     });
     return MVM_string_equal_at(tc, lca, lcb, offset);
 }
