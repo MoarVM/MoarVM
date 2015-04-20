@@ -1156,7 +1156,7 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
                           0 ;
 }
 
-/* Takes two strings and AND's their charaters. */
+/* Takes two strings and AND's their characters. */
 MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString         *res = NULL;
     MVMStringIndex    alen = MVM_string_graphs(tc, a);
@@ -1179,7 +1179,7 @@ MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     return res;
 }
 
-/* Takes two strings and OR's their charaters. */
+/* Takes two strings and OR's their characters. */
 MVMString * MVM_string_bitor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString         *res = NULL;
     MVMStringIndex    alen = MVM_string_graphs(tc, a);
@@ -1211,7 +1211,7 @@ MVMString * MVM_string_bitor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     return res;
 }
 
-/* Takes two strings and XOR's their charaters. */
+/* Takes two strings and XOR's their characters. */
 MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString         *res = NULL;
     MVMStringIndex    alen = MVM_string_graphs(tc, a);
