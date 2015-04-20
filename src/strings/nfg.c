@@ -4,14 +4,140 @@
  * to grow it. */
 #define MVM_SYNTHETIC_GROW_ELEMS 32
 
-/* Does a lookup in the trie for a synthetic for the specified codepoints. */
-static MVMGrapheme32 lookup_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes) {
-    /* XXX TODO: actually implement the lookup. */
-    return 0;
+/* Finds the index of a given codepoint within a trie node. Returns it if
+ * there is one, or negative if there is not (note 0 is a valid index). */
+static MVMint32 find_child_node_idx(MVMThreadContext *tc, MVMNFGTrieNode *node, MVMCodepoint cp) {
+    if (node) {
+        /* TODO: update this to do a binary search later on. */
+        MVMint32 i;
+        for (i = 0; i < node->num_entries; i++)
+            if (node->next_codes[i].code == cp)
+                return i;
+    }
+    return -1;
 }
 
-/* TODO: describe/implement this algorithm. */
+/* Does a lookup in the trie for a synthetic for the specified codepoints. */
+MVMNFGTrieNode * find_child_node(MVMThreadContext *tc, MVMNFGTrieNode *node, MVMCodepoint cp) {
+    MVMint32 idx = find_child_node_idx(tc, node, cp);
+    return idx >= 0 ? node->next_codes[idx].node : NULL;
+}
+static MVMGrapheme32 lookup_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes) {
+    MVMNFGTrieNode *cur_node        = tc->instance->nfg->grapheme_lookup;
+    MVMCodepoint   *cur_code        = codes;
+    MVMint32        codes_remaining = num_codes;
+    while (cur_node && codes_remaining) {
+        cur_node = find_child_node(tc, cur_node, *cur_code);
+        cur_code++;
+        codes_remaining--;
+    }
+    return cur_node ? cur_node->graph : 0;
+}
+
+/* Recursive algorithm to add to the trie. Descends existing trie nodes so far
+ * as we have them following the code points, then passes on a NULL for the
+ * levels of current below that do not exist. Once we bottom out, makes a copy
+ * of or creates a node for the synthetic. As we walk back up we create or
+ * copy+tweak nodes until we have produced a new trie, re-using what we can of
+ * the existing one. */
+static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *current, MVMCodepoint *cur_code, MVMint32 codes_remaining, MVMGrapheme32 synthetic) {
+    /* Make a new empty node, which we'll maybe copy some things from the
+     * current node into. */
+    MVMNFGTrieNode *new_node = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMNFGTrieNode));
+
+    /* If we've more codes remaining... */
+    if (codes_remaining > 0) {
+        /* Recurse, to get a new child node. */
+        MVMint32 idx = find_child_node_idx(tc, current, *cur_code);
+        MVMNFGTrieNode *new_child = twiddle_trie_node(tc,
+            idx >= 0 ? current->next_codes[idx].node : NULL,
+            cur_code + 1, codes_remaining - 1, synthetic);
+
+        /* If we had an existing child node... */
+        if (idx >= 0) {
+            /* Make a copy of the next_codes list. */
+            size_t the_size = current->num_entries * sizeof(MVMNGFTrieNodeEntry);
+            MVMNGFTrieNodeEntry *new_next_codes = MVM_fixed_size_alloc(tc,
+                tc->instance->fsa, the_size);
+            memcpy(new_next_codes, current->next_codes, the_size);
+
+            /* Update the copy to point to the new child. */
+            new_next_codes[idx].node = new_child;
+
+            /* Install the new next_codes list in the new node, and free the
+             * existing child list at the next safe point. */
+            new_node->num_entries = current->num_entries;
+            new_node->next_codes  = new_next_codes;
+            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, the_size,
+                current->next_codes);
+        }
+
+        /* Otherwise, we're going to need to insert the new child into a
+         * (possibly existing) child list. */
+        else {
+            /* Calculate new child node list size and allocate it. */
+            MVMint32 orig_entries = current ? current->num_entries : 0;
+            MVMint32 new_entries  = orig_entries + 1;
+            size_t new_size       = new_entries * sizeof(MVMNGFTrieNodeEntry);
+            MVMNGFTrieNodeEntry *new_next_codes = MVM_fixed_size_alloc(tc,
+                tc->instance->fsa, new_size);
+
+            /* Go through original entries, copying those that are for a lower
+             * code point than the one we're inserting a child for. */
+            MVMint32 insert_pos = 0;
+            MVMint32 orig_pos   = 0;
+            while (orig_pos < orig_entries && current->next_codes[orig_pos].code < *cur_code)
+                new_next_codes[insert_pos++] = current->next_codes[orig_pos++];
+
+            /* Insert the new child. */
+            new_next_codes[insert_pos].code = *cur_code;
+            new_next_codes[insert_pos].node = new_child;
+            insert_pos++;
+
+            /* Copy the rest. */
+            while (orig_pos < orig_entries)
+                new_next_codes[insert_pos++] = current->next_codes[orig_pos++];
+
+            /* Install the new next_codes list in the new node, and free any
+             * existing child list at the next safe point. */
+            new_node->num_entries = new_entries;
+            new_node->next_codes  = new_next_codes;
+            if (orig_entries)
+                MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+                    orig_entries * sizeof(MVMNGFTrieNodeEntry),
+                    current->next_codes);
+        }
+
+        /* Always need to copy synthetic set on the existing node also;
+         * otherwise make sure to clear it. */
+        new_node->graph = current ? current->graph : 0;
+    }
+
+    /* Otherwise, we reached the point where we need to install the synthetic.
+     * If we already had a node here, we re-use the children of it. */
+    else {
+        new_node->graph = synthetic;
+        if (current) {
+            new_node->num_entries = current->num_entries;
+            new_node->next_codes  = current->next_codes;
+        }
+        else {
+            new_node->num_entries = 0;
+            new_node->next_codes  = NULL;
+        }
+    }
+
+    /* Free any existing node at next safe point, return the new one. */
+    if (current)
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+            sizeof(MVMNGFTrieNodeEntry), current);
+    return new_node;
+}
 static void add_synthetic_to_trie(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes, MVMGrapheme32 synthetic) {
+    MVMNFGState    *nfg      = tc->instance->nfg;
+    MVMNFGTrieNode *new_trie = twiddle_trie_node(tc, nfg->grapheme_lookup, codes, num_codes, synthetic);
+    MVM_barrier();
+    nfg->grapheme_lookup = new_trie;
 }
 
 /* Assumes that we are holding the lock that serializes updates, and already
