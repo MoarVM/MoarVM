@@ -230,3 +230,44 @@ MVMNFGSynthetic * MVM_nfg_get_synthetic_info(MVMThreadContext *tc, MVMGrapheme32
         MVM_panic(1, "MVM_nfg_get_synthetic_info called with out-of-range synthetic");
     return &(nfg->synthetics[synth_idx]);
 }
+
+/* Gets the cached case change if we already computed it, or computes it if
+ * this is the first time we're using it. */
+static MVMGrapheme32 compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMNFGSynthetic *synth_info, MVMint32 case_) {
+    MVMCodepoint  lowered_base = MVM_unicode_get_case_change(tc, synth_info->base, case_);
+    MVMGrapheme32 result;
+    if (lowered_base == synth_info->base) {
+        /* Base character does not change, so grapheme stays the same. */
+        result = synth;
+    }
+    else {
+        /* Build a codepoint buffer with the lowered base and then either
+         * lookup or create a synthetic as needed. */
+        MVMint32      num_codes     = 1 + synth_info->num_combs;
+        MVMCodepoint *change_buffer = MVM_malloc(num_codes * sizeof(MVMCodepoint));
+        change_buffer[0] = lowered_base;
+        memcpy(change_buffer + 1, synth_info->combs, synth_info->num_combs * sizeof(MVMCodepoint));
+        result = MVM_nfg_codes_to_grapheme(tc, change_buffer, num_codes);
+        MVM_free(change_buffer);
+    }
+    return result;
+}
+MVMGrapheme32 MVM_nfg_get_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMint32 case_) {
+    MVMNFGSynthetic *synth_info = MVM_nfg_get_synthetic_info(tc, synth);
+    switch (case_) {
+    case MVM_unicode_case_change_type_upper:
+        if (!synth_info->case_uc)
+            synth_info->case_uc = compute_case_change(tc, synth, synth_info, case_);
+        return synth_info->case_uc;
+    case MVM_unicode_case_change_type_lower:
+        if (!synth_info->case_lc)
+            synth_info->case_lc = compute_case_change(tc, synth, synth_info, case_);
+        return synth_info->case_lc;
+    case MVM_unicode_case_change_type_title:
+        if (!synth_info->case_tc)
+            synth_info->case_tc = compute_case_change(tc, synth, synth_info, case_);
+        return synth_info->case_tc;
+    default:
+        abort();
+    }
+}

@@ -613,7 +613,9 @@ MVMString * funcname(MVMThreadContext *tc, MVMString *s) { \
         MVM_string_gi_init(tc, &gi, s); \
         while (i < sgraphs) { \
             MVMGrapheme32 before = MVM_string_gi_get_grapheme(tc, &gi); \
-            MVMGrapheme32 after  = MVM_unicode_get_case_change(tc, before, type); \
+            MVMGrapheme32 after  = before >= 0 \
+                ? MVM_unicode_get_case_change(tc, before, type) \
+                : MVM_nfg_get_case_change(tc, before, type); \
             result_buf[i++]      = after; \
             if (before != after) \
                 changed = 1; \
