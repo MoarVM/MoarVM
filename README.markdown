@@ -34,8 +34,8 @@ and install a copy of MoarVM on its own if you supply the `--gen-moar` flag.
 
 When pointing the `Configure.pl` script in rakudo's repository at a `--prefix`
 that has an `nqp-m` installed in it, it will automatically detect and configure
-the MoarVM backend. Alternatively, `--backend=moar,parrot` can be used to force
-it to build the MoarVM and Parrot backends, for example. Just like in the NQP
+the MoarVM backend. Alternatively, `--backend=moar,jvm` can be used to force
+it to build the MoarVM and JVM backends, for example. Just like in the NQP
 `Configure.pl` script, you have the option to supply a `--gen-moar` flag that
 will do all the work for you, including creating an `nqp-m`.
 
