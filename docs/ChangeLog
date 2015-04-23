@@ -1,3 +1,53 @@
+New in 2015.04
+
++ Re-enabled lazy deserialization, decreasing Rakudo startup time and memory
++ Fix a possible buffer-overrun in MVMArray's existspos
++ Fix for ARMv5
++ Configure: add an option --ar
++ Mark existspos op as pure to allow better optimization
++ Tweak dynamic optimization and OSR thresholds to tune startup performance
++ Implement bounded serialization of parameterized types
++ Include file names in some deserialization errors
++ Clean up some unused functions and variables
++ Add __attribute__((format())) where appropriate
++ Correct some format strings
++ Allow nativecast from VMArray e.g. Blob/Buf
++ Output callsites in spesh log
++ Implement unsigned int types for native calls
++ Upgrade Unicode DB to Unicode 7.0
++ Include module that asked for stale dependency in error message
++ Handle 'is rw' params in native calls
++ Make some hot functions at startup time as always being inlined
++ Fix exception message when utf8 string is invalid from the start
++ Implement NFC/NFD/NFKC/NFKD Unicode normalization algorithms
++ Add op to normalize buffers of codepoints
++ Remove unused Unicode database script
++ Support cross-compiling with computed goto
++ Refactor pthread_yield detection
++ Add op "getcodelocation"; gets file and line of a MVMCode
++ Tweak istrue_s; every non-empty string is true now
++ Bump minimum serialization format version; remove code for old versions
++ Implement a more compact varint serialization format
++ Remove the vestigial serialized 0 that used to be v-table length
++ Re-order struct MVMCollectable to slightly reduce L1 cache misses
++ Store the serialized reference type discriminator in 1 byte, not 2
++ Add missing IS_CONCRETE checks in serialization
++ Make unbox int/num/str functions test IS_CONCRETE always
++ Fix conflict with splice from bits/fcntl-linux.h
++ Fix missing frees of bytecode annotations
++ Serialize object headers more compactly
++ Serialize object references more compactly
++ Split codepoint iterator from grapheme iterator
++ Implement grapheme normalization algorithm (aka. "NFG")
++ Implement encoding of grapheme-level strings to bytes
++ Implement retrieving codepoints in different normal forms from NFG strings
++ Fake POSIX exit codes consequently on windows
++ Remove extra call to uv_run when closing a pipe
++ Loop over waitpid to get correct exit code for closed pipe
++ Basic implementation of case change with NFG
++ Make character class check on NFG synthetic uses base codepoint
++ Make Unicode property checks on NFG synthetics use base codepoint
+
 New in 2015.03
 
 + Add a macports Portfile
