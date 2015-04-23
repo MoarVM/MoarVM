@@ -1517,6 +1517,9 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     else if (MVM_string_equal(tc, name, encoding_latin1_name)) {
         return MVM_encoding_type_latin1;
     }
+    else if (MVM_string_equal(tc, name, encoding_windows1252_name)) {
+        return MVM_encoding_type_windows1252;
+    }
     else if (MVM_string_equal(tc, name, encoding_utf16_name)) {
         return MVM_encoding_type_utf16;
     }
