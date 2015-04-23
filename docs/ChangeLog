@@ -27,7 +27,7 @@ New in 2015.04
 + Add op "getcodelocation"; gets file and line of a MVMCode
 + Tweak istrue_s; every non-empty string is true now
 + Bump minimum serialization format version; remove code for old versions
-+ Implement a more compact varint serialization format
++ Implement a more efficient varint serialization format
 + Remove the vestigial serialized 0 that used to be v-table length
 + Re-order struct MVMCollectable to slightly reduce L1 cache misses
 + Store the serialized reference type discriminator in 1 byte, not 2
