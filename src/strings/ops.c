@@ -1529,10 +1529,24 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     }
 }
 
-MVMString * MVM_string_chr(MVMThreadContext *tc, MVMGrapheme32 g) {
+/* Turns a codepoint into a string. Uses the normalizer to ensure that we get
+ * a valid NFG string (NFG is a superset of NFC, and singleton decompositions
+ * exist). */
+MVMString * MVM_string_chr(MVMThreadContext *tc, MVMCodepoint cp) {
     MVMString *s;
-    if (g < 0)
+    MVMGrapheme32 g;
+    MVMNormalizer norm;
+
+    if (cp < 0)
         MVM_exception_throw_adhoc(tc, "chr codepoint cannot be negative");
+
+    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+    if (!MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, cp, &g)) {
+        MVM_unicode_normalizer_eof(tc, &norm);
+        g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+    }
+    MVM_unicode_normalizer_cleanup(tc, &norm);
+
     s = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
     s->body.storage_type       = MVM_STRING_GRAPHEME_32;
     s->body.storage.blob_32    = MVM_malloc(sizeof(MVMGrapheme32));
