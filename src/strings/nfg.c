@@ -271,3 +271,37 @@ MVMGrapheme32 MVM_nfg_get_case_change(MVMThreadContext *tc, MVMGrapheme32 synth,
         abort();
     }
 }
+
+/* Returns non-zero if the result of concatenating the two strings will freely
+ * leave us in NFG without any further effort. */
+static MVMint32 passes_quickcheck_and_zero_ccc(MVMThreadContext *tc, MVMCodepoint cp) {
+    const char *qc_str  = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_NFC_QC);
+    const char *ccc_str = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
+    return qc_str && qc_str[0] == 'Y' &&
+        (!ccc_str || strlen(ccc_str) > 3 || (strlen(ccc_str) == 1 && ccc_str[0] == 0));
+}
+MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    MVMGrapheme32 last_a;
+    MVMGrapheme32 first_b;
+
+    /* If either string is empty, we're good. */
+    if (a->body.num_graphs == 0 || b->body.num_graphs == 0)
+        return 1;
+
+    /* Get first and last graphemes of the strings. */
+    last_a = MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1);
+    first_b = MVM_string_get_grapheme_at_nocheck(tc, b, 0);
+
+    /* If either is synthetic, assume we'll have to re-normalize (this is an
+     * over-estimate, most likely). Note if you optimize this that it serves
+     * as a guard for what follows. */
+    if (last_a < 0 || first_b < 0)
+        return 0;
+
+    /* If both less than the first significant char for NFC, we're good. */
+    if (last_a < MVM_NORMALIZE_FIRST_SIG_NFC && first_b < MVM_NORMALIZE_FIRST_SIG_NFC)
+        return 1;
+
+    /* If either fail quickcheck or have ccc > 0, have to re-normalize. */
+    return passes_quickcheck_and_zero_ccc(tc, last_a) && passes_quickcheck_and_zero_ccc(tc, first_b);
+}

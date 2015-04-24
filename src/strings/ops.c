@@ -60,6 +60,48 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     return result;
 }
 
+/* Takes a string that is no longer in NFG form after some concatenation-style
+ * operation, and returns a new string that is in NFG. Note that we could do a
+ * much, much, smarter thing in the future that doesn't involve all of this
+ * copying and allocation and re-doing the whole string, but cases like this
+ * should be fairly rare anyway, so go with simplicity for now. */
+static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in) {
+    MVMNormalizer norm;
+    MVMCodepointIter ci;
+    MVMint32 ready;
+    MVMString *out;
+
+    /* Create output buffer; it'll never be longer than the initial estimate
+     * since the most we'll do is collapse two things into one in places. */
+    MVMGrapheme32 *out_buffer = MVM_malloc(in->body.num_graphs * sizeof(MVMGrapheme32));
+    MVMint64 out_pos = 0;
+
+    /* Iterate codepoints and normalizer. */
+    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+    MVM_string_ci_init(tc, &ci, in);
+    while (MVM_string_ci_has_more(tc, &ci)) {
+        MVMGrapheme32 g;
+        ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, MVM_string_ci_get_codepoint(tc, &ci), &g);
+        if (ready) {
+            out_buffer[out_pos++] = g;
+            while (--ready > 0)
+                out_buffer[out_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        }
+    }
+    MVM_unicode_normalizer_eof(tc, &norm);
+    ready = MVM_unicode_normalizer_available(tc, &norm);
+    while (ready--)
+        out_buffer[out_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+    MVM_unicode_normalizer_cleanup(tc, &norm);
+
+    /* Build result string. */
+    out = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    out->body.storage.blob_32 = out_buffer;
+    out->body.storage_type    = MVM_STRING_GRAPHEME_32;
+    out->body.num_graphs      = out_pos;
+    return out;
+}
+
 /* Returns nonzero if two substrings are equal, doesn't check bounds */
 MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
         MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb) {
@@ -410,7 +452,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     });
 
     STRAND_CHECK(tc, result);
-    return result;
+    return MVM_nfg_is_concat_stable(tc, a, b) ? result : re_nfg(tc, result);
 }
 
 MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count) {
@@ -815,6 +857,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     MVMString **pieces;
     MVMint64    elems, num_pieces, sgraphs, i, is_str_array, total_graphs;
     MVMuint16   sstrands, total_strands;
+    MVMint32    concats_stable = 1;
 
     if (!IS_CONCRETE(input)) {
         MVM_exception_throw_adhoc(tc, "join needs a concrete array to join");
@@ -913,6 +956,13 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
 
             /* Add separator if needed. */
             if (i > 0) {
+                if (!concats_stable)
+                    /* Already stable; no more checks. */;
+                else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], separator))
+                    concats_stable = 0;
+                else if (!MVM_nfg_is_concat_stable(tc, separator, piece))
+                    concats_stable = 0;
+
                 switch (separator->body.storage_type) {
                 case MVM_STRING_GRAPHEME_32:
                     memcpy(
@@ -954,7 +1004,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     }
 
     STRAND_CHECK(tc, result);
-    return result;
+    return concats_stable ? result : re_nfg(tc, result);
 }
 
 /* Returning nonzero means it found the char at the position specified in 'a' in 'b'.
