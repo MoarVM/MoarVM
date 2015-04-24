@@ -5,7 +5,9 @@
  * obtained. Byte buffers and decoded char buffers are kept in linked lists.
  * Note that characters may start at the end of one byte buffer and finish in
  * the next, which is taken care of by the logic in here and the decoders
- * themselves.
+ * themselves. Additionally, normalization may be applied using the normalizer
+ * in the decode stream, at the discretion of the encoding in question (some,
+ * such as ASCII and Latin-1, are normalized by definition).
  */
 
 /* Creates a new decoding stream. */
@@ -13,6 +15,7 @@ MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 
     MVMDecodeStream *ds = MVM_calloc(1, sizeof(MVMDecodeStream));
     ds->encoding        = encoding;
     ds->abs_byte_pos    = abs_byte_pos;
+    MVM_unicode_normalizer_init(tc, &(ds->norm), MVM_NORMALIZE_NFG);
     return ds;
 }
 
@@ -335,5 +338,6 @@ void MVM_string_decodestream_destory(MVMThreadContext *tc, MVMDecodeStream *ds) 
         MVM_free(cur_bytes);
         cur_bytes = next_bytes;
     }
+    MVM_unicode_normalizer_cleanup(tc, &(ds->norm));
     MVM_free(ds);
 }
