@@ -835,8 +835,12 @@ static SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph 
     return var_info;
 }
 
-MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 nrargs) {
+MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint32 nrargs) {
     MVMOpInfo *result = NULL;
+
+    /* Check number of args to phi isn't huge. */
+    if (nrargs > 0xFFFF)
+        MVM_panic(1, "Spesh: SSA calculation failed; cannot allocate enormous PHI node");
 
     /* Up to 64 args, almost every number is represented, but after that
      * we have a sparse array through which we must search */
