@@ -1488,11 +1488,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_string_graphs(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
-            OP(chr): {
-                GET_REG(cur_op, 0).s = MVM_string_chr(tc, (MVMGrapheme32)GET_REG(cur_op, 2).i64);
+            OP(chr):
+                GET_REG(cur_op, 0).s = MVM_string_chr(tc, (MVMCodepoint)GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(ordfirst): {
                 MVMString *s = GET_REG(cur_op, 2).s;
                 GET_REG(cur_op, 0).i64 = MVM_string_get_grapheme_at(tc, s, 0);
