@@ -226,7 +226,18 @@ void MVM_unicode_normalizer_cleanup(MVMThreadContext *tc, MVMNormalizer *n) {
 /* Adds a codepoint into the buffer, making sure there's space. */
 static void add_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint cp) {
     if (n->buffer_end == n->buffer_size) {
-        MVM_panic(1, "Resize of codepoint buffer NYI");
+        if (n->buffer_start != 0) {
+            MVMint32 shuffle = n->buffer_start;
+            MVMint32 to_move = n->buffer_end - n->buffer_start;
+            memmove(n->buffer, n->buffer + n->buffer_start, to_move * sizeof(MVMCodepoint));
+            n->buffer_start = 0;
+            n->buffer_end -= shuffle;
+            n->buffer_norm_end -= shuffle;
+        }
+        else {
+            n->buffer_size *= 2;
+            n->buffer = MVM_realloc(n->buffer, n->buffer_size * sizeof(MVMCodepoint));
+        }
     }
     n->buffer[n->buffer_end++] = cp;
 }
