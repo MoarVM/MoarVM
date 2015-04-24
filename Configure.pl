@@ -31,8 +31,8 @@ GetOptions(\%args, qw(
     debug:s optimize:s instrument!
     os=s shell=s toolchain=s compiler=s
     ar=s cc=s ld=s make=s has-sha has-libuv
-    static use-readline has-libtommath has-libatomic_ops
-    has-dyncall has-linenoise
+    static has-libtommath has-libatomic_ops
+    has-dyncall
     build=s host=s big-endian jit! enable-jit lua=s has-dynasm
     prefix=s bindir=s libdir=s mastdir=s make-install asan),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
@@ -73,7 +73,6 @@ $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 $args{instrument} //= 0;
 $args{static}     //= 0;
 
-$args{'use-readline'}      //= 0;
 $args{'big-endian'}        //= 0;
 $args{'has-libtommath'}    //= 0;
 $args{'has-sha'}           //= 0;
@@ -147,14 +146,6 @@ $config{ldmiscflags}  //= $config{ccmiscflags};
 $config{ldoptiflags}  //= $config{ccoptiflags};
 $config{lddebugflags} //= $config{ccdebugflags};
 $config{ldinstflags}  //= $config{ccinstflags};
-
-# choose between Linenoise and GNU Readline
-if ($args{'use-readline'}) {
-    $config{hasreadline} = 1;
-    $defaults{-thirdparty}->{ln} = undef;
-    unshift @{$config{usrlibs}}, 'readline';
-}
-else { $config{hasreadline} = 0 }
 
 if ($args{'has-sha'}) {
     $config{shaincludedir} = '/usr/include/sha';
@@ -251,16 +242,6 @@ else {
                         . "\t\$(CP) 3rdparty/dyncall/dynload/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n"
                         . "\t\$(CP) 3rdparty/dyncall/dyncall/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n"
                         . "\t\$(CP) 3rdparty/dyncall/dyncallback/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n";
-}
-
-if ($args{'has-linenoise'}) {
-    unshift @{$config{usrlibs}}, 'linenoise';
-    $defaults{-thirdparty}->{ln} = undef;
-}
-else {
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/linenoise';
-    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/linenoise\n"
-                        . "\t\$(CP) 3rdparty/linenoise/*.h \$(DESTDIR)\$(PREFIX)/include/linenoise\n";
 }
 
 if ($args{'jit'}) {
@@ -723,7 +704,7 @@ __END__
                    [--toolchain <toolchain>] [--compiler <compiler>]
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
-                   [--static] [--use-readline] [--prefix]
+                   [--static] [--prefix]
                    [--has-libtommath] [--has-sha] [--has-libuv]
                    [--has-libatomic_ops] [--has-dynasm]
                    [--lua <lua>] [--asan] [--no-jit]
@@ -817,15 +798,6 @@ options.
 
 Build MoarVM as a static library instead of a shared one.
 
-=item --use-readline
-
-Disable Linenoise and try to use the system version of GNU Readline
-instead.
-
-You must not supply this flag if you create derivative work of
-MoarVM - including binary packages of MoarVM itself - that you wish
-to distribute under a license other than the GNU GPL.
-
 =item --build <build-triple> --host <host-triple>
 
 Set up cross-compilation.
@@ -871,11 +843,6 @@ Build and install MoarVM in addition to configuring it.
 =item --has-dynasm
 
 =item --has-dyncall
-
-=item --has-linenoise
-
-Link moar executable with libs provided by the system instead of building
-and installing an own version from MoarVM's source tree.
 
 =item --no-jit
 

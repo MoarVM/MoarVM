@@ -23,12 +23,6 @@ our %TP_TOM = (
     src  => [ '3rdparty/libtommath' ],
 );
 
-our %TP_LN = (
-    name => 'linenoise',
-    path => '3rdparty/linenoise',
-    src  => [ '3rdparty/linenoise' ],
-);
-
 our %TP_MT = (
     name => 'tinymt',
     path => '3rdparty/tinymt',
@@ -73,7 +67,6 @@ our %THIRDPARTY = (
     lao => { %TP_LAO },
     tom => { %TP_TOM },
     sha => { %TP_SHA },
-    ln  => { %TP_LN },
     mt  => { %TP_MT },
     dc  => { %TP_DC },
     dcb => { %TP_DCB },

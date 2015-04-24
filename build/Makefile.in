@@ -542,10 +542,6 @@ dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
 	$(MSG) linking $@
 	$(CMD)@sharule@ $(NOOUT)
 
-@lnlib@: @lnobjects@
-	$(MSG) linking $@
-	$(CMD)@lnrule@ $(NOOUT)
-
 @mtlib@: @mtobjects@
 	$(MSG) linking $@
 	$(CMD)@mtrule@ $(NOOUT)
@@ -572,7 +568,6 @@ realclean: clean
 	-$(CMD)@laoclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
-	-$(CMD)@lnclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@mtclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@dcclean@ $(NOOUT) $(NOERR)
 

@@ -15,19 +15,6 @@
 #define DEFAULT_MODE _S_IWRITE /* work around sucky libuv defaults */
 #endif
 
-#if MVM_HAS_READLINE
-#ifdef __cplusplus
-extern "C" {
-#endif
-    char *readline(const char *);
-    void add_history(const char*);
-#ifdef __cplusplus
-}
-#endif
-#else
-#include <linenoise.h>
-#endif
-
 static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) {
     char * const a = MVM_string_utf8_encode_C_string(tc, filename);
     uv_fs_t req;
@@ -323,52 +310,6 @@ FILE_IS(readable, R)
 FILE_IS(writable, W)
 FILE_IS(executable, X)
 #endif
-
-/* Readline interactive; needs a re-visit soon. */
-MVMString * MVM_file_readline_interactive_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *prompt) {
-    MVMString *return_str = NULL;
-    char *line;
-    char * const prompt_str = MVM_string_utf8_encode_C_string(tc, prompt);
-    MVMOSHandle *h = (MVMOSHandle *) oshandle;
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-
-#if MVM_HAS_READLINE
-    line = readline(prompt_str);
-
-    MVM_free(prompt_str);
-
-    if (line) {
-        if (*line)
-            add_history(line);
-
-        return_str = MVM_string_decode(tc, tc->instance->VMString, line, strlen(line), MVM_encoding_type_utf8);
-
-        MVM_free(line);
-    } else {
-        data->eof = 1;
-    }
-
-#else /* !MVM_HAS_READLINE */
-    line = linenoise(prompt_str);
-
-    MVM_free(prompt_str);
-
-    if (line) {
-        if (*line) {
-            linenoiseHistoryAdd(line);
-        }
-
-        return_str = MVM_string_decode(tc, tc->instance->VMString, line, strlen(line), MVM_encoding_type_utf8);
-
-        MVM_free(line);
-    } else {
-        data->eof = 1;
-    }
-
-#endif /* MVM_HAS_READLINE */
-
-    return return_str;
-}
 
 /* Read all of a file into a string. */
 MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString *encoding) {

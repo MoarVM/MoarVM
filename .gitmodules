@@ -1,6 +1,3 @@
-[submodule "3rdparty/linenoise"]
-	path = 3rdparty/linenoise
-	url = https://github.com/MoarVM/linenoise.git
 [submodule "3rdparty/libuv"]
 	path = 3rdparty/libuv
 	url = https://github.com/joyent/libuv.git
