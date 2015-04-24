@@ -305,7 +305,7 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
     MVMGrapheme32 *buffer;
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
-    MVMint32 last_accept_pos;
+    MVMint32 last_accept_pos, ready;
 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
@@ -328,24 +328,34 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
         char     *bytes = cur_bytes->bytes;
         while (pos < cur_bytes->length) {
             switch(decode_utf8_byte(&state, &codepoint, bytes[pos++])) {
-            case UTF8_ACCEPT:
-                if (count == bufsize) {
-                    /* Valid character, but we filled the buffer. Attach this
-                     * one to the buffers linked list, and continue with a new
-                     * one. */
-                    MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
-                    count = 0;
+            case UTF8_ACCEPT: {
+                MVMint32 first = 1;
+                MVMGrapheme32 g;
+                ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &(ds->norm), codepoint, &g);
+                while (ready--) {
+                    if (first)
+                        first = 0;
+                    else
+                        g = MVM_unicode_normalizer_get_grapheme(tc, &(ds->norm));
+                    if (count == bufsize) {
+                        /* Valid character, but we filled the buffer. Attach this
+                        * one to the buffers linked list, and continue with a new
+                        * one. */
+                        MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
+                        buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+                        count = 0;
+                    }
+                    buffer[count++] = g;
+                    last_accept_bytes = cur_bytes;
+                    last_accept_pos = pos;
+                    total++;
+                    if (stopper_chars && *stopper_chars == total)
+                        goto done;
+                    if (stopper_sep && *stopper_sep == g)
+                        goto done;
                 }
-                buffer[count++] = codepoint; /* XXX NFG needs a change here */
-                last_accept_bytes = cur_bytes;
-                last_accept_pos = pos;
-                total++;
-                if (stopper_chars && *stopper_chars == total)
-                    goto done;
-                if (stopper_sep && *stopper_sep == codepoint)
-                    goto done;
                 break;
+            }
             case UTF8_REJECT:
                 MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
                 break;
