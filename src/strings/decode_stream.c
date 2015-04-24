@@ -207,6 +207,17 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
     /* Decode all the things. */
     run_decode(tc, ds, NULL, NULL);
 
+    /* If there's some things left in the normalization buffer, take them. */
+    MVM_unicode_normalizer_eof(tc, &(ds->norm));
+    if (MVM_unicode_normalizer_available(tc, &(ds->norm))) {
+        MVMint32 ready = MVM_unicode_normalizer_available(tc, &(ds->norm));
+        MVMGrapheme32 *buffer = MVM_malloc(ready * sizeof(MVMGrapheme32));
+        MVMint32 count = 0;
+        while (ready--)
+            buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &(ds->norm));
+        MVM_string_decodestream_add_chars(tc, ds, buffer, count);
+    }
+
     /* If there's no codepoint buffer, then return the empty string. */
     if (!ds->chars_head) {
         result->body.storage.blob_32 = NULL;
@@ -325,7 +336,7 @@ MVMint64 MVM_string_decodestream_tell_bytes(MVMThreadContext *tc, MVMDecodeStrea
 
 /* Checks if the decode stream is empty. */
 MVMint32 MVM_string_decodestream_is_empty(MVMThreadContext *tc, MVMDecodeStream *ds) {
-    return !(ds->bytes_head || ds->chars_head);
+    return !(ds->bytes_head || ds->chars_head || MVM_unicode_normalizer_available(tc, &(ds->norm)));
 }
 
 /* Destroys a decoding stream, freeing all associated memory (including the
