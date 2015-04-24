@@ -200,23 +200,36 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
     const char *orig_utf8;
     MVMint32 line;
     MVMint32 col;
+    MVMint32 ready;
+
+    /* Need to normalize to NFG as we decode. */
+    MVMNormalizer norm;
+    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
 
     orig_bytes = bytes;
     orig_utf8 = utf8;
 
     for (; bytes; ++utf8, --bytes) {
         switch(decode_utf8_byte(&state, &codepoint, (MVMuint8)*utf8)) {
-        case UTF8_ACCEPT: /* got a codepoint */
-            if (count == bufsize) { /* if the buffer's full make a bigger one */
-                buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (
-                    bufsize >= UTF8_MAXINC ? (bufsize += UTF8_MAXINC) : (bufsize *= 2)
-                ));
+        case UTF8_ACCEPT: { /* got a codepoint */
+            MVMGrapheme32 g;
+            ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, codepoint, &g);
+            if (ready) {
+                while (count + ready >= bufsize) { /* if the buffer's full make a bigger one */
+                    buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (
+                        bufsize >= UTF8_MAXINC ? (bufsize += UTF8_MAXINC) : (bufsize *= 2)
+                    ));
+                }
+                buffer[count++] = g;
+                while (--ready > 0)
+                    buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
             }
-            buffer[count++] = codepoint; /* XXX NFG needs a change here */
             break;
+        }
         case UTF8_REJECT:
             /* found a malformed sequence; parse it again this time tracking
              * line and col numbers. */
+            MVM_unicode_normalizer_cleanup(tc, &norm); /* Since we'll throw. */
             bytes = orig_bytes; utf8 = orig_utf8; state = 0; line = 1; col = 1;
             for (; bytes; ++utf8, --bytes) {
                 switch(decode_utf8_byte(&state, &codepoint, (MVMuint8)*utf8)) {
@@ -250,9 +263,22 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
         }
     }
     if (state != UTF8_ACCEPT) {
+        MVM_unicode_normalizer_cleanup(tc, &norm);
         MVM_free(buffer);
         MVM_exception_throw_adhoc(tc, "Malformed termination of UTF-8 string");
     }
+
+    /* Get any final graphemes from the normalizer, and clean it up. */
+    MVM_unicode_normalizer_eof(tc, &norm);
+    ready = MVM_unicode_normalizer_available(tc, &norm);
+    if (ready) {
+        if (count + ready >= bufsize) {
+            buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (count + ready));
+        }
+        while (ready--)
+            buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+    }
+    MVM_unicode_normalizer_cleanup(tc, &norm);
 
     /* just keep the same buffer as the MVMString's buffer.  Later
      * we can add heuristics to resize it if we have enough free
