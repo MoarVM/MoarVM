@@ -13,19 +13,28 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
 }
 
 MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
+    const char *name;
 
-    MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+    /* Catch out-of-bounds code points. */
+    if (codepoint < 0) {
+        name = "<illegal>";
+    }
+    else if (codepoint > 0x10ffff) {
+        name = "<unassigned>";
+    }
 
-    const char *name = (codepoint < 0 || codepoint > 0x10ffff) ? "<illegal>" : "<unassigned>";
-
-    if (codepoint_row != -1) {
-        name = codepoint_names[codepoint_row];
-        if (!name) {
-            while (codepoint_row && !codepoint_names[codepoint_row])
-                codepoint_row--;
+    /* Look up name. */
+    else {
+        MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+        if (codepoint_row != -1) {
             name = codepoint_names[codepoint_row];
-            if (!name || name[0] != '<')
-                name = "<reserved>";
+            if (!name) {
+                while (codepoint_row && !codepoint_names[codepoint_row])
+                    codepoint_row--;
+                name = codepoint_names[codepoint_row];
+                if (!name || name[0] != '<')
+                    name = "<reserved>";
+            }
         }
     }
 
