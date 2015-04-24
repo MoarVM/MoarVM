@@ -561,6 +561,24 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
     return n->buffer_norm_end - n->buffer_start++;
 }
 
+/* Processes a codepoint that we regard as a "normalization terminator". These
+ * never have a decomposition, and for all practical purposes will not have a
+ * combiner on them. We treat them specially so we don't, during I/O, block on
+ * seeing a codepoint after them, which for things like REPLs that need to see
+ * input right after a \n makes for problems. */
+MVMint32 MVM_unicode_normalizer_process_codepoint_norm_terminator(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out) {
+    /* Add the codepoint into the buffer. */
+    add_codepoint_to_buffer(tc, n, in);
+
+    /* Treat this as an "eof", which really means "normalize what ya got". */
+    MVM_unicode_normalizer_eof(tc, n);
+
+    /* Hand back a normalized codepoint, and the number available (have to
+     * compensate for the one we steal for *out). */
+    *out = MVM_unicode_normalizer_get_codepoint(tc, n);
+    return 1 + MVM_unicode_normalizer_available(tc, n);
+}
+
 /* Called when we are expecting no more codepoints. */
 void MVM_unicode_normalizer_eof(MVMThreadContext *tc, MVMNormalizer *n) {
     /* Perform canonical ordering and, if needed, canonical composition on
