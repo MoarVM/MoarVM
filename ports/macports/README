@@ -6,4 +6,4 @@ When updating the Portfile to reflect the new release:
 4) Create a unified diff from 
    https://trac.macports.org/browser/trunk/dports/lang/MoarVM/Portfile?format=txt
    to our most recent copy.
-5) create an "update" ticket in http://trac.macports.org/ - you'll need a trac account to open the ticket. Be sure to attach the diff, and list "MoarVM" as the port.
+5) create an "update" ticket in http://trac.macports.org/ - you'll need a trac account to open the ticket. Be sure to attach the diff, and list "MoarVM" as the port. Additionally, set keywords to "haspatch", and if you're listed as a maintainer, "maintainer"
