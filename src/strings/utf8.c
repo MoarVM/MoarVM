@@ -240,15 +240,19 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
                         col++;
                     break;
                 case UTF8_REJECT:
+                    MVM_free(buffer);
                     MVM_exception_throw_adhoc(tc, "Malformed UTF-8 at line %u col %u", line, col);
                 }
             }
+            MVM_free(buffer);
             MVM_exception_throw_adhoc(tc, "Concurrent modification of UTF-8 input buffer!");
             break;
         }
     }
-    if (state != UTF8_ACCEPT)
+    if (state != UTF8_ACCEPT) {
+        MVM_free(buffer);
         MVM_exception_throw_adhoc(tc, "Malformed termination of UTF-8 string");
+    }
 
     /* just keep the same buffer as the MVMString's buffer.  Later
      * we can add heuristics to resize it if we have enough free
