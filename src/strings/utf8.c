@@ -331,6 +331,8 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
             case UTF8_ACCEPT: {
                 MVMint32 first = 1;
                 MVMGrapheme32 g;
+                last_accept_bytes = cur_bytes;
+                last_accept_pos = pos;
                 ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &(ds->norm), codepoint, &g);
                 while (ready--) {
                     if (first)
@@ -346,8 +348,6 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                         count = 0;
                     }
                     buffer[count++] = g;
-                    last_accept_bytes = cur_bytes;
-                    last_accept_pos = pos;
                     total++;
                     if (stopper_chars && *stopper_chars == total)
                         goto done;
