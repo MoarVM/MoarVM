@@ -1,6 +1,4 @@
-#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
-#endif
 #include "moar.h"
 #include "platform/sys.h"
 
