@@ -263,7 +263,7 @@ our %COMPILERS = (
         ld => undef,
 
         ccmiscflags  => '',
-        ccwarnflags  => '-std=c99 -D_GNU_SOURCE',
+        ccwarnflags  => '',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
         ccinstflags  => '-pg',
