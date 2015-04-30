@@ -73,8 +73,12 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 
     /* Attach what we successfully parsed as a result buffer, and trim away
      * what we chewed through. */
-    if (count)
+    if (count) {
         MVM_string_decodestream_add_chars(tc, ds, buffer, count);
+    }
+    else {
+	MVM_free(buffer);
+    }
     MVM_string_decodestream_discard_to(tc, ds, last_accept_bytes, last_accept_pos);
 }
 
