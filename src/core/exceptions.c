@@ -290,8 +290,8 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
     MVMuint32 line_number = annot ? annot->line_number : 1;
     MVMuint16 string_heap_index = annot ? annot->filename_string_heap_index : 0;
     char *tmp1 = annot && string_heap_index < cur_frame->static_info->body.cu->body.num_strings
-        ? MVM_string_utf8_encode(tc,
-            cur_frame->static_info->body.cu->body.strings[string_heap_index], NULL)
+        ? MVM_string_utf8_encode_C_string(tc,
+            cur_frame->static_info->body.cu->body.strings[string_heap_index])
         : NULL;
 
     /* We may be mid-instruction if exception was thrown at an unfortunate
@@ -303,8 +303,8 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
         not_top ? "from" : "  at",
         tmp1 ? tmp1 : "<unknown>",
         line_number,
-        filename ? MVM_string_utf8_encode(tc, filename, NULL) : "<ephemeral file>",
-        name ? MVM_string_utf8_encode(tc, name, NULL) : "<anonymous frame>",
+        filename ? MVM_string_utf8_encode_C_string(tc, filename) : "<ephemeral file>",
+        name ? MVM_string_utf8_encode_C_string(tc, name) : "<anonymous frame>",
         instr
     );
 

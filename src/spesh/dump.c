@@ -230,7 +230,7 @@ static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     appendf(ds, "Callsite %p (%d args, %d pos)\n", g->cs, g->cs->arg_count, g->cs->num_pos);
     for (i = 0; i < (g->cs->arg_count - g->cs->num_pos) / 2; i++) {
         if (g->cs->arg_names[i]) {
-            char * argname_utf8 = MVM_string_utf8_encode(tc, g->cs->arg_names[i], NULL);
+            char * argname_utf8 = MVM_string_utf8_encode_C_string(tc, g->cs->arg_names[i]);
             appendf(ds, "  - %s\n", argname_utf8);
             MVM_free(argname_utf8);
         }
@@ -249,7 +249,7 @@ static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
         filename = cu->body.strings[str_idx];
     }
     if (filename)
-        filename_utf8 = MVM_string_utf8_encode(tc, filename, NULL);
+        filename_utf8 = MVM_string_utf8_encode_C_string(tc, filename);
     appendf(ds, "%s:%d", filename_utf8, line_nr);
     if (filename)
         MVM_free(filename_utf8);
