@@ -123,3 +123,11 @@ char * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVM
         *output_size = lengthu;
     return (char *)result;
 }
+
+/* Encodes the specified string to latin-1. Anything outside of latin-1 range
+ * will become a ?. The result string is NULL terminated, but the specified
+ * size is the non-null part. */
+char * MVM_string_latin1_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
+    return MVM_string_latin1_encode_substr(tc, str, output_size, 0,
+        MVM_string_graphs(tc, str));
+}

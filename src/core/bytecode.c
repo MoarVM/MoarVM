@@ -3,7 +3,7 @@
 /* Some constants. */
 #define HEADER_SIZE                 92
 #define MIN_BYTECODE_VERSION        2
-#define MAX_BYTECODE_VERSION        4
+#define MAX_BYTECODE_VERSION        5
 #define FRAME_HEADER_SIZE           ((cu->body.bytecode_version >= 4 ? 11 : 9) * 4 + (cu->body.bytecode_version >= 4 ? 3 : 2) * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define FRAME_SLV_SIZE              (2 * 2 + 2 * 4)
@@ -262,15 +262,26 @@ static MVMString ** deserialize_strings(MVMThreadContext *tc, MVMCompUnit *cu, R
     /* Load strings. */
     pos = rs->string_seg;
     for (i = 0; i < rs->expected_strings; i++) {
+        MVMint32 decode_utf8 = 1;
+
         /* Ensure we can read at least a string size here and do so. */
         ensure_can_read(tc, cu, rs, pos, 4);
         ss = read_int32(pos, 0);
         pos += 4;
 
+        /* At high enough bytecode file versions, the LSB on this number
+         * is 1 if we should decode as UTF-8, and 0 if Latin-1 will do. */
+        if (rs->version >= 5) {
+            decode_utf8 = ss & 1;
+            ss = ss >> 1;
+        }
+
         /* Ensure we can read in the string of this size, and decode
          * it if so. */
         ensure_can_read(tc, cu, rs, pos, ss);
-        MVM_ASSIGN_REF(tc, &(cu->common.header), strings[i], MVM_string_utf8_decode(tc, tc->instance->VMString, (char *)pos, ss));
+        MVM_ASSIGN_REF(tc, &(cu->common.header), strings[i], decode_utf8
+            ? MVM_string_utf8_decode(tc, tc->instance->VMString, (char *)pos, ss)
+            : MVM_string_latin1_decode(tc, tc->instance->VMString, (char *)pos, ss));
         pos += ss;
 
         /* Add alignment. */
