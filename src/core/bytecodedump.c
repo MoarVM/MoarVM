@@ -176,7 +176,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 lineloc;
     MVMuint16 op_num;
     const MVMOpInfo *op_info;
-    MVMuint32 operand_size;
+    MVMuint32 operand_size = 0;
     unsigned char op_rw;
     unsigned char op_type;
     unsigned char op_flags;
