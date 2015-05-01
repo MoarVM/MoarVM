@@ -510,7 +510,7 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
     MVM_string_check_arg(tc, a, "say");
 
     utf8_encoded = MVM_string_utf8_encode(tc, a, &utf8_encoded_length);
-    fwrite(utf8_encoded, 1, utf8_encoded_length + 1, stdout);
+    fwrite(utf8_encoded, 1, utf8_encoded_length, stdout);
     fwrite("\n", 1, 1, stdout);
     MVM_free(utf8_encoded);
 }
