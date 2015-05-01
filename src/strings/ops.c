@@ -517,12 +517,9 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
         MVM_exception_throw_adhoc(tc, "say needs a concrete string");
     }
 
-    /* XXX send a buffer of substrings of size 100 or something? */
     utf8_encoded = MVM_string_utf8_encode(tc, a, &utf8_encoded_length);
-    utf8_encoded[utf8_encoded_length] = '\n';
-
     fwrite(utf8_encoded, 1, utf8_encoded_length + 1, stdout);
-
+    fwrite("\n", 1, 1, stdout);
     MVM_free(utf8_encoded);
 }
 
@@ -534,11 +531,8 @@ void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
         MVM_exception_throw_adhoc(tc, "print needs a concrete string");
     }
 
-    /* XXX send a buffer of substrings of size 100 or something? */
     utf8_encoded = MVM_string_utf8_encode(tc, a, &utf8_encoded_length);
-
     fwrite(utf8_encoded, 1, utf8_encoded_length, stdout);
-
     MVM_free(utf8_encoded);
 }
 
