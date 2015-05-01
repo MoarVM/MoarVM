@@ -19,10 +19,15 @@
 } while (0)
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc) {
-    MVMObject *config = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+    MVMObject *config = tc->instance->cached_backend_config;
+    if (config)
+        return config;
+
+    config = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
     MVMROOT(tc, config, {
 @backendconfig@
     });
+    tc->instance->cached_backend_config = config;
 
     return config;
 }

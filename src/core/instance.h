@@ -330,4 +330,7 @@ struct MVMInstance {
 
     /* Whether profiling is turned on or not. */
     MVMuint32 profiling;
+
+    /* Cached backend config hash. */
+    MVMObject *cached_backend_config;
 };
