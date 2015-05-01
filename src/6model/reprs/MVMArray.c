@@ -879,6 +879,14 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMStorageSpec spec;
+    /* initialise storage spec to default values */
+    spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
+    spec.bits            = 0;
+    spec.align           = 0;
+    spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
+    spec.can_box         = 0;
+    spec.is_unsigned     = 0;
+
     switch (repr_data->slot_type) {
         case MVM_ARRAY_STR:
             spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
