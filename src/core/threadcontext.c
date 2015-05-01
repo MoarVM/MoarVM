@@ -18,7 +18,7 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
 
     /* Set up temporary root handling. */
     tc->num_temproots   = 0;
-    tc->alloc_temproots = 16;
+    tc->alloc_temproots = MVM_TEMP_ROOT_BASE_ALLOC;
     tc->temproots       = MVM_malloc(sizeof(MVMCollectable **) * tc->alloc_temproots);
 
     /* Set up intergenerational root handling. */

@@ -121,11 +121,7 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */
-void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectable **obj_ref) {
-    /* Ensure the root is not null. */
-    if (obj_ref == NULL)
-        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as a temporary root");
-
+void MVM_gc_root_temp_push_slow(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Allocate extra temporary root space if needed. */
     if (tc->num_temproots == tc->alloc_temproots) {
         tc->alloc_temproots *= 2;
@@ -136,22 +132,6 @@ void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Add this one to the list. */
     tc->temproots[tc->num_temproots] = obj_ref;
     tc->num_temproots++;
-}
-
-/* Pops a temporary root off the thread-local roots list. */
-void MVM_gc_root_temp_pop(MVMThreadContext *tc) {
-    if (tc->num_temproots > 0)
-        tc->num_temproots--;
-    else
-        MVM_panic(1, "Illegal attempt to pop empty temporary root stack");
-}
-
-/* Pops temporary roots off the thread-local roots list. */
-void MVM_gc_root_temp_pop_n(MVMThreadContext *tc, MVMuint32 n) {
-    if (tc->num_temproots >= n)
-        tc->num_temproots -= n;
-    else
-        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to pop insufficiently large temporary root stack");
 }
 
 /* Marks the temporary root stack at its current height as the limit for
