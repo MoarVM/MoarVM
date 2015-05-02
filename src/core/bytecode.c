@@ -32,16 +32,16 @@ typedef struct {
     MVMuint32  expected_strings;
 
     /* The SC dependencies segment. */
-    MVMuint8  *sc_seg;
     MVMuint32  expected_scs;
+    MVMuint8  *sc_seg;
 
     /* The extension ops segment. */
     MVMuint8 *extop_seg;
     MVMuint32 expected_extops;
 
     /* The frame segment. */
-    MVMuint8  *frame_seg;
     MVMuint32  expected_frames;
+    MVMuint8  *frame_seg;
     MVMuint16 *frame_outer_fixups;
 
     /* The callsites segment. */
@@ -49,8 +49,8 @@ typedef struct {
     MVMuint32  expected_callsites;
 
     /* The bytecode segment. */
-    MVMuint8  *bytecode_seg;
     MVMuint32  bytecode_size;
+    MVMuint8  *bytecode_seg;
 
     /* The annotations segment */
     MVMuint8  *annotation_seg;
