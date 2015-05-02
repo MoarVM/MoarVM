@@ -211,7 +211,7 @@ do {                                                                            
 do {                                                                             \
     unsigned _hd_bkt;                                                            \
     struct UT_hash_handle *_hd_hh_del;                                           \
-    if ( ((delptr)->hh.prev == NULL) && ((delptr)->hh.next == NULL) )  {         \
+    if ( (head)->hh.tbl->num_items == 1 )  {                                     \
         uthash_free((head)->hh.tbl->buckets,                                     \
                     (head)->hh.tbl->num_buckets*sizeof(struct UT_hash_bucket) ); \
         uthash_free((head)->hh.tbl, sizeof(UT_hash_table));                      \
