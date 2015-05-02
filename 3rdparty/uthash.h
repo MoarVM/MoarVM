@@ -97,10 +97,8 @@ do {                                                                            
   out=NULL;                                                                      \
   if (head) {                                                                    \
      HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt);   \
-     if (HASH_BLOOM_TEST((head)->hh.tbl, _hf_hashv)) {                           \
-       HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],  \
-                        keyptr,keylen,out);                                      \
-     }                                                                           \
+     HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],  \
+                      keyptr,keylen,out);                                      \
   }                                                                              \
 } while (0)
 
@@ -117,46 +115,10 @@ do {                                                                            
          HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt);  \
          (cache) = _hf_hashv;                                                       \
      }                                                                              \
-     if (HASH_BLOOM_TEST((head)->hh.tbl, _hf_hashv)) {                              \
-       HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],     \
-                        keyptr,keylen,out);                                         \
-     }                                                                              \
+     HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],     \
+                      keyptr,keylen,out);                                         \
   }                                                                                 \
 } while (0)
-
-#ifdef HASH_BLOOM
-#define HASH_BLOOM_BITLEN (1ULL << HASH_BLOOM)
-#define HASH_BLOOM_BYTELEN (HASH_BLOOM_BITLEN/8) + ((HASH_BLOOM_BITLEN%8) ? 1:0)
-#define HASH_BLOOM_MAKE(tbl)                                                     \
-do {                                                                             \
-  (tbl)->bloom_nbits = HASH_BLOOM;                                               \
-  (tbl)->bloom_bv = (uint8_t*)uthash_malloc(HASH_BLOOM_BYTELEN);                 \
-  if (!((tbl)->bloom_bv))  { uthash_fatal( "out of memory"); }                   \
-  memset((tbl)->bloom_bv, 0, HASH_BLOOM_BYTELEN);                                \
-  (tbl)->bloom_sig = HASH_BLOOM_SIGNATURE;                                       \
-} while (0)
-
-#define HASH_BLOOM_FREE(tbl)                                                     \
-do {                                                                             \
-  uthash_free((tbl)->bloom_bv, HASH_BLOOM_BYTELEN);                              \
-} while (0)
-
-#define HASH_BLOOM_BITSET(bv,idx) (bv[(idx)/8] |= (1U << ((idx)%8)))
-#define HASH_BLOOM_BITTEST(bv,idx) (bv[(idx)/8] & (1U << ((idx)%8)))
-
-#define HASH_BLOOM_ADD(tbl,hashv)                                                \
-  HASH_BLOOM_BITSET((tbl)->bloom_bv, (hashv & (uint32_t)((1ULL << (tbl)->bloom_nbits) - 1)))
-
-#define HASH_BLOOM_TEST(tbl,hashv)                                               \
-  HASH_BLOOM_BITTEST((tbl)->bloom_bv, (hashv & (uint32_t)((1ULL << (tbl)->bloom_nbits) - 1)))
-
-#else
-#define HASH_BLOOM_MAKE(tbl)
-#define HASH_BLOOM_FREE(tbl)
-#define HASH_BLOOM_ADD(tbl,hashv)
-#define HASH_BLOOM_TEST(tbl,hashv) (1)
-#define HASH_BLOOM_BYTELEN 0
-#endif
 
 #define HASH_MAKE_TABLE(hh,head)                                                 \
 do {                                                                             \
@@ -173,7 +135,6 @@ do {                                                                            
   if (! (head)->hh.tbl->buckets) { uthash_fatal( "out of memory"); }             \
   memset((head)->hh.tbl->buckets, 0,                                             \
           HASH_INITIAL_NUM_BUCKETS*sizeof(struct UT_hash_bucket));               \
-  HASH_BLOOM_MAKE((head)->hh.tbl);                                               \
   (head)->hh.tbl->signature = HASH_SIGNATURE;                                    \
 } while(0)
 
@@ -210,7 +171,6 @@ do {                                                                            
  HASH_FCN(keyptr,keylen_in, (head)->hh.tbl->num_buckets,                         \
          (add)->hh.hashv, _ha_bkt);                                              \
  HASH_ADD_TO_BKT((head)->hh.tbl->buckets[_ha_bkt],&(add)->hh);                   \
- HASH_BLOOM_ADD((head)->hh.tbl,(add)->hh.hashv);                                 \
  HASH_EMIT_KEY(hh,head,keyptr,keylen_in);                                        \
  HASH_FSCK(hh,head);                                                             \
 } while(0)
@@ -242,7 +202,6 @@ do {                                                                            
      (cache) = (add)->hh.hashv;                                                  \
  }                                                                               \
  HASH_ADD_TO_BKT((head)->hh.tbl->buckets[_ha_bkt],&(add)->hh);                   \
- HASH_BLOOM_ADD((head)->hh.tbl,(add)->hh.hashv);                                 \
  HASH_EMIT_KEY(hh,head,keyptr,keylen_in);                                        \
  HASH_FSCK(hh,head);                                                             \
 } while(0)
@@ -271,7 +230,6 @@ do {                                                                            
     if ( ((delptr)->hh.prev == NULL) && ((delptr)->hh.next == NULL) )  {         \
         uthash_free((head)->hh.tbl->buckets,                                     \
                     (head)->hh.tbl->num_buckets*sizeof(struct UT_hash_bucket) ); \
-        HASH_BLOOM_FREE((head)->hh.tbl);                                         \
         uthash_free((head)->hh.tbl, sizeof(UT_hash_table));                      \
         head = NULL;                                                             \
     } else {                                                                     \
@@ -579,7 +537,6 @@ do {                                                                            
   if (head) {                                                                    \
     uthash_free((head)->hh.tbl->buckets,                                         \
                 (head)->hh.tbl->num_buckets*sizeof(struct UT_hash_bucket));      \
-    HASH_BLOOM_FREE((head)->hh.tbl);                                             \
     uthash_free((head)->hh.tbl, sizeof(UT_hash_table));                          \
     (head)=NULL;                                                                 \
   }                                                                              \
@@ -588,8 +545,7 @@ do {                                                                            
 #define HASH_OVERHEAD(hh,head)                                                   \
  (size_t)((((head)->hh.tbl->num_items   * sizeof(UT_hash_handle))   +            \
            ((head)->hh.tbl->num_buckets * sizeof(UT_hash_bucket))   +            \
-            (sizeof(UT_hash_table))                                 +            \
-            (HASH_BLOOM_BYTELEN)))
+            (sizeof(UT_hash_table))
 
 #ifdef NO_DECLTYPE
 #define HASH_ITER(hh,head,el,tmp)                                                \
@@ -654,12 +610,6 @@ typedef struct UT_hash_table {
    unsigned ineff_expands, noexpand;
 
    uint32_t signature; /* used only to find hash tables in external analysis */
-#ifdef HASH_BLOOM
-   uint32_t bloom_sig; /* used only to test bloom exists in external analysis */
-   uint8_t *bloom_bv;
-   char bloom_nbits;
-#endif
-
 } UT_hash_table;
 
 typedef struct UT_hash_handle {
