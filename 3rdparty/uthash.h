@@ -126,7 +126,6 @@ do {                                                                            
                   sizeof(UT_hash_table));                                        \
   if (!((head)->hh.tbl))  { uthash_fatal( "out of memory"); }                    \
   memset((head)->hh.tbl, 0, sizeof(UT_hash_table));                              \
-  (head)->hh.tbl->tail = &((head)->hh);                                          \
   (head)->hh.tbl->num_buckets = HASH_INITIAL_NUM_BUCKETS;                        \
   (head)->hh.tbl->log2_num_buckets = HASH_INITIAL_NUM_BUCKETS_LOG2;              \
   (head)->hh.tbl->hho = (char*)(&(head)->hh) - (char*)(head);                    \
@@ -140,17 +139,11 @@ do {                                                                            
 #define HASH_ADD_KEYPTR(hh,head,keyptr,keylen_in,add)                            \
 do {                                                                             \
  unsigned _ha_bkt;                                                               \
- (add)->hh.next = NULL;                                                          \
  (add)->hh.key = (char*)(keyptr);                                                \
  (add)->hh.keylen = (unsigned)(keylen_in);                                       \
  if (!(head)) {                                                                  \
     head = (add);                                                                \
-    (head)->hh.prev = NULL;                                                      \
     HASH_MAKE_TABLE(hh,head);                                                    \
- } else {                                                                        \
-    (head)->hh.tbl->tail->next = (add);                                          \
-    (add)->hh.prev = ELMT_FROM_HH((head)->hh.tbl, (head)->hh.tbl->tail);         \
-    (head)->hh.tbl->tail = &((add)->hh);                                         \
  }                                                                               \
  (head)->hh.tbl->num_items++;                                                    \
  (add)->hh.tbl = (head)->hh.tbl;                                                 \
@@ -163,17 +156,11 @@ do {                                                                            
 #define HASH_ADD_KEYPTR_CACHE(hh,head,keyptr,keylen_in,cache,add)                \
 do {                                                                             \
  unsigned _ha_bkt;                                                               \
- (add)->hh.next = NULL;                                                          \
  (add)->hh.key = (char*)keyptr;                                                  \
  (add)->hh.keylen = (unsigned)keylen_in;                                         \
  if (!(head)) {                                                                  \
     head = (add);                                                                \
-    (head)->hh.prev = NULL;                                                      \
     HASH_MAKE_TABLE(hh,head);                                                    \
- } else {                                                                        \
-    (head)->hh.tbl->tail->next = (add);                                          \
-    (add)->hh.prev = ELMT_FROM_HH((head)->hh.tbl, (head)->hh.tbl->tail);         \
-    (head)->hh.tbl->tail = &((add)->hh);                                         \
  }                                                                               \
  (head)->hh.tbl->num_items++;                                                    \
  (add)->hh.tbl = (head)->hh.tbl;                                                 \
@@ -218,21 +205,16 @@ do {                                                                            
         head = NULL;                                                             \
     } else {                                                                     \
         _hd_hh_del = &((delptr)->hh);                                            \
-        if ((delptr) == ELMT_FROM_HH((head)->hh.tbl,(head)->hh.tbl->tail)) {     \
-            (head)->hh.tbl->tail =                                               \
-                (UT_hash_handle*)((ptrdiff_t)((delptr)->hh.prev) +               \
-                (head)->hh.tbl->hho);                                            \
-        }                                                                        \
-        if ((delptr)->hh.prev) {                                                 \
-            ((UT_hash_handle*)((ptrdiff_t)((delptr)->hh.prev) +                  \
-                    (head)->hh.tbl->hho))->next = (delptr)->hh.next;             \
-        } else {                                                                 \
-            DECLTYPE_ASSIGN(head,(delptr)->hh.next);                             \
-        }                                                                        \
-        if (_hd_hh_del->next) {                                                  \
-            ((UT_hash_handle*)((ptrdiff_t)_hd_hh_del->next +                     \
-                    (head)->hh.tbl->hho))->prev =                                \
-                    _hd_hh_del->prev;                                            \
+        if ((delptr) == (head)) {                                                \
+            unsigned cur = 0;                                                    \
+            while (cur < (head)->hh.tbl->num_buckets) {                          \
+                UT_hash_handle *cand = (head)->hh.tbl->buckets[cur].hh_head;     \
+                if (cand && cand != &((delptr)->hh)) {                           \
+                    DECLTYPE_ASSIGN((head), ELMT_FROM_HH((head)->hh.tbl,cand));  \
+                    break;                                                       \
+                }                                                                \
+                cur++;                                                           \
+            }                                                                    \
         }                                                                        \
         HASH_TO_BKT( _hd_hh_del->hashv, (head)->hh.tbl->num_buckets, _hd_bkt);   \
         HASH_DEL_IN_BKT(hh,(head)->hh.tbl->buckets[_hd_bkt], _hd_hh_del);        \
@@ -497,7 +479,6 @@ typedef struct UT_hash_table {
    UT_hash_bucket *buckets;
    unsigned num_buckets, log2_num_buckets;
    unsigned num_items;
-   struct UT_hash_handle *tail; /* tail hh in app order, for fast append    */
    ptrdiff_t hho; /* hash handle offset (byte pos of hash handle in element */
 
    /* in an ideal situation (all buckets used equally), no bucket would have
@@ -520,8 +501,6 @@ typedef struct UT_hash_table {
 
 typedef struct UT_hash_handle {
    struct UT_hash_table *tbl;
-   void *prev;                       /* prev element in app order      */
-   void *next;                       /* next element in app order      */
    struct UT_hash_handle *hh_prev;   /* previous hh in bucket order    */
    struct UT_hash_handle *hh_next;   /* next hh in bucket order        */
    void *key;                        /* ptr to enclosing struct's key  */
