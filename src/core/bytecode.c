@@ -59,6 +59,9 @@ typedef struct {
     /* HLL name string index */
     MVMuint32  hll_str_idx;
 
+    /* The limit we can not read beyond. */
+    MVMuint8 *read_limit;
+
     /* Special frame indexes */
     MVMuint32  main_frame;
     MVMuint32  load_frame;
@@ -108,11 +111,9 @@ static void cleanup_all(MVMThreadContext *tc, ReaderState *rs) {
 
 /* Ensures we can read a certain amount of bytes without overrunning the end
  * of the stream. */
-static void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, MVMuint8 *pos, MVMuint32 size) {
-    MVMCompUnitBody *cu_body = &cu->body;
-    if (pos + size > cu_body->data_start + cu_body->data_size) {
-        if (rs)
-            cleanup_all(tc, rs);
+MVM_STATIC_INLINE void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, MVMuint8 *pos, MVMuint32 size) {
+    if (pos + size > rs->read_limit) {
+        cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "Read past end of bytecode stream");
     }
 }
@@ -152,6 +153,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs = MVM_malloc(sizeof(ReaderState));
     memset(rs, 0, sizeof(ReaderState));
     rs->version = version;
+    rs->read_limit = cu_body->data_start + cu_body->data_size;
     cu->body.bytecode_version = version;
 
     /* Locate SC dependencies segment. */
