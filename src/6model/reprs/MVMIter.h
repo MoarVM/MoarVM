@@ -16,8 +16,8 @@ struct MVMIterBody {
     /* next hash item to give or next array index */
     union {
         struct {
-            MVMHashEntry *next;
-            MVMHashEntry *curr;
+            MVMHashEntry *curr, *next;
+            unsigned      bucket_state;
         } hash_state;
         struct {
             MVMint64 index;

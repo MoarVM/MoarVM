@@ -105,19 +105,12 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
             }
             return;
         case MVM_ITER_MODE_HASH:
-            if (!body->hash_state.curr) {
-                if (body->hash_state.next) {
-                    body->hash_state.curr = body->hash_state.next;
-                    body->hash_state.next = body->hash_state.next->hash_handle.next;
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
-                }
-            }
-            else {
-                body->hash_state.curr = body->hash_state.curr->hash_handle.next;
-                body->hash_state.next = body->hash_state.curr->hash_handle.next;
-            }
+            body->hash_state.curr = body->hash_state.next;
+            if (!body->hash_state.curr)
+                MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
+            body->hash_state.next = HASH_ITER_NEXT_ITEM(
+                &(body->hash_state.next->hash_handle),
+                &(body->hash_state.bucket_state));
             value->o = root;
             return;
         default:
@@ -216,7 +209,13 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
             iterator = (MVMIter *)MVM_repr_alloc_init(tc,
                 MVM_hll_current(tc)->hash_iterator_type);
             iterator->body.mode = MVM_ITER_MODE_HASH;
-            iterator->body.hash_state.next = ((MVMHash *)target)->body.hash_head;
+            iterator->body.hash_state.bucket_state = 0;
+            iterator->body.hash_state.curr         = NULL;
+            iterator->body.hash_state.next         = HASH_ITER_FIRST_ITEM(
+                ((MVMHash *)target)->body.hash_head
+                    ? ((MVMHash *)target)->body.hash_head->hash_handle.tbl
+                    : NULL,
+                &(iterator->body.hash_state.bucket_state));
             MVM_ASSIGN_REF(tc, &(iterator->common.header), iterator->body.target, target);
         }
         else if (REPR(target)->ID == MVM_REPR_ID_MVMContext) {
