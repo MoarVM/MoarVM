@@ -183,7 +183,6 @@ do {                                                                            
 } while(0)
 
 /* delete "delptr" from the hash table.
- * "the usual" patch-up process for the app-order doubly-linked-list.
  * The use of _hd_hh_del below deserves special explanation.
  * These used to be expressed using (delptr) but that led to a bug
  * if someone used the same symbol for the head and deletee, like
