@@ -112,9 +112,11 @@ struct MVMThreadContext {
     MVMuint32 gc_promoted_bytes;
 
     /* Memory buffer pointing to the last thing we serialized, intended to go
-     * into the next compilation unit we write. */
+     * into the next compilation unit we write. Also the serialized string
+     * heap, which will be used to seed the compilation unit string heap. */
     MVMint32      serialized_size;
     char         *serialized;
+    MVMObject    *serialized_string_heap;
 
     /* Temporarily rooted objects. This is generally used by code written in
      * C that wants to keep references to objects. Since those may change

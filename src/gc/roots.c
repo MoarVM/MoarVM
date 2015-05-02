@@ -120,6 +120,9 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
 
     /* Profiling data. */
     MVM_profile_mark_data(tc, worklist);
+
+    /* Serialized string heap, if any. */
+    MVM_gc_worklist_add(tc, worklist, &tc->serialized_string_heap);
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */

@@ -825,6 +825,7 @@ static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
             MVM_free(tc->serialized);
         tc->serialized = output;
         tc->serialized_size = output_size;
+        tc->serialized_string_heap = writer->root.string_heap;
         return NULL;
     }
 
@@ -1375,11 +1376,24 @@ static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reade
 
 /* Reads the item from the string heap at the specified index. */
 static MVMString * read_string_from_heap(MVMThreadContext *tc, MVMSerializationReader *reader, MVMuint32 idx) {
-    if (idx < MVM_repr_elems(tc, reader->root.string_heap))
-        return MVM_repr_at_pos_s(tc, reader->root.string_heap, idx);
-    else
-        fail_deserialize(tc, reader,
-            "Attempt to read past end of string heap (index %d)", idx);
+    if (reader->root.string_heap) {
+        if (idx < MVM_repr_elems(tc, reader->root.string_heap))
+            return MVM_repr_at_pos_s(tc, reader->root.string_heap, idx);
+        else
+            fail_deserialize(tc, reader,
+                "Attempt to read past end of string heap (index %d)", idx);
+    }
+    else {
+        MVMCompUnit *cu = reader->root.string_comp_unit;
+        if (idx == 0)
+            return NULL;
+        idx--;
+        if (idx < cu->body.num_strings)
+            return cu->body.strings[idx];
+        else
+            fail_deserialize(tc, reader,
+                "Attempt to read past end of compilation unit string heap (index %d)", idx);
+    }
 }
 
 /* Locates a serialization context; 0 is the current one, otherwise see the
@@ -2687,7 +2701,13 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     /* Allocate and set up reader. */
     MVMSerializationReader *reader = MVM_calloc(1, sizeof(MVMSerializationReader));
     reader->root.sc          = sc;
-    reader->root.string_heap = string_heap;
+
+    /* If we've been given a NULL string heap, use that of the current
+     * compilation unit. */
+    if (MVM_is_null(tc, string_heap))
+        reader->root.string_comp_unit = *(tc->interp_cu);
+    else
+        reader->root.string_heap = string_heap;
 
     /* Store reader inside serialization context; it'll need it for lazy
      * deserialization. */

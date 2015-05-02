@@ -1525,7 +1525,19 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->cu               = cu;
     ws->current_frame_idx= 0;
 
-    /* initialize callsite reuse cache */
+    /* If we have any strings from serializing, then we'll seed our own string
+     * heap with them. This means the compilation unit string heap will align
+     * perfectly with what the serialization blob needs, and thus we can use
+     * it in deserialization. Note we use get_string_heap_index for its side
+     * effects only here. Start from 1, as 0 means NULL string. */
+    if (vm->serialized_string_heap) {
+        MVMint64 elems = ELEMS(vm, vm->serialized_string_heap);
+        for (i = 1; i < elems; i++)
+            get_string_heap_index(vm, ws, ATPOS_S(vm, vm->serialized_string_heap, i));
+        vm->serialized_string_heap = NULL;
+    }
+
+    /* Initialize callsite reuse cache */
     ws->callsite_reuse_head = NULL;
 
     /* Store each of the dependent SCs. */

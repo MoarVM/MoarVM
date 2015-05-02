@@ -49,8 +49,14 @@ struct MVMSerializationRoot {
     MVMint32  num_param_interns;
     char     *param_interns_data;
 
-    /* Array of strings making up the string heap. */
+    /* Array of strings making up the string heap we are constructing. If we
+     * are reading, this will either contain a string heap array or be NULL
+     * and the next field will be set. */
     MVMObject *string_heap;
+
+    /* The compilation unit whose string heap we will use to locate strings.
+     * This must be set of string_heap about is set to NULL. */
+    MVMCompUnit *string_comp_unit;
 };
 
 /* Indexes the deserializer still has to work on. */
