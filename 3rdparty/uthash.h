@@ -137,19 +137,6 @@ do {                                                                            
           HASH_INITIAL_NUM_BUCKETS*sizeof(struct UT_hash_bucket));               \
 } while(0)
 
-#define HASH_ADD(hh,head,fieldname,keylen_in,add)                                \
-        HASH_ADD_KEYPTR(hh,head,&((add)->fieldname),keylen_in,add)
-
-#define HASH_REPLACE(hh,head,fieldname,keylen_in,add,replaced)                   \
-do {                                                                             \
-  replaced=NULL;                                                                 \
-  HASH_FIND(hh,head,&((add)->fieldname),keylen_in,replaced);                     \
-  if (replaced!=NULL) {                                                          \
-     HASH_DELETE(hh,head,replaced);                                              \
-  };                                                                             \
-  HASH_ADD(hh,head,fieldname,keylen_in,add);                                     \
-} while(0)
-
 #define HASH_ADD_KEYPTR(hh,head,keyptr,keylen_in,add)                            \
 do {                                                                             \
  unsigned _ha_bkt;                                                               \
@@ -170,7 +157,6 @@ do {                                                                            
  HASH_FCN(keyptr,keylen_in, (head)->hh.tbl->num_buckets,                         \
          (add)->hh.hashv, _ha_bkt);                                              \
  HASH_ADD_TO_BKT((head)->hh.tbl->buckets[_ha_bkt],&(add)->hh);                   \
- HASH_EMIT_KEY(hh,head,keyptr,keylen_in);                                        \
  HASH_FSCK(hh,head);                                                             \
 } while(0)
 
@@ -201,7 +187,6 @@ do {                                                                            
      (cache) = (add)->hh.hashv;                                                  \
  }                                                                               \
  HASH_ADD_TO_BKT((head)->hh.tbl->buckets[_ha_bkt],&(add)->hh);                   \
- HASH_EMIT_KEY(hh,head,keyptr,keylen_in);                                        \
  HASH_FSCK(hh,head);                                                             \
 } while(0)
 
@@ -255,29 +240,6 @@ do {                                                                            
     }                                                                            \
     HASH_FSCK(hh,head);                                                          \
 } while (0)
-
-
-/* convenience forms of HASH_FIND/HASH_ADD/HASH_DEL */
-#define HASH_FIND_STR(head,findstr,out)                                          \
-    HASH_FIND(hh,head,findstr,strlen(findstr),out)
-#define HASH_ADD_STR(head,strfield,add)                                          \
-    HASH_ADD(hh,head,strfield[0],strlen(add->strfield),add)
-#define HASH_REPLACE_STR(head,strfield,add,replaced)                             \
-    HASH_REPLACE(hh,head,strfield[0],strlen(add->strfield),add,replaced)
-#define HASH_FIND_INT(head,findint,out)                                          \
-    HASH_FIND(hh,head,findint,sizeof(int),out)
-#define HASH_ADD_INT(head,intfield,add)                                          \
-    HASH_ADD(hh,head,intfield,sizeof(int),add)
-#define HASH_REPLACE_INT(head,intfield,add,replaced)                             \
-    HASH_REPLACE(hh,head,intfield,sizeof(int),add,replaced)
-#define HASH_FIND_PTR(head,findptr,out)                                          \
-    HASH_FIND(hh,head,findptr,sizeof(void *),out)
-#define HASH_ADD_PTR(head,ptrfield,add)                                          \
-    HASH_ADD(hh,head,ptrfield,sizeof(void *),add)
-#define HASH_REPLACE_PTR(head,ptrfield,add,replaced)                             \
-    HASH_REPLACE(hh,head,ptrfield,sizeof(void *),add,replaced)
-#define HASH_DEL(head,delptr)                                                    \
-    HASH_DELETE(hh,head,delptr)
 
 /* HASH_FSCK checks hash integrity on every add/delete when HASH_DEBUG is defined.
  * This is for uthash developer only; it compiles away if HASH_DEBUG isn't defined.
@@ -337,20 +299,6 @@ do {                                                                            
 } while (0)
 #else
 #define HASH_FSCK(hh,head)
-#endif
-
-/* When compiled with -DHASH_EMIT_KEYS, length-prefixed keys are emitted to
- * the descriptor to which this macro is defined for tuning the hash function.
- * The app can #include <unistd.h> to get the prototype for write(2). */
-#ifdef HASH_EMIT_KEYS
-#define HASH_EMIT_KEY(hh,head,keyptr,fieldlen)                                   \
-do {                                                                             \
-    unsigned _klen = fieldlen;                                                   \
-    write(HASH_EMIT_KEYS, &_klen, sizeof(_klen));                                \
-    write(HASH_EMIT_KEYS, keyptr, fieldlen);                                     \
-} while (0)
-#else
-#define HASH_EMIT_KEY(hh,head,keyptr,fieldlen)
 #endif
 
 /* Use Jenkin's hash as the hash function. */
@@ -541,11 +489,6 @@ do {                                                                            
   }                                                                              \
 } while(0)
 
-#define HASH_OVERHEAD(hh,head)                                                   \
- (size_t)((((head)->hh.tbl->num_items   * sizeof(UT_hash_handle))   +            \
-           ((head)->hh.tbl->num_buckets * sizeof(UT_hash_bucket))   +            \
-            (sizeof(UT_hash_table))
-
 #ifdef NO_DECLTYPE
 #define HASH_ITER(hh,head,el,tmp)                                                \
 for((el)=(head), (*(char**)(&(tmp)))=(char*)((head)?(head)->hh.next:NULL);       \
@@ -557,7 +500,6 @@ for((el)=(head),(tmp)=DECLTYPE(el)((head)?(head)->hh.next:NULL);                
 #endif
 
 /* obtain a count of items in the hash */
-#define HASH_COUNT(head) HASH_CNT(hh,head)
 #define HASH_CNT(hh,head) ((head)?((head)->hh.tbl->num_items):0)
 
 typedef struct UT_hash_bucket {
