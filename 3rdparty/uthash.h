@@ -277,24 +277,6 @@ do {                                                                            
             HASH_OOPS("invalid hh item count %d, actual %d\n",                   \
                 (head)->hh.tbl->num_items, _count );                             \
         }                                                                        \
-        /* traverse hh in app order; check next/prev integrity, count */         \
-        _count = 0;                                                              \
-        _prev = NULL;                                                            \
-        _thh =  &(head)->hh;                                                     \
-        while (_thh) {                                                           \
-           _count++;                                                             \
-           if (_prev !=(char*)(_thh->prev)) {                                    \
-              HASH_OOPS("invalid prev %p, actual %p\n",                          \
-                    _thh->prev, _prev );                                         \
-           }                                                                     \
-           _prev = (char*)ELMT_FROM_HH((head)->hh.tbl, _thh);                    \
-           _thh = ( _thh->next ?  (UT_hash_handle*)((char*)(_thh->next) +        \
-                                  (head)->hh.tbl->hho) : NULL );                 \
-        }                                                                        \
-        if (_count != (head)->hh.tbl->num_items) {                               \
-            HASH_OOPS("invalid app item count %d, actual %d\n",                  \
-                (head)->hh.tbl->num_items, _count );                             \
-        }                                                                        \
     }                                                                            \
 } while (0)
 #else
