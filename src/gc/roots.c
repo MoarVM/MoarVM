@@ -66,6 +66,8 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     HASH_ITER(hash_handle, tc->instance->loaded_compunits, current_lcun, tmp_lcun) {
         MVM_gc_worklist_add(tc, worklist, &current_lcun->filename);
     }
+
+    MVM_gc_worklist_add(tc, worklist, &tc->instance->cached_backend_config);
 }
 
 /* Adds anything that is a root thanks to being referenced by a thread,
