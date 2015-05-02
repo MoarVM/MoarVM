@@ -228,8 +228,8 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
                 MVMFrame *frame = ctx->body.context;
                 MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names;
                 MVMLexicalRegistry *current;
-                MVMLexicalRegistry *tmp;
-                HASH_ITER(hash_handle, lexical_names, current, tmp) {
+                unsigned bucket_tmp;
+                HASH_ITER(hash_handle, lexical_names, current, bucket_tmp) {
                     /* XXX For now, just the symbol names is enough. */
                     MVM_repr_bind_key_o(tc, ctx_hash, (MVMString *)current->key, NULL);
                 }

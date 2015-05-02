@@ -489,16 +489,6 @@ do {                                                                            
   }                                                                              \
 } while(0)
 
-#ifdef NO_DECLTYPE
-#define HASH_ITER(hh,head,el,tmp)                                                \
-for((el)=(head), (*(char**)(&(tmp)))=(char*)((head)?(head)->hh.next:NULL);       \
-  el; (el)=(tmp),(*(char**)(&(tmp)))=(char*)((tmp)?(tmp)->hh.next:NULL))
-#else
-#define HASH_ITER(hh,head,el,tmp)                                                \
-for((el)=(head),(tmp)=DECLTYPE(el)((head)?(head)->hh.next:NULL);                 \
-  el; (el)=(tmp),(tmp)=DECLTYPE(el)((tmp)?(tmp)->hh.next:NULL))
-#endif
-
 /* obtain a count of items in the hash */
 #define HASH_CNT(hh,head) ((head)?((head)->hh.tbl->num_items):0)
 
@@ -556,5 +546,37 @@ typedef struct UT_hash_handle {
    unsigned keylen;                  /* enclosing struct's key len     */
    unsigned hashv;                   /* result of hash-fcn(key)        */
 } UT_hash_handle;
+
+MVM_STATIC_INLINE void * HASH_ITER_FIRST_ITEM(
+        struct UT_hash_table *ht, unsigned *bucket_tmp) {
+    if (!ht)
+        return NULL;
+    while (*bucket_tmp < ht->num_buckets) {
+        struct UT_hash_handle *hh_head = ht->buckets[*bucket_tmp].hh_head;
+        if (hh_head)
+            return ELMT_FROM_HH(ht, hh_head);
+        (*bucket_tmp)++;
+    }
+    return NULL;
+}
+MVM_STATIC_INLINE void * HASH_ITER_NEXT_ITEM(
+        struct UT_hash_handle *cur_handle, unsigned *bucket_tmp) {
+    struct UT_hash_table *ht = cur_handle->tbl;
+    if (cur_handle->hh_next)
+        return ELMT_FROM_HH(ht, cur_handle->hh_next);
+    (*bucket_tmp)++;
+    while (*bucket_tmp < ht->num_buckets) {
+        struct UT_hash_handle *hh_head = ht->buckets[*bucket_tmp].hh_head;
+        if (hh_head)
+            return ELMT_FROM_HH(ht, hh_head);
+        (*bucket_tmp)++;
+    }
+    return NULL;
+}
+#define HASH_ITER(hh,head,el,bucket_tmp)                                        \
+for((bucket_tmp) = 0,                                                           \
+    (el) = HASH_ITER_FIRST_ITEM((head) ? (head)->hh.tbl : NULL, &(bucket_tmp)); \
+    (el);                                                                       \
+    (el) = HASH_ITER_NEXT_ITEM(&((el)->hh), &(bucket_tmp)))
 
 #endif /* UTHASH_H */

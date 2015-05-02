@@ -64,10 +64,11 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         dest_body->lexical_types = lexical_types;
     }
     {
-        MVMLexicalRegistry *current, *tmp;
+        MVMLexicalRegistry *current;
+        unsigned bucket_tmp;
 
         /* NOTE: if we really wanted to, we could avoid rehashing... */
-        HASH_ITER(hash_handle, src_body->lexical_names, current, tmp) {
+        HASH_ITER(hash_handle, src_body->lexical_names, current, bucket_tmp) {
             size_t klen;
             void *kdata;
             MVMLexicalRegistry *new_entry = MVM_malloc(sizeof(MVMLexicalRegistry));
@@ -120,7 +121,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMStaticFrameBody *body = (MVMStaticFrameBody *)data;
-    MVMLexicalRegistry *current, *tmp;
+    MVMLexicalRegistry *current;
+    unsigned bucket_tmp;
 
     /* mvmobjects */
     MVM_gc_worklist_add(tc, worklist, &body->cu);
@@ -134,7 +136,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         return;
 
     /* lexical names hash keys */
-    HASH_ITER(hash_handle, body->lexical_names, current, tmp) {
+    HASH_ITER(hash_handle, body->lexical_names, current, bucket_tmp) {
         MVM_gc_worklist_add(tc, worklist, &current->key);
     }
 

@@ -57,7 +57,8 @@ else { \
 
 #define MVM_HASH_DESTROY(hash_handle, hashentry_type, head_node) do { \
     hashentry_type *current, *tmp; \
-    HASH_ITER(hash_handle, head_node, current, tmp) { \
+    unsigned bucket_tmp; \
+    HASH_ITER(hash_handle, head_node, current, bucket_tmp) { \
         if (current != head_node) \
             MVM_free(current); \
     } \
@@ -68,7 +69,8 @@ else { \
 
 #define MVM_HASH_DESTROY_FSA(hash_handle, hashentry_type, head_node) do { \
     hashentry_type *current, *tmp; \
-    HASH_ITER(hash_handle, head_node, current, tmp) { \
+    unsigned bucket_tmp; \
+    HASH_ITER(hash_handle, head_node, current, bucket_tmp) { \
         if (current != head_node) \
             MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(hashentry_type), current); \
     } \
