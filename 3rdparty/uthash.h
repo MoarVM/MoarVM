@@ -208,12 +208,17 @@ do {                                                                            
             unsigned cur = 0;                                                    \
             while (cur < (head)->hh.tbl->num_buckets) {                          \
                 UT_hash_handle *cand = (head)->hh.tbl->buckets[cur].hh_head;     \
-                if (cand && cand != &((delptr)->hh)) {                           \
-                    DECLTYPE_ASSIGN((head), ELMT_FROM_HH((head)->hh.tbl,cand));  \
-                    break;                                                       \
+                while (cand) {                                                   \
+                    if (cand && cand != &((delptr)->hh)) {                       \
+                        DECLTYPE_ASSIGN((head), ELMT_FROM_HH((head)->hh.tbl,cand)); \
+                        goto REPLACED_HEAD;                                      \
+                    }                                                            \
+                    cand = cand->hh_next;                                        \
                 }                                                                \
                 cur++;                                                           \
             }                                                                    \
+            uthash_fatal("Failed to replace deleted head");                      \
+          REPLACED_HEAD: ;                                                       \
         }                                                                        \
         HASH_TO_BKT( _hd_hh_del->hashv, (head)->hh.tbl->num_buckets, _hd_bkt);   \
         HASH_DEL_IN_BKT(hh,(head)->hh.tbl->buckets[_hd_bkt], _hd_hh_del);        \
