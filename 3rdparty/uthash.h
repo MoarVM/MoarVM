@@ -201,7 +201,7 @@ do {                                                                            
         uthash_free((head)->hh.tbl->buckets,                                     \
                     (head)->hh.tbl->num_buckets*sizeof(struct UT_hash_bucket) ); \
         uthash_free((head)->hh.tbl, sizeof(UT_hash_table));                      \
-        head = NULL;                                                             \
+        (head) = NULL;                                                           \
     } else {                                                                     \
         _hd_hh_del = &((delptr)->hh);                                            \
         if ((delptr) == (head)) {                                                \
