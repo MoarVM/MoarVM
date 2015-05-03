@@ -57,7 +57,16 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMHash *h = (MVMHash *)obj;
-    MVM_HASH_DESTROY_FSA(hash_handle, MVMHashEntry, h->body.hash_head);
+    MVMHashEntry *current, *tmp;
+    unsigned bucket_tmp;
+    HASH_ITER(hash_handle, h->body.hash_head, current, tmp, bucket_tmp) {
+        if (current != h->body.hash_head)
+            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), current);
+    }
+    tmp = h->body.hash_head;
+    HASH_CLEAR(hash_handle, h->body.hash_head);
+    if (tmp)
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), tmp);
 }
 
 static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind) {
