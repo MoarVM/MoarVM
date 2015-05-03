@@ -38,8 +38,8 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
 /* Adds anything that is a root thanks to being referenced by instance,
  * but that isn't permanent. */
 void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
-    MVMSerializationContextBody *current;
-    MVMLoadedCompUnitName       *current_lcun;
+    MVMSerializationContextBody *current, *tmp;
+    MVMLoadedCompUnitName       *current_lcun, *tmp_lcun;
     unsigned                     bucket_tmp;
     MVMString                  **int_to_str_cache;
     MVMuint32                    i;
@@ -58,13 +58,13 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 
     /* okay, so this makes the weak hash slightly less weak.. for certain
      * keys of it anyway... */
-    HASH_ITER(hash_handle, tc->instance->sc_weakhash, current, bucket_tmp) {
+    HASH_ITER(hash_handle, tc->instance->sc_weakhash, current, tmp, bucket_tmp) {
         /* mark the string handle pointer iff it hasn't yet been resolved */
         if (!current->sc)
             MVM_gc_worklist_add(tc, worklist, &current->handle);
     }
 
-    HASH_ITER(hash_handle, tc->instance->loaded_compunits, current_lcun, bucket_tmp) {
+    HASH_ITER(hash_handle, tc->instance->loaded_compunits, current_lcun, tmp_lcun, bucket_tmp) {
         MVM_gc_worklist_add(tc, worklist, &current_lcun->filename);
     }
 
@@ -74,7 +74,7 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 /* Adds anything that is a root thanks to being referenced by a thread,
  * context, but that isn't permanent. */
 void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
-    MVMNativeCallbackCacheHead *current_cbceh;
+    MVMNativeCallbackCacheHead *current_cbceh, *tmp_cbceh;
     unsigned bucket_tmp;
 
     /* Any active exception handlers. */
@@ -109,7 +109,7 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     MVM_gc_worklist_add(tc, worklist, &tc->cur_dispatcher);
 
     /* Callback cache. */
-    HASH_ITER(hash_handle, tc->native_callback_cache, current_cbceh, bucket_tmp) {
+    HASH_ITER(hash_handle, tc->native_callback_cache, current_cbceh, tmp_cbceh, bucket_tmp) {
         MVMint32 i;
         MVMNativeCallback *entry = current_cbceh->head;
         while (entry) {

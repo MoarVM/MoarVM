@@ -25,11 +25,11 @@ MVM_STATIC_INLINE void extract_key(MVMThreadContext *tc, void **kdata, size_t *k
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMHashBody *src_body  = (MVMHashBody *)src;
     MVMHashBody *dest_body = (MVMHashBody *)dest;
-    MVMHashEntry *current;
+    MVMHashEntry *current, *tmp;
     unsigned bucket_tmp;
 
     /* NOTE: if we really wanted to, we could avoid rehashing... */
-    HASH_ITER(hash_handle, src_body->hash_head, current, bucket_tmp) {
+    HASH_ITER(hash_handle, src_body->hash_head, current, tmp, bucket_tmp) {
         size_t klen;
         void *kdata;
         MVMHashEntry *new_entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
@@ -45,10 +45,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMHashBody *body = (MVMHashBody *)data;
-    MVMHashEntry *current;
+    MVMHashEntry *current, *tmp;
     unsigned bucket_tmp;
 
-    HASH_ITER(hash_handle, body->hash_head, current, bucket_tmp) {
+    HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
         MVM_gc_worklist_add(tc, worklist, &current->key);
         MVM_gc_worklist_add(tc, worklist, &current->value);
     }

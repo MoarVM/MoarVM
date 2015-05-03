@@ -752,10 +752,10 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 
         if (arg_info.arg.o && REPR(arg_info.arg.o)->ID == MVM_REPR_ID_MVMHash) {
             MVMHashBody *body = &((MVMHash *)arg_info.arg.o)->body;
-            MVMHashEntry *current;
+            MVMHashEntry *current, *tmp;
             unsigned bucket_tmp;
 
-            HASH_ITER(hash_handle, body->hash_head, current, bucket_tmp) {
+            HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
 
                 if (new_arg_pos + 1 >= new_args_size) {
                     new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));

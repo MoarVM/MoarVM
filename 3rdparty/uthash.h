@@ -533,10 +533,12 @@ MVM_STATIC_INLINE void * HASH_ITER_NEXT_ITEM(
     }
     return NULL;
 }
-#define HASH_ITER(hh,head,el,bucket_tmp)                                        \
+#define HASH_ITER(hh,head,el,tmp,bucket_tmp)                                    \
 for((bucket_tmp) = 0,                                                           \
-    (el) = HASH_ITER_FIRST_ITEM((head) ? (head)->hh.tbl : NULL, &(bucket_tmp)); \
+    (el) = HASH_ITER_FIRST_ITEM((head) ? (head)->hh.tbl : NULL, &(bucket_tmp)), \
+    (tmp) = ((el) ? HASH_ITER_NEXT_ITEM(&((el)->hh), &(bucket_tmp)) : NULL);    \
     (el);                                                                       \
-    (el) = HASH_ITER_NEXT_ITEM(&((el)->hh), &(bucket_tmp)))
+    (el) = (tmp),                                                               \
+    (tmp) = ((tmp) ? HASH_ITER_NEXT_ITEM(&((tmp)->hh), &(bucket_tmp)) : NULL))
 
 #endif /* UTHASH_H */
