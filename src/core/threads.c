@@ -8,15 +8,26 @@ typedef struct {
 } ThreadStart;
 
 /* Creates a new thread handle with the MVMThread representation. Does not
- * actually start execution of the thread. */
+ * actually start execution of the thread, but does give it its unique ID. */
 MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 app_lifetime) {
     MVMThread *thread;
+    MVMThreadContext *child_tc;
+
+    /* Create the Thread object and stash code to run and lifetime. */
     MVMROOT(tc, invokee, {
         thread = (MVMThread *)MVM_repr_alloc_init(tc, tc->instance->Thread);
     });
     thread->body.stage = MVM_thread_stage_unstarted;
     MVM_ASSIGN_REF(tc, &(thread->common.header), thread->body.invokee, invokee);
     thread->body.app_lifetime = app_lifetime;
+
+    /* Create a new thread context and set it up a little. */
+    child_tc = MVM_tc_create(tc->instance);
+    child_tc->thread_obj = thread;
+    child_tc->thread_id = 1 + MVM_incr(&tc->instance->next_user_thread_id);
+        /* Add one, since MVM_incr returns original. */
+    thread->body.tc = child_tc;
+
     return (MVMObject *)thread;
 }
 
@@ -54,7 +65,7 @@ static void start_thread(void *data) {
     MVMThreadContext *tc = ts->tc;
 
     /* Stash thread ID. */
-    tc->thread_obj->body.thread_id = MVM_platform_thread_id();
+    tc->thread_obj->body.native_thread_id = MVM_platform_thread_id();
 
     /* wait for the GC to finish if it's not finished stealing us. */
     MVM_gc_mark_thread_unblocked(tc);
@@ -86,17 +97,10 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
 
     if (REPR(child)->ID == MVM_REPR_ID_MVMThread) {
         MVMThread * volatile *threads;
-        MVMThreadContext *child_tc;
+        MVMThreadContext *child_tc = child->body.tc;
 
         /* Move thread to starting stage. */
         child->body.stage = MVM_thread_stage_starting;
-
-        /* Create a new thread context and set it up. */
-        child_tc = MVM_tc_create(tc->instance);
-        child->body.tc = child_tc;
-        child_tc->thread_obj = child;
-        child_tc->thread_id = 1 + MVM_incr(&tc->instance->next_user_thread_id);
-            /* Add one, since MVM_incr returns original. */
 
         /* Create thread state, to pass to the thread start callback. */
         ts = MVM_malloc(sizeof(ThreadStart));
@@ -155,18 +159,23 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
     }
 }
 
-/* Gets the ID of a thread. */
+/* Gets the (VM-level) ID of a thread. */
 MVMint64 MVM_thread_id(MVMThreadContext *tc, MVMObject *thread_obj) {
-    if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread) {
-        MVMThread *thread = (MVMThread *)thread_obj;
-        while (MVM_load(&thread->body.stage) < MVM_thread_stage_started)
-            MVM_platform_thread_yield();
-        return thread->body.thread_id;
-    }
-    else {
+    if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread)
+        return ((MVMThread *)thread_obj)->body.tc->thread_id;
+    else
         MVM_exception_throw_adhoc(tc,
-            "Thread handle passed to id must have representation MVMThread");
-    }
+            "Thread handle passed to threadid must have representation MVMThread");
+}
+
+/* Gets the native OS ID of a thread. If it's not yet available because
+ * the thread was not yet started, this will return 0. */
+MVMint64 MVM_thread_native_id(MVMThreadContext *tc, MVMObject *thread_obj) {
+    if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread)
+        return ((MVMThread *)thread_obj)->body.native_thread_id;
+    else
+        MVM_exception_throw_adhoc(tc,
+            "Thread handle passed to threadnativeid must have representation MVMThread");
 }
 
 /* Yields control to another thread. */
