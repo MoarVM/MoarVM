@@ -111,12 +111,17 @@ void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t 
         MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
         MVMFixedSizeAllocFreeListEntry *fle;
         if (tc->instance->next_user_thread_id != 2) {
-            /* Multi-threaded; race for it. */
+            /* Multi-threaded; take a lock. Note that the lock is needed in
+             * addition to the atomic operations: the atomics allow us to add
+             * to the free list in a lock-free way, and the lock allows us to
+             * avoid the ABA issue we'd have with only the atomics. */
+            uv_mutex_lock(&(al->complex_alloc_mutex));
             do {
                 fle = bin_ptr->free_list;
                 if (!fle)
                     break;
             } while (!MVM_trycas(&(bin_ptr->free_list), fle, fle->next));
+            uv_mutex_unlock(&(al->complex_alloc_mutex));
         }
         else {
             /* Single-threaded; just take it. */
