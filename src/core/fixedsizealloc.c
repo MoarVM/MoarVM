@@ -78,7 +78,7 @@ static void * alloc_slow_path(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVMui
     void *result;
 
     /* Lock, unless single-threaded. */
-    MVMint32 lock = tc->instance->next_user_thread_id != 2;
+    MVMint32 lock = MVM_instance_have_user_threads(tc);
     if (lock)
         uv_mutex_lock(&(al->complex_alloc_mutex));
 
@@ -111,7 +111,7 @@ void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t 
         /* Try and take from the free list (fast path). */
         MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
         MVMFixedSizeAllocFreeListEntry *fle;
-        if (tc->instance->next_user_thread_id != 2) {
+        if (MVM_instance_have_user_threads(tc)) {
             /* Multi-threaded; take a lock. Note that the lock is needed in
              * addition to the atomic operations: the atomics allow us to add
              * to the free list in a lock-free way, and the lock allows us to
@@ -169,7 +169,7 @@ void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t byt
         MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
         MVMFixedSizeAllocFreeListEntry *to_add  = (MVMFixedSizeAllocFreeListEntry *)to_free;
         MVMFixedSizeAllocFreeListEntry *orig;
-        if (tc->instance->next_user_thread_id != 2) {
+        if (MVM_instance_have_user_threads(tc)) {
             /* Multi-threaded; race to add it. */
             do {
                 orig = bin_ptr->free_list;
@@ -206,7 +206,7 @@ void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *a
         MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
         MVMFixedSizeAllocFreeListEntry *to_add  = (MVMFixedSizeAllocFreeListEntry *)to_free;
         MVMFixedSizeAllocFreeListEntry *orig;
-        if (tc->instance->next_user_thread_id != 2) {
+        if (MVM_instance_have_user_threads(tc)) {
             /* Multi-threaded; race to add it to the "free at next safe point"
              * list. */
             MVM_panic(1, "MVM_fixed_size_free_at_safepoint not yet fully implemented");
@@ -220,7 +220,7 @@ void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *a
     }
     else {
         /* Was malloc'd due to being oversize. */
-        if (tc->instance->next_user_thread_id != 2) {
+        if (MVM_instance_have_user_threads(tc)) {
             /* Multi-threaded; race to add it to the "free at next safe point"
              * list. */
             MVM_panic(1, "MVM_fixed_size_free_at_safepoint not yet fully implemented");
