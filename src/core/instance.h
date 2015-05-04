@@ -160,8 +160,10 @@ struct MVMInstance {
     /* int -> str cache */
     MVMString **int_to_str_cache;
 
-    /* Specialization installation mutex (global, as it's low contention, so
-     * no real motivation to have it more fine-grained at present). */
+    /* Multi-dispatch cache and specialization installation mutexes
+     * (global, as the additions are quite low contention, so no
+     * real motivation to have it more fine-grained at present). */
+    uv_mutex_t mutex_multi_cache_add;
     uv_mutex_t mutex_spesh_install;
 
     /* Log file for specializations, if we're to log them. */
