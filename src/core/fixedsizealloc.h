@@ -6,6 +6,9 @@ struct MVMFixedSizeAlloc {
      * need arises). */
     MVMFixedSizeAllocSizeClass *size_classes;
 
+    /* Spin lock used for reading from the free list, to avoid ABA. */
+    AO_t freelist_spin;
+
     /* Mutex for when we can't do a cheap/simple allocation. */
     uv_mutex_t complex_alloc_mutex;
 };

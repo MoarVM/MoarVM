@@ -24,6 +24,7 @@ MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
     if ((init_stat = uv_mutex_init(&(al->complex_alloc_mutex))) < 0)
         MVM_exception_throw_adhoc(tc, "Failed to initialize mutex: %s",
             uv_strerror(init_stat));
+    al->freelist_spin = 0;
     return al;
 }
 
@@ -115,13 +116,18 @@ void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t 
              * addition to the atomic operations: the atomics allow us to add
              * to the free list in a lock-free way, and the lock allows us to
              * avoid the ABA issue we'd have with only the atomics. */
-            uv_mutex_lock(&(al->complex_alloc_mutex));
+            while (!MVM_trycas(&(al->freelist_spin), 0, 1)) {
+                MVMint32 i = 0;
+                while (i < 1024)
+                    i++;
+            }
             do {
                 fle = bin_ptr->free_list;
                 if (!fle)
                     break;
             } while (!MVM_trycas(&(bin_ptr->free_list), fle, fle->next));
-            uv_mutex_unlock(&(al->complex_alloc_mutex));
+            MVM_barrier();
+            al->freelist_spin = 0;
         }
         else {
             /* Single-threaded; just take it. */
