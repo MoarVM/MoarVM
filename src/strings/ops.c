@@ -504,26 +504,13 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
 }
 
 void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
-    char *utf8_encoded;
-    MVMuint64 utf8_encoded_length;
-
     MVM_string_check_arg(tc, a, "say");
-
-    utf8_encoded = MVM_string_utf8_encode(tc, a, &utf8_encoded_length);
-    fwrite(utf8_encoded, 1, utf8_encoded_length, stdout);
-    fwrite("\n", 1, 1, stdout);
-    MVM_free(utf8_encoded);
+    MVM_io_write_string(tc, tc->instance->stdout_handle, a, 1);
 }
 
 void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
-    char *utf8_encoded;
-    MVMuint64 utf8_encoded_length;
-
     MVM_string_check_arg(tc, a, "print");
-
-    utf8_encoded = MVM_string_utf8_encode(tc, a, &utf8_encoded_length);
-    fwrite(utf8_encoded, 1, utf8_encoded_length, stdout);
-    MVM_free(utf8_encoded);
+    MVM_io_write_string(tc, tc->instance->stdout_handle, a, 0);
 }
 
 /* Tests whether one string a has the other string b as a substring at that index */
