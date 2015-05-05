@@ -27,6 +27,8 @@ static void setup_bin(MVMGen2Allocator *al, MVMuint32 bin) {
     al->size_classes[bin].pages     = MVM_malloc(sizeof(void *) * al->size_classes[bin].num_pages);
     al->size_classes[bin].pages[0]  = MVM_malloc(page_size);
 
+    VALGRIND_CREATE_MEMPOOL(&(al->size_classes[bin]), 0, 0);
+
     /* Set up allocation position and limit. */
     al->size_classes[bin].alloc_pos = al->size_classes[bin].pages[0];
     al->size_classes[bin].alloc_limit = al->size_classes[bin].alloc_pos + page_size;
@@ -43,6 +45,7 @@ static void add_page(MVMGen2Allocator *al, MVMuint32 bin) {
     /* Add the extra page. */
     MVMuint32 cur_page = al->size_classes[bin].num_pages;
     al->size_classes[bin].num_pages++;
+
     al->size_classes[bin].pages = MVM_realloc(al->size_classes[bin].pages,
         sizeof(void *) * al->size_classes[bin].num_pages);
     al->size_classes[bin].pages[cur_page] = MVM_malloc(page_size);
@@ -88,6 +91,8 @@ void * MVM_gc_gen2_allocate(MVMGen2Allocator *al, MVMuint32 size) {
             result = al->size_classes[bin].alloc_pos;
             al->size_classes[bin].alloc_pos += (bin + 1) << MVM_GEN2_BIN_BITS;
         }
+
+        VALGRIND_MEMPOOL_ALLOC(&(al->size_classes[bin]), result, size);
     }
     else {
         /* We're beyond the size class bins, so resort to malloc. */
@@ -121,8 +126,10 @@ void MVM_gc_gen2_destroy(MVMInstance *i, MVMGen2Allocator *al) {
 
     /* Remove all pages. */
     for (j = 0; j < MVM_GEN2_BINS; j++) {
-        for (k = 0; k < al->size_classes[j].num_pages; k++)
+        for (k = 0; k < al->size_classes[j].num_pages; k++) {
+            VALGRIND_DESTROY_MEMPOOL(al->size_classes[j].pages[k]);
             MVM_free(al->size_classes[j].pages[k]);
+        }
         MVM_free(al->size_classes[j].pages);
     }
 

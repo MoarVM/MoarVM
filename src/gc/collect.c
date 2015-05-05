@@ -74,6 +74,9 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         tc->nursery_alloc       = tospace;
         tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
 
+        VALGRIND_DESTROY_MEMPOOL(tc->nursery_tospace);
+        VALGRIND_CREATE_MEMPOOL(tc->nursery_tospace,   0, 1);
+
         MVM_gc_worklist_add(tc, worklist, &tc->thread_obj);
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from thread_obj\n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
@@ -142,6 +145,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         pass_leftover_work(tc, &wtp);
         MVM_free(wtp.target_work);
     }
+
 }
 
 /* Processes the current worklist. */
@@ -271,6 +275,9 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                  * iteration. Allocate space in the nursery. */
                 new_addr = (MVMCollectable *)tc->nursery_alloc;
                 tc->nursery_alloc = (char *)tc->nursery_alloc + item->size;
+
+                VALGRIND_MEMPOOL_ALLOC(tc->nursery_tospace, new_addr, item->size);
+
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : copying an object %p (reprid %d) of size %d to tospace %p\n",
                     item, REPR(item)->ID, item->size, new_addr);
 

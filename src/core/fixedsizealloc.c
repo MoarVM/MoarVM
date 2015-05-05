@@ -47,6 +47,8 @@ static void setup_bin(MVMFixedSizeAlloc *al, MVMuint32 bin) {
     al->size_classes[bin].pages     = MVM_malloc(sizeof(void *) * al->size_classes[bin].num_pages);
     al->size_classes[bin].pages[0]  = MVM_malloc(page_size);
 
+    VALGRIND_CREATE_MEMPOOL(&(al->size_classes[bin]), 0, 0);
+
     /* Set up allocation position and limit. */
     al->size_classes[bin].alloc_pos = al->size_classes[bin].pages[0];
     al->size_classes[bin].alloc_limit = al->size_classes[bin].alloc_pos + page_size;
@@ -93,6 +95,8 @@ static void * alloc_slow_path(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVMui
     result = (void *)al->size_classes[bin].alloc_pos;
     al->size_classes[bin].alloc_pos += (bin + 1) << MVM_FSA_BIN_BITS;
 
+    VALGRIND_MEMPOOL_ALLOC(&(al->size_classes[bin]), result, (bin + 1) << MVM_FSA_BIN_BITS);
+
     /* Unlock if we locked. */
     if (lock)
         uv_mutex_unlock(&(al->complex_alloc_mutex));
@@ -124,8 +128,11 @@ void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t 
             if (fle)
                 bin_ptr->free_list = fle->next;
         }
-        if (fle)
+        if (fle) {
+            VALGRIND_MEMPOOL_ALLOC(bin_ptr, fle, (bin + 1) << MVM_FSA_BIN_BITS);
+
             return (void *)fle;
+        }
 
         /* Failed to take from free list; slow path with the lock. */
         return alloc_slow_path(tc, al, bin);
@@ -170,6 +177,8 @@ void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t byt
             to_add->next       = bin_ptr->free_list;
             bin_ptr->free_list = to_add;
         }
+
+        VALGRIND_MEMPOOL_FREE(bin_ptr, to_free);
     }
     else {
         /* Was malloc'd due to being oversize, so just free it. */
@@ -205,6 +214,8 @@ void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *a
              * it on the free list right away. */
             to_add->next       = bin_ptr->free_list;
             bin_ptr->free_list = to_add;
+
+            VALGRIND_MEMPOOL_FREE(bin_ptr, to_free);
         }
     }
     else {

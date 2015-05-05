@@ -77,6 +77,18 @@ typedef double   MVMnum64;
 #  define MVM_USED_BY_JIT
 #endif
 
+#ifdef MVM_VALGRIND_SUPPORT
+#  include <valgrind/valgrind.h>
+#else
+#if 0
+#define VALGRIND_CREATE_MEMPOOL(pool, rzB, is_zeroed) do { } while (0)
+#define VALGRIND_DESTROY_MEMPOOL(pool)  do { } while (0)
+#define VALGRIND_MEMPOOL_ALLOC(pool, addr, size) do { } while (0)
+#define VALGRIND_MEMPOOL_FREE(pool, addr) do { } while (0)
+#define VALGRIND_MOVE_MEMPOOL(poolA, poolB) do { } while (0)
+#endif
+#endif
+
 MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 
 /* Headers for various other data structures and APIs. */

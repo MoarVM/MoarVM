@@ -35,6 +35,8 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
         /* Allocate (just bump the pointer). */
         allocated = tc->nursery_alloc;
         tc->nursery_alloc = (char *)tc->nursery_alloc + size;
+
+        VALGRIND_MEMPOOL_ALLOC(tc->nursery_tospace, allocated, size);
     }
     else {
         MVM_panic(MVM_exitcode_gcalloc, "Cannot allocate 0 bytes of memory in the nursery");

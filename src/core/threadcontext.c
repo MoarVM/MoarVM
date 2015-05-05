@@ -16,6 +16,9 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     tc->nursery_alloc       = tc->nursery_tospace;
     tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
 
+    VALGRIND_CREATE_MEMPOOL(tc->nursery_tospace,   5, 1);
+    VALGRIND_CREATE_MEMPOOL(tc->nursery_fromspace, 5, 1);
+
     /* Set up temporary root handling. */
     tc->num_temproots   = 0;
     tc->alloc_temproots = MVM_TEMP_ROOT_BASE_ALLOC;

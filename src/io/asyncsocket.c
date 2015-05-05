@@ -366,6 +366,7 @@ static MVMAsyncTask * write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMObject 
                                 MVMObject *schedulee, MVMString *s, MVMObject *async_type) {
     MVMAsyncTask *task;
     WriteInfo    *wi;
+    MVMIOAsyncSocketData *data = (MVMIOAsyncSocketData *)h->body.data;
 
     /* Validate REPRs. */
     if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
@@ -374,6 +375,11 @@ static MVMAsyncTask * write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMObject 
     if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
         MVM_exception_throw_adhoc(tc,
             "asyncwritestr result type must have REPR AsyncTask");
+
+    if (!data->handle) {
+        MVM_exception_throw_adhoc(tc,
+            "asyncwritestr not possible on closed socket");
+    }
 
     /* Create async task handle. */
     MVMROOT(tc, queue, {
@@ -403,6 +409,7 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
                                   MVMObject *schedulee, MVMObject *buffer, MVMObject *async_type) {
     MVMAsyncTask *task;
     WriteInfo    *wi;
+    MVMIOAsyncSocketData *data = (MVMIOAsyncSocketData *)h->body.data;
 
     /* Validate REPRs. */
     if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
@@ -416,6 +423,11 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
     if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_U8
         && ((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_I8)
         MVM_exception_throw_adhoc(tc, "asyncwritebytes requires a native array of uint8 or int8");
+    if (!data->handle) {
+        MVM_exception_throw_adhoc(tc,
+            "asyncwritebytes not possible on closed socket");
+    }
+
 
     /* Create async task handle. */
     MVMROOT(tc, queue, {

@@ -309,6 +309,8 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
                 other->thread_id);
             MVM_gc_collect_free_gen2_unmarked(other);
         }
+        VALGRIND_DESTROY_MEMPOOL(tc->nursery_fromspace);
+        VALGRIND_CREATE_MEMPOOL(tc->nursery_fromspace, 0, 1);
     }
 }
 
