@@ -56,7 +56,23 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     cur_ins = bb->first_ins;
     while (cur_ins) {
         MVMSpeshAnn *ann = cur_ins->annotations;
+        MVMuint32 line_number;
+
         while (ann) {
+            /* These four annotations carry a deopt index that we can find a
+             * corresponding line number for */
+            if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS
+                || ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS
+                || ann->type == MVM_SPESH_ANN_DEOPT_INLINE
+                || ann->type == MVM_SPESH_ANN_DEOPT_OSR) {
+                MVMBytecodeAnnotation *ba = MVM_bytecode_resolve_annotation(tc, &g->sf->body, g->deopt_addrs[2 * ann->data.deopt_idx]);
+                if (ba) {
+                    line_number = ba->line_number;
+                    MVM_free(ba);
+                } else {
+                    line_number = -1;
+                }
+            }
             switch (ann->type) {
                 case MVM_SPESH_ANN_FH_START:
                     appendf(ds, "      [Annotation: FH Start (%d)]\n",
@@ -71,12 +87,12 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         ann->data.frame_handler_index);
                     break;
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
-                    appendf(ds, "      [Annotation: INS Deopt One (idx %d -> pc %d)]\n",
-                        ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx]);
+                    appendf(ds, "      [Annotation: INS Deopt One (idx %d -> pc %d; line %d)]\n",
+                        ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx], line_number);
                     break;
                 case MVM_SPESH_ANN_DEOPT_ALL_INS:
-                    appendf(ds, "      [Annotation: INS Deopt All (idx %d -> pc %d)]\n",
-                        ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx]);
+                    appendf(ds, "      [Annotation: INS Deopt All (idx %d -> pc %d; line %d)]\n",
+                        ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx], line_number);
                     break;
                 case MVM_SPESH_ANN_INLINE_START:
                     appendf(ds, "      [Annotation: Inline Start (%d)]\n",
@@ -87,12 +103,12 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         ann->data.inline_idx);
                     break;
                 case MVM_SPESH_ANN_DEOPT_INLINE:
-                    appendf(ds, "      [Annotation: INS Deopt Inline (idx %d -> pc %d)]\n",
-                        ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx]);
+                    appendf(ds, "      [Annotation: INS Deopt Inline (idx %d -> pc %d; line %d)]\n",
+                        ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx], line_number);
                     break;
                 case MVM_SPESH_ANN_DEOPT_OSR:
-                    appendf(ds, "      [Annotation: INS Deopt OSR (idx %d -> pc %d)]\n",
-                        ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx]);
+                    appendf(ds, "      [Annotation: INS Deopt OSR (idx %d -> pc %d); line %d]\n",
+                        ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx], line_number);
                     break;
                 default:
                     appendf(ds, "      [Annotation: %d (unknown)]\n", ann->type);
