@@ -173,6 +173,10 @@ struct MVMSpeshBB {
      * dominance. */
     MVMint32 rpo_idx;
 
+    /* We cache the instruction pointer of the very first instruction so that
+     * we can output a line number for every BB */
+    MVMuint32 initial_pc;
+
     /* Is this block an inlining of another one? */
     MVMint32 inlined;
 };

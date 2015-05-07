@@ -51,6 +51,19 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     /* Heading. */
     appendf(ds, "  BB %d (%p):\n", bb->idx, bb);
 
+    {
+        /* Also, we have a line number */
+        MVMBytecodeAnnotation *bbba = MVM_bytecode_resolve_annotation(tc, &g->sf->body, bb->initial_pc);
+        MVMuint32 line_number;
+        if (bbba) {
+            line_number = bbba->line_number;
+            MVM_free(bbba);
+        } else {
+            line_number = -1;
+        }
+        appendf(ds, "    line: %d (pc %d):\n", line_number, bb->initial_pc);
+    }
+
     /* Instructions. */
     append(ds, "    Instructions:\n");
     cur_ins = bb->first_ins;

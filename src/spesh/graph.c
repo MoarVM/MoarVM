@@ -400,6 +400,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             cur_bb = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB));
             cur_bb->first_ins = cur_ins;
             cur_bb->idx = bb_idx;
+            cur_bb->initial_pc = i;
             bb_idx++;
 
             /* Record instruction -> BB start mapping. */
