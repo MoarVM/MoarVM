@@ -762,11 +762,9 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVMint32 invocant = ins->operands[1].reg.orig;
                 MVMint32 value    = ins->operands[2].reg.orig;
 
-                void *function;
-                if (alternative)
-                    function = ((MVMObject*)type_facts->type)->st->REPR->ass_funcs.at_key;
-                else
-                    function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.at_pos;
+                void *function = alternative
+                    ? ((MVMObject*)type_facts->type)->st->REPR->ass_funcs.at_key
+                    : ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.at_pos;
 
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
@@ -806,11 +804,9 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVMint32 key      = ins->operands[1].reg.orig;
                 MVMint32 value    = ins->operands[2].reg.orig;
 
-                void *function;
-                if (alternative)
-                    function = ((MVMObject*)type_facts->type)->st->REPR->ass_funcs.bind_key;
-                else
-                    function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.bind_pos;
+                void *function = alternative
+                    ? ((MVMObject*)type_facts->type)->st->REPR->ass_funcs.bind_key
+                    : ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.bind_pos;
 
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
@@ -966,11 +962,9 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVMint32 invocant = ins->operands[0].reg.orig;
                 MVMint32 value    = ins->operands[1].reg.orig;
 
-                void *function;
-                if (alternative)
-                    function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.push;
-                else
-                    function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.unshift;
+                void *function = alternative
+                    ? ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.push
+                    : ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.unshift;
 
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
@@ -999,11 +993,9 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVMint32 dst      = ins->operands[0].reg.orig;
                 MVMint32 invocant = ins->operands[1].reg.orig;
 
-                void *function;
-                if (alternative)
-                    function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.pop;
-                else
-                    function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.shift;
+                void *function = alternative
+                    ? ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.pop
+                    : ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.shift;
 
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
@@ -1043,11 +1035,9 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVMint32 invocant = ins->operands[1].reg.orig;
                 MVMint32 keyidx   = ins->operands[2].reg.orig;
 
-                void *function;
-                if (alternative)
-                    function = ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.exists_pos;
-                else
-                    function = ((MVMObject*)type_facts->type)->st->REPR->ass_funcs.exists_key;
+                void *function = alternative
+                    ? ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.exists_pos
+                    : ((MVMObject*)type_facts->type)->st->REPR->ass_funcs.exists_key;
 
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
