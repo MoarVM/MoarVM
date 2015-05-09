@@ -546,6 +546,18 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *a, MVM
     return MVM_string_equal_at(tc, lca, lcb, offset);
 }
 
+MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
+    MVMGrapheme32 g = MVM_string_get_grapheme_at(tc, s, offset);
+    MVMNormalizer norm;
+    MVMint32 ready;
+    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
+    ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, g, &g);
+    MVM_unicode_normalizer_eof(tc, &norm);
+    if (!ready)
+        g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+    return g;
+}
+
 /* Compares two strings for equality. */
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVM_string_check_arg(tc, a, "equal");

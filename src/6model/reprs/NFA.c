@@ -93,6 +93,8 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
                 case MVM_NFA_EDGE_CODEPOINT:
                 case MVM_NFA_EDGE_CODEPOINT_LL:
                 case MVM_NFA_EDGE_CODEPOINT_NEG:
+                case MVM_NFA_EDGE_CODEPOINT_M:
+                case MVM_NFA_EDGE_CODEPOINT_M_NEG:
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
                     MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.i);
@@ -146,6 +148,8 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                     case MVM_NFA_EDGE_CODEPOINT:
                     case MVM_NFA_EDGE_CODEPOINT_LL:
                     case MVM_NFA_EDGE_CODEPOINT_NEG:
+                    case MVM_NFA_EDGE_CODEPOINT_M:
+                    case MVM_NFA_EDGE_CODEPOINT_M_NEG:
                     case MVM_NFA_EDGE_CHARCLASS:
                     case MVM_NFA_EDGE_CHARCLASS_NEG:
                         body->states[i][j].arg.i = MVM_serialization_read_varint(tc, reader);
@@ -258,6 +262,8 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                 case MVM_NFA_EDGE_CODEPOINT:
                 case MVM_NFA_EDGE_CODEPOINT_LL:
                 case MVM_NFA_EDGE_CODEPOINT_NEG:
+                case MVM_NFA_EDGE_CODEPOINT_M:
+                case MVM_NFA_EDGE_CODEPOINT_M_NEG:
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
                     nfa->states[i][cur_edge].arg.i = MVM_coerce_simple_intify(tc,
@@ -498,6 +504,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT_I_LL: {
+                            fprintf(stderr, "MVM_NFA_EDGE_CODEPOINT_I_LL\n");
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
                             MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
@@ -511,6 +518,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT_I: {
+                            fprintf(stderr, "MVM_NFA_EDGE_CODEPOINT_I\n");
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
                             MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
@@ -546,6 +554,25 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             if (nfadeb)
                                 fprintf(stderr, "IGNORING SUBRULE\n");
                             continue;
+                        case MVM_NFA_EDGE_CODEPOINT_M:
+                        case MVM_NFA_EDGE_CODEPOINT_M_NEG: {
+                            MVMNormalizer norm;
+                            MVMGrapheme32 g_nfd;
+                            MVMint32 ready;
+                            MVMGrapheme32 g = edge_info[i].arg.i;
+
+                            MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
+                            ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, g, &g);
+                            MVM_unicode_normalizer_eof(tc, &norm);
+                            if (!ready)
+                                g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+
+                            if ((MVM_NFA_EDGE_CODEPOINT_M && (g_nfd == MVM_string_ord_basechar_at(tc, target, offset)))
+                              || MVM_NFA_EDGE_CODEPOINT_M_NEG)
+                                nextst[numnext++] = to;
+
+                            continue;
+                        }
                     }
                 }
             }

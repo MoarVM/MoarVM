@@ -15,6 +15,8 @@
 #define MVM_NFA_EDGE_CHARRANGE_NEG     13
 #define MVM_NFA_EDGE_CODEPOINT_LL      14
 #define MVM_NFA_EDGE_CODEPOINT_I_LL    15
+#define MVM_NFA_EDGE_CODEPOINT_M       16
+#define MVM_NFA_EDGE_CODEPOINT_M_NEG   17
 
 /* State entry. */
 struct MVMNFAStateInfo {
