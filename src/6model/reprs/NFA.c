@@ -555,7 +555,6 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         case MVM_NFA_EDGE_CODEPOINT_M:
                         case MVM_NFA_EDGE_CODEPOINT_M_NEG: {
                             MVMNormalizer norm;
-                            MVMGrapheme32 g_nfd;
                             MVMint32 ready;
                             MVMGrapheme32 g = edge_info[i].arg.i;
 
@@ -565,7 +564,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             if (!ready)
                                 g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
 
-                            if ((MVM_NFA_EDGE_CODEPOINT_M && (g_nfd == MVM_string_ord_basechar_at(tc, target, offset)))
+                            if ((MVM_NFA_EDGE_CODEPOINT_M && (g == MVM_string_ord_basechar_at(tc, target, offset)))
                               || MVM_NFA_EDGE_CODEPOINT_M_NEG)
                                 nextst[numnext++] = to;
 
