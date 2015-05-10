@@ -504,7 +504,6 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT_I_LL: {
-                            fprintf(stderr, "MVM_NFA_EDGE_CODEPOINT_I_LL\n");
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
                             MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
@@ -518,7 +517,6 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT_I: {
-                            fprintf(stderr, "MVM_NFA_EDGE_CODEPOINT_I\n");
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
                             MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
