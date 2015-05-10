@@ -763,8 +763,8 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVMint32 value    = ins->operands[2].reg.orig;
 
                 void *function = alternative
-                    ? ((MVMObject*)type_facts->type)->st->REPR->ass_funcs.at_key
-                    : ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.at_pos;
+                    ? (void *)((MVMObject*)type_facts->type)->st->REPR->ass_funcs.at_key
+                    : (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.at_pos;
 
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
@@ -805,8 +805,8 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVMint32 value    = ins->operands[2].reg.orig;
 
                 void *function = alternative
-                    ? ((MVMObject*)type_facts->type)->st->REPR->ass_funcs.bind_key
-                    : ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.bind_pos;
+                    ? (void *)((MVMObject*)type_facts->type)->st->REPR->ass_funcs.bind_key
+                    : (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.bind_pos;
 
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
@@ -963,8 +963,8 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVMint32 value    = ins->operands[1].reg.orig;
 
                 void *function = alternative
-                    ? ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.push
-                    : ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.unshift;
+                    ? (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.push
+                    : (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.unshift;
 
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
@@ -994,8 +994,8 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVMint32 invocant = ins->operands[1].reg.orig;
 
                 void *function = alternative
-                    ? ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.pop
-                    : ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.shift;
+                    ? (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.pop
+                    : (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.shift;
 
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
@@ -1036,8 +1036,8 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                 MVMint32 keyidx   = ins->operands[2].reg.orig;
 
                 void *function = alternative
-                    ? ((MVMObject*)type_facts->type)->st->REPR->pos_funcs.exists_pos
-                    : ((MVMObject*)type_facts->type)->st->REPR->ass_funcs.exists_key;
+                    ? (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.exists_pos
+                    : (void *)((MVMObject*)type_facts->type)->st->REPR->ass_funcs.exists_key;
 
                 MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
                                          { MVM_JIT_REG_STABLE,  invocant },
