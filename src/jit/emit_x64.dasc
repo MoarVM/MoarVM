@@ -211,10 +211,15 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
     /* Setup stack */
     | push rbp; // nb, this aligns the stack to 16 bytes again
     | mov rbp, rsp;
-    /* allocate stack space for 4 callee-save registers,
-       4 quadwords of scratch space, 4 stack parameters,
-       and 4 parameter registers (windows only) */
-    | sub rsp, 0x80;
+    /* allocate stack space: 0x100 bytes = 256 bytes
+     *
+     * layout: [ a: 0x20 | b: 0x20 | c: 0xa0 | d: 0x20 ]
+     * a: space for 4 callee-save registers
+     * b: small scratch space
+     * c: space for stack arguments to c calls
+     * d: reserve space for GPR registers to c calls (win64) or more space for
+     * stack arguments (posix) */
+    | sub rsp, 0x100;
     /* save callee-save registers */
     | mov [rbp-0x8],  TC;
     | mov [rbp-0x10], CU;
@@ -1438,10 +1443,10 @@ static void emit_sse_arg(MVMThreadContext *tc, MVMJitGraph *jg,
 static void emit_stack_arg(MVMThreadContext *tc, MVMJitGraph *jg,
                            MVMint32 arg_size, MVMint32 pos,
                            dasm_State **Dst) {
-    /* basically, stack argumetns are passed in right-to-left order
+    /* basically, stack arguments are passed in right-to-left order
        on both POSIX and W64 backends, it seems. Thus the most logical
        thing to do is to count from the stack top upwards. */
-    if (pos + arg_size > 64) {
+    if (pos + arg_size > 160) {
         MVM_exception_throw_adhoc(tc, "JIT: trying to pass arguments "
                                   " in local space (stack top offset: "
                                   " %d, size: %d)", pos, arg_size);
