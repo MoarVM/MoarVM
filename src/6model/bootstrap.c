@@ -548,6 +548,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(free_str, "free_str");
     string_creator(callback_args, "callback_args");
     string_creator(encoding, "encoding");
+    string_creator(inlined, "inlined");
     string_creator(repr, "repr");
     string_creator(anon, "<anon>");
     string_creator(P6opaque, "P6opaque");

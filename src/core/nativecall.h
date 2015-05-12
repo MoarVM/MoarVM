@@ -20,6 +20,7 @@
 #define MVM_NATIVECALL_ARG_UINT            36
 #define MVM_NATIVECALL_ARG_ULONG           38
 #define MVM_NATIVECALL_ARG_ULONGLONG       40
+#define MVM_NATIVECALL_ARG_CUNION          42
 #define MVM_NATIVECALL_ARG_TYPE_MASK       62
 
 /* Flag for whether we should free a string after passing it or not. */
@@ -85,5 +86,6 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
 MVMint64 MVM_nativecall_sizeof(MVMThreadContext *tc, MVMObject *obj);
 void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy);
 MVMObject * MVM_nativecall_make_cstruct(MVMThreadContext *tc, MVMObject *type, void *cstruct);
+MVMObject * MVM_nativecall_make_cunion(MVMThreadContext *tc, MVMObject *type, void *cunion);
 MVMObject * MVM_nativecall_make_cpointer(MVMThreadContext *tc, MVMObject *type, void *ptr);
 MVMObject * MVM_nativecall_make_carray(MVMThreadContext *tc, MVMObject *type, void *carray);

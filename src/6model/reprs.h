@@ -32,6 +32,7 @@
 #include "6model/reprs/CStr.h"
 #include "6model/reprs/CArray.h"
 #include "6model/reprs/CStruct.h"
+#include "6model/reprs/CUnion.h"
 #include "6model/reprs/ReentrantMutex.h"
 #include "6model/reprs/ConditionVariable.h"
 #include "6model/reprs/Semaphore.h"
@@ -88,8 +89,9 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMAsyncTask            37
 #define MVM_REPR_ID_MVMNull                 38
 #define MVM_REPR_ID_NativeRef               39
+#define MVM_REPR_ID_MVMCUnion               40
 
-#define MVM_REPR_CORE_COUNT                 40
+#define MVM_REPR_CORE_COUNT                 41
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */

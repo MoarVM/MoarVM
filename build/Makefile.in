@@ -148,6 +148,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/reprs/CStr@obj@ \
           src/6model/reprs/CArray@obj@ \
           src/6model/reprs/CStruct@obj@ \
+          src/6model/reprs/CUnion@obj@ \
           src/6model/reprs/ReentrantMutex@obj@ \
           src/6model/reprs/ConditionVariable@obj@ \
           src/6model/reprs/Semaphore@obj@ \
@@ -284,6 +285,7 @@ HEADERS = src/moar.h \
           src/6model/reprs/CStr.h \
           src/6model/reprs/CArray.h \
           src/6model/reprs/CStruct.h \
+          src/6model/reprs/CUnion.h \
           src/6model/reprs/ReentrantMutex.h \
           src/6model/reprs/ConditionVariable.h \
           src/6model/reprs/Semaphore.h \

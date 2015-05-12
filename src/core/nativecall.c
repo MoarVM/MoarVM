@@ -78,6 +78,8 @@ static MVMint16 get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMint16 is_
         result = MVM_NATIVECALL_ARG_CPOINTER;
     else if (strcmp(ctypename, "carray") == 0)
         result = MVM_NATIVECALL_ARG_CARRAY;
+    else if (strcmp(ctypename, "cunion") == 0)
+        result = MVM_NATIVECALL_ARG_CUNION;
     else if (strcmp(ctypename, "vmarray") == 0)
         result = MVM_NATIVECALL_ARG_VMARRAY;
     else if (strcmp(ctypename, "callback") == 0)
@@ -135,6 +137,7 @@ static char get_signature_char(MVMint16 type_id) {
         case MVM_NATIVECALL_ARG_CSTRUCT:
         case MVM_NATIVECALL_ARG_CPOINTER:
         case MVM_NATIVECALL_ARG_CARRAY:
+        case MVM_NATIVECALL_ARG_CUNION:
         case MVM_NATIVECALL_ARG_VMARRAY:
         case MVM_NATIVECALL_ARG_CALLBACK:
             return 'p';
@@ -207,6 +210,22 @@ MVMObject * MVM_nativecall_make_cstruct(MVMThreadContext *tc, MVMObject *type, v
         ((MVMCStruct *)result)->body.cstruct = cstruct;
         if (repr_data->num_child_objs)
             ((MVMCStruct *)result)->body.child_objs = MVM_calloc(repr_data->num_child_objs, sizeof(MVMObject *));
+    }
+    return result;
+}
+
+/* Constructs a boxed result using a CUnion REPR type. */
+MVMObject * MVM_nativecall_make_cunion(MVMThreadContext *tc, MVMObject *type, void *cunion) {
+    MVMObject *result = type;
+    if (cunion && type) {
+        MVMCUnionREPRData *repr_data = (MVMCUnionREPRData *)STABLE(type)->REPR_data;
+        if (REPR(type)->ID != MVM_REPR_ID_MVMCUnion)
+            MVM_exception_throw_adhoc(tc,
+                "Native call expected return type with CUnion representation, but got a %s", REPR(type)->name);
+        result = REPR(type)->allocate(tc, STABLE(type));
+        ((MVMCUnion *)result)->body.cunion = cunion;
+        if (repr_data->num_child_objs)
+            ((MVMCUnion *)result)->body.child_objs = MVM_calloc(repr_data->num_child_objs, sizeof(MVMObject *));
     }
     return result;
 }
@@ -361,6 +380,16 @@ static void * unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value) {
     else
         MVM_exception_throw_adhoc(tc,
             "Native call expected object with Array representation, but got a %s", REPR(value)->name);
+}
+
+static void * unmarshal_cunion(MVMThreadContext *tc, MVMObject *value) {
+    if (!IS_CONCRETE(value))
+        return NULL;
+    else if (REPR(value)->ID == MVM_REPR_ID_MVMCUnion)
+        return ((MVMCUnion *)value)->body.cunion;
+    else
+        MVM_exception_throw_adhoc(tc,
+            "Native call expected return type with CUnion representation, but got a %s", REPR(value)->name);
 }
 
 /* Sets up a callback, caching the information to avoid duplicate work. */
@@ -554,6 +583,12 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
                 num_roots++;
                 break;
+            case MVM_NATIVECALL_ARG_CUNION:
+                args[i - 1].o = MVM_nativecall_make_cunion(tc, type,
+                    dcbArgPointer(cb_args));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
+                num_roots++;
+                break;
             case MVM_NATIVECALL_ARG_CALLBACK:
                 /* TODO: A callback -return- value means that we have a C method
                 * that needs to be wrapped similarly to a is native(...) Perl 6
@@ -656,6 +691,9 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
             break;
         case MVM_NATIVECALL_ARG_CARRAY:
             cb_result->p = unmarshal_carray(data->tc, res.o);
+            break;
+        case MVM_NATIVECALL_ARG_CUNION:
+            cb_result->p = unmarshal_cunion(data->tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_VMARRAY:
             cb_result->p = unmarshal_vmarray(data->tc, res.o);
@@ -838,6 +876,9 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             case MVM_NATIVECALL_ARG_CARRAY:
                 dcArgPointer(vm, unmarshal_carray(tc, value));
                 break;
+            case MVM_NATIVECALL_ARG_CUNION:
+                dcArgPointer(vm, unmarshal_cunion(tc, value));
+                break;
             case MVM_NATIVECALL_ARG_VMARRAY:
                 dcArgPointer(vm, unmarshal_vmarray(tc, value));
                 break;
@@ -907,6 +948,9 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 break;
             case MVM_NATIVECALL_ARG_CARRAY:
                 result = MVM_nativecall_make_carray(tc, res_type, dcCallPointer(vm, body->entry_point));
+                break;
+            case MVM_NATIVECALL_ARG_CUNION:
+                result = MVM_nativecall_make_cunion(tc, res_type, dcCallPointer(vm, body->entry_point));
                 break;
             case MVM_NATIVECALL_ARG_CALLBACK:
                 /* TODO: A callback -return- value means that we have a C method
@@ -1096,6 +1140,9 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                 case MVM_REPR_ID_MVMCStruct:
                     result = MVM_nativecall_make_cstruct(tc, target_type, (void *)cpointer_body);
                     break;
+                case MVM_REPR_ID_MVMCUnion:
+                    result = MVM_nativecall_make_cunion(tc, target_type, (void *)cpointer_body);
+                    break;
                 case MVM_REPR_ID_MVMCPointer:
                     result = MVM_nativecall_make_cpointer(tc, target_type, (void *)cpointer_body);
                     break;
@@ -1152,24 +1199,27 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
     if (!source)
         return target_type;
 
-    if (REPR(source)->ID == MVM_REPR_ID_MVMCStruct) {
+    if (REPR(source)->ID == MVM_REPR_ID_MVMCStruct)
         data_body = unmarshal_cstruct(tc, source);
-    } else if (REPR(source)->ID == MVM_REPR_ID_MVMCPointer) {
+    else if (REPR(source)->ID == MVM_REPR_ID_MVMCUnion)
+        data_body = unmarshal_cunion(tc, source);
+    else if (REPR(source)->ID == MVM_REPR_ID_MVMCPointer)
         data_body = unmarshal_cpointer(tc, source);
-    } else if (REPR(source)->ID == MVM_REPR_ID_MVMCArray) {
+    else if (REPR(source)->ID == MVM_REPR_ID_MVMCArray)
         data_body = unmarshal_carray(tc, source);
-    } else if (REPR(source)->ID == MVM_REPR_ID_MVMArray) {
+    else if (REPR(source)->ID == MVM_REPR_ID_MVMArray)
         data_body = unmarshal_vmarray(tc, source);
-    } else {
+    else
         MVM_exception_throw_adhoc(tc,
             "Native call expected return type with CPointer, CStruct, CArray, or VMArray representation, but got a %s", REPR(source)->name);
-    }
     return nativecall_cast(tc, target_spec, target_type, data_body);
 }
 
 MVMint64 MVM_nativecall_sizeof(MVMThreadContext *tc, MVMObject *obj) {
     if (REPR(obj)->ID == MVM_REPR_ID_MVMCStruct)
         return ((MVMCStructREPRData *)STABLE(obj)->REPR_data)->struct_size;
+    else if (REPR(obj)->ID == MVM_REPR_ID_MVMCUnion)
+        return ((MVMCUnionREPRData *)STABLE(obj)->REPR_data)->struct_size;
     else if (REPR(obj)->ID == MVM_REPR_ID_P6int)
         return ((MVMP6intREPRData *)STABLE(obj)->REPR_data)->bits / 8;
     else if (REPR(obj)->ID == MVM_REPR_ID_P6num)
@@ -1222,6 +1272,9 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                     case MVM_CARRAY_ELEM_KIND_CSTRUCT:
                         objptr = ((MVMCStructBody *)OBJECT_BODY(body->child_objs[i]))->cstruct;
                         break;
+                    case MVM_CARRAY_ELEM_KIND_CUNION:
+                        objptr = ((MVMCUnionBody *)OBJECT_BODY(body->child_objs[i]))->cunion;
+                        break;
                     case MVM_CARRAY_ELEM_KIND_STRING:
                         objptr = NULL; /* TODO */
                         break;
@@ -1267,6 +1320,9 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                         break;
                     case MVM_CSTRUCT_ATTR_CSTRUCT:
                         objptr = (MVMCStructBody *)OBJECT_BODY(body->child_objs[slot]);
+                        break;
+                    case MVM_CSTRUCT_ATTR_CUNION:
+                        objptr = (MVMCUnionBody *)OBJECT_BODY(body->child_objs[slot]);
                         break;
                     case MVM_CSTRUCT_ATTR_STRING:
                         objptr = NULL;

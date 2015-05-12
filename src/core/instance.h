@@ -51,6 +51,7 @@ struct MVMStringConsts {
     MVMString *free_str;
     MVMString *callback_args;
     MVMString *encoding;
+    MVMString *inlined;
     MVMString *repr;
     MVMString *anon;
     MVMString *P6opaque;

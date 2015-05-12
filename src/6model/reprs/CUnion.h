@@ -1,46 +1,43 @@
 /* Attribute location flags. */
-#define MVM_CSTRUCT_ATTR_IN_STRUCT 0
-#define MVM_CSTRUCT_ATTR_CSTRUCT   1
-#define MVM_CSTRUCT_ATTR_CARRAY    2
-#define MVM_CSTRUCT_ATTR_CPTR      3
-#define MVM_CSTRUCT_ATTR_STRING    4
-#define MVM_CSTRUCT_ATTR_CUNION    5
-#define MVM_CSTRUCT_ATTR_MASK      7
+#define MVM_CUNION_ATTR_IN_STRUCT 0
+#define MVM_CUNION_ATTR_CSTRUCT   1
+#define MVM_CUNION_ATTR_CARRAY    2
+#define MVM_CUNION_ATTR_CPTR      3
+#define MVM_CUNION_ATTR_STRING    4
+#define MVM_CUNION_ATTR_MASK      7
 
-#define MVM_CSTRUCT_ATTR_INLINED   8
+/* Bits to shift a slot position to make room for MVM_CUNION_ATTR_*. */
+#define MVM_CUNION_ATTR_SHIFT     3
 
-/* Bits to shift a slot position to make room for MVM_CSTRUCT_ATTR_*. */
-#define MVM_CSTRUCT_ATTR_SHIFT     4
-
-/* The CStruct representation maintains a chunk of memory that it can
+/* The CUnion representation maintains a chunk of memory that it can
  * always pass off to C land. If we in turn embed any strings, pointers
- * to other CStruct REPR objects and so forth, we need to both keep the
+ * to other CUnion REPR objects and so forth, we need to both keep the
  * C-friendly bit of memory and a copy to the GC-able, 6model objects in
  * sync. */
-struct MVMCStructBody {
+struct MVMCUnionBody {
     /* GC-marked objects that our C structure points into. */
     MVMObject **child_objs;
 
     /* Pointer to the actual C structure memory; we don't inline it
      * directly in the body, since it doesn't work so well if we get
      * something returned and are wrapping it. */
-    void *cstruct;
+    void *cunion;
 };
 
-struct MVMCStruct {
+struct MVMCUnion {
     MVMObject common;
-    MVMCStructBody body;
+    MVMCUnionBody body;
 };
 
 /* This is used in the name to class mapping. */
-struct MVMCStructNameMap {
+struct MVMCUnionNameMap {
     MVMObject *class_key;
     MVMObject *name_map;
 };
 
-/* The CStruct REPR data contains info we need to do allocations, look up
+/* The CUnion REPR data contains info we need to do allocations, look up
  * attributes and so forth. */
-struct MVMCStructREPRData {
+struct MVMCUnionREPRData {
     /* The size of the structure in bytes. */
     MVMint32 struct_size;
 
@@ -74,12 +71,12 @@ struct MVMCStructREPRData {
 
     /* A table mapping attribute names to indexes (which can then be looked
      * up in the offset table). Uses a final null entry as a sentinel. */
-    MVMCStructNameMap *name_to_index_mapping;
+    MVMCUnionNameMap *name_to_index_mapping;
 
     /* Slots holding flattened objects that need another REPR to initialize
      * them; terminated with -1. */
     MVMint32 *initialize_slots;
 };
 
-/* Initializes the CStruct REPR. */
-const MVMREPROps * MVMCStruct_initialize(MVMThreadContext *tc);
+/* Initializes the CUnion REPR. */
+const MVMREPROps * MVMCUnion_initialize(MVMThreadContext *tc);
