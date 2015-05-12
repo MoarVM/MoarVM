@@ -615,10 +615,56 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
 
     case MVM_OP_add_i:
     case MVM_OP_sub_i:
-    case MVM_OP_mul_i:
     case MVM_OP_bor_i:
     case MVM_OP_band_i:
-    case MVM_OP_bxor_i:
+    case MVM_OP_bxor_i: {
+        MVMint32 reg_a = ins->operands[0].reg.orig;
+        MVMint32 reg_b = ins->operands[1].reg.orig;
+        MVMint32 reg_c = ins->operands[2].reg.orig;
+        if (reg_a == reg_b) {
+            MVM_jit_log(tc, "accumulator stayed in memory\n");
+            | mov rax, WORK[reg_c];
+            switch(ins->info->opcode) {
+            case MVM_OP_add_i:
+                | add WORK[reg_a], rax;
+                break;
+            case MVM_OP_sub_i:
+                | sub WORK[reg_a], rax;
+                break;
+            case MVM_OP_bor_i:
+                | or WORK[reg_a], rax;
+                break;
+            case MVM_OP_band_i:
+                | and WORK[reg_a], rax;
+                break;
+            case MVM_OP_bxor_i:
+                | xor WORK[reg_a], rax;
+                break;
+            }
+        } else {
+            | mov rax, WORK[reg_b];
+            switch(ins->info->opcode) {
+            case MVM_OP_add_i:
+                | add rax, WORK[reg_c];
+                break;
+            case MVM_OP_sub_i:
+                | sub rax, WORK[reg_c];
+                break;
+            case MVM_OP_bor_i:
+                | or rax, WORK[reg_c];
+                break;
+            case MVM_OP_band_i:
+                | and rax, WORK[reg_c];
+                break;
+            case MVM_OP_bxor_i:
+                | xor rax, WORK[reg_c];
+                break;
+            }
+            | mov WORK[reg_a], rax;
+        }
+        break;
+    }
+    case MVM_OP_mul_i:
     case MVM_OP_blshift_i:
     case MVM_OP_brshift_i: {
         MVMint32 reg_a = ins->operands[0].reg.orig;
@@ -626,23 +672,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint32 reg_c = ins->operands[2].reg.orig;
         | mov rax, WORK[reg_b];
         switch(ins->info->opcode) {
-        case MVM_OP_add_i:
-            | add rax, WORK[reg_c];
-            break;
-        case MVM_OP_sub_i:
-            | sub rax, WORK[reg_c];
-            break;
         case MVM_OP_mul_i:
             | imul rax, WORK[reg_c];
-            break;
-        case MVM_OP_bor_i:
-            | or rax, WORK[reg_c];
-            break;
-        case MVM_OP_band_i:
-            | and rax, WORK[reg_c];
-            break;
-        case MVM_OP_bxor_i:
-            | xor rax, WORK[reg_c];
             break;
         case MVM_OP_blshift_i:
             | mov cl, byte WORK[reg_c];
