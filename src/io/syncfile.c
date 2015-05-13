@@ -15,6 +15,7 @@
 #define O_RDONLY _O_RDONLY
 #define O_WRONLY _O_WRONLY
 #define O_TRUNC  _O_TRUNC
+#define O_EXCL   _O_EXCL
 #define DEFAULT_MODE _S_IWRITE /* work around sucky libuv defaults */
 #endif
 
@@ -384,6 +385,36 @@ static const MVMIOOps op_table = {
     gc_free
 };
 
+/* Builds POSIX flag from mode string. */
+static int resolve_open_mode(int *flag, const char *cp) {
+    switch (*cp++) {
+        case 'r': *flag = O_RDONLY; break;
+        case '-': *flag = O_WRONLY; break;
+        case '+': *flag = O_RDWR;   break;
+
+        /* alias for "-c" or "-ct" if by itself */
+        case 'w':
+        *flag = *cp ? O_WRONLY | O_CREAT : O_WRONLY | O_CREAT | O_TRUNC;
+        break;
+
+        default:
+        return 0;
+    }
+
+    for (;;) switch (*cp++) {
+        case 0:
+        return 1;
+
+        case 'a': *flag |= O_APPEND; break;
+        case 'c': *flag |= O_CREAT;  break;
+        case 't': *flag |= O_TRUNC;  break;
+        case 'x': *flag |= O_EXCL;   break;
+
+        default:
+        return 0;
+    }
+}
+
 /* Opens a file, returning a synchronous file handle. */
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode) {
     char          * const fname  = MVM_string_utf8_encode_C_string(tc, filename);
@@ -395,13 +426,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
 
     /* Resolve mode description to flags. */
     int flag;
-    if (0 == strcmp("r", fmode))
-        flag = O_RDONLY;
-    else if (0 == strcmp("w", fmode))
-        flag = O_CREAT| O_WRONLY | O_TRUNC;
-    else if (0 == strcmp("wa", fmode))
-        flag = O_CREAT | O_WRONLY | O_APPEND;
-    else {
+    if (!resolve_open_mode(&flag, fmode)) {
         MVM_free(fname);
         MVM_exception_throw_adhoc(tc, "Invalid open mode: %s", fmode);
     }
