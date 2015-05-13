@@ -16,6 +16,7 @@
 #define O_WRONLY _O_WRONLY
 #define O_TRUNC  _O_TRUNC
 #define O_EXCL   _O_EXCL
+#define O_RDWR   _O_RDWR
 #define DEFAULT_MODE _S_IWRITE /* work around sucky libuv defaults */
 #endif
 
