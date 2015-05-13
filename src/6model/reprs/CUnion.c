@@ -142,6 +142,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             /* Fetch its type; see if it's some kind of unboxed type. */
             MVMObject *attr  = MVM_repr_at_pos_o(tc, flat_list, i);
             MVMObject *type  = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.type);
+            MVMint64 inlined = MVM_repr_at_key_int(tc, attr, tc->instance->str_consts.inlined);
             MVMint32   bits  = sizeof(void *) * 8;
             MVMint32   align = ALIGNOF(void *);
             if (!MVM_is_null(tc, type)) {
@@ -158,11 +159,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                      * that get_attribute_ref can find it later. */
                     bits = spec->bits;
                     align = spec->align;
-
-                    if (bits % 8) {
-                         MVM_exception_throw_adhoc(tc,
-                            "CUnion only supports native types that are a multiple of 8 bits wide (was passed: %ld)", bits);
-                    }
 
                     repr_data->attribute_locations[i] = (bits << MVM_CUNION_ATTR_SHIFT) | MVM_CUNION_ATTR_IN_STRUCT;
                     repr_data->flattened_stables[i] = STABLE(type);
@@ -190,6 +186,11 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     repr_data->num_child_objs++;
                     repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CUNION_ATTR_SHIFT) | MVM_CUNION_ATTR_CSTRUCT;
                     repr_data->member_types[i] = type;
+                    if (inlined) {
+                        MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
+                        bits                                  = cstruct_repr_data->struct_size * 8;
+                        repr_data->attribute_locations[i]    |= MVM_CUNION_ATTR_INLINED;
+                    }
                 }
                 else if (type_id == MVM_REPR_ID_MVMCPointer) {
                     /* It's a CPointer. */
@@ -205,6 +206,11 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             else {
                 MVM_exception_throw_adhoc(tc,
                     "CUnion representation requires the types of all attributes to be specified");
+            }
+
+            if (bits % 8) {
+                 MVM_exception_throw_adhoc(tc,
+                    "CUnion only supports native types that are a multiple of 8 bits wide (was passed: %"PRId32")", bits);
             }
 
             repr_data->struct_offsets[i] = 0;
@@ -377,7 +383,11 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                             obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
                         }
                         else if(type == MVM_CUNION_ATTR_CSTRUCT) {
-                            obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
+                            if (repr_data->attribute_locations[slot] & MVM_CUNION_ATTR_INLINED)
+                                obj = MVM_nativecall_make_cstruct(tc, typeobj,
+                                    (char *)body->cunion + repr_data->struct_offsets[slot]);
+                            else
+                                obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
                         }
                         else if(type == MVM_CUNION_ATTR_CPTR) {
                             obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);

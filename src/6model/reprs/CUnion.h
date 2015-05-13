@@ -6,8 +6,10 @@
 #define MVM_CUNION_ATTR_STRING    4
 #define MVM_CUNION_ATTR_MASK      7
 
+#define MVM_CUNION_ATTR_INLINED   8
+
 /* Bits to shift a slot position to make room for MVM_CUNION_ATTR_*. */
-#define MVM_CUNION_ATTR_SHIFT     3
+#define MVM_CUNION_ATTR_SHIFT     4
 
 /* The CUnion representation maintains a chunk of memory that it can
  * always pass off to C land. If we in turn embed any strings, pointers
