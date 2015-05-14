@@ -200,6 +200,10 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
         cache->arity_caches[num_args - 1].type_ids[ins_type + i] = arg_tup[i];
     MVM_ASSIGN_REF(tc, &(cache_obj->header), cache->arity_caches[num_args - 1].results[entries], result);
     cache->arity_caches[num_args - 1].named_ok[entries] = has_nameds;
+
+    /* Other threads can read concurrently, so do a memory barrier before we
+     * bump the entry count to ensure all the above writes are done. */
+    MVM_barrier();
     cache->arity_caches[num_args - 1].num_entries = entries + 1;
 
     /* Release lock if needed. */
