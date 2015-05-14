@@ -472,7 +472,7 @@ static void validate_arg(Validator *val) {
 
 named_arg:
     if (val->cur_info->opcode != MVM_OP_argconst_s)
-        fail(val, MSG(val, "expected instuction 'argconst_s' but got '%s'"),
+        fail(val, MSG(val, "expected instruction 'argconst_s' but got '%s'"),
                 val->cur_info->name);
     return;
 
@@ -611,7 +611,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
 
     while (val->cur_op < val->bc_end) {
         read_op(val);
-        if (val->cur_mark && *(val->cur_mark) == 's')
+        if (val->cur_mark && val->cur_mark[0] == 's')
             fail(val, MSG(val, "Illegal appearance of spesh op"));
 
         switch (val->cur_mark[0]) {
