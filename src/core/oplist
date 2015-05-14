@@ -698,6 +698,7 @@ strtocodes          r(str) r(int64) r(obj)
 getcodelocation     w(obj) r(obj) :pure
 eqatim_s            w(int64) r(str) r(str) r(int64) :pure
 ordbaseat           w(int64) r(str) r(int64) :pure
+neverrepossess      r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

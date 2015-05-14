@@ -306,6 +306,10 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
     if (!tc->compiling_scs || !MVM_repr_elems(tc, tc->compiling_scs))
         return;
 
+    /* Same if the object is flagged as one to never repossess. */
+    if (obj->header.flags & MVM_CF_NEVER_REPOSSESS)
+        return;
+
     /* Otherwise, check that the object's SC is different from the SC
      * of the compilation we're currently in. Repossess if so. */
     comp_sc = (MVMSerializationContext *)MVM_repr_at_pos_o(tc, tc->compiling_scs, 0);

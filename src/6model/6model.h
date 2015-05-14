@@ -125,7 +125,13 @@ typedef enum {
     MVM_CF_SERIALZATION_INDEX_ALLOCATED = 256,
 
     /* Have we arranged a persistent object ID for this object? */
-    MVM_CF_HAS_OBJECT_ID = 512
+    MVM_CF_HAS_OBJECT_ID = 512,
+
+    /* Have we flagged this object as something we must never repossess? */
+    /* Note: if you're hunting for a flag, some day in the future when we
+     * have used them all, this one is easy enough to eliminate by having the
+     * tiny number of objects marked this way in a remembered set. */
+    MVM_CF_NEVER_REPOSSESS = 1024
 } MVMCollectableFlags;
 
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
@@ -602,3 +608,4 @@ MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj, M
 void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args);
 void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st);
 MVMuint64 MVM_6model_next_type_cache_id(MVMThreadContext *tc);
+void MVM_6model_never_repossess(MVMThreadContext *tc, MVMObject *obj);
