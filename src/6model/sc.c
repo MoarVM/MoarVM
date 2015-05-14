@@ -327,8 +327,12 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
             MVMint64 i;
             for (i = 0; i < n; i += 2) {
                 if (MVM_repr_at_pos_o(tc, owned_objects, i) == obj) {
+                    MVMSerializationContext *real_sc;
                     obj = MVM_repr_at_pos_o(tc, owned_objects, i + 1);
-                    if (MVM_sc_get_obj_sc(tc, obj) == comp_sc)
+                    real_sc = MVM_sc_get_obj_sc(tc, obj);
+                    if (!real_sc)
+                        return; /* Probably disclaimed. */
+                    if (real_sc == comp_sc)
                         return;
                     found = 1;
                     break;
