@@ -556,16 +556,17 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         case MVM_NFA_EDGE_CODEPOINT_M_NEG: {
                             MVMNormalizer norm;
                             MVMint32 ready;
-                            MVMGrapheme32 g = edge_info[i].arg.i;
+                            MVMGrapheme32 ga = edge_info[i].arg.i;
+                            MVMGrapheme32 gb = MVM_string_ord_basechar_at(tc, target, offset);
 
                             MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
-                            ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, g, &g);
+                            ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, ga, &ga);
                             MVM_unicode_normalizer_eof(tc, &norm);
                             if (!ready)
-                                g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+                                ga = MVM_unicode_normalizer_get_grapheme(tc, &norm);
 
-                            if ((MVM_NFA_EDGE_CODEPOINT_M && (g == MVM_string_ord_basechar_at(tc, target, offset)))
-                              || MVM_NFA_EDGE_CODEPOINT_M_NEG)
+                            if (((act == MVM_NFA_EDGE_CODEPOINT_M)     && (ga == gb))
+                             || ((act == MVM_NFA_EDGE_CODEPOINT_M_NEG) && (ga != gb)))
                                 nextst[numnext++] = to;
 
                             continue;
