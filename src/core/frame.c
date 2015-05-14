@@ -146,16 +146,17 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
         memcpy(frame->env, static_frame->body.static_env, static_frame->body.env_size);
     }
 
-    /* Initial reference count is 0 (will become referenced by being set as
-     * an outer context). So just return it now. */
+    /* Initial reference count is 0; leave referencing it to the caller (it
+     * varies between deserialization, autoclose, etc.) */
     return frame;
 }
 
-/* Creates a frame that is suitable for deserializing a context into. Does not
- * try to use the frame pool, since we'll typically never recycle these. */
+/* Creates a frame that is suitable for deserializing a context into. Starts
+ * with a ref count of 1 due to being held by an SC. */
 MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMObject *code_ref) {
-    return create_context_only(tc, static_frame, code_ref, 0);
+    return MVM_frame_inc_ref(tc,
+        create_context_only(tc, static_frame, code_ref, 0));
 }
 
 /* Provides auto-close functionality, for the handful of cases where we have
