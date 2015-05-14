@@ -217,6 +217,23 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         case MVM_operand_spesh_slot:
                             appendf(ds, "sslot(%"PRId16")", cur_ins->operands[i].lit_i16);
                             break;
+                        case MVM_operand_coderef: {
+                            MVMCodeBody *body = &((MVMCode*)g->sf->body.cu->body.coderefs[cur_ins->operands[i].coderef_idx])->body;
+                            MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &body->sf->body, 0);
+
+                            append(ds, "coderef(");
+
+                            if (ann) {
+                                char *filestr = MVM_string_utf8_encode_C_string(tc, g->sf->body.cu->body.strings[ann->filename_string_heap_index]);
+                                appendf(ds, "%s:%d%s)", filestr, ann->line_number, body->outer ? " (closure)" : "");
+                                MVM_free(filestr);
+                            } else {
+                                append(ds, "??\?)");
+                            }
+
+                            MVM_free(ann);
+                            break;
+                        }
                         default:
                             append(ds, "<nyi(lit)>");
                         }
