@@ -253,7 +253,44 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
         for (j = 0; j < num_facts; j++) {
             MVMint32 usages = g->facts[i][j].usages;
             MVMint32 flags  = g->facts[i][j].flags;
-            appendf(ds, "    r%d(%d): usages=%d, flags=%d\n", i, j, usages, flags);
+            appendf(ds, "    r%d(%d): usages=%d, flags=%d", i, j, usages, flags);
+            if (flags & 1) {
+                append(ds, " KnTyp");
+            }
+            if (flags & 2) {
+                append(ds, " KnVal");
+            }
+            if (flags & 4) {
+                append(ds, " Dcntd");
+            }
+            if (flags & 8) {
+                append(ds, " Concr");
+            }
+            if (flags & 16) {
+                append(ds, " TyObj");
+            }
+            if (flags & 32) {
+                append(ds, " KnDcT");
+            }
+            if (flags & 64) {
+                append(ds, " DCncr");
+            }
+            if (flags & 128) {
+                append(ds, " DcTyO");
+            }
+            if (flags & 256) {
+                append(ds, " LogGd");
+            }
+            if (flags & 512) {
+                append(ds, " HashI");
+            }
+            if (flags & 1024) {
+                append(ds, " ArrIt");
+            }
+            if (flags & 2048) {
+                append(ds, " KBxSr");
+            }
+            append(ds, "\n");
         }
     }
 }
