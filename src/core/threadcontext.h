@@ -155,18 +155,10 @@ struct MVMThreadContext {
     MVMuint32        gc_work_size;
     MVMuint32        gc_work_count;
 
-    /* Pool table of chains of frames for each static frame. */
-    MVMFrame **frame_pool_table;
-
     /* Pool of Lexotics for various static frames, held per thread since the
-     * result being returned is per thread. Indexes are same as used in the
-     * frame_pool_table above. */
+     * result being returned is per thread. */
     MVMLexotic **lexotic_cache;
-
-    /* Size of the frame pool table and lexotic cache, so they can grow on
-     * demand. */
-    MVMuint32 frame_pool_table_size;
-    MVMuint32 lexotic_cache_size;
+    MVMuint32    lexotic_cache_size;
 
     /* Serialization context write barrier disabled depth (anything non-zero
      * means disabled). */

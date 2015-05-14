@@ -1,18 +1,5 @@
 #include "moar.h"
 
-static void grow_frame_pool(MVMThreadContext *tc, MVMuint32 pool_index) {
-    MVMuint32 old_size = tc->frame_pool_table_size;
-    MVMuint32 new_size = tc->frame_pool_table_size;
-    do {
-        new_size *= 2;
-    } while (pool_index >= new_size);
-    tc->frame_pool_table = MVM_realloc(tc->frame_pool_table,
-        new_size * sizeof(MVMFrame *));
-    memset(tc->frame_pool_table + old_size, 0,
-        (new_size - old_size) * sizeof(MVMFrame *));
-    tc->frame_pool_table_size = new_size;
-}
-
 /* Takes a static frame and does various one-off calculations about what
  * space it shall need. Also triggers bytecode verification of the frame's
  * bytecode. */
@@ -31,11 +18,8 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
     /* Validate the bytecode. */
     MVM_validate_static_frame(tc, static_frame);
 
-    /* Obtain an index to each threadcontext's pool table */
-    static_frame_body->pool_index = MVM_incr(&tc->instance->num_frame_pools);
-    if (static_frame_body->pool_index >= tc->frame_pool_table_size) {
-        grow_frame_pool(tc, static_frame_body->pool_index);
-    }
+    /* Obtain an index to each threadcontext's lexotic pool table */
+    static_frame_body->pool_index = MVM_incr(&tc->instance->num_frames_run);
 
     /* Check if we have any state var lexicals. */
     if (static_frame_body->static_env_flags) {
@@ -85,32 +69,25 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
      * to zero, so we look for 1 here. */
     while (MVM_decr(&frame->ref_count) == 1) {
         MVMuint32 pool_index = frame->static_info->body.pool_index;
-        MVMFrame *node = tc->frame_pool_table[pool_index];
         MVMFrame *outer_to_decr = frame->outer;
 
         /* If there's a caller pointer, decrement that. */
         if (frame->caller)
             frame->caller = MVM_frame_dec_ref(tc, frame->caller);
 
-        if (node && MVM_load(&node->ref_count) >= MVMFramePoolLengthLimit) {
-            /* There's no room on the free list, so destruction.*/
-            if (frame->env) {
-                MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env,
-                    frame->env);
-                frame->env = NULL;
-            }
-            if (frame->work) {
-                MVM_args_proc_cleanup(tc, &frame->params);
-                MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_work,
-                    frame->work);
-                frame->work = NULL;
-            }
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrame), frame);
+        /* Destroy the frame. */
+        if (frame->env) {
+            MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env,
+                frame->env);
         }
-        else { /* Unshift it to the free list */
-            MVM_store(&frame->ref_count, (frame->outer = node) ? MVM_load(&node->ref_count) + 1 : 1);
-            tc->frame_pool_table[pool_index] = frame;
+        if (frame->work) {
+            MVM_args_proc_cleanup(tc, &frame->params);
+            MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_work,
+                frame->work);
         }
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrame), frame);
+
+        /* Decrement any outer. */
         if (outer_to_decr)
             frame = outer_to_decr; /* and loop */
         else
@@ -220,64 +197,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     MVMFrame *node;
     MVMint32  env_size, work_size;
 
-    /* See if we can just go with a default-size frame. */
-    if (!spesh_cand ||
-          (spesh_cand->num_locals == static_frame_body->num_locals &&
-           spesh_cand->num_lexicals == static_frame_body->num_lexicals)
-        ) {
-        /* Yes, everything is the default sizes; try the pool. */
-        MVMuint32 pool_index = static_frame_body->pool_index;
-        if (pool_index >= tc->frame_pool_table_size)
-            grow_frame_pool(tc, pool_index);
-        node = tc->frame_pool_table[pool_index];
-        if (node) {
-            /* Got a pool entry. */
-            tc->frame_pool_table[pool_index] = node->outer;
-            node->outer = NULL;
-            frame = node;
-
-            /* Clear memory. */
-            if (static_frame_body->env_size) {
-                memset(frame->env, 0, static_frame_body->env_size);
-            }
-            else {
-                frame->env = NULL;
-                frame->allocd_env = 0;
-            }
-            if (static_frame_body->work_size) {
-                if (!frame->work) {
-                    frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-                        static_frame_body->work_size);
-                    frame->allocd_work = static_frame_body->work_size;
-                }
-                else {
-                    memset(frame->work, 0, static_frame_body->work_size);
-                }
-            }
-            else {
-                frame->work = NULL;
-                frame->allocd_work = 0;
-            }
-
-            /* Calculate args buffer position and make sure current call site starts
-             * empty. */
-            frame->args = static_frame_body->work_size ?
-                frame->work + static_frame_body->num_locals :
-                NULL;
-            frame->cur_args_callsite = NULL;
-
-            /* Ensure frame return addres and dynlex cache key is cleared. (We
-             * must clear the return address to avoid bogus searching within
-             * inlines for dynamic variables). */
-            frame->return_address    = NULL;
-            frame->dynlex_cache_name = NULL;
-            frame->jit_entry_label   = NULL;
-
-            return frame;
-        }
-    }
-
-    /* If we end up here, no re-usable frame, so need to allocate it. */
+    /* Allocate the frame. */
     frame = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMFrame));
     frame->params.named_used = NULL;
 
@@ -909,28 +829,6 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
         ((MVMCode *)code)->body.code_object);
 
     return (MVMObject *)closure;
-}
-
-/* Cleans up the frame pool for a thread context. */
-void MVM_frame_free_frame_pool(MVMThreadContext *tc) {
-    MVMuint32 i;
-    for (i = 0; i < tc->frame_pool_table_size; i++) {
-        MVMFrame *cur = tc->frame_pool_table[i];
-        while (cur) {
-            MVMFrame *next = cur->outer;
-            if (cur->env)
-                MVM_fixed_size_free(tc, tc->instance->fsa, cur->allocd_env,
-                    cur->env);
-            if (cur->work) {
-                MVM_args_proc_cleanup(tc, &cur->params);
-                MVM_fixed_size_free(tc, tc->instance->fsa, cur->allocd_work,
-                    cur->work);
-            }
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrame), cur);
-            cur = next;
-        }
-    }
-    MVM_checked_free_null(tc->frame_pool_table);
 }
 
 /* Vivifies a lexical in a frame. */

@@ -263,9 +263,9 @@ struct MVMInstance {
     MVMIntConstCache    *int_const_cache;
     uv_mutex_t mutex_int_const_cache;
 
-    /* Atomically-incremented counter of newly invoked frames,
-     * so each can obtain an index into each threadcontext's pool table */
-    AO_t num_frame_pools;
+    /* Atomically-incremented counter of newly invoked frames, used for
+     * lexotic caching. */
+    AO_t num_frames_run;
 
     /* Hash of compiler objects keyed by name */
     MVMObject          *compiler_registry;

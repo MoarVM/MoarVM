@@ -29,12 +29,6 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     /* Set up the second generation allocator. */
     tc->gen2 = MVM_gc_gen2_create(instance);
 
-    /* Set up table of per-static-frame chains. */
-    /* XXX For non-first threads, make them start with the size of the
-       main thread's table. or, look into lazily initializing this. */
-    tc->frame_pool_table_size = MVMInitialFramePoolTableSize;
-    tc->frame_pool_table = MVM_calloc(MVMInitialFramePoolTableSize, sizeof(MVMFrame *));
-
     /* Use default loop for main thread; create a new one for others. */
     tc->loop = instance->main_thread ? uv_loop_new() : uv_default_loop();
 
@@ -52,9 +46,6 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
 void MVM_tc_destroy(MVMThreadContext *tc) {
     /* We run once again (non-blocking) to eventually close filehandles. */
     uv_run(tc->loop, UV_RUN_NOWAIT);
-
-    /* Destroy the frame pool. */
-    MVM_frame_free_frame_pool(tc);
 
     /* Free the nursery. */
     MVM_free(tc->nursery_fromspace);
