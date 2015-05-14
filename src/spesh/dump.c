@@ -51,6 +51,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     /* Heading. */
     appendf(ds, "  BB %d (%p):\n", bb->idx, bb);
 
+    if (bb->inlined) {
+        append(ds, "    Inlined\n");
+    }
+
     {
         /* Also, we have a line number */
         MVMBytecodeAnnotation *bbba = MVM_bytecode_resolve_annotation(tc, &g->sf->body, bb->initial_pc);
@@ -61,7 +65,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
         } else {
             line_number = -1;
         }
-        appendf(ds, "    line: %d (pc %d):\n", line_number, bb->initial_pc);
+        appendf(ds, "    line: %d (pc %d)\n", line_number, bb->initial_pc);
     }
 
     /* Instructions. */
