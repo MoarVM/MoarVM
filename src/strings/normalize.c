@@ -72,7 +72,7 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, MVMObject *in, MVMOb
     MVM_unicode_normalizer_cleanup(tc, &norm);
 
     /* Put result into array body. */
-    ((MVMArray *)out)->body.slots.u32 = result;
+    ((MVMArray *)out)->body.slots.u32 = (MVMuint32 *)result;
     ((MVMArray *)out)->body.start     = 0;
     ((MVMArray *)out)->body.elems     = result_pos;
 }
@@ -178,7 +178,7 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
     }
 
     /* Put result into array body. */
-    ((MVMArray *)out)->body.slots.u32 = result;
+    ((MVMArray *)out)->body.slots.u32 = (MVMuint32 *)result;
     ((MVMArray *)out)->body.start     = 0;
     ((MVMArray *)out)->body.elems     = result_pos;
 }

@@ -205,7 +205,6 @@ void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *a
         /* Came from a bin; put into free list. */
         MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
         MVMFixedSizeAllocFreeListEntry *to_add  = (MVMFixedSizeAllocFreeListEntry *)to_free;
-        MVMFixedSizeAllocFreeListEntry *orig;
         if (MVM_instance_have_user_threads(tc)) {
             /* Multi-threaded; race to add it to the "free at next safe point"
              * list. */

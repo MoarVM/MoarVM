@@ -36,6 +36,9 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
                     name = "<reserved>";
             }
         }
+        else {
+            name = "<illegal>";
+        }
     }
 
     return MVM_string_ascii_decode(tc, tc->instance->VMString, name, strlen(name));

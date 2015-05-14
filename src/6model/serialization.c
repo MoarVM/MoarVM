@@ -2144,7 +2144,7 @@ static void deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *re
 
 /* Reads in what we need to lazily deserialize ->HOW later. */
 static void deserialize_how_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMSerializationContext *sc = read_locate_sc_and_index(tc, reader, &st->HOW_idx);
+    MVMSerializationContext *sc = read_locate_sc_and_index(tc, reader, (MVMint32*)&st->HOW_idx);
 
     MVM_ASSIGN_REF(tc, &(st->header), st->HOW_sc, sc);
 }
