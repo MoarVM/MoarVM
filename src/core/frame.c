@@ -1050,7 +1050,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names;
         MVMSpeshCandidate  *cand     = cur_frame->spesh_cand;
-        /* See if we inside an inline. Note that this isn't actually
+        /* See if we are inside an inline. Note that this isn't actually
          * correct for a leaf frame, but those aren't inlined and don't
          * use getdynlex for their own lexicals since the compiler already
          * knows where to find them */
