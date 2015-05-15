@@ -165,10 +165,11 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
 /* Runs an exception handler (which really means updating interpreter state
  * so that when we return to the runloop, we're in the handler). If there is
  * an exception object already, it will be used; NULL can be passed if there
- * is not one, meaning it will be created if needed. */
+ * is not one, meaning it will be created if needed (based on the category
+ * parameter; if ex_obj is passed, the category is not used). */
 static void unwind_after_handler(MVMThreadContext *tc, void *sr_data);
 static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data);
-static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_obj) {
+static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_obj, MVMuint32 category) {
     switch (lh.handler->action) {
     case MVM_EX_ACTION_GOTO:
         if (lh.jit_handler) {
@@ -185,14 +186,16 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         /* Create active handler record. */
         MVMActiveHandler *ah = MVM_malloc(sizeof(MVMActiveHandler));
         MVMFrame *cur_frame = tc->cur_frame;
-
-        /* Find frame to invoke. */
-        MVMObject *handler_code = MVM_frame_find_invokee(tc, lh.frame->work[lh.handler->block_reg].o, NULL);
+        MVMObject *handler_code;
 
         /* Ensure we have an exception object. */
-        /* TODO: Can make one up. */
-        if (ex_obj == NULL)
-            MVM_panic(1, "Exception object creation NYI");
+        if (ex_obj == NULL) {
+            ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+            ((MVMException *)ex_obj)->body.category = category;
+        }
+
+        /* Find frame to invoke. */
+        handler_code = MVM_frame_find_invokee(tc, lh.frame->work[lh.handler->block_reg].o, NULL);
 
         /* Install active handler record. */
         ah->frame           = MVM_frame_inc_ref(tc, lh.frame);
@@ -478,7 +481,7 @@ void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, 
     LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat, NULL);
     if (lh.frame == NULL)
         panic_unhandled_cat(tc, cat);
-    run_handler(tc, lh, NULL);
+    run_handler(tc, lh, NULL, cat);
 }
 
 void MVM_exception_die(MVMThreadContext *tc, MVMString *str, MVMRegister *rr) {
@@ -515,7 +518,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
         tc->cur_frame->keep_caller   = 1;
     }
 
-    run_handler(tc, lh, ex_obj);
+    run_handler(tc, lh, ex_obj, 0);
 }
 
 void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
@@ -657,7 +660,7 @@ void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMSt
             lh.jit_handler = &(f->spesh_cand->jitcode->handlers[handler_idx]);
         else
             lh.jit_handler = NULL;
-        run_handler(tc, lh, NULL);
+        run_handler(tc, lh, NULL, MVM_EX_CAT_RETURN);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Too late to invoke lexotic return");
@@ -743,7 +746,7 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
 
     /* Run the handler, which doesn't actually run it but rather sets up the
      * interpreter so that when we return to it, we'll be at the handler. */
-    run_handler(tc, lh, (MVMObject *)ex);
+    run_handler(tc, lh, (MVMObject *)ex, MVM_EX_CAT_CATCH);
 
     /* Clear any C stack temporaries that code may have pushed before throwing
      * the exception, and release any needed mutex. */
