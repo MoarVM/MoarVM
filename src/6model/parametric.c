@@ -10,16 +10,20 @@ void MVM_6model_parametric_setup(MVMThreadContext *tc, MVMObject *type, MVMObjec
     if (st->mode_flags & MVM_PARAMETERIZED_TYPE)
         MVM_exception_throw_adhoc(tc, "Cannot make a parameterized type also be parametric");
 
-    /* Store the parameterizer. */
-    MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.parameterizer, parameterizer);
-
     /* For now, we use a simple pairwise array, with parameters and the type
      * that is based on those parameters interleaved. It does make resolution
      * O(n), so we might like to do some hash in the future. */
      MVMROOT(tc, st, {
+     MVMROOT(tc, parameterizer, {
         MVMObject *lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
         MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.lookup, lookup);
      });
+     });
+
+     /* Store the parameterizer. (Note, we do this after the allocation
+      * above, since the array allocation may cause GC, but we didn't mark
+      * it as a parametric type yet so it wouldn't mark the parameterizer.) */
+    MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.parameterizer, parameterizer);
 
     /* Mark the type as parameterized. */
     st->mode_flags |= MVM_PARAMETRIC_TYPE;
