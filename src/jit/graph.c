@@ -327,7 +327,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_prof_allocated: return &MVM_profile_log_allocated;
     case MVM_OP_prof_exit: return &MVM_profile_log_exit;
     default:
-        MVM_exception_throw_adhoc(tc, "JIT: No function for op %d in op_to_func.", opcode);
+        MVM_oops(tc, "JIT: No function for op %d in op_to_func.", opcode);
     }
 }
 
@@ -347,7 +347,7 @@ static void jgb_append_guard(MVMThreadContext *tc, JitGraphBuilder *jgb,
         ann = ann->next;
     }
     if (!ann) {
-        MVM_exception_throw_adhoc(tc, "Can't find deopt idx annotation"
+        MVM_oops(tc, "Can't find deopt idx annotation"
                                   " on spesh ins <%s>", ins->info->name);
     }
     node->u.guard.deopt_target = jgb->sg->deopt_addrs[2 * deopt_idx];
@@ -1466,8 +1466,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_LITERAL, { op == MVM_OP_unless_o } }}; // switch
         MVMSpeshIns * branch = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMSpeshIns));
         if (dst + 1 <= jgb->sg->num_locals) {
-            MVM_exception_throw_adhoc(tc, "JIT: no space in args buffer to store"
-                                      " temporary result for <%s>", ins->info->name);
+            MVM_oops(tc, "JIT: no space in args buffer to store"
+                     " temporary result for <%s>", ins->info->name);
         }
         jgb_append_call_c(tc, jgb, op_to_func(tc, MVM_OP_istrue), 6,
                           args, MVM_JIT_RV_VOID, -1);

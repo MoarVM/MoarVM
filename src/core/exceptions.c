@@ -689,6 +689,20 @@ void MVM_panic_allocation_failed(size_t len) {
     MVM_panic(1, "Memory allocation failed; could not allocate %"MVM_PRSz" bytes", len);
 }
 
+/* A kinder MVM_panic() that doesn't assume our memory is corrupted (but does kill the
+ * process to indicate that we've made an error */
+MVM_NO_RETURN
+void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...) {
+    va_list args;
+    va_start(args, messageFormat);
+    vfprintf(stderr, messageFormat, args);
+    va_end(args);
+    fprintf(stderr, "\n");
+    MVM_dump_backtrace(tc);
+    fprintf(stderr, "\n");
+    exit(1);
+}
+
 /* Throws an ad-hoc (untyped) exception. */
 MVM_NO_RETURN
 void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, ...) {

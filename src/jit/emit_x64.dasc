@@ -1492,7 +1492,7 @@ static void emit_gpr_arg(MVMThreadContext *tc, MVMJitGraph *jg,
 ||     break;
 |.endif
     default:
-        MVM_exception_throw_adhoc(tc, "JIT: can't store %d arguments in GPR", i);
+        MVM_oops(tc, "JIT: can't store %d arguments in GPR", i);
     }
 }
 
@@ -1526,7 +1526,7 @@ static void emit_sse_arg(MVMThreadContext *tc, MVMJitGraph *jg,
 ||       break;
 |.endif
     default:
-        MVM_exception_throw_adhoc(tc, "JIT: can't put  %d arguments in SSE", i);
+        MVM_oops(tc, "JIT: can't put  %d arguments in SSE", i);
     }
 }
 
@@ -1537,9 +1537,9 @@ static void emit_stack_arg(MVMThreadContext *tc, MVMJitGraph *jg,
        on both POSIX and W64 backends, it seems. Thus the most logical
        thing to do is to count from the stack top upwards. */
     if (pos + arg_size > 160) {
-        MVM_exception_throw_adhoc(tc, "JIT: trying to pass arguments "
-                                  " in local space (stack top offset: "
-                                  " %d, size: %d)", pos, arg_size);
+        MVM_oops(tc, "JIT: trying to pass arguments "
+                 " in local space (stack top offset:"
+                 " %d, size: %d)", pos, arg_size);
     }
     switch(arg_size) {
     case 1:
@@ -1555,8 +1555,8 @@ static void emit_stack_arg(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov qword [rsp+pos], TMP6;
         break;
     default:
-        MVM_exception_throw_adhoc(tc, "JIT: can't pass arguments size %d bytes",
-                                  arg_size);
+        MVM_oops(tc, "JIT: can't pass arguments size %d bytes",
+                 arg_size);
     }
 }
 
@@ -1638,7 +1638,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
 
     MVM_jit_log(tc, "emit c call <%d args>\n", call_spec->num_args);
     if (call_spec->has_vargs) {
-        MVM_exception_throw_adhoc(tc, "JIT can't handle varargs yet");
+        MVM_oops(tc, "JIT can't handle varargs yet");
     }
     |.if WIN32;
     || emit_win64_callargs(tc, jg, call_spec->args, call_spec->num_args, Dst);
