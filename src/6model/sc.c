@@ -296,6 +296,57 @@ MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString 
     return scb && scb->sc ? scb->sc : NULL;
 }
 
+/* Marks all objects, stables and codes that belong to this SC as free to be taken by another. */
+void MVM_sc_disclaim(MVMThreadContext *tc, MVMSerializationContext *sc) {
+    MVMObject **root_objects, *root_codes, *obj;
+    MVMSTable **root_stables, *stable;
+    MVMint64 i, count;
+    MVMCollectable *col;
+    if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+        MVM_exception_throw_adhoc(tc,
+            "Must provide an SCRef operand to scdisclaim");
+
+    root_objects = sc->body->root_objects;
+    count        = sc->body->num_objects;
+    for (i = 0; i < count; i++) {
+        obj = root_objects[i];
+        col = &obj->header;
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
+        if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
+            struct MVMSerializationIndex *const sci = col->sc_forward_u.sci;
+            col->sc_forward_u.sci = NULL;
+            MVM_free(sci);
+        }
+        col->sc_forward_u.sc.sc_idx = 0;
+        col->sc_forward_u.sc.idx = 0;
+#else
+        col->sc_forward_u.sc.sc_idx = 0;
+        col->sc_forward_u.sc.idx = 0;
+#endif
+    }
+    sc->body->num_objects = 0;
+
+    root_stables = sc->body->root_stables;
+    count        = sc->body->num_stables;
+    for (i = 0; i < count; i++) {
+        stable                      = root_stables[i];
+        col                         = &stable->header;
+        col->sc_forward_u.sc.sc_idx = 0;
+    }
+    sc->body->num_stables = 0;
+
+    root_codes = sc->body->root_codes;
+    count      = MVM_repr_elems(tc, root_codes);
+    for (i = 0; i < count; i++) {
+        obj = MVM_repr_at_pos_o(tc, root_codes, i);
+        if (MVM_is_null(tc, obj))
+            obj = MVM_serialization_demand_code(tc, sc, i);
+        col                         = &obj->header;
+        col->sc_forward_u.sc.sc_idx = 0;
+    }
+    sc->body->root_codes = NULL;
+}
+
 /* Called when an object triggers the SC repossession write barrier. */
 void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
     MVMSerializationContext *comp_sc;
