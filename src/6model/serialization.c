@@ -12,13 +12,12 @@
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
 #define CURRENT_VERSION 15
-#define MIN_VERSION     14
+#define MIN_VERSION     15
 
 /* Various sizes (in bytes). */
 #define HEADER_SIZE                 (4 * 18)
 #define DEP_TABLE_ENTRY_SIZE        8
 #define STABLES_TABLE_ENTRY_SIZE    12
-#define OBJECTS_TABLE_ENTRY_SIZE_v14 16
 #define OBJECTS_TABLE_ENTRY_SIZE    8
 #define CLOSURES_TABLE_ENTRY_SIZE   24
 #define CONTEXTS_TABLE_ENTRY_SIZE   16
@@ -1531,29 +1530,20 @@ MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationRea
    a pain in (real) C. Hence this rather ungainly function: */
 MVM_STATIC_INLINE MVMSerializationContext *read_locate_sc_and_index(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 *idx) {
     MVMint32 sc_id;
+    MVMuint32 packed;
 
-    if (reader->root.version <= 14) {
+    assert_can_read(tc, reader, 4);
+    packed = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 4;
+    sc_id = packed >> PACKED_SC_SHIFT;
+    if (sc_id != PACKED_SC_OVERFLOW) {
+        *idx = packed & PACKED_SC_IDX_MASK;
+    } else {
         assert_can_read(tc, reader, 8);
         sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
         *(reader->cur_read_offset) += 4;
         *idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
         *(reader->cur_read_offset) += 4;
-    } else {
-        MVMuint32 packed;
-
-        assert_can_read(tc, reader, 4);
-        packed = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-        *(reader->cur_read_offset) += 4;
-        sc_id = packed >> PACKED_SC_SHIFT;
-        if (sc_id != PACKED_SC_OVERFLOW) {
-            *idx = packed & PACKED_SC_IDX_MASK;
-        } else {
-            assert_can_read(tc, reader, 8);
-            sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-            *(reader->cur_read_offset) += 4;
-            *idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-            *(reader->cur_read_offset) += 4;
-        }
     }
 
     return locate_sc(tc, reader, sc_id);
@@ -1813,7 +1803,7 @@ static void check_and_dissect_input(MVMThreadContext *tc,
     if (reader->root.objects_table < prov_pos)
         fail_deserialize(tc, reader,
             "Corruption detected (objects table starts before STables data ends)");
-    prov_pos = reader->root.objects_table + reader->root.num_objects * (reader->root.version > 14 ? OBJECTS_TABLE_ENTRY_SIZE : OBJECTS_TABLE_ENTRY_SIZE_v14);
+    prov_pos = reader->root.objects_table + reader->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE;
     if (prov_pos > data_end)
         fail_deserialize(tc, reader,
             "Corruption detected (objects table overruns end of data)");
@@ -1975,33 +1965,21 @@ static void stub_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MV
 static MVMSTable *read_object_table_entry(MVMThreadContext *tc, MVMSerializationReader *reader, MVMuint32 i, MVMint32 *concrete) {
     MVMint32 si;        /* The SC in the dependencies table, + 1 */
     MVMint32 si_idx;    /* The index in that SC */
+    /* Calculate location of object's table row. */
+    const char *const obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE;
+    const MVMuint32 packed = read_int32(obj_table_row, 0);
 
-    if (reader->root.version < 15) {
-        /* Calculate location of object's table row. */
-        const char *const obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE_v14;
+    if (concrete)
+        *concrete = packed & OBJECTS_TABLE_ENTRY_IS_CONCRETE;
 
-        if (concrete)
-            *concrete = read_int32(obj_table_row, 12);
-
-        si = read_int32(obj_table_row, 0);
-        si_idx = read_int32(obj_table_row, 4);
+    si = (packed >> OBJECTS_TABLE_ENTRY_SC_SHIFT) & OBJECTS_TABLE_ENTRY_SC_MASK;
+    if (si == OBJECTS_TABLE_ENTRY_SC_OVERFLOW) {
+        const char *const overflow_data
+            = reader->root.objects_data + read_int32(obj_table_row, 4) - 8;
+        si = read_int32(overflow_data, 0);
+        si_idx = read_int32(overflow_data, 4);
     } else {
-        /* Calculate location of object's table row. */
-        const char *const obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE;
-        const MVMuint32 packed = read_int32(obj_table_row, 0);
-
-        if (concrete)
-            *concrete = packed & OBJECTS_TABLE_ENTRY_IS_CONCRETE;
-
-        si = (packed >> OBJECTS_TABLE_ENTRY_SC_SHIFT) & OBJECTS_TABLE_ENTRY_SC_MASK;
-        if (si == OBJECTS_TABLE_ENTRY_SC_OVERFLOW) {
-            const char *const overflow_data
-                = reader->root.objects_data + read_int32(obj_table_row, 4) - 8;
-            si = read_int32(overflow_data, 0);
-            si_idx = read_int32(overflow_data, 4);
-        } else {
-            si_idx = packed & OBJECTS_TABLE_ENTRY_SC_IDX_MASK;
-        }
+        si_idx = packed & OBJECTS_TABLE_ENTRY_SC_IDX_MASK;
     }
 
     /* Resolve the STable. */
@@ -2171,6 +2149,7 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
         *(reader->cur_read_offset) += 4;
         valid = 1;
         for (i = 0; i < elems; i++) {
+            MVMuint32 packed;
             /* Skip string. */
             assert_can_read(tc, reader, 4);
             *(reader->cur_read_offset) += 4;
@@ -2181,21 +2160,15 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
             case REFVAR_OBJECT:
             case REFVAR_STATIC_CODEREF:
             case REFVAR_CLONED_CODEREF:
-                if (reader->root.version <= 14) {
-                    assert_can_read(tc, reader, discrim_size + 8);
-                    *(reader->cur_read_offset) += discrim_size + 8;
-                } else {
-                    MVMuint32 packed;
-                    assert_can_read(tc, reader, discrim_size + 4);
-                    packed = read_int32(*(reader->cur_read_buffer),
-                                        *(reader->cur_read_offset) + discrim_size);
+                assert_can_read(tc, reader, discrim_size + 4);
+                packed = read_int32(*(reader->cur_read_buffer),
+                                    *(reader->cur_read_offset) + discrim_size);
 
-                    if(packed == (PACKED_SC_OVERFLOW << PACKED_SC_SHIFT)) {
-                        assert_can_read(tc, reader, discrim_size + 12);
-                        *(reader->cur_read_offset) += discrim_size + 12;
-                    } else {
-                        *(reader->cur_read_offset) += discrim_size + 4;
-                    }
+                if(packed == (PACKED_SC_OVERFLOW << PACKED_SC_SHIFT)) {
+                    assert_can_read(tc, reader, discrim_size + 12);
+                    *(reader->cur_read_offset) += discrim_size + 12;
+                } else {
+                    *(reader->cur_read_offset) += discrim_size + 4;
                 }
                 break;
             default:
@@ -2354,7 +2327,7 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
     /* We've no more to do for type objects. */
     if (IS_CONCRETE(obj)) {
         /* Calculate location of object's table row. */
-        char *obj_table_row = reader->root.objects_table + i * (reader->root.version > 14 ? OBJECTS_TABLE_ENTRY_SIZE : OBJECTS_TABLE_ENTRY_SIZE_v14);
+        char *obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE;
 
         /* Set current read buffer to the correct thing. */
         reader->cur_read_buffer = &(reader->root.objects_data);
@@ -2363,7 +2336,7 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
 
         /* Delegate to its deserialization REPR function. */
         reader->current_object = obj;
-        reader->objects_data_offset = read_int32(obj_table_row, reader->root.version > 14 ? 4 : 8);
+        reader->objects_data_offset = read_int32(obj_table_row, 4);
         if (REPR(obj)->deserialize)
             REPR(obj)->deserialize(tc, STABLE(obj), obj, OBJECT_BODY(obj), reader);
         else
