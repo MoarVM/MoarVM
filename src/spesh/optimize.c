@@ -1451,6 +1451,17 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
                     facts->usages--;
                 }
             }
+        } else if (ins->prev && ins->info->opcode == MVM_OP_sp_getspeshslot && ins->prev->info->opcode == ins->info->opcode) {
+            /* Sometimes we emit two getspeshslots in a row that write into the
+             * exact same register. that's clearly wasteful and we can save a
+             * tiny shred of code size here.
+             * However, since spesh slots are also involved in GC, we can also
+             * null the spesh slot that we throw out. */
+            if (ins->operands[0].reg.orig == ins->prev->operands[0].reg.orig) {
+               g->spesh_slots[ins->prev->operands[1].lit_i16] = NULL;
+
+               MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->prev);
+            }
         }
 
         ins = ins->next;
