@@ -2,9 +2,9 @@
 
 /* Some constants. */
 #define HEADER_SIZE                 92
-#define MIN_BYTECODE_VERSION        2
+#define MIN_BYTECODE_VERSION        5
 #define MAX_BYTECODE_VERSION        5
-#define FRAME_HEADER_SIZE           ((cu->body.bytecode_version >= 4 ? 11 : 9) * 4 + (cu->body.bytecode_version >= 4 ? 3 : 2) * 2)
+#define FRAME_HEADER_SIZE           (11 * 4 + 3 * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define FRAME_SLV_SIZE              (2 * 2 + 2 * 4)
 #define SCDEP_HEADER_OFFSET         12
@@ -573,7 +573,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         {
             MVMuint32 skip = 2 * static_frame_body->num_locals +
                              6 * static_frame_body->num_lexicals;
-            MVMuint16 slvs = cu->body.bytecode_version >= 4 ? read_int16(pos, 40) : 0;
+            MVMuint16 slvs = read_int16(pos, 40);
             pos += FRAME_HEADER_SIZE;
             ensure_can_read(tc, cu, rs, pos, skip);
             pos += skip;
@@ -633,7 +633,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
     pos = sf->body.frame_data_pos;
 
     /* Get the number of static lex values we'll need to apply. */
-    slvs = cu->body.bytecode_version >= 4 ? read_int16(pos, 40) : 0;
+    slvs = read_int16(pos, 40);
 
     /* Skip past header. */
     pos += FRAME_HEADER_SIZE;
