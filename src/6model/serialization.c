@@ -707,7 +707,7 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
             break;
         default:
             MVM_exception_throw_adhoc(tc,
-                "Serialization Error: Unimplemented discriminator: %d",
+                "Serialization Error: Unimplemented discriminator %d in MVM_serialization_read_ref",
                 discrim);
     }
 }
@@ -2191,13 +2191,15 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
         valid = 1;
         for (i = 0; i < elems; i++) {
             MVMuint32 packed;
+            MVMuint8 inner_discrim;
             /* Skip string. */
             assert_can_read(tc, reader, 4);
             *(reader->cur_read_offset) += 4;
 
             /* Ensure we've a coderef or code object. */
             assert_can_read(tc, reader, discrim_size);
-            switch (read_discrim(tc, reader)) {
+            inner_discrim = read_discrim(tc, reader);
+            switch (inner_discrim) {
             case REFVAR_OBJECT:
             case REFVAR_STATIC_CODEREF:
             case REFVAR_CLONED_CODEREF:
@@ -2212,10 +2214,22 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
                     *(reader->cur_read_offset) += discrim_size + 4;
                 }
                 break;
-            default:
+            case REFVAR_NULL:
+            case REFVAR_VM_NULL:
+            case REFVAR_VM_INT:
+            case REFVAR_VM_NUM:
+            case REFVAR_VM_STR:
+            case REFVAR_VM_ARR_VAR:
+            case REFVAR_VM_ARR_STR:
+            case REFVAR_VM_ARR_INT:
+            case REFVAR_VM_HASH_STR_VAR:
                 valid = 0;
                 *(reader->cur_read_offset) = before;
                 break;
+            default:
+                MVM_exception_throw_adhoc(tc,
+                                          "Serialization Error: Unimplemented discriminator %d in inner loop in deserialize_method_cache_lazy",
+                inner_discrim);
             }
             if (!valid)
                 break;
@@ -2227,6 +2241,26 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
             MVM_ASSIGN_REF(tc, &(st->header), st->method_cache_sc, reader->root.sc);
             st->method_cache_offset = before;
             return;
+        }
+    } else {
+        switch (discrim) {
+        case REFVAR_OBJECT:
+        case REFVAR_STATIC_CODEREF:
+        case REFVAR_CLONED_CODEREF:
+        case REFVAR_NULL:
+        case REFVAR_VM_NULL:
+        case REFVAR_VM_INT:
+        case REFVAR_VM_NUM:
+        case REFVAR_VM_STR:
+        case REFVAR_VM_ARR_VAR:
+        case REFVAR_VM_ARR_STR:
+        case REFVAR_VM_ARR_INT:
+        case REFVAR_VM_HASH_STR_VAR:
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc,
+                                      "Serialization Error: Unimplemented discriminator %d in deserialize_method_cache_lazy",
+                                      discrim);
         }
     }
 
