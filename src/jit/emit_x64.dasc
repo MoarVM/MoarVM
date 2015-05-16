@@ -213,7 +213,7 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
     | mov rbp, rsp;
     /* allocate stack space: 0x100 bytes = 256 bytes
      *
-     * layout: [ a: 0x20 | b: 0x20 | c: 0xa0 | d: 0x20 ]
+     * layout: [ a: 0x20 | b: 0x40 | c: 0xa0 | d: 0x20 ]
      * a: space for 4 callee-save registers
      * b: small scratch space
      * c: space for stack arguments to c calls
@@ -259,6 +259,12 @@ static MVMuint64 try_emit_gen2_ref(MVMThreadContext *tc, MVMJitGraph *jg,
     | mov64 TMP1, (uintptr_t)obj;
     | mov WORK[reg], TMP1;
     return 1;
+}
+
+static MVMint64 fits_in_32_bit(MVMint64 number) {
+    /* Used to determine if a 64 bit integer can be safely used as a
+     * 32 bit constant for immediate mode access */
+    return (number >= INT32_MIN) && (number <= INT32_MAX);
 }
 
 /* compile per instruction, can't really do any better yet */
@@ -625,7 +631,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMSpeshFacts *operand_facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[2]);
 
         if (reg_a == reg_b) {
-            if (operand_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+            if (operand_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE &&
+                fits_in_32_bit(operand_facts->value.i)) {
                 MVMint64 value = operand_facts->value.i;
                 MVM_jit_log(tc, "accumulator for %s stayed in memory and constant value %d used\n", ins->info->name, value);
                 switch(ins->info->opcode) {
@@ -667,7 +674,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
                 }
             }
         } else {
-            if (operand_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+            if (operand_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE &&
+                fits_in_32_bit(operand_facts->value.i)) {
                 MVMint64 value = operand_facts->value.i;
                 MVM_jit_log(tc, "constant value %d used for %s\n", value, ins->info->name);
                 | mov rax, WORK[reg_b];
