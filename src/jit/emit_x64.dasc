@@ -634,7 +634,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             if (operand_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE &&
                 fits_in_32_bit(operand_facts->value.i)) {
                 MVMint64 value = operand_facts->value.i;
-                MVM_jit_log(tc, "accumulator for %s stayed in memory and constant value %d used\n", ins->info->name, value);
+                MVM_jit_log(tc, "accumulator for %s stayed in memory and "
+                            " constant value %"PRId64" used\n", ins->info->name, value);
                 switch(ins->info->opcode) {
                 case MVM_OP_add_i:
                     | add qword WORK[reg_a], qword value;
@@ -677,7 +678,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             if (operand_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE &&
                 fits_in_32_bit(operand_facts->value.i)) {
                 MVMint64 value = operand_facts->value.i;
-                MVM_jit_log(tc, "constant value %d used for %s\n", value, ins->info->name);
+                MVM_jit_log(tc, "constant value %"PRId64" used for %s\n",
+                            value, ins->info->name);
                 | mov rax, WORK[reg_b];
                 switch(ins->info->opcode) {
                 case MVM_OP_add_i:
