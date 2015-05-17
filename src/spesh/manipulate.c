@@ -91,7 +91,7 @@ void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb,
     }
 
     if (bb_succ[i] != succ) {
-        MVM_exception_throw_adhoc(tc, "Didn't find the successor to remove from a Spesh Basic Block");
+        MVM_oops(tc, "Didn't find the successor to remove from a Spesh Basic Block");
     }
 
     /* Remove the succ from the list, shuffle other successors back in place */
@@ -109,7 +109,7 @@ void MVM_spesh_manipulate_remove_successor(MVMThreadContext *tc, MVMSpeshBB *bb,
     }
 
     if (succ_pred[i] != bb) {
-        MVM_exception_throw_adhoc(tc, "Didn't find the predecessor to remove from a Spesh Basic Block");
+        MVM_oops(tc, "Didn't find the predecessor to remove from a Spesh Basic Block");
     }
 
     for (k = i; k < succ_num_pred; k++) {
@@ -202,9 +202,9 @@ void MVM_spesh_manipulate_release_temp_reg(MVMThreadContext *tc, MVMSpeshGraph *
             if (g->temps[i].in_use)
                 g->temps[i].in_use = 0;
             else
-                MVM_exception_throw_adhoc(tc, "Spesh: releasing temp not in use");
+                MVM_oops(tc, "Spesh: releasing temp not in use");
             return;
         }
     }
-    MVM_exception_throw_adhoc(tc, "Spesh: releasing non-existing temp");
+    MVM_oops(tc, "Spesh: releasing non-existing temp");
 }

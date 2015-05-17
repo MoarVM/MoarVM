@@ -136,7 +136,7 @@ static MVMint32 find_deopt_target(MVMThreadContext *tc, MVMFrame *f, MVMint32 de
             return f->spesh_cand->deopts[i];
         }
     }
-    MVM_exception_throw_adhoc(tc, "find_deopt_target failed for %s (%s)",
+    MVM_oops(tc, "find_deopt_target failed for %s (%s)",
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
 }
@@ -189,7 +189,7 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
         deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
     }
     else {
-        MVM_exception_throw_adhoc(tc, "deopt_one failed for %s (%s)",
+        MVM_oops(tc, "deopt_one failed for %s (%s)",
             MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
             MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
     }
@@ -204,7 +204,7 @@ void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMint32 deopt_offset,
     if (f->effective_bytecode != f->static_info->body.bytecode) {
         deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
     } else {
-        MVM_exception_throw_adhoc(tc, "deopt_one_direct failed for %s (%s)",
+        MVM_oops(tc, "deopt_one_direct failed for %s (%s)",
             MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
             MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
     }

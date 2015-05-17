@@ -1041,7 +1041,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                             ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_o);
                             break;
                         default:
-                            MVM_exception_throw_adhoc(tc, "Spesh: unhandled invoke instruction");
+                            MVM_oops(tc, "Spesh: unhandled invoke instruction");
                         }
                     }
                 }

@@ -123,7 +123,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                     }
                 }
                 if (!found)
-                    MVM_exception_throw_adhoc(tc, "Spesh: failed to resolve extop in code-gen");
+                    MVM_oops(tc, "Spesh: failed to resolve extop in code-gen");
             }
             else {
                 /* Core op. */
@@ -200,14 +200,14 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                         write_int16(ws, ins->operands[i].lit_i16);
                         break;
                     default:
-                        MVM_exception_throw_adhoc(tc,
+                        MVM_oops(tc,
                             "Spesh: unknown operand type %d in codegen (op %s)",
                             (int)type, ins->info->name);
                     }
                     }
                     break;
                 default:
-                    MVM_exception_throw_adhoc(tc, "Spesh: unknown operand type in codegen");
+                    MVM_oops(tc, "Spesh: unknown operand type in codegen");
                 }
             }
         }
@@ -287,7 +287,7 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
         if (ws->handlers[i].start_offset == -1 ||
             ws->handlers[i].end_offset   == -1 ||
             ws->handlers[i].goto_offset  == -1)
-            MVM_exception_throw_adhoc(tc, "Spesh: failed to fix up handlers (%d, %d, %d)",
+            MVM_oops(tc, "Spesh: failed to fix up handlers (%d, %d, %d)",
                 (int)ws->handlers[i].start_offset,
                 (int)ws->handlers[i].end_offset,
                 (int)ws->handlers[i].goto_offset);
@@ -296,7 +296,7 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Ensure all inlines got fixed up. */
     for (i = 0; i < g->num_inlines; i++)
         if (g->inlines[i].start == -1 || g->inlines[i].end == -1)
-            MVM_exception_throw_adhoc(tc, "Spesh: failed to fix up inline %d", i);
+            MVM_oops(tc, "Spesh: failed to fix up inline %d", i);
 
     /* Produce result data structure. */
     res                = MVM_malloc(sizeof(MVMSpeshCode));

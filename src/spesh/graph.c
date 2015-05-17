@@ -253,7 +253,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     arg_size += 2;
                     break;
                 default:
-                    MVM_exception_throw_adhoc(tc,
+                    MVM_oops(tc,
                         "Spesh: unknown operand type %d in graph building (op %s)",
                         (int)type, ins_node->info->name);
                 }
@@ -393,7 +393,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             /* Should not already be in a basic block. */
             if (cur_bb) {
                 MVM_spesh_graph_destroy(tc, g);
-                MVM_exception_throw_adhoc(tc, "Spesh: confused during basic block analysis (in block)");
+                MVM_oops(tc, "Spesh: confused during basic block analysis (in block)");
             }
 
             /* Create it, and set first instruction and index. */
@@ -413,7 +413,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* Should always be in a BB at this point. */
         if (!cur_bb) {
             MVM_spesh_graph_destroy(tc, g);
-            MVM_exception_throw_adhoc(tc, "Spesh: confused during basic block analysis (no block)");
+            MVM_oops(tc, "Spesh: confused during basic block analysis (no block)");
         }
 
         /* Add instruction into double-linked per-block instruction list. */
@@ -493,7 +493,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                         /* If we ever get instructions with multiple targets, this
                          * area of the code needs an update. */
                         MVM_spesh_graph_destroy(tc, g);
-                        MVM_exception_throw_adhoc(tc, "Spesh: unhandled multi-target branch");
+                        MVM_oops(tc, "Spesh: unhandled multi-target branch");
                     }
                     if (cur_bb->linear_next) {
                         cur_bb->succ[cur_bb->num_succ] = cur_bb->linear_next;
@@ -620,7 +620,7 @@ static MVMSpeshBB ** reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g) {
     if (ins != -1) {
         printf("%s", MVM_spesh_dump(tc, g));
         MVM_spesh_graph_destroy(tc, g);
-        MVM_exception_throw_adhoc(tc, "Spesh: reverse postorder calculation failed");
+        MVM_oops(tc, "Spesh: reverse postorder calculation failed");
     }
     return rpo;
 }
@@ -641,7 +641,7 @@ static void iter_check(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo,
         printf("\n");
 #endif
         MVM_spesh_graph_destroy(tc, g);
-        MVM_exception_throw_adhoc(tc, "Spesh: dominator intersection went infinite");
+        MVM_oops(tc, "Spesh: dominator intersection went infinite");
     }
 }
 static MVMint32 intersect(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo, MVMint32 *doms, MVMint32 finger1, MVMint32 finger2) {
@@ -692,7 +692,7 @@ static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
             }
             if (chosen_pred == -1) {
                 MVM_spesh_graph_destroy(tc, g);
-                MVM_exception_throw_adhoc(tc, "Spesh: could not find processed initial dominator");
+                MVM_oops(tc, "Spesh: could not find processed initial dominator");
             }
             for (j = 0; j < b->num_pred; j++) {
                 if (j != chosen_pred) {
@@ -947,7 +947,7 @@ static MVMint32 which_pred(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *y
         if (y->pred[i] == x)
             return i;
     MVM_spesh_graph_destroy(tc, g);
-    MVM_exception_throw_adhoc(tc, "Spesh: which_pred failed to find x");
+    MVM_oops(tc, "Spesh: which_pred failed to find x");
 }
 static void rename_locals(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarInfo *var_info, MVMSpeshBB *x) {
     MVMint32 i;
@@ -1084,7 +1084,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     /* Ensure the frame is validated, since we'll rely on this. */
     if (sf->body.instrumentation_level == 0) {
         MVM_spesh_graph_destroy(tc, g);
-        MVM_exception_throw_adhoc(tc, "Spesh: cannot build CFG from unvalidated frame");
+        MVM_oops(tc, "Spesh: cannot build CFG from unvalidated frame");
     }
 
     /* Build the CFG out of the static frame, and transform it to SSA. */
@@ -1125,7 +1125,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     /* Ensure the frame is validated, since we'll rely on this. */
     if (sf->body.instrumentation_level == 0) {
         MVM_spesh_graph_destroy(tc, g);
-        MVM_exception_throw_adhoc(tc, "Spesh: cannot build CFG from unvalidated frame");
+        MVM_oops(tc, "Spesh: cannot build CFG from unvalidated frame");
     }
 
     /* Build the CFG out of the static frame, and transform it to SSA. */

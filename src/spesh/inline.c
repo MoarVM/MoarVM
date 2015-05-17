@@ -36,7 +36,7 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
 
     /* Didn't find it; should be impossible. */
     MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)target_cu->body.update_mutex);
-    MVM_exception_throw_adhoc(tc, "Spesh: inline failed to find source CU extop entry");
+    MVM_oops(tc, "Spesh: inline failed to find source CU extop entry");
 }
 
 /* Sees if it will be possible to inline the target code ref, given we could
@@ -138,7 +138,7 @@ static MVMint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *invoke_ins) 
             return ann->data.deopt_idx;
         ann = ann->next;
     }
-    MVM_exception_throw_adhoc(tc, "Spesh inline: return_deopt_idx failed");
+    MVM_oops(tc, "Spesh inline: return_deopt_idx failed");
 }
 
 /* The following routines fix references to per-compilation-unit things
@@ -150,7 +150,7 @@ static void fix_callsite(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 }
 static void fix_coderef(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                         MVMSpeshGraph *inlinee, MVMSpeshOperand *to_fix) {
-    MVM_exception_throw_adhoc(tc, "Spesh inline: fix_coderef NYI");
+    MVM_oops(tc, "Spesh inline: fix_coderef NYI");
 }
 static void fix_str(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     MVMSpeshGraph *inlinee, MVMSpeshOperand *to_fix) {
@@ -176,12 +176,12 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             to_fix->operands[1].lit_i16 = ss;
         }
         else {
-            MVM_exception_throw_adhoc(tc,
+            MVM_oops(tc,
                 "Spesh inline: SC not yet resolved; lookup failed");
         }
     }
     else {
-        MVM_exception_throw_adhoc(tc,
+        MVM_oops(tc,
             "Spesh inline: invalid SC index found");
     }
 }
@@ -375,7 +375,7 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_STR;
         break;
     default:
-        MVM_exception_throw_adhoc(tc, "Spesh inline: unknown invoke instruction");
+        MVM_oops(tc, "Spesh inline: unknown invoke instruction");
     }
     inliner->inlines[total_inlines - 1].return_deopt_idx = return_deopt_idx(tc, invoke_ins);
     inliner->num_inlines = total_inlines;
@@ -442,7 +442,7 @@ static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, M
     if (bb->num_succ == 1)
         bb->succ[0] = new_succ;
     else
-        MVM_exception_throw_adhoc(tc, "Spesh inline: unexpected num_succ");
+        MVM_oops(tc, "Spesh inline: unexpected num_succ");
     if (new_succ->num_pred == 0) {
         new_succ->pred = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
         new_succ->num_pred = 1;
@@ -458,7 +458,7 @@ static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, M
                 break;
             }
         if (!found)
-            MVM_exception_throw_adhoc(tc,
+            MVM_oops(tc,
                 "Spesh inline: could not find appropriate pred to update\n");
     }
 }
@@ -507,7 +507,7 @@ static void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
             MVM_OP_hllboxtype_i, MVM_OP_box_i);
         break;
     default:
-        MVM_exception_throw_adhoc(tc,
+        MVM_oops(tc,
             "Spesh inline: unhandled case of return_i");
     }
 }
@@ -526,7 +526,7 @@ static void rewrite_num_return(MVMThreadContext *tc, MVMSpeshGraph *g,
             MVM_OP_hllboxtype_n, MVM_OP_box_n);
         break;
     default:
-        MVM_exception_throw_adhoc(tc,
+        MVM_oops(tc,
             "Spesh inline: unhandled case of return_n");
     }
 }
@@ -546,7 +546,7 @@ static void rewrite_str_return(MVMThreadContext *tc, MVMSpeshGraph *g,
             MVM_OP_hllboxtype_s, MVM_OP_box_s);
         break;
     default:
-        MVM_exception_throw_adhoc(tc,
+        MVM_oops(tc,
             "Spesh inline: unhandled case of return_s");
     }
 }
@@ -562,7 +562,7 @@ static void rewrite_obj_return(MVMThreadContext *tc, MVMSpeshGraph *g,
         return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
         break;
     default:
-        MVM_exception_throw_adhoc(tc,
+        MVM_oops(tc,
             "Spesh inline: unhandled case of return_o");
     }
 }
@@ -584,7 +584,7 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     tweak_succ(tc, inliner, bb, invoke_bb->succ[0]);
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc,
+                    MVM_oops(tc,
                         "Spesh inline: return_v/invoke_[!v] mismatch");
                 }
                 break;
@@ -670,7 +670,7 @@ static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     MVM_spesh_get_facts(tc, inliner, arg_ins->operands[0])->usages++;
                     break;
                 default:
-                    MVM_exception_throw_adhoc(tc,
+                    MVM_oops(tc,
                         "Spesh inline: unhandled arg instruction %d",
                         arg_ins->info->opcode);
                 }
