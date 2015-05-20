@@ -188,6 +188,12 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     repr_data->num_child_objs++;
                     repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CSTRUCT_ATTR_SHIFT) | MVM_CSTRUCT_ATTR_CSTRUCT;
                     repr_data->member_types[i] = type;
+                    if (inlined) {
+                        MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
+                        bits                                  = cstruct_repr_data->struct_size * 8;
+                        align                                 = cstruct_repr_data->struct_size;
+                        repr_data->attribute_locations[i]    |= MVM_CSTRUCT_ATTR_INLINED;
+                    }
                 }
                 else if (type_id == MVM_REPR_ID_MVMCUnion) {
                     /* It's a CUnion. */
@@ -374,7 +380,11 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                             obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
                         }
                         else if(type == MVM_CSTRUCT_ATTR_CSTRUCT) {
-                            obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
+                            if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
+                                obj = MVM_nativecall_make_cstruct(tc, typeobj,
+                                    (char *)body->cstruct + repr_data->struct_offsets[slot]);
+                            else
+                                obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
                         }
                         else if(type == MVM_CSTRUCT_ATTR_CUNION) {
                             if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
