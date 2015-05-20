@@ -193,6 +193,17 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                         repr_data->attribute_locations[i]    |= MVM_CUNION_ATTR_INLINED;
                     }
                 }
+                else if (type_id == MVM_REPR_ID_MVMCUnion) {
+                    /* It's a CUnion. */
+                    repr_data->num_child_objs++;
+                    repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CUNION_ATTR_SHIFT) | MVM_CUNION_ATTR_CUNION;
+                    repr_data->member_types[i] = type;
+                    if (inlined) {
+                        MVMCUnionREPRData *cunion_repr_data = (MVMCUnionREPRData *)STABLE(type)->REPR_data;
+                        bits                                = cunion_repr_data->struct_size * 8;
+                        repr_data->attribute_locations[i]  |= MVM_CUNION_ATTR_INLINED;
+                    }
+                }
                 else if (type_id == MVM_REPR_ID_MVMCPointer) {
                     /* It's a CPointer. */
                     repr_data->num_child_objs++;
@@ -389,6 +400,13 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                                     (char *)body->cunion + repr_data->struct_offsets[slot]);
                             else
                                 obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
+                        }
+                        else if(type == MVM_CUNION_ATTR_CUNION) {
+                            if (repr_data->attribute_locations[slot] & MVM_CUNION_ATTR_INLINED)
+                                obj = MVM_nativecall_make_cunion(tc, typeobj,
+                                    (char *)body->cunion + repr_data->struct_offsets[slot]);
+                            else
+                                obj = MVM_nativecall_make_cunion(tc, typeobj, cobj);
                         }
                         else if(type == MVM_CUNION_ATTR_CPTR) {
                             obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
