@@ -245,6 +245,8 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
 
         /* Finally, put computed allocation size in place; it's body size plus
          * header size. Also number of markables and sentinels. */
+        if (multiple_of > sizeof(void *))
+            multiple_of = sizeof(void *);
         repr_data->struct_size = ceil((double)cur_size / (double)multiple_of) * multiple_of;
         if (repr_data->initialize_slots)
             repr_data->initialize_slots[cur_init_slot] = -1;
