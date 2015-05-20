@@ -143,7 +143,8 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             /* Fetch its type; see if it's some kind of unboxed type. */
             MVMObject *attr  = MVM_repr_at_pos_o(tc, flat_list, i);
             MVMObject *type  = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.type);
-            MVMint64 inlined = MVM_repr_at_key_int(tc, attr, tc->instance->str_consts.inlined);
+            MVMObject *inlined_val = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.inlined);
+            MVMint64 inlined = !MVM_is_null(tc, inlined_val) && MVM_repr_get_int(tc, inlined_val);
             MVMint32   bits  = sizeof(void *) * 8;
             MVMint32   align = ALIGNOF(void *);
             if (!MVM_is_null(tc, type)) {
