@@ -1,3 +1,94 @@
+New in 2015.05
+
++ Add missing C prototype for MVM_string_windows1252_decodestream
++ Fix uniname out of range error reporting.
++ Fix SSA crash when huge number of basic blocks.
++ Implement normalization buffer grwoth handling.
++ Add missing frees on invalid UTF-8 decoding.
++ Integrate NFG with UTF-16 non-stream decode.
++ Remove linenoise/readline
++ Give a decode stream a normalizer.
++ Further integrate normalizer with decode stream.
++ Fix chr for our brave new NFG world.
++ Update macportfile to 2015.04 release
++ Make \n a "normalization terminator".
++ Ensure concatenation is closed under NFG.
++ Don't leak synthetics from ord.
++ Integrate NFG with UTF-8 non-stream decode.
++ Implement NFG for decode stream case of UTF-8.
++ Fix use-after-free in open file error reporting.
++ Display exactly what thread ID was passed.
++ Release allocated resources before returning
++ Free resources for **pieces before returning
++ Release 'signature' before returning from unmarshal_callback()
++ Free leaked resource `buffer` before returning
++ Remove fragile assumption about buffer size.
++ Fix UTF-8 encoder to handle NFG.
++ More robust NULL string checking.
++ Ensure we get NULL-terminated strings if needed.
++ Bytecode file stores Latin-1 when possible.
++ Optimize temporary root handling.
++ Cache and mark the backend config hash.
++ Dual-purpose comp unit string heap as SC one.
++ Re-order bytecode read struct to be smaller.
++ Don't repeatedly calculate limit in bytecode read.
++ Toss some bits of ut_hash we don't use.
++ Toss hash bloom test bits we don't use.
++ Optimize at level 3 by default.
++ Toss even more hash bits we don't use.
++ Re-implement MVMIter on hashes using buckets.
++ Toss HASH_FSCK addition order check.
++ Use a simpler "deleting the last item" check.
++ Eliminate double-linked-list in hashes.
++ Fix use-after-free if hash iter block frees nodes.
++ Be consistent with paren-ing in macro.
++ Eliminate a single-use macro.
++ Correct head replacement logic.
++ Re-implement simple say/print using MoarVM I/O.
++ Thread ID handling cleanup.
++ Fix an ABA bug in the fixed size allocator.
++ At least do a spinlock rather than a mutex.
++ Factor out code to avoid a "magic value" all over.
++ Concurrency control on multi-cache additions.
++ Show line numbers for deopt annotations
++ Give every BB in the spesh log a line number
++ Devirtualize bindkey and bindpos ops
++ Implement MVM_op_elems for devirtualization
++ Implement getattr_* and getattrs_* devirtualization
++ Implement pop_* and shift_*  for devirt
++ Implement bindattr and bindattrs ops for devirt
++ Fix a control flow thinko for logging
++ When failing from consume_reprop, do it loudly
++ No longer bail from many unhandled repr ops
++ Devirtualize setelemspos, existspos and existskey
++ Implement ordbaseat and eqatim_s ops for ignoremark
++ Silence warnings about pointer type mismatch
++ Increase stack space for call arguments.
++ More compact jit for add, sub, bor, band and bxor
++ Add lib install dir to rpath
++ Display "Inlined" flag in the spesh log
++ Add a missing barrier in multi-dispatch cache
++ Tweak error reporting of wrong outer frame
++ Include cuuid of invokee in error message.
++ Remove the frame pool
++ Spesh dump shows little words for fact flags
++ Spesh dump coderefs as filename + line number and "(closure)"
++ Handle LTM for ignorecase+ignoremark
++ Fix ref-count management of deserialized contexts.
++ Provide a "never repossess this" mechanism.
++ Fix a GC marking bug in parametric type setup.
++ Implement exception object creation from category.
++ Emit add, sub, bor, band, bxor with constant if possible
++ Kill duplicate getspeshslot ins for the same register
++ Formally bump minimum bytecode version to 5
++ JIT - check if constant value fits in 32 bit
++ Fix format type error in JIT logging
++ Add MVM_oops() function to panic with backtrace, used in spesh and JIT
++ Add op for disclaiming all objects of an serialization context (SC)
++ Check that owning object wasn't disclaimed by an SC.
++ Add support for CUnion repr to use with NativeCall
++ Add support for inlined CStructs and CUnions
+
 New in 2015.04
 
 + Re-enabled lazy deserialization, decreasing Rakudo startup time and memory
