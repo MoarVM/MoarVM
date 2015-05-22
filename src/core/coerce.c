@@ -61,9 +61,8 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                     MVM_args_setup_thunk(tc, &data->res_reg, MVM_RETURN_INT, inv_arg_callsite);
                     tc->cur_frame->args[0].o = obj;
                     STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
-                    return;
                 }
-                break;
+                return;
             }
             case MVM_BOOL_MODE_UNBOX_INT:
                 result = !IS_CONCRETE(obj) || REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)) == 0 ? 0 : 1;
