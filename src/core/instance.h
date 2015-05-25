@@ -117,9 +117,11 @@ struct MVMInstance {
      * marked. */
     MVMThreadContext *event_loop_thread;
     uv_mutex_t        mutex_event_loop_start;
+    uv_sem_t          sem_event_loop_started;
     MVMObject        *event_loop_todo_queue;
     MVMObject        *event_loop_cancel_queue;
     MVMObject        *event_loop_active;
+    uv_async_t       *event_loop_wakeup;
 
     /* The VM null object. */
     MVMObject *VMNull;
