@@ -1,4 +1,7 @@
 #include "moar.h"
+#ifndef _WIN32
+#include <dlfcn.h>
+#endif
 
 /* Grabs a NativeCall body. */
 static MVMNativeCallBody * get_nc_body(MVMThreadContext *tc, MVMObject *obj) {
@@ -729,6 +732,18 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     return get_signature_char(data->typeinfos[0]);
 }
 
+#ifdef _WIN32
+static const char *dlerror(void)
+{
+    static char buf[32];
+    DWORD dw = GetLastError();
+    if (dw == 0)
+        return NULL;
+    sprintf(buf, "error 0x%x", (unsigned int)dw);
+    return buf;
+}
+#endif
+
 /* Builds up a native call site out of the supplied arguments. */
 void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
         MVMString *sym, MVMString *conv, MVMObject *arg_info, MVMObject *ret_info) {
@@ -744,7 +759,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     body->lib_handle = dlLoadLibrary(strlen(lib_name) ? lib_name : NULL);
     if (!body->lib_handle) {
         MVM_free(sym_name);
-        MVM_exception_throw_adhoc(tc, "Cannot locate native library '%s'", lib_name);
+        MVM_exception_throw_adhoc(tc, "Cannot locate native library '%s': %s", lib_name, dlerror());
     }
 
     /* Try to locate the symbol. */
@@ -1170,7 +1185,7 @@ MVMObject * MVM_nativecall_global(MVMThreadContext *tc, MVMString *lib, MVMStrin
     lib_handle = dlLoadLibrary(strlen(lib_name) ? lib_name : NULL);
     if (!lib_handle) {
         MVM_free(sym_name);
-        MVM_exception_throw_adhoc(tc, "Cannot locate native library '%s'", lib_name);
+        MVM_exception_throw_adhoc(tc, "Cannot locate native library '%s': %s", lib_name, dlerror());
     }
 
     /* Try to locate the symbol. */
