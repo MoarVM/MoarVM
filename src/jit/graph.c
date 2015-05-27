@@ -236,37 +236,50 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_pop_s: return &MVM_repr_pop_s;
     case MVM_OP_pop_o: return &MVM_repr_pop_o;
     case MVM_OP_shift_i: return &MVM_repr_shift_i;
-    case MVM_OP_shift_o: return &MVM_repr_shift_n;
-    case MVM_OP_shift_o: return &MVM_repr_shift_s;
-    case MVM_OP_shift_i: return &MVM_repr_shift_o;
-    case MVM_OP_existskey: return &MVM_repr_exists_key;
-    case MVM_OP_deletekey: return &MVM_repr_delete_key;
+    case MVM_OP_shift_n: return &MVM_repr_shift_n;
+    case MVM_OP_shift_s: return &MVM_repr_shift_s;
+    case MVM_OP_shift_o: return &MVM_repr_shift_o;
     case MVM_OP_setelemspos: return &MVM_repr_pos_set_elems;
     case MVM_OP_splice: return &MVM_repr_pos_splice;
+
+    case MVM_OP_existskey: return &MVM_repr_exists_key;
+    case MVM_OP_deletekey: return &MVM_repr_delete_key;
+
     case MVM_OP_atpos_i: return &MVM_repr_at_pos_i;
     case MVM_OP_atpos_n: return &MVM_repr_at_pos_n;
     case MVM_OP_atpos_s: return &MVM_repr_at_pos_s;
     case MVM_OP_atpos_o: return &MVM_repr_at_pos_o;
+
     case MVM_OP_existspos: return &MVM_repr_exists_pos;
+
     case MVM_OP_atkey_i: return &MVM_repr_at_key_i;
     case MVM_OP_atkey_n: return &MVM_repr_at_key_n;
     case MVM_OP_atkey_s: return &MVM_repr_at_key_s;
     case MVM_OP_atkey_o: return &MVM_repr_at_key_o;
-    case MVM_OP_bindpos_o: return &MVM_repr_bind_pos_o;
+
     case MVM_OP_bindpos_i: return &MVM_repr_bind_pos_i;
     case MVM_OP_bindpos_n: return &MVM_repr_bind_pos_n;
     case MVM_OP_bindpos_s: return &MVM_repr_bind_pos_s;
+    case MVM_OP_bindpos_o: return &MVM_repr_bind_pos_o;
+
+    case MVM_OP_bindkey_i: return &MVM_repr_bind_key_i;
+    case MVM_OP_bindkey_n: return &MVM_repr_bind_key_n;
+    case MVM_OP_bindkey_s: return &MVM_repr_bind_key_s;
     case MVM_OP_bindkey_o: return &MVM_repr_bind_key_o;
+
     case MVM_OP_getattr_s: return &MVM_repr_get_attr_s;
     case MVM_OP_getattr_n: return &MVM_repr_get_attr_n;
     case MVM_OP_getattr_i: return &MVM_repr_get_attr_i;
     case MVM_OP_getattr_o: return &MVM_repr_get_attr_o;
+
     case MVM_OP_getattrs_s: return &MVM_repr_get_attr_s;
     case MVM_OP_getattrs_n: return &MVM_repr_get_attr_n;
     case MVM_OP_getattrs_i: return &MVM_repr_get_attr_i;
     case MVM_OP_getattrs_o: return &MVM_repr_get_attr_o;
+
     case MVM_OP_bindattr_i: case MVM_OP_bindattr_n: case MVM_OP_bindattr_s: case MVM_OP_bindattr_o: return &MVM_repr_bind_attr_inso;
     case MVM_OP_bindattrs_i: case MVM_OP_bindattrs_n: case MVM_OP_bindattrs_s: case MVM_OP_bindattrs_o: return &MVM_repr_bind_attr_inso;
+
     case MVM_OP_elems: return &MVM_repr_elems;
     case MVM_OP_flattenropes: return &MVM_string_flatten;
     case MVM_OP_concat_s: return &MVM_string_concatenate;

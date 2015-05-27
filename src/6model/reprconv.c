@@ -226,6 +226,27 @@ MVMObject * MVM_repr_shift_o(MVMThreadContext *tc, MVMObject *obj) {
     return value.o;
 }
 
+MVMint64 MVM_repr_at_key_i(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
+    MVMRegister value;
+    REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                                (MVMObject *)key, &value, MVM_reg_int64);
+    return value.i64;
+}
+
+MVMnum64 MVM_repr_at_key_n(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
+    MVMRegister value;
+    REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                                (MVMObject *)key, &value, MVM_reg_num64);
+    return value.n64;
+}
+
+MVMString * MVM_repr_at_key_s(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
+    MVMRegister value;
+    REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                                (MVMObject *)key, &value, MVM_reg_str);
+    return value.s;
+}
+
 MVMObject * MVM_repr_at_key_o(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
     if (IS_CONCRETE(obj)) {
         MVMRegister value;
@@ -234,6 +255,27 @@ MVMObject * MVM_repr_at_key_o(MVMThreadContext *tc, MVMObject *obj, MVMString *k
         return value.o;
     }
     return NULL;
+}
+
+void MVM_repr_bind_key_i(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMint64 val) {
+    MVMRegister value;
+    value.i64 = val;
+    REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        (MVMObject *)key, value, MVM_reg_int64);
+}
+
+void MVM_repr_bind_key_n(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMnum64 val) {
+    MVMRegister value;
+    value.n64 = val;
+    REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        (MVMObject *)key, value, MVM_reg_num64);
+}
+
+void MVM_repr_bind_key_s(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMString *val) {
+    MVMRegister value;
+    value.s = val;
+    REPR(obj)->ass_funcs.bind_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        (MVMObject *)key, value, MVM_reg_str);
 }
 
 void MVM_repr_bind_key_o(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMObject *val) {
