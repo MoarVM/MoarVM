@@ -207,12 +207,12 @@ bindexcategory      r(obj) r(int64)
 getexmessage        w(str) r(obj) :pure
 getexpayload        w(obj) r(obj) :pure
 getexcategory       w(int64) r(obj) :pure
-throwdyn            w(obj) r(obj)
-throwlex            w(obj) r(obj)
-throwlexotic        w(obj) r(obj)
-throwcatdyn         w(obj) int64
-throwcatlex         w(obj) int64
-throwcatlexotic     w(obj) int64
+throwdyn            w(obj) r(obj) :throwish
+throwlex            w(obj) r(obj) :throwish
+throwlexotic        w(obj) r(obj) :throwish
+throwcatdyn         w(obj) int64 :throwish
+throwcatlex         w(obj) int64 :throwish
+throwcatlexotic     w(obj) int64 :throwish
 die                 w(obj) r(str) :throwish
 rethrow             r(obj)
 resume              r(obj)
