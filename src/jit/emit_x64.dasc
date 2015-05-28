@@ -33,6 +33,7 @@
 |.type STORAGESPEC, MVMStorageSpec
 |.type HLLCONFIG, MVMHLLConfig;
 |.type SCREFBODY, MVMSerializationContextBody
+|.type NFGSYNTH, MVMNFGSynthetic
 |.type U8, MVMuint8
 |.type U16, MVMuint16
 |.type U32, MVMuint32
@@ -1364,48 +1365,73 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     }
     case MVM_OP_invokewithcapture: {
-	MVMint16 dest    = ins->operands[0].reg.orig;
-	MVMint16 code    = ins->operands[1].reg.orig;
-	MVMint16 capture = ins->operands[2].reg.orig;
-	| mov TMP1, aword WORK[capture];
-	/* if (IS_CONCRETE(capture) && REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) */
-	| is_type_object TMP1;
-	| jnz >1;
-	| mov TMP2, OBJECT:TMP1->st;
-	| mov TMP2, STABLE:TMP2->REPR;
-	| cmp dword REPR:TMP2->ID, MVM_REPR_ID_MVMCallCapture;
-	| je >2;
-	|1:
-	/* else throw */
-	| throw_adhoc "invokewithcapture needs a MVMCallCapture";
-	|2:
-	/* code = MVM_frame_find_invokee(tc, code, NULL) */
-	| mov ARG1, TC;
-	| mov ARG2, WORK[code];
-	| xor ARG3, ARG3;
-	| callp &MVM_frame_find_invokee;
+        MVMint16 dest    = ins->operands[0].reg.orig;
+        MVMint16 code    = ins->operands[1].reg.orig;
+        MVMint16 capture = ins->operands[2].reg.orig;
+        | mov TMP1, aword WORK[capture];
+        /* if (IS_CONCRETE(capture) && REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) */
+        | is_type_object TMP1;
+        | jnz >1;
+        | mov TMP2, OBJECT:TMP1->st;
+        | mov TMP2, STABLE:TMP2->REPR;
+        | cmp dword REPR:TMP2->ID, MVM_REPR_ID_MVMCallCapture;
+        | je >2;
+        |1:
+        /* else throw */
+        | throw_adhoc "invokewithcapture needs a MVMCallCapture";
+        |2:
+        /* code = MVM_frame_find_invokee(tc, code, NULL) */
+        | mov ARG1, TC;
+        | mov ARG2, WORK[code];
+        | xor ARG3, ARG3;
+        | callp &MVM_frame_find_invokee;
 
-	| mov ARG2, RV; // ARG2 = code
-	/* tc->cur_frame->return_value = &GET_REG(cur_op, 2) */
-	| lea ARG1, WORK[dest]; // ARG1 is used as scratch space
-	| mov aword FRAME->return_value, ARG1;
-	/* tc->cur_frame->return_type = MVM_RETURN_OBJ */
-	| mov dword FRAME->return_type, MVM_RETURN_OBJ;
-	/* tc->cur_frame->return_address = cur_op */
-	| get_cur_op ARG1;
-	| mov aword FRAME->return_address, ARG1;
-	/* STABLE(code)->invoke(tc, code, capture->body.effective_callsite,
-                                capture->body.apc->arg) */
-	| mov ARG1, TC;
-	| mov ARG3, WORK[capture];
-	| mov ARG4, aword CAPTURE:ARG3->body.apc;
-	| mov ARG4, aword ARGCTX:ARG4->args;
-	| mov ARG3, aword CAPTURE:ARG3->body.effective_callsite;
-	| mov FUNCTION, OBJECT:ARG2->st;
-	| mov FUNCTION, STABLE:FUNCTION->invoke;
-	| call FUNCTION;
-	/* jumping out is handled by invokish */
-	break;
+        | mov ARG2, RV; // ARG2 = code
+        /* tc->cur_frame->return_value = &GET_REG(cur_op, 2) */
+        | lea ARG1, WORK[dest]; // ARG1 is used as scratch space
+        | mov aword FRAME->return_value, ARG1;
+        /* tc->cur_frame->return_type = MVM_RETURN_OBJ */
+        | mov dword FRAME->return_type, MVM_RETURN_OBJ;
+        /* tc->cur_frame->return_address = cur_op */
+        | get_cur_op ARG1;
+        | mov aword FRAME->return_address, ARG1;
+        /* STABLE(code)->invoke(tc, code, capture->body.effective_callsite,
+           capture->body.apc->arg) */
+        | mov ARG1, TC;
+        | mov ARG3, WORK[capture];
+        | mov ARG4, aword CAPTURE:ARG3->body.apc;
+        | mov ARG4, aword ARGCTX:ARG4->args;
+        | mov ARG3, aword CAPTURE:ARG3->body.effective_callsite;
+        | mov FUNCTION, OBJECT:ARG2->st;
+        | mov FUNCTION, STABLE:FUNCTION->invoke;
+        | call FUNCTION;
+        /* jumping out is handled by invokish */
+        break;
+    }
+    case MVM_OP_ordat:
+    case MVM_OP_ordfirst: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 str = ins->operands[1].reg.orig;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[str];
+        if (op == MVM_OP_ordat) {
+            MVMint16 idx = ins->operands[2].reg.orig;
+            | mov ARG3, qword WORK[idx];
+        } else {
+            | mov ARG3, 0;
+        }
+        | callp &MVM_string_get_grapheme_at;
+        | cmp RV, 0;
+        | jge >1;
+        /* NB - I see no reason why this should be incorrect, but I
+           haven't been able to trigger it yet. */
+        | mov ARG1, TC;
+        | mov ARG2, RV;
+        | callp &MVM_nfg_get_synthetic_info;
+        | mov RV, NFGSYNTH:RV->base;
+        |1:
+        | mov qword WORK[dst], RV;
+        break;
     }
     default:
         MVM_panic(1, "Can't JIT opcode <%s>", ins->info->name);
@@ -2023,7 +2049,6 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
            was thrown */
         | mov TMP1, aword TC->active_handlers;
         | mov aword [rbp-0x28], TMP1;
-        |1:
     }
     else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_POST) {
         /* check if our current handler is the same as it was */
