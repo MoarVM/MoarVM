@@ -214,8 +214,8 @@ throwcatdyn         w(obj) int64 :throwish
 throwcatlex         w(obj) int64 :throwish
 throwcatlexotic     w(obj) int64 :throwish
 die                 w(obj) r(str) :throwish
-rethrow             r(obj)
-resume              r(obj)
+rethrow             r(obj) :throwish
+resume              r(obj) :throwish
 takehandlerresult   w(obj)
 newlexotic          w(obj) ins
 lexoticresult       w(obj) r(obj)

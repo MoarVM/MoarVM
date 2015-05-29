@@ -203,10 +203,12 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_die: return &MVM_exception_die;
     case MVM_OP_throwdyn:
     case MVM_OP_throwlex:
-    case MVM_OP_throwlexotic: return &MVM_exception_throwobj;
+    case MVM_OP_throwlexotic:
+    case MVM_OP_rethrow: return &MVM_exception_throwobj;
     case MVM_OP_throwcatdyn:
     case MVM_OP_throwcatlex:
     case MVM_OP_throwcatlexotic: return &MVM_exception_throwcat;
+    case MVM_OP_resume: return &MVM_exception_resume;
     case MVM_OP_smrt_numify: return &MVM_coerce_smart_numify;
     case MVM_OP_smrt_strify: return &MVM_coerce_smart_stringify;
     case MVM_OP_write_fhs: return &MVM_io_write_string;
@@ -1565,14 +1567,15 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     }
     case MVM_OP_throwdyn:
     case MVM_OP_throwlex:
-    case MVM_OP_throwlexotic: {
+    case MVM_OP_throwlexotic:
+    case MVM_OP_rethrow: {
         MVMint16 regi   = ins->operands[0].reg.orig;
         MVMint16 object = ins->operands[1].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_LITERAL, {
-                                   op == MVM_OP_throwdyn ? MVM_EX_THROW_DYN :
-                                   op == MVM_OP_throwlex ? MVM_EX_THROW_LEX :
-                                                           MVM_EX_THROW_LEXOTIC
+                                   op == MVM_OP_throwlexotic ? MVM_EX_THROW_LEXOTIC :
+                                   op == MVM_OP_throwlex     ? MVM_EX_THROW_LEX :
+                                                               MVM_EX_THROW_DYN
                                    } },
                                  { MVM_JIT_REG_VAL, { object } },
                                  { MVM_JIT_REG_ADDR, { regi } }};
@@ -1595,6 +1598,13 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_ADDR, { regi } }};
         jgb_append_call_c(tc, jgb, op_to_func(tc, op),
                           4, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_resume: {
+        MVMint16 exc = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { exc } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_die: {
