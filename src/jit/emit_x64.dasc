@@ -2027,7 +2027,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
                           MVMJitControl *ctrl, dasm_State **Dst) {
     if (ctrl->type == MVM_JIT_CONTROL_INVOKISH) {
         MVM_jit_log(tc, "Emit invokish control guard\n");
-        | cmp FRAME, TC->cur_frame;
+        | cmp FRAME, aword TC->cur_frame;
         | je >1;
         | lea TMP1, [>1];
         | mov aword FRAME->jit_entry_label, TMP1;
@@ -2053,7 +2053,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_POST) {
         /* check if our current frame is the same as it was */
-        | cmp FRAME, TC->cur_frame;
+        | cmp FRAME, aword TC->cur_frame;
         | jne >8;
         /* if it is, we may still be in a goto-handler, so in that
          * case the throwing machinery should have ensured that
