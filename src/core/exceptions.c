@@ -506,8 +506,13 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
 
     if (!ex->body.category)
         ex->body.category = MVM_EX_CAT_CATCH;
-    if (resume_result)
+    if (resume_result) {
         ex->body.resume_addr = *tc->interp_cur_op;
+        /* Ensure that the jit resume label is stored. The throwish
+         * control guard should ensure that the jit entry label point to
+         * a position just after throwing. */
+        ex->body.jit_resume_label = tc->cur_frame->jit_entry_label;
+    }
     lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category, ex->body.payload);
     if (lh.frame == NULL)
         panic_unhandled_ex(tc, ex);
@@ -559,6 +564,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVM_free(ah);
 
     /* Unwind to the thrower of the exception; set PC. */
+    target->jit_entry_label = ex->body.jit_resume_label;
     MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL);
 }
 
