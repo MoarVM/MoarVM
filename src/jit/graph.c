@@ -1587,9 +1587,9 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMint32 category = (MVMuint32)ins->operands[1].lit_i64;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_LITERAL, {
-                                   op == MVM_OP_throwdyn ? MVM_EX_THROW_DYN :
-                                   op == MVM_OP_throwlex ? MVM_EX_THROW_LEX :
-                                                           MVM_EX_THROW_LEXOTIC
+                                   op == MVM_OP_throwcatdyn ? MVM_EX_THROW_DYN :
+                                   op == MVM_OP_throwcatlex ? MVM_EX_THROW_LEX :
+                                                              MVM_EX_THROW_LEXOTIC
                                    } },
                                  { MVM_JIT_LITERAL, { category } },
                                  { MVM_JIT_REG_ADDR, { regi } }};
