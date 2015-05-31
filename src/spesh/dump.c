@@ -325,6 +325,30 @@ static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     append(ds, "\n");
 }
 
+static void dump_arg_guards(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
+    MVMuint16 i;
+    appendf(ds, "%d argument guards\n", g->num_arg_guards);
+
+    for (i = 0; i < g->num_arg_guards; i++) {
+        MVMSpeshGuard *guard = &g->arg_guards[i];
+        switch (guard->kind) {
+        case MVM_SPESH_GUARD_CONC:
+            appendf(ds, "  concrete(%d)\n", guard->slot);
+            break;
+        case MVM_SPESH_GUARD_TYPE:
+            appendf(ds, "  type(%d, %p)\n", guard->slot, guard->match);
+            break;
+        case MVM_SPESH_GUARD_DC_CONC:
+            appendf(ds, "  deconted_concrete(%d)\n", guard->slot);
+            break;
+        case MVM_SPESH_GUARD_DC_TYPE:
+            appendf(ds, "  deconted_type(%d, %p)\n", guard->slot, guard->match);
+            break;
+        }
+    }
+    append(ds, "\n");
+}
+
 static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &g->sf->body, 0);
     MVMCompUnit            *cu = g->sf->body.cu;
@@ -363,7 +387,9 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     append(&ds, ")\n");
     if (g->cs)
         dump_callsite(tc, &ds, g);
-    else
+    if (g->num_arg_guards)
+        dump_arg_guards(tc, &ds, g);
+    if (!g->cs && !g->num_arg_guards)
         append(&ds, "\n");
 
     /* Go over all the basic blocks and dump them. */
