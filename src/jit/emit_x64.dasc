@@ -509,10 +509,33 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP3;
         break;
     }
+    case MVM_OP_sp_bind_i:
+    case MVM_OP_sp_bind_n:
+    case MVM_OP_sp_bind_s:
+    case MVM_OP_sp_bind_o: {
+        MVMint16 obj    = ins->operands[0].reg.orig;
+        MVMint16 offset = ins->operands[1].callsite_idx;
+        MVMint16 val    = ins->operands[2].reg.orig;
+        | mov TMP1, WORK[obj];            // object
+        | mov TMP2, WORK[val];            // value
+        if (op == MVM_OP_sp_bind_o || op == MVM_OP_sp_bind_s) {
+            /* check if we should hit write barrier */
+            | check_wb TMP1, TMP2;
+            | jz >2;
+            | mov qword [rbp-0x28], TMP2; // store value
+            | mov qword [rbp-0x30], TMP1; // store body pointer
+            | hit_wb WORK[obj];
+            | mov TMP1, qword [rbp-0x30]; // restore body pointer
+            | mov TMP2, qword [rbp-0x28]; // restore value
+            |2: // done
+        }
+        | mov [TMP1+offset], TMP2; // store value into body
+        break;
+    }
     case MVM_OP_sp_p6obind_i:
     case MVM_OP_sp_p6obind_n:
-    case MVM_OP_sp_p6obind_o:
-    case MVM_OP_sp_p6obind_s: {
+    case MVM_OP_sp_p6obind_s:
+    case MVM_OP_sp_p6obind_o: {
         MVMint16 obj    = ins->operands[0].reg.orig;
         MVMint16 offset = ins->operands[1].callsite_idx;
         MVMint16 val    = ins->operands[2].reg.orig;
