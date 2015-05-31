@@ -7295,7 +7295,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot }
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
         MVM_OP_sp_osrfinalize,
