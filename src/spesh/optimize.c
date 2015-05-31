@@ -225,6 +225,49 @@ static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
     }
 }
 
+static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMuint16             op     = ins->info->opcode;
+
+    switch (op) {
+    case MVM_OP_newexception: {
+        MVMSpeshOperand target   = ins->operands[0];
+        MVMObject      *type     = tc->instance->boot_types.BOOTException;
+        MVMSTable      *st       = STABLE(type);
+        ins->info                = MVM_op_get_op(MVM_OP_sp_fastcreate);
+        ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+        ins->operands[0]         = target;
+        ins->operands[1].lit_i16 = st->size;
+        ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+        fprintf(stderr, "yay, a newexception spesh'd into fastcreate\n");
+        break;
+    }
+    case MVM_OP_bindexmessage:
+    case MVM_OP_bindexpayload: {
+        MVMSpeshOperand target   = ins->operands[0];
+        MVMSpeshOperand value    = ins->operands[1];
+        fprintf(stderr, "yay, a %s spesh'd into sp_bind_*\n", ins->info->name);
+        ins->info                = MVM_op_get_op(op == MVM_OP_bindexmessage ? MVM_OP_sp_bind_s : MVM_OP_sp_bind_o);
+        ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+        ins->operands[0]         = target;
+        ins->operands[1].lit_i16 = op == MVM_OP_bindexmessage ? offsetof(MVMException, body.message)
+                                                              : offsetof(MVMException, body.payload);
+        ins->operands[2]         = value;
+        break;
+    }
+    case MVM_OP_bindexcategory: {
+        MVMSpeshOperand target   = ins->operands[0];
+        MVMSpeshOperand category = ins->operands[1];
+        ins->info                = MVM_op_get_op(MVM_OP_sp_bind_i);
+        ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+        ins->operands[0]         = target;
+        ins->operands[1].lit_i16 = offsetof(MVMException, body.category);
+        ins->operands[2]         = category;
+        fprintf(stderr, "yay, a bindexcategory spesh'd into sp_bind_i\n");
+        break;
+    }
+    }
+}
+
 /* iffy ops that operate on a known value register can turn into goto
  * or be dropped. */
 static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
@@ -1324,6 +1367,15 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_box_n:
         case MVM_OP_box_s:
             optimize_repr_op(tc, g, bb, ins, 2);
+            break;
+        case MVM_OP_newexception:
+        case MVM_OP_bindexmessage:
+        case MVM_OP_bindexpayload:
+        case MVM_OP_bindexcategory:
+        case MVM_OP_getexmessage:
+        case MVM_OP_getexpayload:
+        case MVM_OP_getexcategory:
+            optimize_exception_ops(tc, g, bb, ins);
             break;
         case MVM_OP_hllize:
             optimize_hllize(tc, g, ins);
