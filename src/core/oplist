@@ -706,7 +706,7 @@ scdisclaim          r(obj)
 
 # Used for logging what objects we saw during execution, which is used to do
 # speculative optimizations.
-sp_log           .s r(obj) sslot
+sp_log           .s r(obj) int16
 
 # If we're doing OSR, the logging phase replaces the osrpoint with this op, to
 # trigger the finalization of the optimization process once we do enough loops
