@@ -47,12 +47,17 @@ static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand t
 
 /* Adds a value into a spesh slot and returns its index.
  * If a spesh slot already holds this value, return that instead */
-MVMint16 MVM_spesh_add_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCollectable *c) {
+MVMint16 MVM_spesh_add_spesh_slot_try_reuse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCollectable *c) {
     MVMint16 prev_slot;
     for (prev_slot = 0; prev_slot < g->num_spesh_slots; prev_slot++) {
         if (g->spesh_slots[prev_slot] == c)
             return prev_slot;
     }
+    return MVM_spesh_add_spesh_slot(tc, g, c);
+}
+
+/* Adds a value into a spesh slot and returns its index. */
+MVMint16 MVM_spesh_add_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCollectable *c) {
     if (g->num_spesh_slots >= g->alloc_spesh_slots) {
         g->alloc_spesh_slots += 8;
         if (g->spesh_slots)
@@ -94,7 +99,7 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
         MVMObject *meth = MVM_6model_find_method_cache_only(tc, obj_facts->type, name);
         if (!MVM_is_null(tc, meth)) {
             /* Could compile-time resolve the method. Add it in a spesh slot. */
-            MVMint16 ss = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)meth);
+            MVMint16 ss = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)meth);
 
             /* Tweak facts for the target, given we know the method. */
             MVMSpeshFacts *meth_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
@@ -192,7 +197,7 @@ static void optimize_gethow(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     if (how_obj) {
         MVMSpeshFacts *how_facts;
         /* Transform gethow lookup to spesh slot lookup */
-        MVMint16 spesh_slot = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable*)how_obj);
+        MVMint16 spesh_slot = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable*)how_obj);
         MVM_spesh_get_facts(tc, g, ins->operands[1])->usages--;
         ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
         ins->operands[1].lit_i16 = spesh_slot;
@@ -232,7 +237,7 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
         ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
         ins->operands[0]         = target;
         ins->operands[1].lit_i16 = st->size;
-        ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+        ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)st);
         break;
     }
     case MVM_OP_bindexmessage:
@@ -859,7 +864,7 @@ static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
             MVMSpeshFacts *facts;
 
             /* Place in a spesh slot. */
-            MVMuint16 ss = MVM_spesh_add_spesh_slot(tc, g, log_obj);
+            MVMuint16 ss = MVM_spesh_add_spesh_slot_try_reuse(tc, g, log_obj);
 
             /* Delete logging instruction. */
             MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->next);
@@ -1017,7 +1022,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             ss_ins->info        = MVM_op_get_op(MVM_OP_sp_getspeshslot);
             ss_ins->operands    = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
             ss_ins->operands[0] = ins->operands[callee_idx];
-            ss_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot(tc, g,
+            ss_ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
                 (MVMCollectable *)target);
             /* Basically, we're inserting between arg* and invoke_*.
              * Since invoke_* directly uses the code in the register,
