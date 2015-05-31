@@ -563,7 +563,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVM_frame_dec_ref(tc, ah->frame);
     MVM_free(ah);
 
-    /* Unwind to the thrower of the exception; set PC. */
+    /* Unwind to the thrower of the exception; set PC and jit entry label. */
     target->jit_entry_label = ex->body.jit_resume_label;
     MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL);
 }
