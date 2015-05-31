@@ -50,10 +50,8 @@ static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand t
 MVMint16 MVM_spesh_add_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCollectable *c) {
     MVMint16 prev_slot;
     for (prev_slot = 0; prev_slot < g->num_spesh_slots; prev_slot++) {
-        if (g->spesh_slots[prev_slot] == c) {
-            fprintf(stderr, "%p: re-used previous spesh slot number %d\n", g, prev_slot);
+        if (g->spesh_slots[prev_slot] == c)
             return prev_slot;
-        }
     }
     if (g->num_spesh_slots >= g->alloc_spesh_slots) {
         g->alloc_spesh_slots += 8;
