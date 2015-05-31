@@ -238,14 +238,12 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
         ins->operands[0]         = target;
         ins->operands[1].lit_i16 = st->size;
         ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
-        fprintf(stderr, "yay, a newexception spesh'd into fastcreate\n");
         break;
     }
     case MVM_OP_bindexmessage:
     case MVM_OP_bindexpayload: {
         MVMSpeshOperand target   = ins->operands[0];
         MVMSpeshOperand value    = ins->operands[1];
-        fprintf(stderr, "yay, a %s spesh'd into sp_bind_*\n", ins->info->name);
         ins->info                = MVM_op_get_op(op == MVM_OP_bindexmessage ? MVM_OP_sp_bind_s : MVM_OP_sp_bind_o);
         ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
         ins->operands[0]         = target;
@@ -262,7 +260,6 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
         ins->operands[0]         = target;
         ins->operands[1].lit_i16 = offsetof(MVMException, body.category);
         ins->operands[2]         = category;
-        fprintf(stderr, "yay, a bindexcategory spesh'd into sp_bind_i\n");
         break;
     }
     }
