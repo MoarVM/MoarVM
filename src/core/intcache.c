@@ -3,6 +3,10 @@
 void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
     int type_index;
     int right_slot = -1;
+
+    fprintf(stderr, "making an intcache for %p\n", type);
+    fprintf(stderr, "nursery's at %p and %p right now\n", tc->nursery_fromspace, tc->nursery_tospace);
+
     uv_mutex_lock(&tc->instance->mutex_int_const_cache);
     for (type_index = 0; type_index < 4; type_index++) {
         if (tc->instance->int_const_cache->types[type_index] == NULL) {
@@ -21,6 +25,7 @@ void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
             obj = MVM_repr_alloc_init(tc, type);
             MVM_repr_set_int(tc, obj, val);
             tc->instance->int_const_cache->cache[type_index][val] = obj;
+            fprintf(stderr, "cached int for type %p number %d is %p\n", type, val, obj);
             MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->int_const_cache->cache[type_index][val]);
         }
         tc->instance->int_const_cache->types[type_index] = type;
@@ -45,5 +50,9 @@ MVMObject *MVM_intcache_get(MVMThreadContext *tc, MVMObject *type, MVMint64 valu
     if (right_slot != -1) {
         return tc->instance->int_const_cache->cache[right_slot][value];
     }
+    
+    fprintf(stderr, "tried to get a cached int for %d of type %p but couldn't :(\n", value, type);
+    if (IS_CONCRETE(type)) fprintf(stderr, "oh, it's concrete!\n");
+
     return NULL;
 }

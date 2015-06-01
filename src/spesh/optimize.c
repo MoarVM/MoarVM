@@ -1045,8 +1045,13 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         /* See if we can point the call at a particular specialization. */
         if (target && ((MVMCode *)target)->body.sf->body.instrumentation_level == tc->instance->instrumentation_level) {
             MVMCode *target_code  = (MVMCode *)target;
+            char *str1 = MVM_string_utf8_encode_C_string(tc, g->sf->body.name);
+            char *str2 = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.name);
+            /*fprintf(stderr, "'%s' (%p): looking for inline candidates to '%s'\n", str1, g, str2);*/
+            MVM_free(str2);
             MVMint32 spesh_cand = try_find_spesh_candidate(tc, target_code, arg_info);
             if (spesh_cand >= 0) {
+                /*fprintf(stderr, "'%s' (%p):     candidate number %d is a good choice.\n", str1, g, spesh_cand);*/
                 /* Yes. Will we be able to inline? */
                 MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
                     target_code, &target_code->body.sf->body.spesh_candidates[spesh_cand]);
@@ -1062,10 +1067,12 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                     MVM_free(c_cuid_i);
                     MVM_free(c_name_t);
                     MVM_free(c_cuid_t);*/
+                    /*fprintf(stderr, "'%s' (%p):     doing the inline, YAY!\n", str1, g);*/
                     MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_code);
                 }
                 else {
                     /* Can't inline, so just identify candidate. */
+                    /*fprintf(stderr, "'%s' (%p):     can't inline, boo :(\n", str1, g);*/
                     MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
                     if (ins->info->opcode == MVM_OP_invoke_v) {
                         new_operands[0]         = ins->operands[0];
@@ -1097,6 +1104,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                     }
                 }
             }
+            MVM_free(str1);
         }
     }
 }

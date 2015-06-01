@@ -66,6 +66,8 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     /* Build graph from the already-specialized bytecode. */
     ig = MVM_spesh_graph_create_from_cand(tc, target->body.sf, cand, 0);
 
+    /*fprintf(stderr, "                         survived the simplest checks\n");*/
+
     /* Traverse graph, looking for anything that might prevent inlining and
      * also building usage counts up. */
     bb = ig->entry;
@@ -86,17 +88,23 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
 
             /* Instruction may be marked directly as not being inlinable, in
              * which case we're done. */
-            if (!is_phi && ins->info->no_inline)
+            if (!is_phi && ins->info->no_inline) {
+                /*fprintf(stderr, "                         found instruction %s, which is no_inline.\n", ins->info->name);*/
                 goto not_inlinable;
+            }
 
             /* If we have lexical access, make sure it's within the frame. */
             if (ins->info->opcode == MVM_OP_getlex) {
-                if (ins->operands[1].lex.outers > 0)
+                if (ins->operands[1].lex.outers > 0) {
+                    /*fprintf(stderr, "                         getlex from outers == %d > 0 found!\n", ins->operands[1].lex.outers);*/
                     goto not_inlinable;
+                }
             }
             else if (ins->info->opcode == MVM_OP_bindlex) {
-                if (ins->operands[0].lex.outers > 0)
+                if (ins->operands[0].lex.outers > 0) {
+                    /*fprintf(stderr, "                         bindlex to outers == %d > 0 found!\n", ins->operands[0].lex.outers);*/
                     goto not_inlinable;
+                }
             }
 
             /* Check we don't have too many args for inlining to work out. */
@@ -104,8 +112,10 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                     ins->info->opcode == MVM_OP_sp_getarg_i ||
                     ins->info->opcode == MVM_OP_sp_getarg_n ||
                     ins->info->opcode == MVM_OP_sp_getarg_s) {
-                if (ins->operands[1].lit_i16 >= MAX_ARGS_FOR_OPT)
+                if (ins->operands[1].lit_i16 >= MAX_ARGS_FOR_OPT) {
+                    /*fprintf(stderr, "                         too many arguments for optimization: %d >= %d\n", ins->operands[1].lit_i16, MAX_ARGS_FOR_OPT);*/
                     goto not_inlinable;
+                }
             }
 
             /* Ext-ops need special care in inter-comp-unit inlines. */
