@@ -531,7 +531,7 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
     if (!type || IS_CONCRETE(type)) { \
         MVM_exception_throw_adhoc(tc, "Missing hll " name " box type"); \
     } \
-    box = MVM_intcache_get(tc, type, result); \
+    box = MVM_intcache_get(tc, type, value); \
     if (!box) { \
         box = REPR(type)->allocate(tc, STABLE(type)); \
         if (REPR(box)->initialize) \
