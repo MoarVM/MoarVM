@@ -376,7 +376,7 @@ static void dump_log_values(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g)
                 append(ds, " P6int(type object)");
         } else {
             append(ds, " ");
-            append(ds, STABLE(seen_table[log_index])->REPR->name);
+            append(ds, (char *)STABLE(seen_table[log_index])->REPR->name);
             if (!IS_CONCRETE(seen_table[log_index]))
                 append(ds, "(type object)");
         }
