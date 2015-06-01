@@ -526,6 +526,24 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
         OBJECT_BODY(result), reg, MVM_reg_obj); \
 } while (0)
 
+#define box_slurpy_pos_int(tc, type, result, box, value, reg, box_type_obj, name, set_func) do { \
+    type = (*(tc->interp_cu))->body.hll_config->box_type_obj; \
+    if (!type || IS_CONCRETE(type)) { \
+        MVM_exception_throw_adhoc(tc, "Missing hll " name " box type"); \
+    } \
+    box = MVM_intcache_get(tc, type, result); \
+    if (!box) { \
+        box = REPR(type)->allocate(tc, STABLE(type)); \
+        if (REPR(box)->initialize) \
+            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
+        REPR(box)->box_funcs.set_func(tc, STABLE(box), box, \
+            OBJECT_BODY(box), value); \
+    } \
+    reg.o = box; \
+    REPR(result)->pos_funcs.push(tc, STABLE(result), result, \
+        OBJECT_BODY(result), reg, MVM_reg_obj); \
+} while (0)
+
 MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 pos) {
     MVMObject *type = (*(tc->interp_cu))->body.hll_config->slurpy_array_type, *result = NULL, *box = NULL;
     MVMArgInfo arg_info;
@@ -557,7 +575,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
                 break;
             }
             case MVM_CALLSITE_ARG_INT:{
-                box_slurpy_pos(tc, type, result, box, arg_info.arg.i64, reg, int_box_type, "int", set_int);
+                box_slurpy_pos_int(tc, type, result, box, arg_info.arg.i64, reg, int_box_type, "int", set_int);
                 break;
             }
             case MVM_CALLSITE_ARG_NUM: {
