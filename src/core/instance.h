@@ -72,6 +72,7 @@ struct MVMStringConsts {
     MVMString *refkind;
     MVMString *positional;
     MVMString *lexical;
+    MVMString *restricted;
 };
 
 /* An entry in the representations registry. */
@@ -179,6 +180,9 @@ struct MVMInstance {
     MVMint8 spesh_enabled;
     MVMint8 spesh_inline_enabled;
     MVMint8 spesh_osr_enabled;
+
+    /* Flag for disabling unsafe operations. */
+    MVMint8 unsafe_disabled;
 
     /* Flag for if NFA debugging is enabled. */
     MVMint8 nfa_debug_enabled;

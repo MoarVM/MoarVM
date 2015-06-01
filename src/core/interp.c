@@ -23,6 +23,20 @@
 #define NEXT runloop
 #endif
 
+#define OP_IS_UNSAFE \
+    if (tc->instance->unsafe_disabled) { \
+        const MVMOpInfo *info = MVM_op_get_op(op); \
+        MVM_exception_throw_adhoc(tc, "Operation '%s' is not allowed in a restricted environment", info->name); \
+    } \
+    else { \
+        MVMuint16 type; \
+        MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, tc->instance->str_consts.restricted, &type, tc->cur_frame, 0); \
+        if (lex_reg) { \
+            const MVMOpInfo *info = MVM_op_get_op(op); \
+            MVM_exception_throw_adhoc(tc, "Operation '%s' is not allowed in a restricted environment", info->name); \
+        } \
+    }
+
 static int tracing_enabled = 0;
 
 /* This is the interpreter run loop. We have one of these per thread. */
@@ -1257,6 +1271,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(masttofile):
+                OP_IS_UNSAFE;
                 MVM_mast_to_file(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
                 cur_op += 6;
@@ -3099,97 +3114,120 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(copy_f):
+                OP_IS_UNSAFE;
                 MVM_file_copy(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(append_f):
+                OP_IS_UNSAFE;
                 MVM_exception_throw_adhoc(tc, "append is not supported");
                 goto NEXT;
             OP(rename_f):
+                OP_IS_UNSAFE;
                 MVM_file_rename(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(delete_f):
+                OP_IS_UNSAFE;
                 MVM_file_delete(tc, GET_REG(cur_op, 0).s);
                 cur_op += 2;
                 goto NEXT;
             OP(chmod_f):
+                OP_IS_UNSAFE;
                 MVM_file_chmod(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
             OP(exists_f):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_file_exists(tc, GET_REG(cur_op, 2).s, 0);
                 cur_op += 4;
                 goto NEXT;
             OP(mkdir):
+                OP_IS_UNSAFE;
                 MVM_dir_mkdir(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
             OP(rmdir):
+                OP_IS_UNSAFE;
                 MVM_dir_rmdir(tc, GET_REG(cur_op, 0).s);
                 cur_op += 2;
                 goto NEXT;
             OP(open_dir):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_dir_open(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(read_dir):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).s = MVM_dir_read(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(close_dir):
+                OP_IS_UNSAFE;
                 MVM_dir_close(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
             OP(open_fh):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_file_open_fh(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
             OP(close_fh):
+                OP_IS_UNSAFE;
                 MVM_io_close(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
             OP(read_fhs):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).s = MVM_io_read_string(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
             OP(slurp):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).s = MVM_file_slurp(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
             OP(spew):
+                OP_IS_UNSAFE;
                 MVM_file_spew(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
             OP(write_fhs):
+                /* We do not mark this op as unsafe to allow to say() something. */
                 GET_REG(cur_op, 0).i64 = MVM_io_write_string(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s, 0);
                 cur_op += 6;
                 goto NEXT;
             OP(seek_fh):
+                OP_IS_UNSAFE;
                 MVM_io_seek(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64,
                     GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
             OP(lock_fh):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_io_lock(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
             OP(unlock_fh):
+                OP_IS_UNSAFE;
                 MVM_io_unlock(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
             OP(sync_fh):
+                OP_IS_UNSAFE;
                 MVM_io_flush(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
             OP(trunc_fh):
+                OP_IS_UNSAFE;
                 MVM_io_truncate(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
             OP(eof_fh):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_io_eof(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
@@ -3212,15 +3250,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(connect_sk):
+                OP_IS_UNSAFE;
                 MVM_io_connect(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
             OP(socket):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_io_socket_create(tc, GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
             OP(bind_sk):
+                OP_IS_UNSAFE;
                 MVM_io_bind(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
@@ -3230,6 +3271,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(accept_sk):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_io_accept(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
@@ -3249,25 +3291,31 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(readall_fh):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).s = MVM_io_slurp(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(tell_fh):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_io_tell(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(stat):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 0);
                 cur_op += 6;
                 goto NEXT;
             OP(readline_fh):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).s = MVM_io_readline(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(readlineint_fh):
+                OP_IS_UNSAFE;
                 cur_op += 6;
                 goto NEXT;
             OP(chdir):
+                OP_IS_UNSAFE;
                 MVM_dir_chdir(tc, GET_REG(cur_op, 0).s);
                 cur_op += 2;
                 goto NEXT;
@@ -3323,15 +3371,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getenvhash):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_proc_getenvhash(tc);
                 cur_op += 2;
                 goto NEXT;
             OP(shell):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_proc_shell(tc, GET_REG(cur_op, 2).s,
                     GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o);
                 cur_op += 8;
                 goto NEXT;
             OP(cwd):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).s = MVM_dir_cwd(tc);
                 cur_op += 2;
                 goto NEXT;
@@ -3745,27 +3796,33 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(getpid):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_proc_getpid(tc);
                 cur_op += 2;
                 goto NEXT;
             OP(spawn):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_proc_spawn(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o);
                 cur_op += 8;
                 goto NEXT;
             OP(filereadable):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_file_isreadable(tc, GET_REG(cur_op, 2).s,0);
                 cur_op += 4;
                 goto NEXT;
             OP(filewritable):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_file_iswritable(tc, GET_REG(cur_op, 2).s,0);
                 cur_op += 4;
                 goto NEXT;
             OP(fileexecutable):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_file_isexecutable(tc, GET_REG(cur_op, 2).s,0);
                 cur_op += 4;
                 goto NEXT;
             OP(say_fhs):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_io_write_string(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s, 1);
                 cur_op += 6;
                 goto NEXT;
@@ -3782,11 +3839,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(read_fhb):
+                OP_IS_UNSAFE;
                 MVM_io_read_bytes(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
             OP(write_fhb):
+                OP_IS_UNSAFE;
                 MVM_io_write_bytes(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
@@ -3796,6 +3855,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(openpipe):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_file_openpipe(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).s);
                 cur_op += 10;
                 goto NEXT;
@@ -3804,10 +3864,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(symlink):
+                OP_IS_UNSAFE;
                 MVM_file_symlink(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(link):
+                OP_IS_UNSAFE;
                 MVM_file_link(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
@@ -3885,17 +3947,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(nativecallbuild):
+                OP_IS_UNSAFE;
                 MVM_nativecall_build(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s,
                     GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).s,
                     GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o);
                 cur_op += 12;
                 goto NEXT;
             OP(nativecallinvoke):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_nativecall_invoke(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o);
                 cur_op += 8;
                 goto NEXT;
             OP(nativecallrefresh):
+                OP_IS_UNSAFE;
                 MVM_nativecall_refresh(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
@@ -4090,40 +4155,47 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 10;
                 goto NEXT;
             OP(watchfile):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_io_file_watch(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s, GET_REG(cur_op, 8).o);
                 cur_op += 10;
                 goto NEXT;
             OP(asyncconnect):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_io_socket_connect_async(tc,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
                     GET_REG(cur_op, 8).i64, GET_REG(cur_op, 10).o);
                 cur_op += 12;
                 goto NEXT;
             OP(asynclisten):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_io_socket_listen_async(tc,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
                     GET_REG(cur_op, 8).i64, GET_REG(cur_op, 10).o);
                 cur_op += 12;
                 goto NEXT;
             OP(asyncwritestr):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_io_write_string_async(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).s,
                     GET_REG(cur_op, 10).o);
                 cur_op += 12;
                 goto NEXT;
             OP(asyncwritebytes):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_io_write_bytes_async(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o,
                     GET_REG(cur_op, 10).o);
                 cur_op += 12;
                 goto NEXT;
             OP(asyncreadchars):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_io_read_chars_async(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o);
                 cur_op += 10;
                 goto NEXT;
             OP(asyncreadbytes):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_io_read_bytes_async(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o,
                     GET_REG(cur_op, 10).o);
@@ -4264,17 +4336,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_spesh_osr(tc);
                 goto NEXT;
             OP(nativecallcast):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_nativecall_cast(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o);
                 cur_op += 8;
                 goto NEXT;
             OP(spawnprocasync):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_proc_spawn_async(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
                     GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o);
                 cur_op += 12;
                 goto NEXT;
             OP(killprocasync):
+                OP_IS_UNSAFE;
                 MVM_proc_kill_async(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
@@ -4298,11 +4373,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_gc_enter_from_allocator(tc);
                 goto NEXT;
             OP(nativecallglobal):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).o = MVM_nativecall_global(tc, GET_REG(cur_op, 2).s,
                     GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o);
                 cur_op += 10;
                 goto NEXT;
             OP(close_fhi):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_io_close(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
@@ -4332,10 +4409,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(readlink):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).s = MVM_file_readlink(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(lstat):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 1);
                 cur_op += 6;
                 goto NEXT;
@@ -4493,6 +4572,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             OP(nativecallsizeof):
+                OP_IS_UNSAFE;
                 GET_REG(cur_op, 0).i64 = MVM_nativecall_sizeof(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;

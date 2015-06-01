@@ -139,6 +139,8 @@ MVMInstance * MVM_vm_create_instance(void) {
             instance->spesh_osr_enabled = 1;
     }
 
+    instance->unsafe_disabled = getenv("MVM_UNSAFE_DISABLE") ? 1 : 0;
+
     /* JIT environment/logging setup. */
     jit_disable = getenv("MVM_JIT_DISABLE");
     if (!jit_disable || strlen(jit_disable) == 0)
