@@ -275,13 +275,29 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
     dest = box; \
 } while (0)
 
+#define autobox_int(tc, target, result, dest) do { \
+    MVMObject *box, *box_type; \
+    MVMint64 result_int = result; \
+    box_type = target->static_info->body.cu->body.hll_config->int_box_type; \
+    dest = MVM_intcache_get(tc, box_type, result_int); \
+    if (!dest) { \
+        box = REPR(box_type)->allocate(tc, STABLE(box_type)); \
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&box); \
+        if (REPR(box)->initialize) \
+            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
+        REPR(box)->box_funcs.set_int(tc, STABLE(box), box, OBJECT_BODY(box), result_int); \
+        MVM_gc_root_temp_pop(tc); \
+        dest = box; \
+    } \
+} while (0)
+
 #define autobox_switch(tc, result) do { \
     if (result.exists) { \
         switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
             case MVM_CALLSITE_ARG_OBJ: \
                 break; \
             case MVM_CALLSITE_ARG_INT: \
-                autobox(tc, tc->cur_frame, result.arg.i64, int_box_type, 0, set_int, result.arg.o); \
+                autobox_int(tc, tc->cur_frame, result.arg.i64, result.arg.o); \
                 break; \
             case MVM_CALLSITE_ARG_NUM: \
                 autobox(tc, tc->cur_frame, result.arg.n64, num_box_type, 0, set_num, result.arg.o); \
