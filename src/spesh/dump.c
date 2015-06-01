@@ -368,7 +368,19 @@ static void dump_log_values(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g)
     append(ds, "\n");
 
     for (log_index = 0; log_index < seen_table_size && seen_table[log_index]; log_index++) {
-        appendf(ds, "    %d: %p\n", log_index + 1, seen_table[log_index]);
+        appendf(ds, "    %d: %p", log_index + 1, seen_table[log_index]);
+        if (STABLE(seen_table[log_index])->REPR->ID == MVM_REPR_ID_P6int) {
+            if (IS_CONCRETE(seen_table[log_index]))
+                appendf(ds, " P6int(%d)", MVM_repr_get_int(tc, (MVMObject*)seen_table[log_index]));
+            else
+                append(ds, " P6int(type object)");
+        } else {
+            append(ds, " ");
+            append(ds, STABLE(seen_table[log_index])->REPR->name);
+            if (!IS_CONCRETE(seen_table[log_index]))
+                append(ds, "(type object)");
+        }
+        append(ds, "\n");
     }
 
     append(ds, "\n");
