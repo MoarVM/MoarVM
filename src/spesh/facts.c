@@ -51,6 +51,24 @@ static void create_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 obj_o
     }
 }
 
+static void create_facts_with_type(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                   MVMuint16 obj_orig, MVMuint16 obj_i,
+                                   MVMObject *type) {
+    MVMSpeshFacts *obj_facts  = &(g->facts[obj_orig][obj_i]);
+
+    /* The type is carried. */
+    obj_facts->type   = type;
+    obj_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+
+    /* We know it's a concrete object. */
+    obj_facts->flags |= MVM_SPESH_FACT_CONCRETE;
+
+    /* If we know the type object, then we can check to see if
+     * it's a container type. */
+    if (type && !STABLE(type)->container_spec)
+        obj_facts->flags |= MVM_SPESH_FACT_DECONTED;
+}
+
 /* Adds facts from knowing the exact value being put into an object local. */
 static void object_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_orig,
                          MVMuint16 tgt_i, MVMObject *obj) {
@@ -466,6 +484,11 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             iter_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[1].reg.orig, ins->operands[1].reg.i);
+            break;
+        case MVM_OP_newexception:
+            create_facts_with_type(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                tc->instance->boot_types.BOOTException);
             break;
         case MVM_OP_const_i64:
         case MVM_OP_const_i32:

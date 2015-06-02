@@ -17,6 +17,7 @@ struct MVMExceptionBody {
 
     /* Where should we resume to, if it's possible? */
     MVMuint8 *resume_addr;
+    void     *jit_resume_label;
 };
 struct MVMException {
     MVMObject common;

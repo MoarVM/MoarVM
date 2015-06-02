@@ -470,7 +470,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | mov TMP2, qword [rbp-0x28];
             |3:
             /* store vivified type value in memory location */
-            | mov [TMP2], TMP3;
+            | mov qword [TMP2], TMP3;
             |4:
         } else if (op == MVM_OP_sp_p6ogetvc_o) {
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
@@ -498,7 +498,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | mov TMP3, qword [rbp-0x30];
             | mov TMP2, qword [rbp-0x28];
             |3:
-            | mov [TMP2], TMP3;
+            | mov qword [TMP2], TMP3;
             /* done */
             |4:
         } else {
@@ -509,12 +509,35 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP3;
         break;
     }
+    case MVM_OP_sp_bind_i:
+    case MVM_OP_sp_bind_n:
+    case MVM_OP_sp_bind_s:
+    case MVM_OP_sp_bind_o: {
+        MVMint16 obj    = ins->operands[0].reg.orig;
+        MVMint16 offset = ins->operands[1].lit_i16;
+        MVMint16 val    = ins->operands[2].reg.orig;
+        | mov TMP1, WORK[obj];            // object
+        | mov TMP2, WORK[val];            // value
+        if (op == MVM_OP_sp_bind_o || op == MVM_OP_sp_bind_s) {
+            /* check if we should hit write barrier */
+            | check_wb TMP1, TMP2;
+            /* note: it is uneccesary to store pointers, because they
+               can just be loaded from memory */
+            | jz >2;
+            | hit_wb WORK[obj];
+            | mov TMP1, aword WORK[obj]; // reload object
+            | mov TMP2, aword WORK[val]; // reload value
+            |2: // done
+        }
+        | mov qword [TMP1+offset], TMP2; // store value into body
+        break;
+    }
     case MVM_OP_sp_p6obind_i:
     case MVM_OP_sp_p6obind_n:
-    case MVM_OP_sp_p6obind_o:
-    case MVM_OP_sp_p6obind_s: {
+    case MVM_OP_sp_p6obind_s:
+    case MVM_OP_sp_p6obind_o: {
         MVMint16 obj    = ins->operands[0].reg.orig;
-        MVMint16 offset = ins->operands[1].callsite_idx;
+        MVMint16 offset = ins->operands[1].lit_i16;
         MVMint16 val    = ins->operands[2].reg.orig;
         | mov TMP1, WORK[obj];            // object
         | mov TMP2, WORK[val];            // value
@@ -2027,7 +2050,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
                           MVMJitControl *ctrl, dasm_State **Dst) {
     if (ctrl->type == MVM_JIT_CONTROL_INVOKISH) {
         MVM_jit_log(tc, "Emit invokish control guard\n");
-        | cmp FRAME, TC->cur_frame;
+        | cmp FRAME, aword TC->cur_frame;
         | je >1;
         | lea TMP1, [>1];
         | mov aword FRAME->jit_entry_label, TMP1;
@@ -2037,30 +2060,38 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     else if (ctrl->type == MVM_JIT_CONTROL_DYNAMIC_LABEL) {
         MVM_jit_log(tc, "Emit throwish control guard\n");
-        /* This pre-loads a label for the next op, so that
-         * throwish operators will know where we're throwing
-         * from */
+        /* This pre-loads a label for the next op, so that throwish
+         * operators will know where we're throwing from - NB, I'm not
+         * totally sure this is still necessary now */
         | lea TMP1, [>1];
         | mov aword FRAME->jit_entry_label, TMP1;
         |1:
     }
     else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_PRE) {
-        /* Store our current handler, so we can check if something
-           was thrown */
-        | mov TMP1, aword TC->active_handlers;
-        | mov aword [rbp-0x28], TMP1;
+        /* Store a reference to the 9 label below. I assume this label
+         * isn't used in the intermediate instructions, which is
+         * basically valid throughout this codebase. */
+        | lea TMP1, [>9];
+        | mov aword FRAME->jit_entry_label, TMP1;
     }
     else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_POST) {
-        /* check if our current handler is the same as it was */
-        | mov TMP1, aword TC->active_handlers;
-        | mov TMP2, aword [rbp-0x28];
-        | cmp TMP1, TMP2;
-        | je >1;
-        /*if not, fallout to interpreter */
+        /* check if our current frame is the same as it was */
+        | cmp FRAME, aword TC->cur_frame;
+        | jne >8;
+        /* if it is, we may still be in a goto-handler, so in that
+         * case the throwing machinery should have ensured that
+         * jit_entry_label now points to the correct label. If not, it
+         * still points to 9:. */
+        | jmp aword FRAME->jit_entry_label;
+        /* if not the same frame, trampoline to interpreter */
+        |8:
         | mov RV, 1;
         | jmp ->out;
-        |1:
+        /* I assume we *never* use a local label 9 in the code between
+         * pre-and-post throwish */
+        |9:
     } else if (ctrl->type == MVM_JIT_CONTROL_BREAKPOINT) {
+        /* brrts evil testing purposes breakpoint */
         | int 3;
     } else {
         MVM_panic(1, "Unknown conrtol code: <%s>", ctrl->ins->info->name);
