@@ -334,6 +334,8 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     ba = get_bigint_body(tc, a); \
     bb = get_bigint_body(tc, b); \
     if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) { \
+        mp_int *tmp[2] = { NULL, NULL }; \
+        mp_int *ia, *ib, *ic; \
         MVMROOT(tc, a, { \
         MVMROOT(tc, b, { \
             result = MVM_repr_alloc_init(tc, result_type);\
@@ -342,10 +344,9 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
         ba = get_bigint_body(tc, a); \
         bb = get_bigint_body(tc, b); \
         bc = get_bigint_body(tc, result); \
-        mp_int *tmp[2] = { NULL, NULL }; \
-        mp_int *ia = force_bigint(ba, tmp); \
-        mp_int *ib = force_bigint(bb, tmp); \
-        mp_int *ic = MVM_malloc(sizeof(mp_int)); \
+        ia = force_bigint(ba, tmp); \
+        ib = force_bigint(bb, tmp); \
+        ic = MVM_malloc(sizeof(mp_int)); \
         mp_init(ic); \
         mp_##opname(ia, ib, ic); \
         store_bigint_result(bc, ic); \
