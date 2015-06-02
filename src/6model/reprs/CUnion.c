@@ -175,6 +175,13 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     repr_data->num_child_objs++;
                     repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CUNION_ATTR_SHIFT) | MVM_CUNION_ATTR_STRING;
                     repr_data->member_types[i] = type;
+                    repr_data->flattened_stables[i] = STABLE(type);
+                    if (REPR(type)->initialize) {
+                        if (!repr_data->initialize_slots)
+                            repr_data->initialize_slots = (MVMint32 *) MVM_calloc(info_alloc + 1, sizeof(MVMint32));
+                        repr_data->initialize_slots[cur_init_slot] = i;
+                        cur_init_slot++;
+                    }
                 }
                 else if (type_id == MVM_REPR_ID_MVMCArray) {
                     /* It's a CArray of some kind.  */
@@ -450,6 +457,8 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     ((char *)body->cunion) + repr_data->struct_offsets[slot]);
             else
                 MVM_exception_throw_adhoc(tc, "CUnion: invalid native get of object attribute");
+            if (!result_reg->s)
+                result_reg->s = tc->instance->str_consts.empty;
             break;
         }
         default:
@@ -478,13 +487,13 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         switch (kind) {
         case MVM_reg_obj: {
             MVMObject *value = value_reg.o;
+            MVMint32   type  = repr_data->attribute_locations[slot] & MVM_CUNION_ATTR_MASK;
 
-            if (attr_st) {
+            if (type == MVM_CUNION_ATTR_IN_STRUCT) {
                 MVM_exception_throw_adhoc(tc,
                     "CUnion can't perform boxed bind on flattened attributes yet");
             }
             else {
-                MVMint32   type      = repr_data->attribute_locations[slot] & MVM_CUNION_ATTR_MASK;
                 MVMint32   real_slot = repr_data->attribute_locations[slot] >> MVM_CUNION_ATTR_SHIFT;
 
                 if (IS_CONCRETE(value)) {
