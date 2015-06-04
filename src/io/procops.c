@@ -161,16 +161,16 @@ static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_sign
 
 static void setup_process_stdio(MVMThreadContext *tc, MVMObject *handle, uv_process_t *process,
         uv_stdio_container_t *stdio, int fd, MVMint64 flags, const char *op) {
-    uv_stream_t       *stream;
-    MVMIOSyncPipeData *pipedata;
-
-    if (REPR(handle)->ID != MVM_REPR_ID_MVMOSHandle)
-        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", op);
-
-    pipedata          = (MVMIOSyncPipeData *)((MVMOSHandle *)handle)->body.data;
-    pipedata->process = process;
-
     if (flags & MVM_PIPE_CAPTURE) {
+        uv_stream_t       *stream;
+        MVMIOSyncPipeData *pipedata;
+
+        if (REPR(handle)->ID != MVM_REPR_ID_MVMOSHandle)
+            MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", op);
+
+        pipedata           = (MVMIOSyncPipeData *)((MVMOSHandle *)handle)->body.data;
+        pipedata->process  = process;
+
         stdio->flags       = UV_CREATE_PIPE | (fd == 0 ? UV_READABLE_PIPE : UV_WRITABLE_PIPE);
         stdio->data.stream = pipedata->ss.handle;
     }
@@ -940,7 +940,7 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
             si->ds_stdout = NULL;
         }
         if (si->ds_stderr) {
-            MVM_string_decodestream_destory(tc, si->ds_stderr);
+            MVM_string_decodestream_destory(tc, si->ds_stdout);
             si->ds_stderr = NULL;
         }
         MVM_free(si);
