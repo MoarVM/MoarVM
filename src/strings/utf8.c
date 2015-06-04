@@ -132,7 +132,7 @@ static unsigned classify(MVMCodepoint cp) {
 static MVMint32 utf8_encode(MVMuint8 *bp, MVMCodepoint cp) {
     unsigned cc = classify(cp);
 
-    if (!(cc & CP_CHAR))
+    if (!(cc & (CP_CHAR | CP_NONCHAR)))
         return 0;
 
     if (cc & U8_SINGLE) {
