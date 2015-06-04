@@ -581,7 +581,7 @@ read_fhb            r(obj) r(obj) r(int64)
 write_fhb           r(obj) r(obj)
 replace             w(str) r(str) r(int64) r(int64) r(str)
 newexception        w(obj)
-openpipe            w(obj) r(str) r(str) r(obj) r(str)
+openpipe            w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 backtrace           w(obj) r(obj)
 symlink             r(str) r(str)
 link                r(str) r(str)
@@ -700,6 +700,7 @@ eqatim_s            w(int64) r(str) r(str) r(int64) :pure
 ordbaseat           w(int64) r(str) r(int64) :pure
 neverrepossess      r(obj)
 scdisclaim          r(obj)
+syncpipe            w(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

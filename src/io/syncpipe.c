@@ -7,16 +7,6 @@
 /* This heavily re-uses the logic from syncstream, but with different close
  * and gc_free semantics. */
 
- /* Data that we keep for a pipe-based handle. */
-struct MVMIOSyncPipeData {
-    /* Start with same fields as a sync stream, since we will re-use most
-     * of its logic. */
-    MVMIOSyncStreamData ss;
-
-    /* Also need to keep hold of the process */
-    uv_process_t *process;
-};
-
 /* Closes the pipe. */
 static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
 #ifdef _WIN32
@@ -99,11 +89,12 @@ static const MVMIOOps op_table = {
 };
 
 /* Creates a sync pipe handle. */
-MVMObject * MVM_io_syncpipe(MVMThreadContext *tc, uv_stream_t *handle, uv_process_t *process) {
+MVMObject * MVM_io_syncpipe(MVMThreadContext *tc) {
     MVMOSHandle       * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     MVMIOSyncPipeData * const data   = MVM_calloc(1, sizeof(MVMIOSyncPipeData));
-    data->process     = process;
-    data->ss.handle   = handle;
+    uv_pipe_t *handle = MVM_malloc(sizeof(uv_pipe_t));
+    uv_pipe_init(tc->loop, handle, 0);
+    data->ss.handle   = (uv_stream_t *)handle;
     data->ss.encoding = MVM_encoding_type_utf8;
     data->ss.sep      = '\n';
     result->body.ops  = &op_table;
