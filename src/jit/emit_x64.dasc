@@ -303,6 +303,14 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[reg], TMP1;
         break;
     }
+    case MVM_OP_nan: {
+        MVMint16 reg = ins->operands[0].reg.orig;
+        MVMRegister tmp;
+        tmp.n64 = MVM_num_nan(tc);
+        | mov64 TMP1, tmp.i64;
+        | mov WORK[reg], TMP1;
+        break;
+    }
     case MVM_OP_const_s: {
          MVMint16 reg = ins->operands[0].reg.orig;
          MVMuint32 idx = ins->operands[1].lit_str_idx;

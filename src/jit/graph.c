@@ -1396,6 +1396,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_const_i64_32:
     case MVM_OP_const_i64:
     case MVM_OP_const_n64:
+    case MVM_OP_nan:
     case MVM_OP_const_s:
     case MVM_OP_null:
         /* argument reading */
