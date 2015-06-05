@@ -375,11 +375,11 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
                     num_threads += add;
                 }
             }
-        } while (MVM_load(&tc->instance->gc_start) > 1);
 
-        /* If there's an event loop thread, wake it up to participate. */
-        if (tc->instance->event_loop_wakeup)
-            uv_async_send(tc->instance->event_loop_wakeup);
+            /* If there's an event loop thread, wake it up to participate. */
+            if (tc->instance->event_loop_wakeup)
+                uv_async_send(tc->instance->event_loop_wakeup);
+        } while (MVM_load(&tc->instance->gc_start) > 1);
 
         /* Sanity checks. */
         if (!MVM_trycas(&tc->instance->threads, NULL, last_starter))
