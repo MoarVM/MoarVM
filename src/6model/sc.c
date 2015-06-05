@@ -149,12 +149,20 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
     return sc;
 }
 
+/* Checks if an SC is currently in the process of doing deserialization work. */
+MVM_STATIC_INLINE MVMint64 sc_working(MVMSerializationContext *sc) {
+    MVMSerializationReader *sr = sc->body->sr;
+    return sr && sr->working;
+}
+
 /* Given an SC and an index, fetch the object stored there. */
 MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     MVMObject **roots = sc->body->root_objects;
     MVMint64    count = sc->body->num_objects;
     if (idx >= 0 && idx < count)
-        return roots[idx] ? roots[idx] : MVM_serialization_demand_object(tc, sc, idx);
+        return roots[idx] && !sc_working(sc)
+            ? roots[idx]
+            : MVM_serialization_demand_object(tc, sc, idx);
     else
         MVM_exception_throw_adhoc(tc,
             "Probable version skew in pre-compiled '%s' (cause: no object at index %"PRId64")",
@@ -213,7 +221,7 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
 MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     if (idx >= 0 && idx < sc->body->num_stables) {
         MVMSTable *got = sc->body->root_stables[idx];
-        return got ? got : MVM_serialization_demand_stable(tc, sc, idx);
+        return got && !sc_working(sc) ? got : MVM_serialization_demand_stable(tc, sc, idx);
     }
     else {
         MVM_exception_throw_adhoc(tc,
@@ -275,7 +283,7 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
     MVMuint64   count = MVM_repr_elems(tc, roots);
     if (idx < count) {
         MVMObject *found = MVM_repr_at_pos_o(tc, roots, idx);
-        return MVM_is_null(tc, found)
+        return MVM_is_null(tc, found) || sc_working(sc)
             ? MVM_serialization_demand_code(tc, sc, idx)
             : found;
     }
