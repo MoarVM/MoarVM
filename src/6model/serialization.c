@@ -2394,10 +2394,17 @@ static void work_loop(MVMThreadContext *tc, MVMSerializationReader *sr) {
 
 /* Demands that we finish deserializing an object. */
 MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
-    /* Flag that we're working on some deserialization (and so will run the
-     * loop). */
+    /* Obtain lock and check we didn't lose a race to deserialize this
+     * object. */
     MVMSerializationReader *sr = sc->body->sr;
     MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+    if (sc->body->root_objects[idx]) {
+        MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
+        return sc->body->root_objects[idx];
+    }
+
+    /* Flag that we're working on some deserialization (and so will run the
+     * loop). */
     sr->working++;
     MVM_gc_allocate_gen2_default_set(tc);
 
@@ -2420,10 +2427,17 @@ MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializati
 
 /* Demands that we finish deserializing an STable. */
 MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
-    /* Flag that we're working on some deserialization (and so will run the
-     * loop). */
+    /* Obtain lock and ensure we didn't lose a race to deserialize this
+     * STable. */
     MVMSerializationReader *sr = sc->body->sr;
     MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+    if (sc->body->root_stables[idx]) {
+        MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
+        return sc->body->root_stables[idx];
+    }
+
+    /* Flag that we're working on some deserialization (and so will run the
+     * loop). */
     sr->working++;
     MVM_gc_allocate_gen2_default_set(tc);
 
@@ -2446,10 +2460,17 @@ MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializati
 
 /* Demands that we finish deserializing a coderef. */
 MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
-    /* Flag that we're working on some deserialization (and so will run the
-     * loop). */
+    /* Obtain lock and ensure we didn't lose a race to deserialize this
+     * code object. */
     MVMSerializationReader *sr = sc->body->sr;
     MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+    if (!MVM_is_null(tc, MVM_repr_at_pos_o(tc, sr->codes_list, idx))) {
+        MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
+        return MVM_repr_at_pos_o(tc, sr->codes_list, idx);
+    }
+
+    /* Flag that we're working on some deserialization (and so will run the
+     * loop). */
     sr->working++;
     MVM_gc_allocate_gen2_default_set(tc);
 
