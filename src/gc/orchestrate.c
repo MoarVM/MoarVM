@@ -377,6 +377,10 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             }
         } while (MVM_load(&tc->instance->gc_start) > 1);
 
+        /* If there's an event loop thread, wake it up to participate. */
+        if (tc->instance->event_loop_wakeup)
+            uv_async_send(tc->instance->event_loop_wakeup);
+
         /* Sanity checks. */
         if (!MVM_trycas(&tc->instance->threads, NULL, last_starter))
             MVM_panic(MVM_exitcode_gcorch, "threads list corrupted\n");

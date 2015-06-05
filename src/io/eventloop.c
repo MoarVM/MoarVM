@@ -50,47 +50,12 @@ static void async_handler(uv_async_t *handle) {
     cancel_work(tc);
 }
 
-/* Periodic "do we need to join in with GC" check. */
-static void gc_handler(uv_timer_t *handle) {
-    MVMThreadContext *tc = (MVMThreadContext *)handle->data;
-    GC_SYNC_POINT(tc);
-}
-
-/* Prepare/check handlers for GC integration (see explanation in enter_loop). */
-static void prepare_handler(uv_prepare_t *handle) {
-    MVMThreadContext *tc = (MVMThreadContext *)handle->data;
-    MVM_gc_mark_thread_blocked(tc);
-}
-static void check_handler(uv_check_t *handle) {
-    MVMThreadContext *tc = (MVMThreadContext *)handle->data;
-    MVM_gc_mark_thread_unblocked(tc);
-}
-
 /* Enters the event loop. */
 static void enter_loop(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     uv_async_t   *async;
     uv_prepare_t  prep;
     uv_check_t    check;
     int           r;
-
-    /* When the event loop goes to wait for I/O, timers, etc. then it calls
-     * prepare. During this time we mark the thread unable to GC, so that if a
-     * GC is triggered then it will be work-stolen. The check callback happens
-     * after we finish waiting, and can potentially do a GC again. */
-    if ((r = uv_prepare_init(tc->loop, &prep)) < 0)
-        MVM_exception_throw_adhoc(tc,
-            "Failed to initialize event loop prepare handle: %s", uv_strerror(r));
-    if ((r = uv_check_init(tc->loop, &check)) < 0)
-        MVM_exception_throw_adhoc(tc,
-            "Failed to initialize event loop check handle: %s", uv_strerror(r));
-    prep.data = tc;
-    check.data = tc;
-    if ((r = uv_prepare_start(&prep, prepare_handler)) < 0)
-        MVM_exception_throw_adhoc(tc,
-            "Failed to start event loop prepare handle: %s", uv_strerror(r));
-    if ((r = uv_check_start(&check, check_handler)) < 0)
-        MVM_exception_throw_adhoc(tc,
-            "Failed to start event loop check handle: %s", uv_strerror(r));
 
     /* Set up async handler so we can be woken up when there's new tasks. */
     async = MVM_malloc(sizeof(uv_async_t));
