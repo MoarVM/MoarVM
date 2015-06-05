@@ -24,7 +24,8 @@ static void assert_codepoint_array(MVMThreadContext *tc, MVMObject *arr, char *e
 }
 MVM_STATIC_INLINE void maybe_grow_result(MVMCodepoint **result, MVMint64 *result_alloc, MVMint64 needed) {
     if (needed >= *result_alloc) {
-        *result_alloc += 32;
+        while (needed >= *result_alloc)
+            *result_alloc += 32;
         *result = MVM_realloc(*result, *result_alloc * sizeof(MVMCodepoint));
     }
 }
