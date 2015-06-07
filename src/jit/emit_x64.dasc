@@ -303,10 +303,17 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[reg], TMP1;
         break;
     }
+    case MVM_OP_inf:
+    case MVM_OP_neginf:
     case MVM_OP_nan: {
         MVMint16 reg = ins->operands[0].reg.orig;
         MVMRegister tmp;
-        tmp.n64 = MVM_num_nan(tc);
+        if (op == MVM_OP_nan)
+            tmp.n64 = MVM_num_nan(tc);
+        else if (op == MVM_OP_inf)
+            tmp.n64 = MVM_num_posinf(tc);
+        else if (op == MVM_OP_neginf)
+            tmp.n64 = MVM_num_neginf(tc);
         | mov64 TMP1, tmp.i64;
         | mov WORK[reg], TMP1;
         break;
