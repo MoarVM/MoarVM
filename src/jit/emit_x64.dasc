@@ -21,6 +21,7 @@
 |.type P6OBODY, MVMP6opaqueBody
 |.type MVMITER, MVMIter
 |.type MVMINSTANCE, MVMInstance
+|.type MVMACTIVEHANDLERS, MVMActiveHandler
 |.type OBJECT, MVMObject
 |.type STOOGE, MVMObjectStooge
 |.type COLLECTABLE, MVMCollectable
@@ -1298,6 +1299,21 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         /* throw an exception */
         | throw_adhoc "lexoticresult needs a Lexotic";
         /* we never return from an adhoc exception, so no need to deal with that */
+        |2:
+        break;
+    }
+    case MVM_OP_exception: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP1, TC->active_handlers;
+        | test TMP1, TMP1;
+        | jz >1;
+        | mov TMP1, [TMP1];
+        | mov TMP1, MVMACTIVEHANDLERS:TMP1->ex_obj;
+        | mov WORK[dst], TMP1;
+        | jmp >2;
+        |1:
+        | get_vmnull TMP1;
+        | mov WORK[dst], TMP1;
         |2:
         break;
     }

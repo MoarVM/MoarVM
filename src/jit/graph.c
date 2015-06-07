@@ -1455,6 +1455,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_objprimspec:
     case MVM_OP_takehandlerresult:
     case MVM_OP_lexoticresult:
+    case MVM_OP_exception:
     case MVM_OP_scwbdisable:
     case MVM_OP_scwbenable:
     case MVM_OP_assign:
