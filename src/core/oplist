@@ -726,10 +726,10 @@ sp_guardcontconc .s r(obj) sslot sslot
 sp_guardconttype .s r(obj) sslot sslot
 
 # Following are for fast, unchecked grabbing of args from the arg buffer.
-sp_getarg_o      .s w(obj) int16
-sp_getarg_i      .s w(obj) int16
-sp_getarg_n      .s w(obj) int16
-sp_getarg_s      .s w(obj) int16
+sp_getarg_o      .s w(obj) int16 :pure
+sp_getarg_i      .s w(obj) int16 :pure
+sp_getarg_n      .s w(obj) int16 :pure
+sp_getarg_s      .s w(obj) int16 :pure
 
 # Fast invocation.
 sp_fastinvoke_v  .s r(obj) int16
