@@ -245,7 +245,8 @@ MVMint64 MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd,
     return process->pid;
 }
 
-MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
+MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env,
+        MVMObject *in, MVMObject *out, MVMObject *err, MVMint64 flags) {
     MVMint64 result = 0, spawn_result;
     uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
@@ -275,20 +276,48 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 #endif
 
     INIT_ENV();
-    SPAWN(_cmd);
-    FREE_ENV();
+    setup_process_stdio(tc, in,  process, &process_stdio[0], 0, flags,      "shell");
+    setup_process_stdio(tc, out, process, &process_stdio[1], 1, flags >> 3, "shell");
+    setup_process_stdio(tc, err, process, &process_stdio[2], 2, flags >> 6, "shell");
 
-    MVM_free(_cwd);
-
+    process_options.stdio       = process_stdio;
+    process_options.file        = _cmd;
+    process_options.args        = args;
+    process_options.cwd         = _cwd;
+    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
+    process_options.env         = _env;
+    process_options.stdio_count = 3;
+    process_options.exit_cb     = spawn_on_exit;
+    process->data               = MVM_calloc(1, sizeof(MVMint64));
+    uv_ref((uv_handle_t *)process);
+    spawn_result = uv_spawn(tc->loop, process, &process_options);
+    if (spawn_result) {
+        FREE_ENV();
+        MVM_free(_cwd);
 #ifdef _WIN32
     MVM_free(_cmd);
 #endif
+        MVM_free(cmdin);
+        uv_unref((uv_handle_t *)process);
+        MVM_exception_throw_adhoc(tc, "Failed to spawn process via shell: %d", errno);
+    }
+    else if (!(flags & (MVM_PIPE_CAPTURE_IN | MVM_PIPE_CAPTURE_OUT | MVM_PIPE_CAPTURE_ERR))) {
+        uv_run(tc->loop, UV_RUN_DEFAULT);
+    }
 
+    FREE_ENV();
+    MVM_free(_cwd);
+#ifdef _WIN32
+    MVM_free(_cmd);
+#endif
     MVM_free(cmdin);
+    uv_unref((uv_handle_t *)process);
+
     return result;
 }
 
-MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env) {
+MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env,
+        MVMObject *in, MVMObject *out, MVMObject *err, MVMint64 flags) {
     MVMint64 result = 0, spawn_result;
     uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
@@ -311,10 +340,38 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
     args[arg_size] = NULL;
 
     INIT_ENV();
-    SPAWN(arg_size ? args[0] : NULL);
-    FREE_ENV();
+    setup_process_stdio(tc, in,  process, &process_stdio[0], 0, flags,      "spawn");
+    setup_process_stdio(tc, out, process, &process_stdio[1], 1, flags >> 3, "spawn");
+    setup_process_stdio(tc, err, process, &process_stdio[2], 2, flags >> 6, "spawn");
 
+    process_options.stdio       = process_stdio;
+    process_options.file        = arg_size ? args[0] : NULL;
+    process_options.args        = args;
+    process_options.cwd         = _cwd;
+    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
+    process_options.env         = _env;
+    process_options.stdio_count = 3;
+    process_options.exit_cb     = spawn_on_exit;
+    process->data               = MVM_calloc(1, sizeof(MVMint64));
+    uv_ref((uv_handle_t *)process);
+    spawn_result = uv_spawn(tc->loop, process, &process_options);
+    if (spawn_result) {
+        FREE_ENV();
+        MVM_free(_cwd);
+        uv_unref((uv_handle_t *)process);
+        i = 0;
+        while(args[i])
+            MVM_free(args[i++]);
+        MVM_free(args);
+        MVM_exception_throw_adhoc(tc, "Failed to spawn process: %d", errno);
+    }
+    else if (!(flags & (MVM_PIPE_CAPTURE_IN | MVM_PIPE_CAPTURE_OUT | MVM_PIPE_CAPTURE_ERR))) {
+        uv_run(tc->loop, UV_RUN_DEFAULT);
+    }
+
+    FREE_ENV();
     MVM_free(_cwd);
+    uv_unref((uv_handle_t *)process);
 
     i = 0;
     while(args[i])

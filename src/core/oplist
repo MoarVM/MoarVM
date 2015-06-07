@@ -548,7 +548,7 @@ newthread           w(obj) r(obj) r(int64)
 threadjoin          r(obj)
 time_n              w(num64)
 exit                r(int64)
-shell               w(int64) r(str) r(str) r(obj)
+shell               w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 cwd                 w(str)
 clargs              w(obj)
 getenvhash          w(obj)
@@ -571,7 +571,7 @@ inf                 w(num64) :pure
 neginf              w(num64) :pure
 nan                 w(num64) :pure
 getpid              w(int64) :pure
-spawn               w(int64) r(obj) r(str) r(obj)
+spawn               w(int64) r(obj) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 filereadable        w(int64) r(str)
 filewritable        w(int64) r(str)
 fileexecutable      w(int64) r(str)
