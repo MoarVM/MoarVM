@@ -288,21 +288,21 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     process_options.env         = _env;
     process_options.stdio_count = 3;
     process_options.exit_cb     = spawn_on_exit;
-    process->data               = MVM_calloc(1, sizeof(MVMint64));
-    uv_ref((uv_handle_t *)process);
-    spawn_result = uv_spawn(tc->loop, process, &process_options);
-    if (spawn_result) {
-        FREE_ENV();
-        MVM_free(_cwd);
-#ifdef _WIN32
-    MVM_free(_cmd);
-#endif
-        MVM_free(cmdin);
-        uv_unref((uv_handle_t *)process);
-        MVM_exception_throw_adhoc(tc, "Failed to spawn process via shell: %d", errno);
+    if (flags & (MVM_PIPE_CAPTURE_IN | MVM_PIPE_CAPTURE_OUT | MVM_PIPE_CAPTURE_ERR)) {
+        process->data = MVM_calloc(1, sizeof(MVMint64));
+        uv_ref((uv_handle_t *)process);
+        spawn_result = uv_spawn(tc->loop, process, &process_options);
+        if (spawn_result)
+            result = spawn_result;
     }
-    else if (!(flags & (MVM_PIPE_CAPTURE_IN | MVM_PIPE_CAPTURE_OUT | MVM_PIPE_CAPTURE_ERR))) {
-        uv_run(tc->loop, UV_RUN_DEFAULT);
+    else {
+        process->data = &result;
+        uv_ref((uv_handle_t *)process);
+        spawn_result = uv_spawn(tc->loop, process, &process_options);
+        if (spawn_result)
+            result = spawn_result;
+        else
+            uv_run(tc->loop, UV_RUN_DEFAULT);
     }
 
     FREE_ENV();
@@ -352,21 +352,21 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
     process_options.env         = _env;
     process_options.stdio_count = 3;
     process_options.exit_cb     = spawn_on_exit;
-    process->data               = MVM_calloc(1, sizeof(MVMint64));
-    uv_ref((uv_handle_t *)process);
-    spawn_result = uv_spawn(tc->loop, process, &process_options);
-    if (spawn_result) {
-        FREE_ENV();
-        MVM_free(_cwd);
-        uv_unref((uv_handle_t *)process);
-        i = 0;
-        while(args[i])
-            MVM_free(args[i++]);
-        MVM_free(args);
-        MVM_exception_throw_adhoc(tc, "Failed to spawn process: %d", errno);
+    if (flags & (MVM_PIPE_CAPTURE_IN | MVM_PIPE_CAPTURE_OUT | MVM_PIPE_CAPTURE_ERR)) {
+        process->data = MVM_calloc(1, sizeof(MVMint64));
+        uv_ref((uv_handle_t *)process);
+        spawn_result = uv_spawn(tc->loop, process, &process_options);
+        if (spawn_result)
+            result = spawn_result;
     }
-    else if (!(flags & (MVM_PIPE_CAPTURE_IN | MVM_PIPE_CAPTURE_OUT | MVM_PIPE_CAPTURE_ERR))) {
-        uv_run(tc->loop, UV_RUN_DEFAULT);
+    else {
+        process->data = &result;
+        uv_ref((uv_handle_t *)process);
+        spawn_result = uv_spawn(tc->loop, process, &process_options);
+        if (spawn_result)
+            result = spawn_result;
+        else
+            uv_run(tc->loop, UV_RUN_DEFAULT);
     }
 
     FREE_ENV();
