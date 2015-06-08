@@ -1165,7 +1165,7 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
         MVMSpeshBB **goto_bbs    = MVM_calloc(g->sf->body.num_handlers, sizeof(MVMSpeshBB *));
         MVMSpeshBB  *search_bb   = g->entry;
         MVMint32     picked      = -1;
-        while (search_bb) {
+        while (search_bb && !search_bb->inlined) {
             MVMSpeshIns *search_ins = search_bb->first_ins;
             while (search_ins) {
                 /* Track handlers. */
@@ -1179,9 +1179,11 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
                         in_handlers[ann->data.frame_handler_index] = 0;
                         break;
                     case MVM_SPESH_ANN_FH_GOTO:
-                        goto_bbs[ann->data.frame_handler_index] = search_bb;
-                        if (picked >= 0 && ann->data.frame_handler_index == picked)
-                            goto search_over;
+                        if (ann->data.frame_handler_index < g->sf->body.num_handlers) {
+                            goto_bbs[ann->data.frame_handler_index] = search_bb;
+                            if (picked >= 0 && ann->data.frame_handler_index == picked)
+                                goto search_over;
+                        }
                         break;
                     }
                     ann = ann->next;
