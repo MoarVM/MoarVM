@@ -249,7 +249,7 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     if (hanlen) {
         ws->handlers = MVM_malloc(hanlen);
         memcpy(ws->handlers, g->handlers, hanlen);
-        for (i = 0; i < g->sf->body.num_handlers; i++) {
+        for (i = 0; i < g->num_handlers; i++) {
             ws->handlers[i].start_offset = -1;
             ws->handlers[i].end_offset   = -1;
             ws->handlers[i].goto_offset  = -1;
@@ -283,7 +283,7 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
             ws->bb_offsets[ws->fixup_bbs[i]->idx];
 
     /* Ensure all handlers got fixed up. */
-    for (i = 0; i < g->sf->body.num_handlers; i++) {
+    for (i = 0; i < g->num_handlers; i++) {
         if (ws->handlers[i].start_offset == -1 ||
             ws->handlers[i].end_offset   == -1 ||
             ws->handlers[i].goto_offset  == -1)
