@@ -147,10 +147,13 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
         appendf(ds, "      %-15s ", cur_ins->info->name);
         if (cur_ins->info->opcode == MVM_SSA_PHI) {
             for (i = 0; i < cur_ins->info->num_operands; i++) {
+                MVMint16 orig = cur_ins->operands[i].reg.orig;
+                MVMint16 regi = cur_ins->operands[i].reg.i;
                 if (i)
                     append(ds, ", ");
-                appendf(ds, "r%d(%d)", cur_ins->operands[i].reg.orig,
-                    cur_ins->operands[i].reg.i);
+                if (orig < 10) append(ds, " ");
+                if (regi < 10) append(ds, " ");
+                appendf(ds, "r%d(%d)", orig, regi);
             }
         }
         else {
@@ -159,10 +162,14 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     append(ds, ", ");
                 switch (cur_ins->info->operands[i] & MVM_operand_rw_mask) {
                     case MVM_operand_read_reg:
-                    case MVM_operand_write_reg:
-                        appendf(ds, "r%d(%d)", cur_ins->operands[i].reg.orig,
-                            cur_ins->operands[i].reg.i);
+                    case MVM_operand_write_reg: {
+                        MVMint16 orig = cur_ins->operands[i].reg.orig;
+                        MVMint16 regi = cur_ins->operands[i].reg.i;
+                        if (orig < 10) append(ds, " ");
+                        if (regi < 10) append(ds, " ");
+                        appendf(ds, "r%d(%d)", orig, regi);
                         break;
+                    }
                     case MVM_operand_read_lex:
                     case MVM_operand_write_lex: {
                         MVMStaticFrameBody *cursor = &g->sf->body;
@@ -188,9 +195,13 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     case MVM_operand_literal: {
                         MVMuint32 type = cur_ins->info->operands[i] & MVM_operand_type_mask;
                         switch (type) {
-                        case MVM_operand_ins:
-                            appendf(ds, "BB(%d)", cur_ins->operands[i].ins_bb->idx);
+                        case MVM_operand_ins: {
+                            MVMint32 bb_idx = cur_ins->operands[i].ins_bb->idx;
+                            if (bb_idx < 100) append(ds, " ");
+                            if (bb_idx < 10)  append(ds, " ");
+                            appendf(ds, "BB(%d)", bb_idx);
                             break;
+                        }
                         case MVM_operand_int8:
                             appendf(ds, "liti8(%"PRId8")", cur_ins->operands[i].lit_i8);
                             break;
