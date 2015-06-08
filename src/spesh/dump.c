@@ -144,7 +144,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
             ann = ann->next;
         }
 
-        appendf(ds, "      %s ", cur_ins->info->name);
+        appendf(ds, "      %-15s ", cur_ins->info->name);
         if (cur_ins->info->opcode == MVM_SSA_PHI) {
             for (i = 0; i < cur_ins->info->num_operands; i++) {
                 if (i)
@@ -281,7 +281,9 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
         for (j = 0; j < num_facts; j++) {
             MVMint32 usages = g->facts[i][j].usages;
             MVMint32 flags  = g->facts[i][j].flags;
-            appendf(ds, "    r%d(%d): usages=%d, flags=%d", i, j, usages, flags);
+            if (i < 10) append(ds, " ");
+            if (j < 10) append(ds, " ");
+            appendf(ds, "    r%d(%d): usages=%d, flags=%-5d", i, j, usages, flags);
             if (flags & 1) {
                 append(ds, " KnTyp");
             }
