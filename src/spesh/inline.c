@@ -186,6 +186,22 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     }
 }
 
+/* Resizes the handlers table, making a copy if needed. */
+static void resize_handlers_table(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMuint32 new_handler_count) {
+    if (inliner->handlers == inliner->sf->body.handlers) {
+        /* Original handlers table; need a copy. */
+        MVMFrameHandler *new_handlers = MVM_malloc(new_handler_count * sizeof(MVMFrameHandler));
+        memcpy(new_handlers, inliner->handlers,
+            inliner->num_handlers * sizeof(MVMFrameHandler));
+        inliner->handlers = new_handlers;
+    }
+    else {
+        /* Probably already did some inlines into this frame; resize. */
+        inliner->handlers = MVM_realloc(inliner->handlers,
+            new_handler_count * sizeof(MVMFrameHandler));
+    }
+}
+
 /* Merges the inlinee's spesh graph into the inliner. */
 static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMCode *inlinee_code,
@@ -402,21 +418,10 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         inlinee->lexical_types ? inlinee->lexical_types : inlinee->sf->body.lexical_types,
         inlinee->num_lexicals * sizeof(MVMuint16));
 
-    /* Merge handlers. */
+    /* Merge handlers from inlinee. */
     if (inlinee->num_handlers) {
         MVMuint32 total_handlers = inliner->num_handlers + inlinee->num_handlers;
-        if (inliner->handlers == inliner->sf->body.handlers) {
-            /* Original handlers table; need a copy. */
-            MVMFrameHandler *new_handlers = MVM_malloc(total_handlers * sizeof(MVMFrameHandler));
-            memcpy(new_handlers, inliner->handlers,
-                inliner->num_handlers * sizeof(MVMFrameHandler));
-            inliner->handlers = new_handlers;
-        }
-        else {
-            /* Probably already did some inlines into this frame; resize. */
-            inliner->handlers = MVM_realloc(inliner->handlers,
-                total_handlers * sizeof(MVMFrameHandler));
-        }
+        resize_handlers_table(tc, inliner, total_handlers);
         memcpy(inliner->handlers + inliner->num_handlers, inlinee->handlers,
             inlinee->num_handlers * sizeof(MVMFrameHandler));
         for (i = inliner->num_handlers; i < total_handlers; i++) {
