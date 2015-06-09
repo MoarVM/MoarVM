@@ -179,6 +179,7 @@ struct MVMInstance {
     MVMint8 spesh_enabled;
     MVMint8 spesh_inline_enabled;
     MVMint8 spesh_osr_enabled;
+    MVMint8 spesh_nodelay;
 
     /* Flag for if NFA debugging is enabled. */
     MVMint8 nfa_debug_enabled;

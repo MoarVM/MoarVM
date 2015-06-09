@@ -54,6 +54,7 @@ USAGE: moar [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [program args]
 The following environment variables are respected:\n\
 \n\
     MVM_SPESH_DISABLE           Disables all dynamic optimization\n\
+    MVM_SPESH_NODELAY           Run dynamic optimization even for cold frames\n\
     MVM_SPESH_INLINE_DISABLE    Disables inlining\n\
     MVM_SPESH_OSR_DISABLE       Disables on-stack replacement\n\
     MVM_JIT_DISABLE             Disables JITting to machine code\n\

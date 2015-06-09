@@ -14,7 +14,7 @@ static void setup_std_handles(MVMThreadContext *tc);
 /* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
-    char *spesh_log, *spesh_disable, *spesh_inline_disable, *spesh_osr_disable;
+    char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable, *spesh_osr_disable;
     char *jit_log, *jit_disable, *jit_bytecode_dir;
     char *dynvar_log;
     int init_stat;
@@ -137,6 +137,11 @@ MVMInstance * MVM_vm_create_instance(void) {
         spesh_osr_disable = getenv("MVM_SPESH_OSR_DISABLE");
         if (!spesh_osr_disable || strlen(spesh_osr_disable) == 0)
             instance->spesh_osr_enabled = 1;
+    }
+
+    spesh_nodelay = getenv("MVM_SPESH_NODELAY");
+    if (spesh_nodelay && strlen(spesh_nodelay)) {
+        instance->spesh_nodelay = 1;
     }
 
     /* JIT environment/logging setup. */
