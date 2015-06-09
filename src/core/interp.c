@@ -4788,8 +4788,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_bind_n): {
                 MVMObject *o     = GET_REG(cur_op, 0).o;
-                MVMnum64   value = GET_REG(cur_op, 4).n64;
-                *((MVMint64 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).n64;
+                *((MVMnum64 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).n64;
                 cur_op += 6;
                 goto NEXT;
             }
