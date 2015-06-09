@@ -227,8 +227,8 @@ static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
 
 static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMuint16 op = ins->info->opcode;
-    switch (op) {
-    case MVM_OP_newexception: {
+
+    if (op == MVM_OP_newexception) {
         MVMSpeshOperand target   = ins->operands[0];
         MVMObject      *type     = tc->instance->boot_types.BOOTException;
         MVMSTable      *st       = STABLE(type);
@@ -237,34 +237,46 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
         ins->operands[0]         = target;
         ins->operands[1].lit_i16 = st->size;
         ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
-        break;
-    }
-    /* XXX These must check we really do have an Exception REPR. */
-    /*
-    case MVM_OP_bindexmessage:
-    case MVM_OP_bindexpayload: {
-        MVMSpeshOperand target   = ins->operands[0];
-        MVMSpeshOperand value    = ins->operands[1];
-        ins->info                = MVM_op_get_op(op == MVM_OP_bindexmessage ? MVM_OP_sp_bind_s : MVM_OP_sp_bind_o);
-        ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-        ins->operands[0]         = target;
-        ins->operands[1].lit_i16 = op == MVM_OP_bindexmessage ? offsetof(MVMException, body.message)
-                                                              : offsetof(MVMException, body.payload);
-        ins->operands[2]         = value;
-        break;
-    }
-    case MVM_OP_getexmessage:
-    case MVM_OP_getexpayload: {
-        MVMSpeshOperand destination = ins->operands[0];
-        MVMSpeshOperand target   = ins->operands[1];
-        ins->info                = MVM_op_get_op(op == MVM_OP_getexmessage ? MVM_OP_sp_get_s : MVM_OP_sp_get_o);
-        ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-        ins->operands[0]         = destination;
-        ins->operands[1]         = target;
-        ins->operands[2].lit_i16 = op == MVM_OP_getexmessage ? offsetof(MVMException, body.message)
-                                                             : offsetof(MVMException, body.payload);
-        break;
-    }*/
+    } else {
+        MVMSpeshFacts *target_facts;
+        switch (op) {
+        case MVM_OP_bindexmessage:
+        case MVM_OP_bindexpayload: {
+            MVMSpeshOperand target   = ins->operands[0];
+            MVMSpeshOperand value    = ins->operands[1];
+            target_facts             = MVM_spesh_get_facts(tc, g, target);
+
+            if (!(target_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE)
+                || !(REPR(target_facts->type)->ID == MVM_REPR_ID_MVMException))
+                break;
+
+            ins->info                = MVM_op_get_op(op == MVM_OP_bindexmessage ? MVM_OP_sp_bind_s : MVM_OP_sp_bind_o);
+            ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0]         = target;
+            ins->operands[1].lit_i16 = op == MVM_OP_bindexmessage ? offsetof(MVMException, body.message)
+                                                                  : offsetof(MVMException, body.payload);
+            ins->operands[2]         = value;
+            break;
+        }
+        case MVM_OP_getexmessage:
+        case MVM_OP_getexpayload: {
+            MVMSpeshOperand destination = ins->operands[0];
+            MVMSpeshOperand target      = ins->operands[1];
+            target_facts                = MVM_spesh_get_facts(tc, g, target);
+
+            if (!(target_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE)
+                || !(REPR(target_facts->type)->ID == MVM_REPR_ID_MVMException))
+                break;
+
+            ins->info                = MVM_op_get_op(op == MVM_OP_getexmessage ? MVM_OP_sp_get_s : MVM_OP_sp_get_o);
+            ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0]         = destination;
+            ins->operands[1]         = target;
+            ins->operands[2].lit_i16 = op == MVM_OP_getexmessage ? offsetof(MVMException, body.message)
+                                                                 : offsetof(MVMException, body.payload);
+            break;
+        }
+        }
     }
 }
 
