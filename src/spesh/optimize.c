@@ -226,8 +226,7 @@ static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
 }
 
 static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
-    MVMuint16             op     = ins->info->opcode;
-
+    MVMuint16 op = ins->info->opcode;
     switch (op) {
     case MVM_OP_newexception: {
         MVMSpeshOperand target   = ins->operands[0];
@@ -240,6 +239,8 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
         ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
         break;
     }
+    /* XXX These must check we really do have an Exception REPR. */
+    /*
     case MVM_OP_bindexmessage:
     case MVM_OP_bindexpayload: {
         MVMSpeshOperand target   = ins->operands[0];
@@ -252,29 +253,6 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
         ins->operands[2]         = value;
         break;
     }
-    case MVM_OP_bindexcategory: {
-        MVMSpeshOperand target   = ins->operands[0];
-        MVMSpeshOperand category = ins->operands[1];
-        ins->info                = MVM_op_get_op(MVM_OP_sp_bind_i);
-        ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-        ins->operands[0]         = target;
-        ins->operands[1].lit_i16 = offsetof(MVMException, body.category);
-        ins->operands[2]         = category;
-        break;
-    }
-    /*
-    case MVM_OP_getexcategory: {
-        MVMSpeshOperand destination = ins->operands[0];
-        MVMSpeshOperand target = ins->operands[1];
-        ins->info                = MVM_op_get_op(MVM_OP_sp_get_i);
-        ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-        ins->operands[0]         = destination;
-        ins->operands[1]         = target;
-        ins->operands[2].lit_i16 = offsetof(MVMException, body.category);
-        break;
-    }
-    */
-    /*
     case MVM_OP_getexmessage:
     case MVM_OP_getexpayload: {
         MVMSpeshOperand destination = ins->operands[0];
@@ -286,8 +264,7 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
         ins->operands[2].lit_i16 = op == MVM_OP_getexmessage ? offsetof(MVMException, body.message)
                                                              : offsetof(MVMException, body.payload);
         break;
-    }
-    */
+    }*/
     }
 }
 
@@ -1394,10 +1371,8 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_newexception:
         case MVM_OP_bindexmessage:
         case MVM_OP_bindexpayload:
-        case MVM_OP_bindexcategory:
         case MVM_OP_getexmessage:
         case MVM_OP_getexpayload:
-        case MVM_OP_getexcategory:
             optimize_exception_ops(tc, g, bb, ins);
             break;
         case MVM_OP_hllize:
