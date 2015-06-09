@@ -754,7 +754,10 @@ sp_fastcreate    .s w(obj) int16 sslot :pure
 
 # Retrieve or store a value by pointer offset.
 sp_get_o         .s w(obj) r(obj) int16 :pure
-sp_get_i         .s w(int64) r(obj) int16 :pure
+sp_get_i64       .s w(int64) r(obj) int16 :pure
+sp_get_i32       .s w(int64) r(obj) int16 :pure
+sp_get_i16       .s w(int64) r(obj) int16 :pure
+sp_get_i8        .s w(int64) r(obj) int16 :pure
 sp_get_n         .s w(num64) r(obj) int16 :pure
 sp_get_s         .s w(str) r(obj) int16 :pure
 sp_bind_o        .s r(obj) int16 r(obj)

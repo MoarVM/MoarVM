@@ -548,7 +548,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov qword [TMP1+offset], TMP2; // store value into body
         break;
     }
-    case MVM_OP_sp_get_i:
+    case MVM_OP_sp_get_i64:
     case MVM_OP_sp_get_n:
     case MVM_OP_sp_get_s:
     case MVM_OP_sp_get_o: {
