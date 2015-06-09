@@ -4751,14 +4751,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_bind_o): {
                 MVMObject *o     = GET_REG(cur_op, 0).o;
                 MVMObject *value = GET_REG(cur_op, 4).o;
-                MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)(o + GET_UI16(cur_op, 2))), value);
+                MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)((char *)o + GET_UI16(cur_op, 2))), value);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(sp_bind_s): {
                 MVMObject *o     = GET_REG(cur_op, 0).o;
                 MVMString *value = GET_REG(cur_op, 4).s;
-                MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)(o + GET_UI16(cur_op, 2))), value);
+                MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)((char *)o + GET_UI16(cur_op, 2))), value);
                 cur_op += 6;
                 goto NEXT;
             }
