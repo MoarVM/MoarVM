@@ -239,6 +239,11 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
         ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
     } else {
         MVMSpeshFacts *target_facts;
+
+        /* XXX This currently still causes problems. */
+        return;
+
+        /*
         switch (op) {
         case MVM_OP_bindexmessage:
         case MVM_OP_bindexpayload: {
@@ -277,6 +282,7 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
             break;
         }
         }
+        */
     }
 }
 
