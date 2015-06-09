@@ -2436,6 +2436,13 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVMint32 label = get_label_for_bb(tc, jgb, bb);
     jgb->cur_bb = bb;
     jgb_append_label(tc, jgb, label);
+    /* We always append a label update at the start of a basic block for now.
+     * This may be more than is actually needed, but it's safe. The problem is
+     * that a jump can move us out of the scope of an exception hander, and so
+     * we need a location update. This came to light in the case that we left
+     * an inline (which is a jump) and came back to a region where a handler
+     * should be in force, and it failed to be. */
+    jgb_append_control(tc, jgb, bb->first_ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
     jgb->cur_ins = bb->first_ins;
     while (jgb->cur_ins) {
         jgb_before_ins(tc, jgb, jgb->cur_bb, jgb->cur_ins);
