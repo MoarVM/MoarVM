@@ -108,12 +108,15 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
             }
         }
     } else {
+        MVMint32 num_handlers = f->spesh_cand
+            ? f->spesh_cand->num_handlers
+            : f->static_info->body.num_handlers;
         MVMint32 pc;
         if (f == tc->cur_frame)
             pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
         else
             pc = (MVMuint32)(f->return_address - f->effective_bytecode);
-        for (i = 0; i < f->static_info->body.num_handlers; i++) {
+        for (i = 0; i < num_handlers; i++) {
             MVMFrameHandler  *fh = &f->effective_handlers[i];
             if (!handler_can_handle(f, fh, cat, payload))
                 continue;
