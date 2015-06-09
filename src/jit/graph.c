@@ -1415,7 +1415,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_sp_p6obind_n:
     case MVM_OP_sp_p6obind_s:
     case MVM_OP_sp_p6obind_o:
-    case MVM_OP_sp_bind_i:
+    case MVM_OP_sp_bind_i64:
     case MVM_OP_sp_bind_n:
     case MVM_OP_sp_bind_s:
     case MVM_OP_sp_bind_o:

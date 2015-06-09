@@ -4762,10 +4762,27 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(sp_bind_i): {
+            OP(sp_bind_i64): {
                 MVMObject *o     = GET_REG(cur_op, 0).o;
-                MVMint64   value = GET_REG(cur_op, 4).i64;
                 *((MVMint64 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_i32): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                *((MVMint32 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_i16): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                *((MVMint16 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_i8): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                *((MVMint8 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).i64;
                 cur_op += 6;
                 goto NEXT;
             }

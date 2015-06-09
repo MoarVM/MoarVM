@@ -525,7 +525,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP3;
         break;
     }
-    case MVM_OP_sp_bind_i:
+    case MVM_OP_sp_bind_i64:
     case MVM_OP_sp_bind_n:
     case MVM_OP_sp_bind_s:
     case MVM_OP_sp_bind_o: {
