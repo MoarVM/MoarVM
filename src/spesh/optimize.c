@@ -263,6 +263,22 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
             ins->operands[2]         = value;
             break;
         }
+        case MVM_OP_bindexcategory: {
+            MVMSpeshOperand target   = ins->operands[0];
+            MVMSpeshOperand category = ins->operands[1];
+            target_facts             = MVM_spesh_get_facts(tc, g, target);
+
+            if (!(target_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE)
+                || !(REPR(target_facts->type)->ID == MVM_REPR_ID_MVMException))
+                break;
+
+            ins->info                = MVM_op_get_op(MVM_OP_sp_bind_i32);
+            ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0]         = target;
+            ins->operands[1].lit_i16 = offsetof(MVMException, body.category);
+            ins->operands[2]         = category;
+            break;
+        }
         case MVM_OP_getexmessage:
         case MVM_OP_getexpayload: {
             MVMSpeshOperand destination = ins->operands[0];
@@ -279,6 +295,22 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
             ins->operands[1]         = target;
             ins->operands[2].lit_i16 = op == MVM_OP_getexmessage ? offsetof(MVMException, body.message)
                                                                  : offsetof(MVMException, body.payload);
+            break;
+        }
+        case MVM_OP_getexcategory: {
+            MVMSpeshOperand destination = ins->operands[0];
+            MVMSpeshOperand target      = ins->operands[1];
+            target_facts                = MVM_spesh_get_facts(tc, g, target);
+
+            if (!(target_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE)
+                || !(REPR(target_facts->type)->ID == MVM_REPR_ID_MVMException))
+                break;
+
+            ins->info                = MVM_op_get_op(MVM_OP_sp_get_i32);
+            ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0]         = destination;
+            ins->operands[1]         = target;
+            ins->operands[2].lit_i16 = offsetof(MVMException, body.category);
             break;
         }
         }
