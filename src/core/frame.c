@@ -693,6 +693,11 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
     }
 }
 
+/* Try a return from the current frame; skip running any exit handlers. */
+MVMuint64 MVM_frame_try_return_no_exit_handlers(MVMThreadContext *tc) {
+    return remove_one_frame(tc, 0);
+}
+
 /* Unwinds execution state to the specified frame, placing control flow at either
  * an absolute or relative (to start of target frame) address and optionally
  * setting a returned result. */
