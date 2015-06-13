@@ -89,9 +89,7 @@ if (exists $args{build} || exists $args{host}) {
     setup_cross($args{build}, $args{host});
 }
 else {
-    setup_native($args{os} // {
-        'MSWin32' => $ENV{VisualStudioVersion} ? 'win32' : 'mingw32',
-    }->{$^O} // $^O);
+    setup_native($args{os} // $^O);
 }
 
 $config{name}   = $NAME;
@@ -480,6 +478,9 @@ sub setup_native {
     my ($os) = @_;
 
     print dots("Configuring native build environment");
+
+    $os = build::probe::win32_compiler_toolchain(\%config, \%defaults)
+        if $os eq 'MSWin32';
 
     if (!exists $::SYSTEMS{$os}) {
         softfail("unknown OS '$os'");
