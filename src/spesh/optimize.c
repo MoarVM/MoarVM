@@ -99,7 +99,7 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
         MVMObject *meth = MVM_6model_find_method_cache_only(tc, obj_facts->type, name);
         if (!MVM_is_null(tc, meth)) {
             /* Could compile-time resolve the method. Add it in a spesh slot. */
-            MVMint16 ss = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)meth);
+            MVMint16 ss = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)meth);
 
             /* Tweak facts for the target, given we know the method. */
             MVMSpeshFacts *meth_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
