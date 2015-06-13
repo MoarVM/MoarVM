@@ -378,10 +378,12 @@ our %OS_MINGW32 = (
     dll   => '%s.dll',
     ldimp => '-l%s.dll',
 
+    libdir     => '@bindir@',
     ccshared   => '',
-    ldshared   => '-shared -Wl,--out-implib,lib$@.a',
+    ldshared   => '-shared -Wl,--out-implib,lib$(notdir $@).a',
     moarshared => '',
     ldrpath    => '',
+    sharedlib  => 'lib@moardll@.a',
 
     -thirdparty => {
         %{$OS_WIN32{-thirdparty}},
@@ -469,6 +471,7 @@ our %OS_DARWIN = (
     ccshared   => '',
     ldshared   => '-dynamiclib',
     moarshared => '-install_name @prefix@/lib/libmoar.dylib',
+    sharedlib  => 'libmoar.dylib',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_DARWIN)' },

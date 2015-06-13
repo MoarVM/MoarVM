@@ -90,7 +90,7 @@ if (exists $args{build} || exists $args{host}) {
 }
 else {
     setup_native($args{os} // {
-        'MSWin32' => 'win32'
+        'MSWin32' => $ENV{VisualStudioVersion} ? 'win32' : 'mingw32',
     }->{$^O} // $^O);
 }
 
