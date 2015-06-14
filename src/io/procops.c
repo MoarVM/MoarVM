@@ -162,7 +162,6 @@ static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_sign
 static void setup_process_stdio(MVMThreadContext *tc, MVMObject *handle, uv_process_t *process,
         uv_stdio_container_t *stdio, int fd, MVMint64 flags, const char *op) {
     if (flags & MVM_PIPE_CAPTURE) {
-        uv_stream_t       *stream;
         MVMIOSyncPipeData *pipedata;
 
         if (REPR(handle)->ID != MVM_REPR_ID_MVMOSHandle)
@@ -175,8 +174,40 @@ static void setup_process_stdio(MVMThreadContext *tc, MVMObject *handle, uv_proc
         stdio->data.stream = pipedata->ss.handle;
     }
     else if (flags & MVM_PIPE_INHERIT) {
-        stdio->flags   = UV_INHERIT_FD;
-        stdio->data.fd = fd;
+        if (handle == tc->instance->VMNull) {
+            stdio->flags   = UV_INHERIT_FD;
+            stdio->data.fd = fd;
+        }
+        else {
+            MVMOSHandleBody body = ((MVMOSHandle *)handle)->body;
+
+            if (REPR(handle)->ID != MVM_REPR_ID_MVMOSHandle)
+                MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", op);
+
+            switch (body.type) {
+                case MVM_OSHANDLE_SYNCFILE: {
+                    MVMIOFileData *filedata = (MVMIOFileData *)body.data;
+                    stdio->flags            = UV_INHERIT_FD;
+                    stdio->data.fd          = filedata->fd;
+                    break;
+                }
+                case MVM_OSHANDLE_SYNCPIPE: {
+                    MVMIOSyncPipeData *pipedata = (MVMIOSyncPipeData *)body.data;
+                    pipedata->process           = process;
+                    stdio->flags                = UV_INHERIT_STREAM;
+                    stdio->data.stream          = pipedata->ss.handle;
+                    break;
+                }
+                case MVM_OSHANDLE_SYNCSTREAM: {
+                    MVMIOSyncStreamData *streamdata = (MVMIOSyncStreamData *)body.data;
+                    stdio->flags                    = UV_INHERIT_STREAM;
+                    stdio->data.stream              = streamdata->handle;
+                    break;
+                }
+                default:
+                    MVM_exception_throw_adhoc(tc, "Unhandled MVMOSHandle type %"PRIu64" in %s", body.type, op);
+            }
+        }
     }
     else
         stdio->flags = UV_IGNORE;
