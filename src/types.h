@@ -186,7 +186,7 @@ typedef struct MVMIOAsyncReadable MVMIOAsyncReadable;
 typedef struct MVMIOAsyncWritable MVMIOAsyncWritable;
 typedef struct MVMIOSeekable MVMIOSeekable;
 typedef struct MVMIOSockety MVMIOSockety;
-typedef struct MVMIOInteractive MVMIOInteractive;
+typedef struct MVMIOPipeable MVMIOPipeable;
 typedef struct MVMIOLockable MVMIOLockable;
 typedef struct MVMIOFileData MVMIOFileData;
 typedef struct MVMIOSyncStreamData MVMIOSyncStreamData;

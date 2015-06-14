@@ -52,6 +52,15 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     return do_close(tc, data);
 }
 
+/* Operations aiding process spawning and I/O handling. */
+static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio,
+        uv_process_t *process) {
+    MVMIOSyncPipeData *data = (MVMIOSyncPipeData *)h->body.data;
+    data->process           = process;
+    stdio->flags            = UV_INHERIT_STREAM;
+    stdio->data.stream      = data->ss.handle;
+}
+
 /* Frees data associated with the pipe, closing it if needed. */
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOSyncPipeData *data = (MVMIOSyncPipeData *)d;
@@ -73,6 +82,7 @@ static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_str,
                                                  MVM_io_syncstream_truncate };
 static const MVMIOSeekable          seekable = { MVM_io_syncstream_seek,
                                                  MVM_io_syncstream_tell };
+static const MVMIOPipeable     pipeable      = { bind_stdio_handle };
 static const MVMIOOps op_table = {
     &closable,
     &encodable,
@@ -82,7 +92,7 @@ static const MVMIOOps op_table = {
     NULL,
     &seekable,
     NULL,
-    NULL,
+    &pipeable,
     NULL,
     NULL,
     gc_free
