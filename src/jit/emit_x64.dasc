@@ -1611,10 +1611,10 @@ static void emit_sse_arg(MVMThreadContext *tc, MVMJitGraph *jg,
 |         movd ARG6F, TMP6;
 ||        break;
 ||    case 6:
-|        movd ARG5F, TMP6;
+|        movd ARG7F, TMP6;
 ||       break;
 ||    case 7:
-|        movd ARG5F, TMP6;
+|        movd ARG8F, TMP6;
 ||       break;
 |.endif
     default:
