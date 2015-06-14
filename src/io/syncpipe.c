@@ -109,6 +109,5 @@ MVMObject * MVM_io_syncpipe(MVMThreadContext *tc) {
     data->ss.sep      = '\n';
     result->body.ops  = &op_table;
     result->body.data = data;
-    result->body.type = MVM_OSHANDLE_SYNCPIPE;
     return (MVMObject *)result;
 }

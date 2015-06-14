@@ -188,7 +188,6 @@ typedef struct MVMIOSeekable MVMIOSeekable;
 typedef struct MVMIOSockety MVMIOSockety;
 typedef struct MVMIOPipeable MVMIOPipeable;
 typedef struct MVMIOLockable MVMIOLockable;
-typedef struct MVMIOFileData MVMIOFileData;
 typedef struct MVMIOSyncStreamData MVMIOSyncStreamData;
 typedef struct MVMIOSyncPipeData MVMIOSyncPipeData;
 typedef struct MVMDecodeStream MVMDecodeStream;

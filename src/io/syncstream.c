@@ -316,6 +316,5 @@ MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *h
     data->sep         = '\n';
     result->body.ops  = &op_table;
     result->body.data = data;
-    result->body.type = MVM_OSHANDLE_SYNCSTREAM;
     return (MVMObject *)result;
 }

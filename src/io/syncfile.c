@@ -23,6 +23,24 @@
 /* Number of bytes we pull in at a time to the buffer. */
 #define CHUNK_SIZE 32768
 
+/* Data that we keep for a file-based handle. */
+typedef struct {
+    /* libuv file descriptor. */
+    uv_file fd;
+
+    /* The filename we opened, as a C string. */
+    char *filename;
+
+    /* The encoding we're using. */
+    MVMint64 encoding;
+
+    /* Decode stream, for turning bytes from disk into strings. */
+    MVMDecodeStream *ds;
+
+    /* Current separator codepoint. */
+    MVMGrapheme32 sep;
+} MVMIOFileData;
+
 /* Closes the file. */
 static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
@@ -435,7 +453,6 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     data->encoding    = MVM_encoding_type_utf8;
     result->body.ops  = &op_table;
     result->body.data = data;
-    result->body.type = MVM_OSHANDLE_SYNCFILE;
 
     return (MVMObject *)result;
 }
@@ -448,6 +465,5 @@ MVMObject * MVM_file_handle_from_fd(MVMThreadContext *tc, uv_file fd) {
     data->encoding    = MVM_encoding_type_utf8;
     result->body.ops  = &op_table;
     result->body.data = data;
-    result->body.type = MVM_OSHANDLE_SYNCFILE;
     return (MVMObject *)result;
 }
