@@ -2,21 +2,7 @@
 #include "moar.h"
 #include "platform/sys.h"
 
-#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 6)
-
-#include <sched.h>
-#include <pthread.h>
-
-MVMuint32 MVM_platform_cpu_count(void) {
-    cpu_set_t set;
-
-    if (pthread_getaffinity_np(pthread_self(), sizeof set, &set) != 0)
-        return 0;
-
-    return CPU_COUNT(&set);
-}
-
-#else
+#if __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 6) || defined(__FreeBSD_kernel__)
 
 #include <unistd.h>
 
@@ -61,5 +47,19 @@ MVMuint32 MVM_platform_cpu_count(void) {
 #error "Unsupported platform"
 
 #endif
+
+#else
+
+#include <sched.h>
+#include <pthread.h>
+
+MVMuint32 MVM_platform_cpu_count(void) {
+    cpu_set_t set;
+
+    if (pthread_getaffinity_np(pthread_self(), sizeof set, &set) != 0)
+        return 0;
+
+    return CPU_COUNT(&set);
+}
 
 #endif

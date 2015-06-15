@@ -442,6 +442,12 @@ our %OS_FREEBSD = (
     },
 );
 
+our %OS_GNUKFREEBSD = (
+    %OS_FREEBSD,
+
+    syslibs => [ @{$OS_FREEBSD{syslibs}}, qw( rt dl ) ],
+);
+
 our %OS_SOLARIS = (
     %OS_POSIX,
 
@@ -479,16 +485,17 @@ our %OS_DARWIN = (
 );
 
 our %SYSTEMS = (
-    posix   => [ qw( posix posix cc ), { %OS_POSIX } ],
-    linux   => [ qw( posix gnu gcc ), { %OS_LINUX } ],
-    darwin  => [ qw( posix gnu clang ), { %OS_DARWIN } ],
-    openbsd => [ qw( posix bsd gcc ), { %OS_OPENBSD} ],
-    netbsd  => [ qw( posix bsd gcc ), { %OS_NETBSD } ],
-    freebsd => [ qw( posix bsd clang ), { %OS_FREEBSD } ],
-    solaris => [ qw( posix posix cc ),  { %OS_SOLARIS } ],
-    win32   => [ qw( win32 msvc cl ), { %OS_WIN32 } ],
-    cygwin  => [ qw( posix gnu gcc ), { %OS_WIN32 } ],
-    mingw32 => [ qw( win32 gnu gcc ), { %OS_MINGW32 } ],
+    posix       => [ qw( posix posix cc ),    { %OS_POSIX } ],
+    linux       => [ qw( posix gnu   gcc ),   { %OS_LINUX } ],
+    darwin      => [ qw( posix gnu   clang ), { %OS_DARWIN } ],
+    openbsd     => [ qw( posix bsd   gcc ),   { %OS_OPENBSD} ],
+    netbsd      => [ qw( posix bsd   gcc ),   { %OS_NETBSD } ],
+    freebsd     => [ qw( posix bsd   clang ), { %OS_FREEBSD } ],
+    gnukfreebsd => [ qw( posix gnu   gcc ),   { %OS_GNUKFREEBSD } ],
+    solaris     => [ qw( posix posix cc ),    { %OS_SOLARIS } ],
+    win32       => [ qw( win32 msvc  cl ),    { %OS_WIN32 } ],
+    cygwin      => [ qw( posix gnu   gcc ),   { %OS_WIN32 } ],
+    mingw32     => [ qw( win32 gnu   gcc ),   { %OS_MINGW32 } ],
 );
 
 42;
