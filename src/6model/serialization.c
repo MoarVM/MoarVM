@@ -157,8 +157,10 @@ static void * base64_decode(const char *s, size_t *data_len)
     int n[4];
 
     size_t len = strlen(s);
-    if (len % 4)
+    if (len % 4) {
+        *data_len = 0;
         return NULL;
+    }
     data = (unsigned char*) MVM_malloc(len/4*3);
     q = (unsigned char*) data;
 
