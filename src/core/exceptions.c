@@ -649,6 +649,7 @@ MVMObject * MVM_exception_newlexotic_from_jit(MVMThreadContext *tc, MVMint32 lab
 /* Unwinds to a lexotic captured handler. */
 void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMStaticFrame *sf) {
     MVMFrame *f, *search;
+    f = NULL;
     search = tc->cur_frame;
     while (search) {
         f = search;
