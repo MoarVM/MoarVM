@@ -497,7 +497,7 @@ static MVMint32 jgb_consume_invoke(MVMThreadContext *tc, JitGraphBuilder *jgb,
     if (!ins || i < cs->arg_count) {
         MVM_jit_log(tc, "Could not find invoke opcode or enough arguments\n"
                     "BAIL: op <%s>, expected args: %d, num of args: %d\n",
-                    ins->info->name, i, cs->arg_count);
+                    ins? ins->info->name : "NULL", i, cs->arg_count);
         return 0;
     }
     MVM_jit_log(tc, "Invoke instruction: <%s>\n", ins->info->name);
