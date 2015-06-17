@@ -871,7 +871,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             case MVM_NATIVECALL_ARG_UTF8STR:
             case MVM_NATIVECALL_ARG_UTF16STR:
                 {
-                    MVMint16 free;
+                    MVMint16 free = 0;
                     char *str = unmarshal_string(tc, value, arg_types[i], &free);
                     if (free) {
                         if (!free_strs)
