@@ -63,8 +63,11 @@ MVMCallsite * MVM_args_proc_to_callsite(MVMThreadContext *tc, MVMArgProcContext 
     if (ctx->arg_flags) {
         MVMCallsite      *res   = MVM_malloc(sizeof(MVMCallsite));
         MVMint32          fsize = ctx->num_pos + (ctx->arg_count - ctx->num_pos) / 2;
-        MVMCallsiteEntry *flags = fsize ? MVM_malloc(fsize) : NULL;
-        memcpy(flags, ctx->arg_flags, fsize);
+        MVMCallsiteEntry *flags = NULL;
+        if (fsize) {
+            flags = MVM_malloc(fsize);
+            memcpy(flags, ctx->arg_flags, fsize);
+        }
         res->arg_flags = flags;
         res->arg_count = ctx->arg_count;
         res->num_pos   = ctx->num_pos;
