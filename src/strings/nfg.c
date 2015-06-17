@@ -153,9 +153,8 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
     /* Grow the synthetics table if needed. */
     if (nfg->num_synthetics % MVM_SYNTHETIC_GROW_ELEMS == 0) {
         size_t orig_size = nfg->num_synthetics * sizeof(MVMNFGSynthetic);
-        size_t new_size  = nfg->num_synthetics * sizeof(MVMNFGSynthetic);
-        MVMNFGSynthetic *new_synthetics = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            (nfg->num_synthetics + MVM_SYNTHETIC_GROW_ELEMS) * sizeof(MVMNFGSynthetic));
+        size_t new_size  = (nfg->num_synthetics + MVM_SYNTHETIC_GROW_ELEMS) * sizeof(MVMNFGSynthetic);
+        MVMNFGSynthetic *new_synthetics = MVM_fixed_size_alloc(tc, tc->instance->fsa, new_size);
         if (orig_size) {
             memcpy(new_synthetics, nfg->synthetics, orig_size);
             MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, orig_size, nfg->synthetics);
