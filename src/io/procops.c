@@ -585,7 +585,7 @@ static MVMint64 close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
     MVMAsyncTask          *spawn_task  = (MVMAsyncTask *)handle_data->async_task;
     SpawnInfo             *si          = spawn_task ? (SpawnInfo *)spawn_task->body.data : NULL;
-    if (si->stdin_handle) {
+    if (si && si->stdin_handle) {
         MVMAsyncTask *task;
         MVMROOT(tc, h, {
             task = (MVMAsyncTask *)MVM_repr_alloc_init(tc,
