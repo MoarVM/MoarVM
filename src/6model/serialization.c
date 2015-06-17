@@ -154,7 +154,7 @@ static void * base64_decode(const char *s, size_t *data_len)
     unsigned char *q, *data;
     /* XXX TODO: investigate whether putting these n[4] into 4
      * separate locals helps the compiler optimize them better.. */
-    int n[4];
+    int n[4] = {-1, -1, -1, -1};
 
     size_t len = strlen(s);
     if (len % 4) {
