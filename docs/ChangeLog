@@ -1,3 +1,18 @@
+New in 2015.06
+
++ No longer use up a full core in some async situations.
++ Errors from nativecall include dlerror() output for clarity.
++ More verbose and aligned output in MVM_SPESH_LOG.
++ Several ops added to the jit.
++ Throwing and resuming ops for exceptions supported in the jit.
++ More places now go through the Int cache.
++ Support for str attributes in CUnion and CStruct.
++ Non-characters now correctly considered valid for UTF-8 encoding.
++ Fix exception handler resolution bug.
++ Introduced MVM_SPESH_NODELAY to set spesh thresholds very low.
++ Support for building with gmake and gcc on windows.
++ Support for GNU/kFreeBSD.
+
 New in 2015.05
 
 + Add missing C prototype for MVM_string_windows1252_decodestream
