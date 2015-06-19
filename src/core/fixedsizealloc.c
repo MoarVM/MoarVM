@@ -258,8 +258,8 @@ void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *a
  * at the next safepoint. Assumes that it is only called on one thread at a
  * time, while the world is stopped. */
 void MVM_fixed_size_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *al) {
-    MVMFixedSizeAllocSafepointFreeListEntry *cur, *next;
     /* Go through bins and process any safepoint free lists. */
+    MVMFixedSizeAllocSafepointFreeListEntry *cur, *next;
     MVMint32 bin;
     for (bin = 0; bin < MVM_FSA_BINS; bin++) {
         cur = al->size_classes[bin].free_at_next_safepoint_list;
