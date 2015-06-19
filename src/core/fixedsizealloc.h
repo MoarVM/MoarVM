@@ -11,11 +11,21 @@ struct MVMFixedSizeAlloc {
 
     /* Mutex for when we can't do a cheap/simple allocation. */
     uv_mutex_t complex_alloc_mutex;
+
+    /* Head of the "free at next safepoint" list of overflows (that is,
+     * items that don't fit in a fixed size allocator bin). */
+    MVMFixedSizeAllocSafepointFreeListEntry *free_at_next_safepoint_overflows;
 };
 
 /* Free list entry. Must be no bigger than the smallest size class. */
 struct MVMFixedSizeAllocFreeListEntry {
     void *next;
+};
+
+/* Entry in the "free at next safe point" linked list. */
+struct MVMFixedSizeAllocSafepointFreeListEntry {
+    void                                    *to_free;
+    MVMFixedSizeAllocSafepointFreeListEntry *next;
 };
 
 /* Pages of objects of a particular size class. */
@@ -39,6 +49,9 @@ struct MVMFixedSizeAllocSizeClass {
 
     /* The number of pages allocated. */
     MVMuint32 num_pages;
+
+    /* Head of the "free at next safepoint" list. */
+    MVMFixedSizeAllocSafepointFreeListEntry *free_at_next_safepoint_list;
 };
 
 /* The number of bits we discard from the requested size when binning
@@ -67,3 +80,4 @@ void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t
 void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes);
 void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes, void *free);
 void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes, void *free);
+void MVM_fixed_size_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *al);

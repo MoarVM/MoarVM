@@ -25,6 +25,7 @@ MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
         MVM_exception_throw_adhoc(tc, "Failed to initialize mutex: %s",
             uv_strerror(init_stat));
     al->freelist_spin = 0;
+    al->free_at_next_safepoint_overflows = NULL;
     return al;
 }
 
@@ -156,6 +157,24 @@ void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *al, 
 }
 
 /* Frees a piece of memory of the specified size, using the FSA. */
+static void add_to_bin_freelist(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVMint32 bin, void *to_free) {
+    /* Came from a bin; put into free list. */
+    MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
+    MVMFixedSizeAllocFreeListEntry *to_add  = (MVMFixedSizeAllocFreeListEntry *)to_free;
+    MVMFixedSizeAllocFreeListEntry *orig;
+    if (MVM_instance_have_user_threads(tc)) {
+        /* Multi-threaded; race to add it. */
+        do {
+            orig = bin_ptr->free_list;
+            to_add->next = orig;
+        } while (!MVM_trycas(&(bin_ptr->free_list), orig, to_add));
+    }
+    else {
+        /* Single-threaded; just add it. */
+        to_add->next       = bin_ptr->free_list;
+        bin_ptr->free_list = to_add;
+    }
+}
 void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t bytes, void *to_free) {
 #if FSA_SIZE_DEBUG
     MVMFixedSizeAllocDebug *dbg = (MVMFixedSizeAllocDebug *)((char *)to_free - 8);
@@ -165,28 +184,26 @@ void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t byt
 #else
     MVMuint32 bin = bin_for(bytes);
     if (bin < MVM_FSA_BINS) {
-        /* Came from a bin; put into free list. */
-        MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
-        MVMFixedSizeAllocFreeListEntry *to_add  = (MVMFixedSizeAllocFreeListEntry *)to_free;
-        MVMFixedSizeAllocFreeListEntry *orig;
-        if (MVM_instance_have_user_threads(tc)) {
-            /* Multi-threaded; race to add it. */
-            do {
-                orig = bin_ptr->free_list;
-                to_add->next = orig;
-            } while (!MVM_trycas(&(bin_ptr->free_list), orig, to_add));
-        }
-        else {
-            /* Single-threaded; just add it. */
-            to_add->next       = bin_ptr->free_list;
-            bin_ptr->free_list = to_add;
-        }
+        /* Add to freelist chained through a bin. */
+        add_to_bin_freelist(tc, al, bin, to_free);
     }
     else {
         /* Was malloc'd due to being oversize, so just free it. */
         MVM_free(to_free);
     }
 #endif
+}
+
+/* Race to add to the "free at next safe point" overflows list. */
+static void add_to_overflows_safepoint_free_list(MVMThreadContext *tc, MVMFixedSizeAlloc *al, void *to_free) {
+    MVMFixedSizeAllocSafepointFreeListEntry *orig;
+    MVMFixedSizeAllocSafepointFreeListEntry *to_add = MVM_fixed_size_alloc(
+        tc, al, sizeof(MVMFixedSizeAllocSafepointFreeListEntry));
+    to_add->to_free = to_free;
+    do {
+        orig = al->free_at_next_safepoint_overflows;
+        to_add->next = orig;
+    } while (!MVM_trycas(&(al->free_at_next_safepoint_overflows), orig, to_add));
 }
 
 /* Queues a piece of memory of the specified size to be freed at the next
@@ -198,37 +215,70 @@ void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *a
     MVMFixedSizeAllocDebug *dbg = (MVMFixedSizeAllocDebug *)((char *)to_free - 8);
     if (dbg->alloc_size != bytes)
         MVM_panic(1, "Fixed size allocator: wrong size in free");
-    MVM_free(dbg);
+    if (MVM_instance_have_user_threads(tc))
+        add_to_overflows_safepoint_free_list(tc, al, dbg);
+    else
+        MVM_free(dbg);
 #else
     MVMuint32 bin = bin_for(bytes);
     if (bin < MVM_FSA_BINS) {
         /* Came from a bin; put into free list. */
         MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
-        MVMFixedSizeAllocFreeListEntry *to_add  = (MVMFixedSizeAllocFreeListEntry *)to_free;
-        MVMFixedSizeAllocFreeListEntry *orig;
         if (MVM_instance_have_user_threads(tc)) {
             /* Multi-threaded; race to add it to the "free at next safe point"
              * list. */
-            MVM_panic(1, "MVM_fixed_size_free_at_safepoint not yet fully implemented");
+            MVMFixedSizeAllocSafepointFreeListEntry *orig;
+            MVMFixedSizeAllocSafepointFreeListEntry *to_add = MVM_fixed_size_alloc(
+                tc, al, sizeof(MVMFixedSizeAllocSafepointFreeListEntry));
+            to_add->to_free = to_free;
+            do {
+                orig = bin_ptr->free_at_next_safepoint_list;
+                to_add->next = orig;
+            } while (!MVM_trycas(&(bin_ptr->free_at_next_safepoint_list), orig, to_add));
         }
         else {
             /* Single-threaded, so no global safepoint issues to care for; put
              * it on the free list right away. */
+            MVMFixedSizeAllocFreeListEntry *to_add = (MVMFixedSizeAllocFreeListEntry *)to_free;
             to_add->next       = bin_ptr->free_list;
             bin_ptr->free_list = to_add;
         }
     }
     else {
         /* Was malloc'd due to being oversize. */
-        if (MVM_instance_have_user_threads(tc)) {
-            /* Multi-threaded; race to add it to the "free at next safe point"
-             * list. */
-            MVM_panic(1, "MVM_fixed_size_free_at_safepoint not yet fully implemented");
-        }
-        else {
-            /* Single threaded, so free it immediately. */
+        if (MVM_instance_have_user_threads(tc))
+            add_to_overflows_safepoint_free_list(tc, al, to_free);
+        else
             MVM_free(to_free);
-        }
     }
 #endif
+}
+
+/* Called when we're at a safepoint, to free everything queued up to be freed
+ * at the next safepoint. Assumes that it is only called on one thread at a
+ * time, while the world is stopped. */
+void MVM_fixed_size_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *al) {
+    MVMFixedSizeAllocSafepointFreeListEntry *cur, *next;
+    /* Go through bins and process any safepoint free lists. */
+    MVMint32 bin;
+    for (bin = 0; bin < MVM_FSA_BINS; bin++) {
+        cur = al->size_classes[bin].free_at_next_safepoint_list;
+        while (cur) {
+            next = cur->next;
+            add_to_bin_freelist(tc, al, bin, cur->to_free);
+            MVM_fixed_size_free(tc, al, sizeof(MVMFixedSizeAllocSafepointFreeListEntry), cur);
+            cur = next;
+        }
+        al->size_classes[bin].free_at_next_safepoint_list = NULL;
+    }
+
+    /* Free overflows. */
+    cur = al->free_at_next_safepoint_overflows;
+    while (cur) {
+        next = cur->next;
+        MVM_free(cur->to_free);
+        MVM_fixed_size_free(tc, al, sizeof(MVMFixedSizeAllocSafepointFreeListEntry), cur);
+        cur = next;
+    }
+    al->free_at_next_safepoint_overflows = NULL;
 }

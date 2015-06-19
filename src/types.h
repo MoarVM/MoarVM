@@ -41,6 +41,7 @@ typedef struct MVMExtOpRegistry MVMExtOpRegistry;
 typedef struct MVMExtRegistry MVMExtRegistry;
 typedef struct MVMFixedSizeAlloc MVMFixedSizeAlloc;
 typedef struct MVMFixedSizeAllocFreeListEntry MVMFixedSizeAllocFreeListEntry;
+typedef struct MVMFixedSizeAllocSafepointFreeListEntry MVMFixedSizeAllocSafepointFreeListEntry;
 typedef struct MVMFixedSizeAllocSizeClass MVMFixedSizeAllocSizeClass;
 typedef struct MVMFrame MVMFrame;
 typedef struct MVMFrameHandler MVMFrameHandler;
