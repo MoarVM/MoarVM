@@ -128,30 +128,6 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     MVM_free(_env); \
 } while (0)
 
-#define SPAWN(shell) do { \
-    process->data               = &result; \
-    process_stdio[0].flags      = UV_INHERIT_FD; \
-    process_stdio[0].data.fd    = 0; \
-    process_stdio[1].flags      = UV_INHERIT_FD; \
-    process_stdio[1].data.fd    = 1; \
-    process_stdio[2].flags      = UV_INHERIT_FD; \
-    process_stdio[2].data.fd    = 2; \
-    process_options.stdio       = process_stdio; \
-    process_options.file        = shell; \
-    process_options.args        = args; \
-    process_options.cwd         = _cwd; \
-    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE; \
-    process_options.env         = _env; \
-    process_options.stdio_count = 3; \
-    process_options.exit_cb     = spawn_on_exit; \
-    uv_ref((uv_handle_t *)process); \
-    spawn_result = uv_spawn(tc->loop, process, &process_options); \
-    if (spawn_result) \
-        result = spawn_result; \
-    else \
-        uv_run(tc->loop, UV_RUN_DEFAULT); \
-} while (0)
-
 static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
     if (req->data)
         *(MVMint64 *)req->data = (exit_status << 8) | term_signal;
@@ -189,69 +165,6 @@ static void setup_process_stdio(MVMThreadContext *tc, MVMObject *handle, uv_proc
     }
     else
         stdio->flags = UV_IGNORE;
-}
-
-MVMint64 MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env,
-        MVMObject *in, MVMObject *out, MVMObject *err, MVMint64 flags) {
-    MVMint64 spawn_result;
-    uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
-    uv_process_options_t process_options = {0};
-    uv_stdio_container_t process_stdio[3];
-    int i;
-
-    char * const cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
-    char * const _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
-    const MVMuint64 size = MVM_repr_elems(tc, env);
-    MVMIter * const iter = (MVMIter *)MVM_iter(tc, env);
-    char **_env = MVM_malloc((size + 1) * sizeof(char *));
-
-#ifdef _WIN32
-    const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
-    char * const _cmd = ANSIToUTF8(acp, getenv("ComSpec"));
-    char *args[3];
-    args[0] = "/c";
-    args[1] = cmdin;
-    args[2] = NULL;
-#else
-    char * const _cmd = "/bin/sh";
-    char *args[4];
-    args[0] = "/bin/sh";
-    args[1] = "-c";
-    args[2] = cmdin;
-    args[3] = NULL;
-#endif
-
-    INIT_ENV();
-
-    setup_process_stdio(tc, in,  process, &process_stdio[0], 0, flags,      "openpipe");
-    setup_process_stdio(tc, out, process, &process_stdio[1], 1, flags >> 3, "openpipe");
-    setup_process_stdio(tc, err, process, &process_stdio[2], 2, flags >> 6, "openpipe");
-
-    process_options.stdio       = process_stdio;
-    process_options.file        = _cmd;
-    process_options.args        = args;
-    process_options.cwd         = _cwd;
-    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
-    process_options.env         = _env;
-    process_options.stdio_count = 3;
-    process_options.exit_cb     = spawn_on_exit;
-    process->data               = MVM_calloc(1, sizeof(MVMint64));
-    uv_ref((uv_handle_t *)process);
-    spawn_result = uv_spawn(tc->loop, process, &process_options);
-    if (spawn_result) {
-        FREE_ENV();
-        MVM_free(_cwd);
-        MVM_free(cmdin);
-        uv_unref((uv_handle_t *)process);
-        MVM_exception_throw_adhoc(tc, "Failed to open pipe: %d", errno);
-    }
-
-    FREE_ENV();
-    MVM_free(_cwd);
-    MVM_free(cmdin);
-    uv_unref((uv_handle_t *)process);
-
-    return process->pid;
 }
 
 MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env,

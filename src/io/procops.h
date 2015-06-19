@@ -12,8 +12,6 @@
 #define MVM_PIPE_CAPTURE_ERR  256
 
 MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc);
-MVMint64 MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env,
-        MVMObject *in_handle, MVMObject *out_handle, MVMObject *err_handle, MVMint64 flags);
 MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env,
         MVMObject *in, MVMObject *out, MVMObject *err, MVMint64 flags);
 MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env,
