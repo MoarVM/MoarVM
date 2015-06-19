@@ -718,13 +718,30 @@ MVM_NO_RETURN
 void MVM_exception_throw_adhoc(MVMThreadContext *tc, const char *messageFormat, ...) {
     va_list args;
     va_start(args, messageFormat);
-    MVM_exception_throw_adhoc_va(tc, messageFormat, args);
+    MVM_exception_throw_adhoc_free_va(tc, NULL, messageFormat, args);
     va_end(args);
 }
 
 /* Throws an ad-hoc (untyped) exception. */
 MVM_NO_RETURN
 void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageFormat, va_list args) {
+    MVM_exception_throw_adhoc_free_va(tc, NULL, messageFormat, args);
+}
+
+/* Throws an ad-hoc (untyped) exception, taking a NULL-terminated array of
+ * char pointers to deallocate after message construction. */
+MVM_NO_RETURN
+void MVM_exception_throw_adhoc_free(MVMThreadContext *tc, char **waste, const char *messageFormat, ...) {
+    va_list args;
+    va_start(args, messageFormat);
+    MVM_exception_throw_adhoc_free_va(tc, waste, messageFormat, args);
+    va_end(args);
+}
+
+/* Throws an ad-hoc (untyped) exception, taking a NULL-terminated array of
+ * char pointers to deallocate after message construction. */
+MVM_NO_RETURN
+void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const char *messageFormat, va_list args) {
     LocatedHandler lh;
 
     /* Create and set up an exception object. */
@@ -734,6 +751,13 @@ void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char *messageForma
         int        bytes     = vsnprintf(c_message, 1024, messageFormat, args);
         MVMString *message   = MVM_string_utf8_decode(tc, tc->instance->VMString, c_message, bytes);
         MVM_free(c_message);
+
+        /* Clean up after ourselves to avoid leaking C strings. */
+        if (waste) {
+            while(*waste)
+                MVM_free(*waste++);
+        }
+
         MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.message, message);
         if (tc->cur_frame) {
             ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
