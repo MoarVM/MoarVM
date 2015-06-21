@@ -413,6 +413,26 @@ static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
             MVM_free(argname_utf8);
         }
     }
+    if (g->cs->num_pos)
+        append(ds, "Positional flags: ");
+    for (i = 0; i < g->cs->num_pos; i++) {
+        MVMCallsiteEntry arg_flag = g->cs->arg_flags[i];
+
+        if (i)
+            append(ds, ", ");
+
+        if (arg_flag == MVM_CALLSITE_ARG_OBJ) {
+            append(ds, "obj");
+        } else if (arg_flag == MVM_CALLSITE_ARG_INT) {
+            append(ds, "int");
+        } else if (arg_flag == MVM_CALLSITE_ARG_NUM) {
+            append(ds, "num");
+        } else if (arg_flag == MVM_CALLSITE_ARG_STR) {
+            append(ds, "str");
+        }
+    }
+    if (g->cs->num_pos)
+        append(ds, "\n");
     append(ds, "\n");
 }
 
