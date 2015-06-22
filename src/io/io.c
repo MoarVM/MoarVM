@@ -130,10 +130,7 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
         MVM_exception_throw_adhoc(tc, "Cannot read characters from this kind of handle");
 
     /* Stash the data in the VMArray. */
-    ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
-    ((MVMArray *)result)->body.start    = 0;
-    ((MVMArray *)result)->body.ssize    = bytes_read;
-    ((MVMArray *)result)->body.elems    = bytes_read;
+    MVM_array_set_data(tc, (MVMArray *)result, buf, bytes_read);
 }
 
 MVMString * MVM_io_slurp(MVMThreadContext *tc, MVMObject *oshandle) {
@@ -167,15 +164,13 @@ void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *bu
     char *output;
     MVMint64 output_size;
 
-    /* Ensure the target is in the correct form. */
+    /* Ensure the target is in the correct form and get data. */
     if (!IS_CONCRETE(buffer) || REPR(buffer)->ID != MVM_REPR_ID_MVMArray)
         MVM_exception_throw_adhoc(tc, "write_fhb requires a native array to read from");
     if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_U8
         && ((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_I8)
         MVM_exception_throw_adhoc(tc, "write_fhb requires a native array of uint8 or int8");
-
-    output = (char *)(((MVMArray *)buffer)->body.slots.i8 + ((MVMArray *)buffer)->body.start);
-    output_size = ((MVMArray *)buffer)->body.elems;
+    MVM_array_get_slots_and_elems(tc, (MVMArray *)buffer, &output, &output_size);
 
     if (handle->body.ops->sync_writable) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);

@@ -375,10 +375,10 @@ static void * unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_MVMArray) {
-        MVMArrayBody *body          = &((MVMArray *)value)->body;
+        MVMArrayData *data          = MVM_array_get_data(tc, (MVMArray *)value);
         MVMArrayREPRData *repr_data = (MVMArrayREPRData *)STABLE(value)->REPR_data;
-        size_t start_pos            = body->start * repr_data->elem_size;
-        return ((char *)body->slots.any) + start_pos;
+        size_t start_pos            = data->start * repr_data->elem_size;
+        return ((char *)data->slots.any) + start_pos;
     }
     else
         MVM_exception_throw_adhoc(tc,

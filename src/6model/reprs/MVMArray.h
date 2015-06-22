@@ -1,16 +1,37 @@
-/* Representation used by VM-level arrays. Adopted from QRPA work by
- * Patrick Michaud. */
+/* A VMArray represents a dynamic array, which can be resized over time. We do
+ * not need to promise thread safety on the operations, but we do need to be
+ * absolutely sure that we will never SEGV by reading out of bounds. Therefore
+ * the dynamic array points to a piece of memory containing a non-resizable
+ * array. We only ever free this at a safepoint, meaning that other threads
+ * doing an access to a previous "version" will never be looking at freed
+ * memory. Further, in a multi-threaded context, we will do an atomic swap
+ * of the current "version" to ensure that we don't get leaks. It's worth
+ * noting that this is in many ways similar to the approach taken by, say,
+ * the CLR and JVM to ensure that even if things like List<T> are not ever
+ * thread safe, they're still memory-safe in the light of mis-use. */
 struct MVMArrayBody {
-    /* number of elements (from user's point of view) */
+    MVMArrayData *data;
+};
+struct MVMArray {
+    MVMObject common;
+    MVMArrayBody body;
+};
+
+/* Data for the "current version" of the dynamic array, with a fixed size. */
+struct MVMArrayData {
+    /* Number of elements (from user's point of view); mutable. */
     MVMuint64   elems;
 
-    /* slot index of first element */
+    /* Slot index of first element; mutable. */
     MVMuint64   start;
 
-    /* size of slots array */
+    /* Size of slots array; immutable. */
     MVMuint64   ssize;
 
-    /* slot array; union of various types of storage we may have. */
+    /* Union of various types of storage we may have. Immutable, size is the
+     * sszie above. */
+    /* TODO: Hang this off the end of the same memory blob as the size info
+     * above, to save an allocation. */
     union {
         MVMObject **o;
         MVMString **s;
@@ -26,10 +47,6 @@ struct MVMArrayBody {
         MVMuint8   *u8;
         void       *any;
     } slots;
-};
-struct MVMArray {
-    MVMObject common;
-    MVMArrayBody body;
 };
 
 /* Types of things we may be storing. */
@@ -66,3 +83,10 @@ struct MVMArrayREPRData {
     /* Type object for the element type. */
     MVMObject *elem_type;
 };
+
+/* Functions related to working with object with array representation. */
+MVM_STATIC_INLINE MVMArrayData * MVM_array_get_data(MVMThreadContext *tc, MVMArray *array) {
+    return array->body.data;
+}
+void MVM_array_get_slots_and_elems(MVMThreadContext *tc, MVMArray *array, void **slots_out, MVMint64 *elems_out);
+void MVM_array_set_data(MVMThreadContext *tc, MVMArray *array, void *data, MVMint64 elems);

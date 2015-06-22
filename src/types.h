@@ -5,6 +5,7 @@ typedef struct MVMArgInfo MVMArgInfo;
 typedef struct MVMArgProcContext MVMArgProcContext;
 typedef struct MVMArray MVMArray;
 typedef struct MVMArrayBody MVMArrayBody;
+typedef struct MVMArrayData MVMArrayData;
 typedef struct MVMArrayREPRData MVMArrayREPRData;
 typedef struct MVMAsyncTask MVMAsyncTask;
 typedef struct MVMAsyncTaskBody MVMAsyncTaskBody;

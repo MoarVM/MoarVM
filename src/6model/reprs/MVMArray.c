@@ -1224,3 +1224,58 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_MVMArray,
     0, /* refs_frames */
 };
+
+/* Install a new version of the array data to be installed. */
+static void install_new_version(MVMThreadContext *tc, MVMArray *array, MVMArrayData *new_version) {
+    MVMArrayData *current_version;
+    if (MVM_instance_have_user_threads(tc)) {
+        do {
+            current_version = MVM_load(&(array->body.data));
+        } while (!MVM_trycas(&(array->body.data), current_version, new_version));
+        if (current_version)
+            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMArrayData), current_version);
+    }
+    else {
+        current_version = array->body.data;
+        array->body.data = new_version;
+        if (current_version)
+            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMArrayData), current_version);
+    }
+}
+
+/* Obtains direct access to the slots and elems, with the start applied and
+ * the elems count provided. Promises that reading the specified number of
+ * elements from the specified memory address will certainly be safe until the
+ * next VM safe point. */
+void MVM_array_get_slots_and_elems(MVMThreadContext *tc, MVMArray *array, void **slots_out, MVMint64 *elems_out) {
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)STABLE(array)->REPR_data;
+    MVMArrayData *current_version = array->body.data;
+    if (current_version) {
+        MVMint64 start = current_version->start;
+        MVMint64 elems = current_version->elems;
+        if (start + elems > current_version->ssize) {
+            /* Corruption. */
+            elems = current_version->ssize - start;
+            if (elems < 0)
+                elems = 0;
+        }
+        *slots_out = current_version->slots.i8 + start * (repr_data->elem_size);
+        *elems_out = elems;
+    }
+    else {
+        *slots_out = NULL;
+        *elems_out = 0;
+    }
+}
+
+/* Sets the data held by the array. Trusts that the elems and data are valid,
+ * and the size of the array elements has been respected. Replaces any data
+ * that has come before. */
+void MVM_array_set_data(MVMThreadContext *tc, MVMArray *array, void *data, MVMint64 elems) {
+    MVMArrayData *new_version = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMArrayData));
+    new_version->start        = elems;
+    new_version->start        = 0;
+    new_version->ssize        = elems;
+    new_version->slots.any    = data;
+    install_new_version(tc, array, new_version);
+}

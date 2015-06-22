@@ -406,6 +406,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     SpawnInfo             *si;
     char                  *output;
     int                    output_size, r;
+    MVMint64               output_size_64;
 
     /* Add to work in progress. */
     SpawnWriteInfo *wi = (SpawnWriteInfo *)data;
@@ -414,16 +415,11 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
 
     /* Encode the string, or extract buf data. */
-    if (wi->str_data) {
-        MVMuint64 output_size_64;
+    if (wi->str_data)
         output = MVM_string_utf8_encode(tc, wi->str_data, &output_size_64);
-        output_size = (int)output_size_64;
-    }
-    else {
-        MVMArray *buffer = (MVMArray *)wi->buf_data;
-        output = (char *)(buffer->body.slots.i8 + buffer->body.start);
-        output_size = (int)buffer->body.elems;
-    }
+    else
+        MVM_array_get_slots_and_elems(tc, (MVMArray *)wi->buf_data, &output, &output_size_64);
+    output_size = (int)output_size_64;
 
     /* Create and initialize write request. */
     wi->req           = MVM_malloc(sizeof(uv_write_t));
@@ -687,13 +683,10 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
                 MVM_repr_push_o(tc, arr, boxed_str);
             }
             else {
-                MVMObject *buf_type    = MVM_repr_at_key_o(tc, si->callbacks,
-                                            tc->instance->str_consts.buf_type);
-                MVMArray  *res_buf     = (MVMArray *)MVM_repr_alloc_init(tc, buf_type);
-                res_buf->body.slots.i8 = (MVMint8 *)buf->base;
-                res_buf->body.start    = 0;
-                res_buf->body.ssize    = nread;
-                res_buf->body.elems    = nread;
+                MVMObject *buf_type = MVM_repr_at_key_o(tc, si->callbacks,
+                                         tc->instance->str_consts.buf_type);
+                MVMArray  *res_buf  = (MVMArray *)MVM_repr_alloc_init(tc, buf_type);
+                MVM_array_set_data(tc, res_buf, buf->base, nread);
                 MVM_repr_push_o(tc, arr, (MVMObject *)res_buf);
             }
 
