@@ -647,10 +647,10 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         return;
     }
 
-    return; /* When compiling rakudo, we get a "cannot lookup method on null
-               object" and i don't know why the previous guard doesn't help.
-               but at least we can turn a bunch of can_s into can. */
-    can_result = MVM_6model_can_method_cache_only(tc, obj_facts->type, method_name);
+    if (MVM_is_null(tc, obj_facts->type))
+        can_result = 0; /* VMNull can't have any methods. */
+    else
+        can_result = MVM_6model_can_method_cache_only(tc, obj_facts->type, method_name);
 
     if (can_result == -1) {
         return;
