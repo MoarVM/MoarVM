@@ -49,7 +49,7 @@ report bugs.
 Copyright (C) 2012-2014 by the MoarVM contributors. See the F<CREDITS> file for
 a list of contributors.
 
-License: Artistlic License 2.0. See the file F<Artistic2.txt> for more
+License: Artistic License 2.0. See the file F<Artistic2.txt> for more
 information.
 
 =cut
