@@ -2659,8 +2659,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getcodename): {
-                MVMCode *c = (MVMCode *)GET_REG(cur_op, 2).o;
-                GET_REG(cur_op, 0).s = c->body.name;
+                MVMObject *co = GET_REG(cur_op, 2).o;
+                if (REPR(co)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(co))
+                    MVM_exception_throw_adhoc(tc, "getcodename requires a concrete code object");
+                GET_REG(cur_op, 0).s = ((MVMCode *)co)->body.name;
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3092,7 +3094,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getcodecuid): {
                 MVMObject * const cr = GET_REG(cur_op, 2).o;
-                if (REPR(cr)->ID != MVM_REPR_ID_MVMCode)
+                if (REPR(cr)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(cr))
                     MVM_exception_throw_adhoc(tc, "getcodecuid requires a static coderef");
                 GET_REG(cur_op, 0).s = ((MVMCode *)cr)->body.sf->body.cuuid;
                 cur_op += 4;
