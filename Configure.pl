@@ -360,7 +360,7 @@ print dots('Configuring 3rdparty libs');
 my @thirdpartylibs;
 my $thirdparty = $defaults{-thirdparty};
 
-for (keys %$thirdparty) {
+for (sort keys %$thirdparty) {
     my $current = $thirdparty->{$_};
     my @keys = ( "${_}lib", "${_}objects", "${_}rule", "${_}clean");
 
