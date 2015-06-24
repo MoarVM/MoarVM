@@ -30,12 +30,20 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
     MVMCPointerBody *body = (MVMCPointerBody *)OBJECT_BODY(root);
+#if MVM_PTR_SIZE == 4
+    body->ptr = (void *)(MVMint32)value;
+#else
     body->ptr = (void *)value;
+#endif
 }
 
 static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMCPointerBody *body = (MVMCPointerBody *)OBJECT_BODY(root);
+#if MVM_PTR_SIZE == 4
+    return (MVMint64)(MVMint32)body->ptr;
+#else
     return (MVMint64)body->ptr;
+#endif
 }
 
 
