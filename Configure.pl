@@ -671,7 +671,7 @@ sub hardfail {
 
 sub write_backend_config {
     $config{backendconfig} = '';
-    for my $k (keys %config) {
+    for my $k (sort keys %config) {
         next if $k eq 'backendconfig';
         my $v = $config{$k};
         
