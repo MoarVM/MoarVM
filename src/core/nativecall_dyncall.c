@@ -461,7 +461,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         MVMObject *value = MVM_repr_at_pos_o(tc, args, i);
         switch (arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
             case MVM_NATIVECALL_ARG_CHAR:
-                handle_arg("integer", cont_i, MVM_NATIVECALL_TYPE_CHAR, i64, dcArgChar, MVM_nativecall_unmarshal_char);
+                handle_arg("integer", cont_i, DCchar, i64, dcArgChar, MVM_nativecall_unmarshal_char);
                 break;
             case MVM_NATIVECALL_ARG_SHORT:
                 handle_arg("integer", cont_i, DCshort, i64, dcArgShort, MVM_nativecall_unmarshal_short);
