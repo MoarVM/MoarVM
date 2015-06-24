@@ -24,7 +24,7 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
     });
 
     cpath = MVM_string_utf8_encode_C_string(tc, path);
-    lib = dlLoadLibrary(cpath);
+    lib = MVM_nativecall_load_lib(cpath);
 
     if (!lib) {
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);
@@ -104,7 +104,7 @@ MVMObject * MVM_dll_find_symbol(MVMThreadContext *tc, MVMString *lib,
     }
 
     csym = MVM_string_utf8_encode_C_string(tc, sym);
-    address = dlFindSymbol(entry->lib, csym);
+    address = MVM_nativecall_find_sym(entry->lib, csym);
     MVM_free(csym);
 
     if (!address) {

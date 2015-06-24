@@ -85,6 +85,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/core/dll@obj@ \
           src/core/ext@obj@ \
           src/core/nativecall@obj@ \
+          src/core/nativecall_@nativecall_backend@@obj@ \
           src/core/continuation@obj@ \
           src/core/intcache@obj@ \
           src/core/fixedsizealloc@obj@ \
