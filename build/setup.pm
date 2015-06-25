@@ -435,6 +435,8 @@ our %OS_NETBSD = (
 our %OS_FREEBSD = (
     %OS_POSIX,
 
+    cc => (qx!cc -v 2>&1 >/dev/null! !~ 'clang') ? 'gcc' : 'clang',
+
     syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
 
     -thirdparty => {
@@ -490,7 +492,7 @@ our %SYSTEMS = (
     darwin      => [ qw( posix gnu   clang ), { %OS_DARWIN } ],
     openbsd     => [ qw( posix bsd   gcc ),   { %OS_OPENBSD} ],
     netbsd      => [ qw( posix bsd   gcc ),   { %OS_NETBSD } ],
-    freebsd     => [ qw( posix bsd   clang ), { %OS_FREEBSD } ],
+    freebsd     => [ qw( posix bsd ),         { %OS_FREEBSD } ],
     gnukfreebsd => [ qw( posix gnu   gcc ),   { %OS_GNUKFREEBSD } ],
     solaris     => [ qw( posix posix cc ),    { %OS_SOLARIS } ],
     win32       => [ qw( win32 msvc  cl ),    { %OS_WIN32 } ],
