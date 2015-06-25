@@ -435,6 +435,8 @@ our %OS_NETBSD = (
 our %OS_FREEBSD = (
     %OS_POSIX,
 
+    cc => (qx!cc -v 2>&1 >/dev/null! !~ 'clang') ? 'gcc' : 'clang',
+
     syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
 
     -thirdparty => {
