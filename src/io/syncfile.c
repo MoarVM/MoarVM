@@ -253,6 +253,14 @@ static void truncatefh(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
         MVM_exception_throw_adhoc(tc, "Failed to truncate filehandle: %s", uv_strerror(req.result));
 }
 
+/* Operations aiding process spawning and I/O handling. */
+static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio,
+        uv_process_t *process) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    stdio->flags        = UV_INHERIT_FD;
+    stdio->data.fd      = data->fd;
+}
+
 /* Locks a file. */
 static MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
@@ -370,6 +378,7 @@ static const MVMIOEncodable    encodable     = { set_encoding };
 static const MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, mvm_eof };
 static const MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncatefh };
 static const MVMIOSeekable     seekable      = { seek, mvm_tell };
+static const MVMIOPipeable     pipeable      = { bind_stdio_handle };
 static const MVMIOLockable     lockable      = { lock, unlock };
 static const MVMIOOps op_table = {
     &closable,
@@ -380,7 +389,7 @@ static const MVMIOOps op_table = {
     NULL,
     &seekable,
     NULL,
-    NULL,
+    &pipeable,
     &lockable,
     NULL,
     gc_free
