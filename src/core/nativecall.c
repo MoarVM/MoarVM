@@ -539,7 +539,7 @@ MVMObject * MVM_nativecall_global(MVMThreadContext *tc, MVMString *lib, MVMStrin
     }
 
     ret = nativecall_cast(tc, target_spec, target_type, entry_point);
-    dlFreeLibrary(lib_handle);
+    MVM_nativecall_free_lib(lib_handle);
     return ret;
 }
 

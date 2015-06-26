@@ -71,7 +71,7 @@ int MVM_dll_free(MVMThreadContext *tc, MVMString *name) {
         MVM_exception_throw_adhoc(tc, "cannot free in-use library");
     }
 
-    dlFreeLibrary(entry->lib);
+    MVM_nativecall_free_lib(entry->lib);
     entry->lib = NULL;
 
     uv_mutex_unlock(&tc->instance->mutex_dll_registry);
