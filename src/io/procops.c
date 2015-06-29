@@ -270,7 +270,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
     process_options.file        = arg_size ? args[0] : NULL;
     process_options.args        = args;
     process_options.cwd         = _cwd;
-    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
+    process_options.flags       = UV_PROCESS_WINDOWS_HIDE;
     process_options.env         = _env;
     process_options.stdio_count = 3;
     process_options.exit_cb     = spawn_on_exit;
