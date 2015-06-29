@@ -2,6 +2,9 @@ package main;
 use strict;
 use warnings;
 
+use File::Spec::Functions qw(devnull);
+my $devnull = devnull();
+
 # 3rdparty library configuration
 
 our %TP_LAO = (
@@ -435,7 +438,7 @@ our %OS_NETBSD = (
 our %OS_FREEBSD = (
     %OS_POSIX,
 
-    cc => (qx!cc -v 2>&1 >/dev/null! !~ 'clang') ? 'gcc' : 'clang',
+    cc => (qx!cc -v 2>&1 >$devnull! !~ 'clang') ? 'gcc' : 'clang',
 
     syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
 
