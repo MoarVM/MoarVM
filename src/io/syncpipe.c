@@ -7,16 +7,6 @@
 /* This heavily re-uses the logic from syncstream, but with different close
  * and gc_free semantics. */
 
- /* Data that we keep for a pipe-based handle. */
-struct MVMIOSyncPipeData {
-    /* Start with same fields as a sync stream, since we will re-use most
-     * of its logic. */
-    MVMIOSyncStreamData ss;
-
-    /* Also need to keep hold of the process */
-    uv_process_t *process;
-};
-
 /* Closes the pipe. */
 static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
 #ifdef _WIN32
@@ -62,6 +52,15 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     return do_close(tc, data);
 }
 
+/* Operations aiding process spawning and I/O handling. */
+static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio,
+        uv_process_t *process) {
+    MVMIOSyncPipeData *data = (MVMIOSyncPipeData *)h->body.data;
+    data->process           = process;
+    stdio->flags            = UV_INHERIT_STREAM;
+    stdio->data.stream      = data->ss.handle;
+}
+
 /* Frees data associated with the pipe, closing it if needed. */
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOSyncPipeData *data = (MVMIOSyncPipeData *)d;
@@ -83,6 +82,7 @@ static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_str,
                                                  MVM_io_syncstream_truncate };
 static const MVMIOSeekable          seekable = { MVM_io_syncstream_seek,
                                                  MVM_io_syncstream_tell };
+static const MVMIOPipeable     pipeable      = { bind_stdio_handle };
 static const MVMIOOps op_table = {
     &closable,
     &encodable,
@@ -92,18 +92,19 @@ static const MVMIOOps op_table = {
     NULL,
     &seekable,
     NULL,
-    NULL,
+    &pipeable,
     NULL,
     NULL,
     gc_free
 };
 
 /* Creates a sync pipe handle. */
-MVMObject * MVM_io_syncpipe(MVMThreadContext *tc, uv_stream_t *handle, uv_process_t *process) {
+MVMObject * MVM_io_syncpipe(MVMThreadContext *tc) {
     MVMOSHandle       * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     MVMIOSyncPipeData * const data   = MVM_calloc(1, sizeof(MVMIOSyncPipeData));
-    data->process     = process;
-    data->ss.handle   = handle;
+    uv_pipe_t *handle = MVM_malloc(sizeof(uv_pipe_t));
+    uv_pipe_init(tc->loop, handle, 0);
+    data->ss.handle   = (uv_stream_t *)handle;
     data->ss.encoding = MVM_encoding_type_utf8;
     data->ss.sep      = '\n';
     result->body.ops  = &op_table;

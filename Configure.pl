@@ -32,7 +32,7 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     ar=s cc=s ld=s make=s has-sha has-libuv
     static has-libtommath has-libatomic_ops
-    has-dyncall
+    has-dyncall has-libffi
     build=s host=s big-endian jit! enable-jit lua=s has-dynasm
     prefix=s bindir=s libdir=s mastdir=s make-install asan),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
@@ -226,13 +226,20 @@ else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dynasm';
 }
 
-if ($args{'has-dyncall'}) {
+if ($args{'has-libffi'}) {
+    $config{nativecall_backend} = 'libffi';
+    unshift @{$config{usrlibs}}, 'ffi';
+    push @{$config{defs}}, 'HAVE_LIBFFI';
+}
+elsif ($args{'has-dyncall'}) {
     unshift @{$config{usrlibs}}, 'dyncall_s', 'dyncallback_s', 'dynload_s';
     $defaults{-thirdparty}->{dc}  = undef;
     $defaults{-thirdparty}->{dcb} = undef;
     $defaults{-thirdparty}->{dl}  = undef;
+    $config{nativecall_backend} = 'dyncall';
 }
 else {
+    $config{nativecall_backend} = 'dyncall';
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dyncall/dynload'
                         . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncall'
                         . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncallback';
@@ -360,7 +367,7 @@ print dots('Configuring 3rdparty libs');
 my @thirdpartylibs;
 my $thirdparty = $defaults{-thirdparty};
 
-for (keys %$thirdparty) {
+for (sort keys %$thirdparty) {
     my $current = $thirdparty->{$_};
     my @keys = ( "${_}lib", "${_}objects", "${_}rule", "${_}clean");
 
@@ -671,7 +678,7 @@ sub hardfail {
 
 sub write_backend_config {
     $config{backendconfig} = '';
-    for my $k (keys %config) {
+    for my $k (sort keys %config) {
         next if $k eq 'backendconfig';
         my $v = $config{$k};
         
@@ -844,6 +851,8 @@ Build and install MoarVM in addition to configuring it.
 =item --has-dynasm
 
 =item --has-dyncall
+
+=item --has-libffi
 
 =item --no-jit
 

@@ -1322,6 +1322,8 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
 static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs, MVMInvocationSpec *is) {
     if (!MVM_is_null(tc, is->class_handle)) {
         MVMRegister dest;
+        if (!IS_CONCRETE(code))
+            MVM_exception_throw_adhoc(tc, "Can not invoke a code type object");
         REPR(code)->attr_funcs.get_attribute(tc,
             STABLE(code), code, OBJECT_BODY(code),
             is->class_handle, is->attr_name,
@@ -1391,6 +1393,8 @@ MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *cod
             /* We might be able to dig straight into the multi cache and not
              * have to invoke the proto. */
             MVMRegister dest;
+            if (!IS_CONCRETE(code))
+                MVM_exception_throw_adhoc(tc, "Can not invoke a code type object");
             REPR(code)->attr_funcs.get_attribute(tc,
                 STABLE(code), code, OBJECT_BODY(code),
                 is->md_class_handle, is->md_valid_attr_name,

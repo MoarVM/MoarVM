@@ -105,8 +105,12 @@ static void from_num(MVMnum64 d, mp_int *a) {
 /* Returns the body of a P6bigint, containing the bigint/smallint union, for
  * operations that want to explicitly handle the two. */
 static MVMP6bigintBody * get_bigint_body(MVMThreadContext *tc, MVMObject *obj) {
-    return (MVMP6bigintBody *)REPR(obj)->box_funcs.get_boxed_ref(tc,
-        STABLE(obj), obj, OBJECT_BODY(obj), MVM_REPR_ID_P6bigint);
+    if (IS_CONCRETE(obj))
+        return (MVMP6bigintBody *)REPR(obj)->box_funcs.get_boxed_ref(tc,
+            STABLE(obj), obj, OBJECT_BODY(obj), MVM_REPR_ID_P6bigint);
+    else
+        MVM_exception_throw_adhoc(tc,
+            "Can only perform big integer operations on concrete objects");
 }
 
 /* Checks if a bigint can be stored small. */

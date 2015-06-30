@@ -24,10 +24,14 @@
 #define AO_REQUIRE_CAS
 #include <atomic_ops.h>
 
-/* dynload/dyncall/dyncallback */
+/* libffi or dynload/dyncall/dyncallback */
+#ifdef HAVE_LIBFFI
+#include <ffi.h>
+#else
 #include <dynload.h>
 #include <dyncall.h>
 #include <dyncall_callback.h>
+#endif
 
 /* forward declarations */
 #include "types.h"
@@ -100,9 +104,14 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "core/loadbytecode.h"
 #include "math/num.h"
 #include "core/coerce.h"
-#include "core/dll.h"
 #include "core/ext.h"
+#ifdef HAVE_LIBFFI
+#include "core/nativecall_libffi.h"
+#else
+#include "core/nativecall_dyncall.h"
+#endif
 #include "core/nativecall.h"
+#include "core/dll.h"
 #include "core/continuation.h"
 #include "6model/reprs.h"
 #include "6model/reprconv.h"
@@ -147,8 +156,8 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "io/io.h"
 #include "io/eventloop.h"
 #include "io/syncfile.h"
-#include "io/syncpipe.h"
 #include "io/syncstream.h"
+#include "io/syncpipe.h"
 #include "io/syncsocket.h"
 #include "io/fileops.h"
 #include "io/dirops.h"

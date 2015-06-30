@@ -2659,8 +2659,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getcodename): {
-                MVMCode *c = (MVMCode *)GET_REG(cur_op, 2).o;
-                GET_REG(cur_op, 0).s = c->body.name;
+                MVMObject *co = GET_REG(cur_op, 2).o;
+                if (REPR(co)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(co))
+                    MVM_exception_throw_adhoc(tc, "getcodename requires a concrete code object");
+                GET_REG(cur_op, 0).s = ((MVMCode *)co)->body.name;
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3092,7 +3094,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getcodecuid): {
                 MVMObject * const cr = GET_REG(cur_op, 2).o;
-                if (REPR(cr)->ID != MVM_REPR_ID_MVMCode)
+                if (REPR(cr)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(cr))
                     MVM_exception_throw_adhoc(tc, "getcodecuid requires a static coderef");
                 GET_REG(cur_op, 0).s = ((MVMCode *)cr)->body.sf->body.cuuid;
                 cur_op += 4;
@@ -3327,9 +3329,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(shell):
-                GET_REG(cur_op, 0).i64 = MVM_proc_shell(tc, GET_REG(cur_op, 2).s,
-                    GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o);
-                cur_op += 8;
+                GET_REG(cur_op, 0).i64 = MVM_proc_shell(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
+                    GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o, GET_REG(cur_op, 12).o, GET_REG(cur_op, 14).i64);
+                cur_op += 16;
                 goto NEXT;
             OP(cwd):
                 GET_REG(cur_op, 0).s = MVM_dir_cwd(tc);
@@ -3749,9 +3751,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(spawn):
-                GET_REG(cur_op, 0).i64 = MVM_proc_spawn(tc, GET_REG(cur_op, 2).o,
-                    GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o);
-                cur_op += 8;
+                GET_REG(cur_op, 0).i64 = MVM_proc_spawn(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
+                    GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o, GET_REG(cur_op, 12).o, GET_REG(cur_op, 14).i64);
+                cur_op += 16;
                 goto NEXT;
             OP(filereadable):
                 GET_REG(cur_op, 0).i64 = MVM_file_isreadable(tc, GET_REG(cur_op, 2).s,0);
@@ -3795,9 +3797,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->instance->boot_types.BOOTException);
                 cur_op += 2;
                 goto NEXT;
-            OP(openpipe):
-                GET_REG(cur_op, 0).o = MVM_file_openpipe(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).s);
-                cur_op += 10;
+            OP(DEPRECATED_0):
+                cur_op += 2;
                 goto NEXT;
             OP(backtrace):
                 GET_REG(cur_op, 0).o = MVM_exception_backtrace(tc, GET_REG(cur_op, 2).o);
@@ -4537,6 +4538,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(scdisclaim):
                 MVM_sc_disclaim(tc, (MVMSerializationContext *)GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
+            OP(syncpipe):
+                GET_REG(cur_op, 0).o = MVM_io_syncpipe(tc);
                 cur_op += 2;
                 goto NEXT;
             OP(sp_log):
