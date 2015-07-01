@@ -4542,6 +4542,34 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_io_syncpipe(tc);
                 cur_op += 2;
                 goto NEXT;
+            OP(atpos2d_i):
+            OP(atpos2d_n):
+            OP(atpos2d_s):
+            OP(atpos2d_o):
+            OP(atpos3d_i):
+            OP(atpos3d_n):
+            OP(atpos3d_s):
+            OP(atpos3d_o):
+            OP(atposnd_i):
+            OP(atposnd_n):
+            OP(atposnd_s):
+            OP(atposnd_o):
+            OP(bindpos2d_i):
+            OP(bindpos2d_n):
+            OP(bindpos2d_s):
+            OP(bindpos2d_o):
+            OP(bindpos3d_i):
+            OP(bindpos3d_n):
+            OP(bindpos3d_s):
+            OP(bindpos3d_o):
+            OP(bindposnd_i):
+            OP(bindposnd_n):
+            OP(bindposnd_s):
+            OP(bindposnd_o):
+            OP(dimensions):
+            OP(setdimensions):
+            OP(numdimensions):
+                MVM_exception_throw_adhoc(tc, "Multi-dimensional array ops not yet implemented");
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

@@ -701,6 +701,33 @@ ordbaseat           w(int64) r(str) r(int64) :pure
 neverrepossess      r(obj)
 scdisclaim          r(obj)
 syncpipe            w(obj)
+atpos2d_i           w(int64) r(obj) r(int64) r(int64) :pure
+atpos2d_n           w(num64) r(obj) r(int64) r(int64) :pure
+atpos2d_s           w(str) r(obj) r(int64) r(int64) :pure
+atpos2d_o           w(obj) r(obj) r(int64) r(int64) :pure
+atpos3d_i           w(int64) r(obj) r(int64) r(int64) r(int64) :pure
+atpos3d_n           w(num64) r(obj) r(int64) r(int64) r(int64) :pure
+atpos3d_s           w(str) r(obj) r(int64) r(int64) r(int64) :pure
+atpos3d_o           w(obj) r(obj) r(int64) r(int64) r(int64) :pure
+atposnd_i           w(int64) r(obj) r(obj) :pure
+atposnd_n           w(num64) r(obj) r(obj) :pure
+atposnd_s           w(str) r(obj) r(obj) :pure
+atposnd_o           w(obj) r(obj) r(obj) :pure
+bindpos2d_i         r(obj) r(int64) r(int64) r(int64)
+bindpos2d_n         r(obj) r(int64) r(int64) r(num64)
+bindpos2d_s         r(obj) r(int64) r(int64) r(str)
+bindpos2d_o         r(obj) r(int64) r(int64) r(obj)
+bindpos3d_i         r(obj) r(int64) r(int64) r(int64) r(int64)
+bindpos3d_n         r(obj) r(int64) r(int64) r(int64) r(num64)
+bindpos3d_s         r(obj) r(int64) r(int64) r(int64) r(str)
+bindpos3d_o         r(obj) r(int64) r(int64) r(int64) r(obj)
+bindposnd_i         r(obj) r(obj) r(int64)
+bindposnd_n         r(obj) r(obj) r(num64)
+bindposnd_s         r(obj) r(obj) r(str)
+bindposnd_o         r(obj) r(obj) r(obj)
+dimensions          w(obj) r(obj)
+setdimensions       r(obj) r(obj)
+numdimensions       w(int64) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
