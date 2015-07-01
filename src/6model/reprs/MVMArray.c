@@ -1185,6 +1185,10 @@ static const MVMREPROps this_repr = {
         unshift,
         shift,
         asplice,
+        MVM_REPR_DEFAULT_AT_POS_MULTIDIM,
+        MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,
+        MVM_REPR_DEFAULT_DIMENSIONS,
+        MVM_REPR_DEFAULT_SET_DIMENSIONS,
         get_elem_storage_spec
     },    /* pos_funcs */
     MVM_REPR_DEFAULT_ASS_FUNCS,

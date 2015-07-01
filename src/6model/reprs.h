@@ -126,6 +126,10 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
     MVM_REPR_DEFAULT_UNSHIFT, \
     MVM_REPR_DEFAULT_SHIFT, \
     MVM_REPR_DEFAULT_SPLICE, \
+    MVM_REPR_DEFAULT_AT_POS_MULTIDIM, \
+    MVM_REPR_DEFAULT_BIND_POS_MULTIDIM, \
+    MVM_REPR_DEFAULT_DIMENSIONS, \
+    MVM_REPR_DEFAULT_SET_DIMENSIONS, \
     MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC \
 }
 
@@ -174,6 +178,10 @@ void MVM_REPR_DEFAULT_PUSH(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 void MVM_REPR_DEFAULT_POP(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind);
 void MVM_REPR_DEFAULT_UNSHIFT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind);
 void MVM_REPR_DEFAULT_SHIFT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind);
+void MVM_REPR_DEFAULT_AT_POS_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister *value, MVMuint16 kind);
+void MVM_REPR_DEFAULT_BIND_POS_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister value, MVMuint16 kind);
+void MVM_REPR_DEFAULT_DIMENSIONS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions);
+void MVM_REPR_DEFAULT_SET_DIMENSIONS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *dimensions);
 MVMStorageSpec MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC(MVMThreadContext *tc, MVMSTable *st);
 
 /* Default associative indexing REPR function for a REPR that lacks it. */
