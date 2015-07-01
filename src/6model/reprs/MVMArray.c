@@ -860,6 +860,18 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     }
 }
 
+static void at_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister *result, MVMuint16 kind) {
+    if (num_indices != 1)
+        MVM_exception_throw_adhoc(tc, "A dynamic array can only be indexed with a single dimension");
+    at_pos(tc, st, root, data, indices[0], result, kind);
+}
+
+static void bind_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister value, MVMuint16 kind) {
+    if (num_indices != 1)
+        MVM_exception_throw_adhoc(tc, "A dynamic array can only be indexed with a single dimension");
+    bind_pos(tc, st, root, data, indices[0], value, kind);
+}
+
 static void dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions) {
     MVMArrayBody *body = (MVMArrayBody *)data;
     *num_dimensions = 1;
@@ -1197,8 +1209,8 @@ static const MVMREPROps this_repr = {
         unshift,
         shift,
         asplice,
-        MVM_REPR_DEFAULT_AT_POS_MULTIDIM,
-        MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,
+        at_pos_multidim,
+        bind_pos_multidim,
         dimensions,
         set_dimensions,
         get_elem_storage_spec
