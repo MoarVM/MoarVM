@@ -860,6 +860,18 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     }
 }
 
+static void dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions) {
+    MVMArrayBody *body = (MVMArrayBody *)data;
+    *num_dimensions = 1;
+    *dimensions = &(body->elems);
+}
+
+static void set_dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *dimensions) {
+    if (num_dimensions != 1)
+        MVM_exception_throw_adhoc(tc, "A dynamic array can only have a single dimension");
+    set_elems(tc, st, root, data, dimensions[0]);
+}
+
 static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMStorageSpec spec;
@@ -1187,8 +1199,8 @@ static const MVMREPROps this_repr = {
         asplice,
         MVM_REPR_DEFAULT_AT_POS_MULTIDIM,
         MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,
-        MVM_REPR_DEFAULT_DIMENSIONS,
-        MVM_REPR_DEFAULT_SET_DIMENSIONS,
+        dimensions,
+        set_dimensions,
         get_elem_storage_spec
     },    /* pos_funcs */
     MVM_REPR_DEFAULT_ASS_FUNCS,
