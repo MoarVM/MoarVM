@@ -44,19 +44,19 @@ MVM_PUBLIC void MVM_repr_pos_set_elems(MVMThreadContext *tc, MVMObject *obj, MVM
         OBJECT_BODY(obj), elems);
 }
 
-void MVM_repr_set_dimensions(MVMThreadContext *tc, MVMObject *obj, MVMObject *dims) {
-    /* Turn dimensions array into a C array. */
-    MVMint64 num_dims = MVM_repr_elems(tc, dims);
-    MVMint64 *c_dims = num_dims ? MVM_malloc(num_dims * sizeof(MVMint64)) : NULL;
+static void int_array_to_c_array(MVMThreadContext *tc, MVMObject *arr, MVMint64 *elems, MVMint64 **values) {
     MVMint64 i;
-    for (i = 0; i < num_dims; i++)
-        c_dims[i] = MVM_repr_at_pos_i(tc, dims, i);
+    *elems = MVM_repr_elems(tc, arr);
+    *values = *elems ? MVM_malloc(*elems * sizeof(MVMint64)) : NULL;
+    for (i = 0; i < *elems; i++)
+        (*values)[i] = MVM_repr_at_pos_i(tc, arr, i);
+}
 
-    /* Set dimensions. */
+void MVM_repr_set_dimensions(MVMThreadContext *tc, MVMObject *obj, MVMObject *dims) {
+    MVMint64 num_dims, *c_dims;
+    int_array_to_c_array(tc, dims, &num_dims, &c_dims);
     REPR(obj)->pos_funcs.set_dimensions(tc, STABLE(obj), obj,
         OBJECT_BODY(obj), num_dims, c_dims);
-
-    /* Clean up. */
     MVM_free(c_dims);
 }
 
