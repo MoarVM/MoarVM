@@ -331,10 +331,10 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
             if (flags & 2048) {
                 append(ds, " KBxSr");
             }
-            append(ds, "\n");
             if (g->facts[i][j].writer && g->facts[i][j].writer->info->opcode == MVM_SSA_PHI) {
                 appendf(ds, " (merged from %d regs)\n", g->facts[i][j].writer->info->num_operands - 1);
             }
+            append(ds, "\n");
         }
     }
 }
