@@ -51,8 +51,10 @@ MVM_PUBLIC void MVM_repr_pos_splice(MVMThreadContext *tc, MVMObject *obj, MVMObj
 }
 
 MVM_PUBLIC MVMint64 MVM_repr_exists_pos(MVMThreadContext *tc, MVMObject *obj, MVMint64 index) {
-    return REPR(obj)->pos_funcs.exists_pos(tc,
-        STABLE(obj), obj, OBJECT_BODY(obj), index);
+    MVMint64 elems = REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+    if (index < 0)
+        index += elems;
+    return index >= 0 && index < elems && !MVM_is_null(tc, MVM_repr_at_pos_o(tc, obj, index));
 }
 
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {

@@ -423,10 +423,6 @@ struct MVMREPROps_Positional {
     void (*set_elems) (MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMuint64 count);
 
-    /* Returns a true value of the specified index exists, and a false one if not. */
-    MVMint64 (*exists_pos) (MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMint64 index);
-
     /* Pushes the specified value onto the array. */
     void (*push) (MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMRegister value, MVMuint16 kind);

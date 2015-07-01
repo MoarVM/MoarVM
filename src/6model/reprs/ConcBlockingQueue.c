@@ -204,7 +204,6 @@ static const MVMREPROps this_repr = {
         at_pos,
         MVM_REPR_DEFAULT_BIND_POS,
         MVM_REPR_DEFAULT_SET_ELEMS,
-        MVM_REPR_DEFAULT_EXISTS_POS,
         push,
         MVM_REPR_DEFAULT_POP,
         MVM_REPR_DEFAULT_UNSHIFT,

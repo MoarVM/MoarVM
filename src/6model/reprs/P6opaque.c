@@ -1512,7 +1512,6 @@ static const MVMREPROps this_repr = {
         at_pos,
         bind_pos,
         set_elems,
-        NULL,
         push,
         pop,
         unshift,
