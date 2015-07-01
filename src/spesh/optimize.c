@@ -224,7 +224,7 @@ static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
         MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
-        result_facts->value.i     = obj_facts->flags & MVM_SPESH_FACT_CONCRETE ? 1 : 0;
+        result_facts->value.i       = obj_facts->flags & MVM_SPESH_FACT_CONCRETE ? 1 : 0;
         ins->operands[1].lit_i16    = result_facts->value.i;
 
         MVM_spesh_use_facts(tc, g, obj_facts);
@@ -562,7 +562,7 @@ static void optimize_objprimspec(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
-        result_facts->value.i     = REPR(obj_facts->type)->get_storage_spec(tc, STABLE(obj_facts->type))->boxed_primitive;
+        result_facts->value.i       = REPR(obj_facts->type)->get_storage_spec(tc, STABLE(obj_facts->type))->boxed_primitive;
         ins->operands[1].lit_i16    = result_facts->value.i;
 
         MVM_spesh_use_facts(tc, g, obj_facts);
@@ -671,7 +671,7 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
         ins->operands[1].lit_i16    = can_result;
-        result_facts->value.i     = can_result;
+        result_facts->value.i       = can_result;
 
         obj_facts->usages--;
         MVM_spesh_use_facts(tc, g, obj_facts);
