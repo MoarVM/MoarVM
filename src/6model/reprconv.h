@@ -4,6 +4,7 @@ MVM_PUBLIC MVMObject * MVM_repr_clone(MVMThreadContext *tc, MVMObject *obj);
 void MVM_repr_compose(MVMThreadContext *tc, MVMObject *type, MVMObject *obj);
 
 MVM_PUBLIC void MVM_repr_pos_set_elems(MVMThreadContext *tc, MVMObject *obj, MVMint64 elems);
+MVM_PUBLIC void MVM_repr_set_dimensions(MVMThreadContext *tc, MVMObject *obj, MVMObject *dims);
 MVM_PUBLIC void MVM_repr_pos_splice(MVMThreadContext *tc, MVMObject *obj, MVMObject *replacement, MVMint64 offset, MVMint64 count);
 
 MVM_PUBLIC MVMint64    MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx);
@@ -52,6 +53,8 @@ MVM_PUBLIC MVMint64 MVM_repr_exists_key(MVMThreadContext *tc, MVMObject *obj, MV
 MVM_PUBLIC void MVM_repr_delete_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key);
 
 MVM_PUBLIC MVMuint64 MVM_repr_elems(MVMThreadContext *tc, MVMObject *obj);
+MVM_PUBLIC MVMObject * MVM_repr_dimensions(MVMThreadContext *tc, MVMObject *obj);
+MVM_PUBLIC MVMint64 MVM_repr_num_dimensions(MVMThreadContext *tc, MVMObject *obj);
 
 MVM_PUBLIC MVMint64 MVM_repr_get_int(MVMThreadContext *tc, MVMObject *obj);
 MVM_PUBLIC MVMnum64 MVM_repr_get_num(MVMThreadContext *tc, MVMObject *obj);
