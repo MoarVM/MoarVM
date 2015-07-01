@@ -4550,10 +4550,27 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(atpos3d_n):
             OP(atpos3d_s):
             OP(atpos3d_o):
+                MVM_exception_throw_adhoc(tc, "Multi-dimensional array ops not yet implemented");
             OP(atposnd_i):
+                GET_REG(cur_op, 0).i64 = MVM_repr_at_pos_multidim_i(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
             OP(atposnd_n):
+                GET_REG(cur_op, 0).n64 = MVM_repr_at_pos_multidim_n(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
             OP(atposnd_s):
+                GET_REG(cur_op, 0).s = MVM_repr_at_pos_multidim_s(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
             OP(atposnd_o):
+                GET_REG(cur_op, 0).o = MVM_repr_at_pos_multidim_o(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
             OP(bindpos2d_i):
             OP(bindpos2d_n):
             OP(bindpos2d_s):
@@ -4562,11 +4579,27 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindpos3d_n):
             OP(bindpos3d_s):
             OP(bindpos3d_o):
-            OP(bindposnd_i):
-            OP(bindposnd_n):
-            OP(bindposnd_s):
-            OP(bindposnd_o):
                 MVM_exception_throw_adhoc(tc, "Multi-dimensional array ops not yet implemented");
+            OP(bindposnd_i):
+                MVM_repr_bind_pos_multidim_i(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
+            OP(bindposnd_n):
+                MVM_repr_bind_pos_multidim_n(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).n64);
+                cur_op += 6;
+                goto NEXT;
+            OP(bindposnd_s):
+                MVM_repr_bind_pos_multidim_s(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
+                cur_op += 6;
+                goto NEXT;
+            OP(bindposnd_o):
+                MVM_repr_bind_pos_multidim_o(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
             OP(dimensions):
                 GET_REG(cur_op, 0).o = MVM_repr_dimensions(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
