@@ -871,7 +871,7 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
     /* Invoke the HLL's bind failure handler. */
     bind_error = MVM_hll_current(tc)->bind_error;
     if (!bind_error)
-        MVM_exception_throw_adhoc(tc, "Bind erorr occurred, but HLL has no handler");
+        MVM_exception_throw_adhoc(tc, "Bind error occurred, but HLL has no handler");
     bind_error = MVM_frame_find_invokee(tc, bind_error, NULL);
     res = MVM_calloc(1, sizeof(MVMRegister));
     inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
