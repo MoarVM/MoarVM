@@ -1,7 +1,6 @@
 #!/usr/bin/env perl
 use Test::More;
-use Test::Exception; # This isn't a standard module, that annoys me.
-use Data::Dumper;
+use Getopt::Long;
 use strict;
 
 # A S-EXP is the most trivial thing to parse in the world.  Writing S-EXP
@@ -12,6 +11,13 @@ use strict;
 # are then used (at runtime) to generate the ET for a basic block.
 # This is pretty much exactly the same game as dynasm, except for an
 # intermediate format rather than machine code.
+
+# Input:
+#   (load (addr pargs $1))
+# Output
+#   template:(MVM_JIT_ADDR, MVM_JIT_PARGS, 1, MVM_JIT_LOAD, 0), 
+#   length: 5, root: 3 "..f..l"
+#
 
 sub parse_sexp {
     my $expr = shift;
@@ -38,14 +44,8 @@ sub parse_sexp {
     return ($tree, $expr);
 }
 
-# Input:
-#   (load (addr pargs $1)) -> 
-# Output
-#   template:(MVM_JIT_ADDR, MVM_JIT_PARGS, 1, MVM_JIT_LOAD, 0), 
-#   length: 5, root: 3 "..f..l"
-# 
 
-
+# Wrapper for the recursive write_template
 sub compile_template {
     my $tree = shift;
     my ($templ, $desc, $env) = ([], [], {});
@@ -58,12 +58,12 @@ sub compile_template {
     };
 }
 
-$main::BAREWORD_PREFIX = 'MVM_JIT_';
-
+my $PREFIX = 'MVM_JIT_';
 sub write_template {
     my ($tree, $templ, $desc, $env) = @_;
     die "Can't deal with an empty tree" unless @$tree; # we need at least some nodes
     my $top = $tree->[0]; # get the first item, used for dispatch
+    die "First parameter must be a bareword" unless $top =~ m/^[a-z]\w*$/i;
     my (@items, @desc); # accumulate state
     if ($top eq 'let') {
         # deal with let declarations
@@ -136,13 +136,16 @@ if ($ARGV[0] eq 'test') {
     is_deeply(first(parse_sexp('(foo (bar))')), ['foo', ['bar']]);;
     is_deeply(first(parse_sexp('((foo) (bar))')), [['foo'], ['bar']]);
     is_deeply(first(parse_sexp('(0)')), ['0']);
-    dies_ok { compile_template(parse_sexp('()')) } 'Cannot compile empty template';
-    lives_ok { compile_template(parse_sexp('(foo bar)')) } 'a simple expression should work';
-    dies_ok { compile_template(parse_sexp('(offsetof foo bar)')) } 
-         'Template root must be simple expr';
-    dies_ok { compile_template(parse_sexp('(foo (sizeof))')) } 'sizeof requires one child';
-    lives_ok { compile_template(parse_sexp('(let (($foo (bar)) ($quix (quam $1))) (bar $foo $quix))')) } 'let expressions should live and take more than one argument';
-    dies_ok { compile_template(parse_sexp('(foo $bar)')) } 'Cannot compile with undefined variables';
+    eval { compile_template(parse_sexp('()')) }; ok $@, 'Cannot compile empty template';
+    eval { compile_template(parse_sexp('(foo bar)')) }; ok !$@, 'a simple expression should work';
+    eval { compile_template(parse_sexp('(offsetof foo bar)')) };
+    ok $@, 'Template root must be simple expr';
+    eval { compile_template(parse_sexp('(foo (sizeof))')) }; ok $@, 'sizeof requires one child';
+    eval { compile_template(parse_sexp('(let (($foo (bar)) ($quix (quam $1))) (bar $foo $quix))')) };
+    ok !$@, 'let expressions should live and take more than one argument';
+    eval { compile_template(parse_sexp('(foo $bar)')) };
+    ok $@, 'Cannot compile with undefined variables';
+    eval { compile_template(parse_sexp('($1 bar)')) }; ok $@, 'First argument should be bareword';
     my $simple = compile_template(parse_sexp('(foo bar)'));
     is($simple->{root}, 0, 'root of a very simple expression should be 0');
     is($simple->{desc}, '..', 'simple expression without filling or linking');
