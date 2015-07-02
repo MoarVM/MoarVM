@@ -1,0 +1,14 @@
+# SYNTAX: opcode ':' s-exp
+#    s-exp represents tree
+
+# Number with dollars stand for the arguments of the opcode.  The
+# opcode preprocessor inserts loads, and immediate nodes for arguments
+# automatically.
+
+const_i16:  (copy $1) 
+const i64:  (copy $1)
+set:        (copy $1)
+add_i:      (add $1 $2)
+sp_getarg_o: (load (addr #args $1) #ptr)
+sp_getarg_i: (load (addr #args $1) #ptr)
+null_s: (imm 0)
