@@ -62,7 +62,7 @@ for my $target (@target_dirs) {
 
 if (-d '.git') {
     print dots("Updating submodules");
-    my $msg = qx{git submodule --quiet update --init 2>&1};
+    my $msg = qx{git submodule sync --quiet && git submodule --quiet update --init 2>&1};
     if ($? >> 8 == 0) { print "OK\n" }
     else { softfail("git error: $msg") }
 }
