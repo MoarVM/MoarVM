@@ -228,6 +228,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(AsyncTask);
     register_core_repr(Null);
     register_core_repr(NativeRef);
+    register_core_repr(MultiDimArray);
 
     tc->instance->num_reprs = MVM_REPR_CORE_COUNT;
 }
