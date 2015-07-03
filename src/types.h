@@ -103,7 +103,7 @@ typedef struct MVMMultiCacheBody MVMMultiCacheBody;
 typedef struct MVMMultiArityCache MVMMultiArityCache;
 typedef struct MVMMultiDimArray MVMMultiDimArray;
 typedef struct MVMMultiDimArrayBody MVMMultiDimArrayBody;
-typedef struct MVMMVMMultiDimArrayREPRData MVMMVMMultiDimArrayREPRData;
+typedef struct MVMMultiDimArrayREPRData MVMMultiDimArrayREPRData;
 typedef struct MVMContinuation MVMContinuation;
 typedef struct MVMContinuationBody MVMContinuationBody;
 typedef struct MVMReentrantMutex MVMReentrantMutex;

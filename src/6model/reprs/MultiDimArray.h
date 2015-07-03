@@ -32,7 +32,7 @@ struct MVMMultiDimArray {
 
 /* REPR data specifies the type of array elements and number of dimensions we
  * have (the actual size of the dimensions is part of the value). */
-struct MVMMVMMultiDimArrayREPRData {
+struct MVMMultiDimArrayREPRData {
     /* Number of dimensions we have. */
     MVMint64 num_dimensions;
 
