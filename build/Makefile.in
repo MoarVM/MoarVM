@@ -529,6 +529,9 @@ src/jit/emit_win32_x64.c: $(LUA) src/jit/emit_x64.dasc
 
 dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
 
+src/jit/expr_tables.h: src/jit/exprlist
+	$(PERL) tools/tree-expr-compiler.pl -o $@ $<
+
 @uvlib@: $(UV_OBJECTS)
 	$(MSG) linking $@
 	$(CMD)@uvrule@ $(NOOUT)

@@ -61,3 +61,5 @@ jit-*.bin
 
 # dynasm emitted files
 src/jit/emit_*.c
+# jit expression table file
+src/jit/expr_tables.h
