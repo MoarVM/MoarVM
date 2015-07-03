@@ -83,7 +83,7 @@ static void spec_to_repr_data(MVMThreadContext *tc, MVMMultiDimArrayREPRData *re
                         break;
                     default:
                         MVM_exception_throw_adhoc(tc,
-                            "MVMArray: Unsupported uint size");
+                            "MVMMultiDimArray: Unsupported uint size");
                 }
             }
             else {
@@ -118,7 +118,7 @@ static void spec_to_repr_data(MVMThreadContext *tc, MVMMultiDimArrayREPRData *re
                         break;
                     default:
                         MVM_exception_throw_adhoc(tc,
-                            "MVMArray: Unsupported int size");
+                            "MVMMultiDimArray: Unsupported int size");
                 }
             }
             break;
@@ -134,7 +134,7 @@ static void spec_to_repr_data(MVMThreadContext *tc, MVMMultiDimArrayREPRData *re
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc,
-                        "MVMArray: Unsupported num size");
+                        "MVMMultiDimArray: Unsupported num size");
             }
             break;
         case MVM_STORAGE_SPEC_BP_STR:
@@ -268,6 +268,60 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMMultiDimArray);
 }
 
+static void dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions) {
+    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
+    if (repr_data) {
+        MVMMultiDimArrayBody *body = (MVMMultiDimArrayBody *)data;
+        *num_dimensions = repr_data->num_dimensions;
+        *dimensions = body->dimensions;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Cannot query a multi-dim array's dimensionality before it is composed");
+    }
+}
+
+static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
+    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
+    MVMStorageSpec spec;
+    switch (repr_data->slot_type) {
+        case MVM_ARRAY_STR:
+            spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
+            spec.boxed_primitive = MVM_STORAGE_SPEC_BP_STR;
+            spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_STR;
+            break;
+        case MVM_ARRAY_I64:
+        case MVM_ARRAY_I32:
+        case MVM_ARRAY_I16:
+        case MVM_ARRAY_I8:
+            spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
+            spec.boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
+            spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
+            break;
+        case MVM_ARRAY_N64:
+        case MVM_ARRAY_N32:
+            spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
+            spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NUM;
+            spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_NUM;
+            break;
+        case MVM_ARRAY_U64:
+        case MVM_ARRAY_U32:
+        case MVM_ARRAY_U16:
+        case MVM_ARRAY_U8:
+            spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
+            spec.boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
+            spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
+            spec.is_unsigned     = 1;
+            break;
+        default:
+            spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
+            spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
+            spec.can_box         = 0;
+            break;
+    }
+    return spec;
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMMultiDimArray_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -280,7 +334,21 @@ static const MVMREPROps this_repr = {
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
     MVM_REPR_DEFAULT_BOX_FUNCS,
-    MVM_REPR_DEFAULT_POS_FUNCS,
+    {
+        MVM_REPR_DEFAULT_AT_POS,
+        MVM_REPR_DEFAULT_BIND_POS,
+        MVM_REPR_DEFAULT_SET_ELEMS,
+        MVM_REPR_DEFAULT_PUSH,
+        MVM_REPR_DEFAULT_POP,
+        MVM_REPR_DEFAULT_UNSHIFT,
+        MVM_REPR_DEFAULT_SHIFT,
+        MVM_REPR_DEFAULT_SPLICE,
+        MVM_REPR_DEFAULT_AT_POS_MULTIDIM,
+        MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,
+        dimensions,
+        MVM_REPR_DEFAULT_SET_DIMENSIONS,
+        get_elem_storage_spec
+    },
     MVM_REPR_DEFAULT_ASS_FUNCS,
     MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
