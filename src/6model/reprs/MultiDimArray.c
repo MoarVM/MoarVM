@@ -3,6 +3,20 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
+/* Computes the flat number of elements from the given dimension list. */
+static MVMint64 flat_elements(MVMint64 num_dimensions, MVMint64 *dimensions) {
+    MVMint64 result = dimensions[0];
+    MVMint64 i;
+    for (i = 1; i < num_dimensions; i++)
+        result *= dimensions[i];
+    return result;
+}
+
+/* Computes the flat size from representation data. */
+static size_t flat_size(MVMMultiDimArrayREPRData *repr_data, MVMint64 *dimensions) {
+    return repr_data->elem_size * flat_elements(repr_data->num_dimensions, dimensions);
+}
+
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
@@ -171,17 +185,52 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    /* XXX */
-}
-
-/* Marks the representation data in an STable.*/
-static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
-    /* XXX */
+    MVMMultiDimArrayBody *body = (MVMMultiDimArrayBody *)data;
+    if (body->slots.any) {
+        MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
+        MVMint64 flat_elems = flat_elements(repr_data->num_dimensions, body->dimensions);
+        MVMint64 i;
+        switch (repr_data->slot_type) {
+            case MVM_ARRAY_OBJ: {
+                MVMObject **slots = body->slots.o;
+                for (i = 0; i < flat_elems; i++)
+                    MVM_gc_worklist_add(tc, worklist, &slots[i]);
+                break;
+            }
+            case MVM_ARRAY_STR: {
+                MVMString **slots = body->slots.s;
+                for (i = 0; i < flat_elems; i++)
+                    MVM_gc_worklist_add(tc, worklist, &slots[i]);
+                break;
+            }
+        }
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-	/* XXX */
+	MVMMultiDimArray *arr = (MVMMultiDimArray *)obj;
+    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)STABLE(obj)->REPR_data;
+    if (arr->body.slots.any)
+        MVM_fixed_size_free(tc, tc->instance->fsa,
+            flat_size(repr_data, arr->body.dimensions),
+            arr->body.slots.any);
+    MVM_fixed_size_free(tc, tc->instance->fsa,
+        repr_data->num_dimensions * sizeof(MVMint64),
+        arr->body.dimensions);
+}
+
+/* Marks the representation data in an STable.*/
+static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
+    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
+    if (repr_data == NULL)
+        return;
+    MVM_gc_worklist_add(tc, worklist, &repr_data->elem_type);
+}
+
+/* Free representation data. */
+static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
+    MVM_free(st->REPR_data);
 }
 
 /* Gets the storage specification for this representation. */
@@ -245,7 +294,7 @@ static const MVMREPROps this_repr = {
     gc_free,
     NULL, /* gc_cleanup */
     gc_mark_repr_data,
-    NULL, /* gc_free_repr_data */
+    gc_free_repr_data,
     compose,
     NULL, /* spesh */
     "MultiDimArray", /* name */
