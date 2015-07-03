@@ -281,6 +281,32 @@ static void dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     }
 }
 
+static void set_dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *dimensions) {
+    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
+    if (num_dimensions == repr_data->num_dimensions) {
+        /* Note that we use an atomic operation at the point of allocation.
+         * This means we can be leak-free and memory safe in the face of
+         * multiple threads competing to set dimensions (unlikely in any
+         * real world use case, but we should ensure the VM is memory safe).
+         */
+        MVMMultiDimArrayBody *body = (MVMMultiDimArrayBody *)data;
+        size_t size = flat_size(repr_data, dimensions);
+        void *storage = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, size);
+        if (MVM_trycas(&(body->slots.any), NULL, storage)) {
+            /* Now memory is in place, safe to un-zero dimensions. */
+            memcpy(body->dimensions, dimensions, num_dimensions * sizeof(MVMint64));
+        }
+        else {
+            MVM_exception_throw_adhoc(tc, "MultiDimArray: can only set dimensions once");
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Array type of %d dimensions cannot be intialized with %d dimensions",
+            repr_data->num_dimensions, num_dimensions);
+    }
+}
+
 static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
     MVMStorageSpec spec;
@@ -346,7 +372,7 @@ static const MVMREPROps this_repr = {
         MVM_REPR_DEFAULT_AT_POS_MULTIDIM,
         MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,
         dimensions,
-        MVM_REPR_DEFAULT_SET_DIMENSIONS,
+        set_dimensions,
         get_elem_storage_spec
     },
     MVM_REPR_DEFAULT_ASS_FUNCS,
