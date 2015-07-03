@@ -537,6 +537,14 @@ static void set_dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     }
 }
 
+static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
+    at_pos_multidim(tc, st, root, data, 1, &index, value, kind);
+}
+
+static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
+    bind_pos_multidim(tc, st, root, data, 1, &index, value, kind);
+}
+
 static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
     MVMStorageSpec spec;
@@ -591,8 +599,8 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_ATTR_FUNCS,
     MVM_REPR_DEFAULT_BOX_FUNCS,
     {
-        MVM_REPR_DEFAULT_AT_POS,
-        MVM_REPR_DEFAULT_BIND_POS,
+        at_pos,
+        bind_pos,
         MVM_REPR_DEFAULT_SET_ELEMS,
         push,
         pop,
