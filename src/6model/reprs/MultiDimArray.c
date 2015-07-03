@@ -28,7 +28,7 @@ MVM_STATIC_INLINE size_t indices_to_flat_index(MVMThreadContext *tc, MVMint64 nu
         MVMint64  index    = indices[i];
         if (index >= 0 && index < dim_size) {
             result += index * multiplier;
-            multiplier = dim_size;
+            multiplier *= dim_size;
         }
         else {
             MVM_exception_throw_adhoc(tc,
