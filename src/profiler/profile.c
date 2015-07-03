@@ -37,6 +37,7 @@ typedef struct {
     MVMString *jit;
     MVMString *type;
     MVMString *count;
+    MVMString *early_death;
     MVMString *gcs;
     MVMString *time;
     MVMString *full;
@@ -140,6 +141,8 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
             box_i(tc, pcn->alloc[i].allocations_interp
                       + pcn->alloc[i].allocations_spesh
                       + pcn->alloc[i].allocations_jit));
+        MVM_repr_bind_key_o(tc, alloc_info, pds->early_death,
+            box_i(tc, pcn->alloc[i].dead_before_gen2));
         MVM_repr_push_o(tc, alloc_list, alloc_info);
     }
 
@@ -216,6 +219,7 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
     pds.count           = str(tc, "count");
     pds.spesh           = str(tc, "spesh");
     pds.jit             = str(tc, "jit");
+    pds.early_death     = str(tc, "early_death");
     pds.gcs             = str(tc, "gcs");
     pds.time            = str(tc, "time");
     pds.full            = str(tc, "full");

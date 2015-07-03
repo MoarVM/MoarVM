@@ -30,6 +30,15 @@ struct MVMProfileThreadData {
      * often if there's a conditionally-allocating operation (like getlex)
      * that gets called multiple times with no actual allocations in between */
     MVMObject *last_counted_allocation;
+
+    /* Objects that we want to iterate through after the next GC run to see
+     * if they died or got promoted to the gen2.
+     * Also keep around the AllocationCount node that ought to be updated. */
+    MVMObject **tracked_objects;
+    MVMProfileCallNode **tracked_nodes;
+    MVMuint32 *tracked_node_alloc_slots;
+    MVMuint32 num_tracked;
+    MVMuint32 alloc_tracked;
 };
 
 /* Information collected about a GC run. */
@@ -119,6 +128,10 @@ struct MVMProfileAllocationCount {
 
     /* c) in jitted code */
     MVMuint64 allocations_jit;
+
+    /* The number of allocations of this type for a given node
+     * that have died before they got promoted to gen2 */
+    MVMuint64 dead_before_gen2;
 };
 
 /* When a continuation is taken, we attach one of these to it. It carries the
@@ -148,6 +161,7 @@ void MVM_profile_log_unwind(MVMThreadContext *tc);
 MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, MVMFrame *root_frame);
 void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, MVMProfileContinuationData *cd);
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);
+void MVM_profiler_scan_tracked_objects(MVMThreadContext *tc);
 void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full);
 void MVM_profiler_log_gc_end(MVMThreadContext *tc);
 void MVM_profiler_log_spesh_start(MVMThreadContext *tc);

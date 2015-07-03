@@ -200,7 +200,8 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
                     else if (allocation_target == 2)
                         pcn->alloc[i].allocations_jit++;
                     ptd->last_counted_allocation = obj;
-                    return;
+
+                    goto add_tracking_info;
                 }
             }
 
@@ -214,10 +215,78 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
             pcn->alloc[pcn->num_alloc].allocations_interp = allocation_target == 0;
             pcn->alloc[pcn->num_alloc].allocations_spesh  = allocation_target == 1;
             pcn->alloc[pcn->num_alloc].allocations_jit    = allocation_target == 2;
+            pcn->alloc[pcn->num_alloc].allocations_jit    = allocation_target == 2;
+            pcn->alloc[pcn->num_alloc].dead_before_gen2   = 0;
             ptd->last_counted_allocation = obj;
             pcn->num_alloc++;
+
+add_tracking_info:
+            /* And now track the object for later use */
+            if (ptd->num_tracked == ptd->alloc_tracked) {
+                ptd->alloc_tracked += 100;
+                ptd->tracked_objects = MVM_realloc(ptd->tracked_objects, ptd->alloc_tracked * sizeof(MVMObject**));
+                ptd->tracked_nodes = MVM_realloc(ptd->tracked_nodes, ptd->alloc_tracked * sizeof(MVMProfileCallNode**));
+                ptd->tracked_node_alloc_slots = MVM_realloc(ptd->tracked_node_alloc_slots, ptd->alloc_tracked * sizeof(MVMuint32));
+            }
+            ptd->tracked_objects[ptd->num_tracked] = obj;
+            ptd->tracked_nodes[ptd->num_tracked] = pcn;
+            ptd->tracked_node_alloc_slots[ptd->num_tracked] = pcn->num_alloc - 1;
+            ptd->num_tracked++;
+
         }
     }
+}
+
+void MVM_profiler_scan_tracked_objects(MVMThreadContext *tc) {
+    MVMProfileThreadData *ptd  = get_thread_data(tc);
+    MVMuint32 idx, free_spot;
+    MVMuint32 new_tracked = ptd->num_tracked;
+
+    for (idx = 0; idx < ptd->num_tracked; idx++) {
+        MVMCollectable *obj = (MVMCollectable*)ptd->tracked_objects[idx];
+        if (obj->flags & MVM_CF_FORWARDER_VALID) {
+            /* Let's check if it got copied to the new nursery */
+            if ((char *)obj < (char*)tc->nursery_alloc_limit && (char*)obj > (char*)tc->nursery_alloc_limit - MVM_NURSERY_SIZE) {
+                /* Update this entry to point to the object in the
+                 * next nursery */
+                ptd->tracked_objects[idx] = (MVMObject*)obj->sc_forward_u.forwarder;
+            } else {
+                /* Throw this object out, now that it is in the gen2 */
+                ptd->tracked_objects[idx] = NULL;
+                new_tracked--;
+            }
+        } else {
+            MVMProfileCallNode *callnode = ptd->tracked_nodes[idx];
+            MVMuint32 callnode_alloc_slot = ptd->tracked_node_alloc_slots[idx];
+            MVMProfileAllocationCount *alloc_count = &(callnode->alloc[callnode_alloc_slot]);
+            alloc_count->dead_before_gen2++;
+
+            ptd->tracked_objects[idx] = NULL;
+            new_tracked--;
+        }
+    }
+
+    for (idx = 0; idx < ptd->num_tracked; idx++) {
+        if (ptd->tracked_objects[idx] == NULL) {
+            free_spot = idx;
+            break;
+        }
+    }
+    idx++;
+    for (; idx < ptd->num_tracked; idx++) {
+        if (ptd->tracked_objects[idx] != NULL) {
+            ptd->tracked_objects[free_spot] = ptd->tracked_objects[idx];
+            ptd->tracked_nodes[free_spot] = ptd->tracked_nodes[idx];
+            ptd->tracked_node_alloc_slots[free_spot] = ptd->tracked_node_alloc_slots[idx];
+
+            ptd->tracked_objects[idx] = NULL;
+
+            while (ptd->tracked_objects[free_spot] != NULL && free_spot <= idx)
+                free_spot++;
+        }
+    }
+
+    ptd->num_tracked = new_tracked;
 }
 
 /* Logs the start of a GC run. */

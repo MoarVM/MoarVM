@@ -309,6 +309,11 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         /* Contribute this thread's promoted bytes. */
         MVM_add(&tc->instance->gc_promoted_bytes_since_last_full, other->gc_promoted_bytes);
 
+        /* If we're profiling, go through all tracked objects and count objects
+         * that have died (i.E. didn't get a forwarder set */
+        if (tc->instance->profiling)
+            MVM_profiler_scan_tracked_objects(other);
+
         /* Collect nursery and gen2 as needed. */
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : collecting nursery uncopied of thread %d\n",
