@@ -297,6 +297,22 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMMultiDimArray);
 }
 
+static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
+    MVM_exception_throw_adhoc(tc, "Cannot push onto a fixed dimension array");
+}
+static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
+    MVM_exception_throw_adhoc(tc, "Cannot pop a fixed dimension array");
+}
+static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
+    MVM_exception_throw_adhoc(tc, "Cannot unshift onto a fixed dimension array");
+}
+static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
+    MVM_exception_throw_adhoc(tc, "Cannot shift a fixed dimension array");
+}
+static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMuint64 count) {
+    MVM_exception_throw_adhoc(tc, "Cannot splice a fixed dimension array");
+}
+
 static void at_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister *value, MVMuint16 kind) {
     MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
     if (num_indices == repr_data->num_dimensions) {
@@ -578,11 +594,11 @@ static const MVMREPROps this_repr = {
         MVM_REPR_DEFAULT_AT_POS,
         MVM_REPR_DEFAULT_BIND_POS,
         MVM_REPR_DEFAULT_SET_ELEMS,
-        MVM_REPR_DEFAULT_PUSH,
-        MVM_REPR_DEFAULT_POP,
-        MVM_REPR_DEFAULT_UNSHIFT,
-        MVM_REPR_DEFAULT_SHIFT,
-        MVM_REPR_DEFAULT_SPLICE,
+        push,
+        pop,
+        unshift,
+        shift,
+        asplice,
         at_pos_multidim,
         bind_pos_multidim,
         dimensions,
