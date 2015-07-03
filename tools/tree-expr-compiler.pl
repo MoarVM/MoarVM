@@ -53,7 +53,7 @@ sub parse_sexp {
         } elsif (substr($expr, 0, 1) eq ')') {
             $expr = substr $expr, 1;
             last;
-        } elsif ($expr =~ m/^[#\$]?[\w\.\[\]_\*]+/) {
+        } elsif ($expr =~ m/^[&\$]?[\w\.\[\]_\*]+/) {
             push @$tree, substr($expr, $-[0], $+[0] - $-[0]);
             $expr = substr $expr, $+[0];
         } else {
@@ -83,7 +83,7 @@ sub write_template {
     my ($tree, $templ, $desc, $env) = @_;
     die "Can't deal with an empty tree" unless @$tree; # we need at least some nodes
     my $top = $tree->[0]; # get the first item, used for dispatch
-    die "First parameter must be a bareword" unless $top =~ m/^[a-z]\w*$/i;
+    die "First parameter must be a bareword or macro" unless $top =~ m/^&?[a-z]\w*$/i;
     my (@items, @desc); # accumulate state
     if ($top eq 'let') {
         # deal with let declarations
@@ -99,15 +99,13 @@ sub write_template {
             $env->{$stmt->[0]} = $child;
         }
         return write_template($expr, $templ, $desc, $env);
-    } elsif ($top eq 'sizeof') {
-        # Add sizeof expression for the compiler
-        die "Invalid sizeof expr" unless @$tree == 2;
-        return (sprintf('sizeof(%s)', $tree->[1]), '.');
-    } elsif ($top eq 'offsetof') {
-        # add offsetof
-        die "Invalid offsetof expr" unless @$tree == 3;
-        return (sprintf('offsetof(%s, %s)', $tree->[1], $tree->[2]), '.');
-    }
+    } elsif (substr($top, 0, 1) eq '&') {
+        # Add macro or sizeof/offsetof expression. these are not
+        # processed in at runtime! Must evaluate to constant
+        # expression.
+        return (sprintf('%s(%s)', substr($top, 1), 
+                        join(', ', @$tree[1..$#$tree])), '.');
+    } 
     # deal with a simple expression
     for my $item (@$tree) {
         if (ref($item) eq 'ARRAY') {
@@ -160,9 +158,9 @@ if ($TESTING) {
     check_parse('(0)', ['0']);
     eval { compile_template(parse_sexp('()')) }; ok $@, 'Cannot compile empty template';
     eval { compile_template(parse_sexp('(foo bar)')) }; ok !$@, 'a simple expression should work';
-    eval { compile_template(parse_sexp('(offsetof foo bar)')) };
+    eval { compile_template(parse_sexp('(&offsetof foo bar)')) };
     ok $@, 'Template root must be simple expr';
-    eval { compile_template(parse_sexp('(foo (sizeof))')) }; ok $@, 'sizeof requires one child';
+    eval { compile_template(parse_sexp('(foo (&sizeof 1))')) }; ok !$@, 'use sizeof as a macro';
     eval { compile_template(parse_sexp('(let (($foo (bar)) ($quix (quam $1))) (bar $foo $quix))')) };
     ok !$@, 'let expressions should live and take more than one argument';
     eval { compile_template(parse_sexp('(foo $bar)')) };
@@ -182,12 +180,12 @@ if ($TESTING) {
     is($subex->{root}, 2);
     is($subex->{desc}, '.f..l', 'Fill subexpression, link to parent');
     is_deeply($subex->{template}, [qw<MJ_BAZ 1 MJ_FOO MJ_BAR 0>]);
-    my $complex_sexp = '(let (($foo (bar $1))) (foo zum $2 (zaf $foo 3)))';
+    my $complex_sexp = '(let (($foo (bar $1))) (foo zum $2 (zaf $foo 3) (&sizeof int)))';
     my ($complex_expr, $rest) = parse_sexp($complex_sexp);
     my $complex = compile_template($complex_expr);
     is ($complex->{root}, 5);
-    is ($complex->{desc}, '.f.l...fl');
-    is_deeply($complex->{template}, [qw(MJ_BAR 1 MJ_ZAF 0 3 MJ_FOO MJ_ZUM 2 2)]);
+    is ($complex->{desc}, '.f.l...fl.');
+    is_deeply($complex->{template}, [qw(MJ_BAR 1 MJ_ZAF 0 3 MJ_FOO MJ_ZUM 2 2 sizeof(int))]);
     done_testing();
 } else {
     # first read the correct order of opcodes
