@@ -708,7 +708,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         repr_data->struct_offsets[i] = MVM_serialization_read_varint(tc, reader);
 
         if(MVM_serialization_read_varint(tc, reader)){
-            repr_data->flattened_stables[i] = MVM_serialization_read_stable_ref(tc, reader);
+            MVM_ASSIGN_REF(tc, &(st->header), repr_data->flattened_stables[i], MVM_serialization_read_stable_ref(tc, reader));
         }
         else {
             repr_data->flattened_stables[i] = NULL;
