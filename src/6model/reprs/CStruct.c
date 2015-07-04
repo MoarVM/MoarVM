@@ -363,7 +363,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMint64 slot;
 
     if (!repr_data)
-        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using get_attribute");
+        MVM_exception_throw_adhoc(tc, "CStruct: must compose before using get_attribute");
 
     slot = hint >= 0 ? hint : try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
@@ -466,7 +466,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMint64 slot;
 
     if (!repr_data)
-        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using bind_attribute");
+        MVM_exception_throw_adhoc(tc, "CStruct: must compose before using bind_attribute");
 
     slot = hint >= 0 ? hint : try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
@@ -607,6 +607,26 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
     }
 }
 
+/* Free representation data. */
+static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
+    MVMCStructREPRData *repr_data = (MVMCStructREPRData *)st->REPR_data;
+
+    /* May not have survived to composition. */
+    if (repr_data == NULL)
+        return;
+
+    if (repr_data->name_to_index_mapping) {
+        MVM_free_null(repr_data->name_to_index_mapping);
+        MVM_free_null(repr_data->attribute_locations);
+        MVM_free_null(repr_data->struct_offsets);
+        MVM_free_null(repr_data->flattened_stables);
+        MVM_free_null(repr_data->member_types);
+        MVM_free_null(repr_data->initialize_slots);
+    }
+
+    MVM_free_null(st->REPR_data);
+}
+
 /* This is called to do any cleanup of resources when an object gets
  * embedded inside another one. Never called on a top-level object. */
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
@@ -696,7 +716,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         repr_data->struct_offsets[i] = MVM_serialization_read_varint(tc, reader);
 
         if(MVM_serialization_read_varint(tc, reader)){
-            repr_data->flattened_stables[i] = MVM_serialization_read_stable_ref(tc, reader);
+            MVM_ASSIGN_REF(tc, &(st->header), repr_data->flattened_stables[i], MVM_serialization_read_stable_ref(tc, reader));
         }
         else {
             repr_data->flattened_stables[i] = NULL;
@@ -759,7 +779,7 @@ static const MVMREPROps this_repr = {
     gc_free,
     gc_cleanup,
     gc_mark_repr_data,
-    NULL, /* gc_free_repr_data */
+    gc_free_repr_data,
     compose,
     NULL, /* spesh */
     "CStruct", /* name */

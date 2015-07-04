@@ -151,6 +151,11 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
         MVM_gc_worklist_add(tc, worklist, &repr_data->elem_type);
 }
 
+/* Free representation data. */
+static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
+    MVM_checked_free_null(st->REPR_data);
+}
+
 static const MVMStorageSpec storage_spec = {
     MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
     sizeof(void *) * 8,         /* bits */
@@ -458,7 +463,7 @@ static const MVMREPROps this_repr = {
     gc_free,
     gc_cleanup,
     gc_mark_repr_data,
-    NULL, /* gc_free_repr_data */
+    gc_free_repr_data,
     compose,
     NULL, /* spesh */
     "CArray", /* name */

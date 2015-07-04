@@ -614,6 +614,11 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
     }
 }
 
+/* Free representation data. */
+static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
+    MVM_checked_free_null(st->REPR_data);
+}
+
 /* This is called to do any cleanup of resources when an object gets
  * embedded inside another one. Never called on a top-level object. */
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
@@ -766,7 +771,7 @@ static const MVMREPROps this_repr = {
     gc_free,
     gc_cleanup,
     gc_mark_repr_data,
-    NULL, /* gc_free_repr_data */
+    gc_free_repr_data,
     compose,
     NULL, /* spesh */
     "CUnion", /* name */
