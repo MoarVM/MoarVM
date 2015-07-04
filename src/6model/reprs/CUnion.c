@@ -376,7 +376,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMint64 slot;
 
     if (!repr_data)
-        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using get_attribute");
+        MVM_exception_throw_adhoc(tc, "CUnion: must compose before using get_attribute");
 
     slot = hint >= 0 ? hint : try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
@@ -479,7 +479,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMint64 slot;
 
     if (!repr_data)
-        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using bind_attribute");
+        MVM_exception_throw_adhoc(tc, "CUnion: must compose before using bind_attribute");
 
     slot = hint >= 0 ? hint : try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
