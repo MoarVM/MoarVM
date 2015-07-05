@@ -194,8 +194,34 @@ MVMJitExprTree * MVM_jit_build_expression_tree(MVMThreadContext *tc, MVMJitGraph
         memcpy(tree->nodes, builder.nodes, builder.num*sizeof(MVMJitExprNode));
         tree->roots = MVM_spesh_alloc(tc, sg, builder.roots_num*sizeof(MVMint32));
         tree->num_roots = builder.roots_num;
+    } else {
+        MVM_jit_log(tc, "Could not build an expression tree: could not get template for %s",
+                    ins->info->name);
     }
     MVM_free(builder.nodes);
     MVM_free(builder.computed);
     return tree;
+}
+
+static void walk(MVMThreadContext *tc, MVMJitExprTree *tree,
+                 MVMJitTreeTraverser *traverser, MVMint32 i) {
+    MVMJitExprOpInfo *info = &expr_op_info[tree->nodes[i]];
+    MVMint32 j;
+    /* visiting on the way down */
+    //    traverser->visit(traverser, tree->nodes[], MVM_JIT_TREE_DOWN);
+    for (j = 0; j < info->nchild; j++) {
+        walk(tc, tree, traverser, i);
+    }
+    //    traverser->visit(traverser, tree->nodes[i], MVM_JIT_TREE_UP);
+
+}
+
+
+void MVM_jit_traverse_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
+                           MVMJitTreeTraverser *traverser) {
+    MVMint32 i;
+    for (i = 0; i < tree->num_roots; i++) {
+        walk(tc, tree, traverser, i);
+    }
+
 }

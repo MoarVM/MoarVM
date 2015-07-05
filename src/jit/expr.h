@@ -81,4 +81,12 @@ typedef struct {
     MVMint32 root;
 } MVMJitExprTemplate;
 
+/* not sure what this will look like yet */
+typedef struct MVMJitTreeTraverser MVMJitTreeTraverser;
+
 MVMJitExprTree * MVM_jit_build_expression_tree(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshBB *bb);
+#define MVM_JIT_TREE_DOWN 0
+#define MVM_JIT_TREE_UP 1
+
+void MVM_jit_traverse_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
+                           MVMJitTreeTraverser *traverser);
