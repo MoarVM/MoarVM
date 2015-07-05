@@ -3,6 +3,19 @@
 #include "expr_tables.h"
 
 typedef struct {
+    const char      *name;
+    MVMint32        nchild;
+    MVMint32         nargs;
+    enum MVMJitExprVtype vtype;
+} MVMJitExprOpInfo;
+
+static MVMJitExprOpInfo expr_op_info[] = {
+#define OP_INFO(name, nchild, nargs, vtype) { #name, nchild, nargs, MVM_JIT_##vtype }
+    MVM_JIT_IR_OPS(OP_INFO)
+#undef OP_INFO
+};
+
+typedef struct {
     MVMJitGraph    *graph;
     MVMJitExprNode *nodes;
     MVMint32       *computed;
@@ -37,8 +50,9 @@ static inline void builder_add_root(MVMJitTreeBuilder *builder, MVMint32 node) {
 
 static MVMint32 MVM_jit_expr_add_loadreg(MVMThreadContext *tc, MVMJitTreeBuilder *builder,
                                          MVMuint16 reg) {
-    MVMJitExprNode template[] = { MVM_JIT_ADDR, MVM_JIT_LOCAL, reg,
-                                  MVM_JIT_LOAD, builder->num, sizeof(MVMJitExprNode) };
+    MVMJitExprNode template[] = { MVM_JIT_LOCAL,
+                                  MVM_JIT_ADDR, builder->num, reg * MVM_JIT_REG_SZ,
+                                  MVM_JIT_LOAD, builder->num + 1, MVM_JIT_REG_SZ };
     MVMint32 num        = builder->num;
     builder_append_direct(builder, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num + 3;
@@ -47,11 +61,12 @@ static MVMint32 MVM_jit_expr_add_loadreg(MVMThreadContext *tc, MVMJitTreeBuilder
 
 static MVMint32 MVM_jit_expr_add_storereg(MVMThreadContext *tc, MVMJitTreeBuilder *builder,
                                           MVMint32 node, MVMuint16 reg) {
-    MVMJitExprNode template[] = { MVM_JIT_ADDR, MVM_JIT_LOCAL, reg,
-                                  MVM_JIT_STORE, node, builder->num, sizeof(MVMRegister) };
+    MVMJitExprNode template[] = { MVM_JIT_LOCAL,
+                                  MVM_JIT_ADDR, builder->num, reg * MVM_JIT_REG_SZ,
+                                  MVM_JIT_STORE, node, builder->num + 1, MVM_JIT_REG_SZ };
     MVMint32 num = builder->num;
     builder_append_direct(builder, template, sizeof(template)/sizeof(MVMJitExprNode));
-    return num + 3;
+    return num + 4;
 }
 
 
