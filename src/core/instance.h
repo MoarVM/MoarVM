@@ -72,6 +72,7 @@ struct MVMStringConsts {
     MVMString *refkind;
     MVMString *positional;
     MVMString *lexical;
+    MVMString *dimensions;
 };
 
 /* An entry in the representations registry. */

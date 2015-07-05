@@ -157,6 +157,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/reprs/MVMAsyncTask@obj@ \
           src/6model/reprs/MVMNull@obj@ \
           src/6model/reprs/NativeRef@obj@ \
+          src/6model/reprs/MultiDimArray@obj@ \
           src/6model/6model@obj@ \
           src/6model/bootstrap@obj@ \
           src/6model/sc@obj@ \
@@ -295,6 +296,7 @@ HEADERS = src/moar.h \
           src/6model/reprs/MVMAsyncTask.h \
           src/6model/reprs/MVMNull.h \
           src/6model/reprs/NativeRef.h \
+          src/6model/reprs/MultiDimArray.h \
           src/6model/sc.h \
           src/mast/compiler.h \
           src/mast/driver.h \
@@ -520,7 +522,7 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
 
 3rdparty/dynasm/minilua@exe@: 3rdparty/dynasm/minilua.c
-	$(CC) $(CFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
 
 src/jit/emit_posix_x64.c: $(LUA) src/jit/emit_x64.dasc
 	$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ src/jit/emit_x64.dasc

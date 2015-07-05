@@ -431,22 +431,6 @@ static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     set_size_internal(tc, body, count, repr_data);
 }
 
-static MVMint64 exists_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
-    MVMArrayBody     *body      = (MVMArrayBody *)data;
-    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
-
-    /* Handle negative indexes. */
-    if (index < 0) {
-        index += body->elems;
-    }
-
-    if (index < 0 || index >= body->elems) {
-        return 0;
-    }
-
-    return repr_data->slot_type != MVM_ARRAY_OBJ || !MVM_is_null(tc, body->slots.o[body->start + index]);
-}
-
 static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
@@ -876,6 +860,30 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     }
 }
 
+static void at_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister *result, MVMuint16 kind) {
+    if (num_indices != 1)
+        MVM_exception_throw_adhoc(tc, "A dynamic array can only be indexed with a single dimension");
+    at_pos(tc, st, root, data, indices[0], result, kind);
+}
+
+static void bind_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister value, MVMuint16 kind) {
+    if (num_indices != 1)
+        MVM_exception_throw_adhoc(tc, "A dynamic array can only be indexed with a single dimension");
+    bind_pos(tc, st, root, data, indices[0], value, kind);
+}
+
+static void dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions) {
+    MVMArrayBody *body = (MVMArrayBody *)data;
+    *num_dimensions = 1;
+    *dimensions = &(body->elems);
+}
+
+static void set_dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *dimensions) {
+    if (num_dimensions != 1)
+        MVM_exception_throw_adhoc(tc, "A dynamic array can only have a single dimension");
+    set_elems(tc, st, root, data, dimensions[0]);
+}
+
 static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMStorageSpec spec;
@@ -1196,12 +1204,15 @@ static const MVMREPROps this_repr = {
         at_pos,
         bind_pos,
         set_elems,
-        exists_pos,
         push,
         pop,
         unshift,
         shift,
         asplice,
+        at_pos_multidim,
+        bind_pos_multidim,
+        dimensions,
+        set_dimensions,
         get_elem_storage_spec
     },    /* pos_funcs */
     MVM_REPR_DEFAULT_ASS_FUNCS,

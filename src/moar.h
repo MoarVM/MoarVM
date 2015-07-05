@@ -208,6 +208,11 @@ MVM_PUBLIC void MVM_vm_set_lib_path(MVMInstance *instance, int count, const char
 #define MVM_barrier() AO_nop_full()
 
 /* Convenience shortcut for use in gc_free routines. */
+#define MVM_free_null(addr) do { \
+    MVM_free((void *)(addr)); \
+    (addr) = NULL; \
+} while (0)
+
 #define MVM_checked_free_null(addr) do { \
     if ((addr)) { \
         MVM_free((void *)(addr)); \

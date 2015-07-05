@@ -569,6 +569,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(refkind, "refkind");
     string_creator(positional, "positional");
     string_creator(lexical, "lexical");
+    string_creator(dimensions, "dimensions");
 }
 
 /* Drives the overall bootstrap process. */

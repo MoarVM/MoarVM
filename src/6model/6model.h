@@ -423,10 +423,6 @@ struct MVMREPROps_Positional {
     void (*set_elems) (MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMuint64 count);
 
-    /* Returns a true value of the specified index exists, and a false one if not. */
-    MVMint64 (*exists_pos) (MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMint64 index);
-
     /* Pushes the specified value onto the array. */
     void (*push) (MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMRegister value, MVMuint16 kind);
@@ -450,6 +446,29 @@ struct MVMREPROps_Positional {
     void (*splice) (MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMObject *target_array,
         MVMint64 offset, MVMuint64 elems);
+
+    /* Multi-dimensional array read. */
+    void (*at_pos_multidim) (MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 num_indices,
+        MVMint64 *indices, MVMRegister *result, MVMuint16 kind);
+
+    /* Multi-dimensional array write. */
+    void (*bind_pos_multidim) (MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 num_indices,
+        MVMint64 *indices, MVMRegister value, MVMuint16 kind);
+
+    /* Gets the number of dimensions along with a C-level array of them. The
+     * second two parameters are "out"s. The caller must not mutate dimensions,
+     * nor persist it such that it lasts longer than the next VM safepoint. */
+    void (*dimensions) (MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 *num_dimensions,
+        MVMint64 **dimensions);
+
+    /* Sets the number of dimensions. The caller is responsible for freeing
+     * the array passed in dimensions. */
+    void (*set_dimensions) (MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 num_dimensions,
+        MVMint64 *dimensions);
 
     /* Gets the STable representing the declared element type. */
     MVMStorageSpec (*get_elem_storage_spec) (MVMThreadContext *tc, MVMSTable *st);

@@ -12,8 +12,7 @@ static MVMSpeshFacts * get_facts_direct(MVMThreadContext *tc, MVMSpeshGraph *g, 
 /* Obtains facts for an operand, indicating they are being used. */
 MVMSpeshFacts * MVM_spesh_get_and_use_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
     MVMSpeshFacts *facts = get_facts_direct(tc, g, o);
-    if (facts->flags & MVM_SPESH_FACT_FROM_LOG_GUARD)
-        g->log_guards[facts->log_guard].used = 1;
+    MVM_spesh_use_facts(tc, g, facts);
     return facts;
 }
 
@@ -23,9 +22,17 @@ MVMSpeshFacts * MVM_spesh_get_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
 }
 
 /* Mark facts for an operand as being relied upon */
-void MVM_spesh_use_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *f) {
-    if (f->flags & MVM_SPESH_FACT_FROM_LOG_GUARD)
-        g->log_guards[f->log_guard].used = 1;
+void MVM_spesh_use_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *facts) {
+    if (facts->flags & MVM_SPESH_FACT_FROM_LOG_GUARD)
+        g->log_guards[facts->log_guard].used = 1;
+    if (facts->flags & MVM_SPESH_FACT_MERGED_WITH_LOG_GUARD) {
+        MVMSpeshIns *thePHI = facts->writer;
+        MVMuint32 op_i;
+
+        for (op_i = 1; op_i < thePHI->info->num_operands; op_i++) {
+            MVM_spesh_get_and_use_facts(tc, g, thePHI->operands[op_i]);
+        }
+    }
 }
 
 /* Obtains a string constant. */
@@ -217,7 +224,7 @@ static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
         MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
-        result_facts->value.i     = obj_facts->flags & MVM_SPESH_FACT_CONCRETE ? 1 : 0;
+        result_facts->value.i       = obj_facts->flags & MVM_SPESH_FACT_CONCRETE ? 1 : 0;
         ins->operands[1].lit_i16    = result_facts->value.i;
 
         MVM_spesh_use_facts(tc, g, obj_facts);
@@ -555,7 +562,7 @@ static void optimize_objprimspec(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
-        result_facts->value.i     = REPR(obj_facts->type)->get_storage_spec(tc, STABLE(obj_facts->type))->boxed_primitive;
+        result_facts->value.i       = REPR(obj_facts->type)->get_storage_spec(tc, STABLE(obj_facts->type))->boxed_primitive;
         ins->operands[1].lit_i16    = result_facts->value.i;
 
         MVM_spesh_use_facts(tc, g, obj_facts);
@@ -664,7 +671,7 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
         result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
         ins->operands[1].lit_i16    = can_result;
-        result_facts->value.i     = can_result;
+        result_facts->value.i       = can_result;
 
         obj_facts->usages--;
         MVM_spesh_use_facts(tc, g, obj_facts);
@@ -714,7 +721,7 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 
     MVMuint16 is_strify = ins->info->opcode == MVM_OP_smrt_strify;
 
-    if (facts->flags & (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE)) {
+    if (facts->flags & (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE) && facts->type) {
         const MVMStorageSpec *ss;
         MVMint64 can_result;
 
@@ -1254,7 +1261,84 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
     MVM_free(handlers_found);
 }
 
+static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    MVMuint32 operand;
+    MVMint32 common_flags;
+    MVMObject *common_type;
+    MVMObject *common_decont_type;
+    MVMuint32 needs_merged_with_log_guard = 0;
+    MVMSpeshFacts *target_facts = get_facts_direct(tc, g, ins->operands[0]);
 
+    common_flags       = get_facts_direct(tc, g, ins->operands[1])->flags;
+    common_type        = get_facts_direct(tc, g, ins->operands[1])->type;
+    common_decont_type = get_facts_direct(tc, g, ins->operands[1])->decont_type;
+
+    for(operand = 2; operand < ins->info->num_operands; operand++) {
+        common_flags = common_flags & get_facts_direct(tc, g, ins->operands[operand])->flags;
+        common_type = common_type == get_facts_direct(tc, g, ins->operands[operand])->type && common_type ? common_type : NULL;
+        common_decont_type = common_decont_type == get_facts_direct(tc, g, ins->operands[operand])->decont_type && common_decont_type ? common_decont_type : NULL;
+
+        /* We have to be a bit more careful if one or more of the facts we're
+         * merging came from a log guard, as that means we'll have to propagate
+         * the information what guards have been relied upon back "outwards"
+         * through the PHI node we've merged stuff with. */
+        if (get_facts_direct(tc, g, ins->operands[operand])->flags & MVM_SPESH_FACT_FROM_LOG_GUARD)
+            needs_merged_with_log_guard = 1;
+    }
+
+    if (common_flags) {
+        /*fprintf(stderr, "at a PHI node of %d operands: ", ins->info->num_operands);*/
+        if (common_flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+            /*fprintf(stderr, "type ");*/
+            if (common_type) {
+                /*fprintf(stderr, "(same type) ");*/
+                target_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+                target_facts->type = common_type;
+            }
+            /*else fprintf(stderr, "(diverging type) ");*/
+        }
+        /*if (common_flags & MVM_SPESH_FACT_KNOWN_VALUE) fprintf(stderr, "value ");*/
+        if (common_flags & MVM_SPESH_FACT_DECONTED) {
+            /*fprintf(stderr, "deconted ");*/
+            target_facts->flags |= MVM_SPESH_FACT_DECONTED;
+        }
+        if (common_flags & MVM_SPESH_FACT_CONCRETE) {
+            /*fprintf(stderr, "concrete ");*/
+            target_facts->flags |= MVM_SPESH_FACT_CONCRETE;
+        }
+        if (common_flags & MVM_SPESH_FACT_TYPEOBJ) {
+            /*fprintf(stderr, "type_object ");*/
+        }
+        if (common_flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
+            /*fprintf(stderr, "decont_type ");*/
+            if (common_decont_type) {
+                /*fprintf(stderr, "(same type) ");*/
+                target_facts->flags |= MVM_SPESH_FACT_KNOWN_DECONT_TYPE;
+                target_facts->decont_type = common_decont_type;
+            }
+            /*else fprintf(stderr, "(diverging type) ");*/
+        }
+        if (common_flags & MVM_SPESH_FACT_DECONT_CONCRETE) {
+            /*fprintf(stderr, "decont_concrete ");*/
+            target_facts->flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
+        }
+        if (common_flags & MVM_SPESH_FACT_DECONT_TYPEOBJ) {
+            /*fprintf(stderr, "decont_typeobj ");*/
+            target_facts->flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
+        }
+        /*if (common_flags & MVM_SPESH_FACT_FROM_LOG_GUARD) fprintf(stderr, "from_log_guard ");*/
+        /*if (common_flags & MVM_SPESH_FACT_HASH_ITER) fprintf(stderr, "hash_iter ");*/
+        /*if (common_flags & MVM_SPESH_FACT_ARRAY_ITER) fprintf(stderr, "array_iter ");*/
+        /*if (common_flags & MVM_SPESH_FACT_KNOWN_BOX_SRC) fprintf(stderr, "box_source ");*/
+        /*fprintf(stderr, "\n");*/
+
+        if (needs_merged_with_log_guard) {
+            target_facts->flags |= MVM_SPESH_FACT_MERGED_WITH_LOG_GUARD;
+        }
+    } else {
+        return; fprintf(stderr, "a PHI node of %d operands had no intersecting flags\n", ins->info->num_operands);
+    }
+}
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
     MVMSpeshCallInfo arg_info;
@@ -1264,6 +1348,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
         switch (ins->info->opcode) {
+        case MVM_SSA_PHI:
+            analyze_phi(tc, g, ins);
+            break;
         case MVM_OP_set:
             copy_facts(tc, g, ins->operands[0], ins->operands[1]);
             break;

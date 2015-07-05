@@ -44,6 +44,22 @@ MVM_PUBLIC void MVM_repr_pos_set_elems(MVMThreadContext *tc, MVMObject *obj, MVM
         OBJECT_BODY(obj), elems);
 }
 
+static void int_array_to_c_array(MVMThreadContext *tc, MVMObject *arr, MVMint64 *elems, MVMint64 **values) {
+    MVMint64 i;
+    *elems = MVM_repr_elems(tc, arr);
+    *values = *elems ? MVM_malloc(*elems * sizeof(MVMint64)) : NULL;
+    for (i = 0; i < *elems; i++)
+        (*values)[i] = MVM_repr_at_pos_i(tc, arr, i);
+}
+
+void MVM_repr_set_dimensions(MVMThreadContext *tc, MVMObject *obj, MVMObject *dims) {
+    MVMint64 num_dims, *c_dims;
+    int_array_to_c_array(tc, dims, &num_dims, &c_dims);
+    REPR(obj)->pos_funcs.set_dimensions(tc, STABLE(obj), obj,
+        OBJECT_BODY(obj), num_dims, c_dims);
+    MVM_free(c_dims);
+}
+
 MVM_PUBLIC void MVM_repr_pos_splice(MVMThreadContext *tc, MVMObject *obj, MVMObject *replacement, MVMint64 offset, MVMint64 count) {
     REPR(obj)->pos_funcs.splice(tc, STABLE(obj), obj,
         OBJECT_BODY(obj), replacement,
@@ -51,8 +67,10 @@ MVM_PUBLIC void MVM_repr_pos_splice(MVMThreadContext *tc, MVMObject *obj, MVMObj
 }
 
 MVM_PUBLIC MVMint64 MVM_repr_exists_pos(MVMThreadContext *tc, MVMObject *obj, MVMint64 index) {
-    return REPR(obj)->pos_funcs.exists_pos(tc,
-        STABLE(obj), obj, OBJECT_BODY(obj), index);
+    MVMint64 elems = REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+    if (index < 0)
+        index += elems;
+    return index >= 0 && index < elems && !MVM_is_null(tc, MVM_repr_at_pos_o(tc, obj, index));
 }
 
 MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
@@ -86,6 +104,38 @@ MVMObject * MVM_repr_at_pos_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx
     return NULL;
 }
 
+static void at_pos_multidim(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMRegister *value, MVMuint16 kind) {
+    MVMint64 num_indices, *c_indices;
+    int_array_to_c_array(tc, indices, &num_indices, &c_indices);
+    REPR(obj)->pos_funcs.at_pos_multidim(tc, STABLE(obj), obj,
+        OBJECT_BODY(obj), num_indices, c_indices, value, kind);
+    MVM_free(c_indices);
+}
+
+MVMint64 MVM_repr_at_pos_multidim_i(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices) {
+    MVMRegister r;
+    at_pos_multidim(tc, obj, indices, &r, MVM_reg_int64);
+    return r.i64;
+}
+
+MVMnum64 MVM_repr_at_pos_multidim_n(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices) {
+    MVMRegister r;
+    at_pos_multidim(tc, obj, indices, &r, MVM_reg_num64);
+    return r.n64;
+}
+
+MVMString * MVM_repr_at_pos_multidim_s(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices) {
+    MVMRegister r;
+    at_pos_multidim(tc, obj, indices, &r, MVM_reg_str);
+    return r.s;
+}
+
+MVMObject * MVM_repr_at_pos_multidim_o(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices) {
+    MVMRegister r;
+    at_pos_multidim(tc, obj, indices, &r, MVM_reg_obj);
+    return r.o;
+}
+
 void MVM_repr_bind_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVMint64 value) {
     MVMRegister val;
     val.i64 = value;
@@ -112,6 +162,35 @@ void MVM_repr_bind_pos_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVM
     val.o = value;
     REPR(obj)->pos_funcs.bind_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
         idx, val, MVM_reg_obj);
+}
+
+static void bind_pos_multidim(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMRegister value, MVMuint16 kind) {
+    MVMint64 num_indices, *c_indices;
+    int_array_to_c_array(tc, indices, &num_indices, &c_indices);
+    REPR(obj)->pos_funcs.bind_pos_multidim(tc, STABLE(obj), obj,
+        OBJECT_BODY(obj), num_indices, c_indices, value, kind);
+    MVM_free(c_indices);
+}
+
+void MVM_repr_bind_pos_multidim_i(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMint64 value) {
+    MVMRegister r;
+    r.i64 = value;
+    bind_pos_multidim(tc, obj, indices, r, MVM_reg_int64);
+}
+void MVM_repr_bind_pos_multidim_n(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMnum64 value) {
+    MVMRegister r;
+    r.n64 = value;
+    bind_pos_multidim(tc, obj, indices, r, MVM_reg_num64);
+}
+void MVM_repr_bind_pos_multidim_s(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMString *value) {
+    MVMRegister r;
+    r.s = value;
+    bind_pos_multidim(tc, obj, indices, r, MVM_reg_str);
+}
+void MVM_repr_bind_pos_multidim_o(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMObject *value) {
+    MVMRegister r;
+    r.o = value;
+    bind_pos_multidim(tc, obj, indices, r, MVM_reg_obj);
 }
 
 void MVM_repr_push_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 pushee) {
@@ -297,6 +376,25 @@ void MVM_repr_delete_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
 
 MVMuint64 MVM_repr_elems(MVMThreadContext *tc, MVMObject *obj) {
     return REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+}
+
+MVMObject * MVM_repr_dimensions(MVMThreadContext *tc, MVMObject *obj) {
+    MVMint64 num_dims, i;
+    MVMint64 *dims;
+    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
+    REPR(obj)->pos_funcs.dimensions(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &num_dims, &dims);
+    for (i = 0; i < num_dims; i++)
+        MVM_repr_bind_pos_i(tc, result, i, dims[i]);
+    return result;
+}
+
+MVMint64 MVM_repr_num_dimensions(MVMThreadContext *tc, MVMObject *obj) {
+    MVMint64 num_dims;
+    MVMint64 *_;
+    REPR(obj)->pos_funcs.dimensions(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        &num_dims, &_);
+    return num_dims;
 }
 
 MVMint64 MVM_repr_get_int(MVMThreadContext *tc, MVMObject *obj) {

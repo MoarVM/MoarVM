@@ -46,6 +46,7 @@ struct MVMSpeshFacts {
 #define MVM_SPESH_FACT_ARRAY_ITER           1024 /* Is an iter over arrays
                                                     (mutually exclusive with HASH_ITER, but neither of them is necessarily set) */
 #define MVM_SPESH_FACT_KNOWN_BOX_SRC        2048 /* We know what register this value was boxed from */
+#define MVM_SPESH_FACT_MERGED_WITH_LOG_GUARD 4096 /* These facts were merged at a PHI node, but at least one of the incoming facts had a "from log guard" flag set, so we'll have to look for that fact and increment its uses if we use this here fact. */
 
 /* Discovers spesh facts and builds up information about them. */
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g);
