@@ -240,7 +240,7 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
             MVMuint32 index = GET_UI32(val->cur_op, 0);
             MVMuint32 count = val->cu->body.orig_strings;
             if (index >= count)
-                fail(val, MSG(val, "string index %" PRIu16
+                fail(val, MSG(val, "string index %" PRIu32
                         " out of range 0..%" PRIu32), index, count - 1);
             break;
         }
@@ -315,7 +315,7 @@ static void validate_lex_operand(Validator *val, MVMuint32 flags) {
     lex_count = frame->body.num_lexicals;
     if (lex_index >= lex_count)
         fail(val, MSG(val, "lexical operand index %" PRIu16
-                " out of range 0.. %" PRIu16), lex_index, lex_count - 1);
+                " out of range 0.. %" PRIu32), lex_index, lex_count - 1);
 
     val->cur_op += 4;
 }
@@ -447,7 +447,7 @@ static void validate_arg(Validator *val) {
 
         if (index >= count)
             fail (val, MSG(val, "argument index %" PRIu16
-                    " not in range 0..%" PRIu16), index, count - 1);
+                    " not in range 0..%" PRIu32), index, count - 1);
 
         flags = val->cur_call->arg_flags[index];
 
