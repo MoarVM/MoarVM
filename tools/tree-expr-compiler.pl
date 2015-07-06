@@ -259,7 +259,7 @@ HEADER
     }
     print $OUTPUT "};\n";
     print $OUTPUT <<'FOOTER';
-static const MVMJitExprTemplate * MVM_jit_get_template_for_opcode(MVMint16 opcode) {
+static const MVMJitExprTemplate * MVM_jit_get_template_for_opcode(MVMuint16 opcode) {
     if (opcode >= MVM_OP_EXT_BASE) return NULL;
     if (MVM_jit_expr_template_info[opcode].len < 0) return NULL;
     return &MVM_jit_expr_template_info[opcode];
