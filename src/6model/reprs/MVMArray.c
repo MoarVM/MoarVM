@@ -875,7 +875,7 @@ static void bind_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *ro
 static void dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions) {
     MVMArrayBody *body = (MVMArrayBody *)data;
     *num_dimensions = 1;
-    *dimensions = &(body->elems);
+    *dimensions = (MVMint64 *) &(body->elems);
 }
 
 static void set_dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *dimensions) {
