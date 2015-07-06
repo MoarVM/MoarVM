@@ -38,7 +38,7 @@ GetOptions(\%args, qw(
     ar=s cc=s ld=s make=s has-sha has-libuv
     static has-libtommath has-libatomic_ops
     has-dyncall has-libffi pkgconfig=s
-    build=s host=s big-endian jit! enable-jit lua=s has-dynasm
+    build=s host=s big-endian jit! enable-jit
     prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan valgrind telemeh),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 },
@@ -77,8 +77,9 @@ if (-d '.git') {
 $args{optimize}     = 3 if not defined $args{optimize} or $args{optimize} eq "";
 $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 
+
 for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
-        has-libatomic_ops has-dynasm asan ubsan valgrind)) {
+        has-libatomic_ops asan ubsan valgrind)) {
     $args{$_} = 0 unless defined $args{$_};
 }
 
@@ -98,7 +99,6 @@ $config{perl}   = $^X;
 $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 $config{osname} = $^O;
 $config{osvers} = $Config{osvers};
-$config{lua}       = defined_or $args{lua}, './3rdparty/dynasm/minilua@exe@';
 $config{pkgconfig} = defined_or $args{pkgconfig}, '/usr/bin/pkg-config';
 
 # set options that take priority over all others
@@ -246,15 +246,6 @@ else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
     $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/libtommath\n"
                         . "\t\$(CP) 3rdparty/libtommath/*.h \$(DESTDIR)\$(PREFIX)/include/libtommath\n";
-}
-
-if ($args{'has-dynasm'}) {
-    $config{dynasmlua}  = '-l dynasm.lua';
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '/usr/include/luajit-2.0';
-}
-else {
-    $config{dynasmlua}  = './3rdparty/dynasm/dynasm.lua';
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dynasm';
 }
 
 if ($args{'has-libffi'}) {
@@ -801,15 +792,15 @@ __END__
                    [--debug] [--optimize] [--instrument]
                    [--static] [--prefix]
                    [--has-libtommath] [--has-sha] [--has-libuv]
-                   [--has-libatomic_ops] [--has-dynasm]
-                   [--lua <lua>] [--asan] [--ubsan] [--no-jit]
+                   [--has-libatomic_ops]
+                   [--asan] [--ubsan] [--no-jit]
                    [--telemeh]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
                    [--static] [--big-endian] [--prefix]
-                   [--lua <lua>] [--make-install]
+                   [--make-install]
 
 =head2 Use of environment variables
 
@@ -956,8 +947,6 @@ Build and install MoarVM in addition to configuring it.
 
 =item --has-libatomic_ops
 
-=item --has-dynasm
-
 =item --has-dyncall
 
 =item --has-libffi
@@ -969,10 +958,6 @@ Provide path to the pkgconfig executable. Default: /usr/bin/pkg-config
 =item --no-jit
 
 Disable JIT compiler, which is enabled by default to JIT-compile hot frames.
-
-=item --lua=path/to/lua/executable
-
-Path to a lua executable. (Used during the build when JIT is enabled).
 
 =item --telemeh
 

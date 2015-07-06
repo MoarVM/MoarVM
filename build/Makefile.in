@@ -6,13 +6,11 @@ PERL   = @perl@
 RM     = @rm@
 CAT    = @cat@
 SHELL  = @sh@
-LUA    = @lua@
 CP     = $(PERL) -MExtUtils::Command -e cp
 MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 CHMOD  = $(PERL) -MExtUtils::Command -e chmod
 RM_RF  = $(PERL) -MExtUtils::Command -e rm_rf
 RM_F   = $(PERL) -MExtUtils::Command -e rm_f
-DYNASM = $(LUA) @dynasmlua@
 
 MINGW_UNICODE = @mingw_unicode@
 
@@ -42,6 +40,7 @@ CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO) @cc
 CINCLUDES = @cincludes@ \
             @ccinc@@shaincludedir@ \
             @ccinc@3rdparty/tinymt \
+            @ccinc@3rdparty/dynasm \
             @ccinc@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
@@ -437,6 +436,11 @@ TOM_OBJECTS = @tomobjects@
 
 THIRDPARTY = @thirdpartylibs@
 
+MINILUA = 3rdparty/dynasm/minilua@exe@
+DYNASM  = $(MINILUA) 3rdparty/dynasm/dynasm.lua
+DYNASM_SCRIPTS = 3rdparty/dynasm/dynasm.lua 3rdparty/dynasm/dasm_x86.lua
+DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
+
 .SUFFIXES: .c @obj@ .i @asm@
 
 all: moar@exe@ pkgconfig/moar.pc
@@ -554,13 +558,16 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(MSG) generating $@
 	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
 
-3rdparty/dynasm/minilua@exe@: 3rdparty/dynasm/minilua.c
+$(MINILUA): 3rdparty/dynasm/minilua.c
 	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
 
-src/jit/emit_posix_x64.c: $(LUA) src/jit/emit_x64.dasc
+src/jit/emit_posix_x64@obj@: src/jit/emit_posix_x64.c $(DYNASM_HEADERS)
+src/jit/emit_win32_x64@obj@: src/jit/emit_win32_x64.c $(DYNASM_HEADERS)
+
+src/jit/emit_posix_x64.c: src/jit/emit_x64.dasc $(MINILUA) $(DYNASM_SCRIPTS)
 	$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ src/jit/emit_x64.dasc
 
-src/jit/emit_win32_x64.c: $(LUA) src/jit/emit_x64.dasc
+src/jit/emit_win32_x64.c: src/jit/emit_x64.dasc $(MINILUA) $(DYNASM_SCRIPTS)
 	$(DYNASM) $(DASM_FLAGS_WIN32) -o $@ src/jit/emit_x64.dasc
 
 dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
