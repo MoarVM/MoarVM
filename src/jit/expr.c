@@ -134,7 +134,7 @@ MVMJitExprTree * MVM_jit_build_expression_tree(MVMThreadContext *tc, MVMSpeshGra
     MVMint32 root;
     MVMJitTreeBuilder builder;
     MVMJitExprTree *tree = NULL;
-    MVMSpeshIns *ins = bb->first_ins;
+    MVMSpeshIns *ins;
     MVMuint16 i;
     /* Hold the tree */
     builder.num      = 0;
@@ -157,11 +157,15 @@ MVMJitExprTree * MVM_jit_build_expression_tree(MVMThreadContext *tc, MVMSpeshGra
        which is a): filled with nodes coming from operands and b):
        internally linked together (relative to absolute indexes).
        NB - templates may insert stores internally as needed. */
-    while (ins != NULL) {
+    for (ins = bb->first_ins; ins != NULL; ins = ins->next) {
         /* NB - we probably will want to involve the spesh info in
            selecting a template. And/or add in c function calls to
            them mix.. */
-        const MVMJitExprTemplate *templ = MVM_jit_get_template_for_opcode(ins->info->opcode);
+        MVMuint16 opcode = ins->info->opcode;
+        if (opcode == MVM_SSA_PHI || opcode == MVM_OP_no_op) {
+            continue;
+        }
+        const MVMJitExprTemplate *templ = MVM_jit_get_template_for_opcode(opcode);
         if (templ == NULL) {
             /* we don't have a template for this yet, so we can't
              * convert it to an expression */
@@ -177,14 +181,13 @@ MVMJitExprTree * MVM_jit_build_expression_tree(MVMThreadContext *tc, MVMSpeshGra
             /* Terminal, add it to roots */
             builder_add_root(&builder, root);
         }
-        ins = ins->next;
     }
 
     /* Reached the end correctly? Build a tree */
     if (ins == NULL) {
         /* Add stores for final values */
         for (i = 0; i < sg->num_locals; i++) {
-            if (builder.computed[i] >= 0) {
+            if (builder.computed[i] >= 0 && builder.nodes[builder.computed[i]] != MVM_JIT_LOAD) {
                 MVMint32 root = MVM_jit_expr_add_storereg(tc, &builder, builder.computed[i], i);
                 builder_add_root(&builder, root);
             }

@@ -53,9 +53,13 @@ enum MVMJitExprVtype { /* value type */
     _(CARG, 1, 1, VOID), \
     /* interpreter special variables */ \
     _(TC, 0, 0, REG), \
-    _(VMNULL, 0, 0, REG), \
+    _(CU, 0, 0, MEM), \
+    _(FRAME, 0, 0, MEM), \
     _(LOCAL, 0, 0, MEM), \
-    _(FARGS, 0, 0, MEM),
+    _(FARGS, 0, 0, MEM), \
+    _(VMNULL, 0, 0, REG), \
+    _(SPESHSLOT, 0, 0, MEM) \
+
 
 
 enum MVMJitExprOp {
