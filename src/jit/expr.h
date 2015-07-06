@@ -40,6 +40,7 @@ enum MVMJitExprVtype { /* value type */
     _(ZR, 1, 0, FLAG), \
     /* integer arithmetic */ \
     _(ADD, 2, 0, REG), \
+    _(SUB, 2, 0, REG), \
     /* boolean logic */ \
     _(FLAGS, 1, 0, REG), \
     _(NOT, 1, 0, REG),  \
