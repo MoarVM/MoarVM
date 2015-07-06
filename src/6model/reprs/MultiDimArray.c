@@ -208,8 +208,17 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *repr_info) {
 
 /* Copies to the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVM_exception_throw_adhoc(tc,
-        "MultiDimArray REPR copy_to NYI");
+    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
+    MVMMultiDimArrayBody     *src_body  = (MVMMultiDimArrayBody *)src;
+    MVMMultiDimArrayBody     *dest_body = (MVMMultiDimArrayBody *)dest;
+    if (src_body->slots.any) {
+        size_t dim_size  = repr_data->num_dimensions * sizeof(MVMint64);
+        size_t data_size = flat_size(repr_data, src_body->dimensions);
+        dest_body->dimensions = MVM_fixed_size_alloc(tc, tc->instance->fsa, dim_size);
+        dest_body->slots.any  = MVM_fixed_size_alloc(tc, tc->instance->fsa, data_size);
+        memcpy(dest_body->dimensions, src_body->dimensions, dim_size);
+        memcpy(dest_body->slots.any, src_body->slots.any, data_size);
+    }
 }
 
 /* Adds held objects to the GC worklist. */
