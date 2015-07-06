@@ -17,6 +17,16 @@ MVM_PUBLIC MVMnum64    MVM_repr_at_pos_multidim_n(MVMThreadContext *tc, MVMObjec
 MVM_PUBLIC MVMString * MVM_repr_at_pos_multidim_s(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices);
 MVM_PUBLIC MVMObject * MVM_repr_at_pos_multidim_o(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices);
 
+MVM_PUBLIC MVMint64    MVM_repr_at_pos_2d_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2);
+MVM_PUBLIC MVMnum64    MVM_repr_at_pos_2d_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2);
+MVM_PUBLIC MVMString * MVM_repr_at_pos_2d_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2);
+MVM_PUBLIC MVMObject * MVM_repr_at_pos_2d_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2);
+
+MVM_PUBLIC MVMint64    MVM_repr_at_pos_3d_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2, MVMint64 idx3);
+MVM_PUBLIC MVMnum64    MVM_repr_at_pos_3d_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2, MVMint64 idx3);
+MVM_PUBLIC MVMString * MVM_repr_at_pos_3d_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2, MVMint64 idx3);
+MVM_PUBLIC MVMObject * MVM_repr_at_pos_3d_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2, MVMint64 idx3);
+
 MVM_PUBLIC MVMint64 MVM_repr_exists_pos(MVMThreadContext *tc, MVMObject *obj, MVMint64 index);
 
 MVM_PUBLIC void MVM_repr_bind_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVMint64 value);
@@ -28,6 +38,16 @@ MVM_PUBLIC void MVM_repr_bind_pos_multidim_i(MVMThreadContext *tc, MVMObject *ob
 MVM_PUBLIC void MVM_repr_bind_pos_multidim_n(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMnum64 value);
 MVM_PUBLIC void MVM_repr_bind_pos_multidim_s(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMString *value);
 MVM_PUBLIC void MVM_repr_bind_pos_multidim_o(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices, MVMObject *value);
+
+MVM_PUBLIC void MVM_repr_bind_pos_2d_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2, MVMint64 value);
+MVM_PUBLIC void MVM_repr_bind_pos_2d_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2, MVMnum64 value);
+MVM_PUBLIC void MVM_repr_bind_pos_2d_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2, MVMString *value);
+MVM_PUBLIC void MVM_repr_bind_pos_2d_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2, MVMObject *value);
+
+MVM_PUBLIC void MVM_repr_bind_pos_3d_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2, MVMint64 idx3, MVMint64 value);
+MVM_PUBLIC void MVM_repr_bind_pos_3d_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2, MVMint64 idx3, MVMnum64 value);
+MVM_PUBLIC void MVM_repr_bind_pos_3d_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2, MVMint64 idx3, MVMString *value);
+MVM_PUBLIC void MVM_repr_bind_pos_3d_o(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx1, MVMint64 idx2, MVMint64 idx3, MVMObject *value);
 
 MVM_PUBLIC void MVM_repr_push_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 pushee);
 MVM_PUBLIC void MVM_repr_push_n(MVMThreadContext *tc, MVMObject *obj, MVMnum64 pushee);
