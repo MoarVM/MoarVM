@@ -1,5 +1,6 @@
 #include "moar.h"
 #include "math.h"
+#include "expr.h"
 
 typedef struct {
     MVMSpeshGraph *sg;
@@ -2428,6 +2429,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
 static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                MVMSpeshBB *bb) {
+    MVMJitExprTree *tree;
     MVMint32 label = get_label_for_bb(tc, jgb, bb);
     jgb->cur_bb = bb;
     jgb_append_label(tc, jgb, label);
@@ -2445,6 +2447,11 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
             return 0;
         jgb_after_ins(tc, jgb, jgb->cur_bb, jgb->cur_ins);
         jgb->cur_ins = jgb->cur_ins->next;
+    }
+    /* for giggles, try to create an expression tree */
+    tree = MVM_jit_build_expression_tree(tc, jgb->sg, bb);
+    if (tree != NULL) {
+        MVM_jit_dump_tree(tc, tree);
     }
     return 1;
 }
