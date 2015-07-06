@@ -40,6 +40,7 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
 void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     MVMSerializationContextBody *current, *tmp;
     MVMLoadedCompUnitName       *current_lcun, *tmp_lcun;
+    unsigned                     bucket_tmp;
     MVMString                  **int_to_str_cache;
     MVMuint32                    i;
 
@@ -57,21 +58,24 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 
     /* okay, so this makes the weak hash slightly less weak.. for certain
      * keys of it anyway... */
-    HASH_ITER(hash_handle, tc->instance->sc_weakhash, current, tmp) {
+    HASH_ITER(hash_handle, tc->instance->sc_weakhash, current, tmp, bucket_tmp) {
         /* mark the string handle pointer iff it hasn't yet been resolved */
         if (!current->sc)
             MVM_gc_worklist_add(tc, worklist, &current->handle);
     }
 
-    HASH_ITER(hash_handle, tc->instance->loaded_compunits, current_lcun, tmp_lcun) {
+    HASH_ITER(hash_handle, tc->instance->loaded_compunits, current_lcun, tmp_lcun, bucket_tmp) {
         MVM_gc_worklist_add(tc, worklist, &current_lcun->filename);
     }
+
+    MVM_gc_worklist_add(tc, worklist, &tc->instance->cached_backend_config);
 }
 
 /* Adds anything that is a root thanks to being referenced by a thread,
  * context, but that isn't permanent. */
 void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     MVMNativeCallbackCacheHead *current_cbceh, *tmp_cbceh;
+    unsigned bucket_tmp;
 
     /* Any active exception handlers. */
     MVMActiveHandler *cur_ah = tc->active_handlers;
@@ -105,7 +109,7 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     MVM_gc_worklist_add(tc, worklist, &tc->cur_dispatcher);
 
     /* Callback cache. */
-    HASH_ITER(hash_handle, tc->native_callback_cache, current_cbceh, tmp_cbceh) {
+    HASH_ITER(hash_handle, tc->native_callback_cache, current_cbceh, tmp_cbceh, bucket_tmp) {
         MVMint32 i;
         MVMNativeCallback *entry = current_cbceh->head;
         while (entry) {
@@ -118,14 +122,13 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
 
     /* Profiling data. */
     MVM_profile_mark_data(tc, worklist);
+
+    /* Serialized string heap, if any. */
+    MVM_gc_worklist_add(tc, worklist, &tc->serialized_string_heap);
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */
-void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectable **obj_ref) {
-    /* Ensure the root is not null. */
-    if (obj_ref == NULL)
-        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as a temporary root");
-
+void MVM_gc_root_temp_push_slow(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Allocate extra temporary root space if needed. */
     if (tc->num_temproots == tc->alloc_temproots) {
         tc->alloc_temproots *= 2;
@@ -136,22 +139,6 @@ void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* Add this one to the list. */
     tc->temproots[tc->num_temproots] = obj_ref;
     tc->num_temproots++;
-}
-
-/* Pops a temporary root off the thread-local roots list. */
-void MVM_gc_root_temp_pop(MVMThreadContext *tc) {
-    if (tc->num_temproots > 0)
-        tc->num_temproots--;
-    else
-        MVM_panic(1, "Illegal attempt to pop empty temporary root stack");
-}
-
-/* Pops temporary roots off the thread-local roots list. */
-void MVM_gc_root_temp_pop_n(MVMThreadContext *tc, MVMuint32 n) {
-    if (tc->num_temproots >= n)
-        tc->num_temproots -= n;
-    else
-        MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to pop insufficiently large temporary root stack");
 }
 
 /* Marks the temporary root stack at its current height as the limit for

@@ -26,7 +26,6 @@ Unofficial summary of the intended application of the Artistic License 2.0:
 - dyncall    MIT
 - libtommath Public Domain
 - libuv      MIT,BSD,ISC
-- linenoise  BSD
 - msinttypes MIT
 - sha1       Public Domain
 - tinymt     MIT

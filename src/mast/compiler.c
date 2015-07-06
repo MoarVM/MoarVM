@@ -5,7 +5,7 @@
 
 /* Some constants. */
 #define HEADER_SIZE                 92
-#define BYTECODE_VERSION            4
+#define BYTECODE_VERSION            5
 #define FRAME_HEADER_SIZE           (11 * 4 + 3 * 2)
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define FRAME_SLV_SIZE              (2 * 2 + 2 * 4)
@@ -288,7 +288,10 @@ static unsigned int get_string_heap_index(VM, WriterState *ws, VMSTR *strval) {
     }
     else {
         unsigned int index = (unsigned int)ELEMS(vm, ws->strings);
-        /* XXX Overflow check */
+        if (index >= 0x7FFFFFFF) {
+            cleanup_all(vm, ws);
+            DIE(vm, "Too many strings in compilation unit");
+        }
         BINDPOS_S(vm, ws->strings, index, strval);
         BINDKEY_I(vm, ws->seen_strings, strval, index);
         return index;
@@ -1306,23 +1309,47 @@ static char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_si
     /* Add each string to the heap. */
     for (i = 0; i < num_strings; i++) {
         MVMuint64 bytelen;
-        char *utf8 = MVM_string_utf8_encode(tc, ATPOS_S(vm, ws->strings, i), &bytelen);
+        char *encoded;
+        MVMGraphemeIter gi;
+        unsigned short align;
+        unsigned int need;
+
+        /* Decide if we can get away with Latin-1. */
+        MVMint32   need_utf8 = 0;
+        MVMString *str       = ATPOS_S(vm, ws->strings, i);
+        MVM_string_gi_init(tc, &gi, str);
+        while (MVM_string_gi_has_more(tc, &gi)) {
+            MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+            if (g < 0 || g >= 0xFF) {
+                need_utf8 = 1;
+                break;
+            }
+        }
+
+        /* Encode it with the chosen algorithm. */
+        encoded = need_utf8
+            ? MVM_string_utf8_encode(tc, str, &bytelen)
+            : MVM_string_latin1_encode(tc, str, &bytelen);
+        if (bytelen > 0x3FFFFFFF) {
+            cleanup_all(vm, ws);
+            DIE(vm, "String too long for string constants segment");
+        }
 
         /* Ensure we have space. */
-        unsigned short align = bytelen & 3 ? 4 - (bytelen & 3) : 0;
-        unsigned int   need  = 4 + bytelen + align;
+        align = bytelen & 3 ? 4 - (bytelen & 3) : 0;
+        need  = 4 + bytelen + align;
         if (heap_size + need >= heap_alloc) {
             heap_alloc = umax(heap_alloc * 2, heap_size + need);
             heap = (char *)MVM_realloc(heap, heap_alloc);
         }
 
-        /* Write byte length into heap. */
-        write_int32(heap, heap_size, bytelen);
+        /* Write byte length and UTF-8 flag into heap. */
+        write_int32(heap, heap_size, (bytelen << 1) | need_utf8);
         heap_size += 4;
 
         /* Write string. */
-        memcpy(heap + heap_size, utf8, bytelen);
-        MVM_free(utf8);
+        memcpy(heap + heap_size, encoded, bytelen);
+        MVM_free(encoded);
         heap_size += bytelen;
 
         /* Add alignment. Whilst we never read this memory, it's useful to
@@ -1498,7 +1525,19 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     ws->cu               = cu;
     ws->current_frame_idx= 0;
 
-    /* initialize callsite reuse cache */
+    /* If we have any strings from serializing, then we'll seed our own string
+     * heap with them. This means the compilation unit string heap will align
+     * perfectly with what the serialization blob needs, and thus we can use
+     * it in deserialization. Note we use get_string_heap_index for its side
+     * effects only here. Start from 1, as 0 means NULL string. */
+    if (vm->serialized_string_heap) {
+        MVMint64 elems = ELEMS(vm, vm->serialized_string_heap);
+        for (i = 1; i < elems; i++)
+            get_string_heap_index(vm, ws, ATPOS_S(vm, vm->serialized_string_heap, i));
+        vm->serialized_string_heap = NULL;
+    }
+
+    /* Initialize callsite reuse cache */
     ws->callsite_reuse_head = NULL;
 
     /* Store each of the dependent SCs. */

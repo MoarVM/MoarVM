@@ -93,6 +93,8 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
                 case MVM_NFA_EDGE_CODEPOINT:
                 case MVM_NFA_EDGE_CODEPOINT_LL:
                 case MVM_NFA_EDGE_CODEPOINT_NEG:
+                case MVM_NFA_EDGE_CODEPOINT_M:
+                case MVM_NFA_EDGE_CODEPOINT_M_NEG:
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
                     MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.i);
@@ -104,6 +106,8 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
                 case MVM_NFA_EDGE_CODEPOINT_I:
                 case MVM_NFA_EDGE_CODEPOINT_I_LL:
                 case MVM_NFA_EDGE_CODEPOINT_I_NEG:
+                case MVM_NFA_EDGE_CODEPOINT_IM:
+                case MVM_NFA_EDGE_CODEPOINT_IM_NEG:
                 case MVM_NFA_EDGE_CHARRANGE:
                 case MVM_NFA_EDGE_CHARRANGE_NEG: {
                     MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.uclc.lc);
@@ -146,6 +150,8 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                     case MVM_NFA_EDGE_CODEPOINT:
                     case MVM_NFA_EDGE_CODEPOINT_LL:
                     case MVM_NFA_EDGE_CODEPOINT_NEG:
+                    case MVM_NFA_EDGE_CODEPOINT_M:
+                    case MVM_NFA_EDGE_CODEPOINT_M_NEG:
                     case MVM_NFA_EDGE_CHARCLASS:
                     case MVM_NFA_EDGE_CHARCLASS_NEG:
                         body->states[i][j].arg.i = MVM_serialization_read_varint(tc, reader);
@@ -157,6 +163,8 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                     case MVM_NFA_EDGE_CODEPOINT_I:
                     case MVM_NFA_EDGE_CODEPOINT_I_LL:
                     case MVM_NFA_EDGE_CODEPOINT_I_NEG:
+                    case MVM_NFA_EDGE_CODEPOINT_IM:
+                    case MVM_NFA_EDGE_CODEPOINT_IM_NEG:
                     case MVM_NFA_EDGE_CHARRANGE:
                     case MVM_NFA_EDGE_CHARRANGE_NEG: {
                         body->states[i][j].arg.uclc.lc = MVM_serialization_read_varint(tc, reader);
@@ -258,6 +266,8 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                 case MVM_NFA_EDGE_CODEPOINT:
                 case MVM_NFA_EDGE_CODEPOINT_LL:
                 case MVM_NFA_EDGE_CODEPOINT_NEG:
+                case MVM_NFA_EDGE_CODEPOINT_M:
+                case MVM_NFA_EDGE_CODEPOINT_M_NEG:
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
                     nfa->states[i][cur_edge].arg.i = MVM_coerce_simple_intify(tc,
@@ -272,6 +282,8 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                 case MVM_NFA_EDGE_CODEPOINT_I:
                 case MVM_NFA_EDGE_CODEPOINT_I_LL:
                 case MVM_NFA_EDGE_CODEPOINT_I_NEG:
+                case MVM_NFA_EDGE_CODEPOINT_IM:
+                case MVM_NFA_EDGE_CODEPOINT_IM_NEG:
                 /* That is not about uppercase/lowercase here, but lower and upper bounds
                    of our range. */
                 case MVM_NFA_EDGE_CHARRANGE:
@@ -546,6 +558,50 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             if (nfadeb)
                                 fprintf(stderr, "IGNORING SUBRULE\n");
                             continue;
+                        case MVM_NFA_EDGE_CODEPOINT_M:
+                        case MVM_NFA_EDGE_CODEPOINT_M_NEG: {
+                            MVMNormalizer norm;
+                            MVMint32 ready;
+                            MVMGrapheme32 ga = edge_info[i].arg.i;
+                            MVMGrapheme32 gb = MVM_string_ord_basechar_at(tc, target, offset);
+
+                            MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
+                            ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, ga, &ga);
+                            MVM_unicode_normalizer_eof(tc, &norm);
+                            if (!ready)
+                                ga = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+
+                            if (((act == MVM_NFA_EDGE_CODEPOINT_M)     && (ga == gb))
+                             || ((act == MVM_NFA_EDGE_CODEPOINT_M_NEG) && (ga != gb)))
+                                nextst[numnext++] = to;
+
+                            continue;
+                        }
+                        case MVM_NFA_EDGE_CODEPOINT_IM:
+                        case MVM_NFA_EDGE_CODEPOINT_IM_NEG: {
+                            MVMNormalizer norm;
+                            MVMint32 ready;
+                            MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                            MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                            MVMGrapheme32 ord    = MVM_string_ord_basechar_at(tc, target, offset);
+
+                            MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
+                            ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, uc_arg, &uc_arg);
+                            MVM_unicode_normalizer_eof(tc, &norm);
+                            if (!ready)
+                                uc_arg = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+
+                            MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
+                            ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, lc_arg, &lc_arg);
+                            MVM_unicode_normalizer_eof(tc, &norm);
+                            if (!ready)
+                                lc_arg = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+
+                            if (((act == MVM_NFA_EDGE_CODEPOINT_IM)     && (ord == lc_arg || ord == uc_arg))
+                             || ((act == MVM_NFA_EDGE_CODEPOINT_IM_NEG) && (ord != lc_arg && ord != uc_arg)))
+                                nextst[numnext++] = to;
+                            continue;
+                        }
                     }
                 }
             }

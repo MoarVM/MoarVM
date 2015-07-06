@@ -27,7 +27,7 @@ struct MVMThreadBody {
     AO_t stage;
 
     /* Thread's OS-level thread ID. */
-    MVMint64 thread_id;
+    MVMint64 native_thread_id;
 
     /* Whether this thread should be automatically killed at VM exit. */
     MVMint32 app_lifetime;

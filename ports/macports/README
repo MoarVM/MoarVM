@@ -1,9 +1,25 @@
 When updating the Portfile to reflect the new release:
 
+First, update the portfile
+
 1) update the version
 2) remove the revision, if any is currently specified.
 3) Recalculate the checksums (commands given in the file for this.) Keep the trailing \ on the first line.
-4) Create a unified diff from 
+
+Then, test out the portfile locally.
+
+4) Setup a local portfile directory. Edit /opt/local/etc/macports/sources.conf, adding a reference to a local directory, like: file:///Users/bob/sandbox/macports/ 
+5) In that folder, create a subdir lang/MoarVM
+6) copy the updated Portfile to that folder.
+7) Reindex to pick up the new portfile: `portindex`
+8) From the top level of that folder, verify that we still build with our declared dependencies with, e.g. `port -t build MoarVM@2015.04`
+9) Install the port, e.g. `sudo port install MoarVM@2015.04`
+
+Finally, open a ticket to update the portfile
+
+10) Create a unified diff from 
    https://trac.macports.org/browser/trunk/dports/lang/MoarVM/Portfile?format=txt
    to our most recent copy.
-5) create an "update" ticket in http://trac.macports.org/ - you'll need a trac account to open the ticket. Be sure to attach the diff, and list "MoarVM" as the port.
+11) create an "update" ticket in http://trac.macports.org/ - you'll need a trac account to open the ticket. Be sure to attach the diff, and list "MoarVM" as the port. Additionally, set keywords to "haspatch", and if you're listed as a maintainer, "maintainer"
+12) git push the updated Portfile
+13) hang out in #macports on freenode and mention the ticket.

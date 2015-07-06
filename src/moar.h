@@ -24,10 +24,14 @@
 #define AO_REQUIRE_CAS
 #include <atomic_ops.h>
 
-/* dynload/dyncall/dyncallback */
+/* libffi or dynload/dyncall/dyncallback */
+#ifdef HAVE_LIBFFI
+#include <ffi.h>
+#else
 #include <dynload.h>
 #include <dyncall.h>
 #include <dyncall_callback.h>
+#endif
 
 /* forward declarations */
 #include "types.h"
@@ -100,9 +104,14 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "core/loadbytecode.h"
 #include "math/num.h"
 #include "core/coerce.h"
-#include "core/dll.h"
 #include "core/ext.h"
+#ifdef HAVE_LIBFFI
+#include "core/nativecall_libffi.h"
+#else
+#include "core/nativecall_dyncall.h"
+#endif
 #include "core/nativecall.h"
+#include "core/dll.h"
 #include "core/continuation.h"
 #include "6model/reprs.h"
 #include "6model/reprconv.h"
@@ -111,11 +120,11 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "6model/sc.h"
 #include "6model/serialization.h"
 #include "6model/parametric.h"
+#include "gc/gen2.h"
 #include "gc/allocation.h"
 #include "gc/worklist.h"
 #include "gc/collect.h"
 #include "gc/orchestrate.h"
-#include "gc/gen2.h"
 #include "gc/roots.h"
 #include "gc/objectid.h"
 #include "gc/finalize.h"
@@ -137,6 +146,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "strings/ascii.h"
 #include "strings/utf8.h"
 #include "strings/utf16.h"
+#include "strings/nfg.h"
 #include "strings/iter.h"
 #include "strings/ops.h"
 #include "strings/unicode_gen.h"
@@ -146,8 +156,8 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "io/io.h"
 #include "io/eventloop.h"
 #include "io/syncfile.h"
-#include "io/syncpipe.h"
 #include "io/syncstream.h"
+#include "io/syncpipe.h"
 #include "io/syncsocket.h"
 #include "io/fileops.h"
 #include "io/dirops.h"
@@ -198,6 +208,11 @@ MVM_PUBLIC void MVM_vm_set_lib_path(MVMInstance *instance, int count, const char
 #define MVM_barrier() AO_nop_full()
 
 /* Convenience shortcut for use in gc_free routines. */
+#define MVM_free_null(addr) do { \
+    MVM_free((void *)(addr)); \
+    (addr) = NULL; \
+} while (0)
+
 #define MVM_checked_free_null(addr) do { \
     if ((addr)) { \
         MVM_free((void *)(addr)); \

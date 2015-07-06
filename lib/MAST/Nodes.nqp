@@ -106,25 +106,25 @@ class MAST::CompUnit is MAST::Node {
 
     method hll($hll?) {
         nqp::defined($hll)
-            ?? $!hll := $hll
+            ?? ($!hll := $hll)
             !! $!hll
     }
 
     method main_frame($frame?) {
         nqp::defined($frame)
-            ?? $!main_frame := $frame
+            ?? ($!main_frame := $frame)
             !! $!main_frame
     }
 
     method load_frame($frame?) {
         nqp::defined($frame)
-            ?? $!load_frame := $frame
+            ?? ($!load_frame := $frame)
             !! $!load_frame
     }
 
     method deserialize_frame($frame?) {
         nqp::defined($frame)
-            ?? $!deserialize_frame := $frame
+            ?? ($!deserialize_frame := $frame)
             !! $!deserialize_frame
     }
 

@@ -2,6 +2,9 @@ package main;
 use strict;
 use warnings;
 
+use File::Spec::Functions qw(devnull);
+my $devnull = devnull();
+
 # 3rdparty library configuration
 
 our %TP_LAO = (
@@ -21,12 +24,6 @@ our %TP_TOM = (
     name => 'tommath',
     path => '3rdparty/libtommath',
     src  => [ '3rdparty/libtommath' ],
-);
-
-our %TP_LN = (
-    name => 'linenoise',
-    path => '3rdparty/linenoise',
-    src  => [ '3rdparty/linenoise' ],
 );
 
 our %TP_MT = (
@@ -73,7 +70,6 @@ our %THIRDPARTY = (
     lao => { %TP_LAO },
     tom => { %TP_TOM },
     sha => { %TP_SHA },
-    ln  => { %TP_LN },
     mt  => { %TP_MT },
     dc  => { %TP_DC },
     dcb => { %TP_DCB },
@@ -129,7 +125,7 @@ our %TC_POSIX = (
     ccshared   => '-fPIC',
     ldshared   => '-shared @ccshared@',
     moarshared => '',
-    ldrpath    => '-Wl,-rpath,@libdir@',
+    ldrpath    => '-Wl,-rpath,@libdir@ -Wl,-rpath,@prefix@/share/perl6/site/lib',
 
     arflags => 'rcs',
     arout   => '',
@@ -385,10 +381,12 @@ our %OS_MINGW32 = (
     dll   => '%s.dll',
     ldimp => '-l%s.dll',
 
+    libdir     => '@bindir@',
     ccshared   => '',
-    ldshared   => '-shared -Wl,--out-implib,lib$@.a',
+    ldshared   => '-shared -Wl,--out-implib,lib$(notdir $@).a',
     moarshared => '',
     ldrpath    => '',
+    sharedlib  => 'lib@moardll@.a',
 
     -thirdparty => {
         %{$OS_WIN32{-thirdparty}},
@@ -440,11 +438,19 @@ our %OS_NETBSD = (
 our %OS_FREEBSD = (
     %OS_POSIX,
 
+    cc => (qx!cc -v 2>&1 >$devnull! !~ 'clang') ? 'gcc' : 'clang',
+
     syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_FREEBSD)' },
     },
+);
+
+our %OS_GNUKFREEBSD = (
+    %OS_FREEBSD,
+
+    syslibs => [ @{$OS_FREEBSD{syslibs}}, qw( rt dl ) ],
 );
 
 our %OS_SOLARIS = (
@@ -476,6 +482,7 @@ our %OS_DARWIN = (
     ccshared   => '',
     ldshared   => '-dynamiclib',
     moarshared => '-install_name @prefix@/lib/libmoar.dylib',
+    sharedlib  => 'libmoar.dylib',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_DARWIN)' },
@@ -483,16 +490,17 @@ our %OS_DARWIN = (
 );
 
 our %SYSTEMS = (
-    posix   => [ qw( posix posix cc ), { %OS_POSIX } ],
-    linux   => [ qw( posix gnu gcc ), { %OS_LINUX } ],
-    darwin  => [ qw( posix gnu clang ), { %OS_DARWIN } ],
-    openbsd => [ qw( posix bsd gcc ), { %OS_OPENBSD} ],
-    netbsd  => [ qw( posix bsd gcc ), { %OS_NETBSD } ],
-    freebsd => [ qw( posix bsd clang ), { %OS_FREEBSD } ],
-    solaris => [ qw( posix posix cc ),  { %OS_SOLARIS } ],
-    win32   => [ qw( win32 msvc cl ), { %OS_WIN32 } ],
-    cygwin  => [ qw( posix gnu gcc ), { %OS_WIN32 } ],
-    mingw32 => [ qw( win32 gnu gcc ), { %OS_MINGW32 } ],
+    posix       => [ qw( posix posix cc ),    { %OS_POSIX } ],
+    linux       => [ qw( posix gnu   gcc ),   { %OS_LINUX } ],
+    darwin      => [ qw( posix gnu   clang ), { %OS_DARWIN } ],
+    openbsd     => [ qw( posix bsd   gcc ),   { %OS_OPENBSD} ],
+    netbsd      => [ qw( posix bsd   gcc ),   { %OS_NETBSD } ],
+    freebsd     => [ qw( posix bsd   clang ), { %OS_FREEBSD } ],
+    gnukfreebsd => [ qw( posix gnu   gcc ),   { %OS_GNUKFREEBSD } ],
+    solaris     => [ qw( posix posix cc ),    { %OS_SOLARIS } ],
+    win32       => [ qw( win32 msvc  cl ),    { %OS_WIN32 } ],
+    cygwin      => [ qw( posix gnu   gcc ),   { %OS_WIN32 } ],
+    mingw32     => [ qw( win32 gnu   gcc ),   { %OS_MINGW32 } ],
 );
 
 42;

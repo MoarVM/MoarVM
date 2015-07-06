@@ -14,7 +14,7 @@ static void setup_std_handles(MVMThreadContext *tc);
 /* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
-    char *spesh_log, *spesh_disable, *spesh_inline_disable, *spesh_osr_disable;
+    char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable, *spesh_osr_disable;
     char *jit_log, *jit_disable, *jit_bytecode_dir;
     char *dynvar_log;
     int init_stat;
@@ -91,7 +91,7 @@ MVMInstance * MVM_vm_create_instance(void) {
                 instance->main_thread, STABLE(instance->boot_types.BOOTThread))));
     instance->threads->body.stage = MVM_thread_stage_started;
     instance->threads->body.tc = instance->main_thread;
-    instance->threads->body.thread_id = MVM_platform_thread_id();
+    instance->threads->body.native_thread_id = MVM_platform_thread_id();
 
     /* Create compiler registry */
     instance->compiler_registry = MVM_repr_alloc_init(instance->main_thread, instance->boot_types.BOOTHash);
@@ -119,6 +119,9 @@ MVMInstance * MVM_vm_create_instance(void) {
      * them, so that spesh may end up optimizing more "internal" stuff. */
     MVM_callsite_initialize_common(instance->main_thread);
 
+    /* Multi-cache additions mutex. */
+    init_mutex(instance->mutex_multi_cache_add, "multi-cache addition");
+
     /* Mutex for spesh installations, and check if we've a file we
      * should log specializations to. */
     init_mutex(instance->mutex_spesh_install, "spesh installations");
@@ -136,6 +139,12 @@ MVMInstance * MVM_vm_create_instance(void) {
             instance->spesh_osr_enabled = 1;
     }
 
+    spesh_nodelay = getenv("MVM_SPESH_NODELAY");
+    if (spesh_nodelay && strlen(spesh_nodelay)) {
+        instance->spesh_nodelay = 1;
+    }
+
+    /* JIT environment/logging setup. */
     jit_disable = getenv("MVM_JIT_DISABLE");
     if (!jit_disable || strlen(jit_disable) == 0)
         instance->jit_enabled = 1;
@@ -154,6 +163,10 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
+
+    /* Set up NFG state mutation mutex. */
+    instance->nfg = calloc(1, sizeof(MVMNFGState));
+    init_mutex(instance->nfg->update_mutex, "NFG update mutex");
 
     /* Current instrumentation level starts at 1; used to trigger all frames
      * to be verified before their first run. */
@@ -293,6 +306,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of hashes of symbol tables per hll. */
     uv_mutex_destroy(&instance->mutex_hll_syms);
+
+    /* Clean up multi cache addition mutex. */
+    uv_mutex_destroy(&instance->mutex_multi_cache_add);
 
     /* Clean up spesh install mutex and close any log. */
     uv_mutex_destroy(&instance->mutex_spesh_install);

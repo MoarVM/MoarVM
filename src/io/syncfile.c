@@ -15,6 +15,8 @@
 #define O_RDONLY _O_RDONLY
 #define O_WRONLY _O_WRONLY
 #define O_TRUNC  _O_TRUNC
+#define O_EXCL   _O_EXCL
+#define O_RDWR   _O_RDWR
 #define DEFAULT_MODE _S_IWRITE /* work around sucky libuv defaults */
 #endif
 
@@ -251,6 +253,14 @@ static void truncatefh(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
         MVM_exception_throw_adhoc(tc, "Failed to truncate filehandle: %s", uv_strerror(req.result));
 }
 
+/* Operations aiding process spawning and I/O handling. */
+static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio,
+        uv_process_t *process) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    stdio->flags        = UV_INHERIT_FD;
+    stdio->data.fd      = data->fd;
+}
+
 /* Locks a file. */
 static MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
@@ -368,6 +378,7 @@ static const MVMIOEncodable    encodable     = { set_encoding };
 static const MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, mvm_eof };
 static const MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncatefh };
 static const MVMIOSeekable     seekable      = { seek, mvm_tell };
+static const MVMIOPipeable     pipeable      = { bind_stdio_handle };
 static const MVMIOLockable     lockable      = { lock, unlock };
 static const MVMIOOps op_table = {
     &closable,
@@ -378,11 +389,41 @@ static const MVMIOOps op_table = {
     NULL,
     &seekable,
     NULL,
-    NULL,
+    &pipeable,
     &lockable,
     NULL,
     gc_free
 };
+
+/* Builds POSIX flag from mode string. */
+static int resolve_open_mode(int *flag, const char *cp) {
+    switch (*cp++) {
+        case 'r': *flag = O_RDONLY; break;
+        case '-': *flag = O_WRONLY; break;
+        case '+': *flag = O_RDWR;   break;
+
+        /* alias for "-c" or "-ct" if by itself */
+        case 'w':
+        *flag = *cp ? O_WRONLY | O_CREAT : O_WRONLY | O_CREAT | O_TRUNC;
+        break;
+
+        default:
+        return 0;
+    }
+
+    for (;;) switch (*cp++) {
+        case 0:
+        return 1;
+
+        case 'a': *flag |= O_APPEND; break;
+        case 'c': *flag |= O_CREAT;  break;
+        case 't': *flag |= O_TRUNC;  break;
+        case 'x': *flag |= O_EXCL;   break;
+
+        default:
+        return 0;
+    }
+}
 
 /* Opens a file, returning a synchronous file handle. */
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode) {
@@ -395,13 +436,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
 
     /* Resolve mode description to flags. */
     int flag;
-    if (0 == strcmp("r", fmode))
-        flag = O_RDONLY;
-    else if (0 == strcmp("w", fmode))
-        flag = O_CREAT| O_WRONLY | O_TRUNC;
-    else if (0 == strcmp("wa", fmode))
-        flag = O_CREAT | O_WRONLY | O_APPEND;
-    else {
+    if (!resolve_open_mode(&flag, fmode)) {
         MVM_free(fname);
         MVM_exception_throw_adhoc(tc, "Invalid open mode: %s", fmode);
     }
@@ -409,7 +444,6 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
 
     /* Try to open the file. */
     if ((fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, DEFAULT_MODE, NULL)) < 0) {
-        MVM_free(fname);
         MVM_exception_throw_adhoc(tc, "Failed to open file %s: %s", fname, uv_strerror(req.result));
     }
 

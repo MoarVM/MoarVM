@@ -19,6 +19,9 @@ struct MVMDecodeStream {
 
     /* The encoding we're using. */
     MVMint32 encoding;
+
+    /* Normalizer. */
+    MVMNormalizer norm;
 };
 
 /* A single bunch of bytes added to a decode stream, with a link to the next

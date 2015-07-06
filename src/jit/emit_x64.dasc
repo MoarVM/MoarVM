@@ -21,7 +21,9 @@
 |.type P6OBODY, MVMP6opaqueBody
 |.type MVMITER, MVMIter
 |.type MVMINSTANCE, MVMInstance
+|.type MVMACTIVEHANDLERS, MVMActiveHandler
 |.type OBJECT, MVMObject
+|.type STOOGE, MVMObjectStooge
 |.type COLLECTABLE, MVMCollectable
 |.type STABLE, MVMSTable
 |.type REPR, MVMREPROps
@@ -32,6 +34,7 @@
 |.type STORAGESPEC, MVMStorageSpec
 |.type HLLCONFIG, MVMHLLConfig;
 |.type SCREFBODY, MVMSerializationContextBody
+|.type NFGSYNTH, MVMNFGSynthetic
 |.type U8, MVMuint8
 |.type U16, MVMuint16
 |.type U32, MVMuint32
@@ -210,10 +213,15 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
     /* Setup stack */
     | push rbp; // nb, this aligns the stack to 16 bytes again
     | mov rbp, rsp;
-    /* allocate stack space for 4 callee-save registers,
-       4 quadwords of scratch space, 4 stack parameters,
-       and 4 parameter registers (windows only) */
-    | sub rsp, 0x80;
+    /* allocate stack space: 0x100 bytes = 256 bytes
+     *
+     * layout: [ a: 0x20 | b: 0x40 | c: 0xa0 | d: 0x20 ]
+     * a: space for 4 callee-save registers
+     * b: small scratch space
+     * c: space for stack arguments to c calls
+     * d: reserve space for GPR registers to c calls (win64) or more space for
+     * stack arguments (posix) */
+    | sub rsp, 0x100;
     /* save callee-save registers */
     | mov [rbp-0x8],  TC;
     | mov [rbp-0x10], CU;
@@ -255,6 +263,12 @@ static MVMuint64 try_emit_gen2_ref(MVMThreadContext *tc, MVMJitGraph *jg,
     return 1;
 }
 
+static MVMint64 fits_in_32_bit(MVMint64 number) {
+    /* Used to determine if a 64 bit integer can be safely used as a
+     * 32 bit constant for immediate mode access */
+    return (number >= INT32_MIN) && (number <= INT32_MAX);
+}
+
 /* compile per instruction, can't really do any better yet */
 void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
                             MVMJitPrimitive * prim, dasm_State **Dst) {
@@ -287,6 +301,21 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint64 valbytes = ins->operands[1].lit_i64;
         MVM_jit_log(tc, "store const %f\n", ins->operands[1].lit_n64);
         | mov64 TMP1, valbytes;
+        | mov WORK[reg], TMP1;
+        break;
+    }
+    case MVM_OP_inf:
+    case MVM_OP_neginf:
+    case MVM_OP_nan: {
+        MVMint16 reg = ins->operands[0].reg.orig;
+        MVMRegister tmp;
+        if (op == MVM_OP_nan)
+            tmp.n64 = MVM_num_nan(tc);
+        else if (op == MVM_OP_inf)
+            tmp.n64 = MVM_num_posinf(tc);
+        else if (op == MVM_OP_neginf)
+            tmp.n64 = MVM_num_neginf(tc);
+        | mov64 TMP1, tmp.i64;
         | mov WORK[reg], TMP1;
         break;
     }
@@ -457,7 +486,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | mov TMP2, qword [rbp-0x28];
             |3:
             /* store vivified type value in memory location */
-            | mov [TMP2], TMP3;
+            | mov qword [TMP2], TMP3;
             |4:
         } else if (op == MVM_OP_sp_p6ogetvc_o) {
             MVMint16 spesh_idx = ins->operands[3].lit_i16;
@@ -485,7 +514,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | mov TMP3, qword [rbp-0x30];
             | mov TMP2, qword [rbp-0x28];
             |3:
-            | mov [TMP2], TMP3;
+            | mov qword [TMP2], TMP3;
             /* done */
             |4:
         } else {
@@ -496,12 +525,47 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP3;
         break;
     }
+    case MVM_OP_sp_bind_i64:
+    case MVM_OP_sp_bind_n:
+    case MVM_OP_sp_bind_s:
+    case MVM_OP_sp_bind_o: {
+        MVMint16 obj    = ins->operands[0].reg.orig;
+        MVMint16 offset = ins->operands[1].lit_i16;
+        MVMint16 val    = ins->operands[2].reg.orig;
+        | mov TMP1, WORK[obj];            // object
+        | mov TMP2, WORK[val];            // value
+        if (op == MVM_OP_sp_bind_o || op == MVM_OP_sp_bind_s) {
+            /* check if we should hit write barrier */
+            | check_wb TMP1, TMP2;
+            /* note: it is uneccesary to store pointers, because they
+               can just be loaded from memory */
+            | jz >2;
+            | hit_wb WORK[obj];
+            | mov TMP1, aword WORK[obj]; // reload object
+            | mov TMP2, aword WORK[val]; // reload value
+            |2: // done
+        }
+        | mov qword [TMP1+offset], TMP2; // store value into body
+        break;
+    }
+    case MVM_OP_sp_get_i64:
+    case MVM_OP_sp_get_n:
+    case MVM_OP_sp_get_s:
+    case MVM_OP_sp_get_o: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 obj    = ins->operands[1].reg.orig;
+        MVMint16 offset = ins->operands[2].lit_i16;
+        | mov TMP1, WORK[obj];            // object
+        | mov TMP2, qword [TMP1+offset];   // get value from body
+        | mov WORK[dst], TMP2;
+        break;
+    }
     case MVM_OP_sp_p6obind_i:
     case MVM_OP_sp_p6obind_n:
-    case MVM_OP_sp_p6obind_o:
-    case MVM_OP_sp_p6obind_s: {
+    case MVM_OP_sp_p6obind_s:
+    case MVM_OP_sp_p6obind_o: {
         MVMint16 obj    = ins->operands[0].reg.orig;
-        MVMint16 offset = ins->operands[1].callsite_idx;
+        MVMint16 offset = ins->operands[1].lit_i16;
         MVMint16 val    = ins->operands[2].reg.orig;
         | mov TMP1, WORK[obj];            // object
         | mov TMP2, WORK[val];            // value
@@ -609,10 +673,109 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
 
     case MVM_OP_add_i:
     case MVM_OP_sub_i:
-    case MVM_OP_mul_i:
     case MVM_OP_bor_i:
     case MVM_OP_band_i:
-    case MVM_OP_bxor_i:
+    case MVM_OP_bxor_i: {
+        MVMint32 reg_a = ins->operands[0].reg.orig;
+        MVMint32 reg_b = ins->operands[1].reg.orig;
+        MVMint32 reg_c = ins->operands[2].reg.orig;
+
+        MVMSpeshFacts *operand_facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[2]);
+
+        if (reg_a == reg_b) {
+            if (operand_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE &&
+                fits_in_32_bit(operand_facts->value.i)) {
+                MVMint64 value = operand_facts->value.i;
+                MVM_jit_log(tc, "accumulator for %s stayed in memory and "
+                            " constant value %"PRId64" used\n", ins->info->name, value);
+                switch(ins->info->opcode) {
+                case MVM_OP_add_i:
+                    | add qword WORK[reg_a], qword value;
+                    break;
+                case MVM_OP_sub_i:
+                    | sub qword WORK[reg_a], qword value;
+                    break;
+                case MVM_OP_bor_i:
+                    | or qword WORK[reg_a], qword value;
+                    break;
+                case MVM_OP_band_i:
+                    | and qword WORK[reg_a], qword value;
+                    break;
+                case MVM_OP_bxor_i:
+                    | xor qword WORK[reg_a], qword value;
+                    break;
+                }
+            } else {
+                MVM_jit_log(tc, "accumulator for %s stayed in memory\n", ins->info->name);
+                | mov rax, WORK[reg_c];
+                switch(ins->info->opcode) {
+                case MVM_OP_add_i:
+                    | add WORK[reg_a], rax;
+                    break;
+                case MVM_OP_sub_i:
+                    | sub WORK[reg_a], rax;
+                    break;
+                case MVM_OP_bor_i:
+                    | or WORK[reg_a], rax;
+                    break;
+                case MVM_OP_band_i:
+                    | and WORK[reg_a], rax;
+                    break;
+                case MVM_OP_bxor_i:
+                    | xor WORK[reg_a], rax;
+                    break;
+                }
+            }
+        } else {
+            if (operand_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE &&
+                fits_in_32_bit(operand_facts->value.i)) {
+                MVMint64 value = operand_facts->value.i;
+                MVM_jit_log(tc, "constant value %"PRId64" used for %s\n",
+                            value, ins->info->name);
+                | mov rax, WORK[reg_b];
+                switch(ins->info->opcode) {
+                case MVM_OP_add_i:
+                    | add rax, qword value;
+                    break;
+                case MVM_OP_sub_i:
+                    | sub rax, qword value;
+                    break;
+                case MVM_OP_bor_i:
+                    | or rax, qword value;
+                    break;
+                case MVM_OP_band_i:
+                    | and rax, qword value;
+                    break;
+                case MVM_OP_bxor_i:
+                    | xor rax, qword value;
+                    break;
+                }
+                | mov WORK[reg_a], rax;
+            } else {
+                | mov rax, WORK[reg_b];
+                switch(ins->info->opcode) {
+                case MVM_OP_add_i:
+                    | add rax, WORK[reg_c];
+                    break;
+                case MVM_OP_sub_i:
+                    | sub rax, WORK[reg_c];
+                    break;
+                case MVM_OP_bor_i:
+                    | or rax, WORK[reg_c];
+                    break;
+                case MVM_OP_band_i:
+                    | and rax, WORK[reg_c];
+                    break;
+                case MVM_OP_bxor_i:
+                    | xor rax, WORK[reg_c];
+                    break;
+                }
+                | mov WORK[reg_a], rax;
+            }
+        }
+        break;
+    }
+    case MVM_OP_mul_i:
     case MVM_OP_blshift_i:
     case MVM_OP_brshift_i: {
         MVMint32 reg_a = ins->operands[0].reg.orig;
@@ -620,23 +783,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint32 reg_c = ins->operands[2].reg.orig;
         | mov rax, WORK[reg_b];
         switch(ins->info->opcode) {
-        case MVM_OP_add_i:
-            | add rax, WORK[reg_c];
-            break;
-        case MVM_OP_sub_i:
-            | sub rax, WORK[reg_c];
-            break;
         case MVM_OP_mul_i:
             | imul rax, WORK[reg_c];
-            break;
-        case MVM_OP_bor_i:
-            | or rax, WORK[reg_c];
-            break;
-        case MVM_OP_band_i:
-            | and rax, WORK[reg_c];
-            break;
-        case MVM_OP_bxor_i:
-            | xor rax, WORK[reg_c];
             break;
         case MVM_OP_blshift_i:
             | mov cl, byte WORK[reg_c];
@@ -1166,6 +1314,21 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         |2:
         break;
     }
+    case MVM_OP_exception: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP1, TC->active_handlers;
+        | test TMP1, TMP1;
+        | jz >1;
+        | mov TMP1, [TMP1];
+        | mov TMP1, MVMACTIVEHANDLERS:TMP1->ex_obj;
+        | mov WORK[dst], TMP1;
+        | jmp >2;
+        |1:
+        | get_vmnull TMP1;
+        | mov WORK[dst], TMP1;
+        |2:
+        break;
+    }
     case MVM_OP_scwbdisable: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov TMP1d, dword TC->sc_wb_disable_depth;
@@ -1268,48 +1431,73 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     }
     case MVM_OP_invokewithcapture: {
-	MVMint16 dest    = ins->operands[0].reg.orig;
-	MVMint16 code    = ins->operands[1].reg.orig;
-	MVMint16 capture = ins->operands[2].reg.orig;
-	| mov TMP1, aword WORK[capture];
-	/* if (IS_CONCRETE(capture) && REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) */
-	| is_type_object TMP1;
-	| jnz >1;
-	| mov TMP2, OBJECT:TMP1->st;
-	| mov TMP2, STABLE:TMP2->REPR;
-	| cmp dword REPR:TMP2->ID, MVM_REPR_ID_MVMCallCapture;
-	| je >2;
-	|1:
-	/* else throw */
-	| throw_adhoc "invokewithcapture needs a MVMCallCapture";
-	|2:
-	/* code = MVM_frame_find_invokee(tc, code, NULL) */
-	| mov ARG1, TC;
-	| mov ARG2, WORK[code];
-	| xor ARG3, ARG3;
-	| callp &MVM_frame_find_invokee;
+        MVMint16 dest    = ins->operands[0].reg.orig;
+        MVMint16 code    = ins->operands[1].reg.orig;
+        MVMint16 capture = ins->operands[2].reg.orig;
+        | mov TMP1, aword WORK[capture];
+        /* if (IS_CONCRETE(capture) && REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) */
+        | is_type_object TMP1;
+        | jnz >1;
+        | mov TMP2, OBJECT:TMP1->st;
+        | mov TMP2, STABLE:TMP2->REPR;
+        | cmp dword REPR:TMP2->ID, MVM_REPR_ID_MVMCallCapture;
+        | je >2;
+        |1:
+        /* else throw */
+        | throw_adhoc "invokewithcapture needs a MVMCallCapture";
+        |2:
+        /* code = MVM_frame_find_invokee(tc, code, NULL) */
+        | mov ARG1, TC;
+        | mov ARG2, WORK[code];
+        | xor ARG3, ARG3;
+        | callp &MVM_frame_find_invokee;
 
-	| mov ARG2, RV; // ARG2 = code
-	/* tc->cur_frame->return_value = &GET_REG(cur_op, 2) */
-	| lea ARG1, WORK[dest]; // ARG1 is used as scratch space
-	| mov aword FRAME->return_value, ARG1;
-	/* tc->cur_frame->return_type = MVM_RETURN_OBJ */
-	| mov dword FRAME->return_type, MVM_RETURN_OBJ;
-	/* tc->cur_frame->return_address = cur_op */
-	| get_cur_op ARG1;
-	| mov aword FRAME->return_address, ARG1;
-	/* STABLE(code)->invoke(tc, code, capture->body.effective_callsite,
-                                capture->body.apc->arg) */
-	| mov ARG1, TC;
-	| mov ARG3, WORK[capture];
-	| mov ARG4, aword CAPTURE:ARG3->body.apc;
-	| mov ARG4, aword ARGCTX:ARG4->args;
-	| mov ARG3, aword CAPTURE:ARG3->body.effective_callsite;
-	| mov FUNCTION, OBJECT:ARG2->st;
-	| mov FUNCTION, STABLE:FUNCTION->invoke;
-	| call FUNCTION;
-	/* jumping out is handled by invokish */
-	break;
+        | mov ARG2, RV; // ARG2 = code
+        /* tc->cur_frame->return_value = &GET_REG(cur_op, 2) */
+        | lea ARG1, WORK[dest]; // ARG1 is used as scratch space
+        | mov aword FRAME->return_value, ARG1;
+        /* tc->cur_frame->return_type = MVM_RETURN_OBJ */
+        | mov dword FRAME->return_type, MVM_RETURN_OBJ;
+        /* tc->cur_frame->return_address = cur_op */
+        | get_cur_op ARG1;
+        | mov aword FRAME->return_address, ARG1;
+        /* STABLE(code)->invoke(tc, code, capture->body.effective_callsite,
+           capture->body.apc->arg) */
+        | mov ARG1, TC;
+        | mov ARG3, WORK[capture];
+        | mov ARG4, aword CAPTURE:ARG3->body.apc;
+        | mov ARG4, aword ARGCTX:ARG4->args;
+        | mov ARG3, aword CAPTURE:ARG3->body.effective_callsite;
+        | mov FUNCTION, OBJECT:ARG2->st;
+        | mov FUNCTION, STABLE:FUNCTION->invoke;
+        | call FUNCTION;
+        /* jumping out is handled by invokish */
+        break;
+    }
+    case MVM_OP_ordat:
+    case MVM_OP_ordfirst: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 str = ins->operands[1].reg.orig;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[str];
+        if (op == MVM_OP_ordat) {
+            MVMint16 idx = ins->operands[2].reg.orig;
+            | mov ARG3, qword WORK[idx];
+        } else {
+            | mov ARG3, 0;
+        }
+        | callp &MVM_string_get_grapheme_at;
+        | cmp RV, 0;
+        | jge >1;
+        /* NB - I see no reason why this should be incorrect, but I
+           haven't been able to trigger it yet. */
+        | mov ARG1, TC;
+        | mov ARG2, RV;
+        | callp &MVM_nfg_get_synthetic_info;
+        | mov RV, NFGSYNTH:RV->base;
+        |1:
+        | mov qword WORK[dst], RV;
+        break;
     }
     default:
         MVM_panic(1, "Can't JIT opcode <%s>", ins->info->name);
@@ -1361,6 +1549,14 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_JIT_LITERAL_F:
         | mov64 TMP6, arg.v.lit_i64;
         break;
+    case MVM_JIT_REG_STABLE:
+        | mov TMP6, qword WORK[arg.v.reg];
+        | mov TMP6, OBJECT:TMP6->st;
+        break;
+    case MVM_JIT_REG_OBJBODY:
+        | mov TMP6, qword WORK[arg.v.reg];
+        | lea TMP6, STOOGE:TMP6->data;
+        break;
     }
 }
 
@@ -1388,7 +1584,7 @@ static void emit_gpr_arg(MVMThreadContext *tc, MVMJitGraph *jg,
 ||     break;
 |.endif
     default:
-        MVM_exception_throw_adhoc(tc, "JIT: can't store %d arguments in GPR", i);
+        MVM_oops(tc, "JIT: can't store %d arguments in GPR", i);
     }
 }
 
@@ -1415,27 +1611,27 @@ static void emit_sse_arg(MVMThreadContext *tc, MVMJitGraph *jg,
 |         movd ARG6F, TMP6;
 ||        break;
 ||    case 6:
-|        movd ARG5F, TMP6;
+|        movd ARG7F, TMP6;
 ||       break;
 ||    case 7:
-|        movd ARG5F, TMP6;
+|        movd ARG8F, TMP6;
 ||       break;
 |.endif
     default:
-        MVM_exception_throw_adhoc(tc, "JIT: can't put  %d arguments in SSE", i);
+        MVM_oops(tc, "JIT: can't put  %d arguments in SSE", i);
     }
 }
 
 static void emit_stack_arg(MVMThreadContext *tc, MVMJitGraph *jg,
                            MVMint32 arg_size, MVMint32 pos,
                            dasm_State **Dst) {
-    /* basically, stack argumetns are passed in right-to-left order
+    /* basically, stack arguments are passed in right-to-left order
        on both POSIX and W64 backends, it seems. Thus the most logical
        thing to do is to count from the stack top upwards. */
-    if (pos + arg_size > 64) {
-        MVM_exception_throw_adhoc(tc, "JIT: trying to pass arguments "
-                                  " in local space (stack top offset: "
-                                  " %d, size: %d)", pos, arg_size);
+    if (pos + arg_size > 160) {
+        MVM_oops(tc, "JIT: trying to pass arguments "
+                 " in local space (stack top offset:"
+                 " %d, size: %d)", pos, arg_size);
     }
     switch(arg_size) {
     case 1:
@@ -1451,8 +1647,8 @@ static void emit_stack_arg(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov qword [rsp+pos], TMP6;
         break;
     default:
-        MVM_exception_throw_adhoc(tc, "JIT: can't pass arguments size %d bytes",
-                                  arg_size);
+        MVM_oops(tc, "JIT: can't pass arguments size %d bytes",
+                 arg_size);
     }
 }
 
@@ -1469,6 +1665,8 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_JIT_INTERP_VAR:
         case MVM_JIT_REG_VAL:
         case MVM_JIT_REG_ADDR:
+        case MVM_JIT_REG_OBJBODY:
+        case MVM_JIT_REG_STABLE:
         case MVM_JIT_STR_IDX:
         case MVM_JIT_LITERAL:
         case MVM_JIT_LITERAL_64:
@@ -1532,7 +1730,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
 
     MVM_jit_log(tc, "emit c call <%d args>\n", call_spec->num_args);
     if (call_spec->has_vargs) {
-        MVM_exception_throw_adhoc(tc, "JIT can't handle varargs yet");
+        MVM_oops(tc, "JIT can't handle varargs yet");
     }
     |.if WIN32;
     || emit_win64_callargs(tc, jg, call_spec->args, call_spec->num_args, Dst);
@@ -1895,7 +2093,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
                           MVMJitControl *ctrl, dasm_State **Dst) {
     if (ctrl->type == MVM_JIT_CONTROL_INVOKISH) {
         MVM_jit_log(tc, "Emit invokish control guard\n");
-        | cmp FRAME, TC->cur_frame;
+        | cmp FRAME, aword TC->cur_frame;
         | je >1;
         | lea TMP1, [>1];
         | mov aword FRAME->jit_entry_label, TMP1;
@@ -1905,31 +2103,38 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     else if (ctrl->type == MVM_JIT_CONTROL_DYNAMIC_LABEL) {
         MVM_jit_log(tc, "Emit throwish control guard\n");
-        /* This pre-loads a label for the next op, so that
-         * throwish operators will know where we're throwing
-         * from */
+        /* This pre-loads a label for the next op, so that throwish
+         * operators will know where we're throwing from - NB, I'm not
+         * totally sure this is still necessary now */
         | lea TMP1, [>1];
         | mov aword FRAME->jit_entry_label, TMP1;
         |1:
     }
     else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_PRE) {
-        /* Store our current handler, so we can check if something
-           was thrown */
-        | mov TMP1, aword TC->active_handlers;
-        | mov aword [rbp-0x28], TMP1;
-        |1:
+        /* Store a reference to the 9 label below. I assume this label
+         * isn't used in the intermediate instructions, which is
+         * basically valid throughout this codebase. */
+        | lea TMP1, [>9];
+        | mov aword FRAME->jit_entry_label, TMP1;
     }
     else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_POST) {
-        /* check if our current handler is the same as it was */
-        | mov TMP1, aword TC->active_handlers;
-        | mov TMP2, aword [rbp-0x28];
-        | cmp TMP1, TMP2;
-        | je >1;
-        /*if not, fallout to interpreter */
+        /* check if our current frame is the same as it was */
+        | cmp FRAME, aword TC->cur_frame;
+        | jne >8;
+        /* if it is, we may still be in a goto-handler, so in that
+         * case the throwing machinery should have ensured that
+         * jit_entry_label now points to the correct label. If not, it
+         * still points to 9:. */
+        | jmp aword FRAME->jit_entry_label;
+        /* if not the same frame, trampoline to interpreter */
+        |8:
         | mov RV, 1;
         | jmp ->out;
-        |1:
+        /* I assume we *never* use a local label 9 in the code between
+         * pre-and-post throwish */
+        |9:
     } else if (ctrl->type == MVM_JIT_CONTROL_BREAKPOINT) {
+        /* brrts evil testing purposes breakpoint */
         | int 3;
     } else {
         MVM_panic(1, "Unknown conrtol code: <%s>", ctrl->ins->info->name);

@@ -399,3 +399,7 @@ void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st) {
 MVMuint64 MVM_6model_next_type_cache_id(MVMThreadContext *tc) {
     return (MVMuint64)MVM_add(&tc->instance->cur_type_cache_id, 64) + 64;
 }
+
+void MVM_6model_never_repossess(MVMThreadContext *tc, MVMObject *obj) {
+    obj->header.flags |= MVM_CF_NEVER_REPOSSESS;
+}

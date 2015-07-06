@@ -10,7 +10,7 @@ struct MVMIOOps {
     const MVMIOAsyncWritable *async_writable;
     const MVMIOSeekable      *seekable;
     const MVMIOSockety       *sockety;
-    const MVMIOInteractive   *interactive;
+    const MVMIOPipeable      *pipeable;
     const MVMIOLockable      *lockable;
 
     /* How to mark the handle's data, if needed. */
@@ -77,15 +77,16 @@ struct MVMIOSockety {
     MVMObject * (*accept) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 
-/* I/O operations on handles that can do interactive readline. */
-struct MVMIOInteractive {
-    MVMString * (*read_line) (MVMThreadContext *tc, MVMOSHandle *h, MVMString *prompt);
-};
-
 /* I/O operations on handles that can lock/unlock. */
 struct MVMIOLockable {
     MVMint64 (*lock) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag);
     void (*unlock) (MVMThreadContext *tc, MVMOSHandle *h);
+};
+
+/* Operations aiding process spawning and I/O handling.  */
+struct MVMIOPipeable {
+    void (*bind_stdio_handle) (MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio,
+        uv_process_t *process);
 };
 
 MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle);

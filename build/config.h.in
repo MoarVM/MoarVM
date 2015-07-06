@@ -28,11 +28,6 @@
 #define MVM_BIGENDIAN @be@
 #endif
 
-/* Readline detection */
-#if @hasreadline@
-#define MVM_HAS_READLINE @hasreadline@
-#endif
-
 /* pthread_yield() detection */
 #if @has_pthread_yield@
 #define MVM_HAS_PTHREAD_YIELD @has_pthread_yield@

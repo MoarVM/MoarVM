@@ -149,12 +149,20 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
     return sc;
 }
 
+/* Checks if an SC is currently in the process of doing deserialization work. */
+MVM_STATIC_INLINE MVMint64 sc_working(MVMSerializationContext *sc) {
+    MVMSerializationReader *sr = sc->body->sr;
+    return sr && sr->working;
+}
+
 /* Given an SC and an index, fetch the object stored there. */
 MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     MVMObject **roots = sc->body->root_objects;
     MVMint64    count = sc->body->num_objects;
     if (idx >= 0 && idx < count)
-        return roots[idx] ? roots[idx] : MVM_serialization_demand_object(tc, sc, idx);
+        return roots[idx] && !sc_working(sc)
+            ? roots[idx]
+            : MVM_serialization_demand_object(tc, sc, idx);
     else
         MVM_exception_throw_adhoc(tc,
             "Probable version skew in pre-compiled '%s' (cause: no object at index %"PRId64")",
@@ -213,7 +221,7 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
 MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     if (idx >= 0 && idx < sc->body->num_stables) {
         MVMSTable *got = sc->body->root_stables[idx];
-        return got ? got : MVM_serialization_demand_stable(tc, sc, idx);
+        return got && !sc_working(sc) ? got : MVM_serialization_demand_stable(tc, sc, idx);
     }
     else {
         MVM_exception_throw_adhoc(tc,
@@ -275,7 +283,7 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
     MVMuint64   count = MVM_repr_elems(tc, roots);
     if (idx < count) {
         MVMObject *found = MVM_repr_at_pos_o(tc, roots, idx);
-        return MVM_is_null(tc, found)
+        return MVM_is_null(tc, found) || sc_working(sc)
             ? MVM_serialization_demand_code(tc, sc, idx)
             : found;
     }
@@ -296,6 +304,57 @@ MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString 
     return scb && scb->sc ? scb->sc : NULL;
 }
 
+/* Marks all objects, stables and codes that belong to this SC as free to be taken by another. */
+void MVM_sc_disclaim(MVMThreadContext *tc, MVMSerializationContext *sc) {
+    MVMObject **root_objects, *root_codes, *obj;
+    MVMSTable **root_stables, *stable;
+    MVMint64 i, count;
+    MVMCollectable *col;
+    if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+        MVM_exception_throw_adhoc(tc,
+            "Must provide an SCRef operand to scdisclaim");
+
+    root_objects = sc->body->root_objects;
+    count        = sc->body->num_objects;
+    for (i = 0; i < count; i++) {
+        obj = root_objects[i];
+        col = &obj->header;
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
+        if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
+            struct MVMSerializationIndex *const sci = col->sc_forward_u.sci;
+            col->sc_forward_u.sci = NULL;
+            MVM_free(sci);
+        }
+        col->sc_forward_u.sc.sc_idx = 0;
+        col->sc_forward_u.sc.idx = 0;
+#else
+        col->sc_forward_u.sc.sc_idx = 0;
+        col->sc_forward_u.sc.idx = 0;
+#endif
+    }
+    sc->body->num_objects = 0;
+
+    root_stables = sc->body->root_stables;
+    count        = sc->body->num_stables;
+    for (i = 0; i < count; i++) {
+        stable                      = root_stables[i];
+        col                         = &stable->header;
+        col->sc_forward_u.sc.sc_idx = 0;
+    }
+    sc->body->num_stables = 0;
+
+    root_codes = sc->body->root_codes;
+    count      = MVM_repr_elems(tc, root_codes);
+    for (i = 0; i < count; i++) {
+        obj = MVM_repr_at_pos_o(tc, root_codes, i);
+        if (MVM_is_null(tc, obj))
+            obj = MVM_serialization_demand_code(tc, sc, i);
+        col                         = &obj->header;
+        col->sc_forward_u.sc.sc_idx = 0;
+    }
+    sc->body->root_codes = NULL;
+}
+
 /* Called when an object triggers the SC repossession write barrier. */
 void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
     MVMSerializationContext *comp_sc;
@@ -304,6 +363,10 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
     if (tc->sc_wb_disable_depth)
         return;
     if (!tc->compiling_scs || !MVM_repr_elems(tc, tc->compiling_scs))
+        return;
+
+    /* Same if the object is flagged as one to never repossess. */
+    if (obj->header.flags & MVM_CF_NEVER_REPOSSESS)
         return;
 
     /* Otherwise, check that the object's SC is different from the SC
@@ -323,8 +386,12 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
             MVMint64 i;
             for (i = 0; i < n; i += 2) {
                 if (MVM_repr_at_pos_o(tc, owned_objects, i) == obj) {
+                    MVMSerializationContext *real_sc;
                     obj = MVM_repr_at_pos_o(tc, owned_objects, i + 1);
-                    if (MVM_sc_get_obj_sc(tc, obj) == comp_sc)
+                    real_sc = MVM_sc_get_obj_sc(tc, obj);
+                    if (!real_sc)
+                        return; /* Probably disclaimed. */
+                    if (real_sc == comp_sc)
                         return;
                     found = 1;
                     break;

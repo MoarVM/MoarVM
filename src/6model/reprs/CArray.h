@@ -31,6 +31,7 @@ struct MVMCArray {
 #define MVM_CARRAY_ELEM_KIND_CPOINTER   3
 #define MVM_CARRAY_ELEM_KIND_CARRAY     4
 #define MVM_CARRAY_ELEM_KIND_CSTRUCT    5
+#define MVM_CARRAY_ELEM_KIND_CUNION     6
 
 /* The CArray REPR data contains a little info about the type of array
  * that we have. */

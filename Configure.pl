@@ -31,8 +31,8 @@ GetOptions(\%args, qw(
     debug:s optimize:s instrument!
     os=s shell=s toolchain=s compiler=s
     ar=s cc=s ld=s make=s has-sha has-libuv
-    static use-readline has-libtommath has-libatomic_ops
-    has-dyncall has-linenoise
+    static has-libtommath has-libatomic_ops
+    has-dyncall has-libffi
     build=s host=s big-endian jit! enable-jit lua=s has-dynasm
     prefix=s bindir=s libdir=s mastdir=s make-install asan),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
@@ -68,12 +68,11 @@ if (-d '.git') {
 }
 
 # fiddle with flags
-$args{optimize}     = 2 if not defined $args{optimize} or $args{optimize} eq "";
+$args{optimize}     = 3 if not defined $args{optimize} or $args{optimize} eq "";
 $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 $args{instrument} //= 0;
 $args{static}     //= 0;
 
-$args{'use-readline'}      //= 0;
 $args{'big-endian'}        //= 0;
 $args{'has-libtommath'}    //= 0;
 $args{'has-sha'}           //= 0;
@@ -90,9 +89,7 @@ if (exists $args{build} || exists $args{host}) {
     setup_cross($args{build}, $args{host});
 }
 else {
-    setup_native($args{os} // {
-        'MSWin32' => 'win32'
-    }->{$^O} // $^O);
+    setup_native($args{os} // $^O);
 }
 
 $config{name}   = $NAME;
@@ -147,14 +144,6 @@ $config{ldmiscflags}  //= $config{ccmiscflags};
 $config{ldoptiflags}  //= $config{ccoptiflags};
 $config{lddebugflags} //= $config{ccdebugflags};
 $config{ldinstflags}  //= $config{ccinstflags};
-
-# choose between Linenoise and GNU Readline
-if ($args{'use-readline'}) {
-    $config{hasreadline} = 1;
-    $defaults{-thirdparty}->{ln} = undef;
-    unshift @{$config{usrlibs}}, 'readline';
-}
-else { $config{hasreadline} = 0 }
 
 if ($args{'has-sha'}) {
     $config{shaincludedir} = '/usr/include/sha';
@@ -237,13 +226,20 @@ else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dynasm';
 }
 
-if ($args{'has-dyncall'}) {
+if ($args{'has-libffi'}) {
+    $config{nativecall_backend} = 'libffi';
+    unshift @{$config{usrlibs}}, 'ffi';
+    push @{$config{defs}}, 'HAVE_LIBFFI';
+}
+elsif ($args{'has-dyncall'}) {
     unshift @{$config{usrlibs}}, 'dyncall_s', 'dyncallback_s', 'dynload_s';
     $defaults{-thirdparty}->{dc}  = undef;
     $defaults{-thirdparty}->{dcb} = undef;
     $defaults{-thirdparty}->{dl}  = undef;
+    $config{nativecall_backend} = 'dyncall';
 }
 else {
+    $config{nativecall_backend} = 'dyncall';
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dyncall/dynload'
                         . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncall'
                         . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncallback';
@@ -251,16 +247,6 @@ else {
                         . "\t\$(CP) 3rdparty/dyncall/dynload/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n"
                         . "\t\$(CP) 3rdparty/dyncall/dyncall/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n"
                         . "\t\$(CP) 3rdparty/dyncall/dyncallback/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n";
-}
-
-if ($args{'has-linenoise'}) {
-    unshift @{$config{usrlibs}}, 'linenoise';
-    $defaults{-thirdparty}->{ln} = undef;
-}
-else {
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/linenoise';
-    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/linenoise\n"
-                        . "\t\$(CP) 3rdparty/linenoise/*.h \$(DESTDIR)\$(PREFIX)/include/linenoise\n";
 }
 
 if ($args{'jit'}) {
@@ -381,7 +367,7 @@ print dots('Configuring 3rdparty libs');
 my @thirdpartylibs;
 my $thirdparty = $defaults{-thirdparty};
 
-for (keys %$thirdparty) {
+for (sort keys %$thirdparty) {
     my $current = $thirdparty->{$_};
     my @keys = ( "${_}lib", "${_}objects", "${_}rule", "${_}clean");
 
@@ -499,6 +485,9 @@ sub setup_native {
     my ($os) = @_;
 
     print dots("Configuring native build environment");
+
+    $os = build::probe::win32_compiler_toolchain(\%config, \%defaults)
+        if $os eq 'MSWin32';
 
     if (!exists $::SYSTEMS{$os}) {
         softfail("unknown OS '$os'");
@@ -689,7 +678,7 @@ sub hardfail {
 
 sub write_backend_config {
     $config{backendconfig} = '';
-    for my $k (keys %config) {
+    for my $k (sort keys %config) {
         next if $k eq 'backendconfig';
         my $v = $config{$k};
         
@@ -723,7 +712,7 @@ __END__
                    [--toolchain <toolchain>] [--compiler <compiler>]
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
-                   [--static] [--use-readline] [--prefix]
+                   [--static] [--prefix]
                    [--has-libtommath] [--has-sha] [--has-libuv]
                    [--has-libatomic_ops] [--has-dynasm]
                    [--lua <lua>] [--asan] [--no-jit]
@@ -817,15 +806,6 @@ options.
 
 Build MoarVM as a static library instead of a shared one.
 
-=item --use-readline
-
-Disable Linenoise and try to use the system version of GNU Readline
-instead.
-
-You must not supply this flag if you create derivative work of
-MoarVM - including binary packages of MoarVM itself - that you wish
-to distribute under a license other than the GNU GPL.
-
 =item --build <build-triple> --host <host-triple>
 
 Set up cross-compilation.
@@ -872,10 +852,7 @@ Build and install MoarVM in addition to configuring it.
 
 =item --has-dyncall
 
-=item --has-linenoise
-
-Link moar executable with libs provided by the system instead of building
-and installing an own version from MoarVM's source tree.
+=item --has-libffi
 
 =item --no-jit
 

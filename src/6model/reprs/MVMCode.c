@@ -157,6 +157,7 @@ MVM_PUBLIC MVMObject * MVM_code_location(MVMThreadContext *tc, MVMObject *code) 
         } else {
             filename = cu->body.filename;
         }
+        MVM_free(ann);
 
         filename_boxed = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, filename);
 

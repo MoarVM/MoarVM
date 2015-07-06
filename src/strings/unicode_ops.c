@@ -13,19 +13,28 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
 }
 
 MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
+    const char *name;
 
-    MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+    /* Catch out-of-bounds code points. */
+    if (codepoint < 0) {
+        name = "<illegal>";
+    }
+    else if (codepoint > 0x10ffff) {
+        name = "<unassigned>";
+    }
 
-    const char *name = (codepoint < 0 || codepoint > 0x10ffff) ? "<illegal>" : "<unassigned>";
-
-    if (codepoint_row != -1) {
-        name = codepoint_names[codepoint_row];
-        if (!name) {
-            while (codepoint_row && !codepoint_names[codepoint_row])
-                codepoint_row--;
+    /* Look up name. */
+    else {
+        MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+        if (codepoint_row != -1) {
             name = codepoint_names[codepoint_row];
-            if (!name || name[0] != '<')
-                name = "<reserved>";
+            if (!name) {
+                while (codepoint_row && !codepoint_names[codepoint_row])
+                    codepoint_row--;
+                name = codepoint_names[codepoint_row];
+                if (!name || name[0] != '<')
+                    name = "<reserved>";
+            }
         }
     }
 
@@ -159,4 +168,21 @@ MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 
         MVM_free(cname); /* not really codepoint, really just an index */
         return result ? result->codepoint : 0;
     }
+}
+
+/* Look up the primary composite for a pair of codepoints, if it exists.
+ * Returns 0 if not. */
+MVMCodepoint MVM_unicode_find_primary_composite(MVMThreadContext *tc, MVMCodepoint l, MVMCodepoint c) {
+    MVMint32 lower = l & 0xFF;
+    MVMint32 upper = (l >> 8) & 0xFF;
+    MVMint32 plane = (l >> 16) & 0xF;
+    const MVMint32 *pcs  = comp_p[plane][upper][lower];
+    if (pcs) {
+        MVMint32 entries = pcs[0];
+        MVMint32 i;
+        for (i = 1; i < entries; i += 2)
+            if (pcs[i] == c)
+                return pcs[i + 1];
+    }
+    return 0;
 }

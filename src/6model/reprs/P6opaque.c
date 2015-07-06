@@ -129,10 +129,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     }
 
     /* If we replaced the object body, free the replacement. */
-    if (((MVMP6opaque *)obj)->body.replaced) {
-        MVM_free(((MVMP6opaque *)obj)->body.replaced);
-        ((MVMP6opaque *)obj)->body.replaced = NULL;
-    }
+    MVM_checked_free_null(((MVMP6opaque *)obj)->body.replaced);
 }
 
 /* Marks the representation data in an STable.*/
@@ -181,11 +178,11 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     if (repr_data->name_to_index_mapping) {
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
-            MVM_checked_free_null(cur_map_entry->names);
-            MVM_checked_free_null(cur_map_entry->slots);
+            MVM_free_null(cur_map_entry->names);
+            MVM_free_null(cur_map_entry->slots);
             cur_map_entry++;
         }
-        MVM_checked_free_null(repr_data->name_to_index_mapping);
+        MVM_free_null(repr_data->name_to_index_mapping);
     }
 
     MVM_checked_free_null(repr_data->attribute_offsets);
@@ -197,7 +194,7 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     MVM_checked_free_null(repr_data->gc_mark_slots);
     MVM_checked_free_null(repr_data->gc_cleanup_slots);
 
-    MVM_checked_free_null(st->REPR_data);
+    MVM_free_null(st->REPR_data);
 }
 
 /* Helper for complaining about attribute access errors. */
@@ -1206,7 +1203,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     REPR(del)->pos_funcs.shift(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
 }
 
-static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMuint64 elems) {
+static void osplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMuint64 elems) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
@@ -1512,12 +1509,11 @@ static const MVMREPROps this_repr = {
         at_pos,
         bind_pos,
         set_elems,
-        NULL,
         push,
         pop,
         unshift,
         shift,
-        splice,
+        osplice,
         NULL
     },    /* pos_funcs */
     {

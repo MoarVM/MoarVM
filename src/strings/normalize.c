@@ -24,7 +24,8 @@ static void assert_codepoint_array(MVMThreadContext *tc, MVMObject *arr, char *e
 }
 MVM_STATIC_INLINE void maybe_grow_result(MVMCodepoint **result, MVMint64 *result_alloc, MVMint64 needed) {
     if (needed >= *result_alloc) {
-        *result_alloc += 32;
+        while (needed >= *result_alloc)
+            *result_alloc += 32;
         *result = MVM_realloc(*result, *result_alloc * sizeof(MVMCodepoint));
     }
 }
@@ -77,6 +78,112 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, MVMObject *in, MVMOb
     ((MVMArray *)out)->body.elems     = result_pos;
 }
 
+/* Takes an object, which must be of VMArray representation and holding
+ * 32-bit integers. Treats them as Unicode codepoints, normalizes them at
+ * Grapheme level, and returns the resulting NFG string. */
+MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, MVMObject *codes) {
+    MVMNormalizer  norm;
+    MVMCodepoint  *input;
+    MVMGrapheme32 *result;
+    MVMint64       input_pos, input_codes, result_pos, result_alloc;
+    MVMint32       ready;
+    MVMString     *str;
+
+    /* Get input array; if it's empty, we're done already. */
+    assert_codepoint_array(tc, codes, "Code points to string input must be native array of 32-bit integers");
+    input       = (MVMCodepoint *)((MVMArray *)codes)->body.slots.u32 + ((MVMArray *)codes)->body.start;
+    input_codes = ((MVMArray *)codes)->body.elems;
+    if (input_codes == 0)
+        return tc->instance->str_consts.empty;
+
+    /* Guess output size based on input size. */
+    result_alloc = input_codes;
+    result       = MVM_malloc(result_alloc * sizeof(MVMCodepoint));
+
+    /* Perform normalization at grapheme level. */
+    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+    input_pos  = 0;
+    result_pos = 0;
+    while (input_pos < input_codes) {
+        MVMGrapheme32 g;
+        ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, input[input_pos], &g);
+        if (ready) {
+            maybe_grow_result(&result, &result_alloc, result_pos + ready);
+            result[result_pos++] = g;
+            while (--ready > 0)
+                result[result_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        }
+        input_pos++;
+    }
+    MVM_unicode_normalizer_eof(tc, &norm);
+    ready = MVM_unicode_normalizer_available(tc, &norm);
+    maybe_grow_result(&result, &result_alloc, result_pos + ready);
+    while (ready--)
+        result[result_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+    MVM_unicode_normalizer_cleanup(tc, &norm);
+
+    /* Produce an MVMString of the result. */
+    str = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    str->body.storage.blob_32 = result;
+    str->body.storage_type    = MVM_STRING_GRAPHEME_32;
+    str->body.num_graphs      = result_pos;
+    return str;
+}
+
+/* Takes an NFG string and populates the array out, which must be a 32-bit
+ * integer array, with codepoints normalized according to the specified
+ * normalization form. */
+void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNormalization form, MVMObject *out) {
+    MVMCodepoint     *result;
+    MVMint64          result_pos, result_alloc;
+    MVMCodepointIter  ci;
+
+    /* Validate output array and set up result storage. */
+    assert_codepoint_array(tc, out, "Normalization output must be native array of 32-bit integers");
+    result_alloc = s->body.num_graphs;
+    result       = MVM_malloc(result_alloc * sizeof(MVMCodepoint));
+    result_pos   = 0;
+
+    /* Create codepoint iterator. */
+    MVM_string_ci_init(tc, &ci, s);
+
+    /* If we want NFC, just iterate, since NFG is constructed out of NFC. */
+    if (form == MVM_NORMALIZE_NFC) {
+        while (MVM_string_ci_has_more(tc, &ci)) {
+            maybe_grow_result(&result, &result_alloc, result_pos + 1);
+            result[result_pos++] = MVM_string_ci_get_codepoint(tc, &ci);
+        }
+    }
+
+    /* Otherwise, need to feed it through a normalizer. */
+    else {
+        MVMNormalizer norm;
+        MVMint32      ready;
+        MVM_unicode_normalizer_init(tc, &norm, form);
+        while (MVM_string_ci_has_more(tc, &ci)) {
+            MVMCodepoint cp;
+            ready = MVM_unicode_normalizer_process_codepoint(tc, &norm, MVM_string_ci_get_codepoint(tc, &ci), &cp);
+            if (ready) {
+                maybe_grow_result(&result, &result_alloc, result_pos + ready);
+                result[result_pos++] = cp;
+                while (--ready > 0)
+                    result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
+            }
+        }
+        MVM_unicode_normalizer_eof(tc, &norm);
+        ready = MVM_unicode_normalizer_available(tc, &norm);
+        maybe_grow_result(&result, &result_alloc, result_pos + ready);
+        while (ready--)
+            result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
+        MVM_unicode_normalizer_cleanup(tc, &norm);
+    }
+
+    /* Put result into array body. */
+    ((MVMArray *)out)->body.slots.u32 = result;
+    ((MVMArray *)out)->body.start     = 0;
+    ((MVMArray *)out)->body.elems     = result_pos;
+}
+
 /* Initialize the MVMNormalizer pointed to to perform the specified kind of
  * normalization. */
 void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNormalization form) {
@@ -120,20 +227,34 @@ void MVM_unicode_normalizer_cleanup(MVMThreadContext *tc, MVMNormalizer *n) {
 /* Adds a codepoint into the buffer, making sure there's space. */
 static void add_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint cp) {
     if (n->buffer_end == n->buffer_size) {
-        MVM_panic(1, "Resize of codepoint buffer NYI");
+        if (n->buffer_start != 0) {
+            MVMint32 shuffle = n->buffer_start;
+            MVMint32 to_move = n->buffer_end - n->buffer_start;
+            memmove(n->buffer, n->buffer + n->buffer_start, to_move * sizeof(MVMCodepoint));
+            n->buffer_start = 0;
+            n->buffer_end -= shuffle;
+            n->buffer_norm_end -= shuffle;
+        }
+        else {
+            n->buffer_size *= 2;
+            n->buffer = MVM_realloc(n->buffer, n->buffer_size * sizeof(MVMCodepoint));
+        }
     }
     n->buffer[n->buffer_end++] = cp;
 }
 
+/* Hangul-related constants from Unicode spec 3.12, following naming
+ * convention from spec. */
+static int
+    SBase = 0xAC00,
+    LBase = 0x1100, VBase = 0x1161, TBase = 0x11A7,
+    LCount = 19, VCount = 21, TCount = 28,
+    NCount = 588, /* VCount * TCount */
+    SCount = 11172; /* LCount * NCount */
+
 /* Decomposes a Hangul codepoint and add it into the buffer. */
 static void decomp_hangul_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint s) {
     /* Algorithm from Unicode spec 3.12, following naming convention from spec. */
-    static int
-        SBase = 0xAC00,
-        LBase = 0x1100, VBase = 0x1161, TBase = 0x11A7,
-        LCount = 19, VCount = 21, TCount = 28,
-        NCount = 588, /* VCount * TCount */
-        SCount = 11172; /* LCount * NCount */
     int SIndex = s - SBase;
     if (SIndex < 0 || SIndex >= SCount) {
         add_codepoint_to_buffer(tc, n, s);
@@ -222,6 +343,136 @@ static void canonical_sort(MVMThreadContext *tc, MVMNormalizer *n, MVMint32 from
     }
 }
 
+/* Implements the Unicode Canonical Composition algorithm (3.11, D117). */
+static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint32 from, MVMint32 to) {
+    MVMint32 c_idx = from + 1;
+    while (c_idx < to) {
+        /* Search for the last non-blocked starter. */
+        MVMint32 ss_idx = c_idx - 1;
+        MVMint32 c_ccc  = ccc(tc, n->buffer[c_idx]);
+        while (ss_idx >= from) {
+            /* Make sure we don't go past a code point that blocks a starter
+             * from the current character we're considering. */
+            MVMint32 ss_ccc = ccc(tc, n->buffer[ss_idx]);
+            if (ss_ccc >= c_ccc)
+                break;
+
+            /* Have we found a starter? */
+            if (ss_ccc == 0) {
+                /* See if there's a primary composite for the starter and the
+                 * current code point under consideration. */
+                MVMCodepoint pc = MVM_unicode_find_primary_composite(tc, n->buffer[ss_idx], n->buffer[c_idx]);
+                if (pc > 0) {
+                    /* Replace the starter with the primary composite. */
+                    n->buffer[ss_idx] = pc;
+
+                    /* Move the rest of the buffer back one position. */
+                    memmove(n->buffer + c_idx, n->buffer + c_idx + 1,
+                        (n->buffer_end - (c_idx + 1)) * sizeof(MVMCodepoint));
+                    n->buffer_end--;
+                    n->buffer_norm_end--;
+
+                    /* Sync cc_idx and to with the change. */
+                    c_idx--;
+                    to--;
+                }
+
+                /* Don't look back beyond this starter; covers the ccc(B) = 0
+                 * case of D105. */
+                break;
+            }
+            ss_idx--;
+        }
+
+        /* Move on to the next character. */
+        c_idx++;
+    }
+
+    /* Make another pass for the Hangul special case. (A future optimization
+     * may be to incorporate this into the above loop.) */
+    c_idx = from;
+    while (c_idx < to - 1) {
+        /* Do we have a potential LPart? */
+        MVMCodepoint LPart = n->buffer[c_idx];
+        if (LPart >= LBase && LPart <= (LBase + LCount)) {
+            /* Yes, now see if it's followed by a VPart (always safe to look
+             * due to "to - 1" in loop condition above). */
+            MVMCodepoint LIndex = LPart - LBase;
+            MVMCodepoint VPart  = n->buffer[c_idx + 1];
+            if (VPart >= VBase && VPart <= (VBase + VCount)) {
+                /* Certainly something to compose; compute that. */
+                MVMCodepoint VIndex = VPart - VBase;
+                MVMCodepoint LVIndex = LIndex * NCount + VIndex * TCount;
+                MVMCodepoint s = SBase + LVIndex;
+                MVMint32 composed = 1;
+
+                /* Is there a TPart too? */
+                if (c_idx < to - 2) {
+                    MVMCodepoint TPart  = n->buffer[c_idx + 2];
+                    if (TPart >= TBase && TPart <= (TBase + TCount)) {
+                        /* We need to compose 3 things. */
+                        MVMCodepoint TIndex = TPart - TBase;
+                        s += TIndex;
+                        composed = 2;
+                    }
+                }
+
+                /* Put composed codepoint into the buffer. */
+                n->buffer[c_idx] = s;
+
+                /* Shuffle codepoints after this in the buffer back. */
+                memmove(n->buffer + c_idx + 1, n->buffer + c_idx + 1 + composed,
+                        (n->buffer_end - (c_idx + 1 + composed)) * sizeof(MVMCodepoint));
+                n->buffer_end -= composed;
+                n->buffer_norm_end -= composed;
+
+                /* Sync to with updated buffer size. */
+                to -= composed;
+            }
+        }
+        c_idx++;
+    }
+}
+
+/* Performs grapheme composition (to get Normal Form Grapheme) on the range of
+ * codepoints provided. This algorithm is as follows (laid out here because
+ * this is not one of the Unicode standard ones):
+ * 1) If we only have one code point in the range to normalize, then NFC was
+ *    already sufficient here. Return.
+ * 2) Take the from position as the location of the current "starterish".
+ * 3) Walk codepoints until we reach "to" or the next codepoint is a starter.
+ * 4) Take the codepoints from and including the last starterish up to the
+ *    current one, and get a synthetic for them. Replace them with the
+ *    synthetic.
+ * 5) If we didn't reach "to", take the next codepoint as our next starterish
+ *    and goto step 3.
+ * Note that this is specified to handle strings starting with non-starter
+ * code point sequences.
+ */
+static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint32 from, MVMint32 to) {
+    if (to - from >= 2) {
+        MVMint32 starterish = from;
+        MVMint32 insert_pos = from;
+        MVMint32 pos        = from;
+        while (pos < to) {
+            MVMint32 next_pos = pos + 1;
+            if (next_pos == to || ccc(tc, n->buffer[next_pos]) == 0) {
+                /* Last in buffer or next code point is a non-starter; turn
+                 * sequence into a synthetic. */
+                MVMGrapheme32 g = MVM_nfg_codes_to_grapheme(tc, n->buffer + starterish, next_pos - starterish);
+                n->buffer[insert_pos++] = g;
+
+                /* The next code point is our new starterish (harmless if we
+                 * are already at the end of the buffer). */
+                starterish = next_pos;
+            }
+            pos++;
+        }
+        memmove(n->buffer + insert_pos, n->buffer + to, (n->buffer_end - to) * sizeof(MVMCodepoint));
+        n->buffer_end -= to - insert_pos;
+    }
+}
+
 /* Called when the very fast case of normalization fails (that is, when we get
  * any two codepoints in a row where at least one is greater than the first
  * significant codepoint identified by a quick check for the target form). We
@@ -259,9 +510,20 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
         }
     }
 
-    /* If we didn't pass quick check, add decomposition to the buffer. We can
-     * do no more at this point. */
+    /* If we didn't pass quick check... */
     if (!qc_in) {
+        /* If we're composing, then decompose the last thing placed in the
+         * buffer, if any. We need to do this since it may have passed
+         * quickcheck, but having seen some character that does pass then we
+         * must make sure we decomposed the prior passing one too. */
+        if (MVM_NORMALIZE_COMPOSE(n->form) && n->buffer_end != n->buffer_start) {
+            MVMCodepoint decomp = n->buffer[n->buffer_end - 1];
+            n->buffer_end--;
+            decomp_codepoint_to_buffer(tc, n, decomp);
+        }
+
+        /* Decompose this new character into the buffer. We'll need to see
+         * more before we can go any further. */
         decomp_codepoint_to_buffer(tc, n, in);
         return 0;
     }
@@ -284,9 +546,11 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
      * up to but excluding the quick-check-passing thing we just added. */
     canonical_sort(tc, n, n->buffer_start, n->buffer_end - 1);
 
-    /* Perform canonical composition if needed. */
+    /* Perform canonical composition and grapheme composition if needed. */
     if (MVM_NORMALIZE_COMPOSE(n->form)) {
-        /* TODO: composition. */
+        canonical_composition(tc, n, n->buffer_start, n->buffer_end - 1);
+        if (MVM_NORMALIZE_GRAPHEME(n->form))
+            grapheme_composition(tc, n, n->buffer_start, n->buffer_end - 1);
     }
 
     /* We've now normalized all except the latest, quick-check-passing
@@ -298,13 +562,33 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
     return n->buffer_norm_end - n->buffer_start++;
 }
 
+/* Processes a codepoint that we regard as a "normalization terminator". These
+ * never have a decomposition, and for all practical purposes will not have a
+ * combiner on them. We treat them specially so we don't, during I/O, block on
+ * seeing a codepoint after them, which for things like REPLs that need to see
+ * input right after a \n makes for problems. */
+MVMint32 MVM_unicode_normalizer_process_codepoint_norm_terminator(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out) {
+    /* Add the codepoint into the buffer. */
+    add_codepoint_to_buffer(tc, n, in);
+
+    /* Treat this as an "eof", which really means "normalize what ya got". */
+    MVM_unicode_normalizer_eof(tc, n);
+
+    /* Hand back a normalized codepoint, and the number available (have to
+     * compensate for the one we steal for *out). */
+    *out = MVM_unicode_normalizer_get_codepoint(tc, n);
+    return 1 + MVM_unicode_normalizer_available(tc, n);
+}
+
 /* Called when we are expecting no more codepoints. */
 void MVM_unicode_normalizer_eof(MVMThreadContext *tc, MVMNormalizer *n) {
     /* Perform canonical ordering and, if needed, canonical composition on
      * what remains. */
     canonical_sort(tc, n, n->buffer_start, n->buffer_end);
     if (MVM_NORMALIZE_COMPOSE(n->form)) {
-        /* TODO: composition. */
+        canonical_composition(tc, n, n->buffer_start, n->buffer_end);
+        if (MVM_NORMALIZE_GRAPHEME(n->form))
+            grapheme_composition(tc, n, n->buffer_start, n->buffer_end);
     }
 
     /* We've now normalized all that remains. */

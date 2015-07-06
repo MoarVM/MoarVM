@@ -105,8 +105,12 @@ static void from_num(MVMnum64 d, mp_int *a) {
 /* Returns the body of a P6bigint, containing the bigint/smallint union, for
  * operations that want to explicitly handle the two. */
 static MVMP6bigintBody * get_bigint_body(MVMThreadContext *tc, MVMObject *obj) {
-    return (MVMP6bigintBody *)REPR(obj)->box_funcs.get_boxed_ref(tc,
-        STABLE(obj), obj, OBJECT_BODY(obj), MVM_REPR_ID_P6bigint);
+    if (IS_CONCRETE(obj))
+        return (MVMP6bigintBody *)REPR(obj)->box_funcs.get_boxed_ref(tc,
+            STABLE(obj), obj, OBJECT_BODY(obj), MVM_REPR_ID_P6bigint);
+    else
+        MVM_exception_throw_adhoc(tc,
+            "Can only perform big integer operations on concrete objects");
 }
 
 /* Checks if a bigint can be stored small. */
@@ -331,19 +335,22 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
 MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) { \
     MVMP6bigintBody *ba, *bb, *bc; \
     MVMObject *result; \
-    MVMROOT(tc, a, { \
-    MVMROOT(tc, b, { \
-        result = MVM_repr_alloc_init(tc, result_type);\
-    }); \
-    }); \
     ba = get_bigint_body(tc, a); \
     bb = get_bigint_body(tc, b); \
-    bc = get_bigint_body(tc, result); \
     if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) { \
         mp_int *tmp[2] = { NULL, NULL }; \
-        mp_int *ia = force_bigint(ba, tmp); \
-        mp_int *ib = force_bigint(bb, tmp); \
-        mp_int *ic = MVM_malloc(sizeof(mp_int)); \
+        mp_int *ia, *ib, *ic; \
+        MVMROOT(tc, a, { \
+        MVMROOT(tc, b, { \
+            result = MVM_repr_alloc_init(tc, result_type);\
+        }); \
+        }); \
+        ba = get_bigint_body(tc, a); \
+        bb = get_bigint_body(tc, b); \
+        bc = get_bigint_body(tc, result); \
+        ia = force_bigint(ba, tmp); \
+        ib = force_bigint(bb, tmp); \
+        ic = MVM_malloc(sizeof(mp_int)); \
         mp_init(ic); \
         mp_##opname(ia, ib, ic); \
         store_bigint_result(bc, ic); \
@@ -354,6 +361,11 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
         MVMint64 sa = ba->u.smallint.value; \
         MVMint64 sb = bb->u.smallint.value; \
         SMALLINT_OP; \
+        result = MVM_intcache_get(tc, result_type, sc); \
+        if (result) \
+            return result; \
+        result = MVM_repr_alloc_init(tc, result_type);\
+        bc = get_bigint_body(tc, result); \
         store_int64_result(bc, sc); \
     } \
     return result; \

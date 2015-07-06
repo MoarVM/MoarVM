@@ -85,6 +85,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/core/dll@obj@ \
           src/core/ext@obj@ \
           src/core/nativecall@obj@ \
+          src/core/nativecall_@nativecall_backend@@obj@ \
           src/core/continuation@obj@ \
           src/core/intcache@obj@ \
           src/core/fixedsizealloc@obj@ \
@@ -148,6 +149,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/reprs/CStr@obj@ \
           src/6model/reprs/CArray@obj@ \
           src/6model/reprs/CStruct@obj@ \
+          src/6model/reprs/CUnion@obj@ \
           src/6model/reprs/ReentrantMutex@obj@ \
           src/6model/reprs/ConditionVariable@obj@ \
           src/6model/reprs/Semaphore@obj@ \
@@ -155,6 +157,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/reprs/MVMAsyncTask@obj@ \
           src/6model/reprs/MVMNull@obj@ \
           src/6model/reprs/NativeRef@obj@ \
+          src/6model/reprs/MultiDimArray@obj@ \
           src/6model/6model@obj@ \
           src/6model/bootstrap@obj@ \
           src/6model/sc@obj@ \
@@ -180,6 +183,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
+          src/strings/nfg@obj@ \
           src/strings/ops@obj@ \
           src/strings/unicode@obj@ \
           src/strings/normalize@obj@ \
@@ -283,6 +287,7 @@ HEADERS = src/moar.h \
           src/6model/reprs/CStr.h \
           src/6model/reprs/CArray.h \
           src/6model/reprs/CStruct.h \
+          src/6model/reprs/CUnion.h \
           src/6model/reprs/ReentrantMutex.h \
           src/6model/reprs/ConditionVariable.h \
           src/6model/reprs/Semaphore.h \
@@ -290,6 +295,7 @@ HEADERS = src/moar.h \
           src/6model/reprs/MVMAsyncTask.h \
           src/6model/reprs/MVMNull.h \
           src/6model/reprs/NativeRef.h \
+          src/6model/reprs/MultiDimArray.h \
           src/6model/sc.h \
           src/mast/compiler.h \
           src/mast/driver.h \
@@ -313,6 +319,7 @@ HEADERS = src/moar.h \
           src/strings/ascii.h \
           src/strings/utf8.h \
           src/strings/iter.h \
+          src/strings/nfg.h \
           src/strings/ops.h \
           src/strings/unicode.h \
           src/strings/latin1.h \
@@ -514,7 +521,7 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
 
 3rdparty/dynasm/minilua@exe@: 3rdparty/dynasm/minilua.c
-	$(CC) $(CFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
 
 src/jit/emit_posix_x64.c: $(LUA) src/jit/emit_x64.dasc
 	$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ src/jit/emit_x64.dasc
@@ -539,10 +546,6 @@ dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
 @shalib@: @shaobjects@
 	$(MSG) linking $@
 	$(CMD)@sharule@ $(NOOUT)
-
-@lnlib@: @lnobjects@
-	$(MSG) linking $@
-	$(CMD)@lnrule@ $(NOOUT)
 
 @mtlib@: @mtobjects@
 	$(MSG) linking $@
@@ -570,7 +573,6 @@ realclean: clean
 	-$(CMD)@laoclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
-	-$(CMD)@lnclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@mtclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@dcclean@ $(NOOUT) $(NOERR)
 

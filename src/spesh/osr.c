@@ -12,7 +12,7 @@ static MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *can
             return i;
 
     /* If we couldn't locate it, something is really very wrong. */
-    MVM_exception_throw_adhoc(tc, "Spesh: get_osr_deopt_index failed");
+    MVM_oops(tc, "Spesh: get_osr_deopt_index failed");
 }
 
 /* Locates deopt index matching OSR finalize point. */
@@ -27,7 +27,7 @@ static MVMint32 get_osr_deopt_finalize_index(MVMThreadContext *tc, MVMSpeshCandi
             return i;
 
     /* If we couldn't locate it, something is really very wrong. */
-    MVM_exception_throw_adhoc(tc, "Spesh: get_osr_deopt_finalize_index failed");
+    MVM_oops(tc, "Spesh: get_osr_deopt_finalize_index failed");
 }
 
 /* Called to start OSR. Switches us over to logging runs of spesh'd code, to
@@ -129,7 +129,7 @@ void MVM_spesh_osr_finalize(MVMThreadContext *tc) {
             }
         }
         if (i == jc->num_deopts)
-            MVM_exception_throw_adhoc(tc, "JIT: Could not find OSR label");
+            MVM_oops(tc, "JIT: Could not find OSR label");
         if (tc->instance->profiling)
             MVM_profiler_log_osr(tc, 1);
     } else {

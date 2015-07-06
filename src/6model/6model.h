@@ -125,7 +125,13 @@ typedef enum {
     MVM_CF_SERIALZATION_INDEX_ALLOCATED = 256,
 
     /* Have we arranged a persistent object ID for this object? */
-    MVM_CF_HAS_OBJECT_ID = 512
+    MVM_CF_HAS_OBJECT_ID = 512,
+
+    /* Have we flagged this object as something we must never repossess? */
+    /* Note: if you're hunting for a flag, some day in the future when we
+     * have used them all, this one is easy enough to eliminate by having the
+     * tiny number of objects marked this way in a remembered set. */
+    MVM_CF_NEVER_REPOSSESS = 1024
 } MVMCollectableFlags;
 
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
@@ -143,18 +149,12 @@ struct MVMSerializationIndex {
  * type object.
  */
 struct MVMCollectable {
-    /* Identifier of the thread that currently owns the object, if any. If the
-     * object is unshared, then this is always the creating thread. If it is
-     * shared then it's whoever currently holds the mutex on it, or 0 if there
-     * is no held mutex. */
-    MVMuint32 owner;
-
-    /* Collectable flags (see MVMCollectableFlags). */
-    MVMuint16 flags;
-
-    /* Object size, in bytes. */
-    MVMuint16 size;
-
+    /* Put this union first, as these pointers/indexes are relatively "cold",
+       whereas "flags" is accessed relatively frequently, as are the fields
+       that follow in the structures into which MVMCollectable is embedded.
+       Shrinking the size of the active part of the structure slightly
+       increases the chance that it fits into the CPU's L1 cache, which is a
+       "free" performance win. */
     union {
         /* Forwarding pointer, for copying/compacting GC purposes. */
         MVMCollectable *forwarder;
@@ -175,6 +175,18 @@ struct MVMCollectable {
         /* Used to chain STables queued to be freed. */
         MVMSTable *st;
     } sc_forward_u;
+
+    /* Identifier of the thread that currently owns the object, if any. If the
+     * object is unshared, then this is always the creating thread. If it is
+     * shared then it's whoever currently holds the mutex on it, or 0 if there
+     * is no held mutex. */
+    MVMuint32 owner;
+
+    /* Collectable flags (see MVMCollectableFlags). */
+    MVMuint16 flags;
+
+    /* Object size, in bytes. */
+    MVMuint16 size;
 };
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
 #  define MVM_DIRECT_SC_IDX_SENTINEL 0xFFFF
@@ -411,10 +423,6 @@ struct MVMREPROps_Positional {
     void (*set_elems) (MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMuint64 count);
 
-    /* Returns a true value of the specified index exists, and a false one if not. */
-    MVMint64 (*exists_pos) (MVMThreadContext *tc, MVMSTable *st,
-        MVMObject *root, void *data, MVMint64 index);
-
     /* Pushes the specified value onto the array. */
     void (*push) (MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMRegister value, MVMuint16 kind);
@@ -438,6 +446,29 @@ struct MVMREPROps_Positional {
     void (*splice) (MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data, MVMObject *target_array,
         MVMint64 offset, MVMuint64 elems);
+
+    /* Multi-dimensional array read. */
+    void (*at_pos_multidim) (MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 num_indices,
+        MVMint64 *indices, MVMRegister *result, MVMuint16 kind);
+
+    /* Multi-dimensional array write. */
+    void (*bind_pos_multidim) (MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 num_indices,
+        MVMint64 *indices, MVMRegister value, MVMuint16 kind);
+
+    /* Gets the number of dimensions along with a C-level array of them. The
+     * second two parameters are "out"s. The caller must not mutate dimensions,
+     * nor persist it such that it lasts longer than the next VM safepoint. */
+    void (*dimensions) (MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 *num_dimensions,
+        MVMint64 **dimensions);
+
+    /* Sets the number of dimensions. The caller is responsible for freeing
+     * the array passed in dimensions. */
+    void (*set_dimensions) (MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMint64 num_dimensions,
+        MVMint64 *dimensions);
 
     /* Gets the STable representing the declared element type. */
     MVMStorageSpec (*get_elem_storage_spec) (MVMThreadContext *tc, MVMSTable *st);
@@ -582,8 +613,8 @@ struct MVMREPROps {
 #define IS_CONCRETE(o)   (!(((MVMObject *)o)->header.flags & MVM_CF_TYPE_OBJECT))
 
 /* Some functions related to 6model core functionality. */
-MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st);
-MVMObject * MVM_6model_get_how_obj(MVMThreadContext *tc, MVMObject *st);
+MVM_PUBLIC MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st);
+MVM_PUBLIC MVMObject * MVM_6model_get_how_obj(MVMThreadContext *tc, MVMObject *obj);
 void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res);
 MVM_PUBLIC MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name);
 MVMint32 MVM_6model_find_method_spesh(MVMThreadContext *tc, MVMObject *obj, MVMString *name,
@@ -596,3 +627,4 @@ MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj, M
 void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args);
 void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st);
 MVMuint64 MVM_6model_next_type_cache_id(MVMThreadContext *tc);
+void MVM_6model_never_repossess(MVMThreadContext *tc, MVMObject *obj);

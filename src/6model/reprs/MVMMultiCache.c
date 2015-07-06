@@ -130,23 +130,32 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
         MVM_exception_throw_adhoc(tc, "Multi cache addition requires an MVMCallCapture");
     }
 
+    /* If we're in a multi-threaded context, obtain the cache additions
+     * lock, and then do another lookup to ensure nobody beat us to
+     * making this entry. */
+    if (MVM_instance_have_user_threads(tc)) {
+        uv_mutex_lock(&(tc->instance->mutex_multi_cache_add));
+        if (MVM_multi_cache_find(tc, cache_obj, capture))
+            goto DONE;
+    }
+
     /* If it's zero arity, just stick it in that slot. */
     if (num_args == 0) {
         /* Can only be added if there are no named args */
         if (!has_nameds)
             MVM_ASSIGN_REF(tc, &(cache_obj->header), cache->zero_arity, result);
-        return cache_obj;
+        goto DONE;
     }
 
     /* If there's more args than the maximum, we can't cache it. */
     if (num_args > MVM_MULTICACHE_MAX_ARITY)
-        return cache_obj;
+        goto DONE;
 
     /* If the cache is saturated, don't do anything (we could instead do a random
      * replacement). */
     entries = cache->arity_caches[num_args - 1].num_entries;
     if (entries == MVM_MULTICACHE_MAX_ENTRIES)
-        return cache_obj;
+        goto DONE;
 
     /* Create arg tuple. */
     for (i = 0; i < num_args; i++) {
@@ -164,13 +173,13 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
                         }
                     }
                     else {
-                        return cache_obj;
+                        goto DONE;
                     }
                 }
                 arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0);
             }
             else {
-                return cache_obj;
+                goto DONE;
             }
         }
         else {
@@ -191,7 +200,16 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
         cache->arity_caches[num_args - 1].type_ids[ins_type + i] = arg_tup[i];
     MVM_ASSIGN_REF(tc, &(cache_obj->header), cache->arity_caches[num_args - 1].results[entries], result);
     cache->arity_caches[num_args - 1].named_ok[entries] = has_nameds;
+
+    /* Other threads can read concurrently, so do a memory barrier before we
+     * bump the entry count to ensure all the above writes are done. */
+    MVM_barrier();
     cache->arity_caches[num_args - 1].num_entries = entries + 1;
+
+    /* Release lock if needed. */
+  DONE:
+    if (MVM_instance_have_user_threads(tc))
+        uv_mutex_unlock(&(tc->instance->mutex_multi_cache_add));
 
     /* Hand back the created/updated cache. */
     return cache_obj;

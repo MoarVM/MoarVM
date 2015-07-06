@@ -128,30 +128,6 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     MVM_free(_env); \
 } while (0)
 
-#define SPAWN(shell) do { \
-    process->data               = &result; \
-    process_stdio[0].flags      = UV_INHERIT_FD; \
-    process_stdio[0].data.fd    = 0; \
-    process_stdio[1].flags      = UV_INHERIT_FD; \
-    process_stdio[1].data.fd    = 1; \
-    process_stdio[2].flags      = UV_INHERIT_FD; \
-    process_stdio[2].data.fd    = 2; \
-    process_options.stdio       = process_stdio; \
-    process_options.file        = shell; \
-    process_options.args        = args; \
-    process_options.cwd         = _cwd; \
-    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE; \
-    process_options.env         = _env; \
-    process_options.stdio_count = 3; \
-    process_options.exit_cb     = spawn_on_exit; \
-    uv_ref((uv_handle_t *)process); \
-    spawn_result = uv_spawn(tc->loop, process, &process_options); \
-    if (spawn_result) \
-        result = spawn_result; \
-    else \
-        uv_run(tc->loop, UV_RUN_DEFAULT); \
-} while (0)
-
 static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
     if (req->data)
         *(MVMint64 *)req->data = (exit_status << 8) | term_signal;
@@ -159,90 +135,40 @@ static void spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_sign
     uv_close((uv_handle_t *)req, NULL);
 }
 
-MVMObject * MVM_file_openpipe(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env, MVMString *err_path) {
-    MVMint64 spawn_result;
-    uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
-    uv_process_options_t process_options = {0};
-    uv_stdio_container_t process_stdio[3];
-    int i;
-    int readable = 1;
-    uv_pipe_t *out, *in;
+static void setup_process_stdio(MVMThreadContext *tc, MVMObject *handle, uv_process_t *process,
+        uv_stdio_container_t *stdio, int fd, MVMint64 flags, const char *op) {
+    if (flags & MVM_PIPE_CAPTURE) {
+        MVMIOSyncPipeData *pipedata;
 
-    char * const cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
-    char * const _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
-    const MVMuint64 size = MVM_repr_elems(tc, env);
-    MVMIter * const iter = (MVMIter *)MVM_iter(tc, env);
-    char **_env = MVM_malloc((size + 1) * sizeof(char *));
+        if (REPR(handle)->ID != MVM_REPR_ID_MVMOSHandle)
+            MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", op);
 
-#ifdef _WIN32
-    const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
-    char * const _cmd = ANSIToUTF8(acp, getenv("ComSpec"));
-    char *args[3];
-    args[0] = "/c";
-    args[1] = cmdin;
-    args[2] = NULL;
-#else
-    char * const _cmd = "/bin/sh";
-    char *args[4];
-    args[0] = "/bin/sh";
-    args[1] = "-c";
-    args[2] = cmdin;
-    args[3] = NULL;
-#endif
+        pipedata           = (MVMIOSyncPipeData *)((MVMOSHandle *)handle)->body.data;
+        pipedata->process  = process;
 
-    INIT_ENV();
-    /* Making openpipe distinguish between :rp and :wp and all other options
-     * is left as an excercise for the reader.
-    readable = strncmp(cmdin, "/usr/bin/wc", 11) != 0; */
-
-    if (readable) {
-        /* We want to read from the child's stdout. */
-        out = MVM_malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(tc->loop, out, 0);
-        process_stdio[0].flags       = UV_INHERIT_FD; // child's stdin
-        process_stdio[0].data.fd     = 0;
-        process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE; // child's stdout
-        process_stdio[1].data.stream = (uv_stream_t*)out;
+        stdio->flags       = UV_CREATE_PIPE | (fd == 0 ? UV_READABLE_PIPE : UV_WRITABLE_PIPE);
+        stdio->data.stream = pipedata->ss.handle;
     }
-    else {
-        /* We want to print to the child's stdin. */
-        in  = MVM_malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(tc->loop, in, 0);
-        process_stdio[0].flags       = UV_CREATE_PIPE | UV_READABLE_PIPE; // child's stdin
-        process_stdio[0].data.stream = (uv_stream_t*)in;
-        process_stdio[1].flags       = UV_INHERIT_FD; // child's stdout
-        process_stdio[1].data.fd     = 1;
-    }
-    process_stdio[2].flags      = UV_INHERIT_FD; // child's stderr
-    process_stdio[2].data.fd    = 2;
-    process_options.stdio       = process_stdio;
-    process_options.file        = _cmd;
-    process_options.args        = args;
-    process_options.cwd         = _cwd;
-    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
-    process_options.env         = _env;
-    process_options.stdio_count = 3;
-    process_options.exit_cb     = spawn_on_exit;
-    process->data               = MVM_calloc(1, sizeof(MVMint64));
-    uv_ref((uv_handle_t *)process);
-    spawn_result = uv_spawn(tc->loop, process, &process_options);
-    if (spawn_result) {
-        FREE_ENV();
-        MVM_free(_cwd);
-        MVM_free(cmdin);
-        uv_unref((uv_handle_t *)process);
-        MVM_exception_throw_adhoc(tc, "Failed to open pipe: %d", errno);
-    }
+    else if (flags & MVM_PIPE_INHERIT) {
+        if (handle == tc->instance->VMNull) {
+            stdio->flags   = UV_INHERIT_FD;
+            stdio->data.fd = fd;
+        }
+        else {
+            MVMOSHandleBody body = ((MVMOSHandle *)handle)->body;
 
-    FREE_ENV();
-    MVM_free(_cwd);
-    MVM_free(cmdin);
-    uv_unref((uv_handle_t *)process);
+            if (REPR(handle)->ID != MVM_REPR_ID_MVMOSHandle)
+                MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", op);
 
-    return MVM_io_syncpipe(tc, (uv_stream_t *)(readable ? out : in), process);
+            body.ops->pipeable->bind_stdio_handle(tc, ((MVMOSHandle *)handle), stdio, process);
+        }
+    }
+    else
+        stdio->flags = UV_IGNORE;
 }
 
-MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env) {
+MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env,
+        MVMObject *in, MVMObject *out, MVMObject *err, MVMint64 flags) {
     MVMint64 result = 0, spawn_result;
     uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
@@ -272,20 +198,48 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 #endif
 
     INIT_ENV();
-    SPAWN(_cmd);
+    setup_process_stdio(tc, in,  process, &process_stdio[0], 0, flags,      "shell");
+    setup_process_stdio(tc, out, process, &process_stdio[1], 1, flags >> 3, "shell");
+    setup_process_stdio(tc, err, process, &process_stdio[2], 2, flags >> 6, "shell");
+
+    process_options.stdio       = process_stdio;
+    process_options.file        = _cmd;
+    process_options.args        = args;
+    process_options.cwd         = _cwd;
+    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
+    process_options.env         = _env;
+    process_options.stdio_count = 3;
+    process_options.exit_cb     = spawn_on_exit;
+    if (flags & (MVM_PIPE_CAPTURE_IN | MVM_PIPE_CAPTURE_OUT | MVM_PIPE_CAPTURE_ERR)) {
+        process->data = MVM_calloc(1, sizeof(MVMint64));
+        uv_ref((uv_handle_t *)process);
+        spawn_result = uv_spawn(tc->loop, process, &process_options);
+        if (spawn_result)
+            result = spawn_result;
+    }
+    else {
+        process->data = &result;
+        uv_ref((uv_handle_t *)process);
+        spawn_result = uv_spawn(tc->loop, process, &process_options);
+        if (spawn_result)
+            result = spawn_result;
+        else
+            uv_run(tc->loop, UV_RUN_DEFAULT);
+    }
+
     FREE_ENV();
-
     MVM_free(_cwd);
-
 #ifdef _WIN32
     MVM_free(_cmd);
 #endif
-
     MVM_free(cmdin);
+    uv_unref((uv_handle_t *)process);
+
     return result;
 }
 
-MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env) {
+MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, MVMObject *env,
+        MVMObject *in, MVMObject *out, MVMObject *err, MVMint64 flags) {
     MVMint64 result = 0, spawn_result;
     uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
@@ -308,10 +262,38 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
     args[arg_size] = NULL;
 
     INIT_ENV();
-    SPAWN(arg_size ? args[0] : NULL);
-    FREE_ENV();
+    setup_process_stdio(tc, in,  process, &process_stdio[0], 0, flags,      "spawn");
+    setup_process_stdio(tc, out, process, &process_stdio[1], 1, flags >> 3, "spawn");
+    setup_process_stdio(tc, err, process, &process_stdio[2], 2, flags >> 6, "spawn");
 
+    process_options.stdio       = process_stdio;
+    process_options.file        = arg_size ? args[0] : NULL;
+    process_options.args        = args;
+    process_options.cwd         = _cwd;
+    process_options.flags       = UV_PROCESS_WINDOWS_HIDE;
+    process_options.env         = _env;
+    process_options.stdio_count = 3;
+    process_options.exit_cb     = spawn_on_exit;
+    if (flags & (MVM_PIPE_CAPTURE_IN | MVM_PIPE_CAPTURE_OUT | MVM_PIPE_CAPTURE_ERR)) {
+        process->data = MVM_calloc(1, sizeof(MVMint64));
+        uv_ref((uv_handle_t *)process);
+        spawn_result = uv_spawn(tc->loop, process, &process_options);
+        if (spawn_result)
+            result = spawn_result;
+    }
+    else {
+        process->data = &result;
+        uv_ref((uv_handle_t *)process);
+        spawn_result = uv_spawn(tc->loop, process, &process_options);
+        if (spawn_result)
+            result = spawn_result;
+        else
+            uv_run(tc->loop, UV_RUN_DEFAULT);
+    }
+
+    FREE_ENV();
     MVM_free(_cwd);
+    uv_unref((uv_handle_t *)process);
 
     i = 0;
     while(args[i])
@@ -585,7 +567,7 @@ static MVMint64 close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
     MVMAsyncTask          *spawn_task  = (MVMAsyncTask *)handle_data->async_task;
     SpawnInfo             *si          = spawn_task ? (SpawnInfo *)spawn_task->body.data : NULL;
-    if (si->stdin_handle) {
+    if (si && si->stdin_handle) {
         MVMAsyncTask *task;
         MVMROOT(tc, h, {
             task = (MVMAsyncTask *)MVM_repr_alloc_init(tc,

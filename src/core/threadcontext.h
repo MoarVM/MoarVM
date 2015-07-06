@@ -112,9 +112,11 @@ struct MVMThreadContext {
     MVMuint32 gc_promoted_bytes;
 
     /* Memory buffer pointing to the last thing we serialized, intended to go
-     * into the next compilation unit we write. */
+     * into the next compilation unit we write. Also the serialized string
+     * heap, which will be used to seed the compilation unit string heap. */
     MVMint32      serialized_size;
     char         *serialized;
+    MVMObject    *serialized_string_heap;
 
     /* Temporarily rooted objects. This is generally used by code written in
      * C that wants to keep references to objects. Since those may change
@@ -153,18 +155,10 @@ struct MVMThreadContext {
     MVMuint32        gc_work_size;
     MVMuint32        gc_work_count;
 
-    /* Pool table of chains of frames for each static frame. */
-    MVMFrame **frame_pool_table;
-
     /* Pool of Lexotics for various static frames, held per thread since the
-     * result being returned is per thread. Indexes are same as used in the
-     * frame_pool_table above. */
+     * result being returned is per thread. */
     MVMLexotic **lexotic_cache;
-
-    /* Size of the frame pool table and lexotic cache, so they can grow on
-     * demand. */
-    MVMuint32 frame_pool_table_size;
-    MVMuint32 lexotic_cache_size;
+    MVMuint32    lexotic_cache_size;
 
     /* Serialization context write barrier disabled depth (anything non-zero
      * means disabled). */

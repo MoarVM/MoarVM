@@ -143,6 +143,8 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             /* Fetch its type; see if it's some kind of unboxed type. */
             MVMObject *attr  = MVM_repr_at_pos_o(tc, flat_list, i);
             MVMObject *type  = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.type);
+            MVMObject *inlined_val = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.inlined);
+            MVMint64 inlined = !MVM_is_null(tc, inlined_val) && MVM_repr_get_int(tc, inlined_val);
             MVMint32   bits  = sizeof(void *) * 8;
             MVMint32   align = ALIGNOF(void *);
             if (!MVM_is_null(tc, type)) {
@@ -160,11 +162,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     bits = spec->bits;
                     align = spec->align;
 
-                    if (bits % 8) {
-                         MVM_exception_throw_adhoc(tc,
-                            "CStruct only supports native types that are a multiple of 8 bits wide (was passed: %"PRId32")", bits);
-                    }
-
                     repr_data->attribute_locations[i] = (bits << MVM_CSTRUCT_ATTR_SHIFT) | MVM_CSTRUCT_ATTR_IN_STRUCT;
                     repr_data->flattened_stables[i] = STABLE(type);
                     if (REPR(type)->initialize) {
@@ -179,6 +176,13 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     repr_data->num_child_objs++;
                     repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CSTRUCT_ATTR_SHIFT) | MVM_CSTRUCT_ATTR_STRING;
                     repr_data->member_types[i] = type;
+                    repr_data->flattened_stables[i] = STABLE(type);
+                    if (REPR(type)->initialize) {
+                        if (!repr_data->initialize_slots)
+                            repr_data->initialize_slots = (MVMint32 *) MVM_calloc(info_alloc + 1, sizeof(MVMint32));
+                        repr_data->initialize_slots[cur_init_slot] = i;
+                        cur_init_slot++;
+                    }
                 }
                 else if (type_id == MVM_REPR_ID_MVMCArray) {
                     /* It's a CArray of some kind.  */
@@ -191,6 +195,24 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     repr_data->num_child_objs++;
                     repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CSTRUCT_ATTR_SHIFT) | MVM_CSTRUCT_ATTR_CSTRUCT;
                     repr_data->member_types[i] = type;
+                    if (inlined) {
+                        MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
+                        bits                                  = cstruct_repr_data->struct_size * 8;
+                        align                                 = cstruct_repr_data->struct_size;
+                        repr_data->attribute_locations[i]    |= MVM_CSTRUCT_ATTR_INLINED;
+                    }
+                }
+                else if (type_id == MVM_REPR_ID_MVMCUnion) {
+                    /* It's a CUnion. */
+                    repr_data->num_child_objs++;
+                    repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CSTRUCT_ATTR_SHIFT) | MVM_CSTRUCT_ATTR_CUNION;
+                    repr_data->member_types[i] = type;
+                    if (inlined) {
+                        MVMCUnionREPRData *cunion_repr_data = (MVMCUnionREPRData *)STABLE(type)->REPR_data;
+                        bits                                = cunion_repr_data->struct_size * 8;
+                        align                               = cunion_repr_data->struct_size;
+                        repr_data->attribute_locations[i]  |= MVM_CSTRUCT_ATTR_INLINED;
+                    }
                 }
                 else if (type_id == MVM_REPR_ID_MVMCPointer) {
                     /* It's a CPointer. */
@@ -206,6 +228,11 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             else {
                 MVM_exception_throw_adhoc(tc,
                     "CStruct representation requires the types of all attributes to be specified");
+            }
+
+            if (bits % 8) {
+                 MVM_exception_throw_adhoc(tc,
+                    "CStruct only supports native types that are a multiple of 8 bits wide (was passed: %"PRId32")", bits);
             }
 
             /* Do allocation. */
@@ -225,6 +252,8 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
 
         /* Finally, put computed allocation size in place; it's body size plus
          * header size. Also number of markables and sentinels. */
+        if (multiple_of > sizeof(void *))
+            multiple_of = sizeof(void *);
         repr_data->struct_size = ceil((double)cur_size / (double)multiple_of) * multiple_of;
         if (repr_data->initialize_slots)
             repr_data->initialize_slots[cur_init_slot] = -1;
@@ -334,7 +363,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMint64 slot;
 
     if (!repr_data)
-        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using get_attribute");
+        MVM_exception_throw_adhoc(tc, "CStruct: must compose before using get_attribute");
 
     slot = hint >= 0 ? hint : try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
@@ -360,7 +389,18 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                             obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
                         }
                         else if(type == MVM_CSTRUCT_ATTR_CSTRUCT) {
-                            obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
+                            if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
+                                obj = MVM_nativecall_make_cstruct(tc, typeobj,
+                                    (char *)body->cstruct + repr_data->struct_offsets[slot]);
+                            else
+                                obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
+                        }
+                        else if(type == MVM_CSTRUCT_ATTR_CUNION) {
+                            if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
+                                obj = MVM_nativecall_make_cunion(tc, typeobj,
+                                    (char *)body->cstruct + repr_data->struct_offsets[slot]);
+                            else
+                                obj = MVM_nativecall_make_cunion(tc, typeobj, cobj);
                         }
                         else if(type == MVM_CSTRUCT_ATTR_CPTR) {
                             obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
@@ -404,6 +444,8 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     ((char *)body->cstruct) + repr_data->struct_offsets[slot]);
             else
                 MVM_exception_throw_adhoc(tc, "CStruct: invalid native get of object attribute");
+            if (!result_reg->s)
+                result_reg->s = tc->instance->str_consts.empty;
             break;
         }
         default:
@@ -424,7 +466,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMint64 slot;
 
     if (!repr_data)
-        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using bind_attribute");
+        MVM_exception_throw_adhoc(tc, "CStruct: must compose before using bind_attribute");
 
     slot = hint >= 0 ? hint : try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
@@ -432,13 +474,13 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         switch (kind) {
         case MVM_reg_obj: {
             MVMObject *value = value_reg.o;
+            MVMint32   type  = repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_MASK;
 
-            if (attr_st) {
+            if (type == MVM_CSTRUCT_ATTR_IN_STRUCT) {
                 MVM_exception_throw_adhoc(tc,
                     "CStruct can't perform boxed bind on flattened attributes yet");
             }
             else {
-                MVMint32   type      = repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_MASK;
                 MVMint32   real_slot = repr_data->attribute_locations[slot] >> MVM_CSTRUCT_ATTR_SHIFT;
 
                 if (IS_CONCRETE(value)) {
@@ -458,6 +500,12 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                             MVM_exception_throw_adhoc(tc,
                                 "Can only store CStruct attribute in CStruct slot in CStruct");
                         cobj = ((MVMCStruct *)value)->body.cstruct;
+                    }
+                    else if (type == MVM_CSTRUCT_ATTR_CUNION) {
+                        if (REPR(value)->ID != MVM_REPR_ID_MVMCUnion)
+                            MVM_exception_throw_adhoc(tc,
+                                "Can only store CUnion attribute in CUnion slot in CStruct");
+                        cobj = ((MVMCUnion *)value)->body.cunion;
                     }
                     else if (type == MVM_CSTRUCT_ATTR_CPTR) {
                         if (REPR(value)->ID != MVM_REPR_ID_MVMCPointer)
@@ -559,6 +607,26 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
     }
 }
 
+/* Free representation data. */
+static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
+    MVMCStructREPRData *repr_data = (MVMCStructREPRData *)st->REPR_data;
+
+    /* May not have survived to composition. */
+    if (repr_data == NULL)
+        return;
+
+    if (repr_data->name_to_index_mapping) {
+        MVM_free_null(repr_data->name_to_index_mapping);
+        MVM_free_null(repr_data->attribute_locations);
+        MVM_free_null(repr_data->struct_offsets);
+        MVM_free_null(repr_data->flattened_stables);
+        MVM_free_null(repr_data->member_types);
+        MVM_free_null(repr_data->initialize_slots);
+    }
+
+    MVM_free_null(st->REPR_data);
+}
+
 /* This is called to do any cleanup of resources when an object gets
  * embedded inside another one. Never called on a top-level object. */
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
@@ -648,7 +716,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         repr_data->struct_offsets[i] = MVM_serialization_read_varint(tc, reader);
 
         if(MVM_serialization_read_varint(tc, reader)){
-            repr_data->flattened_stables[i] = MVM_serialization_read_stable_ref(tc, reader);
+            MVM_ASSIGN_REF(tc, &(st->header), repr_data->flattened_stables[i], MVM_serialization_read_stable_ref(tc, reader));
         }
         else {
             repr_data->flattened_stables[i] = NULL;
@@ -711,7 +779,7 @@ static const MVMREPROps this_repr = {
     gc_free,
     gc_cleanup,
     gc_mark_repr_data,
-    NULL, /* gc_free_repr_data */
+    gc_free_repr_data,
     compose,
     NULL, /* spesh */
     "CStruct", /* name */

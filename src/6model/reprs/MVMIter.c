@@ -105,19 +105,12 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
             }
             return;
         case MVM_ITER_MODE_HASH:
-            if (!body->hash_state.curr) {
-                if (body->hash_state.next) {
-                    body->hash_state.curr = body->hash_state.next;
-                    body->hash_state.next = body->hash_state.next->hash_handle.next;
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
-                }
-            }
-            else {
-                body->hash_state.curr = body->hash_state.curr->hash_handle.next;
-                body->hash_state.next = body->hash_state.curr->hash_handle.next;
-            }
+            body->hash_state.curr = body->hash_state.next;
+            if (!body->hash_state.curr)
+                MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
+            body->hash_state.next = HASH_ITER_NEXT_ITEM(
+                &(body->hash_state.next->hash_handle),
+                &(body->hash_state.bucket_state));
             value->o = root;
             return;
         default:
@@ -127,7 +120,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
 
 /* This whole splice optimization can be optimized for the case we have two
  * MVMIter representation objects. */
-static void splice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMuint64 count) {
+static void isplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *from, MVMint64 offset, MVMuint64 count) {
 }
 
 static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
@@ -135,6 +128,9 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
     spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
     spec.boxed_primitive = MVM_STORAGE_SPEC_BP_NONE;
     spec.can_box         = 0;
+    spec.bits            = 0;
+    spec.align           = 0;
+    spec.is_unsigned     = 0;
     return spec;
 }
 
@@ -164,12 +160,15 @@ static const MVMREPROps this_repr = {
         MVM_REPR_DEFAULT_AT_POS,
         MVM_REPR_DEFAULT_BIND_POS,
         MVM_REPR_DEFAULT_SET_ELEMS,
-        MVM_REPR_DEFAULT_EXISTS_POS,
         MVM_REPR_DEFAULT_PUSH,
         MVM_REPR_DEFAULT_POP,
         MVM_REPR_DEFAULT_UNSHIFT,
         shift,
-        splice,
+        isplice,
+        MVM_REPR_DEFAULT_AT_POS_MULTIDIM,
+        MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,
+        MVM_REPR_DEFAULT_DIMENSIONS,
+        MVM_REPR_DEFAULT_SET_DIMENSIONS,
         get_elem_storage_spec
     },    /* pos_funcs */
     MVM_REPR_DEFAULT_ASS_FUNCS,
@@ -213,7 +212,13 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
             iterator = (MVMIter *)MVM_repr_alloc_init(tc,
                 MVM_hll_current(tc)->hash_iterator_type);
             iterator->body.mode = MVM_ITER_MODE_HASH;
-            iterator->body.hash_state.next = ((MVMHash *)target)->body.hash_head;
+            iterator->body.hash_state.bucket_state = 0;
+            iterator->body.hash_state.curr         = NULL;
+            iterator->body.hash_state.next         = HASH_ITER_FIRST_ITEM(
+                ((MVMHash *)target)->body.hash_head
+                    ? ((MVMHash *)target)->body.hash_head->hash_handle.tbl
+                    : NULL,
+                &(iterator->body.hash_state.bucket_state));
             MVM_ASSIGN_REF(tc, &(iterator->common.header), iterator->body.target, target);
         }
         else if (REPR(target)->ID == MVM_REPR_ID_MVMContext) {
@@ -226,7 +231,8 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
                 MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names;
                 MVMLexicalRegistry *current;
                 MVMLexicalRegistry *tmp;
-                HASH_ITER(hash_handle, lexical_names, current, tmp) {
+                unsigned bucket_tmp;
+                HASH_ITER(hash_handle, lexical_names, current, tmp, bucket_tmp) {
                     /* XXX For now, just the symbol names is enough. */
                     MVM_repr_bind_key_o(tc, ctx_hash, (MVMString *)current->key, NULL);
                 }

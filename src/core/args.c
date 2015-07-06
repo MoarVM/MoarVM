@@ -63,8 +63,11 @@ MVMCallsite * MVM_args_proc_to_callsite(MVMThreadContext *tc, MVMArgProcContext 
     if (ctx->arg_flags) {
         MVMCallsite      *res   = MVM_malloc(sizeof(MVMCallsite));
         MVMint32          fsize = ctx->num_pos + (ctx->arg_count - ctx->num_pos) / 2;
-        MVMCallsiteEntry *flags = fsize ? MVM_malloc(fsize) : NULL;
-        memcpy(flags, ctx->arg_flags, fsize);
+        MVMCallsiteEntry *flags = NULL;
+        if (fsize) {
+            flags = MVM_malloc(fsize);
+            memcpy(flags, ctx->arg_flags, fsize);
+        }
         res->arg_flags = flags;
         res->arg_count = ctx->arg_count;
         res->num_pos   = ctx->num_pos;
@@ -179,8 +182,6 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
             const MVMStorageSpec *ss; \
             obj = decont_arg(tc, result.arg.o); \
             ss = REPR(obj)->get_storage_spec(tc, STABLE(obj)); \
-            if (!IS_CONCRETE(obj)) \
-                MVM_exception_throw_adhoc(tc, "Cannot unbox a type object"); \
             switch (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
                 case MVM_STORAGE_SPEC_CAN_BOX_INT: \
                     result.arg.i64 = MVM_repr_get_int(tc, obj); \
@@ -277,13 +278,29 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
     dest = box; \
 } while (0)
 
+#define autobox_int(tc, target, result, dest) do { \
+    MVMObject *box, *box_type; \
+    MVMint64 result_int = result; \
+    box_type = target->static_info->body.cu->body.hll_config->int_box_type; \
+    dest = MVM_intcache_get(tc, box_type, result_int); \
+    if (!dest) { \
+        box = REPR(box_type)->allocate(tc, STABLE(box_type)); \
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&box); \
+        if (REPR(box)->initialize) \
+            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
+        REPR(box)->box_funcs.set_int(tc, STABLE(box), box, OBJECT_BODY(box), result_int); \
+        MVM_gc_root_temp_pop(tc); \
+        dest = box; \
+    } \
+} while (0)
+
 #define autobox_switch(tc, result) do { \
     if (result.exists) { \
         switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
             case MVM_CALLSITE_ARG_OBJ: \
                 break; \
             case MVM_CALLSITE_ARG_INT: \
-                autobox(tc, tc->cur_frame, result.arg.i64, int_box_type, 0, set_int, result.arg.o); \
+                autobox_int(tc, tc->cur_frame, result.arg.i64, result.arg.o); \
                 break; \
             case MVM_CALLSITE_ARG_NUM: \
                 autobox(tc, tc->cur_frame, result.arg.n64, num_box_type, 0, set_num, result.arg.o); \
@@ -512,6 +529,24 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
         OBJECT_BODY(result), reg, MVM_reg_obj); \
 } while (0)
 
+#define box_slurpy_pos_int(tc, type, result, box, value, reg, box_type_obj, name, set_func) do { \
+    type = (*(tc->interp_cu))->body.hll_config->box_type_obj; \
+    if (!type || IS_CONCRETE(type)) { \
+        MVM_exception_throw_adhoc(tc, "Missing hll " name " box type"); \
+    } \
+    box = MVM_intcache_get(tc, type, value); \
+    if (!box) { \
+        box = REPR(type)->allocate(tc, STABLE(type)); \
+        if (REPR(box)->initialize) \
+            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
+        REPR(box)->box_funcs.set_func(tc, STABLE(box), box, \
+            OBJECT_BODY(box), value); \
+    } \
+    reg.o = box; \
+    REPR(result)->pos_funcs.push(tc, STABLE(result), result, \
+        OBJECT_BODY(result), reg, MVM_reg_obj); \
+} while (0)
+
 MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 pos) {
     MVMObject *type = (*(tc->interp_cu))->body.hll_config->slurpy_array_type, *result = NULL, *box = NULL;
     MVMArgInfo arg_info;
@@ -543,7 +578,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
                 break;
             }
             case MVM_CALLSITE_ARG_INT:{
-                box_slurpy_pos(tc, type, result, box, arg_info.arg.i64, reg, int_box_type, "int", set_int);
+                box_slurpy_pos_int(tc, type, result, box, arg_info.arg.i64, reg, int_box_type, "int", set_int);
                 break;
             }
             case MVM_CALLSITE_ARG_NUM: {
@@ -755,8 +790,9 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         if (arg_info.arg.o && REPR(arg_info.arg.o)->ID == MVM_REPR_ID_MVMHash) {
             MVMHashBody *body = &((MVMHash *)arg_info.arg.o)->body;
             MVMHashEntry *current, *tmp;
+            unsigned bucket_tmp;
 
-            HASH_ITER(hash_handle, body->hash_head, current, tmp) {
+            HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
 
                 if (new_arg_pos + 1 >= new_args_size) {
                     new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
@@ -835,7 +871,7 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
     /* Invoke the HLL's bind failure handler. */
     bind_error = MVM_hll_current(tc)->bind_error;
     if (!bind_error)
-        MVM_exception_throw_adhoc(tc, "Bind erorr occurred, but HLL has no handler");
+        MVM_exception_throw_adhoc(tc, "Bind error occurred, but HLL has no handler");
     bind_error = MVM_frame_find_invokee(tc, bind_error, NULL);
     res = MVM_calloc(1, sizeof(MVMRegister));
     inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);

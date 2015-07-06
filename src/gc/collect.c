@@ -413,7 +413,7 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
             }
         } while ((t = t->body.next));
         if (!target_tc)
-            MVM_panic(MVM_exitcode_gcnursery, "Internal error: invalid thread ID in GC work pass");
+            MVM_panic(MVM_exitcode_gcnursery, "Internal error: invalid thread ID %d in GC work pass", target);
     }
 
     /* Pass the work, chaining any other in-tray entries for the thread

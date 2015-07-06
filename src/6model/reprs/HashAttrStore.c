@@ -26,9 +26,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMHashAttrStoreBody *src_body  = (MVMHashAttrStoreBody *)src;
     MVMHashAttrStoreBody *dest_body = (MVMHashAttrStoreBody *)dest;
     MVMHashEntry *current, *tmp;
+    unsigned bucket_tmp;
 
     /* NOTE: if we really wanted to, we could avoid rehashing... */
-    HASH_ITER(hash_handle, src_body->hash_head, current, tmp) {
+    HASH_ITER(hash_handle, src_body->hash_head, current, tmp, bucket_tmp) {
         size_t klen;
         void *kdata;
         MVMHashEntry *new_entry = MVM_malloc(sizeof(MVMHashEntry));
@@ -44,8 +45,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
     MVMHashEntry *current, *tmp;
+    unsigned bucket_tmp;
 
-    HASH_ITER(hash_handle, body->hash_head, current, tmp) {
+    HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
         MVM_gc_worklist_add(tc, worklist, &current->key);
         MVM_gc_worklist_add(tc, worklist, &current->value);
     }

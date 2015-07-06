@@ -70,9 +70,6 @@ void MVM_REPR_DEFAULT_BIND_POS(MVMThreadContext *tc, MVMSTable *st, MVMObject *r
 void MVM_REPR_DEFAULT_SET_ELEMS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
     die_no_pos(tc, st->REPR->name);
 }
-MVMint64 MVM_REPR_DEFAULT_EXISTS_POS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index) {
-    die_no_pos(tc, st->REPR->name);
-}
 void MVM_REPR_DEFAULT_PUSH(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name);
 }
@@ -83,6 +80,18 @@ void MVM_REPR_DEFAULT_UNSHIFT(MVMThreadContext *tc, MVMSTable *st, MVMObject *ro
     die_no_pos(tc, st->REPR->name);
 }
 void MVM_REPR_DEFAULT_SHIFT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
+    die_no_pos(tc, st->REPR->name);
+}
+void MVM_REPR_DEFAULT_AT_POS_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister *value, MVMuint16 kind) {
+    die_no_pos(tc, st->REPR->name);
+}
+void MVM_REPR_DEFAULT_BIND_POS_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister value, MVMuint16 kind) {
+    die_no_pos(tc, st->REPR->name);
+}
+void MVM_REPR_DEFAULT_DIMENSIONS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions) {
+    die_no_pos(tc, st->REPR->name);
+}
+void MVM_REPR_DEFAULT_SET_DIMENSIONS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *dimensions) {
     die_no_pos(tc, st->REPR->name);
 }
 GCC_DIAG_OFF(return-type)
@@ -211,6 +220,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(CStr);
     register_core_repr(CArray);
     register_core_repr(CStruct);
+    register_core_repr(CUnion);
     register_core_repr(ReentrantMutex);
     register_core_repr(ConditionVariable);
     register_core_repr(Semaphore);
@@ -218,6 +228,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(AsyncTask);
     register_core_repr(Null);
     register_core_repr(NativeRef);
+    register_core_repr(MultiDimArray);
 
     tc->instance->num_reprs = MVM_REPR_CORE_COUNT;
 }

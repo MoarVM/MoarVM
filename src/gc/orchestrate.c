@@ -156,23 +156,34 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
      * in-trays are settled, coordinator walks threads looking for anything
      * that needs adding to the finalize queue. It then will make another
      * iteration over in-trays to handle cross-thread references to objects
-     * needing finalization. */
+     * needing finalization. For full collections, collected objects are then
+     * cleaned from all inter-generational sets, and finally any objects to
+     * be freed at the fixed size allocator's next safepoint are freed. */
     if (is_coordinator) {
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : Co-ordinator handling in-tray clearing completion\n");
         clear_intrays(tc, gen);
 
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+            "Thread %d run %d : Co-ordinator handling finalizers\n");
         MVM_finalize_walk_queues(tc, gen);
         clear_intrays(tc, gen);
 
         if (gen == MVMGCGenerations_Both) {
             MVMThread *cur_thread = (MVMThread *)MVM_load(&tc->instance->threads);
+            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+                "Thread %d run %d : Co-ordinator handling inter-gen root cleanup\n");
             while (cur_thread) {
                 if (cur_thread->body.tc)
                     MVM_gc_root_gen2_cleanup(cur_thread->body.tc);
                 cur_thread = cur_thread->body.next;
             }
         }
+
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+            "Thread %d run %d : Co-ordinator handling fixed-size allocator safepoint frees\n");
+        MVM_fixed_size_safepoint(tc, tc->instance->fsa);
+
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : Co-ordinator signalling in-trays clear\n");
         MVM_store(&tc->instance->gc_intrays_clearing, 0);
@@ -375,6 +386,10 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
                     num_threads += add;
                 }
             }
+
+            /* If there's an event loop thread, wake it up to participate. */
+            if (tc->instance->event_loop_wakeup)
+                uv_async_send(tc->instance->event_loop_wakeup);
         } while (MVM_load(&tc->instance->gc_start) > 1);
 
         /* Sanity checks. */

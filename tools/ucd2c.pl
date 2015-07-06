@@ -115,6 +115,7 @@ sub main {
     emit_unicode_property_keypairs();
     emit_unicode_property_value_keypairs();
     emit_block_lookup();
+    emit_composition_lookup();
 
     print "done!";
     write_file('src/strings/unicode_db.c', join_sections($db_sections));
@@ -836,7 +837,7 @@ sub emit_block_lookup {
 sub emit_names_hash_builder {
     my $num_extents = scalar(@$extents);
     my $out = "
-static MVMint32 codepoint_extents[".($num_extents + 1)."][3] = {\n";
+static const MVMint32 codepoint_extents[".($num_extents + 1)."][3] = {\n";
     $estimated_total_bytes += 4 * 2 * ($num_extents + 1);
     for my $extent (@$extents) {
         $out .= sprintf("    {0x%04x,%d,%d},\n",
@@ -1113,6 +1114,88 @@ static const MVMUnicodeNamedValue unicode_property_value_keypairs[".scalar(@line
 };";
     $db_sections->{BBB_unicode_property_value_keypairs} = $out;
     $h_sections->{num_unicode_property_value_keypairs} = $hout;
+}
+
+sub emit_composition_lookup {
+    # Build 3-level sparse array [plane][upper][lower] keyed on bits from the
+    # first codepoint of the decomposition of a primary composite, mapped to
+    # an array of [second codepoint, primary composite].
+    my @lookup;
+    for my $point_hex (keys %$points_by_hex) {
+        # Not interested in anything in the set of full composition exclusions.
+        my $point = $points_by_hex->{$point_hex};
+        next if $point->{Full_Composition_Exclusion};
+
+        # Only interested in things that have a decomposition spec.
+        next unless defined $point->{Decomp_Spec};
+        my $decomp_spec = $enumerated_properties->{Decomp_Spec}->{keys}->[$point->{Decomp_Spec}];
+
+        # Only interested in canonical decompositions.
+        my $decomp_type = $enumerated_properties->{Decomposition_Type}->{keys}->[$point->{Decomposition_Type}];
+        next unless $decomp_type eq 'Canonical';
+
+        # Make an entry.
+        my @decomp = split /\s+/, $decomp_spec;
+        die "Canonical decomposition only supports two codepoints" unless @decomp == 2;
+        my $plane = 0;
+        if (length($decomp[0]) == 5) {
+            $plane = hex(substr($decomp[0], 0, 1));
+            $decomp[0] = substr($decomp[0], 1);
+        }
+        elsif (length($decomp[0]) != 4) {
+            die "Invalid codepoint " . $decomp[0]
+        }
+        my ($upper, $lower) = (hex(substr($decomp[0], 0, 2)), hex(substr($decomp[0], 2, 2)));
+        push @{$lookup[$plane]->[$upper]->[$lower]}, hex($decomp[1]), hex($point_hex);
+    }
+
+    # Produce sparse lookup tables.
+    my $entry_idx   = 0;
+    my $l_table_idx = 0;
+    my $u_table_idx = 0;
+    my $entries     = '';
+    my $l_tables    = 'static const MVMint32 *comp_l_empty[] = {' . ('NULL,' x 256) . "};\n";
+    my $u_tables    = 'static const MVMint32 **comp_u_empty[] = {' . ('NULL,' x 256) . "};\n";
+    my $p_table     = 'static const MVMint32 ***comp_p[] = {';
+    for (my $p = 0; $p < 17; $p++) {
+        unless ($lookup[$p]) {
+            $p_table .= 'comp_u_empty,';
+            next;
+        }
+
+        my $u_table_name = 'comp_u_' . $u_table_idx++;
+        $u_tables .= 'static const MVMint32 **' . $u_table_name . '[] = {';
+        for (my $u = 0; $u < 256; $u++) {
+            unless ($lookup[$p]->[$u]) {
+                $u_tables .= 'comp_l_empty,';
+                next;
+            }
+
+            my $l_table_name = 'comp_l_' . $l_table_idx++;
+            $l_tables .= 'static const MVMint32 *' . $l_table_name . '[] = {';
+            for (my $l = 0; $l < 256; $l++) {
+                if ($lookup[$p]->[$u]->[$l]) {
+                    my @values = @{$lookup[$p]->[$u]->[$l]};
+                    my $entry_name = 'comp_entry_' . $entry_idx++;
+                    $entries .= 'static const MVMint32 ' . $entry_name . '[] = {';
+                    $entries .= join(',', scalar(@values), @values) . "};\n";
+                    $l_tables .= $entry_name . ',';
+                }
+                else {
+                    $l_tables .= 'NULL,';
+                }
+            }
+            $l_tables .= "};\n";
+            $u_tables .= $l_table_name . ',';
+        }
+        $u_tables .= "};\n";
+        $p_table .= $u_table_name . ',';
+    }
+    $p_table .= "};\n";
+
+    # Put it all together and emit.
+    my $tables = "$entries\n$l_tables\n$u_tables\n$p_table";
+    $db_sections->{composition_lookup} = "\n/* Canonical composition lookup tables. */\n$tables";
 }
 
 sub compute_bitfield {

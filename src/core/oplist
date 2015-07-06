@@ -207,15 +207,15 @@ bindexcategory      r(obj) r(int64)
 getexmessage        w(str) r(obj) :pure
 getexpayload        w(obj) r(obj) :pure
 getexcategory       w(int64) r(obj) :pure
-throwdyn            w(obj) r(obj)
-throwlex            w(obj) r(obj)
-throwlexotic        w(obj) r(obj)
-throwcatdyn         w(obj) int64
-throwcatlex         w(obj) int64
-throwcatlexotic     w(obj) int64
+throwdyn            w(obj) r(obj) :throwish
+throwlex            w(obj) r(obj) :throwish
+throwlexotic        w(obj) r(obj) :throwish
+throwcatdyn         w(obj) int64 :throwish
+throwcatlex         w(obj) int64 :throwish
+throwcatlexotic     w(obj) int64 :throwish
 die                 w(obj) r(str) :throwish
-rethrow             r(obj)
-resume              r(obj)
+rethrow             r(obj) :throwish
+resume              r(obj) :throwish
 takehandlerresult   w(obj)
 newlexotic          w(obj) ins
 lexoticresult       w(obj) r(obj)
@@ -548,7 +548,7 @@ newthread           w(obj) r(obj) r(int64)
 threadjoin          r(obj)
 time_n              w(num64)
 exit                r(int64)
-shell               w(int64) r(str) r(str) r(obj)
+shell               w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 cwd                 w(str)
 clargs              w(obj)
 getenvhash          w(obj)
@@ -571,7 +571,7 @@ inf                 w(num64) :pure
 neginf              w(num64) :pure
 nan                 w(num64) :pure
 getpid              w(int64) :pure
-spawn               w(int64) r(obj) r(str) r(obj)
+spawn               w(int64) r(obj) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 filereadable        w(int64) r(str)
 filewritable        w(int64) r(str)
 fileexecutable      w(int64) r(str)
@@ -581,7 +581,7 @@ read_fhb            r(obj) r(obj) r(int64)
 write_fhb           r(obj) r(obj)
 replace             w(str) r(str) r(int64) r(int64) r(str)
 newexception        w(obj)
-openpipe            w(obj) r(str) r(str) r(obj) r(str)
+DEPRECATED_0        w(obj)
 backtrace           w(obj) r(obj)
 symlink             r(str) r(str)
 link                r(str) r(str)
@@ -696,14 +696,45 @@ normalizecodes      r(obj) r(int64) r(obj)
 strfromcodes        w(str) r(obj)
 strtocodes          r(str) r(int64) r(obj)
 getcodelocation     w(obj) r(obj) :pure
-
+eqatim_s            w(int64) r(str) r(str) r(int64) :pure
+ordbaseat           w(int64) r(str) r(int64) :pure
+neverrepossess      r(obj)
+scdisclaim          r(obj)
+syncpipe            w(obj)
+atpos2d_i           w(int64) r(obj) r(int64) r(int64) :pure
+atpos2d_n           w(num64) r(obj) r(int64) r(int64) :pure
+atpos2d_s           w(str) r(obj) r(int64) r(int64) :pure
+atpos2d_o           w(obj) r(obj) r(int64) r(int64) :pure
+atpos3d_i           w(int64) r(obj) r(int64) r(int64) r(int64) :pure
+atpos3d_n           w(num64) r(obj) r(int64) r(int64) r(int64) :pure
+atpos3d_s           w(str) r(obj) r(int64) r(int64) r(int64) :pure
+atpos3d_o           w(obj) r(obj) r(int64) r(int64) r(int64) :pure
+atposnd_i           w(int64) r(obj) r(obj) :pure
+atposnd_n           w(num64) r(obj) r(obj) :pure
+atposnd_s           w(str) r(obj) r(obj) :pure
+atposnd_o           w(obj) r(obj) r(obj) :pure
+bindpos2d_i         r(obj) r(int64) r(int64) r(int64)
+bindpos2d_n         r(obj) r(int64) r(int64) r(num64)
+bindpos2d_s         r(obj) r(int64) r(int64) r(str)
+bindpos2d_o         r(obj) r(int64) r(int64) r(obj)
+bindpos3d_i         r(obj) r(int64) r(int64) r(int64) r(int64)
+bindpos3d_n         r(obj) r(int64) r(int64) r(int64) r(num64)
+bindpos3d_s         r(obj) r(int64) r(int64) r(int64) r(str)
+bindpos3d_o         r(obj) r(int64) r(int64) r(int64) r(obj)
+bindposnd_i         r(obj) r(obj) r(int64)
+bindposnd_n         r(obj) r(obj) r(num64)
+bindposnd_s         r(obj) r(obj) r(str)
+bindposnd_o         r(obj) r(obj) r(obj)
+dimensions          w(obj) r(obj)
+setdimensions       r(obj) r(obj)
+numdimensions       w(int64) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
 
 # Used for logging what objects we saw during execution, which is used to do
 # speculative optimizations.
-sp_log           .s r(obj) sslot
+sp_log           .s r(obj) int16
 
 # If we're doing OSR, the logging phase replaces the osrpoint with this op, to
 # trigger the finalization of the optimization process once we do enough loops
@@ -723,10 +754,10 @@ sp_guardcontconc .s r(obj) sslot sslot
 sp_guardconttype .s r(obj) sslot sslot
 
 # Following are for fast, unchecked grabbing of args from the arg buffer.
-sp_getarg_o      .s w(obj) int16
-sp_getarg_i      .s w(obj) int16
-sp_getarg_n      .s w(obj) int16
-sp_getarg_s      .s w(obj) int16
+sp_getarg_o      .s w(obj) int16 :pure
+sp_getarg_i      .s w(obj) int16 :pure
+sp_getarg_n      .s w(obj) int16 :pure
+sp_getarg_s      .s w(obj) int16 :pure
 
 # Fast invocation.
 sp_fastinvoke_v  .s r(obj) int16
@@ -751,11 +782,17 @@ sp_fastcreate    .s w(obj) int16 sslot :pure
 
 # Retrieve or store a value by pointer offset.
 sp_get_o         .s w(obj) r(obj) int16 :pure
-sp_get_i         .s w(int64) r(obj) int16 :pure
+sp_get_i64       .s w(int64) r(obj) int16 :pure
+sp_get_i32       .s w(int64) r(obj) int16 :pure
+sp_get_i16       .s w(int64) r(obj) int16 :pure
+sp_get_i8        .s w(int64) r(obj) int16 :pure
 sp_get_n         .s w(num64) r(obj) int16 :pure
 sp_get_s         .s w(str) r(obj) int16 :pure
 sp_bind_o        .s r(obj) int16 r(obj)
-sp_bind_i        .s r(obj) int16 r(int64)
+sp_bind_i64      .s r(obj) int16 r(int64)
+sp_bind_i32      .s r(obj) int16 r(int64)
+sp_bind_i16      .s r(obj) int16 r(int64)
+sp_bind_i8       .s r(obj) int16 r(int64)
 sp_bind_n        .s r(obj) int16 r(num64)
 sp_bind_s        .s r(obj) int16 r(str)
 

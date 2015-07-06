@@ -141,10 +141,74 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_get_grapheme(MVMThreadContext *tc,
     }
 }
 
-/* For now, our strings aren't really at grapheme level, but rather at code
- * point level, so our codepoint iterator is really just the same. This will
- * need to change upon implementing NFG. */
-typedef MVMGraphemeIter MVMCodepointIter;
-#define MVM_string_ci_init(a,b,c)       MVM_string_gi_init(a,b,c)
-#define MVM_string_ci_has_more(a,b)     MVM_string_gi_has_more(a, b)
-#define MVM_string_ci_get_codepoint(a,b) MVM_string_gi_get_grapheme(a, b)
+/* Code point iterator. Uses the grapheme iterator, and adds some extra bits
+ * in order to iterate the code points in synthetics. */
+struct MVMCodepointIter {
+    /* The grapheme iterator. */
+    MVMGraphemeIter gi;
+
+    /* The codes of the current synthetic we're walking through, if any, with
+     * the number of combiners we returned so far, and the total number of
+     * combiners there are. */
+    MVMCodepoint  *synth_codes;
+    MVMint32       visited_synth_codes;
+    MVMint32       total_synth_codes;
+};
+
+/* Initializes a code point iterator. */
+MVM_STATIC_INLINE void MVM_string_ci_init(MVMThreadContext *tc, MVMCodepointIter *ci, MVMString *s) {
+    /* Initialize our underlying grapheme iterator. */
+    MVM_string_gi_init(tc, &(ci->gi), s);
+
+    /* We've no currently active synthetic codepoint (and other fields are
+     * unused until we do, so leave them alone for now). */
+    ci->synth_codes = NULL;
+};
+
+/* Checks if there is more to read from a code point iterator; this is the
+ * case if we're still walking through a synthetic or we have more things
+ * available from the underlying grapheme iterator. */
+MVM_STATIC_INLINE MVMint32 MVM_string_ci_has_more(MVMThreadContext *tc, MVMCodepointIter *ci) {
+    return ci->synth_codes || MVM_string_gi_has_more(tc, &(ci->gi));
+}
+
+/* Gets the next code point. */
+MVM_STATIC_INLINE MVMCodepoint MVM_string_ci_get_codepoint(MVMThreadContext *tc, MVMCodepointIter *ci) {
+    MVMCodepoint result;
+
+    /* Do we have combiners from a synthetic to return? */
+    if (ci->synth_codes) {
+        /* Take the current combiner as the result. */
+        result = ci->synth_codes[ci->visited_synth_codes];
+
+        /* If we've seen all of the synthetics, clear up so we'll take another
+         * grapheme next time around. */
+        ci->visited_synth_codes++;
+        if (ci->visited_synth_codes == ci->total_synth_codes)
+            ci->synth_codes = NULL;
+    }
+
+    /* Otherwise, proceed to the next grapheme. */
+    else {
+        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &(ci->gi));
+        if (g >= 0) {
+            /* It's not a synthetic, so we're done. */
+            result = (MVMCodepoint)g;
+        }
+        else {
+            /* It's a synthetic. Look it up. */
+            MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
+
+            /* Set up the iterator so in the next iteration we will start to
+            * hand back combiners. */
+            ci->synth_codes         = synth->combs;
+            ci->visited_synth_codes = 0;
+            ci->total_synth_codes   = synth->num_combs;
+
+            /* Result is the base character of the grapheme. */
+            result = synth->base;
+        }
+    }
+
+    return result;
+}

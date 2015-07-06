@@ -4,10 +4,13 @@
 #define MVM_CSTRUCT_ATTR_CARRAY    2
 #define MVM_CSTRUCT_ATTR_CPTR      3
 #define MVM_CSTRUCT_ATTR_STRING    4
+#define MVM_CSTRUCT_ATTR_CUNION    5
 #define MVM_CSTRUCT_ATTR_MASK      7
 
+#define MVM_CSTRUCT_ATTR_INLINED   8
+
 /* Bits to shift a slot position to make room for MVM_CSTRUCT_ATTR_*. */
-#define MVM_CSTRUCT_ATTR_SHIFT     3
+#define MVM_CSTRUCT_ATTR_SHIFT     4
 
 /* The CStruct representation maintains a chunk of memory that it can
  * always pass off to C land. If we in turn embed any strings, pointers

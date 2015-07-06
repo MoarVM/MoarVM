@@ -1488,21 +1488,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_string_graphs(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
-            OP(chr): {
-                GET_REG(cur_op, 0).s = MVM_string_chr(tc, (MVMGrapheme32)GET_REG(cur_op, 2).i64);
+            OP(chr):
+                GET_REG(cur_op, 0).s = MVM_string_chr(tc, (MVMCodepoint)GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(ordfirst): {
                 MVMString *s = GET_REG(cur_op, 2).s;
-                GET_REG(cur_op, 0).i64 = MVM_string_get_grapheme_at(tc, s, 0);
+                MVMGrapheme32 g = MVM_string_get_grapheme_at(tc, s, 0);
+                GET_REG(cur_op, 0).i64 = g >= 0 ? g : MVM_nfg_get_synthetic_info(tc, g)->base;
                 cur_op += 4;
                 goto NEXT;
             }
             OP(ordat): {
                 MVMString *s = GET_REG(cur_op, 2).s;
-                GET_REG(cur_op, 0).i64 = MVM_string_get_grapheme_at(tc, s, GET_REG(cur_op, 4).i64);
-                /* XXX what to do with synthetics?  return them? */
+                MVMGrapheme32 g = MVM_string_get_grapheme_at(tc, s, GET_REG(cur_op, 4).i64);
+                GET_REG(cur_op, 0).i64 = g >= 0 ? g : MVM_nfg_get_synthetic_info(tc, g)->base;
                 cur_op += 6;
                 goto NEXT;
             }
@@ -2659,8 +2659,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(getcodename): {
-                MVMCode *c = (MVMCode *)GET_REG(cur_op, 2).o;
-                GET_REG(cur_op, 0).s = c->body.name;
+                MVMObject *co = GET_REG(cur_op, 2).o;
+                if (REPR(co)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(co))
+                    MVM_exception_throw_adhoc(tc, "getcodename requires a concrete code object");
+                GET_REG(cur_op, 0).s = ((MVMCode *)co)->body.name;
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3036,13 +3038,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(existspos): {
-                MVMObject * const obj = GET_REG(cur_op, 2).o;
-                GET_REG(cur_op, 0).i64 = REPR(obj)->pos_funcs.exists_pos(tc,
-                    STABLE(obj), obj, OBJECT_BODY(obj), GET_REG(cur_op, 4).i64);
+            OP(existspos):
+                GET_REG(cur_op, 0).i64 = MVM_repr_exists_pos(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
-            }
             OP(gethllsym):
                 GET_REG(cur_op, 0).o = MVM_hll_sym_get(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
@@ -3092,7 +3092,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getcodecuid): {
                 MVMObject * const cr = GET_REG(cur_op, 2).o;
-                if (REPR(cr)->ID != MVM_REPR_ID_MVMCode)
+                if (REPR(cr)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(cr))
                     MVM_exception_throw_adhoc(tc, "getcodecuid requires a static coderef");
                 GET_REG(cur_op, 0).s = ((MVMCode *)cr)->body.sf->body.cuuid;
                 cur_op += 4;
@@ -3265,7 +3265,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(readlineint_fh):
-                GET_REG(cur_op, 0).s = MVM_file_readline_interactive_fh(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
             OP(chdir):
@@ -3328,9 +3327,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(shell):
-                GET_REG(cur_op, 0).i64 = MVM_proc_shell(tc, GET_REG(cur_op, 2).s,
-                    GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o);
-                cur_op += 8;
+                GET_REG(cur_op, 0).i64 = MVM_proc_shell(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
+                    GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o, GET_REG(cur_op, 12).o, GET_REG(cur_op, 14).i64);
+                cur_op += 16;
                 goto NEXT;
             OP(cwd):
                 GET_REG(cur_op, 0).s = MVM_dir_cwd(tc);
@@ -3750,9 +3749,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(spawn):
-                GET_REG(cur_op, 0).i64 = MVM_proc_spawn(tc, GET_REG(cur_op, 2).o,
-                    GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o);
-                cur_op += 8;
+                GET_REG(cur_op, 0).i64 = MVM_proc_spawn(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
+                    GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o, GET_REG(cur_op, 10).o, GET_REG(cur_op, 12).o, GET_REG(cur_op, 14).i64);
+                cur_op += 16;
                 goto NEXT;
             OP(filereadable):
                 GET_REG(cur_op, 0).i64 = MVM_file_isreadable(tc, GET_REG(cur_op, 2).s,0);
@@ -3796,9 +3795,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->instance->boot_types.BOOTException);
                 cur_op += 2;
                 goto NEXT;
-            OP(openpipe):
-                GET_REG(cur_op, 0).o = MVM_file_openpipe(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).s);
-                cur_op += 10;
+            OP(DEPRECATED_0):
+                cur_op += 2;
                 goto NEXT;
             OP(backtrace):
                 GET_REG(cur_op, 0).o = MVM_exception_backtrace(tc, GET_REG(cur_op, 2).o);
@@ -4505,10 +4503,183 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(strfromcodes):
+                GET_REG(cur_op, 0).s = MVM_unicode_codepoints_to_nfg_string(tc,
+                    GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(strtocodes):
-                MVM_exception_throw_adhoc(tc, "NYI");
+                MVM_unicode_string_to_codepoints(tc, GET_REG(cur_op, 0).s,
+                    MVN_unicode_normalizer_form(tc, GET_REG(cur_op, 2).i64),
+                    GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
             OP(getcodelocation):
                 GET_REG(cur_op, 0).o = MVM_code_location(tc, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            OP(eqatim_s):
+                if (MVM_string_graphs(tc, GET_REG(cur_op, 2).s) <= GET_REG(cur_op, 6).i64)
+                    GET_REG(cur_op, 0).i64 = 0;
+                else
+                    GET_REG(cur_op, 0).i64 = MVM_string_ord_basechar_at(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 6).i64)
+                                          == MVM_string_ord_basechar_at(tc, GET_REG(cur_op, 4).s, 0)
+                                           ? 1 : 0;
+                cur_op += 8;
+                goto NEXT;
+            OP(ordbaseat):
+                GET_REG(cur_op, 0).i64 = MVM_string_ord_basechar_at(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
+            OP(neverrepossess):
+                MVM_6model_never_repossess(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
+            OP(scdisclaim):
+                MVM_sc_disclaim(tc, (MVMSerializationContext *)GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
+            OP(syncpipe):
+                GET_REG(cur_op, 0).o = MVM_io_syncpipe(tc);
+                cur_op += 2;
+                goto NEXT;
+            OP(atpos2d_i):
+                GET_REG(cur_op, 0).i64 = MVM_repr_at_pos_2d_i(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(atpos2d_n):
+                GET_REG(cur_op, 0).n64 = MVM_repr_at_pos_2d_n(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(atpos2d_s):
+                GET_REG(cur_op, 0).s = MVM_repr_at_pos_2d_s(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(atpos2d_o):
+                GET_REG(cur_op, 0).o = MVM_repr_at_pos_2d_o(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(atpos3d_i):
+                GET_REG(cur_op, 0).i64 = MVM_repr_at_pos_3d_i(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
+                goto NEXT;
+            OP(atpos3d_n):
+                GET_REG(cur_op, 0).n64 = MVM_repr_at_pos_3d_n(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
+                goto NEXT;
+            OP(atpos3d_s):
+                GET_REG(cur_op, 0).s = MVM_repr_at_pos_3d_s(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
+                goto NEXT;
+            OP(atpos3d_o):
+                GET_REG(cur_op, 0).o = MVM_repr_at_pos_3d_o(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
+                goto NEXT;
+            OP(atposnd_i):
+                GET_REG(cur_op, 0).i64 = MVM_repr_at_pos_multidim_i(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
+            OP(atposnd_n):
+                GET_REG(cur_op, 0).n64 = MVM_repr_at_pos_multidim_n(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
+            OP(atposnd_s):
+                GET_REG(cur_op, 0).s = MVM_repr_at_pos_multidim_s(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
+            OP(atposnd_o):
+                GET_REG(cur_op, 0).o = MVM_repr_at_pos_multidim_o(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
+            OP(bindpos2d_i):
+                MVM_repr_bind_pos_2d_i(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(bindpos2d_n):
+                MVM_repr_bind_pos_2d_n(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).n64);
+                cur_op += 8;
+                goto NEXT;
+            OP(bindpos2d_s):
+                MVM_repr_bind_pos_2d_s(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).s);
+                cur_op += 8;
+                goto NEXT;
+            OP(bindpos2d_o):
+                MVM_repr_bind_pos_2d_o(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).o);
+                cur_op += 8;
+                goto NEXT;
+            OP(bindpos3d_i):
+                MVM_repr_bind_pos_3d_i(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
+                goto NEXT;
+            OP(bindpos3d_n):
+                MVM_repr_bind_pos_3d_n(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).n64);
+                cur_op += 10;
+                goto NEXT;
+            OP(bindpos3d_s):
+                MVM_repr_bind_pos_3d_s(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).s);
+                cur_op += 10;
+                goto NEXT;
+            OP(bindpos3d_o):
+                MVM_repr_bind_pos_3d_o(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).o);
+                cur_op += 10;
+                goto NEXT;
+            OP(bindposnd_i):
+                MVM_repr_bind_pos_multidim_i(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
+            OP(bindposnd_n):
+                MVM_repr_bind_pos_multidim_n(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).n64);
+                cur_op += 6;
+                goto NEXT;
+            OP(bindposnd_s):
+                MVM_repr_bind_pos_multidim_s(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);
+                cur_op += 6;
+                goto NEXT;
+            OP(bindposnd_o):
+                MVM_repr_bind_pos_multidim_o(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
+            OP(dimensions):
+                GET_REG(cur_op, 0).o = MVM_repr_dimensions(tc, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            OP(setdimensions):
+                MVM_repr_set_dimensions(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            OP(numdimensions):
+                GET_REG(cur_op, 0).i64 = MVM_repr_num_dimensions(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(sp_log):
@@ -4702,24 +4873,80 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(sp_get_i):
-                GET_REG(cur_op, 0).i64 = *((MVMint64 *)((char *)&GET_REG(cur_op, 2) + GET_UI16(cur_op, 4)));
+            OP(sp_get_i64):
+                GET_REG(cur_op, 0).i64 = *((MVMint64 *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
+                cur_op += 6;
+                goto NEXT;
+            OP(sp_get_i32):
+                GET_REG(cur_op, 0).i64 = *((MVMint32 *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
+                cur_op += 6;
+                goto NEXT;
+            OP(sp_get_i16):
+                GET_REG(cur_op, 0).i64 = *((MVMint16 *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
+                cur_op += 6;
+                goto NEXT;
+            OP(sp_get_i8):
+                GET_REG(cur_op, 0).i64 = *((MVMint8 *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
                 cur_op += 6;
                 goto NEXT;
             OP(sp_get_n):
-                GET_REG(cur_op, 0).n64 = *((MVMnum64 *)((char *)&GET_REG(cur_op, 2) + GET_UI16(cur_op, 4)));
+                GET_REG(cur_op, 0).n64 = *((MVMnum64 *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
                 cur_op += 6;
                 goto NEXT;
             OP(sp_get_s):
-                GET_REG(cur_op, 0).s = ((MVMString *)((char *)&GET_REG(cur_op, 2) + GET_UI16(cur_op, 4)));
+                GET_REG(cur_op, 0).s = ((MVMString *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
                 cur_op += 6;
                 goto NEXT;
-            OP(sp_get_o):
-            OP(sp_bind_o):
-            OP(sp_bind_i):
-            OP(sp_bind_n):
-            OP(sp_bind_s):
-                MVM_exception_throw_adhoc(tc, "Unimplemented spesh ops hit");
+            OP(sp_get_o): {
+                MVMObject *val = ((MVMObject *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
+                GET_REG(cur_op, 0).o = val ? val : tc->instance->VMNull;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_o): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                MVMObject *value = GET_REG(cur_op, 4).o;
+                MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)((char *)o + GET_UI16(cur_op, 2))), value);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_s): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                MVMString *value = GET_REG(cur_op, 4).s;
+                MVM_ASSIGN_REF(tc, &(o->header), *((MVMObject **)((char *)o + GET_UI16(cur_op, 2))), value);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_i64): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                *((MVMint64 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_i32): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                *((MVMint32 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_i16): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                *((MVMint16 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_i8): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                *((MVMint8 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_n): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                *((MVMnum64 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).n64;
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_p6oget_o): {
                 MVMObject *o     = GET_REG(cur_op, 2).o;
                 char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));

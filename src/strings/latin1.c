@@ -73,8 +73,12 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 
     /* Attach what we successfully parsed as a result buffer, and trim away
      * what we chewed through. */
-    if (count)
+    if (count) {
         MVM_string_decodestream_add_chars(tc, ds, buffer, count);
+    }
+    else {
+	MVM_free(buffer);
+    }
     MVM_string_decodestream_discard_to(tc, ds, last_accept_bytes, last_accept_pos);
 }
 
@@ -118,4 +122,12 @@ char * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVM
     if (output_size)
         *output_size = lengthu;
     return (char *)result;
+}
+
+/* Encodes the specified string to latin-1. Anything outside of latin-1 range
+ * will become a ?. The result string is NULL terminated, but the specified
+ * size is the non-null part. */
+char * MVM_string_latin1_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
+    return MVM_string_latin1_encode_substr(tc, str, output_size, 0,
+        MVM_string_graphs(tc, str));
 }

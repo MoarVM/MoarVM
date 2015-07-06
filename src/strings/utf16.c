@@ -5,8 +5,7 @@
 
 /* mostly from YAML-LibYAML */
 
-/* Decodes the specified number of bytes of utf16
- into an NFG string, creating
+/* Decodes the specified number of bytes of utf16 into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */
 MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
         MVMObject *result_type, char *utf16_chars, size_t bytes) {
@@ -22,6 +21,8 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
     int low = 0;
     int high = 1;
 #endif
+    MVMNormalizer norm;
+    MVMint32 ready;
 
     if (bytes % 2) {
         MVM_exception_throw_adhoc(tc, "Malformed UTF-16; odd number of bytes");
@@ -40,41 +41,54 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
             utf16 += 2;
         }
     }
-
     utf16_end = utf16 + bytes;
 
     /* possibly allocating extra space; oh well */
     result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes / 2);
 
+    /* Need to normalize to NFG as we decode. */
+    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+
     for (; utf16 < utf16_end; utf16 += 2) {
         MVMuint32 value = (utf16[high] << 8) + utf16[low];
         MVMuint32 value2;
+        MVMGrapheme32 g;
 
         if ((value & 0xFC00) == 0xDC00) {
+            MVM_unicode_normalizer_cleanup(tc, &norm);
             MVM_exception_throw_adhoc(tc, "Malformed UTF-16; unexpected low surrogate");
         }
 
         if ((value & 0xFC00) == 0xD800) { /* high surrogate */
-
             utf16 += 2;
-
             if (utf16 == utf16_end) {
+                MVM_unicode_normalizer_cleanup(tc, &norm);
                 MVM_exception_throw_adhoc(tc, "Malformed UTF-16; incomplete surrogate pair");
             }
-
             value2 = (utf16[high] << 8) + utf16[low];
-
             if ((value2 & 0xFC00) != 0xDC00) {
+                MVM_unicode_normalizer_cleanup(tc, &norm);
                 MVM_exception_throw_adhoc(tc, "Malformed UTF-16; incomplete surrogate pair");
             }
-
             value = 0x10000 + ((value & 0x3FF) << 10) + (value2 & 0x3FF);
         }
+
         /* TODO: check for invalid values */
-        result->body.storage.blob_32[str_pos++] = (MVMGrapheme32)value;
+        ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, value, &g);
+        if (ready) {
+            result->body.storage.blob_32[str_pos++] = g;
+            while (--ready > 0)
+                result->body.storage.blob_32[str_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        }
     }
 
-    /* result->body.codes  = str_pos; */
+    /* Get any final graphemes from the normalizer, and clean it up. */
+    MVM_unicode_normalizer_eof(tc, &norm);
+    ready = MVM_unicode_normalizer_available(tc, &norm);
+    while (ready--)
+        result->body.storage.blob_32[str_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+    MVM_unicode_normalizer_cleanup(tc, &norm);
+
     result->body.storage_type = MVM_STRING_GRAPHEME_32;
     result->body.num_graphs   = str_pos;
 

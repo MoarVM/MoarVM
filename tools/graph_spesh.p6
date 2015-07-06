@@ -59,7 +59,7 @@ my %reg_writers;
 for lines() :eager -> $_ is copy {
     when / ^ '      ' <!before '['> $<opname>=[<[a..z I 0..9 _]>+] \s+
             [ $<argument>=[
-              | r $<regnum>=[<.digit>+] '(' $<regver>=[<.digit>+] ')'
+              | r \s* $<regnum>=[<.digit>+] \s* '(' \s* $<regver>=[<.digit>+] \s* ')'
               | liti <.digit>+ '(' ~ ')' <-[)]>+
               | litn <.digit>+ '(' ~ ')' <-[)]>+
               | lits '(' .*? ')'
@@ -68,7 +68,7 @@ for lines() :eager -> $_ is copy {
               | BB '(' <digit>+ ')'
               | '<nyi>'
               | '<nyi(lit)>'
-            ] ]* % ', ' \s* $ / {
+            ] ]* % [',' \s*] \s* $ / {
         say "";
         print "    \"{$<opname>}_{$insnum}\" ";
         say "    [";
@@ -217,7 +217,7 @@ for lines() :eager -> $_ is copy {
         }
     }
     when / ^ 'Finished specialization of ' / { }
-    when / ^ '    ' r $<regnum>=[<.digit>+] '(' $<regver>=[<.digit>+] ')' ':' / { }
+    when / ^ '    ' \s* r $<regnum>=[<.digit>+] '(' $<regver>=[<.digit>+] ')' ':' / { }
     when / ^ '    ' 'Dominance children: ' [$<child>=[<.digit>+]]* % [',' <.ws>] / {
         for $<child>.list -> $child {
             @dominance_conns.push($current_bb => $child.Int);
@@ -240,6 +240,9 @@ for lines() :eager -> $_ is copy {
     when / ^ '      PHI' / {
         # we don't have a nice way to show PHI nodes yet, sadly.
     }
+    when / ^ ['Stats:' | 'Logged values:'] / { }
+    when / ^ '    ' \d+ [ 'spesh slots' | 'log values'] / { }
+    when / ^ '    ' \s* [\d+]+ %% \s+ / { }
     default {
         say "    unparsed_line_{(state $)++} [label=\"{$_}\"];";
     }

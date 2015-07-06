@@ -548,6 +548,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(free_str, "free_str");
     string_creator(callback_args, "callback_args");
     string_creator(encoding, "encoding");
+    string_creator(inlined, "inlined");
     string_creator(repr, "repr");
     string_creator(anon, "<anon>");
     string_creator(P6opaque, "P6opaque");
@@ -568,6 +569,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(refkind, "refkind");
     string_creator(positional, "positional");
     string_creator(lexical, "lexical");
+    string_creator(dimensions, "dimensions");
 }
 
 /* Drives the overall bootstrap process. */
@@ -601,7 +603,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_boot_type(tc, MVM_REPR_ID_MVMNull, VMNull, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_P6int, boot_types.BOOTInt, 1, MVM_BOOL_MODE_UNBOX_INT);
     create_stub_boot_type(tc, MVM_REPR_ID_P6num, boot_types.BOOTNum, 1, MVM_BOOL_MODE_UNBOX_NUM);
-    create_stub_boot_type(tc, MVM_REPR_ID_P6str, boot_types.BOOTStr, 1, MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO);
+    create_stub_boot_type(tc, MVM_REPR_ID_P6str, boot_types.BOOTStr, 1, MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMArray, boot_types.BOOTArray, 1, MVM_BOOL_MODE_HAS_ELEMS);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMHash, boot_types.BOOTHash, 1, MVM_BOOL_MODE_HAS_ELEMS);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMCFunction, boot_types.BOOTCCode, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
