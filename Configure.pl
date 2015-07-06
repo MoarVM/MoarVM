@@ -32,9 +32,9 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     ar=s cc=s ld=s make=s has-sha has-libuv
     static has-libtommath has-libatomic_ops
-    has-dyncall has-libffi
-    build=s host=s big-endian jit! enable-jit lua=s has-dynasm
-    prefix=s bindir=s libdir=s mastdir=s make-install asan),
+    has-dyncall has-libffi build=s host=s big-endian
+    jit! enable-jit prefix=s bindir=s libdir=s
+    mastdir=s make-install asan),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 }
 ) or die "See --help for further information\n";
@@ -78,7 +78,6 @@ $args{'has-libtommath'}    //= 0;
 $args{'has-sha'}           //= 0;
 $args{'has-libuv'}         //= 0;
 $args{'has-libatomic_ops'} //= 0;
-$args{'has-dynasm'}        //= 0;
 $args{'asan'}              //= 0;
 
 # jit is default
@@ -97,7 +96,6 @@ $config{perl}   = $^X;
 $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 $config{osname} = $^O;
 $config{osvers} = $Config{osvers};
-$config{lua} = $args{lua} // './3rdparty/dynasm/minilua@exe@';
 
 # set options that take priority over all others
 my @keys = qw( ar cc ld make );
@@ -215,15 +213,6 @@ if ($args{'has-libtommath'}) {
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
     $config{install}   .= "\t\$(CP) 3rdparty/libtommath/*.h \$(DESTDIR)\$(PREFIX)/include/libtommath\n";
-}
-
-if ($args{'has-dynasm'}) {
-    $config{dynasmlua}  = '-l dynasm.lua';
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '/usr/include/luajit-2.0';
-}
-else {
-    $config{dynasmlua}  = './3rdparty/dynasm/dynasm.lua';
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dynasm';
 }
 
 if ($args{'has-libffi'}) {
@@ -714,14 +703,13 @@ __END__
                    [--debug] [--optimize] [--instrument]
                    [--static] [--prefix]
                    [--has-libtommath] [--has-sha] [--has-libuv]
-                   [--has-libatomic_ops] [--has-dynasm]
-                   [--lua <lua>] [--asan] [--no-jit]
+                   [--has-libatomic_ops] [--asan] [--no-jit]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
                    [--static] [--big-endian] [--prefix]
-                   [--lua <lua>] [--make-install]
+                   [--make-install]
 
 =head1 OPTIONS
 
@@ -848,8 +836,6 @@ Build and install MoarVM in addition to configuring it.
 
 =item --has-libatomic_ops
 
-=item --has-dynasm
-
 =item --has-dyncall
 
 =item --has-libffi
@@ -857,9 +843,5 @@ Build and install MoarVM in addition to configuring it.
 =item --no-jit
 
 Disable JIT compiler, which is enabled by default to JIT-compile hot frames.
-
-=item --lua=path/to/lua/executable
-
-Path to a lua executable. (Used during the build when JIT is enabled).
 
 =back
