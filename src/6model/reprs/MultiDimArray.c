@@ -284,22 +284,149 @@ static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *
     return &storage_spec;
 }
 
-/* Deserializes the data held in the array. */
-static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-}
-
 /* Serializes the data held in the array. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
+    MVMMultiDimArrayBody     *body      = (MVMMultiDimArrayBody *)data;
+    MVMint64 i, flat_elems;
+
+    /* Write out dimensions. */
+    for (i = 0; i < repr_data->num_dimensions; i++)
+        MVM_serialization_write_varint(tc, writer, body->dimensions[i]);
+
+    /* Write out values. */
+    flat_elems = flat_elements(repr_data->num_dimensions, body->dimensions);
+    for (i = 0; i < flat_elems; i++) {
+        switch (repr_data->slot_type) {
+            case MVM_ARRAY_OBJ:
+                MVM_serialization_write_ref(tc, writer, body->slots.o[i]);
+                break;
+            case MVM_ARRAY_STR:
+                MVM_serialization_write_str(tc, writer, body->slots.s[i]);
+                break;
+            case MVM_ARRAY_I64:
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.i64[i]);
+                break;
+            case MVM_ARRAY_I32:
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.i32[i]);
+                break;
+            case MVM_ARRAY_I16:
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.i16[i]);
+                break;
+            case MVM_ARRAY_I8:
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.i8[i]);
+                break;
+            case MVM_ARRAY_U64:
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.u64[i]);
+                break;
+            case MVM_ARRAY_U32:
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.u32[i]);
+                break;
+            case MVM_ARRAY_U16:
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.u16[i]);
+                break;
+            case MVM_ARRAY_U8:
+                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.u8[i]);
+                break;
+            case MVM_ARRAY_N64:
+                MVM_serialization_write_num(tc, writer, (MVMnum64)body->slots.n64[i]);
+                break;
+            case MVM_ARRAY_N32:
+                MVM_serialization_write_num(tc, writer, (MVMnum64)body->slots.n32[i]);
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc, "MVMMultiDimArray: Unhandled slot type");
+        }
+    }
+}
+
+/* Deserializes the data held in the array. */
+static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
+    MVMMultiDimArrayBody     *body      = (MVMMultiDimArrayBody *)data;
+    MVMint64 i, flat_elems;
+    size_t size;
+
+    /* Read in dimensions. */
+    for (i = 0; i < repr_data->num_dimensions; i++)
+        body->dimensions[i] = MVM_serialization_read_varint(tc, reader);
+
+    /* Allocate storage. */
+    body->slots.any = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+        flat_size(repr_data, body->dimensions));
+
+    /* Read in elements. */
+    flat_elems = flat_elements(repr_data->num_dimensions, body->dimensions);
+    for (i = 0; i < flat_elems; i++) {
+        switch (repr_data->slot_type) {
+            case MVM_ARRAY_OBJ:
+                MVM_ASSIGN_REF(tc, &(root->header), body->slots.o[i], MVM_serialization_read_ref(tc, reader));
+                break;
+            case MVM_ARRAY_STR:
+                MVM_ASSIGN_REF(tc, &(root->header), body->slots.s[i], MVM_serialization_read_str(tc, reader));
+                break;
+            case MVM_ARRAY_I64:
+                body->slots.i64[i] = MVM_serialization_read_varint(tc, reader);
+                break;
+            case MVM_ARRAY_I32:
+                body->slots.i32[i] = (MVMint32)MVM_serialization_read_varint(tc, reader);
+                break;
+            case MVM_ARRAY_I16:
+                body->slots.i16[i] = (MVMint16)MVM_serialization_read_varint(tc, reader);
+                break;
+            case MVM_ARRAY_I8:
+                body->slots.i8[i] = (MVMint8)MVM_serialization_read_varint(tc, reader);
+                break;
+            case MVM_ARRAY_U64:
+                body->slots.i64[i] = MVM_serialization_read_varint(tc, reader);
+                break;
+            case MVM_ARRAY_U32:
+                body->slots.i32[i] = (MVMuint32)MVM_serialization_read_varint(tc, reader);
+                break;
+            case MVM_ARRAY_U16:
+                body->slots.i16[i] = (MVMuint16)MVM_serialization_read_varint(tc, reader);
+                break;
+            case MVM_ARRAY_U8:
+                body->slots.i8[i] = (MVMuint8)MVM_serialization_read_varint(tc, reader);
+                break;
+            case MVM_ARRAY_N64:
+                body->slots.n64[i] = MVM_serialization_read_num(tc, reader);
+                break;
+            case MVM_ARRAY_N32:
+                body->slots.n32[i] = (MVMnum32)MVM_serialization_read_num(tc, reader);
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc, "MVMMultiDimArray: Unhandled slot type");
+        }
+    }
 }
 
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
-    /* XXX */
+    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
+    MVM_serialization_write_int(tc, writer, repr_data->num_dimensions);
+    MVM_serialization_write_ref(tc, writer, repr_data->elem_type);
 }
 
 /* Deserializes the REPR data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    /* XXX */
+    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)MVM_malloc(sizeof(MVMMultiDimArrayREPRData));
+    MVMObject *type;
+
+    repr_data->num_dimensions = MVM_serialization_read_int(tc, reader);
+    type = MVM_serialization_read_ref(tc, reader);
+    MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
+
+    if (type) {
+        MVM_serialization_force_stable(tc, reader, STABLE(type));
+        spec_to_repr_data(tc, repr_data, REPR(type)->get_storage_spec(tc, STABLE(type)));
+    }
+    else {
+        repr_data->slot_type = MVM_ARRAY_OBJ;
+        repr_data->elem_size = sizeof(MVMObject *);
+    }
+
+    st->REPR_data = repr_data;
 }
 
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
