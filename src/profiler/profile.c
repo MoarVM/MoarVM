@@ -48,6 +48,7 @@ typedef struct {
     MVMString *deopt_one;
     MVMString *deopt_all;
     MVMString *spesh_time;
+    MVMString *native_lib;
 } ProfDumpStrs;
 
 /* Dumps a call graph node. */
@@ -87,18 +88,16 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
             box_i(tc, (MVMint64)pcn->sf));
     } else {
         MVMString *function_name_string =
-            MVM_string_utf8_decode(tc, tc->instance->boot_types.BOOTStr,
+            MVM_string_utf8_decode(tc, tc->instance->VMString,
                                    pcn->native_target_name, strlen(pcn->native_target_name));
-
-        fprintf(stderr, "dumping the call node for a native named %s.\n", pcn->native_target_name);
 
         MVM_repr_bind_key_o(tc, node_hash, pds->name,
             box_s(tc, function_name_string));
         MVM_repr_bind_key_o(tc, node_hash, pds->file,
-            box_s(tc, tc->instance->str_consts.empty));
+            box_s(tc, pds->native_lib));
 
         MVM_repr_bind_key_o(tc, node_hash, pds->line,
-            box_i(tc, -1));
+            box_i(tc, -2));
 
         /* Use the address of the name string as unique ID. a hack, but oh well. */
         MVM_repr_bind_key_o(tc, node_hash, pds->id,
@@ -248,6 +247,7 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
     pds.deopt_one       = str(tc, "deopt_one");
     pds.deopt_all       = str(tc, "deopt_all");
     pds.spesh_time      = str(tc, "spesh_time");
+    pds.native_lib      = str(tc, "native library");
 
     /* Build up threads array. */
     /* XXX Only main thread for now. */
