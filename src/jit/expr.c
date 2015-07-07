@@ -64,7 +64,7 @@ static MVMint32 MVM_jit_expr_add_storereg(MVMThreadContext *tc, MVMJitTreeBuilde
     MVMint32 num = builder->num;
     MVMJitExprNode template[] = { MVM_JIT_LOCAL,
                                   MVM_JIT_ADDR, num, reg * MVM_JIT_REG_SZ,
-                                  MVM_JIT_STORE, node, num + 1, MVM_JIT_REG_SZ };
+                                  MVM_JIT_STORE, num + 1, node, MVM_JIT_REG_SZ };
     builder_append_direct(builder, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num + 4;
 }
