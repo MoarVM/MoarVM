@@ -32,7 +32,7 @@ MVM_STATIC_INLINE size_t indices_to_flat_index(MVMThreadContext *tc, MVMint64 nu
         }
         else {
             MVM_exception_throw_adhoc(tc,
-                "Index %d for dimension %d out of range (must be 0..%d)",
+                "Index %"PRId64" for dimension %"PRId64" out of range (must be 0..%"PRId64")",
                 index, i + 1, dim_size);
         }
     }
@@ -536,7 +536,7 @@ static void at_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "Cannot access %d dimension array with %d indices",
+            "Cannot access %"PRId64" dimension array with %"PRId64" indices",
             repr_data->num_dimensions, num_indices);
     }
 }
@@ -629,7 +629,7 @@ static void bind_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *ro
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "Cannot access %d dimension array with %d indices",
+            "Cannot access %"PRId64" dimension array with %"PRId64" indices",
             repr_data->num_dimensions, num_indices);
     }
 }
@@ -668,7 +668,7 @@ static void set_dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "Array type of %d dimensions cannot be intialized with %d dimensions",
+            "Array type of %"PRId64" dimensions cannot be intialized with %"PRId64" dimensions",
             repr_data->num_dimensions, num_dimensions);
     }
 }
