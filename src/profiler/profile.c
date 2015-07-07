@@ -57,32 +57,53 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
     MVMObject *alloc_list = new_array(tc);
     MVMuint32  i;
 
-    /* Try to resolve the code filename and line number. */
-    MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc,
-        &(pcn->sf->body), 0);
-    MVMint32 fshi = annot ? (MVMint32)annot->filename_string_heap_index : -1;
+    /* Let's see if we're dealing with a native call or a regular moar call */
+    if (pcn->sf) {
+        /* Try to resolve the code filename and line number. */
+        MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc,
+            &(pcn->sf->body), 0);
+        MVMint32 fshi = annot ? (MVMint32)annot->filename_string_heap_index : -1;
 
-    /* Add name of code object. */
-    MVM_repr_bind_key_o(tc, node_hash,
-        pds->name, box_s(tc, pcn->sf->body.name));
+        /* Add name of code object. */
+        MVM_repr_bind_key_o(tc, node_hash, pds->name,
+            box_s(tc, pcn->sf->body.name));
 
-    /* Add line number and file name. */
-    if (fshi >= 0 && fshi < pcn->sf->body.cu->body.num_strings)
-        MVM_repr_bind_key_o(tc, node_hash, pds->file,
-            box_s(tc, pcn->sf->body.cu->body.strings[fshi]));
-    else if (pcn->sf->body.cu->body.filename)
-        MVM_repr_bind_key_o(tc, node_hash, pds->file,
-            box_s(tc, pcn->sf->body.cu->body.filename));
-    else
+        /* Add line number and file name. */
+        if (fshi >= 0 && fshi < pcn->sf->body.cu->body.num_strings)
+            MVM_repr_bind_key_o(tc, node_hash, pds->file,
+                box_s(tc, pcn->sf->body.cu->body.strings[fshi]));
+        else if (pcn->sf->body.cu->body.filename)
+            MVM_repr_bind_key_o(tc, node_hash, pds->file,
+                box_s(tc, pcn->sf->body.cu->body.filename));
+        else
+            MVM_repr_bind_key_o(tc, node_hash, pds->file,
+                box_s(tc, tc->instance->str_consts.empty));
+        MVM_repr_bind_key_o(tc, node_hash, pds->line,
+            box_i(tc, annot ? (MVMint32)annot->line_number : -1));
+        MVM_free(annot);
+
+        /* Use static frame memory address to get a unique ID. */
+        MVM_repr_bind_key_o(tc, node_hash, pds->id,
+            box_i(tc, (MVMint64)pcn->sf));
+    } else {
+        MVMString *function_name_string =
+            MVM_string_utf8_decode(tc, tc->instance->boot_types.BOOTStr,
+                                   pcn->native_target_name, strlen(pcn->native_target_name));
+
+        fprintf(stderr, "dumping the call node for a native named %s.\n", pcn->native_target_name);
+
+        MVM_repr_bind_key_o(tc, node_hash, pds->name,
+            box_s(tc, function_name_string));
         MVM_repr_bind_key_o(tc, node_hash, pds->file,
             box_s(tc, tc->instance->str_consts.empty));
-    MVM_repr_bind_key_o(tc, node_hash, pds->line,
-        box_i(tc, annot ? (MVMint32)annot->line_number : -1));
-    MVM_free(annot);
 
-    /* Use static frame memory address to get a unique ID. */
-    MVM_repr_bind_key_o(tc, node_hash, pds->id,
-        box_i(tc, (MVMint64)pcn->sf));
+        MVM_repr_bind_key_o(tc, node_hash, pds->line,
+            box_i(tc, -1));
+
+        /* Use the address of the name string as unique ID. a hack, but oh well. */
+        MVM_repr_bind_key_o(tc, node_hash, pds->id,
+            box_i(tc, (MVMint64)pcn->native_target_name));
+    }
 
     /* Entry counts. */
     MVM_repr_bind_key_o(tc, node_hash, pds->entries,

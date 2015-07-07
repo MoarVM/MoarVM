@@ -365,7 +365,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     if (!body->entry_point)
         MVM_exception_throw_adhoc(tc, "Cannot locate symbol '%s' in native library '%s'",
             sym_name, lib_name);
-    MVM_free(sym_name);
+    body->sym_name = sym_name;
 
     /* Set calling convention, if any. */
     body->convention = MVM_nativecall_get_calling_convention(tc, conv);

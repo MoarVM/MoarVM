@@ -5080,6 +5080,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_PROFILE_ENTER_SPESH_INLINE);
                 cur_op += 2;
                 goto NEXT;
+            OP(prof_enternative):
+                MVM_profile_log_enter_native(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
+                goto NEXT;
             OP(prof_exit):
                 MVM_profile_log_exit(tc);
                 goto NEXT;
