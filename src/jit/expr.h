@@ -57,9 +57,9 @@ enum MVMJitExprVtype { /* value type */
     _(CU, 0, 0, MEM), \
     _(FRAME, 0, 0, MEM), \
     _(LOCAL, 0, 0, MEM), \
-    _(FARGS, 0, 0, MEM), \
     _(VMNULL, 0, 0, REG), \
-    _(SPESHSLOT, 0, 0, MEM) \
+    /* End of list marker */ \
+    _(MAX_NODES, 0, 0, VOID),\
 
 
 

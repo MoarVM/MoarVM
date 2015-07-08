@@ -173,8 +173,7 @@ MVMJitExprTree * MVM_jit_build_expression_tree(MVMThreadContext *tc, MVMSpeshGra
         }
         MVM_jit_expr_load_operands(tc, &builder, ins, operands);
         root = MVM_jit_expr_apply_template(tc, &builder, templ, operands);
-        /* assign computed value to computed nodes, at least if we've
-           written something */
+        /* assign computed value to computed nodes */
         if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
             builder.computed[ins->operands[0].reg.orig] = root;
         } else {
@@ -187,7 +186,9 @@ MVMJitExprTree * MVM_jit_build_expression_tree(MVMThreadContext *tc, MVMSpeshGra
     if (ins == NULL) {
         /* Add stores for final values */
         for (i = 0; i < sg->num_locals; i++) {
-            if (builder.computed[i] >= 0 && builder.nodes[builder.computed[i]] != MVM_JIT_LOAD) {
+            if (builder.computed[i] >= 0) {
+                /* NB - this adds a store for a just-loaded variable.
+                 * Need proper CSE to elininate this correctly. */
                 MVMint32 root = MVM_jit_expr_add_storereg(tc, &builder, builder.computed[i], i);
                 builder_add_root(&builder, root);
             }
@@ -201,7 +202,7 @@ MVMJitExprTree * MVM_jit_build_expression_tree(MVMThreadContext *tc, MVMSpeshGra
         tree->num_roots = builder.roots_num;
         memcpy(tree->roots, builder.roots, builder.roots_num*sizeof(MVMint32));
     } else {
-        MVM_jit_log(tc, "Could not build an expression tree: could not get template for %s\n",
+        MVM_jit_log(tc, "Could not build an expression tree, stuck at instruction %s\n",
                     ins->info->name);
     }
     MVM_free(builder.nodes);
@@ -214,7 +215,7 @@ static void walk(MVMThreadContext *tc, MVMJitExprTree *tree,
     MVMJitExprOpInfo *info = &expr_op_info[tree->nodes[i]];
     MVMint32 nchild = info->nchild;
     MVMint32 j;
-    /* visiting on the way down */
+    /* visiting on the way down - NB want to add visitation information */
     traverser->visit(tc, tree, traverser->data, i, MVM_JIT_TREE_DOWN);
     if (nchild < 0) {
         /* take first child as constant signifying the number of children; increment

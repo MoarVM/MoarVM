@@ -5,56 +5,54 @@
 # opcode preprocessor inserts loads, and immediate nodes for arguments
 # automatically.
 
-const_i16: (copy $1)
-const_i64:   (copy $1)
-set:         (copy $1)
-add_i:       (add $1 $2)
-sub_i:       (sub $1 $2)
-inc_i:       (add $1 (const 1 (&sizeof MVMint64)))
-dec_i:       (sub $1 (const 1 (&sizeof MVMint64)))
+(template: const_i16 (copy $1))
+(template: const_i64 (copy $1))
+(template: set (copy $1))
+(template: add_i (add $1 $2))
+(template: sub_i (sub $1 $2))
+(template: inc_i (add $1 (const 1 (&sizeof MVMint64))))
+(template: dec_i (sub $1 (const 1 (&sizeof MVMint64))))
 
+# Macro for getting frame arg address
+(macro: ^parg (,a) (idx (load (addr (frame) (&offsetof MVMFrame params.args))) ,a reg_sz))
+# we should read this too
+(template: sp_getarg_o (load (^parg $1) ptr_sz))
+(template: sp_getarg_i (load (^parg $1) (&sizeof MVMint64)))
 
-
-sp_getarg_o: (load (idx (fargs) $1 reg_sz) ptr_sz)
-sp_getarg_i: (load (idx (fargs) $1 reg_sz) (&sizeof MVMint64))
-MACRO! (^p6obody (,a) (let (($replace (load (addr ,a (&offsetof MVMP6opaque body.replaced)) ptr_sz)))
+(macro: ^p6obody (,a) (let (($replace (load (addr ,a (&offsetof MVMP6opaque body.replaced)) ptr_sz)))
                       (if (nz $replace)
                            $replace
                            (addr ,a (&offsetof MVMP6opaque body)))))
 
-sp_p6oget_i: (load (add (^p6obody $1) $2) (&sizeof MVMint64))
-sp_p6oget_n: (load (add (^p6obody $1) $2) (&sizeof MVMnum64))
-sp_p6oget_s: (load (add (^p6obody $1) $2) ptr_sz)
-sp_p6obind_i: (store (add (^p6obody $0) $1) $2 reg_sz)
-sp_p6obind_n: (store (add (^p6obody $0) $1) $2 reg_sz)
-
-null_s:      (const 0 ptr_sz)
-null:        (vmnull)
+(template: sp_p6oget_i (load (add (^p6obody $1) $2) (&sizeof MVMint64)))
+(template: sp_p6oget_n (load (add (^p6obody $1) $2) (&sizeof MVMnum64)))
+(template: sp_p6oget_s (load (add (^p6obody $1) $2) ptr_sz))
+(template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 reg_sz))
+(template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 reg_sz))
 
 
-MACRO!       (^stable (,a) (load (addr ,a (&offsetof MVMObject st))))
-getwhat:     (load (addr (^stable $1) (&offsetof MVMSTable WHAT)) ptr_sz)
-# getwho is getwhat with a nonzero check
-getwho:      (let (($who (load (addr (^stable $1) (&offsetof MVMSTable WHO)) ptr_sz)))
-                  (ifelse (nz $who) $who (vmnull)))
+(template: null_s (const 0 ptr_sz))
+(template: null (vmnull))
+                                 
+(macro: ^stable (,a) (load (addr ,a (&offsetof MVMObject st))))
+(template: getwhat (load (addr (^stable $1) (&offsetof MVMSTable WHAT)) ptr_sz))
+(template: getwho  (let (($who (load (addr (^stable $1) (&offsetof MVMSTable WHO)) ptr_sz)))
+                         (ifelse (nz $who) $who (vmnull))))
 
-# This is perhaps a bit long for a simple function
-say:         (call (const (&funcptr &MVM_string_say) ptr_sz)
-                   (arglist 2 (carg (tc) ptr_sz)
-                              (carg $0 ptr_sz))
-                    void)
+(template: say (call (const (&funcptr &MVM_string_say) ptr_sz)
+                     (arglist 2 (carg (tc) ptr_sz)
+                                (carg $0 ptr_sz))
+                     void))
 
+(macro: ^cu_string (,a) (idx (load (addr (cu) (&offsetof MVMCompUnit body.strings)) ptr_sz)
+                                    ,a ptr_sz))
 
-MACRO! (^get_string (,a) (load (idx (load (addr (cu) (&offsetof MVMCompUnit body.strings)) ptr_sz)
-                                    ,a ptr_sz) ptr_sz))
+(template: getlex_no (let (($res (call (&funcptr &MVM_frame_find_lexical_by_name)
+                                       (arglist 3 (carg (tc) ptr_sz)
+                                                  (carg (load (^cu_string $1) ptr_sz) ptr_sz)
+                                                  (carg 8 ptr_sz))
+                                       reg_val)))
+                           (ifelse (nz $res) (load $res ptr_sz) $res)))
 
-getlex_no:   (let  (($res (call (&funcptr &MVM_frame_find_lexical_by_name)
-                               (arglist 3 (carg (tc) ptr_sz)
-                                          (carg (^get_string $1) ptr_sz)
-                                          (carg 8 ptr_sz))
-                               reg_val)))
-                   (ifelse (nz $res) (load $res ptr_sz) $res))
-
-MACRO! (^get_ss (,a) (load (idx
-                                (load (addr (frame) (&offsetof MVMFrame effective_spesh_slots)))
-                                 ,a ptr_sz)))
+(macro: ^spesh_slot (,a) (idx (load (addr (frame) (&offsetof MVMFrame effective_spesh_slots)))
+                               ,a ptr_sz))

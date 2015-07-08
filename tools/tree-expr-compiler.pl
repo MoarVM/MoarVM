@@ -40,8 +40,7 @@ $INPUT = \*STDIN unless defined $INPUT;
 
 
 sub parse_sexp {
-    # raw parameter is not passed, because it only applies to top-level arguments
-    my ($expr, $raw) = @_;
+    my $expr = shift;
     my $tree = [];
     # consume initial opening parenthesis
     return (undef, $expr) unless $expr =~ m/^\s*\(/;
@@ -55,14 +54,14 @@ sub parse_sexp {
         } elsif (substr($expr, 0, 1) eq ')') {
             $expr = substr $expr, 1;
             last;
-        } elsif ($expr =~ m/^[&\$^,]?[\w\.\[\]_\*]+/) {
+        } elsif ($expr =~ m/^[&\$^,]?[\w\.\[\]_\*]+:?/) {
             push @$tree, substr($expr, $-[0], $+[0] - $-[0]);
             $expr = substr $expr, $+[0];
         } else {
             die "Could not parse $expr";
         }
     }
-    if (!$raw && @$tree && substr($tree->[0], 0, 1) eq '^') {
+    if (@$tree && substr($tree->[0], 0, 1) eq '^') {
         if (defined $MACROS{$tree->[0]}) {
             $tree = apply_macro($MACROS{$tree->[0]}, $tree);
         } else {
@@ -88,12 +87,12 @@ sub compile_template {
 
 sub apply_macro {
     my ($macro, $tree) = @_;
-    my $params = $macro->[1];
+    my $params = $macro->[0];
     my $args   = [@$tree[1..$#$tree]];
     die "Incorrect number of args, got ".@$args." expected ".@$params unless @$args == @$params;
     my %bind;
     @bind{@$params} = @$args;
-    return fill_macro($macro->[2], \%bind);
+    return fill_macro($macro->[1], \%bind);
 }
 
 sub fill_macro {
@@ -227,7 +226,7 @@ if ($TESTING) {
     is ($complex->{desc}, '.f.l...fl.');
     is_deeply($complex->{template}, [qw(MJ_BAR 1 MJ_ZAF 0 3 MJ_FOO MJ_ZUM 2 2 sizeof(int))]);
 
-    eval { my ($macro, $rest) = parse_sexp('(^foo (,a) (quix quam ,a))', 1);
+    eval { my ($macro, $rest) = parse_sexp('((,a) (quix quam ,a))', 1);
            $MACROS{'^foo'} = $macro; };
     ok !$@, 'macro parsing lives';
     my ($macrod, $restmacro) = parse_sexp('(oh (^foo $1) hai)');
@@ -250,46 +249,43 @@ if ($TESTING) {
     # syntax. generate template info table and template array
     my %info;
     my @templates;
-
-    while (!eof($INPUT)) {
+    my ($expr, $open, $close) = ('', 0, 0);
+    READ: while (!eof($INPUT)) {
         my $line = <$INPUT>;
-        # skip empty lines and comments
         next if $line =~ m/^#|^\s*$/;
-        die "Name not parsed" unless $line =~ m/^\w+[:!]/;
-        my $name = substr($line, 0, $+[0]);
-        my $expr   = substr($line, $+[0]);
+        $expr .= $line;
         # count parentheses
-        my $open   = $expr =~ tr/(//;
-        my $close  = $expr =~ tr/)//;
-        while ($open > $close) {
-            die "End of input with unclosed tree template" if eof($INPUT);
-            $line = <$INPUT>;
-            die "Name in unclosed tree template '$line'" if $line =~ m/^\w+[:!]/;
-            $expr  .= $line;
-            $open  += $line =~ tr/(//;
-            $close += $line =~ tr/)//;
-        }
-        # parse (raw if reading macro)
-        my ($parsed, $rest) = parse_sexp($expr, $name eq 'MACRO!');
-        die "Unparsed text after expression: '$rest'" unless $rest =~ m/^\s*$/;
-        if ($name eq 'MACRO!') {
-            my $def = $parsed->[0];
-            die "Redeclaration of macro $def" if defined $MACROS{$def};
-            $MACROS{$def} = $parsed;
-        } elsif (substr($name, -1) eq ':') {
-            my $opcode = substr($name, 0, -1);
-            die "Opcode '$opcode' unknown" unless defined $names{$opcode};
-            my $compiled = compile_template($parsed);
-            my $idx = scalar(@templates); # template index into array is current array top
-            $info{$opcode} = { idx => $idx, info => $compiled->{desc},
-                               root => $compiled->{root},
-                               len => length($compiled->{desc}) };
-            push @templates, @{$compiled->{template}};
-        } else {
-            die "I don't know what to do with $name";
-        }
+        do {
+            $open   = $expr =~ tr/(//;
+            $close  = $expr =~ tr/)//;
+            next READ if ($open == 0) || ($open > $close);
+            my ($tree, $rest) = parse_sexp($expr);
+            my $keyword = shift @$tree;
+            if ($keyword eq 'macro:') {
+                my $name = shift @$tree;
+                die "Macro name '$name' must start with ^ symbol" unless substr($name,0,1) eq '^';
+                die "Redeclaration of macro $name" if defined $MACROS{$name};
+                $MACROS{$name} = $tree;
+            } elsif ($keyword eq 'template:') {
+                my $opcode   = shift @$tree;
+                my $template = shift @$tree;
+                die "Opcode '$opcode' unknown" unless defined $names{$opcode};
+                die "Opcode '$opcode' redefined" if defined $info{$opcode};
+                my $compiled = compile_template($template);
+                my $idx = scalar(@templates); # template index into array is current array top
+                $info{$opcode} = { idx => $idx, info => $compiled->{desc},
+                                   root => $compiled->{root},
+                                   len => length($compiled->{desc}) };
+                push @templates, @{$compiled->{template}};
+            } else {
+                die "I don't know what to do with '$keyword' ";
+            }
+            # Continue with rest of expression
+            $expr = $rest;
+        } while ($open == $close);
     }
-
+    die "End of input with unclosed template" if $open > $close;
+    close $INPUT;
     # write a c output header file.
     print $OUTPUT <<"HEADER";
 /* FILE AUTOGENERATED BY $0. DO NOT EDIT.
