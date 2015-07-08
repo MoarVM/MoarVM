@@ -39,7 +39,8 @@
 (template: getwho  (let (($who (load (addr (^stable $1) (&offsetof MVMSTable WHO)) ptr_sz)))
                          (ifelse (nz $who) $who (vmnull))))
 
-(template: say (call (const (&funcptr &MVM_string_say) ptr_sz)
+(macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
+(template: say (call (^func &MVM_string_say)
                      (arglist 2 (carg (tc) ptr_sz)
                                 (carg $0 ptr_sz))
                      void))
@@ -47,7 +48,7 @@
 (macro: ^cu_string (,a) (idx (load (addr (cu) (&offsetof MVMCompUnit body.strings)) ptr_sz)
                                     ,a ptr_sz))
 
-(template: getlex_no (let (($res (call (&funcptr &MVM_frame_find_lexical_by_name)
+(template: getlex_no (let (($res (call (^func &MVM_frame_find_lexical_by_name)
                                        (arglist 3 (carg (tc) ptr_sz)
                                                   (carg (load (^cu_string $1) ptr_sz) ptr_sz)
                                                   (carg 8 ptr_sz))
