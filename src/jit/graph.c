@@ -2449,9 +2449,9 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb->cur_ins = jgb->cur_ins->next;
     }
     /* for giggles, try to create an expression tree */
-    tree = MVM_jit_build_expression_tree(tc, jgb->sg, bb);
+    tree = MVM_jit_expr_tree_build(tc, jgb->sg, bb);
     if (tree != NULL) {
-        MVM_jit_dump_tree(tc, tree);
+        MVM_jit_expr_tree_dump(tc, tree);
     }
     return 1;
 }

@@ -15,148 +15,147 @@ static MVMJitExprOpInfo expr_op_info[] = {
 #undef OP_INFO
 };
 
-typedef struct {
-    MVMJitGraph    *graph;
-    MVMJitExprNode *nodes;
-    MVMint32       *computed;
-    MVMint32       *roots;
-    MVMint32        num;
-    MVMint32        alloc;
-    MVMint32        roots_num;
-    MVMint32        roots_alloc;
-}  MVMJitTreeBuilder;
 
-static inline void builder_make_space(MVMJitTreeBuilder *builder, MVMint32 space) {
-    if (builder->num + space >= builder->alloc) {
-        builder->alloc *= 2;
-        builder->nodes = MVM_realloc(builder->nodes, builder->alloc*sizeof(MVMJitExprNode));
-    }
-}
 
-static inline void builder_append_direct(MVMJitTreeBuilder *builder, MVMJitExprNode *template,
-                                         MVMint32 len) {
-    builder_make_space(builder, len);
-    memcpy(builder->nodes + builder->num, template, len*sizeof(MVMJitExprNode));
-    builder->num += len;
-}
 
-static inline void builder_add_root(MVMJitTreeBuilder *builder, MVMint32 node) {
-    if (builder->roots_num + 1 >= builder->roots_alloc) {
-        builder->roots_alloc *= 2;
-        builder->roots = MVM_realloc(builder->roots, builder->roots_alloc*sizeof(MVMint32));
-    }
-    builder->roots[builder->roots_num++] = node;
-}
-
-static MVMint32 MVM_jit_expr_add_loadreg(MVMThreadContext *tc, MVMJitTreeBuilder *builder,
+static MVMint32 MVM_jit_expr_add_loadreg(MVMThreadContext *tc, MVMJitExprTree *tree,
                                          MVMuint16 reg) {
-    MVMint32 num        = builder->num;
+    MVMint32 num        = tree->nodes_num;
     MVMJitExprNode template[] = { MVM_JIT_LOCAL,
                                   MVM_JIT_ADDR, num, reg * MVM_JIT_REG_SZ,
                                   MVM_JIT_LOAD, num + 1, MVM_JIT_REG_SZ };
-    builder_append_direct(builder, template, sizeof(template)/sizeof(MVMJitExprNode));
+    MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num + 4;
 }
 
 
-static MVMint32 MVM_jit_expr_add_storereg(MVMThreadContext *tc, MVMJitTreeBuilder *builder,
+static MVMint32 MVM_jit_expr_add_storereg(MVMThreadContext *tc, MVMJitExprTree *tree,
                                           MVMint32 node, MVMuint16 reg) {
-    MVMint32 num = builder->num;
+    MVMint32 num = tree->nodes_num;
     MVMJitExprNode template[] = { MVM_JIT_LOCAL,
                                   MVM_JIT_ADDR, num, reg * MVM_JIT_REG_SZ,
                                   MVM_JIT_STORE, num + 1, node, MVM_JIT_REG_SZ };
-    builder_append_direct(builder, template, sizeof(template)/sizeof(MVMJitExprNode));
+    MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num + 4;
 }
 
 
-static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitTreeBuilder *builder,
+static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tree,
                                        MVMSpeshOperand opr, MVMuint8 info) {
     /* TODO implement this properly; this only works correctly for 64 bit values */
     MVMJitExprNode template[]  = { MVM_JIT_CONST, opr.lit_i64, sizeof(MVMint64) };
-    MVMint32 num               = builder->num;
-    builder_append_direct(builder, template, sizeof(template)/sizeof(MVMJitExprNode));
+    MVMint32 num               = tree->nodes_num;
+    MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
 }
 
-void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitTreeBuilder *builder,
-                                MVMSpeshIns *ins, MVMint32 *operands) {
+void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMSpeshIns *ins,
+                                MVMint32 *computed, MVMint32 *operands) {
     MVMint32 i;
     for (i = 0; i < ins->info->num_operands; i++) {
         MVMSpeshOperand opr = ins->operands[i];
         switch(ins->info->operands[i] & MVM_operand_rw_mask) {
         case MVM_operand_read_reg:
-            if (builder->computed[opr.reg.orig] > 0) {
-                operands[i] = builder->computed[opr.reg.orig];
+            if (computed[opr.reg.orig] > 0) {
+                operands[i] = computed[opr.reg.orig];
             } else {
-                operands[i] = MVM_jit_expr_add_loadreg(tc, builder, opr.reg.orig);
-                builder->computed[opr.reg.orig] = operands[i];
+                operands[i] = MVM_jit_expr_add_loadreg(tc, tree, opr.reg.orig);
+                computed[opr.reg.orig] = operands[i];
             }
             break;
         case MVM_operand_literal:
-            operands[i] = MVM_jit_expr_add_const(tc, builder, opr, ins->info->operands[i]);
+            operands[i] = MVM_jit_expr_add_const(tc, tree, opr, ins->info->operands[i]);
             break;
+        default:
+            continue;
+        }
+        if (operands[i] > tree->nodes_num || operands[i] < 0) {
+            MVM_oops(tc, "I did something wrong with operand loading");
         }
     }
 }
 
+/* This function is to check the internal consistency of a template
+ * before I apply it.  I need this because I make a lot of mistakes in
+ * writing templates, and debugging it is hard. */
+static void check_template(MVMThreadContext *tc, const MVMJitExprTemplate *template, MVMSpeshIns *ins) {
+    MVMint32 i;
+    for (i = 0; i < template->len; i++) {
+        switch(template->info[i]) {
+        case 0:
+            MVM_oops(tc, "JIT: Template info shorter than template length (instruction %s)", ins->info->name);
+            break;
+        case 'l':
+            if (template->code[i] >= i || template->code[i] < 0)
+                MVM_oops(tc, "JIT: Template link out of bounds (instruction: %s)", ins->info->name);
+            break;
+        case 'f':
+            if (template->code[i] >= ins->info->num_operands || template->code[i] < 0)
+                MVM_oops(tc, "JIT: Operand access out of bounds (instruction: %s)", ins->info->name);
+            break;
+        default:
+            continue;
+        }
+    }
+    if (template->info[i])
+        MVM_oops(tc, "JIT: Template info longer than template length (instruction: %s)");
+}
+
 /* Add template to nodes, filling in operands and linking tree nodes. Return template root */
-MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitTreeBuilder *builder,
+MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree,
                                      const MVMJitExprTemplate *template, MVMint32 *operands) {
-    int i, num;
-    num = builder->num;
-    builder_make_space(builder, template->len);
+    MVMint32 i, num;
+    num = tree->nodes_num;
+    MVM_DYNAR_ENSURE(tree->nodes, template->len);
     /* Loop over string until the end */
     for (i = 0; template->info[i]; i++) {
         switch (template->info[i]) {
         case 'l':
             /* link template-relative to nodes-relative */
-            builder->nodes[num+i] = template->code[i] + num;
+            tree->nodes[num+i] = template->code[i] + num;
             break;
         case 'f':
             /* add operand node into the nodes */
-            builder->nodes[num+i] = operands[template->code[i]];
+            tree->nodes[num+i] = operands[template->code[i]];
             break;
         default:
             /* copy from template to nodes */
-            builder->nodes[num+i] = template->code[i];
+            tree->nodes[num+i] = template->code[i];
             break;
         }
     }
-    builder->num = num + template->len;
+    tree->nodes_num = num + template->len;
     return num + template->root; /* root relative to nodes */
 }
 
 /* TODO add labels to the expression tree */
-MVMJitExprTree * MVM_jit_build_expression_tree(MVMThreadContext *tc, MVMSpeshGraph *sg,
-                                               MVMSpeshBB *bb) {
+MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMSpeshGraph *sg,
+                                         MVMSpeshBB *bb) {
     MVMint32 operands[MVM_MAX_OPERANDS];
+    MVMint32 *computed;
     MVMint32 root;
-    MVMJitTreeBuilder builder;
-    MVMJitExprTree *tree = NULL;
+    MVMJitExprTree *tree;
     MVMSpeshIns *ins;
     MVMuint16 i;
-    /* Hold the tree */
-    builder.num      = 0;
-    builder.alloc    = 64;
-    builder.nodes   = MVM_malloc(sizeof(MVMJitExprNode)*builder.alloc);
-    /* Hold it's roots (terminal statements) */
-    builder.roots_alloc = 16;
-    builder.roots_num   = 0;
-    builder.roots       = MVM_malloc(sizeof(MVMint32)*builder.roots_alloc);
+    if (!bb->first_ins)
+        return NULL;
+    /* Make the tree */
+    tree = MVM_malloc(sizeof(MVMJitExprTree));
+    MVM_DYNAR_INIT(tree->nodes, 32);
+    MVM_DYNAR_INIT(tree->roots, 8);
+
     /* Hold indices to the node that last computed a value belonging
      * to a register. Initialized as -1 to indicate that these
      * values are empty. */
-    builder.computed = MVM_malloc(sizeof(MVMint32)*sg->num_locals);
-    memset(builder.computed, -1, sizeof(MVMint32)*sg->num_locals);
-    /* This is very similar to a code generation algorithm for a RISC
-       machine with unlimited registers. (Or at least more registers
-       than used in the expression). The basic idea is to keep a
+    computed = MVM_malloc(sizeof(MVMint32)*sg->num_locals);
+    memset(computed, -1, sizeof(MVMint32)*sg->num_locals);
+    /* Generate a tree based on templates. The basic idea is to keep a
        index to the node that last computed the value of a local.
        Each opcode is translated to the expression using a template,
        which is a): filled with nodes coming from operands and b):
        internally linked together (relative to absolute indexes).
-       NB - templates may insert stores internally as needed. */
+       Afterwards stores are inserted for computed values. */
+
     for (ins = bb->first_ins; ins != NULL; ins = ins->next) {
         /* NB - we probably will want to involve the spesh info in
            selecting a template. And/or add in c function calls to
@@ -170,44 +169,45 @@ MVMJitExprTree * MVM_jit_build_expression_tree(MVMThreadContext *tc, MVMSpeshGra
             /* we don't have a template for this yet, so we can't
              * convert it to an expression */
             break;
+        } else {
+            check_template(tc, templ, ins);
         }
-        MVM_jit_expr_load_operands(tc, &builder, ins, operands);
-        root = MVM_jit_expr_apply_template(tc, &builder, templ, operands);
+
+        MVM_jit_expr_load_operands(tc, tree, ins, computed, operands);
+        root = MVM_jit_expr_apply_template(tc, tree, templ, operands);
         /* assign computed value to computed nodes */
         if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
-            builder.computed[ins->operands[0].reg.orig] = root;
+            computed[ins->operands[0].reg.orig] = root;
         } else {
             /* Terminal, add it to roots */
-            builder_add_root(&builder, root);
+            MVM_DYNAR_PUSH(tree->roots, root);
         }
     }
 
-    /* Reached the end correctly? Build a tree */
     if (ins == NULL) {
         /* Add stores for final values */
         for (i = 0; i < sg->num_locals; i++) {
-            if (builder.computed[i] >= 0) {
-                /* NB - this adds a store for a just-loaded variable.
-                 * Need proper CSE to elininate this correctly. */
-                MVMint32 root = MVM_jit_expr_add_storereg(tc, &builder, builder.computed[i], i);
-                builder_add_root(&builder, root);
+            if (computed[i] >= 0) {
+                /* NB - this adds a store for variables that have only
+                 * loaded. Eliminating this correctly probably requires CSE */
+                MVMint32 root = MVM_jit_expr_add_storereg(tc, tree, computed[i], i);
+                MVM_DYNAR_PUSH(tree->roots, root);
             }
         }
-
-        tree = MVM_spesh_alloc(tc, sg, sizeof(MVMJitExprTree));
-        tree->nodes = MVM_spesh_alloc(tc, sg, builder.num*sizeof(MVMJitExprNode));
-        tree->num_nodes = builder.num;
-        memcpy(tree->nodes, builder.nodes, builder.num*sizeof(MVMJitExprNode));
-        tree->roots = MVM_spesh_alloc(tc, sg, builder.roots_num*sizeof(MVMint32));
-        tree->num_roots = builder.roots_num;
-        memcpy(tree->roots, builder.roots, builder.roots_num*sizeof(MVMint32));
     } else {
         MVM_jit_log(tc, "Could not build an expression tree, stuck at instruction %s\n",
                     ins->info->name);
+        MVM_jit_expr_tree_destroy(tc, tree);
+        tree = NULL;
     }
-    MVM_free(builder.nodes);
-    MVM_free(builder.computed);
+    MVM_free(computed);
     return tree;
+}
+
+void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree) {
+    MVM_free(tree->nodes);
+    MVM_free(tree->roots);
+    MVM_free(tree);
 }
 
 static void walk(MVMThreadContext *tc, MVMJitExprTree *tree,
@@ -230,10 +230,10 @@ static void walk(MVMThreadContext *tc, MVMJitExprTree *tree,
 }
 
 
-void MVM_jit_traverse_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
-                           MVMJitTreeTraverser *traverser) {
+void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
+                                MVMJitTreeTraverser *traverser) {
     MVMint32 i;
-    for (i = 0; i < tree->num_roots; i++) {
+    for (i = 0; i < tree->roots_num; i++) {
         /* TODO deal with nodes with multiple entries */
         walk(tc, tree, traverser, tree->roots[i]);
     }
@@ -270,13 +270,13 @@ static void visit_dump(MVMThreadContext *tc, MVMJitExprTree *tree, void *data,
 }
 
 /* NB - move this to log.c in due course */
-void MVM_jit_dump_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
+void MVM_jit_expr_tree_dump(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
     MVMint32 cur_depth = 0;
     traverser.visit = &visit_dump;
     traverser.data  = &cur_depth;
     MVM_jit_log(tc, "Starting dump of JIT expression tree\n"
                 "=========================================\n");
-    MVM_jit_traverse_tree(tc, tree, &traverser);
+    MVM_jit_expr_tree_traverse(tc, tree, &traverser);
     MVM_jit_log(tc, "End dump of JIT expression tree\n");
 }

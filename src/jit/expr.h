@@ -1,4 +1,3 @@
-
 /* Each node that yields a value has a type. This information can
  * probably be used by the code generator, somehow. */
 enum MVMJitExprVtype { /* value type */
@@ -69,15 +68,13 @@ MVM_JIT_IR_OPS(MVM_JIT_IR_ENUM)
 #undef MVM_JIT_IR_ENUM
 };
 
-
 typedef MVMint64 MVMJitExprNode;
 
 typedef struct {
-    MVMJitExprNode *nodes;
-    MVMint32 *roots;
-    MVMint32 num_nodes;
-    MVMint32 num_roots;
-}  MVMJitExprTree;
+    MVMJitGraph *graph;
+    MVM_DYNAR_DECL(MVMJitExprNode, nodes);
+    MVM_DYNAR_DECL(MVMint32, roots);
+} MVMJitExprTree;
 
 typedef struct {
     const MVMJitExprNode *code;
@@ -88,17 +85,18 @@ typedef struct {
 
 /* not sure what this will look like yet */
 typedef struct {
-    void (*visit)(MVMThreadContext *tc, MVMJitExprTree *tre, void *data,
+    void (*visit)(MVMThreadContext *tc, MVMJitExprTree *tree, void *data,
                   MVMint32 position, MVMint32 direction);
     void *data;
 } MVMJitTreeTraverser;
 
 
-MVMJitExprTree * MVM_jit_build_expression_tree(MVMThreadContext *tc, MVMSpeshGraph *sg,
-                                               MVMSpeshBB *bb);
 #define MVM_JIT_TREE_DOWN 0
 #define MVM_JIT_TREE_UP 1
 
-void MVM_jit_traverse_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
-                           MVMJitTreeTraverser *traverser);
-void MVM_jit_dump_tree(MVMThreadContext *tc, MVMJitExprTree *tree);
+MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMSpeshGraph *sg,
+                                         MVMSpeshBB *bb);
+void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
+                                MVMJitTreeTraverser *traverser);
+void MVM_jit_expr_tree_dump(MVMThreadContext *tc, MVMJitExprTree *tree);
+void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree);
