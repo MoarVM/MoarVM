@@ -348,7 +348,9 @@ MVMArgInfo MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MV
     for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) { \
         if (MVM_string_equal(tc, ctx->args[arg_pos].s, name)) { \
             if (ctx->named_used[(arg_pos - ctx->num_pos)/2]) { \
-                MVM_exception_throw_adhoc(tc, "Named argument '%s' already used", MVM_string_utf8_encode_C_string(tc, name)); \
+                char *c_name = MVM_string_utf8_encode_C_string(tc, name); \
+                char *waste[] = { c_name, NULL }; \
+                MVM_exception_throw_adhoc_free(tc, waste, "Named argument '%s' already used", c_name); \
             } \
             result.arg    = ctx->args[arg_pos + 1]; \
             result.flags  = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos]; \
@@ -357,9 +359,11 @@ MVMArgInfo MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MV
             break; \
         } \
     } \
-    if (!result.exists && required) \
-        MVM_exception_throw_adhoc(tc, "Required named parameter '%s' not passed", MVM_string_utf8_encode_C_string(tc, name)); \
-     \
+    if (!result.exists && required) { \
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name); \
+        char *waste[] = { c_name, NULL }; \
+        MVM_exception_throw_adhoc_free(tc, waste, "Required named parameter '%s' not passed", c_name); \
+    } \
 } while (0)
 
 MVMArgInfo MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
@@ -398,11 +402,14 @@ void MVM_args_assert_nameds_used(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         MVMuint16 size = (ctx->arg_count - ctx->num_pos) / 2;
         MVMuint16 i;
         for (i = 0; i < size; i++)
-            if (!ctx->named_used[i])
-                MVM_exception_throw_adhoc(tc,
+            if (!ctx->named_used[i]) {
+                char *c_param = MVM_string_utf8_encode_C_string(tc,
+                    ctx->args[ctx->num_pos + 2 * i].s);
+                char *waste[] = { c_param, NULL };
+                MVM_exception_throw_adhoc_free(tc, waste,
                     "Unexpected named parameter '%s' passed",
-                    MVM_string_utf8_encode_C_string(tc,
-                        ctx->args[ctx->num_pos + 2 * i].s));
+                    c_param);
+            }
     }
 }
 

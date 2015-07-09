@@ -48,9 +48,11 @@ static void die_over_missing_method(MVMThreadContext *tc, MVMObject *obj, MVMStr
         return;
     }
     else {
-        MVM_exception_throw_adhoc(tc,
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
             "Cannot find method '%s'",
-            MVM_string_utf8_encode_C_string(tc, name));
+            c_name);
     }
 }
 static void late_bound_find_method_return(MVMThreadContext *tc, void *sr_data) {
@@ -74,10 +76,13 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
     MVMObject *cache, *HOW, *find_method, *code;
     MVMCallsite *findmeth_callsite;
 
-    if (MVM_is_null(tc, obj))
-        MVM_exception_throw_adhoc(tc,
+    if (MVM_is_null(tc, obj)) {
+        char *c_name  = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
             "Cannot call method '%s' on a null object",
-             MVM_string_utf8_encode_C_string(tc, name));
+             c_name);
+    }
 
     /* First try to find it in the cache. If we find it, we have a result.
      * If we don't find it, but the cache is authoritative, then error. */
@@ -99,10 +104,13 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
     HOW = MVM_6model_get_how(tc, STABLE(obj));
     find_method = MVM_6model_find_method_cache_only(tc, HOW,
         tc->instance->str_consts.find_method);
-    if (MVM_is_null(tc, find_method))
-        MVM_exception_throw_adhoc(tc,
+    if (MVM_is_null(tc, find_method)) {
+        char *c_name  = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
             "Cannot find method '%s': no method cache and no .^find_method",
-             MVM_string_utf8_encode_C_string(tc, name));
+             c_name);
+    }
 
     /* Set up the call, using the result register as the target. */
     code = MVM_frame_find_invokee(tc, find_method, NULL);
@@ -163,10 +171,13 @@ static void late_bound_can_return(MVMThreadContext *tc, void *sr_data) {
 MVMint64 MVM_6model_can_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
     MVMObject *cache;
 
-    if (MVM_is_null(tc, obj))
-        MVM_exception_throw_adhoc(tc,
+    if (MVM_is_null(tc, obj)) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
             "Cannot look for method '%s' on a null object",
-             MVM_string_utf8_encode_C_string(tc, name));
+             c_name);
+    }
 
     /* Consider the method cache. */
     cache = get_method_cache(tc, STABLE(obj));

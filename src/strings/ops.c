@@ -1595,8 +1595,10 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
         return MVM_encoding_type_utf16;
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Unknown string encoding: '%s'",
-            MVM_string_utf8_encode_C_string(tc, name));
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Unknown string encoding: '%s'",
+            c_name);
     }
 }
 

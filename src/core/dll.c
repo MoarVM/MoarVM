@@ -28,7 +28,8 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
 
     if (!lib) {
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);
-        MVM_exception_throw_adhoc(tc, "failed to load library '%s'", cpath);
+        char *waste[] = { cpath, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "failed to load library '%s'", cpath);
     }
 
     MVM_free(cpath);
