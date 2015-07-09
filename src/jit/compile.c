@@ -25,7 +25,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     dasm_init(&state, 2);
     dasm_setupglobal(&state, dasm_globals, num_globals);
     dasm_setup(&state, MVM_jit_actions());
-    dasm_growpc(&state, jg->num_labels);
+    dasm_growpc(&state, jg->labels_num);
 
     /* generate code */
     MVM_jit_emit_prologue(tc, jg,  &state);
@@ -87,7 +87,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     code->sf         = jg->sg->sf;
 
     /* Get the basic block labels */
-    code->num_labels = jg->num_labels;
+    code->num_labels = jg->labels_num;
     code->labels = MVM_malloc(sizeof(void*) * code->num_labels);
     for (i = 0; i < code->num_labels; i++) {
         MVMint32 offset = dasm_getpclabel(&state, i);
@@ -98,15 +98,15 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 
     /* Copy the deopts, inlines, and handlers. Because these use the label index
      * rather than the direct pointer, no fixup is necessary */
-    code->num_bbs      = jg->num_bbs;
-    code->bb_labels    = COPY_ARRAY(jg->bb_labels, jg->num_bbs, MVMint32);
+    code->num_bbs      = jg->bbs_num;
+    code->bb_labels    = COPY_ARRAY(jg->bbs, jg->bbs_num, MVMint32);
 
-    code->num_deopts   = jg->num_deopts;
-    code->deopts       = code->num_deopts ? COPY_ARRAY(jg->deopts, jg->num_deopts, MVMJitDeopt) : NULL;
-    code->num_handlers = jg->num_handlers;
-    code->handlers     = code->num_handlers ? COPY_ARRAY(jg->handlers, jg->num_handlers, MVMJitHandler) : NULL;
-    code->num_inlines  = jg->num_inlines;
-    code->inlines      = code->num_inlines ? COPY_ARRAY(jg->inlines, jg->num_inlines, MVMJitInline) : NULL;
+    code->num_deopts   = jg->deopts_num;
+    code->deopts       = code->num_deopts ? COPY_ARRAY(jg->deopts, jg->deopts_num, MVMJitDeopt) : NULL;
+    code->num_handlers = jg->handlers_num;
+    code->handlers     = code->num_handlers ? COPY_ARRAY(jg->handlers, jg->handlers_alloc, MVMJitHandler) : NULL;
+    code->num_inlines  = jg->inlines_num;
+    code->inlines      = code->num_inlines ? COPY_ARRAY(jg->inlines, jg->inlines_alloc, MVMJitInline) : NULL;
 
     /* clear up the assembler */
     dasm_free(&state);

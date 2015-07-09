@@ -5,22 +5,14 @@ struct MVMJitGraph {
     MVMJitNode    *first_node;
     MVMJitNode    *last_node;
 
-    /* total number of labels, including deopt labels, handler labels,
-       and inline start-stops labels */
-    MVMint32       num_labels;
+    /* All labeled things */
+    MVM_DYNAR_DECL(void*, labels);
     /* bb labels are all basic block label numbers, indexed by basic
        block number */
-    MVMint32       num_bbs;
-    MVMint32      *bb_labels;
-    
-    MVMint32       num_deopts;
-    MVMJitDeopt   *deopts;
-
-    MVMint32       num_handlers;
-    MVMJitHandler *handlers;
-    
-    MVMint32       num_inlines;
-    MVMJitInline  *inlines;
+    MVM_DYNAR_DECL(MVMint32, bbs);
+    MVM_DYNAR_DECL(MVMJitDeopt, deopts);
+    MVM_DYNAR_DECL(MVMJitHandler, handlers);
+    MVM_DYNAR_DECL(MVMJitInline, inlines);
 };
 
 struct MVMJitDeopt {
