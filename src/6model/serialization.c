@@ -503,11 +503,14 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
     MVMObject *scr = (MVMObject *)(((MVMCode *)closure)->body.sf)->body.static_code;
 
     if (scr == NULL || MVM_sc_get_obj_sc(tc, scr) == NULL) {
-        if (fatal)
-            MVM_exception_throw_adhoc(tc,
+        if (fatal) {
+            char *c_name = MVM_string_utf8_encode_C_string(tc,
+                    (((MVMCode *)closure)->body.sf)->body.name);
+            char *waste[] = { c_name, NULL };
+            MVM_exception_throw_adhoc_free(tc, waste,
                 "Serialization Error: missing static code ref for closure '%s'",
-                MVM_string_utf8_encode_C_string(tc,
-                    (((MVMCode *)closure)->body.sf)->body.name));
+                c_name);
+        }
         return NULL;
     }
     return scr;

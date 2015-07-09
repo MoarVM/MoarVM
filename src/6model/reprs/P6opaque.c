@@ -201,7 +201,9 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
 MVM_NO_RETURN
 static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) {
     MVMuint64 output_size;
-    MVM_exception_throw_adhoc(tc, "P6opaque: no such attribute '%s'", MVM_string_ascii_encode(tc, name, &output_size));
+    char *c_name = MVM_string_ascii_encode(tc, name, &output_size);
+    char *waste[] = { c_name, NULL };
+    MVM_exception_throw_adhoc_free(tc, waste, "P6opaque: no such attribute '%s'", c_name);
 }
 
 /* Gets the current value for an attribute. */

@@ -344,8 +344,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Helper for complaining about attribute access errors. */
 MVM_NO_RETURN static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) MVM_NO_RETURN_GCC;
 static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) {
-    MVM_exception_throw_adhoc(tc, "Can not %s non-existent attribute '%s'",
-        action, MVM_string_utf8_encode_C_string(tc, name));
+    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+    char *waste[] = { c_name, NULL };
+    MVM_exception_throw_adhoc_free(tc, waste, "Can not %s non-existent attribute '%s'",
+        action, c_name);
 }
 
 /* Helper to die because this type doesn't support attributes. */

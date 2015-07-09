@@ -281,16 +281,20 @@ static MVMObject * lexref_by_name(MVMThreadContext *tc, MVMObject *type, MVMStri
                     return reg_or_lex_ref(tc, type, cur_frame, &cur_frame->env[entry->value], kind);
                 }
                 else {
-                   MVM_exception_throw_adhoc(tc,
+                    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                    char *waste[] = { c_name, NULL };
+                    MVM_exception_throw_adhoc_free(tc, waste,
                         "Lexical with name '%s' has wrong type",
-                            MVM_string_utf8_encode_C_string(tc, name));
+                            c_name);
                 }
             }
         }
         cur_frame = cur_frame->outer;
     }
-    MVM_exception_throw_adhoc(tc, "No lexical found with name '%s'",
-        MVM_string_utf8_encode_C_string(tc, name));
+    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+    char *waste[] = { c_name, NULL };
+    MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
+        c_name);
 }
 MVMObject * MVM_nativeref_lex_name_i(MVMThreadContext *tc, MVMString *name) {
     MVMObject *ref_type = MVM_hll_current(tc)->int_lex_ref;

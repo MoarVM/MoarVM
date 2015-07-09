@@ -42,21 +42,27 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     MVMFrame       *frame = body->context;
     MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
     if (!lexical_names) {
-       MVM_exception_throw_adhoc(tc,
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
             "Lexical with name '%s' does not exist in this frame",
-                MVM_string_utf8_encode_C_string(tc, name));
+                c_name);
     }
     MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, lexical_names, name, entry);
     if (!entry) {
-       MVM_exception_throw_adhoc(tc,
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
             "Lexical with name '%s' does not exist in this frame",
-                MVM_string_utf8_encode_C_string(tc, name));
+                c_name);
     }
     if (frame->static_info->body.lexical_types[entry->value] != kind) {
-       MVM_exception_throw_adhoc(tc,
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
             "Lexical with name '%s' has a different type in this frame",
-                MVM_string_utf8_encode_C_string(tc, name));
+                c_name);
     }
     *result = frame->env[entry->value];
     if (kind == MVM_reg_obj && !result->o)
@@ -69,21 +75,27 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVMFrame       *frame = body->context;
     MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
     if (!lexical_names) {
-       MVM_exception_throw_adhoc(tc,
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
             "Lexical with name '%s' does not exist in this frame",
-                MVM_string_utf8_encode_C_string(tc, name));
+                c_name);
     }
     MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, lexical_names, name, entry);
     if (!entry) {
-       MVM_exception_throw_adhoc(tc,
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
             "Lexical with name '%s' does not exist in this frame",
-                MVM_string_utf8_encode_C_string(tc, name));
+                c_name);
     }
     if (frame->static_info->body.lexical_types[entry->value] != kind) {
-       MVM_exception_throw_adhoc(tc,
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
             "Lexical with name '%s' has a different type in this frame",
-                MVM_string_utf8_encode_C_string(tc, name));
+                c_name);
     }
     frame->env[entry->value] = value;
 }
