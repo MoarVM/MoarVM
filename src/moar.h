@@ -101,6 +101,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "core/args.h"
 #include "core/exceptions.h"
 #include "core/alloc.h"
+#include "core/dynar.h"
 #include "core/frame.h"
 #include "core/callstack.h"
 #include "core/validation.h"

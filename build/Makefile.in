@@ -227,6 +227,7 @@ HEADERS = src/moar.h \
           src/core/exceptions.h \
           src/core/interp.h \
           src/core/alloc.h \
+          src/core/dynar.h \
           src/core/frame.h \
           src/core/callstack.h \
           src/core/compunit.h \
