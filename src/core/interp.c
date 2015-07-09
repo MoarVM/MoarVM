@@ -260,9 +260,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMRegister *r = MVM_frame_find_lexical_by_name(tc, str, MVM_reg_obj);
                 if (r)
                     r->o = GET_REG(cur_op, 4).o;
-                else
-                    MVM_exception_throw_adhoc(tc, "Cannot bind to non-existing object lexical '%s'",
-                        MVM_string_utf8_encode_C_string(tc, str));
+                else {
+                    char *c_str = MVM_string_utf8_encode_C_string(tc, str);
+                    char *waste[] = { c_str, NULL };
+                    MVM_exception_throw_adhoc_free(tc, waste, "Cannot bind to non-existing object lexical '%s'",
+                        c_str);
+                }
                 cur_op += 6;
                 goto NEXT;
             }
@@ -3026,9 +3029,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMSTable *st   = STABLE(GET_REG(cur_op, 0).o);
                 MVMString *name = GET_REG(cur_op, 2).s;
                 const MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc, name);
-                if (cc == NULL)
-                    MVM_exception_throw_adhoc(tc, "Cannot use unknown container spec %s",
-                        MVM_string_utf8_encode_C_string(tc, name));
+                if (cc == NULL) {
+                    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                    char *waste[] = { c_name, NULL };
+                    MVM_exception_throw_adhoc_free(tc, waste, "Cannot use unknown container spec %s",
+                        c_name);
+                }
                 if (st->container_spec)
                     MVM_exception_throw_adhoc(tc,
                         "Cannot change a type's container specification");

@@ -87,8 +87,10 @@ MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMi
         result = MVM_NATIVECALL_ARG_VMARRAY;
     else if (strcmp(ctypename, "callback") == 0)
         result = MVM_NATIVECALL_ARG_CALLBACK;
-    else
-        MVM_exception_throw_adhoc(tc, "Unknown type '%s' used for native call", ctypename);
+    else {
+        char *waste[] = { ctypename, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Unknown type '%s' used for native call", ctypename);
+    }
     MVM_free(ctypename);
     return result;
 }
@@ -357,14 +359,17 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
 
     if (!body->lib_handle) {
         MVM_free(sym_name);
-        MVM_exception_throw_adhoc(tc, "Cannot locate native library '%s': %s", lib_name, dlerror());
+        char *waste[] = { lib_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", lib_name, dlerror());
     }
 
     /* Try to locate the symbol. */
     body->entry_point = MVM_nativecall_find_sym(body->lib_handle, sym_name);
-    if (!body->entry_point)
-        MVM_exception_throw_adhoc(tc, "Cannot locate symbol '%s' in native library '%s'",
+    if (!body->entry_point) {
+        char *waste[] = { sym_name, lib_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate symbol '%s' in native library '%s'",
             sym_name, lib_name);
+    }
     MVM_free(sym_name);
 
     /* Set calling convention, if any. */
@@ -520,14 +525,17 @@ MVMObject * MVM_nativecall_global(MVMThreadContext *tc, MVMString *lib, MVMStrin
     lib_handle = MVM_nativecall_load_lib(strlen(lib_name) ? lib_name : NULL);
     if (!lib_handle) {
         MVM_free(sym_name);
-        MVM_exception_throw_adhoc(tc, "Cannot locate native library '%s': %s", lib_name, dlerror());
+        char *waste[] = { lib_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", lib_name, dlerror());
     }
 
     /* Try to locate the symbol. */
     entry_point = MVM_nativecall_find_sym(lib_handle, sym_name);
-    if (!entry_point)
-        MVM_exception_throw_adhoc(tc, "Cannot locate symbol '%s' in native library '%s'",
+    if (!entry_point) {
+        char *waste[] = { sym_name, lib_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate symbol '%s' in native library '%s'",
             sym_name, lib_name);
+    }
     MVM_free(sym_name);
     MVM_free(lib_name);
 

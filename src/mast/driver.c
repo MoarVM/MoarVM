@@ -97,7 +97,11 @@ void MVM_mast_to_file(MVMThreadContext *tc, MVMObject *mast, MVMObject *types, M
             MVM_free(c_filename);
         }
         else {
-            MVM_exception_throw_adhoc(tc, "Unable to write bytecode to '%s'", c_filename);
+            /* we have to build waste by hand, otherwise MVMROOT gets mad */
+            char *waste[2];
+            waste[0] = c_filename;
+            waste[1] = NULL;
+            MVM_exception_throw_adhoc_free(tc, waste, "Unable to write bytecode to '%s'", c_filename);
         }
     });
 }

@@ -126,11 +126,18 @@ MVMint64 MVM_sc_find_code_idx(MVMThreadContext *tc, MVMSerializationContext *sc,
         if (test == obj)
             return i;
     }
-    MVM_exception_throw_adhoc(tc,
-        "Code ref '%s' does not exist in serialization context",
-        REPR(obj)->ID == MVM_REPR_ID_MVMCode
-            ? MVM_string_utf8_encode_C_string(tc, ((MVMCode *)obj)->body.name)
-            : "<NOT A CODE OBJECT>");
+
+    if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, ((MVMCode *)obj)->body.name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
+            "Code ref '%s' does not exist in serialization context",
+                c_name);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Code ref '<NOT A CODE OBJECT>' does not exist in serialization context");
+    }
 }
 
 /* Given a compilation unit and dependency index, returns that SC. */
@@ -163,10 +170,13 @@ MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc,
         return roots[idx] && !sc_working(sc)
             ? roots[idx]
             : MVM_serialization_demand_object(tc, sc, idx);
-    else
-        MVM_exception_throw_adhoc(tc,
+    else {
+        char *c_description = MVM_string_utf8_encode_C_string(tc, sc->body->description);
+        char *waste[] = { c_description, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
             "Probable version skew in pre-compiled '%s' (cause: no object at index %"PRId64")",
-            MVM_string_utf8_encode_C_string(tc, sc->body->description), idx);
+            c_description, idx);
+    }
 }
 
 MVMObject * MVM_sc_get_sc_object(MVMThreadContext *tc, MVMCompUnit *cu,
@@ -224,9 +234,11 @@ MVMSTable * MVM_sc_get_stable(MVMThreadContext *tc, MVMSerializationContext *sc,
         return got && !sc_working(sc) ? got : MVM_serialization_demand_stable(tc, sc, idx);
     }
     else {
-        MVM_exception_throw_adhoc(tc,
+        char *c_description = MVM_string_utf8_encode_C_string(tc, sc->body->description);
+        char *waste[] = { c_description, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
             "Probable version skew in pre-compiled '%s' (cause: no STable at index %"PRId64")",
-            MVM_string_utf8_encode_C_string(tc, sc->body->description), idx);
+            c_description, idx);
     }
 }
 
@@ -288,9 +300,11 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
             : found;
     }
     else {
-        MVM_exception_throw_adhoc(tc,
+        char *c_description = MVM_string_utf8_encode_C_string(tc, sc->body->description);
+        char *waste[] = { c_description, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
             "Probable version skew in pre-compiled '%s' (cause: no code ref at index %"PRId64")",
-            MVM_string_utf8_encode_C_string(tc, sc->body->description), idx);
+            c_description, idx);
     }
 }
 

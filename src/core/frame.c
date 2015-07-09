@@ -397,17 +397,52 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
          * to cope with nqp::freshcoderef). */
         if (outer->static_info->body.orig_bytecode == static_frame_body->outer->body.orig_bytecode)
             frame->outer = outer;
-        else
-            MVM_exception_throw_adhoc(tc,
+        else {
+            char *frame_cuuid = MVM_string_utf8_encode_C_string(tc, static_frame_body->cuuid);
+            char *frame_name;
+            char *outer_cuuid = MVM_string_utf8_encode_C_string(tc, outer->static_info->body.cuuid);
+            char *outer_name;
+            char *frame_outer_cuuid = MVM_string_utf8_encode_C_string(tc, static_frame_body->outer->body.cuuid);
+            char *frame_outer_name;
+
+            char *waste[7] = { frame_cuuid, outer_cuuid, frame_outer_cuuid, NULL, NULL, NULL, NULL };
+            int waste_counter = 3;
+
+            if (static_frame_body->name) {
+                frame_name = MVM_string_utf8_encode_C_string(tc, static_frame_body->name);
+                waste[waste_counter++] = frame_name;
+            }
+            else {
+                frame_name = "<anonymous static frame>";
+            }
+
+            if (outer->static_info->body.name) {
+                outer_name = MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name);
+                waste[waste_counter++] = outer_name;
+            }
+            else {
+                outer_name = "<anonymous static frame>";
+            }
+
+            if (static_frame_body->outer->body.name) {
+                frame_outer_name = MVM_string_utf8_encode_C_string(tc, static_frame_body->outer->body.name);
+                waste[waste_counter++] = frame_outer_name;
+            }
+            else {
+                frame_outer_name = "<anonymous static frame>";
+            }
+
+            MVM_exception_throw_adhoc_free(tc, waste,
                 "When invoking %s '%s', provided outer frame %p (%s '%s') does not match expected static frame %p (%s '%s')",
-                MVM_string_utf8_encode_C_string(tc, static_frame_body->cuuid),
-                static_frame_body->name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->name) : "<anonymous static frame>",
+                frame_cuuid,
+                frame_name,
                 outer->static_info,
-                MVM_string_utf8_encode_C_string(tc, outer->static_info->body.cuuid),
-                outer->static_info->body.name ? MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name) : "<anonymous static frame>",
+                outer_cuuid,
+                outer_name,
                 static_frame_body->outer,
-                MVM_string_utf8_encode_C_string(tc, static_frame_body->outer->body.cuuid),
-                static_frame_body->outer->body.name ? MVM_string_utf8_encode_C_string(tc, static_frame_body->outer->body.name) : "<anonymous static frame>");
+                frame_outer_cuuid,
+                frame_outer_name);
+        }
     }
     else if (static_frame_body->static_code) {
         MVMCode *static_code = static_frame_body->static_code;
@@ -924,9 +959,11 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
                     return result;
                 }
                 else {
-                   MVM_exception_throw_adhoc(tc,
+                    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                    char *waste[] = { c_name, NULL };
+                    MVM_exception_throw_adhoc_free(tc, waste,
                         "Lexical with name '%s' has wrong type",
-                            MVM_string_utf8_encode_C_string(tc, name));
+                            c_name);
                 }
             }
         }
@@ -934,8 +971,10 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
     }
     if (type == MVM_reg_obj)
         return NULL;
-    MVM_exception_throw_adhoc(tc, "No lexical found with name '%s'",
-        MVM_string_utf8_encode_C_string(tc, name));
+    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+    char *waste[] = { c_name, NULL };
+    MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
+        c_name);
 }
 
 /* Finds a lexical in the outer frame, throwing if it's not there. */
@@ -943,9 +982,12 @@ MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString
     MVMRegister *r = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer);
     if (r)
         return r->o;
-    else
-        MVM_exception_throw_adhoc(tc, "No lexical found with name '%s'",
-            MVM_string_utf8_encode_C_string(tc, name));
+    else {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
+            c_name);
+    }
 }
 
 /* Looks up the address of the lexical with the specified name, starting with
@@ -968,9 +1010,11 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
                     return result;
                 }
                 else {
-                   MVM_exception_throw_adhoc(tc,
+                    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                    char *waste[] = { c_name, NULL };
+                    MVM_exception_throw_adhoc_free(tc, waste,
                         "Lexical with name '%s' has wrong type",
-                            MVM_string_utf8_encode_C_string(tc, name));
+                            c_name);
                 }
             }
         }
@@ -1001,9 +1045,11 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
                         return result;
                     }
                     else {
-                       MVM_exception_throw_adhoc(tc,
+                        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                        char *waste[] = { c_name, NULL };
+                        MVM_exception_throw_adhoc_free(tc, waste,
                             "Lexical with name '%s' has wrong type",
-                                MVM_string_utf8_encode_C_string(tc, name));
+                                c_name);
                     }
                 }
             }
@@ -1235,8 +1281,10 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
     MVMuint16 type;
     MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 0);
     if (!lex_reg) {
-        MVM_exception_throw_adhoc(tc, "No contextual found with name '%s'",
-            MVM_string_utf8_encode_C_string(tc, name));
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "No contextual found with name '%s'",
+            c_name);
     }
     switch (type) {
         case MVM_reg_int64:
@@ -1270,8 +1318,10 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
         if (entry)
             return &f->env[entry->value];
     }
-    MVM_exception_throw_adhoc(tc, "Frame has no lexical with name '%s'",
-        MVM_string_utf8_encode_C_string(tc, name));
+    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+    char *waste[] = { c_name, NULL };
+    MVM_exception_throw_adhoc_free(tc, waste, "Frame has no lexical with name '%s'",
+        c_name);
 }
 
 /* Returns the storage unit for the lexical in the specified frame. */
@@ -1309,14 +1359,20 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
                 case MVM_reg_obj:
                     return MVM_STORAGE_SPEC_BP_NONE;
                 default:
-                    MVM_exception_throw_adhoc(tc,
+                {
+                    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                    char *waste[] = { c_name, NULL };
+                    MVM_exception_throw_adhoc_free(tc, waste,
                         "Unhandled lexical type in lexprimspec for '%s'",
-                        MVM_string_utf8_encode_C_string(tc, name));
+                        c_name);
+                }
             }
         }
     }
-    MVM_exception_throw_adhoc(tc, "Frame has no lexical with name '%s'",
-        MVM_string_utf8_encode_C_string(tc, name));
+    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+    char *waste[] = { c_name, NULL };
+    MVM_exception_throw_adhoc_free(tc, waste, "Frame has no lexical with name '%s'",
+        c_name);
 }
 
 static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs, MVMInvocationSpec *is) {

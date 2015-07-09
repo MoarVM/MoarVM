@@ -179,3 +179,5 @@ typedef MVMString VMSTR;
 #define VM_STRING_IS_NULL(s)        (s == NULL)
 #define VM_OBJ_IS_NULL(o)           (o == NULL)
 #define VM_STRING_TO_C_STRING(vm, s) (MVM_string_ascii_encode_any(tc, s))
+
+#define DIE_FREE(vm, waste, msg, ...) MVM_exception_throw_adhoc_free(tc, waste, msg, ## __VA_ARGS__)

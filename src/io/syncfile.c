@@ -438,13 +438,15 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     int flag;
     if (!resolve_open_mode(&flag, fmode)) {
         MVM_free(fname);
-        MVM_exception_throw_adhoc(tc, "Invalid open mode: %s", fmode);
+        char *waste[] = { fmode, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Invalid open mode: %s", fmode);
     }
     MVM_free(fmode);
 
     /* Try to open the file. */
     if ((fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, DEFAULT_MODE, NULL)) < 0) {
-        MVM_exception_throw_adhoc(tc, "Failed to open file %s: %s", fname, uv_strerror(req.result));
+        char *waste[] = { fname, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to open file %s: %s", fname, uv_strerror(req.result));
     }
 
     /* Set up handle. */
