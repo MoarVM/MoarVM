@@ -10,9 +10,9 @@
 (template: set (copy $1))
 (template: add_i (add $1 $2))
 (template: sub_i (sub $1 $2))
-# Disable these, because the first operand is rw, not r
-#(template: inc_i (add $0 (const 1 (&sizeof MVMint64))))
-#(template: dec_i (sub $0 (const 1 (&sizeof MVMint64))))
+
+(template: inc_i (add $0 (const 1 (&sizeof MVMint64))))
+(template: dec_i (sub $0 (const 1 (&sizeof MVMint64))))
 
 # Macro for getting frame arg address
 (macro: ^parg (,a) (idx (load (addr (frame) (&offsetof MVMFrame params.args))) ,a reg_sz))

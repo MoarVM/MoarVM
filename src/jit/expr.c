@@ -52,6 +52,19 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
 void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMSpeshIns *ins,
                                 MVMint32 *computed, MVMint32 *operands) {
     MVMint32 i;
+    MVMint32 opcode = ins->info->opcode;
+    if (opcode == MVM_OP_inc_i || opcode == MVM_OP_dec_i || opcode == MVM_OP_inc_u || opcode == MVM_OP_dec_u) {
+        /* Don't repeat yourself? No special cases? Who are we kidding */
+        MVMuint16 reg = ins->operands[i].reg.orig;
+        if (computed[reg] > 0) {
+            operands[0] = computed[reg];
+        } else {
+            operands[0] = MVM_jit_expr_add_loadreg(tc, tree, reg);
+            computed[reg] = operands[0];
+        }
+        return;
+    }
+
     for (i = 0; i < ins->info->num_operands; i++) {
         MVMSpeshOperand opr = ins->operands[i];
         switch(ins->info->operands[i] & MVM_operand_rw_mask) {
@@ -69,8 +82,8 @@ void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMS
         default:
             continue;
         }
-        if (operands[i] > tree->nodes_num || operands[i] < 0) {
-            MVM_oops(tc, "I did something wrong with operand loading");
+        if (operands[i] >= tree->nodes_num || operands[i] < 0) {
+            MVM_oops(tc, "JIT: something is wrong with operand loading");
         }
     }
 }
