@@ -2,21 +2,19 @@
 #include "expr.h"
 #include "expr_tables.h"
 
-typedef struct {
-    const char      *name;
-    MVMint32        nchild;
-    MVMint32         nargs;
-    enum MVMJitExprVtype vtype;
-} MVMJitExprOpInfo;
 
-static MVMJitExprOpInfo expr_op_info[] = {
+static const MVMJitExprOpInfo expr_op_info[] = {
 #define OP_INFO(name, nchild, nargs, vtype) { #name, nchild, nargs, MVM_JIT_##vtype }
     MVM_JIT_IR_OPS(OP_INFO)
 #undef OP_INFO
 };
 
-
-
+const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMJitExprNode op) {
+    if (op < 0 || op >= MVM_JIT_MAX_NODES) {
+        MVM_oops(tc, "JIT: Expr op index out of bounds: %"PRId64, op);
+    }
+    return &expr_op_info[op];
+}
 
 static MVMint32 MVM_jit_expr_add_loadreg(MVMThreadContext *tc, MVMJitExprTree *tree,
                                          MVMuint16 reg) {
@@ -223,71 +221,86 @@ void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVM_free(tree);
 }
 
-static void walk(MVMThreadContext *tc, MVMJitExprTree *tree,
-                 MVMJitTreeTraverser *traverser, MVMint32 i) {
-    MVMJitExprOpInfo *info = &expr_op_info[tree->nodes[i]];
+static void walk_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
+                 MVMJitTreeTraverser *traverser, MVMint32 node) {
+    const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
     MVMint32 nchild = info->nchild;
-    MVMint32 j;
+    MVMint32 first_child = node + 1;
+    MVMint32 i;
+    traverser->visits[node]++;
     /* visiting on the way down - NB want to add visitation information */
-    traverser->visit(tc, tree, traverser->data, i, MVM_JIT_TREE_DOWN);
+    if (traverser->preorder)
+        traverser->preorder(tc, traverser, tree, node);
     if (nchild < 0) {
-        /* take first child as constant signifying the number of children; increment
-         * to take offset into account */
-        nchild = tree->nodes[++i];
+        /* ARGLIST case: take first child as constant signifying the
+         * number of children. Increment because the 'real' children now
+         * start node later */
+        nchild = tree->nodes[first_child++];
     }
-    for (j = 0; j < nchild; j++) {
+    for (i = 0; i < nchild; i++) {
         /* Enter child node */
-        walk(tc, tree, traverser, tree->nodes[i+j+1]);
+        walk_tree(tc, tree, traverser, tree->nodes[first_child+i]);
+        if (traverser->inorder) {
+            traverser->inorder(tc, traverser, tree, node, i);
+        }
     }
-    traverser->visit(tc, tree, traverser->data, i, MVM_JIT_TREE_UP);
+    if (traverser->postorder) {
+        traverser->postorder(tc, traverser, tree, node);
+    }
 }
 
 
 void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
                                 MVMJitTreeTraverser *traverser) {
     MVMint32 i;
+    traverser->visits = MVM_calloc(tree->nodes_num, sizeof(MVMint32));
     for (i = 0; i < tree->roots_num; i++) {
         /* TODO deal with nodes with multiple entries */
-        walk(tc, tree, traverser, tree->roots[i]);
+        walk_tree(tc, tree, traverser, tree->roots[i]);
     }
+    MVM_free(traverser->visits);
 }
 
-static void visit_dump(MVMThreadContext *tc, MVMJitExprTree *tree, void *data,
-                       MVMint32 position, MVMint32 direction) {
-    MVMJitExprNode node = tree->nodes[position];
-    MVMint32 *depth = data;
-    MVMJitExprOpInfo *info = &expr_op_info[node];
+static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+                      MVMJitExprTree *tree, MVMint32 node) {
+    const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
+    MVMint32 *depth =     traverser->data;
     MVMint32 i, j;
     char indent[64];
     char nargs[80];
 
-    if (direction == MVM_JIT_TREE_DOWN) {
-        (*depth)++;
+    (*depth)++;
 
-        i = MIN(*depth*2, sizeof(indent)-1);
-        memset(indent, ' ', i);
-        indent[i] = 0;
-        j = 0;
-        for (i = 0; i < info->nargs; i++) {
-            MVMint32 arg = tree->nodes[position+info->nchild+i+1];
-            j += snprintf(nargs + j, sizeof(nargs)-j-3, "%d", arg);
-            if (i+1 < info->nargs && j < sizeof(nargs)-3) {
-                j += sprintf(nargs + j, ", ");
-            }
+    i = MIN(*depth*2, sizeof(indent)-1);
+    memset(indent, ' ', i);
+    indent[i] = 0;
+    j = 0;
+    for (i = 0; i < info->nargs; i++) {
+        MVMint32 arg = tree->nodes[node+info->nchild+i+1];
+        j += snprintf(nargs + j, sizeof(nargs)-j-3, "%d", arg);
+        if (i+1 < info->nargs && j < sizeof(nargs)-3) {
+            j += sprintf(nargs + j, ", ");
         }
-        nargs[j++] = 0;
-        MVM_jit_log(tc, "%s%s (%s)\n", indent, info->name, nargs);
-    } else {
-        (*depth)--;
     }
+    nargs[j++] = 0;
+    MVM_jit_log(tc, "%04d%s%s (%s)\n", node, indent, info->name, nargs);
 }
+
+static void ascend_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+                        MVMJitExprTree *tree, MVMint32 node) {
+    MVMint32 *depth = traverser->data;
+    (*depth)--;
+}
+
 
 /* NB - move this to log.c in due course */
 void MVM_jit_expr_tree_dump(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
     MVMint32 cur_depth = 0;
-    traverser.visit = &visit_dump;
-    traverser.data  = &cur_depth;
+    traverser.preorder  = &dump_tree;
+    traverser.inorder   = NULL;
+    traverser.postorder = &ascend_tree;
+    traverser.data      = &cur_depth;
     MVM_jit_log(tc, "Starting dump of JIT expression tree\n"
                 "=========================================\n");
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);

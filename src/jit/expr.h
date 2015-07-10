@@ -70,30 +70,41 @@ MVM_JIT_IR_OPS(MVM_JIT_IR_ENUM)
 
 typedef MVMint64 MVMJitExprNode;
 
-typedef struct {
+struct MVMJitExprOpInfo {
+    const char      *name;
+    MVMint32        nchild;
+    MVMint32         nargs;
+    enum MVMJitExprVtype vtype;
+};
+
+
+struct MVMJitExprTree {
     MVMJitGraph *graph;
     MVM_DYNAR_DECL(MVMJitExprNode, nodes);
     MVM_DYNAR_DECL(MVMint32, roots);
-} MVMJitExprTree;
+};
 
-typedef struct {
+struct MVMJitExprTemplate {
     const MVMJitExprNode *code;
     const char *info;
     MVMint32 len;
     MVMint32 root;
-} MVMJitExprTemplate;
-
-/* not sure what this will look like yet */
-typedef struct {
-    void (*visit)(MVMThreadContext *tc, MVMJitExprTree *tree, void *data,
-                  MVMint32 position, MVMint32 direction);
-    void *data;
-} MVMJitTreeTraverser;
+};
 
 
-#define MVM_JIT_TREE_DOWN 0
-#define MVM_JIT_TREE_UP 1
+struct MVMJitTreeTraverser {
+    void  (*preorder)(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+                      MVMJitExprTree *tree, MVMint32 node);
+    void   (*inorder)(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+                      MVMJitExprTree *tree, MVMint32 node, MVMint32 child);
+    void (*postorder)(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+                      MVMJitExprTree *tree, MVMint32 node);
+    void       *data;
+    MVMint32 *visits;
+};
 
+
+const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMJitExprNode node);
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMSpeshGraph *sg,
                                          MVMSpeshBB *bb);
 void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
