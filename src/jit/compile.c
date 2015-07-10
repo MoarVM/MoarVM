@@ -5,7 +5,6 @@
 
 #define COPY_ARRAY(a, n, t) memcpy(MVM_malloc(n * sizeof(t)), a, n * sizeof(t))
 
-
 static const MVMuint16 MAGIC_BYTECODE[] = { MVM_OP_sp_jit_enter, 0 };
 
 MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
@@ -114,6 +113,179 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
     MVM_platform_free_pages(code->func_ptr, code->size);
     MVM_free(code);
 }
+
+#define X64_REGISTERS(_) \
+    _(rax), \
+    _(rcx), \
+    _(rdx), \
+    _(rbx), \
+    _(rsp), \
+    _(rbp), \
+    _(rsi), \
+    _(rdi), \
+    _(r8), \
+    _(r9), \
+    _(r10), \
+    _(r11), \
+    _(r12), \
+    _(r13), \
+    _(r14), \
+    _(r15)
+
+typedef enum {
+#define RENUM(x) x
+X64_REGISTERS(RENUM)
+#undef RENUM
+} X64_REGISTER;
+
+static const char * X64_REGISTER_NAMES[] = {
+#define RNAME(x) #x
+X64_REGISTERS(RNAME)
+#undef RNAME
+};
+
+
+/* NB - incorrect for win64 */
+static const X64_REGISTER FREE_REGISTERS[] = {
+    rax, rcx, rdx, rsi, rdi, r8, r9, r10, r11
+};
+#define NUM_REGISTERS (sizeof(FREE_REGISTERS)/sizeof(X64_REGISTER))
+
+typedef struct {
+    MVMint32 used_registers[NUM_REGISTERS];
+    X64_REGISTER *nodes_reg;  /* register of last computed operand */
+    MVMint32 *nodes_spill;
+} CompilerRegisterState;
+
+
+static X64_REGISTER get_free_reg(MVMThreadContext *tc, CompilerRegisterState *state, MVMint32 node,
+                                 MVMint32 num_input_registers, X64_REGISTER *input_registers) {
+    MVMint32 i, j, prev;
+    for (i = 0; i < NUM_REGISTERS; i++) {
+        if (state->used_registers[i] < 0) {
+            state->used_registers[i] = node;
+            return FREE_REGISTERS[i];
+        }
+    }
+    /* no free register found. spill it */
+    for (i = 0; i < NUM_REGISTERS; i++) {
+        for (j = 0; j < num_input_registers; j++) {
+            if (input_registers[j] == i) {
+                /* this register is used as input */
+                break;
+            }
+        }
+        if (j == num_input_registers) {
+            /* register is not used by any input. spill it's value; nb
+               this is a dumb spilling algorithm */
+            break;
+        }
+    }
+    if (i == NUM_REGISTERS) {
+        MVM_oops(tc, "Want to allocate more registers than we really have");
+    }
+    /* This spill algorithm is wrong, by the way */
+    MVM_jit_log(tc, "mov [rsp+0x%"PRIx32"], %s", i*8, X64_REGISTER_NAMES[i]);
+    /* spill previous owner of this register */
+    prev = state->used_registers[i];
+    state->nodes_spill[prev] = i;
+    state->nodes_reg[prev] = -1;
+    /* assign it to the new owner */
+    state->used_registers[i] = node;
+    return FREE_REGISTERS[i];
+}
+
+static void emit_expr_op(MVMThreadContext *tc, MVMJitExprNode op, X64_REGISTER out,
+                         X64_REGISTER *in, MVMJitExprNode *args) {
+
+    switch(op) {
+    case MVM_JIT_LOAD:
+        MVM_jit_log(tc, "mov %s, [%s]\n", X64_REGISTER_NAMES[out], X64_REGISTER_NAMES[in[0]]);
+        break;
+    case MVM_JIT_STORE:
+        MVM_jit_log(tc, "mov [%s], %s\n", X64_REGISTER_NAMES[in[0]], X64_REGISTER_NAMES[in[1]]);
+        break;
+    case MVM_JIT_COPY:
+        MVM_jit_log(tc, "mov %s, %s\n", X64_REGISTER_NAMES[out], X64_REGISTER_NAMES[in[0]]);
+        break;
+    case MVM_JIT_ADDR:
+        MVM_jit_log(tc, "lea %s, [%s+0x%"PRIx64"]\n", X64_REGISTER_NAMES[out], X64_REGISTER_NAMES[in[0]], args[0]);
+        break;
+    case MVM_JIT_LOCAL:
+        MVM_jit_log(tc, "mov %s, %s\n", X64_REGISTER_NAMES[out], X64_REGISTER_NAMES[rbx]);
+        break;
+    default: {
+        const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, op);
+        MVM_jit_log(tc, "not yet sure how to compile %s\n", info->name);
+    }
+    }
+}
+
+static void compile_expr_op(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+                            MVMJitExprTree *tree, MVMint32 node) {
+    CompilerRegisterState *state = traverser->data;
+    MVMJitExprNode op  = tree->nodes[node];
+    const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, op);
+    X64_REGISTER input_regs[8];
+    if (traverser->visits[node] == 1) {
+        /* first visit. compute the node */
+        MVMint32 first_child = node+1;
+        MVMint32 nchild      = (info->nchild < 0 ? tree->nodes[first_child++] : info->nchild);
+        MVMJitExprNode *args = tree->nodes + first_child + nchild;
+        MVMint32 i;
+        for (i = 0; i < nchild; i++) {
+            MVMint32 child = tree->nodes[first_child+i];
+            if (state->nodes_reg[child] < 0 || state->nodes_reg[child] >= NUM_REGISTERS) {
+                MVM_oops(tc, "JIT: child %d of op %s was not computed into a register",
+                         i, info->name);
+            }
+            fprintf(stderr, "input register %d is %d\n", i, state->nodes_reg[child]);
+            input_regs[i] = state->nodes_reg[child];
+        }
+        if (info->vtype == MVM_JIT_VOID) {
+            emit_expr_op(tc, op, -1, input_regs, args);
+        } else {
+            /* Get output register to write our value in */
+            X64_REGISTER out = get_free_reg(tc, state, node, nchild, input_regs);
+            fprintf(stderr, "Got register nr %d\n", out);
+            emit_expr_op(tc, op, out, input_regs, args);
+            state->nodes_reg[node] = out;
+        }
+    } else {
+        if (state->nodes_reg[node] < 0) {
+            /* Spilled. emit a load */
+            MVM_oop(tc, "/* not sure about loading just yet */\n");
+        }
+    }
+}
+
+
+void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitExprTree *tree) {
+    /* VERY SIMPLE AND PROVISIONAL COMPILER FOR THE EXPRESSION TREE
+
+     * We use the tree nodes as value numbers, and compile everything
+     * to registers. We spill to stack (much simpler that way).
+     */
+    MVMJitTreeTraverser compiler;
+    CompilerRegisterState state;
+    /* Initialize state */
+    memset(state.used_registers, -1, sizeof(CompilerRegisterState));
+    state.nodes_reg = MVM_malloc(sizeof(X64_REGISTER)*tree->nodes_num);
+    state.nodes_spill = MVM_malloc(sizeof(MVMint32)*tree->nodes_num);
+
+    memset(state.nodes_reg, -1, sizeof(X64_REGISTER)*tree->nodes_num);
+    memset(state.nodes_spill, -1, sizeof(MVMint32)*tree->nodes_num);
+    /* initialize compiler */
+    memset(&compiler, 0, sizeof(MVMJitTreeTraverser));
+    compiler.data      = &state;
+    compiler.postorder = &compile_expr_op;
+
+    MVM_jit_expr_tree_traverse(tc, tree, &compiler);
+
+    MVM_free(state.nodes_reg);
+    MVM_free(state.nodes_spill);
+}
+
 
 /* Returns 1 if we should return from the frame, the function, 0 otherwise */
 MVMint32 MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,

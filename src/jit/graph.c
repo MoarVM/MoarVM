@@ -2422,6 +2422,7 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
     tree = MVM_jit_expr_tree_build(tc, jgb->sg, bb);
     if (tree != NULL) {
         MVM_jit_log_expr_tree(tc, tree);
+        MVM_jit_compile_expr_tree(tc, jgb->graph, tree);
         MVM_jit_expr_tree_destroy(tc, tree);
     }
     return 1;

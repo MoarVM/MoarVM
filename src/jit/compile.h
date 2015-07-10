@@ -28,6 +28,7 @@ struct MVMJitCode {
 };
 
 MVMJitCode* MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);
+void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitGraph *graph, MVMJitExprTree *tree);
 void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code);
 MVMint32 MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
                             MVMJitCode * code);
