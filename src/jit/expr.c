@@ -1,10 +1,9 @@
 #include "moar.h"
-#include "expr.h"
 #include "expr_tables.h"
 
 
 static const MVMJitExprOpInfo expr_op_info[] = {
-#define OP_INFO(name, nchild, nargs, vtype) { #name, nchild, nargs, MVM_JIT_##vtype }
+#define OP_INFO(name, nchild, nargs, vtype) { #name, nchild, nargs, MVM_JIT_ ## vtype }
     MVM_JIT_IR_OPS(OP_INFO)
 #undef OP_INFO
 };
@@ -261,48 +260,3 @@ void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
     MVM_free(traverser->visits);
 }
 
-static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
-                      MVMJitExprTree *tree, MVMint32 node) {
-    const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
-    MVMint32 *depth =     traverser->data;
-    MVMint32 i, j;
-    char indent[64];
-    char nargs[80];
-
-    (*depth)++;
-
-    i = MIN(*depth*2, sizeof(indent)-1);
-    memset(indent, ' ', i);
-    indent[i] = 0;
-    j = 0;
-    for (i = 0; i < info->nargs; i++) {
-        MVMint32 arg = tree->nodes[node+info->nchild+i+1];
-        j += snprintf(nargs + j, sizeof(nargs)-j-3, "%d", arg);
-        if (i+1 < info->nargs && j < sizeof(nargs)-3) {
-            j += sprintf(nargs + j, ", ");
-        }
-    }
-    nargs[j++] = 0;
-    MVM_jit_log(tc, "%04d%s%s (%s)\n", node, indent, info->name, nargs);
-}
-
-static void ascend_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
-                        MVMJitExprTree *tree, MVMint32 node) {
-    MVMint32 *depth = traverser->data;
-    (*depth)--;
-}
-
-
-/* NB - move this to log.c in due course */
-void MVM_jit_expr_tree_dump(MVMThreadContext *tc, MVMJitExprTree *tree) {
-    MVMJitTreeTraverser traverser;
-    MVMint32 cur_depth = 0;
-    traverser.preorder  = &dump_tree;
-    traverser.inorder   = NULL;
-    traverser.postorder = &ascend_tree;
-    traverser.data      = &cur_depth;
-    MVM_jit_log(tc, "Starting dump of JIT expression tree\n"
-                "=========================================\n");
-    MVM_jit_expr_tree_traverse(tc, tree, &traverser);
-    MVM_jit_log(tc, "End dump of JIT expression tree\n");
-}

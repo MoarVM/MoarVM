@@ -109,5 +109,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMSpeshGraph *sg
                                          MVMSpeshBB *bb);
 void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
                                 MVMJitTreeTraverser *traverser);
-void MVM_jit_expr_tree_dump(MVMThreadContext *tc, MVMJitExprTree *tree);
 void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree);
+
+
