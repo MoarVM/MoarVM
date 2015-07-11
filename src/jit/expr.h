@@ -9,7 +9,10 @@ enum MVMJitExprVtype { /* value type */
 
 #define MVM_JIT_PTR_SZ sizeof(void*)
 #define MVM_JIT_REG_SZ sizeof(MVMRegister)
+#define MVM_JIT_INT_SZ sizeof(MVMint64)
+
 #define CONST_PTR(x) ((uintptr_t)(x))
+#define QUOTE(x) (x)
 
 /* This defines a macro that defines a list which will use a macro to
    define a list. It's a little trick I've gained from the luajit
@@ -40,11 +43,16 @@ enum MVMJitExprVtype { /* value type */
     /* integer arithmetic */ \
     _(ADD, 2, 0, REG), \
     _(SUB, 2, 0, REG), \
-    /* boolean logic */ \
-    _(FLAGS, 1, 0, REG), \
-    _(NOT, 1, 0, REG),  \
+    /* binary operations */ \
     _(AND, 2, 0, REG), \
     _(OR, 2, 0, REG), \
+    _(XOR, 2, 0, REG), \
+    /* boolean logic */ \
+    _(NOT, 1, 0, REG),  \
+    _(ALL, -1, 0, FLAG), \
+    _(ANY, -1, 0, FLAG), \
+    /* control operators */ \
+    _(DO, -1, 0, REG), \
     _(IF, 2, 0, VOID), \
     _(IFELSE, 3, 0, REG), \
     /* call c functions */ \
@@ -59,7 +67,7 @@ enum MVMJitExprVtype { /* value type */
     _(STACK, 0, 0, MEM), \
     _(VMNULL, 0, 0, REG), \
     /* End of list marker */ \
-    _(MAX_NODES, 0, 0, VOID),\
+    _(MAX_NODES, 0, 0, VOID), \
 
 
 

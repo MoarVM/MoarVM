@@ -7,54 +7,87 @@
 
 (template: const_i16 (copy $1))
 (template: const_i64 (copy $1))
+(macro: ^cu_string (,a) (idx (load (addr (cu) (&offsetof MVMCompUnit body.strings)) ptr_sz)
+                                    ,a ptr_sz))
+(template: const_s (load (^cu_string $1) ptr_sz))
+
 (template: set (copy $1))
 (template: add_i (add $1 $2))
 (template: sub_i (sub $1 $2))
+(template: inc_i (add $0 (const 1 int_sz)))
+(template: dec_i (sub $0 (const 1 int_sz)))
 
-(template: inc_i (add $0 (const 1 (&sizeof MVMint64))))
-(template: dec_i (sub $0 (const 1 (&sizeof MVMint64))))
-
-# Macro for getting frame arg address
 (macro: ^parg (,a) (idx (load (addr (frame) (&offsetof MVMFrame params.args))) ,a reg_sz))
-# we should read this too
 (template: sp_getarg_o (load (^parg $1) ptr_sz))
-(template: sp_getarg_i (load (^parg $1) (&sizeof MVMint64)))
+(template: sp_getarg_i (load (^parg $1) int_sz))
 
+(macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
 (macro: ^p6obody (,a) (let (($replace (load (addr ,a (&offsetof MVMP6opaque body.replaced)) ptr_sz)))
                       (if (nz $replace)
                            $replace
                            (addr ,a (&offsetof MVMP6opaque body)))))
+# get spesh slot address
+(macro: ^spesh_slot (,a) (idx (load (addr (frame) (&offsetof MVMFrame effective_spesh_slots)))
+                               ,a ptr_sz))
 
-(template: sp_p6oget_i (load (add (^p6obody $1) $2) (&sizeof MVMint64)))
+
+
+(template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
 (template: sp_p6oget_n (load (add (^p6obody $1) $2) (&sizeof MVMnum64)))
 (template: sp_p6oget_s (load (add (^p6obody $1) $2) ptr_sz))
+(template: sp_p6oget_o
+           (let (($val (load (add (^p6obody $1) $2) ptr_sz)))
+                (ifelse (nz $val) $val (vmnull))))
+
+# hit write barrier for object - this one is rather large
+# NB - it is probably better to use direct variables, rather than trees,
+# as arguments to the write-barrier macro. Usually the compiler can
+# eliminate duplications, but call is a notable exception
+(macro: ^write_barrier (,obj ,ref)
+        (let (($obj_flags (load (addr ,obj (&offsetof MVMCollectable flags)) 2))
+              ($ref_flags (load (addr ,ref (&offsetof MVMCollectable flags)) 2)))
+              (if (all 3 (nz (and $obj_flags (&QUOTE MVM_CF_SECOND_GEN)))
+                         (nz ,ref)
+                         (zr (and $ref_flags (&QUOTE MVM_CF_SECOND_GEN))))
+                  (call (^func &MVM_gc_write_barrier_hit)
+                        (arglist 2 (carg (tc) ptr_sz)
+                                   (carg ,obj ptr_sz))
+                        rv_void))))
+
+(template: sp_p6ogetvt_o
+           (let (($addr (add (^p6obody $1) $2))
+                 ($val (load $addr ptr_sz))
+                 ($type (load (^spesh_slot $3) ptr_sz)))
+                 (ifelse (nz $val)
+                          $val
+                          (do 3 (^write_barrier $1 $type)
+                                (store $addr $type ptr_sz)
+                                 $type))))
+
 (template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 reg_sz))
 (template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 reg_sz))
 
 
 (template: null_s (const 0 ptr_sz))
 (template: null (vmnull))
-                                 
+
 (macro: ^stable (,a) (load (addr ,a (&offsetof MVMObject st))))
 (template: getwhat (load (addr (^stable $1) (&offsetof MVMSTable WHAT)) ptr_sz))
 (template: getwho  (let (($who (load (addr (^stable $1) (&offsetof MVMSTable WHO)) ptr_sz)))
                          (ifelse (nz $who) $who (vmnull))))
 
-(macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
+
 (template: say (call (^func &MVM_string_say)
                      (arglist 2 (carg (tc) ptr_sz)
                                 (carg $0 ptr_sz))
-                     void))
+                     rv_void))
 
-(macro: ^cu_string (,a) (idx (load (addr (cu) (&offsetof MVMCompUnit body.strings)) ptr_sz)
-                                    ,a ptr_sz))
+
 
 (template: getlex_no (let (($res (call (^func &MVM_frame_find_lexical_by_name)
                                        (arglist 3 (carg (tc) ptr_sz)
                                                   (carg (load (^cu_string $1) ptr_sz) ptr_sz)
-                                                  (carg 8 ptr_sz))
+                                                  (carg (const (&QUOTE MVM_reg_obj) int_sz) ptr_sz))
                                        reg_val)))
                            (ifelse (nz $res) (load $res ptr_sz) $res)))
 
-(macro: ^spesh_slot (,a) (idx (load (addr (frame) (&offsetof MVMFrame effective_spesh_slots)))
-                               ,a ptr_sz))
