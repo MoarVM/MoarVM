@@ -57,9 +57,11 @@ ffi_abi MVM_nativecall_get_calling_convention(MVMThreadContext *tc, MVMString *n
             //~ result = DC_CALL_C_X86_WIN32_STD;
         //~ else if (strcmp(cname, "stdcall") == 0)
             //~ result = DC_CALL_C_X64_WIN64;
-        //~ else
-            //~ MVM_exception_throw_adhoc(tc,
+        //~ else {
+            //~ char *waste[] = { cname, NULL };
+            //~ MVM_exception_throw_adhoc_free(tc, waste,
                 //~ "Unknown calling convention '%s' used for native call", cname);
+        //~ }
         //~ MVM_free(cname);
     //~ }
     return result;

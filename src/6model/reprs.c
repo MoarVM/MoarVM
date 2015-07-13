@@ -240,9 +240,12 @@ static MVMReprRegistry * find_repr_by_name(MVMThreadContext *tc,
     MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, tc->instance->repr_hash, name, entry)
 
-    if (entry == NULL)
-        MVM_exception_throw_adhoc(tc, "Lookup by name of unknown REPR: %s",
-            MVM_string_ascii_encode_any(tc, name));
+    if (entry == NULL) {
+        char *c_name = MVM_string_ascii_encode_any(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Lookup by name of unknown REPR: %s",
+            c_name);
+    }
 
     return entry;
 }

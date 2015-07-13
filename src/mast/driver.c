@@ -97,7 +97,10 @@ void MVM_mast_to_file(MVMThreadContext *tc, MVMObject *mast, MVMObject *types, M
             MVM_free(c_filename);
         }
         else {
-            MVM_exception_throw_adhoc(tc, "Unable to write bytecode to '%s'", c_filename);
+            /* we have to use parentheses here, otherwise MVMROOT thinks the
+             * comma introduces a new argument */
+            char *waste[2] = { (c_filename, NULL) };
+            MVM_exception_throw_adhoc_free(tc, waste, "Unable to write bytecode to '%s'", c_filename);
         }
     });
 }

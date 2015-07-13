@@ -809,9 +809,12 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
             unsigned int  current_frame_idx = ws->current_frame_idx;
             unsigned int  current_ins_idx = ws->current_ins_idx;
             cleanup_all(vm, ws);
-            DIE(vm, "At Frame %u, Instruction %u, op '%s' has invalid number (%u) of operands; needs %u.",
+
+            char *c_name = VM_STRING_TO_C_STRING(vm, o->name);
+            char *waste[] = { c_name, NULL };
+            DIE_FREE(vm, waste, "At Frame %u, Instruction %u, op '%s' has invalid number (%u) of operands; needs %u.",
                 current_frame_idx, current_ins_idx,
-                VM_STRING_TO_C_STRING(vm, o->name),
+                c_name,
                 ELEMS(vm, o->operands), num_operands);
         }
 

@@ -374,7 +374,7 @@ static void dump_log_values(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g)
                 appendf(ds, "% 4d  ", log_obj_idx + 1);
                 interesting = 1;
             } else {
-                appendf(ds, "% 4s  ", "_");
+                appendf(ds, "%4s  ", "_");
             }
 
         }
@@ -387,7 +387,7 @@ static void dump_log_values(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g)
         appendf(ds, "    %d: %p", log_index + 1, seen_table[log_index]);
         if (STABLE(seen_table[log_index])->REPR->ID == MVM_REPR_ID_P6int) {
             if (IS_CONCRETE(seen_table[log_index]))
-                appendf(ds, " P6int(%d)", MVM_repr_get_int(tc, (MVMObject*)seen_table[log_index]));
+                appendf(ds, " P6int(%"PRId64")", MVM_repr_get_int(tc, (MVMObject*)seen_table[log_index]));
             else
                 append(ds, " P6int(type object)");
         } else {

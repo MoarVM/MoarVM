@@ -260,9 +260,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMRegister *r = MVM_frame_find_lexical_by_name(tc, str, MVM_reg_obj);
                 if (r)
                     r->o = GET_REG(cur_op, 4).o;
-                else
-                    MVM_exception_throw_adhoc(tc, "Cannot bind to non-existing object lexical '%s'",
-                        MVM_string_utf8_encode_C_string(tc, str));
+                else {
+                    char *c_str = MVM_string_utf8_encode_C_string(tc, str);
+                    char *waste[] = { c_str, NULL };
+                    MVM_exception_throw_adhoc_free(tc, waste, "Cannot bind to non-existing object lexical '%s'",
+                        c_str);
+                }
                 cur_op += 6;
                 goto NEXT;
             }
@@ -3026,9 +3029,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMSTable *st   = STABLE(GET_REG(cur_op, 0).o);
                 MVMString *name = GET_REG(cur_op, 2).s;
                 const MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc, name);
-                if (cc == NULL)
-                    MVM_exception_throw_adhoc(tc, "Cannot use unknown container spec %s",
-                        MVM_string_utf8_encode_C_string(tc, name));
+                if (cc == NULL) {
+                    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                    char *waste[] = { c_name, NULL };
+                    MVM_exception_throw_adhoc_free(tc, waste, "Cannot use unknown container spec %s",
+                        c_name);
+                }
                 if (st->container_spec)
                     MVM_exception_throw_adhoc(tc,
                         "Cannot change a type's container specification");
@@ -4543,14 +4549,45 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(atpos2d_i):
+                GET_REG(cur_op, 0).i64 = MVM_repr_at_pos_2d_i(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(atpos2d_n):
+                GET_REG(cur_op, 0).n64 = MVM_repr_at_pos_2d_n(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(atpos2d_s):
+                GET_REG(cur_op, 0).s = MVM_repr_at_pos_2d_s(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(atpos2d_o):
+                GET_REG(cur_op, 0).o = MVM_repr_at_pos_2d_o(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(atpos3d_i):
+                GET_REG(cur_op, 0).i64 = MVM_repr_at_pos_3d_i(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
+                goto NEXT;
             OP(atpos3d_n):
+                GET_REG(cur_op, 0).n64 = MVM_repr_at_pos_3d_n(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
+                goto NEXT;
             OP(atpos3d_s):
+                GET_REG(cur_op, 0).s = MVM_repr_at_pos_3d_s(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
+                goto NEXT;
             OP(atpos3d_o):
-                MVM_exception_throw_adhoc(tc, "Multi-dimensional array ops not yet implemented");
+                GET_REG(cur_op, 0).o = MVM_repr_at_pos_3d_o(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
+                goto NEXT;
             OP(atposnd_i):
                 GET_REG(cur_op, 0).i64 = MVM_repr_at_pos_multidim_i(tc,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
@@ -4572,14 +4609,53 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(bindpos2d_i):
+                MVM_repr_bind_pos_2d_i(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(bindpos2d_n):
+                MVM_repr_bind_pos_2d_n(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).n64);
+                cur_op += 8;
+                goto NEXT;
             OP(bindpos2d_s):
+                MVM_repr_bind_pos_2d_s(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).s);
+                cur_op += 8;
+                goto NEXT;
             OP(bindpos2d_o):
+                MVM_repr_bind_pos_2d_o(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).o);
+                cur_op += 8;
+                goto NEXT;
             OP(bindpos3d_i):
+                MVM_repr_bind_pos_3d_i(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
+                goto NEXT;
             OP(bindpos3d_n):
+                MVM_repr_bind_pos_3d_n(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).n64);
+                cur_op += 10;
+                goto NEXT;
             OP(bindpos3d_s):
+                MVM_repr_bind_pos_3d_s(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).s);
+                cur_op += 10;
+                goto NEXT;
             OP(bindpos3d_o):
-                MVM_exception_throw_adhoc(tc, "Multi-dimensional array ops not yet implemented");
+                MVM_repr_bind_pos_3d_o(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).o);
+                cur_op += 10;
+                goto NEXT;
             OP(bindposnd_i):
                 MVM_repr_bind_pos_multidim_i(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);

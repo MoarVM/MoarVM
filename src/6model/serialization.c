@@ -503,11 +503,14 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
     MVMObject *scr = (MVMObject *)(((MVMCode *)closure)->body.sf)->body.static_code;
 
     if (scr == NULL || MVM_sc_get_obj_sc(tc, scr) == NULL) {
-        if (fatal)
-            MVM_exception_throw_adhoc(tc,
+        if (fatal) {
+            char *c_name = MVM_string_utf8_encode_C_string(tc,
+                    (((MVMCode *)closure)->body.sf)->body.name);
+            char *waste[] = { c_name, NULL };
+            MVM_exception_throw_adhoc_free(tc, waste,
                 "Serialization Error: missing static code ref for closure '%s'",
-                MVM_string_utf8_encode_C_string(tc,
-                    (((MVMCode *)closure)->body.sf)->body.name));
+                c_name);
+        }
         return NULL;
     }
     return scr;
@@ -2126,7 +2129,7 @@ static void deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *re
 
 /* Reads in what we need to lazily deserialize ->HOW later. */
 static void deserialize_how_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMSerializationContext *sc = read_locate_sc_and_index(tc, reader, &st->HOW_idx);
+    MVMSerializationContext *sc = read_locate_sc_and_index(tc, reader, (MVMint32 *) &st->HOW_idx);
 
     MVM_ASSIGN_REF(tc, &(st->header), st->HOW_sc, sc);
 }
