@@ -4688,6 +4688,27 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_repr_num_dimensions(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
+            OP(bindexlabel): {
+                MVMObject *ex = GET_REG(cur_op, 0).o;
+                if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException) {
+                    MVM_ASSIGN_REF(tc, &(ex->header), ((MVMException *)ex)->body.label,
+                        GET_REG(cur_op, 2).o);
+                }
+                else {
+                    MVM_exception_throw_adhoc(tc, "bindexlabel needs a VMException");
+                }
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(getexlabel): {
+                MVMObject *ex = GET_REG(cur_op, 2).o;
+                if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+                    GET_REG(cur_op, 0).o = ((MVMException *)ex)->body.label;
+                else
+                    MVM_exception_throw_adhoc(tc, "getexlabel needs a VMException");
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

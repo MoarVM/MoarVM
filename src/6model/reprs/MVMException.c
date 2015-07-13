@@ -27,6 +27,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMExceptionBody *body = (MVMExceptionBody *)data;
     MVM_gc_worklist_add(tc, worklist, &body->message);
     MVM_gc_worklist_add(tc, worklist, &body->payload);
+    MVM_gc_worklist_add(tc, worklist, &body->label);
     MVM_gc_worklist_add_frame(tc, worklist, body->origin);
 }
 

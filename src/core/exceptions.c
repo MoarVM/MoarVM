@@ -37,6 +37,8 @@ static const char * cat_name(MVMThreadContext *tc, MVMint32 cat) {
             return "redo_label";
         case MVM_EX_CAT_LAST | MVM_EX_CAT_LABELED:
             return "last_label";
+        case MVM_EX_CAT_RETURN | MVM_EX_CAT_LABELED:
+            return "return_label";
         default:
             return "unknown";
     }
@@ -73,11 +75,11 @@ typedef struct {
     MVMJitHandler   *jit_handler;
 } LocatedHandler;
 
-static MVMint32 handler_can_handle(MVMFrame *f, MVMFrameHandler *fh, MVMint32 cat, MVMObject *payload) {
+static MVMint32 handler_can_handle(MVMThreadContext *tc, MVMFrame *f, MVMFrameHandler *fh, MVMint32 cat, MVMObject *label) {
     MVMuint32         category_mask = fh->category_mask;
     MVMuint64       block_has_label = category_mask & MVM_EX_CAT_LABELED;
     MVMuint64           block_label = block_has_label ? (MVMuint64)(f->work[fh->label_reg].o) : 0;
-    MVMuint64          thrown_label = payload ? (MVMuint64)payload : 0;
+    MVMuint64          thrown_label = label ? (MVMuint64)label : 0;
     MVMuint64 identical_label_found = thrown_label == block_label;
     return ((cat & category_mask) == cat && (!(cat & MVM_EX_CAT_LABELED) || identical_label_found))
         || ((category_mask & MVM_EX_CAT_CONTROL) && cat != MVM_EX_CAT_CATCH);
@@ -87,7 +89,7 @@ static MVMint32 handler_can_handle(MVMFrame *f, MVMFrameHandler *fh, MVMint32 ca
  * match what we're looking for. Returns 1 to it if so; if not,
  * returns 0. */
 static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
-                                      MVMuint32 cat, MVMObject *payload,
+                                      MVMuint32 cat, MVMObject *label,
                                       LocatedHandler *lh) {
     MVMuint32  i;
     if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
@@ -97,7 +99,7 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
         void         **labels = f->spesh_cand->jitcode->labels;
         void       *cur_label = f->jit_entry_label;
         for (i = 0; i < num_handlers; i++) {
-            if (!handler_can_handle(f, &fhs[i], cat, payload))
+            if (!handler_can_handle(tc, f, &fhs[i], cat, label))
                 continue;
             if (cur_label >= labels[jhs[i].start_label] &&
                 cur_label <= labels[jhs[i].end_label] &&
@@ -118,7 +120,7 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
             pc = (MVMuint32)(f->return_address - f->effective_bytecode);
         for (i = 0; i < num_handlers; i++) {
             MVMFrameHandler  *fh = &f->effective_handlers[i];
-            if (!handler_can_handle(f, fh, cat, payload))
+            if (!handler_can_handle(tc, f, fh, cat, label))
                 continue;
             if (pc >= fh->start_offset && pc <= fh->end_offset && !in_handler_stack(tc, fh, f)) {
                 lh->handler = fh;
@@ -132,14 +134,14 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
 /* Searches for a handler of the specified category, relative to the given
  * starting frame, searching according to the chosen mode. */
 static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
-        MVMuint8 mode, MVMuint32 cat, MVMObject *payload) {
+        MVMuint8 mode, MVMuint32 cat, MVMObject *label) {
     LocatedHandler lh;
     lh.frame = NULL;
     lh.handler = NULL;
     lh.jit_handler = NULL;
     if (mode == MVM_EX_THROW_LEXOTIC) {
         while (f != NULL) {
-            lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat, payload);
+            lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat, label);
             if (lh.frame != NULL)
                 return lh;
             f = f->caller;
@@ -147,7 +149,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     }
     else {
         while (f != NULL) {
-            if (search_frame_handlers(tc, f, cat, payload, &lh)) {
+            if (search_frame_handlers(tc, f, cat, label, &lh)) {
                 lh.frame = f;
                 return lh;
             }
@@ -516,7 +518,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
          * a position just after throwing. */
         ex->body.jit_resume_label = tc->cur_frame->jit_entry_label;
     }
-    lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category, ex->body.payload);
+    lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category, ex->body.label);
     if (lh.frame == NULL)
         panic_unhandled_ex(tc, ex);
 

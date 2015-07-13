@@ -6,6 +6,9 @@ struct MVMExceptionBody {
     /* The payload (object thrown with the exception). */
     MVMObject *payload;
 
+    /* The (optional) target of the exception. */
+    MVMObject *label;
+
     /* The exception category. */
     MVMint32 category;
 
