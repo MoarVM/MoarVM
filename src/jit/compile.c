@@ -243,6 +243,8 @@ static void compile_expr_op(MVMThreadContext *tc, MVMJitTreeTraverser *traverser
     for (i = 0; i < nchild; i++) {
         MVMint32 child  = tree->nodes[first_child+i];
         MVMint32 regnum = state->nodes_reg[child];
+        if (MVM_jit_expr_op_info(tc, tree->nodes[child])->vtype == MVM_JIT_VOID)
+            continue;
         if (regnum < 0) {
             /* child does not reside in a register */
             MVMint32 spill = state->nodes_spill[child];

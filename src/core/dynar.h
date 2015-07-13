@@ -16,7 +16,10 @@
 
 #define MVM_DYNAR_ENSURE(x, space) \
     if (((x ## _num) + (space)) >= (x ## _alloc)) {     \
-        MVM_DYNAR_GROW(x, (x ## _alloc)*2); \
+        size_t required = ((x ## _num) + (space)); \
+        size_t newsize = (x ## _alloc) * 2; \
+        while (newsize < required) newsize *= 2; \
+        MVM_DYNAR_GROW(x, newsize); \
     }
 
 #define MVM_DYNAR_PUSH(x, value) do { \

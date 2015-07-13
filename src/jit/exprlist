@@ -23,13 +23,12 @@
 
 (macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
 (macro: ^p6obody (,a) (let (($replace (load (addr ,a (&offsetof MVMP6opaque body.replaced)) ptr_sz)))
-                      (if (nz $replace)
-                           $replace
-                           (addr ,a (&offsetof MVMP6opaque body)))))
+                      (ifelse (nz $replace)
+                              $replace
+                              (addr ,a (&offsetof MVMP6opaque body)))))
 # get spesh slot address
 (macro: ^spesh_slot (,a) (idx (load (addr (frame) (&offsetof MVMFrame effective_spesh_slots)))
                                ,a ptr_sz))
-
 
 
 (template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
@@ -43,12 +42,13 @@
 # NB - it is probably better to use direct variables, rather than trees,
 # as arguments to the write-barrier macro. Usually the compiler can
 # eliminate duplications, but call is a notable exception
+
 (macro: ^write_barrier (,obj ,ref)
         (let (($obj_flags (load (addr ,obj (&offsetof MVMCollectable flags)) 2))
               ($ref_flags (load (addr ,ref (&offsetof MVMCollectable flags)) 2)))
-              (if (all 3 (nz (and $obj_flags (&QUOTE MVM_CF_SECOND_GEN)))
+              (if (all 3 (nz (and $obj_flags (const (&QUOTE MVM_CF_SECOND_GEN) 2)))
                          (nz ,ref)
-                         (zr (and $ref_flags (&QUOTE MVM_CF_SECOND_GEN))))
+                         (zr (and $ref_flags (const (&QUOTE MVM_CF_SECOND_GEN) 2))))
                   (call (^func &MVM_gc_write_barrier_hit)
                         (arglist 2 (carg (tc) ptr_sz)
                                    (carg ,obj ptr_sz))
@@ -81,7 +81,6 @@
                      (arglist 2 (carg (tc) ptr_sz)
                                 (carg $0 ptr_sz))
                      rv_void))
-
 
 
 (template: getlex_no (let (($res (call (^func &MVM_frame_find_lexical_by_name)
