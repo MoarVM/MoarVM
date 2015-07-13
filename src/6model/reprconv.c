@@ -53,11 +53,16 @@ static void int_array_to_c_array(MVMThreadContext *tc, MVMObject *arr, MVMint64 
 }
 
 void MVM_repr_set_dimensions(MVMThreadContext *tc, MVMObject *obj, MVMObject *dims) {
-    MVMint64 num_dims, *c_dims;
-    int_array_to_c_array(tc, dims, &num_dims, &c_dims);
-    REPR(obj)->pos_funcs.set_dimensions(tc, STABLE(obj), obj,
-        OBJECT_BODY(obj), num_dims, c_dims);
-    MVM_free(c_dims);
+    if (IS_CONCRETE(obj)) {
+        MVMint64 num_dims, *c_dims;
+        int_array_to_c_array(tc, dims, &num_dims, &c_dims);
+        REPR(obj)->pos_funcs.set_dimensions(tc, STABLE(obj), obj,
+            OBJECT_BODY(obj), num_dims, c_dims);
+        MVM_free(c_dims);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Cannot set dimensions on a type object");
+    }
 }
 
 MVM_PUBLIC void MVM_repr_pos_splice(MVMThreadContext *tc, MVMObject *obj, MVMObject *replacement, MVMint64 offset, MVMint64 count) {
@@ -493,22 +498,32 @@ MVMuint64 MVM_repr_elems(MVMThreadContext *tc, MVMObject *obj) {
 }
 
 MVMObject * MVM_repr_dimensions(MVMThreadContext *tc, MVMObject *obj) {
-    MVMint64 num_dims, i;
-    MVMint64 *dims;
-    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
-    REPR(obj)->pos_funcs.dimensions(tc, STABLE(obj), obj, OBJECT_BODY(obj),
-        &num_dims, &dims);
-    for (i = 0; i < num_dims; i++)
-        MVM_repr_bind_pos_i(tc, result, i, dims[i]);
-    return result;
+    if (IS_CONCRETE(obj)) {
+        MVMint64 num_dims, i;
+        MVMint64 *dims;
+        MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
+        REPR(obj)->pos_funcs.dimensions(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            &num_dims, &dims);
+        for (i = 0; i < num_dims; i++)
+            MVM_repr_bind_pos_i(tc, result, i, dims[i]);
+        return result;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Cannot get dimensions of a type object");
+    }
 }
 
 MVMint64 MVM_repr_num_dimensions(MVMThreadContext *tc, MVMObject *obj) {
-    MVMint64 num_dims;
-    MVMint64 *_;
-    REPR(obj)->pos_funcs.dimensions(tc, STABLE(obj), obj, OBJECT_BODY(obj),
-        &num_dims, &_);
-    return num_dims;
+    if (IS_CONCRETE(obj)) {
+        MVMint64 num_dims;
+        MVMint64 *_;
+        REPR(obj)->pos_funcs.dimensions(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            &num_dims, &_);
+        return num_dims;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Cannot get number of dimensions of a type object");
+    }
 }
 
 MVMint64 MVM_repr_get_int(MVMThreadContext *tc, MVMObject *obj) {
