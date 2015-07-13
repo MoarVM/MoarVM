@@ -271,7 +271,7 @@ $config{jit} //= '$(JIT_STUB)';
 $config{ldlibs} = join ' ',
     (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),
     (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
-$config{ldlibs} .= ' -lasan' if $args{asan};
+$config{ldlibs} = ' -lasan ' . $config{ldlibs} if $args{asan};
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
