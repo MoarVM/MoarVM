@@ -969,12 +969,13 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
         }
         cur_frame = cur_frame->outer;
     }
-    if (type == MVM_reg_obj)
-        return NULL;
-    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-    char *waste[] = { c_name, NULL };
-    MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
-        c_name);
+    if (type != MVM_reg_obj) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
+            c_name);
+    }
+    return NULL;
 }
 
 /* Finds a lexical in the outer frame, throwing if it's not there. */
@@ -1318,10 +1319,13 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
         if (entry)
             return &f->env[entry->value];
     }
-    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-    char *waste[] = { c_name, NULL };
-    MVM_exception_throw_adhoc_free(tc, waste, "Frame has no lexical with name '%s'",
-        c_name);
+
+    {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Frame has no lexical with name '%s'",
+            c_name);
+    }
 }
 
 /* Returns the storage unit for the lexical in the specified frame. */
@@ -1369,10 +1373,12 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
             }
         }
     }
-    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-    char *waste[] = { c_name, NULL };
-    MVM_exception_throw_adhoc_free(tc, waste, "Frame has no lexical with name '%s'",
-        c_name);
+    {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Frame has no lexical with name '%s'",
+            c_name);
+    }
 }
 
 static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs, MVMInvocationSpec *is) {
