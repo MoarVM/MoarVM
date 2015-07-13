@@ -215,11 +215,27 @@ static void emit_expr_op(MVMThreadContext *tc, MVMJitExprNode op,
         MVM_jit_log(tc, "mov %s, %s\n", X64_REGISTER_NAMES[regs[1]], X64_REGISTER_NAMES[regs[0]]);
         break;
     case MVM_JIT_ADDR:
-        MVM_jit_log(tc, "lea %s, [%s+0x%"PRIx64"]\n", X64_REGISTER_NAMES[regs[0]],
-                    X64_REGISTER_NAMES[regs[1]], args[0]);
+        MVM_jit_log(tc, "lea %s, [%s+0x%"PRIx64"]\n", X64_REGISTER_NAMES[regs[1]],
+                    X64_REGISTER_NAMES[regs[0]], args[0]);
+        break;
+    case MVM_JIT_IDX:
+        MVM_jit_log(tc, "lea %s, [%s+%s*%d]\n", X64_REGISTER_NAMES[regs[2]],
+                    X64_REGISTER_NAMES[regs[0]], X64_REGISTER_NAMES[regs[1]], args[0]);
         break;
     case MVM_JIT_LOCAL:
         MVM_jit_log(tc, "mov %s, %s\n", X64_REGISTER_NAMES[regs[0]], X64_REGISTER_NAMES[rbx]);
+        break;
+    case MVM_JIT_FRAME:
+        MVM_jit_log(tc, "mov %s, %s\n", X64_REGISTER_NAMES[regs[0]], X64_REGISTER_NAMES[r12]);
+        break;
+    case MVM_JIT_CU:
+        MVM_jit_log(tc, "mov %s, %s\n", X64_REGISTER_NAMES[regs[0]], X64_REGISTER_NAMES[r13]);
+        break;
+    case MVM_JIT_TC:
+        MVM_jit_log(tc, "mov %s, %s\n", X64_REGISTER_NAMES[regs[0]], X64_REGISTER_NAMES[r14]);
+        break;
+    case MVM_JIT_CONST:
+        MVM_jit_log(tc, "mov %s, 0x%x\n", X64_REGISTER_NAMES[regs[0]], (MVMint32)args[0]);
         break;
     default: {
         const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, op);
@@ -283,10 +299,11 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitExpr
     CompilerRegisterState state;
     /* Initialize state */
     memset(state.reg_used, -1, sizeof(state.reg_used));
-    state.nodes_reg = MVM_malloc(sizeof(X64_REGISTER)*tree->nodes_num);
-    state.nodes_spill = MVM_malloc(sizeof(MVMint32)*tree->nodes_num);
-
-    memset(state.nodes_reg, -1, sizeof(X64_REGISTER)*tree->nodes_num);
+    state.nodes_reg     = MVM_malloc(sizeof(MVMint32)*tree->nodes_num);
+    state.nodes_spill   = MVM_malloc(sizeof(MVMint32)*tree->nodes_num);
+    state.last_register = 0;
+    state.last_spill    = 0;
+    memset(state.nodes_reg, -1, sizeof(MVMint32)*tree->nodes_num);
     memset(state.nodes_spill, -1, sizeof(MVMint32)*tree->nodes_num);
 
     /* initialize compiler */
