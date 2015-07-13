@@ -96,18 +96,18 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
 
     /* Free manually managed STable list memory. */
-    MVM_checked_free_null(sc->body->root_stables);
+    MVM_free(sc->body->root_stables);
 
     /* If we have a serialization reader, clean that up too. */
     if (sc->body->sr) {
         if (sc->body->sr->data_needs_free)
-            MVM_checked_free_null(sc->body->sr->data);
-        MVM_checked_free_null(sc->body->sr->contexts);
-        MVM_checked_free_null(sc->body->sr);
+            MVM_free(sc->body->sr->data);
+        MVM_free(sc->body->sr->contexts);
+        MVM_free(sc->body->sr);
     }
 
     /* Free body. */
-    MVM_checked_free_null(sc->body);
+    MVM_free(sc->body);
 }
 
 static const MVMStorageSpec storage_spec = {

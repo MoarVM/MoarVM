@@ -618,15 +618,15 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
         return;
 
     if (repr_data->name_to_index_mapping) {
-        MVM_free_null(repr_data->name_to_index_mapping);
-        MVM_free_null(repr_data->attribute_locations);
-        MVM_free_null(repr_data->struct_offsets);
-        MVM_free_null(repr_data->flattened_stables);
-        MVM_free_null(repr_data->member_types);
-        MVM_free_null(repr_data->initialize_slots);
+        MVM_free(repr_data->name_to_index_mapping);
+        MVM_free(repr_data->attribute_locations);
+        MVM_free(repr_data->struct_offsets);
+        MVM_free(repr_data->flattened_stables);
+        MVM_free(repr_data->member_types);
+        MVM_free(repr_data->initialize_slots);
     }
 
-    MVM_free_null(st->REPR_data);
+    MVM_free(st->REPR_data);
 }
 
 /* This is called to do any cleanup of resources when an object gets

@@ -78,7 +78,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMArray *arr = (MVMArray *)obj;
-    MVM_checked_free_null(arr->body.slots.any);
+    MVM_free(arr->body.slots.any);
 }
 
 /* Marks the representation data in an STable.*/
@@ -91,7 +91,7 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
 
 /* Marks the representation data in an STable.*/
 static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
-    MVM_checked_free_null(st->REPR_data);
+    MVM_free(st->REPR_data);
 }
 
 

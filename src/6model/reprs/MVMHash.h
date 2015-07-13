@@ -64,5 +64,5 @@ else { \
     } \
     tmp = head_node; \
     HASH_CLEAR(hash_handle, head_node); \
-    MVM_checked_free_null(tmp); \
+    MVM_free(tmp); \
 } while (0)

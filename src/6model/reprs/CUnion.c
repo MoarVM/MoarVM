@@ -618,7 +618,7 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
 
 /* Free representation data. */
 static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
-    MVM_checked_free_null(st->REPR_data);
+    MVM_free(st->REPR_data);
 }
 
 /* This is called to do any cleanup of resources when an object gets

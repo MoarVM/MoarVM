@@ -74,24 +74,18 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCompUnitBody *body = &((MVMCompUnit *)obj)->body;
-    MVM_checked_free_null(body->frames);
-    MVM_checked_free_null(body->coderefs);
-    body->main_frame = NULL;
-    body->load_frame = NULL;
-    body->deserialize_frame = NULL;
-    MVM_checked_free_null(body->callsites);
-    MVM_checked_free_null(body->extops);
-    MVM_checked_free_null(body->strings);
-    MVM_checked_free_null(body->scs);
-    MVM_checked_free_null(body->scs_to_resolve);
-    body->hll_config = NULL;
-    body->hll_name = NULL;
-    body->filename = NULL;
+    MVM_free(body->frames);
+    MVM_free(body->coderefs);
+    MVM_free(body->callsites);
+    MVM_free(body->extops);
+    MVM_free(body->strings);
+    MVM_free(body->scs);
+    MVM_free(body->scs_to_resolve);
     switch (body->deallocate) {
     case MVM_DEALLOCATE_NOOP:
         break;
     case MVM_DEALLOCATE_FREE:
-        MVM_checked_free_null(body->data_start);
+        MVM_free(body->data_start);
         break;
     case MVM_DEALLOCATE_UNMAP:
         MVM_platform_unmap_file(body->data_start, body->handle, body->data_size);

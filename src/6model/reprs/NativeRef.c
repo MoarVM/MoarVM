@@ -77,7 +77,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 
 /* Frees the representation data, if any. */
 static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
-    MVM_checked_free_null(st->REPR_data);
+    MVM_free(st->REPR_data);
 }
 
 /* Gets the storage specification for this representation. */

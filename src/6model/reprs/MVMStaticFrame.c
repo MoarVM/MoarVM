@@ -181,13 +181,13 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     /* If it's not fully deserialized, none of the following can apply. */
     if (!body->fully_deserialized)
         return;
-    MVM_checked_free_null(body->instr_offsets);
-    MVM_checked_free_null(body->handlers);
-    MVM_checked_free_null(body->static_env);
-    MVM_checked_free_null(body->static_env_flags);
-    MVM_checked_free_null(body->local_types);
-    MVM_checked_free_null(body->lexical_types);
-    MVM_checked_free_null(body->lexical_names_list);
+    MVM_free(body->instr_offsets);
+    MVM_free(body->handlers);
+    MVM_free(body->static_env);
+    MVM_free(body->static_env_flags);
+    MVM_free(body->local_types);
+    MVM_free(body->lexical_types);
+    MVM_free(body->lexical_names_list);
     MVM_HASH_DESTROY(hash_handle, MVMLexicalRegistry, body->lexical_names);
 }
 

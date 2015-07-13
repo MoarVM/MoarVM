@@ -47,9 +47,9 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMint64 i;
     for (i = 0; i < nfa->body.num_states; i++)
         if (nfa->body.num_state_edges[i])
-            MVM_checked_free_null(nfa->body.states[i]);
-    MVM_checked_free_null(nfa->body.states);
-    MVM_checked_free_null(nfa->body.num_state_edges);
+            MVM_free(nfa->body.states[i]);
+    MVM_free(nfa->body.states);
+    MVM_free(nfa->body.num_state_edges);
 }
 
 

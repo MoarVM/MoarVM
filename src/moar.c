@@ -266,11 +266,11 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Cleanup REPR registry */
     uv_mutex_destroy(&instance->mutex_repr_registry);
     MVM_HASH_DESTROY(hash_handle, MVMReprRegistry, instance->repr_hash);
-    MVM_checked_free_null(instance->repr_list);
+    MVM_free(instance->repr_list);
 
     /* Clean up GC permanent roots related resources. */
     uv_mutex_destroy(&instance->mutex_permroots);
-    MVM_checked_free_null(instance->permroots);
+    MVM_free(instance->permroots);
 
     /* Clean up Hash of HLLConfig. */
     uv_mutex_destroy(&instance->mutex_hllconfigs);
