@@ -52,7 +52,7 @@ void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMS
     MVMint32 opcode = ins->info->opcode;
     if (opcode == MVM_OP_inc_i || opcode == MVM_OP_dec_i || opcode == MVM_OP_inc_u || opcode == MVM_OP_dec_u) {
         /* Don't repeat yourself? No special cases? Who are we kidding */
-        MVMuint16 reg = ins->operands[i].reg.orig;
+        MVMuint16 reg = ins->operands[0].reg.orig;
         if (computed[reg] > 0) {
             operands[0] = computed[reg];
         } else {

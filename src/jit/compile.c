@@ -269,7 +269,7 @@ static void compile_expr_op(MVMThreadContext *tc, MVMJitTreeTraverser *traverser
             }
             regnum = get_next_register(tc, state, regs, i);
             /* emit load */
-            MVM_jit_log(tc, "mov %s, [rsp+0x%x]\n", X64_REGISTER_NAMES[regs[i]], spill);
+            MVM_jit_log(tc, "mov %s, [rsp+0x%x]\n", X64_REGISTER_NAMES[FREE_REGISTERS[regnum]], spill);
             /* store child as existing in the register */
             state->reg_used[regnum] = child;
             state->nodes_reg[child] = regnum;
