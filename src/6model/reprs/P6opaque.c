@@ -129,7 +129,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     }
 
     /* If we replaced the object body, free the replacement. */
-    MVM_checked_free_null(((MVMP6opaque *)obj)->body.replaced);
+    MVM_free(((MVMP6opaque *)obj)->body.replaced);
 }
 
 /* Marks the representation data in an STable.*/
@@ -178,23 +178,23 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     if (repr_data->name_to_index_mapping) {
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
-            MVM_free_null(cur_map_entry->names);
-            MVM_free_null(cur_map_entry->slots);
+            MVM_free(cur_map_entry->names);
+            MVM_free(cur_map_entry->slots);
             cur_map_entry++;
         }
-        MVM_free_null(repr_data->name_to_index_mapping);
+        MVM_free(repr_data->name_to_index_mapping);
     }
 
-    MVM_checked_free_null(repr_data->attribute_offsets);
-    MVM_checked_free_null(repr_data->flattened_stables);
-    MVM_checked_free_null(repr_data->auto_viv_values);
-    MVM_checked_free_null(repr_data->unbox_slots);
-    MVM_checked_free_null(repr_data->gc_obj_mark_offsets);
-    MVM_checked_free_null(repr_data->initialize_slots);
-    MVM_checked_free_null(repr_data->gc_mark_slots);
-    MVM_checked_free_null(repr_data->gc_cleanup_slots);
+    MVM_free(repr_data->attribute_offsets);
+    MVM_free(repr_data->flattened_stables);
+    MVM_free(repr_data->auto_viv_values);
+    MVM_free(repr_data->unbox_slots);
+    MVM_free(repr_data->gc_obj_mark_offsets);
+    MVM_free(repr_data->initialize_slots);
+    MVM_free(repr_data->gc_mark_slots);
+    MVM_free(repr_data->gc_cleanup_slots);
 
-    MVM_free_null(st->REPR_data);
+    MVM_free(st->REPR_data);
 }
 
 /* Helper for complaining about attribute access errors. */

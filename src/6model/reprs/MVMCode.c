@@ -68,7 +68,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCode *code_obj = (MVMCode *)obj;
     if (code_obj->body.outer)
         code_obj->body.outer = MVM_frame_dec_ref(tc, code_obj->body.outer);
-    MVM_checked_free_null(code_obj->body.state_vars);
+    MVM_free(code_obj->body.state_vars);
 }
 
 

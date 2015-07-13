@@ -39,9 +39,9 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMMultiCache *mc = (MVMMultiCache *)obj;
     MVMint64 i;
     for (i = 0; i < MVM_MULTICACHE_MAX_ARITY; i++) {
-        MVM_checked_free_null(mc->body.arity_caches[i].type_ids);
-        MVM_checked_free_null(mc->body.arity_caches[i].named_ok);
-        MVM_checked_free_null(mc->body.arity_caches[i].results);
+        MVM_free(mc->body.arity_caches[i].type_ids);
+        MVM_free(mc->body.arity_caches[i].named_ok);
+        MVM_free(mc->body.arity_caches[i].results);
     }
 }
 

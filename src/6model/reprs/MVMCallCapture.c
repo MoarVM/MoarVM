@@ -59,8 +59,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCallCapture *ctx = (MVMCallCapture *)obj;
     if (ctx->body.apc && ctx->body.effective_callsite != ctx->body.apc->callsite) {
-        MVM_checked_free_null(ctx->body.effective_callsite->arg_flags);
-        MVM_checked_free_null(ctx->body.effective_callsite);
+        MVM_free(ctx->body.effective_callsite->arg_flags);
+        MVM_free(ctx->body.effective_callsite);
     }
     if (ctx->body.mode == MVM_CALL_CAPTURE_MODE_SAVE) {
         /* We made our own copy of the args buffer and processing context, so
@@ -72,8 +72,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
                     ctx->body.apc->named_used);
                 ctx->body.apc->named_used = NULL;
             }
-            MVM_checked_free_null(ctx->body.apc->args);
-            MVM_checked_free_null(ctx->body.apc);
+            MVM_free(ctx->body.apc->args);
+            MVM_free(ctx->body.apc);
         }
     }
     else {

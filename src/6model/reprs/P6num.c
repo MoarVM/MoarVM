@@ -63,7 +63,7 @@ static MVMnum64 get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
 /* Marks the representation data in an STable.*/
 static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
-    MVM_checked_free_null(st->REPR_data);
+    MVM_free(st->REPR_data);
 }
 
 static const MVMStorageSpec default_storage_spec = {
