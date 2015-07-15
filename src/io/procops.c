@@ -696,7 +696,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
         });
         if (buf->base)
             MVM_free(buf->base);
-        uv_close(handle, NULL);
+        uv_close((uv_handle_t *) handle, NULL);
     }
     else {
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
