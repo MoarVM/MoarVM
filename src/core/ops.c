@@ -8162,9 +8162,20 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         { MVM_operand_read_reg | MVM_operand_obj }
     },
+    {
+        MVM_OP_ctw_check,
+        "ctw_check",
+        ".s",
+        2,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
+    },
 };
 
-static const unsigned short MVM_op_counts = 743;
+static const unsigned short MVM_op_counts = 744;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

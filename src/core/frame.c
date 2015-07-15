@@ -52,6 +52,8 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
     /* Add profiling instrumentation if needed. */
     if (tc->instance->profiling)
         MVM_profile_instrument(tc, static_frame);
+    else if (tc->instance->cross_thread_write_logging)
+        MVM_cross_thread_write_instrument(tc, static_frame);
     else
         MVM_profile_ensure_uninstrumented(tc, static_frame);
 }

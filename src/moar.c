@@ -122,6 +122,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Multi-cache additions mutex. */
     init_mutex(instance->mutex_multi_cache_add, "multi-cache addition");
 
+    /* Current instrumentation level starts at 1; used to trigger all frames
+     * to be verified before their first run. */
+    instance->instrumentation_level = 1;
+
     /* Mutex for spesh installations, and check if we've a file we
      * should log specializations to. */
     init_mutex(instance->mutex_spesh_install, "spesh installations");
@@ -139,6 +143,8 @@ MVMInstance * MVM_vm_create_instance(void) {
             instance->spesh_osr_enabled = 1;
     }
 
+    /* Should we specialize without warm up delays? Used to find bugs in the
+     * specializer and JIT. */
     spesh_nodelay = getenv("MVM_SPESH_NODELAY");
     if (spesh_nodelay && strlen(spesh_nodelay)) {
         instance->spesh_nodelay = 1;
@@ -154,12 +160,25 @@ MVMInstance * MVM_vm_create_instance(void) {
     jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
     if (jit_bytecode_dir && strlen(jit_bytecode_dir))
         instance->jit_bytecode_dir = jit_bytecode_dir;
+
+    /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");
     if (dynvar_log && strlen(dynvar_log))
         instance->dynvar_log_fh = fopen(dynvar_log, "w");
     else
         instance->dynvar_log_fh = NULL;
     instance->nfa_debug_enabled = getenv("MVM_NFA_DEB") ? 1 : 0;
+    if (getenv("MVM_CROSS_THREAD_WRITE_LOG")) {
+        instance->cross_thread_write_logging = 1;
+        instance->cross_thread_write_logging_include_locked =
+            getenv("MVM_CROSS_THREAD_WRITE_LOG_INCLUDE_LOCKED") ? 1 : 0;
+        instance->instrumentation_level++;
+        init_mutex(instance->mutex_cross_thread_write_logging,
+            "cross thread write logging output");
+    }
+    else {
+        instance->cross_thread_write_logging = 0;
+    }
 
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
@@ -167,10 +186,6 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up NFG state mutation mutex. */
     instance->nfg = calloc(1, sizeof(MVMNFGState));
     init_mutex(instance->nfg->update_mutex, "NFG update mutex");
-
-    /* Current instrumentation level starts at 1; used to trigger all frames
-     * to be verified before their first run. */
-    instance->instrumentation_level = 1;
 
     /* Back to nursery allocation, now we're set up. */
     MVM_gc_allocate_gen2_default_clear(instance->main_thread);
