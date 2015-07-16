@@ -23,7 +23,7 @@
 
 (macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
 (macro: ^p6obody (,a) (let (($replace (load (addr ,a (&offsetof MVMP6opaque body.replaced)) ptr_sz)))
-                      (ifelse (nz $replace)
+                      (if (nz $replace)
                               $replace
                               (addr ,a (&offsetof MVMP6opaque body)))))
 # get spesh slot address
@@ -36,7 +36,7 @@
 (template: sp_p6oget_s (load (add (^p6obody $1) $2) ptr_sz))
 (template: sp_p6oget_o
            (let (($val (load (add (^p6obody $1) $2) ptr_sz)))
-                (ifelse (nz $val) $val (vmnull))))
+                (if (nz $val) $val (vmnull))))
 
 # hit write barrier for object - this one is rather large
 # NB - it is probably better to use direct variables, rather than trees,
@@ -46,9 +46,9 @@
 (macro: ^write_barrier (,obj ,ref)
         (let (($obj_flags (load (addr ,obj (&offsetof MVMCollectable flags)) 2))
               ($ref_flags (load (addr ,ref (&offsetof MVMCollectable flags)) 2)))
-              (if (all 3 (nz (and $obj_flags (const (&QUOTE MVM_CF_SECOND_GEN) 2)))
-                         (nz ,ref)
-                         (zr (and $ref_flags (const (&QUOTE MVM_CF_SECOND_GEN) 2))))
+              (when (all 3 (nz (and $obj_flags (const (&QUOTE MVM_CF_SECOND_GEN) 2)))
+                           (nz ,ref)
+                           (zr (and $ref_flags (const (&QUOTE MVM_CF_SECOND_GEN) 2))))
                   (call (^func &MVM_gc_write_barrier_hit)
                         (arglist 2 (carg (tc) ptr_sz)
                                    (carg ,obj ptr_sz))
@@ -58,15 +58,14 @@
            (let (($addr (add (^p6obody $1) $2))
                  ($val (load $addr ptr_sz))
                  ($type (load (^spesh_slot $3) ptr_sz)))
-                 (ifelse (nz $val)
-                          $val
-                          (do 3 (^write_barrier $1 $type)
-                                (store $addr $type ptr_sz)
-                                 $type))))
+                 (if (nz $val)
+                      $val
+                      (do 3 (^write_barrier $1 $type)
+                            (store $addr $type ptr_sz)
+                             $type))))
 
 (template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 reg_sz))
 (template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 reg_sz))
-
 
 (template: null_s (const 0 ptr_sz))
 (template: null (vmnull))
@@ -74,7 +73,7 @@
 (macro: ^stable (,a) (load (addr ,a (&offsetof MVMObject st))))
 (template: getwhat (load (addr (^stable $1) (&offsetof MVMSTable WHAT)) ptr_sz))
 (template: getwho  (let (($who (load (addr (^stable $1) (&offsetof MVMSTable WHO)) ptr_sz)))
-                         (ifelse (nz $who) $who (vmnull))))
+                         (if (nz $who) $who (vmnull))))
 
 
 (template: say (call (^func &MVM_string_say)
@@ -88,5 +87,5 @@
                                                   (carg (load (^cu_string $1) ptr_sz) ptr_sz)
                                                   (carg (const (&QUOTE MVM_reg_obj) int_sz) ptr_sz))
                                        reg_val)))
-                           (ifelse (nz $res) (load $res ptr_sz) $res)))
+                           (if (nz $res) (load $res ptr_sz) $res)))
 

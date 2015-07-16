@@ -53,12 +53,12 @@ enum MVMJitExprVtype { /* value type */
     _(ANY, -1, 0, FLAG), \
     /* control operators */ \
     _(DO, -1, 0, REG), \
-    _(IF, 2, 0, VOID), \
-    _(IFELSE, 3, 0, REG), \
+    _(WHEN, 2, 0, VOID), \
+    _(IF, 3, 0, REG), \
     /* call c functions */ \
     _(CALL, 2, 1, REG), \
     _(ARGLIST, -1, 0, VOID), \
-    _(CARG, 1, 1, REG), \
+    _(CARG, 1, 1, VOID), \
     /* interpreter special variables */ \
     _(TC, 0, 0, REG), \
     _(CU, 0, 0, MEM), \
