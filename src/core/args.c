@@ -515,6 +515,7 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
         }
     }
 }
+
 void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
     MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
     if (target && target->return_type != MVM_RETURN_VOID && tc->cur_frame != tc->thread_entry_frame)

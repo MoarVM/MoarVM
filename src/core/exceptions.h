@@ -15,6 +15,7 @@
 #define MVM_EX_CAT_WARN          256
 #define MVM_EX_CAT_SUCCEED       512
 #define MVM_EX_CAT_PROCEED       1024
+#define MVM_EX_CAT_LEAVE         2048
 #define MVM_EX_CAT_LABELED       4096
 
 /* Ways to throw an exception. */

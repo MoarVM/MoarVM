@@ -3801,9 +3801,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->instance->boot_types.BOOTException);
                 cur_op += 2;
                 goto NEXT;
-            OP(DEPRECATED_0):
-                cur_op += 2;
+            OP(leave): {
+                MVM_args_set_result_obj(tc, GET_REG(cur_op, 0).o,
+                    MVM_RETURN_CALLER_FRAME);
+                if (MVM_frame_try_return(tc) == 0)
+                    goto return_label;
                 goto NEXT;
+            }
             OP(backtrace):
                 GET_REG(cur_op, 0).o = MVM_exception_backtrace(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;

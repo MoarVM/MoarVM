@@ -637,6 +637,7 @@ module HandlerCategory {
     our $warn    := 256;
     our $succeed := 512;
     our $proceed := 1024;
+    our $leave   := 2048;
     our $labeled := 4096;
 }
 

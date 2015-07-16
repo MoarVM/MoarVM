@@ -31,14 +31,16 @@ static const char * cat_name(MVMThreadContext *tc, MVMint32 cat) {
             return "succeed";
         case MVM_EX_CAT_PROCEED:
             return "proceed";
+        case MVM_EX_CAT_LEAVE:
+            return "leave";
         case MVM_EX_CAT_NEXT | MVM_EX_CAT_LABELED:
             return "next_label";
         case MVM_EX_CAT_REDO | MVM_EX_CAT_LABELED:
             return "redo_label";
         case MVM_EX_CAT_LAST | MVM_EX_CAT_LABELED:
             return "last_label";
-        case MVM_EX_CAT_RETURN | MVM_EX_CAT_LABELED:
-            return "return_label";
+        case MVM_EX_CAT_LEAVE | MVM_EX_CAT_LABELED:
+            return "leave_label";
         default:
             return "unknown";
     }
@@ -80,7 +82,16 @@ static MVMint32 handler_can_handle(MVMThreadContext *tc, MVMFrame *f, MVMFrameHa
     MVMuint64       block_has_label = category_mask & MVM_EX_CAT_LABELED;
     MVMuint64           block_label = block_has_label ? (MVMuint64)(f->work[fh->label_reg].o) : 0;
     MVMuint64          thrown_label = label ? (MVMuint64)label : 0;
-    MVMuint64 identical_label_found = thrown_label == block_label;
+    MVMuint64 identical_label_found = (thrown_label == block_label)
+                                   || (thrown_label == (MVMuint64)(f->code_ref));
+    if (cat & MVM_EX_CAT_LEAVE) {
+        fprintf(stderr, "%s (cat & category_mask=%d == cat=%d) block_has_label=%d\n",
+            cat_name(tc, cat), cat & category_mask, cat, block_has_label);
+        fprintf(stderr, "%s (thrown_label=%p == block_label=%p == f=%p == f->code_ref=%p == code_object=%p)\n",
+            cat_name(tc, cat), thrown_label, block_label, f, f->code_ref, ((MVMCode *)f->code_ref)->body.code_object);
+        fprintf(stderr, "%s handler_can_handle %d\n",
+            cat_name(tc, cat), ((cat & category_mask) == cat && (!(cat & MVM_EX_CAT_LABELED) || identical_label_found)));
+    }
     return ((cat & category_mask) == cat && (!(cat & MVM_EX_CAT_LABELED) || identical_label_found))
         || ((category_mask & MVM_EX_CAT_CONTROL) && cat != MVM_EX_CAT_CATCH);
 }
