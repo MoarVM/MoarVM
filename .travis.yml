@@ -7,7 +7,8 @@ before_script:
     - clang --version
     - sudo apt-get update -qq
     - sudo apt-get install -y libffi-dev
-    - git clone git://github.com/perl6/nqp
+    - git fetch --unshallow
+    - git clone --depth 1 git://github.com/perl6/nqp
 
 script: "perl Configure.pl --prefix=/tmp/moar $MVM_OPTIONS --debug --optimize --cc=\"$CC\"; make install; cd nqp; perl Configure.pl --prefix=/tmp/moar --backends=moar; make; make test"
 
