@@ -7,6 +7,7 @@ before_script:
     - clang --version
     - sudo apt-get update -qq
     - sudo apt-get install -y libffi-dev
+    - git clone git://github.com/perl6/nqp
 
 script: "perl Configure.pl $MVM_OPTIONS --debug --optimize --cc=\"$CC\"; make install"
 
