@@ -369,18 +369,24 @@ static void prepare_expr_op(MVMThreadContext *tc, MVMJitTreeTraverser *traverser
     /* Spill before call or if or when */
     CompilerRegisterState *state = traverser->data;
     MVMJitExprNode op = tree->nodes[node];
-    if (traverser->visits > 0)
+    if (traverser->visits[node] > 1)
         return;
     /* Conditional blocks should spill before they are run */
     switch (op) {
     case MVM_JIT_WHEN:
         /* require a label for the statement end */
         state->cond_depth += 1;
-        emit_full_spill(tc, state);
         break;
     case MVM_JIT_IF:
         /* require two labels, one for the alternative block, and one for the statement end */
         state->cond_depth += 2;
+        emit_full_spill(tc, state);
+        break;
+    case MVM_JIT_ALL:
+    case MVM_JIT_ANY:
+        /* require one label for short-circuiting */
+        state->cond_depth += 1;
+        /* emit spill because we can't be sure which block will execute */
         emit_full_spill(tc, state);
         break;
     default:
@@ -392,17 +398,28 @@ static void compile_expr_labels(MVMThreadContext *tc, MVMJitTreeTraverser *trave
                                 MVMJitExprTree *tree, MVMint32 node, MVMint32 i) {
     CompilerRegisterState *state = traverser->data;
     MVMJitExprNode op = tree->nodes[node];
-    if (traverser->visits > 0)
+    if (traverser->visits[node] > 1)
         return;
     switch (op) {
     case MVM_JIT_IF:
         /* 'ternary operator' or 'expression style' if */
         if (i == 0) {
-            /* branch to second option (label 1) */
-            MVM_jit_log(tc, "jnz >%d\n", state->cond_depth - 1);
+            MVMint32 condition = tree->nodes[node+1];
+            MVMint32 regnum    = state->nodes_reg[condition];
+            const char * regname;
+            if (regnum < 0) {
+                /* this seems to be a common pattern */
+                regnum = get_next_register(tc, state, NULL, 0);
+                load_node_to(tc, state, condition, regnum);
+            }
+            regname = X64_REGISTER_NAMES[FREE_REGISTERS[regnum]];
+            emit_full_spill(tc, state);
+            MVM_jit_log(tc, "test %s, %s\n", regname, regname);
+            /* condition statement; branch to second option (label 1) */
+            MVM_jit_log(tc, "jz >%d\n", state->cond_depth - 1);
         } else if (i == 1) {
             /* move result value into place (i.e. rax) */
-            load_node_to(tc, state, node + 2, 0);
+            load_node_to(tc, state, tree->nodes[node + 2], 0);
             /* just after first option, branch to end */
             MVM_jit_log(tc, "jmp >%d\n", state->cond_depth);
             MVM_jit_log(tc, "%d:\n" , state->cond_depth - 1);
@@ -410,7 +427,7 @@ static void compile_expr_labels(MVMThreadContext *tc, MVMJitTreeTraverser *trave
             invalidate_registers(tc, state);
         } else {
             /* move result value into place */
-            load_node_to(tc, state, node + 3, 0);
+            load_node_to(tc, state, tree->nodes[node + 3], 0);
             /* emit end label */
             MVM_jit_log(tc, "%d:\n", state->cond_depth);
             invalidate_registers(tc, state);
@@ -424,7 +441,40 @@ static void compile_expr_labels(MVMThreadContext *tc, MVMJitTreeTraverser *trave
             invalidate_registers(tc, state);
         }
         break;
+    case MVM_JIT_ALL:
+        {
+            MVMint32 result = state->nodes_reg[node];
+            MVMint32 value  = state->nodes_reg[node+i+2];
+            const char *regname;
+            if (result < 0) {
+                result = get_next_register(tc, state, NULL, 0);
+                if (i > 0) {
+                    load_node_to(tc, state, node, result);
+                } else {
+                    /* assign register to node */
+                    state->nodes_reg[node]  = result;
+                    state->reg_used[result] = node;
+                }
+            }
+            if (value < 0) {
+                X64_REGISTER regs[] = { FREE_REGISTERS[result] };
+                value = get_next_register(tc, state, regs, 1);
+                load_node_to(tc, state, tree->nodes[node + i + 2], result);
+            }
+            regname = X64_REGISTER_NAMES[FREE_REGISTERS[result]];
+            if (i > 0) {
+                MVM_jit_log(tc, "and %s, %s\n", regname, X64_REGISTER_NAMES[FREE_REGISTERS[value]]);
+            } else {
+                MVM_jit_log(tc, "mov %s, %s\n", regname, X64_REGISTER_NAMES[FREE_REGISTERS[value]]);
+            }
+            MVM_jit_log(tc, "test %s, %s\n", regname, regname);
+            MVM_jit_log(tc, "jz >%d\n", state->cond_depth);
+            break;
+        }
+    default:
+        break;
     }
+
 }
 
 static void compile_expr_op(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
@@ -460,34 +510,39 @@ static void compile_expr_op(MVMThreadContext *tc, MVMJitTreeTraverser *traverser
         break;
     case MVM_JIT_DO:
         {
+            /* take value from last node */
             MVMint32 nchild     = tree->nodes[node+1];
             MVMint32 last_child = tree->nodes[node+1+nchild];
             MVMint32 regnum     = get_next_register(tc, state, regs, 0);
-            load_node_to(tc, state, last_child, regnum);
+            if (state->nodes_reg[last_child] >= 0) {
+                MVM_jit_log(tc, "mov %s, %s\n", X64_REGISTER_NAMES[FREE_REGISTERS[regnum]],
+                            X64_REGISTER_NAMES[FREE_REGISTERS[state->nodes_reg[last_child]]]);
+            } else if (state->nodes_spill[last_child] >= 0) {
+                MVM_jit_log(tc, "mov %s, [rsp+0x%x]\n", X64_REGISTER_NAMES[FREE_REGISTERS[regnum]],
+                            state->nodes_spill[last_child]*sizeof(MVMRegister));
+            } else {
+                MVM_oops(tc, "Can't load last node in DO\n");
+            }
             state->reg_used[regnum] = node;
             state->nodes_reg[node]  = regnum;
             break;
         }
     case MVM_JIT_ALL:
         {
-            MVMint32 nchild      = tree->nodes[node+1];
-            MVMint32 first_child = tree->nodes[node+2];
-            MVMint32 result, value, i;
-            if (nchild == 0)
-                MVM_oops(tc, "No child for ALL is clearly an error");
-            result  = get_next_register(tc, state, regs, 0);
-            regs[0] = FREE_REGISTERS[result];
-            value   = get_next_register(tc, state, regs, 1);
-            /* load first child */
-            load_node_to(tc, state, first_child, result);
-            for (i = 1; i < nchild; i++) {
-                MVMint32 child = tree->nodes[node+i+2];
-                load_node_to(tc, state, child, value);
-                MVM_jit_log(tc, "and %s, %s\n", X64_REGISTER_NAMES[FREE_REGISTERS[result]],
-                            X64_REGISTER_NAMES[FREE_REGISTERS[value]]);
-            }
+            MVMint32 result = state->nodes_reg[node];
+            if (result < 0)
+                MVM_oops(tc, "ALL result node is empty, wat\n");
+
+            /* short-circuit label */
+            MVM_jit_log(tc, "%d:\n", state->cond_depth);
+            state->cond_depth -= 1;
+            /* we don't know how we got here, but we spilled
+               everything before entering AND. hence all we computed
+               inbetween is an intermediary, and should be
+               invalidated */
+            invalidate_registers(tc, state);
+            state->reg_used[result] = node;
             state->nodes_reg[node]  = result;
-            state->reg_used[result]  = node;
             break;
         }
     case MVM_JIT_CARG:

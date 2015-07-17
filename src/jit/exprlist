@@ -49,10 +49,10 @@
               (when (all 3 (nz (and $obj_flags (const (&QUOTE MVM_CF_SECOND_GEN) 2)))
                            (nz ,ref)
                            (zr (and $ref_flags (const (&QUOTE MVM_CF_SECOND_GEN) 2))))
-                  (call (^func &MVM_gc_write_barrier_hit)
-                        (arglist 2 (carg (tc) ptr_sz)
-                                   (carg ,obj ptr_sz))
-                        rv_void))))
+                     (call (^func &MVM_gc_write_barrier_hit)
+                           (arglist 2 (carg (tc) ptr_sz)
+                                      (carg ,obj ptr_sz))
+                           rv_void))))
 
 (template: sp_p6ogetvt_o
            (let (($addr (add (^p6obody $1) $2))
