@@ -5072,6 +5072,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(sp_so_i):
+                GET_REG(cur_op, 0).i64 = !!GET_REG(cur_op, 2).i64;
+                cur_op += 4;
+                goto NEXT;
             OP(prof_enter):
                 MVM_profile_log_enter(tc, tc->cur_frame->static_info,
                     MVM_PROFILE_ENTER_NORMAL);

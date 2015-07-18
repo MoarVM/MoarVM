@@ -350,6 +350,46 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             return;
     }
 
+    /* Conditionals on native ints have some extra optimization opportunities */
+    if (ins->info->opcode == MVM_OP_if_i || ins->info->opcode == MVM_OP_unless_i) {
+        /* If our writer was a not or so, we can just take its args
+         * for ourselves, maybe flipping the if into an unless or so. */
+        if (flag_facts->writer) {
+            MVMSpeshFacts *source_of_truth_facts;
+            MVMint32 modified = 0;
+            fprintf(stderr, "we know the writer of an %s op\n", ins->info->name);
+
+            /* We'll have to bump usage on this one if we decide to use it. */
+            source_of_truth_facts = MVM_spesh_get_facts(tc, g, flag_facts->writer->operands[1]);
+
+            if (flag_facts->writer->info->opcode == MVM_OP_not_i) {
+                fprintf(stderr, "it's a not_i!\n", ins->info->name);
+                ins->operands[0] = flag_facts->writer->operands[1];
+                if (negated_op) {
+                    ins->info = MVM_op_get_op(MVM_OP_if_i);
+                    negated_op = 0;
+                } else {
+                    ins->info = MVM_op_get_op(MVM_OP_unless_i);
+                    negated_op = 1;
+                }
+                modified = 1;
+            } else if (flag_facts->writer->info->opcode == MVM_OP_sp_so_i) {
+                fprintf(stderr, "it's a sp_so_i!\n", ins->info->name);
+                ins->operands[0] = flag_facts->writer->operands[1];
+                modified = 1;
+            } else if (flag_facts->writer->info->opcode == MVM_OP_set) {
+                fprintf(stderr, "bother, its a set.\n");
+            }
+
+            if (modified) {
+                source_of_truth_facts->usages++;
+                flag_facts->usages++;
+
+                flag_facts = source_of_truth_facts;
+            }
+        }
+    }
+
     if (flag_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
         switch (ins->info->opcode) {
             case MVM_OP_if_i:
@@ -849,11 +889,17 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
         MVMSpeshOperand  orig    = ins->operands[0];
         MVMSpeshOperand  temp;
 
+        fprintf(stderr, "\n\n... in BB %p:\n", bb);
+        fprintf(stderr, "encountered a register with known type for %s\n", ins->info->name);
+        fprintf(stderr, "  r%d(%d) r%d(%d)\n", ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                                               ins->operands[1].reg.orig, ins->operands[1].reg.i);
+
         if (negated_op)
            temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
 
         switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
             case MVM_BOOL_MODE_UNBOX_INT:
+                fprintf(stderr, "the boolification mode is: unbox int\n");
                 /* We can just unbox the int and pretend it's a bool. */
                 ins->info = MVM_op_get_op(MVM_OP_unbox_i);
                 if (negated_op)
@@ -862,6 +908,7 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
                 optimize_repr_op(tc, g, bb, ins, 1);
                 break;
             case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
+                fprintf(stderr, "the boolification mode is: not type object\n");
                 /* This is the same as isconcrete. */
                 ins->info = MVM_op_get_op(MVM_OP_isconcrete);
                 if (negated_op)
@@ -869,8 +916,39 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
                 /* And now defer another bit of optimization */
                 optimize_isconcrete(tc, g, ins);
                 break;
+            case MVM_BOOL_MODE_BIGINT:
+                if (facts->flags & MVM_SPESH_FACT_KNOWN_BOX_SRC) {
+                    MVMSpeshFacts *curfacts = facts;
+                    fprintf(stderr, "we've got a BIGINT boolification mode here.\n");
+                    while (curfacts->writer) {
+                        fprintf(stderr, "its writer is %p (a %s)\n", curfacts->writer, curfacts->writer->info->name);
+                        if (curfacts->writer->info->opcode != MVM_OP_set)
+                            break;
+                        curfacts = MVM_spesh_get_facts(tc, g, curfacts->writer->operands[1]);
+                    }
+
+                    if (curfacts->writer->info->opcode == MVM_OP_box_i) {
+                        MVMSpeshFacts *new_source_facts;
+                        /* Even though the unboxing mode is supposed to be for
+                         * bigints, we're boxing a native int into this object
+                         * a little bit before that, so we can just boolify the
+                         * native int instead of the box. */
+                        ins->info = MVM_op_get_op(MVM_OP_sp_so_i);
+                        ins->operands[1] = curfacts->writer->operands[1];
+                        new_source_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+                        if (negated_op)
+                            ins->operands[0] = temp;
+                        fprintf(stderr, "i've made the impossible happen.\n");
+                        facts->usages--;
+                        new_source_facts->usages++;
+                    }
+                } else {
+                    return;
+                }
+                break;
             /* TODO implement MODE_UNBOX_NUM and the string ones */
             default:
+                fprintf(stderr, "unhandled boolification spec in istrue/isfalse: %d\n", bs->mode);
                 return;
         }
         /* Now we can take care of the negation. */

@@ -739,12 +739,13 @@
 #define MVM_OP_sp_boolify_iter 735
 #define MVM_OP_sp_boolify_iter_arr 736
 #define MVM_OP_sp_boolify_iter_hash 737
-#define MVM_OP_prof_enter 738
-#define MVM_OP_prof_enterspesh 739
-#define MVM_OP_prof_enterinline 740
-#define MVM_OP_prof_exit 741
-#define MVM_OP_prof_allocated 742
-#define MVM_OP_ctw_check 743
+#define MVM_OP_sp_so_i 738
+#define MVM_OP_prof_enter 739
+#define MVM_OP_prof_enterspesh 740
+#define MVM_OP_prof_enterinline 741
+#define MVM_OP_prof_exit 742
+#define MVM_OP_prof_allocated 743
+#define MVM_OP_ctw_check 744
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

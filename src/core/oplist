@@ -818,6 +818,9 @@ sp_boolify_iter       .s w(int64) r(obj) :pure
 sp_boolify_iter_arr   .s w(int64) r(obj) :pure
 sp_boolify_iter_hash  .s w(int64) r(obj) :pure
 
+# convenience op to ensure an int is 0 or 1
+sp_so_i               .s w(int64) r(int64) :pure
+
 # Profiler recording ops. Naming convention: start with prof_. Must all be
 # marked .s, which is how the validator knows to exclude them. (For that
 # purpose, we treat them as a kind of spesh op).
