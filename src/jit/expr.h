@@ -55,6 +55,7 @@ enum MVMJitExprVtype { /* value type */
     _(DO, -1, 0, REG), \
     _(WHEN, 2, 0, VOID), \
     _(IF, 3, 0, REG), \
+    _(BRANCH, 1, 0, VOID),  \
     /* call c functions */ \
     _(CALL, 2, 1, REG), \
     _(ARGLIST, -1, 0, VOID), \
@@ -114,7 +115,7 @@ struct MVMJitTreeTraverser {
 
 
 const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMJitExprNode node);
-MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMSpeshGraph *sg,
+MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
                                          MVMSpeshBB *bb);
 void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
                                 MVMJitTreeTraverser *traverser);

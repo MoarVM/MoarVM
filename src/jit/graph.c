@@ -63,7 +63,7 @@ static MVMint32 get_label_for_obj(MVMThreadContext *tc, MVMJitGraph *jg,
 }
 
 static MVMint32 get_label_for_bb(MVMThreadContext *tc, MVMJitGraph *jg,
-                          MVMSpeshBB *bb) {
+                                 MVMSpeshBB *bb) {
     MVMint32 label = get_label_for_obj(tc, jg, bb);
     jg->bbs[bb->idx] = label;
     return label;
@@ -73,6 +73,11 @@ static MVMint32 get_label_for_bb(MVMThreadContext *tc, MVMJitGraph *jg,
 static MVMint32 get_label_for_graph(MVMThreadContext *tc, MVMJitGraph *jg,
                                     MVMSpeshGraph *sg) {
     return get_label_for_obj(tc, jg, sg);
+}
+
+MVMint32 MVM_jit_graph_get_label_for_bb(MVMThreadContext *tc, MVMJitGraph *jg,
+                                        MVMSpeshBB *bb) {
+    return get_label_for_bb(tc, jg, bb);
 }
 
 /* The idea here is that labels are always - in principle - meant before a target. */
@@ -2419,7 +2424,7 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb->cur_ins = jgb->cur_ins->next;
     }
     /* for giggles, try to create an expression tree */
-    tree = MVM_jit_expr_tree_build(tc, jgb->sg, bb);
+    tree = MVM_jit_expr_tree_build(tc, jgb->graph, bb);
     if (tree != NULL) {
         MVM_jit_log_expr_tree(tc, tree);
         MVM_jit_compile_expr_tree(tc, jgb->graph, tree);

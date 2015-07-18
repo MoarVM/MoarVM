@@ -67,8 +67,8 @@ static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     indent[i] = 0;
     j = 0;
     for (i = 0; i < info->nargs; i++) {
-        MVMint32 arg = tree->nodes[node+info->nchild+i+1];
-        j += snprintf(nargs + j, sizeof(nargs)-j-3, "%d", arg);
+        MVMint64 arg = tree->nodes[node+info->nchild+i+1];
+        j += snprintf(nargs + j, sizeof(nargs)-j-3, "%"PRId64, arg);
         if (i+1 < info->nargs && j < sizeof(nargs)-3) {
             j += sprintf(nargs + j, ", ");
         }

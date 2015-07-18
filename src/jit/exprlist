@@ -19,10 +19,12 @@
 
 (macro: ^parg (,a) (idx (load (addr (frame) (&offsetof MVMFrame params.args))) ,a reg_sz))
 (template: sp_getarg_o (load (^parg $1) ptr_sz))
+(template: sp_getarg_s (load (^parg $1) ptr_sz))
 (template: sp_getarg_i (load (^parg $1) int_sz))
+(template: sp_getarg_n (load (^parg $1) int_sz))
 
 (macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
-(macro: ^p6obody (,a) (let (($replace (load (addr ,a (&offsetof MVMP6opaque body.replaced)) ptr_sz)))
+(macro: ^p6obody (,a) (let: (($replace (load (addr ,a (&offsetof MVMP6opaque body.replaced)) ptr_sz)))
                       (if (nz $replace)
                               $replace
                               (addr ,a (&offsetof MVMP6opaque body)))))
@@ -30,12 +32,13 @@
 (macro: ^spesh_slot (,a) (idx (load (addr (frame) (&offsetof MVMFrame effective_spesh_slots)))
                                ,a ptr_sz))
 
+(template: sp_getspeshslot (load (^spesh_slot $1) ptr_sz))
 
 (template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
 (template: sp_p6oget_n (load (add (^p6obody $1) $2) (&sizeof MVMnum64)))
 (template: sp_p6oget_s (load (add (^p6obody $1) $2) ptr_sz))
 (template: sp_p6oget_o
-           (let (($val (load (add (^p6obody $1) $2) ptr_sz)))
+           (let: (($val (load (add (^p6obody $1) $2) ptr_sz)))
                 (if (nz $val) $val (vmnull))))
 
 # hit write barrier for object - this one is rather large
@@ -44,7 +47,7 @@
 # eliminate duplications, but call is a notable exception
 
 (macro: ^write_barrier (,obj ,ref)
-        (let (($obj_flags (load (addr ,obj (&offsetof MVMCollectable flags)) 2))
+        (let: (($obj_flags (load (addr ,obj (&offsetof MVMCollectable flags)) 2))
               ($ref_flags (load (addr ,ref (&offsetof MVMCollectable flags)) 2)))
               (when (all 3 (nz (and $obj_flags (const (&QUOTE MVM_CF_SECOND_GEN) 2)))
                            (nz ,ref)
@@ -55,7 +58,7 @@
                            rv_void))))
 
 (template: sp_p6ogetvt_o
-           (let (($addr (add (^p6obody $1) $2))
+           (let: (($addr (add (^p6obody $1) $2))
                  ($val (load $addr ptr_sz))
                  ($type (load (^spesh_slot $3) ptr_sz)))
                  (if (nz $val)
@@ -64,15 +67,21 @@
                             (store $addr $type ptr_sz)
                              $type))))
 
-(template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 reg_sz))
-(template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 reg_sz))
+(template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 int_sz))
+(template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 int_sz))
+(template: sp_p6obind_o (let: (($addr (add (^p6obody $0) $1)))
+                             (do 2 (^write_barrier $0 $2)
+                                   (store $addr $2 ptr_sz))))
+(template: sp_p6obind_s (let: (($addr (add (^p6obody $0) $1)))
+                             (do 2 (^write_barrier $0 $2)
+                                   (store $addr $2 ptr_sz))))
 
 (template: null_s (const 0 ptr_sz))
 (template: null (vmnull))
 
 (macro: ^stable (,a) (load (addr ,a (&offsetof MVMObject st))))
 (template: getwhat (load (addr (^stable $1) (&offsetof MVMSTable WHAT)) ptr_sz))
-(template: getwho  (let (($who (load (addr (^stable $1) (&offsetof MVMSTable WHO)) ptr_sz)))
+(template: getwho  (let: (($who (load (addr (^stable $1) (&offsetof MVMSTable WHO)) ptr_sz)))
                          (if (nz $who) $who (vmnull))))
 
 
@@ -82,10 +91,18 @@
                      rv_void))
 
 
-(template: getlex_no (let (($res (call (^func &MVM_frame_find_lexical_by_name)
+(template: getlex_no (let: (($res (call (^func &MVM_frame_find_lexical_by_name)
                                        (arglist 3 (carg (tc) ptr_sz)
                                                   (carg (load (^cu_string $1) ptr_sz) ptr_sz)
                                                   (carg (const (&QUOTE MVM_reg_obj) int_sz) ptr_sz))
                                        reg_val)))
                            (if (nz $res) (load $res ptr_sz) $res)))
 
+(template: wval (call (^func MVM_sc_get_sc_object)
+                      (arglist 4 (carg (tc) ptr_sz)
+                                 (carg (cu) ptr_sz)
+                                 (carg $1 int_sz)
+                                 (carg $2 int_sz))
+                      rv_ptr))
+
+(template: goto (branch $0))

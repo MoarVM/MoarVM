@@ -119,9 +119,9 @@ sub write_template {
     my ($tree, $templ, $desc, $env) = @_;
     die "Can't deal with an empty tree" unless @$tree; # we need at least some nodes
     my $top = $tree->[0]; # get the first item, used for dispatch
-    die "First parameter must be a bareword or macro" unless $top =~ m/^&?[a-z]\w*$/i;
+    die "First parameter must be a bareword or macro" unless $top =~ m/^&?[a-z]\w*:?$/i;
     my (@items, @desc); # accumulate state
-    if ($top eq 'let') {
+    if ($top eq 'let:') {
         # deal with let declarations
         my $decl = $tree->[1];
         my $expr = $tree->[2];

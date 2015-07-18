@@ -259,6 +259,9 @@ static void emit_expr_op(MVMThreadContext *tc, CompilerRegisterState *state, MVM
     case MVM_JIT_STORE:
         MVM_jit_log(tc, "mov [%s], %s\n", X64_REGISTER_NAMES[regs[0]], X64_REGISTER_NAMES[regs[1]]);
         break;
+    case MVM_JIT_CONST:
+        MVM_jit_log(tc, "mov %s, 0x%"PRIx64"\n", X64_REGISTER_NAMES[regs[0]], args[0]);
+        break;
     case MVM_JIT_COPY:
         MVM_jit_log(tc, "mov %s, %s\n", X64_REGISTER_NAMES[regs[1]], X64_REGISTER_NAMES[regs[0]]);
         break;
@@ -301,9 +304,6 @@ static void emit_expr_op(MVMThreadContext *tc, CompilerRegisterState *state, MVM
         break;
     case MVM_JIT_TC:
         MVM_jit_log(tc, "mov %s, %s\n", X64_REGISTER_NAMES[regs[0]], X64_REGISTER_NAMES[r14]);
-        break;
-    case MVM_JIT_CONST:
-        MVM_jit_log(tc, "mov %s, 0x%x\n", X64_REGISTER_NAMES[regs[0]], (MVMint32)args[0]);
         break;
     case MVM_JIT_CALL:
         MVM_jit_log(tc, "call %s\n", X64_REGISTER_NAMES[regs[0]]);
@@ -514,6 +514,8 @@ static void compile_expr_op(MVMThreadContext *tc, MVMJitTreeTraverser *traverser
             MVMint32 nchild     = tree->nodes[node+1];
             MVMint32 last_child = tree->nodes[node+1+nchild];
             MVMint32 regnum     = get_next_register(tc, state, regs, 0);
+            if (MVM_jit_expr_op_info(tc, tree->nodes[last_child])->vtype == MVM_JIT_VOID)
+                break;
             if (state->nodes_reg[last_child] >= 0) {
                 MVM_jit_log(tc, "mov %s, %s\n", X64_REGISTER_NAMES[FREE_REGISTERS[regnum]],
                             X64_REGISTER_NAMES[FREE_REGISTERS[state->nodes_reg[last_child]]]);

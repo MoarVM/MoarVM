@@ -39,8 +39,54 @@ static MVMint32 MVM_jit_expr_add_storereg(MVMThreadContext *tc, MVMJitExprTree *
 
 static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tree,
                                        MVMSpeshOperand opr, MVMuint8 info) {
-    /* TODO implement this properly; this only works correctly for 64 bit values */
-    MVMJitExprNode template[]  = { MVM_JIT_CONST, opr.lit_i64, sizeof(MVMint64) };
+
+    MVMJitExprNode template[]  = { MVM_JIT_CONST, 0, 0 };
+    switch(info & MVM_operand_type_mask) {
+    case MVM_operand_int8:
+        template[1] = opr.lit_i8;
+        template[2] = sizeof(MVMint8);
+        break;
+    case MVM_operand_int16:
+        template[1] = opr.lit_i16;
+        template[2] = sizeof(MVMint16);
+        break;
+    case MVM_operand_int32:
+        template[1] = opr.lit_i32;
+        template[2] = sizeof(MVMint32);
+        break;
+    case MVM_operand_int64:
+        template[1] = opr.lit_i64;
+        template[2] = sizeof(MVMint64);
+        break;
+    case MVM_operand_num32:
+        /* possible endianess issue here */
+        template[1] = opr.lit_i32;
+        template[2] = sizeof(MVMnum32);
+        break;
+    case MVM_operand_num64:
+        /* use i64 to get the bits */
+        template[1] = opr.lit_i64;
+        template[2] = sizeof(MVMnum64);
+        break;
+    case MVM_operand_str:
+        /* string index really */
+        template[1] = opr.lit_str_idx;
+        template[2] = sizeof(MVMuint32);
+        break;
+    case MVM_operand_ins:
+    case MVM_operand_coderef:
+        /* use uintptr_t to convert to integer - shouold convert to label */
+        template[1] = MVM_jit_graph_get_label_for_bb(tc, tree->graph, opr.ins_bb);
+        template[2] = sizeof(MVMint32);
+        break;
+    case MVM_operand_spesh_slot:
+        template[1] = opr.lit_i16;
+        template[2] = sizeof(MVMuint16);
+        break;
+    default:
+        MVM_oops(tc, "Can't add constant for operand type %d\n", (info & MVM_operand_type_mask) >> 3);
+    }
+
     MVMint32 num               = tree->nodes_num;
     MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
@@ -139,11 +185,12 @@ MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree,
 }
 
 /* TODO add labels to the expression tree */
-MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMSpeshGraph *sg,
+MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
                                          MVMSpeshBB *bb) {
     MVMint32 operands[MVM_MAX_OPERANDS];
     MVMint32 *computed;
     MVMint32 root;
+    MVMSpeshGraph *sg = jg->sg;
     MVMJitExprTree *tree;
     MVMSpeshIns *ins;
     MVMuint16 i;
@@ -153,7 +200,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMSpeshGraph *sg
     tree = MVM_malloc(sizeof(MVMJitExprTree));
     MVM_DYNAR_INIT(tree->nodes, 32);
     MVM_DYNAR_INIT(tree->roots, 8);
-
+    tree->graph = jg;
     /* Hold indices to the node that last computed a value belonging
      * to a register. Initialized as -1 to indicate that these
      * values are empty. */
