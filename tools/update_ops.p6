@@ -159,7 +159,7 @@ BEGIN {
         join(",\n    ", @values)~');
     MAST::Ops.WHO<%codes> := nqp::hash('~
         join(",\n    ", @ops.map({ "'$_.name()', $_.code()" }))~');
-    MAST::Ops.WHO<@names> := nqp::list('~
+    MAST::Ops.WHO<@names> := nqp::list_s('~
         join(",\n    ", @ops.map({ "'$_.name()'" }))~');
 }',
         P6 => '

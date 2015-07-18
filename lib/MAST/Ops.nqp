@@ -4083,7 +4083,7 @@ BEGIN {
     'prof_exit', 741,
     'prof_allocated', 742,
     'ctw_check', 743);
-    MAST::Ops.WHO<@names> := nqp::list('no_op',
+    MAST::Ops.WHO<@names> := nqp::list_s('no_op',
     'const_i8',
     'const_i16',
     'const_i32',
