@@ -105,4 +105,4 @@
                                  (carg $2 int_sz))
                       rv_ptr))
 
-(template: goto (branch $0))
+(template: goto (branch (label $0)))

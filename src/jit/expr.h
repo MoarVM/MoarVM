@@ -56,6 +56,7 @@ enum MVMJitExprVtype { /* value type */
     _(WHEN, 2, 0, VOID), \
     _(IF, 3, 0, REG), \
     _(BRANCH, 1, 0, VOID),  \
+    _(LABEL, 1, 0, VOID), \
     /* call c functions */ \
     _(CALL, 2, 1, REG), \
     _(ARGLIST, -1, 0, VOID), \
@@ -120,5 +121,3 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
                                 MVMJitTreeTraverser *traverser);
 void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree);
-
-

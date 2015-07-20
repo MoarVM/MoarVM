@@ -239,10 +239,9 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
         /* assign computed value to computed nodes */
         if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
             computed[ins->operands[0].reg.orig] = root;
-        } else {
-            /* Terminal, add it to roots */
-            MVM_DYNAR_PUSH(tree->roots, root);
         }
+        /* Add it to roots to ensure source evaluation order */
+        MVM_DYNAR_PUSH(tree->roots, root);
     }
 
     if (ins == NULL) {
