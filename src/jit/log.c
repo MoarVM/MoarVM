@@ -88,12 +88,24 @@ static void ascend_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 void MVM_jit_log_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
     MVMint32 cur_depth = 0;
+    char roots_list[80];
+    MVMint32 i,j;
     traverser.preorder  = &dump_tree;
     traverser.inorder   = NULL;
     traverser.postorder = &ascend_tree;
     traverser.data      = &cur_depth;
     MVM_jit_log(tc, "Starting dump of JIT expression tree\n"
-                "=========================================\n");
+                    "====================================\n");
+    j = 0;
+    for (i = 0; i < tree->roots_num; i++) {
+        if (j >= sizeof(roots_list))
+            break;
+        j += snprintf(roots_list, sizeof(roots_list)-j, "%d, ", tree->roots[i]);
+    }
+    roots_list[j] = 0;
+    MVM_jit_log(tc, "Tree Roots: [%s]\n", roots_list);
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
-    MVM_jit_log(tc, "End dump of JIT expression tree\n");
+    MVM_jit_log(tc, "End dump of JIT expression tree\n"
+                    "====================================\n");
+
 }

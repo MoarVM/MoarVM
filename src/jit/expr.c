@@ -174,6 +174,10 @@ MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree,
             /* add operand node into the nodes */
             tree->nodes[num+i] = operands[template->code[i]];
             break;
+        case 'r':
+            /* add a root */
+            MVM_DYNAR_PUSH(tree->roots, num+i);
+            /* fall through */
         default:
             /* copy from template to nodes */
             tree->nodes[num+i] = template->code[i];

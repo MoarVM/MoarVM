@@ -133,6 +133,7 @@ sub write_template {
             my ($child, $mode) = write_template($stmt->[1], $templ, $desc, $env);
             die "Let can only be used with simple expresions" unless $mode eq 'l';
             $env->{$stmt->[0]} = $child;
+            $desc->[$child]    = 'r';
         }
         return write_template($expr, $templ, $desc, $env);
     } elsif (substr($top, 0, 1) eq '&') {
