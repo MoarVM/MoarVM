@@ -100,7 +100,7 @@ void MVM_jit_log_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     for (i = 0; i < tree->roots_num; i++) {
         if (j >= sizeof(roots_list))
             break;
-        j += snprintf(roots_list, sizeof(roots_list)-j, "%d, ", tree->roots[i]);
+        j += snprintf(roots_list+j, sizeof(roots_list)-j, "%d, ", tree->roots[i]);
     }
     roots_list[j] = 0;
     MVM_jit_log(tc, "Tree Roots: [%s]\n", roots_list);
