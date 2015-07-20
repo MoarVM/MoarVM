@@ -808,10 +808,9 @@ static void compile_instruction(VM, WriterState *ws, MASTNode *node) {
         if (ELEMS(vm, o->operands) != num_operands) {
             unsigned int  current_frame_idx = ws->current_frame_idx;
             unsigned int  current_ins_idx = ws->current_ins_idx;
-            cleanup_all(vm, ws);
-
             char *c_name = VM_STRING_TO_C_STRING(vm, o->name);
             char *waste[] = { c_name, NULL };
+            cleanup_all(vm, ws);
             DIE_FREE(vm, waste, "At Frame %u, Instruction %u, op '%s' has invalid number (%u) of operands; needs %u.",
                 current_frame_idx, current_ins_idx,
                 c_name,

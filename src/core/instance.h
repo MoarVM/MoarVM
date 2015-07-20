@@ -338,6 +338,12 @@ struct MVMInstance {
     /* Whether profiling is turned on or not. */
     MVMuint32 profiling;
 
+    /* Whether cross-thread write logging is turned on or not, and an output
+     * mutex for it. */
+    MVMuint32  cross_thread_write_logging;
+    MVMuint32  cross_thread_write_logging_include_locked;
+    uv_mutex_t mutex_cross_thread_write_logging;
+
     /* Cached backend config hash. */
     MVMObject *cached_backend_config;
 };

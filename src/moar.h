@@ -178,6 +178,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "profiler/instrument.h"
 #include "profiler/log.h"
 #include "profiler/profile.h"
+#include "instrument/crossthreadwrite.h"
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc);
 

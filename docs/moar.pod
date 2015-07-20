@@ -37,6 +37,16 @@ Disables inlining of call frames inside the bytecode specializer.
 
 Disables the on-stack replacement feature of the bytecode specializer.
 
+=item MVM_CROSS_THREAD_WRITE_LOG
+
+Tells MoarVM to insert instrumentation to detect when a thread does a write
+to an object it didn't allocate and doesn't have a lock for.
+
+=item MVM_CROSS_THREAD_WRITE_LOG_INCLUDE_LOCKED
+
+Same as MVM_CROSS_THREAD_WRITE_LOG, except objects that are locked are included
+as well.
+
 =back
 
 =head1 REPORTING BUGS

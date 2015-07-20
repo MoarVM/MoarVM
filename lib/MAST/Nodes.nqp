@@ -378,7 +378,7 @@ class MAST::Op is MAST::Node {
     method operands() { @!operands }
 
     method dump_lines(@lines, $indent) {
-        my $opname := @op_names[$!op];
+        my str $opname := nqp::atpos_s(@op_names, $!op);
         nqp::push(@lines, $indent ~ "MAST::Op $opname");
         nqp::push(@lines, $_.dump($indent ~ '    ')) for @!operands;
     }

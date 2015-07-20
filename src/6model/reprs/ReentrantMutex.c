@@ -127,6 +127,7 @@ void MVM_reentrantmutex_lock(MVMThreadContext *tc, MVMReentrantMutex *rm) {
         });
         MVM_store(&rm->body.holder_id, tc->thread_id);
         MVM_store(&rm->body.lock_count, 1);
+        tc->num_locks++;
     }
 }
 
@@ -138,6 +139,7 @@ void MVM_reentrantmutex_unlock(MVMThreadContext *tc, MVMReentrantMutex *rm) {
             /* Decremented the last recursion count; really unlock. */
             MVM_store(&rm->body.holder_id, 0);
             uv_mutex_unlock(rm->body.mutex);
+            tc->num_locks--;
         }
     }
     else {

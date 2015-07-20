@@ -744,6 +744,7 @@
 #define MVM_OP_prof_enterinline 740
 #define MVM_OP_prof_exit 741
 #define MVM_OP_prof_allocated 742
+#define MVM_OP_ctw_check 743
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

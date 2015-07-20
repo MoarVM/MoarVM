@@ -437,8 +437,8 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     /* Resolve mode description to flags. */
     int flag;
     if (!resolve_open_mode(&flag, fmode)) {
-        MVM_free(fname);
         char *waste[] = { fmode, NULL };
+        MVM_free(fname);
         MVM_exception_throw_adhoc_free(tc, waste, "Invalid open mode: %s", fmode);
     }
     MVM_free(fmode);

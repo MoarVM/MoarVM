@@ -404,29 +404,37 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
-    MVM_serialization_write_int(tc, writer, repr_data->num_dimensions);
-    MVM_serialization_write_ref(tc, writer, repr_data->elem_type);
+    if (repr_data) {
+        MVM_serialization_write_int(tc, writer, repr_data->num_dimensions);
+        MVM_serialization_write_ref(tc, writer, repr_data->elem_type);
+    }
+    else {
+        MVM_serialization_write_int(tc, writer, 0);
+    }
 }
 
 /* Deserializes the REPR data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)MVM_malloc(sizeof(MVMMultiDimArrayREPRData));
-    MVMObject *type;
+    MVMint64 num_dims = MVM_serialization_read_int(tc, reader);
+    if (num_dims > 0) {
+        MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)MVM_malloc(sizeof(MVMMultiDimArrayREPRData));
+        MVMObject *type;
 
-    repr_data->num_dimensions = MVM_serialization_read_int(tc, reader);
-    type = MVM_serialization_read_ref(tc, reader);
-    MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
+        repr_data->num_dimensions = num_dims;
+        type = MVM_serialization_read_ref(tc, reader);
+        MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
 
-    if (type) {
-        MVM_serialization_force_stable(tc, reader, STABLE(type));
-        spec_to_repr_data(tc, repr_data, REPR(type)->get_storage_spec(tc, STABLE(type)));
+        if (type) {
+            MVM_serialization_force_stable(tc, reader, STABLE(type));
+            spec_to_repr_data(tc, repr_data, REPR(type)->get_storage_spec(tc, STABLE(type)));
+        }
+        else {
+            repr_data->slot_type = MVM_ARRAY_OBJ;
+            repr_data->elem_size = sizeof(MVMObject *);
+        }
+
+        st->REPR_data = repr_data;
     }
-    else {
-        repr_data->slot_type = MVM_ARRAY_OBJ;
-        repr_data->elem_size = sizeof(MVMObject *);
-    }
-
-    st->REPR_data = repr_data;
 }
 
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {

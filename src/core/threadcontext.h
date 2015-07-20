@@ -192,6 +192,9 @@ struct MVMThreadContext {
     MVMint64 *nfa_longlit;
     MVMint64  nfa_longlit_len;
 
+    /* The number of locks the thread is holding. */
+    MVMint64 num_locks;
+
     /* Profiling data collected for this thread, if profiling is on. */
     MVMProfileThreadData *prof_data;
 };

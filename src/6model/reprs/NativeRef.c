@@ -291,10 +291,12 @@ static MVMObject * lexref_by_name(MVMThreadContext *tc, MVMObject *type, MVMStri
         }
         cur_frame = cur_frame->outer;
     }
-    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-    char *waste[] = { c_name, NULL };
-    MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
-        c_name);
+    {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
+            c_name);
+    }
 }
 MVMObject * MVM_nativeref_lex_name_i(MVMThreadContext *tc, MVMString *name) {
     MVMObject *ref_type = MVM_hll_current(tc)->int_lex_ref;

@@ -358,8 +358,8 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     body->lib_handle = MVM_nativecall_load_lib(strlen(lib_name) ? lib_name : NULL);
 
     if (!body->lib_handle) {
-        MVM_free(sym_name);
         char *waste[] = { lib_name, NULL };
+        MVM_free(sym_name);
         MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", lib_name, dlerror());
     }
 
@@ -524,8 +524,8 @@ MVMObject * MVM_nativecall_global(MVMThreadContext *tc, MVMString *lib, MVMStrin
     /* Try to load the library. */
     lib_handle = MVM_nativecall_load_lib(strlen(lib_name) ? lib_name : NULL);
     if (!lib_handle) {
-        MVM_free(sym_name);
         char *waste[] = { lib_name, NULL };
+        MVM_free(sym_name);
         MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", lib_name, dlerror());
     }
 

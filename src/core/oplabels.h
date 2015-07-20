@@ -744,7 +744,7 @@ static const void * const LABELS[] = {
     &&OP_prof_enterinline,
     &&OP_prof_exit,
     &&OP_prof_allocated,
-    NULL,
+    &&OP_ctw_check,
     NULL,
     NULL,
     NULL,
