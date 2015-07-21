@@ -162,7 +162,7 @@ MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree,
                                      const MVMJitExprTemplate *template, MVMint32 *operands) {
     MVMint32 i, num;
     num = tree->nodes_num;
-    MVM_DYNAR_ENSURE(tree->nodes, template->len);
+    MVM_DYNAR_ENSURE_SPACE(tree->nodes, template->len);
     /* Loop over string until the end */
     for (i = 0; template->info[i]; i++) {
         switch (template->info[i]) {
