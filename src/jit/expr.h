@@ -3,6 +3,7 @@
 enum MVMJitExprVtype { /* value type */
      MVM_JIT_VOID,
      MVM_JIT_REG,
+     MVM_JIT_FLOAT,
      MVM_JIT_MEM,
      MVM_JIT_FLAG,
 };
@@ -10,7 +11,7 @@ enum MVMJitExprVtype { /* value type */
 #define MVM_JIT_PTR_SZ sizeof(void*)
 #define MVM_JIT_REG_SZ sizeof(MVMRegister)
 #define MVM_JIT_INT_SZ sizeof(MVMint64)
-
+#define MVM_JIT_NUM_SZ sizeof(MVMnum64)
 #define CONST_PTR(x) ((uintptr_t)(x))
 #define QUOTE(x) (x)
 
@@ -83,16 +84,26 @@ typedef MVMint64 MVMJitExprNode;
 
 struct MVMJitExprOpInfo {
     const char      *name;
-    MVMint32        nchild;
+    MVMint32         nchild;
     MVMint32         nargs;
     enum MVMJitExprVtype vtype;
 };
 
+/* Tree node information for easy access and use during compilation */
+struct MVMJitExprNodeInfo {
+    const MVMJitExprOpInfo *op;
+    MVMSpeshIns            *ins;
+    MVMint32                first_use;
+    MVMint32                last_use;
+    MVMint32                num_use;
+    MVMint16                local_addr;
+};
 
 struct MVMJitExprTree {
     MVMJitGraph *graph;
     MVM_DYNAR_DECL(MVMJitExprNode, nodes);
     MVM_DYNAR_DECL(MVMint32, roots);
+    MVMJitExprNodeInfo *info;
 };
 
 struct MVMJitExprTemplate {

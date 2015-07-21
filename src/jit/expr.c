@@ -188,6 +188,51 @@ MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree,
     return num + template->root; /* root relative to nodes */
 }
 
+/* analyze the tree */
+static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+                         MVMJitExprTree *tree, MVMint32 node) {
+    MVMSpeshIns **node_ins = traverser->data;
+    const MVMJitExprOpInfo   *op = MVM_jit_expr_op_info(tc, tree->nodes[node]);
+    MVMint32   first_child = node + 1;
+    MVMint32        nchild = op->nchild < 0 ? tree->nodes[first_child++] : op->nchild;
+    MVMJitExprNodeInfo *node_info = tree->info + node;
+    MVMint32 i;
+    if (traverser->visits[node] > 1)
+        return;
+
+    node_info->op        = op;
+    node_info->ins       = node_ins[node];
+    node_info->first_use = INT32_MAX;
+    node_info->last_use  = -1;
+    node_info->num_use   = 0;
+    if (node_info->ins &&
+        (node_info->ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
+        node_info->local_addr = node_info->ins->operands[0].reg.orig;
+    } else {
+        node_info->local_addr = -1;
+    }
+
+    for (i = 0; i < nchild; i++) {
+        MVMint32 child  = tree->nodes[first_child+i];
+        MVMJitExprNodeInfo *child_info = tree->info + child;
+        child_info->first_use = MIN(child_info->first_use, node);
+        child_info->last_use  = MAX(child_info->last_use, node);
+        child_info->num_use  += 1;
+    }
+}
+
+
+void MVM_jit_expr_tree_analyze(MVMThreadContext *tc, MVMJitExprTree *tree, MVMSpeshIns **node_ins) {
+    /* analyse the tree, calculate usage and destination information */
+    MVMJitTreeTraverser traverser;
+    tree->info          = MVM_calloc(tree->nodes_num, sizeof(MVMJitExprNodeInfo));
+    traverser.data      = node_ins;
+    traverser.preorder  = NULL;
+    traverser.inorder   = NULL;
+    traverser.postorder = &analyze_tree;
+    MVM_jit_expr_tree_traverse(tc, tree, &traverser);
+}
+
 /* TODO add labels to the expression tree */
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
                                          MVMSpeshBB *bb) {
@@ -195,9 +240,12 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMint32 *computed;
     MVMint32 root;
     MVMSpeshGraph *sg = jg->sg;
-    MVMJitExprTree *tree;
     MVMSpeshIns *ins;
+    MVMJitExprTree *tree;
+    MVM_DYNAR_DECL(MVMSpeshIns*, node_ins);
     MVMuint16 i;
+
+
     if (!bb->first_ins)
         return NULL;
     /* Make the tree */
@@ -210,13 +258,16 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
      * values are empty. */
     computed = MVM_malloc(sizeof(MVMint32)*sg->num_locals);
     memset(computed, -1, sizeof(MVMint32)*sg->num_locals);
+    /* Hold a mapping of nodes to spesh instructions. This is presumably
+       useful in optimization and code generation */
+    MVM_DYNAR_INIT(node_ins, tree->nodes_alloc);
+
     /* Generate a tree based on templates. The basic idea is to keep a
        index to the node that last computed the value of a local.
        Each opcode is translated to the expression using a template,
        which is a): filled with nodes coming from operands and b):
        internally linked together (relative to absolute indexes).
        Afterwards stores are inserted for computed values. */
-
     for (ins = bb->first_ins; ins != NULL; ins = ins->next) {
         /* NB - we probably will want to involve the spesh info in
            selecting a template. And/or add in c function calls to
@@ -240,26 +291,22 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
         if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
             computed[ins->operands[0].reg.orig] = root;
         }
-        /* Add it to roots to ensure source evaluation order */
+        /* Add current root to tree roots to ensure source evaluation order */
         MVM_DYNAR_PUSH(tree->roots, root);
+
+        MVM_DYNAR_ENSURE_SIZE(node_ins, tree->nodes_num+1);
+        node_ins[root] = ins;
     }
 
     if (ins == NULL) {
-        /* Add stores for final values */
-        for (i = 0; i < sg->num_locals; i++) {
-            if (computed[i] >= 0) {
-                /* NB - this adds a store for variables that have only
-                 * loaded. Eliminating this correctly probably requires CSE */
-                MVMint32 root = MVM_jit_expr_add_storereg(tc, tree, computed[i], i);
-                MVM_DYNAR_PUSH(tree->roots, root);
-            }
-        }
+        MVM_jit_expr_tree_analyze(tc, tree, node_ins);
     } else {
         MVM_jit_log(tc, "Could not build an expression tree, stuck at instruction %s\n",
                     ins->info->name);
         MVM_jit_expr_tree_destroy(tc, tree);
         tree = NULL;
     }
+    MVM_free(node_ins);
     MVM_free(computed);
     return tree;
 }
