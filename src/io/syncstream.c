@@ -74,6 +74,9 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncStreamData *data, 
             MVM_exception_throw_adhoc(tc, "Reading from stream failed: %s",
                 uv_strerror(r));
         uv_ref((uv_handle_t *)data->handle);
+        if (tc->loop != data->handle->loop) {
+            MVM_exception_throw_adhoc(tc, "Tried to read() on a socket from outside its originating thread");
+        }
         uv_run(tc->loop, UV_RUN_DEFAULT);
         return 1;
     }
