@@ -54,8 +54,9 @@ void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
 
 static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node) {
-    const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
-    MVMint32 *depth =     traverser->data;
+    MVMJitExprNodeInfo *info = &tree->info[node];
+    MVMJitExprOpInfo *op     = info->op;
+    MVMint32 *depth          = traverser->data;
     MVMint32 i, j;
     char indent[64];
     char nargs[80];
@@ -66,15 +67,15 @@ static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     memset(indent, ' ', i);
     indent[i] = 0;
     j = 0;
-    for (i = 0; i < info->nargs; i++) {
-        MVMint64 arg = tree->nodes[node+info->nchild+i+1];
+    for (i = 0; i < op->nargs; i++) {
+        MVMint64 arg = tree->nodes[node+op->nchild+i+1];
         j += snprintf(nargs + j, sizeof(nargs)-j-3, "%"PRId64, arg);
-        if (i+1 < info->nargs && j < sizeof(nargs)-3) {
+        if (i+1 < op->nargs && j < sizeof(nargs)-3) {
             j += sprintf(nargs + j, ", ");
         }
     }
     nargs[j++] = 0;
-    MVM_jit_log(tc, "%04d%s%s (%s)\n", node, indent, info->name, nargs);
+    MVM_jit_log(tc, "%04d%s%s (%s)\n", node, indent, info->op->name, nargs);
 }
 
 static void ascend_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
