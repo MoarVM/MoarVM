@@ -827,6 +827,7 @@ sp_boolify_iter_hash  .s w(int64) r(obj) :pure
 prof_enter       .s
 prof_enterspesh  .s
 prof_enterinline .s sslot
+prof_enternative .s r(obj)
 
 # Normal exit (exception throw and unwind is handled separately). Will always
 # be what we last entered, so no need for separate versions like above.

@@ -51,8 +51,12 @@ struct MVMProfileGC {
 
 /* Call graph node, which is kept per thread. */
 struct MVMProfileCallNode {
-    /* The frame this data is for. */ 
+    /* The frame this data is for.
+     * If this CallNode is for a native call, this is NULL. */
     MVMStaticFrame *sf;
+
+    /* If the static frame is NULL, we're collecting data on a native call */
+    char *native_target_name;
 
     /* The timestamp when we entered the node. */
     MVMuint64 cur_entry_time;
@@ -143,6 +147,7 @@ struct MVMProfileContinuationData {
 
 /* Logging functions. */
 void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 mode);
+void MVM_profile_log_enter_native(MVMThreadContext *tc, MVMObject *nativecallsite);
 void MVM_profile_log_exit(MVMThreadContext *tc);
 void MVM_profile_log_unwind(MVMThreadContext *tc);
 MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, MVMFrame *root_frame);
