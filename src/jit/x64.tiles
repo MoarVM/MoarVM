@@ -1,0 +1,83 @@
+# Terminals: reg, mem, flag, void, expr, lab
+#
+# This file contains the grammar of the tiles. I'm still
+# pondering how to include the C-and-dasm code
+
+#
+# MEMORY TRAFFIC
+#
+
+# [r0+o]
+(tile: (addr reg) mem 0)
+# lea r0, [r1+o]
+(tile; (addr reg) reg 1)
+# [r0+r1*s]
+(tile: (idx reg reg) mem 0)
+# lead r0, [r1+r2*s]
+(tile: (idx reg reg) reg 1)
+# mov r0, [foo]
+(tile: (load mem) reg 1)
+# mov [foo], r0
+(tile: (store mem reg) void 1)
+# mov r0, foo
+(tile: (const) reg 1)
+
+
+#
+# ARITHMETIC
+#
+
+# add r0, r1
+(tile: (add reg reg) reg 1)
+# add r0, [foo]
+(tile: (add reg (load mem)) reg 2)
+# add r0, foo
+(tile: (add reg (const)) reg 1)
+
+(tile: (sub reg reg) reg 1)
+(tile: (sub reg (load mem)) reg 2)
+
+
+
+#
+# Virtual Machine Values 
+#
+
+(tile: (local) rbx)
+(tile: (frame) r12)
+(tile: (cu) r13)
+(tile: (tc) r14)
+(tile: (stack) rsp)
+
+#
+# Tests and Comparinsns
+#
+
+# test foo, foo
+(tile: (nz reg) flag)
+# cmp [foo], 0
+(tile: (nz mem) flag)
+# test r0, r1
+(tile: (nz (and reg reg)) flag)
+
+#
+# CONTROL STATEMENTS
+#
+
+# ternary foo ? bar : baz
+(tile: (if flag reg reg) reg)
+(tile: (if (all flag+) reg reg) reg)
+(tile: (if (any flag+) reg reg) reg)
+# statement if (foo) { bar }
+(tile: (when flag expr) void
+(tile: (when (all flag+) expr) void)
+(tile: (when (any flag+) expr) void)
+(tile: (do expr+) reg)
+
+# lea r0, [=>(label)]
+(tile: (label) reg)
+# jmp =>(label)
+(tile: (branch (label)) void)
+# jcc =>(label) /* (cc = condition code) */
+(tile: (when flag (branch (label))) void)
+
