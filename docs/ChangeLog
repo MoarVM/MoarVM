@@ -1,3 +1,12 @@
+New in 2015.07
+
++ Support for multi-dimensional arrays
++ Improved support for pipes
++ Die when we try to accept() or read() outside an originating
+  thread (used to silently not work)
++ Instrumentation for findings writes without locks to objects
+  originating from another thread
+
 New in 2015.06
 
 + No longer use up a full core in some async situations.
