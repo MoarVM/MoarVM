@@ -546,7 +546,7 @@ src/jit/emit_win32_x64.c: src/jit/emit_x64.dasc $(MINILUA) $(DYNASM_SCRIPTS)
 dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
 
 src/jit/expr_tables.h: src/jit/exprlist tools/tree-expr-compiler.pl
-	$(PERL) tools/tree-expr-compiler.pl -o $@ $<
+	$(PERL) -Itools/ tools/tree-expr-compiler.pl -o $@ $<
 
 src/jit/expr@obj@: src/jit/expr_tables.h
 

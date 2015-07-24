@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 use Test::More;
 use Getopt::Long;
+use sexpr;
 use strict;
 use warnings;
 
@@ -38,40 +39,6 @@ if (@ARGV && -f $ARGV[0]) {
 $INPUT = \*STDIN unless defined $INPUT;
 
 
-
-sub parse_sexp {
-    my $expr = shift;
-    my $tree = [];
-    # consume initial opening parenthesis
-    return (undef, $expr) unless $expr =~ m/^\s*\(/;
-    $expr = substr($expr, $+[0]);
-    while ($expr) {
-        $expr =~ s/^\s*//;
-        if (substr($expr, 0, 1) eq '(') {
-            my ($child, $rest) = parse_sexp($expr);
-            $expr = $rest;
-            push @$tree, $child;
-        } elsif (substr($expr, 0, 1) eq ')') {
-            $expr = substr $expr, 1;
-            last;
-        } elsif ($expr =~ m/^[&\$^,]?[\w\.\[\]_\*]+:?/) {
-            push @$tree, substr($expr, $-[0], $+[0] - $-[0]);
-            $expr = substr $expr, $+[0];
-        } else {
-            die "Could not parse $expr";
-        }
-    }
-    if (@$tree && substr($tree->[0], 0, 1) eq '^') {
-        if (defined $MACROS{$tree->[0]}) {
-            $tree = apply_macro($MACROS{$tree->[0]}, $tree);
-        } else {
-            die "Attempted to invoke undefined macro $tree->[0]";
-        }
-    }
-    return ($tree, $expr);
-}
-
-
 # Wrapper for the recursive write_template
 sub compile_template {
     my $tree = shift;
@@ -85,34 +52,6 @@ sub compile_template {
     };
 }
 
-sub apply_macro {
-    my ($macro, $tree) = @_;
-    my $params = $macro->[0];
-    my $args   = [@$tree[1..$#$tree]];
-    die "Incorrect number of args, got ".@$args." expected ".@$params unless @$args == @$params;
-    my %bind;
-    @bind{@$params} = @$args;
-    return fill_macro($macro->[1], \%bind);
-}
-
-sub fill_macro {
-    my ($macro, $bind) = @_;
-    my $result = [];
-    for (my $i = 0; $i < @$macro; $i++) {
-        if (ref($macro->[$i]) eq 'ARRAY') {
-            push @$result, fill_macro($macro->[$i], $bind);
-        } elsif (substr($macro->[$i], 0, 1) eq ',') {
-            if (defined $bind->{$macro->[$i]}) {
-                push @$result, $bind->{$macro->[$i]};
-            } else {
-                die "Unmatched macro substitution: $macro->[$i]";
-            }
-        } else {
-            push @$result, $macro->[$i];
-        }
-    }
-    return $result;
-}
 
 
 sub write_template {
@@ -180,6 +119,10 @@ sub write_template {
 
 if ($TESTING) {
     $PREFIX = 'MJ_';
+    my $parser = sexpr->parser();
+    sub parse_sexp {
+        return $parser->parse(shift);
+    }
     sub check_parse {
         my ($exp, $expected, $msg) = @_;
         my ($parsed, $rest) = parse_sexp($exp);
@@ -193,25 +136,26 @@ if ($TESTING) {
     check_parse('((foo) (bar))', [['foo'], ['bar']]);
     check_parse('(0)', ['0']);
     eval { compile_template(parse_sexp('()')) }; ok $@, 'Cannot compile empty template';
-    eval { compile_template(parse_sexp('(foo bar)')) }; ok !$@, 'a simple expression should work';
+    eval { compile_template(parse_sexp('(foo bar)')) };
+    ok !$@, 'a simple expression should work';
     eval { compile_template(parse_sexp('(&offsetof foo bar)')) };
     ok $@, 'Template root must be simple expr';
     eval { compile_template(parse_sexp('(foo (&sizeof 1))')) }; ok !$@, 'use sizeof as a macro';
-    eval { compile_template(parse_sexp('(let (($foo (bar)) ($quix (quam $1))) (bar $foo $quix))')) };
+    eval { compile_template(parse_sexp('(let: (($foo (bar)) ($quix (quam $1))) (bar $foo $quix))')) };
     ok !$@, 'let expressions should live and take more than one argument';
     eval { compile_template(parse_sexp('(foo $bar)')) };
     ok $@, 'Cannot compile with undefined variables';
     eval { compile_template(parse_sexp('($1 bar)')) }; ok $@, 'First argument should be bareword';
-    eval { compile_template(parse_sexp('(let (($foo (bar))) (let (($quix (quam (bar $foo)))) (a $foo $quix)))')); };
+    eval { compile_template(parse_sexp('(let: (($foo (bar))) (let: (($quix (quam (bar $foo)))) (a $foo $quix)))')); };
     ok !$@, 'Nested lets are ok';
-    eval { compile_template(parse_sexp('(let (($foo (bar))) (let (($foo (bar))) (quix $foo)))')); };
+    eval { compile_template(parse_sexp('(let: (($foo (bar))) (let: (($foo (bar))) (quix $foo)))')); };
     ok $@, 'Redeclarations are not';
     my $simple = compile_template(parse_sexp('(foo bar)'));
     is($simple->{root}, 0, 'root of a very simple expression should be 0');
     is($simple->{desc}, '..', 'simple expression without filling or linking');
-    my $let = compile_template(parse_sexp('(let (($foo (baz))) (quix $foo))'));
+    my $let = compile_template(parse_sexp('(let: (($foo (baz))) (quix $foo))'));
     is($let->{root}, 1, 'baz expression requires only one node');
-    is($let->{desc}, '..l');
+    is($let->{desc}, 'r.l');
     is_deeply($let->{template}, [qw<MJ_BAZ MJ_QUIX 0>]);
     my $par = compile_template(parse_sexp('(foo bar $1)'));
     is($par->{desc}, '..f');
@@ -220,15 +164,15 @@ if ($TESTING) {
     is($subex->{root}, 2);
     is($subex->{desc}, '.f..l', 'Fill subexpression, link to parent');
     is_deeply($subex->{template}, [qw<MJ_BAZ 1 MJ_FOO MJ_BAR 0>]);
-    my $complex_sexp = '(let (($foo (bar $1))) (foo zum $2 (zaf $foo 3) (&sizeof int)))';
+    my $complex_sexp = '(let: (($foo (bar $1))) (foo zum $2 (zaf $foo 3) (&sizeof int)))';
     my ($complex_expr, $rest) = parse_sexp($complex_sexp);
     my $complex = compile_template($complex_expr);
     is ($complex->{root}, 5);
-    is ($complex->{desc}, '.f.l...fl.');
+    is ($complex->{desc}, 'rf.l...fl.');
     is_deeply($complex->{template}, [qw(MJ_BAR 1 MJ_ZAF 0 3 MJ_FOO MJ_ZUM 2 2 sizeof(int))]);
 
     eval { my ($macro, $rest) = parse_sexp('((,a) (quix quam ,a))', 1);
-           $MACROS{'^foo'} = $macro; };
+           $parser->decl_macro('^foo', $macro); };
     ok !$@, 'macro parsing lives';
     my ($macrod, $restmacro) = parse_sexp('(oh (^foo $1) hai)');
     is_deeply($macrod, ['oh', ['quix', 'quam', '$1'], 'hai'], 'macro is spliced in correctly');
@@ -237,7 +181,7 @@ if ($TESTING) {
 } else {
     # first read the correct order of opcodes
     my (@opcodes, %names);
-    open my $oplist, '<', $OPLIST;
+    open my $oplist, '<', $OPLIST or die "Could not open oplist";
     while (<$oplist>) {
         next unless (m/^\w+/);
         my $opcode = substr $_, 0, $+[0];
@@ -250,43 +194,30 @@ if ($TESTING) {
     # syntax. generate template info table and template array
     my %info;
     my @templates;
-    my ($expr, $open, $close) = ('', 0, 0);
-    READ: while (!eof($INPUT)) {
-        my $line = <$INPUT>;
-        next if $line =~ m/^#|^\s*$/;
-        $expr .= $line;
-        # count parentheses
-        do {
-            $open   = $expr =~ tr/(//;
-            $close  = $expr =~ tr/)//;
-            next READ if ($open == 0) || ($open > $close);
-            my ($tree, $rest) = parse_sexp($expr);
-            my $keyword = shift @$tree;
-            if ($keyword eq 'macro:') {
-                my $name = shift @$tree;
-                die "Macro name '$name' must start with ^ symbol" unless substr($name,0,1) eq '^';
-                die "Redeclaration of macro $name" if defined $MACROS{$name};
-                $MACROS{$name} = $tree;
-            } elsif ($keyword eq 'template:') {
-                my $opcode   = shift @$tree;
-                my $template = shift @$tree;
-                die "Opcode '$opcode' unknown" unless defined $names{$opcode};
-                die "Opcode '$opcode' redefined" if defined $info{$opcode};
-                my $compiled = compile_template($template);
-                my $idx = scalar(@templates); # template index into array is current array top
-                $info{$opcode} = { idx => $idx, info => $compiled->{desc},
-                                   root => $compiled->{root},
-                                   len => length($compiled->{desc}) };
-                push @templates, @{$compiled->{template}};
-            } else {
-                die "I don't know what to do with '$keyword' ";
-            }
-            # Continue with rest of expression
-            $expr = $rest;
-        } while ($open == $close);
+    my $parser = sexpr->parser($INPUT);
+
+    while (my $tree = $parser->read) {
+        my $keyword = shift @$tree;
+        if ($keyword eq 'macro:') {
+            my $name = shift @$tree;
+            $parser->decl_macro($name, $tree);
+        } elsif ($keyword eq 'template:') {
+            my $opcode   = shift @$tree;
+            my $template = shift @$tree;
+            die "Opcode '$opcode' unknown" unless defined $names{$opcode};
+            die "Opcode '$opcode' redefined" if defined $info{$opcode};
+            my $compiled = compile_template($template);
+            my $idx = scalar(@templates); # template index into array is current array top
+            $info{$opcode} = { idx => $idx, info => $compiled->{desc},
+                               root => $compiled->{root},
+                               len => length($compiled->{desc}) };
+            push @templates, @{$compiled->{template}};
+        } else {
+            die "I don't know what to do with '$keyword' ";
+        }
     }
-    die "End of input with unclosed template" if $open > $close;
     close $INPUT;
+
     # write a c output header file.
     print $OUTPUT <<"HEADER";
 /* FILE AUTOGENERATED BY $0. DO NOT EDIT.
