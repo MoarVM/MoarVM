@@ -6,6 +6,14 @@ New in 2015.07
   thread (used to silently not work)
 + Instrumentation for findings writes without locks to objects
   originating from another thread
++ The profiler will now also show natively called functions
++ exists_pos is no longer part of the REPR API
++ Accessing an object's HOW is now part of the API
++ libuv will now autoquote cmdline arguments on windows
++ Fixed some code object related ops that could segfault
++ new openpipe implementation that allows to read from and write
+  to stdin/stdout/stderr.
++ spesh will now track facts across BB nodes even through PHI
 
 New in 2015.06
 
