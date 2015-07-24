@@ -76,13 +76,11 @@ void MVM_profile_log_enter_native(MVMThreadContext *tc, MVMObject *nativecallsit
     MVMProfileThreadData *ptd = get_thread_data(tc);
     MVMProfileCallNode *pcn = NULL;
     MVMNativeCallBody *callbody;
+    MVMuint32 i;
 
     /* We locate the right call node by looking at sf being NULL and the
      * native_target_name matching our intended target. */
-
     callbody = MVM_nativecall_get_nc_body(tc, nativecallsite);
-
-    MVMuint32 i;
     if (ptd->current_call)
         for (i = 0; i < ptd->current_call->num_succ; i++)
             if (ptd->current_call->succ[i]->sf == NULL)
