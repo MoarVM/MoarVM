@@ -2,18 +2,29 @@ New in 2015.07
 
 + Support for multi-dimensional arrays
 + Improved support for pipes
++ Updated to Unicode 8
 + Die when we try to accept() or read() outside an originating
   thread (used to silently not work)
 + Instrumentation for findings writes without locks to objects
   originating from another thread
 + The profiler will now also show natively called functions
++ Support for libffi as an alternative to dyncall
 + exists_pos is no longer part of the REPR API
 + Accessing an object's HOW is now part of the API
 + libuv will now autoquote cmdline arguments on windows
 + Fixed some code object related ops that could segfault
-+ new openpipe implementation that allows to read from and write
-  to stdin/stdout/stderr.
++ New openpipe implementation that allows to read from and write
+  to stdin/stdout/stderr
 + spesh will now track facts across BB nodes even through PHI
++ Fixed numerous memory leaks when C strings were included in exceptions
++ Implemented "free at next safepoint" mechanism for safely freeing memory
+  from internal data structures in a threaded context, thus fixing NFG table
+  growth in multi-threaded applications
++ Fix compile on FreeBSD 8.4 and probably earlier by detecting gcc
++ Fixes for build repeatability
++ Optimization of can op fixed and fully enabled
++ Fix async process handle closing
++ Numerous warning cleanups for various compilers
 
 New in 2015.06
 
