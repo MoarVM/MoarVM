@@ -367,7 +367,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         if (nfadeb) {
             if (offset < eos) {
                 MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                fprintf(stderr,"%c with %ds\n",cp,(int)numcur);
+                fprintf(stderr,"%c with %ds target %lx offset %ld\n",cp,(int)numcur, (long)target, offset);
             }
             else {
                 fprintf(stderr,"EOS with %ds\n",(int)numcur);
