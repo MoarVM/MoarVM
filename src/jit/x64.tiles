@@ -10,7 +10,7 @@
 # [r0+o]
 (tile: (addr reg) mem 0)
 # lea r0, [r1+o]
-(tile; (addr reg) reg 1)
+(tile: (addr reg) reg 1)
 # [r0+r1*s]
 (tile: (idx reg reg) mem 0)
 # lead r0, [r1+r2*s]
@@ -33,6 +33,10 @@
 (tile: (add reg (load mem)) reg 2)
 # add r0, foo
 (tile: (add reg (const)) reg 1)
+
+(tile: (and reg (load mem)) reg)
+(tile: (and reg reg) reg)
+(tile: (and reg (const)) reg)
 
 (tile: (sub reg reg) reg 1)
 (tile: (sub reg (load mem)) reg 2)
@@ -66,13 +70,13 @@
 
 # ternary foo ? bar : baz
 (tile: (if flag reg reg) reg)
-(tile: (if (all flag+) reg reg) reg)
-(tile: (if (any flag+) reg reg) reg)
+(tile: (if (all flag) reg reg) reg)
+(tile: (if (any flag) reg reg) reg)
 # statement if (foo) { bar }
-(tile: (when flag expr) void
-(tile: (when (all flag+) expr) void)
-(tile: (when (any flag+) expr) void)
-(tile: (do expr+) reg)
+(tile: (when flag expr) void)
+(tile: (when (all flag) expr) void)
+(tile: (when (any flag) expr) void)
+(tile: (do expr) reg)
 
 # lea r0, [=>(label)]
 (tile: (label) reg)
