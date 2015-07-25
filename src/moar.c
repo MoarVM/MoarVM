@@ -164,8 +164,11 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");
-    if (dynvar_log && strlen(dynvar_log))
+    if (dynvar_log && strlen(dynvar_log)) {
         instance->dynvar_log_fh = fopen(dynvar_log, "w");
+	fprintf(instance->dynvar_log_fh, "+ x 0 0 0 0 0 %ld\n", uv_hrtime());
+	fflush(instance->dynvar_log_fh);
+    }
     else
         instance->dynvar_log_fh = NULL;
     instance->nfa_debug_enabled = getenv("MVM_NFA_DEB") ? 1 : 0;
@@ -263,6 +266,10 @@ void MVM_vm_exit(MVMInstance *instance) {
         fclose(instance->spesh_log_fh);
     if (instance->jit_log_fh)
         fclose(instance->jit_log_fh);
+    if (instance->dynvar_log_fh) {
+	fprintf(instance->dynvar_log_fh, "- x 0 0 0 0 %ld %ld\n", uv_hrtime(), uv_hrtime());
+	fclose(instance->dynvar_log_fh);
+    }
 
     /* And, we're done. */
     exit(0);
