@@ -102,5 +102,19 @@ sub fill_macro {
     return $result;
 }
 
+sub encode {
+    my $list = shift;
+    my $out = '(';
+    for my $item (@$list) {
+        if (ref($item) eq 'ARRAY') {
+            $out .= encode($item);
+        } else {
+            $out .= "$item";
+        }
+        $out .= " ";
+    }
+    $out   .= ')';
+    return $out;
+}
 
 1;

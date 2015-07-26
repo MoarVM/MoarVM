@@ -40,7 +40,7 @@
 
 (tile: (sub reg reg) reg 1)
 (tile: (sub reg (load mem)) reg 2)
-
+(tile: (sub reg (const)) reg)
 
 
 #
