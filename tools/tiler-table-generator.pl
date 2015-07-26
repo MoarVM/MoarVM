@@ -180,12 +180,19 @@ sub tile {
     return $ruleset_nr;
 }
 tile $tree;
+($tree, $rest) = sexpr->parse('(add (const) (load (addr (stack))))');
+tile $tree;
 
 
 __DATA__
 # Minimal grammar to test tiler table generator
+(tile: (stack) reg 1)
+(tile: (addr reg) mem 1)
+(tile: (addr reg) reg 2)
 (tile: (const) reg 2)
 (tile: (load reg) reg 5)
+(tile: (load mem) reg 5)
 (tile: (add reg reg) reg 2)
 (tile: (add reg (const)) reg 3)
 (tile: (add reg (load reg)) reg 6)
+(tile: (add reg (load mem)) reg 6)
