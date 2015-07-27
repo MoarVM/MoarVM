@@ -140,11 +140,14 @@ for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
     }
 }
 
-my %states;
+# translate rule lists to rulesets
+my (%states, %generated);
 while (my ($table_key, $rule_nrs) = each(%trans)) {
     my $ruleset_key = join(',', sort(@$rule_nrs));
     my $ruleset_nr  = $inversed{$ruleset_key};
     my ($head, $rs1, $rs2) = split /$;/, $table_key;
+    # store ggenerated ruleset nr
+    $generated{$ruleset_nr}++;
     if (defined $rs1) {
         if (defined $rs2) {
             $states{$head}{$rs1}{$rs2} = $ruleset_nr;
@@ -156,6 +159,33 @@ while (my ($table_key, $rule_nrs) = each(%trans)) {
     }
 }
 
+# prune table
+my ($i, $j) = (0, scalar keys %trans);
+for my $head (keys %table) {
+    my $opt1 = $table{$head};
+    if (ref $opt1 eq 'HASH') {
+        for my $rs1 (keys %$opt1) {
+            my $opt2 = $opt1->{$rs1};
+            if (!defined $generated{$rs1}) {
+                delete $opt1->{$rs1};
+            } elsif (ref $opt2 eq 'HASH') {
+                for my $rs2 (keys %$opt2) {
+                    if (!defined $generated{$rs2}) {
+                        delete $opt2->{$rs2};
+                    } else {
+                        $i++;
+                    }
+                }
+            } else {
+                $i++;
+            }
+        }
+    } else {
+        $i++;
+    }
+}
+
+print "Had $j rules, but $i rules after pruning\n";
 
 ## right, now for a testrun - can we actually tile a tree with this thing
 my ($tree, $rest) = sexpr->parse('(add (load (const)) (const))');
@@ -196,3 +226,11 @@ __DATA__
 (tile: (add reg (const)) reg 3)
 (tile: (add reg (load reg)) reg 6)
 (tile: (add reg (load mem)) reg 6)
+(tile: (sub reg reg) reg 2)
+(tile: (sub reg (const)) reg 3)
+(tile: (sub reg (load reg)) reg 6)
+(tile: (sub reg (load mem)) reg 6)
+(tile: (nz reg) flag 2)
+(tile: (all flag) flag 2)
+(tile: (if flag reg) reg 2)
+(tile: (if (all flag) reg) reg 3)
