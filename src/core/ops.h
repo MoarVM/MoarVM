@@ -742,9 +742,10 @@
 #define MVM_OP_prof_enter 738
 #define MVM_OP_prof_enterspesh 739
 #define MVM_OP_prof_enterinline 740
-#define MVM_OP_prof_exit 741
-#define MVM_OP_prof_allocated 742
-#define MVM_OP_ctw_check 743
+#define MVM_OP_prof_enternative 741
+#define MVM_OP_prof_exit 742
+#define MVM_OP_prof_allocated 743
+#define MVM_OP_ctw_check 744
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

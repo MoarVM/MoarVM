@@ -2,6 +2,7 @@
 struct MVMNativeCallBody {
     char       *lib_name;
     DLLib      *lib_handle;
+    char       *sym_name;
     void       *entry_point;
 #ifdef HAVE_LIBFFI
     ffi_abi     convention;

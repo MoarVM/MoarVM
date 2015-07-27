@@ -183,6 +183,9 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
 
     while (!data->accept_server) {
+        if (tc->loop != data->ss.handle->loop) {
+            MVM_exception_throw_adhoc(tc, "Tried to accept() on a socket from outside its originating thread");
+        }
         uv_ref((uv_handle_t *)data->ss.handle);
         uv_run(tc->loop, UV_RUN_DEFAULT);
     }

@@ -71,6 +71,59 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
     ptd->current_call = pcn;
 }
 
+/* Log that we've entered a native routine */
+void MVM_profile_log_enter_native(MVMThreadContext *tc, MVMObject *nativecallsite) {
+    MVMProfileThreadData *ptd = get_thread_data(tc);
+    MVMProfileCallNode *pcn = NULL;
+    MVMNativeCallBody *callbody;
+    MVMuint32 i;
+
+    /* We locate the right call node by looking at sf being NULL and the
+     * native_target_name matching our intended target. */
+    callbody = MVM_nativecall_get_nc_body(tc, nativecallsite);
+    if (ptd->current_call)
+        for (i = 0; i < ptd->current_call->num_succ; i++)
+            if (ptd->current_call->succ[i]->sf == NULL)
+                if (strcmp(callbody->sym_name,
+                           ptd->current_call->succ[i]->native_target_name) == 0) {
+                    pcn = ptd->current_call->succ[i];
+                    break;
+                }
+
+    /* If we didn't find a call graph node, then create one and add it to the
+     * graph. */
+    if (!pcn) {
+        pcn     = MVM_calloc(1, sizeof(MVMProfileCallNode));
+        pcn->native_target_name = callbody->sym_name;
+        if (ptd->current_call) {
+            MVMProfileCallNode *pred = ptd->current_call;
+            pcn->pred = pred;
+            if (pred->num_succ == pred->alloc_succ) {
+                pred->alloc_succ += 8;
+                pred->succ = MVM_realloc(pred->succ,
+                    pred->alloc_succ * sizeof(MVMProfileCallNode *));
+            }
+            pred->succ[pred->num_succ] = pcn;
+            pred->num_succ++;
+        }
+        else {
+            if (!ptd->call_graph)
+                ptd->call_graph = pcn;
+        }
+    }
+
+    /* Increment entry counts. */
+    pcn->total_entries++;
+    pcn->entry_mode = 0;
+
+    /* Log entry time; clear skip time. */
+    pcn->cur_entry_time = uv_hrtime();
+    pcn->cur_skip_time  = 0;
+
+    /* The current call graph node becomes this one. */
+    ptd->current_call = pcn;
+}
+
 /* Frame exit handler, used for unwind and normal exit. */
 static void log_exit(MVMThreadContext *tc, MVMuint32 unwind) {
     MVMProfileThreadData *ptd = get_thread_data(tc);

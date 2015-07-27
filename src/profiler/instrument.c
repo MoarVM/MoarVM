@@ -9,6 +9,21 @@ static void add_allocation_logging(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
     MVM_spesh_manipulate_insert_ins(tc, bb, ins, alloc_ins);
 }
 
+static void add_nativecall_logging(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshIns *enter_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    MVMSpeshIns *exit_ins  = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+
+    enter_ins->info        = MVM_op_get_op(MVM_OP_prof_enternative);
+    enter_ins->operands    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
+    enter_ins->operands[0] = ins->operands[2];
+
+    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, enter_ins);
+
+    exit_ins->info         = MVM_op_get_op(MVM_OP_prof_exit);
+
+    MVM_spesh_manipulate_insert_ins(tc, bb, ins, exit_ins);
+}
+
 static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Insert entry instruction. */
     MVMSpeshBB *bb         = g->entry->linear_next;
@@ -124,6 +139,9 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_getattrsref_n:
             case MVM_OP_getattrsref_s:
                 add_allocation_logging(tc, g, bb, ins);
+                break;
+            case MVM_OP_nativecallinvoke:
+                add_nativecall_logging(tc, g, bb, ins);
                 break;
             default:
                 /* See if it's an allocating extop. */
