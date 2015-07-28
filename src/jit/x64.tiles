@@ -58,8 +58,7 @@
 #
 (tile: all     (all flag) flag 2)
 (tile: if      (if flag reg) reg 2)
-(tile: if_all_ (if (all flag) reg) reg 3)
-(tile: if_reg  (if reg reg) reg 4)
+(tile: if_all  (if (all flag) reg) reg 3)
 (tile: do_reg  (do void reg) reg 0)
 (tile: do_reg  (do reg reg) reg 0)
 (tile: do_void (do void void) void 0)
