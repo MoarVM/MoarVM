@@ -231,21 +231,34 @@ __DATA__
 (tile: (const) reg 2)
 (tile: (load reg) reg 5)
 (tile: (load mem) reg 5)
+
 (tile: (add reg reg) reg 2)
 (tile: (add reg (const)) reg 3)
 (tile: (add reg (load reg)) reg 6)
 (tile: (add reg (load mem)) reg 6)
+
 (tile: (sub reg reg) reg 2)
 (tile: (sub reg (const)) reg 3)
 (tile: (sub reg (load reg)) reg 6)
 (tile: (sub reg (load mem)) reg 6)
+
 (tile: (and reg reg) reg 2)
 (tile: (and reg (const)) reg 3)
 (tile: (and reg (load reg)) reg 6)
 (tile: (and reg (load mem)) reg 6)
+
 (tile: (nz reg) flag 2)
 (tile: (nz (load mem)) flag 6)
 (tile: (all flag) flag 2)
 (tile: (if flag reg) reg 2)
 (tile: (if (all flag) reg) reg 3)
 (tile: (if reg reg) reg 4)
+
+(tile: (store mem reg) void 5)
+(tile: (do void reg) reg 0)
+(tile: (do reg reg) reg 0)
+(tile: (do void void) void 0)
+(tile: (do reg void) void 0)
+
+(tile: (when flag void) void 2)
+(tile: (when (all flag) void) void 3)
