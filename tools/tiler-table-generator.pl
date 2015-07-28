@@ -8,8 +8,11 @@ use strict;
 # This script takes the tiler grammar file (x64.tiles)
 # and produces tiler tables.
 my $PREFIX = "MVM_JIT_";
+my $VARNAME = "MVM_jit_tile_";
+my $DEBUG   = 0;
 my ($INFILE, $OUTFILE, $TESTING);
 GetOptions(
+    'debug' => \$DEBUG,
     'testing' => \$TESTING,
     'input=s' => \$INFILE,
     'output=s' => \$OUTFILE,
@@ -43,9 +46,9 @@ my @expr_ops;
 }
 
 # Collect rules from the grammar
-my @rules;
+my (@rules, %names);
 sub add_rule {
-    my ($fragment, $terminal, $cost, $depth) = @_;
+    my ($name, $fragment, $terminal, $cost, $depth) = @_;
     my $list = [];
     # replace all sublist with pseudorules
     for my $item (@$fragment) {
@@ -54,7 +57,7 @@ sub add_rule {
             my $label = sprintf('L%dP%d', scalar @rules, ++$depth);
             # divide costs
             $cost /= 2;
-            add_rule($item, $label, $cost, $depth);
+            add_rule(undef, $item, $label, $cost, $depth);
             push @$list, $label;
         } else {
             push @$list, $item;
@@ -63,6 +66,7 @@ sub add_rule {
     # NB - only top-level fragments are associated with tiles.
     my $rulenr = scalar @rules;
     push @rules, [$list, $terminal, $cost];
+    $names{$rulenr} = $name if $name;
 }
 
 my $input;
@@ -78,9 +82,9 @@ if (defined $INFILE) {
 
 my $parser = sexpr->parser($input);
 while (my $tree = $parser->read) {
-    my $keyword = shift @$tree;
+    my ($keyword, $name, $fragment, $terminal, $cost) = @$tree;
     if ($keyword eq 'tile:') {
-        add_rule($tree->[0], $tree->[1], $tree->[2], 1);
+        add_rule($name, $fragment, $terminal, $cost, 1);
     }
 }
 close $input;
@@ -138,7 +142,7 @@ for my $head (keys %heads) {
 
 while (@order) {
     my $head = shift @order;
-    print "Generating rulesets for $head\n";
+    print "Generating rulesets for $head\n" if $DEBUG;
     my $rule_nrs = $heads{$head};
     # hold map of head,ruleset,ruleset -> rules
     my %table;
@@ -160,7 +164,7 @@ while (@order) {
         }
     }
     # now add all distinct sets of rules to the rule sets
-    print "Rulesets for $head: ";
+    print "Rulesets for $head: " if $DEBUG;
     my %provided;
     for my $generated (values %table) {
         my @rule_nrs = sort { $a <=> $b } keys %$generated;
@@ -170,13 +174,13 @@ while (@order) {
         my $ruleset_nr = scalar @rulesets;
         push @rulesets, [@rule_nrs];
         $inversed{$key} = $ruleset_nr;
-        print '(', join ', ', @rule_nrs, '); ';
+        print '(', join ', ', @rule_nrs, '); ' if $DEBUG;
         for (@terms) {
             push @{$candidates{$_}}, $ruleset_nr;
             $provided{$_} = 1;
         }
     }
-    print "\n";
+    print "\n" if $DEBUG;;
 
     # Unblock the waiting elements.
     for my $term (keys %provided) {
@@ -196,7 +200,7 @@ while (@order) {
 }
 
 
-print "Now we have ", scalar @rulesets, " different rulesets\n";
+print "Now we have ", scalar @rulesets, " different rulesets\n" if $DEBUG;
 
 
 # Calculate minimum cost rule out of a ruleset and a terminal
@@ -309,7 +313,17 @@ if ($TESTING) {
  *
  * To improve alignment, we use 8 integers */
 HEADER
-    print $output "static MVMint32 MVM_jit_tile_tables[][8] = {\n";
+    print $output "static MVMJitTileRule *".$VARNAME."rules[] = {\n";
+    for (my $i = 0; $i < @rules; $i++) {
+        if (defined $names{$i}) {
+            print $output '    ', sprintf('&%s%s', $VARNAME, $names{$i}), ",\n";
+        } else {
+            print $output "    NULL,\n";
+        }
+    }
+    print $output "}\n\n";
+
+    print $output "static MVMint32 ".$VARNAME."tables[][8] = {\n";
     for my $expr_op (@expr_ops) {
         my $name = lc $expr_op;
         my $c1 = $table{$name};  # optimum table
@@ -331,19 +345,19 @@ HEADER
             print $output "    { $PREFIX$expr_op, -1, -1, $s1, $c1->[0], -1, -1 },\n";
         }
     }
-    print $output "}\n";
+    print $output "}\n\n";
     close $output;
 }
 
 __DATA__
 # Minimal grammar to test tiler table generator
-(tile: (stack) reg 1)
-(tile: (addr reg) mem 1)
-(tile: (addr reg) reg 2)
-(tile: (const) reg 2)
-(tile: (load reg) reg 5)
-(tile: (load mem) reg 5)
-(tile: (add reg reg) reg 2)
-(tile: (add reg (const)) reg 3)
-(tile: (add reg (load reg)) reg 6)
-(tile: (add reg (load mem)) reg 6)
+(tile: a (stack) reg 1)
+(tile: b (addr reg) mem 1)
+(tile: c (addr reg) reg 2)
+(tile: d (const) reg 2)
+(tile: e (load reg) reg 5)
+(tile: f (load mem) reg 5)
+(tile: g (add reg reg) reg 2)
+(tile: h (add reg (const)) reg 3)
+(tile: i (add reg (load reg)) reg 6)
+(tile: j (add reg (load mem)) reg 6)

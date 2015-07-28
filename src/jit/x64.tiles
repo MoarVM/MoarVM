@@ -7,71 +7,71 @@
 #
 # Virtual Machine Values 
 #
-(tile: (stack) reg 1)
-(tile: (local) reg 1)
-(tile: (cu) reg 1)
-(tile: (tc) reg 1)
-(tile: (frame) reg 1)
+(tile: load_stack (stack) reg 1)
+(tile: load_local (local) reg 1)
+(tile: load_cu    (cu) reg 1)
+(tile: load_tc    (tc) reg 1)
+(tile: load_frame (frame) reg 1)
 
 #
 # MEMORY TRAFFIC
 #
 
-(tile: (addr reg) mem 1)
-(tile: (addr reg) reg 2)
-(tile: (const) reg 2)
-(tile: (load reg) reg 5)
-(tile: (load mem) reg 5)
-(tile: (store mem reg) void 5)
-(tile: (store reg reg) void 5)
+(tile: addr_mem  (addr reg) mem 1)
+(tile: addr_reg  (addr reg) reg 2)
+(tile: const_reg (const) reg 2)
+(tile: load_reg  (load reg) reg 5)
+(tile: load_mem  (load mem) reg 5)
+(tile: store_mem (store mem reg) void 5)
+(tile: store_reg (store reg reg) void 5)
 
 #
 # ARITHMETIC
 #
 
-(tile: (add reg reg) reg 2)
-(tile: (add reg (const)) reg 3)
-(tile: (add reg (load reg)) reg 6)
-(tile: (add reg (load mem)) reg 6)
+(tile: add_reg      (add reg reg) reg 2)
+(tile: add_const    (add reg (const)) reg 3)
+(tile: add_load_reg (add reg (load reg)) reg 6)
+(tile: add_load_mem (add reg (load mem)) reg 6)
 
-(tile: (sub reg reg) reg 2)
-(tile: (sub reg (const)) reg 3)
-(tile: (sub reg (load reg)) reg 6)
-(tile: (sub reg (load mem)) reg 6)
+(tile: sub_reg      (sub reg reg) reg 2)
+(tile: sub_const    (sub reg (const)) reg 3)
+(tile: sub_load_reg (sub reg (load reg)) reg 6)
+(tile: sub_load_mem (sub reg (load mem)) reg 6)
 
-(tile: (and reg reg) reg 2)
-(tile: (and reg (const)) reg 3)
-(tile: (and reg (load reg)) reg 6)
-(tile: (and reg (load mem)) reg 6)
+(tile: and_reg      (and reg reg) reg 2)
+(tile: and_const    (and reg (const)) reg 3)
+(tile: and_load_reg (and reg (load reg)) reg 6)
+(tile: and_load_mem (and reg (load mem)) reg 6)
 
 
 #
-# Tests and Comparinsns
+# Tests and Comparinsons
 #
-(tile: (nz reg) flag 2)
-(tile: (nz (load mem)) flag 6)
-(tile: (nz (and reg reg)) flag 2)
+(tile: nz_reg (nz reg) flag 2)
+(tile: nz_mem (nz (load mem)) flag 6)
+(tile: nz_and (nz (and reg reg)) flag 2)
 
 
 #
 # CONTROL STATEMENTS
 #
-(tile: (all flag) flag 2)
-(tile: (if flag reg) reg 2)
-(tile: (if (all flag) reg) reg 3)
-(tile: (if reg reg) reg 4)
-(tile: (do void reg) reg 0)
-(tile: (do reg reg) reg 0)
-(tile: (do void void) void 0)
-(tile: (do reg void) void 0)
+(tile: all     (all flag) flag 2)
+(tile: if      (if flag reg) reg 2)
+(tile: if_all_ (if (all flag) reg) reg 3)
+(tile: if_reg  (if reg reg) reg 4)
+(tile: do_reg  (do void reg) reg 0)
+(tile: do_reg  (do reg reg) reg 0)
+(tile: do_void (do void void) void 0)
+(tile: do_void (do reg void) void 0)
 
-(tile: (when flag void) void 2)
-(tile: (when (all flag) void) void 3)
+(tile: when        (when flag void) void 2)
+(tile: when_all    (when (all flag) void) void 3)
 # jcc =>(label) /* (cc = condition code) */
-(tile: (when flag (branch (label))) void 2)
+(tile: when_branch (when flag (branch (label))) void 2)
 
-(tile: (label) reg 2)
-(tile: (branch (label)) void 2)
+(tile: label_reg    (label) reg 2)
+(tile: branch_label (branch (label)) void 2)
 
 
 
