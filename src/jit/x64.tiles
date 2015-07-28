@@ -3,85 +3,79 @@
 # This file contains the grammar of the tiles. I'm still
 # pondering how to include the C-and-dasm code
 
+
+#
+# Virtual Machine Values 
+#
+(tile: (stack) reg 1)
+(tile: (local) reg 1)
+(tile: (cu) reg 1)
+(tile: (tc) reg 1)
+(tile: (frame) reg 1)
+
 #
 # MEMORY TRAFFIC
 #
 
-# [r0+o]
-(tile: (addr reg) mem 0)
-# lea r0, [r1+o]
-(tile: (addr reg) reg 1)
-# [r0+r1*s]
-(tile: (idx reg reg) mem 0)
-# lead r0, [r1+r2*s]
-(tile: (idx reg reg) reg 1)
-# mov r0, [foo]
-(tile: (load mem) reg 1)
-# mov [foo], r0
-(tile: (store mem reg) void 1)
-# mov r0, foo
-(tile: (const) reg 1)
-
+(tile: (addr reg) mem 1)
+(tile: (addr reg) reg 2)
+(tile: (const) reg 2)
+(tile: (load reg) reg 5)
+(tile: (load mem) reg 5)
+(tile: (store mem reg) void 5)
+(tile: (store reg reg) void 5)
 
 #
 # ARITHMETIC
 #
 
-# add r0, r1
-(tile: (add reg reg) reg 1)
-# add r0, [foo]
-(tile: (add reg (load mem)) reg 2)
-# add r0, foo
-(tile: (add reg (const)) reg 1)
+(tile: (add reg reg) reg 2)
+(tile: (add reg (const)) reg 3)
+(tile: (add reg (load reg)) reg 6)
+(tile: (add reg (load mem)) reg 6)
 
-(tile: (and reg (load mem)) reg)
-(tile: (and reg reg) reg)
-(tile: (and reg (const)) reg)
+(tile: (sub reg reg) reg 2)
+(tile: (sub reg (const)) reg 3)
+(tile: (sub reg (load reg)) reg 6)
+(tile: (sub reg (load mem)) reg 6)
 
-(tile: (sub reg reg) reg 1)
-(tile: (sub reg (load mem)) reg 2)
-(tile: (sub reg (const)) reg)
+(tile: (and reg reg) reg 2)
+(tile: (and reg (const)) reg 3)
+(tile: (and reg (load reg)) reg 6)
+(tile: (and reg (load mem)) reg 6)
 
-
-#
-# Virtual Machine Values 
-#
-
-(tile: (local) rbx)
-(tile: (frame) r12)
-(tile: (cu) r13)
-(tile: (tc) r14)
-(tile: (stack) rsp)
 
 #
 # Tests and Comparinsns
 #
+(tile: (nz reg) flag 2)
+(tile: (nz (load mem)) flag 6)
+(tile: (nz (and reg reg)) flag 2)
 
-# test foo, foo
-(tile: (nz reg) flag)
-# cmp [foo], 0
-(tile: (nz mem) flag)
-# test r0, r1
-(tile: (nz (and reg reg)) flag)
 
 #
 # CONTROL STATEMENTS
 #
+(tile: (all flag) flag 2)
+(tile: (if flag reg) reg 2)
+(tile: (if (all flag) reg) reg 3)
+(tile: (if reg reg) reg 4)
+(tile: (do void reg) reg 0)
+(tile: (do reg reg) reg 0)
+(tile: (do void void) void 0)
+(tile: (do reg void) void 0)
 
-# ternary foo ? bar : baz
-(tile: (if flag reg reg) reg)
-(tile: (if (all flag) reg reg) reg)
-(tile: (if (any flag) reg reg) reg)
-# statement if (foo) { bar }
-(tile: (when flag expr) void)
-(tile: (when (all flag) expr) void)
-(tile: (when (any flag) expr) void)
-(tile: (do expr) reg)
-
-# lea r0, [=>(label)]
-(tile: (label) reg)
-# jmp =>(label)
-(tile: (branch (label)) void)
+(tile: (when flag void) void 2)
+(tile: (when (all flag) void) void 3)
 # jcc =>(label) /* (cc = condition code) */
-(tile: (when flag (branch (label))) void)
+(tile: (when flag (branch (label))) void 2)
+
+(tile: (label) reg 2)
+(tile: (branch (label)) void 2)
+
+
+
+
+
+
 

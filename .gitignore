@@ -63,3 +63,4 @@ jit-*.bin
 src/jit/emit_*.c
 # jit expression table file
 src/jit/expr_tables.h
+src/jit/tile_tables.h
