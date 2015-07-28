@@ -13,10 +13,7 @@ use strict;
 # indirectly create rulenr -> terminal
 # table contains head -> rulenr
 
-my @expr; # used only for keeping the epxressions for easy dumping
 my @rules;
-my %heads;
-
 
 sub add_rule {
     my ($fragment, $terminal, $cost, $depth) = @_;
@@ -37,9 +34,6 @@ sub add_rule {
     # NB - only top-level fragments are associated with tiles.
     my $rulenr = scalar @rules;
     push @rules, [$list, $terminal, $cost];
-    my $head   = $fragment->[0];
-    push @{$heads{$head}}, $rulenr;
-    $expr[$rulenr] = sexpr::encode($fragment);
 }
 
 
@@ -51,51 +45,94 @@ while (my $tree = $parser->read) {
     }
 }
 
-# Used for getting all combinations belonging to a rule
-#
-# Algorithm:
-# list -> item + list | nil
-# nil -> nil
-# item + list -> (combinations(list), item + combinations(list))
-
-sub combinations {
-    my @list = @_;
-    if (@list) {
-        my ($top, @rest) = @list;
-        my @others = combinations(@rest);
-        my @mine;
-        for my $c (@others) {
-            push @mine, [$top, @$c];
+# generate topological graph
+my (%heads, %deps, %block);
+for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
+    my $frag = $rules[$rule_nr][0];
+    my $head = $frag->[0];
+    my $term = $rules[$rule_nr][1];
+    push @{$heads{$head}}, $rule_nr;
+    for (my $i = 1; $i < @$frag; $i++) {
+        my $item = $frag->[$i];
+        if ($item ne $term) {
+            # add dependency to resolution of term
+            push @{$deps{$item}}, $rule_nr;
+            $block{$head}->{$item}++;
         }
-        return (@mine, @others);
-    } else {
-        return [];
     }
 }
 
 
-# Generate rulesets to represent all DFA states.
-my @rulesets;
+my @order;
 my %candidates;
+my @rulesets;
+my %inversed;
 for my $head (keys %heads) {
-    my @combined = combinations(@{$heads{$head}});
-    pop @combined; # remove empty list, always the last item
-    for my $combination (@combined) {
-        my $ruleset_nr = scalar @rulesets;
-        push @rulesets, $combination;
-        my %terminals = map { $rules[$_]->[1] => 1 } @$combination;
-        for my $term (keys %terminals) {
-            push @{$candidates{$term}}, $ruleset_nr;
+    push @order, $head unless $block{$head};
+}
+
+while (@order) {
+    my $head = shift @order;
+    print "Generating rulesets for $head\n";
+    my $rule_nrs = $heads{$head};
+    # hold map of head,ruleset,ruleset -> rules
+    my %table;
+    # construct all applicable rules based on the current known rulesets
+    for my $rule_nr (@$rule_nrs) {
+        my ($c1, $c2) = @{$rules[$rule_nr][0]}[1,2];
+        if (defined $c2) {
+            for my $rs1 (@{$candidates{$c1}}) {
+                for my $rs2 (@{$candidates{$c2}}) {
+                    $table{$head,$rs1,$rs2}->{$rule_nr} = 1;
+                }
+            }
+        } elsif (defined $c1) {
+            for my $rs1 (@{$candidates{$c1}}) {
+                $table{$head,$rs1,-1}->{$rule_nr} = 1;
+            }
+        } else {
+            $table{$head,-1,-1}->{$rule_nr} = 1;
         }
+    }
+    # now add all distinct sets of rules to the rule sets
+    print "Rulesets for $head: ";
+    my %provided;
+    for my $generated (values %table) {
+        my @rule_nrs = sort keys %$generated;
+        my $key = join $;, @rule_nrs;
+        next if defined $inversed{$key};
+        my @terms = map { $rules[$_][1] } @rule_nrs;
+        my $ruleset_nr = scalar @rulesets;
+        push @rulesets, [@rule_nrs];
+        $inversed{$key} = $ruleset_nr;
+        print '(', join ', ', @rule_nrs, '); ';
+        for (@terms) {
+            push @{$candidates{$_}}, $ruleset_nr;
+            $provided{$_} = 1;
+        }
+    }
+    print "\n";
+
+    # Unblock the waiting elements.
+    for my $term (keys %provided) {
+        next unless defined $deps{$term};
+        for (my $i = 0; $i < @{$deps{$term}}; $i++) {
+            my $rule = $deps{$term}[$i];
+            my $head = $rules[$rule][0][0];
+            next unless $block{$head}{$term};
+            delete $block{$head}{$term};
+            if (!%{$block{$head}}) {
+                push @order, $head;
+                delete $block{$head};
+            }
+        }
+        delete $deps{$term};
     }
 }
 
-# Invert the ruleset table
-my %inversed;
-for (my $ruleset_nr = 0; $ruleset_nr < @rulesets; $ruleset_nr++) {
-    my $key = join(',', sort(@{$rulesets[$ruleset_nr]}));
-    $inversed{$key} = $ruleset_nr;
-}
+
+print "Now we have ", scalar @rulesets, " different rulesets\n";
+
 
 # Calculate minimum cost rule out of a ruleset and a terminal
 sub min_cost {
@@ -122,7 +159,7 @@ for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
                 for my $rs2 (@$cand2) {
                     my $lc2 = min_cost($rs2, $c2);
                     $table{$head}{$rs1}{$rs2} = [$rule_nr, $lc1, $lc2] if $term eq 'reg';
-                    push @{$trans{$head,$rs1,$rs2}}, $rule_nr;
+                    $trans{$head,$rs1,$rs2}->{$rule_nr} = 1;
                 }
             }
         } else {
@@ -130,24 +167,23 @@ for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
             for my $rs1 (@$cand1) {
                 my $lc1 = min_cost($rs1, $c1);
                 $table{$head}{$rs1} = [$rule_nr, $lc1] if $term eq 'reg';
-                push @{$trans{$head,$rs1}}, $rule_nr;
+                $trans{$head,$rs1}->{$rule_nr} = 1;
             }
         }
     } else {
         # no children
         $table{$head} = [$rule_nr] if $term eq 'reg';
-        push @{$trans{$head}}, $rule_nr;
+        $trans{$head}->{$rule_nr} = 1;
     }
 }
 
 # translate rule lists to rulesets
-my (%states, %generated);
-while (my ($table_key, $rule_nrs) = each(%trans)) {
-    my $ruleset_key = join(',', sort(@$rule_nrs));
+my %states;
+while (my ($table_key, $applicable) = each(%trans)) {
+    my @rule_nrs = sort keys %$applicable;
+    my $ruleset_key = join($;, @rule_nrs);
     my $ruleset_nr  = $inversed{$ruleset_key};
     my ($head, $rs1, $rs2) = split /$;/, $table_key;
-    # store ggenerated ruleset nr
-    $generated{$ruleset_nr}++;
     if (defined $rs1) {
         if (defined $rs2) {
             $states{$head}{$rs1}{$rs2} = $ruleset_nr;
@@ -159,33 +195,6 @@ while (my ($table_key, $rule_nrs) = each(%trans)) {
     }
 }
 
-# prune table
-my ($i, $j) = (0, scalar keys %trans);
-for my $head (keys %table) {
-    my $opt1 = $table{$head};
-    if (ref $opt1 eq 'HASH') {
-        for my $rs1 (keys %$opt1) {
-            my $opt2 = $opt1->{$rs1};
-            if (!defined $generated{$rs1}) {
-                delete $opt1->{$rs1};
-            } elsif (ref $opt2 eq 'HASH') {
-                for my $rs2 (keys %$opt2) {
-                    if (!defined $generated{$rs2}) {
-                        delete $opt2->{$rs2};
-                    } else {
-                        $i++;
-                    }
-                }
-            } else {
-                $i++;
-            }
-        }
-    } else {
-        $i++;
-    }
-}
-
-print "Had $j rules, but $i rules after pruning\n";
 
 ## right, now for a testrun - can we actually tile a tree with this thing
 my ($tree, $rest) = sexpr->parse('(add (load (const)) (const))');
@@ -206,7 +215,7 @@ sub tile {
         $ruleset_nr = $states{$head};
         $optimum    = $table{$head};
     }
-    print "Tiled $head to $expr[$optimum->[0]]\n";
+    print "Tiled $head to ", sexpr::encode($optimum),sexpr::encode($rules[$optimum->[0]][0]), "\n";
     return $ruleset_nr;
 }
 tile $tree;
@@ -230,7 +239,13 @@ __DATA__
 (tile: (sub reg (const)) reg 3)
 (tile: (sub reg (load reg)) reg 6)
 (tile: (sub reg (load mem)) reg 6)
+(tile: (and reg reg) reg 2)
+(tile: (and reg (const)) reg 3)
+(tile: (and reg (load reg)) reg 6)
+(tile: (and reg (load mem)) reg 6)
 (tile: (nz reg) flag 2)
+(tile: (nz (load mem)) flag 6)
 (tile: (all flag) flag 2)
 (tile: (if flag reg) reg 2)
 (tile: (if (all flag) reg) reg 3)
+(tile: (if reg reg) reg 4)
