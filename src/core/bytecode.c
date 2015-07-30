@@ -709,8 +709,10 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
             /* State variable; need to resolve wval immediately. Other kinds
              * can wait. */
             MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, read_int32(pos, 4));
-            if (sc == NULL)
+            if (sc == NULL) {
+                MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
                 MVM_exception_throw_adhoc(tc, "SC not yet resolved; lookup failed");
+            }
             MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[lex_idx].o,
                 MVM_sc_get_object(tc, sc, read_int32(pos, 8)));
         }
