@@ -189,3 +189,5 @@ struct MVMJitNode {
 };
 
 MVMJitGraph* MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg);
+void MVM_jit_graph_destroy(MVMThreadContext *tc, MVMJitGraph *graph);
+
