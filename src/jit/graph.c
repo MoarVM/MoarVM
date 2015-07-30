@@ -2496,11 +2496,9 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
 }
 
 void MVM_jit_graph_destroy(MVMThreadContext *tc, MVMJitGraph *graph) {
-
     MVM_free(graph->labels);
     MVM_free(graph->bbs);
     MVM_free(graph->deopts);
     MVM_free(graph->handlers);
     MVM_free(graph->inlines);
-
 }

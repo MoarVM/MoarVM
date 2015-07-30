@@ -162,6 +162,7 @@ typedef enum {
     MVM_JIT_NODE_INVOKE,
     MVM_JIT_NODE_JUMPLIST,
     MVM_JIT_NODE_CONTROL,
+    MVM_JIT_NODE_EXPR_TREE,
 } MVMJitNodeType;
 
 struct MVMJitNode {
@@ -176,6 +177,7 @@ struct MVMJitNode {
         MVMJitInvoke    invoke;
         MVMJitJumpList  jumplist;
         MVMJitControl   control;
+        MVMJitExprTree *tree;
     } u;
 };
 

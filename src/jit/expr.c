@@ -50,6 +50,10 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
         template[1] = opr.lit_i16;
         template[2] = sizeof(MVMint16);
         break;
+    case MVM_operand_coderef:
+        template[1] = opr.coderef_idx;
+        template[2] = sizeof(MVMuint16);
+        break;
     case MVM_operand_int32:
         template[1] = opr.lit_i32;
         template[2] = sizeof(MVMint32);
@@ -74,7 +78,6 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
         template[2] = sizeof(MVMuint32);
         break;
     case MVM_operand_ins:
-    case MVM_operand_coderef:
         /* use uintptr_t to convert to integer - shouold convert to label */
         template[1] = MVM_jit_graph_get_label_for_bb(tc, tree->graph, opr.ins_bb);
         template[2] = sizeof(MVMint32);

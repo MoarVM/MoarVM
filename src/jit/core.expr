@@ -6,6 +6,8 @@
 # automatically.
 
 (template: const_i16 (copy $1))
+(template: const_i64_16 (copy $1))
+(template: const_i64_32 (copy $1))
 (template: const_i64 (copy $1))
 (macro: ^cu_string (,a) (idx (load (addr (cu) (&offsetof MVMCompUnit body.strings)) ptr_sz)
                                     ,a ptr_sz))
@@ -106,3 +108,21 @@
                       rv_ptr))
 
 (template: goto (branch (label $0)))
+
+(template: setdispatcher
+  (store (addr (tc) (&offsetof MVMThreadContext cur_dispatcher))
+         $0 ptr_sz))
+
+(template: takedispatcher
+  (let: (($cur (load (addr (tc) (&offsetof MVMThreadContext cur_dispatcher)))))
+        (do (store (addr (tc) (&offsetof MVMThreadContext cur_dispatcher))
+                   (const 0 ptr_sz) ptr_sz)
+             $cur)))
+
+(template: curcode
+  (load (addr (frame) (&offsetof MVMFrame code_ref)) ptr_sz))
+
+(template: getcode
+  (let: (($arr (load (addr (cu) (&offsetof MVMCompUnit body.coderefs)) ptr_sz)))
+        (load (idx $arr $1 ptr_sz) ptr_sz)))
+
