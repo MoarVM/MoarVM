@@ -1,5 +1,5 @@
 #include "moar.h"
-#include "expr_tables.h"
+#include "core_expr_tables.h"
 
 
 static const MVMJitExprOpInfo expr_op_info[] = {

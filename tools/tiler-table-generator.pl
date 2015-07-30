@@ -313,7 +313,7 @@ if ($TESTING) {
  *
  * To improve alignment, we use 8 integers */
 HEADER
-    print $output "static MVMJitTileRule *".$VARNAME."rules[] = {\n";
+    print $output "static MVMJitTileRule ".$VARNAME."rules[] = {\n";
     for (my $i = 0; $i < @rules; $i++) {
         if (defined $names{$i}) {
             print $output '    ', sprintf('&%s%s', $VARNAME, $names{$i}), ",\n";
@@ -323,7 +323,7 @@ HEADER
     }
     print $output "};\n\n";
 
-    print $output "static MVMint32 ".$VARNAME."tables[][8] = {\n";
+    print $output "static MVMint32 ".$VARNAME."states[][8] = {\n";
     for my $expr_op (@expr_ops) {
         my $name = lc $expr_op;
         my $c1 = $table{$name};  # optimum table
@@ -347,36 +347,36 @@ HEADER
     }
     print $output "};\n\n";
     print $output <<"LOOKUP";
-static MVMint32 ${VARNAME}table_lookup(MVMThreadContext *tc, MVMint32 node, MVMint32 c1, MVMin32 c2) {
-    MVMint32 top    = (sizeof(${VARNAME}tables)/sizeof(${VARNAME}tables[0]));
+static MVMint32 ${VARNAME}states_lookup(MVMThreadContext *tc, MVMint32 node, MVMint32 c1, MVMint32 c2) {
+    MVMint32 top    = (sizeof(${VARNAME}states)/sizeof(${VARNAME}states[0]));
     MVMint32 bottom = 0;
     MVMint32 mid = (top + bottom) / 2;
     while (bottom < mid) {
-        if (${VARNAME}table[mid][0] < node) {
+        if (${VARNAME}states[mid][0] < node) {
             bottom = mid;
             mid    = (top + bottom) / 2;
-        } else if (${VARNAME}table[mid][0] > node) {
+        } else if (${VARNAME}states[mid][0] > node) {
             top = mid;
             mid = (top + bottom) / 2;
-        } else if (${VARNAME}table[mid][1] < c1) {
+        } else if (${VARNAME}states[mid][1] < c1) {
             bottom = mid;
             mid    = (top + bottom) / 2;
-        } else if (${VARNAME}table[mid][1] > c1) {
+        } else if (${VARNAME}states[mid][1] > c1) {
             top = mid;
             mid = (top + bottom) / 2;
-        } else if (${VARNAME}table[mid][2] < c2) {
+        } else if (${VARNAME}states[mid][2] < c2) {
             bottom = mid;
             mid    = (top + bottom) / 2;
-        } else if (${VARNAME}table[mid][2] > c2) {
+        } else if (${VARNAME}states[mid][2] > c2) {
             top = mid;
             mid = (top + bottom) / 2;
         } else {
             break;
         }
     }
-    if (${VARNAME}table[mid][0] != node ||
-        ${VARNAME}table[mid][1] != c1   ||
-        ${VARNAME}table[mid][2] != c2)
+    if (${VARNAME}states[mid][0] != node ||
+        ${VARNAME}states[mid][1] != c1   ||
+        ${VARNAME}states[mid][2] != c2)
         return -1;
     return mid;
 }

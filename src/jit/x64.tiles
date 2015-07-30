@@ -19,6 +19,8 @@
 
 (tile: addr_mem  (addr reg) mem 1)
 (tile: addr_reg  (addr reg) reg 2)
+(tile: idx_mem   (idx reg reg) mem 1)
+(tile: idx_reg   (idx reg reg) reg 2)
 (tile: const_reg (const) reg 2)
 (tile: load_reg  (load reg) reg 5)
 (tile: load_mem  (load mem) reg 5)

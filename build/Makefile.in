@@ -180,6 +180,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/jit/compile@obj@ \
           src/jit/log@obj@ \
           src/jit/expr@obj@ \
+          src/jit/tile@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
@@ -545,13 +546,16 @@ src/jit/emit_win32_x64.c: src/jit/emit_x64.dasc $(MINILUA) $(DYNASM_SCRIPTS)
 
 dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
 
-src/jit/expr_tables.h: src/jit/exprlist tools/expr-template-compiler.pl
+# Expression list tables
+%_expr_tables.h: %.expr tools/expr-template-compiler.pl
 	$(PERL) -Itools/ tools/expr-template-compiler.pl -o $@ $<
 
-src/jit/expr@obj@: src/jit/expr_tables.h
-
-src/jit/tile_tables.h: src/jit/x64.tiles tools/tiler-table-generator.pl
+# Architecture-specific tiles
+%_tile_tables.h: %.tiles tools/tiler-table-generator.pl
 	$(PERL) -Itools/ tools/tiler-table-generator.pl -o $@ $<
+
+src/jit/expr@obj@: src/jit/core_expr_tables.h
+src/jit/tile@obj@: src/jit/x64_tile_tables.h
 
 
 @uvlib@: $(UV_OBJECTS)
