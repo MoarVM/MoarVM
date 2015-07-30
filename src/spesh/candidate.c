@@ -192,8 +192,10 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
      * the spesh graph and can safely be deleted with it. */
     if (tc->instance->jit_enabled) {
         jg = MVM_jit_try_make_graph(tc, sg);
-        if (jg != NULL)
+        if (jg != NULL) {
             candidate->jitcode = MVM_jit_compile_graph(tc, jg);
+            MVM_jit_graph_destroy(tc, jg);
+        }
     }
 
     /* Update spesh slots. */

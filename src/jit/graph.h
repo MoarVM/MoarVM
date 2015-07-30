@@ -181,3 +181,4 @@ struct MVMJitNode {
 
 MVMJitGraph* MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg);
 MVMint32 MVM_jit_graph_get_label_for_bb(MVMThreadContext *tc, MVMJitGraph *graph, MVMSpeshBB *bb);
+void MVM_jit_graph_destroy(MVMThreadContext *tc, MVMJitGraph *graph);

@@ -253,6 +253,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
     MVM_DYNAR_INIT(tree->nodes, 32);
     MVM_DYNAR_INIT(tree->roots, 8);
     tree->graph = jg;
+    tree->info  = NULL;
     /* Hold indices to the node that last computed a value belonging
      * to a register. Initialized as -1 to indicate that these
      * values are empty. */
@@ -312,6 +313,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
 }
 
 void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree) {
+    if (tree->info)
+        MVM_free(tree->info);
     MVM_free(tree->nodes);
     MVM_free(tree->roots);
     MVM_free(tree);
