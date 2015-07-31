@@ -4688,6 +4688,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_repr_num_dimensions(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
+            OP(ctxcode): {
+                MVMObject *this_ctx = GET_REG(cur_op, 2).o;
+                if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext)
+                    MVM_exception_throw_adhoc(tc, "ctxcode needs an MVMContext");
+                GET_REG(cur_op, 0).o = ((MVMContext *)this_ctx)->body.context->code_ref;
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
