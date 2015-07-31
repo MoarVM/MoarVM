@@ -141,7 +141,7 @@
                   ptr)))
       (do 4
         (store (addr $block (&offsetof MVMObject st)) (load (^spesh_slot $2) ptr_sz) ptr_sz)
-        (store (addr $block (&offsetof MVMObject header.size) $1) 2)
+        (store (addr $block (&offsetof MVMObject header.size)) $1 2)
         (store (addr $block (&offsetof MVMObject header.owner))
                (load (addr (tc) (&offsetof MVMThreadContext thread_id)) 4) 4)
         $block)))
