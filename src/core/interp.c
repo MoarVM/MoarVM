@@ -4689,8 +4689,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(ctxcode): {
-                MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx;
-                MVMFrame *frame;
+                MVMObject *this_ctx = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext)
                     MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
                 GET_REG(cur_op, 0).o = ((MVMContext *)this_ctx)->body.context->code_ref;
