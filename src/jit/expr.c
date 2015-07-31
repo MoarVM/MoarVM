@@ -191,7 +191,7 @@ MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree,
     return num + template->root; /* root relative to nodes */
 }
 
-/* analyze the tree */
+/* Collect tree analysis information, add stores of computed values */
 static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          MVMJitExprTree *tree, MVMint32 node) {
     MVMSpeshIns **node_ins = traverser->data;
@@ -214,7 +214,7 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     } else {
         node_info->local_addr = -1;
     }
-
+    /* TODO add stores of this value */
     for (i = 0; i < nchild; i++) {
         MVMint32 child  = tree->nodes[first_child+i];
         MVMJitExprNodeInfo *child_info = tree->info + child;
@@ -298,7 +298,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
         /* Add current root to tree roots to ensure source evaluation order */
         MVM_DYNAR_PUSH(tree->roots, root);
 
-        MVM_DYNAR_ENSURE_SIZE(node_ins, tree->nodes_num+1);
+        MVM_DYNAR_ENSURE_SIZE(node_ins, tree->nodes_num);
         node_ins[root] = ins;
     }
 
@@ -351,7 +351,7 @@ static void walk_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
     }
 }
 
-
+/* TODO specify revisiting policy */
 void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
                                 MVMJitTreeTraverser *traverser) {
     MVMint32 i;

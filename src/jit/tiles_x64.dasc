@@ -1,0 +1,88 @@
+void MVM_jit_tile_add_reg(MVMThreadContext *tc) {
+    if (output_register == input_register[0]) {
+        | add Rq(output_register), Rq(input_register[1]);
+    } else {
+        | mov Rq(output_register), Rq(input_register[0]);
+        | add Rq(output_register), Rq(input_register[1]);
+    }
+}
+
+MVM_jit_tile_add_const(MVMThreadContext *tc) {
+    if (const_size == 8 && !fits_in_32_bit(const_value)) {
+        if (input_register[0] != output_register) {
+            | mov64 Rq(output_register), const_value;
+            | add   Rq(output_register), Rq(input_register[0]);
+        } else {
+            MVMJitGPR tmp_register = get_register(tc, 8);
+            | mov64 Rq(tmp_register), const_value;
+            | add Rq(output_register), tmp_register;
+            free_register(tmp_register);
+        }
+    } else {
+        if (output_register != input_register[0]) {
+            | mov Rq(output_register), Rq(input_register[0]);
+        }
+        | add Rq(output_register), const_value;
+    }
+}
+
+MVM_jit_tile_add_load_mem(MVMThreadContext *tc) {
+    if (input_register[0] != output_register) {
+        | mov Rq(output_register), Rq(input_register[0]);
+    }
+    if (MEM_TYPE(input_mem[0]) == MEM_TYPE_OFS) {
+        | add Rq(output_register), [Rq(BASE(input_mem[0])) + OFS(input_mem[0])];
+    } else {
+        | add Rq(output_register), [Rq(BASE(input_mem[0])) + Rq(IDX(input_mem[0]))*SCALE(input_mem[0])];
+    }
+}
+
+/* TODO take size into account */
+MVM_jit_tile_store_mem(MVMThreadContext *tc) {
+    if (MEM_TYPE(input_mem[0]) == MEM_TYPE_OFS) {
+        | mov [Rq(BASE(input_mem[0]))+OFS(input_mem[0])], Rq(input_reg[0]);
+    } else {
+        | mov [Rq(BASE(input_mem[0])) + Rq(IDX(input_mem[0]))*SCALE(input_mem[0])], Rq(input_reg[0]);
+    }
+}
+
+MVM_jit_tile_nz_reg(MVMThreadContext *tc) {
+    | test Rq(input_reg), Rq(input_reg);
+}
+
+MVM_jit_tile_label_addr(MVMThreadContext *tc) {
+    | lea Rq(output_reg), =>(const_value);
+}
+
+MVM_jit_tile_branch_label(MVMThreadContext *tc) {
+    | jmp =>(label_value);
+}
+
+MVM_jit_tile_when_branch(MVMThreadContext *tc) {
+    switch (flag_op) {
+    case MVM_JIT_LT:
+        | jl =>(label_value);
+        break;
+    case MVM_JIT_LE:
+        | jle =>(label_value);
+        break;
+    case MVM_JIT_EQ:
+        | je =>(label_value);
+        break;
+    case MVM_JIT_NE:
+        | jne =>(label_value);
+        break;
+    case MVM_JIT_GE:
+        | jge =>(label_value);
+        break;
+    case MVM_JIT_GT:
+        | jg =>(label_value);
+        break;
+    case MVM_JIT_NZ:
+        | jnz =>(label_value);
+        break;
+    case MVM_JIT_ZR:
+        | jz =>(label_value);
+        break;
+    }
+}

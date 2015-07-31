@@ -24,6 +24,8 @@
 (tile: const_reg (const) reg 2)
 (tile: load_reg  (load reg) reg 5)
 (tile: load_mem  (load mem) reg 5)
+(tile: load_lbl  (load lbl) reg 5)
+
 (tile: store_mem (store mem reg) void 5)
 (tile: store_reg (store reg reg) void 5)
 
@@ -33,17 +35,14 @@
 
 (tile: add_reg      (add reg reg) reg 2)
 (tile: add_const    (add reg (const)) reg 3)
-(tile: add_load_reg (add reg (load reg)) reg 6)
 (tile: add_load_mem (add reg (load mem)) reg 6)
 
 (tile: sub_reg      (sub reg reg) reg 2)
 (tile: sub_const    (sub reg (const)) reg 3)
-(tile: sub_load_reg (sub reg (load reg)) reg 6)
 (tile: sub_load_mem (sub reg (load mem)) reg 6)
 
 (tile: and_reg      (and reg reg) reg 2)
 (tile: and_const    (and reg (const)) reg 3)
-(tile: and_load_reg (and reg (load reg)) reg 6)
 (tile: and_load_mem (and reg (load mem)) reg 6)
 
 
@@ -66,13 +65,14 @@
 (tile: do_void (do void void) void 0)
 (tile: do_void (do reg void) void 0)
 
+(tile: label       (label (const)) lbl 1)
+(tile: label_addr  (label (const)) reg 2)
+
 (tile: when        (when flag void) void 2)
 (tile: when_all    (when (all flag) void) void 3)
 # jcc =>(label) /* (cc = condition code) */
-(tile: when_branch (when flag (branch (label))) void 2)
-
-(tile: label_reg    (label) reg 2)
-(tile: branch_label (branch (label)) void 2)
+(tile: when_branch (when flag (branch lbl)) void 2)
+(tile: branch_label (branch lbl) void 2)
 
 
 

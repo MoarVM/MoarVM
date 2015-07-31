@@ -39,6 +39,7 @@ enum MVMJitExprVtype { /* value type */
     _(LT, 2, 0, FLAG), \
     _(LE, 2, 0, FLAG), \
     _(EQ, 2, 0, FLAG), \
+    _(NE, 2, 0, FLAG), \
     _(GE, 2, 0, FLAG), \
     _(GT, 2, 0, FLAG), \
     _(NZ, 1, 0, FLAG), \
