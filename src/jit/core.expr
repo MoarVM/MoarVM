@@ -50,14 +50,14 @@
 
 (macro: ^write_barrier (,obj ,ref)
         (let: (($obj_flags (load (addr ,obj (&offsetof MVMCollectable flags)) 2))
-              ($ref_flags (load (addr ,ref (&offsetof MVMCollectable flags)) 2)))
+               ($ref_flags (load (addr ,ref (&offsetof MVMCollectable flags)) 2)))
               (when (all 3 (nz (and $obj_flags (const (&QUOTE MVM_CF_SECOND_GEN) 2)))
                            (nz ,ref)
                            (zr (and $ref_flags (const (&QUOTE MVM_CF_SECOND_GEN) 2))))
                      (call (^func &MVM_gc_write_barrier_hit)
-                           (arglist 2 (carg (tc) ptr_sz)
-                                      (carg ,obj ptr_sz))
-                           rv_void))))
+                           (arglist 2 (carg (tc) ptr)
+                                      (carg ,obj ptr))
+                            void))))
 
 (template: sp_p6ogetvt_o
            (let: (($addr (add (^p6obody $1) $2))
@@ -88,24 +88,24 @@
 
 
 (template: say (call (^func &MVM_string_say)
-                     (arglist 2 (carg (tc) ptr_sz)
-                                (carg $0 ptr_sz))
-                     rv_void))
+                     (arglist 2 (carg (tc) ptr)
+                                (carg $0 ptr))
+                     void))
 
 
 (template: getlex_no (let: (($res (call (^func &MVM_frame_find_lexical_by_name)
-                                       (arglist 3 (carg (tc) ptr_sz)
-                                                  (carg (load (^cu_string $1) ptr_sz) ptr_sz)
-                                                  (carg (const (&QUOTE MVM_reg_obj) int_sz) ptr_sz))
-                                       reg_val)))
+                                        (arglist 3 (carg (tc) ptr)
+                                                   (carg (load (^cu_string $1) ptr_sz) ptr)
+                                                   (carg (const (&QUOTE MVM_reg_obj) int_sz) int))
+                                         int)))
                            (if (nz $res) (load $res ptr_sz) $res)))
 
 (template: wval (call (^func MVM_sc_get_sc_object)
-                      (arglist 4 (carg (tc) ptr_sz)
-                                 (carg (cu) ptr_sz)
-                                 (carg $1 int_sz)
-                                 (carg $2 int_sz))
-                      rv_ptr))
+                      (arglist 4 (carg (tc) ptr)
+                                 (carg (cu) ptr)
+                                 (carg $1 int)
+                                 (carg $2 int))
+                       ptr))
 
 (template: goto (branch (label $0)))
 
@@ -115,9 +115,10 @@
 
 (template: takedispatcher
   (let: (($cur (load (addr (tc) (&offsetof MVMThreadContext cur_dispatcher)))))
-        (do (store (addr (tc) (&offsetof MVMThreadContext cur_dispatcher))
-                   (const 0 ptr_sz) ptr_sz)
-             $cur)))
+        (do 2
+           (store (addr (tc) (&offsetof MVMThreadContext cur_dispatcher))
+                        (const 0 ptr_sz) ptr_sz)
+            $cur)))
 
 (template: curcode
   (load (addr (frame) (&offsetof MVMFrame code_ref)) ptr_sz))
@@ -126,3 +127,33 @@
   (let: (($arr (load (addr (cu) (&offsetof MVMCompUnit body.coderefs)) ptr_sz)))
         (load (idx $arr $1 ptr_sz) ptr_sz)))
 
+(template: callercode
+  (let: (($caller (load (addr (frame) (&offsetof MVMFrame caller)) ptr_sz)))
+        (if (nz $caller)
+            (load (addr $caller (&offsetof MVMFrame code_ref)) ptr_sz)
+            (const 0 ptr_sz))))
+
+(template: sp_fastcreate
+   (let: (($block
+           (call (^func &MVM_gc_allocate_zeroed)
+                 (arglist 2 (carg (tc) ptr)
+                            (carg $1 int))
+                  ptr)))
+      (do 4
+        (store (addr $block (&offsetof MVMObject st)) (load (^spesh_slot $2) ptr_sz) ptr_sz)
+        (store (addr $block (&offsetof MVMObject header.size) $1) 2)
+        (store (addr $block (&offsetof MVMObject header.owner))
+               (load (addr (tc) (&offsetof MVMThreadContext thread_id)) 4) 4)
+        $block)))
+
+# These properly yield a flag, not a register value.
+# I maybe want to add a flag-to-register op
+
+#(template: isnull_s
+#  (nz $1))
+
+#(template: eq_i
+#  (eq $1 $2))
+
+#(template: not_i
+#  (zr $1)

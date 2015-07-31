@@ -6,6 +6,8 @@ enum MVMJitExprVtype { /* value type */
      MVM_JIT_FLOAT,
      MVM_JIT_MEM,
      MVM_JIT_FLAG,
+     MVM_JIT_INT,
+     MVM_JIT_PTR,
 };
 
 #define MVM_JIT_PTR_SZ sizeof(void*)
