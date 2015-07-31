@@ -599,7 +599,7 @@ void MVM_gc_collect_free_stables(MVMThreadContext *tc) {
 
 /* Goes through the unmarked objects in the second generation heap and builds
  * free lists out of them. Also does any required finalization. */
-void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
+void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc, MVMint64 global_destruction) {
     /* Visit each of the size class bins. */
     MVMGen2Allocator *gen2 = tc->gen2;
     MVMuint32 bin, obj_size, page, i;
@@ -682,7 +682,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc) {
                                 col->flags &= ~MVM_CF_SERIALZATION_INDEX_ALLOCATED;
                             }
 #endif
-                            if (MVM_load(&tc->gc_status) == MVMGCStatus_NONE) {
+                            if (global_destruction) {
                                 /* We're in global destruction, so enqueue to the end
                                  * like we do in the nursery */
                                 MVM_gc_collect_enqueue_stable_for_deletion(tc, (MVMSTable *)col);

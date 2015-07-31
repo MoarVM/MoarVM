@@ -5,36 +5,45 @@
  * bytecode. */
 static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     MVMStaticFrameBody *static_frame_body = &static_frame->body;
+    MVMCompUnit        *cu                = static_frame_body->cu;
 
     /* Ensure the frame is fully deserialized. */
     if (!static_frame_body->fully_deserialized)
-        MVM_bytecode_finish_frame(tc, static_frame_body->cu, static_frame, 0);
+        MVM_bytecode_finish_frame(tc, cu, static_frame, 0);
 
-    /* Work size is number of locals/registers plus size of the maximum
-     * call site argument list. */
-    static_frame_body->work_size = sizeof(MVMRegister) *
-        (static_frame_body->num_locals + static_frame_body->cu->body.max_callsite_size);
+    /* Take compilation unit lock, to make sure we don't race to do the
+     * frame preparation/verification work. */
+     MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+     if (static_frame->body.instrumentation_level == 0) {
+        /* Work size is number of locals/registers plus size of the maximum
+        * call site argument list. */
+        static_frame_body->work_size = sizeof(MVMRegister) *
+            (static_frame_body->num_locals + static_frame_body->cu->body.max_callsite_size);
 
-    /* Validate the bytecode. */
-    MVM_validate_static_frame(tc, static_frame);
+        /* Validate the bytecode. */
+        MVM_validate_static_frame(tc, static_frame);
 
-    /* Obtain an index to each threadcontext's lexotic pool table */
-    static_frame_body->pool_index = MVM_incr(&tc->instance->num_frames_run);
+        /* Obtain an index to each threadcontext's lexotic pool table */
+        static_frame_body->pool_index = MVM_incr(&tc->instance->num_frames_run);
 
-    /* Check if we have any state var lexicals. */
-    if (static_frame_body->static_env_flags) {
-        MVMuint8 *flags  = static_frame_body->static_env_flags;
-        MVMint64  numlex = static_frame_body->num_lexicals;
-        MVMint64  i;
-        for (i = 0; i < numlex; i++)
-            if (flags[i] == 2) {
-                static_frame_body->has_state_vars = 1;
-                break;
-            }
+        /* Check if we have any state var lexicals. */
+        if (static_frame_body->static_env_flags) {
+            MVMuint8 *flags  = static_frame_body->static_env_flags;
+            MVMint64  numlex = static_frame_body->num_lexicals;
+            MVMint64  i;
+            for (i = 0; i < numlex; i++)
+                if (flags[i] == 2) {
+                    static_frame_body->has_state_vars = 1;
+                    break;
+                }
+        }
+
+        /* Set its spesh threshold. */
+        static_frame_body->spesh_threshold = MVM_spesh_threshold(tc, static_frame);
     }
 
-    /* Set its spesh threshold. */
-    static_frame_body->spesh_threshold = MVM_spesh_threshold(tc, static_frame);
+    /* Unlock, now we're finished. */
+    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
 }
 
 /* When we don't match the current instrumentation level, we hit this. It may
