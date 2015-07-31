@@ -547,11 +547,11 @@ src/jit/emit_win32_x64.c: src/jit/emit_x64.dasc $(MINILUA) $(DYNASM_SCRIPTS)
 dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
 
 # Expression list tables
-%_expr_tables.h: %.expr tools/expr-template-compiler.pl
+%_expr_tables.h: %.expr tools/expr-template-compiler.pl src/core/oplist
 	$(PERL) -Itools/ tools/expr-template-compiler.pl -o $@ $<
 
 # Architecture-specific tiles
-%_tile_tables.h: %.tiles tools/tiler-table-generator.pl
+%_tile_tables.h: %.tiles tools/tiler-table-generator.pl src/jit/expr.h
 	$(PERL) -Itools/ tools/tiler-table-generator.pl -o $@ $<
 
 src/jit/expr@obj@: src/jit/core_expr_tables.h
