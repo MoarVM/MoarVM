@@ -117,6 +117,33 @@
 
 (template: goto (branch (label $0)))
 
+(macro: ^jump_out () (branch (label (const branch_exit int_sz))))
+
+(template: return
+  (do 3
+     (call (^func &MVM_args_assert_void_return_ok)
+           (arglist 2
+              (carg (tc) ptr)
+              (carg (const 0 int_sz) int))
+           void)
+     (call (^func &MVM_frame_try_return)
+           (arglist 1 (carg (tc) ptr))
+           void)
+     (^jump_out)))
+
+(template: return_o
+  (do 3
+     (call (^func &MVM_args_set_result_obj)
+           (arglist 3
+              (carg (tc) ptr)
+              (carg $0 ptr)
+              (carg (const 0 int_sz) int))
+           void)
+     (call (^func &MVM_frame_try_return)
+           (arglist 1 (carg (tc) ptr))
+           void)
+     (^jump_out)))
+
 (template: setdispatcher
   (store (addr (tc) (&offsetof MVMThreadContext cur_dispatcher))
          $0 ptr_sz))
