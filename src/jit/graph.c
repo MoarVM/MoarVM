@@ -2343,6 +2343,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_LITERAL, { 0 } }};
         jg_append_call_c(tc, jgb->graph, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
+        jg_append_call_c(tc, jgb->graph, &MVM_frame_try_return, 1, args, MVM_JIT_RV_VOID, -1);
         jg_append_branch(tc, jgb->graph, MVM_JIT_BRANCH_EXIT, NULL);
         break;
     }
@@ -2358,6 +2359,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
             args[1].type = MVM_JIT_REG_VAL_F;
         }
         jg_append_call_c(tc, jgb->graph, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        /* reuse args for tc arg */
+        jg_append_call_c(tc, jgb->graph, &MVM_frame_try_return, 1, args, MVM_JIT_RV_VOID, -1);
         jg_append_branch(tc, jgb->graph, MVM_JIT_BRANCH_EXIT, NULL);
         break;
     }
