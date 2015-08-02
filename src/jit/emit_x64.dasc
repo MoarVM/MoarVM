@@ -320,8 +320,6 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitGraph *jg,
                            dasm_State **Dst) {
     | ->exit:
-    | mov RV, 0;
-    | ->out:
     /* restore callee-save registers */
     | mov TC, [rbp-0x8];
     | mov CU, [rbp-0x10];
@@ -1512,7 +1510,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | callp &MVM_6model_find_method_spesh;
         | test RV, RV;
         /* fall out to interpreter */
-        | jnz ->out;
+        | jnz ->exit;
         |2:
         break;
     }
@@ -2295,9 +2293,8 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
     | mov ARG2, guard->deopt_offset;
     | mov ARG3, guard->deopt_target;
     | callp &MVM_spesh_deopt_one_direct;
-    /* tell jit driver we're deopting */
-    | mov RV, MVM_JIT_CTRL_DEOPT
-    | jmp ->out;
+    /* jump out */
+    | jmp ->exit;
     |2:
 }
 
@@ -2409,8 +2406,7 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
         | callp &MVM_frame_invoke_code;
     }
     /* Almost done. jump out into the interprete */
-    | mov RV, 1;
-    | jmp ->out;
+    | jmp ->exit;
 }
 
 void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitGraph *jg,
@@ -2446,8 +2442,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov eax, dword TC->current_frame_nr;
         | cmp eax, FRAME_NR;
         | je >9;
-        | mov RV, 1;
-        | jmp ->out;
+        | jmp ->exit;
         |9:
     }
     else if (ctrl->type == MVM_JIT_CONTROL_DYNAMIC_LABEL) {
@@ -2481,8 +2476,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         | jmp aword FRAME:TMP1->jit_entry_label;
         /* if not the same frame, trampoline to interpreter */
         |8:
-        | mov RV, 1;
-        | jmp ->out;
+        | jmp ->exit;
         /* I assume we *never* use a local label 9 in the code between
          * pre-and-post throwish */
         |9:

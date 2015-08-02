@@ -65,7 +65,7 @@ struct MVMJitControl {
 
 /* Special branch target for the exit */
 #define MVM_JIT_BRANCH_EXIT -1
-#define MVM_JIT_BRANCH_OUT  -2
+
 
 /* What does a branch need? a label to go to, an instruction to read */
 struct MVMJitBranch {
