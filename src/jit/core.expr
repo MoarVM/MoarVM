@@ -34,6 +34,7 @@
 (macro: ^spesh_slot (,a) (idx (load (addr (frame) (&offsetof MVMFrame effective_spesh_slots)))
                                ,a ptr_sz))
 
+
 (template: sp_getspeshslot (load (^spesh_slot $1) ptr_sz))
 
 (template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
@@ -82,6 +83,13 @@
 (template: null (vmnull))
 
 (macro: ^stable (,a) (load (addr ,a (&offsetof MVMObject st))))
+(macro: ^repr (,a) (load (addr (^stable ,a) (&offsetof MVMSTable REPR)) ptr_sz))
+(macro: ^is_type_obj (,a)
+  (nz (and (load (addr ,a (&offsetof MVMObject header.flags)) (&SIZEOF_MEMBER MVMObject header.flags))
+           (const (&QUOTE MVM_CF_TYPE_OBJECT) (&SIZEOF_MEMBER MVMObject header.flags)))))
+
+
+
 (template: getwhat (load (addr (^stable $1) (&offsetof MVMSTable WHAT)) ptr_sz))
 (template: getwho  (let: (($who (load (addr (^stable $1) (&offsetof MVMSTable WHO)) ptr_sz)))
                          (if (nz $who) $who (vmnull))))
@@ -145,6 +153,21 @@
         (store (addr $block (&offsetof MVMObject header.owner))
                (load (addr (tc) (&offsetof MVMThreadContext thread_id)) 4) 4)
         $block)))
+
+(macro: ^throw_adhoc (,msg)
+   (call (^func &MVM_exception_throw_adhoc)
+         (arglist 2 (carg (tc) ptr)
+                    (carg ,msg ptr))
+         void))
+
+(template: ctxcode
+  (do 2
+    (when (any 2 (^is_type_obj $1)
+                 (ne (load (addr (^repr $1) (&offsetof MVMREPROps ID)) (&SIZEOF_MEMBER MVMREPROps ID))
+                     (const (&QUOTE MVM_REPR_ID_MVMContext) (&SIZEOF_MEMBER MVMREPROps ID))))
+          (^throw_adhoc (&MSG ctxcode needs an MVMContext)))
+    (load (addr (load (addr $1 (&offsetof MVMContext body.context)) ptr_sz)
+                (&offsetof MVMFrame code_ref)) ptr_sz)))
 
 # These properly yield a flag, not a register value.
 # I maybe want to add a flag-to-register op

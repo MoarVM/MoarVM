@@ -1,4 +1,12 @@
 #include "moar.h"
+
+/* macros used in the expression list templates, defined here so they
+   don't overwrite other definitions */
+#define CONST_PTR(x) ((uintptr_t)(x))
+#define QUOTE(x) (x)
+#define MSG(...) CONST_PTR(#__VA_ARGS__)
+#define SIZEOF_MEMBER(type, member) sizeof(((type*)0)->member)
+
 #include "core_expr_tables.h"
 
 

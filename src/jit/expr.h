@@ -14,8 +14,8 @@ enum MVMJitExprVtype { /* value type */
 #define MVM_JIT_REG_SZ sizeof(MVMRegister)
 #define MVM_JIT_INT_SZ sizeof(MVMint64)
 #define MVM_JIT_NUM_SZ sizeof(MVMnum64)
-#define CONST_PTR(x) ((uintptr_t)(x))
-#define QUOTE(x) (x)
+
+
 
 /* This defines a macro that defines a list which will use a macro to
    define a list. It's a little trick I've gained from the luajit
