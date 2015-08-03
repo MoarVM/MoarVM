@@ -100,6 +100,7 @@ struct MVMJitExprNodeInfo {
     MVMint32                last_use;
     MVMint32                num_use;
     MVMint16                local_addr;
+    MVMint8                 result_size;
 };
 
 struct MVMJitExprTree {

@@ -199,6 +199,8 @@ MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree,
     return num + template->root; /* root relative to nodes */
 }
 
+
+
 /* Collect tree analysis information, add stores of computed values */
 static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          MVMJitExprTree *tree, MVMint32 node) {
@@ -206,6 +208,7 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     const MVMJitExprOpInfo   *op = MVM_jit_expr_op_info(tc, tree->nodes[node]);
     MVMint32   first_child = node + 1;
     MVMint32        nchild = op->nchild < 0 ? tree->nodes[first_child++] : op->nchild;
+    MVMJitExprNode   *args = tree->nodes + first_child + nchild;
     MVMJitExprNodeInfo *node_info = tree->info + node;
     MVMint32 i;
     if (traverser->visits[node] > 1)
@@ -221,6 +224,75 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         node_info->local_addr = node_info->ins->operands[0].reg.orig;
     } else {
         node_info->local_addr = -1;
+    }
+    /* propagate node sizes */
+    switch (tree->nodes[node]) {
+    case MVM_JIT_CONST:
+        /* node size is given */
+        node_info->result_size = args[1];
+        break;
+    case MVM_JIT_COPY:
+        node_info->result_size = tree->info[tree->nodes[first_child]].result_size;
+        break;
+    case MVM_JIT_LOAD:
+        node_info->result_size = args[0];
+        break;
+    case MVM_JIT_ADDR:
+    case MVM_JIT_IDX:
+    case MVM_JIT_LABEL:
+    case MVM_JIT_TC:
+    case MVM_JIT_CU:
+    case MVM_JIT_FRAME:
+    case MVM_JIT_LOCAL:
+    case MVM_JIT_STACK:
+    case MVM_JIT_VMNULL:
+        /* addresses result in pointers */
+        node_info->result_size = MVM_JIT_PTR_SZ;
+        break;
+    case MVM_JIT_ADD:
+    case MVM_JIT_SUB:
+    case MVM_JIT_AND:
+    case MVM_JIT_OR:
+    case MVM_JIT_XOR:
+    case MVM_JIT_NOT:
+        {
+            /* arithmetic nodes use their largest operand */
+            MVMint32 left  = tree->nodes[first_child];
+            MVMint32 right = tree->nodes[first_child+1];
+            node_info->result_size = MAX(tree->info[left].result_size,
+                                         tree->info[right].result_size);
+            break;
+        }
+    case MVM_JIT_DO:
+        /* node size of last child */
+        {
+            MVMint32 last_child = tree->nodes[first_child + nchild - 1];
+            node_info->result_size = tree->info[last_child].result_size;
+            break;
+        }
+    case MVM_JIT_IF:
+        {
+            MVMint32 left  = tree->nodes[first_child+1];
+            MVMint32 right = tree->nodes[first_child+2];
+            node_info->result_size = MAX(tree->info[left].result_size,
+                                         tree->info[right].result_size);
+            break;
+        }
+    case MVM_JIT_CALL:
+        if (args[0] == MVM_JIT_VOID)
+            node_info->result_size = 0;
+        else if (args[0] == MVM_JIT_INT)
+            node_info->result_size = MVM_JIT_INT_SZ;
+        else if (args[0] == MVM_JIT_PTR)
+            node_info->result_size = MVM_JIT_PTR_SZ;
+        else
+            node_info->result_size = MVM_JIT_NUM_SZ;
+        break;
+    default:
+        /* all other things, branches, labels, when, arglist, carg,
+         * comparisons, etc, have no value size */
+        node_info->result_size = 0;
+        break;
     }
     /* TODO add stores of this value */
     for (i = 0; i < nchild; i++) {
