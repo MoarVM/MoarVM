@@ -224,3 +224,18 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     if (tc->instance->profiling)
         MVM_profiler_log_spesh_end(tc);
 }
+
+
+void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candidate) {
+    MVM_free(candidate->guards);
+    MVM_free(candidate->bytecode);
+    MVM_free(candidate->handlers);
+    MVM_free(candidate->spesh_slots);
+    MVM_free(candidate->deopts);
+    MVM_free(candidate->log_slots);
+    MVM_free(candidate->inlines);
+    MVM_free(candidate->local_types);
+    MVM_free(candidate->lexical_types);
+    if (candidate->jitcode)
+        MVM_jit_destroy_code(tc, candidate->jitcode);
+}
