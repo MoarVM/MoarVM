@@ -163,7 +163,7 @@ BEGIN {
         join(",\n    ", @ops.map({ "'$_.name()'" }))~');
 }',
         P6 => '
-module MAST::Ops;
+unit module MAST::Ops;
 our %flags is export = ('~
     join(",\n    ", $value_map.pairs.map({ $_.perl }) )~');
 our @offsets is export = '~
