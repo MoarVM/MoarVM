@@ -132,6 +132,11 @@ for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
 # per terminal candidate ruleset.
 #
 
+sub sortn {
+    # numeric sort
+    sort { $a <=> $b } @_;
+}
+
 my @order;
 my %candidates;
 my @rulesets;
@@ -167,7 +172,7 @@ while (@order) {
     print "Rulesets for $head: " if $DEBUG;
     my %provided;
     for my $generated (values %table) {
-        my @rule_nrs = sort { $a <=> $b } keys %$generated;
+        my @rule_nrs = sortn keys %$generated;
         my $key = join $;, @rule_nrs;
         next if defined $inversed{$key};
         my @terms = map { $rules[$_][1] } @rule_nrs;
@@ -249,7 +254,7 @@ for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
 # translate rule lists to rulesets
 my %states;
 while (my ($table_key, $applicable) = each(%trans)) {
-    my @rule_nrs = sort { $a <=> $b } keys %$applicable;
+    my @rule_nrs = sortn keys %$applicable;
     my $ruleset_key = join($;, @rule_nrs);
     my $ruleset_nr  = $inversed{$ruleset_key};
     my ($head, $rs1, $rs2) = split /$;/, $table_key;
@@ -330,11 +335,11 @@ HEADER
         my $s1 = $states{$name}; # state transition table
         next unless defined $c1 && defined $s1;
         if (ref $s1 eq 'HASH') {
-            for my $rs1 (sort { $a <=> $b } keys %$s1) {
+            for my $rs1 (sortn keys %$s1) {
                 my $s2 = $s1->{$rs1};
                 my $c2 = $c1->{$rs1};
                 if (ref $s2 eq 'HASH') {
-                    for my $rs2 (sort { $a <=> $b } keys %$s2) {
+                    for my $rs2 (sortn keys %$s2) {
                         print $output "    { $PREFIX$expr_op, $rs1, $rs2, $s2->{$rs2}, $c2->{$rs2}[0], $c2->{$rs2}[1], $c2->{$rs2}[2] },\n";
                     }
                 } else {
