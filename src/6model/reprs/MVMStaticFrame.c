@@ -173,10 +173,12 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMStaticFrame *sf = (MVMStaticFrame *)obj;
     MVMStaticFrameBody *body = &sf->body;
+    MVMint32 i;
     if (body->orig_bytecode != body->bytecode) {
         MVM_free(body->bytecode);
         body->bytecode = body->orig_bytecode;
     }
+
 
     /* If it's not fully deserialized, none of the following can apply. */
     if (!body->fully_deserialized)
@@ -189,6 +191,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->lexical_types);
     MVM_free(body->lexical_names_list);
     MVM_HASH_DESTROY(hash_handle, MVMLexicalRegistry, body->lexical_names);
+
+    for (i = 0; i < body->num_spesh_candidates; i++)
+        MVM_spesh_candidate_destroy(tc, &body->spesh_candidates[i]);
+    MVM_free(body->spesh_candidates);
 }
 
 static const MVMStorageSpec storage_spec = {
