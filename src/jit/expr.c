@@ -294,7 +294,7 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         node_info->result_size = 0;
         break;
     }
-    /* TODO add stores of this value */
+
     for (i = 0; i < nchild; i++) {
         MVMint32 child  = tree->nodes[first_child+i];
         MVMJitExprNodeInfo *child_info = tree->info + child;
@@ -373,7 +373,10 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
         root = MVM_jit_expr_apply_template(tc, tree, templ, operands);
         /* assign computed value to computed nodes */
         if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
-            computed[ins->operands[0].reg.orig] = root;
+            MVMint16 reg = ins->operands[0].reg.orig;
+            computed[reg] = root;
+            /* and add a store */
+            root = MVM_jit_expr_add_storereg(tc, tree, root, reg);
         }
         /* Add current root to tree roots to ensure source evaluation order */
         MVM_DYNAR_PUSH(tree->roots, root);

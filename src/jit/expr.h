@@ -35,6 +35,8 @@ enum MVMJitExprVtype { /* value type */
     _(ADDR, 1, 1, MEM), \
     _(IDX, 2, 1, MEM), \
     _(COPY, 1, 0, REG), \
+    /* type conversion */ \
+    _(CONVERT, 1, 2, REG), \
     /* integer comparison */ \
     _(LT, 2, 0, FLAG), \
     _(LE, 2, 0, FLAG), \
@@ -44,6 +46,8 @@ enum MVMJitExprVtype { /* value type */
     _(GT, 2, 0, FLAG), \
     _(NZ, 1, 0, FLAG), \
     _(ZR, 1, 0, FLAG), \
+    /* flag value */ \
+    _(FLAGVAL, 1, 0, REG), \
     /* integer arithmetic */ \
     _(ADD, 2, 0, REG), \
     _(SUB, 2, 0, REG), \
@@ -61,6 +65,9 @@ enum MVMJitExprVtype { /* value type */
     _(IF, 3, 0, REG), \
     _(BRANCH, 1, 0, VOID),  \
     _(LABEL, 1, 0, VOID), \
+    /* special control operators */ \
+     _(INVOKISH, 1, 0, VOID), \
+     _(THROWISH, 1, 0, VOID), \
     /* call c functions */ \
     _(CALL, 2, 1, REG), \
     _(ARGLIST, -1, 0, VOID), \

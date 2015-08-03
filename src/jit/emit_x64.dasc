@@ -2059,7 +2059,6 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
         | callp &MVM_frame_invoke_code;
     }
     /* Almost done. jump out into the interprete */
-    | mov RV, 1;
     | jmp ->exit;
 }
 
@@ -2125,7 +2124,6 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         | jmp aword FRAME->jit_entry_label;
         /* if not the same frame, trampoline to interpreter */
         |8:
-        | mov RV, 1;
         | jmp ->exit;
         /* I assume we *never* use a local label 9 in the code between
          * pre-and-post throwish */
