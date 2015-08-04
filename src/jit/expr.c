@@ -371,18 +371,20 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
 
         MVM_jit_expr_load_operands(tc, tree, ins, computed, operands);
         root = MVM_jit_expr_apply_template(tc, tree, templ, operands);
+
+        /* map to spesh ins */
+        MVM_DYNAR_ENSURE_SIZE(node_ins, tree->nodes_num);
+        node_ins[root] = ins;
+
         /* assign computed value to computed nodes */
         if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
             MVMint16 reg = ins->operands[0].reg.orig;
             computed[reg] = root;
-            /* and add a store */
+            /* and add a store, which becomes the root */
             root = MVM_jit_expr_add_storereg(tc, tree, root, reg);
         }
         /* Add current root to tree roots to ensure source evaluation order */
         MVM_DYNAR_PUSH(tree->roots, root);
-
-        MVM_DYNAR_ENSURE_SIZE(node_ins, tree->nodes_num);
-        node_ins[root] = ins;
     }
 
     if (ins == NULL) {
