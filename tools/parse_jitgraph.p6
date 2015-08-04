@@ -5,18 +5,20 @@ use MAST::Ops;
 role CLanguageBase {
     regex ws {
         :r
-        [ || '//' \N* \n
-          || [ '/*' [<-[*]>+ || '*'<!before '/'>]* '*/' ]
-          || [\s|\n]+ ]*
+        [ | \s+
+          | '//' \N* \n
+          | [ '/*' [<-[*]>+ || '*'<!before '/'>]* '*/' ]
+        ]*
         [ <!before \s> | $ ]
     }
 
-    rule curly_block {
+    regex curly_block {
         '{'
          [
+           | \s+
            | <curly_block>
-           | <-[ { \s / ]> +
-         ] *
+           | <-[ { ]>+
+         ]*
         '}'
     }
 }
@@ -63,7 +65,6 @@ sub parse_op_to_func($source) {
 }
 
 sub parse_consume_ins_reprops($source) {
-    use Grammar::Tracer;
     grammar ConsumeInsGrammar does CLanguageBase {
         rule TOP {
             .*?<?before 'static'>
@@ -76,7 +77,7 @@ sub parse_consume_ins_reprops($source) {
         proto rule interesting_function { * }
 
         multi rule interesting_function:sym<jgb_consume_reprop> {
-            'static' 'MVMint32' 'jgb_consume_reprop(' .*? ')' '{'
+            'static' 'MVMint32' 'jgb_consume_reprop('.*?')' '{'
 
             # the general structure of this function starts with a big switch
             # statement to find out which operand decides what REPR to look for
@@ -85,6 +86,10 @@ sub parse_consume_ins_reprops($source) {
             # later on, we don't have to do fact checking manually like the
             # current code does, and so we can just skip the type operand check
             # entirely.
+
+            # uninteresting lines
+
+            [\N+\n]+?
 
             'switch' '(' 'op' ')' <curly_block>
 
@@ -115,12 +120,13 @@ sub parse_consume_ins_reprops($source) {
 }
 
 
-sub MAIN {
-    my $graph_c_source = slurp($?FILE.IO.parent.parent.child("src").child("jit").child("graph.c"));
+sub MAIN($graph_c_file?) {
+    $graph_c_file //= $?FILE.IO.parent.parent.child("src").child("jit").child("graph.c");
+    my $graph_c_source = slurp($graph_c_file);
 
-    say "got the source";
+    #say "got the source";
 
-    my %opcode_to_cfunc = parse_op_to_func($graph_c_source);
+    #my %opcode_to_cfunc = parse_op_to_func($graph_c_source);
     
     parse_consume_ins_reprops($graph_c_source);
 
