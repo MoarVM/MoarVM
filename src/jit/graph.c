@@ -767,6 +767,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
             break;
         default:
             MVM_jit_log(tc, "devirt: couldn't figure out type operand for op %s\n", ins->info->name);
+            return 0;
 
     }
 
