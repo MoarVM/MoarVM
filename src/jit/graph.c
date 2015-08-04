@@ -1579,8 +1579,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     }
     case MVM_OP_throwdyn:
     case MVM_OP_throwlex:
-    case MVM_OP_throwlexotic:
-    case MVM_OP_rethrow: {
+    case MVM_OP_throwlexotic: {
         MVMint16 regi   = ins->operands[0].reg.orig;
         MVMint16 object = ins->operands[1].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
@@ -1591,8 +1590,18 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                    } },
                                  { MVM_JIT_REG_VAL, { object } },
                                  { MVM_JIT_REG_ADDR, { regi } }};
+
         jgb_append_call_c(tc, jgb, op_to_func(tc, op),
                           4, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_rethrow: {
+        MVMint16 obj = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_LITERAL, { MVM_EX_THROW_DYN } },
+                                 { MVM_JIT_REG_VAL, { obj } },
+                                 { MVM_JIT_LITERAL, { NULL } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_throwcatdyn:
