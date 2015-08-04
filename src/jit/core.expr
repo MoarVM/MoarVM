@@ -207,3 +207,15 @@
 
 #(template: not_i
 #  (zr $1)
+
+(macro: ^body (,a) (addr ,a (&offsetof MVMObjectStooge data)))
+#  GET_REG(cur_op, 0).i64 = (MVMint64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+(template: elems
+   (let: (($func (load (addr (^repr $1) (&offsetof MVMREPROps elems)) ptr_sz)))
+        (call $func
+              (arglist 4
+                (carg (tc) ptr)
+                (carg (^stable $1) ptr)
+                (carg $1 ptr)
+                (carg (^body $1) ptr))
+              int)))

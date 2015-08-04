@@ -57,8 +57,9 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMint32 nchild      = info->nchild < 0 ? tree->nodes[first_child++] : info->nchild;
     MVMint32 state_idx, i;
     MVMint32 *state_info;
-    switch (tree->nodes[node]) {
-        /* TODO implement case for variadic nodes (DO/ALL/ANY/ARGLIST) */
+    switch (op) {
+        /* TODO implement case for variadic nodes (DO/ALL/ANY/ARGLIST)
+           and IF, which has 3 children */
     default:
         {
             if (nchild == 0) {
@@ -78,7 +79,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             state_info        = MVM_jit_tile_states[state_idx];
             tiles[node].state = state_info[3];
             tiles[node].rule  = MVM_jit_tile_rules[state_info[4]];
-            for (i = 0; i < nchild; i++) {
+            for (i = 0; i < MAX(2,nchild); i++) {
                 /* propagate child rules downward */
                 MVMint32 child = tree->nodes[first_child+i];
                 MVMint32 rule  = state_info[5+i];
