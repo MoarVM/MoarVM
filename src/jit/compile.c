@@ -13,7 +13,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     size_t codesize;
     /* Space for globals */
     MVMint32  num_globals = MVM_jit_num_globals();
-    void ** dasm_globals = MVM_malloc(num_globals * sizeof(void*));
+    void **  dasm_globals = MVM_malloc(num_globals * sizeof(void*));
     MVMJitNode * node = jg->first_node;
     MVMJitCode * code;
     MVMint32 i;

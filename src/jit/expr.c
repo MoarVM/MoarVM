@@ -226,14 +226,14 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     if (traverser->visits[node] > 1)
         return;
 
-    node_info->op        = op;
-    node_info->ins       = node_ins[node];
+    node_info->op_info   = op;
+    node_info->spesh_ins = node_ins[node];
     node_info->first_use = INT32_MAX;
     node_info->last_use  = -1;
     node_info->num_use   = 0;
-    if (node_info->ins &&
-        (node_info->ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
-        node_info->local_addr = node_info->ins->operands[0].reg.orig;
+    if (node_info->spesh_ins &&
+        (node_info->spesh_ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
+        node_info->local_addr = node_info->spesh_ins->operands[0].reg.orig;
     } else {
         node_info->local_addr = -1;
     }

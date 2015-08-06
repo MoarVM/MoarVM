@@ -2136,3 +2136,5 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
     }
 }
 
+/* import tiles */
+|.include src/jit/tiles_x64.dasc

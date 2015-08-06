@@ -1,13 +1,21 @@
-void MVM_jit_tile_add_reg(MVMThreadContext *tc) {
-    if (output_register == input_register[0]) {
-        | add Rq(output_register), Rq(input_register[1]);
+void MVM_jit_tile_add_reg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree, MVMint32 node) {
+    MVMint32 left = tree->nodes[node+1], right = tree->nodes[node+2];
+    MVMJitExprValue output = tree->info[node].value;
+    MVMJitExprValue input1 = tree->info[left].value;
+    MVMJitExprValue input2 = tree->info[right].value;
+    /* do i assume the register has already been allocated at this point?
+     * to which degree is this generic? */
+    if (output.reg.num == input1.reg.num) {
+        | add Rq(output.u.reg.num), Rq(input2.u.reg.num);
     } else {
-        | mov Rq(output_register), Rq(input_register[0]);
-        | add Rq(output_register), Rq(input_register[1]);
+        | mov Rq(output.u.reg.num), Rq(input.u.reg.num);
+        | add Rq(output.u.reg.num), Rq(input.u.reg.num);
     }
 }
 
-MVM_jit_tile_add_const(MVMThreadContext *tc) {
+MVM_jit_tile_add_const(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node) {
+    MVMint32 regchild   = tree->nodes[node+1];
+    MVMint32 constchild = tree->nodes[node+2];
     if (const_size == 8 && !fits_in_32_bit(const_value)) {
         if (input_register[0] != output_register) {
             | mov64 Rq(output_register), const_value;
@@ -31,18 +39,28 @@ MVM_jit_tile_add_load_mem(MVMThreadContext *tc) {
         | mov Rq(output_register), Rq(input_register[0]);
     }
     if (MEM_TYPE(input_mem[0]) == MEM_TYPE_OFS) {
-        | add Rq(output_register), [Rq(BASE(input_mem[0])) + OFS(input_mem[0])];
+        MVMint8 base = input[0].reg.r0;
+        MVMint8 ofs = input[0].reg.c;
+        | add Rq(out), [Rq(base)+ofs];
     } else {
-        | add Rq(output_register), [Rq(BASE(input_mem[0])) + Rq(IDX(input_mem[0]))*SCALE(input_mem[0])];
+        MVMint8 base  = input[0].reg.r0;
+        MVMint8 idx   = input[0].reg.r1;
+        MVMint8 scale = input[0].reg.c;
+        | add Rq(out), [Rq(base)+scale*Rq(idx)];
     }
 }
 
 /* TODO take size into account */
 MVM_jit_tile_store_mem(MVMThreadContext *tc) {
     if (MEM_TYPE(input_mem[0]) == MEM_TYPE_OFS) {
-        | mov [Rq(BASE(input_mem[0]))+OFS(input_mem[0])], Rq(input_reg[0]);
+        MVMint8 base = input[0].reg.r0;
+        MVMint8 ofs  = input[0].reg.c;
+        | mov [Rq(base)+ofs], Rq(input[1].reg.r0);
     } else {
-        | mov [Rq(BASE(input_mem[0])) + Rq(IDX(input_mem[0]))*SCALE(input_mem[0])], Rq(input_reg[0]);
+        MVMint8 base  = input[0].reg.r0;
+        MVMint8 idx   = input[0].reg.r1;
+        MVMint8 scale = input[0].reg.c;
+        | mov [Rq(base)+scale*Rq(idx)], Rq(input[1].reg.r0);
     }
 }
 
@@ -51,7 +69,7 @@ MVM_jit_tile_nz_reg(MVMThreadContext *tc) {
 }
 
 MVM_jit_tile_label_addr(MVMThreadContext *tc) {
-    | lea Rq(output_reg), =>(const_value);
+    | lea Rq(output_reg), [=>(const_value)];
 }
 
 MVM_jit_tile_branch_label(MVMThreadContext *tc) {
@@ -59,6 +77,7 @@ MVM_jit_tile_branch_label(MVMThreadContext *tc) {
 }
 
 MVM_jit_tile_when_branch(MVMThreadContext *tc) {
+    MVMint32 label_value = 0;
     switch (flag_op) {
     case MVM_JIT_LT:
         | jl =>(label_value);

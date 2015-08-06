@@ -55,7 +55,7 @@ void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
 static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node) {
     MVMJitExprNodeInfo *info   = &tree->info[node];
-    const MVMJitExprOpInfo *op = info->op;
+    const MVMJitExprOpInfo *op = info->op_info;
     MVMint32 *depth            = traverser->data;
     MVMint32 i, j;
     char indent[64];
@@ -75,7 +75,7 @@ static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
     }
     nargs[j] = 0;
-    MVM_jit_log(tc, "%04d%s%s (%s; sz=%d)\n", node, indent, info->op->name,
+    MVM_jit_log(tc, "%04d%s%s (%s; sz=%d)\n", node, indent, op->name,
                 nargs, info->result_size);
 }
 
