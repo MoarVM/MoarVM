@@ -246,6 +246,7 @@ typedef struct MVMJitJumpList MVMJitJumpList;
 typedef struct MVMJitControl MVMJitControl;
 typedef struct MVMJitData MVMJitData;
 typedef struct MVMJitCode MVMJitCode;
+typedef struct MVMJitCompiler MVMJitCompiler;
 typedef struct MVMProfileThreadData MVMProfileThreadData;
 typedef struct MVMProfileGC MVMProfileGC;
 typedef struct MVMProfileCallNode MVMProfileCallNode;

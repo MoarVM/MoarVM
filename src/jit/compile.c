@@ -1,7 +1,6 @@
 #include "moar.h"
-#include "dasm_proto.h"
+#include "internal.h"
 #include "platform/mmap.h"
-#include "emit.h"
 
 #define COPY_ARRAY(a, n, t) memcpy(MVM_malloc(n * sizeof(t)), a, n * sizeof(t))
 
@@ -9,7 +8,7 @@
 static const MVMuint16 MAGIC_BYTECODE[] = { MVM_OP_sp_jit_enter, 0 };
 
 MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
-    dasm_State *state;
+    MVMJitCompiler compiler;
     char * memory;
     size_t codesize;
     /* Space for globals */
@@ -21,57 +20,57 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 
     MVM_jit_log(tc, "Starting compilation\n");
 
-    /* setup dasm (data and code section) */
-    dasm_init(&state, 2);
-    dasm_setupglobal(&state, dasm_globals, num_globals);
-    dasm_setup(&state, MVM_jit_actions());
-    dasm_growpc(&state, jg->labels_num);
+    /* setup dasm */
+    dasm_init(&compiler, 2);
+    dasm_setupglobal(&compiler, dasm_globals, num_globals);
+    dasm_setup(&compiler, MVM_jit_actions());
+    dasm_growpc(&compiler, jg->labels_num);
 
     /* generate code */
-    MVM_jit_emit_prologue(tc, jg,  &state);
+    MVM_jit_emit_prologue(tc, &compiler, jg);
     while (node) {
         switch(node->type) {
         case MVM_JIT_NODE_LABEL:
-            MVM_jit_emit_label(tc, jg, &node->u.label, &state);
+            MVM_jit_emit_label(tc, &compiler, jg, &node->u.label);
             break;
         case MVM_JIT_NODE_PRIMITIVE:
-            MVM_jit_emit_primitive(tc, jg, &node->u.prim, &state);
+            MVM_jit_emit_primitive(tc, &compiler, jg, &node->u.prim);
             break;
         case MVM_JIT_NODE_BRANCH:
-            MVM_jit_emit_branch(tc, jg, &node->u.branch, &state);
+            MVM_jit_emit_branch(tc, &compiler, jg, &node->u.branch);
             break;
         case MVM_JIT_NODE_CALL_C:
-            MVM_jit_emit_call_c(tc, jg, &node->u.call, &state);
+            MVM_jit_emit_call_c(tc, &compiler, jg, &node->u.call);
             break;
         case MVM_JIT_NODE_GUARD:
-            MVM_jit_emit_guard(tc, jg, &node->u.guard, &state);
+            MVM_jit_emit_guard(tc, &compiler, jg, &node->u.guard);
             break;
         case MVM_JIT_NODE_INVOKE:
-            MVM_jit_emit_invoke(tc, jg, &node->u.invoke, &state);
+            MVM_jit_emit_invoke(tc, &compiler, jg, &node->u.invoke);
             break;
         case MVM_JIT_NODE_JUMPLIST:
-            MVM_jit_emit_jumplist(tc, jg, &node->u.jumplist, &state);
+            MVM_jit_emit_jumplist(tc, &compiler, jg, &node->u.jumplist);
             break;
         case MVM_JIT_NODE_CONTROL:
-            MVM_jit_emit_control(tc, jg, &node->u.control, &state);
+            MVM_jit_emit_control(tc, &compiler, jg, &node->u.control);
             break;
         case MVM_JIT_NODE_DATA:
-            MVM_jit_emit_data(tc, jg, &node->u.data, &state);
+            MVM_jit_emit_data(tc, &compiler, &node->u.data);
             break;
         }
         node = node->next;
     }
-    MVM_jit_emit_epilogue(tc, jg, &state);
+    MVM_jit_emit_epilogue(tc, &compiler, jg);
 
     /* compile the function */
-    dasm_link(&state, &codesize);
+    dasm_link(&compiler, &codesize);
     memory = MVM_platform_alloc_pages(codesize, MVM_PAGE_READ|MVM_PAGE_WRITE);
-    dasm_encode(&state, memory);
+    dasm_encode(&compiler, memory);
     /* set memory readable + executable */
     if (!MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC)) {
         MVM_jit_log(tc, "Setting jit page executable failed or was denied. deactivating jit.\n");
 
-        dasm_free(&state);
+        dasm_free(&compiler);
         MVM_free(dasm_globals);
         tc->instance->jit_enabled = 0;
         return NULL;
@@ -90,7 +89,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     code->num_labels = jg->labels_num;
     code->labels = MVM_malloc(sizeof(void*) * code->num_labels);
     for (i = 0; i < code->num_labels; i++) {
-        MVMint32 offset = dasm_getpclabel(&state, i);
+        MVMint32 offset = dasm_getpclabel(&compiler, i);
         if (offset < 0)
             MVM_jit_log(tc, "Got negative offset for dynamic label %d\n", i);
         code->labels[i] = memory + offset;
@@ -109,7 +108,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     code->inlines      = code->num_inlines ? COPY_ARRAY(jg->inlines, jg->inlines_alloc, MVMJitInline) : NULL;
 
     /* clear up the assembler */
-    dasm_free(&state);
+    dasm_free(&compiler);
     MVM_free(dasm_globals);
 
     code->seq_nr = MVM_incr(&tc->instance->jit_seq_nr);

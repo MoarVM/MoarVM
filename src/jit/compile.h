@@ -1,4 +1,4 @@
-typedef MVMint32 (*MVMJitFunc)(MVMThreadContext *tc, MVMCompUnit *cu, void * label);
+typedef void (*MVMJitFunc)(MVMThreadContext *tc, MVMCompUnit *cu, void * label);
 
 struct MVMJitCode {
     MVMJitFunc func_ptr;
