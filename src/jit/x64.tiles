@@ -74,9 +74,6 @@
 (tile: when_branch (when flag (branch lbl)) void 2)
 (tile: branch_label (branch lbl) void 2)
 
-
-
-
-
-
+(tile: callfunc (call (arglist (carg reg))) reg 4)
+(tile: callfunc (call (arglist (carg reg))) void 4)
 

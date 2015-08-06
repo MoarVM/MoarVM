@@ -2,11 +2,11 @@
  * probably be used by the code generator, somehow. */
 enum MVMJitExprVtype { /* value type */
      MVM_JIT_VOID,
-     MVM_JIT_REG,
-     MVM_JIT_FLOAT,
      MVM_JIT_MEM,
+     MVM_JIT_REG,
      MVM_JIT_FLAG,
      MVM_JIT_INT,
+     MVM_JIT_NUM,
      MVM_JIT_PTR,
 };
 
@@ -122,13 +122,24 @@ struct MVMJitExprValue {
    symbol table entry of sorts) */
 struct MVMJitExprNodeInfo {
     const MVMJitExprOpInfo *op_info;
+    /* VM instruction represented by this node */
     MVMSpeshIns    *spesh_ins;
+    /* VM Local value of this node */
+    MVMint16        local_addr;
+    /* Tiler result */
     MVMJitTileRule  tile_rule;
     MVMint32        tile_state;
+
+    /* (Dynamic) Label numbers used internally to the node (e.g. for
+       IF and WHEN) */
+    MVMint32        internal_labels[2];
+
+    /* Use information - I'd like to change this into list of uses */
     MVMint32        first_use;
     MVMint32        last_use;
     MVMint32        num_use;
-    MVMint16        local_addr;
+
+    /* Result value information (register/memory location, size etc) */
     MVMJitExprValue value;
 };
 
