@@ -1,6 +1,9 @@
 package sexpr;
 use strict;
 
+# declare keyword syntax regex
+my $keyword = qr/^[&\$^,]?[\w\.\[\]_\*]+[!:]?/;
+
 sub parser {
     my ($class, $input) = @_;
     return bless {
@@ -47,7 +50,7 @@ sub parse {
             # ascend on closing parenthesis
             $expr = substr $expr, 1;
             last;
-        } elsif ($expr =~ m/^[&\$^,]?[\w\.\[\]_\*]+:?/) {
+        } elsif ($expr =~ m/$keyword/) {
             # consume keyword
             push @$tree, substr($expr, $-[0], $+[0] - $-[0]);
             $expr = substr $expr, $+[0];

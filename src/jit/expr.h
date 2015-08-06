@@ -122,7 +122,11 @@ struct MVMJitExprTemplate {
     const char *info;
     MVMint32 len;
     MVMint32 root;
+    MVMint32 flags;
 };
+
+#define MVM_JIT_EXPR_TEMPLATE_VALUE       0
+#define MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE 1
 
 
 struct MVMJitTreeTraverser {

@@ -23,6 +23,15 @@ const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMJitExprNo
     return &expr_op_info[op];
 }
 
+static MVMint32 MVM_jit_expr_add_regaddr(MVMThreadContext *tc, MVMJitExprTree *tree,
+                                         MVMuint16 reg) {
+    MVMint32 num  = tree->nodes_num;
+    MVMJitExprNode template[] = { MVM_JIT_LOCAL,
+                                  MVM_JIT_ADDR, num, reg * MVM_JIT_REG_SZ };
+    MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+    return num + 1;
+}
+
 static MVMint32 MVM_jit_expr_add_loadreg(MVMThreadContext *tc, MVMJitExprTree *tree,
                                          MVMuint16 reg) {
     MVMint32 num        = tree->nodes_num;
@@ -34,14 +43,12 @@ static MVMint32 MVM_jit_expr_add_loadreg(MVMThreadContext *tc, MVMJitExprTree *t
 }
 
 
-static MVMint32 MVM_jit_expr_add_storereg(MVMThreadContext *tc, MVMJitExprTree *tree,
-                                          MVMint32 node, MVMuint16 reg) {
+static MVMint32 MVM_jit_expr_add_store(MVMThreadContext *tc, MVMJitExprTree *tree,
+                                       MVMint32 addr, MVMint32 val, MVMint32 sz) {
     MVMint32 num = tree->nodes_num;
-    MVMJitExprNode template[] = { MVM_JIT_LOCAL,
-                                  MVM_JIT_ADDR, num, reg * MVM_JIT_REG_SZ,
-                                  MVM_JIT_STORE, num + 1, node, MVM_JIT_REG_SZ };
+    MVMJitExprNode template[] = { MVM_JIT_STORE, addr, val, sz };
     MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
-    return num + 4;
+    return num;
 }
 
 
@@ -130,10 +137,15 @@ void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMS
                 computed[opr.reg.orig] = operands[i];
             }
             break;
+        case MVM_operand_write_reg:
+            /* get address of register to write */
+            operands[i] = MVM_jit_expr_add_regaddr(tc, tree, opr.reg.orig);
+            break;
         case MVM_operand_literal:
             operands[i] = MVM_jit_expr_add_const(tc, tree, opr, ins->info->operands[i]);
             break;
         default:
+            /* TODO implement readlex and writelex */
             continue;
         }
         if (operands[i] >= tree->nodes_num || operands[i] < 0) {
@@ -376,14 +388,18 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
         MVM_DYNAR_ENSURE_SIZE(node_ins, tree->nodes_num);
         node_ins[root] = ins;
 
-        /* assign computed value to computed nodes */
-        if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
-            MVMint16 reg = ins->operands[0].reg.orig;
+        /* if this operation writes a register, it typically yields a value */
+        if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg &&
+            /* destructive templates are responsible for writing their
+               own value to memory, and do not yield an expression */
+            (templ->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE) == 0) {
+            MVMuint16 reg = ins->operands[0].reg.orig;
+            /* assign computed value to computed nodes */
             computed[reg] = root;
             /* and add a store, which becomes the root */
-            root = MVM_jit_expr_add_storereg(tc, tree, root, reg);
+            root = MVM_jit_expr_add_store(tc, tree, operands[0], root, MVM_JIT_REG_SZ);
         }
-        /* Add current root to tree roots to ensure source evaluation order */
+        /* Add root to tree to ensure source evaluation order */
         MVM_DYNAR_PUSH(tree->roots, root);
     }
 

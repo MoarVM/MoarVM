@@ -204,13 +204,21 @@ if ($TESTING) {
         } elsif ($keyword eq 'template:') {
             my $opcode   = shift @$tree;
             my $template = shift @$tree;
+            my $flags    = 0;
+            if (substr($opcode, -1) eq '!') {
+                # destructive template
+                $opcode = substr $opcode, 0, -1;
+                $flags |= 1;
+            }
             die "Opcode '$opcode' unknown" unless defined $names{$opcode};
             die "Opcode '$opcode' redefined" if defined $info{$opcode};
             my $compiled = compile_template($template);
             my $idx = scalar(@templates); # template index into array is current array top
             $info{$opcode} = { idx => $idx, info => $compiled->{desc},
                                root => $compiled->{root},
-                               len => length($compiled->{desc}) };
+                               len => length($compiled->{desc}),
+                               flags => $flags };
+
             push @templates, @{$compiled->{template}};
         } else {
             die "I don't know what to do with '$keyword' ";
@@ -238,7 +246,7 @@ HEADER
     for (@opcodes) {
         if (defined($info{$_})) {
             my $td = $info{$_};
-            print $OUTPUT "    { &MVM_jit_expr_templates[$td->{idx}], \"$td->{info}\", $td->{len}, $td->{root} },\n";
+            print $OUTPUT "    { &MVM_jit_expr_templates[$td->{idx}], \"$td->{info}\", $td->{len}, $td->{root}, $td->{flags} },\n";
         } else {
             print $OUTPUT "    { NULL, NULL, -1, 0 },\n";
         }
