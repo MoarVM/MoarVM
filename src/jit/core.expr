@@ -101,12 +101,15 @@
                      void))
 
 
-(template: getlex_no (let: (($res (call (^func &MVM_frame_find_lexical_by_name)
-                                        (arglist 3 (carg (tc) ptr)
-                                                   (carg (load (^cu_string $1) ptr_sz) ptr)
-                                                   (carg (const (&QUOTE MVM_reg_obj) int_sz) int))
-                                         int)))
-                           (if (nz $res) (load $res ptr_sz) $res)))
+(template: getlex_no
+  (let: (($res
+    (call (^func &MVM_frame_find_lexical_by_name)
+          (arglist 3 (carg (tc) ptr)
+                     (carg (load (^cu_string $1) ptr_sz) ptr)
+                     (carg (const (&QUOTE MVM_reg_obj) int_sz) int))
+           ptr)))
+   (if (nz $res) (load $res ptr_sz) $res)))
+
 
 (template: wval (call (^func MVM_sc_get_sc_object)
                       (arglist 4 (carg (tc) ptr)
@@ -225,17 +228,18 @@
 #       &GET_REG(cur_op, 0), MVM_reg_obj);
 (template: atpos_o!
 # maybe have another operator for statement if-with-else
-  (if (^is_type_obj $1)
-    (store $0 (vmnull) ptr_sz)
+  (let: (($addr (copy $0)))
+    (if (^is_type_obj $1)
+      (store $addr (vmnull) ptr_sz)
 # else
-    (call (load (addr (^repr $1) (&offsetof MVMREPROps pos_funcs.at_pos)) ptr_sz)
-          (arglist 7
-            (carg (tc) ptr)
-            (carg (^stable $1) ptr)
-            (carg $1 ptr)
-            (carg (^body $1) ptr)
-            (carg $2 int)
+      (call (load (addr (^repr $1) (&offsetof MVMREPROps pos_funcs.at_pos)) ptr_sz)
+         (arglist 7
+           (carg (tc) ptr)
+           (carg (^stable $1) ptr)
+           (carg $1 ptr)
+           (carg (^body $1) ptr)
+           (carg $2 int)
 # our write address
-            (carg $0 ptr)
-            (carg (const (&QUOTE MVM_reg_obj) int_sz) int))
-          void)))
+           (carg $addr ptr)
+           (carg (const (&QUOTE MVM_reg_obj) int_sz) int))
+         void))))

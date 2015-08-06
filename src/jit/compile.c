@@ -350,7 +350,8 @@ static void load_op_regs(MVMThreadContext *tc, CompilerRegisterState *state,
 static void load_call_regs(MVMThreadContext *tc, CompilerRegisterState *state,
                            MVMJitExprTree *tree, MVMint32 node, X64_REGISTER *regs) {
     MVMint32 arglist = tree->nodes[node+2];
-    MVMint32 nargs   = tree->nodes[arglist+1];
+    /* whatever, this doesn't really work anyway :-( */
+    MVMint32 nargs   = MIN(tree->nodes[arglist+1], sizeof(CALL_REGISTERS)/sizeof(CALL_REGISTERS[0]));
     MVMint32 i, func;
     for (i = 0; i < nargs; i++) {
         MVMint32 carg   = tree->nodes[arglist+2+i];
@@ -384,7 +385,6 @@ static void prepare_expr_op(MVMThreadContext *tc, MVMJitTreeTraverser *traverser
     case MVM_JIT_IF:
         /* require two labels, one for the alternative block, and one for the statement end */
         state->cond_depth += 2;
-        emit_full_spill(tc, state);
         break;
     case MVM_JIT_ALL:
     case MVM_JIT_ANY:
@@ -423,7 +423,9 @@ static void compile_expr_labels(MVMThreadContext *tc, MVMJitTreeTraverser *trave
             MVM_jit_log(tc, "jz >%d\n", state->cond_depth - 1);
         } else if (i == 1) {
             /* move result value into place (i.e. rax) */
-            load_node_to(tc, state, tree->nodes[node + 2], 0);
+            MVMint32 child = tree->nodes[node+2];
+            if (tree->info[child].value.size > 0)
+                load_node_to(tc, state, child, 0);
             /* just after first option, branch to end */
             MVM_jit_log(tc, "jmp >%d\n", state->cond_depth);
             MVM_jit_log(tc, "%d:\n" , state->cond_depth - 1);
@@ -431,7 +433,9 @@ static void compile_expr_labels(MVMThreadContext *tc, MVMJitTreeTraverser *trave
             invalidate_registers(tc, state);
         } else {
             /* move result value into place */
-            load_node_to(tc, state, tree->nodes[node + 3], 0);
+            MVMint32 child = tree->nodes[node+3];
+            if (tree->info[child].value.size > 0)
+                load_node_to(tc, state, child, 0);
             /* emit end label */
             MVM_jit_log(tc, "%d:\n", state->cond_depth);
             invalidate_registers(tc, state);
@@ -508,9 +512,16 @@ static void compile_expr_op(MVMThreadContext *tc, MVMJitTreeTraverser *traverser
         break;
     case MVM_JIT_IF:
         /* result value lives in rax (as assured in compile_expr_labels) */
-        state->reg_used[0]     = node;
-        state->nodes_reg[node] = 0;
-        state->cond_depth     -= 2;
+        {
+            MVMint32 left = tree->nodes[node+2], right = tree->nodes[node+3];;
+            if (tree->info[left].value.size > 0 && tree->info[right].value.size > 0) {
+                state->reg_used[0]     = node;
+                state->nodes_reg[node] = 0;
+            } else if (tree->info[left].value.size > 0 || tree->info[right].value.size > 0) {
+                MVM_oops(tc, "One child of IF yields a value, the other does not\n");
+            }
+            state->cond_depth     -= 2;
+        }
         break;
     case MVM_JIT_DO:
         {

@@ -1,21 +1,4 @@
 
-struct MVMJitExprValue {
-    union {
-        struct {
-            MVMint8 r0;
-            MVMint8 r1;
-            MVMint8 c;
-        } mem_dscr;
-        struct {
-            MVMint8 cls;
-            MVMint8 num;
-        } reg_desc;
-        MVMint32 label;
-        MVMint64 const_value;
-    } u;
-    MVMint32 defined;
-    MVMint16 stack_loc;
-};
 
 typedef void (*MVMJitTileRule)(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree, MVMint32 node);
 typedef void (*MVMJitFunc)(MVMThreadContext *tc, MVMCompUnit *cu, void * label);

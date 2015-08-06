@@ -99,18 +99,37 @@ struct MVMJitExprOpInfo {
     enum MVMJitExprVtype vtype;
 };
 
+struct MVMJitExprValue {
+    union {
+        struct {
+            MVMint8 r0;
+            MVMint8 r1;
+            MVMint8 c;
+        } mem_dscr;
+        struct {
+            MVMint8 cls;
+            MVMint8 num;
+        } reg_desc;
+        MVMint32 label;
+        MVMint64 const_value;
+    } u;
+    MVMint32 defined;
+    MVMint16 stack_loc;
+    MVMint8  size;
+};
+
 /* Tree node information for easy access and use during compilation (a
    symbol table entry of sorts) */
 struct MVMJitExprNodeInfo {
     const MVMJitExprOpInfo *op_info;
-    MVMSpeshIns   *spesh_ins;
-    MVMJitTileRule tile_rule;
-    MVMint32       tile_state;
-    MVMint32       first_use;
-    MVMint32       last_use;
-    MVMint32       num_use;
-    MVMint16       local_addr;
-    MVMint8        result_size;
+    MVMSpeshIns    *spesh_ins;
+    MVMJitTileRule  tile_rule;
+    MVMint32        tile_state;
+    MVMint32        first_use;
+    MVMint32        last_use;
+    MVMint32        num_use;
+    MVMint16        local_addr;
+    MVMJitExprValue value;
 };
 
 struct MVMJitExprTree {
