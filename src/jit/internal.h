@@ -1,4 +1,5 @@
-/* Internal header for the MoarVM JIT compiler. It is not intended that this should escape the JIT */
+/* Internal header for the MoarVM JIT compiler. It is not intended
+   that this should escape the JIT */
 #define Dst_DECL MVMJitCompiler *compiler
 #define Dst_REF (compiler->dasm_handle)
 #define Dst (compiler)
@@ -6,6 +7,8 @@
 
 struct MVMJitCompiler {
     dasm_State *dasm_handle;
+    void      **dasm_globals;
+    MVMint32    next_label;
 };
 
 /* Declarations for architecture-specific codegen stuff */
