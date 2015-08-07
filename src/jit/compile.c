@@ -147,7 +147,12 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
 }
 
 
+void MVM_jit_compile_tile(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
+    MVMJitExprNodeInfo *info[8];
+    MVMint32 nchild, first_child;
+    info[0] = &tree->info[node];
 
+}
 
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {
     /* NYI */

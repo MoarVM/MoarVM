@@ -105,13 +105,13 @@ struct MVMJitExprValue {
             MVMint8 r0;
             MVMint8 r1;
             MVMint8 c;
-        } mem_dscr;
+        } mem;
         struct {
             MVMint8 cls;
             MVMint8 num;
-        } reg_desc;
+        } reg;
         MVMint32 label;
-        MVMint64 const_value;
+        MVMint64 const_val;
     } u;
     MVMint32 defined;
     MVMint16 stack_loc;
@@ -127,13 +127,10 @@ struct MVMJitExprNodeInfo {
     /* VM Local value of this node */
     MVMint16        local_addr;
     /* Tiler result */
-    MVMJitTileRule  tile_rule;
+    void            *tile_rule;
     MVMint32        tile_state;
-
-    /* (Dynamic) Label numbers used internally to the node (e.g. for
-       IF and WHEN) */
-    MVMint32        internal_labels[2];
-
+    /* internal label for IF/WHEN/ALL/ANY etc */
+    MVMint32        internal_label;
     /* Use information - I'd like to change this into list of uses */
     MVMint32        first_use;
     MVMint32        last_use;

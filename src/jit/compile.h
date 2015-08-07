@@ -1,4 +1,5 @@
-typedef void (*MVMJitTileRule)(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree, MVMint32 node);
+
+typedef void (*MVMJitTileRule)(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree, MVMint32 node, MVMJitExprValue **values, MVMJitExprNode *args);
 typedef void (*MVMJitFunc)(MVMThreadContext *tc, MVMCompUnit *cu, void * label);
 
 struct MVMJitCode {

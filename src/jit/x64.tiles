@@ -26,8 +26,9 @@
 (tile: load_mem  (load mem) reg 5)
 (tile: load_lbl  (load lbl) reg 5)
 
-(tile: store_mem (store mem reg) void 5)
 (tile: store_reg (store reg reg) void 5)
+(tile: store_mem (store mem reg) void 5)
+
 
 #
 # ARITHMETIC
