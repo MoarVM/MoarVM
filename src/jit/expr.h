@@ -129,6 +129,7 @@ struct MVMJitExprNodeInfo {
     /* Tiler result */
     void            *tile_rule;
     MVMint32        tile_state;
+    MVMint32        tile_path;
     /* internal label for IF/WHEN/ALL/ANY etc */
     MVMint32        internal_label;
     /* Use information - I'd like to change this into list of uses */
