@@ -8,7 +8,7 @@ struct MVMUnicodeNamedValue {
 };
 #define num_unicode_property_keypairs 3600
 
-MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block);
+MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block_name);
 
 #define MVMCODEPOINTNAMESCOUNT 49764
 #define MVMNUMPROPERTYCODES 93
