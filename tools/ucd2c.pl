@@ -801,14 +801,21 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
 }
 
 sub emit_block_lookup {
-    my $hout = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block);\n";
-    my $out  = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block) {
-    MVMGrapheme32 ord = MVM_string_get_grapheme_at_nocheck(tc, str, pos);
-    MVMuint64 size;
-    char *bname = MVM_string_ascii_encode(tc, block, &size);
+    my $hout = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block_name);\n";
+    my $out  = "struct UnicodeBlock {
+    MVMGrapheme32 start;
+    MVMGrapheme32 end;
+
+    char *name;
+    size_t name_len;
+    char *alias;
+    size_t alias_len;
+};
+
+static struct UnicodeBlock unicode_blocks[] = {
 ";
 
-    my $else = '';
+    my @blocks;
     each_line('Blocks', sub {
         $_ = shift;
         my ($from, $to, $block_name) = /^(\w+)..(\w+); (.+)/;
@@ -818,18 +825,47 @@ sub emit_block_lookup {
             my $block_len  = length $block_name;
             my $alias_len  = length $alias_name;
             if ($block_len && $alias_len) {
-                $out .= "
-    $else if (ord >= 0x$from && ord <= 0x$to) {
-        return strncmp(\"$block_name\", bname, $block_len) == 0 || strncmp(\"$alias_name\", bname, $alias_len) == 0;
-    }";
-                $else = 'else';
+                push @blocks, "    { 0x$from, 0x$to, \"$block_name\", $block_len, \"$alias_name\", $alias_len }";
             }
         }
     });
 
-    $out .= "
-    return 0;
+    $out .= join(",\n", @blocks) . "\n";
+
+    $out .= "};
+
+static int block_compare(const void *a, const void *b) {
+    MVMGrapheme32 ord = *((MVMGrapheme32 *) a);
+    struct UnicodeBlock *block = (struct UnicodeBlock *) b;
+
+    if (ord < block->start) {
+        return -1;
+    }
+    else if (ord > block->end) {
+        return 1;
+    }
+    else {
+        return 0;
+    }
+}
+
+MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block_name) {
+    MVMGrapheme32 ord = MVM_string_get_grapheme_at_nocheck(tc, str, pos);
+    MVMuint64 size;
+    char *bname = MVM_string_ascii_encode(tc, block_name, &size);
+    MVMint32 in_block = 0;
+
+    struct UnicodeBlock *block = bsearch(&ord, unicode_blocks, sizeof(unicode_blocks) / sizeof(struct UnicodeBlock), sizeof(struct UnicodeBlock), block_compare);
+
+    if (block) {
+        in_block = strncmp(block->name, bname, block->name_len) == 0 ||
+               strncmp(block->alias, bname, block->alias_len) == 0;
+    }
+    MVM_free(bname);
+
+    return in_block;
 }";
+
     $db_sections->{block_lookup} = $out;
     $h_sections->{block_lookup} = $hout;
 }
