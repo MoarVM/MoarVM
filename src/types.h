@@ -221,6 +221,7 @@ typedef struct MVMJitExprTemplate MVMJitExprTemplate;
 typedef struct MVMJitExprOpInfo MVMJitExprOpInfo;
 typedef struct MVMJitExprNodeInfo MVMJitExprNodeInfo;
 typedef struct MVMJitExprValue MVMJitExprValue;
+typedef struct MVMJitTile MVMJitTile;
 typedef struct MVMProfileThreadData MVMProfileThreadData;
 typedef struct MVMProfileGC MVMProfileGC;
 typedef struct MVMProfileCallNode MVMProfileCallNode;

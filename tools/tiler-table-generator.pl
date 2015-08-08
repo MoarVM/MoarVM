@@ -338,12 +338,12 @@ HEADER
     }
     print $output "\n};\n";
 
-    print $output "static const struct { void *rule; MVMint32 path; } ${VARNAME}rules[] = {\n";
+    print $output "static const MVMJitTile ${VARNAME}table[] = {\n";
     for (my $i = 0; $i < @rules; $i++) {
         if (defined $names[$i]) {
-            print $output "    { \&${VARNAME}$names[$i], $path_idx[$i] },\n";
+            print $output "    { \&${VARNAME}$names[$i], ${VARNAME}paths + $path_idx[$i] },\n";
         } else {
-            print $output "    { NULL, -1 },\n";
+            print $output "    { NULL, NULL },\n";
         }
     }
     print $output "};\n\n";

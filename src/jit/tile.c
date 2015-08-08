@@ -4,7 +4,7 @@
 #include "x64_tile_decl.h"
 #include "x64_tile_tables.h"
 #else
-static MVMJitTileRule MVM_jit_tile_rules[] = { NULL };
+static MVMJitTile MVM_jit_tile_table[] = { { NULL, NULL } } ;
 static MVMint32 MVM_jit_tile_states[][8] = { { -1, -1, -1, -1, -1, -1 } };
 static MVMint32 MVM_jit_tile_states_lookup(MVMThreadContext *tc, MVMint32 op, MVMint32 c0, MVMint32 c2) {
     return -1;
@@ -48,14 +48,12 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          info->name);
             state_info         = MVM_jit_tile_states[state_idx];
             symbol->tile_state = state_info[3];
-            symbol->tile_rule  = MVM_jit_tile_rules[state_info[4]].rule;
-            symbol->tile_path  = MVM_jit_tile_rules[state_info[4]].path;
+            symbol->tile       = &MVM_jit_tile_table[state_info[4]];
             for (i = 0; i < MAX(2,nchild); i++) {
                 /* propagate child rules downward */
-                MVMint32 child = tree->nodes[first_child+i];
-                MVMint32 rule  = state_info[5+i];
-                tree->info[child].tile_rule = MVM_jit_tile_rules[rule].rule;
-                tree->info[child].tile_path = MVM_jit_tile_rules[rule].path;
+                MVMint32 child   = tree->nodes[first_child+i];
+                MVMint32 rule_nr = state_info[5+i];
+                tree->info[child].tile = &MVM_jit_tile_table[rule_nr];
             }
             break;
         }
@@ -75,17 +73,16 @@ void MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
 #define FIRST_CHILD(t,x) (t->info[x].op_info->nchild < 0 ? x + 2 : x + 1)
 /* Get input for a tile rule, write into values */
 void MVM_jit_tile_get_input(MVMThreadContext *tc, MVMJitExprTree *tree,
-                            MVMint32 node, MVMint32 path,
+                            MVMint32 node, const MVMint8 *path,
                             MVMJitExprValue **values) {
-    const MVMint8 *list = MVM_jit_tile_paths + path;
-    while (*list > 0) {
+    while (*path > 0) {
         MVMint32 cur_node = node;
         do {
             MVMint32 first_child = FIRST_CHILD(tree, cur_node);
-            cur_node = tree->nodes[first_child+*list++];
-        } while (*list > 0);
+            cur_node = tree->nodes[first_child+*path++];
+        } while (*path > 0);
         *values++ = &tree->info[cur_node].value;
-        list++;
+        path++;
     }
 }
 

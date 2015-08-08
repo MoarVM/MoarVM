@@ -340,6 +340,7 @@ HEADERS = src/moar.h \
           src/jit/graph.h \
           src/jit/expr.h \
           src/jit/compile.h \
+          src/jit/tile.h \
           src/jit/log.h \
           src/instrument/crossthreadwrite.h \
           src/gen/config.h \

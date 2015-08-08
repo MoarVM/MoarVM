@@ -1,9 +1,6 @@
 
-typedef void (*MVMJitTileRule)(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree, MVMint32 node, MVMJitExprValue **values, MVMJitExprNode *args);
-typedef void (*MVMJitFunc)(MVMThreadContext *tc, MVMCompUnit *cu, void * label);
-
 struct MVMJitCode {
-    MVMJitFunc func_ptr;
+    void     (*func_ptr)(MVMThreadContext *tc, MVMCompUnit *cu, void * label);
     size_t     size;
     MVMuint8  *bytecode;
 

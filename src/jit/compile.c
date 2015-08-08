@@ -106,7 +106,7 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     MVM_jit_log(tc, "Bytecode size: %"MVM_PRSz"\n", codesize);
     /* Create code segment */
     code = MVM_malloc(sizeof(MVMJitCode));
-    code->func_ptr   = (MVMJitFunc)memory;
+    code->func_ptr   = (void (*)(MVMThreadContext*,MVMCompUnit*,void*)) memory;
     code->size       = codesize;
     code->bytecode   = (MVMuint8*)MAGIC_BYTECODE;
     code->sf         = jg->sg->sf;
