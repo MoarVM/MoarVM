@@ -78,7 +78,7 @@ void MVM_jit_tile_get_input(MVMThreadContext *tc, MVMJitExprTree *tree,
     while (*path > 0) {
         MVMint32 cur_node = node;
         do {
-            MVMint32 first_child = FIRST_CHILD(tree, cur_node);
+            MVMint32 first_child = FIRST_CHILD(tree, cur_node) - 1;
             cur_node = tree->nodes[first_child+*path++];
         } while (*path > 0);
         *values++ = &tree->info[cur_node].value;

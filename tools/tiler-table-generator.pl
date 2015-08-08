@@ -68,7 +68,7 @@ sub add_rule {
     push @curpath, @trace, -1 if @$fragment == 1 && @trace > 0;
     # NB - only top-level fragments are associated with tiles.
     my $rulenr = scalar @rules;
-    push @rules, [$list, $terminal, $cost];
+    push @rules, [$list, uc $terminal, $cost];
     return $rulenr;
 }
 
@@ -341,7 +341,7 @@ HEADER
     print $output "static const MVMJitTile ${VARNAME}table[] = {\n";
     for (my $i = 0; $i < @rules; $i++) {
         if (defined $names[$i]) {
-            print $output "    { \&${VARNAME}$names[$i], ${VARNAME}paths + $path_idx[$i] },\n";
+            print $output "    { \&${VARNAME}$names[$i], ${VARNAME}paths + $path_idx[$i], ${PREFIX}$rules[$i][1] },\n";
         } else {
             print $output "    { NULL, NULL },\n";
         }

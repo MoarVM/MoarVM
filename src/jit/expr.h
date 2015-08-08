@@ -1,14 +1,15 @@
 /* Each node that yields a value has a type. This information can
  * probably be used by the code generator, somehow. */
-enum MVMJitExprVtype { /* value type */
+typedef enum { /* value type */
      MVM_JIT_VOID,
      MVM_JIT_MEM,
      MVM_JIT_REG,
      MVM_JIT_FLAG,
+     MVM_JIT_LBL,
      MVM_JIT_INT,
      MVM_JIT_NUM,
      MVM_JIT_PTR,
-};
+} MVMJitExprVtype;
 
 #define MVM_JIT_PTR_SZ sizeof(void*)
 #define MVM_JIT_REG_SZ sizeof(MVMRegister)
@@ -93,13 +94,16 @@ MVM_JIT_IR_OPS(MVM_JIT_IR_ENUM)
 typedef MVMint64 MVMJitExprNode;
 
 struct MVMJitExprOpInfo {
-    const char      *name;
-    MVMint32         nchild;
-    MVMint32         nargs;
-    enum MVMJitExprVtype vtype;
+    const char     *name;
+    MVMint32        nchild;
+    MVMint32        nargs;
+    MVMJitExprVtype vtype;
 };
 
 struct MVMJitExprValue {
+    /* used to signal register allocator, tiles don't look at this */
+    MVMJitExprVtype vtype;
+    /* different values */
     union {
         struct {
             MVMint8 r0;
