@@ -63,9 +63,9 @@ void MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
 
 #define FIRST_CHILD(t,x) (t->info[x].op_info->nchild < 0 ? x + 2 : x + 1)
 /* Get input for a tile rule, write into values */
-void MVM_jit_tile_get_input(MVMThreadContext *tc, MVMJitExprTree *tree,
-                            MVMint32 node, const MVMint8 *path,
-                            MVMJitExprValue **values) {
+void MVM_jit_tile_get_values(MVMThreadContext *tc, MVMJitExprTree *tree,
+                             MVMint32 node, const MVMint8 *path,
+                             MVMJitExprValue **values) {
     while (*path > 0) {
         MVMint32 cur_node = node;
         do {

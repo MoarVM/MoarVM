@@ -1,5 +1,8 @@
-/* Internal header for the MoarVM JIT compiler. It is not intended
-   that this should escape the JIT */
+/* Internal header for the MoarVM JIT compiler. Probably best not to use it
+ * outside the JIT */
+
+/* Override dynasm state definitions, so that we can use our own compiler
+ * with register allocation structures etc. */
 #define Dst_DECL MVMJitCompiler *compiler
 #define Dst_REF (compiler->dasm_handle)
 #define Dst (compiler)
@@ -33,4 +36,7 @@ void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
                                MVMJitJumpList *jumplist);
 void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                               MVMJitControl *ctrl);
-
+void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 stack_loc,
+                       MVMint32 reg_cls,  MVMint8 reg_num);
+void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 stack_loc,
+                        MVMint32 reg_cls, MVMint8 reg_num);

@@ -181,6 +181,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/jit/log@obj@ \
           src/jit/expr@obj@ \
           src/jit/tile@obj@ \
+          src/jit/register@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
@@ -341,6 +342,7 @@ HEADERS = src/moar.h \
           src/jit/expr.h \
           src/jit/compile.h \
           src/jit/tile.h \
+          src/jit/register.h \
           src/jit/log.h \
           src/instrument/crossthreadwrite.h \
           src/gen/config.h \
@@ -539,10 +541,10 @@ $(MINILUA): 3rdparty/dynasm/minilua.c
 src/jit/emit_posix_x64@obj@: src/jit/emit_posix_x64.c $(DYNASM_HEADERS)
 src/jit/emit_win32_x64@obj@: src/jit/emit_win32_x64.c $(DYNASM_HEADERS)
 
-src/jit/emit_posix_x64.c: src/jit/emit_x64.dasc $(MINILUA) $(DYNASM_SCRIPTS)
+src/jit/emit_posix_x64.c: src/jit/emit_x64.dasc src/jit/tiles_x64.dasc $(MINILUA) $(DYNASM_SCRIPTS)
 	$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ src/jit/emit_x64.dasc
 
-src/jit/emit_win32_x64.c: src/jit/emit_x64.dasc $(MINILUA) $(DYNASM_SCRIPTS)
+src/jit/emit_win32_x64.c: src/jit/emit_x64.dasc src/jit/tiles_x64.dasc $(MINILUA) $(DYNASM_SCRIPTS)
 	$(DYNASM) $(DASM_FLAGS_WIN32) -o $@ src/jit/emit_x64.dasc
 
 dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
@@ -557,7 +559,7 @@ dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
 
 src/jit/expr@obj@: src/jit/core_expr_tables.h
 src/jit/tile@obj@: src/jit/x64_tile_tables.h
-
+src/jit/compile@obj@ src/jit/register@obj@ @jit@: src/jit/internal.h
 
 @uvlib@: $(UV_OBJECTS)
 	$(MSG) linking $@

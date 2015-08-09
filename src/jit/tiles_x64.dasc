@@ -5,13 +5,7 @@
 #define MVM_JIT_X64_GPR 0
 #define MVM_JIT_X64_SSE 1
 
-/* stub register allocator */
-MVMint8 MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 cls) {
-    return -1;
-}
 
-void MVM_jit_register_free(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 cls, MVMint8 num) {
-}
 
 
 #define X64_GPR(_) \
@@ -282,7 +276,7 @@ MVM_JIT_TILE_DECL(add_const) {
     MVMint64 val = values[2]->u.const_val; // or tree->nodes[tree->nodes
     if (out == in1) {
         if (values[2]->size == 8 && !fits_in_32_bit(val)) {
-            MVMint8 tmp = MVM_jit_register_allocate(tc, compiler, MVM_JIT_X64_GPR);
+            MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
             | mov64 Rq(tmp), val;
             | add Rq(in1), Rq(tmp);
             MVM_jit_register_free(tc, compiler, MVM_JIT_X64_GPR, tmp);
@@ -369,7 +363,7 @@ MVM_JIT_TILE_DECL(sub_const) {
     MVMint64 val = values[2]->u.const_val; // or tree->nodes[tree->nodes
     if (out == in1) {
         if (values[2]->size == 8 && !fits_in_32_bit(val)) {
-            MVMint8 tmp = MVM_jit_register_allocate(tc, compiler, MVM_JIT_X64_GPR);
+            MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
             | mov64 Rq(tmp), val;
             | sub Rq(in1), Rq(tmp);
             MVM_jit_register_free(tc, compiler, MVM_JIT_X64_GPR, tmp);
@@ -455,7 +449,7 @@ MVM_JIT_TILE_DECL(and_const) {
     MVMint64 val = values[2]->u.const_val; // or tree->nodes[tree->nodes
     if (out == in1) {
         if (values[2]->size == 8 && !fits_in_32_bit(val)) {
-            MVMint8 tmp = MVM_jit_register_allocate(tc, compiler, MVM_JIT_X64_GPR);
+            MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
             | mov64 Rq(tmp), val;
             | and Rq(in1), Rq(tmp);
             MVM_jit_register_free(tc, compiler, MVM_JIT_X64_GPR, tmp);
@@ -666,7 +660,7 @@ MVM_JIT_TILE_DECL(when_branch) {
 MVM_JIT_TILE_DECL(callfunc) {
     /* lets assume that arglist has already worked... */
     MVMint64 constptr = values[1]->u.const_val;
-    MVMint8 tmp = MVM_jit_register_allocate(tc, compiler, MVM_JIT_X64_GPR);
+    MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
     if (!fits_in_32_bit(constptr)) {
         | mov64 Rq(tmp), constptr;
     } else {

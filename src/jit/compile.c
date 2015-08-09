@@ -104,6 +104,7 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC);
 
     MVM_jit_log(tc, "Bytecode size: %"MVM_PRSz"\n", codesize);
+
     /* Create code segment */
     code = MVM_malloc(sizeof(MVMJitCode));
     code->func_ptr   = (void (*)(MVMThreadContext*,MVMCompUnit*,void*)) memory;
@@ -146,11 +147,19 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
     MVM_free(code);
 }
 
+#define EXPR_ARGS(t,n) (t->info[n].op_info->nchild < 0 ? t->nodes + n + t->nodes[n+1] + 2 : \
+                        t->nodes + n + t->info[n].op_info->nchild + 1);
 
 void MVM_jit_compile_tile(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
-    MVMJitExprNodeInfo *info[8];
-    MVMint32 nchild, first_child;
-    info[0] = &tree->info[node];
+    MVMJitExprNodeInfo *info = &tree->info[node];
+    MVMJitExprValue *values[8];
+    MVMJitExprNode *args = EXPR_ARGS(tree, node);
+    if (info->tile == NULL)
+        return;
+    values[0] = &info->value;
+    MVM_jit_tile_get_values(tc, tree, node, info->tile->path, values+1);
+    /* TODO implement register allocation */
+    info->tile->rule(tc, cl, tree, node, values, args);
 }
 
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {
