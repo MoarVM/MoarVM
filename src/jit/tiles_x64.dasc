@@ -530,9 +530,148 @@ MVM_JIT_TILE_DECL(nz_reg) {
 
 
 MVM_JIT_TILE_DECL(nz_mem) {
-
+    MVMint8 base = values[1]->u.mem.r0;
+    MVMint8 idx  = values[1]->u.mem.r1;
+    if (idx < 0) {
+        MVMint32 ofs = values[1]->u.mem.c;
+        switch (values[1]->size) {
+        case 1:
+            | cmp byte [Rq(base)+ofs], 0;
+            break;
+        case 2:
+            | cmp word [Rq(base)+ofs], 0;
+            break;
+        case 4:
+            | cmp dword [Rq(base)+ofs], 0;
+            break;
+        case 8:
+            | cmp qword [Rq(base)+ofs], 0;
+            break;
+        default:
+            MVM_oops(tc, "Unsupported size %d for load\n", values[1]->size);
+        }
+    } else {
+        MVMint32 scale = values[1]->u.mem.c;
+        if (scale != 8)
+            MVM_oops(tc, "Scale %d NYI\n", scale);
+        switch(values[1]->size) {
+        case 1:
+            | cmp byte [Rq(base)+Rq(idx)*8], 0;
+            break;
+        case 2:
+            | cmp word [Rq(base)+Rq(idx)*8], 0;
+            break;
+        case 4:
+            | cmp dword [Rq(base)+Rq(idx)*8], 0;
+            break;
+        case 8:
+            | cmp qword [Rq(base)+Rq(idx)*8], 0;
+            break;
+        default:
+            MVM_oops(tc, "Unsupported size %d for load\n", values[1]->size);
+        }
+    }
 }
 
 MVM_JIT_TILE_DECL(nz_and) {
+    MVMint8 rega = values[1]->u.reg.num;
+    MVMint8 regb = values[2]->u.reg.num;
+    switch(values[0]->size) {
+    case 1:
+        | test Rb(regb), Rb(rega);
+        break;
+    case 2:
+        | test Rw(regb), Rw(rega);
+        break;
+    case 4:
+        | test Rd(regb), Rd(rega);
+        break;
+    case 8:
+        | test Rq(regb), Rq(rega);
+        break;
+    }
+}
 
+
+/* Placeholder tiles. Not very good to implement as postorder expressions (yet) */
+MVM_JIT_TILE_DECL(all) {
+    /* not implemented as a tile */
+}
+
+MVM_JIT_TILE_DECL(if) {
+    /* NYI */
+}
+
+MVM_JIT_TILE_DECL(when) {
+    /* not implemented as a tile */
+}
+
+MVM_JIT_TILE_DECL(do_reg) {
+    /* not really a tile */
+}
+
+MVM_JIT_TILE_DECL(do_void) {
+    /* not really a tile */
+}
+
+
+MVM_JIT_TILE_DECL(label) {
+    values[0]->u.label = values[1]->u.const_val;
+}
+
+MVM_JIT_TILE_DECL(label_addr) {
+    MVMint8 reg = values[0]->u.reg.num;
+    MVMint32 label = values[1]->u.const_val;
+    | lea Rq(reg), [=>label];
+}
+
+MVM_JIT_TILE_DECL(branch_label) {
+    MVMint32 label = values[1]->u.label;
+    | jmp =>(label);
+}
+
+MVM_JIT_TILE_DECL(when_branch) {
+    MVMint32 op = tree->nodes[tree->nodes[node+1]];
+    MVMint32 label  = values[2]->u.label;
+    switch (op) {
+    case MVM_JIT_LT:
+        | jl =>(label);
+        break;
+    case MVM_JIT_LE:
+        | jle =>(label);
+        break;
+    case MVM_JIT_EQ:
+        | je =>(label);
+        break;
+    case MVM_JIT_NE:
+        | jne =>(label);
+        break;
+    case MVM_JIT_GE:
+        | jge =>(label);
+        break;
+    case MVM_JIT_GT:
+        | jg =>(label);
+        break;
+    case MVM_JIT_NZ:
+        | jnz =>(label);
+        break;
+    case MVM_JIT_ZR:
+        | jz =>(label);
+        break;
+    default:
+        MVM_oops(tc, "this should not be dealt with here");
+    }
+}
+
+MVM_JIT_TILE_DECL(callfunc) {
+    /* lets assume that arglist has already worked... */
+    MVMint64 constptr = values[1]->u.const_val;
+    MVMint8 tmp = MVM_jit_register_allocate(tc, compiler, MVM_JIT_X64_GPR);
+    if (!fits_in_32_bit(constptr)) {
+        | mov64 Rq(tmp), constptr;
+    } else {
+        | mov Rq(tmp), constptr;
+    }
+    | call Rq(tmp);
+    MVM_jit_register_free(tc, compiler, MVM_JIT_X64_GPR, tmp);
 }

@@ -60,7 +60,7 @@
 #
 (tile: all     (all flag) flag 2)
 (tile: if      (if flag reg) reg 2)
-(tile: if_all  (if (all flag) reg) reg 3)
+(tile: when    (when flag void) void 2)
 (tile: do_reg  (do void reg) reg 0)
 (tile: do_reg  (do reg reg) reg 0)
 (tile: do_void (do void void) void 0)
@@ -69,8 +69,8 @@
 (tile: label       (label (const)) lbl 1)
 (tile: label_addr  (label (const)) reg 2)
 
-(tile: when        (when flag void) void 2)
-(tile: when_all    (when (all flag) void) void 3)
+
+
 # jcc =>(label) /* (cc = condition code) */
 (tile: when_branch (when flag (branch lbl)) void 2)
 (tile: branch_label (branch lbl) void 2)

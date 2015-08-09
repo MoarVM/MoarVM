@@ -1,16 +1,7 @@
 #include "moar.h"
 #include "dasm_proto.h"
-#ifdef BUILD_TILES
 #include "x64_tile_decl.h"
 #include "x64_tile_tables.h"
-#else
-static MVMJitTile MVM_jit_tile_table[] = { { NULL, NULL } } ;
-static MVMint32 MVM_jit_tile_states[][8] = { { -1, -1, -1, -1, -1, -1 } };
-static MVMint32 MVM_jit_tile_states_lookup(MVMThreadContext *tc, MVMint32 op, MVMint32 c0, MVMint32 c2) {
-    return -1;
-}
-static const MVMint8 MVM_jit_tile_paths[] = { -1 };
-#endif
 
 
 

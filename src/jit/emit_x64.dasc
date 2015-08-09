@@ -2130,6 +2130,4 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
 }
 
 /* import tiles */
-|.if WITH_TILES
 |.include src/jit/tiles_x64.dasc
-|.endif
