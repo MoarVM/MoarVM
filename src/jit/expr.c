@@ -320,7 +320,7 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 void MVM_jit_expr_tree_analyze(MVMThreadContext *tc, MVMJitExprTree *tree, MVMSpeshIns **node_ins) {
     /* analyse the tree, calculate usage and destination information */
     MVMJitTreeTraverser traverser;
-    tree->info          = MVM_calloc(tree->nodes_num, sizeof(MVMJitExprNodeInfo));
+    MVM_DYNAR_INIT(tree->info, tree->nodes_num);
     traverser.data      = node_ins;
     traverser.preorder  = NULL;
     traverser.inorder   = NULL;

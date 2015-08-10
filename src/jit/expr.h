@@ -130,9 +130,12 @@ struct MVMJitExprNodeInfo {
     MVMSpeshIns    *spesh_ins;
     /* VM Local value of this node */
     MVMint16        local_addr;
+
     /* Tiler result */
     const MVMJitTile *tile;
-    MVMint32         tile_state;
+    MVMint32          tile_state;
+    MVMint32          tile_idx;
+
     /* internal label for IF/WHEN/ALL/ANY etc */
     MVMint32        internal_label;
     /* Use information - I'd like to change this into list of uses */
@@ -148,7 +151,7 @@ struct MVMJitExprTree {
     MVMJitGraph *graph;
     MVM_DYNAR_DECL(MVMJitExprNode, nodes);
     MVM_DYNAR_DECL(MVMint32, roots);
-    MVMJitExprNodeInfo *info;
+    MVM_DYNAR_DECL(MVMJitExprNodeInfo, info);
 };
 
 struct MVMJitExprTemplate {
