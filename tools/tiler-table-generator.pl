@@ -68,9 +68,10 @@ sub add_rule {
     push @curpath, @trace, -1 if @$fragment == 1 && @trace > 0;
     # NB - only top-level fragments are associated with tiles.
     my $rulenr = scalar @rules;
-    push @rules, [$list, uc $terminal, $cost];
+    push @rules, [$list, $terminal, $cost];
     return $rulenr;
 }
+
 
 my $input;
 if (defined $INFILE) {
@@ -151,6 +152,7 @@ my %inversed;
 for my $head (keys %heads) {
     push @order, $head unless $block{$head};
 }
+
 
 while (@order) {
     my $head = shift @order;
@@ -258,6 +260,7 @@ for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
     }
 }
 
+
 # translate rule lists to rulesets
 my %states;
 while (my ($table_key, $applicable) = each(%trans)) {
@@ -275,7 +278,6 @@ while (my ($table_key, $applicable) = each(%trans)) {
         $states{$head} = $ruleset_nr;
     }
 }
-
 
 
 
@@ -341,7 +343,8 @@ HEADER
     print $output "static const MVMJitTile ${VARNAME}table[] = {\n";
     for (my $i = 0; $i < @rules; $i++) {
         if (defined $names[$i]) {
-            print $output "    { \&${VARNAME}$names[$i], ${VARNAME}paths + $path_idx[$i], ${PREFIX}$rules[$i][1] },\n";
+            my $terminal = uc $rules[$i][1];
+            print $output "    { \&${VARNAME}$names[$i], ${VARNAME}paths + $path_idx[$i], ${PREFIX}${terminal} },\n";
         } else {
             print $output "    { NULL, NULL },\n";
         }
@@ -363,6 +366,7 @@ COMMENT
         my $name = lc $expr_op;
         my $c1 = $table{$name};  # optimum table
         my $s1 = $states{$name}; # state transition table
+
         next unless defined $c1 && defined $s1;
         if (ref $s1 eq 'HASH') {
             for my $rs1 (sortn keys %$s1) {
