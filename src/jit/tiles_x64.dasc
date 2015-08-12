@@ -258,6 +258,14 @@ MVM_JIT_TILE_DECL(store_mem) {
     }
 }
 
+MVM_JIT_TILE_DECL(copy) {
+    MVMint8 out = values[0]->u.reg.num;
+    MVMint8 val = values[1]->u.reg.num;
+    if (out != val) {
+        | mov Rq(out), Rq(val);
+    }
+}
+
 MVM_JIT_TILE_DECL(add_reg) {
     MVMint8 out = values[0]->u.reg.num;
     MVMint8 in1  = values[1]->u.reg.num;

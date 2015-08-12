@@ -164,6 +164,7 @@ void MVM_jit_compile_tile(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTr
 
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {
     /* NYI */
+    MVM_jit_tile_expr_tree(tc, tree);
     MVM_oops(tc, "NYI");
 }
 

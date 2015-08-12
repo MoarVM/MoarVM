@@ -29,7 +29,7 @@
 (tile: store_reg (store reg reg) void 5)
 (tile: store_mem (store mem reg) void 5)
 
-
+(tile: copy      (copy reg) reg 1)
 #
 # ARITHMETIC
 #
@@ -53,8 +53,12 @@
 (tile: nz_reg (nz reg) flag 2)
 (tile: nz_mem (nz (load mem)) flag 6)
 (tile: nz_and (nz (and reg reg)) flag 2)
-
-
+# test Rq(foo), [mem]
+# (tile: nz_and_mem (nz (and reg (load mem))) flag 6)
+# test Rq(foo), const
+# (tile: nz_const (nz (and reg (const))))
+# test [foo], const
+# (tile: nz_const_mem (nz (and (load mem) (const))))
 #
 # CONTROL STATEMENTS
 #
@@ -70,11 +74,11 @@
 (tile: label_addr  (label (const)) reg 2)
 
 
-
 # jcc =>(label) /* (cc = condition code) */
 (tile: when_branch (when flag (branch lbl)) void 2)
 (tile: branch_label (branch lbl) void 2)
 
 (tile: callfunc (call (const) (arglist (carg reg))) reg 4)
 (tile: callfunc (call (const) (arglist (carg reg))) void 4)
-
+#(tile: callmem  (call (load mem) (arglist (carg reg))) reg 4)
+#(tile: callmem  (call (load mem) (arglist (carg reg))) void 4)

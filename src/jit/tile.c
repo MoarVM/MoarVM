@@ -71,7 +71,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             state_info         = MVM_jit_tile_states[state_idx];
             symbol->tile_idx   = state_idx;
             symbol->tile_state = state_info[3];
-            for (i = 0; i < MAX(2,nchild); i++) {
+            for (i = 0; i < MIN(2,nchild); i++) {
                 /* Assign tiles to child */
                 MVMint32 child         = tree->nodes[first_child+i];
                 const MVMJitTile *tile = &MVM_jit_tile_table[state_info[5+i]];

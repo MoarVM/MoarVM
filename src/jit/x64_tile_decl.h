@@ -15,6 +15,7 @@ MVM_JIT_TILE_DECL(load_reg);
 MVM_JIT_TILE_DECL(load_mem);
 MVM_JIT_TILE_DECL(store_reg);
 MVM_JIT_TILE_DECL(store_mem);
+MVM_JIT_TILE_DECL(copy);
 MVM_JIT_TILE_DECL(add_reg);
 MVM_JIT_TILE_DECL(add_const);
 MVM_JIT_TILE_DECL(add_load_mem);

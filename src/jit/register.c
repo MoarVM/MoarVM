@@ -24,8 +24,7 @@
  * take tries to take register N. If N is USED, this is an error.
  * If N is ALLOCATED, it is spilt. It transfers the state of N to USED
  * load emits a load of value V to register N and transfers the state of N to ALLOCATED
- * INVALIDATE spills all ALLOCATED registers (but does not touch USED registers)
- */
+ * INVALIDATE spills all ALLOCATED registers (but does not touch USED registers) */
 
 
 
