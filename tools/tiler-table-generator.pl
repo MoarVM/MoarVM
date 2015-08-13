@@ -179,7 +179,7 @@ if ($DEBUG) {
 print "Now we have ", scalar @rulesets, " different rulesets\n" if $DEBUG;
 
 
-# Calculate minimum cost rule out of a ruleset and a terminal
+# Calculate minimum cost rule out of a ruleset and a terminal - nb, we can easily memoize this
 sub min_cost {
     my ($ruleset_nr, $term) = @_;
     my @applicable = grep { $rules[$_][1] eq $term } @{$rulesets[$ruleset_nr]};
@@ -187,58 +187,46 @@ sub min_cost {
     return $min;
 }
 
-# Generate a table, indexed by head, ruleset_nr, ruleset_nr -> ruleset
-# and another table, head, ruleset_nr, ruleset_nr -> rule
-my %table;
+
+# Generate optimum rule and state tables
+my %nodes;
 my %trans;
 for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
     my ($frag, $term, $cost) = @{$rules[$rule_nr]};
-    my ($head, $c1, $c2)     = @$frag;
-    if (defined $c1) {
-        my $cand1 = $candidates{$c1};
-        if (defined $c2) {
-            # binary
-            my $cand2   = $candidates{$c2};
-            for my $rs1 (@$cand1) {
-                my $lc1 = min_cost($rs1, $c1);
-                for my $rs2 (@$cand2) {
-                    my $lc2 = min_cost($rs2, $c2);
-                    $table{$head}{$rs1}{$rs2} = [$rule_nr, $lc1, $lc2] if ($term eq 'reg' || $term eq 'void');
-                    $trans{$head,$rs1,$rs2}->{$rule_nr} = 1;
-                }
-            }
-        } else {
-            # unary
-            for my $rs1 (@$cand1) {
-                my $lc1 = min_cost($rs1, $c1);
-                $table{$head}{$rs1} = [$rule_nr, $lc1] if ($term eq 'reg' || $term eq 'void');
-                $trans{$head,$rs1}->{$rule_nr} = 1;
+    my ($head, $nt1, $nt2)     = @$frag;
+    if (defined $nt2) {
+        for my $rs1 (@{$candidates{$nt1}}) {
+            for my $rs2 (@{$candidates{$nt2}}) {
+                my $lc1 = min_cost($rs1, $nt1);
+                my $lc2 = min_cost($rs2, $nt2);
+                $nodes{$head,$rs1,$rs2} = [-1,$lc1,$lc2] unless defined $nodes{$head,$rs1,$rs2};
+                $nodes{$head,$rs1,$rs2}[0] = $rule_nr if $term eq 'reg' or $term eq 'mem';
+                $trans{$head,$rs1,$rs2}{$rule_nr} = 1;
             }
         }
+    } elsif (defined $nt1) {
+        for my $rs1 (@{$candidates{$nt1}}) {
+            my $lc1 = min_cost($rs1, $nt1);
+            $nodes{$head,$rs1,-1} = [-1,$lc1,-1] unless defined $nodes{$head,$nt1,-1};
+            $nodes{$head,$rs1,-1}[0] = $rule_nr if $term eq 'reg' or $term eq 'mem';
+            $trans{$head,$rs1,-1}{$rule_nr} = 1;
+        }
     } else {
-        # no children
-        $table{$head} = [$rule_nr] if $term eq 'reg';
-        $trans{$head}->{$rule_nr} = 1;
+        $nodes{$head,-1,-1} = [-1,-1,-1] unless defined $nodes{$head,-1,-1};
+        $nodes{$head,-1,-1}[0] = $rule_nr if $term eq 'reg' or $term eq 'mem';
+        $trans{$head,-1,-1}{$rule_nr} = 1;
     }
 }
 
 
-# translate rule lists to rulesets
-my %states;
+# translate rule lists to rulesets and expand rule table, so we can sort it later
+my %table;
 while (my ($table_key, $applicable) = each(%trans)) {
-    my @rule_nrs = sortn keys %$applicable;
+    my @rule_nrs    = sortn keys %$applicable;
     my $ruleset_key = join($;, @rule_nrs);
     my $ruleset_nr  = $inversed{$ruleset_key};
     my ($head, $rs1, $rs2) = split /$;/, $table_key;
-    if (defined $rs1) {
-        if (defined $rs2) {
-            $states{$head}{$rs1}{$rs2} = $ruleset_nr;
-        } else {
-            $states{$head}{$rs1} = $ruleset_nr;
-        }
-    } else {
-        $states{$head} = $ruleset_nr;
-    }
+    $table{$head}{$rs1}{$rs2} = [$ruleset_nr, $nodes{$table_key}];
 }
 
 
@@ -253,15 +241,15 @@ if ($TESTING) {
         if (defined $c2) {
             my $l1 = tile($c1);
             my $l2 = tile($c2);
-            $ruleset_nr = $states{$head}{$l1}{$l2};
-            $optimum    = $table{$head}{$l1}{$l2};
+            $ruleset_nr = $table{$head}{$l1}{$l2}[0];
+            $optimum    = $table{$head}{$l1}{$l2}[1];
         } elsif (defined $c1) {
             my $l1 = tile($c1);
-            $ruleset_nr = $states{$head}{$l1};
-            $optimum    = $table{$head}{$l1};
+            $ruleset_nr = $table{$head}{$l1}{-1}[0];
+            $optimum    = $table{$head}{$l1}{-1}[1];
         } else {
-            $ruleset_nr = $states{$head};
-            $optimum    = $table{$head};
+            $ruleset_nr = $table{$head}{-1}{-1}[0];
+            $optimum    = $table{$head}{-1}{-1}[0]
         }
         print "Tiled $head to ", sexpr::encode($optimum),sexpr::encode($rules[$optimum->[0]][0]), "\n";
         return $ruleset_nr;
@@ -342,25 +330,12 @@ COMMENT
 
     print $output "static MVMint32 ".$VARNAME."states[][8] = {\n";
     for my $expr_op (@expr_ops) {
-        my $name = lc $expr_op;
-        my $c1 = $table{$name};  # optimum table
-        my $s1 = $states{$name}; # state transition table
-
-        next unless defined $c1 && defined $s1;
-        if (ref $s1 eq 'HASH') {
-            for my $rs1 (sortn keys %$s1) {
-                my $s2 = $s1->{$rs1};
-                my $c2 = $c1->{$rs1};
-                if (ref $s2 eq 'HASH') {
-                    for my $rs2 (sortn keys %$s2) {
-                        print $output "    { $PREFIX$expr_op, $rs1, $rs2, $s2->{$rs2}, $c2->{$rs2}[0], $c2->{$rs2}[1], $c2->{$rs2}[2] },\n";
-                    }
-                } else {
-                    print $output "    { $PREFIX$expr_op, $rs1, -1, $s2, $c2->[0], $c2->[1], -1 },\n";
-                }
+        my $head = lc $expr_op;
+        for my $rs1 (sortn keys %{$table{$head}}) {
+            for my $rs2 (sortn keys %{$table{$head}{$rs1}}) {
+                my $item = $table{$head}{$rs1}{$rs2};
+                print $output "    { $PREFIX$expr_op, $rs1, $rs2, $item->[0], $item->[1][0], $item->[1][1], $item->[1][2] },\n";
             }
-        } else {
-            print $output "    { $PREFIX$expr_op, -1, -1, $s1, $c1->[0], -1, -1 },\n";
         }
     }
     print $output "};\n\n";
