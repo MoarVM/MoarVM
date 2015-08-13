@@ -1371,6 +1371,8 @@ static void fail_deserialize(MVMThreadContext *tc, MVMSerializationReader *reade
         MVM_free(reader->data);
     if (reader->contexts)
         MVM_free(reader->contexts);
+    if (reader->root.sc)
+        reader->root.sc->body->sr = NULL;
     MVM_free(reader);
     MVM_gc_allocate_gen2_default_clear(tc);
     va_start(args, messageFormat);
