@@ -116,7 +116,8 @@ sub encode {
         }
         $out .= " ";
     }
-    $out   .= ')';
+    $out = substr $out, 0, -1 if (substr $out, -1 eq ' ');
+    $out .=  ')';
     return $out;
 }
 
