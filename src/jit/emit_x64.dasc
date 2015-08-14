@@ -19,6 +19,7 @@
 |.type STATICFRAME, MVMStaticFrame
 |.type P6OPAQUE, MVMP6opaque
 |.type P6OBODY, MVMP6opaqueBody
+|.type MVMCODE, MVMCode
 |.type MVMITER, MVMIter
 |.type MVMINSTANCE, MVMInstance
 |.type MVMACTIVEHANDLERS, MVMActiveHandler
@@ -638,6 +639,22 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP1, aword FRAME:TMP1->code_ref;
         |1:
         | mov aword WORK[dst], TMP1;
+        break;
+    }
+    case MVM_OP_setcodeobj: {
+        /* we have already made sure in graph.c before calling
+         * into append_primitive that the REPR is correct. */
+        MVMint16  dst = ins->operands[0].reg.orig;
+        MVMuint16 co  = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[dst];
+        | mov TMP2, aword WORK[co];
+        | check_wb TMP1, TMP2;
+        | jz >1;
+        | hit_wb WORK[co]; // write barrier for header
+        | mov TMP1, aword WORK[dst];
+        | mov TMP2, aword WORK[co];
+        |1:
+        | mov aword MVMCODE:TMP1->body.code_object, TMP2;
         break;
     }
     case MVM_OP_hllboxtype_n:

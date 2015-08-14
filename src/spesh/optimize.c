@@ -1176,6 +1176,15 @@ static void optimize_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
     }
 }
 
+/* We don't really improve this op in spesh, but in the jit we rely on a
+ * guard ensuring the type of the target is known to optimize things */
+static void optimize_setcodeobj(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *target_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+    if (target_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && REPR(target_facts->type)->ID == MVM_REPR_ID_MVMCode) {
+        MVM_spesh_use_facts(tc, g, target_facts);
+    }
+}
+
 /* Tries to optimize a throwcat instruction. Note that within a given frame
  * (we don't consider inlines here) the throwcat instructions all have the
  * same semantics. */
@@ -1529,6 +1538,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_getlexperinvtype_o:
             if (specialized_on_invocant(tc, g))
                 optimize_getlex_known(tc, g, bb, ins);
+            break;
+        case MVM_OP_setcodeobj:
+            optimize_setcodeobj(tc, g, bb, ins);
             break;
         case MVM_OP_sp_log:
         case MVM_OP_sp_osrfinalize:

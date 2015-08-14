@@ -2221,6 +2221,19 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
+    case MVM_OP_setcodeobj: {
+        MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, jgb->sg, ins->operands[0]);
+        if (!(type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE)) {
+            MVM_jit_log(tc, "type is not known\n");
+        }
+        if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && type_facts->type
+                && REPR(type_facts->type)->ID == MVM_REPR_ID_MVMCode) {
+            jgb_append_primitive(tc, jgb, ins);
+        } else {
+            MVM_jit_log(tc, "BAIL: op <%s>\n", ins->info->name);
+            return 0;
+        }
+    }
     case MVM_OP_sqrt_n:
     case MVM_OP_sin_n:
     case MVM_OP_cos_n:
