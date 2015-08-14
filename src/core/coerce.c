@@ -358,9 +358,19 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     }
 
     while (offset < chars) {
-        if (ch >= '0' && ch <= '9') ch = ch - '0';
+        // as of Unicode 6.0.0, we can be assured that Nd numerals are within
+        // 0..9
+        MVMint64 gcNd = MVM_unicode_name_to_property_value_code(tc, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Nd"));
+        if (MVM_unicode_codepoint_has_property_value(tc, ch, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, gcNd)) {
+            // the string returned for NUMERIC_VALUE contains a floating point
+            // value, so atoi will stop on the . in the string. This is fine
+            // though, since we'd have to truncate the float regardless.
+            ch = atoi(MVM_unicode_codepoint_get_property_cstr(tc, ch, MVM_UNICODE_PROPERTY_NUMERIC_VALUE));
+        }
         else if (ch >= 'a' && ch <= 'z') ch = ch - 'a' + 10;
         else if (ch >= 'A' && ch <= 'Z') ch = ch - 'A' + 10;
+        else if (ch >= 0xFF21 && ch <= 0xFF3A) ch = ch - 0xFF21 + 10; // uppercase fullwidth
+        else if (ch >= 0xFF41 && ch <= 0xFF5A) ch = ch - 0xFF41 + 10; // lowercase fullwidth
         else break;
         if (ch >= radix) break;
         zvalue = zvalue * radix + ch;
