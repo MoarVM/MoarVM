@@ -156,7 +156,7 @@ void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMS
 
 /* This function is to check the internal consistency of a template
  * before I apply it.  I need this because I make a lot of mistakes in
- * writing templates, and debugging it is hard. */
+ * writing templates, and debugging is hard. */
 static void check_template(MVMThreadContext *tc, const MVMJitExprTemplate *template, MVMSpeshIns *ins) {
     MVMint32 i;
     for (i = 0; i < template->len; i++) {
@@ -307,6 +307,7 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         break;
     }
 
+    /* Calculate last usage of nodes */
     for (i = 0; i < nchild; i++) {
         MVMint32 child  = tree->nodes[first_child+i];
         MVMJitExprNodeInfo *child_info = tree->info + child;
@@ -435,7 +436,7 @@ static void walk_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
     if (traverser->preorder)
         traverser->preorder(tc, traverser, tree, node);
     if (nchild < 0) {
-        /* ARGLIST case: take first child as constant signifying the
+        /* Variadic case: take first child as constant signifying the
          * number of children. Increment because the 'real' children now
          * start node later */
         nchild = tree->nodes[first_child++];

@@ -26,7 +26,7 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
         MVM_DYNAR_ENSURE_SIZE(tree->info, num);
         memcpy(tree->info + num, tree->info + node, sizeof(MVMJitExprOpInfo));
         /* TODO - I think we potentially should change some fields
-           (e.g. num_uses), have to figure out which */
+           (e.g. num_uses, last_use), have to figure out which */
         /* Assign the new tile */
         tree->info[num].tile = tile;
         /* Return reference to new node */
@@ -48,6 +48,13 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     switch (op) {
         /* TODO implement case for variadic nodes (DO/ALL/ANY/ARGLIST)
            and IF, which has 3 children */
+    case MVM_JIT_DO:
+    case MVM_JIT_ALL:
+    case MVM_JIT_ANY:
+    case MVM_JIT_ARGLIST:
+    case MVM_JIT_IF:
+        MVM_oops(tc, "Tiling %s NYI\n", info->name);
+        break;
     default:
         {
             if (nchild == 0) {

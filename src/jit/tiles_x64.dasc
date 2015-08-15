@@ -677,3 +677,8 @@ MVM_JIT_TILE_DECL(callfunc) {
     | call Rq(tmp);
     MVM_jit_register_free(tc, compiler, MVM_JIT_X64_GPR, tmp);
 }
+
+MVM_JIT_TILE_DECL(callreg) {
+    MVMint8 reg = values[1]->u.reg.num;
+    | call Rq(reg);
+}

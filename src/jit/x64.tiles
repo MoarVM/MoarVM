@@ -80,5 +80,5 @@
 
 (tile: callfunc (call (const) (arglist (carg reg))) reg 4)
 (tile: callfunc (call (const) (arglist (carg reg))) void 4)
-#(tile: callmem  (call (load mem) (arglist (carg reg))) reg 4)
-#(tile: callmem  (call (load mem) (arglist (carg reg))) void 4)
+(tile: callreg  (call reg (arglist (carg reg))) reg 4)
+(tile: callreg  (call reg (arglist (carg reg))) void 4)

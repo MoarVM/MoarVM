@@ -150,21 +150,25 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
 #define EXPR_ARGS(t,n) (t->info[n].op_info->nchild < 0 ? t->nodes + n + t->nodes[n+1] + 2 : \
                         t->nodes + n + t->info[n].op_info->nchild + 1);
 
-void MVM_jit_compile_tile(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
+static void compile_tile(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
     MVMJitExprNodeInfo *info = &tree->info[node];
     MVMJitExprValue *values[8];
     MVMJitExprNode *args = EXPR_ARGS(tree, node);
+    MVMint32 i;
     if (info->tile == NULL)
         return;
+
     values[0] = &info->value;
     MVM_jit_tile_get_values(tc, tree, node, info->tile->path, values+1);
     /* TODO implement register allocation */
+
     info->tile->rule(tc, cl, tree, node, values, args);
 }
 
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {
-    /* NYI */
+    /* First stage, tile the tree */
     MVM_jit_tile_expr_tree(tc, tree);
+
     MVM_oops(tc, "NYI");
 }
 

@@ -21,21 +21,21 @@ const unsigned int MVM_jit_num_globals(void);
 void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);
 void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                                MVMJitGraph *jg, MVMJitPrimitive *prim);
+                            MVMJitGraph *jg, MVMJitPrimitive *prim);
 void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                             MVMJitCallC *call_spec);
+                         MVMJitCallC *call_spec);
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                             MVMJitBranch *branc_spec);
+                         MVMJitBranch *branc_spec);
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                            MVMJitLabel *label);
+                        MVMJitLabel *label);
 void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                            MVMJitGuard *guard);
+                        MVMJitGuard *guard);
 void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                             MVMJitInvoke *invoke);
+                         MVMJitInvoke *invoke);
 void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                               MVMJitJumpList *jumplist);
+                           MVMJitJumpList *jumplist);
 void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                              MVMJitControl *ctrl);
+                          MVMJitControl *ctrl);
 void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 stack_loc,
                        MVMint32 reg_cls,  MVMint8 reg_num);
 void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 stack_loc,
