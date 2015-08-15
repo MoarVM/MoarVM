@@ -28,10 +28,7 @@ static void flip_return(MVMThreadContext *tc, void *sr_data);
 void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg,
         MVMuint8 *true_addr, MVMuint8 *false_addr, MVMuint8 flip) {
     MVMint64 result = 0;
-    if (MVM_is_null(tc, obj)) {
-        result = 0;
-    }
-    else {
+    if (!MVM_is_null(tc, obj)) {
         MVMBoolificationSpec *bs = obj->st->boolification_spec;
         switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
             case MVM_BOOL_MODE_CALL_METHOD: {
