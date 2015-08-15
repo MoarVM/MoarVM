@@ -1,7 +1,7 @@
 #include "moar.h"
 #include <stdarg.h>
 
-#if _MSC_VER
+#ifdef _MSC_VER
 #define snprintf _snprintf
 #define vsnprintf _vsnprintf
 #endif

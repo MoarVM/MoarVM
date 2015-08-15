@@ -290,7 +290,7 @@ MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {
     }
     else if (iterator->body.mode == MVM_ITER_MODE_HASH) {
         if (!iterator->body.hash_state.curr)
-        MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
+            MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
         result.o = iterator->body.hash_state.curr->value;
         if (!result.o)
             result.o = tc->instance->VMNull;

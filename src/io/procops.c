@@ -2,8 +2,6 @@
 #include "platform/time.h"
 #include "tinymt64.h"
 
-#include <math.h>
-
 /* concatenating with "" ensures that only literal strings are accepted as argument. */
 #define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
 
@@ -594,7 +592,7 @@ static const MVMIOOps proc_op_table = {
     NULL,
     NULL,
     NULL,
-    &proc_async_gc_mark,
+    proc_async_gc_mark,
     NULL
 };
 
@@ -780,7 +778,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[1].data.stream = (uv_stream_t *)pipe;
         si->ds_stdout                = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0);
         stdout_pipe                  = pipe;
-        stdout_cb                    = &async_spawn_stdout_chars_read;
+        stdout_cb                    = async_spawn_stdout_chars_read;
     }
     else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
@@ -789,7 +787,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         process_stdio[1].data.stream = (uv_stream_t *)pipe;
         stdout_pipe                  = pipe;
-        stdout_cb                    = &async_spawn_stdout_bytes_read;
+        stdout_cb                    = async_spawn_stdout_bytes_read;
     }
     else {
         process_stdio[1].flags   = UV_INHERIT_FD;
@@ -803,7 +801,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[2].data.stream = (uv_stream_t *)pipe;
         si->ds_stderr                = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0);
         stderr_pipe                  = pipe;
-        stderr_cb                    = &async_spawn_stderr_chars_read;
+        stderr_cb                    = async_spawn_stderr_chars_read;
     }
     else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
@@ -812,7 +810,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         process_stdio[2].data.stream = (uv_stream_t *)pipe;
         stderr_pipe                  = pipe;
-        stderr_cb                    = &async_spawn_stderr_bytes_read;
+        stderr_cb                    = async_spawn_stderr_bytes_read;
     }
     else {
         process_stdio[2].flags   = UV_INHERIT_FD;

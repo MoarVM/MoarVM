@@ -1,6 +1,5 @@
 #include <moar.h>
 #include <sha1.h>
-#include <math.h>
 
 #ifndef MAX
     #define MAX(x, y) ((y) > (x) ? (y) : (x))
@@ -204,7 +203,7 @@ static void * base64_decode(const char *s, size_t *data_len)
 /* Writes an int64 into a buffer. */
 static void write_int64(char *buffer, size_t offset, MVMint64 value) {
     memcpy(buffer + offset, &value, 8);
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
     switch_endian(buffer + offset, 8);
 #endif
 }
@@ -212,7 +211,7 @@ static void write_int64(char *buffer, size_t offset, MVMint64 value) {
 /* Writes an int32 into a buffer. */
 static void write_int32(char *buffer, size_t offset, MVMint32 value) {
     memcpy(buffer + offset, &value, 4);
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
     switch_endian(buffer + offset, 4);
 #endif
 }
@@ -220,7 +219,7 @@ static void write_int32(char *buffer, size_t offset, MVMint32 value) {
 /* Writes an double into a buffer. */
 static void write_double(char *buffer, size_t offset, double value) {
     memcpy(buffer + offset, &value, 8);
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
     switch_endian(buffer + offset, 8);
 #endif
 }
@@ -353,7 +352,7 @@ void MVM_serialization_write_varint(MVMThreadContext *tc, MVMSerializationWriter
     } else if (storage_needed == 9) {
         buffer[offset++] = 0x00;
         memcpy(buffer + offset, &value, 8);
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
         switch_endian(buffer + offset, 8);
 #endif
     } else {
@@ -364,7 +363,7 @@ void MVM_serialization_write_varint(MVMThreadContext *tc, MVMSerializationWriter
         assert((nybble >> 3) == 0
                || (nybble >> 3) == ~(MVMuint64)0);
         buffer[offset++] = (rest << 4) | (nybble & 0xF);
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
         memcpy(buffer + offset, (char *)&value + 8 - rest, rest);
         switch_endian(buffer + offset, rest);
 #else
@@ -471,7 +470,6 @@ static void write_array_str(MVMThreadContext *tc, MVMSerializationWriter *writer
 }
 
 /* Writes a hash where each key is a MVMString and each value a variant reference. */
-void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref);
 static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *hash) {
     MVMint32 elems = (MVMint32)MVM_repr_elems(tc, hash);
     MVMObject *iter = MVM_iter(tc, hash);
@@ -1493,7 +1491,7 @@ MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationRea
 
     /* The remaining 1 to 7 lower bytes follow next in the serialization stream.
      */
-#if MVM_BIGENDIAN
+#ifdef MVM_BIGENDIAN
     {
         MVMuint8 *write_to = (MVMuint8 *)&result + 8 - need;
         memcpy(write_to, read_at, need);
@@ -1739,8 +1737,8 @@ static void check_and_dissect_input(MVMThreadContext *tc,
         /* Try to get it from the current compilation unit. */
         data = (char *)(*tc->interp_cu)->body.serialized;
         if (!data)
-        fail_deserialize(tc, reader,
-            "Failed to find deserialization data in compilation unit");
+            fail_deserialize(tc, reader,
+                "Failed to find deserialization data in compilation unit");
         data_len = (*tc->interp_cu)->body.serialized_size;
     }
     prov_pos = data;
@@ -2724,7 +2722,7 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     reader->num_static_codes = scodes;
 
     /* Mark all the static code refs we've been provided with as static. */
-     for (i = 0; i < scodes; i++) {
+    for (i = 0; i < scodes; i++) {
         MVMObject *scr = MVM_repr_at_pos_o(tc, reader->codes_list, i);
         ((MVMCode *)scr)->body.is_static = 1;
         MVM_sc_set_obj_sc(tc, scr, sc);

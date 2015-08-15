@@ -72,7 +72,7 @@ static void start_thread(void *data) {
     tc->thread_obj->body.stage = MVM_thread_stage_started;
 
     /* Enter the interpreter, to run code. */
-    MVM_interp_run(tc, &thread_initial_invoke, ts);
+    MVM_interp_run(tc, thread_initial_invoke, ts);
 
     /* mark as exited, so the GC will know to clear our stuff. */
     tc->thread_obj->body.stage = MVM_thread_stage_exited;
@@ -121,7 +121,7 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
         } while (MVM_casptr(threads, child->body.next, child) != child->body.next);
 
         /* Do the actual thread creation. */
-        status = uv_thread_create(&child->body.thread, &start_thread, ts);
+        status = uv_thread_create(&child->body.thread, start_thread, ts);
         if (status < 0)
             MVM_panic(MVM_exitcode_compunit, "Could not spawn thread: errorcode %d", status);
     }
