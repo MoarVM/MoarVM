@@ -27,7 +27,7 @@ static void boolify_return(MVMThreadContext *tc, void *sr_data);
 static void flip_return(MVMThreadContext *tc, void *sr_data);
 void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg,
         MVMuint8 *true_addr, MVMuint8 *false_addr, MVMuint8 flip) {
-    MVMint64 result;
+    MVMint64 result = 0;
     if (MVM_is_null(tc, obj)) {
         result = 0;
     }
