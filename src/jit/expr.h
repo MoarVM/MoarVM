@@ -134,7 +134,7 @@ struct MVMJitExprNodeInfo {
     /* Tiler result */
     const MVMJitTile *tile;
     MVMint32          tile_state;
-    MVMint32          tile_idx;
+    MVMint32          tile_rule;
 
     /* internal label for IF/WHEN/ALL/ANY etc */
     MVMint32        internal_label;
@@ -174,7 +174,7 @@ struct MVMJitTreeTraverser {
     void (*postorder)(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node);
     void       *data;
-    MVMint32 *visits;
+    MVM_DYNAR_DECL(MVMint32, visits);
 };
 
 

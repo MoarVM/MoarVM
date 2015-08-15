@@ -370,10 +370,13 @@ HEADER
  * 5    -> optimum rule if this were a root */
 
 /* TODO - I think this table format can be, if we want it, much
- * smaller - for our current table sizes, keys could fit in 32 bits */
+ * smaller - for our current table sizes, keys could fit in 32 bits.
+ * And we could add the terminals and minimum-cost table as
+ * intermediates. */
+
 COMMENT
 
-    print $output "static MVMint32 ".$VARNAME."states[][6] = {\n";
+    print $output "static MVMint32 ".$VARNAME."state[][6] = {\n";
     for my $expr_op (@expr_ops) {
         my $head = lc $expr_op;
         for my $rs1 (sortn keys %{$table{$head}}) {
@@ -386,13 +389,16 @@ COMMENT
     }
     print $output "};\n\n";
     print $output <<"COMMENT";
-/* Rule selection table. Used in preorder traversal to 'push down' the
- * best tiles to match the tree. */
+
+/* Rule selection table. Used in preorder traversal propagate the
+ * best tiles to match the tree downward. */
+
 COMMENT
     print $output "static MVMint32 ${VARNAME}select[][5] = {\n";
     for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
         for my $rs1 (sortn keys %{$select{$rule_nr}}) {
             for my $rs2 (sortn keys %{$select{$rule_nr}{$rs1}}) {
+                next if $rs2 < 0; # childless nodes cannot downpropagate, obviously
                 my $pick = $select{$rule_nr}{$rs1}{$rs2};
                 print $output "    { $rule_nr, $rs1, $rs2, $pick->[1], $pick->[2] },\n";
             }
@@ -402,42 +408,80 @@ COMMENT
 
     print $output <<"LOOKUP";
 
-/* Lookup routine. Implemented here so that we may change it
+/* Lookup routines. Implemented here so that we may change it
  * independently from tiler */
 
-static MVMint32 ${VARNAME}states_lookup(MVMThreadContext *tc, MVMint32 node, MVMint32 c1, MVMint32 c2) {
-    MVMint32 top    = (sizeof(${VARNAME}states)/sizeof(${VARNAME}states[0]));
+static MVMint32 ${VARNAME}state_lookup(MVMThreadContext *tc, MVMint32 node, MVMint32 c1, MVMint32 c2) {
+    MVMint32 top    = (sizeof(${VARNAME}state)/sizeof(${VARNAME}state[0]));
     MVMint32 bottom = 0;
     MVMint32 mid = (top + bottom) / 2;
     while (bottom < mid) {
-        if (${VARNAME}states[mid][0] < node) {
+        if (${VARNAME}state[mid][0] < node) {
             bottom = mid;
             mid    = (top + bottom) / 2;
-        } else if (${VARNAME}states[mid][0] > node) {
+        } else if (${VARNAME}state[mid][0] > node) {
             top = mid;
             mid = (top + bottom) / 2;
-        } else if (${VARNAME}states[mid][1] < c1) {
+        } else if (${VARNAME}state[mid][1] < c1) {
             bottom = mid;
             mid    = (top + bottom) / 2;
-        } else if (${VARNAME}states[mid][1] > c1) {
+        } else if (${VARNAME}state[mid][1] > c1) {
             top = mid;
             mid = (top + bottom) / 2;
-        } else if (${VARNAME}states[mid][2] < c2) {
+        } else if (${VARNAME}state[mid][2] < c2) {
             bottom = mid;
             mid    = (top + bottom) / 2;
-        } else if (${VARNAME}states[mid][2] > c2) {
+        } else if (${VARNAME}state[mid][2] > c2) {
             top = mid;
             mid = (top + bottom) / 2;
         } else {
             break;
         }
     }
-    if (${VARNAME}states[mid][0] != node ||
-        ${VARNAME}states[mid][1] != c1   ||
-        ${VARNAME}states[mid][2] != c2)
+    if (${VARNAME}state[mid][0] != node ||
+        ${VARNAME}state[mid][1] != c1   ||
+        ${VARNAME}state[mid][2] != c2)
         return -1;
     return mid;
 }
+
+/* Same as above, maps rule+rulesets -> child rules, used for downward
+ * propagation of optimal rules */
+
+static MVMint32 ${VARNAME}select_lookup(MVMThreadContext *tc, MVMint32 rule, MVMint32 ts1, MVMint32 ts2) {
+    MVMint32 top    = (sizeof(${VARNAME}select)/sizeof(${VARNAME}select[0]));
+    MVMint32 bottom = 0;
+    MVMint32 mid = (top + bottom) / 2;
+    while (bottom < mid) {
+        if (${VARNAME}select[mid][0] < rule) {
+            bottom = mid;
+            mid    = (top + bottom) / 2;
+        } else if (${VARNAME}select[mid][0] > rule) {
+            top = mid;
+            mid = (top + bottom) / 2;
+        } else if (${VARNAME}select[mid][1] < ts1) {
+            bottom = mid;
+            mid    = (top + bottom) / 2;
+        } else if (${VARNAME}select[mid][1] > ts1) {
+            top = mid;
+            mid = (top + bottom) / 2;
+        } else if (${VARNAME}select[mid][2] < ts2) {
+            bottom = mid;
+            mid    = (top + bottom) / 2;
+        } else if (${VARNAME}select[mid][2] > ts2) {
+            top = mid;
+            mid = (top + bottom) / 2;
+        } else {
+            break;
+        }
+    }
+    if (${VARNAME}select[mid][0] != rule ||
+        ${VARNAME}select[mid][1] != ts1  ||
+        ${VARNAME}select[mid][2] != ts2)
+        return -1;
+    return mid;
+}
+
 LOOKUP
     close $output;
 }

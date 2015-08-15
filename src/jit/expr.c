@@ -457,7 +457,7 @@ static void walk_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
 void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
                                 MVMJitTreeTraverser *traverser) {
     MVMint32 i;
-    traverser->visits = MVM_calloc(tree->nodes_num, sizeof(MVMint32));
+    MVM_DYNAR_INIT(traverser->visits, tree->nodes_num);
     for (i = 0; i < tree->roots_num; i++) {
         /* TODO deal with nodes with multiple entries */
         walk_tree(tc, tree, traverser, tree->roots[i]);
