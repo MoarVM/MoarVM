@@ -114,7 +114,7 @@ MVMint32 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name
 
 static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
     /* XXX make this synchronized, I guess... */
-    MVMUnicodeNameRegistry **hash_array = MVM_calloc(sizeof(MVMUnicodeNameRegistry *), MVMNUMPROPERTYCODES);
+    MVMUnicodeNameRegistry **hash_array = MVM_calloc(sizeof(MVMUnicodeNameRegistry *), MVM_NUM_PROPERTY_CODES);
     MVMuint32 index = 0;
     MVMUnicodeNameRegistry *entry = NULL, *binaries = NULL;
     for ( ; index < num_unicode_property_value_keypairs; index++) {
@@ -125,7 +125,7 @@ static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
         HASH_ADD_KEYPTR(hash_handle, hash_array[property_code],
             entry->name, strlen(entry->name), entry);
     }
-    for (index = 0; index < MVMNUMPROPERTYCODES; index++) {
+    for (index = 0; index < MVM_NUM_PROPERTY_CODES; index++) {
         if (!hash_array[index]) {
             if (!binaries) {
                 MVMUnicodeNamedValue yes[8] = { {"T",1}, {"Y",1},
@@ -153,7 +153,7 @@ static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
 }
 
 MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, MVMString *name) {
-    if (property_code <= 0 || property_code >= MVMNUMPROPERTYCODES) {
+    if (property_code <= 0 || property_code >= MVM_NUM_PROPERTY_CODES) {
         return 0;
     }
     else {
@@ -166,6 +166,22 @@ MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 
         }
         HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], cname, strlen((const char *)cname), result);
         MVM_free(cname); /* not really codepoint, really just an index */
+        return result ? result->codepoint : 0;
+    }
+}
+
+MVMint32 MVM_unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, const char *cname, size_t cname_length) {
+    if (property_code <= 0 || property_code >= MVM_NUM_PROPERTY_CODES) {
+        return 0;
+    }
+    else {
+        MVMuint64 size;
+        MVMUnicodeNameRegistry *result;
+
+        if (!unicode_property_values_hashes) {
+            generate_unicode_property_values_hashes(tc);
+        }
+        HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], cname, cname_length, result);
         return result ? result->codepoint : 0;
     }
 }

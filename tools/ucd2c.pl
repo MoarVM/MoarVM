@@ -361,7 +361,7 @@ sub allocate_bitfield {
         }
     }
     $first_point->{bitfield_width} = $word_offset+1;
-    $h_sections->{num_property_codes} = "#define MVMNUMPROPERTYCODES $index\n";
+    $h_sections->{num_property_codes} = "#define MVM_NUM_PROPERTY_CODES $index\n";
     $allocated
 }
 
@@ -576,7 +576,7 @@ sub emit_codepoints_and_planes {
         "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
             stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $wrap_to_columns).
             "\n};";
-    $h_sections->{codepoint_names_count} = "#define MVMCODEPOINTNAMESCOUNT $index";
+    $h_sections->{codepoint_names_count} = "#define MVM_CODEPOINT_NAMES_COUNT $index";
     $extents
 }
 
@@ -881,7 +881,7 @@ static const MVMint32 codepoint_extents[".($num_extents + 1)."][3] = {\n";
                                      $extent->{fate_type},
                                           ($extent->{fate_really}//0));
     }
-    $h_sections->{MVMNUMUNICODEEXTENTS} = "#define MVMNUMUNICODEEXTENTS $num_extents\n";
+    $h_sections->{MVM_NUM_UNICODE_EXTENTS} = "#define MVM_NUM_UNICODE_EXTENTS $num_extents\n";
     $out .= <<"END";
     {0x10FFFE,0}
 };
@@ -896,18 +896,18 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
     MVMint32 codepoint = 0;
     MVMint32 codepoint_table_index = 0;
     MVMUnicodeNameRegistry *entry;
-    for (; extent_index < MVMNUMUNICODEEXTENTS; extent_index++) {
+    for (; extent_index < MVM_NUM_UNICODE_EXTENTS; extent_index++) {
         MVMint32 length;
         codepoint = codepoint_extents[extent_index][0];
         length = codepoint_extents[extent_index + 1][0] - codepoint_extents[extent_index][0];
-        if (codepoint_table_index >= MVMCODEPOINTNAMESCOUNT)
+        if (codepoint_table_index >= MVM_CODEPOINT_NAMES_COUNT)
             continue;
         switch (codepoint_extents[extent_index][1]) {
             case $FATE_NORMAL: {
                 MVMint32 extent_span_index = 0;
                 codepoint_table_index = codepoint_extents[extent_index][2];
                 for (; extent_span_index < length
-                    && codepoint_table_index < MVMCODEPOINTNAMESCOUNT; extent_span_index++) {
+                    && codepoint_table_index < MVM_CODEPOINT_NAMES_COUNT; extent_span_index++) {
                     const char *name = codepoint_names[codepoint_table_index];
                     if (name) {
                         MVMUnicodeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
