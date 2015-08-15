@@ -40,3 +40,4 @@ MVM_JIT_TILE_DECL(label);
 MVM_JIT_TILE_DECL(label_addr);
 MVM_JIT_TILE_DECL(branch_label);
 MVM_JIT_TILE_DECL(callfunc);
+MVM_JIT_TILE_DECL(callreg);

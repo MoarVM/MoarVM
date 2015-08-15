@@ -163,6 +163,16 @@ for my $v (values %trie) {
 
 $candidates{$_} = [sortn uniq(@{$candidates{$_}})] for keys %candidates;
 
+# Calculate minimun-cost rule for a ruleset in a terminal
+my %min_cost;
+for (my $i = 0; $i < @rulesets; $i++) {
+    my %nonterms;
+    push @{$nonterms{$rules[$_][1]}}, $_ for @{$rulesets[$i]};
+    while (my ($nt, $match) = each %nonterms) {
+        my $best  = reduce { $rules[$a][2] < $rules[$b][2] ? $a : $b } @{$match};
+        $min_cost{$nt,$i} = $best;
+    }
+}
 
 if ($DEBUG) {
     # print them for me to see
@@ -178,56 +188,89 @@ if ($DEBUG) {
 
 print "Now we have ", scalar @rulesets, " different rulesets\n" if $DEBUG;
 
-
-# Calculate minimum cost rule out of a ruleset and a terminal - nb, we can easily memoize this
-sub min_cost {
-    my ($ruleset_nr, $term) = @_;
-    my @applicable = grep { $rules[$_][1] eq $term } @{$rulesets[$ruleset_nr]};
-    my $min = reduce { $rules[$a][2] < $rules[$b][2] ? $a : $b } @applicable;
-    return $min;
+# Select the best (i.e. lowest cost) rules to implement this rule with given rulesets
+sub select_rules {
+    my ($rule_nr, $rs1, $rs2) = @_;
+    my ($head, $nt1, $nt2)    = @{$rules[$rule_nr][0]};
+    if (defined $rs2) {
+        return [$rule_nr, $min_cost{$nt1,$rs1}, $min_cost{$nt2,$rs2}];
+    } elsif (defined $rs1) {
+        return [$rule_nr, $min_cost{$nt1,$rs1}, -1];
+    } else {
+        return [$rule_nr, -1, -1]; # nothing to select
+    }
 }
 
-
-# Generate optimum rule and state tables
-my %nodes;
+# Generate state and tile selection tables
 my %trans;
+my %select;
 for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
     my ($frag, $term, $cost) = @{$rules[$rule_nr]};
     my ($head, $nt1, $nt2)     = @$frag;
     if (defined $nt2) {
         for my $rs1 (@{$candidates{$nt1}}) {
             for my $rs2 (@{$candidates{$nt2}}) {
-                my $lc1 = min_cost($rs1, $nt1);
-                my $lc2 = min_cost($rs2, $nt2);
-                $nodes{$head,$rs1,$rs2} = [-1,$lc1,$lc2] unless defined $nodes{$head,$rs1,$rs2};
-                $nodes{$head,$rs1,$rs2}[0] = $rule_nr if $term eq 'reg' or $term eq 'mem';
                 $trans{$head,$rs1,$rs2}{$rule_nr} = 1;
+                $select{$rule_nr}{$rs1}{$rs2} = select_rules($rule_nr, $rs1, $rs2);
             }
         }
     } elsif (defined $nt1) {
         for my $rs1 (@{$candidates{$nt1}}) {
-            my $lc1 = min_cost($rs1, $nt1);
-            $nodes{$head,$rs1,-1} = [-1,$lc1,-1] unless defined $nodes{$head,$nt1,-1};
-            $nodes{$head,$rs1,-1}[0] = $rule_nr if $term eq 'reg' or $term eq 'mem';
             $trans{$head,$rs1,-1}{$rule_nr} = 1;
+            $select{$rule_nr}{$rs1}{-1} = select_rules($rule_nr, $rs1);
         }
     } else {
-        $nodes{$head,-1,-1} = [-1,-1,-1] unless defined $nodes{$head,-1,-1};
-        $nodes{$head,-1,-1}[0] = $rule_nr if $term eq 'reg' or $term eq 'mem';
         $trans{$head,-1,-1}{$rule_nr} = 1;
+        $select{$rule_nr}{-1}{-1} = select_rules($rule_nr);
+    }
+}
+
+sub rule_cost {
+    my ($rule_nr, $rs1, $rs2) = @_;
+    my $cost = $rules[$rule_nr][2];
+    my $best = $select{$rule_nr}{$rs1}{$rs2};
+    if ($best->[1] >= 0) {
+        $cost += $rules[$best->[1]][2];
+    }
+    if ($best->[2] >= 0) {
+        $cost += $rules[$best->[2]][2];
+    }
+    return $cost;
+}
+
+
+# Select the optimum rule, from a ruleset, given child node rulesets,
+# considering only rules that yield either registers (values) or void
+# (statements)
+sub optimum_rule {
+    my ($rs0, $rs1, $rs2) = @_;
+    my @reg  = grep { $rules[$_][1] eq 'reg'  } @{$rulesets[$rs0]};
+    my @void = grep { $rules[$_][1] eq 'void' } @{$rulesets[$rs0]};
+    if (@reg) {
+        # rules matching reg
+        my %costs = map { $_ => rule_cost($_,$rs1,$rs2) } @reg;
+        return reduce { $costs{$a} < $costs{$b} ? $a : $b } @reg;
+    } elsif (@void) {
+        # rules matchin void
+        my %costs = map { $_ => rule_cost($_,$rs1,$rs2) } @void;
+        return reduce { $costs{$a} < $costs{$b} ? $a : $b } @void;
+    } else {
+        return -1;
     }
 }
 
 
-# translate rule lists to rulesets and expand rule table, so we can sort it later
+# translate rule lists to rulesets and expand rule table, so we can
+# sort it later
 my %table;
 while (my ($table_key, $applicable) = each(%trans)) {
     my @rule_nrs    = sortn keys %$applicable;
     my $ruleset_key = join($;, @rule_nrs);
     my $ruleset_nr  = $inversed{$ruleset_key};
     my ($head, $rs1, $rs2) = split /$;/, $table_key;
-    $table{$head}{$rs1}{$rs2} = [$ruleset_nr, $nodes{$table_key}];
+    $table{$head}{$rs1}{$rs2} = $ruleset_nr;
 }
+
 
 
 
@@ -241,17 +284,17 @@ if ($TESTING) {
         if (defined $c2) {
             my $l1 = tile($c1);
             my $l2 = tile($c2);
-            $ruleset_nr = $table{$head}{$l1}{$l2}[0];
-            $optimum    = $table{$head}{$l1}{$l2}[1];
+            $ruleset_nr = $table{$head}{$l1}{$l2};
+            $optimum    = optimum_rule($ruleset_nr, $l1, $l2);
         } elsif (defined $c1) {
             my $l1 = tile($c1);
-            $ruleset_nr = $table{$head}{$l1}{-1}[0];
-            $optimum    = $table{$head}{$l1}{-1}[1];
+            $ruleset_nr = $table{$head}{$l1}{-1};
+            $optimum    = optimum_rule($ruleset_nr, $l1, -1);
         } else {
-            $ruleset_nr = $table{$head}{-1}{-1}[0];
-            $optimum    = $table{$head}{-1}{-1}[0]
+            $ruleset_nr = $table{$head}{-1}{-1};
+            $optimum    = optimum_rule($ruleset_nr, -1, -1);
         }
-        print "Tiled $head to ", sexpr::encode($optimum),sexpr::encode($rules[$optimum->[0]][0]), "\n";
+        print "Tiled $head to $optimum ", sexpr::encode($rules[$optimum]), "\n";
         return $ruleset_nr;
     }
     tile $tree;
@@ -275,7 +318,7 @@ if ($TESTING) {
     close $expr_h;
 
 
-    # dump table
+    # Write tables
     my $output;
     if (defined $OUTFILE) {
         open $output, '>', $OUTFILE or die "Could not open $OUTFILE";
@@ -288,6 +331,7 @@ if ($TESTING) {
  * Define tables for tiler DFA. */
 HEADER
     print $output "static const MVMint8 ${VARNAME}paths[] = {\n   ";
+
     my @path_idx;
     my ($numchar, $idx) = (4, 0);
     for (my $i = 0; $i < @paths; $i++) {
@@ -319,27 +363,48 @@ HEADER
     print $output "};\n\n";
 
     print $output <<"COMMENT";
-/* Each table item consists of 7 integers:
+
+/* Each table item consists of 5 integers:
  * 0..3 -> lookup key (nodenr, ruleset_1, ruleset_2)
  * 4    -> next state
- * 5..7 -> optimum rule selection (node, child_1, child_2)
- *
- * To improve alignment, we use 8 integers */
+ * 5    -> optimum rule if this were a root */
+
+/* TODO - I think this table format can be, if we want it, much
+ * smaller - for our current table sizes, keys could fit in 32 bits */
 COMMENT
 
-
-    print $output "static MVMint32 ".$VARNAME."states[][8] = {\n";
+    print $output "static MVMint32 ".$VARNAME."states[][6] = {\n";
     for my $expr_op (@expr_ops) {
         my $head = lc $expr_op;
         for my $rs1 (sortn keys %{$table{$head}}) {
             for my $rs2 (sortn keys %{$table{$head}{$rs1}}) {
-                my $item = $table{$head}{$rs1}{$rs2};
-                print $output "    { $PREFIX$expr_op, $rs1, $rs2, $item->[0], $item->[1][0], $item->[1][1], $item->[1][2] },\n";
+                my $state   = $table{$head}{$rs1}{$rs2};
+                my $optimum = optimum_rule($state, $rs1, $rs2);
+                print $output "    { ${PREFIX}${expr_op}, $rs1, $rs2, $state, $optimum },\n";
             }
         }
     }
     print $output "};\n\n";
+    print $output <<"COMMENT";
+/* Rule selection table. Used in preorder traversal to 'push down' the
+ * best tiles to match the tree. */
+COMMENT
+    print $output "static MVMint32 ${VARNAME}select[][5] = {\n";
+    for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
+        for my $rs1 (sortn keys %{$select{$rule_nr}}) {
+            for my $rs2 (sortn keys %{$select{$rule_nr}{$rs1}}) {
+                my $pick = $select{$rule_nr}{$rs1}{$rs2};
+                print $output "    { $rule_nr, $rs1, $rs2, $pick->[1], $pick->[2] },\n";
+            }
+        }
+    }
+    print $output "};\n\n";
+
     print $output <<"LOOKUP";
+
+/* Lookup routine. Implemented here so that we may change it
+ * independently from tiler */
+
 static MVMint32 ${VARNAME}states_lookup(MVMThreadContext *tc, MVMint32 node, MVMint32 c1, MVMint32 c2) {
     MVMint32 top    = (sizeof(${VARNAME}states)/sizeof(${VARNAME}states[0]));
     MVMint32 bottom = 0;
