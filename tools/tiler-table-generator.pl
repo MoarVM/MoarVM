@@ -37,9 +37,6 @@ sub uniq {
 }
 
 
-
-
-
 # Collect rules -> form list, table;
 # list contains 'shallow' nodes, maps rulenr -> rule
 # indirectly create rulenr -> terminal
@@ -95,7 +92,7 @@ while (my $tree = $parser->read) {
 }
 close $input;
 
-# initialize nonterminal sets, used to determine the terminals
+# initialize nonterminal sets, used to determine the rulesets
 my (%nonterminal_sets, %trie);
 $nonterminal_sets{$_->[1]} = [$_->[1]] for @rules;
 my ($added, $deleted, $i);
@@ -188,22 +185,9 @@ if ($DEBUG) {
 
 print "Now we have ", scalar @rulesets, " different rulesets\n" if $DEBUG;
 
-# Select the best (i.e. lowest cost) rules to implement this rule with given rulesets
-sub select_rules {
-    my ($rule_nr, $rs1, $rs2) = @_;
-    my ($head, $nt1, $nt2)    = @{$rules[$rule_nr][0]};
-    if (defined $rs2) {
-        return [$rule_nr, $min_cost{$nt1,$rs1}, $min_cost{$nt2,$rs2}];
-    } elsif (defined $rs1) {
-        return [$rule_nr, $min_cost{$nt1,$rs1}, -1];
-    } else {
-        return [$rule_nr, -1, -1]; # nothing to select
-    }
-}
 
 # Generate state and tile selection tables
 my %trans;
-my %select;
 for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
     my ($frag, $term, $cost) = @{$rules[$rule_nr]};
     my ($head, $nt1, $nt2)     = @$frag;
@@ -211,29 +195,39 @@ for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
         for my $rs1 (@{$candidates{$nt1}}) {
             for my $rs2 (@{$candidates{$nt2}}) {
                 $trans{$head,$rs1,$rs2}{$rule_nr} = 1;
-                $select{$rule_nr}{$rs1}{$rs2} = select_rules($rule_nr, $rs1, $rs2);
             }
         }
     } elsif (defined $nt1) {
         for my $rs1 (@{$candidates{$nt1}}) {
             $trans{$head,$rs1,-1}{$rule_nr} = 1;
-            $select{$rule_nr}{$rs1}{-1} = select_rules($rule_nr, $rs1);
         }
     } else {
         $trans{$head,-1,-1}{$rule_nr} = 1;
-        $select{$rule_nr}{-1}{-1} = select_rules($rule_nr);
     }
 }
 
+# translate rule lists to rulesets and expand rule table, so we can
+# sort it later
+my %table;
+while (my ($table_key, $applicable) = each(%trans)) {
+    my @rule_nrs    = sortn keys %$applicable;
+    my $ruleset_key = join($;, @rule_nrs);
+    my $ruleset_nr  = $inversed{$ruleset_key};
+    my ($head, $rs1, $rs2) = split /$;/, $table_key;
+    $table{$head}{$rs1}{$rs2} = $ruleset_nr;
+}
+
+
+
 sub rule_cost {
     my ($rule_nr, $rs1, $rs2) = @_;
+    my ($head, $nt1, $nt2) = @{$rules[$rule_nr][0]};
     my $cost = $rules[$rule_nr][2];
-    my $best = $select{$rule_nr}{$rs1}{$rs2};
-    if ($best->[1] >= 0) {
-        $cost += $rules[$best->[1]][2];
+    if (defined $nt1) {
+        $cost += $min_cost{$nt1,$rs1}
     }
-    if ($best->[2] >= 0) {
-        $cost += $rules[$best->[2]][2];
+    if (defined $nt2) {
+        $cost += $min_cost{$nt2,$rs2};
     }
     return $cost;
 }
@@ -257,18 +251,6 @@ sub optimum_rule {
     } else {
         return -1;
     }
-}
-
-
-# translate rule lists to rulesets and expand rule table, so we can
-# sort it later
-my %table;
-while (my ($table_key, $applicable) = each(%trans)) {
-    my @rule_nrs    = sortn keys %$applicable;
-    my $ruleset_key = join($;, @rule_nrs);
-    my $ruleset_nr  = $inversed{$ruleset_key};
-    my ($head, $rs1, $rs2) = split /$;/, $table_key;
-    $table{$head}{$rs1}{$rs2} = $ruleset_nr;
 }
 
 
@@ -351,13 +333,39 @@ HEADER
     }
     print $output "\n};\n";
 
+    # Tiling works by selecting *possible* rules bottom-up and picking
+    # the *optimum* rules top-down. So we need to know, starting from
+    # a rule and it's children's rulesets, how to select the best rules.
+    my @symbols = uniq(map { $_->[1] } @rules);
+    my %symnum;
+    for (my $i = 0; $i < @symbols; $i++) {
+        $symnum{$symbols[$i]} = $i;
+    }
+
+
     print $output "static const MVMJitTile ${VARNAME}table[] = {\n";
     for (my $i = 0; $i < @rules; $i++) {
+        my ($head, $nt1, $nt2) = @{$rules[$i][0]};
+        my $s1 = defined($nt1) ? $symnum{$nt1} : -1;
+        my $s2 = defined($nt2) ? $symnum{$nt2} : -1;
+
         if (defined $names[$i]) {
-            my $terminal = uc $rules[$i][1];
-            print $output "    { \&${VARNAME}$names[$i], ${VARNAME}paths + $path_idx[$i], ${PREFIX}${terminal} },\n";
+            my $vtype = uc $rules[$i][1];
+            print $output "    { \&${VARNAME}$names[$i], ${VARNAME}paths + $path_idx[$i], ${PREFIX}${vtype}, $s1, $s2 },\n";
         } else {
-            print $output "    { NULL, NULL },\n";
+            print $output "    { NULL, NULL, 0, $s1, $s2 },\n";
+        }
+    }
+    print $output "};\n\n";
+
+
+    print $output "static const MVMint32 ${VARNAME}select[][3] = {\n";
+    for (my $rs_nr = 0; $rs_nr < @rulesets; $rs_nr++) {
+        for (my $sym_nr = 0; $sym_nr < @symbols; $sym_nr++) {
+            my $nt   = $symbols[$sym_nr];
+            my $rule = $min_cost{$nt,$rs_nr};
+            next unless defined $rule;
+            print $output "    { $rs_nr, $sym_nr, $rule },\n";
         }
     }
     print $output "};\n\n";
@@ -388,30 +396,13 @@ COMMENT
         }
     }
     print $output "};\n\n";
-    print $output <<"COMMENT";
-
-/* Rule selection table. Used in preorder traversal propagate the
- * best tiles to match the tree downward. */
-
-COMMENT
-    print $output "static MVMint32 ${VARNAME}select[][5] = {\n";
-    for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
-        for my $rs1 (sortn keys %{$select{$rule_nr}}) {
-            for my $rs2 (sortn keys %{$select{$rule_nr}{$rs1}}) {
-                next if $rs2 < 0; # childless nodes cannot downpropagate, obviously
-                my $pick = $select{$rule_nr}{$rs1}{$rs2};
-                print $output "    { $rule_nr, $rs1, $rs2, $pick->[1], $pick->[2] },\n";
-            }
-        }
-    }
-    print $output "};\n\n";
 
     print $output <<"LOOKUP";
 
 /* Lookup routines. Implemented here so that we may change it
  * independently from tiler */
 
-static MVMint32 ${VARNAME}state_lookup(MVMThreadContext *tc, MVMint32 node, MVMint32 c1, MVMint32 c2) {
+static MVMint32* ${VARNAME}state_lookup(MVMThreadContext *tc, MVMint32 node, MVMint32 c1, MVMint32 c2) {
     MVMint32 top    = (sizeof(${VARNAME}state)/sizeof(${VARNAME}state[0]));
     MVMint32 bottom = 0;
     MVMint32 mid = (top + bottom) / 2;
@@ -441,45 +432,38 @@ static MVMint32 ${VARNAME}state_lookup(MVMThreadContext *tc, MVMint32 node, MVMi
     if (${VARNAME}state[mid][0] != node ||
         ${VARNAME}state[mid][1] != c1   ||
         ${VARNAME}state[mid][2] != c2)
-        return -1;
-    return mid;
+        return NULL;
+    return ${VARNAME}state[mid];
 }
 
-/* Same as above, maps rule+rulesets -> child rules, used for downward
- * propagation of optimal rules */
+/* Same as above, maps tile state + nonterm -> child rule, used for
+ * downward propagation of optimal rules */
 
-static MVMint32 ${VARNAME}select_lookup(MVMThreadContext *tc, MVMint32 rule, MVMint32 ts1, MVMint32 ts2) {
+static MVMint32 ${VARNAME}select_lookup(MVMThreadContext *tc, MVMint32 ts, MVMint32 nt) {
     MVMint32 top    = (sizeof(${VARNAME}select)/sizeof(${VARNAME}select[0]));
     MVMint32 bottom = 0;
     MVMint32 mid = (top + bottom) / 2;
     while (bottom < mid) {
-        if (${VARNAME}select[mid][0] < rule) {
+        if (${VARNAME}select[mid][0] < ts) {
             bottom = mid;
             mid    = (top + bottom) / 2;
-        } else if (${VARNAME}select[mid][0] > rule) {
+        } else if (${VARNAME}select[mid][0] > ts) {
             top = mid;
             mid = (top + bottom) / 2;
-        } else if (${VARNAME}select[mid][1] < ts1) {
+        } else if (${VARNAME}select[mid][1] < nt) {
             bottom = mid;
             mid    = (top + bottom) / 2;
-        } else if (${VARNAME}select[mid][1] > ts1) {
-            top = mid;
-            mid = (top + bottom) / 2;
-        } else if (${VARNAME}select[mid][2] < ts2) {
-            bottom = mid;
-            mid    = (top + bottom) / 2;
-        } else if (${VARNAME}select[mid][2] > ts2) {
+        } else if (${VARNAME}select[mid][1] > nt) {
             top = mid;
             mid = (top + bottom) / 2;
         } else {
             break;
         }
     }
-    if (${VARNAME}select[mid][0] != rule ||
-        ${VARNAME}select[mid][1] != ts1  ||
-        ${VARNAME}select[mid][2] != ts2)
+    if (${VARNAME}select[mid][0] != ts ||
+        ${VARNAME}select[mid][1] != nt)
         return -1;
-    return mid;
+    return ${VARNAME}select[mid][2];
 }
 
 LOOKUP

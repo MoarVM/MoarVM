@@ -3,6 +3,8 @@ struct MVMJitTile {
                     MVMint32 node, MVMJitExprValue **values, MVMJitExprNode *args);
     const MVMint8 *path;
     MVMJitExprVtype vtype;
+    MVMint32  left_sym;
+    MVMint32 right_sym;
 };
 
 void MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree);
