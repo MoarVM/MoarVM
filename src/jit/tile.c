@@ -99,6 +99,8 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
                             MVMJitExprNode node, MVMint32 tile_rule) {
     const MVMJitTile *tile = &MVM_jit_tile_table[tile_rule];
+    if (tile_rule > (sizeof(MVM_jit_tile_table)/sizeof(MVM_jit_tile_table[0])))
+        MVM_oops(tc, "What, trying to assign tile rule %d\n", tile_rule);
     if (tree->info[node].tile == NULL || tree->info[node].tile == tile ||
         memcmp(tile, tree->info[node].tile, sizeof(MVMJitTile)) == 0) {
         /* happy case, no conflict */
@@ -119,7 +121,7 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
         MVM_DYNAR_APPEND(tree->nodes, tree->nodes + node, space);
         /* Copy the information node */
         MVM_DYNAR_ENSURE_SIZE(tree->info, num);
-        memcpy(tree->info + num, tree->info + node, sizeof(MVMJitExprOpInfo));
+        memcpy(tree->info + num, tree->info + node, sizeof(MVMJitExprNodeInfo));
         /* TODO - I think we potentially should change some fields
            (e.g. num_uses, last_use), have to figure out which */
         /* Assign the new tile */
@@ -140,6 +142,8 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     const MVMJitExprOpInfo *op_info = info->op_info;
     MVMint32 first_child = node+1;
     MVMint32 nchild      = op_info->nchild < 0 ? tree->nodes[first_child++] : op_info->nchild;
+    if (traverser->visits[node] > 1)
+        return;
     switch (op) {
     case MVM_JIT_ALL:
     case MVM_JIT_ANY:
@@ -207,6 +211,12 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 }
 
 
+static void log_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+                     MVMJitExprTree *tree, MVMint32 node) {
+    if (traverser->visits[node] > 1)
+        return;
+    MVM_jit_log(tc, "%04d: %s\n", node, tree->info[node].tile->descr);
+}
 
 
 void MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
@@ -222,8 +232,8 @@ void MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
         assign_tile(tc, tree, node, tree->info[node].tile_rule);
     }
     /* NB - we can add actual code generation during the postorder step here */
-    traverser.postorder = NULL;
-    traverser.preorder = &select_tiles;
+    traverser.preorder  = &select_tiles;
+    traverser.postorder = &log_tile;
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
 }
 

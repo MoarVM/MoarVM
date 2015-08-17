@@ -2,6 +2,7 @@ struct MVMJitTile {
     void (*rule)(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree,
                     MVMint32 node, MVMJitExprValue **values, MVMJitExprNode *args);
     const MVMint8 *path;
+    const char    *descr;
     MVMJitExprVtype vtype;
     MVMint32  left_sym;
     MVMint32 right_sym;

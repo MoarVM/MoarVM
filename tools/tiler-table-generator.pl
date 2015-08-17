@@ -351,14 +351,15 @@ HEADER
     print $output "static const MVMJitTile ${VARNAME}table[] = {\n";
     for (my $i = 0; $i < @rules; $i++) {
         my ($head, $nt1, $nt2) = @{$rules[$i][0]};
+        my $desc = sexpr::encode($rules[$i][0]);
         my $s1 = defined($nt1) ? $symnum{$nt1} : -1;
         my $s2 = defined($nt2) ? $symnum{$nt2} : -1;
 
         if (defined $names[$i]) {
             my $vtype = uc $rules[$i][1];
-            print $output "    { \&${VARNAME}$names[$i], ${VARNAME}paths + $path_idx[$i], ${PREFIX}${vtype}, $s1, $s2 },\n";
+            print $output "    { \&${VARNAME}$names[$i], ${VARNAME}paths + $path_idx[$i], \"$desc\", ${PREFIX}${vtype}, $s1, $s2 },\n";
         } else {
-            print $output "    { NULL, NULL, 0, $s1, $s2 },\n";
+            print $output "    { NULL, NULL, \"$desc\", 0, $s1, $s2 },\n";
         }
     }
     print $output "};\n\n";
