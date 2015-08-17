@@ -1,4 +1,4 @@
-#include "x64_tile_decl.h"
+#include "tile_decl.h"
 
 
 /* register classes */

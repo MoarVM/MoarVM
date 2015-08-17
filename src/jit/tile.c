@@ -1,8 +1,9 @@
 #include "moar.h"
 #include "dasm_proto.h"
-#include "x64_tile_decl.h"
-#include "x64_tile_tables.h"
-
+#if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
+#include "x64/tile_decl.h"
+#include "x64/tile_tables.h"
+#endif
 
 
 /* Postorder collection of tile states (rulesets) */

@@ -1,5 +1,5 @@
 #include "moar.h"
-#include "internal.h"
+#include "jit/internal.h"
 #include "dasm_x86.h"
 
 #ifdef _MSC_VER
@@ -2130,4 +2130,4 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
 }
 
 /* import tiles */
-|.include src/jit/tiles_x64.dasc
+|.include src/jit/x64/tiles.dasc
