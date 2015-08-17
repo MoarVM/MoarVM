@@ -173,14 +173,19 @@ for (my $i = 0; $i < @rulesets; $i++) {
 
 if ($DEBUG) {
     # print them for me to see
-    for my $rs (@rulesets) {
+    for (my $rs_nr = 0; $rs_nr < @rulesets; $rs_nr++) {
+        my $rs  = $rulesets[$rs_nr];
         my $key = join $;, @$rs;
         print "$key: ";
         my @expr = map { sexpr::encode($_) } map { $rules[$_][0] } @$rs;
         print join("; ", @expr);
         print "\n";
+        print "    Minimum cost per terminal:\n";
+        my %picks = map { $_ => $min_cost{$_,$rs_nr} } map { $rules[$_][1] } @$rs;
+        for my $nt (keys %picks) {
+            print "        $nt: ", sexpr::encode($rules[$picks{$nt}]), "\n";
+        }
     }
-
 }
 
 print "Now we have ", scalar @rulesets, " different rulesets\n" if $DEBUG;
