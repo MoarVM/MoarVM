@@ -14,18 +14,59 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     const MVMJitExprOpInfo *info = symbol->op_info;
     MVMint32 first_child = node+1;
     MVMint32 nchild      = info->nchild < 0 ? tree->nodes[first_child++] : info->nchild;
-    MVMint32 *state_info;
+    MVMint32 *state_info = NULL;
     if (traverser->visits[node] > 1)
         return;
     switch (op) {
         /* TODO implement case for variadic nodes (DO/ALL/ANY/ARGLIST)
            and IF, which has 3 children */
-    case MVM_JIT_DO:
     case MVM_JIT_ALL:
     case MVM_JIT_ANY:
     case MVM_JIT_ARGLIST:
+        {
+            /* Unary variadic nodes are exactly the same... */
+            MVMint32 i;
+            for (i = 0; i < nchild; i++) {
+                MVMint32 child = tree->nodes[first_child+i];
+                state_info = MVM_jit_tile_state_lookup(tc, op, tree->info[child].tile_state, -1);
+                if (state_info == NULL) {
+                    MVM_oops(tc, "OOPS, %s can't be tiled with a %s child at position %d",
+                             info->name, tree->info[child].op_info->name, i);
+                }
+            }
+            symbol->tile_state = state_info[3];
+            symbol->tile_rule  = state_info[4];
+        }
+        break;
+    case MVM_JIT_DO:
+        {
+            MVMint32 last_child = tree->nodes[first_child+nchild-1];
+            state_info = MVM_jit_tile_state_lookup(tc, op, tree->info[first_child].tile_state,
+                                                   tree->info[last_child].tile_state);
+            if (state_info == NULL) {
+                MVM_oops(tc, "Can't tile this DO node");
+            }
+            symbol->tile_state = state_info[3];
+            symbol->tile_rule  = state_info[4];
+        }
+        break;
     case MVM_JIT_IF:
-        MVM_oops(tc, "Tiling %s NYI\n", info->name);
+        {
+            MVMint32 cond = tree->nodes[node+1],
+                left = tree->nodes[node+2],
+                right = tree->nodes[node+3];
+            MVMint32 *left_state  = MVM_jit_tile_state_lookup(tc, op, tree->info[cond].tile_state,
+                                                              tree->info[left].tile_state);
+            MVMint32 *right_state = MVM_jit_tile_state_lookup(tc, op, tree->info[cond].tile_state,
+                                                              tree->info[right].tile_state);
+            if (left_state == NULL || right_state == NULL ||
+                left_state[3] != right_state[3] ||
+                left_state[4] != right_state[4]) {
+                MVM_oops(tc, "Inconsistent IF tile state");
+            }
+            symbol->tile_state = left_state[3];
+            symbol->tile_rule  = left_state[4];
+        }
         break;
     default:
         {
@@ -39,7 +80,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 MVMint32 left  = tree->nodes[first_child];
                 MVMint32 lstate = tree->info[left].tile_state;
                 MVMint32 right = tree->nodes[first_child+1];
-                MVMint32 rstate = tree->info[left].tile_state;
+                MVMint32 rstate = tree->info[right].tile_state;
                 state_info = MVM_jit_tile_state_lookup(tc, op, lstate, rstate);
             } else {
                 MVM_oops(tc, "Can't deal with %d children of node %s\n", nchild, info->name);
@@ -99,12 +140,47 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMint32 first_child = node+1;
     MVMint32 nchild      = op_info->nchild < 0 ? tree->nodes[first_child++] : op_info->nchild;
     switch (op) {
-    case MVM_JIT_DO:
     case MVM_JIT_ALL:
     case MVM_JIT_ANY:
     case MVM_JIT_ARGLIST:
+        {
+            MVMint32 i;
+            for (i = 0; i < nchild; i++) {
+                MVMint32 child = tree->nodes[first_child+i];
+                MVMint32 rule  = MVM_jit_tile_select_lookup(tc, tree->info[child].tile_state, info->tile->left_sym);
+                tree->nodes[first_child+i] = assign_tile(tc, tree, child, rule);
+            }
+        }
+        break;
+    case MVM_JIT_DO:
+        {
+            MVMint32 i, last_child, last_rule;
+            for (i = 0; i < nchild - 1; i++) {
+                MVMint32 child = tree->nodes[first_child+i];
+                MVMint32 rule  = MVM_jit_tile_select_lookup(tc, tree->info[child].tile_state, info->tile->left_sym);
+                tree->nodes[first_child+i] = assign_tile(tc, tree, child, rule);
+            }
+            last_child = tree->nodes[first_child+i];
+            last_rule  = MVM_jit_tile_select_lookup(tc, tree->info[last_child].tile_state, info->tile->right_sym);
+            tree->nodes[first_child+i] = assign_tile(tc, tree, last_child, last_rule);
+        }
+        break;
     case MVM_JIT_IF:
-        MVM_oops(tc, "Tiling %s NYI\n", op_info->name);
+        {
+            MVMint32 cond = tree->nodes[first_child],
+                left  = tree->nodes[first_child+1],
+                right = tree->nodes[first_child+2],
+                rule;
+
+            rule = MVM_jit_tile_select_lookup(tc, tree->info[cond].tile_state, info->tile->left_sym);
+            tree->nodes[first_child]   = assign_tile(tc, tree, cond, rule);
+
+            rule = MVM_jit_tile_select_lookup(tc, tree->info[left].tile_state, info->tile->right_sym);
+            tree->nodes[first_child+1] = assign_tile(tc, tree, left, rule);
+
+            rule = MVM_jit_tile_select_lookup(tc, tree->info[right].tile_state, info->tile->right_sym);
+            tree->nodes[first_child+2] = assign_tile(tc, tree, right, rule);
+        }
         break;
     default:
         {

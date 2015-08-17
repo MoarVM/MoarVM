@@ -298,7 +298,7 @@ if ($TESTING) {
         my $line = <$expr_h>;
         chomp $line;
         last unless $line =~ m/\\$/;
-        next unless $line =~ m/_\((\w+), \d+, \d+, \w+\)/;
+        next unless $line =~ m/_\((\w+), -?\d+, -?\d+, \w+\)/;
         my $op = substr($line, $-[1], $+[1]-$-[1]);
         push @expr_ops, $op;
     }
@@ -388,10 +388,10 @@ HEADER
  * intermediates. */
 
 COMMENT
-
     print $output "static MVMint32 ".$VARNAME."state[][6] = {\n";
     for my $expr_op (@expr_ops) {
         my $head = lc $expr_op;
+        print "Writing state table for $head\n" if $DEBUG;
         for my $rs1 (sortn keys %{$table{$head}}) {
             for my $rs2 (sortn keys %{$table{$head}{$rs1}}) {
                 my $state   = $table{$head}{$rs1}{$rs2};

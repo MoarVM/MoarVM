@@ -26,6 +26,12 @@ MVM_JIT_TILE_DECL(load_tc) {
     values[0]->u.reg.num = MVM_JIT_X64_R14;
 }
 
+MVM_JIT_TILE_DECL(load_vmnull) {
+    MVMint8 reg = values[0]->u.reg.num;
+    | get_vmnull Rq(reg);
+}
+
+
 MVM_JIT_TILE_DECL(addr_mem) {
     values[0]->u.mem.r0 = values[1]->u.reg.num;
     values[0]->u.mem.r1 = -1;
@@ -562,6 +568,25 @@ MVM_JIT_TILE_DECL(nz_and) {
     }
 }
 
+MVM_JIT_TILE_DECL(zr_reg) {
+    MVMint8 reg = values[1]->u.reg.num;
+    switch (values[1]->size) {
+    case 1:
+        | test Rb(reg), Rb(reg);
+        break;
+    case 2:
+        | test Rw(reg), Rw(reg);
+        break;
+    case 4:
+        | test Rd(reg), Rd(reg);
+        break;
+    case 8:
+        | test Rq(reg), Rq(reg);
+        break;
+    }
+
+}
+
 
 /* Placeholder tiles. Not very good to implement as postorder expressions (yet) */
 MVM_JIT_TILE_DECL(all) {
@@ -569,6 +594,10 @@ MVM_JIT_TILE_DECL(all) {
 }
 
 MVM_JIT_TILE_DECL(if) {
+    /* NYI */
+}
+
+MVM_JIT_TILE_DECL(ifvoid) {
     /* NYI */
 }
 

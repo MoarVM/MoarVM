@@ -7,12 +7,12 @@
 #
 # Virtual Machine Values 
 #
-(tile: load_stack (stack) reg 1)
-(tile: load_local (local) reg 1)
-(tile: load_cu    (cu) reg 1)
-(tile: load_tc    (tc) reg 1)
-(tile: load_frame (frame) reg 1)
-
+(tile: load_stack  (stack) reg 1)
+(tile: load_local  (local) reg 1)
+(tile: load_cu     (cu) reg 1)
+(tile: load_tc     (tc) reg 1)
+(tile: load_frame  (frame) reg 1)
+(tile: load_vmnull (vmnull) reg 3)
 #
 # MEMORY TRAFFIC
 #
@@ -59,11 +59,14 @@
 # (tile: nz_const (nz (and reg (const))))
 # test [foo], const
 # (tile: nz_const_mem (nz (and (load mem) (const))))
+(tile: zr_reg (zr reg) flag 2)
+
 #
 # CONTROL STATEMENTS
 #
 (tile: all     (all flag) flag 2)
 (tile: if      (if flag reg) reg 2)
+(tile: ifvoid  (if flag void) void 2)
 (tile: when    (when flag void) void 2)
 (tile: do_reg  (do void reg) reg 0)
 (tile: do_reg  (do reg reg) reg 0)

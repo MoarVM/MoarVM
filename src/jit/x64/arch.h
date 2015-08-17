@@ -25,17 +25,15 @@
     _(R14), \
     _(R15)
 
+#define MVM_JIT_GPRNAME(x) MVM_JIT_X64_ ## x
 
 enum {
-#define GPRNAME(x) MVM_JIT_X64_ ## x
-X64_GPR(GPRNAME)
-#undef GPRNAME
+X64_GPR(MVM_JIT_GPRNAME)
 };
 
 #define MVM_JIT_NUM_REG_CLASS 2
 /* Define the GPR usable for general calculations */
 #if MVM_JIT_PLATFORM == MVM_JIT_POSIX
-
 #define X64_FREE_GPR(_) \
     _(RAX), \
     _(RCX), \
