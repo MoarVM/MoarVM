@@ -1,38 +1,6 @@
 #include "tile_decl.h"
 
 
-/* register classes */
-#define MVM_JIT_X64_GPR 0
-#define MVM_JIT_X64_SSE 1
-
-
-
-
-#define X64_GPR(_) \
-    _(RAX), \
-    _(RCX), \
-    _(RDX), \
-    _(RBX), \
-    _(RSP), \
-    _(RBP), \
-    _(RSI), \
-    _(RDI), \
-    _(R8), \
-    _(R9), \
-    _(R10), \
-    _(R11), \
-    _(R12), \
-    _(R13), \
-    _(R14), \
-    _(R15)
-
-enum {
-#define GPRNAME(x) MVM_JIT_X64_ ## x
-X64_GPR(GPRNAME)
-#undef GPRNAME
-};
-
-
 MVM_JIT_TILE_DECL(load_stack) {
     values[0]->u.reg.cls = MVM_JIT_X64_GPR;
     values[0]->u.reg.num = MVM_JIT_X64_RSP;
