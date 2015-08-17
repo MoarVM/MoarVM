@@ -597,7 +597,7 @@ MVM_JIT_TILE_DECL(if) {
     /* NYI */
 }
 
-MVM_JIT_TILE_DECL(ifvoid) {
+MVM_JIT_TILE_DECL(either) {
     /* NYI */
 }
 

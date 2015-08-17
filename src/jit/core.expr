@@ -229,7 +229,7 @@
 (template: atpos_o!
 # maybe have another operator for statement if-with-else
   (let: (($addr (copy $0)))
-    (if (^is_type_obj $1)
+    (either (^is_type_obj $1)
       (store $addr (vmnull) ptr_sz)
 # else
       (call (load (addr (^repr $1) (&offsetof MVMREPROps pos_funcs.at_pos)) ptr_sz)

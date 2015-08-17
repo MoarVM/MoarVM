@@ -64,6 +64,7 @@ typedef enum { /* value type */
     _(DO, -1, 0, REG), \
     _(WHEN, 2, 0, VOID), \
     _(IF, 3, 0, REG), \
+    _(EITHER, 3, 0, VOID), \
     _(BRANCH, 1, 0, VOID),  \
     _(LABEL, 1, 0, VOID), \
     /* special control operators */ \

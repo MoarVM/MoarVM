@@ -51,6 +51,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
         break;
     case MVM_JIT_IF:
+    case MVM_JIT_EITHER:
         {
             MVMint32 cond = tree->nodes[node+1],
                 left = tree->nodes[node+2],
@@ -62,7 +63,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             if (left_state == NULL || right_state == NULL ||
                 left_state[3] != right_state[3] ||
                 left_state[4] != right_state[4]) {
-                MVM_oops(tc, "Inconsistent IF tile state");
+                MVM_oops(tc, "Inconsistent %s tile state", info->name);
             }
             symbol->tile_state = left_state[3];
             symbol->tile_rule  = left_state[4];
@@ -166,6 +167,7 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
         break;
     case MVM_JIT_IF:
+    case MVM_JIT_EITHER:
         {
             MVMint32 cond = tree->nodes[first_child],
                 left  = tree->nodes[first_child+1],
