@@ -304,6 +304,27 @@ else {
                         . "\t\$(CP) 3rdparty/dyncall/dyncallback/*.h \$(DESTDIR)\$(PREFIX)/include/dyncall\n";
 }
 
+if ($args{'jit'}) {
+    if ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
+        $config{jit_obj}      = '$(JIT_POSIX_X64)';
+        $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
+        $config{jit_platform} = 'MVM_JIT_PLATFORM_POSIX';
+    } elsif ($Config{archname} =~ /^MSWin32-x64/) {
+        $config{jit_obj}      = '$(JIT_WIN32_X64)';
+        $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
+        $config{jit_platform} = 'MVM_JIT_PLATFORM_WIN32';
+    } else {
+        print "JIT isn't supported on $Config{archname} yet.\n";
+    }
+}
+# fallback
+unless (defined $config{jit_obj}) {
+    $config{jit_obj} = '$(JIT_STUB)';
+    $config{jit_arch} = 'MVM_JIT_ARCH_NONE';
+    $config{jit_platform} = 'MVM_JIT_PLATFORM_NONE';
+}
+
+
 # mangle library names
 $config{ldlibs} = join ' ',
     (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),

@@ -1,5 +1,5 @@
 #include "moar.h"
-#include "internal.h"
+#include "jit/internal.h"
 #include "dasm_x86.h"
 
 #ifdef _MSC_VER
@@ -2481,6 +2481,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
     }
 }
 
+
 void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitData *data) {
     MVMuint8 *bytes = data->data;
     MVMint32 i;
@@ -2491,3 +2492,4 @@ void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitDat
     }
     |.code
 }
+

@@ -58,8 +58,8 @@ PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
 
 DASM_FLAGS_WIN32 = -D WIN32=1
 DASM_FLAGS_POSIX = -D POSIX=1
-JIT_WIN32_X64 = src/jit/emit_win32_x64@obj@
-JIT_POSIX_X64 = src/jit/emit_posix_x64@obj@
+JIT_WIN32_X64 = src/jit/x64/emit_win32@obj@
+JIT_POSIX_X64 = src/jit/x64/emit_posix@obj@
 JIT_STUB = src/jit/stub@obj@
 
 
@@ -213,7 +213,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/platform/sys@obj@ \
           src/moar@obj@ \
           @platform@ \
-          @jit@
+          @jit_obj@
 
 
 HEADERS = src/moar.h \
@@ -562,16 +562,18 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 $(MINILUA): 3rdparty/dynasm/minilua.c
 	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
 
-src/jit/emit_posix_x64@obj@: src/jit/emit_posix_x64.c $(DYNASM_HEADERS)
-src/jit/emit_win32_x64@obj@: src/jit/emit_win32_x64.c $(DYNASM_HEADERS)
+src/jit/x64/emit_posix@obj@: src/jit/x64/emit_posix.c $(DYNASM_HEADERS)
+src/jit/x64/emit_win32@obj@: src/jit/x64/emit_win32.c $(DYNASM_HEADERS)
 
-src/jit/emit_posix_x64.c: src/jit/emit_x64.dasc $(MINILUA) $(DYNASM_SCRIPTS)
+
+src/jit/x64/emit_posix.c: src/jit/emit_x64.dasc $(MINILUA) $(DYNASM_SCRIPTS)
 	$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ src/jit/emit_x64.dasc
 
-src/jit/emit_win32_x64.c: src/jit/emit_x64.dasc $(MINILUA) $(DYNASM_SCRIPTS)
+src/jit/x64/emit_win32.c: src/jit/emit_x64.dasc $(MINILUA) $(DYNASM_SCRIPTS)
 	$(DYNASM) $(DASM_FLAGS_WIN32) -o $@ src/jit/emit_x64.dasc
 
-dasm_all: src/jit/emit_win32_x64.c src/jit/emit_posix_x64.c
+dasm_all: src/jit/x64/emit_win32.c src/jit/x64/emit_posix.c
+
 
 @uvlib@: $(UV_OBJECTS)
 	$(MSG) linking $@

@@ -73,7 +73,7 @@ jit-log.txt
 jit-*.bin
 
 # dynasm emitted files
-src/jit/emit_*.c
+src/jit/x64/emit_*.c
 
 # generated code
 tools/lib/MAST/Ops.pm
