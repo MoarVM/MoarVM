@@ -122,8 +122,6 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
         /* Copy the information node */
         MVM_DYNAR_ENSURE_SIZE(tree->info, num);
         memcpy(tree->info + num, tree->info + node, sizeof(MVMJitExprNodeInfo));
-        /* TODO - I think we potentially should change some fields
-           (e.g. num_uses, last_use), have to figure out which */
         /* Assign the new tile */
         tree->info[num].tile_rule = tile_rule;
         tree->info[num].tile      = tile;

@@ -319,7 +319,7 @@ if ($TESTING) {
 HEADER
     print $output "static const MVMint8 ${VARNAME}paths[] = {\n   ";
 
-    my @path_idx;
+    my (@path_idx, @path_len);
     my ($numchar, $idx) = (4, 0);
     for (my $i = 0; $i < @paths; $i++) {
         next unless defined $paths[$i];
@@ -334,9 +334,10 @@ HEADER
             print $output $str;
         }
         $path_idx[$i] = $idx;
+        $path_len[$i] = scalar(grep { $_ == -1 } @$trace) - 1;
         $idx += @$trace;
     }
-    print $output "\n};\n";
+    print $output "\n};\n\n";
 
     # Tiling works by selecting *possible* rules bottom-up and picking
     # the *optimum* rules top-down. So we need to know, starting from
@@ -357,7 +358,7 @@ HEADER
 
         if (defined $names[$i]) {
             my $vtype = uc $rules[$i][1];
-            print $output "    { \&${VARNAME}$names[$i], ${VARNAME}paths + $path_idx[$i], \"$desc\", ${PREFIX}${vtype}, $s1, $s2 },\n";
+            print $output "    { \&${VARNAME}$names[$i], ${VARNAME}paths + $path_idx[$i], \"$desc\", $path_len[$i], ${PREFIX}${vtype}, $s1, $s2 },\n";
         } else {
             print $output "    { NULL, NULL, \"$desc\", 0, $s1, $s2 },\n";
         }

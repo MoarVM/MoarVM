@@ -228,9 +228,9 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 
     node_info->op_info   = op;
     node_info->spesh_ins = node_ins[node];
-    node_info->first_use = INT32_MAX;
-    node_info->last_use  = -1;
-    node_info->num_use   = 0;
+    node_info->value.first_use = INT32_MAX;
+    node_info->value.last_use  = -1;
+    node_info->value.num_use   = 0;
     if (node_info->spesh_ins &&
         (node_info->spesh_ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
         node_info->local_addr = node_info->spesh_ins->operands[0].reg.orig;
@@ -307,14 +307,6 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         break;
     }
 
-    /* Calculate last usage of nodes */
-    for (i = 0; i < nchild; i++) {
-        MVMint32 child  = tree->nodes[first_child+i];
-        MVMJitExprNodeInfo *child_info = tree->info + child;
-        child_info->first_use = MIN(child_info->first_use, node);
-        child_info->last_use  = MAX(child_info->last_use, node);
-        child_info->num_use  += 1;
-    }
 }
 
 

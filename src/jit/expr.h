@@ -103,7 +103,7 @@ struct MVMJitExprOpInfo {
 
 struct MVMJitExprValue {
     /* used to signal register allocator, tiles don't look at this */
-    MVMJitExprVtype vtype;
+    MVMJitExprVtype type;
     /* different values */
     union {
         struct {
@@ -118,9 +118,17 @@ struct MVMJitExprValue {
         MVMint32 label;
         MVMint64 const_val;
     } u;
+    MVMint8  size;
+
+    /* State information */
     MVMint32 defined;
     MVMint16 stack_loc;
-    MVMint8  size;
+
+
+    /* Use information - I'd may want to change this into list of uses */
+    MVMint32        first_use;
+    MVMint32        last_use;
+    MVMint32        num_use;
 };
 
 /* Tree node information for easy access and use during compilation (a
@@ -139,10 +147,6 @@ struct MVMJitExprNodeInfo {
 
     /* internal label for IF/WHEN/ALL/ANY etc */
     MVMint32        internal_label;
-    /* Use information - I'd like to change this into list of uses */
-    MVMint32        first_use;
-    MVMint32        last_use;
-    MVMint32        num_use;
 
     /* Result value information (register/memory location, size etc) */
     MVMJitExprValue value;

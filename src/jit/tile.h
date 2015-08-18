@@ -3,6 +3,7 @@ struct MVMJitTile {
                     MVMint32 node, MVMJitExprValue **values, MVMJitExprNode *args);
     const MVMint8 *path;
     const char    *descr;
+    MVMint32  num_values;
     MVMJitExprVtype vtype;
     MVMint32  left_sym;
     MVMint32 right_sym;

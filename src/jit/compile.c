@@ -282,7 +282,7 @@ static void compile_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler,
 
 static void compile_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree,
                             MVMint32 node) {
-    MVM_oops(tc, "compile_arglist NYI");
+    MVMint32 i, nchild = tree->nodes[node+1], first_child = node+2;
 }
 #endif
 
@@ -297,14 +297,15 @@ static void compile_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
 
 
 
-#define EXPR_ARGS(t,n) (t->info[n].op_info->nchild < 0 ? t->nodes + n + t->nodes[n+1] + 2 : \
-                        t->nodes + n + t->info[n].op_info->nchild + 1);
 
 static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, MVMJitExprTree *tree, MVMint32 node) {
     MVMJitCompiler *cl = traverser->data;
     MVMJitExprNodeInfo *info = &tree->info[node];
+    const MVMJitTile *tile   = info->tile;
     MVMJitExprValue *values[8];
-    MVMJitExprNode *args = EXPR_ARGS(tree, node);
+    MVMint32 first_child = node + 1;
+    MVMint32 nchild = info->op_info->nchild < 0 ? tree->nodes[first_child++] : info->op_info->nchild;
+    MVMJitExprNode *args = tree->nodes + first_child + nchild;
     MVMint32 i;
     switch (tree->nodes[node]) {
     case MVM_JIT_ARGLIST:
@@ -312,12 +313,38 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
         break;
     default:
         {
-            if (info->tile == NULL)
+            if (tile->rule == NULL)
                 return;
             values[0] = &info->value;
-            MVM_jit_tile_get_values(tc, tree, node, info->tile->path, values+1);
-            /* TODO implement register allocation */
+            MVM_jit_tile_get_values(tc, tree, node, tile->path, values+1);
+
+            for (i = 0; i < tile->num_values; i++) {
+                /* TODO - ensure all values that are typed registers, are placed
+                 * into registers! */
+            }
+
+            if (tile->vtype == MVM_JIT_REG) {
+                /* allocate a register */
+                if (values[1]->type == MVM_JIT_REG && values[1]->last_use == node) {
+                    values[0]->u.reg.num = values[1]->u.reg.num;
+                    values[0]->u.reg.cls = values[1]->u.reg.cls;
+                    /* Free register so it can be reused */
+                    MVM_jit_register_release(tc, cl, values[0]->u.reg.cls, values[0]->u.reg.num);
+                } else {
+                    values[0]->u.reg.num = MVM_jit_register_alloc(tc, cl, MVM_JIT_X64_GPR);
+                    values[0]->u.reg.cls = MVM_JIT_X64_GPR;
+                }
+                MVM_jit_register_use(tc, cl, values[0]->u.reg.cls, values[0]->u.reg.num, node);
+            }
+            values[0]->type = tile->vtype;
             info->tile->rule(tc, cl, tree, node, values, args);
+            /* clear up registers afterwards */
+            for (i = 0; i < tile->num_values + 1; i++) {
+                if (values[i]->type == MVM_JIT_REG) {
+                    /* Releasing a register means it may be spilled */
+                    MVM_jit_register_release(tc, cl, values[i]->u.reg.cls,  values[i]->u.reg.num);
+                }
+            }
         }
     }
 
