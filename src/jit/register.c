@@ -27,7 +27,7 @@
  * INVALIDATE spills all ALLOCATED registers (but does not touch USED registers) */
 
 static MVMint8 free_gpr[] = {
-    X64_FREE_GPR(MVM_JIT_GPRNAME)
+    X64_FREE_GPR(MVM_JIT_REGNAME)
 };
 
 

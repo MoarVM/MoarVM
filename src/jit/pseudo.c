@@ -195,10 +195,12 @@ static void emit_expr_op(MVMThreadContext *tc, CompilerRegisterState *state, MVM
     case MVM_JIT_CALL:
         MVM_jit_log(tc, "call %s\n", X64_REGISTER_NAMES[regs[0]]);
         break;
-    default: {
-        const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, op);
-        MVM_jit_log(tc, "not yet sure how to compile %s\n", info->name);
-    }
+    default:
+        {
+            const MVMJitExprOpInfo *info = MVM_jit_expr_op_info(tc, op);
+            MVM_jit_log(tc, "not yet sure how to compile %s\n", info->name);
+        }
+        break;
     }
 }
 

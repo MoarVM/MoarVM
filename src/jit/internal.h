@@ -1,6 +1,7 @@
 /* Internal header for the MoarVM JIT compiler. Probably best not to use it
  * outside the JIT */
 
+#define MVM_JIT_ARCH_STUB      0
 #define MVM_JIT_ARCH_X64       1
 #define MVM_JIT_PLATFORM_POSIX 1
 #define MVM_JIT_PLATFORM_WIN32 2
@@ -15,7 +16,9 @@
 struct MVMJitCompiler {
     dasm_State *dasm_handle;
     void      **dasm_globals;
+    MVMJitGraph *graph;
     MVMint32    next_label;
+    MVMint32    label_max;
 };
 
 /* Declarations for architecture-specific codegen stuff */
@@ -30,8 +33,10 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
                          MVMJitCallC *call_spec);
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                          MVMJitBranch *branc_spec);
+void MVM_jit_emit_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                                     MVMint32 cond, MVMint32 label);
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                        MVMJitLabel *label);
+                        MVMint32 label);
 void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                         MVMJitGuard *guard);
 void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,

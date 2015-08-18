@@ -19,10 +19,13 @@ void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitGraph
     cl->dasm_globals = MVM_malloc(num_globals * sizeof(void*));
     dasm_setupglobal(cl, cl->dasm_globals, num_globals);
     dasm_setup(cl, MVM_jit_actions());
-    /* space for our dynamic labels */
-    dasm_growpc(cl, jg->labels_num);
+    /* Store graph we're compiling */
+    cl->graph      = jg;
     /* next (internal) label to assign */
     cl->next_label = jg->labels_num;
+    cl->label_max  = jg->labels_num + 8;
+    /* space for dynamic labels */
+    dasm_growpc(cl, cl->label_max);
 }
 
 void MVM_jit_compiler_deinit(MVMThreadContext *tc, MVMJitCompiler *cl) {
@@ -43,7 +46,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     while (node) {
         switch(node->type) {
         case MVM_JIT_NODE_LABEL:
-            MVM_jit_emit_label(tc, &cl, jg, &node->u.label);
+            MVM_jit_emit_label(tc, &cl, jg, node->u.label.name);
             break;
         case MVM_JIT_NODE_PRIMITIVE:
             MVM_jit_emit_primitive(tc, &cl, jg, &node->u.prim);
@@ -147,29 +150,190 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
     MVM_free(code);
 }
 
+/* Compile time labelling facility, as opposed to graph labels; these
+ * don't need to be stored for access later */
+static MVMint32 alloc_internal_label(MVMThreadContext *tc, MVMJitCompiler *cl, MVMint32 num) {
+    MVMint32 next_label = cl->next_label;
+    if (num + next_label >= cl->label_max) {
+        /* Double the compile-time allocated labels */
+        cl->label_max = cl->graph->labels_num + 2 * (cl->label_max - cl->graph->labels_num);
+        dasm_growpc(cl, cl->label_max);
+    }
+    /* 'Allocate' num labels */
+    cl->next_label += num;
+    return next_label;
+}
+
+
+static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, MVMJitExprTree *tree, MVMint32 node) {
+    MVMJitCompiler *cl = traverser->data;
+    switch (tree->nodes[node]) {
+    case MVM_JIT_WHEN:
+        {
+            MVMint32 cond = tree->nodes[node+1];
+            tree->info[node].internal_label = alloc_internal_label(tc, cl, 1);
+            if (tree->nodes[cond] == MVM_JIT_ALL || tree->nodes[cond] == MVM_JIT_ANY) {
+                /* Assign the label downward for short-circuit evaluation */
+                tree->info[cond].internal_label = tree->info[node].internal_label;
+            }
+        }
+        break;
+    case MVM_JIT_IF:
+    case MVM_JIT_EITHER:
+        {
+            MVMint32 cond = tree->nodes[node+1];
+            tree->info[node].internal_label = alloc_internal_label(tc, cl, 2);
+            if (tree->nodes[cond] == MVM_JIT_ALL || tree->nodes[cond] == MVM_JIT_ANY) {
+                /* Assign the label downward for short-circuit evaluation */
+                tree->info[cond].internal_label = tree->info[node].internal_label;
+            }
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, MVMJitExprTree *tree, MVMint32 node, MVMint32 i) {
+    MVMJitCompiler *cl = traverser->data;
+    switch (tree->nodes[node]) {
+    case MVM_JIT_WHEN:
+            if (i == 0) {
+                /* after condition */
+                MVMint32 cond = tree->nodes[node+1];
+                if (tree->nodes[cond] == MVM_JIT_ALL || tree->nodes[cond] == MVM_JIT_ANY) {
+                    /* short-circuit evaluation of ALL and ANY has
+                       already taken care of the jump beyond the
+                       block */
+                } else {
+                    MVM_jit_emit_conditional_branch(tc, cl, tree->nodes[cond],
+                                                    tree->info[node].internal_label);
+                }
+                break;
+            } else {
+                /* i == 1, so we're ready to emit our internal label now */
+                MVM_jit_emit_label(tc, cl, cl->graph, tree->info[node].internal_label);
+            }
+            break;
+    case MVM_JIT_IF:
+    case MVM_JIT_EITHER:
+        /* TODO take care of (delimited) register invalidation! */
+        if (i == 0) {
+            MVMint32 cond = tree->nodes[node+1];
+            if (tree->nodes[cond] == MVM_JIT_ALL || tree->nodes[cond] == MVM_JIT_ANY) {
+                /* Nothing to do */
+            } else {
+                MVM_jit_emit_conditional_branch(tc, cl, tree->nodes[cond],
+                                                tree->info[node].internal_label);
+            }
+        } else if (i == 1) {
+            MVMJitBranch branch;
+            branch.ins   = NULL;
+            branch.dest = tree->info[node].internal_label + 1;
+            MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
+            MVM_jit_emit_label(tc, cl, cl->graph, tree->info[node].internal_label);
+        } else {
+            MVM_jit_emit_label(tc, cl, cl->graph, tree->info[node].internal_label + 1);
+        }
+        break;
+    case MVM_JIT_ALL:
+        {
+            MVMint32 cond = tree->nodes[node+2+i];
+            break;
+        }
+    default:
+        break;
+    }
+
+}
+
+#if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
+
+static MVMint8 x64_gpr_args[] = {
+    X64_ARG_GPR(MVM_JIT_REGNAME)
+};
+
+
+static MVMint8 x64_sse_args[] = {
+    X64_ARG_SSE(MVM_JIT_REGNAME)
+};
+
+#if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_WIN32
+static void compile_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler,
+    MVMJitExprTree *tree, MVMint32 node) {
+    MVMint32 i, nchild = tree->nodes[node+1], first_child = node + 2;
+    for (i = 0; i < MIN(nchild, 4); i++) {
+        MVMint32 carg   = tree->nodes[first_child+i];
+        MVMint32 val    = tree->nodes[carg+1];
+        MVMint32 argtyp = tree->nodes[carg+2];
+        if (argtype == MVM_JIT_NUM) {
+            MVMint8 reg = x64_sse_args[i];
+            MVM_jit_register_take(tc, cl, reg, MVM_JIT_X64_SSE, val);
+            MVM_jit_emit_load(tc, cl, reg, MVM_JIT_X64_SSE);
+        } else {
+            MVMint8 reg = x64_gpr_args[i];
+            MVM_jit_register_take(tc, cl, reg, MVM_JIT_X64_GPR, val);
+        }
+    }
+    for (. i < nchild; i++) {
+    }
+}
+#else
+
+static void compile_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree,
+                            MVMint32 node) {
+    MVM_oops(tc, "compile_arglist NYI");
+}
+#endif
+
+#else
+static void compile_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree,
+                            MVMint32 node) {
+    MVM_oops(tc, "compile_arglist NYI for this architecture");
+}
+
+#endif
+
+
+
+
 #define EXPR_ARGS(t,n) (t->info[n].op_info->nchild < 0 ? t->nodes + n + t->nodes[n+1] + 2 : \
                         t->nodes + n + t->info[n].op_info->nchild + 1);
 
-static void compile_tile(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
+static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, MVMJitExprTree *tree, MVMint32 node) {
+    MVMJitCompiler *cl = traverser->data;
     MVMJitExprNodeInfo *info = &tree->info[node];
     MVMJitExprValue *values[8];
     MVMJitExprNode *args = EXPR_ARGS(tree, node);
     MVMint32 i;
-    if (info->tile == NULL)
-        return;
+    switch (tree->nodes[node]) {
+    case MVM_JIT_ARGLIST:
+        compile_arglist(tc, cl, tree, node);
+        break;
+    default:
+        {
+            if (info->tile == NULL)
+                return;
+            values[0] = &info->value;
+            MVM_jit_tile_get_values(tc, tree, node, info->tile->path, values+1);
+            /* TODO implement register allocation */
+            info->tile->rule(tc, cl, tree, node, values, args);
+        }
+    }
 
-    values[0] = &info->value;
-    MVM_jit_tile_get_values(tc, tree, node, info->tile->path, values+1);
-    /* TODO implement register allocation */
-
-    info->tile->rule(tc, cl, tree, node, values, args);
 }
 
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {
+    MVMJitTreeTraverser traverser;
+
+    traverser.preorder  = &prepare_tile;
+    traverser.inorder   = &compile_labels;
+    traverser.postorder = &compile_tile;
+
     /* First stage, tile the tree */
     MVM_jit_tile_expr_tree(tc, tree);
 
-    MVM_oops(tc, "NYI");
+    MVM_jit_expr_tree_traverse(tc, tree, &traverser);
 }
 
 

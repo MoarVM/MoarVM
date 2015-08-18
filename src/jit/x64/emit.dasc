@@ -1851,8 +1851,40 @@ void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
 }
 
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                        MVMJitLabel *label) {
-    | =>(label->name):
+                        MVMint32 label) {
+    | =>(label):
+}
+
+void MVM_jit_emit_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                                     MVMint32 cond, MVMint32 label) {
+    switch (cond) {
+    case MVM_JIT_LT:
+        | jl =>(label);
+        break;
+    case MVM_JIT_LE:
+        | jle =>(label);
+        break;
+    case MVM_JIT_EQ:
+        | je =>(label);
+        break;
+    case MVM_JIT_NE:
+        | jne =>(label);
+        break;
+    case MVM_JIT_GE:
+        | jge =>(label);
+        break;
+    case MVM_JIT_GT:
+        | jg =>(label);
+        break;
+    case MVM_JIT_NZ:
+        | jnz =>(label);
+        break;
+    case MVM_JIT_ZR:
+        | jz =>(label);
+        break;
+    default:
+        MVM_oops(tc, "this should not be dealt with here");
+    }
 }
 
 void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
