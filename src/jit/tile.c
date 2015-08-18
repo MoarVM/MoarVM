@@ -40,9 +40,10 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         break;
     case MVM_JIT_DO:
         {
-            MVMint32 last_child = tree->nodes[first_child+nchild-1];
-            state_info = MVM_jit_tile_state_lookup(tc, op, tree->info[first_child].tile_state,
-                                                   tree->info[last_child].tile_state);
+            MVMint32 last_child = first_child+nchild-1;
+            MVMint32 left_state = tree->info[tree->nodes[first_child]].tile_state;
+            MVMint32 right_state = tree->info[tree->nodes[last_child]].tile_state;
+            state_info = MVM_jit_tile_state_lookup(tc, op, left_state, right_state);
             if (state_info == NULL) {
                 MVM_oops(tc, "Can't tile this DO node");
             }
@@ -209,11 +210,24 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 }
 
 
-static void log_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
-                     MVMJitExprTree *tree, MVMint32 node) {
+static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+                          MVMJitExprTree *tree, MVMint32 node) {
+    const MVMJitTile *tile = tree->info[node].tile;
+    MVMJitExprValue *values[8];
+    MVMint32 i;
     if (traverser->visits[node] > 1)
         return;
-    MVM_jit_log(tc, "%04d: %s\n", node, tree->info[node].tile->descr);
+    /* Log tile for debugging */
+    MVM_jit_log(tc, "%04d: %s\n", node, tile->descr);
+    if (tile->path == NULL)
+        return;
+    MVM_jit_tile_get_values(tc, tree, node, tile->path, values);
+    for (i = 0; i < tile->num_values; i++) {
+        /* update use information */
+        values[i]->first_use = MIN(values[i]->first_use, node);
+        values[i]->last_use  = MAX(values[i]->last_use, node);
+        values[i]->num_use++;
+    }
 }
 
 
@@ -231,7 +245,7 @@ void MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     }
     /* NB - we can add actual code generation during the postorder step here */
     traverser.preorder  = &select_tiles;
-    traverser.postorder = &log_tile;
+    traverser.postorder = &select_values;
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
 }
 

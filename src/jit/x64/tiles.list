@@ -69,9 +69,7 @@
 (tile: either  (either flag void) void 2)
 (tile: when    (when flag void) void 2)
 (tile: do_reg  (do void reg) reg 0)
-(tile: do_reg  (do reg reg) reg 0)
 (tile: do_void (do void void) void 0)
-(tile: do_void (do reg void) void 0)
 
 (tile: label       (label (const)) lbl 1)
 (tile: label_addr  (label (const)) reg 2)

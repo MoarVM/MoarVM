@@ -360,7 +360,7 @@ HEADER
             my $vtype = uc $rules[$i][1];
             print $output "    { \&${VARNAME}$names[$i], ${VARNAME}paths + $path_idx[$i], \"$desc\", $path_len[$i], ${PREFIX}${vtype}, $s1, $s2 },\n";
         } else {
-            print $output "    { NULL, NULL, \"$desc\", 0, $s1, $s2 },\n";
+            print $output "    { NULL, NULL, \"$desc\", 0, -1, $s1, $s2 },\n";
         }
     }
     print $output "};\n\n";

@@ -41,3 +41,19 @@ void MVM_jit_register_free(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMin
                            MVMint8 reg_num) {
 
 }
+
+void MVM_jit_register_use(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 reg_cls,
+                          MVMint8 reg_num, MVMint32 node) {
+
+}
+
+void MVM_jit_register_release(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                              MVMint32 reg_cls, MVMint8 reg_num) {
+
+}
+
+
+
+void MVM_jit_register_take(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 reg_cls, MVMint8 reg_num) {
+
+}
