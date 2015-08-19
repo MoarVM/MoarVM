@@ -171,10 +171,20 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
     case MVM_JIT_WHEN:
         {
             MVMint32 cond = tree->nodes[node+1];
-            tree->info[node].internal_label = alloc_internal_label(tc, cl, 1);
-            if (tree->nodes[cond] == MVM_JIT_ALL || tree->nodes[cond] == MVM_JIT_ANY) {
-                /* Assign the label downward for short-circuit evaluation */
+            if (tree->nodes[cond] == MVM_JIT_ANY) {
+                /* WHEN ANY requires two labels. One label for
+                   skipping our block (tne normal WHEN label) and one
+                   for entering it */
+                tree->info[node].internal_label = alloc_internal_label(tc, cl, 2);
                 tree->info[cond].internal_label = tree->info[node].internal_label;
+            } else if (tree->nodes[cond] == MVM_JIT_ALL) {
+                /* WHEN ALL requires just one label, because the
+                 * short-circuit label of ALL is the same as the
+                 * normal WHEN skip label */
+                tree->info[node].internal_label = alloc_internal_label(tc, cl, 1);
+                tree->info[cond].internal_label = tree->info[node].internal_label;
+            } else {
+                tree->info[node].internal_label = alloc_internal_label(tc, cl, 1);
             }
         }
         break;
@@ -182,15 +192,77 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
     case MVM_JIT_EITHER:
         {
             MVMint32 cond = tree->nodes[node+1];
-            tree->info[node].internal_label = alloc_internal_label(tc, cl, 2);
-            if (tree->nodes[cond] == MVM_JIT_ALL || tree->nodes[cond] == MVM_JIT_ANY) {
-                /* Assign the label downward for short-circuit evaluation */
+            if (tree->nodes[cond] == MVM_JIT_ALL)  {
+                /* IF ALL short-circuits into the right block, which is simply labeled with the normal IF label */
+                tree->info[node].internal_label = alloc_internal_label(tc, cl, 2);
                 tree->info[cond].internal_label = tree->info[node].internal_label;
+            } else if(tree->nodes[cond] == MVM_JIT_ANY) {
+                /* IF ANY short-circuits into the left block, meaning I need an additional label */
+                tree->info[node].internal_label = alloc_internal_label(tc, cl, 3);
+                tree->info[cond].internal_label = tree->info[node].internal_label;
+            } else {
+                tree->info[node].internal_label = alloc_internal_label(tc, cl, 2);
             }
         }
         break;
+    case MVM_JIT_ALL:
+        {
+            MVMint32 i, nchild = tree->nodes[node + 1], first_child = node + 2;
+            for (i = 0; i < nchild; i++) {
+                MVMint32 cond = tree->nodes[first_child+i];
+                if (tree->nodes[cond] == MVM_JIT_ALL) {
+                    /* Nested ALL short-circuits the same way as plain ALL */
+                    tree->info[cond].internal_label = tree->info[node].internal_label;
+                } else if (tree->nodes[cond] == MVM_JIT_ANY) {
+                    /* Nested ANY short-circuits to continued evaluation if succesful,
+                     * or out of ALL if not, thus we require a new label */
+                    tree->info[cond].internal_label = alloc_internal_label(tc, cl, 1);
+                }
+            }
+        }
+    case MVM_JIT_ANY:
+        {
+            /* To deal with nested ANY/ALL combinations, we need to propagate and assign labels */
+            MVMint32 i, nchild = tree->nodes[node + 1], first_child = node + 2;
+            for (i = 0; i < nchild; i++) {
+                MVMint32 cond = tree->nodes[first_child+i];
+                if (tree->nodes[cond] == MVM_JIT_ALL) {
+                    /* ANY ALL - if we reach the end of execution, that means ALL was valid,
+                     * which implies the ANY should short-circuit. On the other hand, if ALL
+                     * is not valid, it should jump beyond the short-circuit branch. Hence, we
+                     * require a new label */
+                    tree->info[cond].internal_label = alloc_internal_label(tc, cl, 1);
+                } else if (tree->nodes[cond] == MVM_JIT_ANY) {
+                    /* ANY ANY - is clearly equivalent to ANY */
+                    tree->info[cond].internal_label = tree->info[node].internal_label;
+                }
+            }
+        }
     default:
         break;
+    }
+}
+
+static enum MVMJitExprOp negate_flag(MVMThreadContext *tc, enum MVMJitExprOp op) {
+    switch(op) {
+    case MVM_JIT_LT:
+        return MVM_JIT_GE;
+    case MVM_JIT_LE:
+        return MVM_JIT_GT;
+    case MVM_JIT_EQ:
+        return MVM_JIT_NE;
+    case MVM_JIT_NE:
+        return MVM_JIT_EQ;
+    case MVM_JIT_GE:
+        return MVM_JIT_LT;
+    case MVM_JIT_GT:
+        return MVM_JIT_LE;
+    case MVM_JIT_NZ:
+        return MVM_JIT_ZR;
+    case MVM_JIT_ZR:
+        return MVM_JIT_NZ;
+    default:
+        MVM_oops(tc, "Not a flag!");
     }
 }
 
@@ -198,49 +270,125 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMJitCompiler *cl = traverser->data;
     switch (tree->nodes[node]) {
     case MVM_JIT_WHEN:
+        {
+            MVMint32 cond  = tree->nodes[node+1];
+            MVMint32 label = tree->info[node].internal_label;
+            /* post-condition */
             if (i == 0) {
-                /* after condition */
-                MVMint32 cond = tree->nodes[node+1];
-                if (tree->nodes[cond] == MVM_JIT_ALL || tree->nodes[cond] == MVM_JIT_ANY) {
-                    /* short-circuit evaluation of ALL and ANY has
-                       already taken care of the jump beyond the
-                       block */
+                if (tree->nodes[cond] == MVM_JIT_ALL) {
+                    /* Do nothing, shortcircuit of ALL has skipped the
+                       conditional block */
+                } else if (tree->nodes[cond] == MVM_JIT_ANY) {
+                    /* If ANY hasn't short-circuited into the
+                       conditional block, jump to the skipped block */
+                    MVMJitBranch branch;
+                    branch.ins  = NULL;
+                    branch.dest = label + 1;
+                    MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
+                    /* Emit label for the conditional block entry */
+                    MVM_jit_emit_label(tc, cl, cl->graph, label);
                 } else {
-                    MVM_jit_emit_conditional_branch(tc, cl, tree->nodes[cond],
-                                                    tree->info[node].internal_label);
+                    /* Other conditionals do not short-circuit, hence
+                       require an explicit conditional branch */
+                    MVM_jit_emit_conditional_branch(tc, cl, tree->nodes[cond], label);
                 }
-                break;
             } else {
-                /* i == 1, so we're ready to emit our internal label now */
-                MVM_jit_emit_label(tc, cl, cl->graph, tree->info[node].internal_label);
+                if (tree->nodes[cond] == MVM_JIT_ANY) {
+                    /* WHEN ANY skip label is label + 1 because label
+                       + 0 is necessary to enter the conditional
+                       block */
+                    MVM_jit_emit_label(tc, cl, cl->graph, label + 1);
+                } else {
+                    /* That's not true of any other condition */
+                    MVM_jit_emit_label(tc, cl, cl->graph, label);
+                }
             }
-            break;
+        }
+        break;
     case MVM_JIT_IF:
     case MVM_JIT_EITHER:
-        /* TODO take care of (delimited) register invalidation! */
-        if (i == 0) {
-            MVMint32 cond = tree->nodes[node+1];
-            if (tree->nodes[cond] == MVM_JIT_ALL || tree->nodes[cond] == MVM_JIT_ANY) {
-                /* Nothing to do */
+        {
+            MVMint32 cond  = tree->nodes[node+1];
+            MVMint32 label = tree->info[node].internal_label;
+            if (i == 0) {
+                if (tree->nodes[cond] == MVM_JIT_ALL) {
+                    /* Like WHEN ALL, IF ALL short circuits into the alternative block */
+                } else if (tree->nodes[cond] == MVM_JIT_ANY) {
+                    /* Like WHEN ANY, branch into the alternative
+                     * block and emit a label for the conditional
+                     * block */
+                    MVMJitBranch branch;
+                    branch.ins  = NULL;
+                    branch.dest = label + 1;
+                    MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
+                    MVM_jit_emit_label(tc, cl, cl->graph, label);
+                } else {
+                    MVM_jit_emit_conditional_branch(tc, cl, tree->nodes[cond], label);
+                }
+            } else if (i == 1) {
+                if (tree->nodes[cond] == MVM_JIT_ANY) {
+                    /* IF ANY offsets the branch label by one */
+                    MVMJitBranch branch;
+                    branch.ins   = NULL;
+                    branch.dest = label + 2;
+                    MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
+                    MVM_jit_emit_label(tc, cl, cl->graph, label + 1);
+                } else {
+                    MVMJitBranch branch;
+                    branch.ins   = NULL;
+                    branch.dest = label + 1;
+                    MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
+                    MVM_jit_emit_label(tc, cl, cl->graph, label);
+                }
             } else {
-                MVM_jit_emit_conditional_branch(tc, cl, tree->nodes[cond],
-                                                tree->info[node].internal_label);
+                if (tree->nodes[cond] == MVM_JIT_ANY) {
+                    MVM_jit_emit_label(tc, cl, cl->graph, label + 2);
+                } else {
+                    MVM_jit_emit_label(tc, cl, cl->graph, label + 1);
+                }
             }
-        } else if (i == 1) {
-            MVMJitBranch branch;
-            branch.ins   = NULL;
-            branch.dest = tree->info[node].internal_label + 1;
-            MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
-            MVM_jit_emit_label(tc, cl, cl->graph, tree->info[node].internal_label);
-        } else {
-            MVM_jit_emit_label(tc, cl, cl->graph, tree->info[node].internal_label + 1);
         }
         break;
     case MVM_JIT_ALL:
         {
             MVMint32 cond = tree->nodes[node+2+i];
-            break;
+            MVMint32 label = tree->info[node].internal_label;
+            if (tree->nodes[cond] == MVM_JIT_ALL) {
+                /* Nested ALL short-circuits */
+            } else if (tree->nodes[cond] == MVM_JIT_ANY) {
+                /* If ANY reached it's end, that means it's false. So branch out */
+                MVMJitBranch branch;
+                branch.ins  = NULL;
+                branch.dest = label;
+                MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
+                /* And if ANY short-circuits we should continue the evaluation of ALL */
+                MVM_jit_emit_label(tc, cl, cl->graph, tree->info[cond].internal_label);
+            } else {
+                /* Flag should be negated (if NOT condition we want to short-circuit, otherwise we continue) */
+                MVMint32 flag = negate_flag(tc, tree->nodes[cond]);
+                MVM_jit_emit_conditional_branch(tc, cl, flag, label);
+            }
         }
+        break;
+    case MVM_JIT_ANY:
+        {
+            MVMint32 cond  = tree->nodes[node+2+i];
+            MVMint32 label = tree->info[node].internal_label;
+            if (tree->nodes[cond] == MVM_JIT_ALL) {
+                /* If ALL was succesful, we can branch out */
+                MVMJitBranch branch;
+                branch.ins  = NULL;
+                branch.dest = label;
+                MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
+                /* If not, it should short-circuit to continued evaluation */
+                MVM_jit_emit_label(tc, cl, cl->graph, tree->info[cond].internal_label);
+            } else if (tree->nodes[cond] == MVM_JIT_ANY) {
+                /* Nothing to do here, since nested ANY already short-circuits */
+            } else {
+                MVM_jit_emit_conditional_branch(tc, cl, tree->nodes[cond], label);
+            }
+        }
+        break;
     default:
         break;
     }
