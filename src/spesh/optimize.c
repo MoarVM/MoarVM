@@ -1273,6 +1273,8 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
     common_type        = get_facts_direct(tc, g, ins->operands[1])->type;
     common_decont_type = get_facts_direct(tc, g, ins->operands[1])->decont_type;
 
+    needs_merged_with_log_guard = common_flags & MVM_SPESH_FACT_FROM_LOG_GUARD;
+
     for(operand = 2; operand < ins->info->num_operands; operand++) {
         common_flags = common_flags & get_facts_direct(tc, g, ins->operands[operand])->flags;
         common_type = common_type == get_facts_direct(tc, g, ins->operands[operand])->type && common_type ? common_type : NULL;
