@@ -220,6 +220,7 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
                 }
             }
         }
+        break;
     case MVM_JIT_ANY:
         {
             /* To deal with nested ANY/ALL combinations, we need to propagate and assign labels */
@@ -238,6 +239,7 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
                 }
             }
         }
+        break;
     default:
         break;
     }
@@ -273,14 +275,15 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         {
             MVMint32 cond  = tree->nodes[node+1];
             MVMint32 label = tree->info[node].internal_label;
+            MVMint32 flag  = tree->nodes[cond];
             /* post-condition */
             if (i == 0) {
-                if (tree->nodes[cond] == MVM_JIT_ALL) {
+                if (flag == MVM_JIT_ALL) {
                     /* Do nothing, shortcircuit of ALL has skipped the
                        conditional block */
-                } else if (tree->nodes[cond] == MVM_JIT_ANY) {
+                } else if (flag == MVM_JIT_ANY) {
                     /* If ANY hasn't short-circuited into the
-                       conditional block, jump to the skipped block */
+                       conditional block, jump beyond */
                     MVMJitBranch branch;
                     branch.ins  = NULL;
                     branch.dest = label + 1;
@@ -290,10 +293,10 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 } else {
                     /* Other conditionals do not short-circuit, hence
                        require an explicit conditional branch */
-                    MVM_jit_emit_conditional_branch(tc, cl, tree->nodes[cond], label);
+                    MVM_jit_emit_conditional_branch(tc, cl, negate_flag(tc, flag), label);
                 }
             } else {
-                if (tree->nodes[cond] == MVM_JIT_ANY) {
+                if (flag == MVM_JIT_ANY) {
                     /* WHEN ANY skip label is label + 1 because label
                        + 0 is necessary to enter the conditional
                        block */
@@ -310,10 +313,12 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         {
             MVMint32 cond  = tree->nodes[node+1];
             MVMint32 label = tree->info[node].internal_label;
+            MVMint32 flag = tree->nodes[cond];
             if (i == 0) {
-                if (tree->nodes[cond] == MVM_JIT_ALL) {
-                    /* Like WHEN ALL, IF ALL short circuits into the alternative block */
-                } else if (tree->nodes[cond] == MVM_JIT_ANY) {
+                if (flag == MVM_JIT_ALL) {
+                    /* Like WHEN ALL, IF ALL short circuits into the
+                       alternative block */
+                } else if (flag == MVM_JIT_ANY) {
                     /* Like WHEN ANY, branch into the alternative
                      * block and emit a label for the conditional
                      * block */
@@ -323,10 +328,10 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                     MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
                     MVM_jit_emit_label(tc, cl, cl->graph, label);
                 } else {
-                    MVM_jit_emit_conditional_branch(tc, cl, tree->nodes[cond], label);
+                    MVM_jit_emit_conditional_branch(tc, cl, negate_flag(tc, flag), label);
                 }
             } else if (i == 1) {
-                if (tree->nodes[cond] == MVM_JIT_ANY) {
+                if (flag == MVM_JIT_ANY) {
                     /* IF ANY offsets the branch label by one */
                     MVMJitBranch branch;
                     branch.ins   = NULL;
@@ -341,7 +346,7 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                     MVM_jit_emit_label(tc, cl, cl->graph, label);
                 }
             } else {
-                if (tree->nodes[cond] == MVM_JIT_ANY) {
+                if (flag == MVM_JIT_ANY) {
                     MVM_jit_emit_label(tc, cl, cl->graph, label + 2);
                 } else {
                     MVM_jit_emit_label(tc, cl, cl->graph, label + 1);
@@ -385,6 +390,7 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             } else if (tree->nodes[cond] == MVM_JIT_ANY) {
                 /* Nothing to do here, since nested ANY already short-circuits */
             } else {
+                /* Normal evaluation should short-circuit on truth values */
                 MVM_jit_emit_conditional_branch(tc, cl, tree->nodes[cond], label);
             }
         }
