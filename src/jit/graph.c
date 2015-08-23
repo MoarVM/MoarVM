@@ -1875,7 +1875,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_coerce_In: {
         MVMint16 src = ins->operands[1].reg.orig;
         MVMint16 dst = ins->operands[0].reg.orig;
-        MVMJitCallArg args[2] = {{ MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+        MVMJitCallArg args[] = {{ MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { src } } };
         MVMJitRVMode rv_mode = ((op == MVM_OP_coerce_sn || op == MVM_OP_coerce_In) ? MVM_JIT_RV_NUM :
                                 op == MVM_OP_coerce_si ? MVM_JIT_RV_INT :
@@ -2385,7 +2385,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_return_n:
     case MVM_OP_return_i: {
         MVMint16 reg = ins->operands[0].reg.orig;
-        MVMJitCallArg args[3] = {{ MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+        MVMJitCallArg args[] = {{ MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { reg } },
                                  { MVM_JIT_LITERAL, { 0 } } };
         if (op == MVM_OP_return_n) {
