@@ -41,11 +41,15 @@ enum {
 X64_SSE(MVM_JIT_REGNAME)
 };
 
-#define MVM_JIT_NUM_REG_CLASS 2
+#define MVM_JIT_NUM_REGCLS 2
+#define MVM_JIT_REGCLS_GPR MVM_JIT_X64_GPR
+#define MVM_JIT_REGCLS_NUM MVM_JIT_X64_SSE
 
+#define MVM_JIT_RETVAL_GPR MVM_JIT_X64_RAX
+#define MVM_JIT_RETVAL_NUM MVM_JIT_X64_XMM0
 
 #if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_POSIX
-/* Define the GPR usable for general calculations */
+/* Define the GPR set usable for general calculations */
 
 #define X64_FREE_GPR(_) \
     _(RAX), \

@@ -4,6 +4,7 @@ struct MVMJitTile {
     const MVMint8 *path;
     const char    *descr;
     MVMint32  num_values;
+    /*    MVMint32  reg_req; */
     MVMJitExprVtype vtype;
     MVMint32  left_sym;
     MVMint32 right_sym;

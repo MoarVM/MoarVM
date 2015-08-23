@@ -213,7 +213,8 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                           MVMJitExprTree *tree, MVMint32 node) {
     const MVMJitTile *tile = tree->info[node].tile;
-    MVMJitExprValue *values[8];
+    MVMJitExprValue *values[8], *cur_value = &tree->info[node].value;
+    MVMint32 *order_nr = traverser->data;
     MVMint32 i;
     if (traverser->visits[node] > 1)
         return;
@@ -221,18 +222,24 @@ static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVM_jit_log(tc, "%04d: %s\n", node, tile->descr);
     if (tile->path == NULL)
         return;
+    /* Assign next compilation order number */
+    cur_value->order_nr = (*order_nr)++;
+    /* Minimum number of registers required is given by tile */
+    /* cur_value->reg_req =  tile->reg_req; */
     MVM_jit_tile_get_values(tc, tree, node, tile->path, values);
     for (i = 0; i < tile->num_values; i++) {
         /* update use information */
-        values[i]->first_use = MIN(values[i]->first_use, node);
-        values[i]->last_use  = MAX(values[i]->last_use, node);
+        values[i]->first_use = MIN(values[i]->first_use, cur_value->order_nr);
+        values[i]->last_use  = MAX(values[i]->last_use, cur_value->order_nr);
         values[i]->num_use++;
+        /* cur_value->reg_req   = MAX(values[i]->reg_req, cur_value->reg_req); */
     }
 }
 
 
 void MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
+    MVMint32 order_nr = 0;
     MVMint32 i;
     traverser.inorder = NULL;
     traverser.preorder = NULL;
@@ -244,6 +251,7 @@ void MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
         assign_tile(tc, tree, node, tree->info[node].tile_rule);
     }
     /* NB - we can add actual code generation during the postorder step here */
+    traverser.data      = &order_nr;
     traverser.preorder  = &select_tiles;
     traverser.postorder = &select_values;
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);

@@ -123,12 +123,13 @@ struct MVMJitExprValue {
     /* State information */
     MVMint32 defined;
     MVMint16 stack_loc;
-
-
+    /* Compilation information */
+    MVMint32 order_nr;
+    MVMint32 reg_req;
     /* Use information - I'd may want to change this into list of uses */
-    MVMint32        first_use;
-    MVMint32        last_use;
-    MVMint32        num_use;
+    MVMint32 first_use;
+    MVMint32 last_use;
+    MVMint32 num_use;
 };
 
 /* Tree node information for easy access and use during compilation (a

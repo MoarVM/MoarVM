@@ -45,10 +45,8 @@ void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
                            MVMJitJumpList *jumplist);
 void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                           MVMJitControl *ctrl);
-void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 stack_loc,
-                       MVMint32 reg_cls,  MVMint8 reg_num);
-void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 stack_loc,
-                        MVMint32 reg_cls, MVMint8 reg_num);
+void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprValue *value);
+void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprValue *value);
 
 #if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
 #include "jit/x64/arch.h"
