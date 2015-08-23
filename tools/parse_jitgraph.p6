@@ -103,13 +103,19 @@ sub parse_consume_ins_reprops($source, %opcode_to_cfunc) {
     # collect everything we've bailed on
     my @skipped_opcodes;
 
+    # also collect everything we've had success with
+    my @success_opcodes;
+
 chunkloop: for @chunks.kv -> $chunkidx, $_ {
         my @ops = .key.list;
         my @lines = .value.list;
 
-
         # what C variable refers to what piece of the op in the code
         my %var_sources;
+
+        # do we have something to read out of a register or a
+        # constant or something like that?
+        my %reg_types;
 
         # what arguments do we push to the C stack for this?
         my @c_arguments;
@@ -117,33 +123,51 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
         # keep lines in case we abort somewhere.
         my @lines_so_far;
 
+        # put this outside of the while loop for the report error sub
+        my $line;
+
+        sub report_unhandled($reason?) {
+            note "";
+            note "=============";
+            note "handling @ops.join(', ')";
+            if $reason {
+                note "";
+                note $reason;
+                note "";
+            }
+            .note for @lines_so_far;
+            note $line;
+            note "";
+            @skipped_opcodes.push: @ops.join(", ");
+            next chunkloop;
+        }
+
         # we expect the chunk to begin with some setup:
         # initialise local variables with
         #   register numbers
         #   literal numbers, a string index, ...
         while @lines {
             last if @lines[0] !~~ / ^ \s+ [MVMint|MVMuint] /;
-            my $line;
 
             while ($line = @lines.shift) ~~ m:s/^ [MVMint|MVMuint][16|32|64] <varname=.ident> '='
                     'ins->operands[' $<operandnum>=[\d+] ']'
                     [
                         | $<register>=".reg.orig"
                         | $<lit_str_idx>=".lit_str_idx"
+                        | $<literal>=[".lit_i16"|".lit_i64"]
                     ]
                     / {
                 @lines_so_far.push: "var_source: $line";
                 %var_sources{$<varname>.Str} = $<operandnum>.Int;
+                %reg_types{$<operandnum>.Int} = (
+                    $<register>      ?? 'register' !!
+                    $<lit_str_idx>   ?? 'str_idx' !!
+                    $<literal>       ?? 'literal' !!
+                        die "kind of operand source not defined: $/.perl()");
             }
 
             unless $line ~~ m:s/ MVMJitCallArg / {
-                note "handling @ops.join(', ')";
-                note "this line surprised us (expected MVMJitCallArg):";
-                .note for @lines_so_far;
-                note $line;
-                note "";
-                @skipped_opcodes.push: @ops.join(", ");
-                next chunkloop;
+                report_unhandled "this line surprised us (expected MVMJitCallArg):";
             }
 
             # since we consume the line in the condition for the coming
@@ -163,8 +187,15 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                 #say $/;
                 given $<argkind>.Str {
                     when "MVM_JIT_INTERP_VAR" {
-                        @c_arguments.push:
-                            "(carg (tc) ptr)";
+                        given $<argvalue> {
+                            when "MVM_JIT_INTERP_TC" {
+                                @c_arguments.push:
+                                    "(carg (tc) ptr)";
+                            }
+                            default {
+                                report_unhandled "this kind of interp var ($_) isn't handled yet";
+                            }
+                        }
                     }
                     when "MVM_JIT_REG_VAL" {
                         # later on: figure out if it's a str/obj or an
@@ -176,44 +207,33 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                         if try $<argvalue>.Int {
                             @c_arguments.push:
                                 '(carg (const ' ~ $<argvalue>.Int ~ ' int_sz) int)';
+                        } elsif $<argvalue>.Str ~~ %var_sources {
+                            my $source_register = %var_sources{$<argvalue>.Str};
+                            if %reg_types{$source_register} eq 'literal' {
+                                @c_arguments.push:
+                                    '(carg (copy $' ~ $source_register ~ '))';
+                            } else {
+                                report_unhandled "expected $<argvalue>.Str() (from $source_register) to be declared as literal";
+                            }
                         } else {
-                            note "can't handle literal $<argvalue> yet.";
-                            note "can't handle the argument kind $_ yet.";
-                            note "handling @ops.join(', ')";
-                            note "this line surprised us (expected jgb_append_call_c):";
-                            .note for @lines_so_far;
-                            note $line;
-                            note "";
-                            @skipped_opcodes.push: @ops.join(", ");
-                            next chunkloop;
+                            report_unhandled "didn't understand this kind of MVM_JIT_LITERAL.";
                         }
                     }
                     default {
-                        note "can't handle the argument kind $_ yet.";
-                        note "handling @ops.join(', ')";
-                        note "this line surprised us (expected jgb_append_call_c):";
-                        .note for @lines_so_far;
-                        note $line;
-                        note "";
-                        @skipped_opcodes.push: @ops.join(", ");
-                        next chunkloop;
+                        report_unhandled "this line surprised us (expected jgb_append_call_c):";
                     }
                 }
                 @lines_so_far.push: "c_args: $line";
             }
+
+            $line = $line ~  @lines.shift unless $line ~~ m/ ';' $ /;
 
             unless $line ~~ m:s/ jgb_append_call_c '('
                     tc ',' jgb ',' op_to_func '(' tc ',' op ')' ',' \d+ ',' args ','
                     $<return_type>=[ MVM_JIT_RV_VOID | MVM_JIT_RV_INT | MVM_JIT_RV_PTR ] ','
                     $<return_dst>=[ '-1' | <.ident> ] ')' ';'
                     / {
-                note "handling @ops.join(', ')";
-                note "this line surprised us (expected jgb_append_call_c):";
-                .note for @lines_so_far;
-                note $line;
-                note "";
-                @skipped_opcodes.push: @ops.join(", ");
-                next chunkloop;
+                report_unhandled "this line surprised us (expected jgb_append_call_c):";
             }
 
             my %rv_to_returnkind = (
@@ -235,10 +255,15 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                 say "        " ~ %rv_to_returnkind{$<return_type>};
                 say "    ) )";
                 say "";
+
+                @success_opcodes.push: $opname;
             }
         }
     }
 
+    note "all successfully parsed opcodes:";
+    note "    + $_" for @success_opcodes;
+    note "";
     note "all skipped operations:";
     note "    - $_" for @skipped_opcodes;
 }
