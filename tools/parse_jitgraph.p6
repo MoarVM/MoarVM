@@ -178,11 +178,24 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                                 '(carg (const ' ~ $<argvalue>.Int ~ ' int_sz) int)';
                         } else {
                             note "can't handle literal $<argvalue> yet.";
+                            note "can't handle the argument kind $_ yet.";
+                            note "handling @ops.join(', ')";
+                            note "this line surprised us (expected jgb_append_call_c):";
+                            .note for @lines_so_far;
+                            note $line;
+                            note "";
+                            @skipped_opcodes.push: @ops.join(", ");
                             next chunkloop;
                         }
                     }
                     default {
                         note "can't handle the argument kind $_ yet.";
+                        note "handling @ops.join(', ')";
+                        note "this line surprised us (expected jgb_append_call_c):";
+                        .note for @lines_so_far;
+                        note $line;
+                        note "";
+                        @skipped_opcodes.push: @ops.join(", ");
                         next chunkloop;
                     }
                 }
