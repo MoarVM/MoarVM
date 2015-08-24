@@ -215,6 +215,10 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                         @c_arguments.push:
                             '(carg $' ~ %var_sources{$<argvalue>.Str} ~ " int)";
                     }
+                    when "MVM_JIT_REG_VAL_F" {
+                        @c_arguments.push:
+                            '(carg $' ~ %var_sources{$<argvalue>.Str} ~ " num)";
+                    }
                     when "MVM_JIT_LITERAL" {
                         if defined try $<argvalue>.Int {
                             @c_arguments.push:
@@ -242,7 +246,7 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
 
             unless $line ~~ m:s/ jgb_append_call_c '('
                     tc ',' jgb ',' op_to_func '(' tc ',' op ')' ',' \d+ ',' args ','
-                    $<return_type>=[ MVM_JIT_RV_VOID | MVM_JIT_RV_INT | MVM_JIT_RV_PTR ] ','
+                    $<return_type>=[ MVM_JIT_RV_VOID | MVM_JIT_RV_INT | MVM_JIT_RV_PTR | MVM_JIT_RV_NUM ] ','
                     $<return_dst>=[ '-1' | <.ident> ] ')' ';'
                     / {
                 report_unhandled "this line surprised us (expected jgb_append_call_c):";
@@ -252,6 +256,7 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                     MVM_JIT_RV_VOID => 'void',
                     MVM_JIT_RV_INT  => 'int',
                     MVM_JIT_RV_PTR  => 'ptr',
+                    MVM_JIT_RV_NUM  => 'num',
                 );
 
             for @ops -> $opname {
