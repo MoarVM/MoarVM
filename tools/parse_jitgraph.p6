@@ -216,7 +216,7 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                             '(carg $' ~ %var_sources{$<argvalue>.Str} ~ " int)";
                     }
                     when "MVM_JIT_LITERAL" {
-                        if try $<argvalue>.Int {
+                        if defined try $<argvalue>.Int {
                             @c_arguments.push:
                                 '(carg (const ' ~ $<argvalue>.Int ~ ' int_sz) int)';
                         } elsif $<argvalue>.Str ~~ %var_sources {
