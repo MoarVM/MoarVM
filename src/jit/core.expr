@@ -203,7 +203,7 @@
          void))
 
 (template: ifnonnull
-    (when (any 2
+    (when (all 2
             (nz $0) (ne $0 (vmnull)))
         (branch (label $1)) ))
 
