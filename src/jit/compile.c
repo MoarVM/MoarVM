@@ -229,8 +229,7 @@ static void release_value(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprVa
 
 static void load_value(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprValue *value) {
     MVMint8 reg_num = MVM_jit_register_alloc(tc, cl, MVM_JIT_REGCLS_GPR);
-    MVM_jit_emit_load(tc, cl, value->spill_location, MVM_JIT_REGCLS_GPR, reg_num, value->size);
-    MVM_jit_register_assign(tc, cl, value, MVM_JIT_REGCLS_GPR, reg_num);
+    MVM_jit_register_load(tc, cl, value->spill_location, MVM_JIT_REGCLS_GPR, reg_num, value->size);
 }
 
 static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, MVMJitExprTree *tree, MVMint32 node) {
@@ -261,6 +260,7 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
     case MVM_JIT_IF:
     case MVM_JIT_EITHER:
         {
+            MVMJitExprValue *if_val = &tree->info[node].value;
             MVMint32 cond = tree->nodes[node+1];
             enter_conditional(tc, cl, tree, node);
             if (tree->nodes[cond] == MVM_JIT_ALL)  {
@@ -274,26 +274,17 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
             } else {
                 tree->info[node].internal_label = alloc_internal_label(tc, cl, 2);
             }
-        }
-        if (tree->nodes[node] == MVM_JIT_IF) {
-            /* IF node yields either a left or right branch
-               value. Preferably, we may achieve this without copying. */
-            MVMint32 left  = tree->nodes[node+2];
-            MVMint32 right = tree->nodes[node+3];
-            MVMJitExprValue *if_value    = &tree->info[node].value;
-            MVMJitExprValue *left_value  = &tree->info[left].value;
-            MVMJitExprValue *right_value = &tree->info[right].value;
-            if (left_value->state == MVM_JIT_VALUE_EMPTY && right_value->state == MVM_JIT_VALUE_EMPTY) {
-                alloc_value(tc, cl, if_value);
-                /* Both nodes share the same 'output register'. Of
-                   course, we have to check whether that works out
-                   afterwards! */
-                MVM_jit_register_assign(tc, cl, left_value, if_value->u.reg.cls, if_value->u.reg.num);
-                MVM_jit_register_assign(tc, cl, right_value, if_value->u.reg.cls, if_value->u.reg.num);
-            } else if (left_value->state == MVM_JIT_VALUE_ALLOCATED && right_value->state == MVM_JIT_VALUE_EMPTY) {
-                MVM_jit_register_assign(tc, cl, if_value, left_value->u.reg.cls, left_value->u.reg.num);
-                MVM_jit_register_assign(tc, cl, right_value, left_value->u.reg.cls, left_value->u.reg.num);
-            } /* else just let them allocate and use a copy to resolve the difference */
+            if (tree->nodes[node] == MVM_JIT_IF && if_val->state == MVM_JIT_VALUE_ALLOCATED) {
+                /* We have been pre-assigned a register. Try to make sure the left and right branches also use that register */
+                MVMJitExprValue *left_val = &tree->info[tree->nodes[node+2]].value,
+                    *right_val = &tree->info[tree->nodes[node+3]].value;
+                if (left_val->state == MVM_JIT_VALUE_EMPTY) {
+                    MVM_jit_register_assign(tc, cl, left_val, if_val->u.reg.cls, if_val->u.reg.num);
+                }
+                if (right_val->state == MVM_JIT_VALUE_EMPTY) {
+                    MVM_jit_register_assign(tc, cl, right_val, if_val->u.reg.cls, if_val->u.reg.num);
+                }
+            }
         }
         break;
     case MVM_JIT_ALL:
@@ -434,13 +425,18 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             } else if (i == 1) {
                 if (tree->nodes[node] == MVM_JIT_IF) {
                     MVMJitExprValue *if_val = &tree->info[node].value,
-                        *left_val = &tree->info[tree->nodes[node+2]].value;
+                        *left_val = &tree->info[tree->nodes[node+2]].value,
+                        *right_val = &tree->info[tree->nodes[node+3]].value;
                     if (if_val->state == MVM_JIT_VALUE_EMPTY) {
-                        /* Great, now we can assign the left branch and all will be well */
+                        /* Value was not pre-assigned. Now we can assign the left branch and all will be well */
                         MVM_jit_register_assign(tc, cl, if_val, left_val->u.reg.cls, left_val->u.reg.num);
                     } else if (if_val->u.reg.cls != left_val->u.reg.cls || if_val->u.reg.num != left_val->u.reg.num) {
                         /* This means we assigned a register, but for some reason we used a different one in the left branch. Thus we have to emit a copy */
                         MVM_jit_emit_copy(tc, cl, if_val->u.reg.cls, if_val->u.reg.num, left_val->u.reg.cls, left_val->u.reg.num);
+                    }
+                    if (right_val->state == MVM_JIT_VALUE_EMPTY) {
+                        /* Try to make the compiler emit the result value into the same register as the left value */
+                        MVM_jit_register_assign(tc, cl, right_val, left_val->u.reg.cls, left_val->u.reg.num);
                     }
                 }
                 if (flag == MVM_JIT_ANY) {

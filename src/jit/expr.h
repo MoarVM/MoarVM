@@ -131,6 +131,8 @@ struct MVMJitExprValue {
 
     /* Compilation information */
     MVMint32 order_nr;
+    /* TODO - we really do need this, but i'm not sure how exactly it
+       propagates over conditionals */
     MVMint32 reg_req;
 
     /* Use information - I'd may want to change this into list of uses */

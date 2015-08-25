@@ -66,9 +66,9 @@ void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, MVMJitCompiler *com
     compiler->allocator = NULL;
 }
 
-
-
 #define NYI(x) MVM_oops(tc, #x " NYI");
+
+
 
 MVMint8 MVM_jit_register_alloc(MVMThreadContext *tc, MVMJitCompiler *cl, MVMint32 reg_cls) {
     MVMJitRegisterAllocator *alc = cl->allocator;
@@ -83,7 +83,6 @@ MVMint8 MVM_jit_register_alloc(MVMThreadContext *tc, MVMJitCompiler *cl, MVMint3
         return alc->free_reg[alc->reg_top++];
     }
 }
-
 
 
 /* Freeing a register makes it available again */
@@ -117,6 +116,26 @@ void MVM_jit_register_release(MVMThreadContext *tc, MVMJitCompiler *compiler, MV
         UNLOCK_REGISTER(compiler->allocator, reg_num);
     }
 }
+
+
+void spill_value(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprValue *value) {
+    NYI(spill_value);
+}
+
+void MVM_jit_register_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 spill_location, MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
+    MVMint32 i;
+    /* When spilling a register, all values currently assigned to that register should be marked spilled */
+    MVM_jit_emit_spill(tc, compiler, spill_location, reg_cls, reg_num, size);
+    for (i = 0; i < compiler->allocator->active_num; i++) {
+        MVMJitExprValue *value = compiler->allocator->active[i];
+        if (value->state == MVM_JIT_VALUE_ALLOCATED &&
+            value->u.reg.cls == reg_cls && value->u.reg.num == reg_num) {
+            value->spill_location = spill_location;
+            value->state = MVM_JIT_VALUE_SPILLED;
+        }
+    }
+}
+
 
 /* Assign a register to a value. Useful primitive for 'virtual copy' */
 void MVM_jit_register_assign(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprValue *value, MVMint32 reg_cls, MVMint8 reg_num) {
@@ -152,6 +171,21 @@ void MVM_jit_register_expire(MVMThreadContext *tc, MVMJitCompiler *compiler, MVM
     }
 }
 
+void MVM_jit_register_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 spill_location,
+                           MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
+    MVMint32 i;
+    MVM_jit_emit_load(tc, compiler, spill_location, reg_cls, reg_num, size);
+    /* All active values assigned to that spill location are marked allocated */
+    for (i = 0; i < compiler->allocator->active_num; i++) {
+        MVMJitExprValue *value = compiler->allocator->active[i];
+        if (value->spill_location == spill_location) {
+            value->u.reg.cls = reg_cls;
+            value->u.reg.num = reg_num;
+            value->state     = MVM_JIT_VALUE_ALLOCATED;
+        }
+    }
+}
+
 /* Spill values prior to emitting a call */
 void MVM_jit_spill_before_call(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
     MVMJitRegisterAllocator *alc = cl->allocator;
@@ -159,9 +193,9 @@ void MVM_jit_spill_before_call(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitE
     MVMint32 i;
     for (i = 0; i < alc->active_num; i++) {
         MVMJitExprValue *v = alc->active[i];
+        /* currently allocate nodes that are live after the call need to be spilled */
         if (v->last_use > order_nr && v->state == MVM_JIT_VALUE_ALLOCATED) {
-            /* currently allocated, used after this node */
-            MVM_jit_spill_value(tc, cl, v);
+            spill_value(tc, cl, v);
         }
     }
 }
@@ -170,10 +204,13 @@ void MVM_jit_spill_before_call(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitE
 /* Expire values that are no longer useful */
 void MVM_jit_expire_values(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 order_nr) {
     MVMJitRegisterAllocator *alc = compiler->allocator;
-    MVMint32 i;
-    for (i = 0; i < alc->active_num; i++) {
-        if (alc->active[i]->last_use <= order_nr) {
-
+    MVMint32 i = 0;
+    while (i < alc->active_num) {
+        MVMJitExprValue *value = alc->active[i];
+        if (value->last_use <= order_nr) {
+            MVM_jit_register_expire(tc, compiler, value);
+        } else {
+            i++;
         }
     }
 }
