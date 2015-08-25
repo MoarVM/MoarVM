@@ -132,9 +132,30 @@ void MVM_jit_register_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMi
             value->u.reg.cls == reg_cls && value->u.reg.num == reg_num) {
             value->spill_location = spill_location;
             value->state = MVM_JIT_VALUE_SPILLED;
+            compiler->allocator->reg_use[reg_num]--;
+        }
+    }
+    if (compiler->allocator->reg_use[reg_num] != 0) {
+        MVM_oops(tc, "After spill no users of the registers should remain");
+    }
+}
+
+void MVM_jit_register_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 spill_location,
+                           MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
+    MVMint32 i;
+    MVM_jit_emit_load(tc, compiler, spill_location, reg_cls, reg_num, size);
+    /* All active values assigned to that spill location are marked allocated */
+    for (i = 0; i < compiler->allocator->active_num; i++) {
+        MVMJitExprValue *value = compiler->allocator->active[i];
+        if (value->spill_location == spill_location) {
+            value->u.reg.cls = reg_cls;
+            value->u.reg.num = reg_num;
+            value->state     = MVM_JIT_VALUE_ALLOCATED;
+            compiler->allocator->reg_use[reg_num]++;
         }
     }
 }
+
 
 
 /* Assign a register to a value. Useful primitive for 'virtual copy' */
@@ -171,20 +192,6 @@ void MVM_jit_register_expire(MVMThreadContext *tc, MVMJitCompiler *compiler, MVM
     }
 }
 
-void MVM_jit_register_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 spill_location,
-                           MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
-    MVMint32 i;
-    MVM_jit_emit_load(tc, compiler, spill_location, reg_cls, reg_num, size);
-    /* All active values assigned to that spill location are marked allocated */
-    for (i = 0; i < compiler->allocator->active_num; i++) {
-        MVMJitExprValue *value = compiler->allocator->active[i];
-        if (value->spill_location == spill_location) {
-            value->u.reg.cls = reg_cls;
-            value->u.reg.num = reg_num;
-            value->state     = MVM_JIT_VALUE_ALLOCATED;
-        }
-    }
-}
 
 /* Spill values prior to emitting a call */
 void MVM_jit_spill_before_call(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
