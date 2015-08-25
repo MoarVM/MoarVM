@@ -165,12 +165,14 @@ static MVMint32 alloc_internal_label(MVMThreadContext *tc, MVMJitCompiler *cl, M
 }
 
 
+#define NYI(x) MVM_oops(tc, #x " NYI")
 
 static void enter_conditional(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
     /* Before entering a conditional, we should spill all we are going
      * to spill inside the conditional, unless on some future date
      * we're going to implement local spill-and-restore. But that's
      * relatively more complicated, so we don't. */
+    NYI(enter_conditional);
  }
 
 
@@ -184,7 +186,7 @@ static void leave_conditional(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitEx
      * NB: it is _values_ which are invalidated, and _registers_ which
      * are allocated and freed.
      * */
-
+    NYI(leave_conditional);
 }
 
 
@@ -192,25 +194,30 @@ static void enter_call(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree 
     /* Calls invalidate all caller-saved registers. Values that have
        not yet been spilled and are needed after the call will need to
        be spilled */
- }
+    NYI(enter_call);
+}
 
 static void leave_call(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
     /* Post-call, we might implement restore, if the call was
        conditional. But that is something for another day */
+    NYI(leave_call);
 }
 
-static void ensure_register(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprValue *value) {
-    /* Ensure that a value is loaded into a register */
-    if (value->u.reg.num >= 0)
-        return;
-    MVM_jit_register_alloc(tc, cl, value);
-    MVM_jit_emit_load(tc, cl, value);
+
+
+static void alloc_value(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprValue *value) {
+    if (value->type == MVM_JIT_NUM) {
+        MVMint8 reg = MVM_jit_register_alloc(tc, cl, MVM_JIT_REGCLS_NUM);
+        MVM_jit_register_assign(tc, cl, value, MVM_JIT_REGCLS_NUM, reg);
+    } else {
+        MVMint8 reg = MVM_jit_register_alloc(tc, cl, MVM_JIT_REGCLS_GPR);
+        MVM_jit_register_assign(tc, cl, value, MVM_JIT_REGCLS_GPR, reg);
+    }
 }
 
-static void release_registers(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
-    /* NYI */
+static void use_value(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprValue *value) {
+    MVM_jit_register_use(tc, cl, value->u.reg.cls, value->u.reg.num);
 }
-
 
 static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, MVMJitExprTree *tree, MVMint32 node) {
     MVMJitCompiler *cl = traverser->data;
@@ -259,6 +266,20 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
                value. Preferably, we may achieve this without copying. */
             MVMint32 left  = tree->nodes[node+2];
             MVMint32 right = tree->nodes[node+3];
+            MVMJitExprValue *if_value    = &tree->info[node].value;
+            MVMJitExprValue *left_value  = &tree->info[left].value;
+            MVMJitExprValue *right_value = &tree->info[right].value;
+            if (left_value->state == MVM_JIT_VALUE_EMPTY && right_value->state == MVM_JIT_VALUE_EMPTY) {
+                alloc_value(tc, cl, if_value);
+                /* Both nodes share the same 'output register'. Of
+                   course, we have to check whether that works out
+                   afterwards! */
+                MVM_jit_register_assign(tc, cl, left_value, if_value->u.reg.cls, if_value->u.reg.num);
+                MVM_jit_register_assign(tc, cl, right_value, if_value->u.reg.cls, if_value->u.reg.num);
+            } else if (left_value->state == MVM_JIT_VALUE_ALLOCATED && right_value->state == MVM_JIT_VALUE_EMPTY) {
+                MVM_jit_register_assign(tc, cl, if_value, left_value->u.reg.cls, left_value->u.reg.num);
+                MVM_jit_register_assign(tc, cl, right_value, left_value->u.reg.cls, left_value->u.reg.num);
+            } /* else just let them allocate and use a copy to resolve the difference */
         }
         break;
     case MVM_JIT_ALL:
@@ -285,6 +306,7 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
         {
             /* To deal with nested ANY/ALL combinations, we need to propagate and assign labels */
             MVMint32 i, nchild = tree->nodes[node + 1], first_child = node + 2;
+            enter_conditional(tc, cl, tree, node);
             for (i = 0; i < nchild; i++) {
                 MVMint32 cond = tree->nodes[first_child+i];
                 if (tree->nodes[cond] == MVM_JIT_ALL) {
@@ -396,6 +418,17 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                     MVM_jit_emit_conditional_branch(tc, cl, negate_flag(tc, flag), label);
                 }
             } else if (i == 1) {
+                if (tree->nodes[node] == MVM_JIT_IF) {
+                    MVMJitExprValue *if_val = &tree->info[node].value,
+                        *left_val = &tree->info[tree->nodes[node+2]].value;
+                    if (if_val->state == MVM_JIT_VALUE_EMPTY) {
+                        /* Great, now we can assign the left branch and all will be well */
+                        MVM_jit_register_assign(tc, cl, if_val, left_val->u.reg.cls, left_val->u.reg.num);
+                    } else if (if_val->u.reg.cls != left_val->u.reg.cls || if_val->u.reg.num != left_val->u.reg.num) {
+                        /* This means we assigned a register, but for some reason we used a different one in the left branch. Thus we have to emit a copy */
+                        MVM_jit_emit_copy(tc, cl, if_val->u.reg.cls, if_val->u.reg.num, left_val->u.reg.cls, left_val->u.reg.num);
+                    }
+                }
                 if (flag == MVM_JIT_ANY) {
                     /* IF ANY offsets the branch label by one */
                     MVMJitBranch branch;
@@ -411,6 +444,14 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                     MVM_jit_emit_label(tc, cl, cl->graph, label);
                 }
             } else {
+                if (tree->nodes[node] == MVM_JIT_IF) {
+                    MVMJitExprValue *if_val = &tree->info[node].value,
+                        *right_val = &tree->info[tree->nodes[node+3]].value;
+                    /* we assigned IF to a register at latest after the left branch, so all that is left is checking whether the right value has the same branch */
+                    if (if_val->u.reg.cls != right_val->u.reg.cls || if_val->u.reg.num != right_val->u.reg.num) {
+                        MVM_jit_emit_copy(tc, cl, if_val->u.reg.cls, if_val->u.reg.num, right_val->u.reg.cls, right_val->u.reg.num);
+                    }
+                }
                 if (flag == MVM_JIT_ANY) {
                     MVM_jit_emit_label(tc, cl, cl->graph, label + 2);
                 } else {
@@ -485,12 +526,14 @@ static MVMint8 x64_sse_args[] = {
 static void compile_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler,
                             MVMJitExprTree *tree, MVMint32 node) {
     /* TODO implement this */
+    NYI(compile_arglist);
 }
 #else
 static void compile_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree,
                             MVMint32 node) {
     MVMint32 i, nchild = tree->nodes[node+1], first_child = node+2;
     /* TODO implement this too */
+    NYI(compile_arglist);
 }
 #endif
 
@@ -498,7 +541,7 @@ static void compile_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
 /* No such architecture */
 static void compile_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree,
                             MVMint32 node) {
-    MVM_oops(tc, "compile_arglist NYI for this architecture");
+    NYI(compile_arglist);
 }
 #endif
 
@@ -519,80 +562,94 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
         if (tile == NULL || tile->rule == NULL) {
             MVM_oops(tc, "Tile without a rule!");
         }
-        /* We don't really need preparation, compile_arglist did that */
+        /* Emit call */
         MVM_jit_tile_get_values(tc, tree, node, tile->path, values+1);
         tile->rule(tc, cl, tree, node, values, args);
         /* Update return value */
-        if (args[0] == MVM_JIT_VOID) {
-            values[0]->u.reg.num = -1;
-        } else if (args[0] == MVM_JIT_NUM) {
-            values[0]->u.reg.num = MVM_JIT_RETVAL_NUM;
-            values[0]->u.reg.cls = MVM_JIT_REGCLS_NUM;
-        } else {
-            values[0]->u.reg.num = MVM_JIT_RETVAL_GPR;
-            values[0]->u.reg.cls = MVM_JIT_REGCLS_GPR;
+        if (args[0] == MVM_JIT_NUM) {
+            MVM_jit_register_assign(tc, cl, values[0], MVM_JIT_REGCLS_NUM, MVM_JIT_RETVAL_NUM);
+        } else if (args[0] != MVM_JIT_VOID) {
+            MVM_jit_register_assign(tc, cl, values[0], MVM_JIT_REGCLS_GPR, MVM_JIT_RETVAL_GPR);
         }
         /* post call work */
         leave_call(tc, cl, tree, node);
+        break;
+    case MVM_JIT_CARG:
         break;
     case MVM_JIT_ARGLIST:
         compile_arglist(tc, cl, tree, node);
         break;
     case MVM_JIT_WHEN:
     case MVM_JIT_EITHER:
-        /* WHEN and EITHER do not yield a value */
+    case MVM_JIT_ALL:
+    case MVM_JIT_ANY:
         leave_conditional(tc, cl, tree, node);
-        values[0]->u.reg.num = -1;
         break;
     case MVM_JIT_IF:
-        /* IF does, though */
+        /* The IF conditional assigned register is live by construction */
+        values[0]->state = MVM_JIT_VALUE_ALLOCATED; /* NB - inform the register allocator of this */
+        leave_conditional(tc, cl, tree, node);
+        break;
+    case MVM_JIT_DO:
         {
-            MVMint32 left = tree->nodes[node+2], right = tree->nodes[node+3];
-            MVMint8 reg_a = tree->info[left].value.u.reg.num, reg_b = tree->info[right].value.u.reg.num;
-            if (reg_a == reg_b) {
-                /* happy case */
-                values[0]->u.reg.num = reg_a;
-            } else {
-                /* not so happy case. emit a copy */
-                MVM_jit_emit_copy(tc, reg_a, reg_b);
+            MVMint32 last = node + 1 + tree->nodes[node+1];
+            MVMint32 last_child = tree->nodes[last];
+            MVMJitExprValue *last_value  = &tree->info[last_child].value;
+            if (last_value->type == MVM_JIT_REG) {
+                if (values[0]->state == MVM_JIT_VALUE_EMPTY) {
+                    /* Virtual copy case */
+                    MVM_jit_register_assign(tc, cl, values[0], last_value->u.reg.cls, last_value->u.reg.num);
+                } else if (values[0]->u.reg.cls != last_value->u.reg.cls || values[0]->u.reg.num != last_value->u.reg.num) {
+                    MVM_jit_emit_copy(tc, cl, values[0]->u.reg.cls, values[0]->u.reg.num, last_value->u.reg.cls, last_value->u.reg.num);
+                }
+                values[0]->state = MVM_JIT_VALUE_ALLOCATED;
             }
-            leave_conditional(tc, cl, tree, node);
+            /* otherwise is the void case */
         }
         break;
         default:
         {
             if (tile->rule == NULL)
+                /* Empty tile rule */
                 return;
-
+            /* Extract value pointers from the tree */
             MVM_jit_tile_get_values(tc, tree, node, tile->path, values+1);
 
+            /* Ensure all register values are live */
             for (i = 0; i < tile->num_values; i++) {
-                /* TODO - ensure all values that are typed registers,
-                 * are placed into registers! */
-                if (values[i+1]->type == MVM_JIT_REG) {
-                    ensure_register(tc, cl, values[i+1]);
+                MVMJitExprValue *value = values[i+1];
+                if (value->type == MVM_JIT_REG) {
+                    if (value->state == MVM_JIT_VALUE_SPILLED)
+                        MVM_jit_register_load_value(tc, cl, value);
+                    else if (value->state == MVM_JIT_VALUE_EMPTY ||
+                             value->state == MVM_JIT_VALUE_DEAD) {
+                        MVM_oops(tc, "Value is not accessible");
+                    }
+                    /* Mark value as in-use */
+                    use_value(tc, cl, value);
                 }
             }
 
             if (tile->vtype == MVM_JIT_REG) {
-                /* allocate a register */
-                if (values[1]->type == MVM_JIT_REG && values[1]->last_use == node) {
-                    values[0]->u.reg.num = values[1]->u.reg.num;
-                    values[0]->u.reg.cls = values[1]->u.reg.cls;
-                    /* Free register so it can be reused */
-                    MVM_jit_register_release(tc, cl, values[0]->u.reg.cls, values[0]->u.reg.num);
-                } else {
-                    values[0]->u.reg.num = MVM_jit_register_alloc(tc, cl, MVM_JIT_X64_GPR);
-                    values[0]->u.reg.cls = MVM_JIT_X64_GPR;
+                /* allocate a register for the result */
+                if (values[0]->state == MVM_JIT_VALUE_EMPTY) {
+                    if (values[1]->type == MVM_JIT_REG && values[1]->last_use == values[0]->order_nr) {
+                        /* First register expires immediately */
+                        MVM_jit_register_assign(tc, cl, values[0], values[1]->u.reg.cls, values[1]->u.reg.num);
+                    } else {
+                        alloc_value(tc, cl, values[0]);
+                        use_value(tc, cl, values[0]);
+                    }
                 }
-                MVM_jit_register_use(tc, cl, values[0]->u.reg.cls, values[0]->u.reg.num, node);
             }
             values[0]->type = tile->vtype;
+            /* Emit code */
             tile->rule(tc, cl, tree, node, values, args);
         }
+        MVM_jit_expire_values(tc, cl, values[0]->order_nr);
+        break;
     }
-    /* TODO implement register release afterwards */
-    release_registers(tc, cl, tree, node);
+
 }
 
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {

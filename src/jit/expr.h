@@ -104,6 +104,12 @@ struct MVMJitExprOpInfo {
 struct MVMJitExprValue {
     /* used to signal register allocator, tiles don't look at this */
     MVMJitExprVtype type;
+    enum {
+        MVM_JIT_VALUE_EMPTY,
+        MVM_JIT_VALUE_ALLOCATED,
+        MVM_JIT_VALUE_SPILLED,
+        MVM_JIT_VALUE_DEAD
+    } state;
     /* different values */
     union {
         struct {

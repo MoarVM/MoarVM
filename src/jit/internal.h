@@ -19,6 +19,7 @@ struct MVMJitCompiler {
     MVMJitGraph *graph;
     MVMint32    next_label;
     MVMint32    label_max;
+    MVMJitRegisterAllocator *allocator;
 };
 
 /* Declarations for architecture-specific codegen stuff */
@@ -47,7 +48,8 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
                           MVMJitControl *ctrl);
 void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprValue *value);
 void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprValue *value);
-
+void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 dst_reg_cls,
+                       MVMint8 dst_reg_num, MVMint32 src_reg_cls, MVMint8 src_reg_num);
 #if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
 #include "jit/x64/arch.h"
 #endif
