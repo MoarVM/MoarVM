@@ -262,7 +262,7 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                             my $source_register = %var_sources{$<argvalue>.Str};
                             if %reg_types{$source_register} eq 'literal' {
                                 @c_arguments.push:
-                                    '(carg (copy $' ~ $source_register ~ '))';
+                                    '(carg (copy $' ~ $source_register ~ ') int)';
                             } else {
                                 report_unhandled "expected $<argvalue>.Str() (from $source_register) to be declared as literal";
                             }
