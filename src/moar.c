@@ -15,7 +15,7 @@ static void setup_std_handles(MVMThreadContext *tc);
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
     char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable, *spesh_osr_disable;
-    char *jit_log, *jit_disable, *jit_bytecode_dir;
+    char *jit_log, *jit_expr_enable, *jit_disable, *jit_bytecode_dir;
     char *dynvar_log;
     int init_stat;
 
@@ -154,6 +154,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     jit_disable = getenv("MVM_JIT_DISABLE");
     if (!jit_disable || strlen(jit_disable) == 0)
         instance->jit_enabled = 1;
+    jit_expr_enable = getenv("MVM_JIT_EXPR_ENABLE");
+    if (jit_expr_enable && strlen(jit_expr_enable) > 0)
+        instance->jit_expr_enabled = 1;
+
     jit_log = getenv("MVM_JIT_LOG");
     if (jit_log && strlen(jit_log))
         instance->jit_log_fh = fopen(jit_log, "w");

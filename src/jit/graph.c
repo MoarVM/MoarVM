@@ -2430,7 +2430,7 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
     jgb->cur_ins = bb->first_ins;
     /* First try to create an expression tree */
     tree = MVM_jit_expr_tree_build(tc, jgb->graph, bb);
-    if (tree != NULL) {
+    if (tc->instance->jit_expr_enabled && tree != NULL) {
         MVMJitNode *node = MVM_spesh_alloc(tc, jgb->graph->sg, sizeof(MVMJitNode));
         node->type       = MVM_JIT_NODE_EXPR_TREE;
         node->u.tree     = tree;
@@ -2438,6 +2438,11 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
         /* Log the tree */
         MVM_jit_log_expr_tree(tc, tree);
     } else {
+        if (tree != NULL) {
+            /* log the tree for fun and giggles */
+            MVM_jit_log_expr_tree(tc, tree);
+            MVM_jit_expr_tree_destroy(tc, tree);
+        }
         /* Otherwise, try to consume the basic block per instruction */
         while (jgb->cur_ins) {
             jgb_before_ins(tc, jgb, jgb->cur_bb, jgb->cur_ins);

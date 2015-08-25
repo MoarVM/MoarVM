@@ -187,6 +187,7 @@ struct MVMInstance {
 
     /* Flag for if jit is enabled */
     MVMint32 jit_enabled;
+    MVMint32 jit_expr_enabled;
 
     /* File for JIT logging */
     FILE *jit_log_fh;
