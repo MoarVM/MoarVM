@@ -195,6 +195,12 @@
 (template: hllboxtype_i
     (load (addr (^hllconfig) (&offsetof MVMHLLConfig int_box_type)) ptr_sz))
 
+(template: hllboxtype_s
+    (load (addr (^hllconfig) (&offsetof MVMHLLConfig str_box_type)) ptr_sz))
+
+(template: hllboxtype_n
+    (load (addr (^hllconfig) (&offsetof MVMHLLConfig num_box_type)) ptr_sz))
+
 (template: curcode
   (load (addr (frame) (&offsetof MVMFrame code_ref)) ptr_sz))
 
