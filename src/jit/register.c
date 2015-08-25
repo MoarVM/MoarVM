@@ -40,6 +40,12 @@ static MVMint8 free_gpr[] = { -1 };
 static MVMint8 free_num[] = { -1 };
 #endif
 
+/* Register lock bitmap macros */
+#define REGISTER_LOCKED(a, n) ((a)->reg_lock &  (1 << (n)))
+#define LOCK_REGISTER(a, n)   ((a)->reg_lock |= (1 << (n)))
+#define UNLOCK_REGISTER(a,n)  ((a)->reg_lock ^= (1 << (n)))
+
+
 /* NB only implement GPR register allocation now */
 void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                      MVMJitRegisterAllocator *alc) {
@@ -49,7 +55,8 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compi
     memcpy(alc->free_reg, free_gpr, sizeof(free_gpr));
     memset(alc->reg_use, 0, sizeof(alc->reg_use));
     alc->reg_top   = 0;
-    alc->stack_top = 0;
+    alc->spill_top = 0;
+    alc->reg_lock  = 0;
     compiler->allocator = alc;
 }
 
@@ -60,9 +67,6 @@ void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, MVMJitCompiler *com
 }
 
 
-#define REGISTER_LOCKED(a, n) ((a)->reg_lock &  (1 << (n)))
-#define LOCK_REGISTER(a, n)   ((a)->reg_lock |= (1 << (n)))
-#define UNLOCK_REGISTER(a,n)  ((a)->reg_lock ^= (1 << (n)))
 
 #define NYI(x) MVM_oops(tc, #x " NYI");
 
@@ -80,6 +84,9 @@ MVMint8 MVM_jit_register_alloc(MVMThreadContext *tc, MVMJitCompiler *cl, MVMint3
     }
 }
 
+
+
+/* Freeing a register makes it available again */
 void MVM_jit_register_free(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 reg_cls, MVMint8 reg_num) {
     MVMJitRegisterAllocator *alc = compiler->allocator;
     if (reg_cls == MVM_JIT_REGCLS_NUM) {
@@ -93,6 +100,24 @@ void MVM_jit_register_free(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMin
     }
 }
 
+/* Use marks a register currently in use */
+void MVM_jit_register_use(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 reg_cls, MVMint8 reg_num) {
+    if (reg_cls == MVM_JIT_REGCLS_NUM) {
+        NYI(numeric_regs);
+    } else {
+        LOCK_REGISTER(compiler->allocator, reg_num);
+    }
+
+}
+
+void MVM_jit_register_release(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 reg_cls, MVMint8 reg_num) {
+    if (reg_cls == MVM_JIT_REGCLS_NUM) {
+        NYI(numeric_regs);
+    } else {
+        UNLOCK_REGISTER(compiler->allocator, reg_num);
+    }
+}
+
 /* Assign a register to a value. Useful primitive for 'virtual copy' */
 void MVM_jit_register_assign(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprValue *value, MVMint32 reg_cls, MVMint8 reg_num) {
     MVMJitRegisterAllocator *alc = cl->allocator;
@@ -102,6 +127,7 @@ void MVM_jit_register_assign(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExp
     alc->reg_use[reg_num]++;
 }
 
+/* Expiring a value marks it dead and possibly releases its register */
 void MVM_jit_register_expire(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprValue *value) {
     MVMJitRegisterAllocator *alc = compiler->allocator;
     MVMint8 reg_num = value->u.reg.num;
@@ -119,10 +145,9 @@ void MVM_jit_register_expire(MVMThreadContext *tc, MVMJitCompiler *compiler, MVM
     }
     /* Mark value as dead */
     value->state = MVM_JIT_VALUE_DEAD;
-    /* Decrease register number count */
+    /* Decrease register number count and free if possible */
     alc->reg_use[reg_num]--;
     if (alc->reg_use[reg_num] == 0) {
-        /* Free register if possible */
         MVM_jit_register_free(tc, compiler, value->u.reg.cls, reg_num);
     }
 }

@@ -17,8 +17,14 @@ struct MVMJitCompiler {
     dasm_State *dasm_handle;
     void      **dasm_globals;
     MVMJitGraph *graph;
+
     MVMint32    next_label;
     MVMint32    label_max;
+    MVMint32    order_nr;
+    /* For spilling values that don't fit into the register allocator */
+    MVMint32    spill_offset;
+    MVMint32    max_spill;
+
     MVMJitRegisterAllocator *allocator;
 };
 
@@ -46,8 +52,9 @@ void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
                            MVMJitJumpList *jumplist);
 void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                           MVMJitControl *ctrl);
-void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprValue *value);
-void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprValue *value);
+
+void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location, MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size);
+void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location, MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size);
 void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 dst_reg_cls,
                        MVMint8 dst_reg_num, MVMint32 src_reg_cls, MVMint8 src_reg_num);
 #if MVM_JIT_ARCH == MVM_JIT_ARCH_X64

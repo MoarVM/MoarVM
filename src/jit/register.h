@@ -9,8 +9,10 @@ struct MVMJitRegisterAllocator {
     MVMint8 free_reg[8];
     MVMuint8 reg_use[16];
     MVMint8 reg_top;
-    /* topmost stack location used */
-    MVMint32 stack_top;
+    /* topmost spill location used */
+    MVMint32 spill_top;
+    /* Bitmap of used registers */
+    MVMint32 reg_lock;
 };
 
 

@@ -2161,5 +2161,61 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
     }
 }
 
+void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location,
+                       MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
+    MVMint32 idx = location + compiler->spill_offset;
+    if (reg_cls == MVM_JIT_X64_GPR) {
+        switch(size) {
+        case 1:
+            | mov Rb(reg_num), byte [rbx+idx];
+            break;
+        case 2:
+            | mov Rw(reg_num), word [rbx+idx];
+            break;
+        case 4:
+            | mov Rd(reg_num), dword [rbx+idx];
+            break;
+        case 8:
+            | mov Rq(reg_num), qword [rbx+idx];
+            break;
+        }
+    }
+}
+
+void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location,
+                        MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
+    MVMint32 idx = location + compiler->spill_offset;
+    if (reg_cls == MVM_JIT_X64_GPR) {
+        switch (size) {
+        case 1:
+            | mov byte [rbx+idx], Rb(reg_num);
+            break;
+        case 2:
+            | mov word [rbx+idx], Rw(reg_num);
+            break;
+        case 4:
+            | mov dword [rbx+idx], Rd(reg_num);
+            break;
+        case 8:
+            | mov qword [rbx+idx], Rq(reg_num);
+            break;
+        }
+    }
+}
+
+void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 dst_reg_cls,
+                       MVMint8 dst_reg_num, MVMint32 src_reg_cls, MVMint8 src_reg_num) {
+    if (dst_reg_cls == src_reg_cls) {
+        if (dst_reg_cls == MVM_JIT_X64_GPR) {
+            /* copy entire register! */
+            | mov Rq(dst_reg_num), Rq(src_reg_num);
+        } else {
+            MVM_oops(tc, "numeric regs nyi");
+        }
+    } else {
+        MVM_oops(tc, "numeric regs nyi");
+    }
+}
+
 /* import tiles */
 |.include src/jit/x64/tiles.dasc

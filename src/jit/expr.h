@@ -126,12 +126,13 @@ struct MVMJitExprValue {
     } u;
     MVMint8  size;
 
-    /* State information */
-    MVMint32 defined;
-    MVMint16 stack_loc;
+    /* Spill information if any */
+    MVMint16 spill_location;
+
     /* Compilation information */
     MVMint32 order_nr;
     MVMint32 reg_req;
+
     /* Use information - I'd may want to change this into list of uses */
     MVMint32 first_use;
     MVMint32 last_use;
