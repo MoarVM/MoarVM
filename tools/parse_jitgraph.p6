@@ -219,6 +219,28 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                         @c_arguments.push:
                             '(carg $' ~ %var_sources{$<argvalue>.Str} ~ " num)";
                     }
+                    when "MVM_JIT_REG_ADDR" {
+                        my %result;
+                        my $operand_idx = %var_sources{$<argvalue>.Str};
+                        for @ops -> $op {
+                            my $op_number = %codes{$op};
+                            my $op_values_offset = @offsets[$op_number];
+                            my $operand_flags = @values[$op_values_offset] + $operand_idx;
+
+                            my $operand_rw_flags = $operand_flags +& %flags<MVM_operand_rw_mask>;
+
+                            if $operand_rw_flags == %flags<MVM_operand_write_reg> {
+                                %result{$op} = '(carg $' ~ $operand_idx ~ ' ptr_sz)';
+                            } else {
+                                report_unhandled "there's a MVM_JIT_REG_ADDR here, but the operand isn't a MVM_operand_write_reg (it's $operand_rw_flags instead).";
+                            }
+                        }
+                        if [eq] %result.values {
+                            @c_arguments.push: %result.values[0];
+                        } else {
+                            @c_arguments.push: %result;
+                        }
+                    }
                     when "MVM_JIT_LITERAL" {
                         if defined try $<argvalue>.Int {
                             @c_arguments.push:
@@ -266,7 +288,11 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                 say "    (call (^func {%opcode_to_cfunc{$opname}})";
                 say "        (arglist {+@c_arguments}";
                 for @c_arguments -> $carg {
-                    say "            $carg";
+                    if $carg ~~ Associative {
+                        say "            $carg{$opname}";
+                    } else {
+                        say "            $carg";
+                    }
                 }
                 say "        )";
                 say "        " ~ %rv_to_returnkind{$<return_type>};
