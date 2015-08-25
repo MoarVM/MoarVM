@@ -1,8 +1,8 @@
 #include "moar.h"
 #include "dasm_proto.h"
+#include <math.h>
 #if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
 #include "x64/tile_decl.h"
-#include <math.h>
 #include "x64/tile_tables.h"
 #endif
 
@@ -210,25 +210,45 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVM_DYNAR_ENSURE_SIZE(traverser->visits, tree->nodes_num);
 }
 
+static void arglist_get_values(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMJitExprValue **values) {
+    MVMint32 i, nchild = tree->nodes[node+1];
+    for (i = 0; i < nchild; i++) {
+        MVMint32 carg = tree->nodes[node+2+i];
+        MVMint32 val  = tree->nodes[carg+1];
+        *values++     = &tree->info[val].value;
+    }
+}
+
 
 static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                           MVMJitExprTree *tree, MVMint32 node) {
     const MVMJitTile *tile = tree->info[node].tile;
-    MVMJitExprValue *values[8], *cur_value = &tree->info[node].value;
+    MVMJitExprValue *values[16], *cur_value = &tree->info[node].value;
     MVMint32 *order_nr = traverser->data;
-    MVMint32 i;
+    MVMint32 i, num_values;
     if (traverser->visits[node] > 1)
         return;
     /* Log tile for debugging */
     MVM_jit_log(tc, "%04d: %s\n", node, tile->descr);
-    if (tile->path == NULL)
-        return;
-    /* Assign next compilation order number */
-    cur_value->order_nr = (*order_nr)++;
+
     /* Minimum number of registers required is given by tile */
     /* cur_value->reg_req =  tile->reg_req; */
-    MVM_jit_tile_get_values(tc, tree, node, tile->path, values);
-    for (i = 0; i < tile->num_values; i++) {
+    switch (tree->nodes[node]) {
+    case MVM_JIT_ARGLIST:
+        cur_value->order_nr = (*order_nr)++;
+        arglist_get_values(tc, tree, node, values);
+        num_values = tree->nodes[node+1];
+        break;
+    default:
+        if (tile->path == NULL)
+            return;
+        /* Assign next compilation order number */
+        cur_value->order_nr = (*order_nr)++;
+        MVM_jit_tile_get_values(tc, tree, node, tile->path, values);
+        num_values = tile->num_values;
+        break;
+    }
+    for (i = 0; i < num_values; i++) {
         /* update use information */
         values[i]->first_use = MIN(values[i]->first_use, cur_value->order_nr);
         values[i]->last_use  = MAX(values[i]->last_use, cur_value->order_nr);

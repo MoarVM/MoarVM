@@ -329,10 +329,6 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
             }
         }
         break;
-    case MVM_JIT_CALL:
-        /* Before we prepare the entire call, be sure to spill values needed afterwards */
-        enter_call(tc, cl, tree, node);
-        break;
     default:
         break;
     }
@@ -534,18 +530,117 @@ static MVMint8 x64_sse_args[] = {
     X64_ARG_SSE(MVM_JIT_REGNAME)
 };
 
+
 #if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_POSIX
 static void compile_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler,
                             MVMJitExprTree *tree, MVMint32 node) {
-    /* TODO implement this */
-    NYI(compile_arglist);
+    /* Let's first ensure we have all the necessary values in place */
+    MVMint32 i, nchild = tree->nodes[node+1];
+    MVMJitExprValue *gpr_values[6], *sse_values[8], *stack_values[16];
+    MVMint32 num_gpr = 0, num_sse = 0, num_stack = 0;
+    for (i = 0; i < nchild; i++) {
+        MVMint32 carg = tree->nodes[node+2+i];
+        MVMint32 argtyp = tree->nodes[carg+2];
+        MVMJitExprValue *argval = &tree->info[tree->nodes[carg+1]].value;
+        if (argtyp == MVM_JIT_NUM) {
+            if (num_sse < (sizeof(sse_values)/sizeof(sse_values[0]))) {
+                sse_values[num_sse++] = argval;
+            } else {
+                stack_values[num_stack++] = argval;
+            }
+        } else {
+            if (num_gpr < (sizeof(gpr_values)/sizeof(gpr_values[0]))) {
+                gpr_values[num_gpr++] = argval;
+            } else {
+                stack_values[num_stack++] = argval;
+            }
+        }
+    }
+    /* The following is pretty far from optimal. The optimal code
+       would determine which values currently reside in registers and
+       where they should be placed, and move them there, possibly
+       freeing up registers for later access. But that requires some
+       pretty complicated logic.  */
+
+    /* Now emit the gpr values */
+    for (i = 0; i < num_gpr; i++) {
+        MVMJitExprValue *argval = gpr_values[i];
+        MVMint8 reg_num = x64_gpr_args[i];
+        if (argval->state == MVM_JIT_VALUE_SPILLED) {
+            /* Take the register, load, and assign */
+            MVM_jit_register_take(tc, compiler, MVM_JIT_REGCLS_GPR, reg_num);
+            MVM_jit_register_load(tc, compiler, argval->spill_location,
+                                  MVM_JIT_REGCLS_GPR, reg_num, argval->size);
+        } else if (argval->state == MVM_JIT_VALUE_ALLOCATED) {
+            if (argval->u.reg.cls == MVM_JIT_REGCLS_GPR && argval->u.reg.num == reg_num) {
+                /* happy days, nothing to do for us */
+            } else {
+                /* Aqcuire the register and copy the value */
+                MVM_jit_register_take(tc, compiler, MVM_JIT_REGCLS_GPR, reg_num);
+                MVM_jit_emit_copy(tc, compiler, MVM_JIT_REGCLS_GPR, reg_num,
+                                  argval->u.reg.cls, argval->u.reg.num);
+                /* Reassign to the new register */
+                MVM_jit_register_expire(tc, compiler, argval);
+                MVM_jit_register_assign(tc, compiler, argval, MVM_JIT_REGCLS_GPR, reg_num);
+            }
+        } else {
+            MVM_oops(tc, "ARGLIST: Live Value Inaccessible");
+        }
+        /* Mark GPR as used - nb, that means we need some cleanup logic afterwards */
+        MVM_jit_register_use(tc, compiler, MVM_JIT_REGCLS_GPR, reg_num);
+    }
+
+    /* SSE logic is pretty much the same as GPR logic, just with SSE rather than GPR args  */
+    for (i = 0; i < num_sse; i++) {
+        MVMJitExprValue *argval = sse_values[i];
+        MVMint8 reg_num = x64_sse_args[i];
+        if (argval->state == MVM_JIT_VALUE_SPILLED) {
+            MVM_jit_register_take(tc, compiler, MVM_JIT_REGCLS_NUM, reg_num);
+            MVM_jit_register_load(tc, compiler, argval->spill_location,
+                                  MVM_JIT_REGCLS_NUM, reg_num, argval->size);
+        } else if (argval->state == MVM_JIT_VALUE_ALLOCATED) {
+            if (argval->u.reg.cls == MVM_JIT_REGCLS_NUM && argval->u.reg.num == reg_num) {
+            } else {
+                MVM_jit_register_take(tc, compiler, MVM_JIT_REGCLS_NUM, reg_num);
+                MVM_jit_emit_copy(tc, compiler, MVM_JIT_REGCLS_NUM, reg_num,
+                                  argval->u.reg.cls, argval->u.reg.num);
+                MVM_jit_register_expire(tc, compiler, argval);
+                MVM_jit_register_assign(tc, compiler, argval, MVM_JIT_REGCLS_NUM, reg_num);
+            }
+        } else {
+            MVM_oops(tc, "ARGLIST: Live Value Inaccessible");
+        }
+        MVM_jit_register_use(tc, compiler, MVM_JIT_REGCLS_NUM, reg_num);
+    }
+
+    /* Stack arguments are simpler than register arguments */
+    for (i = 0; i < num_stack; i++) {
+        MVMJitExprValue *argval = stack_values[i];
+        if (argval->state == MVM_JIT_VALUE_SPILLED) {
+            /* Allocate a temporary register, load and place, and free the register */
+            MVMint8 reg_num = MVM_jit_register_alloc(tc, compiler, MVM_JIT_REGCLS_GPR);
+            /* We do the load directly because, this value being
+             * spilled and invalidated just after the call, there is
+             * no reason to involve the register allocator */
+            MVM_jit_emit_load(tc, compiler, argval->spill_location,
+                              MVM_JIT_REGCLS_GPR, reg_num,  argval->size);
+            MVM_jit_emit_stack_arg(tc, compiler, i * 8, MVM_JIT_REGCLS_GPR, reg_num, argval->size);
+            MVM_jit_register_free(tc, compiler, MVM_JIT_REGCLS_GPR, reg_num);
+        } else if (argval->state == MVM_JIT_VALUE_ALLOCATED) {
+            MVM_jit_emit_stack_arg(tc, compiler, i * 8, argval->u.reg.cls,
+                                   argval->u.reg.num, argval->size);
+        } else {
+            MVM_oops(tc, "ARGLIST: Live Value Inaccessible");
+        }
+    }
+
 }
 #else
 static void compile_arglist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree,
                             MVMint32 node) {
     MVMint32 i, nchild = tree->nodes[node+1], first_child = node+2;
     /* TODO implement this too */
-    NYI(compile_arglist);
+    NYI(compile_arglist_win32);
 }
 #endif
 
@@ -577,6 +672,9 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
         if (tile == NULL || tile->rule == NULL) {
             MVM_oops(tc, "Tile without a rule!");
         }
+        /* A call invalidates the entire volatile register set. Values
+           live after the call are to be spilled before the call. */
+        enter_call(tc, cl, tree, node);
         /* Emit call */
         MVM_jit_tile_get_values(tc, tree, node, tile->path, values+1);
         tile->rule(tc, cl, tree, node, values, args);

@@ -2217,5 +2217,23 @@ void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 
     }
 }
 
+void MVM_jit_emit_stack_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 pos,
+                            MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
+    switch (size) {
+    case 1:
+        | mov byte [rsp+pos], Rb(reg_num);
+        break;
+    case 2:
+        | mov word [rsp+pos], Rw(reg_num);
+        break;
+    case 4:
+        | mov dword [rsp+pos], Rd(reg_num);
+        break;
+    case 8:
+        | mov qword [rsp+pos], Rq(reg_num);
+        break;
+    }
+}
+
 /* import tiles */
 |.include src/jit/x64/tiles.dasc
