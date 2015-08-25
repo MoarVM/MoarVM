@@ -180,7 +180,10 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                     [MVMJitCallArg args"[]" "=" '{']?
                     [
                     |   '{' <argkind=.ident> ',' [ '{' <argvalue=.ident> '}' | <argvalue=.ident> ]
-                    |   '{' $<argkind>="MVM_JIT_LITERAL" ',' '{' $<argvalue>=[\d+] '}'
+                    |   '{' $<argkind>="MVM_JIT_LITERAL" ',' [
+                            |   '{' $<argvalue>=[\d+] '}'
+                            |   '{' op '==' MVM_OP_<direct_comparison=.ident> '}'
+                            ]
                     ]
                     [ '}' '}' ';' | '}' ',' ]
                 $ / {
@@ -245,6 +248,12 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                         if defined try $<argvalue>.Int {
                             @c_arguments.push:
                                 '(carg (const ' ~ $<argvalue>.Int ~ ' int_sz) int)';
+                        } elsif $<direct_comparison> {
+                            my %result;
+                            for @ops -> $op {
+                                %result{$op} = +($op eq $<direct_comparison>);
+                            }
+                            @c_arguments.push: %result;
                         } elsif $<argvalue>.Str ~~ %var_sources {
                             my $source_register = %var_sources{$<argvalue>.Str};
                             if %reg_types{$source_register} eq 'literal' {
