@@ -245,9 +245,9 @@ static MVMint64 not_std_handle(MVMThreadContext *tc, MVMObject *h) {
 static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
     if (data->handle && not_std_handle(tc, (MVMObject *)h)) {
-         uv_close((uv_handle_t *)data->handle, NULL);
-         data->handle = NULL;
-         if (data->ds) {
+        uv_close((uv_handle_t *)data->handle, NULL);
+        data->handle = NULL;
+        if (data->ds) {
             MVM_string_decodestream_destory(tc, data->ds);
             data->ds = NULL;
         }

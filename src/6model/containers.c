@@ -407,7 +407,7 @@ void MVM_6model_containers_setup(MVMThreadContext *tc) {
 
 /* Check if this is a container referencing a given native. */
 static MVMint64 get_container_primitive(MVMThreadContext *tc, MVMObject *cont) {
-    if (IS_CONCRETE(cont)) {
+    if (cont && IS_CONCRETE(cont)) {
         const MVMContainerSpec *cs = STABLE(cont)->container_spec;
         if (cs == &native_ref_spec && REPR(cont)->ID == MVM_REPR_ID_NativeRef)
             return ((MVMNativeRefREPRData *)STABLE(cont)->REPR_data)->primitive_type;

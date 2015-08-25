@@ -638,6 +638,9 @@ module HandlerCategory {
     our $succeed := 512;
     our $proceed := 1024;
     our $labeled := 4096;
+    our $await   := 8192;
+    our $emit    := 16384;
+    our $done    := 32768;
 }
 
 # A region with a handler.

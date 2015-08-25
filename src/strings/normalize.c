@@ -179,7 +179,7 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
     }
 
     /* Put result into array body. */
-    ((MVMArray *)out)->body.slots.u32 = (MVMuint32 *) result;
+    ((MVMArray *)out)->body.slots.u32 = (MVMuint32 *)result;
     ((MVMArray *)out)->body.start     = 0;
     ((MVMArray *)out)->body.elems     = result_pos;
 }

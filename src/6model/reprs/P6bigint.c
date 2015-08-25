@@ -2,12 +2,17 @@
 
 /* A forced 64-bit version of mp_get_long, since on some platforms long is
  * not all that long. */
-static MVMuint64 mp_get_int64(mp_int * a) {
-    int i;
+static MVMuint64 mp_get_int64(MVMThreadContext *tc, mp_int * a) {
+    int i, bits;
     MVMuint64 res;
 
     if (a->used == 0) {
          return 0;
+    }
+
+    bits = mp_count_bits(a);
+    if (bits > 64) {
+        MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
     }
 
     /* get number of digits of the lsb we have to read */
@@ -85,12 +90,12 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         if (MP_LT == mp_cmp_d(i, 0)) {
             MVMint64 ret;
             mp_neg(i, i);
-            ret = mp_get_int64(i);
+            ret = mp_get_int64(tc, i);
             mp_neg(i, i);
             return -ret;
         }
         else {
-            return mp_get_int64(i);
+            return mp_get_int64(tc, i);
         }
     }
     else {

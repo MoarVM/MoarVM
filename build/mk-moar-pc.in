@@ -8,7 +8,6 @@
 use 5.010;
 use strict;
 use warnings;
-use autodie;
 
 use File::Basename;
 use File::Path qw{make_path};
@@ -51,7 +50,8 @@ if ( ! -d $dirname ) {
     make_path($dirname);
 }
 
-open my $pcfile, '>', "$args[0]";
+open my $pcfile, '>', "$args[0]"
+  or die "Can not open > $args[0]: $!";
 
 print $pcfile <<EOF;
 # pkg-config information for MoarVM ${version}

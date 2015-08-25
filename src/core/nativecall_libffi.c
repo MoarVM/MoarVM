@@ -311,7 +311,7 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
 
         tc->cur_frame->return_value = &res;
         tc->cur_frame->return_type  = MVM_RETURN_OBJ;
-        MVM_interp_run(tc, &callback_invoke, &cid);
+        MVM_interp_run(tc, callback_invoke, &cid);
 
         tc->interp_cur_op         = backup_interp_cur_op;
         tc->interp_bytecode_start = backup_interp_bytecode_start;

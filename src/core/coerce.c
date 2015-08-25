@@ -27,11 +27,8 @@ static void boolify_return(MVMThreadContext *tc, void *sr_data);
 static void flip_return(MVMThreadContext *tc, void *sr_data);
 void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg,
         MVMuint8 *true_addr, MVMuint8 *false_addr, MVMuint8 flip) {
-    MVMint64 result;
-    if (MVM_is_null(tc, obj)) {
-        result = 0;
-    }
-    else {
+    MVMint64 result = 0;
+    if (!MVM_is_null(tc, obj)) {
         MVMBoolificationSpec *bs = obj->st->boolification_spec;
         switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
             case MVM_BOOL_MODE_CALL_METHOD: {
@@ -335,6 +332,9 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
     }
 }
 
+/* concatenating with "" ensures that only literal strings are accepted as argument. */
+#define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
+
 MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag) {
     MVMObject *result;
     MVMint64 zvalue = 0;
@@ -358,9 +358,23 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     }
 
     while (offset < chars) {
-        if (ch >= '0' && ch <= '9') ch = ch - '0';
+        if (ch >= '0' && ch <= '9') ch = ch - '0'; /* fast-path for ASCII 0..9 */
         else if (ch >= 'a' && ch <= 'z') ch = ch - 'a' + 10;
         else if (ch >= 'A' && ch <= 'Z') ch = ch - 'A' + 10;
+        else if (ch >= 0xFF21 && ch <= 0xFF3A) ch = ch - 0xFF21 + 10; /* uppercase fullwidth */
+        else if (ch >= 0xFF41 && ch <= 0xFF5A) ch = ch - 0xFF41 + 10; /* lowercase fullwidth */
+        else if (MVM_unicode_codepoint_has_property_value(tc, ch, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, 
+                MVM_unicode_cname_to_property_value_code(tc, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Nd")))) {
+            /* As of Unicode 6.0.0, we know that Nd category numerals are within
+             * the range 0..9
+             */
+
+            /* the string returned for NUMERIC_VALUE contains a floating point
+             * value, so atoi will stop on the . in the string. This is fine
+             * though, since we'd have to truncate the float regardless.
+             */
+            ch = atoi(MVM_unicode_codepoint_get_property_cstr(tc, ch, MVM_UNICODE_PROPERTY_NUMERIC_VALUE));
+        }
         else break;
         if (ch >= radix) break;
         zvalue = zvalue * radix + ch;

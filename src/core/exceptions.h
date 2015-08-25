@@ -16,6 +16,9 @@
 #define MVM_EX_CAT_SUCCEED       512
 #define MVM_EX_CAT_PROCEED       1024
 #define MVM_EX_CAT_LABELED       4096
+#define MVM_EX_CAT_AWAIT         8192
+#define MVM_EX_CAT_EMIT          16384
+#define MVM_EX_CAT_DONE          32768
 
 /* Ways to throw an exception. */
 #define MVM_EX_THROW_DYN         0

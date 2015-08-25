@@ -79,7 +79,6 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
     /* MVM_dec returns what the count was before it decremented it
      * to zero, so we look for 1 here. */
     while (MVM_decr(&frame->ref_count) == 1) {
-        MVMuint32 pool_index = frame->static_info->body.pool_index;
         MVMFrame *outer_to_decr = frame->outer;
 
         /* If there's a caller pointer, decrement that. */
@@ -206,7 +205,6 @@ static MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
 static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *static_frame_body,
                                  MVMSpeshCandidate *spesh_cand) {
     MVMFrame *frame = NULL;
-    MVMFrame *node;
     MVMint32  env_size, work_size;
 
     /* Allocate the frame. */

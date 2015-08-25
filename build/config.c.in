@@ -7,7 +7,6 @@
  */
 
 #include "moar.h"
-#include "gen/config.h"
 
 #define add_entry(tc, hash, name, value) do { \
     MVMString * const key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, (name)); \

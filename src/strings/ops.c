@@ -879,10 +879,10 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     total_graphs  = 0;
     total_strands = 0;
     for (i = 0; i < elems; i++) {
-         /* Get piece of the string. */
-         MVMString *piece;
-         MVMint64   piece_graphs;
-         if (is_str_array) {
+        /* Get piece of the string. */
+        MVMString *piece;
+        MVMint64   piece_graphs;
+        if (is_str_array) {
             piece = MVM_repr_at_pos_s(tc, input, i);
             if (!piece)
                 continue;
@@ -1326,53 +1326,41 @@ static MVMint64 UPV_Pi = 0;
 static MVMint64 UPV_Pf = 0;
 static MVMint64 UPV_Po = 0;
 
+/* concatenating with "" ensures that only literal strings are accepted as argument. */
+#define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
+
 /* Resolves various unicode property values that we'll need. */
 void MVM_string_cclass_init(MVMThreadContext *tc) {
-    UPV_Nd = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Nd"));
-    UPV_Lu = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Lu"));
-    UPV_Ll = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Ll"));
-    UPV_Lt = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Lt"));
-    UPV_Lm = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Lm"));
-    UPV_Lo = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Lo"));
-    UPV_Zs = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Zs"));
-    UPV_Zl = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Zl"));
-    UPV_Pc = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Pc"));
-    UPV_Pd = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Pd"));
-    UPV_Ps = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Ps"));
-    UPV_Pe = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Pe"));
-    UPV_Pi = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Pi"));
-    UPV_Pf = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Pf"));
-    UPV_Po = MVM_unicode_name_to_property_value_code(tc,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Po"));
+    UPV_Nd = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Nd"));
+    UPV_Lu = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Lu"));
+    UPV_Ll = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Ll"));
+    UPV_Lt = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Lt"));
+    UPV_Lm = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Lm"));
+    UPV_Lo = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Lo"));
+    UPV_Zs = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Zs"));
+    UPV_Zl = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Zl"));
+    UPV_Pc = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Pc"));
+    UPV_Pd = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Pd"));
+    UPV_Ps = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Ps"));
+    UPV_Pe = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Pe"));
+    UPV_Pi = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Pi"));
+    UPV_Pf = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Pf"));
+    UPV_Po = MVM_unicode_cname_to_property_value_code(tc,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Po"));
 }
 
 /* Checks if the specified grapheme is in the given character class. */
