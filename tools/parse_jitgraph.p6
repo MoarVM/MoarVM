@@ -43,7 +43,7 @@ sub parse_op_to_func($source) {
 
         rule entry {
             [
-                case $<opname>=[ MVM_ <[a..z A..Z 0..9 _]>+ ] ':'
+                case MVM_OP_$<opname>=[<[a..z A..Z 0..9 _]>+ ] ':'
             ]+
             return '&'? <funcname=.ident> ';'
             { note "parsed an entry for $<funcname>" }
@@ -87,7 +87,7 @@ sub parse_consume_ins_reprops($source, %opcode_to_cfunc) {
 
         # we'll put all case statements into a single string for easier combing
         my $casestring = [~] @case-lines;
-        my @ops = $casestring.comb(/ "case " \s* <( 'MVM_'.*? )> \s* ':' /);
+        my @ops = $casestring.comb(/ "case " \s* 'MVM_OP_'<( .*? )> \s* ':' /);
 
         # find the next case-line.
         $until = @sourcelines.first-index( / "case MVM_".*?':' / );
@@ -236,7 +236,7 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                         }
                     }
                     default {
-                        report_unhandled "this line surprised us (expected jgb_append_call_c):";
+                        report_unhandled "this line surprised us (expected jg_append_call_c):";
                     }
                 }
                 @lines_so_far.push: "c_args: $line";
@@ -244,12 +244,12 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
 
             $line = $line ~  @lines.shift unless $line ~~ m/ ';' $ /;
 
-            unless $line ~~ m:s/ jgb_append_call_c '('
-                    tc ',' jgb ',' op_to_func '(' tc ',' op ')' ',' \d+ ',' args ','
+            unless $line ~~ m:s/ jg_append_call_c '('
+                    tc ',' jgb '->' graph ',' op_to_func '(' tc ',' op ')' ',' \d+ ',' args ','
                     $<return_type>=[ MVM_JIT_RV_VOID | MVM_JIT_RV_INT | MVM_JIT_RV_PTR | MVM_JIT_RV_NUM ] ','
                     $<return_dst>=[ '-1' | <.ident> ] ')' ';'
                     / {
-                report_unhandled "this line surprised us (expected jgb_append_call_c):";
+                report_unhandled "this line surprised us (expected jg_append_call_c):";
             }
 
             my %rv_to_returnkind = (
