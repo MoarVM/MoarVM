@@ -126,6 +126,11 @@
                                 (carg $0 ptr))
                      void))
 
+(template: unless_i
+    (when
+        (zr $0)
+        (branch (label $1)
+    )))
 
 (template: getlex_no
   (let: (($res
