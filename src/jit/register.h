@@ -16,7 +16,8 @@ struct MVMJitRegisterAllocator {
 };
 
 
-
+void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitRegisterAllocator *allocator);
+void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitRegisterAllocator *allocator);
 MVMint8 MVM_jit_register_alloc(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 reg_cls);
 void MVM_jit_register_take(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMint32 reg_cls, MVMint8 reg_num);
@@ -34,6 +35,5 @@ void MVM_jit_register_assign(MVMThreadContext *tc, MVMJitCompiler *compiler,
                              MVMJitExprValue *value, MVMint32 reg_cls, MVMint8 reg_num);
 void MVM_jit_register_expire(MVMThreadContext *tc, MVMJitCompiler *compiler,
                              MVMJitExprValue *value);
-void MVM_jit_register_load_to(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                              MVMJitExprTree *tree, MVMint32 node,
-                              MVMint32 reg_cls, MVMint8 reg_num);
+
+void MVM_jit_expire_values(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 order_nr);

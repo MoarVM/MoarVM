@@ -684,6 +684,7 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
 
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
+    MVMJitRegisterAllocator allocator;
     /* First stage, tile the tree */
     MVM_jit_tile_expr_tree(tc, tree);
     /* Second stage, emit the code - interleaved with the register allocator */
@@ -691,7 +692,9 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     traverser.inorder   = &compile_labels;
     traverser.postorder = &compile_tile;
     traverser.data      = compiler;
+    MVM_jit_register_allocator_init(tc, compiler, &allocator);
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
+    MVM_jit_register_allocator_deinit(tc, compiler, &allocator);
 }
 
 
