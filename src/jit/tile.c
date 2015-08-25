@@ -2,6 +2,7 @@
 #include "dasm_proto.h"
 #if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
 #include "x64/tile_decl.h"
+#include <math.h>
 #include "x64/tile_tables.h"
 #endif
 
