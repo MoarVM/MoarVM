@@ -550,7 +550,7 @@ src/jit/x64/emit_win32.c: src/jit/x64/emit.dasc src/jit/x64/tiles.dasc $(MINILUA
 dasm_all: src/jit/x64/emit_win32.c src/jit/x64/emit_posix.c
 
 # Expression list tables
-%_expr_tables.h: %.expr tools/expr-template-compiler.pl src/core/oplist
+%_expr_tables.h: %.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr.h
 	$(PERL) -Itools/ tools/expr-template-compiler.pl -o $@ $<
 
 # Architecture-specific tiles

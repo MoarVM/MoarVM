@@ -21,8 +21,10 @@ use warnings;
 #   length: 5, root: 3 "..f..l"
 
 my $OPLIST = 'src/core/oplist'; # We need this for generating the lookup table
+my $EXPR_H = 'src/jit/expr.h';  # And this for validating templates
 my $PREFIX = 'MVM_JIT_';        # Prefix of all nodes
 my %MACROS;                     # hash table of defined macros
+my %NODE_DEFS;                  # node definitions from expr.h
 my ($INPUT, $OUTPUT);
 my $TESTING;
 GetOptions(
@@ -52,6 +54,54 @@ sub compile_template {
     };
 }
 
+sub validate_template {
+    my $template = shift;
+    my $node = $template->[0];
+    if ($node eq 'let:') {
+        my $defs = $template->[1];
+        my $expr = $template->[2];
+        for my $def (@$defs) {
+            validate_template($def->[1]);
+        }
+        validate_template($expr);
+        return;
+    }
+
+    die "Unknown node type" unless defined $NODE_DEFS{$node};
+    my ($nchild, $narg) = @{$NODE_DEFS{$node}};
+    my $offset = 1;
+    if ($nchild < 0) {
+        die "First child of variadic node should be a number" unless $template->[1] =~ m/^\d+$/;
+        $nchild = $template->[1];
+        $offset = 2;
+    }
+    unless (($offset+$nchild+$narg) == @$template) {
+        my $txt = sexpr::encode($template);
+        die "Node $txt is too short";
+    }
+    for (my $i = 0; $i < $nchild; $i++) {
+        my $child = $template->[$offset+$i];
+        if (ref($child) eq 'ARRAY' and substr($child->[0], 0, 1) ne '&') {
+            validate_template($child);
+        } elsif (substr($child, 0, 1) eq '$') {
+            # OK!
+        } else {
+            my $txt = sexpr::encode($template);
+            die "Child $i of $txt is not a expression";
+        }
+    }
+    for (my  $i = 0; $i < $narg; $i++) {
+        my $child = $template->[$offset+$nchild+$i];
+        if (ref($child) eq 'ARRAY' and substr($child->[0], 0, 1) eq '&') {
+            # OK
+        } elsif (substr($child, 0, 1) ne '$') {
+            # Also OK
+        } else {
+            my $txt = sexpr::encode($template);
+            die "Child $i of $txt is not an argument";
+        }
+    }
+}
 
 
 sub write_template {
@@ -181,7 +231,7 @@ if ($TESTING) {
 } else {
     # first read the correct order of opcodes
     my (@opcodes, %names);
-    open my $oplist, '<', $OPLIST or die "Could not open oplist";
+    open my $oplist, '<', $OPLIST or die "Could not open $OPLIST";
     while (<$oplist>) {
         next unless (m/^\w+/);
         my $opcode = substr $_, 0, $+[0];
@@ -189,6 +239,21 @@ if ($TESTING) {
         push @opcodes, $opcode;
     }
     close $oplist;
+
+    open my $expr_h, '<', $EXPR_H or die "Could not open $EXPR_H";
+    while (<$expr_h>) {
+        last if m/MVM_JIT_IR_OPS/;
+    }
+    while (<$expr_h>) {
+        chomp;
+        last unless m/\\$/;
+        next unless m/_\((\w+),\s*(-?\d+),\s*(-?\d+),\s*\w+\)/;
+        my $node  = lc substr($_, $-[1], $+[1] - $-[1]);
+        my $nchld = substr($_, $-[2], $+[2] - $-[2]);
+        my $narg  = substr($_, $-[3], $+[3] - $-[3]);
+        $NODE_DEFS{$node} = [$nchld, $narg];
+    }
+    close $expr_h;
 
     # read input, which should use the expresison-list
     # syntax. generate template info table and template array
@@ -212,6 +277,8 @@ if ($TESTING) {
             }
             die "Opcode '$opcode' unknown" unless defined $names{$opcode};
             die "Opcode '$opcode' redefined" if defined $info{$opcode};
+            # Validate template for consistency with expr.h node definitions
+            validate_template($template);
             my $compiled = compile_template($template);
             my $idx = scalar(@templates); # template index into array is current array top
             $info{$opcode} = { idx => $idx, info => $compiled->{desc},

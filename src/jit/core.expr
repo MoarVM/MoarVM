@@ -19,7 +19,7 @@
 (template: inc_i (add $0 (const 1 int_sz)))
 (template: dec_i (sub $0 (const 1 int_sz)))
 
-(macro: ^parg (,a) (idx (load (addr (frame) (&offsetof MVMFrame params.args))) ,a reg_sz))
+(macro: ^parg (,a) (idx (load (addr (frame) (&offsetof MVMFrame params.args)) ptr_sz) ,a reg_sz))
 (template: sp_getarg_o (load (^parg $1) ptr_sz))
 (template: sp_getarg_s (load (^parg $1) ptr_sz))
 (template: sp_getarg_i (load (^parg $1) int_sz))
@@ -33,8 +33,11 @@
                               $replace
                               (addr ,a (&offsetof MVMP6opaque body)))))
 # get spesh slot address
-(macro: ^spesh_slot (,a) (idx (load (addr (frame) (&offsetof MVMFrame effective_spesh_slots)))
-                               ,a ptr_sz))
+(macro: ^spesh_slot (,a)
+   (idx (load
+            (addr (frame) (&offsetof MVMFrame effective_spesh_slots))
+             ptr_sz)
+       ,a ptr_sz))
 
 
 (template: sp_getspeshslot (load (^spesh_slot $1) ptr_sz))
@@ -84,7 +87,7 @@
 (template: null_s (const 0 ptr_sz))
 (template: null (vmnull))
 
-(macro: ^stable (,a) (load (addr ,a (&offsetof MVMObject st))))
+(macro: ^stable (,a) (load (addr ,a (&offsetof MVMObject st)) ptr_sz))
 (macro: ^repr (,a) (load (addr (^stable ,a) (&offsetof MVMSTable REPR)) ptr_sz))
 (macro: ^is_type_obj (,a)
   (nz (and (load (addr ,a (&offsetof MVMObject header.flags)) (&SIZEOF_MEMBER MVMObject header.flags))
@@ -154,7 +157,7 @@
          $0 ptr_sz))
 
 (template: takedispatcher
-  (let: (($cur (load (addr (tc) (&offsetof MVMThreadContext cur_dispatcher)))))
+  (let: (($cur (load (addr (tc) (&offsetof MVMThreadContext cur_dispatcher)) ptr_sz)))
         (do 2
            (store (addr (tc) (&offsetof MVMThreadContext cur_dispatcher))
                         (const 0 ptr_sz) ptr_sz)
@@ -189,8 +192,9 @@
 (macro: ^throw_adhoc (,msg)
    (call (^func &MVM_exception_throw_adhoc)
          (arglist 2 (carg (tc) ptr)
-                    (carg ,msg ptr))
+                    (carg (const ,msg ptr_sz) ptr))
          void))
+
 
 (template: ctxcode
   (do 2
