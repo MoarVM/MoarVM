@@ -207,6 +207,10 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                                 @c_arguments.push:
                                     "(carg (^params) ptr)";
                             }
+                            when "MVM_JIT_INTERP_CALLER" {
+                                @c_arguments.push:
+                                    "(carg (^caller) ptr)";
+                            }
                             default {
                                 report_unhandled "this kind of interp var ($_) isn't handled yet";
                             }

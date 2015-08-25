@@ -26,6 +26,7 @@
 (template: sp_getarg_n (load (^parg $1) int_sz))
 
 (macro: ^params () (addr (frame) (&offsetof MVMFrame params)) )
+(macro: ^caller () (addr (frame) (&offsetof MVMFrame caller)) )
 
 (macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
 (macro: ^p6obody (,a) (let: (($replace (load (addr ,a (&offsetof MVMP6opaque body.replaced)) ptr_sz)))
