@@ -94,12 +94,32 @@
   (nz (and (load (addr ,a (&offsetof MVMObject header.flags)) (&SIZEOF_MEMBER MVMObject header.flags))
            (const (&QUOTE MVM_CF_TYPE_OBJECT) (&SIZEOF_MEMBER MVMObject header.flags)))))
 
-
+(macro: ^repr_cont_func (,obj ,func)
+    (load
+        (addr
+            (load (addr (^stable ,obj) (&offsetof MVMSTable container_spec)) ptr_sz)
+            (&offsetof MVMContainerSpec ,func))
+        ptr_sz))
 
 (template: getwhat (load (addr (^stable $1) (&offsetof MVMSTable WHAT)) ptr_sz))
 (template: getwho  (let: (($who (load (addr (^stable $1) (&offsetof MVMSTable WHO)) ptr_sz)))
                          (if (nz $who) $who (vmnull))))
 
+(template: decont!
+    (let: (($obj (copy $1)))
+        (either
+            (any 3
+                (zr $1)
+                (^is_type_obj $1)
+                (zr (load (addr (^stable $1) (&offsetof MVMSTable container_spec)) ptr_sz)))
+            (store $0 $1 ptr_sz)
+            (call (^repr_cont_func $1 fetch)
+                (arglist 3
+                    (carg (tc) ptr)
+                    (carg $1 ptr)
+                    (carg $0 ptr)
+                )
+                void))))
 
 (template: say (call (^func &MVM_string_say)
                      (arglist 2 (carg (tc) ptr)
