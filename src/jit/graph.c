@@ -1576,7 +1576,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_LITERAL, { MVM_EX_THROW_DYN } },
                                  { MVM_JIT_REG_VAL, { obj } },
                                  { MVM_JIT_LITERAL, { 0 } } };
-        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        jg_append_call_c(tc, jgb->graph, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_throwcatdyn:
