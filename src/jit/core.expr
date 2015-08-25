@@ -164,6 +164,12 @@
                         (const 0 ptr_sz) ptr_sz)
             $cur)))
 
+(macro: ^hllconfig ()
+    (load (addr (cu) (&offsetof MVMCompUnit body.hll_config)) ptr_sz))
+
+(template: hllboxtype_i
+    (load (addr (^hllconfig) (&offsetof MVMHLLConfig int_box_type)) ptr_sz))
+
 (template: curcode
   (load (addr (frame) (&offsetof MVMFrame code_ref)) ptr_sz))
 
@@ -196,6 +202,10 @@
                     (carg (const ,msg ptr_sz) ptr))
          void))
 
+(template: ifnonnull
+    (when (any 2
+            (nz $0) (ne $0 (vmnull)))
+        (branch (label $1)) ))
 
 (template: ctxcode
   (do 2
