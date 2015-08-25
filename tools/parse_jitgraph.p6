@@ -237,7 +237,7 @@ chunkloop: for @chunks.kv -> $chunkidx, $_ {
                             my $operand_rw_flags = $operand_flags +& %flags<MVM_operand_rw_mask>;
 
                             if $operand_rw_flags == %flags<MVM_operand_write_reg> {
-                                %result{$op} = '(carg $' ~ $operand_idx ~ ' ptr_sz)';
+                                %result{$op} = '(carg $' ~ $operand_idx ~ ' ptr)';
                             } else {
                                 report_unhandled "there's a MVM_JIT_REG_ADDR here, but the operand isn't a MVM_operand_write_reg (it's $operand_rw_flags instead).";
                             }
