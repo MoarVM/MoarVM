@@ -2,26 +2,36 @@
 
 
 MVM_JIT_TILE_DECL(load_stack) {
+    values[0]->type      = MVM_JIT_REG;
+    values[0]->state     = MVM_JIT_VALUE_ALLOCATED;
     values[0]->u.reg.cls = MVM_JIT_X64_GPR;
     values[0]->u.reg.num = MVM_JIT_X64_RSP;
 }
 
 MVM_JIT_TILE_DECL(load_local) {
+    values[0]->type      = MVM_JIT_REG;
+    values[0]->state     = MVM_JIT_VALUE_ALLOCATED;
     values[0]->u.reg.cls = MVM_JIT_X64_GPR;
     values[0]->u.reg.num = MVM_JIT_X64_RBX;
 }
 
 MVM_JIT_TILE_DECL(load_frame) {
+    values[0]->type      = MVM_JIT_REG;
+    values[0]->state     = MVM_JIT_VALUE_ALLOCATED;
     values[0]->u.reg.cls = MVM_JIT_X64_GPR;
     values[0]->u.reg.num = MVM_JIT_X64_R12;
 }
 
 MVM_JIT_TILE_DECL(load_cu) {
+    values[0]->type      = MVM_JIT_REG;
+    values[0]->state     = MVM_JIT_VALUE_ALLOCATED;
     values[0]->u.reg.cls = MVM_JIT_X64_GPR;
     values[0]->u.reg.num = MVM_JIT_X64_R13;
 }
 
 MVM_JIT_TILE_DECL(load_tc) {
+    values[0]->type      = MVM_JIT_REG;
+    values[0]->state     = MVM_JIT_VALUE_ALLOCATED;
     values[0]->u.reg.cls = MVM_JIT_X64_GPR;
     values[0]->u.reg.num = MVM_JIT_X64_R14;
 }

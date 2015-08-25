@@ -2419,19 +2419,24 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
      * should be in force, and it failed to be. */
     jg_append_control(tc, jgb->graph, bb->first_ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
     jgb->cur_ins = bb->first_ins;
-    while (jgb->cur_ins) {
-        jgb_before_ins(tc, jgb, jgb->cur_bb, jgb->cur_ins);
-        if(!jgb_consume_ins(tc, jgb, jgb->cur_bb, jgb->cur_ins))
-            return 0;
-        jgb_after_ins(tc, jgb, jgb->cur_bb, jgb->cur_ins);
-        jgb->cur_ins = jgb->cur_ins->next;
-    }
-    /* for giggles, try to create an expression tree */
+    /* First try to create an expression tree */
     tree = MVM_jit_expr_tree_build(tc, jgb->graph, bb);
     if (tree != NULL) {
+        MVMJitNode *node = MVM_spesh_alloc(tc, jgb->graph->sg, sizeof(MVMJitNode));
+        node->type       = MVM_JIT_NODE_EXPR_TREE;
+        node->u.tree     = tree;
+        jg_append_node(jgb->graph, node);
+        /* Log the tree */
         MVM_jit_log_expr_tree(tc, tree);
-        MVM_jit_tile_expr_tree(tc, tree);
-        MVM_jit_expr_tree_destroy(tc, tree);
+    } else {
+        /* Otherwise, try to consume the basic block per instruction */
+        while (jgb->cur_ins) {
+            jgb_before_ins(tc, jgb, jgb->cur_bb, jgb->cur_ins);
+            if(!jgb_consume_ins(tc, jgb, jgb->cur_bb, jgb->cur_ins))
+                return 0;
+            jgb_after_ins(tc, jgb, jgb->cur_bb, jgb->cur_ins);
+            jgb->cur_ins = jgb->cur_ins->next;
+        }
     }
     return 1;
 }

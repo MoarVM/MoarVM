@@ -20,6 +20,7 @@ struct MVMJitCompiler {
 
     MVMint32    next_label;
     MVMint32    label_max;
+
     MVMint32    order_nr;
     /* For spilling values that don't fit into the register allocator */
     MVMint32    spill_offset;

@@ -157,7 +157,6 @@ void MVM_jit_register_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMin
 }
 
 
-
 /* Assign a register to a value. Useful primitive for 'virtual copy' */
 void MVM_jit_register_assign(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprValue *value, MVMint32 reg_cls, MVMint8 reg_num) {
     MVMJitRegisterAllocator *alc = cl->allocator;

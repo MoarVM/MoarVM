@@ -26,6 +26,8 @@ void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitGraph
     cl->label_max  = jg->labels_num + 8;
     /* space for dynamic labels */
     dasm_growpc(cl, cl->label_max);
+    /* Initialize order nr */
+    cl->order_nr     = -1;
     /* Offset in temporary array in which we can spill */
     cl->spill_offset = jg->sg->num_locals + jg->sg->sf->body.cu->body.max_callsite_size;
     cl->max_spill    = 2*MVM_JIT_PTR_SZ;
@@ -620,7 +622,17 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
             /* otherwise is the void case */
         }
         break;
-        default:
+    case MVM_JIT_LOCAL:
+    case MVM_JIT_FRAME:
+    case MVM_JIT_TC:
+    case MVM_JIT_CU:
+    case MVM_JIT_STACK:
+    case MVM_JIT_COPY:
+        if (tile->rule == NULL)
+            return;
+        tile->rule(tc, cl, tree, node, values, args);
+        break;
+    default:
         {
             if (tile->rule == NULL)
                 /* Empty tile rule */
@@ -646,8 +658,8 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
             if (tile->vtype == MVM_JIT_REG) {
                 /* allocate a register for the result */
                 if (values[0]->state == MVM_JIT_VALUE_EMPTY) {
-                    if (values[1]->type == MVM_JIT_REG && values[1]->last_use == values[0]->order_nr) {
-                        /* First register expires immediately */
+                    if (tile->num_values > 0 && values[1]->type == MVM_JIT_REG && values[1]->last_use == values[0]->order_nr) {
+                        /* First register expires immediately, therefore we can safely cross-assign */
                         MVM_jit_register_assign(tc, cl, values[0], values[1]->u.reg.cls, values[1]->u.reg.num);
                     } else {
                         alloc_value(tc, cl, values[0]);
@@ -672,15 +684,13 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
 
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
-
-    traverser.preorder  = &prepare_tile;
-    traverser.inorder   = &compile_labels;
-    traverser.postorder = &compile_tile;
-
     /* First stage, tile the tree */
     MVM_jit_tile_expr_tree(tc, tree);
     /* Second stage, emit the code - interleaved with the register allocator */
-    compiler->order_nr = 0;
+    traverser.preorder  = &prepare_tile;
+    traverser.inorder   = &compile_labels;
+    traverser.postorder = &compile_tile;
+    traverser.data      = compiler;
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
 }
 
