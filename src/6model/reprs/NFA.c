@@ -306,6 +306,106 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
     return nfa_obj;
 }
 
+MVMObject * MVM_nfa_to_statelist(MVMThreadContext *tc, MVMObject *nfa_obj, MVMObject *statelist_type) {
+    MVMObject  *statelist_obj;
+    MVMNFABody *nfa;
+    MVMint64    node_idx;
+    MVMint64    edge_idx;
+
+    MVM_gc_root_temp_push(tc, nfa_obj);
+    MVM_gc_root_temp_push(tc, statelist_type);
+
+    statelist_obj = MVM_repr_alloc_init(tc, statelist_type);
+
+    MVM_gc_root_temp_push(tc, statelist_obj);
+    nfa = (MVMNFABody *)OBJECT_BODY(nfa_obj);
+
+    MVM_repr_pos_set_elems(tc, statelist_obj, nfa->num_states + 1);
+
+    MVM_repr_bind_pos_o(tc, statelist_obj, 0, nfa->fates);
+
+    for (node_idx = 0; node_idx < nfa->num_states; node_idx++) {
+        MVMObject *edgelist = MVM_repr_alloc_init(tc, statelist_type);
+        MVMint64   num_edges;
+
+        MVM_gc_root_temp_push(tc, edgelist);
+
+        /* If the GC has run, nfa_obj may have moved and we have to
+         * get the proper address of its body (nfa) again. */
+        nfa = (MVMNFABody *)OBJECT_BODY(nfa_obj);
+
+        num_edges = nfa->num_state_edges[node_idx];
+
+        MVM_repr_bind_pos_o(tc, statelist_obj, node_idx + 1, edgelist);
+
+        /* Pre-size the list because we're nice */
+        MVM_repr_pos_set_elems(tc, edgelist, num_edges * 3);
+        MVM_repr_pos_set_elems(tc, edgelist, 0);
+
+        for (edge_idx = 0; edge_idx < num_edges; edge_idx++) {
+            MVMint64 act = nfa->states[node_idx][edge_idx].act;
+            MVMint64 to  = nfa->states[node_idx][edge_idx].to;
+
+            MVM_repr_push_o(tc, edgelist, MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, act));
+            /* same as above, get the nfa pointer corrected if the gc has kicked in */
+            nfa = (MVMNFABody *)OBJECT_BODY(nfa_obj);
+
+            switch (act & 0xff) {
+                case MVM_NFA_EDGE_FATE:
+                case MVM_NFA_EDGE_CODEPOINT:
+                case MVM_NFA_EDGE_CODEPOINT_LL:
+                case MVM_NFA_EDGE_CODEPOINT_NEG:
+                case MVM_NFA_EDGE_CODEPOINT_M:
+                case MVM_NFA_EDGE_CODEPOINT_M_NEG:
+                case MVM_NFA_EDGE_CHARCLASS:
+                case MVM_NFA_EDGE_CHARCLASS_NEG:
+                    MVM_repr_push_o(tc, edgelist,
+                            MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type,
+                                nfa->states[node_idx][edge_idx].arg.i));
+                    break;
+                case MVM_NFA_EDGE_CODEPOINT_I:
+                case MVM_NFA_EDGE_CODEPOINT_I_LL:
+                case MVM_NFA_EDGE_CODEPOINT_I_NEG:
+                case MVM_NFA_EDGE_CODEPOINT_IM:
+                case MVM_NFA_EDGE_CODEPOINT_IM_NEG:
+                /* That is not about uppercase/lowercase here, but lower and upper bounds
+                   of our range. */
+                case MVM_NFA_EDGE_CHARRANGE:
+                case MVM_NFA_EDGE_CHARRANGE_NEG: {
+                    MVMObject *from_to = MVM_repr_alloc_init(tc, statelist_type);
+                    nfa = (MVMNFABody *)OBJECT_BODY(nfa_obj);
+
+                    MVM_gc_root_temp_push(tc, from_to);
+
+                    MVMint64 lower = nfa->states[node_idx][edge_idx].arg.uclc.lc;
+                    MVMint64 upper = nfa->states[node_idx][edge_idx].arg.uclc.uc;
+
+                    MVM_repr_push_o(tc, edgelist, from_to);
+
+                    MVM_repr_push_o(tc, from_to,
+                            MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, lower));
+                    MVM_repr_push_o(tc, from_to,
+                            MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, upper));
+
+                    MVM_gc_root_temp_pop(tc);
+                    break;
+                }
+                case MVM_NFA_EDGE_CHARLIST:
+                case MVM_NFA_EDGE_CHARLIST_NEG:
+                    MVM_repr_push_o(tc, edgelist, MVM_repr_box_str(tc,MVM_hll_current(tc)->str_box_type,
+                                nfa->states[node_idx][edge_idx].arg.s));
+                    break;
+            }
+
+            MVM_repr_push_o(tc, edgelist,
+                    MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, to));
+            nfa = (MVMNFABody *)OBJECT_BODY(nfa_obj);
+        }
+        MVM_gc_root_temp_pop(tc);
+    }
+    MVM_gc_root_temp_pop_n(tc, 3);
+}
+
 /* Does a run of the NFA. Produces a list of integers indicating the
  * chosen ordering. */
 static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *target, MVMint64 offset, MVMint64 *total_fates_out) {

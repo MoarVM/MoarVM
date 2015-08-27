@@ -4696,6 +4696,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(nfatostatelist): {
+                MVMObject *nfa = GET_REG(cur_op, 2).o;
+                MVMObject *listtype = GET_REG(cur_op, 4).o;
+                GET_REG(cur_op, 0).o = MVM_nfa_to_statelist(tc, nfa, listtype);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
