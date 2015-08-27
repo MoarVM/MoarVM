@@ -40,6 +40,10 @@ static MVMint8 free_gpr[] = { -1 };
 static MVMint8 free_num[] = { -1 };
 #endif
 
+#define NUM_GPR sizeof(free_gpr)
+#define NEXT_REG(x) (((x)+1)%NUM_GPR)
+
+
 /* Register lock bitmap macros */
 #define REGISTER_IS_LOCKED(a, n) ((a)->reg_lock &  (1 << (n)))
 #define LOCK_REGISTER(a, n)   ((a)->reg_lock |= (1 << (n)))
@@ -49,12 +53,15 @@ static MVMint8 free_num[] = { -1 };
 /* NB only implement GPR register allocation now */
 void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                      MVMJitRegisterAllocator *alc) {
-    /* Live ranges */
-    MVM_DYNAR_INIT(alc->active, sizeof(free_gpr));
+    /* Store live ranges */
+    MVM_DYNAR_INIT(alc->active, NUM_GPR);
     /* Initialize free register stacks */
-    memcpy(alc->free_reg, free_gpr, sizeof(free_gpr));
+    memcpy(alc->free_reg, free_gpr, NUM_GPR);
     memset(alc->reg_use, 0, sizeof(alc->reg_use));
-    alc->reg_top   = 0;
+
+    alc->reg_give  = 0;
+    alc->reg_take  = 0;
+
     alc->spill_top = 0;
     alc->reg_lock  = 0;
     compiler->allocator = alc;
@@ -72,16 +79,19 @@ void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, MVMJitCompiler *com
 
 MVMint8 MVM_jit_register_alloc(MVMThreadContext *tc, MVMJitCompiler *cl, MVMint32 reg_cls) {
     MVMJitRegisterAllocator *alc = cl->allocator;
-    MVMint8 reg;
+    MVMint8 reg_num;
     if (reg_cls == MVM_JIT_REGCLS_NUM) {
         NYI(numeric_regs);
     } else {
-        if (alc->reg_top == sizeof(free_gpr)) {
+        if (NEXT_REG(alc->reg_take) == alc->reg_give) {
             /* Out of registers, spill something */
             NYI(spill_something);
         }
-        return alc->free_reg[alc->reg_top++];
+        /* Use a circular handout scheme for the 'fair use' of registers */
+        reg_num       = alc->free_reg[alc->reg_take];
+        alc->reg_take = NEXT_REG(alc->reg_take);
     }
+    return reg_num;
 }
 
 
@@ -91,13 +101,37 @@ void MVM_jit_register_free(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMin
     if (reg_cls == MVM_JIT_REGCLS_NUM) {
         NYI(numeric_regs);
     } else {
-        if (alc->reg_top == 0) {
+        if (alc->reg_give == alc->reg_take) {
             MVM_oops(tc, "Trying to free too many registers");
         }
-        /* Add to register stack */
-        alc->free_reg[--alc->reg_top] = reg_num;
+        alc->free_reg[alc->reg_give] = reg_num;
+        alc->reg_give                = NEXT_REG(alc->reg_give);
     }
 }
+
+void MVM_jit_register_take(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 reg_cls, MVMint8 reg_num) {
+    MVMJitRegisterAllocator *alc = compiler->allocator;
+    MVMint32 i;
+    if (reg_cls == MVM_JIT_REGCLS_NUM)
+        NYI(numeric_regs);
+    if (REGISTER_IS_LOCKED(compiler->allocator, reg_num))
+        MVM_oops(tc, "Trying to take a locked register");
+    /* Spill register, if it is in use */
+    if (alc->reg_use[reg_num] > 0) {
+        MVM_jit_register_spill(tc, compiler, reg_cls, reg_num);
+    }
+    /* Take register directly from allocator */
+    for (i = alc->reg_take; NEXT_REG(i) != alc->reg_give; i = NEXT_REG(i)) {
+        if (alc->free_reg[i] == reg_num) {
+            /* swap with next take register, which is overwritten anyway */
+            alc->free_reg[i] = alc->free_reg[alc->reg_take];
+            alc->reg_take    = NEXT_REG(alc->reg_take);
+            return;
+        }
+    }
+    MVM_oops(tc, "Could not take register even after spilling");
+}
+
 
 /* Use marks a register currently in use */
 void MVM_jit_register_use(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 reg_cls, MVMint8 reg_num) {
@@ -124,44 +158,50 @@ void spill_value(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprValue
 
 #define VALUE_IS_ASSIGNED(v, rc, rn) ((v)->state == MVM_JIT_VALUE_ALLOCATED && (v)->u.reg.cls == (rc) && (v)->u.reg.num == (rn))
 
-MVMint32 find_spill_location(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 reg_cls, MVMint8 reg_num, MVMint32 *do_emit) {
-    MVMint32 i;
-    /* TODO - we could compile a bitmap of used spill locations here and pick the lowest gap from that */
-    for (i = 0; i < compiler->allocator->active_num; i++) {
-        MVMJitExprValue *value = compiler->allocator->active[i];
-        /* Maybe this value was already spilled somewhere */
+void MVM_jit_register_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 reg_cls, MVMint8 reg_num) {
+    MVMJitRegisterAllocator *alc = compiler->allocator;
+    MVMint32 i, spill_location = 0;
+    MVMint8 *spill_bmp = MVM_calloc(alc->spill_top, sizeof(MVMint8));
+    for (i = 0; i < alc->active_num; i++) {
+        MVMJitExprValue *value = alc->active[i];
         if (VALUE_IS_ASSIGNED(value, reg_cls, reg_num) && value->spill_location > 0) {
-            *do_emit = 0;
-            return value->spill_location;
+            /*
+            if (spill_location != 0 && value->spill_location != spill_location)
+                MVM_oops(tc, "Inconsistent spill location!");
+            */
+            spill_location = value->spill_location;
+            break;
+        } else if (value->spill_location > 0) {
+            spill_bmp[value->spill_location] = 1;
         }
     }
-    *do_emit = 1;
-    compiler->allocator->spill_top += MVM_JIT_INT_SZ;
-    return compiler->allocator->spill_top;
-}
+    if (spill_location == 0) {
+        /* This value was not yet spilled, find a location */
+        for (i = 0; i < alc->spill_top; i++) {
+            if (spill_bmp[i] == 0) {
+                spill_location = i;
+                break;
+            }
+        }
+        if (spill_location == 0) {
+            /* Bitmap was full */
+            spill_location = alc->spill_top++;
+        }
+        MVM_jit_emit_spill(tc, compiler, spill_location, reg_cls, reg_num, MVM_JIT_REG_SZ);
+    } /* if it was spilled before, it's immutable now */
 
-
-void mark_spilled(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 spill_location, MVMint32 reg_cls, MVMint8 reg_num) {
-    MVMint32 i;
-    for (i = 0; i < compiler->allocator->active_num; i++) {
+    /* Mark nodes as spilled on the location */
+    for (i = 0; i < alc->active_num; i++) {
         MVMJitExprValue *value = compiler->allocator->active[i];
         if (VALUE_IS_ASSIGNED(value, reg_cls, reg_num)) {
             value->spill_location = spill_location;
             value->state = MVM_JIT_VALUE_SPILLED;
-            compiler->allocator->reg_use[reg_num]--;
+            alc->reg_use[reg_num]--;
         }
     }
-}
 
-
-void MVM_jit_register_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 spill_location, MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
-    MVMint32 do_emit = 1;
-    MVMint32 i;
-    MVM_jit_emit_spill(tc, compiler, spill_location, reg_cls, reg_num, size);
-    /* all values currently assigned to that register should be marked spilled */
-    mark_spilled(tc, compiler, spill_location, reg_cls, reg_num);
     /* register ought to be free now! */
-    if (compiler->allocator->reg_use[reg_num] != 0) {
+    if (alc->reg_use[reg_num] != 0) {
         MVM_oops(tc, "After spill no users of the registers should remain");
     }
     /* make it available */
@@ -169,35 +209,6 @@ void MVM_jit_register_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMi
 }
 
 
-void MVM_jit_register_take(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 reg_cls, MVMint8 reg_num) {
-    MVMJitRegisterAllocator *alc = compiler->allocator;
-    MVMint32 i;
-    if (reg_cls == MVM_JIT_REGCLS_NUM)
-        NYI(numeric_regs);
-    if (REGISTER_IS_LOCKED(compiler->allocator, reg_num))
-        MVM_oops(tc, "Trying to take a locked register");
-    /* Free register, if it is in use */
-    if (alc->reg_use[reg_num] > 0) {
-        MVMint32 do_spill;
-        MVMint32 location = find_spill_location(tc, compiler, reg_cls, reg_num, &do_spill);
-        if (do_spill)
-            MVM_jit_register_spill(tc, compiler, location, reg_cls, reg_num, MVM_JIT_REG_SZ);
-        else {
-            /* actually emitting a spill is not necessary, but it is necessary to mark the register as free */
-            mark_spilled(tc, compiler, location, reg_cls, reg_num);
-            MVM_jit_register_free(tc, compiler, reg_cls, reg_num);
-        }
-    }
-    for (i = alc->reg_top; i < sizeof(free_gpr); i++) {
-        if (alc->free_reg[i] == reg_num) {
-            /* swap this place with current register top, which will be overwritten anyway */
-            alc->free_reg[i] = alc->free_reg[alc->reg_top];
-            alc->reg_top++;
-            return;
-        }
-    }
-    MVM_oops(tc, "Could not take register even after spilling");
-}
 
 
 
@@ -209,9 +220,10 @@ void MVM_jit_register_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMin
     for (i = 0; i < compiler->allocator->active_num; i++) {
         MVMJitExprValue *value = compiler->allocator->active[i];
         if (value->spill_location == spill_location) {
-            value->u.reg.cls = reg_cls;
-            value->u.reg.num = reg_num;
-            value->state     = MVM_JIT_VALUE_ALLOCATED;
+            value->u.reg.cls    = reg_cls;
+            value->u.reg.num    = reg_num;
+            value->state        = MVM_JIT_VALUE_ALLOCATED;
+            value->last_created = compiler->order_nr;
             compiler->allocator->reg_use[reg_num]++;
         }
     }
@@ -221,9 +233,11 @@ void MVM_jit_register_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMin
 /* Assign a register to a value */
 void MVM_jit_register_assign(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprValue *value, MVMint32 reg_cls, MVMint8 reg_num) {
     MVMJitRegisterAllocator *alc = cl->allocator;
-    value->state     = MVM_JIT_VALUE_ALLOCATED;
-    value->u.reg.num = reg_num;
-    value->u.reg.cls = reg_cls;
+    value->state        = MVM_JIT_VALUE_ALLOCATED;
+    value->u.reg.num    = reg_num;
+    value->u.reg.cls    = reg_cls;
+    value->last_created = cl->order_nr;
+
     MVM_DYNAR_PUSH(alc->active, value);
     alc->reg_use[reg_num]++;
 }
@@ -255,27 +269,29 @@ void MVM_jit_register_expire(MVMThreadContext *tc, MVMJitCompiler *compiler, MVM
 
 
 /* Spill values prior to emitting a call */
-void MVM_jit_spill_before_call(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
+void MVM_jit_spill_before_call(MVMThreadContext *tc, MVMJitCompiler *cl) {
     MVMJitRegisterAllocator *alc = cl->allocator;
-    MVMint32 order_nr = tree->info[node].value.order_nr;
+    MVMint32 order_nr = cl->order_nr;
     MVMint32 i;
     for (i = 0; i < alc->active_num; i++) {
         MVMJitExprValue *v = alc->active[i];
-        /* currently allocate nodes that are live after the call need to be spilled */
         if (v->last_use > order_nr && v->state == MVM_JIT_VALUE_ALLOCATED) {
-            spill_value(tc, cl, v);
+            MVM_jit_register_spill(tc, cl, v->u.reg.cls, v->u.reg.num);
         }
     }
 }
 
 
 /* Expire values that are no longer useful */
-void MVM_jit_expire_values(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 order_nr) {
+void MVM_jit_expire_values(MVMThreadContext *tc, MVMJitCompiler *compiler) {
     MVMJitRegisterAllocator *alc = compiler->allocator;
+    MVMint32 order_nr = compiler->order_nr;
     MVMint32 i = 0;
     while (i < alc->active_num) {
         MVMJitExprValue *value = alc->active[i];
-        if (value->last_use <= order_nr) {
+        if (value->last_use <= order_nr &&
+            /* can't expire values held in locked registers */
+            !(value->state == MVM_JIT_VALUE_ALLOCATED && REGISTER_IS_LOCKED(alc, value->u.reg.num))) {
             MVM_jit_register_expire(tc, compiler, value);
         } else {
             i++;

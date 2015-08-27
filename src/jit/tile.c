@@ -16,8 +16,6 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMint32 first_child = node+1;
     MVMint32 nchild      = info->nchild < 0 ? tree->nodes[first_child++] : info->nchild;
     MVMint32 *state_info = NULL;
-    if (traverser->visits[node] > 1)
-        return;
     switch (op) {
         /* TODO implement case for variadic nodes (DO/ALL/ANY/ARGLIST)
            and IF, which has 3 children */
@@ -142,8 +140,6 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     const MVMJitExprOpInfo *op_info = info->op_info;
     MVMint32 first_child = node+1;
     MVMint32 nchild      = op_info->nchild < 0 ? tree->nodes[first_child++] : op_info->nchild;
-    if (traverser->visits[node] > 1)
-        return;
     switch (op) {
     case MVM_JIT_ALL:
     case MVM_JIT_ANY:
@@ -226,32 +222,31 @@ static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMJitExprValue *values[16], *cur_value = &tree->info[node].value;
     MVMint32 *order_nr = traverser->data;
     MVMint32 i, num_values;
-    if (traverser->visits[node] > 1)
-        return;
+    /* pre-increment order nr  */
+    (*order_nr)++;
     /* Log tile for debugging */
-    MVM_jit_log(tc, "%04d: %s\n", node, tile->descr);
+    MVM_jit_log(tc, "%04d/%04d: %s\n", (*order_nr), node, tile->descr);
 
     /* Minimum number of registers required is given by tile */
     /* cur_value->reg_req =  tile->reg_req; */
     switch (tree->nodes[node]) {
     case MVM_JIT_ARGLIST:
-        cur_value->order_nr = (*order_nr)++;
         arglist_get_values(tc, tree, node, values);
         num_values = tree->nodes[node+1];
         break;
     default:
         if (tile->path == NULL)
             return;
-        /* Assign next compilation order number */
-        cur_value->order_nr = (*order_nr)++;
+        cur_value->first_created = (*order_nr);
         MVM_jit_tile_get_values(tc, tree, node, tile->path, values);
         num_values = tile->num_values;
         break;
     }
+
+    cur_value->num_use = 0;
+    /* update use information */
     for (i = 0; i < num_values; i++) {
-        /* update use information */
-        values[i]->first_use = MIN(values[i]->first_use, cur_value->order_nr);
-        values[i]->last_use  = MAX(values[i]->last_use, cur_value->order_nr);
+        values[i]->last_use  = MAX(values[i]->last_use, (*order_nr));
         values[i]->num_use++;
         /* cur_value->reg_req   = MAX(values[i]->reg_req, cur_value->reg_req); */
     }
@@ -262,6 +257,7 @@ void MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
     MVMint32 order_nr = 0;
     MVMint32 i;
+    traverser.policy = MVM_JIT_TRAVERSER_ONCE;
     traverser.inorder = NULL;
     traverser.preorder = NULL;
     traverser.postorder = &tile_node;

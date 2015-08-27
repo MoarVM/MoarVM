@@ -129,14 +129,13 @@ struct MVMJitExprValue {
     /* Spill information if any */
     MVMint16 spill_location;
 
-    /* Compilation information */
-    MVMint32 order_nr;
     /* TODO - we really do need this, but i'm not sure how exactly it
        propagates over conditionals */
     MVMint32 reg_req;
 
     /* Use information - I'd may want to change this into list of uses */
-    MVMint32 first_use;
+    MVMint32 first_created;
+    MVMint32 last_created;
     MVMint32 last_use;
     MVMint32 num_use;
 };
@@ -189,7 +188,13 @@ struct MVMJitTreeTraverser {
     void (*postorder)(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node);
     void       *data;
+
     MVM_DYNAR_DECL(MVMint32, visits);
+    enum {
+        MVM_JIT_TRAVERSER_REPEAT,
+        MVM_JIT_TRAVERSER_ONCE
+    } policy;
+
 };
 
 

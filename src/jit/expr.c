@@ -228,9 +228,7 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 
     node_info->op_info   = op;
     node_info->spesh_ins = node_ins[node];
-    node_info->value.first_use = INT32_MAX;
-    node_info->value.last_use  = -1;
-    node_info->value.num_use   = 0;
+
     if (node_info->spesh_ins &&
         (node_info->spesh_ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
         node_info->local_addr = node_info->spesh_ins->operands[0].reg.orig;
@@ -241,7 +239,8 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     switch (tree->nodes[node]) {
     case MVM_JIT_CONST:
         /* node size is given */
-        node_info->value.size = args[1];
+        node_info->value.u.const_val = args[0];
+        node_info->value.size        = args[1];
         break;
     case MVM_JIT_COPY:
         node_info->value.size = tree->info[tree->nodes[first_child]].value.size;
@@ -423,6 +422,10 @@ static void walk_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
     MVMint32 nchild = info->nchild;
     MVMint32 first_child = node + 1;
     MVMint32 i;
+    if (traverser->policy == MVM_JIT_TRAVERSER_ONCE &&
+        traverser->visits[node] >= 1)
+        return;
+
     traverser->visits[node]++;
     /* visiting on the way down - NB want to add visitation information */
     if (traverser->preorder)

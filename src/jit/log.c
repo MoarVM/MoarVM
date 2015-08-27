@@ -92,6 +92,7 @@ void MVM_jit_log_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVMint32 cur_depth = 0;
     char roots_list[80];
     MVMint32 i,j;
+    traverser.policy    = MVM_JIT_TRAVERSER_REPEAT;
     traverser.preorder  = &dump_tree;
     traverser.inorder   = NULL;
     traverser.postorder = &ascend_tree;

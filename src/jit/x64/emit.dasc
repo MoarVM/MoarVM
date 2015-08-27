@@ -2163,7 +2163,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
 
 void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location,
                        MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
-    MVMint32 idx = location + compiler->spill_offset;
+    MVMint32 idx = compiler->spill_offset + MVM_JIT_REG_SZ * location;
     if (reg_cls == MVM_JIT_X64_GPR) {
         switch(size) {
         case 1:
@@ -2184,7 +2184,7 @@ void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 
 
 void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location,
                         MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
-    MVMint32 idx = location + compiler->spill_offset;
+    MVMint32 idx = compiler->spill_offset + MVM_JIT_REG_SZ * location;
     if (reg_cls == MVM_JIT_X64_GPR) {
         switch (size) {
         case 1:
