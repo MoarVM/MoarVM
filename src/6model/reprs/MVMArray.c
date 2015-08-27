@@ -335,7 +335,7 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64
 
     /* fill out any unused slots with NULL pointers or zero values */
     body->slots.any = slots;
-    elems = zero_slots(tc, body, elems, ssize, repr_data->slot_type);
+    zero_slots(tc, body, elems, ssize, repr_data->slot_type);
 
     body->ssize = ssize;
 }

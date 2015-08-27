@@ -145,7 +145,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             MVMObject *inlined_val = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.inlined);
             MVMint64 inlined = !MVM_is_null(tc, inlined_val) && MVM_repr_get_int(tc, inlined_val);
             MVMint32   bits  = sizeof(void *) * 8;
-            MVMint32   align = ALIGNOF(void *);
             if (!MVM_is_null(tc, type)) {
                 /* See if it's a type that we know how to handle in a C struct. */
                 const MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
@@ -159,7 +158,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                      * repurpose it to store the bit-width of the type, so
                      * that get_attribute_ref can find it later. */
                     bits = spec->bits;
-                    align = spec->align;
 
                     repr_data->attribute_locations[i] = (bits << MVM_CUNION_ATTR_SHIFT) | MVM_CUNION_ATTR_IN_STRUCT;
                     repr_data->flattened_stables[i] = STABLE(type);
