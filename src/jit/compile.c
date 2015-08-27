@@ -95,10 +95,19 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     char * memory;
     size_t codesize;
 
+    MVMint32 dasm_error = 0;
+
    /* compile the function */
-    dasm_link(cl, &codesize);
+    if ((dasm_error = dasm_link(cl, &codesize)) != 0) {
+        MVM_jit_log(tc, "DynASM could not link, error: %d\n", dasm_error);
+        return NULL;
+    }
+
     memory = MVM_platform_alloc_pages(codesize, MVM_PAGE_READ|MVM_PAGE_WRITE);
-    dasm_encode(cl, memory);
+    if ((dasm_error = dasm_encode(cl, memory)) != 0) {
+        MVM_jit_log(tc, "DynASM could not encode, error: %d\n", dasm_error);
+        return NULL;
+    }
 
     /* set memory readable + executable */
     if (!MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC)) {
