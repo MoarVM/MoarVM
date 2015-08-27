@@ -2857,7 +2857,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     ((MVMCode *)obj)->body.outer = context;
                     MVM_frame_inc_ref(tc, context);
                     if (orig) {
-                        orig = MVM_frame_dec_ref(tc, orig);
+                        MVM_frame_dec_ref(tc, orig);
                     }
                 }
                 cur_op += 4;
