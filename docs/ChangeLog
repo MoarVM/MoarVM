@@ -1,3 +1,7 @@
+New in 2015.08
+
++ Support for parsing Unicode numbers
+
 New in 2015.07
 
 + Support for multi-dimensional arrays
