@@ -496,8 +496,9 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
         mp_init(ic);
 
         mp_result = mp_mod(ia, ib, ic);
+        clear_temp_bigints(tmp, 2);
+
         if (mp_result == MP_VAL) {
-            clear_temp_bigints(tmp, 2);
             MVM_exception_throw_adhoc(tc, "Division by zero");
         }
         store_bigint_result(bc, ic);
