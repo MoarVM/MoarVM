@@ -580,7 +580,6 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
      * attributes. */
     mro_count   = REPR(info)->elems(tc, STABLE(info), info, OBJECT_BODY(info));
     mro_pos     = mro_count;
-    num_attrs   = 0;
     total_attrs = 0;
     while (mro_pos--) {
         /* Get info for the class at the current position. */
