@@ -152,7 +152,6 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString * dest) {
     if (uv_fs_close(tc->loop, &req, out_fd, NULL) < 0) {
         goto failure;
     }
-    out_fd = -1;
 
     MVM_free(b);
     MVM_free(a);
