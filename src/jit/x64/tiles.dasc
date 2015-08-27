@@ -636,7 +636,11 @@ MVM_JIT_TILE_DECL(label_addr) {
 
 MVM_JIT_TILE_DECL(branch_label) {
     MVMint32 label = values[1]->u.label;
-    | jmp =>(label);
+    if (label >= 0) {
+        | jmp =>(label);
+    } else {
+        | jmp ->exit;
+    }
 }
 
 MVM_JIT_TILE_DECL(when_branch) {

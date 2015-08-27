@@ -103,9 +103,11 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     size_t codesize;
 
    /* compile the function */
-    dasm_link(cl, &codesize);
+    if (dasm_link(cl, &codesize) != 0)
+        MVM_oops(tc, "dynasm could not link :-(");
     memory = MVM_platform_alloc_pages(codesize, MVM_PAGE_READ|MVM_PAGE_WRITE);
-    dasm_encode(cl, memory);
+    if (dasm_encode(cl, memory) != 0)
+        MVM_oops(tc, "dynasm could not encode :-(");
 
     /* set memory readable + executable */
     MVM_platform_set_page_mode(memory, codesize, MVM_PAGE_READ|MVM_PAGE_EXEC);
