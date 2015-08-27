@@ -268,7 +268,6 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, MVMObject *result_type,
      * memory */
     if (bufsize - count > 4) {
         buffer = MVM_realloc(buffer, count * sizeof(MVMGrapheme32));
-        bufsize = count;
     }
     result->body.storage.blob_32 = buffer;
     result->body.storage_type    = MVM_STRING_GRAPHEME_32;
