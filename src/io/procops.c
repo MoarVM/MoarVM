@@ -574,6 +574,7 @@ static MVMint64 close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
         task->body.ops  = &close_op_table;
         task->body.data = si->stdin_handle;
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+        si->stdin_handle = NULL;
     }
     return 0;
 }
@@ -628,6 +629,12 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
             MVM_repr_push_o(tc, t->body.queue, arr);
         });
     }
+
+    /* when invoked via MVMIOOps, close_stdin is already wrapped in a mutex */
+    MVMOSHandle *os_handle = (MVMOSHandle *) si->handle;
+    uv_mutex_lock(os_handle->body.mutex);
+    close_stdin(tc, os_handle);
+    uv_mutex_unlock(os_handle->body.mutex);
 
     /* Close handle. */
     uv_close((uv_handle_t *)req, spawn_async_close);
