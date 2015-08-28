@@ -307,17 +307,21 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
 }
 
 MVMObject * MVM_nfa_to_statelist(MVMThreadContext *tc, MVMObject *nfa_obj, MVMObject *statelist_type) {
-    MVMObject  *statelist_obj;
-    MVMNFABody *nfa;
     MVMint64    node_idx;
     MVMint64    edge_idx;
 
-    MVM_gc_root_temp_push(tc, nfa_obj);
-    MVM_gc_root_temp_push(tc, statelist_type);
+    MVMNFABody *nfa;
+    MVMObject  *statelist_obj;
+
+    MVMInstance  *instance   = tc->instance;
+    MVMHLLConfig *hll_config = MVM_hll_current(tc);
+
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&nfa_obj);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&statelist_type);
 
     statelist_obj = MVM_repr_alloc_init(tc, statelist_type);
 
-    MVM_gc_root_temp_push(tc, statelist_obj);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&statelist_obj);
     nfa = (MVMNFABody *)OBJECT_BODY(nfa_obj);
 
     MVM_repr_pos_set_elems(tc, statelist_obj, nfa->num_states + 1);
@@ -328,7 +332,7 @@ MVMObject * MVM_nfa_to_statelist(MVMThreadContext *tc, MVMObject *nfa_obj, MVMOb
         MVMObject *edgelist = MVM_repr_alloc_init(tc, statelist_type);
         MVMint64   num_edges;
 
-        MVM_gc_root_temp_push(tc, edgelist);
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&edgelist);
 
         /* If the GC has run, nfa_obj may have moved and we have to
          * get the proper address of its body (nfa) again. */
@@ -346,7 +350,7 @@ MVMObject * MVM_nfa_to_statelist(MVMThreadContext *tc, MVMObject *nfa_obj, MVMOb
             MVMint64 act = nfa->states[node_idx][edge_idx].act;
             MVMint64 to  = nfa->states[node_idx][edge_idx].to;
 
-            MVM_repr_push_o(tc, edgelist, MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, act));
+            MVM_repr_push_o(tc, edgelist, MVM_repr_box_int(tc, hll_config->int_box_type, act));
             /* same as above, get the nfa pointer corrected if the gc has kicked in */
             nfa = (MVMNFABody *)OBJECT_BODY(nfa_obj);
 
@@ -360,7 +364,7 @@ MVMObject * MVM_nfa_to_statelist(MVMThreadContext *tc, MVMObject *nfa_obj, MVMOb
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
                     MVM_repr_push_o(tc, edgelist,
-                            MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type,
+                            MVM_repr_box_int(tc, hll_config->int_box_type,
                                 nfa->states[node_idx][edge_idx].arg.i));
                     break;
                 case MVM_NFA_EDGE_CODEPOINT_I:
@@ -372,33 +376,30 @@ MVMObject * MVM_nfa_to_statelist(MVMThreadContext *tc, MVMObject *nfa_obj, MVMOb
                    of our range. */
                 case MVM_NFA_EDGE_CHARRANGE:
                 case MVM_NFA_EDGE_CHARRANGE_NEG: {
-                    MVMObject *from_to = MVM_repr_alloc_init(tc, statelist_type);
+                    MVMObject *from_to = MVM_repr_alloc_init(tc, instance->boot_types.BOOTIntArray);
+
                     nfa = (MVMNFABody *)OBJECT_BODY(nfa_obj);
 
-                    MVM_gc_root_temp_push(tc, from_to);
 
                     MVMint64 lower = nfa->states[node_idx][edge_idx].arg.uclc.lc;
                     MVMint64 upper = nfa->states[node_idx][edge_idx].arg.uclc.uc;
 
                     MVM_repr_push_o(tc, edgelist, from_to);
 
-                    MVM_repr_push_o(tc, from_to,
-                            MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, lower));
-                    MVM_repr_push_o(tc, from_to,
-                            MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, upper));
+                    MVM_repr_push_i(tc, from_to, lower);
+                    MVM_repr_push_i(tc, from_to, upper);
 
-                    MVM_gc_root_temp_pop(tc);
                     break;
                 }
                 case MVM_NFA_EDGE_CHARLIST:
                 case MVM_NFA_EDGE_CHARLIST_NEG:
-                    MVM_repr_push_o(tc, edgelist, MVM_repr_box_str(tc,MVM_hll_current(tc)->str_box_type,
+                    MVM_repr_push_o(tc, edgelist, MVM_repr_box_str(tc, hll_config->str_box_type,
                                 nfa->states[node_idx][edge_idx].arg.s));
                     break;
             }
 
             MVM_repr_push_o(tc, edgelist,
-                    MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, to));
+                    MVM_repr_box_int(tc, hll_config->int_box_type, to));
             nfa = (MVMNFABody *)OBJECT_BODY(nfa_obj);
         }
         MVM_gc_root_temp_pop(tc);
