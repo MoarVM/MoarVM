@@ -306,7 +306,7 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
     return nfa_obj;
 }
 
-MVMObject * MVM_nfa_to_statelist(MVMThreadContext *tc, MVMObject *nfa_obj, MVMObject *statelist_type) {
+MVMObject * MVM_nfa_to_statelist(MVMThreadContext *tc, MVMObject *nfa_obj) {
     MVMint64    node_idx;
     MVMint64    edge_idx;
 
@@ -317,9 +317,8 @@ MVMObject * MVM_nfa_to_statelist(MVMThreadContext *tc, MVMObject *nfa_obj, MVMOb
     MVMHLLConfig *hll_config = MVM_hll_current(tc);
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&nfa_obj);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&statelist_type);
 
-    statelist_obj = MVM_repr_alloc_init(tc, statelist_type);
+    statelist_obj = MVM_repr_alloc_init(tc, hll_config->slurpy_array_type);
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&statelist_obj);
     nfa = (MVMNFABody *)OBJECT_BODY(nfa_obj);
@@ -329,7 +328,7 @@ MVMObject * MVM_nfa_to_statelist(MVMThreadContext *tc, MVMObject *nfa_obj, MVMOb
     MVM_repr_bind_pos_o(tc, statelist_obj, 0, nfa->fates);
 
     for (node_idx = 0; node_idx < nfa->num_states; node_idx++) {
-        MVMObject *edgelist = MVM_repr_alloc_init(tc, statelist_type);
+        MVMObject *edgelist = MVM_repr_alloc_init(tc, hll_config->slurpy_array_type);
         MVMint64   num_edges;
 
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&edgelist);

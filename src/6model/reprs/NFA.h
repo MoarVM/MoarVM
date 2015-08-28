@@ -54,7 +54,7 @@ const MVMREPROps * MVMNFA_initialize(MVMThreadContext *tc);
 
 /* Other NFA related functions. */
 MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMObject *nfa_type);
-MVMObject * MVM_nfa_to_statelist(MVMThreadContext *tc, MVMObject *nfa_obj, MVMObject *statelist_type);
+MVMObject * MVM_nfa_to_statelist(MVMThreadContext *tc, MVMObject *nfa_obj);
 MVMObject * MVM_nfa_run_proto(MVMThreadContext *tc, MVMObject *nfa, MVMString *target, MVMint64 offset);
 void MVM_nfa_run_alt(MVMThreadContext *tc, MVMObject *nfa, MVMString *target,
     MVMint64 offset, MVMObject *bstack, MVMObject *cstack, MVMObject *labels);

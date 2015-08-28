@@ -4698,9 +4698,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(nfatostatelist): {
                 MVMObject *nfa = GET_REG(cur_op, 2).o;
-                MVMObject *listtype = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).o = MVM_nfa_to_statelist(tc, nfa, listtype);
-                cur_op += 6;
+                GET_REG(cur_op, 0).o = MVM_nfa_to_statelist(tc, nfa);
+                cur_op += 4;
                 goto NEXT;
             }
             OP(sp_log):

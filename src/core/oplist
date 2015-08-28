@@ -729,7 +729,7 @@ dimensions          w(obj) r(obj)
 setdimensions       r(obj) r(obj)
 numdimensions       w(int64) r(obj)
 ctxcode             w(obj) r(obj)
-nfatostatelist      w(obj) r(obj) r(obj) :pure
+nfatostatelist      w(obj) r(obj) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
