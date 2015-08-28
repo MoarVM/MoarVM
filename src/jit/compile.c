@@ -678,10 +678,13 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
         tile->rule(tc, cl, tree, node, values, args);
         /* Update return value */
         if (args[0] == MVM_JIT_NUM) {
+            MVM_jit_register_take(tc, cl, MVM_JIT_REGCLS_NUM, MVM_JIT_RETVAL_NUM);
             MVM_jit_register_assign(tc, cl, values[0], MVM_JIT_REGCLS_NUM, MVM_JIT_RETVAL_NUM);
         } else if (args[0] != MVM_JIT_VOID) {
+            MVM_jit_register_take(tc, cl, MVM_JIT_REGCLS_GPR, MVM_JIT_RETVAL_GPR);
             MVM_jit_register_assign(tc, cl, values[0], MVM_JIT_REGCLS_GPR, MVM_JIT_RETVAL_GPR);
         }
+        values[0]->type = (args[0] == MVM_JIT_VOID ? MVM_JIT_VOID : MVM_JIT_REG);
         post_call(tc, cl, tree, node);
         break;
 
@@ -720,6 +723,7 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
     case MVM_JIT_COPY:
         /* Virtual copy */
         {
+            values[0]->type = MVM_JIT_REG;
             values[1] = &tree->info[tree->nodes[node+1]].value;
             MVM_jit_register_assign(tc, cl, values[0], values[1]->u.reg.cls, values[1]->u.reg.num);
         }

@@ -55,9 +55,11 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compi
                                      MVMJitRegisterAllocator *alc) {
     /* Store live ranges */
     MVM_DYNAR_INIT(alc->active, NUM_GPR);
-    /* Initialize free register stacks */
+    /* Initialize free register buffer */
+    alc->free_reg = MVM_malloc(sizeof(free_gpr));
     memcpy(alc->free_reg, free_gpr, NUM_GPR);
-    memset(alc->reg_use, 0, sizeof(alc->reg_use));
+
+    alc->reg_use   = MVM_calloc(16, sizeof(MVMint8));
 
     alc->reg_give  = 0;
     alc->reg_take  = 0;
@@ -70,6 +72,8 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compi
 void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                        MVMJitRegisterAllocator *alc) {
     MVM_free(alc->active);
+    MVM_free(alc->free_reg);
+    MVM_free(alc->reg_use);
     compiler->allocator = NULL;
 }
 
@@ -251,11 +255,14 @@ void MVM_jit_register_expire(MVMThreadContext *tc, MVMJitCompiler *compiler, MVM
         NYI(numeric_regs);
     }
     /* Remove value from active */
-    for (i = 0; i < alc->active_num; i++) {
+    i = 0;
+    while (i < alc->active_num) {
         if (alc->active[i] == value) {
             /* splice it out */
             alc->active_num--;
             alc->active[i] = alc->active[alc->active_num];
+        } else {
+            i++;
         }
     }
     /* Mark value as dead */
