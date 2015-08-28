@@ -61,6 +61,13 @@
 # (tile: nz_const_mem (nz (and (load mem) (const))))
 (tile: zr_reg (zr reg) flag 2)
 
+(tile: equal (eq reg reg) reg 2)
+(tile: lthan (lt reg reg) reg 2)
+(tile: gthan (gt reg reg) reg 2)
+(tile: nequal (ne reg reg) reg 2)
+(tile: lequal (le reg reg) reg 2)
+(tile: gequal (ge reg reg) reg 2)
+
 #
 # CONTROL STATEMENTS
 #

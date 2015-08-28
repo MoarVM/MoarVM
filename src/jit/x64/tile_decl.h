@@ -43,3 +43,10 @@ MVM_JIT_TILE_DECL(label_addr);
 MVM_JIT_TILE_DECL(branch_label);
 MVM_JIT_TILE_DECL(callfunc);
 MVM_JIT_TILE_DECL(callreg);
+
+MVM_JIT_TILE_DECL(equal);
+MVM_JIT_TILE_DECL(lthan);
+MVM_JIT_TILE_DECL(gthan);
+MVM_JIT_TILE_DECL(nequal);
+MVM_JIT_TILE_DECL(lequal);
+MVM_JIT_TILE_DECL(gequal);

@@ -592,6 +592,116 @@ MVM_JIT_TILE_DECL(zr_reg) {
 
 }
 
+MVM_JIT_TILE_DECL(equal) {
+    MVMint8 regl = values[1]->u.reg.num;
+    MVMint8 regr = values[2]->u.reg.num;
+    switch (values[0]->size) {
+    case 1:
+        | test Rb(regl), Rb(regr);
+        break;
+    case 2:
+        | test Rw(regl), Rw(regr);
+        break;
+    case 4:
+        | test Rd(regl), Rd(regr);
+        break;
+    case 8:
+        | test Rq(regl), Rq(regr);
+        break;
+    }
+}
+MVM_JIT_TILE_DECL(lthan) {
+    MVMint8 regl = values[1]->u.reg.num;
+    MVMint8 regr = values[2]->u.reg.num;
+    switch (values[0]->size) {
+    case 1:
+        | test Rb(regl), Rb(regr);
+        break;
+    case 2:
+        | test Rw(regl), Rw(regr);
+        break;
+    case 4:
+        | test Rd(regl), Rd(regr);
+        break;
+    case 8:
+        | test Rq(regl), Rq(regr);
+        break;
+    }
+}
+MVM_JIT_TILE_DECL(gthan) {
+    MVMint8 regl = values[1]->u.reg.num;
+    MVMint8 regr = values[2]->u.reg.num;
+    switch (values[0]->size) {
+    case 1:
+        | test Rb(regl), Rb(regr);
+        break;
+    case 2:
+        | test Rw(regl), Rw(regr);
+        break;
+    case 4:
+        | test Rd(regl), Rd(regr);
+        break;
+    case 8:
+        | test Rq(regl), Rq(regr);
+        break;
+    }
+}
+MVM_JIT_TILE_DECL(nequal) {
+    MVMint8 regl = values[1]->u.reg.num;
+    MVMint8 regr = values[2]->u.reg.num;
+    switch (values[0]->size) {
+    case 1:
+        | test Rb(regl), Rb(regr);
+        break;
+    case 2:
+        | test Rw(regl), Rw(regr);
+        break;
+    case 4:
+        | test Rd(regl), Rd(regr);
+        break;
+    case 8:
+        | test Rq(regl), Rq(regr);
+        break;
+    }
+}
+MVM_JIT_TILE_DECL(lequal) {
+    MVMint8 regl = values[1]->u.reg.num;
+    MVMint8 regr = values[2]->u.reg.num;
+    switch (values[0]->size) {
+    case 1:
+        | test Rb(regl), Rb(regr);
+        break;
+    case 2:
+        | test Rw(regl), Rw(regr);
+        break;
+    case 4:
+        | test Rd(regl), Rd(regr);
+        break;
+    case 8:
+        | test Rq(regl), Rq(regr);
+        break;
+    }
+}
+MVM_JIT_TILE_DECL(gequal) {
+    MVMint8 regl = values[1]->u.reg.num;
+    MVMint8 regr = values[2]->u.reg.num;
+    switch (values[0]->size) {
+    case 1:
+        | test Rb(regl), Rb(regr);
+        break;
+    case 2:
+        | test Rw(regl), Rw(regr);
+        break;
+    case 4:
+        | test Rd(regl), Rd(regr);
+        break;
+    case 8:
+        | test Rq(regl), Rq(regr);
+        break;
+    }
+}
+
+
 
 /* Placeholder tiles. Not very good to implement as postorder expressions (yet) */
 MVM_JIT_TILE_DECL(all) {
