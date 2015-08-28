@@ -403,7 +403,7 @@ MVMObject * MVM_nfa_to_statelist(MVMThreadContext *tc, MVMObject *nfa_obj) {
         }
         MVM_gc_root_temp_pop(tc);
     }
-    MVM_gc_root_temp_pop_n(tc, 3);
+    MVM_gc_root_temp_pop_n(tc, 2);
 }
 
 /* Does a run of the NFA. Produces a list of integers indicating the
