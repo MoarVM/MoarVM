@@ -132,6 +132,12 @@
         (branch (label $1)
     )))
 
+(template: if_i
+    (when
+        (nz $0)
+        (branch (label $1)
+    )))
+
 (template: getlex_no
   (let: (($res
     (call (^func &MVM_frame_find_lexical_by_name)
