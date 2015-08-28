@@ -717,12 +717,19 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
             /* otherwise is the void case */
         }
         break;
+    case MVM_JIT_COPY:
+        /* Virtual copy */
+        {
+            values[1] = &tree->info[tree->nodes[node+1]].value;
+            MVM_jit_register_assign(tc, cl, values[0], values[1]->u.reg.cls, values[1]->u.reg.num);
+        }
+        break;
     case MVM_JIT_LOCAL:
     case MVM_JIT_FRAME:
     case MVM_JIT_TC:
     case MVM_JIT_CU:
     case MVM_JIT_STACK:
-    case MVM_JIT_COPY:
+
         if (tile->rule == NULL)
             return;
         tile->rule(tc, cl, tree, node, values, args);
