@@ -862,6 +862,19 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         MVMOSHandle           *handle  = (MVMOSHandle *)si->handle;
         MVMIOAsyncProcessData *apd     = (MVMIOAsyncProcessData *)handle->body.data;
         apd->handle                    = process;
+
+        MVMObject *ready_cb = MVM_repr_at_key_o(tc, si->callbacks,
+            tc->instance->str_consts.ready);
+
+        if (!MVM_is_null(tc, ready_cb)) {
+            MVMROOT(tc, ready_cb, {
+            MVMROOT(tc, async_task, {
+                MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+                MVM_repr_push_o(tc, arr, ready_cb);
+                MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
+            });
+            });
+        }
     }
 
     /* Start any output readers. */
