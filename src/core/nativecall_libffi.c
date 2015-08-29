@@ -110,6 +110,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         void *cb;
         ffi_cif *cif;
         ffi_closure *closure;
+        ffi_status status;
 
         num_info = MVM_repr_elems(tc, sig_info);
 
@@ -173,7 +174,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         callback_data->tc        = tc;
         callback_data->cs        = cs;
         callback_data->target    = callback;
-        ffi_status status        = ffi_prep_cif(cif, callback_data->convention, (unsigned int)cs->arg_count,
+        status                   = ffi_prep_cif(cif, callback_data->convention, (unsigned int)cs->arg_count,
             callback_data->ffi_ret_type, callback_data->ffi_arg_types);
 
         closure                  = ffi_closure_alloc(sizeof(ffi_closure), &cb);
