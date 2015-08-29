@@ -708,9 +708,6 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
     spec.bits            = 0;
     spec.align           = 0;
     spec.is_unsigned     = 0;
-    spec.inlineable      = 0;
-    spec.boxed_primitive = 0;
-    spec.can_box         = 0;
 
     switch (repr_data->slot_type) {
         case MVM_ARRAY_STR:
