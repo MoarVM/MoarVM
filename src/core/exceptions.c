@@ -300,6 +300,13 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
             cur_frame->static_info->body.cu->body.strings[string_heap_index])
         : NULL;
 
+    char *filename_c = filename
+	? MVM_string_utf8_encode_C_string(tc, filename)
+	: "<ephemeral file>";
+    char *name_c = name
+	? MVM_string_utf8_encode_C_string(tc, name)
+	: "<anonymous frame>";
+
     /* We may be mid-instruction if exception was thrown at an unfortunate
      * point; try to cope with that. */
     if (instr == MVM_BC_ILLEGAL_OFFSET && offset >= 2)
@@ -309,10 +316,14 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
         not_top ? "from" : "  at",
         tmp1 ? tmp1 : "<unknown>",
         line_number,
-        filename ? MVM_string_utf8_encode_C_string(tc, filename) : "<ephemeral file>",
-        name ? MVM_string_utf8_encode_C_string(tc, name) : "<anonymous frame>",
+        filename_c,
+        name_c,
         instr
     );
+    if (filename)
+	MVM_free(filename_c);
+    if (name)
+	MVM_free(name_c);
 
     if (tmp1)
         MVM_free(tmp1);
@@ -466,8 +477,9 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
         panic_unhandled_cat(tc, ex->body.category);
 
     /* Otherwise, dump message and a backtrace. */
-    fprintf(stderr, "Unhandled exception: %s\n",
-        MVM_string_utf8_encode_C_string(tc, ex->body.message));
+    char * backtrace = MVM_string_utf8_encode_C_string(tc, ex->body.message);
+    fprintf(stderr, "Unhandled exception: %s\n", backtrace);
+    MVM_free(backtrace);
     MVM_dump_backtrace(tc);
     if (crash_on_error)
         abort();
