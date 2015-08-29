@@ -861,9 +861,10 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     else {
         MVMOSHandle           *handle  = (MVMOSHandle *)si->handle;
         MVMIOAsyncProcessData *apd     = (MVMIOAsyncProcessData *)handle->body.data;
+        MVMObject *ready_cb;
         apd->handle                    = process;
 
-        MVMObject *ready_cb = MVM_repr_at_key_o(tc, si->callbacks,
+        ready_cb = MVM_repr_at_key_o(tc, si->callbacks,
             tc->instance->str_consts.ready);
 
         if (!MVM_is_null(tc, ready_cb)) {
