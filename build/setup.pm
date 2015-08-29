@@ -265,7 +265,7 @@ our %COMPILERS = (
         cc => 'gcc',
         ld => undef,
 
-        ccmiscflags  => '',
+        ccmiscflags  => '-Wdeclaration-after-statement -Werror=declaration-after-statement',
         ccwarnflags  => '',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
