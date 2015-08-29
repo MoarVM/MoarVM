@@ -23,7 +23,8 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     MVMint32 num_spesh_slots, num_log_slots, num_guards, *deopts, num_deopts;
     MVMuint16 num_locals, num_lexicals, used;
     MVMCollectable **spesh_slots, **log_slots;
-    char *before, *after;
+    char *before = 0;
+    char *after = 0;
     MVMSpeshGraph *sg;
 
     /* If we're profiling, log we're starting spesh work. */
@@ -118,6 +119,10 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
             used = 1;
         }
     }
+    if (after)
+        MVM_free(after);
+    if (before)
+        MVM_free(before);
     if (result && !used) {
         MVM_free(sc->bytecode);
         if (sc->handlers)
