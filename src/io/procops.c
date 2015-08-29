@@ -607,6 +607,7 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
     MVMThreadContext *tc  = si->tc;
     MVMObject *done_cb = MVM_repr_at_key_o(tc, si->callbacks,
         tc->instance->str_consts.done);
+    MVMOSHandle *os_handle;
     if (!MVM_is_null(tc, done_cb)) {
         MVMROOT(tc, done_cb, {
             /* Get status. */
@@ -631,7 +632,7 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
     }
 
     /* when invoked via MVMIOOps, close_stdin is already wrapped in a mutex */
-    MVMOSHandle *os_handle = (MVMOSHandle *) si->handle;
+    os_handle = (MVMOSHandle *) si->handle;
     uv_mutex_lock(os_handle->body.mutex);
     close_stdin(tc, os_handle);
     uv_mutex_unlock(os_handle->body.mutex);
