@@ -467,6 +467,8 @@ static void panic_unhandled_cat(MVMThreadContext *tc, MVMuint32 cat) {
 
 /* Panic over an unhandled exception object. */
 static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
+    char *backtrace;
+
     /* If it's a control exception, try promoting it to a catch one; use
      * the category name. */
     if (ex->body.category != MVM_EX_CAT_CATCH)
@@ -477,7 +479,7 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
         panic_unhandled_cat(tc, ex->body.category);
 
     /* Otherwise, dump message and a backtrace. */
-    char * backtrace = MVM_string_utf8_encode_C_string(tc, ex->body.message);
+    backtrace = MVM_string_utf8_encode_C_string(tc, ex->body.message);
     fprintf(stderr, "Unhandled exception: %s\n", backtrace);
     MVM_free(backtrace);
     MVM_dump_backtrace(tc);
