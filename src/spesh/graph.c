@@ -618,7 +618,9 @@ static MVMSpeshBB ** reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g) {
     dfs(rpo, &ins, seen, g->entry);
     MVM_free(seen);
     if (ins != -1) {
-        printf("%s", MVM_spesh_dump(tc, g));
+        char *dump_msg = MVM_spesh_dump(tc, g);
+        printf("%s", dump_msg);
+        MVM_free(dump_msg);
         MVM_spesh_graph_destroy(tc, g);
         MVM_oops(tc, "Spesh: reverse postorder calculation failed");
     }
@@ -630,7 +632,9 @@ static void iter_check(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo,
     if (iters > 100000) {
 #ifdef NDEBUG
         MVMint32 k;
-        printf("%s", MVM_spesh_dump(tc, g));
+        char *dump_msg = MVM_spesh_dump(tc, g);
+        printf("%s", dump_msg);
+        MVM_free(dump_msg);
         printf("RPO: ");
         for (k = 0; k < g->num_bbs; k++)
             printf("%d, ", rpo[k]->idx);
