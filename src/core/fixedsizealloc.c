@@ -204,6 +204,7 @@ static void add_to_overflows_safepoint_free_list(MVMThreadContext *tc, MVMFixedS
         orig = al->free_at_next_safepoint_overflows;
         to_add->next = orig;
     } while (!MVM_trycas(&(al->free_at_next_safepoint_overflows), orig, to_add));
+    MVM_fixed_size_free(tc, al, sizeof(MVMFixedSizeAllocSafepointFreeListEntry), to_add);
 }
 
 /* Queues a piece of memory of the specified size to be freed at the next
@@ -236,6 +237,7 @@ void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *a
                 orig = bin_ptr->free_at_next_safepoint_list;
                 to_add->next = orig;
             } while (!MVM_trycas(&(bin_ptr->free_at_next_safepoint_list), orig, to_add));
+            MVM_fixed_size_free(tc, al, sizeof(MVMFixedSizeAllocSafepointFreeListEntry), to_add);
         }
         else {
             /* Single-threaded, so no global safepoint issues to care for; put
