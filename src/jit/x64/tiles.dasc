@@ -4,67 +4,57 @@
 MVM_JIT_TILE_DECL(load_stack) {
     values[0]->type      = MVM_JIT_REG;
     values[0]->state     = MVM_JIT_VALUE_ALLOCATED;
-    values[0]->u.reg.cls = MVM_JIT_X64_GPR;
-    values[0]->u.reg.num = MVM_JIT_X64_RSP;
+    values[0]->reg_cls = MVM_JIT_X64_GPR;
+    values[0]->reg_num = MVM_JIT_X64_RSP;
 }
 
 MVM_JIT_TILE_DECL(load_local) {
     values[0]->type      = MVM_JIT_REG;
     values[0]->state     = MVM_JIT_VALUE_ALLOCATED;
-    values[0]->u.reg.cls = MVM_JIT_X64_GPR;
-    values[0]->u.reg.num = MVM_JIT_X64_RBX;
+    values[0]->reg_cls = MVM_JIT_X64_GPR;
+    values[0]->reg_num = MVM_JIT_X64_RBX;
 }
 
 MVM_JIT_TILE_DECL(load_frame) {
     values[0]->type      = MVM_JIT_REG;
     values[0]->state     = MVM_JIT_VALUE_ALLOCATED;
-    values[0]->u.reg.cls = MVM_JIT_X64_GPR;
-    values[0]->u.reg.num = MVM_JIT_X64_R12;
+    values[0]->reg_cls = MVM_JIT_X64_GPR;
+    values[0]->reg_num = MVM_JIT_X64_R12;
 }
 
 MVM_JIT_TILE_DECL(load_cu) {
     values[0]->type      = MVM_JIT_REG;
     values[0]->state     = MVM_JIT_VALUE_ALLOCATED;
-    values[0]->u.reg.cls = MVM_JIT_X64_GPR;
-    values[0]->u.reg.num = MVM_JIT_X64_R13;
+    values[0]->reg_cls = MVM_JIT_X64_GPR;
+    values[0]->reg_num = MVM_JIT_X64_R13;
 }
 
 MVM_JIT_TILE_DECL(load_tc) {
     values[0]->type      = MVM_JIT_REG;
     values[0]->state     = MVM_JIT_VALUE_ALLOCATED;
-    values[0]->u.reg.cls = MVM_JIT_X64_GPR;
-    values[0]->u.reg.num = MVM_JIT_X64_R14;
+    values[0]->reg_cls = MVM_JIT_X64_GPR;
+    values[0]->reg_num = MVM_JIT_X64_R14;
 }
 
 MVM_JIT_TILE_DECL(load_vmnull) {
-    MVMint8 reg = values[0]->u.reg.num;
+    MVMint8 reg = values[0]->reg_num;
     | get_vmnull Rq(reg);
 }
 
 
-MVM_JIT_TILE_DECL(addr_mem) {
-    values[0]->u.mem.r0 = values[1]->u.reg.num;
-    values[0]->u.mem.r1 = -1;
-    values[0]->u.mem.c   = args[0];
-}
 
-MVM_JIT_TILE_DECL(addr_reg) {
-    MVMint8 out  = values[0]->u.reg.num;
-    MVMint8 base = values[1]->u.reg.num;
+MVM_JIT_TILE_DECL(addr) {
+    MVMint8 out  = values[0]->reg_num;
+    MVMint8 base = values[1]->reg_num;
     MVMint32 ofs = args[0];
     | lea Rq(out), [Rq(base)+ofs];
 }
 
-MVM_JIT_TILE_DECL(idx_mem) {
-    values[0]->u.mem.r0 = values[1]->u.reg.num;
-    values[0]->u.mem.r1 = values[2]->u.reg.num;
-    values[0]->u.mem.c  = args[0];
-}
 
-MVM_JIT_TILE_DECL(idx_reg) {
-    MVMint8 out  = values[0]->u.reg.num;
-    MVMint8 base = values[1]->u.reg.num;
-    MVMint8 idx  = values[2]->u.reg.num;
+MVM_JIT_TILE_DECL(idx) {
+    MVMint8 out  = values[0]->reg_num;
+    MVMint8 base = values[1]->reg_num;
+    MVMint8 idx  = values[2]->reg_num;
     MVMint8 scl  = args[0];
     if (scl != 8) {
         | lea Rq(out), [Rq(base)+Rq(idx)*8];
@@ -75,7 +65,7 @@ MVM_JIT_TILE_DECL(idx_reg) {
 
 
 MVM_JIT_TILE_DECL(const_reg) {
-    MVMint8 out = values[0]->u.reg.num;
+    MVMint8 out = values[0]->reg_num;
     if (args[1] == 8 && !fits_in_32_bit(args[0])) {
         | mov64 Rq(out), args[0];
     } else {
@@ -83,11 +73,15 @@ MVM_JIT_TILE_DECL(const_reg) {
     }
 }
 
+/* Tree access macro's */
+#define XS(x)      tree->nodes[x]
+#define XS2(x,y)   XS(XS(x)+y)
+#define XS3(x,y,z) XS(XS2(x,y)+z)
 
 
 MVM_JIT_TILE_DECL(load_reg) {
-    MVMint8 out  = values[0]->u.reg.num;
-    MVMint8 base = values[1]->u.reg.num;
+    MVMint8 out  = values[0]->reg_num;
+    MVMint8 base = values[1]->reg_num;
     switch (args[0]) {
     case 1:
         | mov Rb(out), [Rq(base)];
@@ -106,77 +100,58 @@ MVM_JIT_TILE_DECL(load_reg) {
     }
 }
 
-MVM_JIT_TILE_DECL(load_mem) {
-    MVMint8 out  = values[0]->u.reg.num;
-    if (values[1]->u.mem.r1 < 0) {
-        MVMint8 base = values[1]->u.mem.r0;
-        MVMint8 ofs  = values[1]->u.mem.c;
-        switch (args[0]) {
-        case 1:
-            | mov Rb(out), [Rq(base)+ofs];
-            break;
-        case 2:
-            | mov Rw(out), [Rq(base)+ofs];
-            break;
-        case 4:
-            | mov Rd(out), [Rq(base)+ofs];
-            break;
-        case 8:
-            | mov Rq(out), [Rq(base)+ofs];
-            break;
-        default:
-            MVM_oops(tc, "Unsupported load size: %d\n", args[0]);
-        }
-    } else {
-        MVMint8 base = values[1]->u.mem.r0;
-        MVMint8 idx  = values[1]->u.mem.r1;
-        MVMint8 scl  = values[1]->u.mem.c;
-        if (scl != 8) {
-            MVM_oops(tc, "Unsupported scale size: %d\n", scl);
-        }
-        switch (args[0]) {
-        case 1:
-            | mov Rb(out), [Rq(base)+Rq(idx)*8];
-            break;
-        case 2:
-            | mov Rw(out), [Rq(base)+Rq(idx)*8];
-            break;
-        case 4:
-            | mov Rd(out), [Rq(base)+Rq(idx)*8];
-            break;
-        case 8:
-            | mov Rq(out), [Rq(base)+Rq(idx)*8];
-            break;
-        default:
-            MVM_oops(tc, "Unsupported load size: %d\n", args[0]);
-        }
-    }
-}
-
-MVM_JIT_TILE_DECL(load_lbl) {
-    MVMint8 out    = values[0]->u.reg.num;
-    MVMint32 label = values[1]->u.label;
+MVM_JIT_TILE_DECL(load_addr) {
+    MVMint8 out  = values[0]->reg_num;
+    MVMint8 base = values[1]->reg_num;
+    MVMint8 ofs  = XS2(node+1,2);
     switch (args[0]) {
     case 1:
-        | mov Rb(out), [=>(label)];
+        | mov Rb(out), [Rq(base)+ofs];
         break;
     case 2:
-        | mov Rw(out), [=>(label)];
+        | mov Rw(out), [Rq(base)+ofs];
         break;
     case 4:
-        | mov Rd(out), [=>(label)];
+        | mov Rd(out), [Rq(base)+ofs];
         break;
     case 8:
-        | mov Rq(out), [=>(label)];
+        | mov Rq(out), [Rq(base)+ofs];
         break;
     default:
         MVM_oops(tc, "Unsupported load size: %d\n", args[0]);
     }
 }
 
-MVM_JIT_TILE_DECL(store_reg) {
-    MVMint8 base = values[1]->u.reg.num;
-    MVMint8 value = values[2]->u.reg.num;
+MVM_JIT_TILE_DECL(load_idx) {
+    MVMint8 out  = values[0]->reg_num;
+    MVMint8 base = values[1]->reg_num;
+    MVMint8 idx  = values[2]->reg_num;
+    MVMint8 scl  = XS2(node+1,3);
+    if (scl != 8) {
+        MVM_oops(tc, "Unsupported scale size: %d\n", scl);
+    }
+    switch (args[0]) {
+    case 1:
+        | mov Rb(out), [Rq(base)+Rq(idx)*8];
+        break;
+    case 2:
+        | mov Rw(out), [Rq(base)+Rq(idx)*8];
+        break;
+    case 4:
+        | mov Rd(out), [Rq(base)+Rq(idx)*8];
+        break;
+    case 8:
+        | mov Rq(out), [Rq(base)+Rq(idx)*8];
+        break;
+    default:
+        MVM_oops(tc, "Unsupported load size: %d\n", args[0]);
+    }
+}
+
+
+MVM_JIT_TILE_DECL(store) {
+    MVMint8 base  = values[1]->reg_num;
+    MVMint8 value = values[2]->reg_num;
     switch (args[0]) {
     case 1:
         | mov byte [Rq(base)], Rb(value);
@@ -195,60 +170,62 @@ MVM_JIT_TILE_DECL(store_reg) {
     }
 }
 
-MVM_JIT_TILE_DECL(store_mem) {
-    if (values[1]->u.mem.r1 < 0) {
-        MVMint8 base = values[1]->u.mem.r0;
-        MVMint8 ofs  = values[1]->u.mem.c;
-        MVMint8 value = values[2]->u.reg.num;
-        switch (args[0]) {
-        case 1:
-            | mov byte [Rq(base)+ofs], Rb(value);
-            break;
-        case 2:
-            | mov word [Rq(base)+ofs], Rw(value);
-            break;
-        case 4:
-            | mov dword [Rq(base)+ofs], Rd(value);
-            break;
-        case 8:
-            | mov qword [Rq(base)+ofs], Rq(value);
-            break;
-        default:
-            MVM_oops(tc, "Unsupported store size: %d\n", args[0]);
-        }
-    } else {
-        MVMint8 base = values[1]->u.mem.r0;
-        MVMint8 idx  = values[1]->u.mem.r1;
-        MVMint8 scl  = values[1]->u.mem.c;
-        MVMint8 value = values[2]->u.reg.num;
-        if (scl != 8)
-            MVM_oops(tc, "Scale %d NYI\n", scl);
-        switch (args[0]) {
-        case 1:
-            | mov byte [Rq(base)+Rq(idx)*8], Rb(value);
-            break;
-        case 2:
-            | mov word [Rq(base)+Rq(idx)*8], Rw(value);
-            break;
-        case 4:
-            | mov dword [Rq(base)+Rq(idx)*8], Rd(value);
-            break;
-        case 8:
-            | mov qword [Rq(base)+Rq(idx)*8], Rq(value);
-            break;
-        default:
-            MVM_oops(tc, "Unsupported store size: %d\n", args[0]);
-        }
+MVM_JIT_TILE_DECL(store_addr) {
+    MVMint8 base = values[1]->reg_num;
+    MVMint8 ofs  = XS2(node+1,2);
+    MVMint8 value = values[2]->reg_num;
+    switch (args[0]) {
+    case 1:
+        | mov byte [Rq(base)+ofs], Rb(value);
+        break;
+    case 2:
+        | mov word [Rq(base)+ofs], Rw(value);
+        break;
+    case 4:
+        | mov dword [Rq(base)+ofs], Rd(value);
+        break;
+    case 8:
+        | mov qword [Rq(base)+ofs], Rq(value);
+        break;
+    default:
+        MVM_oops(tc, "Unsupported store size: %d\n", args[0]);
     }
 }
 
+MVM_JIT_TILE_DECL(store_idx) {
+    MVMint8 base = values[1]->reg_num;
+    MVMint8 idx  = values[2]->reg_num;
+    MVMint8 scl  = XS2(node+1, 3);
+    MVMint8 value = values[3]->reg_num;
+    if (scl != 8)
+        MVM_oops(tc, "Scale %d NYI\n", scl);
+    switch (args[0]) {
+    case 1:
+        | mov byte [Rq(base)+Rq(idx)*8], Rb(value);
+        break;
+    case 2:
+        | mov word [Rq(base)+Rq(idx)*8], Rw(value);
+        break;
+    case 4:
+        | mov dword [Rq(base)+Rq(idx)*8], Rd(value);
+        break;
+    case 8:
+        | mov qword [Rq(base)+Rq(idx)*8], Rq(value);
+        break;
+    default:
+        MVM_oops(tc, "Unsupported store size: %d\n", args[0]);
+    }
+
+}
+
 MVM_JIT_TILE_DECL(copy) {
+    /* void implmeentation */
 }
 
 MVM_JIT_TILE_DECL(add_reg) {
-    MVMint8 out = values[0]->u.reg.num;
-    MVMint8 in1  = values[1]->u.reg.num;
-    MVMint8 in2  = values[2]->u.reg.num;
+    MVMint8 out = values[0]->reg_num;
+    MVMint8 in1  = values[1]->reg_num;
+    MVMint8 in2  = values[2]->reg_num;
     if (out == in2) {
         | add Rq(out), Rq(in2);
     } else {
@@ -258,11 +235,12 @@ MVM_JIT_TILE_DECL(add_reg) {
 }
 
 MVM_JIT_TILE_DECL(add_const) {
-    MVMint8 out = values[0]->u.reg.num;
-    MVMint8 in1  = values[1]->u.reg.num;
-    MVMint64 val = values[2]->u.const_val; // or tree->nodes[tree->nodes
+    MVMint8 out = values[0]->reg_num;
+    MVMint8 in1  = values[1]->reg_num;
+    MVMint64 val = XS2(node+2, 1);
+    MVMint64 sz  = XS2(node+2, 2);
     if (out == in1) {
-        if (values[2]->size == 8 && !fits_in_32_bit(val)) {
+        if (sz == 8 && !fits_in_32_bit(val)) {
             MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
             | mov64 Rq(tmp), val;
             | add Rq(in1), Rq(tmp);
@@ -271,7 +249,7 @@ MVM_JIT_TILE_DECL(add_const) {
             | add Rq(in1), val;
         }
     } else {
-        if (values[2]->size == 8 && !fits_in_32_bit(val)) {
+        if (sz == 8 && !fits_in_32_bit(val)) {
             | mov64 Rq(out), val;
             | add Rq(out), Rq(in1);
         } else {
@@ -281,147 +259,62 @@ MVM_JIT_TILE_DECL(add_const) {
     }
 }
 
-MVM_JIT_TILE_DECL(add_load_mem) {
-    MVMint8 out = values[0]->u.reg.num;
-    MVMint8 in1 = values[1]->u.reg.num;
-    MVMint8 base = values[2]->u.mem.r0;
+MVM_JIT_TILE_DECL(add_load_addr) {
+    MVMint8 out  = values[0]->reg_num;
+    MVMint8 in1  = values[1]->reg_num;
+    MVMint8 base = values[2]->reg_num;
+    MVMint32 ofs = XS3(node+2, 1, 2);
     if (in1 != out) {
-        | mov Rq(out), in1;
-    }
-    if (values[2]->u.mem.r1 < 0) {
-        MVMint32 ofs = values[2]->u.mem.c;
-        switch (values[2]->size) {
-        case 1:
-            | add Rb(out), byte [Rq(base)+ofs];
-            break;
-        case 2:
-            | add Rw(out), word [Rq(base)+ofs];
-            break;
-        case 4:
-            | add Rd(out), dword [Rq(base)+ofs];
-            break;
-        case 8:
-            | add Rq(out), qword [Rq(base)+ofs];
-            break;
-        default:
-            MVM_oops(tc, "Unsupported load size: %d\n", values[2]->size);
-        }
-    } else {
-        MVMint8  idx = values[2]->u.mem.r1;
-        MVMint32 scl = values[2]->u.mem.c;
-        if (scl != 8)
-            MVM_oops(tc, "IDX Scale %d NYI\n", scl);
-        switch (values[2]->size) {
-        case 1:
-            | add Rb(out), byte [Rq(base)+Rq(idx)*8];
-            break;
-        case 2:
-            | add Rw(out), word [Rq(base)+Rq(idx)*8];
-            break;
-        case 4:
-            | add Rd(out), dword [Rq(base)+Rq(idx)*8];
-            break;
-        case 8:
-            | add Rq(out), qword [Rq(base)+Rq(idx)*8];
-            break;
-        default:
-            MVM_oops(tc, "Unsupported load size: %d\n", values[2]->size);
-        }
-    }
-
-}
-
-
-MVM_JIT_TILE_DECL(sub_reg) {
-    MVMint8 out = values[0]->u.reg.num;
-    MVMint8 in1  = values[1]->u.reg.num;
-    MVMint8 in2  = values[2]->u.reg.num;
-    if (out == in2) {
-        | sub Rq(out), Rq(in2);
-    } else {
         | mov Rq(out), Rq(in1);
-        | sub Rq(out), Rq(in2);
+    }
+    switch (values[2]->size) {
+    case 1:
+        | add Rb(out), byte [Rq(base)+ofs];
+        break;
+    case 2:
+        | add Rw(out), word [Rq(base)+ofs];
+        break;
+    case 4:
+        | add Rd(out), dword [Rq(base)+ofs];
+        break;
+    case 8:
+        | add Rq(out), qword [Rq(base)+ofs];
+        break;
+    default:
+        MVM_oops(tc, "Unsupported load size: %d\n", values[2]->size);
     }
 }
 
-MVM_JIT_TILE_DECL(sub_const) {
-    MVMint8 out = values[0]->u.reg.num;
-    MVMint8 in1  = values[1]->u.reg.num;
-    MVMint64 val = values[2]->u.const_val; // or tree->nodes[tree->nodes
-    if (out == in1) {
-        if (values[2]->size == 8 && !fits_in_32_bit(val)) {
-            MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
-            | mov64 Rq(tmp), val;
-            | sub Rq(in1), Rq(tmp);
-            MVM_jit_register_free(tc, compiler, MVM_JIT_X64_GPR, tmp);
-        } else {
-            | sub Rq(in1), val;
-        }
-    } else {
-        if (values[2]->size == 8 && !fits_in_32_bit(val)) {
-            | mov64 Rq(out), val;
-            | sub Rq(out), Rq(in1);
-        } else {
-            | mov Rq(out), Rq(in1);
-            | sub Rq(out), val;
-        }
+MVM_JIT_TILE_DECL(add_load_idx) {
+    MVMint8 out  = values[0]->reg_num;
+    MVMint8 in1  = values[1]->reg_num;
+    MVMint8 base = values[2]->reg_num;
+    MVMint8 idx  = values[3]->reg_num;
+    MVMint32 scl = XS3(node+2, 1, 3);
+    if (scl != 8)
+        MVM_oops(tc, "IDX Scale %d NYI\n", scl);
+    switch (values[2]->size) {
+    case 1:
+        | add Rb(out), byte [Rq(base)+Rq(idx)*8];
+        break;
+    case 2:
+        | add Rw(out), word [Rq(base)+Rq(idx)*8];
+        break;
+    case 4:
+        | add Rd(out), dword [Rq(base)+Rq(idx)*8];
+        break;
+    case 8:
+        | add Rq(out), qword [Rq(base)+Rq(idx)*8];
+        break;
+    default:
+        MVM_oops(tc, "Unsupported load size: %d\n", values[2]->size);
     }
 }
-
-MVM_JIT_TILE_DECL(sub_load_mem) {
-    MVMint8 out = values[0]->u.reg.num;
-    MVMint8 in1 = values[1]->u.reg.num;
-    MVMint8 base = values[2]->u.mem.r0;
-    if (in1 != out) {
-        | mov Rq(out), in1;
-    }
-    if (values[2]->u.mem.r1 < 0) {
-        MVMint32 ofs = values[2]->u.mem.c;
-        switch (values[2]->size) {
-        case 1:
-            | sub Rb(out), byte [Rq(base)+ofs];
-            break;
-        case 2:
-            | sub Rw(out), word [Rq(base)+ofs];
-            break;
-        case 4:
-            | sub Rd(out), dword [Rq(base)+ofs];
-            break;
-        case 8:
-            | sub Rq(out), qword [Rq(base)+ofs];
-            break;
-        default:
-            MVM_oops(tc, "Unsupported load size: %d\n", values[2]->size);
-        }
-    } else {
-        MVMint8  idx = values[2]->u.mem.r1;
-        MVMint32 scl = values[2]->u.mem.c;
-        if (scl != 8)
-            MVM_oops(tc, "IDX Scale %d NYI\n", scl);
-        switch (values[2]->size) {
-        case 1:
-            | sub Rb(out), byte [Rq(base)+Rq(idx)*8];
-            break;
-        case 2:
-            | sub Rw(out), word [Rq(base)+Rq(idx)*8];
-            break;
-        case 4:
-            | sub Rd(out), dword [Rq(base)+Rq(idx)*8];
-            break;
-        case 8:
-            | sub Rq(out), qword [Rq(base)+Rq(idx)*8];
-            break;
-        default:
-            MVM_oops(tc, "Unsupported load size: %d\n", values[2]->size);
-        }
-    }
-}
-
 
 MVM_JIT_TILE_DECL(and_reg) {
-    MVMint8 out = values[0]->u.reg.num;
-    MVMint8 in1  = values[1]->u.reg.num;
-    MVMint8 in2  = values[2]->u.reg.num;
+    MVMint8 out = values[0]->reg_num;
+    MVMint8 in1  = values[1]->reg_num;
+    MVMint8 in2  = values[2]->reg_num;
     if (out == in2) {
         | and Rq(out), Rq(in2);
     } else {
@@ -431,11 +324,12 @@ MVM_JIT_TILE_DECL(and_reg) {
 }
 
 MVM_JIT_TILE_DECL(and_const) {
-    MVMint8 out = values[0]->u.reg.num;
-    MVMint8 in1  = values[1]->u.reg.num;
-    MVMint64 val = values[2]->u.const_val; // or tree->nodes[tree->nodes
+    MVMint8 out = values[0]->reg_num;
+    MVMint8 in1  = values[1]->reg_num;
+    MVMint64 val = XS2(node+2, 1);
+    MVMint64 sz  = XS2(node+2, 2);
     if (out == in1) {
-        if (values[2]->size == 8 && !fits_in_32_bit(val)) {
+        if (sz == 8 && !fits_in_32_bit(val)) {
             MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
             | mov64 Rq(tmp), val;
             | and Rq(in1), Rq(tmp);
@@ -444,7 +338,7 @@ MVM_JIT_TILE_DECL(and_const) {
             | and Rq(in1), val;
         }
     } else {
-        if (values[2]->size == 8 && !fits_in_32_bit(val)) {
+        if (sz == 8 && !fits_in_32_bit(val)) {
             | mov64 Rq(out), val;
             | and Rq(out), Rq(in1);
         } else {
@@ -454,109 +348,202 @@ MVM_JIT_TILE_DECL(and_const) {
     }
 }
 
-MVM_JIT_TILE_DECL(and_load_mem) {
-    MVMint8 out = values[0]->u.reg.num;
-    MVMint8 in1 = values[1]->u.reg.num;
-    MVMint8 base = values[2]->u.mem.r0;
+MVM_JIT_TILE_DECL(and_load_addr) {
+    MVMint8 out  = values[0]->reg_num;
+    MVMint8 in1  = values[1]->reg_num;
+    MVMint8 base = values[2]->reg_num;
+    MVMint32 ofs = XS3(node+2, 1, 2);
     if (in1 != out) {
-        | mov Rq(out), in1;
+        | mov Rq(out), Rq(in1);
     }
-    if (values[2]->u.mem.r1 < 0) {
-        MVMint32 ofs = values[2]->u.mem.c;
-        switch (values[2]->size) {
-        case 1:
-            | and Rb(out), byte [Rq(base)+ofs];
-            break;
-        case 2:
-            | and Rw(out), word [Rq(base)+ofs];
-            break;
-        case 4:
-            | and Rd(out), dword [Rq(base)+ofs];
-            break;
-        case 8:
-            | and Rq(out), qword [Rq(base)+ofs];
-            break;
-        default:
-            MVM_oops(tc, "Unsupported load size: %d\n", values[2]->size);
+    switch (values[2]->size) {
+    case 1:
+        | and Rb(out), byte [Rq(base)+ofs];
+        break;
+    case 2:
+        | and Rw(out), word [Rq(base)+ofs];
+        break;
+    case 4:
+        | and Rd(out), dword [Rq(base)+ofs];
+        break;
+    case 8:
+        | and Rq(out), qword [Rq(base)+ofs];
+        break;
+    default:
+        MVM_oops(tc, "Unsupported load size: %d\n", values[2]->size);
+    }
+}
+
+MVM_JIT_TILE_DECL(and_load_idx) {
+    MVMint8 out  = values[0]->reg_num;
+    MVMint8 in1  = values[1]->reg_num;
+    MVMint8 base = values[2]->reg_num;
+    MVMint8 idx  = values[3]->reg_num;
+    MVMint32 scl = XS3(node+2, 1, 3);
+    if (scl != 8)
+        MVM_oops(tc, "IDX Scale %d NYI\n", scl);
+    switch (values[2]->size) {
+    case 1:
+        | and Rb(out), byte [Rq(base)+Rq(idx)*8];
+        break;
+    case 2:
+        | and Rw(out), word [Rq(base)+Rq(idx)*8];
+        break;
+    case 4:
+        | and Rd(out), dword [Rq(base)+Rq(idx)*8];
+        break;
+    case 8:
+        | and Rq(out), qword [Rq(base)+Rq(idx)*8];
+        break;
+    default:
+        MVM_oops(tc, "Unsupported load size: %d\n", values[2]->size);
+    }
+}
+MVM_JIT_TILE_DECL(sub_reg) {
+    MVMint8 out = values[0]->reg_num;
+    MVMint8 in1  = values[1]->reg_num;
+    MVMint8 in2  = values[2]->reg_num;
+    if (out == in2) {
+        | sub Rq(out), Rq(in2);
+    } else {
+        | mov Rq(out), Rq(in1);
+        | sub Rq(out), Rq(in2);
+    }
+}
+
+MVM_JIT_TILE_DECL(sub_const) {
+    MVMint8 out = values[0]->reg_num;
+    MVMint8 in1  = values[1]->reg_num;
+    MVMint64 val = XS2(node+2, 1);
+    MVMint64 sz  = XS2(node+2, 2);
+    if (out == in1) {
+        if (sz == 8 && !fits_in_32_bit(val)) {
+            MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
+            | mov64 Rq(tmp), val;
+            | sub Rq(in1), Rq(tmp);
+            MVM_jit_register_free(tc, compiler, MVM_JIT_X64_GPR, tmp);
+        } else {
+            | sub Rq(in1), val;
         }
     } else {
-        MVMint8  idx = values[2]->u.mem.r1;
-        MVMint32 scl = values[2]->u.mem.c;
-        if (scl != 8)
-            MVM_oops(tc, "IDX Scale %d NYI\n", scl);
-        switch (values[2]->size) {
-        case 1:
-            | and Rb(out), byte [Rq(base)+Rq(idx)*8];
-            break;
-        case 2:
-            | and Rw(out), word [Rq(base)+Rq(idx)*8];
-            break;
-        case 4:
-            | and Rd(out), dword [Rq(base)+Rq(idx)*8];
-            break;
-        case 8:
-            | and Rq(out), qword [Rq(base)+Rq(idx)*8];
-            break;
-        default:
-            MVM_oops(tc, "Unsupported load size: %d\n", values[2]->size);
+        if (sz == 8 && !fits_in_32_bit(val)) {
+            | mov64 Rq(out), val;
+            | sub Rq(out), Rq(in1);
+        } else {
+            | mov Rq(out), Rq(in1);
+            | sub Rq(out), val;
         }
     }
 }
 
+MVM_JIT_TILE_DECL(sub_load_addr) {
+    MVMint8 out  = values[0]->reg_num;
+    MVMint8 in1  = values[1]->reg_num;
+    MVMint8 base = values[2]->reg_num;
+    MVMint32 ofs = XS3(node+2, 1, 2);
+    if (in1 != out) {
+        | mov Rq(out), Rq(in1);
+    }
+    switch (values[2]->size) {
+    case 1:
+        | sub Rb(out), byte [Rq(base)+ofs];
+        break;
+    case 2:
+        | sub Rw(out), word [Rq(base)+ofs];
+        break;
+    case 4:
+        | sub Rd(out), dword [Rq(base)+ofs];
+        break;
+    case 8:
+        | sub Rq(out), qword [Rq(base)+ofs];
+        break;
+    default:
+        MVM_oops(tc, "Unsupported load size: %d\n", values[2]->size);
+    }
+}
 
-MVM_JIT_TILE_DECL(nz_reg) {
-    MVMint8 reg = values[1]->u.reg.num;
+MVM_JIT_TILE_DECL(sub_load_idx) {
+    MVMint8 out  = values[0]->reg_num;
+    MVMint8 in1  = values[1]->reg_num;
+    MVMint8 base = values[2]->reg_num;
+    MVMint8 idx  = values[3]->reg_num;
+    MVMint32 scl = XS3(node+2, 1, 3);
+    if (scl != 8)
+        MVM_oops(tc, "IDX Scale %d NYI\n", scl);
+    switch (values[2]->size) {
+    case 1:
+        | sub Rb(out), byte [Rq(base)+Rq(idx)*8];
+        break;
+    case 2:
+        | sub Rw(out), word [Rq(base)+Rq(idx)*8];
+        break;
+    case 4:
+        | sub Rd(out), dword [Rq(base)+Rq(idx)*8];
+        break;
+    case 8:
+        | sub Rq(out), qword [Rq(base)+Rq(idx)*8];
+        break;
+    default:
+        MVM_oops(tc, "Unsupported load size: %d\n", values[2]->size);
+    }
+}
+
+
+MVM_JIT_TILE_DECL(nz) {
+    MVMint8 reg = values[1]->reg_num;
     | test Rq(reg), Rq(reg);
 }
 
 
-MVM_JIT_TILE_DECL(nz_mem) {
-    MVMint8 base = values[1]->u.mem.r0;
-    MVMint8 idx  = values[1]->u.mem.r1;
-    if (idx < 0) {
-        MVMint32 ofs = values[1]->u.mem.c;
-        switch (values[1]->size) {
-        case 1:
-            | cmp byte [Rq(base)+ofs], 0;
-            break;
-        case 2:
-            | cmp word [Rq(base)+ofs], 0;
-            break;
-        case 4:
-            | cmp dword [Rq(base)+ofs], 0;
-            break;
-        case 8:
-            | cmp qword [Rq(base)+ofs], 0;
-            break;
-        default:
-            MVM_oops(tc, "Unsupported size %d for load\n", values[1]->size);
-        }
-    } else {
-        MVMint32 scale = values[1]->u.mem.c;
-        if (scale != 8)
-            MVM_oops(tc, "Scale %d NYI\n", scale);
-        switch(values[1]->size) {
-        case 1:
-            | cmp byte [Rq(base)+Rq(idx)*8], 0;
-            break;
-        case 2:
-            | cmp word [Rq(base)+Rq(idx)*8], 0;
-            break;
-        case 4:
-            | cmp dword [Rq(base)+Rq(idx)*8], 0;
-            break;
-        case 8:
-            | cmp qword [Rq(base)+Rq(idx)*8], 0;
-            break;
-        default:
-            MVM_oops(tc, "Unsupported size %d for load\n", values[1]->size);
-        }
+MVM_JIT_TILE_DECL(nz_addr) {
+    MVMint8 base  = values[1]->reg_num;
+    MVMint32 ofs = XS3(node+1, 1, 2);
+    switch (values[1]->size) {
+    case 1:
+        | cmp byte [Rq(base)+ofs], 0;
+        break;
+    case 2:
+        | cmp word [Rq(base)+ofs], 0;
+        break;
+    case 4:
+        | cmp dword [Rq(base)+ofs], 0;
+        break;
+    case 8:
+        | cmp qword [Rq(base)+ofs], 0;
+        break;
+    default:
+        MVM_oops(tc, "Unsupported size %d for load\n", values[1]->size);
+    }
+}
+
+
+MVM_JIT_TILE_DECL(nz_idx) {
+    MVMint8 base = values[1]->reg_num;
+    MVMint8 idx  = values[2]->reg_num;
+    MVMint32 scl = XS3(node+1, 1, 3);
+    if (scl != 8)
+        MVM_oops(tc, "Scale %d NYI\n", scl);
+    switch(values[1]->size) {
+    case 1:
+        | cmp byte [Rq(base)+Rq(idx)*8], 0;
+        break;
+    case 2:
+        | cmp word [Rq(base)+Rq(idx)*8], 0;
+        break;
+    case 4:
+        | cmp dword [Rq(base)+Rq(idx)*8], 0;
+        break;
+    case 8:
+        | cmp qword [Rq(base)+Rq(idx)*8], 0;
+        break;
+    default:
+        MVM_oops(tc, "Unsupported size %d for load\n", values[1]->size);
     }
 }
 
 MVM_JIT_TILE_DECL(nz_and) {
-    MVMint8 rega = values[1]->u.reg.num;
-    MVMint8 regb = values[2]->u.reg.num;
+    MVMint8 rega = values[1]->reg_num;
+    MVMint8 regb = values[2]->reg_num;
     switch(values[0]->size) {
     case 1:
         | test Rb(regb), Rb(rega);
@@ -573,8 +560,8 @@ MVM_JIT_TILE_DECL(nz_and) {
     }
 }
 
-MVM_JIT_TILE_DECL(zr_reg) {
-    MVMint8 reg = values[1]->u.reg.num;
+MVM_JIT_TILE_DECL(zr) {
+    MVMint8 reg = values[1]->reg_num;
     switch (values[1]->size) {
     case 1:
         | test Rb(reg), Rb(reg);
@@ -593,8 +580,8 @@ MVM_JIT_TILE_DECL(zr_reg) {
 }
 
 MVM_JIT_TILE_DECL(equal) {
-    MVMint8 regl = values[1]->u.reg.num;
-    MVMint8 regr = values[2]->u.reg.num;
+    MVMint8 regl = values[1]->reg_num;
+    MVMint8 regr = values[2]->reg_num;
     switch (values[0]->size) {
     case 1:
         | test Rb(regl), Rb(regr);
@@ -611,8 +598,8 @@ MVM_JIT_TILE_DECL(equal) {
     }
 }
 MVM_JIT_TILE_DECL(lthan) {
-    MVMint8 regl = values[1]->u.reg.num;
-    MVMint8 regr = values[2]->u.reg.num;
+    MVMint8 regl = values[1]->reg_num;
+    MVMint8 regr = values[2]->reg_num;
     switch (values[0]->size) {
     case 1:
         | test Rb(regl), Rb(regr);
@@ -629,8 +616,8 @@ MVM_JIT_TILE_DECL(lthan) {
     }
 }
 MVM_JIT_TILE_DECL(gthan) {
-    MVMint8 regl = values[1]->u.reg.num;
-    MVMint8 regr = values[2]->u.reg.num;
+    MVMint8 regl = values[1]->reg_num;
+    MVMint8 regr = values[2]->reg_num;
     switch (values[0]->size) {
     case 1:
         | test Rb(regl), Rb(regr);
@@ -647,8 +634,8 @@ MVM_JIT_TILE_DECL(gthan) {
     }
 }
 MVM_JIT_TILE_DECL(nequal) {
-    MVMint8 regl = values[1]->u.reg.num;
-    MVMint8 regr = values[2]->u.reg.num;
+    MVMint8 regl = values[1]->reg_num;
+    MVMint8 regr = values[2]->reg_num;
     switch (values[0]->size) {
     case 1:
         | test Rb(regl), Rb(regr);
@@ -665,8 +652,8 @@ MVM_JIT_TILE_DECL(nequal) {
     }
 }
 MVM_JIT_TILE_DECL(lequal) {
-    MVMint8 regl = values[1]->u.reg.num;
-    MVMint8 regr = values[2]->u.reg.num;
+    MVMint8 regl = values[1]->reg_num;
+    MVMint8 regr = values[2]->reg_num;
     switch (values[0]->size) {
     case 1:
         | test Rb(regl), Rb(regr);
@@ -683,8 +670,8 @@ MVM_JIT_TILE_DECL(lequal) {
     }
 }
 MVM_JIT_TILE_DECL(gequal) {
-    MVMint8 regl = values[1]->u.reg.num;
-    MVMint8 regr = values[2]->u.reg.num;
+    MVMint8 regl = values[1]->reg_num;
+    MVMint8 regr = values[2]->reg_num;
     switch (values[0]->size) {
     case 1:
         | test Rb(regl), Rb(regr);
@@ -703,13 +690,15 @@ MVM_JIT_TILE_DECL(gequal) {
 
 
 
-/* Placeholder tiles. Not very good to implement as postorder expressions (yet) */
+/* Placeholder tiles. Not very good to implement as postorder
+   expressions. (NB my next plan is to create a linear array of tiles
+   with pseudotiles in place of the tree traversal in compilation.) */
 MVM_JIT_TILE_DECL(all) {
     /* not implemented as a tile */
 }
 
 MVM_JIT_TILE_DECL(if) {
-    /* NYI */
+    /*  */
 }
 
 MVM_JIT_TILE_DECL(either) {
@@ -729,18 +718,15 @@ MVM_JIT_TILE_DECL(do_void) {
 }
 
 
-MVM_JIT_TILE_DECL(label) {
-    values[0]->u.label = values[1]->u.const_val;
-}
 
-MVM_JIT_TILE_DECL(label_addr) {
-    MVMint8 reg = values[0]->u.reg.num;
-    MVMint32 label = values[1]->u.const_val;
+MVM_JIT_TILE_DECL(label) {
+    MVMint8 reg = values[0]->reg_num;
+    MVMint32 label = XS2(node+1, 1);
     | lea Rq(reg), [=>label];
 }
 
 MVM_JIT_TILE_DECL(branch_label) {
-    MVMint32 label = values[1]->u.label;
+    MVMint32 label = XS3(node+1, 1, 1);
     if (label >= 0) {
         | jmp =>(label);
     } else {
@@ -748,53 +734,24 @@ MVM_JIT_TILE_DECL(branch_label) {
     }
 }
 
-MVM_JIT_TILE_DECL(when_branch) {
-    MVMint32 op = tree->nodes[tree->nodes[node+1]];
-    MVMint32 label  = values[2]->u.label;
-    switch (op) {
-    case MVM_JIT_LT:
-        | jl =>(label);
-        break;
-    case MVM_JIT_LE:
-        | jle =>(label);
-        break;
-    case MVM_JIT_EQ:
-        | je =>(label);
-        break;
-    case MVM_JIT_NE:
-        | jne =>(label);
-        break;
-    case MVM_JIT_GE:
-        | jge =>(label);
-        break;
-    case MVM_JIT_GT:
-        | jg =>(label);
-        break;
-    case MVM_JIT_NZ:
-        | jnz =>(label);
-        break;
-    case MVM_JIT_ZR:
-        | jz =>(label);
-        break;
-    default:
-        MVM_oops(tc, "this should not be dealt with here");
-    }
+
+
+MVM_JIT_TILE_DECL(call) {
+    MVMint8 reg = values[1]->reg_num;
+    | call Rq(reg);
 }
 
-MVM_JIT_TILE_DECL(callfunc) {
-    /* lets assume that arglist has already worked... */
-    MVMint64 constptr = values[1]->u.const_val;
+MVM_JIT_TILE_DECL(call_func) {
+    MVMint64 constptr = XS2(node+1, 1);
     MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
-    if (!fits_in_32_bit(constptr)) {
-        | mov64 Rq(tmp), constptr;
-    } else {
-        | mov Rq(tmp), constptr;
-    }
+    | mov64 Rq(tmp), constptr;
     | call Rq(tmp);
     MVM_jit_register_free(tc, compiler, MVM_JIT_X64_GPR, tmp);
 }
 
-MVM_JIT_TILE_DECL(callreg) {
-    MVMint8 reg = values[1]->u.reg.num;
-    | call Rq(reg);
+
+MVM_JIT_TILE_DECL(call_addr) {
+    MVMint8  reg = values[1]->reg_num;
+    MVMint32 ofs = XS3(node+1, 1, 2);
+    | call qword [Rq(reg)+ofs];
 }

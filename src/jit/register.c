@@ -4,14 +4,13 @@
  * alloc/free
  * take/release
  * spill/load
- * subset/release
  * invalidate.
 
  * We also require a 'default implementation' of register
  * allocation for default tiles.
  *
  * Registers can be USED, ALLOCATED or FREE.
- * When a register is USED, it cannot be allocated.
+ * When a register is USED, it cannot be allocated or freed
  * When a register is ALLOCATED, its value must be spilled before it can be reallocated
  * When a register is FREE, it can be allocated directly.
  *
@@ -64,7 +63,7 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compi
     alc->reg_give  = 0;
     alc->reg_take  = 0;
 
-    alc->spill_top = 0;
+    alc->spill_top = 1;
     alc->reg_lock  = 0;
     compiler->allocator = alc;
 }
@@ -93,6 +92,7 @@ MVMint8 MVM_jit_register_alloc(MVMThreadContext *tc, MVMJitCompiler *cl, MVMint3
         }
         /* Use a circular handout scheme for the 'fair use' of registers */
         reg_num       = alc->free_reg[alc->reg_take];
+        alc->free_reg[alc->reg_take] = 0xff; /* mark it for debugging purposes */
         alc->reg_take = NEXT_REG(alc->reg_take);
     }
     return reg_num;
@@ -125,14 +125,17 @@ void MVM_jit_register_take(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMin
         MVM_jit_register_spill(tc, compiler, reg_cls, reg_num);
     }
     /* Take register directly from allocator */
-    for (i = alc->reg_take; NEXT_REG(i) != alc->reg_give; i = NEXT_REG(i)) {
+    i = alc->reg_take;
+    do {
         if (alc->free_reg[i] == reg_num) {
             /* swap with next take register, which is overwritten anyway */
             alc->free_reg[i] = alc->free_reg[alc->reg_take];
+            alc->free_reg[alc->reg_take] = 0xff;
             alc->reg_take    = NEXT_REG(alc->reg_take);
             return;
         }
-    }
+        i = NEXT_REG(i);
+    } while (i != alc->reg_give);
     MVM_oops(tc, "Could not take register even after spilling");
 }
 
@@ -160,7 +163,7 @@ void spill_value(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprValue
     NYI(spill_value);
 }
 
-#define VALUE_IS_ASSIGNED(v, rc, rn) ((v)->state == MVM_JIT_VALUE_ALLOCATED && (v)->u.reg.cls == (rc) && (v)->u.reg.num == (rn))
+#define VALUE_IS_ASSIGNED(v, rc, rn) ((v)->state == MVM_JIT_VALUE_ALLOCATED && (v)->reg_cls == (rc) && (v)->reg_num == (rn))
 
 void MVM_jit_register_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 reg_cls, MVMint8 reg_num) {
     MVMJitRegisterAllocator *alc = compiler->allocator;
@@ -181,7 +184,7 @@ void MVM_jit_register_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMi
     }
     if (spill_location == 0) {
         /* This value was not yet spilled, find a location */
-        for (i = 0; i < alc->spill_top; i++) {
+        for (i = 1; i < alc->spill_top; i++) {
             if (spill_bmp[i] == 0) {
                 spill_location = i;
                 break;
@@ -193,7 +196,7 @@ void MVM_jit_register_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMi
         }
         MVM_jit_emit_spill(tc, compiler, spill_location, reg_cls, reg_num, MVM_JIT_REG_SZ);
     } /* if it was spilled before, it's immutable now */
-
+    MVM_free(spill_bmp);
     /* Mark nodes as spilled on the location */
     for (i = 0; i < alc->active_num; i++) {
         MVMJitExprValue *value = compiler->allocator->active[i];
@@ -224,8 +227,9 @@ void MVM_jit_register_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMin
     for (i = 0; i < compiler->allocator->active_num; i++) {
         MVMJitExprValue *value = compiler->allocator->active[i];
         if (value->spill_location == spill_location) {
-            value->u.reg.cls    = reg_cls;
-            value->u.reg.num    = reg_num;
+
+            value->reg_cls    = reg_cls;
+            value->reg_num    = reg_num;
             value->state        = MVM_JIT_VALUE_ALLOCATED;
             value->last_created = compiler->order_nr;
             compiler->allocator->reg_use[reg_num]++;
@@ -238,8 +242,8 @@ void MVM_jit_register_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMin
 void MVM_jit_register_assign(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprValue *value, MVMint32 reg_cls, MVMint8 reg_num) {
     MVMJitRegisterAllocator *alc = cl->allocator;
     value->state        = MVM_JIT_VALUE_ALLOCATED;
-    value->u.reg.num    = reg_num;
-    value->u.reg.cls    = reg_cls;
+    value->reg_num    = reg_num;
+    value->reg_cls    = reg_cls;
     value->last_created = cl->order_nr;
 
     MVM_DYNAR_PUSH(alc->active, value);
@@ -249,9 +253,9 @@ void MVM_jit_register_assign(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExp
 /* Expiring a value marks it dead and possibly releases its register */
 void MVM_jit_register_expire(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprValue *value) {
     MVMJitRegisterAllocator *alc = compiler->allocator;
-    MVMint8 reg_num = value->u.reg.num;
+    MVMint8 reg_num = value->reg_num;
     MVMint32 i;
-    if (value->u.reg.cls == MVM_JIT_REGCLS_NUM) {
+    if (value->reg_cls == MVM_JIT_REGCLS_NUM) {
         NYI(numeric_regs);
     }
     /* Remove value from active */
@@ -270,7 +274,7 @@ void MVM_jit_register_expire(MVMThreadContext *tc, MVMJitCompiler *compiler, MVM
     /* Decrease register number count and free if possible */
     alc->reg_use[reg_num]--;
     if (alc->reg_use[reg_num] == 0) {
-        MVM_jit_register_free(tc, compiler, value->u.reg.cls, reg_num);
+        MVM_jit_register_free(tc, compiler, value->reg_cls, reg_num);
     }
 }
 
@@ -283,7 +287,7 @@ void MVM_jit_spill_before_call(MVMThreadContext *tc, MVMJitCompiler *cl) {
     for (i = 0; i < alc->active_num; i++) {
         MVMJitExprValue *v = alc->active[i];
         if (v->last_use > order_nr && v->state == MVM_JIT_VALUE_ALLOCATED) {
-            MVM_jit_register_spill(tc, cl, v->u.reg.cls, v->u.reg.num);
+            MVM_jit_register_spill(tc, cl, v->reg_cls, v->reg_num);
         }
     }
 }
@@ -298,7 +302,8 @@ void MVM_jit_expire_values(MVMThreadContext *tc, MVMJitCompiler *compiler) {
         MVMJitExprValue *value = alc->active[i];
         if (value->last_use <= order_nr &&
             /* can't expire values held in locked registers */
-            !(value->state == MVM_JIT_VALUE_ALLOCATED && REGISTER_IS_LOCKED(alc, value->u.reg.num))) {
+            !(value->state == MVM_JIT_VALUE_ALLOCATED &&
+              REGISTER_IS_LOCKED(alc, value->reg_num))) {
             MVM_jit_register_expire(tc, compiler, value);
         } else {
             i++;

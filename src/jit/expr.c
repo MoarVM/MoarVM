@@ -239,7 +239,6 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     switch (tree->nodes[node]) {
     case MVM_JIT_CONST:
         /* node size is given */
-        node_info->value.u.const_val = args[0];
         node_info->value.size        = args[1];
         break;
     case MVM_JIT_COPY:

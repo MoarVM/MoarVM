@@ -110,30 +110,22 @@ struct MVMJitExprValue {
         MVM_JIT_VALUE_SPILLED,
         MVM_JIT_VALUE_DEAD
     } state;
-    /* different values */
-    union {
-        struct {
-            MVMint8 r0;
-            MVMint8 r1;
-            MVMint8 c;
-        } mem;
-        struct {
-            MVMint8 cls;
-            MVMint8 num;
-        } reg;
-        MVMint32 label;
-        MVMint64 const_val;
-    } u;
-    MVMint8  size;
 
-    /* Spill information if any */
+    /* register allocated to this value */
+    MVMint8 reg_cls;
+    MVMint8 reg_num;
+
+    /* Spill location if any */
     MVMint16 spill_location;
 
-    /* TODO - we really do need this, but i'm not sure how exactly it
-       propagates over conditionals */
-    MVMint32 reg_req;
+    /* size of this value */
+    MVMint8  size;
 
-    /* Use information - I'd may want to change this into list of uses */
+    /* TODO - we really do need this, but i'm not sure how exactly it
+       propagates over conditionals
+    MVMint32 reg_req;
+    */
+    /* Use information for register allcoator */
     MVMint32 first_created;
     MVMint32 last_created;
     MVMint32 last_use;

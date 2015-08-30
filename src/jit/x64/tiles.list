@@ -17,56 +17,53 @@
 # MEMORY TRAFFIC
 #
 
-(tile: addr_mem  (addr reg) mem 1)
-(tile: addr_reg  (addr reg) reg 2)
-(tile: idx_mem   (idx reg reg) mem 1)
-(tile: idx_reg   (idx reg reg) reg 2)
+(tile: addr  (addr reg) reg 2)
+(tile: idx   (idx reg reg) reg 2)
 (tile: const_reg (const) reg 2)
 (tile: load_reg  (load reg) reg 5)
-(tile: load_mem  (load mem) reg 5)
-(tile: load_lbl  (load lbl) reg 5)
+(tile: load_addr (load (addr reg)) reg 5)
+(tile: load_idx  (load (idx reg reg)) reg 5)
 
-(tile: store_reg (store reg reg) void 5)
-(tile: store_mem (store mem reg) void 5)
+(tile: store (store reg reg) void 5)
+(tile: store_addr (store (addr reg) reg) void 5)
+(tile: store_idx  (store (idx reg reg) reg) void 5)
 
 (tile: copy      (copy reg) reg 1)
 #
 # ARITHMETIC
 #
 
-(tile: add_reg      (add reg reg) reg 2)
-(tile: add_const    (add reg (const)) reg 3)
-(tile: add_load_mem (add reg (load mem)) reg 6)
+(tile: add_reg       (add reg reg) reg 2)
+(tile: add_const     (add reg (const)) reg 3)
+(tile: add_load_addr (add reg (load (addr reg))) reg 6)
+(tile: add_load_idx  (add reg (load (idx reg reg))) reg 6)
 
-(tile: sub_reg      (sub reg reg) reg 2)
-(tile: sub_const    (sub reg (const)) reg 3)
-(tile: sub_load_mem (sub reg (load mem)) reg 6)
+(tile: and_reg       (and reg reg) reg 2)
+(tile: and_const     (and reg (const)) reg 3)
+(tile: and_load_addr (and reg (load (addr reg))) reg 6)
+(tile: and_load_idx  (and reg (load (idx reg reg))) reg 6)
 
-(tile: and_reg      (and reg reg) reg 2)
-(tile: and_const    (and reg (const)) reg 3)
-(tile: and_load_mem (and reg (load mem)) reg 6)
+(tile: sub_reg       (sub reg reg) reg 2)
+(tile: sub_const     (sub reg (const)) reg 3)
+(tile: sub_load_addr (sub reg (load (addr reg))) reg 6)
+(tile: sub_load_idx  (sub reg (load (idx reg reg))) reg 6)
 
 
 #
 # Tests and Comparinsons
 #
-(tile: nz_reg (nz reg) flag 2)
-(tile: nz_mem (nz (load mem)) flag 6)
-(tile: nz_and (nz (and reg reg)) flag 2)
-# test Rq(foo), [mem]
-# (tile: nz_and_mem (nz (and reg (load mem))) flag 6)
-# test Rq(foo), const
-# (tile: nz_const (nz (and reg (const))))
-# test [foo], const
-# (tile: nz_const_mem (nz (and (load mem) (const))))
-(tile: zr_reg (zr reg) flag 2)
+(tile: nz      (nz reg) flag 2)
+(tile: nz_addr (nz (load (addr reg))) flag 6)
+(tile: nz_idx  (nz (load (idx reg reg))) flag 6)
+(tile: nz_and  (nz (and reg reg)) flag 2)
+(tile: zr      (zr reg) flag 2)
 
-(tile: equal (eq reg reg) reg 2)
-(tile: lthan (lt reg reg) reg 2)
-(tile: gthan (gt reg reg) reg 2)
-(tile: nequal (ne reg reg) reg 2)
-(tile: lequal (le reg reg) reg 2)
-(tile: gequal (ge reg reg) reg 2)
+(tile: equal (eq reg reg) flag 2)
+(tile: lthan (lt reg reg) flag 2)
+(tile: gthan (gt reg reg) flag 2)
+(tile: nequal (ne reg reg) flag 2)
+(tile: lequal (le reg reg) flag 2)
+(tile: gequal (ge reg reg) flag 2)
 
 #
 # CONTROL STATEMENTS
@@ -78,15 +75,14 @@
 (tile: do_reg  (do void reg) reg 0)
 (tile: do_void (do void void) void 0)
 
-(tile: label       (label (const)) lbl 1)
-(tile: label_addr  (label (const)) reg 2)
+(tile: label   (label (const)) reg 2)
 
+(tile: branch_label (branch (label (const))) void 2)
 
-# jcc =>(label) /* (cc = condition code) */
-(tile: when_branch (when flag (branch lbl)) void 2)
-(tile: branch_label (branch lbl) void 2)
+(tile: call_func (call (const) (arglist (carg reg))) reg 4)
+(tile: call_func (call (const) (arglist (carg reg))) void 4)
+(tile: call      (call reg (arglist (carg reg))) reg 4)
+(tile: call      (call reg (arglist (carg reg))) void 4)
 
-(tile: callfunc (call (const) (arglist (carg reg))) reg 4)
-(tile: callfunc (call (const) (arglist (carg reg))) void 4)
-(tile: callreg  (call reg (arglist (carg reg))) reg 4)
-(tile: callreg  (call reg (arglist (carg reg))) void 4)
+(tile: call_addr (call (load (addr reg)) (arglist (carg reg))) reg 4)
+(tile: call_addr (call (load (addr reg)) (arglist (carg reg))) reg 4)
