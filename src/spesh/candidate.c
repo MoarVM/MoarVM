@@ -111,18 +111,14 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
                 fprintf(tc->instance->spesh_log_fh,
                     "Before:\n%s\nAfter:\n%s\n\n========\n\n", before, after);
                 fflush(tc->instance->spesh_log_fh);
-                MVM_free(before);
-                MVM_free(after);
                 MVM_free(c_name);
                 MVM_free(c_cuid);
             }
             used = 1;
         }
     }
-    if (after)
-        MVM_free(after);
-    if (before)
-        MVM_free(before);
+    MVM_free(after);
+    MVM_free(before);
     if (result && !used) {
         MVM_free(sc->bytecode);
         if (sc->handlers)
