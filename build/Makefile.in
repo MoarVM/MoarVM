@@ -562,6 +562,12 @@ src/jit/expr@obj@: src/jit/core_expr_tables.h
 src/jit/tile@obj@: src/jit/x64/tile_tables.h
 src/jit/compile@obj@ src/jit/register@obj@ @jit_obj@: src/jit/internal.h src/jit/x64/arch.h
 
+# JIT intermediate files which clean should remove
+JIT_INTERMEDIATES:= src/jit/x64/emit_win32.c \
+                    src/jit/x64/emit_posix.c \
+                    src/jit/x64/tile_tables.h \
+                    src/jit/core_expr_tables.h
+
 @uvlib@: $(UV_OBJECTS)
 	$(MSG) linking $@
 	$(CMD)@uvrule@ $(NOOUT)
@@ -594,7 +600,7 @@ pkgconfig/moar.pc: build/mk-moar-pc.pl
 
 clean:
 	$(MSG) remove build files
-	-$(CMD)$(RM) $(MAIN_OBJECTS) $(OBJECTS) $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) $(MAIN_OBJECTS) $(OBJECTS) $(JIT_INTERMEDIATES) $(NOOUT) $(NOERR)
 
 realclean: clean
 	$(MSG) remove auxiliary files
