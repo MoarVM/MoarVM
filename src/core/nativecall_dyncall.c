@@ -276,6 +276,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                 args[i - 1].o = type;
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
                 num_roots++;
+                break;
             case MVM_NATIVECALL_ARG_UCHAR:
                 args[i - 1].i64 = dcbArgUChar(cb_args);
                 break;
