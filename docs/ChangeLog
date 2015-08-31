@@ -1,6 +1,16 @@
 New in 2015.08
 
 + Support for parsing Unicode numbers
++ Fixed sleep API to use second instead of nanosecond
++ More control exceptions added
++ Fixed RT #125371
++ Some spesh optimisations
++ JIT graph is now an expression tree
++ Handle more JIT operations in parse_jitgraph.p6
++ Added the "ready" callback for async processes
++ Many resource leak fixes
++ Remove unused assignments
++ Lots of other fixes found by various linters
 
 New in 2015.07
 
