@@ -1,16 +1,20 @@
 New in 2015.08
 
++ Removed multiple internal data races
++ Add ctxcode op to get the code object of a context
++ Inlining in spesh will now check post-optimization size of code
++ Use a binary search in unicode block lookup
++ Unicode database file now compilable with newer MSVC
++ Lots of fixes for problems reported by linter software
 + Support for parsing Unicode numbers
-+ Fixed sleep API to use second instead of nanosecond
-+ More control exceptions added
-+ Fixed RT #125371
-+ Some spesh optimisations
-+ JIT graph is now an expression tree
-+ Handle more JIT operations in parse_jitgraph.p6
-+ Added the "ready" callback for async processes
-+ Many resource leak fixes
-+ Remove unused assignments
-+ Lots of other fixes found by various linters
++ Some potential segfaults fixed
++ New control exceptions "await", "emit" and "done"
++ Trying to unbox a bigint larger than 64 bit now throws
++ Fix "merge facts at phi" opt in spesh forgetting the first argument
++ Many memory leaks fixed
++ Properly close stdin handle when an async process dies
++ Async processes now have a "ready" callback
++ Sleep API now split into sleep and nanosleep
 
 New in 2015.07
 
