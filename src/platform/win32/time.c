@@ -15,7 +15,15 @@ MVMuint64 MVM_platform_now(void)
     return (now.u - OFFSET) * 100;
 }
 
-void MVM_platform_sleep(MVMuint64 nanos)
+void MVM_platform_sleep(MVMnum64 second)
+{
+
+    DWORD millis = (DWORD)(second * 1000);
+
+    Sleep(millis);
+}
+
+void MVM_platform_nanosleep(MVMuint64 nanos)
 {
     MVMuint64 now;
     DWORD millis;
