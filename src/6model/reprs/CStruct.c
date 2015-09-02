@@ -122,7 +122,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
         MVMint32 cur_size    = 0;
         /* The structure itself will be the multiple of its biggest element in size.
          * So we keep track of that biggest element. */
-        MVMint32 multiple_of = 0;
+        MVMint32 multiple_of = 1;
 
         /* Get number of attributes and set up various counters. */
         MVMint32 num_attrs        = MVM_repr_elems(tc, flat_list);
