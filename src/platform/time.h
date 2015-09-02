@@ -6,4 +6,5 @@ MVMuint64 MVM_platform_now(void);
 /* Tries to sleep for at least the requested number
  * of nanoseconds.
  */
-void MVM_platform_sleep(MVMuint64 nanos);
+void MVM_platform_sleep(MVMnum64 second);
+void MVM_platform_nanosleep(MVMuint64 nanos);

@@ -74,7 +74,7 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
 
 /* Adds a method. */
 static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
-    MVMObject *self, *type_obj, *method, *method_table;
+    MVMObject *self, *method, *method_table;
     MVMString *name;
 
     /* Get arguments. */
@@ -82,7 +82,6 @@ static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 4, 4);
     self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
-    type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED).arg.o;
     name     = MVM_args_get_pos_str(tc, &arg_ctx, 2, MVM_ARG_REQUIRED).arg.s;
     method   = MVM_args_get_pos_obj(tc, &arg_ctx, 3, MVM_ARG_REQUIRED).arg.o;
     MVM_args_proc_cleanup(tc, &arg_ctx);
@@ -99,14 +98,13 @@ static void add_method(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
 
 /* Adds an method. */
 static void add_attribute(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
-    MVMObject *self, *type_obj, *attr, *attributes;
+    MVMObject *self, *attr, *attributes;
 
     /* Get arguments. */
     MVMArgProcContext arg_ctx; arg_ctx.named_used = NULL;
     MVM_args_proc_init(tc, &arg_ctx, callsite, args);
     MVM_args_checkarity(tc, &arg_ctx, 3, 3);
     self     = MVM_args_get_pos_obj(tc, &arg_ctx, 0, MVM_ARG_REQUIRED).arg.o;
-    type_obj = MVM_args_get_pos_obj(tc, &arg_ctx, 1, MVM_ARG_REQUIRED).arg.o;
     attr     = MVM_args_get_pos_obj(tc, &arg_ctx, 2, MVM_ARG_REQUIRED).arg.o;
     MVM_args_proc_cleanup(tc, &arg_ctx);
 
@@ -570,6 +568,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(positional, "positional");
     string_creator(lexical, "lexical");
     string_creator(dimensions, "dimensions");
+    string_creator(ready, "ready");
 }
 
 /* Drives the overall bootstrap process. */

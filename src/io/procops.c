@@ -574,6 +574,7 @@ static MVMint64 close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
         task->body.ops  = &close_op_table;
         task->body.data = si->stdin_handle;
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+        si->stdin_handle = NULL;
     }
     return 0;
 }
@@ -606,6 +607,7 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
     MVMThreadContext *tc  = si->tc;
     MVMObject *done_cb = MVM_repr_at_key_o(tc, si->callbacks,
         tc->instance->str_consts.done);
+    MVMOSHandle *os_handle;
     if (!MVM_is_null(tc, done_cb)) {
         MVMROOT(tc, done_cb, {
             /* Get status. */
@@ -628,6 +630,12 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
             MVM_repr_push_o(tc, t->body.queue, arr);
         });
     }
+
+    /* when invoked via MVMIOOps, close_stdin is already wrapped in a mutex */
+    os_handle = (MVMOSHandle *) si->handle;
+    uv_mutex_lock(os_handle->body.mutex);
+    close_stdin(tc, os_handle);
+    uv_mutex_unlock(os_handle->body.mutex);
 
     /* Close handle. */
     uv_close((uv_handle_t *)req, spawn_async_close);
@@ -853,7 +861,21 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     else {
         MVMOSHandle           *handle  = (MVMOSHandle *)si->handle;
         MVMIOAsyncProcessData *apd     = (MVMIOAsyncProcessData *)handle->body.data;
+        MVMObject *ready_cb;
         apd->handle                    = process;
+
+        ready_cb = MVM_repr_at_key_o(tc, si->callbacks,
+            tc->instance->str_consts.ready);
+
+        if (!MVM_is_null(tc, ready_cb)) {
+            MVMROOT(tc, ready_cb, {
+            MVMROOT(tc, async_task, {
+                MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+                MVM_repr_push_o(tc, arr, ready_cb);
+                MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
+            });
+            });
+        }
     }
 
     /* Start any output readers. */
@@ -917,7 +939,7 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
             si->ds_stdout = NULL;
         }
         if (si->ds_stderr) {
-            MVM_string_decodestream_destory(tc, si->ds_stdout);
+            MVM_string_decodestream_destory(tc, si->ds_stderr);
             si->ds_stderr = NULL;
         }
         MVM_free(si);

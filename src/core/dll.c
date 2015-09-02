@@ -64,8 +64,10 @@ int MVM_dll_free(MVMThreadContext *tc, MVMString *name) {
     }
 
     /* already freed */
-    if (!entry->lib)
+    if (!entry->lib) {
+        uv_mutex_unlock(&tc->instance->mutex_dll_registry);
         return 0;
+    }
 
     if (entry->refcount > 0) {
         uv_mutex_unlock(&tc->instance->mutex_dll_registry);

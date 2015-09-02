@@ -1319,7 +1319,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sleep): {
                 MVM_gc_mark_thread_blocked(tc);
-                MVM_platform_sleep((MVMuint64)ceil(GET_REG(cur_op, 0).n64 * 1e9));
+                MVM_platform_sleep(GET_REG(cur_op, 0).n64);
                 MVM_gc_mark_thread_unblocked(tc);
                 cur_op += 2;
                 goto NEXT;
@@ -2857,7 +2857,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     ((MVMCode *)obj)->body.outer = context;
                     MVM_frame_inc_ref(tc, context);
                     if (orig) {
-                        orig = MVM_frame_dec_ref(tc, orig);
+                        MVM_frame_dec_ref(tc, orig);
                     }
                 }
                 cur_op += 4;

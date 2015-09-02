@@ -6,6 +6,7 @@
 #include <sys/time.h>
 
 #define E9 1000000000
+#define E9F 1000000000.0f
 
 MVMuint64 MVM_platform_now(void)
 {
@@ -24,7 +25,15 @@ MVMuint64 MVM_platform_now(void)
 #endif
 }
 
-void MVM_platform_sleep(MVMuint64 nanos)
+void MVM_platform_sleep(MVMnum64 second)
+{
+    struct timespec timeout;
+    timeout.tv_sec = (time_t)second;
+    timeout.tv_nsec = (long)((second - timeout.tv_sec) * E9F);
+    while (nanosleep(&timeout, &timeout) && errno == EINTR);
+}
+
+void MVM_platform_nanosleep(MVMuint64 nanos)
 {
     struct timespec timeout;
     timeout.tv_sec = nanos / E9;

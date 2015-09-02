@@ -131,7 +131,6 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
             ds->chars_head_pos = 0;
             if (ds->chars_head == NULL)
                 ds->chars_tail = NULL;
-            cur_chars = next_chars;
         }
         else {
             /* There's enough in this buffer to satisfy us, and we'll leave

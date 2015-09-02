@@ -271,7 +271,7 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
 
 static MVMint32 is_full_collection(MVMThreadContext *tc) {
     MVMuint64 threshold = MVM_GC_GEN2_THRESHOLD_BASE +
-        (tc->instance->num_user_threads * MVM_GC_GEN2_THRESHOLD_THREAD);
+        ((MVMuint64)tc->instance->num_user_threads * MVM_GC_GEN2_THRESHOLD_THREAD);
     return MVM_load(&tc->instance->gc_promoted_bytes_since_last_full) > threshold;
 }
 
