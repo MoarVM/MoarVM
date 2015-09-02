@@ -246,8 +246,8 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
     case MVM_JIT_WHEN:
         {
             /* Before we enter this node, mark us as entering a conditional */
-            enter_conditional(tc, cl, tree, node);
             MVMint32 cond = tree->nodes[node+1];
+            enter_conditional(tc, cl, tree, node);
             if (tree->nodes[cond] == MVM_JIT_ANY) {
                 /* WHEN ANY requires two labels. One label for
                    skipping our block (tne normal WHEN label) and one

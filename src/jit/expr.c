@@ -56,6 +56,7 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
                                        MVMSpeshOperand opr, MVMuint8 info) {
 
     MVMJitExprNode template[]  = { MVM_JIT_CONST, 0, 0 };
+    MVMint32 num               = tree->nodes_num;
     switch(info & MVM_operand_type_mask) {
     case MVM_operand_int8:
         template[1] = opr.lit_i8;
@@ -105,7 +106,7 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
         MVM_oops(tc, "Can't add constant for operand type %d\n", (info & MVM_operand_type_mask) >> 3);
     }
 
-    MVMint32 num               = tree->nodes_num;
+
     MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
 }
@@ -328,8 +329,9 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMSpeshGraph *sg = jg->sg;
     MVMSpeshIns *ins;
     MVMJitExprTree *tree;
-    MVM_DYNAR_DECL(MVMSpeshIns*, node_ins);
     MVMuint16 i;
+    MVM_DYNAR_DECL(MVMSpeshIns*, node_ins);
+
 
 
     if (!bb->first_ins)
@@ -360,10 +362,11 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
            selecting a template. And/or add in c function calls to
            them mix.. */
         MVMuint16 opcode = ins->info->opcode;
+        const MVMJitExprTemplate *templ;
         if (opcode == MVM_SSA_PHI || opcode == MVM_OP_no_op) {
             continue;
         }
-        const MVMJitExprTemplate *templ = MVM_jit_get_template_for_opcode(opcode);
+        templ = MVM_jit_get_template_for_opcode(opcode);
         if (templ == NULL) {
             /* we don't have a template for this yet, so we can't
              * convert it to an expression */
