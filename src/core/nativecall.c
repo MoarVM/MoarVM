@@ -77,6 +77,8 @@ MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMi
         result = MVM_NATIVECALL_ARG_UTF16STR | get_str_free_flag(tc, info);
     else if (strcmp(ctypename, "cstruct") == 0)
         result = MVM_NATIVECALL_ARG_CSTRUCT;
+    else if (strcmp(ctypename, "cppstruct") == 0)
+        result = MVM_NATIVECALL_ARG_CPPSTRUCT;
     else if (strcmp(ctypename, "cpointer") == 0)
         result = MVM_NATIVECALL_ARG_CPOINTER;
     else if (strcmp(ctypename, "carray") == 0)
@@ -165,6 +167,21 @@ MVMObject * MVM_nativecall_make_cunion(MVMThreadContext *tc, MVMObject *type, vo
         ((MVMCUnion *)result)->body.cunion = cunion;
         if (repr_data->num_child_objs)
             ((MVMCUnion *)result)->body.child_objs = MVM_calloc(repr_data->num_child_objs, sizeof(MVMObject *));
+    }
+    return result;
+}
+
+MVMObject * MVM_nativecall_make_cppstruct(MVMThreadContext *tc, MVMObject *type, void *cppstruct) {
+    MVMObject *result = type;
+    if (cppstruct && type) {
+        MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)STABLE(type)->REPR_data;
+        if (REPR(type)->ID != MVM_REPR_ID_MVMCPPStruct)
+            MVM_exception_throw_adhoc(tc,
+                "Native call expected return type with CPPStruct representation, but got a %s", REPR(type)->name);
+        result = REPR(type)->allocate(tc, STABLE(type));
+        ((MVMCPPStruct *)result)->body.cppstruct = cppstruct;
+        if (repr_data->num_child_objs)
+            ((MVMCPPStruct *)result)->body.child_objs = MVM_calloc(repr_data->num_child_objs, sizeof(MVMObject *));
     }
     return result;
 }
@@ -285,6 +302,16 @@ void * MVM_nativecall_unmarshal_cstruct(MVMThreadContext *tc, MVMObject *value) 
     else
         MVM_exception_throw_adhoc(tc,
             "Native call expected return type with CStruct representation, but got a %s", REPR(value)->name);
+}
+
+void * MVM_nativecall_unmarshal_cppstruct(MVMThreadContext *tc, MVMObject *value) {
+    if (!IS_CONCRETE(value))
+        return NULL;
+    else if (REPR(value)->ID == MVM_REPR_ID_MVMCPPStruct)
+        return ((MVMCPPStruct *)value)->body.cppstruct;
+    else
+        MVM_exception_throw_adhoc(tc,
+            "Native call expected return type with CPPStruct representation, but got a %s", REPR(value)->name);
 }
 
 void * MVM_nativecall_unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value) {
@@ -559,6 +586,8 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
 
     if (REPR(source)->ID == MVM_REPR_ID_MVMCStruct)
         data_body = MVM_nativecall_unmarshal_cstruct(tc, source);
+    else if (REPR(source)->ID == MVM_REPR_ID_MVMCPPStruct)
+        data_body = MVM_nativecall_unmarshal_cppstruct(tc, source);
     else if (REPR(source)->ID == MVM_REPR_ID_MVMCUnion)
         data_body = MVM_nativecall_unmarshal_cunion(tc, source);
     else if (REPR(source)->ID == MVM_REPR_ID_MVMCPointer)
@@ -576,6 +605,8 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
 MVMint64 MVM_nativecall_sizeof(MVMThreadContext *tc, MVMObject *obj) {
     if (REPR(obj)->ID == MVM_REPR_ID_MVMCStruct)
         return ((MVMCStructREPRData *)STABLE(obj)->REPR_data)->struct_size;
+    else if (REPR(obj)->ID == MVM_REPR_ID_MVMCPPStruct)
+        return ((MVMCPPStructREPRData *)STABLE(obj)->REPR_data)->struct_size;
     else if (REPR(obj)->ID == MVM_REPR_ID_MVMCUnion)
         return ((MVMCUnionREPRData *)STABLE(obj)->REPR_data)->struct_size;
     else if (REPR(obj)->ID == MVM_REPR_ID_P6int)
@@ -688,6 +719,52 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                     default:
                         MVM_exception_throw_adhoc(tc,
                             "Fatal error: bad kind (%d) in CStruct write barrier",
+                            kind);
+                }
+            }
+            else {
+                objptr = NULL;
+            }
+
+            if (objptr != cptr)
+                body->child_objs[slot] = NULL;
+            else
+                MVM_nativecall_refresh(tc, body->child_objs[slot]);
+        }
+    }
+    else if (REPR(cthingy)->ID == MVM_REPR_ID_MVMCPPStruct) {
+        MVMCPPStructBody     *body      = (MVMCPPStructBody *)OBJECT_BODY(cthingy);
+        MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)STABLE(cthingy)->REPR_data;
+        char                 *storage   = (char *) body->cppstruct;
+        MVMint64              i;
+
+        for (i = 0; i < repr_data->num_attributes; i++) {
+            MVMint32 kind = repr_data->attribute_locations[i] & MVM_CPPSTRUCT_ATTR_MASK;
+            MVMint32 slot = repr_data->attribute_locations[i] >> MVM_CPPSTRUCT_ATTR_SHIFT;
+            void *cptr;   /* The pointer in the C storage. */
+            void *objptr; /* The pointer in the object representing the C object. */
+
+            if (kind == MVM_CPPSTRUCT_ATTR_IN_STRUCT || !body->child_objs[slot])
+                continue;
+
+            cptr = *((void **)(storage + repr_data->struct_offsets[i]));
+            if (IS_CONCRETE(body->child_objs[slot])) {
+                switch (kind) {
+                    case MVM_CPPSTRUCT_ATTR_CARRAY:
+                        objptr = ((MVMCArrayBody *)OBJECT_BODY(body->child_objs[slot]))->storage;
+                        break;
+                    case MVM_CPPSTRUCT_ATTR_CPTR:
+                        objptr = ((MVMCPointerBody *)OBJECT_BODY(body->child_objs[slot]))->ptr;
+                        break;
+                    case MVM_CPPSTRUCT_ATTR_CSTRUCT:
+                        objptr = (MVMCStructBody *)OBJECT_BODY(body->child_objs[slot]);
+                        break;
+                    case MVM_CPPSTRUCT_ATTR_STRING:
+                        objptr = NULL;
+                        break;
+                    default:
+                        MVM_exception_throw_adhoc(tc,
+                            "Fatal error: bad kind (%d) in CPPStruct write barrier",
                             kind);
                 }
             }

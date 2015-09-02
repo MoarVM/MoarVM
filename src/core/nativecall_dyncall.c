@@ -12,6 +12,10 @@ MVMint16 MVM_nativecall_get_calling_convention(MVMThreadContext *tc, MVMString *
             result = DC_CALL_C_X86_CDECL;
         else if (strcmp(cname, "stdcall") == 0)
             result = DC_CALL_C_X86_WIN32_STD;
+        else if (strcmp(cname, "thisgnu") == 0)
+            result = DC_CALL_C_X86_WIN32_THIS_GNU;
+        else if (strcmp(cname, "thisms") == 0)
+            result = DC_CALL_C_X86_WIN32_THIS_MS;
         else if (strcmp(cname, "stdcall") == 0)
             result = DC_CALL_C_X64_WIN64;
         else {
@@ -454,6 +458,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     MVMint16 *arg_types   = body->arg_types;
     MVMint16  ret_type    = body->ret_type;
     void     *entry_point = body->entry_point;
+    void     *ptr         = NULL;
 
     /* Create and set up call VM. */
     DCCallVM *vm = dcNewCallVM(8192);
@@ -502,6 +507,21 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             case MVM_NATIVECALL_ARG_CSTRUCT:
                 dcArgPointer(vm, MVM_nativecall_unmarshal_cstruct(tc, value));
                 break;
+            case MVM_NATIVECALL_ARG_CPPSTRUCT: {
+                    /* We need to allocate the struct (THIS) for C++ constructor before passing it along. */
+                    if (i == 0 && !IS_CONCRETE(value)) {
+                        MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)STABLE(res_type)->REPR_data;
+                        /* Allocate a full byte aligned area where the C++ structure fits into. */
+                        ptr    = MVM_malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
+                        result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+
+                        dcArgPointer(vm, ptr);
+                    }
+                    else {
+                        dcArgPointer(vm, MVM_nativecall_unmarshal_cppstruct(tc, value));
+                    }
+                }
+                break;
             case MVM_NATIVECALL_ARG_CPOINTER:
                 dcArgPointer(vm, MVM_nativecall_unmarshal_cpointer(tc, value));
                 break;
@@ -537,80 +557,89 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         }
     }
 
-    /* Call and process return values. */
-    MVMROOT(tc, args, {
-    MVMROOT(tc, res_type, {
-        switch (ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
-            case MVM_NATIVECALL_ARG_VOID:
-                dcCallVoid(vm, entry_point);
-                result = res_type;
-                break;
-            case MVM_NATIVECALL_ARG_CHAR:
-                result = MVM_nativecall_make_int(tc, res_type, dcCallChar(vm, entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_SHORT:
-                result = MVM_nativecall_make_int(tc, res_type, dcCallShort(vm, entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_INT:
-                result = MVM_nativecall_make_int(tc, res_type, dcCallInt(vm, entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_LONG:
-                result = MVM_nativecall_make_int(tc, res_type, dcCallLong(vm, entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_LONGLONG:
-                result = MVM_nativecall_make_int(tc, res_type, dcCallLongLong(vm, entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_FLOAT:
-                result = MVM_nativecall_make_num(tc, res_type, dcCallFloat(vm, entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_DOUBLE:
-                result = MVM_nativecall_make_num(tc, res_type, dcCallDouble(vm, entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_ASCIISTR:
-            case MVM_NATIVECALL_ARG_UTF8STR:
-            case MVM_NATIVECALL_ARG_UTF16STR:
-                result = MVM_nativecall_make_str(tc, res_type, body->ret_type,
-                    (char *)dcCallPointer(vm, entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_CSTRUCT:
-                result = MVM_nativecall_make_cstruct(tc, res_type, dcCallPointer(vm, body->entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_CPOINTER:
-                result = MVM_nativecall_make_cpointer(tc, res_type, dcCallPointer(vm, body->entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_CARRAY:
-                result = MVM_nativecall_make_carray(tc, res_type, dcCallPointer(vm, body->entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_CUNION:
-                result = MVM_nativecall_make_cunion(tc, res_type, dcCallPointer(vm, body->entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_CALLBACK:
-                /* TODO: A callback -return- value means that we have a C method
-                * that needs to be wrapped similarly to a is native(...) Perl 6
-                * sub. */
-                dcCallPointer(vm, body->entry_point);
-                result = res_type;
-                break;
-            case MVM_NATIVECALL_ARG_UCHAR:
-                result = MVM_nativecall_make_uint(tc, res_type, (DCuchar)dcCallChar(vm, entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_USHORT:
-                result = MVM_nativecall_make_uint(tc, res_type, (DCushort)dcCallShort(vm, entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_UINT:
-                result = MVM_nativecall_make_uint(tc, res_type, (DCuint)dcCallInt(vm, entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_ULONG:
-                result = MVM_nativecall_make_uint(tc, res_type, (DCulong)dcCallLong(vm, entry_point));
-                break;
-            case MVM_NATIVECALL_ARG_ULONGLONG:
-                result = MVM_nativecall_make_uint(tc, res_type, (DCulonglong)dcCallLongLong(vm, entry_point));
-                break;
-            default:
-                MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall return type");
-        }
-    });
-    });
+    if (result) {
+        /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */
+        dcCallVoid(vm, body->entry_point);
+    }
+    else {
+        /* Call and process return values. */
+        MVMROOT(tc, args, {
+        MVMROOT(tc, res_type, {
+            switch (ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
+                case MVM_NATIVECALL_ARG_VOID:
+                    dcCallVoid(vm, entry_point);
+                    result = res_type;
+                    break;
+                case MVM_NATIVECALL_ARG_CHAR:
+                    result = MVM_nativecall_make_int(tc, res_type, dcCallChar(vm, entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_SHORT:
+                    result = MVM_nativecall_make_int(tc, res_type, dcCallShort(vm, entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_INT:
+                    result = MVM_nativecall_make_int(tc, res_type, dcCallInt(vm, entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_LONG:
+                    result = MVM_nativecall_make_int(tc, res_type, dcCallLong(vm, entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_LONGLONG:
+                    result = MVM_nativecall_make_int(tc, res_type, dcCallLongLong(vm, entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_FLOAT:
+                    result = MVM_nativecall_make_num(tc, res_type, dcCallFloat(vm, entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_DOUBLE:
+                    result = MVM_nativecall_make_num(tc, res_type, dcCallDouble(vm, entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_ASCIISTR:
+                case MVM_NATIVECALL_ARG_UTF8STR:
+                case MVM_NATIVECALL_ARG_UTF16STR:
+                    result = MVM_nativecall_make_str(tc, res_type, body->ret_type,
+                        (char *)dcCallPointer(vm, entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_CSTRUCT:
+                    result = MVM_nativecall_make_cstruct(tc, res_type, dcCallPointer(vm, body->entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_CPPSTRUCT:
+                    result = MVM_nativecall_make_cppstruct(tc, res_type, dcCallPointer(vm, body->entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_CPOINTER:
+                    result = MVM_nativecall_make_cpointer(tc, res_type, dcCallPointer(vm, body->entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_CARRAY:
+                    result = MVM_nativecall_make_carray(tc, res_type, dcCallPointer(vm, body->entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_CUNION:
+                    result = MVM_nativecall_make_cunion(tc, res_type, dcCallPointer(vm, body->entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_CALLBACK:
+                    /* TODO: A callback -return- value means that we have a C method
+                    * that needs to be wrapped similarly to a is native(...) Perl 6
+                    * sub. */
+                    dcCallPointer(vm, body->entry_point);
+                    result = res_type;
+                    break;
+                case MVM_NATIVECALL_ARG_UCHAR:
+                    result = MVM_nativecall_make_uint(tc, res_type, (DCuchar)dcCallChar(vm, entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_USHORT:
+                    result = MVM_nativecall_make_uint(tc, res_type, (DCushort)dcCallShort(vm, entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_UINT:
+                    result = MVM_nativecall_make_uint(tc, res_type, (DCuint)dcCallInt(vm, entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_ULONG:
+                    result = MVM_nativecall_make_uint(tc, res_type, (DCulong)dcCallLong(vm, entry_point));
+                    break;
+                case MVM_NATIVECALL_ARG_ULONGLONG:
+                    result = MVM_nativecall_make_uint(tc, res_type, (DCulonglong)dcCallLongLong(vm, entry_point));
+                    break;
+                default:
+                    MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall return type");
+            }
+        });
+        });
+    }
 
     num_rws = 0;
     for (i = 0; i < num_args; i++) {

@@ -39,6 +39,7 @@
 #include "6model/reprs/ConcBlockingQueue.h"
 #include "6model/reprs/MVMAsyncTask.h"
 #include "6model/reprs/MVMNull.h"
+#include "6model/reprs/CPPStruct.h"
 #include "6model/reprs/NativeRef.h"
 #include "6model/reprs/MultiDimArray.h"
 
@@ -92,8 +93,9 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_NativeRef               39
 #define MVM_REPR_ID_MVMCUnion               40
 #define MVM_REPR_ID_MultiDimArray           41
+#define MVM_REPR_ID_MVMCPPStruct            42
 
-#define MVM_REPR_CORE_COUNT                 42
+#define MVM_REPR_CORE_COUNT                 43
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */
