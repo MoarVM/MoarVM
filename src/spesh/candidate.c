@@ -235,8 +235,6 @@ void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candid
     MVM_free(candidate->inlines);
     MVM_free(candidate->local_types);
     MVM_free(candidate->lexical_types);
-    if (candidate->jitcode) {
-        MVM_free(candidate->jitcode->func_ptr);
+    if (candidate->jitcode)
         MVM_jit_destroy_code(tc, candidate->jitcode);
-    }
 }
