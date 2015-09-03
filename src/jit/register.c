@@ -108,11 +108,13 @@ void MVM_jit_register_free(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMin
         NYI(numeric_regs);
     } else {
         MVMint32 i;
+        MVM_jit_log(tc, "Trying to free register %d\n", reg_num);
+
         for (i = 0; i < sizeof(free_gpr); i++) {
             if (free_gpr[i] == reg_num)
                 goto ok;
         }
-        MVM_oops(tc, "Trying to free register %d\n", reg_num);
+        MVM_oops(tc, "This is not a free register!");
     ok:
         if (alc->reg_give == alc->reg_take) {
             MVM_oops(tc, "Trying to free too many registers");
@@ -303,9 +305,7 @@ void MVM_jit_register_put(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprVa
         return;
     }
     /* Take the register */
-    if (alc->reg_use[reg_num] > 0) {
-        MVM_jit_register_take(tc, cl, reg_cls, reg_num);
-    }
+    MVM_jit_register_take(tc, cl, reg_cls, reg_num);
     if (value->state == MVM_JIT_VALUE_ALLOCATED) {
         MVMint32 cur_reg_cls = value->reg_cls, cur_reg_num = value->reg_num;
         MVM_jit_emit_copy(tc, cl, reg_cls, reg_num, value->reg_cls, value->reg_num);
