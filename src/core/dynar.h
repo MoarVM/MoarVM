@@ -31,6 +31,10 @@
         x[x ## _num++] = (value); \
     } while(0)
 
+#define MVM_DYNAR_POP(x) \
+    (x)[--(x ## _num)]
+
+
 #define MVM_DYNAR_APPEND(x, ar, len) do { \
         MVM_DYNAR_ENSURE_SPACE(x, len); \
         memcpy(x + x ## _num, ar, (len) * sizeof(x[0]));        \

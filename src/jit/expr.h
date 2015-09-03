@@ -108,7 +108,8 @@ struct MVMJitExprValue {
         MVM_JIT_VALUE_EMPTY,
         MVM_JIT_VALUE_ALLOCATED,
         MVM_JIT_VALUE_SPILLED,
-        MVM_JIT_VALUE_DEAD
+        MVM_JIT_VALUE_DEAD,
+        MVM_JIT_VALUE_IMMORTAL
     } state;
 
     /* register allocated to this value */
