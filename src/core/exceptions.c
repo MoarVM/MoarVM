@@ -724,6 +724,8 @@ void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...) {
     fprintf(stderr, "\n");
     MVM_dump_backtrace(tc);
     fprintf(stderr, "\n");
+    if (tc->instance->jit_log_fh)
+        fflush(tc->instance->jit_log_fh);
     exit(1);
 }
 

@@ -156,6 +156,7 @@ void MVM_jit_register_use(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint
     if (reg_cls == MVM_JIT_REGCLS_NUM) {
         NYI(numeric_regs);
     } else {
+        MVM_jit_log(tc, "Locking register %d in order nr %d\n", reg_num, compiler->order_nr);
         LOCK_REGISTER(compiler->allocator, reg_num);
     }
 
@@ -165,6 +166,7 @@ void MVM_jit_register_release(MVMThreadContext *tc, MVMJitCompiler *compiler, MV
     if (reg_cls == MVM_JIT_REGCLS_NUM) {
         NYI(numeric_regs);
     } else {
+        MVM_jit_log(tc, "Unlocking register %d in order nr %d\n", reg_num, compiler->order_nr);
         UNLOCK_REGISTER(compiler->allocator, reg_num);
     }
 }
