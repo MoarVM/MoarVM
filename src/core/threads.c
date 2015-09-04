@@ -43,10 +43,8 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
     /* Set up the cached current usecapture CallCapture (done here so
      * we allocate it on the correct thread, and once the thread is
      * active). */
-    MVMROOT(tc, thread, {
     MVMROOT(tc, invokee, {
         tc->cur_usecapture = MVM_repr_alloc_init(tc, tc->instance->CallCapture);
-    });
     });
 
     /* Create initial frame, which sets up all of the interpreter state also. */
