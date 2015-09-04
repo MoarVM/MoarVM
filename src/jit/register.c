@@ -45,8 +45,8 @@ static MVMint8 free_num[] = { -1 };
 
 /* Register lock bitmap macros */
 #define REGISTER_IS_LOCKED(a, n) ((a)->reg_lock &  (1 << (n)))
-#define LOCK_REGISTER(a, n)   ((a)->reg_lock |= (1 << (n)))
-#define UNLOCK_REGISTER(a,n)  ((a)->reg_lock ^= (1 << (n)))
+#define LOCK_REGISTER(a, n)   ((a)->reg_lock |=  (1 << (n)))
+#define UNLOCK_REGISTER(a,n)  ((a)->reg_lock &= ~(1 << (n)))
 
 
 /* NB only implement GPR register allocation now */
