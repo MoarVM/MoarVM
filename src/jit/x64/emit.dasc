@@ -2176,6 +2176,7 @@ void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 
             | mov Rd(reg_num), dword [rbx+idx];
             break;
         case 8:
+            MVM_jit_log(tc, "Emit load of offset %d to register %d\n", location, reg_num);
             | mov Rq(reg_num), qword [rbx+idx];
             break;
         }

@@ -4,8 +4,9 @@
  * lexicals. */
 static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
                                      MVMSpeshCandidate *c) {
-    c->work_size = (c->num_locals + sf->body.cu->body.max_callsite_size)
+    c->work_size = (c->num_locals + sf->body.cu->body.max_callsite_size + (c->jitcode ? c->jitcode->spill_size : 0))
         * sizeof(MVMRegister);
+
     c->env_size = c->num_lexicals * sizeof(MVMRegister);
 }
 
@@ -186,7 +187,6 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     candidate->inlines       = sg->inlines;
     candidate->local_types   = sg->local_types;
     candidate->lexical_types = sg->lexical_types;
-    calculate_work_env_sizes(tc, static_frame, candidate);
     MVM_free(sc);
 
     /* Try to JIT compile the optimised graph. The JIT graph hangs from
@@ -198,7 +198,8 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
             MVM_jit_graph_destroy(tc, jg);
         }
     }
-
+    /* calculate work environment taking JIT spill area into account */
+    calculate_work_env_sizes(tc, static_frame, candidate);
     /* Update spesh slots. */
     candidate->num_spesh_slots = sg->num_spesh_slots;
     candidate->spesh_slots     = sg->spesh_slots;
