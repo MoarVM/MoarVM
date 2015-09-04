@@ -468,7 +468,6 @@ static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
         task->body.ops  = &close_op_table;
         task->body.data = data->handle;
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
-        data->handle = NULL;
     }
     return 0;
 }
