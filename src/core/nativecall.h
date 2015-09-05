@@ -21,6 +21,7 @@
 #define MVM_NATIVECALL_ARG_ULONG           38
 #define MVM_NATIVECALL_ARG_ULONGLONG       40
 #define MVM_NATIVECALL_ARG_CUNION          42
+#define MVM_NATIVECALL_ARG_CPPSTRUCT       44
 #define MVM_NATIVECALL_ARG_TYPE_MASK       62
 
 /* Flag for whether we should free a string after passing it or not. */
@@ -95,6 +96,7 @@ MVMint64 MVM_nativecall_sizeof(MVMThreadContext *tc, MVMObject *obj);
 void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy);
 
 MVMObject * MVM_nativecall_make_cstruct(MVMThreadContext *tc, MVMObject *type, void *cstruct);
+MVMObject * MVM_nativecall_make_cppstruct(MVMThreadContext *tc, MVMObject *type, void *cppstruct);
 MVMObject * MVM_nativecall_make_cunion(MVMThreadContext *tc, MVMObject *type, void *cunion);
 MVMObject * MVM_nativecall_make_cpointer(MVMThreadContext *tc, MVMObject *type, void *ptr);
 MVMObject * MVM_nativecall_make_carray(MVMThreadContext *tc, MVMObject *type, void *carray);
@@ -119,6 +121,7 @@ double              MVM_nativecall_unmarshal_double(MVMThreadContext *tc, MVMObj
 
 char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free);
 void * MVM_nativecall_unmarshal_cstruct(MVMThreadContext *tc, MVMObject *value);
+void * MVM_nativecall_unmarshal_cppstruct(MVMThreadContext *tc, MVMObject *value);
 void * MVM_nativecall_unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value);
 void * MVM_nativecall_unmarshal_carray(MVMThreadContext *tc, MVMObject *value);
 void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value);

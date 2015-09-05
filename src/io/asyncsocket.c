@@ -459,17 +459,16 @@ static const MVMAsyncTaskOps close_op_table = {
 
 static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOAsyncSocketData *data = (MVMIOAsyncSocketData *)h->body.data;
-    if (data->handle) {
-        MVMAsyncTask *task;
-        MVMROOT(tc, h, {
-            task = (MVMAsyncTask *)MVM_repr_alloc_init(tc,
-                tc->instance->boot_types.BOOTAsync);
-        });
-        task->body.ops  = &close_op_table;
-        task->body.data = data->handle;
-        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
-        data->handle = NULL;
-    }
+    MVMAsyncTask *task;
+
+    MVMROOT(tc, h, {
+        task = (MVMAsyncTask *)MVM_repr_alloc_init(tc,
+            tc->instance->boot_types.BOOTAsync);
+    });
+    task->body.ops  = &close_op_table;
+    task->body.data = data->handle;
+    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+
     return 0;
 }
 
