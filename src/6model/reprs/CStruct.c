@@ -202,6 +202,18 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                         repr_data->attribute_locations[i]    |= MVM_CSTRUCT_ATTR_INLINED;
                     }
                 }
+                else if (type_id == MVM_REPR_ID_MVMCPPStruct) {
+                    /* It's a CPPStruct. */
+                    repr_data->num_child_objs++;
+                    repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CSTRUCT_ATTR_SHIFT) | MVM_CSTRUCT_ATTR_CPPSTRUCT;
+                    repr_data->member_types[i] = type;
+                    if (inlined) {
+                        MVMCPPStructREPRData *cppstruct_repr_data = (MVMCPPStructREPRData *)STABLE(type)->REPR_data;
+                        bits                                      = cppstruct_repr_data->struct_size * 8;
+                        align                                     = cppstruct_repr_data->struct_size;
+                        repr_data->attribute_locations[i]        |= MVM_CSTRUCT_ATTR_INLINED;
+                    }
+                }
                 else if (type_id == MVM_REPR_ID_MVMCUnion) {
                     /* It's a CUnion. */
                     repr_data->num_child_objs++;
@@ -222,7 +234,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                 }
                 else {
                     MVM_exception_throw_adhoc(tc,
-                        "CStruct representation only handles int, num, CArray, CPointer and CStruct");
+                        "CStruct representation only handles int, num, CArray, CPointer, CStruct, CPPStruct and CUnion");
                 }
             }
             else {
@@ -397,6 +409,13 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                             else
                                 obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
                         }
+                        else if(type == MVM_CSTRUCT_ATTR_CPPSTRUCT) {
+                            if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
+                                obj = MVM_nativecall_make_cppstruct(tc, typeobj,
+                                    (char *)body->cstruct + repr_data->struct_offsets[slot]);
+                            else
+                                obj = MVM_nativecall_make_cppstruct(tc, typeobj, cobj);
+                        }
                         else if(type == MVM_CSTRUCT_ATTR_CUNION) {
                             if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
                                 obj = MVM_nativecall_make_cunion(tc, typeobj,
@@ -502,6 +521,12 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                             MVM_exception_throw_adhoc(tc,
                                 "Can only store CStruct attribute in CStruct slot in CStruct");
                         cobj = ((MVMCStruct *)value)->body.cstruct;
+                    }
+                    else if (type == MVM_CSTRUCT_ATTR_CPPSTRUCT) {
+                        if (REPR(value)->ID != MVM_REPR_ID_MVMCPPStruct)
+                            MVM_exception_throw_adhoc(tc,
+                                "Can only store CPPStruct attribute in CPPStruct slot in CStruct");
+                        cobj = ((MVMCPPStruct *)value)->body.cppstruct;
                     }
                     else if (type == MVM_CSTRUCT_ATTR_CUNION) {
                         if (REPR(value)->ID != MVM_REPR_ID_MVMCUnion)

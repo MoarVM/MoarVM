@@ -198,6 +198,17 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                         repr_data->attribute_locations[i]    |= MVM_CUNION_ATTR_INLINED;
                     }
                 }
+                else if (type_id == MVM_REPR_ID_MVMCPPStruct) {
+                    /* It's a CPPStruct. */
+                    repr_data->num_child_objs++;
+                    repr_data->attribute_locations[i] = (cur_obj_attr++ << MVM_CUNION_ATTR_SHIFT) | MVM_CUNION_ATTR_CPPSTRUCT;
+                    repr_data->member_types[i] = type;
+                    if (inlined) {
+                        MVMCPPStructREPRData *cppstruct_repr_data = (MVMCPPStructREPRData *)STABLE(type)->REPR_data;
+                        bits                                      = cppstruct_repr_data->struct_size * 8;
+                        repr_data->attribute_locations[i]        |= MVM_CUNION_ATTR_INLINED;
+                    }
+                }
                 else if (type_id == MVM_REPR_ID_MVMCUnion) {
                     /* It's a CUnion. */
                     repr_data->num_child_objs++;
@@ -217,7 +228,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                 }
                 else {
                     MVM_exception_throw_adhoc(tc,
-                        "CUnion representation only handles int, num, CArray, CPointer and CStruct");
+                        "CUnion representation only handles int, num, CArray, CPointer, CStruct, CPPStruct and CUnion");
                 }
             }
             else {
@@ -407,6 +418,13 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                                     (char *)body->cunion + repr_data->struct_offsets[slot]);
                             else
                                 obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
+                        }
+                        else if(type == MVM_CUNION_ATTR_CPPSTRUCT) {
+                            if (repr_data->attribute_locations[slot] & MVM_CUNION_ATTR_INLINED)
+                                obj = MVM_nativecall_make_cppstruct(tc, typeobj,
+                                    (char *)body->cunion + repr_data->struct_offsets[slot]);
+                            else
+                                obj = MVM_nativecall_make_cppstruct(tc, typeobj, cobj);
                         }
                         else if(type == MVM_CUNION_ATTR_CUNION) {
                             if (repr_data->attribute_locations[slot] & MVM_CUNION_ATTR_INLINED)
