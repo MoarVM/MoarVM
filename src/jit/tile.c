@@ -230,6 +230,10 @@ static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     /* Minimum number of registers required is given by tile */
     /* cur_value->reg_req =  tile->reg_req; */
     switch (tree->nodes[node]) {
+    case MVM_JIT_IF:
+        num_values = 0;
+        cur_value->first_created = (*order_nr);
+        break;
     case MVM_JIT_ARGLIST:
         arglist_get_values(tc, tree, node, values);
         num_values = tree->nodes[node+1];

@@ -1,31 +1,5 @@
 #include "moar.h"
 #include "internal.h"
-/* Online register allocater requires the following operations:
- * alloc/free
- * take/release
- * spill/load
- * invalidate.
-
- * We also require a 'default implementation' of register
- * allocation for default tiles.
- *
- * Registers can be USED, ALLOCATED or FREE.
- * When a register is USED, it cannot be allocated or freed
- * When a register is ALLOCATED, its value must be spilled before it can be reallocated
- * When a register is FREE, it can be allocated directly.
- *
- * release transfers the register state from USED to ALLOCATED
- * free transfers the register state from USED or ALLOCATED to FREE
- * spill transfers a register state from ALLOCATED to FREE,
- * emits a value spill, and stores the value spill location
- * alloc tries to take a FREE register if any; if none it spills
- * an ALLOCATED register, and transfers the state to USED
- * take tries to take register N. If N is USED, this is an error.
- * If N is ALLOCATED, it is spilt. It transfers the state of N to USED
- *
- * load emits a load of value V to register N and transfers the state of
- * N to ALLOCATED * INVALIDATE spills all ALLOCATED registers (but does
- * not touch USED registers) */
 
 #if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
 static MVMint8 free_gpr[] = {
@@ -97,6 +71,7 @@ MVMint8 MVM_jit_register_alloc(MVMThreadContext *tc, MVMJitCompiler *cl, MVMint3
         alc->free_reg[alc->reg_take] = 0xff; /* mark it for debugging purposes */
         alc->reg_take = NEXT_REG(alc->reg_take);
     }
+    MVM_jit_log(tc, "Allocated register %d at order nr %d\n", reg_num, cl->order_nr);
     return reg_num;
 }
 
@@ -143,6 +118,7 @@ void MVM_jit_register_take(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMin
             alc->free_reg[i] = alc->free_reg[alc->reg_take];
             alc->free_reg[alc->reg_take] = 0xff;
             alc->reg_take    = NEXT_REG(alc->reg_take);
+            MVM_jit_log(tc, "Taken register %d on order nr %d\n", reg_num, compiler->order_nr);
             return;
         }
         i = NEXT_REG(i);
@@ -369,10 +345,10 @@ void MVM_jit_spill_before_conditional(MVMThreadContext *tc, MVMJitCompiler *cl, 
         if (value->last_use > exit_order_nr) {
             /* Emit a spill - this inadvertently frees the register */
             MVM_jit_register_spill(tc, cl, value->reg_cls, value->reg_num);
-            /* So we have to take it */
+            /* So we have to take it again */
             MVM_jit_register_take(tc, cl, value->reg_cls, value->reg_num);
-            /* Because the value has been assigned before, we should not reassign it,
-             * but update it's state directly */
+            /* Because the value has been assigned before, we should
+             * not reassign it, but update it's state directly */
             value->state = MVM_JIT_VALUE_ALLOCATED;
             alc->reg_use[value->reg_num]++;
         }

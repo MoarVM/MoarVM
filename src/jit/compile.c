@@ -174,38 +174,6 @@ static MVMint32 alloc_internal_label(MVMThreadContext *tc, MVMJitCompiler *cl, M
 
 #define NYI(x) MVM_oops(tc, #x " NYI")
 
-static void enter_conditional(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
-    /* Before entering a conditional, we should spill all we are going
-     * to spill inside the conditional, unless on some future date
-     * we're going to implement local spill-and-restore. But that's
-     * relatively more complicated, so we don't. */
-    MVM_jit_spill_before_conditional(tc, cl, tree, node);
- }
-
-static void enter_branch(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
-    MVM_jit_enter_branch(tc, cl);
-}
-
-
-static void leave_branch(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
-    MVM_jit_leave_branch(tc, cl);
-}
-
-static void leave_conditional(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
-    /* After leaving a conditional, if we ever choose to implement
-     * spill-and-restore, we restore values here. More importantly,
-     * values calculated within the conditional block are INVALIDATED
-     * beyond that block, because you can't be sure they have been
-     * calculated.
-     *
-     * NB: it is _values_ which are invalidated, and _registers_ which
-     * are allocated and freed.
-     * */
-    NYI(leave_conditional);
-}
-
-
-
 
 static void alloc_value(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprValue *value) {
     if (value->type == MVM_JIT_NUM) {
@@ -256,7 +224,7 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
         {
             /* Before we enter this node, mark us as entering a conditional */
             MVMint32 cond = tree->nodes[node+1];
-            enter_conditional(tc, cl, tree, node);
+            MVM_jit_spill_before_conditional(tc, cl, tree, node);
             if (tree->nodes[cond] == MVM_JIT_ANY) {
                 /* WHEN ANY requires two labels. One label for
                    skipping our block (tne normal WHEN label) and one
@@ -279,7 +247,7 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
         {
             MVMJitExprValue *if_val = &tree->info[node].value;
             MVMint32 cond = tree->nodes[node+1];
-            enter_conditional(tc, cl, tree, node);
+            MVM_jit_spill_before_conditional(tc, cl, tree, node);
             if (tree->nodes[cond] == MVM_JIT_ALL)  {
                 /* IF ALL short-circuits into the right block, which is simply labeled with the normal IF label */
                 tree->info[node].internal_label = alloc_internal_label(tc, cl, 2);
@@ -310,7 +278,8 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
             /* Because of short-circuitng behavior, ALL is much like
              * nested WHEN, which means it's a conditional in
              * itself */
-            enter_conditional(tc, cl, tree, node);
+            MVM_jit_spill_before_conditional(tc, cl, tree, node);
+            MVM_jit_enter_branch(tc, cl);
             for (i = 0; i < nchild; i++) {
                 MVMint32 cond = tree->nodes[first_child+i];
                 if (tree->nodes[cond] == MVM_JIT_ALL) {
@@ -328,7 +297,8 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
         {
             /* To deal with nested ANY/ALL combinations, we need to propagate and assign labels */
             MVMint32 i, nchild = tree->nodes[node + 1], first_child = node + 2;
-            enter_conditional(tc, cl, tree, node);
+            MVM_jit_spill_before_conditional(tc, cl, tree, node);
+            MVM_jit_enter_branch(tc, cl);
             for (i = 0; i < nchild; i++) {
                 MVMint32 cond = tree->nodes[first_child+i];
                 if (tree->nodes[cond] == MVM_JIT_ALL) {
@@ -400,6 +370,7 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                        require an explicit conditional branch */
                     MVM_jit_emit_conditional_branch(tc, cl, negate_flag(tc, flag), label);
                 }
+                MVM_jit_enter_branch(tc, cl);
             } else {
                 if (flag == MVM_JIT_ANY) {
                     /* WHEN ANY skip label is label + 1 because label
@@ -410,6 +381,7 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                     /* That's not true of any other condition */
                     MVM_jit_emit_label(tc, cl, cl->graph, label);
                 }
+                MVM_jit_leave_branch(tc, cl);
             }
         }
         break;
@@ -435,6 +407,7 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 } else {
                     MVM_jit_emit_conditional_branch(tc, cl, negate_flag(tc, flag), label);
                 }
+                MVM_jit_enter_branch(tc, cl);
             } else if (i == 1) {
                 if (flag == MVM_JIT_ANY) {
                     /* IF ANY offsets the branch label by one */
@@ -450,6 +423,8 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                     MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
                     MVM_jit_emit_label(tc, cl, cl->graph, label);
                 }
+                MVM_jit_leave_branch(tc, cl);
+                MVM_jit_enter_branch(tc, cl);
             } else {
                 if (tree->nodes[node] == MVM_JIT_IF) {
                     MVMJitExprValue *left_val = &tree->info[tree->nodes[node+2]].value,
@@ -464,6 +439,7 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 } else {
                     MVM_jit_emit_label(tc, cl, cl->graph, label + 1);
                 }
+                MVM_jit_leave_branch(tc, cl);
             }
         }
         break;
@@ -620,23 +596,23 @@ static void pre_call(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *t
     MVM_jit_spill_before_call(tc, cl);
 }
 
+#if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
 static void post_call(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
     /* Post-call, we might implement restore, if the call was
        conditional. But that is something for another day */
-    MVMint32 arglist = tree->nodes[node+2];
-    MVMint32 ncargs  = tree->nodes[arglist+1];
     MVMint32 i;
-    /* We have to release all registers locked in arglist */
-    for (i = 0; i < ncargs; i++) {
-        MVMint32 carg    = tree->nodes[arglist+2+i];
-        MVMint32 argnode = tree->nodes[carg+1];
-        MVMJitExprValue *argval = &tree->info[argnode].value;
-        if (argval->state == MVM_JIT_VALUE_ALLOCATED) {
-            MVM_jit_register_release(tc, cl, argval->reg_cls, argval->reg_num);
-        }
+    /* ARGLIST locked all registers and we have to wait until after the CALL to unlock them */
+    for (i = 0; i < sizeof(x64_gpr_args); i++) {
+        MVM_jit_register_release(tc, cl, MVM_JIT_REGCLS_GPR, x64_gpr_args[i]);
     }
+    /* TODO same for numargs */
 }
 
+#else
+static void post_call(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
+    NYI(post_call);
+}
+#endif
 
 static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, MVMJitExprTree *tree, MVMint32 node) {
     MVMJitCompiler *cl = traverser->data;
@@ -683,19 +659,21 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
         break;
     case MVM_JIT_CARG:
         break;
-    case MVM_JIT_WHEN:
-    case MVM_JIT_EITHER:
     case MVM_JIT_ALL:
     case MVM_JIT_ANY:
-        leave_conditional(tc, cl, tree, node);
+        MVM_jit_leave_branch(tc, cl);
+        break;
+    case MVM_JIT_WHEN:
+    case MVM_JIT_EITHER:
         break;
     case MVM_JIT_IF:
         /* The IF conditional assigned register is live by construction */
         {
             MVMJitExprValue *left_val = &tree->info[tree->nodes[node+2]].value;
-            MVM_jit_register_assign(tc, cl, values[0], left_val->reg_cls, left_val->reg_cls);
+            values[0]->type == MVM_JIT_REG;
+            MVM_jit_register_take(tc, cl, left_val->reg_cls, left_val->reg_num);
+            MVM_jit_register_assign(tc, cl, values[0], left_val->reg_cls, left_val->reg_num);
         }
-        leave_conditional(tc, cl, tree, node);
         break;
     case MVM_JIT_DO:
         {
