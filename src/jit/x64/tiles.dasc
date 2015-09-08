@@ -103,7 +103,7 @@ MVM_JIT_TILE_DECL(load_reg) {
 MVM_JIT_TILE_DECL(load_addr) {
     MVMint8 out  = values[0]->reg_num;
     MVMint8 base = values[1]->reg_num;
-    MVMint8 ofs  = XS2(node+1,2);
+    MVMint32 ofs  = XS2(node+1,2);
     switch (args[0]) {
     case 1:
         | mov Rb(out), [Rq(base)+ofs];
