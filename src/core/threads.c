@@ -131,6 +131,7 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
 
 /* Waits for a thread to finish. */
 static int try_join(MVMThreadContext *tc, MVMThread *thread) {
+    /* Join the thread, marking ourselves as unable to GC while we wait. */
     int status;
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&thread);
     MVM_gc_mark_thread_blocked(tc);
@@ -143,6 +144,13 @@ static int try_join(MVMThreadContext *tc, MVMThread *thread) {
     }
     MVM_gc_mark_thread_unblocked(tc);
     MVM_gc_root_temp_pop(tc);
+
+    /* After a thread has been joined, we trigger a GC run to clean up after
+     * it. This avoids problems where a program spawns threads and joins them
+     * in a loop gobbling a load of memory and other resources because we do
+     * not ever trigger a GC run to clean up the thread. */
+    MVM_gc_enter_from_allocator(tc);
+
     return status;
 }
 void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
