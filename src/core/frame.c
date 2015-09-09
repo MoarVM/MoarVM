@@ -1457,8 +1457,7 @@ MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *cod
     if (STABLE(code)->invoke == MVM_6model_invoke_default) {
         MVMInvocationSpec *is = STABLE(code)->invocation_spec;
         if (!is) {
-            MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s, cs = %d)",
-                REPR(code)->name, STABLE(code)->container_spec ? 1 : 0);
+            MVM_exception_throw_adhoc(tc, "Cannot invoke this object");
         }
         if (!MVM_is_null(tc, is->md_class_handle)) {
             /* We might be able to dig straight into the multi cache and not
