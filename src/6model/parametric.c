@@ -13,12 +13,12 @@ void MVM_6model_parametric_setup(MVMThreadContext *tc, MVMObject *type, MVMObjec
     /* For now, we use a simple pairwise array, with parameters and the type
      * that is based on those parameters interleaved. It does make resolution
      * O(n), so we might like to do some hash in the future. */
-     MVMROOT(tc, st, {
-     MVMROOT(tc, parameterizer, {
+    MVMROOT(tc, st, {
+    MVMROOT(tc, parameterizer, {
         MVMObject *lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
         MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.lookup, lookup);
-     });
-     });
+    });
+    });
 
      /* Store the parameterizer. (Note, we do this after the allocation
       * above, since the array allocation may cause GC, but we didn't mark
