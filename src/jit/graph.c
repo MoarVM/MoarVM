@@ -290,6 +290,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_bindattr_i: case MVM_OP_bindattr_n: case MVM_OP_bindattr_s: case MVM_OP_bindattr_o: return MVM_repr_bind_attr_inso;
     case MVM_OP_bindattrs_i: case MVM_OP_bindattrs_n: case MVM_OP_bindattrs_s: case MVM_OP_bindattrs_o: return MVM_repr_bind_attr_inso;
 
+    case MVM_OP_gt_s: case MVM_OP_ge_s: case MVM_OP_lt_s: case MVM_OP_le_s: case MVM_OP_cmp_s: return MVM_string_compare;
+
     case MVM_OP_elems: return MVM_repr_elems;
     case MVM_OP_flattenropes: return MVM_string_flatten;
     case MVM_OP_concat_s: return MVM_string_concatenate;
@@ -1710,6 +1712,24 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_FRAME } }};
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_gt_s:
+    case MVM_OP_ge_s:
+    case MVM_OP_lt_s:
+    case MVM_OP_le_s:
+    case MVM_OP_cmp_s: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 a   = ins->operands[1].reg.orig;
+        MVMint16 b   = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { a } },
+                                 { MVM_JIT_REG_VAL, { b } }};
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
+        /* We rely on an implementation of the comparisons against -1, 0 and 1
+         * in emit.dasc */
+        if (op != MVM_OP_cmp_s)
+            jgb_append_primitive(tc, jgb, ins);
         break;
     }
     case MVM_OP_flattenropes: {
