@@ -644,7 +644,7 @@ static void jgb_before_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         }
         case MVM_SPESH_ANN_INLINE_START: {
             MVMint32 label = get_label_for_ins(tc, jgb, bb, ins, 0);
-            jgb_append_label(tc, jgb, label); 
+            jgb_append_label(tc, jgb, label);
             jgb->inlines[ann->data.inline_idx].start_label = label;
             if (tc->instance->jit_log_fh)
                 log_inline(tc, jgb->sg, ann->data.inline_idx, 1);
