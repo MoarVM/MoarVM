@@ -1324,7 +1324,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         break;
     }
     default:
-    return 0;
+        return 0;
     }
 
     return 1;
