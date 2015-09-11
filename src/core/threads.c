@@ -28,6 +28,10 @@ MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 ap
         /* Add one, since MVM_incr returns original. */
     thread->body.tc = child_tc;
 
+    /* Also make a copy of the thread ID in the thread object itself, so it
+     * is available once the thread dies and its ThreadContext is gone. */
+    thread->body.thread_id = child_tc->thread_id;
+
     return (MVMObject *)thread;
 }
 
@@ -131,6 +135,7 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
 
 /* Waits for a thread to finish. */
 static int try_join(MVMThreadContext *tc, MVMThread *thread) {
+    /* Join the thread, marking ourselves as unable to GC while we wait. */
     int status;
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&thread);
     MVM_gc_mark_thread_blocked(tc);
@@ -143,6 +148,13 @@ static int try_join(MVMThreadContext *tc, MVMThread *thread) {
     }
     MVM_gc_mark_thread_unblocked(tc);
     MVM_gc_root_temp_pop(tc);
+
+    /* After a thread has been joined, we trigger a GC run to clean up after
+     * it. This avoids problems where a program spawns threads and joins them
+     * in a loop gobbling a load of memory and other resources because we do
+     * not ever trigger a GC run to clean up the thread. */
+    MVM_gc_enter_from_allocator(tc);
+
     return status;
 }
 void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
@@ -160,7 +172,7 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
 /* Gets the (VM-level) ID of a thread. */
 MVMint64 MVM_thread_id(MVMThreadContext *tc, MVMObject *thread_obj) {
     if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread)
-        return ((MVMThread *)thread_obj)->body.tc->thread_id;
+        return ((MVMThread *)thread_obj)->body.thread_id;
     else
         MVM_exception_throw_adhoc(tc,
             "Thread handle passed to threadid must have representation MVMThread");

@@ -1,5 +1,5 @@
 #include "moar.h"
-#include "math.h"
+#include <math.h>
 #include "platform/time.h"
 
 /* Macros for getting things from the bytecode stream. */
@@ -5106,10 +5106,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_profile_log_allocated(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
-            OP(ctw_check):
-                MVM_cross_thread_write_check(tc, GET_REG(cur_op, 0).o, GET_I16(cur_op, 2));
+            OP(ctw_check): {
+                MVMObject *obj = GET_REG(cur_op, 0).o;
+                MVMint16 blame = GET_I16(cur_op, 2);
                 cur_op += 4;
+                MVM_cross_thread_write_check(tc, obj, blame);
                 goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

@@ -92,6 +92,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->threads->body.stage = MVM_thread_stage_started;
     instance->threads->body.tc = instance->main_thread;
     instance->threads->body.native_thread_id = MVM_platform_thread_id();
+    instance->threads->body.thread_id = instance->main_thread->thread_id;
 
     /* Create compiler registry */
     instance->compiler_registry = MVM_repr_alloc_init(instance->main_thread, instance->boot_types.BOOTHash);

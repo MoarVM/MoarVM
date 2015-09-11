@@ -5,10 +5,13 @@
 #define MVM_CPPSTRUCT_ATTR_CPTR      3
 #define MVM_CPPSTRUCT_ATTR_STRING    4
 #define MVM_CPPSTRUCT_ATTR_CPPSTRUCT 5
+#define MVM_CPPSTRUCT_ATTR_CUNION    6
 #define MVM_CPPSTRUCT_ATTR_MASK      7
 
+#define MVM_CPPSTRUCT_ATTR_INLINED   8
+
 /* Bits to shift a slot position to make room for MVM_CPPSTRUCT_ATTR_*. */
-#define MVM_CPPSTRUCT_ATTR_SHIFT     3
+#define MVM_CPPSTRUCT_ATTR_SHIFT     4
 
 /* The CPPStruct representation maintains a chunk of memory that it can
  * always pass off to C land. If we in turn embed any strings, pointers

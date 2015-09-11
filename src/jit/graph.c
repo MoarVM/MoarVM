@@ -186,6 +186,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_throwcatlex:
     case MVM_OP_throwcatlexotic: return MVM_exception_throwcat;
     case MVM_OP_resume: return MVM_exception_resume;
+    case MVM_OP_continuationreset: return MVM_continuation_reset;
+    case MVM_OP_continuationcontrol: return MVM_continuation_control;
     case MVM_OP_smrt_numify: return MVM_coerce_smart_numify;
     case MVM_OP_smrt_strify: return MVM_coerce_smart_stringify;
     case MVM_OP_write_fhs: return MVM_io_write_string;
@@ -265,6 +267,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_bindattr_i: case MVM_OP_bindattr_n: case MVM_OP_bindattr_s: case MVM_OP_bindattr_o: return MVM_repr_bind_attr_inso;
     case MVM_OP_bindattrs_i: case MVM_OP_bindattrs_n: case MVM_OP_bindattrs_s: case MVM_OP_bindattrs_o: return MVM_repr_bind_attr_inso;
 
+    case MVM_OP_gt_s: case MVM_OP_ge_s: case MVM_OP_lt_s: case MVM_OP_le_s: case MVM_OP_cmp_s: return MVM_string_compare;
+
     case MVM_OP_elems: return MVM_repr_elems;
     case MVM_OP_flattenropes: return MVM_string_flatten;
     case MVM_OP_concat_s: return MVM_string_concatenate;
@@ -304,15 +308,15 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_div_In: return MVM_bigint_div_num;
     case MVM_OP_coerce_Is: case MVM_OP_base_I: return MVM_bigint_to_str;
     case MVM_OP_radix_I: return MVM_bigint_radix;
-    case MVM_OP_sqrt_n: return &sqrt;
-    case MVM_OP_sin_n: return &sin;
-    case MVM_OP_cos_n: return &cos;
-    case MVM_OP_tan_n: return &tan;
-    case MVM_OP_asin_n: return &asin;
-    case MVM_OP_acos_n: return &acos;
-    case MVM_OP_atan_n: return &atan;
-    case MVM_OP_atan2_n: return &atan2;
-    case MVM_OP_pow_n: return &pow;
+    case MVM_OP_sqrt_n: return sqrt;
+    case MVM_OP_sin_n: return sin;
+    case MVM_OP_cos_n: return cos;
+    case MVM_OP_tan_n: return tan;
+    case MVM_OP_asin_n: return asin;
+    case MVM_OP_acos_n: return acos;
+    case MVM_OP_atan_n: return atan;
+    case MVM_OP_atan2_n: return atan2;
+    case MVM_OP_pow_n: return pow;
     case MVM_OP_time_n: return MVM_proc_time_n;
     case MVM_OP_randscale_n: return MVM_proc_randscale_n;
     case MVM_OP_isnanorinf: return MVM_num_isnanorinf;
@@ -677,6 +681,12 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVMSpeshOperand type_operand;
     MVMSpeshFacts *type_facts = 0;
     MVMint32 alternative = 0;
+
+    /* XXX There is a very strange bug with push and unshift where the flag for
+     * num64 registers doesn't properly get passed to the function, resulting
+     * in a "push: expected num register" error. */
+    if (op == MVM_OP_push_n || op == MVM_OP_unshift_n)
+        goto skipdevirt;
 
     switch (op) {
         case MVM_OP_unshift_i:
@@ -1063,6 +1073,8 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVM_jit_log(tc, "devirt: repr op %s couldn't be devirtualized: type unknown\n", ins->info->name);
     }
 
+skipdevirt:
+
     switch(op) {
     case MVM_OP_push_i:
     case MVM_OP_push_s:
@@ -1311,7 +1323,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         break;
     }
     default:
-    return 0;
+        return 0;
     }
 
     return 1;
@@ -1695,6 +1707,24 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         jg_append_call_c(tc, jgb->graph, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
+    case MVM_OP_gt_s:
+    case MVM_OP_ge_s:
+    case MVM_OP_lt_s:
+    case MVM_OP_le_s:
+    case MVM_OP_cmp_s: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 a   = ins->operands[1].reg.orig;
+        MVMint16 b   = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { a } },
+                                 { MVM_JIT_REG_VAL, { b } }};
+        jg_append_call_c(tc, jgb->graph, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
+        /* We rely on an implementation of the comparisons against -1, 0 and 1
+         * in emit.dasc */
+        if (op != MVM_OP_cmp_s)
+            jg_append_primitive(tc, jgb->graph, ins);
+        break;
+    }
     case MVM_OP_flattenropes: {
         MVMint32 target = ins->operands[0].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
@@ -1789,6 +1819,30 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { invocant } } };
         jg_append_call_c(tc, jgb->graph, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_continuationreset: {
+        MVMint16 reg  = ins->operands[0].reg.orig;
+        MVMint16 tag  = ins->operands[1].reg.orig;
+        MVMint16 code = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { tag } },
+                                 { MVM_JIT_REG_VAL, { code } },
+                                 { MVM_JIT_REG_ADDR, { reg } }};
+        jg_append_call_c(tc, jgb->graph, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_continuationcontrol: {
+        MVMint16 reg  = ins->operands[0].reg.orig;
+        MVMint16 protect  = ins->operands[1].reg.orig;
+        MVMint16 tag  = ins->operands[2].reg.orig;
+        MVMint16 code = ins->operands[3].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { protect } },
+                                 { MVM_JIT_REG_VAL, { tag } },
+                                 { MVM_JIT_REG_VAL, { code } },
+                                 { MVM_JIT_REG_ADDR, { reg } }};
+        jg_append_call_c(tc, jgb->graph, op_to_func(tc, op), 5, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_sp_boolify_iter: {

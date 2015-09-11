@@ -317,6 +317,10 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     wi->buf           = uv_buf_init(output, output_size);
     wi->req->data     = data;
     handle_data       = (MVMIOAsyncSocketData *)wi->handle->body.data;
+
+    if (uv_is_closing((uv_handle_t *)handle_data->handle))
+        MVM_exception_throw_adhoc(tc, "cannot write to a closed socket");
+
     if ((r = uv_write(wi->req, handle_data->handle, &(wi->buf), 1, on_write)) < 0) {
         /* Error; need to notify. */
         MVMROOT(tc, async_task, {
@@ -446,7 +450,12 @@ static void close_cb(uv_handle_t *handle) {
     MVM_free(handle);
 }
 static void close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
-    uv_close((uv_handle_t *)data, close_cb);
+    uv_handle_t *handle = (uv_handle_t *)data;
+
+    if (uv_is_closing(handle))
+        MVM_exception_throw_adhoc(tc, "cannot close a closed socket");
+
+    uv_close(handle, close_cb);
 }
 
 /* Operations table for async close task. */

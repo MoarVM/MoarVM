@@ -619,8 +619,9 @@ distclean: realclean
 	$(MSG) remove executable and libraries
 	-$(CMD)$(RM) moar@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
 	$(MSG) remove configuration and generated files
-	-$(CMD)$(RM) Makefile src/gen/config.h src/strings/unicode.c tools/check.mk $(NOOUT) $(NOERR)
-	-$(CMD)$(RM_RF) build/mk-moar-pc.pl pkgconfig/ $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) Makefile src/gen/config.h src/gen/config.c src/strings/unicode.c \
+	    tools/check.mk 3rdparty/libatomic_ops/config.log 3rdparty/libatomic_ops/config.status $(NOOUT) $(NOERR)
+	-$(CMD)$(RM_RF) src/jit/emit_posix_x64.c build/mk-moar-pc.pl pkgconfig/ $(NOOUT) $(NOERR)
 
 release:
 	[ -n "$(VERSION)" ] || ( echo "\nTry 'make release VERSION=yyyy.mm'\n\n"; exit 1 )

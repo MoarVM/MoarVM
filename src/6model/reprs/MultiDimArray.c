@@ -33,7 +33,7 @@ MVM_STATIC_INLINE size_t indices_to_flat_index(MVMThreadContext *tc, MVMint64 nu
         else {
             MVM_exception_throw_adhoc(tc,
                 "Index %"PRId64" for dimension %"PRId64" out of range (must be 0..%"PRId64")",
-                index, i + 1, dim_size);
+                index, i + 1, dim_size - 1);
         }
     }
     return result;

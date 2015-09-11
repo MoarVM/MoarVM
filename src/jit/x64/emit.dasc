@@ -961,6 +961,46 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[reg_a], TMP2;
         break;
     }
+    case MVM_OP_gt_s:
+    case MVM_OP_ge_s:
+    case MVM_OP_lt_s:
+    case MVM_OP_le_s: {
+        /* src/jit/graph.c already put a call to the MVM_string_compare
+           function into the graph, so here we just have to deal with the
+           returned integers. */
+        MVMint32 reg = ins->operands[0].reg.orig;
+        switch(ins->info->opcode) {
+            case MVM_OP_gt_s:
+                | mov TMP2, 1;
+                break;
+            case MVM_OP_lt_s:
+                | mov TMP2, -1;
+                break;
+            case MVM_OP_ge_s: case MVM_OP_le_s:
+                | mov TMP2, 0;
+                break;
+        }
+        | cmp TMP2, WORK[reg];
+        /* Mind the reversedness of the constant and the value as compared to
+         * interp.c */
+        switch(ins->info->opcode) {
+            case MVM_OP_gt_s:
+                | sete al;
+                break;
+            case MVM_OP_ge_s:
+                | setl al;
+                break;
+            case MVM_OP_lt_s:
+                | sete al;
+                break;
+            case MVM_OP_le_s:
+                | setg al;
+                break;
+        }
+        | movzx rax, al;
+        | mov WORK[reg], rax;
+        break;
+    }
     case MVM_OP_not_i: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;

@@ -1,7 +1,7 @@
 #include "moar.h"
 
 #ifndef _WIN32
-    #include "sys/wait.h"
+    #include <sys/wait.h>
 #endif
 
 /* This heavily re-uses the logic from syncstream, but with different close
