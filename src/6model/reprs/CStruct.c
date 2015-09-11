@@ -1,5 +1,5 @@
 #include "moar.h"
-#include "math.h"
+#include <math.h>
 
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;

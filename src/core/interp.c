@@ -1,5 +1,5 @@
 #include "moar.h"
-#include "math.h"
+#include <math.h>
 #include "platform/time.h"
 
 /* Macros for getting things from the bytecode stream. */
