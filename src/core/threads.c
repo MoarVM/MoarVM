@@ -28,6 +28,10 @@ MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 ap
         /* Add one, since MVM_incr returns original. */
     thread->body.tc = child_tc;
 
+    /* Also make a copy of the thread ID in the thread object itself, so it
+     * is available once the thread dies and its ThreadContext is gone. */
+    thread->body.thread_id = child_tc->thread_id;
+
     return (MVMObject *)thread;
 }
 
@@ -168,7 +172,7 @@ void MVM_thread_join(MVMThreadContext *tc, MVMObject *thread_obj) {
 /* Gets the (VM-level) ID of a thread. */
 MVMint64 MVM_thread_id(MVMThreadContext *tc, MVMObject *thread_obj) {
     if (REPR(thread_obj)->ID == MVM_REPR_ID_MVMThread)
-        return ((MVMThread *)thread_obj)->body.tc->thread_id;
+        return ((MVMThread *)thread_obj)->body.thread_id;
     else
         MVM_exception_throw_adhoc(tc,
             "Thread handle passed to threadid must have representation MVMThread");

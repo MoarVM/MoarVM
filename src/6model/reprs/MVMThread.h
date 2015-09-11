@@ -29,7 +29,12 @@ struct MVMThreadBody {
     /* Thread's OS-level thread ID. */
     MVMint64 native_thread_id;
 
-    /* Whether this thread should be automatically killed at VM exit. */
+    /* Copy of the VM-level thread ID (also stored in the ThreadContext while
+     * the thread is alive). */
+    MVMuint32 thread_id;
+
+    /* Non-zero if the thread should not block shutdown of the VM (those with
+     * zero in here will be joined when the main thread ends). */
     MVMint32 app_lifetime;
 };
 struct MVMThread {
