@@ -80,6 +80,9 @@ struct MVMFrame {
     /* Reference count for the frame. */
     AO_t ref_count;
 
+    /* Is the frame referenced by a garbage-collectable object? */
+    MVMint32 refd_by_object;
+
     /* Effective bytecode for the frame (either the original bytecode or a
      * specialization of it). */
     MVMuint8 *effective_bytecode;
@@ -205,6 +208,8 @@ MVM_PUBLIC MVMuint64 MVM_frame_try_return_no_exit_handlers(MVMThreadContext *tc)
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
                          MVMuint32 rel_addr, MVMObject *return_value);
 MVM_PUBLIC MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame);
+MVM_PUBLIC MVMFrame * MVM_frame_inc_ref_by_frame(MVMThreadContext *tc, MVMFrame *frame);
+MVM_PUBLIC MVMFrame * MVM_frame_acquire_ref(MVMThreadContext *tc, MVMFrame **frame);
 MVM_PUBLIC MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame);
 MVM_PUBLIC MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code);
 MVM_PUBLIC void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code);

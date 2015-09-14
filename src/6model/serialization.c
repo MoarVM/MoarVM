@@ -2082,7 +2082,7 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
             deserialize_context(tc, reader, outer_idx - 1);
 
         /* Attach it. */
-        f->outer = MVM_frame_inc_ref(tc, reader->contexts[outer_idx - 1]);
+        f->outer = MVM_frame_inc_ref_by_frame(tc, reader->contexts[outer_idx - 1]);
     }
 }
 
