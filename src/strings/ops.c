@@ -1504,9 +1504,9 @@ MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString
 
     length = MVM_string_graphs(tc, s);
     end    = offset + count;
+    end = length < end ? length : end;
     if (offset < 0 || offset >= length)
         return end;
-    end = length < end ? length : end;
 
     MVM_string_gi_init(tc, &gi, s);
     MVM_string_gi_move_to(tc, &gi, offset);
@@ -1528,9 +1528,9 @@ MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMSt
 
     length = MVM_string_graphs(tc, s);
     end    = offset + count;
-    if (offset < 0 || offset >= length)
-        return offset;
     end = length < end ? length : end;
+    if (offset < 0 || offset >= length)
+        return end;
 
     MVM_string_gi_init(tc, &gi, s);
     MVM_string_gi_move_to(tc, &gi, offset);
