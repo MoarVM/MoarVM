@@ -198,7 +198,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
                         bits                                  = cstruct_repr_data->struct_size * 8;
-                        align                                 = cstruct_repr_data->struct_size;
                         repr_data->attribute_locations[i]    |= MVM_CSTRUCT_ATTR_INLINED;
                     }
                 }
@@ -210,7 +209,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCPPStructREPRData *cppstruct_repr_data = (MVMCPPStructREPRData *)STABLE(type)->REPR_data;
                         bits                                      = cppstruct_repr_data->struct_size * 8;
-                        align                                     = cppstruct_repr_data->struct_size;
                         repr_data->attribute_locations[i]        |= MVM_CSTRUCT_ATTR_INLINED;
                     }
                 }
@@ -222,7 +220,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCUnionREPRData *cunion_repr_data = (MVMCUnionREPRData *)STABLE(type)->REPR_data;
                         bits                                = cunion_repr_data->struct_size * 8;
-                        align                               = cunion_repr_data->struct_size;
                         repr_data->attribute_locations[i]  |= MVM_CSTRUCT_ATTR_INLINED;
                     }
                 }
