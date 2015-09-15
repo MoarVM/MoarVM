@@ -250,6 +250,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     /* Allocate the frame. */
     frame = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMFrame));
     frame->params.named_used = NULL;
+    frame->refd_by_object = 0;
 
     /* Ensure special return pointers, continuation tags, dynlex cache,
      * and return address are null. */
