@@ -1256,6 +1256,7 @@ static void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short id
             write_int32(ws->frame_seg, ws->frame_pos, 0);
         ws->frame_pos += 4;
         if (fs->handlers[i].category_mask & MVM_EX_CAT_LABELED) {
+            ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos, 2);
             write_int16(ws->frame_seg, ws->frame_pos, fs->handlers[i].label_reg);
             ws->frame_pos += 2;
         }
