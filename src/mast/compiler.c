@@ -1235,9 +1235,9 @@ static void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short id
     write_int32(ws->frame_seg, fs->frame_start + 34, fs->num_handlers);
 
     /* Write handlers. */
-    ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos,
-        FRAME_HANDLER_SIZE * fs->num_handlers);
     for (i = 0; i < fs->num_handlers; i++) {
+        ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos,
+            FRAME_HANDLER_SIZE);
         write_int32(ws->frame_seg, ws->frame_pos, fs->handlers[i].start_offset);
         ws->frame_pos += 4;
         write_int32(ws->frame_seg, ws->frame_pos, fs->handlers[i].end_offset);
