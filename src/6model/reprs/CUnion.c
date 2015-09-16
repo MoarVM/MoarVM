@@ -113,6 +113,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
     /* If we have no attributes in the index mapping, then just the header. */
     if (repr_data->name_to_index_mapping[0].class_key == NULL) {
         repr_data->struct_size = 1; /* avoid 0-byte malloc */
+        repr_data->struct_align = ALIGNOF(void *);
     }
 
     /* Otherwise, we need to compute the allocation strategy.  */
@@ -144,6 +145,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             MVMObject *inlined_val = MVM_repr_at_key_o(tc, attr, tc->instance->str_consts.inlined);
             MVMint64 inlined = !MVM_is_null(tc, inlined_val) && MVM_repr_get_int(tc, inlined_val);
             MVMint32   bits  = sizeof(void *) * 8;
+            MVMint32   align = ALIGNOF(void *);
             if (!MVM_is_null(tc, type)) {
                 /* See if it's a type that we know how to handle in a C struct. */
                 const MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
@@ -157,6 +159,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                      * repurpose it to store the bit-width of the type, so
                      * that get_attribute_ref can find it later. */
                     bits = spec->bits;
+                    align = spec->align;
 
                     repr_data->attribute_locations[i] = (bits << MVM_CUNION_ATTR_SHIFT) | MVM_CUNION_ATTR_IN_STRUCT;
                     repr_data->flattened_stables[i] = STABLE(type);
@@ -194,6 +197,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
                         bits                                  = cstruct_repr_data->struct_size * 8;
+                        align                                 = cstruct_repr_data->struct_align;
                         repr_data->attribute_locations[i]    |= MVM_CUNION_ATTR_INLINED;
                     }
                 }
@@ -205,6 +209,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCPPStructREPRData *cppstruct_repr_data = (MVMCPPStructREPRData *)STABLE(type)->REPR_data;
                         bits                                      = cppstruct_repr_data->struct_size * 8;
+                        align                                     = cppstruct_repr_data->struct_align;
                         repr_data->attribute_locations[i]        |= MVM_CUNION_ATTR_INLINED;
                     }
                 }
@@ -216,6 +221,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCUnionREPRData *cunion_repr_data = (MVMCUnionREPRData *)STABLE(type)->REPR_data;
                         bits                                = cunion_repr_data->struct_size * 8;
+                        align                               = cunion_repr_data->struct_align;
                         repr_data->attribute_locations[i]  |= MVM_CUNION_ATTR_INLINED;
                     }
                 }
@@ -239,6 +245,9 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                  MVM_exception_throw_adhoc(tc,
                     "CUnion only supports native types that are a multiple of 8 bits wide (was passed: %"PRId32")", bits);
             }
+
+            if (align > repr_data->struct_align)
+                repr_data->struct_align = align;
 
             repr_data->struct_offsets[i] = 0;
             if (bits / 8 > total_size)
