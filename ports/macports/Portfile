@@ -4,7 +4,7 @@
 PortSystem          1.0
 
 name                MoarVM
-version             2015.07
+version             2015.09
 categories          lang devel
 platforms           darwin
 license             Artistic-2 MIT BSD ISC public-domain
