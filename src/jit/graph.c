@@ -705,12 +705,6 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVMSpeshFacts *type_facts = 0;
     MVMint32 alternative = 0;
 
-    /* XXX There is a very strange bug with push and unshift where the flag for
-     * num64 registers doesn't properly get passed to the function, resulting
-     * in a "push: expected num register" error. */
-    if (op == MVM_OP_push_n || op == MVM_OP_unshift_n)
-        goto skipdevirt;
-
     switch (op) {
         case MVM_OP_unshift_i:
         case MVM_OP_unshift_n:
