@@ -858,9 +858,8 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                          { MVM_JIT_REG_STABLE,  invocant },
                                          { MVM_JIT_REG_VAL,     invocant },
                                          { MVM_JIT_REG_OBJBODY, invocant },
-                                         { MVM_JIT_REG_VAL,  key },
-                                         { op == MVM_OP_bindpos_n || op == MVM_OP_bindkey_n ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL ,
-                                                 value },
+                                         { MVM_JIT_REG_VAL, key },
+                                         { MVM_JIT_REG_VAL, value },
                                          { MVM_JIT_LITERAL,
                                              op == MVM_OP_bindpos_i || op == MVM_OP_bindkey_i ? MVM_reg_int64 :
                                              op == MVM_OP_bindpos_n || op == MVM_OP_bindkey_n ? MVM_reg_num64 :
@@ -980,8 +979,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                              { is_name_direct ? MVM_JIT_STR_IDX : MVM_JIT_REG_VAL,
                                                                     attrname },
                                              { MVM_JIT_LITERAL,     attrhint },
-                                             { op == MVM_OP_bindattr_n || op == MVM_OP_bindattrs_n ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL ,
-                                                     value },
+                                             { MVM_JIT_REG_VAL,     value },
                                              { MVM_JIT_LITERAL,
                                                  op == MVM_OP_bindattr_i || op == MVM_OP_bindattrs_i ? MVM_reg_int64 :
                                                  op == MVM_OP_bindattr_n || op == MVM_OP_bindattrs_n ? MVM_reg_num64 :
@@ -1016,8 +1014,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                          { MVM_JIT_REG_STABLE,  invocant },
                                          { MVM_JIT_REG_VAL,     invocant },
                                          { MVM_JIT_REG_OBJBODY, invocant },
-                                         { op == MVM_OP_push_n || op == MVM_OP_unshift_n ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL ,
-                                                 value },
+                                         { MVM_JIT_REG_VAL,     value },
                                          { MVM_JIT_LITERAL,
                                              op == MVM_OP_push_i || op == MVM_OP_unshift_i ? MVM_reg_int64 :
                                              op == MVM_OP_push_n || op == MVM_OP_unshift_n ? MVM_reg_num64 :
