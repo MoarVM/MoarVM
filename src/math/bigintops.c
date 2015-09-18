@@ -114,7 +114,7 @@ static MVMP6bigintBody * get_bigint_body(MVMThreadContext *tc, MVMObject *obj) {
 }
 
 /* Checks if a bigint can be stored small. */
-static int can_be_smallint(mp_int *i) {
+static int can_be_smallint(const mp_int *i) {
     if (USED(i) != 1)
         return 0;
     return MVM_IS_32BIT_INT(DIGIT(i, 0));
@@ -122,7 +122,7 @@ static int can_be_smallint(mp_int *i) {
 
 /* Forces a bigint, even if we only have a smallint. Takes a parameter that
  * indicates where to allocate a temporary mp_int if needed. */
-static mp_int * force_bigint(MVMP6bigintBody *body, mp_int **tmp) {
+static mp_int * force_bigint(const MVMP6bigintBody *body, mp_int **tmp) {
     if (MVM_BIGINT_IS_BIG(body)) {
         return body->u.bigint;
     }
@@ -145,7 +145,7 @@ static mp_int * force_bigint(MVMP6bigintBody *body, mp_int **tmp) {
 }
 
 /* Clears an array that may contain tempory big ints. */
-static void clear_temp_bigints(mp_int **ints, MVMint32 n) {
+static void clear_temp_bigints(mp_int *const *ints, MVMint32 n) {
     MVMint32 i;
     for (i = 0; i < n; i++)
         if (ints[i]) {
@@ -198,7 +198,7 @@ static void store_bigint_result(MVMP6bigintBody *body, mp_int *i) {
  * appends sign-bit extension DIGITs to it to give us a 2s compliment
  * representation in memory.  Do not call it on positive bigints.
  */
-static void grow_and_negate(mp_int *a, int size, mp_int *b) {
+static void grow_and_negate(const mp_int *a, int size, mp_int *b) {
     int i;
     /* Always add an extra DIGIT so we can tell positive values
      * with a one in the highest bit apart from negative values.
