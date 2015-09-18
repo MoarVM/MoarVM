@@ -1139,12 +1139,12 @@ static void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short id
                 ((MAST_Frame *)f->outer)->index);
         }
         else {
-            unsigned short i, found, num_frames;
+            unsigned short j, found, num_frames;
             found = 0;
             num_frames = (unsigned short)ELEMS(vm, ws->cu->frames);
-            for (i = 0; i < num_frames; i++) {
-                if (ATPOS(vm, ws->cu->frames, i) == f->outer) {
-                    write_int16(ws->frame_seg, ws->frame_pos + 24, i);
+            for (j = 0; j < num_frames; j++) {
+                if (ATPOS(vm, ws->cu->frames, j) == f->outer) {
+                    write_int16(ws->frame_seg, ws->frame_pos + 24, j);
                     found = 1;
                     break;
                 }
