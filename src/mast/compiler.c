@@ -350,7 +350,6 @@ static unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
                 break;
             case MVM_STORAGE_SPEC_BP_STR:
                 return MVM_reg_str;
-                break;
             default:
                 cleanup_all(vm, ws);
                 DIE(vm, "Type used for local/lexical has invalid boxed primitive in storage spec");
