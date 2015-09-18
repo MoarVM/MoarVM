@@ -582,20 +582,20 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
     } else {
         MVMint32 num   = ba->u.smallint.value;
         MVMint32 denom = bb->u.smallint.value;
-        MVMint32 result;
+        MVMint32 value;
         if ((cmp_a == MP_LT) ^ (cmp_b == MP_LT)) {
             if (denom == 0) {
                 MVM_exception_throw_adhoc(tc, "Division by zero");
             }
             if ((num % denom) != 0) {
-                result = num / denom - 1;
+                value = num / denom - 1;
             } else {
-                result = num / denom;
+                value = num / denom;
             }
         } else {
-            result = num / denom;
+            value = num / denom;
         }
-        store_int64_result(bc, result);
+        store_int64_result(bc, value);
     }
 
     return result;
@@ -662,12 +662,12 @@ void MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMin
         store_bigint_result(bb, ib);
         clear_temp_bigints(tmp, 1);
     } else {
-        MVMint64 result;
+        MVMint64 value;
         if (n < 0)
-            result = ((MVMint64)ba->u.smallint.value) >> -n;
+            value = ((MVMint64)ba->u.smallint.value) >> -n;
         else
-            result = ((MVMint64)ba->u.smallint.value) << n;
-        store_int64_result(bb, result);
+            value = ((MVMint64)ba->u.smallint.value) << n;
+        store_int64_result(bb, value);
     }
 }
 
@@ -686,8 +686,8 @@ void MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMin
         store_int64_result(bb, 0);
     } else {
         MVMint32 value = ba->u.smallint.value;
-        MVMint32 result = value >> n;
-        store_int64_result(bb, result);
+        value = value >> n;
+        store_int64_result(bb, value);
     }
 }
 
@@ -704,8 +704,8 @@ void MVM_bigint_not(MVMThreadContext *tc, MVMObject *result, MVMObject *a) {
         store_bigint_result(bb, ib);
     } else {
         MVMint32 value = ba->u.smallint.value;
-        MVMint32 result = ~value;
-        store_int64_result(bb, result);
+        value = ~value;
+        store_int64_result(bb, value);
     }
 }
 
