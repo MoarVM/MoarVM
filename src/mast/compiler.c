@@ -173,7 +173,7 @@ typedef struct {
 } WriterState;
 
 static unsigned int umax(unsigned int a, unsigned int b);
-static void memcpy_endian(char *dest, void *src, size_t size);
+static void memcpy_endian(char *dest, const void *src, size_t size);
 static void write_int64(char *buffer, size_t offset, unsigned long long value);
 static void write_int32(char *buffer, size_t offset, unsigned int value);
 static void write_int16(char *buffer, size_t offset, unsigned short value);
@@ -198,7 +198,7 @@ static unsigned int umax(unsigned int a, unsigned int b) {
 }
 
 /* copies memory dependent on endianness */
-static void memcpy_endian(char *dest, void *src, size_t size) {
+static void memcpy_endian(char *dest, const void *src, size_t size) {
 #ifdef MVM_BIGENDIAN
     size_t i;
     char *srcbytes = (char *)src;
