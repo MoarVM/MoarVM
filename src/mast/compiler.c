@@ -1,8 +1,6 @@
 #include "moar.h"
 #include "nodes.h"
 
-#include <stdint.h>
-
 /* Some constants. */
 #define HEADER_SIZE                 92
 #define BYTECODE_VERSION            5
