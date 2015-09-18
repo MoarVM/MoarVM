@@ -728,7 +728,7 @@ void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MV
     clear_temp_bigints(tmp, 3);
 }
 
-void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, char *buf) {
+void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf) {
     MVMP6bigintBody *body = get_bigint_body(tc, a);
     mp_int *i = MVM_malloc(sizeof(mp_int));
     mp_init(i);
