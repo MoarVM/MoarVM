@@ -1535,7 +1535,7 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     if (vm->serialized_string_heap) {
         MVMint64 elems = ELEMS(vm, vm->serialized_string_heap);
         for (i = 1; i < elems; i++)
-            get_string_heap_index(vm, ws, ATPOS_S(vm, vm->serialized_string_heap, i));
+            (void)get_string_heap_index(vm, ws, ATPOS_S(vm, vm->serialized_string_heap, i));
         vm->serialized_string_heap = NULL;
     }
 
