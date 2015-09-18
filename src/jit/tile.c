@@ -135,11 +135,11 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
 /* Preorder propagation of rules downward */
 static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          MVMJitExprTree *tree, MVMint32 node) {
-    MVMJitExprNode op               = tree->nodes[node];
-    MVMJitExprNodeInfo *info        = &tree->info[node];
-    const MVMJitExprOpInfo *op_info = info->op_info;
+    MVMJitExprNode op    = tree->nodes[node];
     MVMint32 first_child = node+1;
-    MVMint32 nchild      = op_info->nchild < 0 ? tree->nodes[first_child++] : op_info->nchild;
+    MVMint32 nchild      = (tree->info[node].op_info->nchild < 0 ?
+                            tree->nodes[first_child++] :
+                            tree->info[node].op_info->nchild);
     switch (op) {
     case MVM_JIT_ALL:
     case MVM_JIT_ANY:
@@ -148,7 +148,7 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             MVMint32 i;
             for (i = 0; i < nchild; i++) {
                 MVMint32 child = tree->nodes[first_child+i];
-                MVMint32 rule  = MVM_jit_tile_select_lookup(tc, tree->info[child].tile_state, info->tile->left_sym);
+                MVMint32 rule  = MVM_jit_tile_select_lookup(tc, tree->info[child].tile_state, tree->info[node].tile->left_sym);
                 tree->nodes[first_child+i] = assign_tile(tc, tree, child, rule);
             }
         }
@@ -158,11 +158,11 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             MVMint32 i, last_child, last_rule;
             for (i = 0; i < nchild - 1; i++) {
                 MVMint32 child = tree->nodes[first_child+i];
-                MVMint32 rule  = MVM_jit_tile_select_lookup(tc, tree->info[child].tile_state, info->tile->left_sym);
+                MVMint32 rule  = MVM_jit_tile_select_lookup(tc, tree->info[child].tile_state, tree->info[node].tile->left_sym);
                 tree->nodes[first_child+i] = assign_tile(tc, tree, child, rule);
             }
             last_child = tree->nodes[first_child+i];
-            last_rule  = MVM_jit_tile_select_lookup(tc, tree->info[last_child].tile_state, info->tile->right_sym);
+            last_rule  = MVM_jit_tile_select_lookup(tc, tree->info[last_child].tile_state, tree->info[node].tile->right_sym);
             tree->nodes[first_child+i] = assign_tile(tc, tree, last_child, last_rule);
         }
         break;
@@ -174,13 +174,13 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 right = tree->nodes[first_child+2],
                 rule;
 
-            rule = MVM_jit_tile_select_lookup(tc, tree->info[cond].tile_state, info->tile->left_sym);
+            rule = MVM_jit_tile_select_lookup(tc, tree->info[cond].tile_state, tree->info[node].tile->left_sym);
             tree->nodes[first_child]   = assign_tile(tc, tree, cond, rule);
 
-            rule = MVM_jit_tile_select_lookup(tc, tree->info[left].tile_state, info->tile->right_sym);
+            rule = MVM_jit_tile_select_lookup(tc, tree->info[left].tile_state, tree->info[node].tile->right_sym);
             tree->nodes[first_child+1] = assign_tile(tc, tree, left, rule);
 
-            rule = MVM_jit_tile_select_lookup(tc, tree->info[right].tile_state, info->tile->right_sym);
+            rule = MVM_jit_tile_select_lookup(tc, tree->info[right].tile_state, tree->info[node].tile->right_sym);
             tree->nodes[first_child+2] = assign_tile(tc, tree, right, rule);
         }
         break;
@@ -189,16 +189,20 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             /* Assign tiles to children */
             if (nchild > 0) {
                 MVMint32 left = tree->nodes[first_child];
-                MVMint32 rule = MVM_jit_tile_select_lookup(tc, tree->info[left].tile_state, info->tile->left_sym);
+                MVMint32 rule = MVM_jit_tile_select_lookup(tc,
+                                                           tree->info[left].tile_state,
+                                                           tree->info[node].tile->left_sym);
                 tree->nodes[first_child] = assign_tile(tc, tree, left, rule);
             }
             if (nchild > 1) {
                 MVMint32 right = tree->nodes[first_child+1];
-                MVMint32 rule  = MVM_jit_tile_select_lookup(tc, tree->info[right].tile_state, info->tile->right_sym);
+                MVMint32 rule  = MVM_jit_tile_select_lookup(tc,
+                                                            tree->info[right].tile_state,
+                                                            tree->info[node].tile->right_sym);
                 tree->nodes[first_child+1] = assign_tile(tc, tree, right, rule);
             }
             if (nchild > 2) {
-                MVM_oops(tc, "Can't tile %d children of %s", nchild, op_info->name);
+                MVM_oops(tc, "Can't tile %d children of %s", nchild, tree->info[node].op_info->name);
             }
         }
     }

@@ -313,6 +313,7 @@ void MVM_jit_expr_tree_analyze(MVMThreadContext *tc, MVMJitExprTree *tree, MVMSp
     /* analyse the tree, calculate usage and destination information */
     MVMJitTreeTraverser traverser;
     MVM_DYNAR_INIT(tree->info, tree->nodes_num);
+    traverser.policy    = MVM_JIT_TRAVERSER_ONCE;
     traverser.data      = node_ins;
     traverser.preorder  = NULL;
     traverser.inorder   = NULL;
