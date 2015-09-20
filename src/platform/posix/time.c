@@ -2,7 +2,6 @@
 #include "platform/time.h"
 
 #include <errno.h>
-#include <time.h>
 #include <sys/time.h>
 
 #define E9 1000000000
