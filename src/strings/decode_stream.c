@@ -171,7 +171,7 @@ static MVMint32 find_separator(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGra
     MVMDecodeStreamChars *cur_chars = ds->chars_head;
     while (cur_chars) {
         MVMint32 start = cur_chars == ds->chars_head ? ds->chars_head_pos : 0;
-        MVMint32 i = 0;
+        MVMint32 i;
         for (i = start; i < cur_chars->length; i++) {
             sep_loc++;
             if (cur_chars->chars[i] == sep)
