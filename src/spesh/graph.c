@@ -6,13 +6,13 @@
  * in http://www.cs.rice.edu/~keith/EMBED/dom.pdf. The SSA algorithm itself is
  * from http://www.cs.utexas.edu/~pingali/CS380C/2010/papers/ssaCytron.pdf. */
 
-#define GET_I8(pc, idx)     *((MVMint8 *)(pc + idx))
-#define GET_UI8(pc, idx)    *((MVMuint8 *)(pc + idx))
-#define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
-#define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
-#define GET_I32(pc, idx)    *((MVMint32 *)(pc + idx))
-#define GET_UI32(pc, idx)   *((MVMuint32 *)(pc + idx))
-#define GET_N32(pc, idx)    *((MVMnum32 *)(pc + idx))
+#define GET_I8(pc, idx)     *((MVMint8 *)((pc) + (idx)))
+#define GET_UI8(pc, idx)    *((MVMuint8 *)((pc) + (idx)))
+#define GET_I16(pc, idx)    *((MVMint16 *)((pc) + (idx)))
+#define GET_UI16(pc, idx)   *((MVMuint16 *)((pc) + (idx)))
+#define GET_I32(pc, idx)    *((MVMint32 *)((pc) + (idx)))
+#define GET_UI32(pc, idx)   *((MVMuint32 *)((pc) + (idx)))
+#define GET_N32(pc, idx)    *((MVMnum32 *)((pc) + (idx)))
 
 /* Allocate a piece of memory from the spesh graph's buffer. Deallocated when
  * the spesh graph is. */
