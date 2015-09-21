@@ -333,8 +333,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMuint16 i;
     MVM_DYNAR_DECL(MVMSpeshIns*, node_ins);
 
-
-
     if (!bb->first_ins)
         return NULL;
     /* Make the tree */
@@ -400,6 +398,11 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
 
     if (ins == NULL) {
         MVM_jit_expr_tree_analyze(tc, tree, node_ins);
+        MVM_jit_log(tc, "Build tree out of: [");
+        for (ins = bb->first_ins; ins; ins = ins->next) {
+            MVM_jit_log(tc, "%s, ", ins->info->name);
+        }
+        MVM_jit_log(tc, "]\n");
     } else {
         MVM_jit_log(tc, "Could not build an expression tree, stuck at instruction %s\n",
                     ins->info->name);
