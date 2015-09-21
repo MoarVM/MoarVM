@@ -441,20 +441,36 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                     const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
                     if(ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT) {
                         MVMint64 value = 0;
-                        switch(ss->bits) {
-                            case 8:
-                                value = *(MVMint8 *)cpointer_body;
-                                break;
-                            case 16:
-                                value = *(MVMint16 *)cpointer_body;
-                                break;
-                            case 32:
-                                value = *(MVMint32 *)cpointer_body;
-                                break;
-                            case 64:
-                            default:
-                                value = *(MVMint64 *)cpointer_body;
-                        }
+                        if (ss->is_unsigned)
+                            switch(ss->bits) {
+                                case 8:
+                                    value = *(MVMuint8 *)cpointer_body;
+                                    break;
+                                case 16:
+                                    value = *(MVMuint16 *)cpointer_body;
+                                    break;
+                                case 32:
+                                    value = *(MVMuint32 *)cpointer_body;
+                                    break;
+                                case 64:
+                                default:
+                                    value = *(MVMuint64 *)cpointer_body;
+                            }
+                        else
+                            switch(ss->bits) {
+                                case 8:
+                                    value = *(MVMint8 *)cpointer_body;
+                                    break;
+                                case 16:
+                                    value = *(MVMint16 *)cpointer_body;
+                                    break;
+                                case 32:
+                                    value = *(MVMint32 *)cpointer_body;
+                                    break;
+                                case 64:
+                                default:
+                                    value = *(MVMint64 *)cpointer_body;
+                            }
 
                         result = MVM_nativecall_make_int(tc, target_type, value);
                     }
@@ -481,20 +497,36 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                 case MVM_REPR_ID_P6int: {
                     const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));
                     MVMint64 value;
-                    switch(ss->bits) {
-                        case 8:
-                            value = *(MVMint8 *)cpointer_body;
-                            break;
-                        case 16:
-                            value = *(MVMint16 *)cpointer_body;
-                            break;
-                        case 32:
-                            value = *(MVMint32 *)cpointer_body;
-                            break;
-                        case 64:
-                        default:
-                            value = *(MVMint64 *)cpointer_body;
-                    }
+                    if (ss->is_unsigned)
+                        switch(ss->bits) {
+                            case 8:
+                                value = *(MVMuint8 *)cpointer_body;
+                                break;
+                            case 16:
+                                value = *(MVMuint16 *)cpointer_body;
+                                break;
+                            case 32:
+                                value = *(MVMuint32 *)cpointer_body;
+                                break;
+                            case 64:
+                            default:
+                                value = *(MVMuint64 *)cpointer_body;
+                        }
+                    else
+                        switch(ss->bits) {
+                            case 8:
+                                value = *(MVMint8 *)cpointer_body;
+                                break;
+                            case 16:
+                                value = *(MVMint16 *)cpointer_body;
+                                break;
+                            case 32:
+                                value = *(MVMint32 *)cpointer_body;
+                                break;
+                            case 64:
+                            default:
+                                value = *(MVMint64 *)cpointer_body;
+                        }
                     result = MVM_nativecall_make_int(tc, target_type, value);
                     break;
                 }

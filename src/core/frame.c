@@ -67,10 +67,44 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
         MVM_profile_ensure_uninstrumented(tc, static_frame);
 }
 
-/* Increases the reference count of a frame. */
+/* Increases the reference count of a frame, and marks it as having been
+ * referenced by a garbage collectable object. Can only safely be used
+ * if you know the frame is referenced by at least one other frame or by
+ * being on the stack top. If there's a chance it may be referenced only
+ * by an object, use MVM_frame_acquire_ref to avoid races. */
 MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame) {
+    frame->refd_by_object = 1;
     MVM_incr(&frame->ref_count);
     return frame;
+}
+
+/* Increases the reference count of a frame. Can only safely be used when
+ * the thing that will refer to the frame is another frame, and when you
+ * know the frame is referenced by at least one other frame or by being on
+ * the stack top. If there's a chance it may be referenced only by an object,
+ * use MVM_frame_acquire_ref to avoid races. */
+MVMFrame * MVM_frame_inc_ref_by_frame(MVMThreadContext *tc, MVMFrame *frame) {
+    MVM_incr(&frame->ref_count);
+    return frame;
+}
+
+/* Takes a pointer to a location that points to an MVMFrame, and safely
+ * obtains a reference to the frame. If the frame should die while we
+ * try to do so, then it will dereference the frame pointer afresh and
+ * try again. */
+MVMFrame * MVM_frame_acquire_ref(MVMThreadContext *tc, MVMFrame **frame) {
+    while (1) {
+        MVMFrame *try = (MVMFrame *)MVM_load(frame);
+        if (try) {
+            AO_t ref_count = MVM_load(&(try->ref_count));
+            if (ref_count > 0)
+                if (MVM_trycas(&(try->ref_count), ref_count, ref_count + 1))
+                    return try;
+        }
+        else {
+            return NULL;
+        }
+    }
 }
 
 /* Decreases the reference count of a frame. If it hits zero, then we can
@@ -85,17 +119,22 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
         if (frame->caller)
             frame->caller = MVM_frame_dec_ref(tc, frame->caller);
 
-        /* Destroy the frame. */
-        if (frame->env) {
-            MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env,
-                frame->env);
-        }
+        /* Destroy the frame. If it was referenced by an object, we need to
+         * free it at the next safe point; the 0'd ref count must remain
+         * readable until then since we use it as a sentinel value to avoid
+         * anything acquiring a reference to a dead frame. */
         if (frame->work) {
             MVM_args_proc_cleanup(tc, &frame->params);
             MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_work,
                 frame->work);
         }
-        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrame), frame);
+        if (frame->env)
+            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+                frame->allocd_env, frame->env);
+        if (frame->refd_by_object)
+            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMFrame), frame);
+        else
+            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrame), frame);
 
         /* Decrement any outer. */
         if (outer_to_decr)
@@ -165,8 +204,9 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
  * with a ref count of 1 due to being held by an SC. */
 MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMObject *code_ref) {
-    return MVM_frame_inc_ref(tc,
-        create_context_only(tc, static_frame, code_ref, 0));
+    MVMFrame *f = create_context_only(tc, static_frame, code_ref, 0);
+    f->ref_count = 1;
+    return f;
 }
 
 /* Provides auto-close functionality, for the handful of cases where we have
@@ -191,11 +231,11 @@ static MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
         if (outer_code->body.outer &&
                 outer_code->body.outer->static_info->body.bytecode == needed->body.bytecode) {
             /* Yes, just take it. */
-            result->outer = MVM_frame_inc_ref(tc, outer_code->body.outer);
+            result->outer = MVM_frame_acquire_ref(tc, &(outer_code->body.outer));
         }
         else {
             /* Otherwise, recursively auto-close. */
-            result->outer = MVM_frame_inc_ref(tc, autoclose(tc, needed->body.outer));
+            result->outer = MVM_frame_inc_ref_by_frame(tc, autoclose(tc, needed->body.outer));
         }
     }
     return result;
@@ -210,6 +250,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     /* Allocate the frame. */
     frame = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMFrame));
     frame->params.named_used = NULL;
+    frame->refd_by_object = 0;
 
     /* Ensure special return pointers, continuation tags, dynlex cache,
      * and return address are null. */
@@ -256,7 +297,8 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
 void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
                            MVMCallsite *callsite, MVMint32 spesh_cand) {
     MVM_frame_invoke(tc, code->body.sf, callsite,  tc->cur_frame->args,
-                     code->body.outer, (MVMObject*)code, spesh_cand);
+        MVM_frame_acquire_ref(tc, &(code->body.outer)),
+        (MVMObject*)code, spesh_cand);
 }
 
 /* Takes a static frame and a thread context. Invokes the static frame. */
@@ -401,9 +443,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* Outer. */
     if (outer) {
-        /* We were provided with an outer frame; just ensure that it is
-         * based on the correct static frame (compare on bytecode address
-         * to cope with nqp::freshcoderef). */
+        /* We were provided with an outer frame and it will already have had
+         * its reference count incremented; just ensure that it is based on the
+         * correct static frame (compare on bytecode address to cope with
+         * nqp::freshcoderef). */
         if (outer->static_info->body.orig_bytecode == static_frame_body->outer->body.orig_bytecode)
             frame->outer = outer;
         else {
@@ -458,11 +501,12 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         if (static_code->body.outer) {
             /* We're lacking an outer, but our static code object may have one.
             * This comes up in the case of cloned protoregexes, for example. */
-            frame->outer = static_code->body.outer;
+            frame->outer = MVM_frame_inc_ref_by_frame(tc, static_code->body.outer);
         }
         else if (static_frame_body->outer) {
             /* Auto-close, and cache it in the static frame. */
-            frame->outer = autoclose(tc, static_frame_body->outer);
+            frame->outer = MVM_frame_inc_ref_by_frame(tc,
+                autoclose(tc, static_frame_body->outer));
             static_code->body.outer = MVM_frame_inc_ref(tc, frame->outer);
         }
         else {
@@ -472,12 +516,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     else {
         frame->outer = NULL;
     }
-    if (frame->outer)
-        MVM_frame_inc_ref(tc, frame->outer);
 
     /* Caller is current frame in the thread context. */
     if (tc->cur_frame)
-        frame->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
+        frame->caller = MVM_frame_inc_ref_by_frame(tc, tc->cur_frame);
     else
         frame->caller = NULL;
     frame->keep_caller = 0;
@@ -583,7 +625,7 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
     frame->params.arg_flags         = NULL;
     frame->params.named_used        = NULL;
     if (code_ref->body.outer)
-        frame->outer = MVM_frame_inc_ref(tc, code_ref->body.outer);
+        frame->outer = MVM_frame_acquire_ref(tc, &(code_ref->body.outer));
     else
         frame->outer = NULL;
     return frame;

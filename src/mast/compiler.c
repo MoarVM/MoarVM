@@ -1,8 +1,6 @@
 #include "moar.h"
 #include "nodes.h"
 
-#include <stdint.h>
-
 /* Some constants. */
 #define HEADER_SIZE                 92
 #define BYTECODE_VERSION            5
@@ -173,7 +171,7 @@ typedef struct {
 } WriterState;
 
 static unsigned int umax(unsigned int a, unsigned int b);
-static void memcpy_endian(char *dest, void *src, size_t size);
+static void memcpy_endian(char *dest, const void *src, size_t size);
 static void write_int64(char *buffer, size_t offset, unsigned long long value);
 static void write_int32(char *buffer, size_t offset, unsigned int value);
 static void write_int16(char *buffer, size_t offset, unsigned short value);
@@ -198,7 +196,7 @@ static unsigned int umax(unsigned int a, unsigned int b) {
 }
 
 /* copies memory dependent on endianness */
-static void memcpy_endian(char *dest, void *src, size_t size) {
+static void memcpy_endian(char *dest, const void *src, size_t size) {
 #ifdef MVM_BIGENDIAN
     size_t i;
     char *srcbytes = (char *)src;
@@ -350,7 +348,6 @@ static unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
                 break;
             case MVM_STORAGE_SPEC_BP_STR:
                 return MVM_reg_str;
-                break;
             default:
                 cleanup_all(vm, ws);
                 DIE(vm, "Type used for local/lexical has invalid boxed primitive in storage spec");
@@ -1140,12 +1137,12 @@ static void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short id
                 ((MAST_Frame *)f->outer)->index);
         }
         else {
-            unsigned short i, found, num_frames;
+            unsigned short j, found, num_frames;
             found = 0;
             num_frames = (unsigned short)ELEMS(vm, ws->cu->frames);
-            for (i = 0; i < num_frames; i++) {
-                if (ATPOS(vm, ws->cu->frames, i) == f->outer) {
-                    write_int16(ws->frame_seg, ws->frame_pos + 24, i);
+            for (j = 0; j < num_frames; j++) {
+                if (ATPOS(vm, ws->cu->frames, j) == f->outer) {
+                    write_int16(ws->frame_seg, ws->frame_pos + 24, j);
                     found = 1;
                     break;
                 }
@@ -1235,9 +1232,9 @@ static void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short id
     write_int32(ws->frame_seg, fs->frame_start + 34, fs->num_handlers);
 
     /* Write handlers. */
-    ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos,
-        FRAME_HANDLER_SIZE * fs->num_handlers);
     for (i = 0; i < fs->num_handlers; i++) {
+        ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos,
+            FRAME_HANDLER_SIZE);
         write_int32(ws->frame_seg, ws->frame_pos, fs->handlers[i].start_offset);
         ws->frame_pos += 4;
         write_int32(ws->frame_seg, ws->frame_pos, fs->handlers[i].end_offset);
@@ -1256,6 +1253,7 @@ static void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short id
             write_int32(ws->frame_seg, ws->frame_pos, 0);
         ws->frame_pos += 4;
         if (fs->handlers[i].category_mask & MVM_EX_CAT_LABELED) {
+            ensure_space(vm, &ws->frame_seg, &ws->frame_alloc, ws->frame_pos, 2);
             write_int16(ws->frame_seg, ws->frame_pos, fs->handlers[i].label_reg);
             ws->frame_pos += 2;
         }
@@ -1371,7 +1369,7 @@ static char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_si
 static char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
     unsigned int size    = 0;
     unsigned int pos     = 0;
-    char         *output = NULL;
+    char         *output;
     unsigned int  string_heap_size;
     char         *string_heap;
     unsigned int  hll_str_idx;
@@ -1535,7 +1533,7 @@ char * MVM_mast_compile(VM, MASTNode *node, MASTNodeTypes *types, unsigned int *
     if (vm->serialized_string_heap) {
         MVMint64 elems = ELEMS(vm, vm->serialized_string_heap);
         for (i = 1; i < elems; i++)
-            get_string_heap_index(vm, ws, ATPOS_S(vm, vm->serialized_string_heap, i));
+            (void)get_string_heap_index(vm, ws, ATPOS_S(vm, vm->serialized_string_heap, i));
         vm->serialized_string_heap = NULL;
     }
 

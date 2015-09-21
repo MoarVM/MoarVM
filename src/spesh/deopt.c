@@ -53,7 +53,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                     uf->return_value = uf->work + last_res_reg;
 
                 /* Set up last uninlined's caller to us. */
-                last_uninlined->caller = MVM_frame_inc_ref(tc, uf);
+                last_uninlined->caller = MVM_frame_inc_ref_by_frame(tc, uf);
             }
             else {
                 /* First uninlined frame. Are we in the middle of the call
@@ -62,7 +62,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                     /* Tweak the callee's caller to the uninlined frame, not
                      * the frame holding the inlinings. */
                     MVMFrame *orig_caller = callee->caller;
-                    callee->caller = MVM_frame_inc_ref(tc, uf);
+                    callee->caller = MVM_frame_inc_ref_by_frame(tc, uf);
                     MVM_frame_dec_ref(tc, orig_caller);
 
                     /* Copy over the return location. */
@@ -113,7 +113,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             f->return_value = f->work + last_res_reg;
 
         /* Set up inliner as the caller, given we now have a direct inline. */
-        last_uninlined->caller = MVM_frame_inc_ref(tc, f);
+        last_uninlined->caller = MVM_frame_inc_ref_by_frame(tc, f);
     }
     else {
         /* Weren't in an inline after all. What kind of deopt? */

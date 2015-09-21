@@ -114,6 +114,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
     /* If we have no attributes in the index mapping, then just the header. */
     if (repr_data->name_to_index_mapping[0].class_key == NULL) {
         repr_data->struct_size = 1; /* avoid 0-byte malloc */
+        repr_data->struct_align = ALIGNOF(void *);
     }
 
     /* Otherwise, we need to compute the allocation strategy.  */
@@ -137,6 +138,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
         repr_data->struct_offsets      = (MVMint32 *)   MVM_malloc(info_alloc * sizeof(MVMint32));
         repr_data->flattened_stables   = (MVMSTable **) MVM_calloc(info_alloc, sizeof(MVMObject *));
         repr_data->member_types        = (MVMObject **) MVM_calloc(info_alloc, sizeof(MVMObject *));
+        repr_data->struct_align        = ALIGNOF(void *);
 
         /* Go over the attributes and arrange their allocation. */
         for (i = 0; i < num_attrs; i++) {
@@ -198,7 +200,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
                         bits                                  = cstruct_repr_data->struct_size * 8;
-                        align                                 = cstruct_repr_data->struct_size;
+                        align                                 = cstruct_repr_data->struct_align;
                         repr_data->attribute_locations[i]    |= MVM_CSTRUCT_ATTR_INLINED;
                     }
                 }
@@ -210,7 +212,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCPPStructREPRData *cppstruct_repr_data = (MVMCPPStructREPRData *)STABLE(type)->REPR_data;
                         bits                                      = cppstruct_repr_data->struct_size * 8;
-                        align                                     = cppstruct_repr_data->struct_size;
+                        align                                     = cppstruct_repr_data->struct_align;
                         repr_data->attribute_locations[i]        |= MVM_CSTRUCT_ATTR_INLINED;
                     }
                 }
@@ -222,7 +224,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                     if (inlined) {
                         MVMCUnionREPRData *cunion_repr_data = (MVMCUnionREPRData *)STABLE(type)->REPR_data;
                         bits                                = cunion_repr_data->struct_size * 8;
-                        align                               = cunion_repr_data->struct_size;
+                        align                               = cunion_repr_data->struct_align;
                         repr_data->attribute_locations[i]  |= MVM_CSTRUCT_ATTR_INLINED;
                     }
                 }
@@ -254,6 +256,9 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             if (cur_size % align) {
                 cur_size += align - cur_size % align;
             }
+
+            if (align > repr_data->struct_align)
+                repr_data->struct_align = align;
 
             repr_data->struct_offsets[i] = cur_size;
             cur_size += bits / 8;

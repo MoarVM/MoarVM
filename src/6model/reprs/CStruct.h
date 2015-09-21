@@ -42,8 +42,9 @@ struct MVMCStructNameMap {
 /* The CStruct REPR data contains info we need to do allocations, look up
  * attributes and so forth. */
 struct MVMCStructREPRData {
-    /* The size of the structure in bytes. */
+    /* The size and alignment of the structure in bytes. */
     MVMint32 struct_size;
+    MVMint32 struct_align;
 
     /* The number of attributes we have allocated slots for. Note that
      * slots can vary in size. */

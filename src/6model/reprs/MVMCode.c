@@ -7,7 +7,8 @@ static const MVMREPROps this_repr;
 static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
     if (IS_CONCRETE(invokee)) {
         MVMCode *code = (MVMCode *)invokee;
-        MVM_frame_invoke(tc, code->body.sf, callsite, args, code->body.outer, invokee, -1);
+        MVM_frame_invoke(tc, code->body.sf, callsite, args,
+            MVM_frame_acquire_ref(tc, &(code->body.outer)), invokee, -1);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Cannot invoke code type object");
@@ -35,7 +36,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMCodeBody *dest_body = (MVMCodeBody *)dest;
     MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->sf, src_body->sf);
     if (src_body->outer)
-        dest_body->outer = MVM_frame_inc_ref(tc, src_body->outer);
+        dest_body->outer = MVM_frame_acquire_ref(tc, &(src_body->outer));
     MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->name, src_body->name);
     /* Explicitly do *not* copy state vars in a (presumably closure) clone. */
 }

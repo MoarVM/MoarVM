@@ -410,6 +410,13 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         if (is_full)
             MVM_store(&tc->instance->gc_promoted_bytes_since_last_full, 0);
 
+        /* This is a safe point for us to free any STables that have been marked
+         * for deletion in the previous collection (since we let finalization -
+         * which appends to this list - happen after we set threads on their
+         * way again, it's not safe to do it in the previous collection). */
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Freeing STables if needed\n");
+        MVM_gc_collect_free_stables(tc);
+
         /* Signal to the rest to start */
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : coordinator signalling start\n");
         if (MVM_decr(&tc->instance->gc_start) != 1)
@@ -418,12 +425,6 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* Start collecting. */
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : coordinator entering run_gc\n");
         run_gc(tc, MVMGCWhatToDo_All);
-
-        /* Free any STables that have been marked for deletion. It's okay for
-         * us to muck around in another thread's fromspace while it's mutating
-         * tospace, really. */
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Freeing STables if needed\n");
-        MVM_gc_collect_free_stables(tc);
 
         /* If profiling, record that GC is over. */
         if (tc->instance->profiling)

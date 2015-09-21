@@ -1,3 +1,22 @@
+New in 2015.09
+
++ Fix write to null handle on async socket
++ Add C++ support to native calling functionality
++ Make thread join force a GC run, preventing start/join loops eating memory
++ Remove more config and generated files in distclean target
++ Add MVM_CROSS_THREAD_WRITE_LOG to usage message
++ Try to get PC on valid instruction for cross thread write logging
++ JIT continuationreset and continuationcontrol
++ JIT string comparison ops
++ Don't devirtualize push_n or unshift_n for now
++ Async sockets: handle close,close and close,write
++ Differeniate when nativecasting to intN/uintN
++ Fix data race in frame reference count handling
++ Make findcclass and findnotcclass return one past end of string on non-match
++ Fix buffer overrun in assembler for labelled exception handlers
++ Free STables in a safer place, fixing a parallel finalization data race
++ Fix alignment of inlined structs/unions
+
 New in 2015.08
 
 + Removed multiple internal data races
