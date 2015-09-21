@@ -258,6 +258,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                         (int)type, ins_node->info->name);
                 }
                 break;
+            default:
+                break;
             }
             }
         }
@@ -297,6 +299,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         case MVM_OP_resume:
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
             next_bbs = 1;
+            break;
+        default:
             break;
         }
 

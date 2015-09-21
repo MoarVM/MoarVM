@@ -242,6 +242,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 paramnamesused_ins = ins;
                 paramnamesused_bb  = bb;
                 break;
+            default:
+                break;
             }
             ins = ins->next;
         }
@@ -292,6 +294,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                 if (arg_flag != MVM_CALLSITE_ARG_OBJ && arg_flag != MVM_CALLSITE_ARG_INT &&
                     arg_flag != MVM_CALLSITE_ARG_NUM && arg_flag != MVM_CALLSITE_ARG_STR)
                     goto cleanup;
+                break;
+            default:
                 break;
             }
         }
@@ -385,6 +389,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                         MVM_op_get_op(MVM_OP_sp_getarg_s), MVM_reg_str);
                     pos_added[i] += 2;
                 }
+                break;
+            default:
                 break;
             }
             pos_ins[i]->operands[1].lit_i16 = (MVMint16)i;
@@ -629,6 +635,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
                     used_ins[i] = add_named_used_ins(tc, g, named_bb[i], named_ins[i]->next->next, cur_named);
                     named_used++;
                 }
+                break;
+            default:
                 break;
             }
         }
