@@ -165,7 +165,7 @@ void MVM_profile_log_unwind(MVMThreadContext *tc) {
 
 /* Called when we take a continuation. Leaves the static frames from the point
  * of view of the profiler, and saves each of them. */
-MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, MVMFrame *root_frame) {
+MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, const MVMFrame *root_frame) {
     MVMProfileThreadData        *ptd       = get_thread_data(tc);
     MVMProfileContinuationData  *cd        = MVM_malloc(sizeof(MVMProfileContinuationData));
     MVMStaticFrame             **sfs       = NULL;
@@ -207,7 +207,7 @@ MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadConte
 
 /* Called when we invoke a continuation. Enters all the static frames we left
  * at the point we took the continuation. */
-void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, MVMProfileContinuationData *cd) {
+void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, const MVMProfileContinuationData *cd) {
     MVMuint64 i = cd->num_sfs;
     while (i--)
         MVM_profile_log_enter(tc, cd->sfs[i], cd->modes[i]);
