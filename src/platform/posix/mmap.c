@@ -34,8 +34,9 @@ static int page_mode_to_prot_mode(int page_mode) {
         return PROT_WRITE|PROT_EXEC;
     case (MVM_PAGE_READ|MVM_PAGE_WRITE|MVM_PAGE_EXEC):
         return PROT_READ|PROT_WRITE|PROT_EXEC;
+    default:
+        return PROT_NONE;
     }
-    return PROT_NONE;
 }
 
 void *MVM_platform_alloc_pages(size_t size, int page_mode)
