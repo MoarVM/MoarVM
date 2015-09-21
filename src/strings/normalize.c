@@ -245,7 +245,7 @@ static void add_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, MVMC
 
 /* Hangul-related constants from Unicode spec 3.12, following naming
  * convention from spec. */
-static int
+static const int
     SBase = 0xAC00,
     LBase = 0x1100, VBase = 0x1161, TBase = 0x11A7,
     LCount = 19, VCount = 21, TCount = 28,
