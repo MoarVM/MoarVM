@@ -23,7 +23,7 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 #endif
 
 /* Checks a string is not null or non-concrete and throws if so. */
-MVM_STATIC_INLINE void MVM_string_check_arg(MVMThreadContext *tc, MVMString *s, const char *operation) {
+MVM_STATIC_INLINE void MVM_string_check_arg(MVMThreadContext *tc, const MVMString *s, const char *operation) {
     if (!s || !IS_CONCRETE(s))
         MVM_exception_throw_adhoc(tc, "%s requires a concrete string, but got %s",
             operation, s ? "a type object" : "null");
@@ -35,7 +35,7 @@ static MVMStringStrand * allocate_strands(MVMThreadContext *tc, MVMuint16 num_st
 }
 
 /* Copies strands from one strand string to another. */
-static void copy_strands(MVMThreadContext *tc, MVMString *from, MVMuint16 from_offset,
+static void copy_strands(MVMThreadContext *tc, const MVMString *from, MVMuint16 from_offset,
         MVMString *to, MVMuint16 to_offset, MVMuint16 num_strands) {
     assert(from->body.storage_type == MVM_STRING_STRAND);
     assert(to->body.storage_type == MVM_STRING_STRAND);
@@ -671,7 +671,7 @@ case_change_func(MVM_string_tc, MVM_unicode_case_change_type_title, "tc")
 
 /* Decodes a C buffer to an MVMString, dependent on the encoding type flag. */
 MVMString * MVM_string_decode(MVMThreadContext *tc,
-        MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag) {
+        const MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag) {
     switch(encoding_flag) {
         case MVM_encoding_type_utf8:
             return MVM_string_utf8_decode(tc, type_object, Cbuf, byte_length);

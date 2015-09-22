@@ -46,7 +46,7 @@ void MVM_string_decodestream_add_chars(MVMThreadContext *tc, MVMDecodeStream *ds
 }
 
 /* Throws away byte buffers no longer needed. */
-void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *ds, MVMDecodeStreamBytes *bytes, MVMint32 pos) {
+void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMDecodeStreamBytes *bytes, MVMint32 pos) {
     while (ds->bytes_head != bytes) {
         MVMDecodeStreamBytes *discard = ds->bytes_head;
         ds->abs_byte_pos += discard->length - ds->bytes_head_pos;
@@ -75,7 +75,7 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
 }
 
 /* Does a decode run, selected by encoding. */
-static void run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
+static void run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32 *stopper_chars, const MVMint32 *stopper_sep) {
     switch (ds->encoding) {
     case MVM_encoding_type_utf8:
         MVM_string_utf8_decodestream(tc, ds, stopper_chars, stopper_sep);
@@ -97,7 +97,7 @@ static void run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 *stop
 
 /* Gets the specified number of characters. If we are not yet able to decode
  * that many, returns NULL. This may mean more input buffers are needed. */
-static MVMint32 missing_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 wanted) {
+static MVMint32 missing_chars(MVMThreadContext *tc, const MVMDecodeStream *ds, MVMint32 wanted) {
     MVMint32 got = 0;
     MVMDecodeStreamChars *cur_chars = ds->chars_head;
     while (cur_chars && got < wanted) {
@@ -166,7 +166,7 @@ MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStr
 /* Gets characters up until the specified string is encountered. If we do
  * not encounter it, returns NULL. This may mean more input buffers are needed
  * or that we reached the end of the stream. */
-static MVMint32 find_separator(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 sep) {
+static MVMint32 find_separator(MVMThreadContext *tc, const MVMDecodeStream *ds, MVMGrapheme32 sep) {
     MVMint32 sep_loc = 0;
     MVMDecodeStreamChars *cur_chars = ds->chars_head;
     while (cur_chars) {
@@ -276,7 +276,7 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
 }
 
 /* Checks if we have the number of bytes requested. */
-MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 bytes) {
+MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, const MVMDecodeStream *ds, MVMint32 bytes) {
     MVMDecodeStreamBytes *cur_bytes = ds->bytes_head;
     MVMint32 found = 0;
     while (cur_bytes) {
@@ -329,7 +329,7 @@ MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStr
 
 /* Gets the absolute byte offset (the amount we started with plus what we've
  * chewed and handed back in decoded characters). */
-MVMint64 MVM_string_decodestream_tell_bytes(MVMThreadContext *tc, MVMDecodeStream *ds) {
+MVMint64 MVM_string_decodestream_tell_bytes(MVMThreadContext *tc, const MVMDecodeStream *ds) {
     return ds->abs_byte_pos;
 }
 
