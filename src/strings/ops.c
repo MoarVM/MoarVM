@@ -686,7 +686,6 @@ MVMString * MVM_string_decode(MVMThreadContext *tc,
         default:
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
     }
-    return NULL;
 }
 
 /* Encodes an MVMString to a C buffer, dependent on the encoding type flag */
@@ -705,7 +704,6 @@ char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVM
         default:
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
     }
-    return NULL;
 }
 
 /* Encodes a string, and writes the encoding string into the supplied Buf
