@@ -1449,7 +1449,7 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
         }
 
         case MVM_CCLASS_PRINTING: {
-            return !(cp >= 0 && cp < 32) || (cp >= 127 && cp < 160);
+            return !((cp >= 0 && cp < 32) || (cp >= 127 && cp < 160));
         }
 
         case MVM_CCLASS_PUNCTUATION:
