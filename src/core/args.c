@@ -178,20 +178,17 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
 #define autounbox(tc, type_flag, expected, result) do { \
     if (result.exists && !(result.flags & type_flag)) { \
         if (result.flags & MVM_CALLSITE_ARG_OBJ) { \
-            MVMObject *obj; \
-            const MVMStorageSpec *ss; \
-            obj = decont_arg(tc, result.arg.o); \
-            ss = REPR(obj)->get_storage_spec(tc, STABLE(obj)); \
-            switch (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
-                case MVM_STORAGE_SPEC_CAN_BOX_INT: \
+            MVMObject *obj = decont_arg(tc, result.arg.o); \
+            switch (type_flag) { \
+                case MVM_CALLSITE_ARG_INT: \
                     result.arg.i64 = MVM_repr_get_int(tc, obj); \
                     result.flags = MVM_CALLSITE_ARG_INT; \
                     break; \
-                case MVM_STORAGE_SPEC_CAN_BOX_NUM: \
+                case MVM_CALLSITE_ARG_NUM: \
                     result.arg.n64 = MVM_repr_get_num(tc, obj); \
                     result.flags = MVM_CALLSITE_ARG_NUM; \
                     break; \
-                case MVM_STORAGE_SPEC_CAN_BOX_STR: \
+                case MVM_CALLSITE_ARG_STR: \
                     result.arg.s = MVM_repr_get_str(tc, obj); \
                     result.flags = MVM_CALLSITE_ARG_STR; \
                     break; \
