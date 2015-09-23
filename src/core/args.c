@@ -210,10 +210,9 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
                         case MVM_CALLSITE_ARG_INT: \
                             MVM_exception_throw_adhoc(tc, "unreachable unbox 2"); \
                         case MVM_CALLSITE_ARG_NUM: \
-                            result.arg.i64 = (MVMint64)result.arg.n64; \
-                            break; \
+                            MVM_exception_throw_adhoc(tc, "Expected native int argument, but got num"); \
                         case MVM_CALLSITE_ARG_STR: \
-                            MVM_exception_throw_adhoc(tc, "coerce string to int NYI"); \
+                            MVM_exception_throw_adhoc(tc, "Expected native int argument, but got str"); \
                         default: \
                             MVM_exception_throw_adhoc(tc, "unreachable unbox 3"); \
                     } \
@@ -224,12 +223,11 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
                         case MVM_CALLSITE_ARG_OBJ: \
                             MVM_exception_throw_adhoc(tc, "unreachable unbox 4"); \
                         case MVM_CALLSITE_ARG_INT: \
-                            result.arg.n64 = (MVMnum64)result.arg.i64; \
-                            break; \
+                            MVM_exception_throw_adhoc(tc, "Expected native num argument, but got int"); \
                         case MVM_CALLSITE_ARG_NUM: \
                             MVM_exception_throw_adhoc(tc, "unreachable unbox 5"); \
                         case MVM_CALLSITE_ARG_STR: \
-                            MVM_exception_throw_adhoc(tc, "coerce string to num NYI"); \
+                            MVM_exception_throw_adhoc(tc, "Expected native num argument, but got str"); \
                         default: \
                             MVM_exception_throw_adhoc(tc, "unreachable unbox 6"); \
                     } \
@@ -240,9 +238,9 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
                         case MVM_CALLSITE_ARG_OBJ: \
                             MVM_exception_throw_adhoc(tc, "unreachable unbox 7"); \
                         case MVM_CALLSITE_ARG_INT: \
-                            MVM_exception_throw_adhoc(tc, "coerce int to string NYI"); \
+                            MVM_exception_throw_adhoc(tc, "Expected native str argument, but got int"); \
                         case MVM_CALLSITE_ARG_NUM: \
-                            MVM_exception_throw_adhoc(tc, "coerce num to string NYI"); \
+                            MVM_exception_throw_adhoc(tc, "Expected native str argument, but got num"); \
                         case MVM_CALLSITE_ARG_STR: \
                             MVM_exception_throw_adhoc(tc, "unreachable unbox 8"); \
                         default: \
