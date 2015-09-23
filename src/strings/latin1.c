@@ -3,7 +3,7 @@
 /* Decodes the specified number of bytes of latin1 into an NFG string,
  * creating a result of the specified type. The type must have the MVMString
  * REPR. */
-MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, MVMObject *result_type,
+MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, const MVMObject *result_type,
                                      char *latin1_c, size_t bytes) {
     MVMuint8  *latin1 = (MVMuint8 *)latin1_c;
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
@@ -22,7 +22,7 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, MVMObject *result_typ
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                    MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
+                                    const MVMint32 *stopper_chars, const MVMint32 *stopper_sep) {
     MVMint32 count = 0, total = 0;
     MVMint32 bufsize;
     MVMGrapheme32 *buffer;

@@ -8,7 +8,7 @@
 /* Decodes the specified number of bytes of utf16 into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */
 MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
-        MVMObject *result_type, char *utf16_chars, size_t bytes) {
+        const MVMObject *result_type, char *utf16_chars, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t str_pos = 0;
     MVMuint8 *utf16 = (MVMuint8 *)utf16_chars;

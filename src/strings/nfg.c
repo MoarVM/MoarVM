@@ -6,7 +6,7 @@
 
 /* Finds the index of a given codepoint within a trie node. Returns it if
  * there is one, or negative if there is not (note 0 is a valid index). */
-static MVMint32 find_child_node_idx(MVMThreadContext *tc, MVMNFGTrieNode *node, MVMCodepoint cp) {
+static MVMint32 find_child_node_idx(MVMThreadContext *tc, const MVMNFGTrieNode *node, MVMCodepoint cp) {
     if (node) {
         /* TODO: update this to do a binary search later on. */
         MVMint32 i;
@@ -18,7 +18,7 @@ static MVMint32 find_child_node_idx(MVMThreadContext *tc, MVMNFGTrieNode *node, 
 }
 
 /* Does a lookup in the trie for a synthetic for the specified codepoints. */
-MVMNFGTrieNode * find_child_node(MVMThreadContext *tc, MVMNFGTrieNode *node, MVMCodepoint cp) {
+MVMNFGTrieNode * find_child_node(MVMThreadContext *tc, const MVMNFGTrieNode *node, MVMCodepoint cp) {
     MVMint32 idx = find_child_node_idx(tc, node, cp);
     return idx >= 0 ? node->next_codes[idx].node : NULL;
 }
@@ -232,7 +232,7 @@ MVMNFGSynthetic * MVM_nfg_get_synthetic_info(MVMThreadContext *tc, MVMGrapheme32
 
 /* Gets the cached case change if we already computed it, or computes it if
  * this is the first time we're using it. */
-static MVMGrapheme32 compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMNFGSynthetic *synth_info, MVMint32 case_) {
+static MVMGrapheme32 compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, const MVMNFGSynthetic *synth_info, MVMint32 case_) {
     MVMCodepoint  lowered_base = MVM_unicode_get_case_change(tc, synth_info->base, case_);
     MVMGrapheme32 result;
     if (lowered_base == synth_info->base) {
