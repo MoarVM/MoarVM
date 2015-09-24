@@ -729,7 +729,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                    MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMint16 op = ins->info->opcode;
     MVMSpeshOperand type_operand;
-    MVMSpeshFacts *type_facts = 0;
+    MVMSpeshFacts *type_facts;
     MVMint32 alternative = 0;
 
     switch (op) {
