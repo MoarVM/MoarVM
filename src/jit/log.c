@@ -10,7 +10,7 @@ void MVM_jit_log(MVMThreadContext *tc, const char * fmt, ...) {
     va_end(args);
 }
 
-void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
+void MVM_jit_log_bytecode(MVMThreadContext *tc, const MVMJitCode *code) {
     /* Filename format: moar-jit-%d.bin. number can consume at most 10
      * bytes, moar-jit-.bin is 13 bytes, one byte for the zero at the
      * end, one byte for the directory separator is 25 bytes, plus the

@@ -48,7 +48,7 @@ static void jgb_append_primitive(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
 static void jgb_append_call_c(MVMThreadContext *tc, JitGraphBuilder *jgb,
                               void * func_ptr, MVMint16 num_args,
-                              MVMJitCallArg *call_args,
+                              const MVMJitCallArg *call_args,
                               MVMJitRVMode rv_mode, MVMint16 rv_idx) {
     MVMJitNode * node = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitNode));
     size_t args_size =  num_args * sizeof(MVMJitCallArg);
@@ -595,7 +595,7 @@ static MVMint32 jgb_consume_jumplist(MVMThreadContext *tc, JitGraphBuilder *jgb,
     return 1;
 }
 
-static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshIns *ins) {
+static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, const MVMSpeshIns *ins) {
     /* XXX Need to be able to clear these up, some day. */
     MVMuint16 *regs = MVM_calloc(ins->info->num_operands, sizeof(MVMuint16));
     MVMuint16 i;
@@ -613,7 +613,7 @@ static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshIns *ins) {
     return regs;
 }
 
-static void log_inline(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMint32 inline_idx, MVMint32 is_entry) {
+static void log_inline(MVMThreadContext *tc, const MVMSpeshGraph *sg, MVMint32 inline_idx, MVMint32 is_entry) {
     MVMStaticFrame *sf = sg->inlines[inline_idx].code->body.sf;
     char *name         = MVM_string_utf8_encode_C_string(tc, sf->body.name);
     char *cuuid        = MVM_string_utf8_encode_C_string(tc, sf->body.cuuid);
@@ -726,7 +726,7 @@ static void jgb_after_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
 }
 
 static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
-                                   MVMSpeshBB *bb, MVMSpeshIns *ins) {
+                                   const MVMSpeshBB *bb, const MVMSpeshIns *ins) {
     MVMint16 op = ins->info->opcode;
     MVMSpeshOperand type_operand;
     MVMSpeshFacts *type_facts;
@@ -1448,7 +1448,7 @@ skipdevirt:
 }
 
 static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
-                                MVMSpeshBB *bb, MVMSpeshIns *ins) {
+                                const MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMint16 op = ins->info->opcode;
     MVM_jit_log(tc, "append_ins: <%s>\n", ins->info->name);
     switch(op) {
@@ -2784,7 +2784,7 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
     return 1;
 }
 
-static MVMJitGraph *jgb_build(MVMThreadContext *tc, JitGraphBuilder *jgb) {
+static MVMJitGraph *jgb_build(MVMThreadContext *tc, const JitGraphBuilder *jgb) {
     MVMint32 i;
     MVMJitGraph * jg       = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitGraph));
     jg->sg                 = jgb->sg;

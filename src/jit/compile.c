@@ -124,7 +124,7 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
 
 /* Returns 1 if we should return from the frame, the function, 0 otherwise */
 MVMint32 MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
-                            MVMJitCode *code) {
+                            const MVMJitCode *code) {
     /* The actual JIT code returns 0 if it went through to the exit */
     MVMint32 ctrl;
     void *label = tc->cur_frame->jit_entry_label;
