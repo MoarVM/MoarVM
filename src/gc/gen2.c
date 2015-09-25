@@ -18,7 +18,7 @@ MVMGen2Allocator * MVM_gc_gen2_create(MVMInstance *i) {
 }
 
 /* Sets up a size class bin in the second generation. */
-static void setup_bin(MVMGen2Allocator *al, MVMuint32 bin) {
+static void setup_bin(const MVMGen2Allocator *al, MVMuint32 bin) {
     /* Work out page size we want. */
     MVMuint32 page_size = MVM_GEN2_PAGE_ITEMS * ((bin + 1) << MVM_GEN2_BIN_BITS);
 
@@ -36,7 +36,7 @@ static void setup_bin(MVMGen2Allocator *al, MVMuint32 bin) {
 }
 
 /* Adds a new page to a size class bin. */
-static void add_page(MVMGen2Allocator *al, MVMuint32 bin) {
+static void add_page(const MVMGen2Allocator *al, MVMuint32 bin) {
     /* Work out page size. */
     MVMuint32 page_size = MVM_GEN2_PAGE_ITEMS * ((bin + 1) << MVM_GEN2_BIN_BITS);
 

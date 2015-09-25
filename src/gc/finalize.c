@@ -1,7 +1,7 @@
 #include "moar.h"
 
 /* Turns finalization on or off for a type. */
-void MVM_gc_finalize_set(MVMThreadContext *tc, MVMObject *type, MVMint64 finalize) {
+void MVM_gc_finalize_set(MVMThreadContext *tc, const MVMObject *type, MVMint64 finalize) {
     MVMSTable *st        = STABLE(type);
     MVMint64   new_flags = st->mode_flags & (~MVM_FINALIZE_TYPE);
     if (finalize)

@@ -16,7 +16,7 @@ typedef struct {
 /* Forward decls. */
 static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, WorkToPass *wtp, MVMuint8 gen);
 static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable **item_ptr);
-static void pass_leftover_work(MVMThreadContext *tc, WorkToPass *wtp);
+static void pass_leftover_work(MVMThreadContext *tc, const WorkToPass *wtp);
 static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
 
 /* Does a garbage collection run. Exactly what it does is configured by the
@@ -477,7 +477,7 @@ static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable
 }
 
 /* Passes all work for other threads that we've got left in our to-pass list. */
-static void pass_leftover_work(MVMThreadContext *tc, WorkToPass *wtp) {
+static void pass_leftover_work(MVMThreadContext *tc, const WorkToPass *wtp) {
     MVMuint32 j;
     for (j = 0; j < wtp->num_target_threads; j++)
         if (wtp->target_work[j].work)
@@ -529,7 +529,7 @@ static void MVM_gc_collect_enqueue_stable_for_deletion(MVMThreadContext *tc, MVM
  * need to do some additional freeing, however. This goes through the
  * fromspace and does any needed work to free uncopied things (this may
  * run in parallel with the mutator, which will be operating on tospace). */
-void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, void *limit) {
+void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *tc, const void *limit) {
     /* We start scanning the fromspace, and keep going until we hit
      * the end of the area allocated in it. */
     void *scan = tc->nursery_fromspace;

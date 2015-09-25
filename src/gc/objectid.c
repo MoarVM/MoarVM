@@ -55,7 +55,7 @@ void * MVM_gc_object_id_use_allocation(MVMThreadContext *tc, MVMCollectable *ite
 
 /* Clears hash entry for a persistent object ID when an object dies in the
  * nursery. */
-void MVM_gc_object_id_clear(MVMThreadContext *tc, MVMCollectable *item) {
+void MVM_gc_object_id_clear(MVMThreadContext *tc, const MVMCollectable *item) {
     MVMObjectId *entry;
     uv_mutex_lock(&tc->instance->mutex_object_ids);
     HASH_FIND(hash_handle, tc->instance->object_ids, (void *)&item, sizeof(MVMObject *), entry);
