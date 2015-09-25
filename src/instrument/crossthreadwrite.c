@@ -92,6 +92,8 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 case MVM_OP_bindposnd_o:
                     prepend_ctw_check(tc, g, bb, ins, ins->operands[0], MVM_CTW_BIND_POS);
                     break;
+                default:
+                    break;
             }
             ins = ins->next;
         }
