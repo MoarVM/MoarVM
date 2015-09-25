@@ -31,7 +31,6 @@ MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle) {
     }
     else
         MVM_exception_throw_adhoc(tc, "Cannot close this kind of handle");
-    return 0;
 }
 
 void MVM_io_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
