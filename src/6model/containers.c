@@ -97,6 +97,10 @@ static void code_pair_deserialize(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     MVM_ASSIGN_REF(tc, &(st->header), data->store_code, MVM_serialization_read_ref(tc, reader));
 }
 
+static MVMint32 code_pair_can_store(MVMThreadContext *tc, MVMObject *cont) {
+    return 1;
+}
+
 static const MVMContainerSpec code_pair_spec = {
     "code_pair",
     code_pair_fetch,
@@ -113,6 +117,7 @@ static const MVMContainerSpec code_pair_spec = {
     code_pair_gc_free_data,
     code_pair_serialize,
     code_pair_deserialize,
+    code_pair_can_store,
     0
 };
 
@@ -318,6 +323,10 @@ static void native_ref_deserialize(MVMThreadContext *tc, MVMSTable *st, MVMSeria
     /* Nothing to do. */
 }
 
+static MVMint32 native_ref_can_store(MVMThreadContext *tc, MVMObject *cont) {
+    return 1;
+}
+
 static const MVMContainerSpec native_ref_spec = {
     "native_ref",
     native_ref_fetch,
@@ -334,6 +343,7 @@ static const MVMContainerSpec native_ref_spec = {
     NULL, /* gc_free_data */
     native_ref_serialize,
     native_ref_deserialize,
+    native_ref_can_store,
     1
 };
 
