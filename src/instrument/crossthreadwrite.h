@@ -1,5 +1,5 @@
 void MVM_cross_thread_write_instrument(MVMThreadContext *tc, MVMStaticFrame *static_frame);
-void MVM_cross_thread_write_check(MVMThreadContext *tc, MVMObject *written, MVMint16 guilty);
+void MVM_cross_thread_write_check(MVMThreadContext *tc, const MVMObject *written, MVMint16 guilty);
 
 /* Mutating operations one thread may do on an object it didn't create. */
 #define MVM_CTW_BIND_ATTR       1
