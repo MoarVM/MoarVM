@@ -234,7 +234,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             /* Catch NULL stable (always sign of trouble) in debug mode. */
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT) && !STABLE(item)) {
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : found a zeroed handle %p to object %p\n", item_ptr, item);
-                printf("%d", ((MVMCollectable *)1)->owner);
+                printf("%u", ((MVMCollectable *)1)->owner);
             }
 
             /* Did we see it in the nursery before, or should we move it to
