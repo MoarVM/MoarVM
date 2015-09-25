@@ -3,7 +3,7 @@
 /* Walk graph and insert write check instructions. */
 static void prepend_ctw_check(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                               const MVMSpeshIns *before_ins, MVMSpeshOperand check_reg,
-                              MVMint16 guilty) {
+                              MVMCtw guilty) {
     MVMSpeshIns *ctw_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     ctw_ins->info        = MVM_op_get_op(MVM_OP_ctw_check);
     ctw_ins->operands    = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
@@ -153,7 +153,7 @@ static MVMint64 filtered_out(MVMThreadContext *tc, const MVMObject *written) {
 }
 
 /* Squeal if the target of the write wasn't allocated by us. */
-void MVM_cross_thread_write_check(MVMThreadContext *tc, const MVMObject *written, MVMint16 guilty) {
+void MVM_cross_thread_write_check(MVMThreadContext *tc, const MVMObject *written, MVMCtw guilty) {
     if (written->header.owner != tc->thread_id && !filtered_out(tc, written)) {
         char *guilty_desc = "did something to";
         switch (guilty) {
