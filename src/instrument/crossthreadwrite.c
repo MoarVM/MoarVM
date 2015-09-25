@@ -192,7 +192,7 @@ void MVM_cross_thread_write_check(MVMThreadContext *tc, const MVMObject *written
                 break;
         }
         uv_mutex_lock(&(tc->instance->mutex_cross_thread_write_logging));
-        fprintf(stderr, "Thread %d %s an object allocated by thread %d\n",
+        fprintf(stderr, "Thread %u %s an object allocated by thread %u\n",
             tc->thread_id, guilty_desc, written->header.owner);
         MVM_dump_backtrace(tc);
         fprintf(stderr, "\n");
