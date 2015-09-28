@@ -1268,9 +1268,9 @@ static void compile_frame(VM, WriterState *ws, MASTNode *node, unsigned short id
         write_int16(ws->frame_seg, ws->frame_pos + 2,
             (MVMuint16)ATPOS_I(vm, f->static_lex_values, 4 * i + 1));
         write_int32(ws->frame_seg, ws->frame_pos + 4,
-            (MVMuint16)ATPOS_I(vm, f->static_lex_values, 4 * i + 2));
+            (MVMuint32)ATPOS_I(vm, f->static_lex_values, 4 * i + 2));
         write_int32(ws->frame_seg, ws->frame_pos + 8,
-            (MVMuint16)ATPOS_I(vm, f->static_lex_values, 4 * i + 3));
+            (MVMuint32)ATPOS_I(vm, f->static_lex_values, 4 * i + 3));
         ws->frame_pos += FRAME_SLV_SIZE;
     }
 
