@@ -29,7 +29,15 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     dest_body->apc = MVM_malloc(sizeof(MVMArgProcContext));
     memset(dest_body->apc, 0, sizeof(MVMArgProcContext));
     dest_body->mode = MVM_CALL_CAPTURE_MODE_SAVE;
-    dest_body->effective_callsite = src_body->effective_callsite;
+
+    if (src_body->owns_callsite) {
+        dest_body->owns_callsite = 1;
+        dest_body->effective_callsite = MVM_args_copy_callsite(tc, src_body->apc);
+    }
+    else {
+        dest_body->owns_callsite = 0;
+        dest_body->effective_callsite = src_body->effective_callsite;
+    }
     MVM_args_proc_init(tc, dest_body->apc, dest_body->effective_callsite, args);
 }
 
@@ -59,6 +67,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCallCapture *ctx = (MVMCallCapture *)obj;
     if (ctx->body.apc && ctx->body.effective_callsite != ctx->body.apc->callsite) {
+        MVM_free(ctx->body.effective_callsite->arg_flags);
+        MVM_free(ctx->body.effective_callsite);
+    }
+    else if (ctx->body.owns_callsite) {
         MVM_free(ctx->body.effective_callsite->arg_flags);
         MVM_free(ctx->body.effective_callsite);
     }
