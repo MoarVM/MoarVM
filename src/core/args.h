@@ -54,6 +54,7 @@ void MVM_args_proc_cleanup_for_cache(MVMThreadContext *tc, MVMArgProcContext *ct
 void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx);
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max);
 void MVM_args_checkarity_for_jit(MVMThreadContext *tc, MVMuint16 min, MVMuint16 max);
+MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx);
 MVMCallsite * MVM_args_proc_to_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx);
 MVMCallsite * MVM_args_prepare(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 callsite_idx);
 MVM_PUBLIC MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f);
