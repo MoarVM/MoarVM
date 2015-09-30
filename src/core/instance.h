@@ -176,6 +176,7 @@ struct MVMInstance {
 
     /* Log file for dynamic var performance, if we're to log it. */
     FILE *dynvar_log_fh;
+    MVMint64 dynvar_log_lasttime;
 
     /* Flag for if spesh (and certain spesh features) are enabled. */
     MVMint8 spesh_enabled;

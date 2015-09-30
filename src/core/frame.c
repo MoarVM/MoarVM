@@ -1150,6 +1150,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     MVMuint32 xcost = 0;  /* frames traversed with wrong name */
     char *c_name;
     MVMuint64 start_time;
+    MVMuint64 last_time;
 
     MVMFrame *initial_frame = cur_frame;
     if (!name)
@@ -1157,6 +1158,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
     if (dlog) {
         c_name = MVM_string_utf8_encode_C_string(tc, name);
 	start_time = uv_hrtime();
+	last_time = tc->instance->dynvar_log_lasttime;
     }
 
     MVM_string_flatten(tc, name);
@@ -1189,9 +1191,10 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 if (fcost+icost > 1)
                                   try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                                 if (dlog) {
-                                    fprintf(dlog, "I %s %d %d %d %d %ld %ld\n", c_name, fcost, icost, ecost, xcost, start_time, uv_hrtime());
+                                    fprintf(dlog, "I %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                                     fflush(dlog);
                                     MVM_free(c_name);
+				    tc->instance->dynvar_log_lasttime = uv_hrtime();
                                 }
                                 return result;
                             }
@@ -1217,9 +1220,10 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 if (fcost+icost > 1)
                                   try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                                 if (dlog) {
-                                    fprintf(dlog, "I %s %d %d %d %d %ld %ld\n", c_name, fcost, icost, ecost, xcost, start_time, uv_hrtime());
+                                    fprintf(dlog, "I %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                                     fflush(dlog);
                                     MVM_free(c_name);
+				    tc->instance->dynvar_log_lasttime = uv_hrtime();
                                 }
                                 return result;
                             }
@@ -1239,9 +1243,10 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 if (fcost+icost > 5)
                     try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                 if (dlog) {
-                    fprintf(dlog, "C %s %d %d %d %d %ld %ld\n", c_name, fcost, icost, ecost, xcost, start_time, uv_hrtime());
+                    fprintf(dlog, "C %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                     fflush(dlog);
                     MVM_free(c_name);
+		    tc->instance->dynvar_log_lasttime = uv_hrtime();
                 }
                 return result;
             }
@@ -1261,9 +1266,10 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 if (vivify && *type == MVM_reg_obj && !result->o)
                     MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
                 if (dlog) {
-                    fprintf(dlog, "F %s %d %d %d %d %ld %ld\n", c_name, fcost, icost, ecost, xcost, start_time, uv_hrtime());
+                    fprintf(dlog, "F %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                     fflush(dlog);
                     MVM_free(c_name);
+		    tc->instance->dynvar_log_lasttime = uv_hrtime();
                 }
                 if (fcost+icost > 1)
                     try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
@@ -1274,9 +1280,10 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
         cur_frame = cur_frame->caller;
     }
     if (dlog) {
-        fprintf(dlog, "N %s %d %d %d %d %ld %ld\n", c_name, fcost, icost, ecost, xcost, start_time, uv_hrtime());
+        fprintf(dlog, "N %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
         fflush(dlog);
         MVM_free(c_name);
+	tc->instance->dynvar_log_lasttime = uv_hrtime();
     }
     return NULL;
 }
