@@ -56,24 +56,29 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     }
 }
 
+MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
+    MVMCallsite      *res   = MVM_malloc(sizeof(MVMCallsite));
+    MVMint32          fsize = ctx->num_pos + (ctx->arg_count - ctx->num_pos) / 2;
+    MVMCallsiteEntry *flags = NULL;
+    if (fsize) {
+        MVMCallsiteEntry *src_flags = ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags;
+        flags = MVM_malloc(fsize);
+        memcpy(flags, src_flags, fsize);
+    }
+    res->arg_flags = flags;
+    res->arg_count = ctx->arg_count;
+    res->num_pos   = ctx->num_pos;
+    res->has_flattening = 0;
+    res->is_interned = 0;
+    return res;
+}
+
 /* Turn an argument processing context into a callsite. In the case that no
  * flattening happened, this is the original call site. Otherwise, we make
  * one up. */
 MVMCallsite * MVM_args_proc_to_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     if (ctx->arg_flags) {
-        MVMCallsite      *res   = MVM_malloc(sizeof(MVMCallsite));
-        MVMint32          fsize = ctx->num_pos + (ctx->arg_count - ctx->num_pos) / 2;
-        MVMCallsiteEntry *flags = NULL;
-        if (fsize) {
-            flags = MVM_malloc(fsize);
-            memcpy(flags, ctx->arg_flags, fsize);
-        }
-        res->arg_flags = flags;
-        res->arg_count = ctx->arg_count;
-        res->num_pos   = ctx->num_pos;
-        res->has_flattening = 0;
-        res->is_interned = 0;
-        return res;
+        return MVM_args_copy_callsite(tc, ctx);
     }
     else {
         return ctx->callsite;
@@ -89,6 +94,7 @@ MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
     capture->body.use_mode_frame     = MVM_frame_inc_ref(tc, f);
     capture->body.apc                = &f->params;
     capture->body.effective_callsite = MVM_args_proc_to_callsite(tc, &f->params);
+    capture->body.owns_callsite      = capture->body.effective_callsite != f->params.callsite;
     return tc->cur_usecapture;
 }
 
@@ -103,6 +109,7 @@ MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
 
     /* Create effective callsite. */
     cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &frame->params);
+    cc->body.owns_callsite      = cc->body.effective_callsite != frame->params.callsite;
 
     /* Set up the call capture. */
     cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
@@ -846,6 +853,7 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
 
     /* Create effective callsite. */
     cc->body.effective_callsite = MVM_args_proc_to_callsite(tc, &tc->cur_frame->params);
+    cc->body.owns_callsite      = cc->body.effective_callsite != tc->cur_frame->params.callsite;
 
     /* Set up the call capture. */
     cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
