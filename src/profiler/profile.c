@@ -271,6 +271,10 @@ void MVM_profile_start(MVMThreadContext *tc, MVMObject *config) {
 
 /* Ends profiling, builds the result data structure, and returns it. */
 MVMObject * MVM_profile_end(MVMThreadContext *tc) {
+    /* If we have any call frames still on the profile stack, exit them. */
+    while (tc->prof_data->current_call)
+        MVM_profile_log_exit(tc);
+
     /* Disable profiling. */
     /* XXX Needs to account for multiple threads. */
     if (!tc->instance->profiling)
