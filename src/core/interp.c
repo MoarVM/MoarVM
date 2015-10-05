@@ -3507,7 +3507,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject * const scs = tc->compiling_scs;
                 if (MVM_is_null(tc, scs) || MVM_repr_elems(tc, scs) == 0)
                     MVM_exception_throw_adhoc(tc, "No current compiling SC");
-                MVM_repr_shift_o(tc, tc->compiling_scs);
+                GET_REG(cur_op, 0).o = MVM_repr_shift_o(tc, tc->compiling_scs);
                 cur_op += 2;
                 goto NEXT;
             }
