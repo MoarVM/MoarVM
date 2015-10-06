@@ -353,7 +353,7 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
         MVM_string_decodestream_add_chars(tc, ds, buffer, count);
     }
     else {
-	MVM_free(buffer);
+        MVM_free(buffer);
     }
     MVM_string_decodestream_discard_to(tc, ds, last_accept_bytes, last_accept_pos);
 }
