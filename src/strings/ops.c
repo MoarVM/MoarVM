@@ -674,7 +674,7 @@ MVMString * MVM_string_decode(MVMThreadContext *tc,
         const MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag) {
     switch(encoding_flag) {
         case MVM_encoding_type_utf8:
-            return MVM_string_utf8_decode(tc, type_object, Cbuf, byte_length);
+            return MVM_string_utf8_decode_strip_bom(tc, type_object, Cbuf, byte_length);
         case MVM_encoding_type_ascii:
             return MVM_string_ascii_decode(tc, type_object, Cbuf, byte_length);
         case MVM_encoding_type_latin1:

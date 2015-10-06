@@ -169,8 +169,7 @@ static MVMint32 utf8_encode(MVMuint8 *bp, MVMCodepoint cp) {
 #define UTF8_MAXINC (32 * 1024 * 1024)
 
 /* Decodes the specified number of bytes of utf8 into an NFG string, creating
- * a result of the specified type. The type must have the MVMString REPR.
- * Only bring in the raw codepoints for now. */
+ * a result of the specified type. The type must have the MVMString REPR. */
 MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result_type, const char *utf8, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     MVMint32 count = 0;
@@ -276,6 +275,20 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     return result;
 }
 
+static MVMint32 its_the_bom(const char *utf8) {
+    const MVMuint8 *uns_utf8 = (const MVMuint8 *)utf8;
+    return uns_utf8[0] == 0xEF && uns_utf8[1] == 0xBB && uns_utf8[2] == 0xBF;
+}
+
+/* Same as MVM_string_utf8_decode, but strips a BOM if it finds one. */
+MVMString * MVM_string_utf8_decode_strip_bom(MVMThreadContext *tc, const MVMObject *result_type, const char *utf8, size_t bytes) {
+    if (bytes >= 3 && its_the_bom(utf8)) {
+        utf8 += 3;
+        bytes -= 3;
+    }
+    return MVM_string_utf8_decode(tc, result_type, utf8, bytes);
+}
+
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
@@ -287,7 +300,7 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
     MVMGrapheme32 *buffer;
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
-    MVMint32 last_accept_pos, ready;
+    MVMint32 last_accept_pos, ready, at_start;
 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
@@ -304,10 +317,20 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
+    at_start = ds->abs_byte_pos == 0;
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos   = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
         char     *bytes = cur_bytes->bytes;
+        if (at_start) {
+            /* We're right at the start of the stream of things to decode. See
+             * if we have a BOM, and skip over it if so. */
+            if (pos + 3 <= cur_bytes->length) {
+                if (its_the_bom(bytes + pos))
+                    pos += 3;
+            }
+            at_start = 0;
+        }
         while (pos < cur_bytes->length) {
             switch(decode_utf8_byte(&state, &codepoint, bytes[pos++])) {
             case UTF8_ACCEPT: {
