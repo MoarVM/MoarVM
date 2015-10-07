@@ -668,6 +668,7 @@ MVMString * funcname(MVMThreadContext *tc, MVMString *s) { \
 case_change_func(MVM_string_uc, MVM_unicode_case_change_type_upper, "uc")
 case_change_func(MVM_string_lc, MVM_unicode_case_change_type_lower, "lc")
 case_change_func(MVM_string_tc, MVM_unicode_case_change_type_title, "tc")
+case_change_func(MVM_string_fc, MVM_unicode_case_change_type_lower, "fc")
 
 /* Decodes a C buffer to an MVMString, dependent on the encoding type flag. */
 MVMString * MVM_string_decode(MVMThreadContext *tc,
