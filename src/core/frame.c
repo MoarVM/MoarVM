@@ -768,7 +768,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
             default:
                 result = NULL;
         }
-        
+
         handler = MVM_frame_find_invokee(tc, hll->exit_handler, NULL);
         two_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ);
         MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
@@ -1157,8 +1157,8 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
         MVM_exception_throw_adhoc(tc, "Contextual name cannot be null");
     if (dlog) {
         c_name = MVM_string_utf8_encode_C_string(tc, name);
-	start_time = uv_hrtime();
-	last_time = tc->instance->dynvar_log_lasttime;
+        start_time = uv_hrtime();
+        last_time = tc->instance->dynvar_log_lasttime;
     }
 
     MVM_string_flatten(tc, name);
@@ -1194,7 +1194,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                     fprintf(dlog, "I %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                                     fflush(dlog);
                                     MVM_free(c_name);
-				    tc->instance->dynvar_log_lasttime = uv_hrtime();
+                                    tc->instance->dynvar_log_lasttime = uv_hrtime();
                                 }
                                 return result;
                             }
@@ -1223,7 +1223,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                     fprintf(dlog, "I %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                                     fflush(dlog);
                                     MVM_free(c_name);
-				    tc->instance->dynvar_log_lasttime = uv_hrtime();
+                                    tc->instance->dynvar_log_lasttime = uv_hrtime();
                                 }
                                 return result;
                             }
@@ -1246,7 +1246,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                     fprintf(dlog, "C %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                     fflush(dlog);
                     MVM_free(c_name);
-		    tc->instance->dynvar_log_lasttime = uv_hrtime();
+                    tc->instance->dynvar_log_lasttime = uv_hrtime();
                 }
                 return result;
             }
@@ -1269,7 +1269,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                     fprintf(dlog, "F %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                     fflush(dlog);
                     MVM_free(c_name);
-		    tc->instance->dynvar_log_lasttime = uv_hrtime();
+                    tc->instance->dynvar_log_lasttime = uv_hrtime();
                 }
                 if (fcost+icost > 1)
                     try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
@@ -1283,7 +1283,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
         fprintf(dlog, "N %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
         fflush(dlog);
         MVM_free(c_name);
-	tc->instance->dynvar_log_lasttime = uv_hrtime();
+        tc->instance->dynvar_log_lasttime = uv_hrtime();
     }
     return NULL;
 }
