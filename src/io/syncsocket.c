@@ -123,8 +123,8 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         uv_tcp_t        *socket  = MVM_malloc(sizeof(uv_tcp_t));
         int r;
 
-        if ((r = uv_tcp_init(tc->loop, socket)) < 0 ||
-                (r = uv_tcp_bind(socket, dest, 0)) < 0) {
+        if ((r = uv_tcp_init(tc->loop, socket)) != 0 ||
+                (r = uv_tcp_bind(socket, dest, 0)) != 0) {
             MVM_free(socket);
             MVM_free(dest);
             MVM_exception_throw_adhoc(tc, "Failed to bind: %s", uv_strerror(r));
@@ -134,7 +134,10 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         /* Start listening, but unref the socket so it won't get in the way of
          * other things we want to do on this event loop. */
         socket->data = data;
-        uv_listen((uv_stream_t *)socket, 1, on_connection);
+        if ((r = uv_listen((uv_stream_t *)socket, 1, on_connection)) != 0) {
+            MVM_free(socket);
+            MVM_exception_throw_adhoc(tc, "Failed to listen: %s", uv_strerror(r));
+        }
         uv_unref((uv_handle_t *)socket);
 
         data->ss.handle = (uv_stream_t *)socket;
