@@ -630,45 +630,52 @@ for (i = string->body.member + start; i < string->body.member + start + length; 
 }
 
 /* Case change functions. */
-#define case_change_func(funcname, type, error) \
-MVMString * funcname(MVMThreadContext *tc, MVMString *s) { \
-    MVMint64 sgraphs; \
-    MVM_string_check_arg(tc, s, error); \
-    sgraphs = MVM_string_graphs(tc, s); \
-    if (sgraphs) { \
-        MVMString *result; \
-        MVMGraphemeIter gi; \
-        MVMGrapheme32 *result_buf = MVM_malloc(sgraphs * sizeof(MVMGrapheme32)); \
-        MVMint32 changed = 0; \
-        MVMint64 i = 0; \
-        MVM_string_gi_init(tc, &gi, s); \
-        while (i < sgraphs) { \
-            MVMGrapheme32 before = MVM_string_gi_get_grapheme(tc, &gi); \
-            MVMGrapheme32 after  = before >= 0 \
-                ? MVM_unicode_get_case_change(tc, before, type) \
-                : MVM_nfg_get_case_change(tc, before, type); \
-            result_buf[i++]      = after; \
-            if (before != after) \
-                changed = 1; \
-        } \
-        if (changed) { \
-            result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString); \
-            result->body.num_graphs      = sgraphs; \
-            result->body.storage_type    = MVM_STRING_GRAPHEME_32; \
-            result->body.storage.blob_32 = result_buf; \
-            return result; \
-        } \
-        else { \
-            MVM_free(result_buf); \
-        } \
-    } \
-    STRAND_CHECK(tc, s); \
-    return s; \
+static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 type, char *error) {
+    MVMint64 sgraphs;
+    MVM_string_check_arg(tc, s, error);
+    sgraphs = MVM_string_graphs(tc, s);
+    if (sgraphs) {
+        MVMString *result;
+        MVMGraphemeIter gi;
+        MVMGrapheme32 *result_buf = MVM_malloc(sgraphs * sizeof(MVMGrapheme32));
+        MVMint32 changed = 0;
+        MVMint64 i = 0;
+        MVM_string_gi_init(tc, &gi, s);
+        while (i < sgraphs) {
+            MVMGrapheme32 before = MVM_string_gi_get_grapheme(tc, &gi);
+            MVMGrapheme32 after  = before >= 0
+                ? MVM_unicode_get_case_change(tc, before, type)
+                : MVM_nfg_get_case_change(tc, before, type);
+            result_buf[i++]      = after;
+            if (before != after)
+                changed = 1;
+        }
+        if (changed) {
+            result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+            result->body.num_graphs      = sgraphs;
+            result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+            result->body.storage.blob_32 = result_buf;
+            return result;
+        }
+        else {
+            MVM_free(result_buf);
+        }
+    }
+    STRAND_CHECK(tc, s);
+    return s;
 }
-case_change_func(MVM_string_uc, MVM_unicode_case_change_type_upper, "uc")
-case_change_func(MVM_string_lc, MVM_unicode_case_change_type_lower, "lc")
-case_change_func(MVM_string_tc, MVM_unicode_case_change_type_title, "tc")
-case_change_func(MVM_string_fc, MVM_unicode_case_change_type_lower, "fc")
+MVMString * MVM_string_uc(MVMThreadContext *tc, MVMString *s) {
+    return do_case_change(tc, s, MVM_unicode_case_change_type_upper, "uc");
+}
+MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s) {
+    return do_case_change(tc, s, MVM_unicode_case_change_type_lower, "lc");
+}
+MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s) {
+    return do_case_change(tc, s, MVM_unicode_case_change_type_title, "tc");
+}
+MVMString * MVM_string_fc(MVMThreadContext *tc, MVMString *s) {
+    return do_case_change(tc, s, MVM_unicode_case_change_type_lower, "fc");
+}
 
 /* Decodes a C buffer to an MVMString, dependent on the encoding type flag. */
 MVMString * MVM_string_decode(MVMThreadContext *tc,
