@@ -84,18 +84,33 @@ MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMGraph
  * it. */
 MVMuint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint codepoint, MVMint32 case_,
                                       MVMCodepoint **result) {
-    MVMint32 changes_index = MVM_unicode_get_property_int(tc,
-        codepoint, MVM_UNICODE_PROPERTY_CASE_CHANGE_INDEX);
-
-    if (changes_index) {
-        /* TODO: handle multi-codepoint cases here. */
-        MVMCodepoint *found = &(case_changes[changes_index][case_]);
-        if (*found != 0) {
-            *result = found;
-            return 1;
+    if (case_ == MVM_unicode_case_change_type_fold) {
+        MVMint32 folding_index = MVM_unicode_get_property_int(tc,
+            codepoint, MVM_UNICODE_PROPERTY_CASE_FOLDING);
+        if (folding_index) {
+            MVMint32 is_simple = MVM_unicode_get_property_int(tc,
+                codepoint, MVM_UNICODE_PROPERTY_CASE_FOLDING_SIMPLE);
+            if (is_simple) {
+                *result = &(CaseFolding_simple_table[folding_index]);
+                return 1;
+            }
+            else {
+                MVM_panic(1, "Growing case folds NYI");
+            }
         }
     }
-
+    else {
+        MVMint32 changes_index = MVM_unicode_get_property_int(tc,
+            codepoint, MVM_UNICODE_PROPERTY_CASE_CHANGE_INDEX);
+        if (changes_index) {
+            /* TODO: handle multi-codepoint cases here. */
+            MVMCodepoint *found = &(case_changes[changes_index][case_]);
+            if (*found != 0) {
+                *result = found;
+                return 1;
+            }
+        }
+    }
     return 0;
 }
 

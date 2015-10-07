@@ -690,7 +690,7 @@ MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s) {
     return do_case_change(tc, s, MVM_unicode_case_change_type_title, "tc");
 }
 MVMString * MVM_string_fc(MVMThreadContext *tc, MVMString *s) {
-    return do_case_change(tc, s, MVM_unicode_case_change_type_lower, "fc");
+    return do_case_change(tc, s, MVM_unicode_case_change_type_fold, "fc");
 }
 
 /* Decodes a C buffer to an MVMString, dependent on the encoding type flag. */

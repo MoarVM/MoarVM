@@ -9,6 +9,7 @@ MVMCodepoint MVM_unicode_find_primary_composite(MVMThreadContext *tc, MVMCodepoi
 #define MVM_unicode_case_change_type_upper 0
 #define MVM_unicode_case_change_type_lower 1
 #define MVM_unicode_case_change_type_title 2
+#define MVM_unicode_case_change_type_fold  3
 
 struct MVMUnicodeNameRegistry {
     char *name;
