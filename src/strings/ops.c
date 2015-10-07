@@ -637,7 +637,8 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
     if (sgraphs) {
         MVMString *result;
         MVMGraphemeIter gi;
-        MVMGrapheme32 *result_buf = MVM_malloc(sgraphs * sizeof(MVMGrapheme32));
+        MVMint64 result_graphs = sgraphs;
+        MVMGrapheme32 *result_buf = MVM_malloc(result_graphs * sizeof(MVMGrapheme32));
         MVMint32 changed = 0;
         MVMint64 i = 0;
         MVM_string_gi_init(tc, &gi, s);
@@ -655,8 +656,14 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
                     changed = 1;
                 }
                 else {
-                    /* This should never happen yet; we didn't refactor so far. */
-                    MVM_panic(1, "Length-changing case transforms NYI");
+                    /* Resize when we see one of these, 'cus it's rare. */
+                    /* XXX Have to re-NFG here. */
+                    result_graphs += num_result_cps;
+                    result_buf = MVM_realloc(result_buf,
+                        result_graphs * sizeof(MVMGrapheme32));
+                    memcpy(result_buf + i, result_cps,
+                        num_result_cps * sizeof(MVMGrapheme32));
+                    i += num_result_cps;
                 }
             }
             else {
@@ -668,7 +675,7 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
         }
         if (changed) {
             result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-            result->body.num_graphs      = sgraphs;
+            result->body.num_graphs      = result_graphs;
             result->body.storage_type    = MVM_STRING_GRAPHEME_32;
             result->body.storage.blob_32 = result_buf;
             return result;
