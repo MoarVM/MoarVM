@@ -4700,7 +4700,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMint64 is_rw = 0;
                 if (!MVM_is_null(tc, obj)) {
-                    MVMContainerSpec *cs = STABLE(obj)->container_spec;
+                    const MVMContainerSpec *cs = STABLE(obj)->container_spec;
                     is_rw = cs && cs->can_store(tc, obj);
                 }
                 GET_REG(cur_op, 0).i64 = is_rw;
