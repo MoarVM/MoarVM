@@ -642,7 +642,7 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
         MVMint32 changed = 0;
         MVMint64 i = 0;
         MVM_string_gi_init(tc, &gi, s);
-        while (i < sgraphs) {
+        while (MVM_string_gi_has_more(tc, &gi)) {
             MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
             if (g >= 0) {
                 MVMCodepoint *result_cps;
@@ -664,6 +664,7 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
                     memcpy(result_buf + i, result_cps,
                         num_result_cps * sizeof(MVMGrapheme32));
                     i += num_result_cps;
+                    changed = 1;
                 }
             }
             else {
