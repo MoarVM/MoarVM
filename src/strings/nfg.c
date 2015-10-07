@@ -233,9 +233,13 @@ MVMNFGSynthetic * MVM_nfg_get_synthetic_info(MVMThreadContext *tc, MVMGrapheme32
 /* Gets the cached case change if we already computed it, or computes it if
  * this is the first time we're using it. */
 static MVMGrapheme32 compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, const MVMNFGSynthetic *synth_info, MVMint32 case_) {
-    MVMCodepoint  lowered_base = MVM_unicode_get_case_change(tc, synth_info->base, case_);
+    MVMCodepoint *lowered_cps;
     MVMGrapheme32 result;
-    if (lowered_base == synth_info->base) {
+    MVMuint32     num_lowered_cps = MVM_unicode_get_case_change(tc, synth_info->base,
+        case_, &lowered_cps);
+    if (num_lowered_cps > 1)
+        MVM_panic(1, "Length-changing case transforms NYI");
+    if (num_lowered_cps == 0 || *lowered_cps == synth_info->base) {
         /* Base character does not change, so grapheme stays the same. */
         result = synth;
     }
@@ -244,7 +248,7 @@ static MVMGrapheme32 compute_case_change(MVMThreadContext *tc, MVMGrapheme32 syn
          * lookup or create a synthetic as needed. */
         MVMint32      num_codes     = 1 + synth_info->num_combs;
         MVMCodepoint *change_buffer = MVM_malloc(num_codes * sizeof(MVMCodepoint));
-        change_buffer[0] = lowered_base;
+        change_buffer[0] = *lowered_cps;
         memcpy(change_buffer + 1, synth_info->combs, synth_info->num_combs * sizeof(MVMCodepoint));
         result = MVM_nfg_codes_to_grapheme(tc, change_buffer, num_codes);
         MVM_free(change_buffer);

@@ -642,13 +642,29 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
         MVMint64 i = 0;
         MVM_string_gi_init(tc, &gi, s);
         while (i < sgraphs) {
-            MVMGrapheme32 before = MVM_string_gi_get_grapheme(tc, &gi);
-            MVMGrapheme32 after  = before >= 0
-                ? MVM_unicode_get_case_change(tc, before, type)
-                : MVM_nfg_get_case_change(tc, before, type);
-            result_buf[i++]      = after;
-            if (before != after)
-                changed = 1;
+            MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+            if (g >= 0) {
+                MVMCodepoint *result_cps;
+                MVMuint32 num_result_cps = MVM_unicode_get_case_change(tc,
+                    g, type, &result_cps);
+                if (num_result_cps == 0) {
+                    result_buf[i++] = g;
+                }
+                else if (num_result_cps == 1) {
+                    result_buf[i++] = *result_cps;
+                    changed = 1;
+                }
+                else {
+                    /* This should never happen yet; we didn't refactor so far. */
+                    MVM_panic(1, "Length-changing case transforms NYI");
+                }
+            }
+            else {
+                MVMGrapheme32 transformed = MVM_nfg_get_case_change(tc, g, type);
+                result_buf[i++] = transformed;
+                if (transformed != g)
+                    changed = 1;
+            }
         }
         if (changed) {
             result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
