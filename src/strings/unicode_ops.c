@@ -95,7 +95,11 @@ MVMuint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint codepoi
                 return 1;
             }
             else {
-                MVM_panic(1, "Growing case folds NYI");
+                MVMint32 i = 3;
+                while (i > 0 && CaseFolding_grows_table[folding_index][i - 1] == 0)
+                    i--;
+                *result = &(CaseFolding_grows_table[folding_index][0]);
+                return i;
             }
         }
     }
