@@ -104,6 +104,9 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint_to_grapheme(
     return MVM_unicode_normalizer_process_codepoint(tc, n, in, (MVMGrapheme32 *)out);
 }
 
+/* Push a number of codepoints into the "to normalize" buffer. */
+void MVM_unicode_normalizer_push_codepoints(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint *in, MVMint32 num_codepoints);
+
 /* Get the number of codepoints/graphemes ready to fetch. */
 MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_available(MVMThreadContext *tc, MVMNormalizer *n) {
     return n->buffer_norm_end - n->buffer_start;

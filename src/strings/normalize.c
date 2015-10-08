@@ -562,6 +562,13 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
     return n->buffer_norm_end - n->buffer_start++;
 }
 
+/* Push a number of codepoints into the "to normalize" buffer. */
+void MVM_unicode_normalizer_push_codepoints(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint *in, MVMint32 num_codepoints) {
+    MVMint32 i;
+    for (i = 0; i < num_codepoints; i++)
+        decomp_codepoint_to_buffer(tc, n, in[i]);
+}
+
 /* Processes a codepoint that we regard as a "normalization terminator". These
  * never have a decomposition, and for all practical purposes will not have a
  * combiner on them. We treat them specially so we don't, during I/O, block on
