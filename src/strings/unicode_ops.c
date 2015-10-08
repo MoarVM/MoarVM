@@ -104,14 +104,24 @@ MVMuint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint codepoi
         }
     }
     else {
-        MVMint32 changes_index = MVM_unicode_get_property_int(tc,
-            codepoint, MVM_UNICODE_PROPERTY_CASE_CHANGE_INDEX);
-        if (changes_index) {
-            /* TODO: handle multi-codepoint cases here. */
-            MVMCodepoint *found = &(case_changes[changes_index][case_]);
-            if (*found != 0) {
-                *result = found;
-                return 1;
+        MVMint32 special_casing_index = MVM_unicode_get_property_int(tc,
+            codepoint, MVM_UNICODE_PROPERTY_SPECIAL_CASING);
+        if (special_casing_index) {
+            MVMint32 i = 3;
+                while (i > 0 && SpecialCasing_table[special_casing_index][case_][i - 1] == 0)
+                    i--;
+                *result = SpecialCasing_table[special_casing_index][case_];
+                return i;
+        }
+        else {
+            MVMint32 changes_index = MVM_unicode_get_property_int(tc,
+                codepoint, MVM_UNICODE_PROPERTY_CASE_CHANGE_INDEX);
+            if (changes_index) {
+                MVMCodepoint *found = &(case_changes[changes_index][case_]);
+                if (*found != 0) {
+                    *result = found;
+                    return 1;
+                }
             }
         }
     }
