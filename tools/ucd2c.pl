@@ -62,6 +62,7 @@ sub main {
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
     CaseFolding();
+    SpecialCasing();
     enumerated_property('DerivedAge',
         'Age', { Unassigned => 0 }, 1, 1);
     binary_props('DerivedCoreProperties');
@@ -88,7 +89,6 @@ sub main {
     NamedSequences();
     binary_props('PropList');
     enumerated_property('Scripts', 'Script', { Unknown => 0 }, 1, 1);
-    # XXX SpecialCasing.txt # haven't decided how to do it
     # XXX StandardizedVariants.txt # no clue what this is
     break_property('Grapheme', 'Grapheme_Cluster_Break');
     break_property('Sentence', 'Sentence_Break');
@@ -1476,6 +1476,34 @@ sub CaseFolding {
     $estimated_total_bytes += $simple_count * 8 + $grows_count * 32; # XXX guessing 32 here?
     $db_sections->{BBB_CaseFolding_simple} = $simple_out;
     $db_sections->{BBB_CaseFolding_grows} = $grows_out;
+}
+
+sub SpecialCasing {
+    my $count = 1;
+    my @entries;
+    each_line('SpecialCasing', sub { $_ = shift;
+        s/#.+//;
+        my ($code, $lower, $title, $upper, $cond) = split /\s*;\s*/;
+        return if $cond;
+        sub threesome {
+            my @things = split ' ', shift;
+            push @things, 0 while @things < 3;
+            join ", ", map { "0x$_" } @things
+        }
+        push @entries, "{ { " . threesome($upper) .
+                       " }, { " . threesome($lower) .
+                       " }, { " . threesome($title) .
+                       " } }";
+        $points_by_hex->{$code}->{Special_Casing} = $count;
+        $count++;
+    });
+    my $out = "static const MVMint32 SpecialCasing_table[$count][3][3] = {\n    {0x0,0x0,0x0},\n    "
+        .stack_lines(\@entries, ",", ",\n    ", 0, $wrap_to_columns)."\n};";
+    my $bit_width = least_int_ge_lg2($count);
+    my $index_base = { bit_width => $bit_width };
+    register_enumerated_property('Special_Casing', $index_base);
+    $estimated_total_bytes += $count * 4 * 3 * 3;
+    $db_sections->{BBB_SpecialCasing} = $out;
 }
 
 sub DerivedNormalizationProps {
