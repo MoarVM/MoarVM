@@ -656,15 +656,33 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
                     changed = 1;
                 }
                 else {
-                    /* Resize when we see one of these, 'cus it's rare. */
-                    /* XXX Have to re-NFG here. */
-                    result_graphs += num_result_cps;
-                    result_buf = MVM_realloc(result_buf,
-                        result_graphs * sizeof(MVMGrapheme32));
-                    memcpy(result_buf + i, result_cps,
-                        num_result_cps * sizeof(MVMGrapheme32));
-                    i += num_result_cps;
+                    /* To maintain NFG, we need to re-normalize when we get an
+                     * expansion. */
+                    MVMNormalizer norm;
+                    MVMint32 num_result_graphs;
+                    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+                    MVM_unicode_normalizer_push_codepoints(tc, &norm, result_cps, num_result_cps);
+                    MVM_unicode_normalizer_eof(tc, &norm);
+                    num_result_graphs = MVM_unicode_normalizer_available(tc, &norm);
+
+                    /* Make space for any extra graphemes. */
+                    if (num_result_graphs > 1) {
+                        result_graphs += num_result_graphs - 1;
+                        result_buf = MVM_realloc(result_buf,
+                            result_graphs * sizeof(MVMGrapheme32));
+                    }
+
+                    /* Copy resulting graphemes. */
+                    while (num_result_graphs > 0) {
+                        result_buf[i++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+                        num_result_graphs--;
+                    }
                     changed = 1;
+
+                    /* Clean up normalizer (we could init one per transform
+                     * and keep it around in the future, if we find it's a
+                     * worthwhile gain). */
+                    MVM_unicode_normalizer_cleanup(tc, &norm);
                 }
             }
             else {
