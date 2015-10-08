@@ -1142,6 +1142,9 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
         from = from->caller;
     }
 }
+
+int inreturn_find_count = 0;
+
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify) {
     FILE *dlog = tc->instance->dynvar_log_fh;
     MVMuint32 fcost = 0;  /* frames traversed */
@@ -1159,6 +1162,9 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
         c_name = MVM_string_utf8_encode_C_string(tc, name);
         start_time = uv_hrtime();
         last_time = tc->instance->dynvar_log_lasttime;
+        if (strcmp(c_name, "$*IN_RETURN") == 0) {
+            inreturn_find_count++;
+        }
     }
 
     MVM_string_flatten(tc, name);
@@ -1191,7 +1197,8 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 if (fcost+icost > 1)
                                   try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                                 if (dlog) {
-                                    fprintf(dlog, "I %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                                    MVMint32 ofs = (char*)return_label - ((char*)cand->jitcode->func_ptr);
+                                    fprintf(dlog, "J %s %d %d %d %d %ld %ld %ld %d\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime(), ofs);
                                     fflush(dlog);
                                     MVM_free(c_name);
                                     tc->instance->dynvar_log_lasttime = uv_hrtime();

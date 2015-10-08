@@ -179,6 +179,8 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
             void **labels = lh.frame->spesh_cand->jitcode->labels;
             MVMuint8  *pc = lh.frame->spesh_cand->jitcode->bytecode;
             lh.frame->jit_entry_label = labels[lh.jit_handler->goto_label];
+            if (lh.frame->jit_entry_label == NULL)
+                MVM_oops(tc, "Assigned a NULL label");
             MVM_frame_unwind_to(tc, lh.frame, pc, 0, NULL);
         } else {
             MVM_frame_unwind_to(tc, lh.frame, NULL, lh.handler->goto_offset, NULL);

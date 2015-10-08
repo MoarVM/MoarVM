@@ -102,6 +102,8 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     dasm_free(&state);
     MVM_free(dasm_globals);
 
+    code->seq_nr = MVM_incr(&tc->instance->jit_seq_nr);
+
     if (tc->instance->jit_bytecode_dir) {
         MVM_jit_log_bytecode(tc, code);
     }
@@ -115,11 +117,20 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
     MVM_free(code);
 }
 
+extern int inreturn_find_count;
 /* Returns 1 if we should return from the frame, the function, 0 otherwise */
 MVMint32 MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
                             MVMJitCode *code) {
     /* The actual JIT code returns 0 if it went through to the exit */
+    MVMFrame *frame = tc->cur_frame;
     void *label = tc->cur_frame->jit_entry_label;
     MVMint32 ctrl = code->func_ptr(tc, cu, label);
+    MVMint64 ofs = ((char*)frame->jit_entry_label) - ((char*)code->func_ptr);
+    if (ofs == 10357 && inreturn_find_count == 172) {
+        fprintf(stderr, "seq nr: %d\n", code->seq_nr);
+    }
+    if (ofs == 10357 && inreturn_find_count == 208) {
+        fprintf(stderr, "seq nr: %d\n", code->seq_nr);
+    }
     return ctrl ? 0 : 1;
 }
