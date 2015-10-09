@@ -127,10 +127,10 @@ MVMint32 MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
     MVMint32 ctrl = code->func_ptr(tc, cu, label);
     MVMint64 ofs = ((char*)frame->jit_entry_label) - ((char*)code->func_ptr);
     if (ofs == 10357 && inreturn_find_count == 172) {
-        fprintf(stderr, "seq nr: %d\n", code->seq_nr);
+        fprintf(stderr, "seq nr: %d ifc %d\n", code->seq_nr, inreturn_find_count);
     }
     if (ofs == 10357 && inreturn_find_count == 208) {
-        fprintf(stderr, "seq nr: %d\n", code->seq_nr);
+        fprintf(stderr, "seq nr: %d ifc %d\n", code->seq_nr, inreturn_find_count);
     }
     return ctrl ? 0 : 1;
 }
