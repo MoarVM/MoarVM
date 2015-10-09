@@ -270,6 +270,10 @@ MVMGrapheme32 MVM_nfg_get_case_change(MVMThreadContext *tc, MVMGrapheme32 synth,
         if (!synth_info->case_tc)
             synth_info->case_tc = compute_case_change(tc, synth, synth_info, case_);
         return synth_info->case_tc;
+    case MVM_unicode_case_change_type_fold:
+        if (!synth_info->case_fc)
+            synth_info->case_fc = compute_case_change(tc, synth, synth_info, case_);
+        return synth_info->case_fc;
     default:
         MVM_panic(1, "NFG: invalid case change %d", case_);
     }
