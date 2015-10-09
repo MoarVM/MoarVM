@@ -617,18 +617,6 @@ MVMint64 MVM_string_index_of_grapheme(MVMThreadContext *tc, MVMString *a, MVMGra
     return -1;
 }
 
-#define change_case_iterate(member, dest_member, dest_size) \
-for (i = string->body.member + start; i < string->body.member + start + length; ) { \
-    if (dest->body.graphs == state->size) { \
-        if (!state->size) state->size = 16; \
-        else state->size *= 2; \
-        dest->body.dest_member = MVM_realloc(dest->body.dest_member, \
-            state->size * sizeof(dest_size)); \
-    } \
-    dest->body.dest_member[dest->body.graphs++] = \
-        MVM_unicode_get_case_change(tc, (MVMCodepoint32) *i++, state->case_change_type); \
-}
-
 /* Case change functions. */
 static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 type, char *error) {
     MVMint64 sgraphs;
