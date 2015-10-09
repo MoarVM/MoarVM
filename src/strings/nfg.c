@@ -233,25 +233,40 @@ MVMNFGSynthetic * MVM_nfg_get_synthetic_info(MVMThreadContext *tc, MVMGrapheme32
 /* Gets the cached case change if we already computed it, or computes it if
  * this is the first time we're using it. */
 static MVMGrapheme32 compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, const MVMNFGSynthetic *synth_info, MVMint32 case_) {
-    MVMCodepoint *lowered_cps;
+    MVMCodepoint *result_cps;
     MVMGrapheme32 result;
-    MVMuint32     num_lowered_cps = MVM_unicode_get_case_change(tc, synth_info->base,
-        case_, &lowered_cps);
-    if (num_lowered_cps > 1)
-        MVM_panic(1, "Length-changing case transforms NYI");
-    if (num_lowered_cps == 0 || *lowered_cps == synth_info->base) {
+    MVMuint32     num_result_cps = MVM_unicode_get_case_change(tc, synth_info->base,
+        case_, &result_cps);
+    if (num_result_cps == 0 || *result_cps == synth_info->base) {
         /* Base character does not change, so grapheme stays the same. */
         result = synth;
     }
     else {
-        /* Build a codepoint buffer with the lowered base and then either
-         * lookup or create a synthetic as needed. */
-        MVMint32      num_codes     = 1 + synth_info->num_combs;
-        MVMCodepoint *change_buffer = MVM_malloc(num_codes * sizeof(MVMCodepoint));
-        change_buffer[0] = *lowered_cps;
-        memcpy(change_buffer + 1, synth_info->combs, synth_info->num_combs * sizeof(MVMCodepoint));
-        result = MVM_nfg_codes_to_grapheme(tc, change_buffer, num_codes);
-        MVM_free(change_buffer);
+        /* We can potentially get multiple graphemes back. We may also get
+         * into situations where we case change the base and suddenly we
+         * can normalize the whole thing to a non-synthetic. So, we take
+         * a trip through the normalizer. Note we push the first thing
+         * we get back from the case change, then our combiners, and
+         * finally anything else the case change produced. This should
+         * do about the right thing for both case changes that produce a
+         * base and a combiner, and those that produce a base and a base,
+         * since the normalizer applies Unicode canonical sorting. */
+        MVMNormalizer norm;
+        MVMint32 num_result_graphs;
+        MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+        MVM_unicode_normalizer_push_codepoints(tc, &norm, result_cps, 1);
+        MVM_unicode_normalizer_push_codepoints(tc, &norm, synth_info->combs,
+            synth_info->num_combs);
+        if (num_result_cps > 1)
+            MVM_unicode_normalizer_push_codepoints(tc, &norm, result_cps + 1,
+                num_result_cps - 1);
+        MVM_unicode_normalizer_eof(tc, &norm);
+
+        num_result_graphs = MVM_unicode_normalizer_available(tc, &norm);
+        if (num_result_graphs != 1)
+            MVM_panic(1, "NFG case change producing multiple graphemes NYI");
+        result = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        MVM_unicode_normalizer_cleanup(tc, &norm);
     }
     return result;
 }
