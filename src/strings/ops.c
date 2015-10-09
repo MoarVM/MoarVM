@@ -618,6 +618,7 @@ MVMint64 MVM_string_index_of_grapheme(MVMThreadContext *tc, MVMString *a, MVMGra
 }
 
 /* Case change functions. */
+static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 g);
 static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 type, char *error) {
     MVMint64 sgraphs;
     MVM_string_check_arg(tc, s, error);
@@ -632,7 +633,50 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
         MVM_string_gi_init(tc, &gi, s);
         while (MVM_string_gi_has_more(tc, &gi)) {
             MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-            if (g >= 0) {
+          peeked:
+            if (g == 0x03A3) {
+                /* Greek sigma needs special handling when lowercased. */
+                switch (type) {
+                    case MVM_unicode_case_change_type_upper:
+                    case MVM_unicode_case_change_type_title:
+                        result_buf[i++] = g;
+                        break;
+                    case MVM_unicode_case_change_type_lower:
+                        changed = 1;
+                        if (i == 0) {
+                            /* Start of string, so not final. */
+                            result_buf[i++] = 0x03C3;
+                        }
+                        else if (!grapheme_is_cclass(tc, MVM_CCLASS_ALPHABETIC, result_buf[i - 1])) {
+                            /* Previous char is not a letter; not final (as has
+                             * to be at end of a word and not only thing in a
+                             * word). */
+                            result_buf[i++] = 0x03C3;
+                        }
+                        else if (!MVM_string_gi_has_more(tc, &gi)) {
+                            /* End of string. We only reach here if we have a
+                             * letter before us, so it must be final. */
+                            result_buf[i++] = 0x03C2;
+                        }
+                        else {
+                            /* Letter before us, something ahead of us. Need to
+                             * peek ahead to see if it's a letter, to decide if
+                             * we have final sigma or not. */
+                            g = MVM_string_gi_get_grapheme(tc, &gi);
+                            if (grapheme_is_cclass(tc, MVM_CCLASS_ALPHABETIC, g))
+                                result_buf[i++] = 0x03C3;
+                            else
+                                result_buf[i++] = 0x03C2;
+                            goto peeked;
+                        }
+                        break;
+                    case MVM_unicode_case_change_type_fold:
+                        result_buf[i++] = 0x03C3;
+                        changed = 1;
+                        break;
+                }
+            }
+            else if (g >= 0) {
                 MVMCodepoint *result_cps;
                 MVMuint32 num_result_cps = MVM_unicode_get_case_change(tc,
                     g, type, &result_cps);
