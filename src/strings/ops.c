@@ -718,10 +718,19 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
                 }
             }
             else {
-                MVMGrapheme32 transformed = MVM_nfg_get_case_change(tc, g, type);
-                result_buf[i++] = transformed;
-                if (transformed != g)
+                MVMGrapheme32 *transformed;
+                MVMint32 num_transformed = MVM_nfg_get_case_change(tc, g, type, &transformed);
+                if (num_transformed == 0) {
+                    result_buf[i++] = g;
+                }
+                if (num_transformed == 1) {
+                    result_buf[i++] = *transformed;
                     changed = 1;
+                }
+                else {
+                    MVM_panic(1, "Length-changing NFG case transforms NYI");
+                    changed = 1;
+                }
             }
         }
         if (changed) {

@@ -270,25 +270,29 @@ static MVMGrapheme32 compute_case_change(MVMThreadContext *tc, MVMGrapheme32 syn
     }
     return result;
 }
-MVMGrapheme32 MVM_nfg_get_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMint32 case_) {
+MVMuint32 MVM_nfg_get_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMint32 case_, MVMGrapheme32 **result) {
     MVMNFGSynthetic *synth_info = MVM_nfg_get_synthetic_info(tc, synth);
     switch (case_) {
     case MVM_unicode_case_change_type_upper:
         if (!synth_info->case_uc)
             synth_info->case_uc = compute_case_change(tc, synth, synth_info, case_);
-        return synth_info->case_uc;
+        *result = &(synth_info->case_uc);
+        return 1;
     case MVM_unicode_case_change_type_lower:
         if (!synth_info->case_lc)
             synth_info->case_lc = compute_case_change(tc, synth, synth_info, case_);
-        return synth_info->case_lc;
+        *result = &(synth_info->case_lc);
+        return 1;
     case MVM_unicode_case_change_type_title:
         if (!synth_info->case_tc)
             synth_info->case_tc = compute_case_change(tc, synth, synth_info, case_);
-        return synth_info->case_tc;
+        *result = &(synth_info->case_tc);
+        return 1;
     case MVM_unicode_case_change_type_fold:
         if (!synth_info->case_fc)
             synth_info->case_fc = compute_case_change(tc, synth, synth_info, case_);
-        return synth_info->case_fc;
+        *result = &(synth_info->case_fc);
+        return 1;
     default:
         MVM_panic(1, "NFG: invalid case change %d", case_);
     }
