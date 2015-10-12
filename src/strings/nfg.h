@@ -32,11 +32,17 @@ struct MVMNFGSynthetic {
     /* Array of combiners. */
     MVMCodepoint *combs;
 
-    /* Cached case transforms, zero if not calculated. */
-    MVMGrapheme32 case_uc;
-    MVMGrapheme32 case_lc;
-    MVMGrapheme32 case_tc;
-    MVMGrapheme32 case_fc;
+    /* Cached case transforms, NULL if not calculated. */
+    MVMGrapheme32 *case_uc;
+    MVMGrapheme32 *case_lc;
+    MVMGrapheme32 *case_tc;
+    MVMGrapheme32 *case_fc;
+
+    /* Grapheme counts of cached case transforms. */
+    MVMint32 case_uc_graphs;
+    MVMint32 case_lc_graphs;
+    MVMint32 case_tc_graphs;
+    MVMint32 case_fc_graphs;
 };
 
 /* A node in the NFG trie. */

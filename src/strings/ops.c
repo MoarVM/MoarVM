@@ -723,12 +723,17 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
                 if (num_transformed == 0) {
                     result_buf[i++] = g;
                 }
-                if (num_transformed == 1) {
+                else if (num_transformed == 1) {
                     result_buf[i++] = *transformed;
                     changed = 1;
                 }
                 else {
-                    MVM_panic(1, "Length-changing NFG case transforms NYI");
+                    MVMuint32 j;
+                    result_graphs += num_transformed - 1;
+                    result_buf = MVM_realloc(result_buf,
+                        result_graphs * sizeof(MVMGrapheme32));
+                    for (j = 0; j < num_transformed; j++)
+                        result_buf[i++] = transformed[j];
                     changed = 1;
                 }
             }
