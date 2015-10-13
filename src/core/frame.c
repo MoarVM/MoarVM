@@ -1191,7 +1191,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 if (fcost+icost > 1)
                                   try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                                 if (dlog) {
-                                    fprintf(dlog, "I %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                                    fprintf(dlog, "I %s %d %d %d %d %llu %llu %llu\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                                     fflush(dlog);
                                     MVM_free(c_name);
                                     tc->instance->dynvar_log_lasttime = uv_hrtime();
@@ -1220,7 +1220,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 if (fcost+icost > 1)
                                   try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                                 if (dlog) {
-                                    fprintf(dlog, "I %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                                    fprintf(dlog, "I %s %d %d %d %d %llu %llu %llu\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                                     fflush(dlog);
                                     MVM_free(c_name);
                                     tc->instance->dynvar_log_lasttime = uv_hrtime();
@@ -1243,7 +1243,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 if (fcost+icost > 5)
                     try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                 if (dlog) {
-                    fprintf(dlog, "C %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                    fprintf(dlog, "C %s %d %d %d %d %llu %llu %llu\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                     fflush(dlog);
                     MVM_free(c_name);
                     tc->instance->dynvar_log_lasttime = uv_hrtime();
@@ -1266,7 +1266,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 if (vivify && *type == MVM_reg_obj && !result->o)
                     MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
                 if (dlog) {
-                    fprintf(dlog, "F %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                    fprintf(dlog, "F %s %d %d %d %d %llu %llu %llu\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                     fflush(dlog);
                     MVM_free(c_name);
                     tc->instance->dynvar_log_lasttime = uv_hrtime();
@@ -1280,7 +1280,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
         cur_frame = cur_frame->caller;
     }
     if (dlog) {
-        fprintf(dlog, "N %s %d %d %d %d %ld %ld %ld\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+        fprintf(dlog, "N %s %d %d %d %d %llu %llu %llu\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
         fflush(dlog);
         MVM_free(c_name);
         tc->instance->dynvar_log_lasttime = uv_hrtime();
