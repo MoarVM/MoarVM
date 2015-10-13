@@ -166,7 +166,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     dynvar_log = getenv("MVM_DYNVAR_LOG");
     if (dynvar_log && strlen(dynvar_log)) {
         instance->dynvar_log_fh = fopen(dynvar_log, "w");
-	fprintf(instance->dynvar_log_fh, "+ x 0 0 0 0 0 %ld\n", uv_hrtime());
+	fprintf(instance->dynvar_log_fh, "+ x 0 0 0 0 0 %llu\n", uv_hrtime());
 	fflush(instance->dynvar_log_fh);
 	instance->dynvar_log_lasttime = uv_hrtime();
     }
@@ -268,7 +268,7 @@ void MVM_vm_exit(MVMInstance *instance) {
     if (instance->jit_log_fh)
         fclose(instance->jit_log_fh);
     if (instance->dynvar_log_fh) {
-	fprintf(instance->dynvar_log_fh, "- x 0 0 0 0 %ld %ld %ld\n", instance->dynvar_log_lasttime, uv_hrtime(), uv_hrtime());
+	fprintf(instance->dynvar_log_fh, "- x 0 0 0 0 %lld %llu %llu\n", instance->dynvar_log_lasttime, uv_hrtime(), uv_hrtime());
 	fclose(instance->dynvar_log_fh);
     }
 
