@@ -195,6 +195,8 @@ struct MVMInstance {
 
     /* Directory name for JIT bytecode dumps */
     char *jit_bytecode_dir;
+    /* File for map of frame information for bytecode dumps */
+    FILE *jit_bytecode_map;
     /* sequence number for JIT compiled frames */
     AO_t  jit_seq_nr;
 
