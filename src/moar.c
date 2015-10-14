@@ -274,7 +274,7 @@ void MVM_vm_exit(MVMInstance *instance) {
     if (instance->jit_log_fh)
         fclose(instance->jit_log_fh);
     if (instance->jit_bytecode_map)
-        fcose(instance->jit_bytecode_map);
+        fclose(instance->jit_bytecode_map);
     if (instance->dynvar_log_fh) {
         fprintf(instance->dynvar_log_fh, "- x 0 0 0 0 %lld %llu %llu\n", instance->dynvar_log_lasttime, uv_hrtime(), uv_hrtime());
         fclose(instance->dynvar_log_fh);
