@@ -13,27 +13,19 @@ void MVM_jit_log(MVMThreadContext *tc, const char * fmt, ...) {
 static char * jitcode_name(MVMThreadContext *tc, MVMJitCode *code) {
     MVMuint64 cuuid_len;
     MVMuint64 name_len;
+
     char *cuuid = MVM_string_ascii_encode(tc, code->sf->body.cuuid,
                                               &cuuid_len);
     char *name  = MVM_string_ascii_encode(tc, code->sf->body.name,
                                               &name_len);
-    MVMuint64 dirname_len = strlen(tc->instance->jit_bytecode_dir);
-    // 4 chars for prefix, 3 chars for the separators, 4 for the postfix, 1 for the 0
-    char *filename = MVM_malloc(dirname_len + name_len + cuuid_len + 12);
-    char *dst = filename;
-    memcpy(dst, tc->instance->jit_bytecode_dir, dirname_len);
-    dst[dirname_len] = '/';
-    dst += dirname_len + 1;
-    memcpy(dst, "jit-", 4);
-    dst += 4;
-    memcpy(dst, cuuid, cuuid_len);
-    dst[cuuid_len] = '.';
-    dst += cuuid_len + 1;
-    memcpy(dst, name, name_len);
-    dst += name_len;
-    memcpy(dst, ".bin", 5);
-    MVM_free(name);
+    MVMint32 dirname_len = strlen(tc->instance->jit_bytecode_dir);
+    char seq_nr[20];
+    MVMint32  seq_nr_len  = sprintf(seq_nr, "%d", code->seq_nr);
+    char *filename = MVM_malloc(dirname_len + seq_nr_len + cuuid_len + name_len + 14);
+    sprintf(filename, "%s/jit-%s-%s.%s.bin", tc->instance->jit_bytecode_dir,
+            seq_nr, cuuid, name);
     MVM_free(cuuid);
+    MVM_free(name);
     return filename;
 }
 

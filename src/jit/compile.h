@@ -25,6 +25,8 @@ struct MVMJitCode {
 
     MVMint32       num_handlers;
     MVMJitHandler *handlers;
+
+    MVMint32       seq_nr;
 };
 
 MVMJitCode* MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);

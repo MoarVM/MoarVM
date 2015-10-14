@@ -161,6 +161,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
     if (jit_bytecode_dir && strlen(jit_bytecode_dir))
         instance->jit_bytecode_dir = jit_bytecode_dir;
+    instance->jit_seq_nr = 0;
 
     /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");

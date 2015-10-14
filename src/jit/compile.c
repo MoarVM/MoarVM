@@ -102,6 +102,8 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     dasm_free(&state);
     MVM_free(dasm_globals);
 
+    code->seq_nr = MVM_incr(&tc->instance->jit_seq_nr);
+
     if (tc->instance->jit_bytecode_dir) {
         MVM_jit_log_bytecode(tc, code);
     }
