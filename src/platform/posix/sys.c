@@ -50,9 +50,6 @@ MVMuint32 MVM_platform_cpu_count(void) {
 
 #else
 
-#include <sched.h>
-#include <pthread.h>
-
 MVMuint32 MVM_platform_cpu_count(void) {
     cpu_set_t set;
 

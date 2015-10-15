@@ -104,6 +104,9 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint_to_grapheme(
     return MVM_unicode_normalizer_process_codepoint(tc, n, in, (MVMGrapheme32 *)out);
 }
 
+/* Push a number of codepoints into the "to normalize" buffer. */
+void MVM_unicode_normalizer_push_codepoints(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint *in, MVMint32 num_codepoints);
+
 /* Get the number of codepoints/graphemes ready to fetch. */
 MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_available(MVMThreadContext *tc, MVMNormalizer *n) {
     return n->buffer_norm_end - n->buffer_start;
@@ -139,11 +142,11 @@ void MVM_unicode_normalizer_cleanup(MVMThreadContext *tc, MVMNormalizer *n);
 
 /* High-level normalize implementation, working from an input array of
  * codepoints and producing an output array of codepoints. */
-void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, MVMObject *in, MVMObject *out, MVMNormalization form);
+void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in, MVMObject *out, MVMNormalization form);
 
 /* High-level function to produces an NFG string from an input array of
  * codepoints. */
-MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, MVMObject *codes);
+MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc,const MVMObject *codes);
 
 /* High-level function to produce an array of codepoints from a string. */
 void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNormalization form, MVMObject *out);

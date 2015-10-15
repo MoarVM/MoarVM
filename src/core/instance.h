@@ -176,6 +176,7 @@ struct MVMInstance {
 
     /* Log file for dynamic var performance, if we're to log it. */
     FILE *dynvar_log_fh;
+    MVMint64 dynvar_log_lasttime;
 
     /* Flag for if spesh (and certain spesh features) are enabled. */
     MVMint8 spesh_enabled;
@@ -195,6 +196,10 @@ struct MVMInstance {
 
     /* Directory name for JIT bytecode dumps */
     char *jit_bytecode_dir;
+    /* File for map of frame information for bytecode dumps */
+    FILE *jit_bytecode_map;
+    /* sequence number for JIT compiled frames */
+    AO_t  jit_seq_nr;
 
     /* Number of representations registered so far. */
     MVMuint32 num_reprs;

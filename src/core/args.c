@@ -178,20 +178,17 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
 #define autounbox(tc, type_flag, expected, result) do { \
     if (result.exists && !(result.flags & type_flag)) { \
         if (result.flags & MVM_CALLSITE_ARG_OBJ) { \
-            MVMObject *obj; \
-            const MVMStorageSpec *ss; \
-            obj = decont_arg(tc, result.arg.o); \
-            ss = REPR(obj)->get_storage_spec(tc, STABLE(obj)); \
-            switch (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_MASK) { \
-                case MVM_STORAGE_SPEC_CAN_BOX_INT: \
+            MVMObject *obj = decont_arg(tc, result.arg.o); \
+            switch (type_flag) { \
+                case MVM_CALLSITE_ARG_INT: \
                     result.arg.i64 = MVM_repr_get_int(tc, obj); \
                     result.flags = MVM_CALLSITE_ARG_INT; \
                     break; \
-                case MVM_STORAGE_SPEC_CAN_BOX_NUM: \
+                case MVM_CALLSITE_ARG_NUM: \
                     result.arg.n64 = MVM_repr_get_num(tc, obj); \
                     result.flags = MVM_CALLSITE_ARG_NUM; \
                     break; \
-                case MVM_STORAGE_SPEC_CAN_BOX_STR: \
+                case MVM_CALLSITE_ARG_STR: \
                     result.arg.s = MVM_repr_get_str(tc, obj); \
                     result.flags = MVM_CALLSITE_ARG_STR; \
                     break; \
@@ -201,57 +198,38 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
         } \
         if (!(result.flags & type_flag)) { \
             switch (type_flag) { \
-                case MVM_CALLSITE_ARG_OBJ: \
-                    MVM_exception_throw_adhoc(tc, "unreachable unbox 0"); \
                 case MVM_CALLSITE_ARG_INT: \
                     switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
-                        case MVM_CALLSITE_ARG_OBJ: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox 1"); \
-                        case MVM_CALLSITE_ARG_INT: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox 2"); \
                         case MVM_CALLSITE_ARG_NUM: \
-                            result.arg.i64 = (MVMint64)result.arg.n64; \
-                            break; \
+                            MVM_exception_throw_adhoc(tc, "Expected native int argument, but got num"); \
                         case MVM_CALLSITE_ARG_STR: \
-                            MVM_exception_throw_adhoc(tc, "coerce string to int NYI"); \
+                            MVM_exception_throw_adhoc(tc, "Expected native int argument, but got str"); \
                         default: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox 3"); \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox 1"); \
                     } \
-                    result.flags = MVM_CALLSITE_ARG_INT; \
                     break; \
                 case MVM_CALLSITE_ARG_NUM: \
                     switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
-                        case MVM_CALLSITE_ARG_OBJ: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox 4"); \
                         case MVM_CALLSITE_ARG_INT: \
-                            result.arg.n64 = (MVMnum64)result.arg.i64; \
-                            break; \
-                        case MVM_CALLSITE_ARG_NUM: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox 5"); \
+                            MVM_exception_throw_adhoc(tc, "Expected native num argument, but got int"); \
                         case MVM_CALLSITE_ARG_STR: \
-                            MVM_exception_throw_adhoc(tc, "coerce string to num NYI"); \
+                            MVM_exception_throw_adhoc(tc, "Expected native num argument, but got str"); \
                         default: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox 6"); \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox 2"); \
                     } \
-                    result.flags = MVM_CALLSITE_ARG_NUM; \
                     break; \
                 case MVM_CALLSITE_ARG_STR: \
                     switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
-                        case MVM_CALLSITE_ARG_OBJ: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox 7"); \
                         case MVM_CALLSITE_ARG_INT: \
-                            MVM_exception_throw_adhoc(tc, "coerce int to string NYI"); \
+                            MVM_exception_throw_adhoc(tc, "Expected native str argument, but got int"); \
                         case MVM_CALLSITE_ARG_NUM: \
-                            MVM_exception_throw_adhoc(tc, "coerce num to string NYI"); \
-                        case MVM_CALLSITE_ARG_STR: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox 8"); \
+                            MVM_exception_throw_adhoc(tc, "Expected native str argument, but got num"); \
                         default: \
-                            MVM_exception_throw_adhoc(tc, "unreachable unbox 9"); \
+                            MVM_exception_throw_adhoc(tc, "unreachable unbox 3"); \
                     } \
-                    result.flags = MVM_CALLSITE_ARG_STR; \
                     break; \
                 default: \
-                    MVM_exception_throw_adhoc(tc, "unreachable unbox 10"); \
+                    MVM_exception_throw_adhoc(tc, "unreachable unbox 4"); \
             } \
         } \
     } \

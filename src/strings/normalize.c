@@ -14,7 +14,7 @@ MVMNormalization MVN_unicode_normalizer_form(MVMThreadContext *tc, MVMint64 form
 
 /* Takes two objects, which must be of VMArray representation and holding
  * 32-bit integers. Performs normalization to the specified form. */
-static void assert_codepoint_array(MVMThreadContext *tc, MVMObject *arr, char *error) {
+static void assert_codepoint_array(MVMThreadContext *tc, const MVMObject *arr, char *error) {
     if (IS_CONCRETE(arr) && REPR(arr)->ID == MVM_REPR_ID_MVMArray) {
         MVMuint8 slot_type = ((MVMArrayREPRData *)STABLE(arr)->REPR_data)->slot_type;
         if (slot_type == MVM_ARRAY_I32 || slot_type == MVM_ARRAY_U32)
@@ -29,7 +29,7 @@ MVM_STATIC_INLINE void maybe_grow_result(MVMCodepoint **result, MVMint64 *result
         *result = MVM_realloc(*result, *result_alloc * sizeof(MVMCodepoint));
     }
 }
-void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, MVMObject *in, MVMObject *out, MVMNormalization form) {
+void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in, MVMObject *out, MVMNormalization form) {
     MVMNormalizer  norm;
     MVMCodepoint  *input;
     MVMCodepoint  *result;
@@ -81,7 +81,7 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, MVMObject *in, MVMOb
 /* Takes an object, which must be of VMArray representation and holding
  * 32-bit integers. Treats them as Unicode codepoints, normalizes them at
  * Grapheme level, and returns the resulting NFG string. */
-MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, MVMObject *codes) {
+MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, const MVMObject *codes) {
     MVMNormalizer  norm;
     MVMCodepoint  *input;
     MVMGrapheme32 *result;
@@ -245,7 +245,7 @@ static void add_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, MVMC
 
 /* Hangul-related constants from Unicode spec 3.12, following naming
  * convention from spec. */
-static int
+static const int
     SBase = 0xAC00,
     LBase = 0x1100, VBase = 0x1161, TBase = 0x11A7,
     LCount = 19, VCount = 21, TCount = 28,
@@ -309,7 +309,7 @@ static void decomp_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, M
 }
 
 /* Checks if the specified character answers "yes" on the appropriate quick check. */
-static MVMint64 passes_quickcheck(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint cp) {
+static MVMint64 passes_quickcheck(MVMThreadContext *tc, const MVMNormalizer *n, MVMCodepoint cp) {
     const char *pval = MVM_unicode_codepoint_get_property_cstr(tc, cp, n->quick_check_property);
     return pval && pval[0] == 'Y';
 }
@@ -560,6 +560,13 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
     /* Hand back a codepoint, and flag how many more are available. */
     *out = n->buffer[n->buffer_start];
     return n->buffer_norm_end - n->buffer_start++;
+}
+
+/* Push a number of codepoints into the "to normalize" buffer. */
+void MVM_unicode_normalizer_push_codepoints(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint *in, MVMint32 num_codepoints) {
+    MVMint32 i;
+    for (i = 0; i < num_codepoints; i++)
+        decomp_codepoint_to_buffer(tc, n, in[i]);
 }
 
 /* Processes a codepoint that we regard as a "normalization terminator". These

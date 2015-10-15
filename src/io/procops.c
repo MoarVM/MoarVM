@@ -314,6 +314,12 @@ typedef struct {
     MVMint64 signal;
 } MVMIOAsyncProcessData;
 
+typedef enum {
+    STATE_UNSTARTED,
+    STATE_STARTED,
+    STATE_DONE
+} ProcessState;
+
 /* Info we convey about an async spawn task. */
 typedef struct {
     MVMThreadContext  *tc;
@@ -329,6 +335,7 @@ typedef struct {
     MVMuint32          seq_stdout;
     MVMuint32          seq_stderr;
     uv_stream_t       *stdin_handle;
+    ProcessState      state;
 } SpawnInfo;
 
 /* Info we convey about a write task. */
@@ -561,10 +568,30 @@ static const MVMAsyncTaskOps close_op_table = {
     NULL
 };
 
+static void deferred_close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data);
+
+static const MVMAsyncTaskOps deferred_close_op_table = {
+    deferred_close_perform,
+    NULL,
+    NULL,
+    NULL
+};
+
 static MVMint64 close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
     MVMAsyncTask          *spawn_task  = (MVMAsyncTask *)handle_data->async_task;
     SpawnInfo             *si          = spawn_task ? (SpawnInfo *)spawn_task->body.data : NULL;
+    if (si && si->state == STATE_UNSTARTED) {
+        MVMAsyncTask *task;
+        MVMROOT(tc, h, {
+            task = (MVMAsyncTask *)MVM_repr_alloc_init(tc,
+                tc->instance->boot_types.BOOTAsync);
+        });
+        task->body.ops  = &deferred_close_op_table;
+        task->body.data = si;
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+        return 0;
+    }
     if (si && si->stdin_handle) {
         MVMAsyncTask *task;
         MVMROOT(tc, h, {
@@ -577,6 +604,26 @@ static MVMint64 close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
         si->stdin_handle = NULL;
     }
     return 0;
+}
+
+static void deferred_close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
+    SpawnInfo *si = (SpawnInfo *) data;
+    MVMOSHandle *h = (MVMOSHandle *) si->handle;
+
+    if (si->state == STATE_UNSTARTED) {
+        MVMAsyncTask *task;
+        MVMROOT(tc, h, {
+            task = (MVMAsyncTask *)MVM_repr_alloc_init(tc,
+                tc->instance->boot_types.BOOTAsync);
+        });
+        task->body.ops  = &deferred_close_op_table;
+        task->body.data = si;
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+        return;
+    }
+    if (si->stdin_handle) {
+        close_stdin(tc, h);
+    }
 }
 
 /* IO ops table, for async process, populated with functions. */
@@ -634,6 +681,7 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
     /* when invoked via MVMIOOps, close_stdin is already wrapped in a mutex */
     os_handle = (MVMOSHandle *) si->handle;
     uv_mutex_lock(os_handle->body.mutex);
+    si->state = STATE_DONE;
     close_stdin(tc, os_handle);
     uv_mutex_unlock(os_handle->body.mutex);
 
@@ -841,6 +889,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     if (spawn_result) {
         MVMObject *error_cb = MVM_repr_at_key_o(tc, si->callbacks,
             tc->instance->str_consts.error);
+        si->state = STATE_DONE;
         if (!MVM_is_null(tc, error_cb)) {
             MVMROOT(tc, error_cb, {
             MVMROOT(tc, async_task, {
@@ -866,6 +915,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
         ready_cb = MVM_repr_at_key_o(tc, si->callbacks,
             tc->instance->str_consts.ready);
+        si->state = STATE_STARTED;
 
         if (!MVM_is_null(tc, ready_cb)) {
             MVMROOT(tc, ready_cb, {
@@ -1013,6 +1063,7 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
         si->cwd         = _cwd;
         si->env         = _env;
         si->args        = args;
+        si->state       = STATE_UNSTARTED;
         MVM_ASSIGN_REF(tc, &(task->common.header), si->handle, handle);
         MVM_ASSIGN_REF(tc, &(task->common.header), si->callbacks, callbacks);
         task->body.data = si;

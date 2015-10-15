@@ -10,43 +10,28 @@ void MVM_jit_log(MVMThreadContext *tc, const char * fmt, ...) {
     va_end(args);
 }
 
-static char * jitcode_name(MVMThreadContext *tc, MVMJitCode *code) {
-    MVMuint64 cuuid_len;
-    MVMuint64 name_len;
-    char *cuuid = MVM_string_ascii_encode(tc, code->sf->body.cuuid,
-                                              &cuuid_len);
-    char *name  = MVM_string_ascii_encode(tc, code->sf->body.name,
-                                              &name_len);
-    MVMuint64 dirname_len = strlen(tc->instance->jit_bytecode_dir);
-    // 4 chars for prefix, 3 chars for the separators, 4 for the postfix, 1 for the 0
-    char *filename = MVM_malloc(dirname_len + name_len + cuuid_len + 12);
-    char *dst = filename;
-    memcpy(dst, tc->instance->jit_bytecode_dir, dirname_len);
-    dst[dirname_len] = '/';
-    dst += dirname_len + 1;
-    memcpy(dst, "jit-", 4);
-    dst += 4;
-    memcpy(dst, cuuid, cuuid_len);
-    dst[cuuid_len] = '.';
-    dst += cuuid_len + 1;
-    memcpy(dst, name, name_len);
-    dst += name_len;
-    memcpy(dst, ".bin", 5);
-    MVM_free(name);
-    MVM_free(cuuid);
-    return filename;
-}
-
 void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
-    char * filename = jitcode_name(tc, code);
-    FILE * f = fopen(filename, "w");
-    if (f) {
-        fwrite(code->func_ptr, sizeof(char), code->size, f);
-        fclose(f);
-        MVM_jit_log(tc, "Dump bytecode in %s\n", filename);
-
+    /* Filename format: moar-jit-%d.bin. number can consume at most 10
+     * bytes, moar-jit-.bin is 13 bytes, one byte for the zero at the
+     * end, one byte for the directory separator is 25 bytes, plus the
+     * length of the bytecode directory itself */
+    char * filename = MVM_malloc(strlen(tc->instance->jit_bytecode_dir) + 25);
+    FILE * out;
+    sprintf(filename, "%s/moar-jit-%04d.bin", tc->instance->jit_bytecode_dir, code->seq_nr);
+    out = fopen(filename, "w");
+    if (out) {
+        fwrite(code->func_ptr, sizeof(char), code->size, out);
+        fclose(out);
+        if (tc->instance->jit_bytecode_map) {
+            char *frame_name         = MVM_string_utf8_encode_C_string(tc, code->sf->body.name);
+            char *frame_cuuid        = MVM_string_utf8_encode_C_string(tc, code->sf->body.cuuid);
+            /* I'd like to add linenumber and filename information, but it's really a lot of work at this point */
+            fprintf(tc->instance->jit_bytecode_map, "%s\t%s\t%s\n", filename, frame_name, frame_cuuid);
+            MVM_free(frame_name);
+            MVM_free(frame_cuuid);
+        }
     } else {
-        MVM_jit_log(tc, "Could not dump bytecode in %s\n", filename);
+        MVM_jit_log(tc, "ERROR: could dump bytecode in %s\n", filename);
     }
     MVM_free(filename);
 }

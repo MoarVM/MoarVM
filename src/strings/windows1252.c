@@ -130,7 +130,7 @@ static MVMuint8 windows1252_cp_to_char(MVMint32 codepoint) {
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 void MVM_string_windows1252_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                    MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
+                                         const MVMint32 *stopper_chars, const MVMint32 *stopper_sep) {
     MVMint32 count = 0, total = 0;
     MVMint32 bufsize;
     MVMGrapheme32 *buffer;
@@ -194,7 +194,7 @@ void MVM_string_windows1252_decodestream(MVMThreadContext *tc, MVMDecodeStream *
  * creating a result of the specified type. The type must have the MVMString
  * REPR. */
 MVMString * MVM_string_windows1252_decode(MVMThreadContext *tc,
-        MVMObject *result_type, char *windows1252_c, size_t bytes) {
+        const MVMObject *result_type, char *windows1252_c, size_t bytes) {
     MVMuint8 *windows1252 = (MVMuint8 *)windows1252_c;
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t i;

@@ -1338,7 +1338,8 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
             target_facts->flags |= MVM_SPESH_FACT_MERGED_WITH_LOG_GUARD;
         }
     } else {
-        return; fprintf(stderr, "a PHI node of %d operands had no intersecting flags\n", ins->info->num_operands);
+        /*fprintf(stderr, "a PHI node of %d operands had no intersecting flags\n", ins->info->num_operands);*/
+        return;
     }
 }
 /* Visits the blocks in dominator tree order, recursively. */

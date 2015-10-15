@@ -2,7 +2,7 @@
 
 /* Decodes the specified number of bytes of ASCII into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */
-MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type, const char *ascii, size_t bytes) {
+MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, const MVMObject *result_type, const char *ascii, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     size_t i;
 
@@ -25,14 +25,14 @@ MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, MVMObject *result_type
 
 /* Decodes a NULL-terminated ASCII string into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */
-MVMString * MVM_string_ascii_decode_nt(MVMThreadContext *tc, MVMObject *result_type, const char *ascii) {
+MVMString * MVM_string_ascii_decode_nt(MVMThreadContext *tc, const MVMObject *result_type, const char *ascii) {
     return MVM_string_ascii_decode(tc, result_type, ascii, strlen(ascii));
 }
 
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                   MVMint32 *stopper_chars, MVMint32 *stopper_sep) {
+                                   const MVMint32 *stopper_chars, const MVMint32 *stopper_sep) {
     MVMint32              count = 0, total = 0;
     MVMint32              bufsize;
     MVMGrapheme32        *buffer;

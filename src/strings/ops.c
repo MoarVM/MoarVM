@@ -23,7 +23,7 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 #endif
 
 /* Checks a string is not null or non-concrete and throws if so. */
-MVM_STATIC_INLINE void MVM_string_check_arg(MVMThreadContext *tc, MVMString *s, const char *operation) {
+MVM_STATIC_INLINE void MVM_string_check_arg(MVMThreadContext *tc, const MVMString *s, const char *operation) {
     if (!s || !IS_CONCRETE(s))
         MVM_exception_throw_adhoc(tc, "%s requires a concrete string, but got %s",
             operation, s ? "a type object" : "null");
@@ -35,7 +35,7 @@ static MVMStringStrand * allocate_strands(MVMThreadContext *tc, MVMuint16 num_st
 }
 
 /* Copies strands from one strand string to another. */
-static void copy_strands(MVMThreadContext *tc, MVMString *from, MVMuint16 from_offset,
+static void copy_strands(MVMThreadContext *tc, const MVMString *from, MVMuint16 from_offset,
         MVMString *to, MVMuint16 to_offset, MVMuint16 num_strands) {
     assert(from->body.storage_type == MVM_STRING_STRAND);
     assert(to->body.storage_type == MVM_STRING_STRAND);
@@ -617,64 +617,160 @@ MVMint64 MVM_string_index_of_grapheme(MVMThreadContext *tc, MVMString *a, MVMGra
     return -1;
 }
 
-#define change_case_iterate(member, dest_member, dest_size) \
-for (i = string->body.member + start; i < string->body.member + start + length; ) { \
-    if (dest->body.graphs == state->size) { \
-        if (!state->size) state->size = 16; \
-        else state->size *= 2; \
-        dest->body.dest_member = MVM_realloc(dest->body.dest_member, \
-            state->size * sizeof(dest_size)); \
-    } \
-    dest->body.dest_member[dest->body.graphs++] = \
-        MVM_unicode_get_case_change(tc, (MVMCodepoint32) *i++, state->case_change_type); \
-}
-
 /* Case change functions. */
-#define case_change_func(funcname, type, error) \
-MVMString * funcname(MVMThreadContext *tc, MVMString *s) { \
-    MVMint64 sgraphs; \
-    MVM_string_check_arg(tc, s, error); \
-    sgraphs = MVM_string_graphs(tc, s); \
-    if (sgraphs) { \
-        MVMString *result; \
-        MVMGraphemeIter gi; \
-        MVMGrapheme32 *result_buf = MVM_malloc(sgraphs * sizeof(MVMGrapheme32)); \
-        MVMint32 changed = 0; \
-        MVMint64 i = 0; \
-        MVM_string_gi_init(tc, &gi, s); \
-        while (i < sgraphs) { \
-            MVMGrapheme32 before = MVM_string_gi_get_grapheme(tc, &gi); \
-            MVMGrapheme32 after  = before >= 0 \
-                ? MVM_unicode_get_case_change(tc, before, type) \
-                : MVM_nfg_get_case_change(tc, before, type); \
-            result_buf[i++]      = after; \
-            if (before != after) \
-                changed = 1; \
-        } \
-        if (changed) { \
-            result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString); \
-            result->body.num_graphs      = sgraphs; \
-            result->body.storage_type    = MVM_STRING_GRAPHEME_32; \
-            result->body.storage.blob_32 = result_buf; \
-            return result; \
-        } \
-        else { \
-            MVM_free(result_buf); \
-        } \
-    } \
-    STRAND_CHECK(tc, s); \
-    return s; \
+static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 g);
+static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 type, char *error) {
+    MVMint64 sgraphs;
+    MVM_string_check_arg(tc, s, error);
+    sgraphs = MVM_string_graphs(tc, s);
+    if (sgraphs) {
+        MVMString *result;
+        MVMGraphemeIter gi;
+        MVMint64 result_graphs = sgraphs;
+        MVMGrapheme32 *result_buf = MVM_malloc(result_graphs * sizeof(MVMGrapheme32));
+        MVMint32 changed = 0;
+        MVMint64 i = 0;
+        MVM_string_gi_init(tc, &gi, s);
+        while (MVM_string_gi_has_more(tc, &gi)) {
+            MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+          peeked:
+            if (g == 0x03A3) {
+                /* Greek sigma needs special handling when lowercased. */
+                switch (type) {
+                    case MVM_unicode_case_change_type_upper:
+                    case MVM_unicode_case_change_type_title:
+                        result_buf[i++] = g;
+                        break;
+                    case MVM_unicode_case_change_type_lower:
+                        changed = 1;
+                        if (i == 0) {
+                            /* Start of string, so not final. */
+                            result_buf[i++] = 0x03C3;
+                        }
+                        else if (!grapheme_is_cclass(tc, MVM_CCLASS_ALPHABETIC, result_buf[i - 1])) {
+                            /* Previous char is not a letter; not final (as has
+                             * to be at end of a word and not only thing in a
+                             * word). */
+                            result_buf[i++] = 0x03C3;
+                        }
+                        else if (!MVM_string_gi_has_more(tc, &gi)) {
+                            /* End of string. We only reach here if we have a
+                             * letter before us, so it must be final. */
+                            result_buf[i++] = 0x03C2;
+                        }
+                        else {
+                            /* Letter before us, something ahead of us. Need to
+                             * peek ahead to see if it's a letter, to decide if
+                             * we have final sigma or not. */
+                            g = MVM_string_gi_get_grapheme(tc, &gi);
+                            if (grapheme_is_cclass(tc, MVM_CCLASS_ALPHABETIC, g))
+                                result_buf[i++] = 0x03C3;
+                            else
+                                result_buf[i++] = 0x03C2;
+                            goto peeked;
+                        }
+                        break;
+                    case MVM_unicode_case_change_type_fold:
+                        result_buf[i++] = 0x03C3;
+                        changed = 1;
+                        break;
+                }
+            }
+            else if (g >= 0) {
+                MVMCodepoint *result_cps;
+                MVMuint32 num_result_cps = MVM_unicode_get_case_change(tc,
+                    g, type, &result_cps);
+                if (num_result_cps == 0) {
+                    result_buf[i++] = g;
+                }
+                else if (num_result_cps == 1) {
+                    result_buf[i++] = *result_cps;
+                    changed = 1;
+                }
+                else {
+                    /* To maintain NFG, we need to re-normalize when we get an
+                     * expansion. */
+                    MVMNormalizer norm;
+                    MVMint32 num_result_graphs;
+                    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+                    MVM_unicode_normalizer_push_codepoints(tc, &norm, result_cps, num_result_cps);
+                    MVM_unicode_normalizer_eof(tc, &norm);
+                    num_result_graphs = MVM_unicode_normalizer_available(tc, &norm);
+
+                    /* Make space for any extra graphemes. */
+                    if (num_result_graphs > 1) {
+                        result_graphs += num_result_graphs - 1;
+                        result_buf = MVM_realloc(result_buf,
+                            result_graphs * sizeof(MVMGrapheme32));
+                    }
+
+                    /* Copy resulting graphemes. */
+                    while (num_result_graphs > 0) {
+                        result_buf[i++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+                        num_result_graphs--;
+                    }
+                    changed = 1;
+
+                    /* Clean up normalizer (we could init one per transform
+                     * and keep it around in the future, if we find it's a
+                     * worthwhile gain). */
+                    MVM_unicode_normalizer_cleanup(tc, &norm);
+                }
+            }
+            else {
+                MVMGrapheme32 *transformed;
+                MVMint32 num_transformed = MVM_nfg_get_case_change(tc, g, type, &transformed);
+                if (num_transformed == 0) {
+                    result_buf[i++] = g;
+                }
+                else if (num_transformed == 1) {
+                    result_buf[i++] = *transformed;
+                    changed = 1;
+                }
+                else {
+                    MVMuint32 j;
+                    result_graphs += num_transformed - 1;
+                    result_buf = MVM_realloc(result_buf,
+                        result_graphs * sizeof(MVMGrapheme32));
+                    for (j = 0; j < num_transformed; j++)
+                        result_buf[i++] = transformed[j];
+                    changed = 1;
+                }
+            }
+        }
+        if (changed) {
+            result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+            result->body.num_graphs      = result_graphs;
+            result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+            result->body.storage.blob_32 = result_buf;
+            return result;
+        }
+        else {
+            MVM_free(result_buf);
+        }
+    }
+    STRAND_CHECK(tc, s);
+    return s;
 }
-case_change_func(MVM_string_uc, MVM_unicode_case_change_type_upper, "uc")
-case_change_func(MVM_string_lc, MVM_unicode_case_change_type_lower, "lc")
-case_change_func(MVM_string_tc, MVM_unicode_case_change_type_title, "tc")
+MVMString * MVM_string_uc(MVMThreadContext *tc, MVMString *s) {
+    return do_case_change(tc, s, MVM_unicode_case_change_type_upper, "uc");
+}
+MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s) {
+    return do_case_change(tc, s, MVM_unicode_case_change_type_lower, "lc");
+}
+MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s) {
+    return do_case_change(tc, s, MVM_unicode_case_change_type_title, "tc");
+}
+MVMString * MVM_string_fc(MVMThreadContext *tc, MVMString *s) {
+    return do_case_change(tc, s, MVM_unicode_case_change_type_fold, "fc");
+}
 
 /* Decodes a C buffer to an MVMString, dependent on the encoding type flag. */
 MVMString * MVM_string_decode(MVMThreadContext *tc,
-        MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag) {
+        const MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag) {
     switch(encoding_flag) {
         case MVM_encoding_type_utf8:
-            return MVM_string_utf8_decode(tc, type_object, Cbuf, byte_length);
+            return MVM_string_utf8_decode_strip_bom(tc, type_object, Cbuf, byte_length);
         case MVM_encoding_type_ascii:
             return MVM_string_ascii_decode(tc, type_object, Cbuf, byte_length);
         case MVM_encoding_type_latin1:
@@ -686,7 +782,6 @@ MVMString * MVM_string_decode(MVMThreadContext *tc,
         default:
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
     }
-    return NULL;
 }
 
 /* Encodes an MVMString to a C buffer, dependent on the encoding type flag */
@@ -705,7 +800,6 @@ char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVM
         default:
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
     }
-    return NULL;
 }
 
 /* Encodes a string, and writes the encoding string into the supplied Buf
@@ -1451,7 +1545,7 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
         }
 
         case MVM_CCLASS_PRINTING: {
-            return !(cp >= 0 && cp < 32) || (cp >= 127 && cp < 160);
+            return !((cp >= 0 && cp < 32) || (cp >= 127 && cp < 160));
         }
 
         case MVM_CCLASS_PUNCTUATION:

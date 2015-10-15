@@ -128,13 +128,18 @@ void MVM_profile_log_enter_native(MVMThreadContext *tc, MVMObject *nativecallsit
 static void log_exit(MVMThreadContext *tc, MVMuint32 unwind) {
     MVMProfileThreadData *ptd = get_thread_data(tc);
 
-    /* Ensure we've a current frame; panic if not. */
-    /* XXX in future, don't panic, try to cope. This is for debugging
-     * profiler issues. */
+    /* Ensure we've a current frame. */
     MVMProfileCallNode *pcn = ptd->current_call;
-    if (!pcn /*|| !unwind && pcn->sf != tc->cur_frame->static_info*/) {
-        MVM_dump_backtrace(tc);
-        MVM_panic(1, "Profiler lost sequence");
+    if (!pcn) {
+        if (tc->instance->profiling) {
+            /* No frame but still profiling; corruption. */
+            MVM_dump_backtrace(tc);
+            MVM_panic(1, "Profiler lost sequence");
+        }
+        else {
+            /* We already finished profiling. */
+            return;
+        }
     }
 
     /* Add to total time. */
@@ -165,7 +170,7 @@ void MVM_profile_log_unwind(MVMThreadContext *tc) {
 
 /* Called when we take a continuation. Leaves the static frames from the point
  * of view of the profiler, and saves each of them. */
-MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, MVMFrame *root_frame) {
+MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, const MVMFrame *root_frame) {
     MVMProfileThreadData        *ptd       = get_thread_data(tc);
     MVMProfileContinuationData  *cd        = MVM_malloc(sizeof(MVMProfileContinuationData));
     MVMStaticFrame             **sfs       = NULL;
@@ -207,7 +212,7 @@ MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadConte
 
 /* Called when we invoke a continuation. Enters all the static frames we left
  * at the point we took the continuation. */
-void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, MVMProfileContinuationData *cd) {
+void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, const MVMProfileContinuationData *cd) {
     MVMuint64 i = cd->num_sfs;
     while (i--)
         MVM_profile_log_enter(tc, cd->sfs[i], cd->modes[i]);

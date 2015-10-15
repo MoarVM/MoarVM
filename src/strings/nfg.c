@@ -6,7 +6,7 @@
 
 /* Finds the index of a given codepoint within a trie node. Returns it if
  * there is one, or negative if there is not (note 0 is a valid index). */
-static MVMint32 find_child_node_idx(MVMThreadContext *tc, MVMNFGTrieNode *node, MVMCodepoint cp) {
+static MVMint32 find_child_node_idx(MVMThreadContext *tc, const MVMNFGTrieNode *node, MVMCodepoint cp) {
     if (node) {
         /* TODO: update this to do a binary search later on. */
         MVMint32 i;
@@ -18,7 +18,7 @@ static MVMint32 find_child_node_idx(MVMThreadContext *tc, MVMNFGTrieNode *node, 
 }
 
 /* Does a lookup in the trie for a synthetic for the specified codepoints. */
-MVMNFGTrieNode * find_child_node(MVMThreadContext *tc, MVMNFGTrieNode *node, MVMCodepoint cp) {
+MVMNFGTrieNode * find_child_node(MVMThreadContext *tc, const MVMNFGTrieNode *node, MVMCodepoint cp) {
     MVMint32 idx = find_child_node_idx(tc, node, cp);
     return idx >= 0 ? node->next_codes[idx].node : NULL;
 }
@@ -232,42 +232,96 @@ MVMNFGSynthetic * MVM_nfg_get_synthetic_info(MVMThreadContext *tc, MVMGrapheme32
 
 /* Gets the cached case change if we already computed it, or computes it if
  * this is the first time we're using it. */
-static MVMGrapheme32 compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMNFGSynthetic *synth_info, MVMint32 case_) {
-    MVMCodepoint  lowered_base = MVM_unicode_get_case_change(tc, synth_info->base, case_);
-    MVMGrapheme32 result;
-    if (lowered_base == synth_info->base) {
-        /* Base character does not change, so grapheme stays the same. */
-        result = synth;
+static MVMGrapheme32 CASE_UNCHANGED[1] = {0};
+static void compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMNFGSynthetic *synth_info, MVMint32 case_) {
+    MVMGrapheme32 *result;
+    MVMint32 num_result_graphs;
+
+    /* Transform the base character. */
+    MVMCodepoint *result_cps;
+    MVMuint32     num_result_cps = MVM_unicode_get_case_change(tc, synth_info->base,
+        case_, &result_cps);
+    if (num_result_cps == 0 || *result_cps == synth_info->base) {
+        /* Base character does not change, so grapheme stays the same. We
+         * install a non-null sentinel for this case, and set the result
+         * grapheme count to zero, which indicates no change. */
+        result = CASE_UNCHANGED;
+        num_result_graphs = 0;
     }
     else {
-        /* Build a codepoint buffer with the lowered base and then either
-         * lookup or create a synthetic as needed. */
-        MVMint32      num_codes     = 1 + synth_info->num_combs;
-        MVMCodepoint *change_buffer = MVM_malloc(num_codes * sizeof(MVMCodepoint));
-        change_buffer[0] = lowered_base;
-        memcpy(change_buffer + 1, synth_info->combs, synth_info->num_combs * sizeof(MVMCodepoint));
-        result = MVM_nfg_codes_to_grapheme(tc, change_buffer, num_codes);
-        MVM_free(change_buffer);
+        /* We can potentially get multiple graphemes back. We may also get
+         * into situations where we case change the base and suddenly we
+         * can normalize the whole thing to a non-synthetic. So, we take
+         * a trip through the normalizer. Note we push the first thing
+         * we get back from the case change, then our combiners, and
+         * finally anything else the case change produced. This should
+         * do about the right thing for both case changes that produce a
+         * base and a combiner, and those that produce a base and a base,
+         * since the normalizer applies Unicode canonical sorting. */
+        MVMNormalizer norm;
+        MVMint32 i;
+        MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+        MVM_unicode_normalizer_push_codepoints(tc, &norm, result_cps, 1);
+        MVM_unicode_normalizer_push_codepoints(tc, &norm, synth_info->combs,
+            synth_info->num_combs);
+        if (num_result_cps > 1)
+            MVM_unicode_normalizer_push_codepoints(tc, &norm, result_cps + 1,
+                num_result_cps - 1);
+        MVM_unicode_normalizer_eof(tc, &norm);
+
+        num_result_graphs = MVM_unicode_normalizer_available(tc, &norm);
+        result = MVM_malloc(num_result_graphs * sizeof(MVMGrapheme32));
+        for (i = 0; i < num_result_graphs; i++)
+            result[i] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        MVM_unicode_normalizer_cleanup(tc, &norm);
     }
-    return result;
+
+    switch (case_) {
+    case MVM_unicode_case_change_type_upper:
+        synth_info->case_uc = result;
+        synth_info->case_uc_graphs = num_result_graphs;
+        break;
+    case MVM_unicode_case_change_type_lower:
+        synth_info->case_lc = result;
+        synth_info->case_lc_graphs = num_result_graphs;
+        break;
+    case MVM_unicode_case_change_type_title:
+        synth_info->case_tc = result;
+        synth_info->case_tc_graphs = num_result_graphs;
+        break;
+    case MVM_unicode_case_change_type_fold:
+        synth_info->case_fc = result;
+        synth_info->case_fc_graphs = num_result_graphs;
+        break;
+    default:
+        MVM_panic(1, "NFG: invalid case change %d", case_);
+    }
 }
-MVMGrapheme32 MVM_nfg_get_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMint32 case_) {
+MVMuint32 MVM_nfg_get_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMint32 case_, MVMGrapheme32 **result) {
     MVMNFGSynthetic *synth_info = MVM_nfg_get_synthetic_info(tc, synth);
     switch (case_) {
     case MVM_unicode_case_change_type_upper:
         if (!synth_info->case_uc)
-            synth_info->case_uc = compute_case_change(tc, synth, synth_info, case_);
-        return synth_info->case_uc;
+            compute_case_change(tc, synth, synth_info, case_);
+        *result = synth_info->case_uc;
+        return synth_info->case_uc_graphs;
     case MVM_unicode_case_change_type_lower:
         if (!synth_info->case_lc)
-            synth_info->case_lc = compute_case_change(tc, synth, synth_info, case_);
-        return synth_info->case_lc;
+            compute_case_change(tc, synth, synth_info, case_);
+        *result = synth_info->case_lc;
+        return synth_info->case_lc_graphs;
     case MVM_unicode_case_change_type_title:
         if (!synth_info->case_tc)
-            synth_info->case_tc = compute_case_change(tc, synth, synth_info, case_);
-        return synth_info->case_tc;
+            compute_case_change(tc, synth, synth_info, case_);
+        *result = synth_info->case_tc;
+        return synth_info->case_tc_graphs;
+    case MVM_unicode_case_change_type_fold:
+        if (!synth_info->case_fc)
+            compute_case_change(tc, synth, synth_info, case_);
+        *result = synth_info->case_fc;
+        return synth_info->case_fc_graphs;
     default:
-        abort();
+        MVM_panic(1, "NFG: invalid case change %d", case_);
     }
 }
 

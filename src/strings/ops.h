@@ -52,7 +52,8 @@ MVMint64 MVM_string_index_of_grapheme(MVMThreadContext *tc, MVMString *a, MVMGra
 MVMString * MVM_string_uc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s);
-MVMString * MVM_string_decode(MVMThreadContext *tc, MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag);
+MVMString * MVM_string_fc(MVMThreadContext *tc, MVMString *s);
+MVMString * MVM_string_decode(MVMThreadContext *tc, const MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag);
 char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag);
 void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name, MVMObject *buf);
 MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVMString *enc_name);

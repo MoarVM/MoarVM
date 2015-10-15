@@ -76,16 +76,56 @@ MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMGraph
         codepoint, property_code) == property_value_code ? 1 : 0;
 }
 
-MVMGrapheme32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMGrapheme32 codepoint, MVMint32 case_) {
-    MVMint32 changes_index = MVM_unicode_get_property_int(tc,
-        codepoint, MVM_UNICODE_PROPERTY_CASE_CHANGE_INDEX);
-
-    if (changes_index) {
-        MVMGrapheme32 result = case_changes[changes_index][case_];
-        if (result == 0) return codepoint;
-        return result;
+/* Looks if there is a case change for the provided codepoint. Since a case
+ * change may produce multiple codepoints occasionally, then we return 0 if
+ * the case change is a no-op, and otherwise the number of codepoints. The
+ * codepoints argument will be set to a pointer to a buffer where those code
+ * points can be read from. The caller must not mutate the buffer, nor free
+ * it. */
+MVMuint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint codepoint, MVMint32 case_,
+                                      MVMCodepoint **result) {
+    if (case_ == MVM_unicode_case_change_type_fold) {
+        MVMint32 folding_index = MVM_unicode_get_property_int(tc,
+            codepoint, MVM_UNICODE_PROPERTY_CASE_FOLDING);
+        if (folding_index) {
+            MVMint32 is_simple = MVM_unicode_get_property_int(tc,
+                codepoint, MVM_UNICODE_PROPERTY_CASE_FOLDING_SIMPLE);
+            if (is_simple) {
+                *result = &(CaseFolding_simple_table[folding_index]);
+                return 1;
+            }
+            else {
+                MVMint32 i = 3;
+                while (i > 0 && CaseFolding_grows_table[folding_index][i - 1] == 0)
+                    i--;
+                *result = &(CaseFolding_grows_table[folding_index][0]);
+                return i;
+            }
+        }
     }
-    return codepoint;
+    else {
+        MVMint32 special_casing_index = MVM_unicode_get_property_int(tc,
+            codepoint, MVM_UNICODE_PROPERTY_SPECIAL_CASING);
+        if (special_casing_index) {
+            MVMint32 i = 3;
+                while (i > 0 && SpecialCasing_table[special_casing_index][case_][i - 1] == 0)
+                    i--;
+                *result = SpecialCasing_table[special_casing_index][case_];
+                return i;
+        }
+        else {
+            MVMint32 changes_index = MVM_unicode_get_property_int(tc,
+                codepoint, MVM_UNICODE_PROPERTY_CASE_CHANGE_INDEX);
+            if (changes_index) {
+                MVMCodepoint *found = &(case_changes[changes_index][case_]);
+                if (*found != 0) {
+                    *result = found;
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
 }
 
 /* XXX make all the statics members of the global MVM instance instead? */

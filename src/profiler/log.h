@@ -150,8 +150,8 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
 void MVM_profile_log_enter_native(MVMThreadContext *tc, MVMObject *nativecallsite);
 void MVM_profile_log_exit(MVMThreadContext *tc);
 void MVM_profile_log_unwind(MVMThreadContext *tc);
-MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, MVMFrame *root_frame);
-void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, MVMProfileContinuationData *cd);
+MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadContext *tc, const MVMFrame *root_frame);
+void MVM_profile_log_continuation_invoke(MVMThreadContext *tc, const MVMProfileContinuationData *cd);
 void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);
 void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full);
 void MVM_profiler_log_gc_end(MVMThreadContext *tc);

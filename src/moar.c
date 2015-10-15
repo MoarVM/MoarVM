@@ -163,13 +163,23 @@ MVMInstance * MVM_vm_create_instance(void) {
     if (jit_log && strlen(jit_log))
         instance->jit_log_fh = fopen(jit_log, "w");
     jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
-    if (jit_bytecode_dir && strlen(jit_bytecode_dir))
+    if (jit_bytecode_dir && strlen(jit_bytecode_dir)) {
+        char *bytecode_map_name = MVM_malloc(strlen(jit_bytecode_dir) + strlen("/jit-map.txt") + 1);
+        sprintf(bytecode_map_name, "%s/jit-map.txt", jit_bytecode_dir);
+        instance->jit_bytecode_map = fopen(bytecode_map_name, "w");
         instance->jit_bytecode_dir = jit_bytecode_dir;
+        MVM_free(bytecode_map_name);
+    }
+    instance->jit_seq_nr = 0;
 
     /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");
-    if (dynvar_log && strlen(dynvar_log))
+    if (dynvar_log && strlen(dynvar_log)) {
         instance->dynvar_log_fh = fopen(dynvar_log, "w");
+        fprintf(instance->dynvar_log_fh, "+ x 0 0 0 0 0 %llu\n", uv_hrtime());
+        fflush(instance->dynvar_log_fh);
+        instance->dynvar_log_lasttime = uv_hrtime();
+    }
     else
         instance->dynvar_log_fh = NULL;
     instance->nfa_debug_enabled = getenv("MVM_NFA_DEB") ? 1 : 0;
@@ -267,6 +277,12 @@ void MVM_vm_exit(MVMInstance *instance) {
         fclose(instance->spesh_log_fh);
     if (instance->jit_log_fh)
         fclose(instance->jit_log_fh);
+    if (instance->jit_bytecode_map)
+        fclose(instance->jit_bytecode_map);
+    if (instance->dynvar_log_fh) {
+        fprintf(instance->dynvar_log_fh, "- x 0 0 0 0 %lld %llu %llu\n", instance->dynvar_log_lasttime, uv_hrtime(), uv_hrtime());
+        fclose(instance->dynvar_log_fh);
+    }
 
     /* And, we're done. */
     exit(0);

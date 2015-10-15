@@ -53,7 +53,7 @@ typedef struct {
 
 /* Dumps a call graph node. */
 static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
-                                        MVMProfileCallNode *pcn) {
+                                        const MVMProfileCallNode *pcn) {
     MVMObject *node_hash  = new_hash(tc);
     MVMObject *alloc_list = new_array(tc);
     MVMuint32  i;
@@ -168,7 +168,7 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
 
 /* Dumps data from a single thread. */
 static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
-                                    MVMProfileThreadData *ptd) {
+                                    const MVMProfileThreadData *ptd) {
     MVMObject *thread_hash = new_hash(tc);
     MVMObject *thread_gcs  = new_array(tc);
     MVMuint32  i;
@@ -271,6 +271,10 @@ void MVM_profile_start(MVMThreadContext *tc, MVMObject *config) {
 
 /* Ends profiling, builds the result data structure, and returns it. */
 MVMObject * MVM_profile_end(MVMThreadContext *tc) {
+    /* If we have any call frames still on the profile stack, exit them. */
+    while (tc->prof_data->current_call)
+        MVM_profile_log_exit(tc);
+
     /* Disable profiling. */
     /* XXX Needs to account for multiple threads. */
     if (!tc->instance->profiling)
