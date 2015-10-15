@@ -20,12 +20,11 @@ void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitGraph
     dasm_setupglobal(cl, cl->dasm_globals, num_globals);
     dasm_setup(cl, MVM_jit_actions());
     /* Store graph we're compiling */
-    cl->graph      = jg;
+    cl->graph        = jg;
     /* next (internal) label to assign */
-    cl->next_label = jg->labels_num;
-    cl->label_max  = jg->labels_num + 8;
+    cl->label_offset = jg->labels_num;
     /* space for dynamic labels */
-    dasm_growpc(cl, cl->label_max);
+    dasm_growpc(cl, jg->labels_num);
     /* Offset in temporary array in which we can spill */
     cl->spill_offset = (jg->sg->num_locals + jg->sg->sf->body.cu->body.max_callsite_size) * MVM_JIT_REG_SZ;
     cl->max_spill    = 2*MVM_JIT_PTR_SZ;
@@ -159,20 +158,6 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
     MVM_free(code);
 }
 
-/* Compile time labelling facility, as opposed to graph labels; these
- * don't need to be stored for access later */
-static MVMint32 alloc_internal_label(MVMThreadContext *tc, MVMJitCompiler *cl, MVMint32 num) {
-    MVMint32 next_label = cl->next_label;
-    if (num + next_label >= cl->label_max) {
-        /* Double the compile-time allocated labels */
-        cl->label_max = cl->graph->labels_num + 2 * (cl->label_max - cl->graph->labels_num);
-        dasm_growpc(cl, cl->label_max);
-    }
-    /* 'Allocate' num labels */
-    cl->next_label += num;
-    return next_label;
-}
-
 
 #define NYI(x) MVM_oops(tc, #x " NYI")
 
@@ -223,98 +208,14 @@ static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
     MVMJitCompiler *cl = traverser->data;
     switch (tree->nodes[node]) {
     case MVM_JIT_WHEN:
-        {
-            /* Before we enter this node, mark us as entering a conditional */
-            MVMint32 cond = tree->nodes[node+1];
-            MVM_jit_spill_before_conditional(tc, cl, tree, node);
-            if (tree->nodes[cond] == MVM_JIT_ANY) {
-                /* WHEN ANY requires two labels. One label for
-                   skipping our block (tne normal WHEN label) and one
-                   for entering it */
-                tree->info[node].internal_label = alloc_internal_label(tc, cl, 2);
-                tree->info[cond].internal_label = tree->info[node].internal_label;
-            } else if (tree->nodes[cond] == MVM_JIT_ALL) {
-                /* WHEN ALL requires just one label, because the
-                 * short-circuit label of ALL is the same as the
-                 * normal WHEN skip label */
-                tree->info[node].internal_label = alloc_internal_label(tc, cl, 1);
-                tree->info[cond].internal_label = tree->info[node].internal_label;
-            } else {
-                tree->info[node].internal_label = alloc_internal_label(tc, cl, 1);
-            }
-        }
-        break;
     case MVM_JIT_IF:
     case MVM_JIT_EITHER:
-        {
-            MVMJitExprValue *if_val = &tree->info[node].value;
-            MVMint32 cond = tree->nodes[node+1];
-            MVM_jit_spill_before_conditional(tc, cl, tree, node);
-            if (tree->nodes[cond] == MVM_JIT_ALL)  {
-                /* IF ALL short-circuits into the right block, which is simply labeled with the normal IF label */
-                tree->info[node].internal_label = alloc_internal_label(tc, cl, 2);
-                tree->info[cond].internal_label = tree->info[node].internal_label;
-            } else if(tree->nodes[cond] == MVM_JIT_ANY) {
-                /* IF ANY short-circuits into the left block, meaning I need an additional label */
-                tree->info[node].internal_label = alloc_internal_label(tc, cl, 3);
-                tree->info[cond].internal_label = tree->info[node].internal_label;
-            } else {
-                tree->info[node].internal_label = alloc_internal_label(tc, cl, 2);
-            }
-            if (tree->nodes[node] == MVM_JIT_IF && if_val->state == MVM_JIT_VALUE_ALLOCATED) {
-                /* We have been pre-assigned a register. Try to make sure the left and right branches also use that register */
-                MVMJitExprValue *left_val = &tree->info[tree->nodes[node+2]].value,
-                    *right_val = &tree->info[tree->nodes[node+3]].value;
-                if (left_val->state == MVM_JIT_VALUE_EMPTY) {
-                    MVM_jit_register_assign(tc, cl, left_val, if_val->reg_cls, if_val->reg_num);
-                }
-                if (right_val->state == MVM_JIT_VALUE_EMPTY) {
-                    MVM_jit_register_assign(tc, cl, right_val, if_val->reg_cls, if_val->reg_num);
-                }
-            }
-        }
+        MVM_jit_spill_before_conditional(tc, cl, tree, node);
         break;
     case MVM_JIT_ALL:
-        {
-            MVMint32 i, nchild = tree->nodes[node + 1], first_child = node + 2;
-            /* Because of short-circuitng behavior, ALL is much like
-             * nested WHEN, which means it's a conditional in
-             * itself */
-            MVM_jit_spill_before_conditional(tc, cl, tree, node);
-            MVM_jit_enter_branch(tc, cl);
-            for (i = 0; i < nchild; i++) {
-                MVMint32 cond = tree->nodes[first_child+i];
-                if (tree->nodes[cond] == MVM_JIT_ALL) {
-                    /* Nested ALL short-circuits the same way as plain ALL */
-                    tree->info[cond].internal_label = tree->info[node].internal_label;
-                } else if (tree->nodes[cond] == MVM_JIT_ANY) {
-                    /* Nested ANY short-circuits to continued evaluation if succesful,
-                     * or out of ALL if not, thus we require a new label */
-                    tree->info[cond].internal_label = alloc_internal_label(tc, cl, 1);
-                }
-            }
-        }
-        break;
     case MVM_JIT_ANY:
-        {
-            /* To deal with nested ANY/ALL combinations, we need to propagate and assign labels */
-            MVMint32 i, nchild = tree->nodes[node + 1], first_child = node + 2;
-            MVM_jit_spill_before_conditional(tc, cl, tree, node);
-            MVM_jit_enter_branch(tc, cl);
-            for (i = 0; i < nchild; i++) {
-                MVMint32 cond = tree->nodes[first_child+i];
-                if (tree->nodes[cond] == MVM_JIT_ALL) {
-                    /* ANY ALL - if we reach the end of execution, that means ALL was valid,
-                     * which implies the ANY should short-circuit. On the other hand, if ALL
-                     * is not valid, it should jump beyond the short-circuit branch. Hence, we
-                     * require a new label */
-                    tree->info[cond].internal_label = alloc_internal_label(tc, cl, 1);
-                } else if (tree->nodes[cond] == MVM_JIT_ANY) {
-                    /* ANY ANY - is clearly equivalent to ANY */
-                    tree->info[cond].internal_label = tree->info[node].internal_label;
-                }
-            }
-        }
+        MVM_jit_spill_before_conditional(tc, cl, tree, node);
+        MVM_jit_enter_branch(tc, cl);
         break;
     default:
         break;
@@ -350,39 +251,32 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     switch (tree->nodes[node]) {
     case MVM_JIT_WHEN:
         {
-            MVMint32 cond  = tree->nodes[node+1];
-            MVMint32 label = tree->info[node].internal_label;
-            MVMint32 flag  = tree->nodes[cond];
-            /* post-condition */
+            /* Add current label offset to get the 'real' label number  */
+            MVMint32 label = tree->info[node].label + cl->label_offset;
             if (i == 0) {
+                MVMint32 test  = tree->nodes[node+1];
+                MVMint32 flag  = tree->nodes[test];
+                /* First child is the test */
                 if (flag == MVM_JIT_ALL) {
                     /* Do nothing, shortcircuit of ALL has skipped the
-                       conditional block */
+                       left block if necessary */
                 } else if (flag == MVM_JIT_ANY) {
                     /* If ANY hasn't short-circuited into the
-                       conditional block, jump beyond */
+                       left block, jump to the right block */
                     MVMJitBranch branch;
                     branch.ins  = NULL;
-                    branch.dest = label + 1;
+                    branch.dest = label;
                     MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
-                    /* Emit label for the conditional block entry */
-                    MVM_jit_emit_label(tc, cl, cl->graph, label);
+                    /* Emit label for the left block entry */
+                    MVM_jit_emit_label(tc, cl, cl->graph, tree->info[test].label + cl->label_offset);
                 } else {
-                    /* Other conditionals do not short-circuit, hence
-                       require an explicit conditional branch */
+                    /* Other tests require a conditional branch */
                     MVM_jit_emit_conditional_branch(tc, cl, negate_flag(tc, flag), label);
                 }
                 MVM_jit_enter_branch(tc, cl);
             } else {
-                if (flag == MVM_JIT_ANY) {
-                    /* WHEN ANY skip label is label + 1 because label
-                       + 0 is necessary to enter the conditional
-                       block */
-                    MVM_jit_emit_label(tc, cl, cl->graph, label + 1);
-                } else {
-                    /* That's not true of any other condition */
-                    MVM_jit_emit_label(tc, cl, cl->graph, label);
-                }
+                /* Second child is conditional block */
+                MVM_jit_emit_label(tc, cl, cl->graph, label);
                 MVM_jit_leave_branch(tc, cl);
             }
         }
@@ -390,44 +284,39 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_IF:
     case MVM_JIT_EITHER:
         {
-            MVMint32 cond  = tree->nodes[node+1];
-            MVMint32 label = tree->info[node].internal_label;
-            MVMint32 flag = tree->nodes[cond];
+            MVMint32 label = tree->info[node].label + cl->label_offset;
             if (i == 0) {
+                MVMint32 test  = tree->nodes[node+1];
+                MVMint32 flag = tree->nodes[test];
                 if (flag == MVM_JIT_ALL) {
                     /* Like WHEN ALL, IF ALL short circuits into the
-                       alternative block */
+                     * right  block if its tests are not kept */
                 } else if (flag == MVM_JIT_ANY) {
-                    /* Like WHEN ANY, branch into the alternative
-                     * block and emit a label for the conditional
-                     * block */
+                    /* Like WHEN ANY, branch into the right block
+                     * and emit a label for the left block */
                     MVMJitBranch branch;
+                    MVMint32 any_label = tree->info[test].label + cl->label_offset;
                     branch.ins  = NULL;
-                    branch.dest = label + 1;
+                    branch.dest = label;
                     MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
-                    MVM_jit_emit_label(tc, cl, cl->graph, label);
+                    MVM_jit_emit_label(tc, cl, cl->graph, any_label);
                 } else {
                     MVM_jit_emit_conditional_branch(tc, cl, negate_flag(tc, flag), label);
                 }
                 MVM_jit_enter_branch(tc, cl);
             } else if (i == 1) {
-                if (flag == MVM_JIT_ANY) {
-                    /* IF ANY offsets the branch label by one */
-                    MVMJitBranch branch;
-                    branch.ins   = NULL;
-                    branch.dest = label + 2;
-                    MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
-                    MVM_jit_emit_label(tc, cl, cl->graph, label + 1);
-                } else {
-                    MVMJitBranch branch;
-                    branch.ins   = NULL;
-                    branch.dest = label + 1;
-                    MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
-                    MVM_jit_emit_label(tc, cl, cl->graph, label);
-                }
+                /* Jump unconditionally to over the right block */
+                MVMJitBranch branch;
+                branch.ins   = NULL;
+                branch.dest = label + 1;
+                MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
+                /* Emit label for the right block */
+                MVM_jit_emit_label(tc, cl, cl->graph, label);
                 MVM_jit_leave_branch(tc, cl);
                 MVM_jit_enter_branch(tc, cl);
             } else {
+                /* Just prior to leaving the right block, emit a copy
+                   to unify the value registers of both branches */
                 if (tree->nodes[node] == MVM_JIT_IF) {
                     MVMJitExprValue *left_val = &tree->info[tree->nodes[node+2]].value,
                         *right_val = &tree->info[tree->nodes[node+3]].value;
@@ -436,54 +325,57 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                         MVM_jit_emit_copy(tc, cl, left_val->reg_cls, left_val->reg_num, right_val->reg_cls, right_val->reg_num);
                     }
                 }
-                if (flag == MVM_JIT_ANY) {
-                    MVM_jit_emit_label(tc, cl, cl->graph, label + 2);
-                } else {
-                    MVM_jit_emit_label(tc, cl, cl->graph, label + 1);
-                }
+                /* Emit the final label indiciating we left the right branch */
+                MVM_jit_emit_label(tc, cl, cl->graph, label + 1);
                 MVM_jit_leave_branch(tc, cl);
             }
         }
         break;
     case MVM_JIT_ALL:
         {
-            MVMint32 cond = tree->nodes[node+2+i];
-            MVMint32 label = tree->info[node].internal_label;
-            if (tree->nodes[cond] == MVM_JIT_ALL) {
+            MVMint32 test = tree->nodes[node+2+i];
+            MVMint32 flag = tree->nodes[test];
+            MVMint32 label = tree->info[node].label + cl->label_offset;
+            if (flag == MVM_JIT_ALL) {
                 /* Nested ALL short-circuits */
-            } else if (tree->nodes[cond] == MVM_JIT_ANY) {
+            } else if (flag == MVM_JIT_ANY) {
                 /* If ANY reached it's end, that means it's false. So branch out */
+                MVMint32 any_label = tree->info[test].label + cl->label_offset;
                 MVMJitBranch branch;
                 branch.ins  = NULL;
                 branch.dest = label;
                 MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
                 /* And if ANY short-circuits we should continue the evaluation of ALL */
-                MVM_jit_emit_label(tc, cl, cl->graph, tree->info[cond].internal_label);
+                MVM_jit_emit_label(tc, cl, cl->graph, any_label);
             } else {
                 /* Flag should be negated (if NOT condition we want to
                    short-circuit, otherwise we continue) */
-                MVMint32 flag = negate_flag(tc, tree->nodes[cond]);
-                MVM_jit_emit_conditional_branch(tc, cl, flag, label);
+                MVM_jit_emit_conditional_branch(tc, cl, negate_flag(tc, flag), label);
             }
         }
         break;
     case MVM_JIT_ANY:
         {
-            MVMint32 cond  = tree->nodes[node+2+i];
-            MVMint32 label = tree->info[node].internal_label;
-            if (tree->nodes[cond] == MVM_JIT_ALL) {
-                /* If ALL was succesful, we can branch out */
+            MVMint32 test  = tree->nodes[node+2+i];
+            MVMint32 flag  = tree->nodes[test];
+            MVMint32 label = tree->info[node].label + cl->label_offset;
+            if (flag == MVM_JIT_ALL) {
+                /* If ALL reached the end, it must have been
+                   succesful, and short-circuit behaviour implies we
+                   should branch out */
                 MVMJitBranch branch;
+                MVMint32 all_label = tree->info[test].label + cl->label_offset;
                 branch.ins  = NULL;
                 branch.dest = label;
                 MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
-                /* If not, it should short-circuit to continued evaluation */
-                MVM_jit_emit_label(tc, cl, cl->graph, tree->info[cond].internal_label);
-            } else if (tree->nodes[cond] == MVM_JIT_ANY) {
-                /* Nothing to do here, since nested ANY already short-circuits */
+                /* If not succesful, testing should continue */
+                MVM_jit_emit_label(tc, cl, cl->graph, all_label);
+            } else if (flag == MVM_JIT_ANY) {
+                /* Nothing to do here, since nested ANY already
+                   short-circuits to our label */
             } else {
-                /* Normal evaluation should short-circuit on truth values */
-                MVM_jit_emit_conditional_branch(tc, cl, tree->nodes[cond], label);
+                /* Normal evaluation short-circuits on truth values */
+                MVM_jit_emit_conditional_branch(tc, cl, flag, label);
             }
         }
         break;
@@ -749,7 +641,13 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     MVMJitRegisterAllocator allocator;
     /* First stage, tile the tree */
     MVM_jit_tile_expr_tree(tc, tree);
+
+    /* Allocate sufficient space for the internal labels */
+    dasm_growpc(compiler, compiler->label_offset + tree->num_labels);
+
     /* Second stage, emit the code - interleaved with the register allocator */
+    /* NB after tile linearization there is no good reason to do
+       register allocation online anymore */
     traverser.policy    = MVM_JIT_TRAVERSER_ONCE;
     traverser.preorder  = &prepare_tile;
     traverser.inorder   = &compile_labels;
@@ -760,6 +658,9 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     MVM_jit_register_allocator_init(tc, compiler, &allocator);
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
     MVM_jit_register_allocator_deinit(tc, compiler, &allocator);
+
+    /* Make sure no other tree reuses the same labels */
+    compiler->label_offset += tree->num_labels;
 }
 
 

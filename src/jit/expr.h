@@ -56,8 +56,8 @@ typedef enum { /* value type */
     _(AND, 2, 0, REG), \
     _(OR, 2, 0, REG), \
     _(XOR, 2, 0, REG), \
-    /* boolean logic */ \
     _(NOT, 1, 0, REG),  \
+    /* boolean logic */ \
     _(ALL, -1, 0, FLAG), \
     _(ANY, -1, 0, FLAG), \
     /* control operators */ \
@@ -122,10 +122,6 @@ struct MVMJitExprValue {
     /* size of this value */
     MVMint8  size;
 
-    /* TODO - we really do need this, but i'm not sure how exactly it
-       propagates over conditionals
-    MVMint32 reg_req;
-    */
     /* Use information for register allcoator */
     MVMint32 first_created;
     MVMint32 last_created;
@@ -147,8 +143,8 @@ struct MVMJitExprNodeInfo {
     MVMint32          tile_state;
     MVMint32          tile_rule;
 
-    /* internal label for IF/WHEN/ALL/ANY etc */
-    MVMint32        internal_label;
+    /* internal label for IF/WHEN/ALL/ANY etc, relative to the tree label offset */
+    MVMint32          label;
 
     /* Result value information (register/memory location, size etc) */
     MVMJitExprValue value;
@@ -159,6 +155,9 @@ struct MVMJitExprTree {
     MVM_DYNAR_DECL(MVMJitExprNode, nodes);
     MVM_DYNAR_DECL(MVMint32, roots);
     MVM_DYNAR_DECL(MVMJitExprNodeInfo, info);
+
+    MVMint32 label_ofs;
+    MVMint32 num_labels;
 };
 
 struct MVMJitExprTemplate {
