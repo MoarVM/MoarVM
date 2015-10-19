@@ -106,16 +106,18 @@ MVM_JIT_TILE_DECL(load_addr) {
     MVMint32 ofs  = XS2(node+1,2);
     switch (args[0]) {
     case 1:
-        | mov Rb(out), [Rq(base)+ofs];
+        | mov Rb(out), byte [Rq(base)+ofs];
+        | movzx Rd(out), Rb(out);
         break;
     case 2:
-        | mov Rw(out), [Rq(base)+ofs];
+        | mov Rw(out), word [Rq(base)+ofs];
+        | movzx Rd(out), Rb(out);
         break;
     case 4:
-        | mov Rd(out), [Rq(base)+ofs];
+        | mov Rd(out), dword [Rq(base)+ofs];
         break;
     case 8:
-        | mov Rq(out), [Rq(base)+ofs];
+        | mov Rq(out), qword [Rq(base)+ofs];
         break;
     default:
         MVM_oops(tc, "Unsupported load size: %d\n", args[0]);
@@ -132,16 +134,18 @@ MVM_JIT_TILE_DECL(load_idx) {
     }
     switch (args[0]) {
     case 1:
-        | mov Rb(out), [Rq(base)+Rq(idx)*8];
+        | mov Rb(out), byte [Rq(base)+Rq(idx)*8];
+        | movzx Rd(out), Rb(out);
         break;
     case 2:
-        | mov Rw(out), [Rq(base)+Rq(idx)*8];
+        | mov Rw(out), word [Rq(base)+Rq(idx)*8];
+        | movzx Rd(out), Rw(out);
         break;
     case 4:
-        | mov Rd(out), [Rq(base)+Rq(idx)*8];
+        | mov Rd(out), dword [Rq(base)+Rq(idx)*8];
         break;
     case 8:
-        | mov Rq(out), [Rq(base)+Rq(idx)*8];
+        | mov Rq(out), qword [Rq(base)+Rq(idx)*8];
         break;
     default:
         MVM_oops(tc, "Unsupported load size: %d\n", args[0]);
