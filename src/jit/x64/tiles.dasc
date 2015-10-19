@@ -56,7 +56,7 @@ MVM_JIT_TILE_DECL(idx) {
     MVMint8 base = values[1]->reg_num;
     MVMint8 idx  = values[2]->reg_num;
     MVMint8 scl  = args[0];
-    if (scl != 8) {
+    if (scl == 8) {
         | lea Rq(out), [Rq(base)+Rq(idx)*8];
     } else {
         MVM_oops(tc, "Scales other than 8 NYI\n");

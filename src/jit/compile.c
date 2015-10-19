@@ -508,6 +508,10 @@ static void post_call(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *
 }
 #endif
 
+void MVM_jit_compile_breakpoint(void) {
+    fprintf(stderr, "Pause here please\n");
+}
+
 static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, MVMJitExprTree *tree, MVMint32 node) {
     MVMJitCompiler *cl = traverser->data;
     MVMJitExprNodeInfo *info = &tree->info[node];
@@ -549,7 +553,7 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
 
     case MVM_JIT_ARGLIST:
         compile_arglist(tc, cl, tree, node);
-        /* compile_arglist locks values into registers. */
+        /* compile_arglinst locks values into registers. */
         break;
     case MVM_JIT_CARG:
         break;

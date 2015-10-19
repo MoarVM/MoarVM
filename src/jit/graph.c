@@ -2481,7 +2481,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
 static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                MVMSpeshBB *bb) {
-    MVMJitExprTree *tree;
+    MVMJitExprTree *tree = NULL;
     MVMint32 label = get_label_for_bb(tc, jgb->graph, bb);
     jgb->cur_bb = bb;
     jg_append_label(tc, jgb->graph, label);
@@ -2494,8 +2494,10 @@ static MVMint32 jgb_consume_bb(MVMThreadContext *tc, JitGraphBuilder *jgb,
     jg_append_control(tc, jgb->graph, bb->first_ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
     jgb->cur_ins = bb->first_ins;
     /* First try to create an expression tree */
-    tree = MVM_jit_expr_tree_build(tc, jgb->graph, bb);
-    if (tc->instance->jit_expr_enabled && tree != NULL) {
+    if (tc->instance->jit_expr_enabled && tc->instance->jit_seq_nr < 100) {
+        tree = MVM_jit_expr_tree_build(tc, jgb->graph, bb);
+    }
+    if (tree != NULL) {
         MVMJitNode *node = MVM_spesh_alloc(tc, jgb->graph->sg, sizeof(MVMJitNode));
         node->type       = MVM_JIT_NODE_EXPR_TREE;
         node->u.tree     = tree;

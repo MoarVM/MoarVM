@@ -242,6 +242,14 @@ static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         arglist_get_values(tc, tree, node, values);
         num_values = tree->nodes[node+1];
         break;
+    case MVM_JIT_DO:
+        {
+            MVMint32 nchild = tree->nodes[node+1];
+            MVMint32 last_child = tree->nodes[node+1+nchild];
+            values[0] = &tree->info[last_child].value;
+            num_values = 1;
+        }
+        break;
     default:
         if (tile->path == NULL)
             return;

@@ -220,18 +220,18 @@
             (load (addr $caller (&offsetof MVMFrame code_ref)) ptr_sz)
             (const 0 ptr_sz))))
 
-(template: sp_fastcreate
-   (let: (($block
-           (call (^func &MVM_gc_allocate_zeroed)
-                 (arglist 2 (carg (tc) ptr)
-                            (carg $1 int))
-                  ptr)))
-      (do 4
-        (store (addr $block (&offsetof MVMObject st)) (load (^spesh_slot $2) ptr_sz) ptr_sz)
-        (store (addr $block (&offsetof MVMObject header.size)) $1 2)
-        (store (addr $block (&offsetof MVMObject header.owner))
-               (load (addr (tc) (&offsetof MVMThreadContext thread_id)) 4) 4)
-        $block)))
+#(template: sp_fastcreate
+#   (let: (($block
+#           (call (^func &MVM_gc_allocate_zeroed)
+#                 (arglist 2 (carg (tc) ptr)
+#                            (carg $1 int))
+#                  ptr)))
+#      (do 4
+#        (store (addr $block (&offsetof MVMObject st)) (load (^spesh_slot $2) ptr_sz) ptr_sz)
+#        (store (addr $block (&offsetof MVMObject header.size)) $1 2)
+#        (store (addr $block (&offsetof MVMObject header.owner))
+#               (load (addr (tc) (&offsetof MVMThreadContext thread_id)) 4) 4)
+#        $block)))
 
 (macro: ^throw_adhoc (,msg)
    (call (^func &MVM_exception_throw_adhoc)
