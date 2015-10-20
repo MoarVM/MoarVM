@@ -951,8 +951,7 @@ static void spawn_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
             apd->signal = SIGKILL;
 #endif
         uv_process_kill(phandle, (int)apd->signal);
-        uv_close((uv_handle_t *)phandle, spawn_async_close);
-        apd->handle = NULL;
+        // let exit_cb clean up phandle
     }
 }
 
