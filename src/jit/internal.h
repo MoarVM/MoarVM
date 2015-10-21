@@ -60,6 +60,7 @@ void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 
                        MVMint8 dst_reg_num, MVMint32 src_reg_cls, MVMint8 src_reg_num);
 void MVM_jit_emit_stack_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 stack_pos,
                             MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size);
+void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 num);
 #if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
 #include "jit/x64/arch.h"
 #endif

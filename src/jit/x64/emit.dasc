@@ -2276,5 +2276,13 @@ void MVM_jit_emit_stack_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMi
     }
 }
 
+void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 num) {
+    MVMint32 i;
+    for (i = 0; i < num; i++) {
+        | nop;
+    }
+}
+
+
 /* import tiles */
 |.include src/jit/x64/tiles.dasc

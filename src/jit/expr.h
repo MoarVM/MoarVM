@@ -17,6 +17,10 @@ typedef enum { /* value type */
 #define MVM_JIT_NUM_SZ sizeof(MVMnum64)
 
 
+/* Control casting behaviour for mixed-sized operands */
+#define MVM_JIT_NO_CAST  0
+#define MVM_JIT_UNSIGNED 1
+#define MVM_JIT_SIGNED   2
 
 /* This defines a macro that defines a list which will use a macro to
    define a list. It's a little trick I've gained from the luajit
@@ -25,69 +29,71 @@ typedef enum { /* value type */
 
    The first argument is the name, the second the number of children,
    the third the number of parameters - together they define the size
-   of the node. The last argument defines the result type - which I
-   vaguely presume to be useful in code generation. */
+   of the node. The fourth argument defines the result type which I
+   vaguely presume to be useful in code generation (NB: It isn't; it
+   can go). The fifth argument determines how to generate a cast for
+   mixed-sized oeprands. */
 
 #define MVM_JIT_IR_OPS(_) \
     /* memory access */ \
-    _(LOAD, 1, 1, REG), \
-    _(STORE, 2, 1, VOID), \
-    _(CONST, 0, 2, REG), \
-    _(ADDR, 1, 1, MEM), \
-    _(IDX, 2, 1, MEM), \
-    _(COPY, 1, 0, REG), \
+    _(LOAD, 1, 1, REG, NO_CAST),   \
+    _(STORE, 2, 1, VOID, NO_CAST), \
+    _(CONST, 0, 2, REG, NO_CAST),  \
+    _(ADDR, 1, 1, REG, UNSIGNED),  \
+    _(IDX, 2, 1, REG, UNSIGNED),   \
+    _(COPY, 1, 0, REG, NO_CAST),   \
     /* type conversion */ \
-    _(CONVERT, 1, 2, REG), \
+    _(CAST, 1, 2, REG, NO_CAST),   \
     /* integer comparison */ \
-    _(LT, 2, 0, FLAG), \
-    _(LE, 2, 0, FLAG), \
-    _(EQ, 2, 0, FLAG), \
-    _(NE, 2, 0, FLAG), \
-    _(GE, 2, 0, FLAG), \
-    _(GT, 2, 0, FLAG), \
-    _(NZ, 1, 0, FLAG), \
-    _(ZR, 1, 0, FLAG), \
+    _(LT, 2, 0, FLAG, SIGNED),     \
+    _(LE, 2, 0, FLAG, SIGNED),     \
+    _(EQ, 2, 0, FLAG, SIGNED),     \
+    _(NE, 2, 0, FLAG, SIGNED),     \
+    _(GE, 2, 0, FLAG, SIGNED),     \
+    _(GT, 2, 0, FLAG, SIGNED),     \
+    _(NZ, 1, 0, FLAG, UNSIGNED),   \
+    _(ZR, 1, 0, FLAG, UNSIGNED),   \
     /* flag value */ \
-    _(FLAGVAL, 1, 0, REG), \
+    _(FLAGVAL, 1, 0, REG, NO_CAST), \
     /* integer arithmetic */ \
-    _(ADD, 2, 0, REG), \
-    _(SUB, 2, 0, REG), \
+    _(ADD, 2, 0, REG, SIGNED), \
+    _(SUB, 2, 0, REG, SIGNED), \
     /* binary operations */ \
-    _(AND, 2, 0, REG), \
-    _(OR, 2, 0, REG), \
-    _(XOR, 2, 0, REG), \
-    _(NOT, 1, 0, REG),  \
+    _(AND, 2, 0, REG, UNSIGNED), \
+    _(OR, 2, 0, REG, UNSIGNED),  \
+    _(XOR, 2, 0, REG, UNSIGNED), \
+    _(NOT, 1, 0, REG, UNSIGNED), \
     /* boolean logic */ \
-    _(ALL, -1, 0, FLAG), \
-    _(ANY, -1, 0, FLAG), \
+    _(ALL, -1, 0, FLAG, NO_CAST), \
+    _(ANY, -1, 0, FLAG, NO_CAST), \
     /* control operators */ \
-    _(DO, -1, 0, REG), \
-    _(WHEN, 2, 0, VOID), \
-    _(IF, 3, 0, REG), \
-    _(EITHER, 3, 0, VOID), \
-    _(BRANCH, 1, 0, VOID),  \
-    _(LABEL, 1, 0, VOID), \
+    _(DO, -1, 0, REG, NO_CAST),   \
+    _(WHEN, 2, 0, VOID, NO_CAST), \
+    _(IF, 3, 0, REG, NO_CAST),    \
+    _(EITHER, 3, 0, VOID, NO_CAST), \
+    _(BRANCH, 1, 0, VOID, NO_CAST), \
+    _(LABEL, 1, 0, VOID, NO_CAST),  \
     /* special control operators */ \
-     _(INVOKISH, 1, 0, VOID), \
-     _(THROWISH, 1, 0, VOID), \
+     _(INVOKISH, 1, 0, VOID, NO_CAST), \
+     _(THROWISH, 1, 0, VOID, NO_CAST), \
     /* call c functions */ \
-    _(CALL, 2, 1, REG), \
-    _(ARGLIST, -1, 0, VOID), \
-    _(CARG, 1, 1, VOID), \
+    _(CALL, 2, 1, REG, NO_CAST),      \
+    _(ARGLIST, -1, 0, VOID, NO_CAST), \
+    _(CARG, 1, 1, VOID, NO_CAST),     \
     /* interpreter special variables */ \
-    _(TC, 0, 0, REG), \
-    _(CU, 0, 0, MEM), \
-    _(FRAME, 0, 0, MEM), \
-    _(LOCAL, 0, 0, MEM), \
-    _(STACK, 0, 0, MEM), \
-    _(VMNULL, 0, 0, REG), \
+    _(TC, 0, 0, REG, NO_CAST), \
+    _(CU, 0, 0, REG, NO_CAST), \
+    _(FRAME, 0, 0, REG, NO_CAST), \
+    _(LOCAL, 0, 0, REG, NO_CAST), \
+    _(STACK, 0, 0, REG, NO_CAST), \
+    _(VMNULL, 0, 0, REG, NO_CAST), \
     /* End of list marker */ \
-    _(MAX_NODES, 0, 0, VOID), \
+    _(MAX_NODES, 0, 0, VOID, NO_CAST), \
 
 
 
 enum MVMJitExprOp {
-#define MVM_JIT_IR_ENUM(name, nchild, npar, vtype) MVM_JIT_##name
+#define MVM_JIT_IR_ENUM(name, nchild, npar, vtype, cast) MVM_JIT_##name
 MVM_JIT_IR_OPS(MVM_JIT_IR_ENUM)
 #undef MVM_JIT_IR_ENUM
 };
@@ -99,6 +105,7 @@ struct MVMJitExprOpInfo {
     MVMint32        nchild;
     MVMint32        nargs;
     MVMJitExprVtype vtype;
+    MVMint8         cast;
 };
 
 struct MVMJitExprValue {

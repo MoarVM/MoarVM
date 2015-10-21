@@ -11,10 +11,11 @@
 
 
 static const MVMJitExprOpInfo expr_op_info[] = {
-#define OP_INFO(name, nchild, nargs, vtype) { #name, nchild, nargs, MVM_JIT_ ## vtype }
+#define OP_INFO(name, nchild, nargs, vtype, cast) { #name, nchild, nargs, MVM_JIT_ ## vtype, MVM_JIT_ ## cast }
     MVM_JIT_IR_OPS(OP_INFO)
 #undef OP_INFO
 };
+
 
 const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMJitExprNode op) {
     if (op < 0 || op >= MVM_JIT_MAX_NODES) {
@@ -47,6 +48,14 @@ static MVMint32 MVM_jit_expr_add_store(MVMThreadContext *tc, MVMJitExprTree *tre
                                        MVMint32 addr, MVMint32 val, MVMint32 sz) {
     MVMint32 num = tree->nodes_num;
     MVMJitExprNode template[] = { MVM_JIT_STORE, addr, val, sz };
+    MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+    return num;
+}
+
+
+static MVMint32 MVM_jit_expr_add_cast(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMint32 size, MVMint32 cast) {
+    MVMint32 num = tree->nodes_num;
+    MVMJitExprNode template[] = { MVM_JIT_CAST, node, size, cast };
     MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
 }
@@ -106,10 +115,10 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
         MVM_oops(tc, "Can't add constant for operand type %d\n", (info & MVM_operand_type_mask) >> 3);
     }
 
-
     MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
 }
+
 
 void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMSpeshIns *ins,
                                 MVMint32 *computed, MVMint32 *operands) {
@@ -215,27 +224,31 @@ MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree,
 
 
 /* Collect tree analysis information, add stores of computed values */
-static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          MVMJitExprTree *tree, MVMint32 node) {
-    MVMSpeshIns **node_ins = traverser->data;
-    const MVMJitExprOpInfo   *op = MVM_jit_expr_op_info(tc, tree->nodes[node]);
+
+    const MVMJitExprOpInfo   *op_info = MVM_jit_expr_op_info(tc, tree->nodes[node]);
     MVMint32   first_child = node + 1;
-    MVMint32        nchild = op->nchild < 0 ? tree->nodes[first_child++] : op->nchild;
+    MVMint32        nchild = op_info->nchild < 0 ? tree->nodes[first_child++] : op_info->nchild;
     MVMJitExprNode   *args = tree->nodes + first_child + nchild;
     MVMJitExprNodeInfo *node_info = tree->info + node;
     MVMint32 i;
-    if (traverser->visits[node] > 1)
-        return;
 
-    node_info->op_info   = op;
+
+    /*
+     * Disable this for now. We don't actually use it. We will in the future, but I think I might
+     * as well add it during building rather than analysis.
+     *
+    MVMSpeshIns **node_ins = traverser->data;
     node_info->spesh_ins = node_ins[node];
-
     if (node_info->spesh_ins &&
         (node_info->spesh_ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
         node_info->local_addr = node_info->spesh_ins->operands[0].reg.orig;
     } else {
         node_info->local_addr = -1;
     }
+    */
+    node_info->op_info   = op_info;
     /* propagate node sizes and assign labels */
     switch (tree->nodes[node]) {
     case MVM_JIT_CONST:
@@ -246,6 +259,9 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         node_info->value.size = tree->info[tree->nodes[first_child]].value.size;
         break;
     case MVM_JIT_LOAD:
+        node_info->value.size = args[0];
+        break;
+    case MVM_JIT_CAST:
         node_info->value.size = args[0];
         break;
     case MVM_JIT_ADDR:
@@ -304,6 +320,26 @@ static void analyze_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
          * comparisons, etc, have no value size */
         node_info->value.size = 0;
         break;
+    }
+    /* Insert casts as necessary */
+    if (op_info->cast != MVM_JIT_NO_CAST) {
+        for (i = 0; i < nchild; i++) {
+            MVMint32 child = tree->nodes[first_child+i];
+            if (tree->info[child].value.size < node_info->value.size) {
+                /* Widening casts need to be handled explicitly, shrinking casts do not */
+                MVMint32 cast = MVM_jit_expr_add_cast(tc, tree, child, node_info->value.size, op_info->cast);
+                /* Because the cast may have grown the backing nodes array, the info array needs to grow as well */
+                MVM_DYNAR_ENSURE_SIZE(tree->info, cast);
+                /* And because analyze_node is called in postorder,
+                   the newly added cast node would be neglected by the
+                   traverser. So we traverse it explicitly.. */
+                MVM_DYNAR_ENSURE_SIZE(traverser->visits, cast);
+                traverser->visits[cast] = 1;
+                analyze_node(tc, traverser, tree, cast);
+                /* Finally we replace the child with its cast */
+                tree->nodes[first_child+i] = cast;
+            }
+        }
     }
 }
 
@@ -443,15 +479,15 @@ static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 }
 
 
-void MVM_jit_expr_tree_analyze(MVMThreadContext *tc, MVMJitExprTree *tree, MVMSpeshIns **node_ins) {
+void MVM_jit_expr_tree_analyze(MVMThreadContext *tc, MVMJitExprTree *tree) {
     /* analyse the tree, calculate usage and destination information */
     MVMJitTreeTraverser traverser;
     MVM_DYNAR_INIT(tree->info, tree->nodes_num);
     traverser.policy    = MVM_JIT_TRAVERSER_ONCE;
-    traverser.data      = node_ins;
+    traverser.data      = NULL;
     traverser.preorder  = &assign_labels;
     traverser.inorder   = NULL;
-    traverser.postorder = &analyze_tree;
+    traverser.postorder = &analyze_node;
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
 }
 
@@ -465,7 +501,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMSpeshIns *ins;
     MVMJitExprTree *tree;
     MVMuint16 i;
-    MVM_DYNAR_DECL(MVMSpeshIns*, node_ins);
 
     if (!bb->first_ins)
         return NULL;
@@ -481,9 +516,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
      * values are empty. */
     computed = MVM_malloc(sizeof(MVMint32)*sg->num_locals);
     memset(computed, -1, sizeof(MVMint32)*sg->num_locals);
-    /* Hold a mapping of nodes to spesh instructions. This is presumably
-       useful in optimization and code generation */
-    MVM_DYNAR_INIT(node_ins, tree->nodes_alloc);
 
     /* Generate a tree based on templates. The basic idea is to keep a
        index to the node that last computed the value of a local.
@@ -512,10 +544,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
         MVM_jit_expr_load_operands(tc, tree, ins, computed, operands);
         root = MVM_jit_expr_apply_template(tc, tree, templ, operands);
 
-        /* map to spesh ins */
-        MVM_DYNAR_ENSURE_SIZE(node_ins, tree->nodes_num);
-        node_ins[root] = ins;
-
         /* if this operation writes a register, it typically yields a value */
         if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg &&
             /* destructive templates are responsible for writing their
@@ -532,7 +560,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
     }
 
     if (ins == NULL) {
-        MVM_jit_expr_tree_analyze(tc, tree, node_ins);
+        MVM_jit_expr_tree_analyze(tc, tree);
         MVM_jit_log(tc, "Build tree out of: [");
         for (ins = bb->first_ins; ins; ins = ins->next) {
             MVM_jit_log(tc, "%s, ", ins->info->name);
@@ -544,7 +572,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
         MVM_jit_expr_tree_destroy(tc, tree);
         tree = NULL;
     }
-    MVM_free(node_ins);
     MVM_free(computed);
     return tree;
 }

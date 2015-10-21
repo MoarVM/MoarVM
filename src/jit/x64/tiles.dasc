@@ -73,6 +73,8 @@ MVM_JIT_TILE_DECL(const_reg) {
     }
 }
 
+
+
 /* Tree access macro's */
 #define XS(x)      tree->nodes[x]
 #define XS2(x,y)   XS(XS(x)+y)
@@ -135,11 +137,9 @@ MVM_JIT_TILE_DECL(load_idx) {
     switch (args[0]) {
     case 1:
         | mov Rb(out), byte [Rq(base)+Rq(idx)*8];
-        | movzx Rd(out), Rb(out);
         break;
     case 2:
         | mov Rw(out), word [Rq(base)+Rq(idx)*8];
-        | movzx Rd(out), Rw(out);
         break;
     case 4:
         | mov Rd(out), dword [Rq(base)+Rq(idx)*8];
@@ -223,8 +223,104 @@ MVM_JIT_TILE_DECL(store_idx) {
 }
 
 MVM_JIT_TILE_DECL(copy) {
-    /* void implmeentation */
+    /* NB - Void implementation.
+     *
+     * It seems reasonable that all  void implementations should go to
+     * compile.c since they are architecture-independent? */
 }
+
+
+MVM_JIT_TILE_DECL(cast) {
+    MVMint32 to_size   = args[0];
+    MVMint32 from_size = values[1]->size;
+    MVMint32 method    = args[1];
+    MVMint8  to_reg    = values[0]->reg_num;
+    MVMint8  from_reg  = values[1]->reg_num;
+    /* possible combinations: 1 -> 2, 4, 8; 2 -> 4, 8; 4 -> 8
+     * Hence we can combine from_size | (to_size << 3) to get
+     * the following options:
+     * 1 + 2<<3 == 17
+     * 1 + 4<<3 == 33
+     * 1 + 8<<3 == 65
+     * 2 + 4<<3 == 34
+     * 2 + 8<<3 == 66
+     * 4 + 8<<3 == 68
+     */
+    MVMint32 size_conv = (from_size) | (to_size << 3);
+    if (method == MVM_JIT_SIGNED) {
+        switch (size_conv) {
+        case 17:
+            | movsx Rw(to_reg), Rb(from_reg);
+            break;
+        case 33:
+            | movsx Rd(to_reg), Rb(from_reg);
+            break;
+        case 34:
+            | movsx Rd(to_reg), Rw(from_reg);
+            break;
+        case 65:
+            | movsx Rq(to_reg), Rb(from_reg);
+            break;
+        case 66:
+            | movsx Rq(to_reg), Rw(from_reg);
+            break;
+        case 68:
+            /* movsx is apparantly not defined for double-to-quadword conversions,
+             * which forces us to use the rax register like it's 1978. It might be easy
+             * to bithack the sign-extension manually, but I'm not sure how.. */
+            if (from_reg == MVM_JIT_X64_RAX) {
+                | cdqe;
+                if (to_reg != MVM_JIT_X64_RAX) {
+                    | mov Rq(to_reg), rax;
+                    /* restore the eax as it was, clearing the upper bytes */
+                    | mov eax, Rd(to_reg);
+                }
+            } else if (to_reg == MVM_JIT_X64_RAX) {
+                | mov eax, Rd(from_reg);
+                | cdqe;
+            } else {
+                /* By construction I can now take the rax register, since it is not in use by an operand */
+                MVM_jit_register_take(tc, compiler, MVM_JIT_REGCLS_GPR, MVM_JIT_X64_RAX);
+                | mov eax, Rd(from_reg);
+                | cdqe;
+                | mov Rq(to_reg), rax;
+                MVM_jit_register_free(tc, compiler, MVM_JIT_REGCLS_GPR, MVM_JIT_X64_RAX);
+            }
+            break;
+        default:
+            MVM_oops(tc, "Unsuported signed cast %d -> %d\n", from_size, to_size);
+        }
+    } else {
+        switch (size_conv) {
+        case 17:
+            | movzx Rw(to_reg), Rb(from_reg);
+            break;
+        case 33:
+            | movzx Rd(to_reg), Rb(from_reg);
+            break;
+        case 34:
+            | movzx Rd(to_reg), Rw(from_reg);
+            break;
+        case 65:
+            | movzx Rq(to_reg), Rb(from_reg);
+            break;
+        case 66:
+            | movzx Rq(to_reg), Rw(from_reg);
+            break;
+        case 68:
+            /* In contrast, nothing whatever is necessary to cast unsigned doublewords to quadwords */
+            break;
+        default:
+            MVM_oops(tc, "Unsuported unsigned cast %d -> %d\n", from_size, to_size);
+        }
+    }
+}
+
+
+MVM_JIT_TILE_DECL(cast_load_addr) {
+    MVM_oops(tc, "NYI");
+}
+
 
 MVM_JIT_TILE_DECL(add_reg) {
     MVMint8 out = values[0]->reg_num;

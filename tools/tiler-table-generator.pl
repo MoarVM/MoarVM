@@ -298,7 +298,7 @@ if ($TESTING) {
         my $line = <$expr_h>;
         chomp $line;
         last unless $line =~ m/\\$/;
-        next unless $line =~ m/_\((\w+), -?\d+, -?\d+, \w+\)/;
+        next unless $line =~ m/_\((\w+),[^\)]+\)/;
         my $op = substr($line, $-[1], $+[1]-$-[1]);
         push @expr_ops, $op;
     }

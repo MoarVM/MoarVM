@@ -67,7 +67,7 @@ sub validate_template {
         return;
     }
 
-    die "Unknown node type" unless defined $NODE_DEFS{$node};
+    die "Unknown node type $node" unless defined $NODE_DEFS{$node};
     my ($nchild, $narg) = @{$NODE_DEFS{$node}};
     my $offset = 1;
     if ($nchild < 0) {
@@ -247,7 +247,7 @@ if ($TESTING) {
     while (<$expr_h>) {
         chomp;
         last unless m/\\$/;
-        next unless m/_\((\w+),\s*(-?\d+),\s*(-?\d+),\s*\w+\)/;
+        next unless m/_\((\w+),\s*(-?\d+),\s*(-?\d+),\s*\w+,\s\w+\)/;
         my $node  = lc substr($_, $-[1], $+[1] - $-[1]);
         my $nchld = substr($_, $-[2], $+[2] - $-[2]);
         my $narg  = substr($_, $-[3], $+[3] - $-[3]);
