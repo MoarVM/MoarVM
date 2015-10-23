@@ -677,7 +677,7 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
                 }
             }
             else if (g >= 0) {
-                MVMCodepoint *result_cps;
+                const MVMCodepoint *result_cps;
                 MVMuint32 num_result_cps = MVM_unicode_get_case_change(tc,
                     g, type, &result_cps);
                 if (num_result_cps == 0) {
