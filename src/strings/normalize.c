@@ -563,7 +563,7 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
 }
 
 /* Push a number of codepoints into the "to normalize" buffer. */
-void MVM_unicode_normalizer_push_codepoints(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint *in, MVMint32 num_codepoints) {
+void MVM_unicode_normalizer_push_codepoints(MVMThreadContext *tc, MVMNormalizer *n, const MVMCodepoint *in, MVMint32 num_codepoints) {
     MVMint32 i;
     for (i = 0; i < num_codepoints; i++)
         decomp_codepoint_to_buffer(tc, n, in[i]);

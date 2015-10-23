@@ -238,7 +238,7 @@ static void compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMNF
     MVMint32 num_result_graphs;
 
     /* Transform the base character. */
-    MVMCodepoint *result_cps;
+    const MVMCodepoint *result_cps;
     MVMuint32     num_result_cps = MVM_unicode_get_case_change(tc, synth_info->base,
         case_, &result_cps);
     if (num_result_cps == 0 || *result_cps == synth_info->base) {
