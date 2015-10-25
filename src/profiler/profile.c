@@ -55,7 +55,6 @@ typedef struct {
 static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
                                         const MVMProfileCallNode *pcn) {
     MVMObject *node_hash  = new_hash(tc);
-    MVMObject *alloc_list = new_array(tc);
     MVMuint32  i;
 
     /* Let's see if we're dealing with a native call or a regular moar call */
@@ -105,26 +104,33 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
     }
 
     /* Entry counts. */
-    MVM_repr_bind_key_o(tc, node_hash, pds->entries,
-        box_i(tc, pcn->total_entries));
-    MVM_repr_bind_key_o(tc, node_hash, pds->spesh_entries,
-        box_i(tc, pcn->specialized_entries));
-    MVM_repr_bind_key_o(tc, node_hash, pds->jit_entries,
-        box_i(tc, pcn->jit_entries));
-    MVM_repr_bind_key_o(tc, node_hash, pds->inlined_entries,
-        box_i(tc, pcn->inlined_entries));
+    if (pcn->total_entries)
+        MVM_repr_bind_key_o(tc, node_hash, pds->entries,
+            box_i(tc, pcn->total_entries));
+    if (pcn->specialized_entries)
+        MVM_repr_bind_key_o(tc, node_hash, pds->spesh_entries,
+            box_i(tc, pcn->specialized_entries));
+    if (pcn->jit_entries)
+        MVM_repr_bind_key_o(tc, node_hash, pds->jit_entries,
+            box_i(tc, pcn->jit_entries));
+    if (pcn->inlined_entries)
+        MVM_repr_bind_key_o(tc, node_hash, pds->inlined_entries,
+            box_i(tc, pcn->inlined_entries));
 
     /* Total (inclusive) time. */
     MVM_repr_bind_key_o(tc, node_hash, pds->inclusive_time,
         box_i(tc, pcn->total_time / 1000));
 
     /* OSR and deopt counts. */
-    MVM_repr_bind_key_o(tc, node_hash, pds->osr,
-        box_i(tc, pcn->osr_count));
-    MVM_repr_bind_key_o(tc, node_hash, pds->deopt_one,
-        box_i(tc, pcn->deopt_one_count));
-    MVM_repr_bind_key_o(tc, node_hash, pds->deopt_all,
-        box_i(tc, pcn->deopt_all_count));
+    if (pcn->osr_count)
+        MVM_repr_bind_key_o(tc, node_hash, pds->osr,
+            box_i(tc, pcn->osr_count));
+    if (pcn->deopt_one_count)
+        MVM_repr_bind_key_o(tc, node_hash, pds->deopt_one,
+            box_i(tc, pcn->deopt_one_count));
+    if (pcn->deopt_all_count)
+        MVM_repr_bind_key_o(tc, node_hash, pds->deopt_all,
+            box_i(tc, pcn->deopt_all_count));
 
     /* Visit successors in the call graph, dumping them and working out the
      * exclusive time. */
@@ -145,22 +151,30 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
             box_i(tc, pcn->total_time / 1000));
     }
 
-    /* Emit allocations. */
-    MVM_repr_bind_key_o(tc, node_hash, pds->allocations, alloc_list);
-    for (i = 0; i < pcn->num_alloc; i++) {
-        MVMObject *alloc_info = new_hash(tc);
-        MVMObject *type       = pcn->alloc[i].type;
-        MVM_repr_bind_key_o(tc, alloc_info, pds->id, box_i(tc, (MVMint64)type));
-        MVM_repr_bind_key_o(tc, alloc_info, pds->type, type);
-        MVM_repr_bind_key_o(tc, alloc_info, pds->spesh,
-            box_i(tc, pcn->alloc[i].allocations_spesh));
-        MVM_repr_bind_key_o(tc, alloc_info, pds->jit,
-            box_i(tc, pcn->alloc[i].allocations_jit));
-        MVM_repr_bind_key_o(tc, alloc_info, pds->count,
-            box_i(tc, pcn->alloc[i].allocations_interp
-                      + pcn->alloc[i].allocations_spesh
-                      + pcn->alloc[i].allocations_jit));
-        MVM_repr_push_o(tc, alloc_list, alloc_info);
+    if (pcn->num_alloc) {
+        /* Emit allocations. */
+        MVMObject *alloc_list = new_array(tc);
+        MVM_repr_bind_key_o(tc, node_hash, pds->allocations, alloc_list);
+        for (i = 0; i < pcn->num_alloc; i++) {
+            MVMObject *alloc_info = new_hash(tc);
+            MVMProfileAllocationCount *alloc = &pcn->alloc[i];
+
+            MVMObject *type       = pcn->alloc[i].type;
+
+            MVM_repr_bind_key_o(tc, alloc_info, pds->id, box_i(tc, (MVMint64)type));
+            MVM_repr_bind_key_o(tc, alloc_info, pds->type, type);
+            if (alloc->allocations_spesh)
+                MVM_repr_bind_key_o(tc, alloc_info, pds->spesh,
+                    box_i(tc, alloc->allocations_spesh));
+            if (alloc->allocations_jit)
+                MVM_repr_bind_key_o(tc, alloc_info, pds->jit,
+                    box_i(tc, alloc->allocations_jit));
+            MVM_repr_bind_key_o(tc, alloc_info, pds->count,
+                box_i(tc, alloc->allocations_interp
+                          + alloc->allocations_spesh
+                          + alloc->allocations_jit));
+            MVM_repr_push_o(tc, alloc_list, alloc_info);
+        }
     }
 
     return node_hash;
