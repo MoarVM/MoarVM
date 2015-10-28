@@ -62,10 +62,14 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_norm_terminator(MVMThreadConte
  * codepoints now available including the one we just passed out. If we can't
  * produce a normalized codepoint right now, we return a 0. */
 MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out) {
-    /* If we have \n then we always treat this as a "sequence point" in the
-     * normalization process. */
-    if (in == '\n')
-        return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
+    /* Control characters in the Latin-1 range are normalization terminators -
+     * that is, we know we can spit out whatever codepoints we have seen so
+     * far in normalized form without having to consider them into the
+     * normalization process. The exception is if we're computing NFG, and
+     * we got \r, which can form a grapheme in the case of \r\n. */
+    if (in < 0x20 || in >= 0x7F && in <= 0x9F || in == 0xAD)
+        if (in != 0x0D || !MVM_NORMALIZE_GRAPHEME(n->form))
+            return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
 
     /* Fast-paths apply when the codepoint to consider is too low to have any
      * interesting properties in the target normalization form. */
