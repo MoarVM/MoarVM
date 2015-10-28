@@ -642,7 +642,7 @@ MVM_JIT_TILE_DECL(nz_idx) {
 MVM_JIT_TILE_DECL(nz_and) {
     MVMint8 rega = values[1]->reg_num;
     MVMint8 regb = values[2]->reg_num;
-    switch(values[0]->size) {
+    switch(values[1]->size) {
     case 1:
         | test Rb(regb), Rb(rega);
         break;
