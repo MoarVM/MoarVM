@@ -109,11 +109,9 @@ MVM_JIT_TILE_DECL(load_addr) {
     switch (args[0]) {
     case 1:
         | mov Rb(out), byte [Rq(base)+ofs];
-        | movzx Rd(out), Rb(out);
         break;
     case 2:
         | mov Rw(out), word [Rq(base)+ofs];
-        | movzx Rd(out), Rb(out);
         break;
     case 4:
         | mov Rd(out), dword [Rq(base)+ofs];
