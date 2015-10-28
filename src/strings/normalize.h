@@ -77,12 +77,15 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
         if (MVM_NORMALIZE_COMPOSE(n->form)) {
             /* For the composition fast path we always have to know that we've
             * seen two codepoints in a row that are below those needing a full
-            * check. Then we can spit out the first one. */
-            if (n->buffer_end - n->buffer_start == 1) {
-                if (n->buffer[n->buffer_start] < n->first_significant) {
-                    *out = n->buffer[n->buffer_start];
-                    n->buffer[n->buffer_start] = in;
-                    return 1;
+            * check. Then we can spit out the first one. Exception: we are
+            * normalizing to graphemes and see \r. */
+            if (in != 0x0D || !MVM_NORMALIZE_GRAPHEME(n->form)) {
+                if (n->buffer_end - n->buffer_start == 1) {
+                    if (n->buffer[n->buffer_start] < n->first_significant) {
+                        *out = n->buffer[n->buffer_start];
+                        n->buffer[n->buffer_start] = in;
+                        return 1;
+                    }
                 }
             }
         }
