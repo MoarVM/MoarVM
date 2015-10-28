@@ -1796,8 +1796,8 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
     }
 }
 
-void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                         MVMJitBranch * branch) {
+void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                               MVMJitBranch * branch) {
     MVMSpeshIns *ins = branch->ins;
     MVMint32 name = branch->dest;
     /* move gc sync point to the front so as to not have
@@ -1895,6 +1895,10 @@ void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
     | =>(label):
 }
 
+void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 label) {
+    | jmp =>(label);
+}
+
 void MVM_jit_emit_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                      MVMint32 cond, MVMint32 label) {
     switch (cond) {
@@ -1923,7 +1927,7 @@ void MVM_jit_emit_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compi
         | jz =>(label);
         break;
     default:
-        MVM_oops(tc, "this should not be dealt with here");
+        MVM_oops(tc, "this condition cannot be compiled with conditional_branch");
     }
 }
 

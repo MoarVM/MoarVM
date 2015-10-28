@@ -55,7 +55,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
             MVM_jit_emit_primitive(tc, &cl, jg, &node->u.prim);
             break;
         case MVM_JIT_NODE_BRANCH:
-            MVM_jit_emit_branch(tc, &cl, jg, &node->u.branch);
+            MVM_jit_emit_block_branch(tc, &cl, jg, &node->u.branch);
             break;
         case MVM_JIT_NODE_CALL_C:
             MVM_jit_emit_call_c(tc, &cl, jg, &node->u.call);
@@ -261,12 +261,9 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                     /* Do nothing, shortcircuit of ALL has skipped the
                        left block if necessary */
                 } else if (flag == MVM_JIT_ANY) {
-                    /* If ANY hasn't short-circuited into the
-                       left block, jump to the right block */
-                    MVMJitBranch branch;
-                    branch.ins  = NULL;
-                    branch.dest = label;
-                    MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
+                    /* If ANY hasn't short-circuited into the left
+                       block, jump to the right block */
+                    MVM_jit_emit_branch(tc, cl, label);
                     /* Emit label for the left block entry */
                     MVM_jit_emit_label(tc, cl, cl->graph, tree->info[test].label + cl->label_offset);
                 } else {
@@ -294,11 +291,8 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 } else if (flag == MVM_JIT_ANY) {
                     /* Like WHEN ANY, branch into the right block
                      * and emit a label for the left block */
-                    MVMJitBranch branch;
                     MVMint32 any_label = tree->info[test].label + cl->label_offset;
-                    branch.ins  = NULL;
-                    branch.dest = label;
-                    MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
+                    MVM_jit_emit_branch(tc, cl, label);
                     MVM_jit_emit_label(tc, cl, cl->graph, any_label);
                 } else {
                     MVM_jit_emit_conditional_branch(tc, cl, negate_flag(tc, flag), label);
@@ -306,10 +300,7 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 MVM_jit_enter_branch(tc, cl);
             } else if (i == 1) {
                 /* Jump unconditionally to over the right block */
-                MVMJitBranch branch;
-                branch.ins   = NULL;
-                branch.dest = label + 1;
-                MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
+                MVM_jit_emit_branch(tc, cl, label + 1);
                 /* Emit label for the right block */
                 MVM_jit_emit_label(tc, cl, cl->graph, label);
                 MVM_jit_leave_branch(tc, cl);
@@ -341,10 +332,7 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             } else if (flag == MVM_JIT_ANY) {
                 /* If ANY reached it's end, that means it's false. So branch out */
                 MVMint32 any_label = tree->info[test].label + cl->label_offset;
-                MVMJitBranch branch;
-                branch.ins  = NULL;
-                branch.dest = label;
-                MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
+                MVM_jit_emit_branch(tc, cl, label);
                 /* And if ANY short-circuits we should continue the evaluation of ALL */
                 MVM_jit_emit_label(tc, cl, cl->graph, any_label);
             } else {
@@ -365,9 +353,7 @@ static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                    should branch out */
                 MVMJitBranch branch;
                 MVMint32 all_label = tree->info[test].label + cl->label_offset;
-                branch.ins  = NULL;
-                branch.dest = label;
-                MVM_jit_emit_branch(tc, cl, cl->graph, &branch);
+                MVM_jit_emit_branch(tc, cl, label);
                 /* If not succesful, testing should continue */
                 MVM_jit_emit_label(tc, cl, cl->graph, all_label);
             } else if (flag == MVM_JIT_ANY) {

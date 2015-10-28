@@ -1,5 +1,4 @@
-# SYNTAX: opcode ':' s-exp
-#    s-exp represents tree
+# SYNTAX: (keyword: opcode (tree $substitutions))
 
 # Number with dollars stand for the arguments of the opcode.  The
 # opcode preprocessor inserts loads, and immediate nodes for arguments
