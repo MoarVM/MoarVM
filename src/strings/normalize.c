@@ -527,7 +527,9 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
              * it also passes the quick check, and both it and the thing in the
              * buffer have a CCC of zero, we can hand back the first of the
              * two - effectively replacing what's in the buffer with the new
-             * codepoint coming in. */
+             * codepoint coming in. Note that the NFG quick-check property
+             * factors in grapheme extenders that don't have a CCC of zero,
+             * so we're safe. */
             if (n->buffer_end - n->buffer_start == 1) {
                 MVMCodepoint maybe_result = n->buffer[n->buffer_start];
                 if (passes_quickcheck(tc, n, maybe_result) && ccc(tc, maybe_result) == 0) {
