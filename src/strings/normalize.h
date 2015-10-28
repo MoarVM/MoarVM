@@ -24,6 +24,14 @@ typedef enum {
 #define MVM_NORMALIZE_FIRST_SIG_NFKD    0x00A0
 #define MVM_NORMALIZE_FIRST_SIG_NFKC    0x00A0
 
+/* First codepoint (except the \r\n case) where NFG needs to consider things
+ * besides the Canonical_Combining_order to do the right thing. There are a
+ * few ways this could come up, but it's actually U+34F that does it. */
+#define MVM_NORMALIZE_FIRST_NFG_EXT     0x034F
+#if (MVM_NORMALIZE_FIRST_NFG_EXT < MVM_NORMALIZE_FIRST_SIG_NFC)
+#   error "MVM_NORMALIZE_FIRST_NFG_EXT must be >= MVM_NORMALIZE_FIRST_SIG_NFC"
+#endif
+
 /* Streaming Unicode normalizer structure. */
 struct MVMNormalizer {
     /* What form of normalization are we doing? */

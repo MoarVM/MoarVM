@@ -94,6 +94,7 @@ sub main {
     break_property('Sentence', 'Sentence_Break');
   skip_most:
     break_property('Word', 'Word_Break');
+    tweak_nfg_qc();
 
     # Allocate all the things
     progress "done.\nallocating bitfield...";
@@ -1368,6 +1369,7 @@ sub UnicodeData {
         my $point = {
             code_str => $code_str,
             name => $name,
+            gencat_name => $gencat,
             General_Category => $general_categories->{enum}->{$gencat},
             Canonical_Combining_Class => $ccclasses->{enum}->{$ccclass},
             Bidi_Class => $bidi_classes->{enum}->{$bidiclass},
@@ -1378,6 +1380,7 @@ sub UnicodeData {
             NFC_QC => 1, # which will be unset as appropriate
             NFKD_QC => 1,
             NFKC_QC => 1,
+            NFG_QC => 1,
             code => $code,
             Any => 1
         };
@@ -1518,7 +1521,8 @@ sub DerivedNormalizationProps {
     register_binary_property($_) for ((keys %$binary),(keys %$inverted_binary));
     my $trinary = {
         NFC_QC => 1,
-        NFKC_QC => 1
+        NFKC_QC => 1,
+        NFG_QC => 1,
     };
     my $trinary_values = { 'N' => 0, 'Y' => 1, 'M' => 2 };
     register_enumerated_property($_, { enum => $trinary_values, bit_width => 2, 'keys' => ['N','Y','M'] }) for (keys %$trinary);
@@ -1546,6 +1550,15 @@ sub DerivedNormalizationProps {
             my $point = shift;
             $point->{$property_name} = $value;
         });
+
+        # If it's the NFC_QC property, then use this as the default value for
+        # NFG_QC also.
+        if ($property_name eq 'NFC_QC') {
+            apply_to_range($range, sub {
+                my $point = shift;
+                $point->{'NFG_QC'} = $value;
+            });
+        }
     });
 }
 
@@ -1592,6 +1605,38 @@ sub NamedSequences {
         my @parts = split ' ', $codes;
         $named_sequences->{$name} = \@parts;
     });
+}
+
+sub tweak_nfg_qc {
+    # See http://www.unicode.org/reports/tr29/tr29-27.html#Grapheme_Cluster_Boundary_Rules
+    for my $point (values %$points_by_code) {
+        my $code = $point->{'code'};
+
+        # \r
+        if ($code == 0x0D) {
+            $point->{'NFG_QC'} = 0;
+        }
+
+        # Hangul
+        elsif ($point->{'Hangul_Syllable_Type'}) {
+            $point->{'NFG_QC'} = 0;
+        }
+
+        # Regional indicators
+        elsif ($code >= 0x1F1E6 && $code <= 0x1F1FF) {
+            $point->{'NFG_QC'} = 0;
+        }
+
+        # Grapheme_Extend
+        elsif ($point->{'Grapheme_Extend'}) {
+            $point->{'NFG_QC'} = 0;
+        }
+
+        # SpacingMark, and a couple of specials
+        elsif ($point->{'gencat_name'} eq 'Mc' || $code == 0x0E33 || $code == 0x0EB3) {
+            $point->{'NFG_QC'} = 0;
+        }
+    }
 }
 
 sub register_binary_property {

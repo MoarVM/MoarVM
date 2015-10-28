@@ -211,7 +211,7 @@ void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNorm
             n->quick_check_property = MVM_UNICODE_PROPERTY_NFKC_QC;
             break;
         case MVM_NORMALIZE_NFG:
-            n->quick_check_property = MVM_UNICODE_PROPERTY_NFC_QC;
+            n->quick_check_property = MVM_UNICODE_PROPERTY_NFG_QC;
             n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFC;
             break;
         default:
