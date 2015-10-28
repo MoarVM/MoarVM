@@ -320,6 +320,36 @@ static MVMint64 ccc(MVMThreadContext *tc, MVMCodepoint cp) {
     return !ccc_str || strlen(ccc_str) > 3 ? 0 : atoi(ccc_str);
 }
 
+/* Checks if the thing we have is a control character (for the definition in
+ * the Unicode Standard Annex #29). Assumes it doesn't have to care about any
+ * of the controls in the Latin-1 range, because those were already covered in
+ * a fast path. */
+static MVMint32 is_control_beyond_latin1(MVMThreadContext *tc, MVMCodepoint in) {
+    /* U+200C ZERO WIDTH NON-JOINER and U+200D ZERO WIDTH JOINER are excluded. */
+    if (in != 0x200C && in != 0x200D) {
+        /* Consider general property. */
+        const char *genprop = MVM_unicode_codepoint_get_property_cstr(tc, in,
+            MVM_UNICODE_PROPERTY_GENERAL_CATEGORY);
+        if (genprop[0] == 'Z') {
+            /* Line_Separator and Paragraph_Separator are controls. */
+            return genprop[1] == 'l' || genprop[1] == 'p';
+        }
+        if (genprop[0] == 'C') {
+            /* Control, Surrogate, and Format are controls. */
+            if (genprop[1] == 'c' || genprop[1] == 's' || genprop[1] == 'f') {
+                return 1;
+            }
+
+            /* Unassigned is, but only for Default_Ignorable_Code_Point. */
+            if (genprop[1] == 'n') {
+                return MVM_unicode_codepoint_get_property_int(tc, in,
+                    MVM_UNICODE_PROPERTY_DEFAULT_IGNORABLE_CODE_POINT) != 0;
+            }
+        }
+    }
+    return 0;
+}
+
 /* Implements the Unicode Canonical Ordering algorithm (3.11, D109). */
 static void canonical_sort(MVMThreadContext *tc, MVMNormalizer *n, MVMint32 from, MVMint32 to) {
     /* Yes, this is the simplest possible thing. Key thing if you decide to
@@ -479,9 +509,16 @@ static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint3
  * may find the quick check itself is enough; if not, we have to do real work
  * compute the normalization. */
 MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out) {
+    MVMint64 qc_in, ccc_in;
+
+    /* If it's a control character (outside of the range we checked in the
+     * fast path) then it's a normalization terminator. */
+    if (in > 0xFF && is_control_beyond_latin1(tc, in))
+        return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
+
     /* Do a quickcheck on the codepoint we got in and get its CCC. */
-    MVMint64 qc_in  = passes_quickcheck(tc, n, in);
-    MVMint64 ccc_in = ccc(tc, in);
+    qc_in  = passes_quickcheck(tc, n, in);
+    ccc_in = ccc(tc, in);
 
     /* Fast cases when we pass quick check and what we got in has CCC = 0. */
     if (qc_in && ccc_in == 0) {
