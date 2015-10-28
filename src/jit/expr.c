@@ -325,7 +325,10 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     if (op_info->cast != MVM_JIT_NO_CAST) {
         for (i = 0; i < nchild; i++) {
             MVMint32 child = tree->nodes[first_child+i];
-            if (tree->info[child].value.size < node_info->value.size) {
+            if (tree->nodes[child] == MVM_JIT_CONST) {
+                /* CONST nodes can always take over their target size, so they never need to be cast */
+                tree->info[child].value.size = tree->info[node].value.size;
+            } else if (tree->info[child].value.size < node_info->value.size) {
                 /* Widening casts need to be handled explicitly, shrinking casts do not */
                 MVMint32 cast = MVM_jit_expr_add_cast(tc, tree, child, node_info->value.size, op_info->cast);
                 /* Because the cast may have grown the backing nodes array, the info array needs to grow as well */
