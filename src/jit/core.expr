@@ -27,17 +27,22 @@
 (macro: ^params () (addr (frame) (&offsetof MVMFrame params)) )
 (macro: ^caller () (addr (frame) (&offsetof MVMFrame caller)) )
 
+
+(macro: ^getf (,object ,type ,field)
+   (load (addr ,object (&offsetof ,type ,field)) (&SIZEOF_MEMBER ,type ,field)))
+(macro: ^setf (,object ,type ,field ,value)
+    (store (addr ,object (&offsetof ,type ,field)) ,value (&SIZEOF_MEMBER ,type ,field)))
+
+(macro: ^objflag (,cv) (const (&QUOTE ,cv) (&SIZEOF_MEMBER MVMObject header.flags)))
+
 (macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
-(macro: ^p6obody (,a) (let: (($replace (load (addr ,a (&offsetof MVMP6opaque body.replaced)) ptr_sz)))
+(macro: ^p6obody (,a) (let: (($replace (^getf ,a MVMP6opaque body.replaced)))
                       (if (nz $replace)
                               $replace
                               (addr ,a (&offsetof MVMP6opaque body)))))
 # get spesh slot address
 (macro: ^spesh_slot (,a)
-   (idx (load
-            (addr (frame) (&offsetof MVMFrame effective_spesh_slots))
-             ptr_sz)
-       ,a ptr_sz))
+   (idx (^getf (frame) MVMFrame effective_spesh_slots) ,a ptr_sz))
 
 
 (template: sp_getspeshslot (load (^spesh_slot $1) ptr_sz))
@@ -55,15 +60,13 @@
 # eliminate duplications, but call is a notable exception
 
 (macro: ^write_barrier (,obj ,ref)
-        (let: (($obj_flags (load (addr ,obj (&offsetof MVMCollectable flags)) 2))
-               ($ref_flags (load (addr ,ref (&offsetof MVMCollectable flags)) 2)))
-              (when (all 3 (nz (and $obj_flags (const (&QUOTE MVM_CF_SECOND_GEN) 2)))
-                           (nz ,ref)
-                           (zr (and $ref_flags (const (&QUOTE MVM_CF_SECOND_GEN) 2))))
-                     (call (^func &MVM_gc_write_barrier_hit)
-                           (arglist 2 (carg (tc) ptr)
-                                      (carg ,obj ptr))
-                            void))))
+   (when (all 3 (nz (and (^getf ,obj MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN)))
+                (nz ,ref)
+                (zr (and (^getf ,ref MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN))))
+         (call (^func &MVM_gc_write_barrier_hit)
+               (arglist 2 (carg (tc) ptr)
+                          (carg ,obj ptr))
+                 void)))
 
 (template: sp_p6ogetvt_o
            (let: (($addr (add (^p6obody $1) $2))
@@ -87,22 +90,23 @@
 (template: null_s (const 0 ptr_sz))
 (template: null (vmnull))
 
-(macro: ^stable (,a) (load (addr ,a (&offsetof MVMObject st)) ptr_sz))
-(macro: ^repr (,a) (load (addr (^stable ,a) (&offsetof MVMSTable REPR)) ptr_sz))
+
+(macro: ^stable (,a) (^getf ,a MVMObject st))
+(macro: ^repr (,a) (^getf ,a MVMSTable REPR))
 (macro: ^is_type_obj (,a)
-  (nz (and (load (addr ,a (&offsetof MVMObject header.flags)) (&SIZEOF_MEMBER MVMObject header.flags))
-           (const (&QUOTE MVM_CF_TYPE_OBJECT) (&SIZEOF_MEMBER MVMObject header.flags)))))
+  (nz (and (^getf ,a MVMObject header.flags) (^objflag MVM_CF_TYPE_OBJECT))))
 
 (macro: ^repr_cont_func (,obj ,func)
     (load
         (addr
-            (load (addr (^stable ,obj) (&offsetof MVMSTable container_spec)) ptr_sz)
+            (^getf (^stable ,obj) MVMSTable container_spec)
             (&offsetof MVMContainerSpec ,func))
         ptr_sz))
 
 (template: getwhat (load (addr (^stable $1) (&offsetof MVMSTable WHAT)) ptr_sz))
-(template: getwho  (let: (($who (load (addr (^stable $1) (&offsetof MVMSTable WHO)) ptr_sz)))
+(template: getwho  (let: (($who (^getf (^stable $1) MVMSTable WHO)))
                          (if (nz $who) $who (vmnull))))
+
 
 (template: decont!
     (let: (($obj (copy $1)))
@@ -110,7 +114,7 @@
             (any 3
                 (zr $1)
                 (^is_type_obj $1)
-                (zr (load (addr (^stable $1) (&offsetof MVMSTable container_spec)) ptr_sz)))
+                (zr (^getf (^stable $1) MVMSTable container_spec)))
             (store $0 $1 ptr_sz)
             (call (^repr_cont_func $1 fetch)
                 (arglist 3
@@ -184,53 +188,52 @@
      (^jump_out)))
 
 (template: setdispatcher
-  (store (addr (tc) (&offsetof MVMThreadContext cur_dispatcher))
-         $0 ptr_sz))
+  (^setf (tc) MVMThreadContext cur_dispatcher $0))
 
 (template: takedispatcher
-  (let: (($cur (load (addr (tc) (&offsetof MVMThreadContext cur_dispatcher)) ptr_sz)))
+  (let: (($cur (^getf (tc) MVMThreadContext cur_dispatcher)))
         (do 2
-           (store (addr (tc) (&offsetof MVMThreadContext cur_dispatcher))
-                        (const 0 ptr_sz) ptr_sz)
-            $cur)))
+           (^setf (tc) MVMThreadContext cur_dispatcher (const 0 ptr_sz))
+           (copy $cur))))
 
 (macro: ^hllconfig ()
-    (load (addr (cu) (&offsetof MVMCompUnit body.hll_config)) ptr_sz))
+    (^getf (cu) MVMCompUnit body.hll_config))
 
 (template: hllboxtype_i
-    (load (addr (^hllconfig) (&offsetof MVMHLLConfig int_box_type)) ptr_sz))
+    (^getf (^hllconfig) MVMHLLConfig int_box_type))
 
 (template: hllboxtype_s
-    (load (addr (^hllconfig) (&offsetof MVMHLLConfig str_box_type)) ptr_sz))
+    (^getf (^hllconfig) MVMHLLConfig str_box_type))
 
 (template: hllboxtype_n
-    (load (addr (^hllconfig) (&offsetof MVMHLLConfig num_box_type)) ptr_sz))
+    (^getf (^hllconfig) MVMHLLConfig num_box_type))
+
 
 (template: curcode
-  (load (addr (frame) (&offsetof MVMFrame code_ref)) ptr_sz))
+    (^getf (frame) MVMFrame code_ref))
 
 (template: getcode
-  (let: (($arr (load (addr (cu) (&offsetof MVMCompUnit body.coderefs)) ptr_sz)))
+  (let: (($arr (^getf (cu) MVMCompUnit body.coderefs)))
         (load (idx $arr $1 ptr_sz) ptr_sz)))
 
 (template: callercode
-  (let: (($caller (load (addr (frame) (&offsetof MVMFrame caller)) ptr_sz)))
+  (let: (($caller (^getf (frame) MVMFrame caller)))
         (if (nz $caller)
-            (load (addr $caller (&offsetof MVMFrame code_ref)) ptr_sz)
+            (^getf $caller MVMFrame code_ref)
             (const 0 ptr_sz))))
 
-#(template: sp_fastcreate
-#   (let: (($block
-#           (call (^func &MVM_gc_allocate_zeroed)
-#                 (arglist 2 (carg (tc) ptr)
-#                            (carg $1 int))
-#                  ptr)))
-#      (do 4
-#        (store (addr $block (&offsetof MVMObject st)) (load (^spesh_slot $2) ptr_sz) ptr_sz)
-#        (store (addr $block (&offsetof MVMObject header.size)) $1 2)
-#        (store (addr $block (&offsetof MVMObject header.owner))
-#               (load (addr (tc) (&offsetof MVMThreadContext thread_id)) 4) 4)
-#        $block)))
+
+(template: sp_fastcreate
+   (let: (($block
+           (call (^func &MVM_gc_allocate_zeroed)
+                 (arglist 2 (carg (tc) ptr)
+                            (carg $1 int))
+                  ptr)))
+      (do 4
+          (^setf $block MVMObject st (load (^spesh_slot $2) ptr_sz))
+          (^setf $block MVMObject header.size $1)
+          (^setf $block MVMObject header.owner (^getf (tc) MVMThreadContext thread_id))
+          (copy $block))))
 
 (macro: ^throw_adhoc (,msg)
    (call (^func &MVM_exception_throw_adhoc)
@@ -240,17 +243,16 @@
 
 (template: ifnonnull
     (when (all 2
-            (nz $0) (ne $0 (vmnull)))
-        (branch (label $1)) ))
+              (nz $0) (ne $0 (vmnull)))
+        (branch (label $1))))
 
 (template: ctxcode
-  (do 2
-    (when (any 2 (^is_type_obj $1)
-                 (ne (load (addr (^repr $1) (&offsetof MVMREPROps ID)) (&SIZEOF_MEMBER MVMREPROps ID))
-                     (const (&QUOTE MVM_REPR_ID_MVMContext) (&SIZEOF_MEMBER MVMREPROps ID))))
-          (^throw_adhoc (&MSG ctxcode needs an MVMContext)))
-    (load (addr (load (addr $1 (&offsetof MVMContext body.context)) ptr_sz)
-                (&offsetof MVMFrame code_ref)) ptr_sz)))
+    (do 2
+        (when (any 2 (^is_type_obj $1)
+                     (ne (^getf (^repr $1) MVMREPROps ID)
+                         (const (&QUOTE MVM_REPR_ID_MVMContext) (&SIZEOF_MEMBER MVMREPROps ID))))
+              (^throw_adhoc (&MSG ctxcode needs an MVMContext)))
+        (^getf (^getf $1 MVMContext body.context) MVMFrame code_ref)))
 
 # These properly yield a flag, not a register value.
 # I maybe want to add a flag-to-register op
@@ -267,13 +269,13 @@
 (macro: ^body (,a) (addr ,a (&offsetof MVMObjectStooge data)))
 #  GET_REG(cur_op, 0).i64 = (MVMint64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 (template: elems
-   (let: (($func (load (addr (^repr $1) (&offsetof MVMREPROps elems)) ptr_sz)))
+   (let: (($func (^getf (^repr $1) MVMREPROps elems)))
         (call $func
-              (arglist 4
-                (carg (tc) ptr)
-                (carg (^stable $1) ptr)
-                (carg $1 ptr)
-                (carg (^body $1) ptr))
+             (arglist 4
+                  (carg (tc) ptr)
+                  (carg (^stable $1) ptr)
+                  (carg $1 ptr)
+                  (carg (^body $1) ptr))
               int)))
 
 #  REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
@@ -285,7 +287,7 @@
     (either (^is_type_obj $1)
       (store $addr (vmnull) ptr_sz)
 # else
-      (call (load (addr (^repr $1) (&offsetof MVMREPROps pos_funcs.at_pos)) ptr_sz)
+      (call (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
          (arglist 7
            (carg (tc) ptr)
            (carg (^stable $1) ptr)
