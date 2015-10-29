@@ -384,7 +384,7 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
             /* Make sure we don't go past a code point that blocks a starter
              * from the current character we're considering. */
             MVMint32 ss_ccc = ccc(tc, n->buffer[ss_idx]);
-            if (ss_ccc >= c_ccc)
+            if (ss_ccc >= c_ccc && ss_ccc != 0)
                 break;
 
             /* Have we found a starter? */
