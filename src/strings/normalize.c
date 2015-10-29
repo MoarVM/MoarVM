@@ -465,20 +465,78 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
 }
 
 /* Performs grapheme composition (to get Normal Form Grapheme) on the range of
- * codepoints provided. This algorithm is as follows (laid out here because
- * this is not one of the Unicode standard ones):
- * 1) If we only have one code point in the range to normalize, then NFC was
- *    already sufficient here. Return.
- * 2) Take the from position as the location of the current "starterish".
- * 3) Walk codepoints until we reach "to" or the next codepoint is a starter.
- * 4) Take the codepoints from and including the last starterish up to the
- *    current one, and get a synthetic for them. Replace them with the
- *    synthetic.
- * 5) If we didn't reach "to", take the next codepoint as our next starterish
- *    and goto step 3.
- * Note that this is specified to handle strings starting with non-starter
- * code point sequences.
- */
+ * codepoints provided. This follows the algorithm in the Unicode Standard
+ * Annex #29 on grapheme cluster boundaries. Note that we have already done
+ * the handling of breaking around controls much earlier, so don't have to
+ * consider that case. */
+static MVMint32 maybe_hangul(MVMCodepoint cp) {
+    return cp >= 0x1100 && cp < 0x1200 || cp >= 0xA960 && cp < 0xD7FC;
+}
+static MVMint32 is_regional_indicator(MVMCodepoint cp) {
+    /* U+1F1E6 REGIONAL INDICATOR SYMBOL LETTER A
+     * ..
+     * U+1F1FF REGIONAL INDICATOR SYMBOL LETTER Z */
+    return cp >= 0x1F1E6 && cp <= 0x1F1FF;
+}
+static MVMint32 is_grapheme_extend(MVMThreadContext *tc, MVMCodepoint cp) {
+    return MVM_unicode_codepoint_get_property_int(tc, cp,
+        MVM_UNICODE_PROPERTY_GRAPHEME_EXTEND);
+}
+static MVMint32 is_spacing_mark(MVMThreadContext *tc, MVMCodepoint cp) {
+    const char *genprop = MVM_unicode_codepoint_get_property_cstr(tc, cp,
+        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY);
+    if (genprop[0] == 'M' && genprop[1] == 'c') {
+        const char *gcb = MVM_unicode_codepoint_get_property_cstr(tc, cp,
+            MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
+        return strcmp(gcb, "Extend") != 0;
+    }
+    else {
+        /* Special cases outside of Mc:
+         * U+0E33 THAI CHARACTER SARA AM
+         * U+0EB3 LAO VOWEL SIGN AM */
+        return cp == 0x0E33 || cp == 0x0EB3;
+    }
+}
+static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b) {
+    /* Don't break between \r and \n, but otherwise break around \r. */
+    /* TODO: fix downstream fallout before turning this on. */
+    /*if (a == 0x0D && b == 0x0A)
+        return 0;*/
+    if (a == 0x0D || b == 0x0D)
+        return 1;
+
+    /* Hangul. Avoid property lookup with a couple of quick range checks. */
+    if (maybe_hangul(a) && maybe_hangul(b)) {
+        const char *hst_a = MVM_unicode_codepoint_get_property_cstr(tc, a,
+            MVM_UNICODE_PROPERTY_HANGUL_SYLLABLE_TYPE);
+        const char *hst_b = MVM_unicode_codepoint_get_property_cstr(tc, b,
+            MVM_UNICODE_PROPERTY_HANGUL_SYLLABLE_TYPE);
+        if (strcmp(hst_a, "L") == 0)
+            return !(strcmp(hst_b, "L") == 0 || strcmp(hst_b, "V") == 0 ||
+                     strcmp(hst_b, "LV") == 0 || strcmp(hst_b, "LVT") == 0);
+        else if (strcmp(hst_a, "LV") == 0 || strcmp(hst_a, "V") == 0)
+            return !(strcmp(hst_b, "V") == 0 || strcmp(hst_b, "T") == 0);
+        else if (strcmp(hst_a, "LVT") == 0 || strcmp(hst_a, "T") == 0)
+            return !(strcmp(hst_b, "T") == 0);
+    }
+
+    /* Don't break between regional indicators. */
+    if (is_regional_indicator(a) && is_regional_indicator(b))
+        return 0;
+
+    /* Don't break before extenders. */
+    if (is_grapheme_extend(tc, b))
+        return 0;
+
+    /* Don't break before spacing marks. (In the Unicode version at the time
+     * of implementing, there were no Prepend characters, so we don't worry
+     * about that rule for now). */
+    if (is_spacing_mark(tc, b))
+        return 0;
+
+    /* Otherwise break. */
+    return 1;
+}
 static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint32 from, MVMint32 to) {
     if (to - from >= 2) {
         MVMint32 starterish = from;
@@ -486,7 +544,7 @@ static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint3
         MVMint32 pos        = from;
         while (pos < to) {
             MVMint32 next_pos = pos + 1;
-            if (next_pos == to || ccc(tc, n->buffer[next_pos]) == 0) {
+            if (next_pos == to || should_break(tc, n->buffer[pos], n->buffer[next_pos])) {
                 /* Last in buffer or next code point is a non-starter; turn
                  * sequence into a synthetic. */
                 MVMGrapheme32 g = MVM_nfg_codes_to_grapheme(tc, n->buffer + starterish, next_pos - starterish);
