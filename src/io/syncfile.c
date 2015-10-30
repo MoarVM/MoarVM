@@ -452,6 +452,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     data->fd          = fd;
     data->filename    = fname;
     data->encoding    = MVM_encoding_type_utf8;
+    MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;
 
