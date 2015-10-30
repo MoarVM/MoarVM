@@ -75,19 +75,19 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
 }
 
 /* Does a decode run, selected by encoding. */
-static void run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32 *stopper_chars, const MVMint32 *stopper_sep) {
+static void run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *seps) {
     switch (ds->encoding) {
     case MVM_encoding_type_utf8:
-        MVM_string_utf8_decodestream(tc, ds, stopper_chars, stopper_sep);
+        MVM_string_utf8_decodestream(tc, ds, stopper_chars, seps);
         break;
     case MVM_encoding_type_ascii:
-        MVM_string_ascii_decodestream(tc, ds, stopper_chars, stopper_sep);
+        MVM_string_ascii_decodestream(tc, ds, stopper_chars, seps);
         break;
     case MVM_encoding_type_latin1:
-        MVM_string_latin1_decodestream(tc, ds, stopper_chars, stopper_sep);
+        MVM_string_latin1_decodestream(tc, ds, stopper_chars, seps);
         break;
     case MVM_encoding_type_windows1252:
-        MVM_string_windows1252_decodestream(tc, ds, stopper_chars, stopper_sep);
+        MVM_string_windows1252_decodestream(tc, ds, stopper_chars, seps);
         break;
     default:
         MVM_exception_throw_adhoc(tc, "Streaming decode NYI for encoding %d",
@@ -188,7 +188,15 @@ MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecod
      * just beyond the separator, so can use take_chars to get what's need. */
     sep_loc = find_separator(tc, ds, sep);
     if (!sep_loc) {
-        run_decode(tc, ds, NULL, &sep);
+        /* XXX Temporarily set up the separator spec here; we'll request it be
+         * passed down to use in the future, and fully support multiple and
+         * multi-grapheme separators. */
+        MVMDecodeStreamSeparators sep_spec;
+        MVMint32 sep_length = 1;
+        sep_spec.num_seps = 1;
+        sep_spec.sep_lengths = &sep_length;
+        sep_spec.sep_graphemes = &sep;
+        run_decode(tc, ds, NULL, &sep_spec);
         sep_loc = find_separator(tc, ds, sep);
     }
     if (sep_loc)

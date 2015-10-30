@@ -130,7 +130,8 @@ static MVMuint8 windows1252_cp_to_char(MVMint32 codepoint) {
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 void MVM_string_windows1252_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                         const MVMint32 *stopper_chars, const MVMint32 *stopper_sep) {
+                                         const MVMint32 *stopper_chars,
+                                         MVMDecodeStreamSeparators *seps) {
     MVMint32 count = 0, total = 0;
     MVMint32 bufsize;
     MVMGrapheme32 *buffer;
@@ -172,7 +173,7 @@ void MVM_string_windows1252_decodestream(MVMThreadContext *tc, MVMDecodeStream *
             total++;
             if (stopper_chars && *stopper_chars == total)
                 goto done;
-            if (stopper_sep && *stopper_sep == codepoint)
+            if (MVM_string_decode_stream_maybe_sep(tc, seps, codepoint))
                 goto done;
         }
         cur_bytes = cur_bytes->next;
