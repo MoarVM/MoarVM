@@ -26,10 +26,19 @@
 #define MVM_CCLASS_NEWLINE      4096
 #define MVM_CCLASS_WORD         8192
 
+/* Checks a string is not null or non-concrete and throws if so. */
+MVM_STATIC_INLINE void MVM_string_check_arg(MVMThreadContext *tc, const MVMString *s, const char *operation) {
+    if (!s || !IS_CONCRETE(s))
+        MVM_exception_throw_adhoc(tc, "%s requires a concrete string, but got %s",
+            operation, s ? "a type object" : "null");
+}
+
 MVM_STATIC_INLINE MVMuint32 MVM_string_graphs(MVMThreadContext *tc, MVMString *s) {
+    MVM_string_check_arg(tc, s, "chars");
     return s->body.num_graphs;
 }
 MVM_STATIC_INLINE MVMuint32 MVM_string_codes(MVMThreadContext *tc, MVMString *s) {
+    MVM_string_check_arg(tc, s, "codes");
     return s->body.num_graphs; /* Don't do NFG yet; this will do us. */
 }
 

@@ -22,13 +22,6 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 #define STRAND_CHECK(tc, s)
 #endif
 
-/* Checks a string is not null or non-concrete and throws if so. */
-MVM_STATIC_INLINE void MVM_string_check_arg(MVMThreadContext *tc, const MVMString *s, const char *operation) {
-    if (!s || !IS_CONCRETE(s))
-        MVM_exception_throw_adhoc(tc, "%s requires a concrete string, but got %s",
-            operation, s ? "a type object" : "null");
-}
-
 /* Allocates strand storage. */
 static MVMStringStrand * allocate_strands(MVMThreadContext *tc, MVMuint16 num_strands) {
     return MVM_malloc(num_strands * sizeof(MVMStringStrand));
