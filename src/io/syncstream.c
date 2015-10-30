@@ -38,10 +38,8 @@ MVMint64 MVM_io_syncstream_tell(MVMThreadContext *tc, MVMOSHandle *h) {
 
 /* Set the line separator. */
 void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) {
-    /* For now, take last character. */
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    data->sep = (MVMGrapheme32)MVM_string_get_grapheme_at(tc, sep,
-        MVM_string_graphs(tc, sep) - 1);
+    MVM_string_decode_stream_maybe_sep_from_string(tc, &(data->sep_spec), sep);
 }
 
 /* Read a bunch of bytes into the current decode stream. Returns true if we
@@ -99,7 +97,7 @@ MVMString * MVM_io_syncstream_read_line(MVMThreadContext *tc, MVMOSHandle *h) {
 
     /* Pull data until we can read a line. */
     do {
-        MVMString *line = MVM_string_decodestream_get_until_sep(tc, data->ds, data->sep);
+        MVMString *line = MVM_string_decodestream_get_until_sep(tc, data->ds, &(data->sep_spec));
         if (line != NULL)
             return line;
     } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);
@@ -316,7 +314,7 @@ MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *h
     MVMIOSyncStreamData * const data   = MVM_calloc(1, sizeof(MVMIOSyncStreamData));
     data->handle      = handle;
     data->encoding    = MVM_encoding_type_utf8;
-    data->sep         = '\n';
+    MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;

@@ -208,7 +208,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
             MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
             data->ss.handle   = (uv_stream_t *)client;
             data->ss.encoding = MVM_encoding_type_utf8;
-            data->ss.sep      = '\n';
+            MVM_string_decode_stream_sep_default(tc, &(data->ss.sep_spec));
             result->body.ops  = &op_table;
             result->body.data = data;
             return (MVMObject *)result;
@@ -226,7 +226,7 @@ MVMObject * MVM_io_socket_create(MVMThreadContext *tc, MVMint64 listen) {
     MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
     data->ss.handle   = NULL;
     data->ss.encoding = MVM_encoding_type_utf8;
-    data->ss.sep      = '\n';
+    MVM_string_decode_stream_sep_default(tc, &(data->ss.sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;
