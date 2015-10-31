@@ -465,9 +465,7 @@ static void write_array_var(MVMThreadContext *tc, MVMSerializationWriter *writer
     MVMint32 i;
 
     /* Write out element count. */
-    expand_storage_if_needed(tc, writer, 4);
-    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), elems);
-    *(writer->cur_write_offset) += 4;
+    MVM_serialization_write_varint(tc, writer, elems);
 
     /* Write elements. */
     for (i = 0; i < elems; i++)
@@ -1050,9 +1048,8 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
         /* Write the parameters. We write them like an array, but an element at a
          * time so we can check if an intern table entry is needed. */
         num_params = MVM_repr_elems(tc, params);
-        expand_storage_if_needed(tc, writer, 4);
-        write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), num_params);
-        *(writer->cur_write_offset) += 4;
+        /* This typically seems to have values between 1 and 3: */
+        MVM_serialization_write_varint(tc, writer, num_params);
         for (i = 0; i < num_params; i++) {
             /* Save where we were before writing this parameter. */
             size_t pre_write_mark = *(writer->cur_write_offset);
@@ -1635,9 +1632,13 @@ static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *
     MVMint32 elems, i;
 
     /* Read the element count. */
-    assert_can_read(tc, reader, 4);
-    elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-    *(reader->cur_read_offset) += 4;
+    if (reader->root.version <= 15) {
+        assert_can_read(tc, reader, 4);
+        elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 4;
+    } else {
+        elems = MVM_serialization_read_varint(tc, reader);
+    }
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++)
