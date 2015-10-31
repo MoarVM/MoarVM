@@ -976,8 +976,23 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     for (i = 0; i < st->type_check_cache_length; i++)
         MVM_serialization_write_ref(tc, writer, st->type_check_cache[i]);
 
-    /* Mode flags. */
-    MVM_serialization_write_int(tc, writer, st->mode_flags);
+    /* Mode flags.
+       These are stored as MVMuint16, but currently only the bottom 6 bits are
+       used. Whilst we could store these as 2 bytes, we don't actually gain any
+       future-proofing from that, because if we start assigning meaning to
+       currently unused bits, then we have to bump the serialisation version
+       *anyway*. If we didn't, older readers would encounter files with the
+       newly used bits, but ignore whatever semantics those bits were meant to
+       convey, and hence show buggy behaviour. And if we're bumping the
+       serialisation version, then we can increase the storage size.  */
+    if (st->mode_flags > 255) {
+        MVM_exception_throw_adhoc(tc,
+                                  "Serialization error: mode_flags %u out of range and can't be serialized",
+                                  st->mode_flags);
+    }
+    expand_storage_if_needed(tc, writer, 1);
+    *(*(writer->cur_write_buffer) + *(writer->cur_write_offset)) = st->mode_flags;
+    ++*(writer->cur_write_offset);
 
     /* Boolification spec. */
     MVM_serialization_write_int(tc, writer, st->boolification_spec != NULL);
@@ -2378,7 +2393,13 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     }
 
     /* Mode flags. */
-    st->mode_flags = MVM_serialization_read_int(tc, reader);
+    if (reader->root.version <= 15) {
+        st->mode_flags = MVM_serialization_read_int(tc, reader);
+    } else {
+        assert_can_read(tc, reader, 1);
+        st->mode_flags = *(*(reader->cur_read_buffer) + *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 1;
+    }
     if (st->mode_flags & MVM_PARAMETRIC_TYPE && st->mode_flags & MVM_PARAMETERIZED_TYPE)
         fail_deserialize(tc, reader,
             "STable mode flags cannot indicate both parametric and parameterized");
