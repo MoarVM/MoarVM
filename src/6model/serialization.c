@@ -972,7 +972,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     MVM_serialization_write_ref(tc, writer, st->method_cache);
 
     /* Type check cache. */
-    MVM_serialization_write_int(tc, writer, st->type_check_cache_length);
+    MVM_serialization_write_varint(tc, writer, st->type_check_cache_length);
     for (i = 0; i < st->type_check_cache_length; i++)
         MVM_serialization_write_ref(tc, writer, st->type_check_cache[i]);
 
@@ -1003,13 +1003,13 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     if (st->invocation_spec) {
         MVM_serialization_write_ref(tc, writer, st->invocation_spec->class_handle);
         MVM_serialization_write_str(tc, writer, st->invocation_spec->attr_name);
-        MVM_serialization_write_int(tc, writer, st->invocation_spec->hint);
+        MVM_serialization_write_varint(tc, writer, st->invocation_spec->hint);
         MVM_serialization_write_ref(tc, writer, st->invocation_spec->invocation_handler);
         MVM_serialization_write_ref(tc, writer, st->invocation_spec->md_class_handle);
         MVM_serialization_write_str(tc, writer, st->invocation_spec->md_cache_attr_name);
-        MVM_serialization_write_int(tc, writer, st->invocation_spec->md_cache_hint);
+        MVM_serialization_write_varint(tc, writer, st->invocation_spec->md_cache_hint);
         MVM_serialization_write_str(tc, writer, st->invocation_spec->md_valid_attr_name);
-        MVM_serialization_write_int(tc, writer, st->invocation_spec->md_valid_hint);
+        MVM_serialization_write_varint(tc, writer, st->invocation_spec->md_valid_hint);
     }
 
     /* HLL owner. */
@@ -2366,7 +2366,11 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     deserialize_method_cache_lazy(tc, st, reader);
 
     /* Type check cache. */
-    st->type_check_cache_length = MVM_serialization_read_int(tc, reader);
+    if (reader->root.version <= 15) {
+        st->type_check_cache_length = MVM_serialization_read_int(tc, reader);
+    } else {
+        st->type_check_cache_length = MVM_serialization_read_varint(tc, reader);
+    }
     if (st->type_check_cache_length > 0) {
         st->type_check_cache = (MVMObject **)MVM_malloc(st->type_check_cache_length * sizeof(MVMObject *));
         for (i = 0; i < st->type_check_cache_length; i++)
@@ -2399,13 +2403,25 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         st->invocation_spec = (MVMInvocationSpec *)MVM_calloc(1, sizeof(MVMInvocationSpec));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->class_handle, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
-        st->invocation_spec->hint = MVM_serialization_read_int(tc, reader);
+        if (reader->root.version <= 15) {
+            st->invocation_spec->hint = MVM_serialization_read_int(tc, reader);
+        } else {
+            st->invocation_spec->hint = MVM_serialization_read_varint(tc, reader);
+        }
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->invocation_handler, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_class_handle, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_cache_attr_name, MVM_serialization_read_str(tc, reader));
-        st->invocation_spec->md_cache_hint = MVM_serialization_read_int(tc, reader);
+        if (reader->root.version <= 15) {
+            st->invocation_spec->md_cache_hint = MVM_serialization_read_int(tc, reader);
+        } else {
+            st->invocation_spec->md_cache_hint = MVM_serialization_read_varint(tc, reader);
+        }
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_valid_attr_name, MVM_serialization_read_str(tc, reader));
-        st->invocation_spec->md_valid_hint = MVM_serialization_read_int(tc, reader);
+        if (reader->root.version <= 15) {
+            st->invocation_spec->md_valid_hint = MVM_serialization_read_int(tc, reader);
+        } else {
+            st->invocation_spec->md_valid_hint = MVM_serialization_read_varint(tc, reader);
+        }
     }
 
     /* HLL owner. */
