@@ -79,6 +79,11 @@
 #define STRING_HEAP_LOC_PACKED_LOW_MASK 0x0000FFFF
 #define STRING_HEAP_LOC_PACKED_SHIFT    16
 
+#define STABLE_BOOLIFICATION_SPEC_MODE_MASK 0x0F
+#define STABLE_HAS_CONTAINER_SPEC           0x10
+#define STABLE_HAS_INVOCATION_SPEC          0x20
+#define STABLE_HAS_HLL_OWNER                0x40
+
 /* Endian translation (file format is little endian, so on big endian we need
  * to twiddle. */
 #ifdef MVM_BIGENDIAN
@@ -1008,6 +1013,12 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     } else {
         flags = 0xF;
     }
+    if (st->container_spec != NULL)
+        flags |= STABLE_HAS_CONTAINER_SPEC;
+    if (st->invocation_spec != NULL)
+        flags |= STABLE_HAS_INVOCATION_SPEC;
+    if (st->hll_owner != NULL)
+        flags |= STABLE_HAS_HLL_OWNER;
     expand_storage_if_needed(tc, writer, 1);
     *(*(writer->cur_write_buffer) + *(writer->cur_write_offset)) = flags;
     ++*(writer->cur_write_offset);
@@ -1017,7 +1028,6 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     }
 
     /* Container spec. */
-    MVM_serialization_write_int(tc, writer, st->container_spec != NULL);
     if (st->container_spec) {
         /* Write container spec name. */
         MVM_serialization_write_str(tc, writer,
@@ -1029,7 +1039,6 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     }
 
     /* Invocation spec. */
-    MVM_serialization_write_int(tc, writer, st->invocation_spec != NULL);
     if (st->invocation_spec) {
         MVM_serialization_write_ref(tc, writer, st->invocation_spec->class_handle);
         MVM_serialization_write_str(tc, writer, st->invocation_spec->attr_name);
@@ -1045,8 +1054,6 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     /* HLL owner. */
     if (st->hll_owner)
         MVM_serialization_write_str(tc, writer, st->hll_owner->name);
-    else
-        MVM_serialization_write_str(tc, writer, NULL);
 
     /* If it's a parametric type, save parameterizer. */
     if (st->mode_flags & MVM_PARAMETRIC_TYPE)
@@ -2441,7 +2448,8 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     }
 
     /* Container spec. */
-    if (MVM_serialization_read_int(tc, reader)) {
+    if (reader->root.version > 15 ? (flags & STABLE_HAS_CONTAINER_SPEC)
+        : MVM_serialization_read_int(tc, reader)) {
         const MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc,
             MVM_serialization_read_str(tc, reader));
         cc->set_container_spec(tc, st);
@@ -2449,7 +2457,8 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     }
 
     /* Invocation spec. */
-    if (MVM_serialization_read_int(tc, reader)) {
+    if (reader->root.version > 15 ? (flags & STABLE_HAS_INVOCATION_SPEC)
+        : MVM_serialization_read_int(tc, reader)) {
         st->invocation_spec = (MVMInvocationSpec *)MVM_calloc(1, sizeof(MVMInvocationSpec));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->class_handle, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
@@ -2475,9 +2484,15 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     }
 
     /* HLL owner. */
-    hll_name = MVM_serialization_read_str(tc, reader);
-    if (hll_name)
-        st->hll_owner = MVM_hll_get_config_for(tc, hll_name);
+    if (reader->root.version <= 15) {
+        hll_name = MVM_serialization_read_str(tc, reader);
+        if (hll_name)
+            st->hll_owner = MVM_hll_get_config_for(tc, hll_name);
+    } else {
+        if (flags & STABLE_HAS_HLL_OWNER) {
+            st->hll_owner = MVM_hll_get_config_for(tc, MVM_serialization_read_str(tc, reader));
+        }
+    }
 
     /* If it's a parametric type... */
     if (st->mode_flags & MVM_PARAMETRIC_TYPE) {
