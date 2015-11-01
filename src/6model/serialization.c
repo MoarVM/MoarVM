@@ -941,6 +941,7 @@ static void add_param_intern(MVMThreadContext *tc, MVMSerializationWriter *write
 
 static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
     MVMint64  i;
+    MVMuint8  flags;
 
     /* Ensure there's space in the STables table; grow if not. */
     MVMint32 offset = writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE;
@@ -995,9 +996,23 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     ++*(writer->cur_write_offset);
 
     /* Boolification spec. */
-    MVM_serialization_write_int(tc, writer, st->boolification_spec != NULL);
+    /* As this only needs 4 bits, also use the same byte to store various
+       NULL/not-NULL flag bits. */
     if (st->boolification_spec) {
-        MVM_serialization_write_int(tc, writer, st->boolification_spec->mode);
+        if (st->boolification_spec->mode >= 0xF) {
+            MVM_exception_throw_adhoc(tc,
+                                  "Serialization error: boolification spec mode %u out of range and can't be serialized",
+                                      st->boolification_spec->mode);
+        }
+        flags = st->boolification_spec->mode;
+    } else {
+        flags = 0xF;
+    }
+    expand_storage_if_needed(tc, writer, 1);
+    *(*(writer->cur_write_buffer) + *(writer->cur_write_offset)) = flags;
+    ++*(writer->cur_write_offset);
+
+    if (st->boolification_spec) {
         MVM_serialization_write_ref(tc, writer, st->boolification_spec->method);
     }
 
@@ -2365,6 +2380,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     /* Calculate location of STable's table row. */
     char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
     MVMString *hll_name;
+    MVMuint8 flags;
 
     /* Set STable read position, and set current read buffer to the correct thing. */
     reader->stables_data_offset = read_int32(st_table_row, 4);
@@ -2405,10 +2421,23 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
             "STable mode flags cannot indicate both parametric and parameterized");
 
     /* Boolification spec. */
-    if (MVM_serialization_read_int(tc, reader)) {
-        st->boolification_spec = (MVMBoolificationSpec *)MVM_malloc(sizeof(MVMBoolificationSpec));
-        st->boolification_spec->mode = MVM_serialization_read_int(tc, reader);
-        MVM_ASSIGN_REF(tc, &(st->header), st->boolification_spec->method, MVM_serialization_read_ref(tc, reader));
+    if (reader->root.version <= 15) {
+        if (MVM_serialization_read_int(tc, reader)) {
+            st->boolification_spec = (MVMBoolificationSpec *)MVM_malloc(sizeof(MVMBoolificationSpec));
+            st->boolification_spec->mode = MVM_serialization_read_int(tc, reader);
+            MVM_ASSIGN_REF(tc, &(st->header), st->boolification_spec->method, MVM_serialization_read_ref(tc, reader));
+        }
+    } else {
+        MVMuint8 mode;
+        assert_can_read(tc, reader, 1);
+        flags = *(*(reader->cur_read_buffer) + *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 1;
+        mode = flags & 0xF;
+        if (mode != 0xF) {
+            st->boolification_spec = (MVMBoolificationSpec *)MVM_malloc(sizeof(MVMBoolificationSpec));
+            st->boolification_spec->mode = mode;
+            MVM_ASSIGN_REF(tc, &(st->header), st->boolification_spec->method, MVM_serialization_read_ref(tc, reader));
+        }
     }
 
     /* Container spec. */
