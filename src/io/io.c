@@ -314,11 +314,11 @@ void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, 
         MVM_exception_throw_adhoc(tc, "Cannot connect this kind of handle");
 }
 
-void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port) {
+void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMint32 backlog) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "bind");
     if (handle->body.ops->sockety) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        handle->body.ops->sockety->bind(tc, handle, host, port);
+        handle->body.ops->sockety->bind(tc, handle, host, port, backlog);
         release_mutex(tc, mutex);
     }
     else

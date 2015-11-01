@@ -116,7 +116,7 @@ static void on_connection(uv_stream_t *server, int status) {
     data->accept_status = status;
     uv_unref((uv_handle_t *)server);
 }
-static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port) {
+static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMint32 backlog) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     if (!data->ss.handle) {
         struct sockaddr *dest    = MVM_io_resolve_host_name(tc, host, port);
@@ -134,7 +134,7 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         /* Start listening, but unref the socket so it won't get in the way of
          * other things we want to do on this event loop. */
         socket->data = data;
-        if ((r = uv_listen((uv_stream_t *)socket, 1, on_connection)) != 0) {
+        if ((r = uv_listen((uv_stream_t *)socket, backlog, on_connection)) != 0) {
             MVM_free(socket);
             MVM_exception_throw_adhoc(tc, "Failed to listen: %s", uv_strerror(r));
         }
