@@ -74,8 +74,10 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
     }
 }
 
-/* Does a decode run, selected by encoding. */
-static void run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *sep_spec) {
+/* Does a decode run, selected by encoding. Returns non-zero if we actually
+ * decoded more chars. */
+static MVMint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *sep_spec) {
+    MVMDecodeStreamChars *prev_chars_tail = ds->chars_tail;
     switch (ds->encoding) {
     case MVM_encoding_type_utf8:
         MVM_string_utf8_decodestream(tc, ds, stopper_chars, sep_spec);
@@ -93,6 +95,7 @@ static void run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32
         MVM_exception_throw_adhoc(tc, "Streaming decode NYI for encoding %d",
             (int)ds->encoding);
     }
+    return ds->chars_tail != prev_chars_tail;
 }
 
 /* Gets the specified number of characters. If we are not yet able to decode
@@ -210,10 +213,13 @@ MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecod
     MVMint32 sep_loc;
 
     /* Look for separator, trying more decoding if it fails. We get the place
-     * just beyond the separator, so can use take_chars to get what's need. */
+     * just beyond the separator, so can use take_chars to get what's need.
+     * Note that decoders are only responsible for finding the final char of
+     * the separator, so we may need to loop a few times around this. */
     sep_loc = find_separator(tc, ds, sep_spec);
-    if (!sep_loc) {
-        run_decode(tc, ds, NULL, sep_spec);
+    while (!sep_loc) {
+        if (!run_decode(tc, ds, NULL, sep_spec))
+            break;
         sep_loc = find_separator(tc, ds, sep_spec);
     }
     if (sep_loc)
