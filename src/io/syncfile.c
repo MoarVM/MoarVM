@@ -91,9 +91,9 @@ static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
 }
 
 /* Set the line separator. */
-static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) {
+static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString **seps, MVMint32 num_seps) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVM_string_decode_stream_maybe_sep_from_string(tc, &(data->sep_spec), sep);
+    MVM_string_decode_stream_sep_from_strings(tc, &(data->sep_spec), seps, num_seps);
 }
 
 /* Read a bunch of bytes into the current decode stream. */

@@ -369,21 +369,33 @@ void MVM_string_decode_stream_sep_default(MVMThreadContext *tc, MVMDecodeStreamS
 }
 
 /* Takes a string and sets it up as a decode stream separator. */
-void MVM_string_decode_stream_maybe_sep_from_string(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec, MVMString *sep) {
+void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec,
+                                                     MVMString **seps, MVMint32 num_seps) {
     MVMGraphemeIter gi;
-    MVMint32 i;
+    MVMint32 i, graph_length, graph_pos;
 
-    if (MVM_string_graphs(tc, sep) > 0xFFFF)
-        MVM_exception_throw_adhoc(tc, "Line separator too long");
+    if (num_seps > 0xFFF)
+        MVM_exception_throw_adhoc(tc, "Too many line separators");
 
     MVM_free(sep_spec->sep_lengths);
     MVM_free(sep_spec->sep_graphemes);
 
-    sep_spec->num_seps = 1;
-    sep_spec->sep_lengths = MVM_malloc(sizeof(MVMint32));
-    sep_spec->sep_lengths[0] = MVM_string_graphs(tc, sep);
-    sep_spec->sep_graphemes = MVM_malloc(sep_spec->sep_lengths[0] * sizeof(MVMGrapheme32));
-    MVM_string_gi_init(tc, &gi, sep);
-    for (i = 0; i < sep_spec->sep_lengths[0]; i++)
-        sep_spec->sep_graphemes[i] = MVM_string_gi_get_grapheme(tc, &gi);
+    sep_spec->num_seps = num_seps;
+    sep_spec->sep_lengths = MVM_malloc(num_seps * sizeof(MVMint32));
+    graph_length = 0;
+    for (i = 0; i < num_seps; i++) {
+        MVMuint32 num_graphs = MVM_string_graphs(tc, seps[i]);
+        if (num_graphs > 0xFFFF)
+            MVM_exception_throw_adhoc(tc, "Line separator too long");
+        sep_spec->sep_lengths[i] = num_graphs;
+        graph_length += num_graphs;
+    }
+
+    sep_spec->sep_graphemes = MVM_malloc(graph_length * sizeof(MVMGrapheme32));
+    graph_pos = 0;
+    for (i = 0; i < num_seps; i++) {
+        MVM_string_gi_init(tc, &gi, seps[i]);
+        while (MVM_string_gi_has_more(tc, &gi))
+            sep_spec->sep_graphemes[graph_pos++] = MVM_string_gi_get_grapheme(tc, &gi);
+    }
 }

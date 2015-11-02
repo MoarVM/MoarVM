@@ -37,9 +37,9 @@ MVMint64 MVM_io_syncstream_tell(MVMThreadContext *tc, MVMOSHandle *h) {
 }
 
 /* Set the line separator. */
-void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) {
+void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString **seps, MVMint32 num_seps) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    MVM_string_decode_stream_maybe_sep_from_string(tc, &(data->sep_spec), sep);
+    MVM_string_decode_stream_sep_from_strings(tc, &(data->sep_spec), seps, num_seps);
 }
 
 /* Read a bunch of bytes into the current decode stream. Returns true if we

@@ -75,7 +75,7 @@ void MVM_io_set_separator(MVMThreadContext *tc, MVMObject *oshandle, MVMString *
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "set separator");
     if (handle->body.ops->sync_readable) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        handle->body.ops->sync_readable->set_separator(tc, handle, sep);
+        handle->body.ops->sync_readable->set_separator(tc, handle, &sep, 1);
         release_mutex(tc, mutex);
     }
     else
