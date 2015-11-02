@@ -181,11 +181,14 @@ static MVMint32 find_separator(MVMThreadContext *tc, const MVMDecodeStream *ds, 
     }
     return 0;
 }
-MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecodeStream *ds, MVMDecodeStreamSeparators *sep_spec) {
+MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecodeStream *ds,
+                                                  MVMDecodeStreamSeparators *sep_spec, MVMint32 chomp) {
     MVMint32 sep_loc;
 
     /* Look for separator, trying more decoding if it fails. We get the place
      * just beyond the separator, so can use take_chars to get what's need. */
+    if (chomp)
+        MVM_exception_throw_adhoc(tc, "MVM_string_decodestream_get_until_sep chomp NYI");
     sep_loc = find_separator(tc, ds, sep_spec);
     if (!sep_loc) {
         run_decode(tc, ds, NULL, sep_spec);

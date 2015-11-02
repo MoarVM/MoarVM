@@ -119,13 +119,14 @@ static void ensure_decode_stream(MVMThreadContext *tc, MVMIOFileData *data) {
 
 /* Reads a single line from the file handle. May serve it from a buffer, if we
  * already read enough data. */
-static MVMString * read_line(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMString * read_line(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 chomp) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     ensure_decode_stream(tc, data);
 
     /* Pull data until we can read a line. */
     do {
-        MVMString *line = MVM_string_decodestream_get_until_sep(tc, data->ds, &(data->sep_spec));
+        MVMString *line = MVM_string_decodestream_get_until_sep(tc,
+            data->ds, &(data->sep_spec), chomp);
         if (line != NULL)
             return line;
     } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);

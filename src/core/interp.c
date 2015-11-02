@@ -3267,7 +3267,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(readline_fh):
-                GET_REG(cur_op, 0).s = MVM_io_readline(tc, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).s = MVM_io_readline(tc, GET_REG(cur_op, 2).o, 0);
                 cur_op += 4;
                 goto NEXT;
             OP(readlineint_fh):

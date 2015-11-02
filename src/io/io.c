@@ -114,11 +114,11 @@ void MVM_io_set_separators(MVMThreadContext *tc, MVMObject *oshandle, MVMObject 
     }
 }
 
-MVMString * MVM_io_readline(MVMThreadContext *tc, MVMObject *oshandle) {
+MVMString * MVM_io_readline(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 chomp) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "readline");
     if (handle->body.ops->sync_readable) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        MVMString *result = handle->body.ops->sync_readable->read_line(tc, handle);
+        MVMString *result = handle->body.ops->sync_readable->read_line(tc, handle, chomp);
         release_mutex(tc, mutex);
         return result;
     }
