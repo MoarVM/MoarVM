@@ -149,8 +149,12 @@ char * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVM
             }
             if (ord >= 0 && ord <= 255)
                 result[i] = (MVMuint8)ord;
-            else
-                result[i] = '?';
+            else {
+                MVM_free(result);
+                MVM_exception_throw_adhoc(tc,
+                    "Error encoding Latin-1 string: could not encode codepoint %d",
+                    ord);
+            }
             i++;
         }
         result[i] = 0;

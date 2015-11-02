@@ -121,11 +121,17 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
             result_pos[0] = value;
             result_pos++;
         }
-        else {
+        else if (value <= 0x1FFFFF) {
             value -= 0x10000;
             result_pos[0] = 0xD800 + (value >> 10);
             result_pos[1] = 0xDC00 + (value & 0x3FF);
             result_pos += 2;
+        }
+        else {
+            MVM_free(result);
+            MVM_exception_throw_adhoc(tc,
+                "Error encoding UTF-16 string: could not encode codepoint %d",
+                value);
         }
     }
     result_pos[0] = 0;

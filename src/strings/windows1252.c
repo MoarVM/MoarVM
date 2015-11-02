@@ -38,6 +38,9 @@ static const MVMuint16 codepoints[] = {
 };
 
 static MVMuint8 windows1252_cp_to_char(MVMint32 codepoint) {
+    if (codepoint > 8364 || codepoint < 0)
+        return '\0';
+
     if (codepoint <= 8216) {
         if (codepoint <= 352) {
             if (codepoint <= 143) {
@@ -123,8 +126,7 @@ static MVMuint8 windows1252_cp_to_char(MVMint32 codepoint) {
         }
     }
 
-    return '?';
-
+    return '\0';
 }
 
 /* Decodes using a decodestream. Decodes as far as it can with the input
@@ -276,10 +278,15 @@ char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str
             }
             if ((codepoint >= 0 && codepoint < 128) || (codepoint >= 152 && codepoint < 256))
                 result[i] = (MVMuint8)codepoint;
-            else if (codepoint > 8364 || codepoint < 0)
-                result[i] = '?';
-            else
+            else {
                 result[i] = windows1252_cp_to_char(codepoint);
+                if (result[i] == '\0') {
+                    MVM_free(result);
+                    MVM_exception_throw_adhoc(tc,
+                        "Error encoding Windows-1252 string: could not encode codepoint %d",
+                         codepoint);
+                }
+            }
             i++;
         }
         result[i] = 0;
