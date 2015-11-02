@@ -4712,7 +4712,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(setinputlineseps_fh):
-                MVM_exception_throw_adhoc(tc, "setinputlineseps_fh NYI");
+                MVM_io_set_separators(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(readlinechomp_fh):
                 MVM_exception_throw_adhoc(tc, "readlinechomp_fh NYI");
             OP(sp_log):

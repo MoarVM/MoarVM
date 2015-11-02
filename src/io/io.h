@@ -94,6 +94,7 @@ void MVM_io_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *e
 void MVM_io_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag);
 MVMint64 MVM_io_tell(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_set_separator(MVMThreadContext *tc, MVMObject *oshandle, MVMString *sep);
+void MVM_io_set_separators(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *seps);
 MVMString * MVM_io_readline(MVMThreadContext *tc, MVMObject *oshandle);
 MVMString * MVM_io_read_string(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length);
 void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length);
