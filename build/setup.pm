@@ -288,7 +288,7 @@ our %COMPILERS = (
         ld => undef,
 
         ccmiscflags  =>  '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
-        ccwarnflags  => '',
+        ccwarnflags  => '-Wno-logical-op-parentheses',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
         ccinstflags  => '-fsanitize=address',
