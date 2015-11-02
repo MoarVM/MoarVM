@@ -732,6 +732,8 @@ numdimensions       w(int64) r(obj)
 ctxcode             w(obj) r(obj)
 isrwcont            w(int64) r(obj)
 fc                  w(str) r(str) :pure
+setinputlineseps_fh r(obj) r(obj)
+readlinechomp_fh    w(str) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
