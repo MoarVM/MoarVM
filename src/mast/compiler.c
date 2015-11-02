@@ -1314,13 +1314,15 @@ static char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_si
         unsigned short align;
         unsigned int need;
 
-        /* Decide if we can get away with Latin-1. */
+        /* Decide if we can get away with Latin-1 with an assumption of the
+         * string already being in NFG. Latin-1 is except \r, which we also
+         * check for here. */
         MVMint32   need_utf8 = 0;
         MVMString *str       = ATPOS_S(vm, ws->strings, i);
         MVM_string_gi_init(tc, &gi, str);
         while (MVM_string_gi_has_more(tc, &gi)) {
             MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-            if (g < 0 || g >= 0xFF) {
+            if (g < 0 || g >= 0xFF || g == 0x0D) {
                 need_utf8 = 1;
                 break;
             }
