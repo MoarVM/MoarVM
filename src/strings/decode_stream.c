@@ -96,7 +96,10 @@ static void run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32
 }
 
 /* Gets the specified number of characters. If we are not yet able to decode
- * that many, returns NULL. This may mean more input buffers are needed. */
+ * that many, returns NULL. This may mean more input buffers are needed. The
+ * exclude parameter specifies a number of chars that should be taken from the
+ * input buffer, but not included in the result string (for chomping a line
+ * separator). */
 static MVMint32 missing_chars(MVMThreadContext *tc, const MVMDecodeStream *ds, MVMint32 wanted) {
     MVMint32 got = 0;
     MVMDecodeStreamChars *cur_chars = ds->chars_head;
@@ -109,12 +112,19 @@ static MVMint32 missing_chars(MVMThreadContext *tc, const MVMDecodeStream *ds, M
     }
     return got >= wanted ? 0 : wanted - got;
 }
-static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 chars) {
-    MVMint32   found             = 0;
-    MVMString *result            = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    result->body.storage.blob_32 = MVM_malloc(chars * sizeof(MVMGrapheme32));
+static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 chars, MVMint32 exclude) {
+    MVMString *result;
+    MVMint32   found = 0;
+    MVMint32   result_found = 0;
+
+    MVMint32   result_chars = chars - exclude;
+    if (result_chars < 0)
+        MVM_exception_throw_adhoc(tc, "DecodeStream take_chars: chars - exclude < 0 should never happen");
+
+    result                       = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    result->body.storage.blob_32 = MVM_malloc(result_chars * sizeof(MVMGrapheme32));
     result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    result->body.num_graphs      = chars;
+    result->body.num_graphs      = result_chars;
     while (found < chars) {
         MVMDecodeStreamChars *cur_chars = ds->chars_head;
         MVMint32 available = cur_chars->length - ds->chars_head_pos;
@@ -122,8 +132,19 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
             /* We need all that's left in this buffer and likely
              * more. */
             MVMDecodeStreamChars *next_chars = cur_chars->next;
-            memcpy(result->body.storage.blob_32 + found, cur_chars->chars + ds->chars_head_pos,
-                available * sizeof(MVMGrapheme32));
+            if (available <= result_chars - result_found) {
+                memcpy(result->body.storage.blob_32 + result_found,
+                    cur_chars->chars + ds->chars_head_pos,
+                    available * sizeof(MVMGrapheme32));
+                result_found += available;
+            }
+            else {
+                MVMint32 to_copy = result_chars - result_found;
+                memcpy(result->body.storage.blob_32 + result_found,
+                    cur_chars->chars + ds->chars_head_pos,
+                    to_copy * sizeof(MVMGrapheme32));
+                result_found += to_copy;
+            }
             found += available;
             MVM_free(cur_chars->chars);
             MVM_free(cur_chars);
@@ -136,8 +157,11 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
             /* There's enough in this buffer to satisfy us, and we'll leave
              * some behind. */
             MVMint32 take = chars - found;
-            memcpy(result->body.storage.blob_32 + found, cur_chars->chars + ds->chars_head_pos,
-                take * sizeof(MVMGrapheme32));
+            MVMint32 to_copy = result_chars - result_found;
+            memcpy(result->body.storage.blob_32 + result_found,
+                cur_chars->chars + ds->chars_head_pos,
+                to_copy * sizeof(MVMGrapheme32));
+            result_found += to_copy;
             found += take;
             ds->chars_head_pos += take;
         }
@@ -158,7 +182,7 @@ MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStr
 
     /* If we've got enough, assemble a string. Otherwise, give up. */
     if (missing_chars(tc, ds, chars) == 0)
-        return take_chars(tc, ds, chars);
+        return take_chars(tc, ds, chars, 0);
     else
         return NULL;
 }
@@ -187,15 +211,13 @@ MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecod
 
     /* Look for separator, trying more decoding if it fails. We get the place
      * just beyond the separator, so can use take_chars to get what's need. */
-    if (chomp)
-        MVM_exception_throw_adhoc(tc, "MVM_string_decodestream_get_until_sep chomp NYI");
     sep_loc = find_separator(tc, ds, sep_spec);
     if (!sep_loc) {
         run_decode(tc, ds, NULL, sep_spec);
         sep_loc = find_separator(tc, ds, sep_spec);
     }
     if (sep_loc)
-        return take_chars(tc, ds, sep_loc);
+        return take_chars(tc, ds, sep_loc, chomp ? 1 : 0);
     else
         return NULL;
 }
