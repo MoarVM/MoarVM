@@ -1,14 +1,18 @@
 #include "moar.h"
 #include "platform/io.h"
 
-/* Here we implement synchronous file I/O. It's done using libuv's file I/O
- * functions, without specifying callbacks, thus easily giving synchronous
- * behavior. */
+/* Here we implement synchronous file I/O, in terms of the standard system
+ * I/O functions. We don't use stdio to avoid its buffering given we do our
+ * own. */
 
 #ifndef _WIN32
 #include <sys/types.h>
 #include <unistd.h>
 #define DEFAULT_MODE 0x01B6
+#define open _open
+#define read _read
+#define write _write
+#define close _close
 #else
 #include <fcntl.h>
 #define O_CREAT  _O_CREAT
@@ -17,7 +21,7 @@
 #define O_TRUNC  _O_TRUNC
 #define O_EXCL   _O_EXCL
 #define O_RDWR   _O_RDWR
-#define DEFAULT_MODE _S_IWRITE /* work around sucky libuv defaults */
+#define DEFAULT_MODE _S_IWRITE
 #endif
 
 /* Number of bytes we pull in at a time to the buffer. */
@@ -25,8 +29,8 @@
 
 /* Data that we keep for a file-based handle. */
 typedef struct {
-    /* libuv file descriptor. */
-    uv_file fd;
+    /* The file descriptior. */
+    int fd;
 
     /* The filename we opened, as a C string. */
     char *filename;
@@ -44,16 +48,15 @@ typedef struct {
 /* Closes the file. */
 static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    uv_fs_t req;
+    int result;
     if (data->ds) {
         MVM_string_decodestream_destory(tc, data->ds);
         data->ds = NULL;
     }
-    if (uv_fs_close(tc->loop, &req, data->fd, NULL) < 0) {
-        data->fd = -1;
-        MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
-    }
-    data->fd = -1;
+    result = close(data->fd);
+    data->fd = 0;
+    if (result != 0)
+        MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", strerror(errno));
     return 0;
 }
 
@@ -98,17 +101,15 @@ static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString **seps
 
 /* Read a bunch of bytes into the current decode stream. */
 static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint32 bytes) {
-    char *buf         = MVM_malloc(bytes);
-    uv_buf_t read_buf = uv_buf_init(buf, bytes);
-    uv_fs_t req;
-    MVMint32 read;
-    if ((read = uv_fs_read(tc->loop, &req, data->fd, &read_buf, 1, -1, NULL)) < 0) {
+    char *buf = MVM_malloc(bytes);
+    size_t bytes_read = read(data->fd, buf, bytes);
+    if (bytes_read < 0) {
         MVM_free(buf);
         MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
-            uv_strerror(req.result));
+            strerror(errno));
     }
-    MVM_string_decodestream_add_bytes(tc, data->ds, buf, read);
-    return read;
+    MVM_string_decodestream_add_bytes(tc, data->ds, buf, bytes_read);
+    return bytes_read;
 }
 
 /* Ensures we have a decode stream, creating it if we're missing one. */
@@ -206,20 +207,19 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
     MVMuint64 output_size;
     MVMint64 bytes_written;
     char *output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
-    uv_buf_t write_buf  = uv_buf_init(output, output_size);
-    uv_fs_t req;
 
-    bytes_written = uv_fs_write(tc->loop, &req, data->fd, &write_buf, 1, -1, NULL);
+    bytes_written = write(data->fd, output, output_size);
     if (bytes_written < 0) {
         MVM_free(output);
-        MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
+        MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s",
+            strerror(errno));
     }
     MVM_free(output);
 
     if (newline) {
-        uv_buf_t nl = uv_buf_init("\n", 1);
-        if (uv_fs_write(tc->loop, &req, data->fd, &nl, 1, -1, NULL) < 0)
-            MVM_exception_throw_adhoc(tc, "Failed to write newline to filehandle: %s", uv_strerror(req.result));
+        if (write(data->fd, "\n", 1) < 0)
+            MVM_exception_throw_adhoc(tc, "Failed to write newline to filehandle: %s",
+                strerror(errno));
         bytes_written++;
     }
 
@@ -229,12 +229,11 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
 /* Writes the specified bytes to the file handle. */
 static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    uv_buf_t write_buf  = uv_buf_init(buf, bytes);
-    uv_fs_t  req;
     MVMint64 bytes_written;
-    bytes_written = uv_fs_write(tc->loop, &req, data->fd, &write_buf, 1, -1, NULL);
+    bytes_written = write(data->fd, buf, bytes);
     if (bytes_written < 0)
-        MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
+        MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s",
+            strerror(errno));
     return bytes_written;
 }
 
@@ -432,8 +431,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     char          * const fmode  = MVM_string_utf8_encode_C_string(tc, mode);
     MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     MVMIOFileData * const data   = MVM_calloc(1, sizeof(MVMIOFileData));
-    uv_fs_t req;
-    uv_file fd;
+    int                   fd;
 
     /* Resolve mode description to flags. */
     int flag;
@@ -445,9 +443,10 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     MVM_free(fmode);
 
     /* Try to open the file. */
-    if ((fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, DEFAULT_MODE, NULL)) < 0) {
+    if ((fd = open((const char *)fname, flag | _O_BINARY, DEFAULT_MODE)) < 0) {
         char *waste[] = { fname, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "Failed to open file %s: %s", fname, uv_strerror(req.result));
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to open file %s: %s", fname,
+            strerror(errno));
     }
 
     /* Set up handle. */
@@ -462,7 +461,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
 }
 
 /* Opens a file, returning a synchronous file handle. */
-MVMObject * MVM_file_handle_from_fd(MVMThreadContext *tc, uv_file fd) {
+MVMObject * MVM_file_handle_from_fd(MVMThreadContext *tc, int fd) {
     MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     MVMIOFileData * const data   = MVM_calloc(1, sizeof(MVMIOFileData));
     data->fd          = fd;
