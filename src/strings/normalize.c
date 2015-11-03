@@ -499,9 +499,8 @@ static MVMint32 is_spacing_mark(MVMThreadContext *tc, MVMCodepoint cp) {
 }
 static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b) {
     /* Don't break between \r and \n, but otherwise break around \r. */
-    /* TODO: fix downstream fallout before turning this on. */
-    /*if (a == 0x0D && b == 0x0A)
-        return 0;*/
+    if (a == 0x0D && b == 0x0A)
+        return 0;
     if (a == 0x0D || b == 0x0D)
         return 1;
 
