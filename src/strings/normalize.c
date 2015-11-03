@@ -316,8 +316,13 @@ static MVMint64 passes_quickcheck(MVMThreadContext *tc, const MVMNormalizer *n, 
 
 /* Gets the canonical combining class for a codepoint. */
 static MVMint64 ccc(MVMThreadContext *tc, MVMCodepoint cp) {
-    const char *ccc_str = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
-    return !ccc_str || strlen(ccc_str) > 3 ? 0 : atoi(ccc_str);
+    if (cp < MVM_NORMALIZE_FIRST_NONZERO_CCC) {
+        return 0;
+    }
+    else {
+        const char *ccc_str = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
+        return !ccc_str || strlen(ccc_str) > 3 ? 0 : atoi(ccc_str);
+    }
 }
 
 /* Checks if the thing we have is a control character (for the definition in

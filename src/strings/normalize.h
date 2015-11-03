@@ -24,6 +24,9 @@ typedef enum {
 #define MVM_NORMALIZE_FIRST_SIG_NFKD    0x00A0
 #define MVM_NORMALIZE_FIRST_SIG_NFKC    0x00A0
 
+/* First codepoint with a non-zero canonical combining class. */
+#define MVM_NORMALIZE_FIRST_NONZERO_CCC 0x300
+
 /* Streaming Unicode normalizer structure. */
 struct MVMNormalizer {
     /* What form of normalization are we doing? */
