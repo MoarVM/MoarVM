@@ -1025,28 +1025,38 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
 
             /* Add separator if needed. */
             if (i > 0) {
-                if (!concats_stable)
-                    /* Already stable; no more checks. */;
-                else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], separator))
-                    concats_stable = 0;
-                else if (!MVM_nfg_is_concat_stable(tc, separator, piece))
-                    concats_stable = 0;
+                if (sgraphs) {
+                    if (!concats_stable)
+                        /* Already stable; no more checks. */;
+                    else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], separator))
+                        concats_stable = 0;
+                    else if (!MVM_nfg_is_concat_stable(tc, separator, piece))
+                        concats_stable = 0;
 
-                switch (separator->body.storage_type) {
-                case MVM_STRING_GRAPHEME_32:
-                    memcpy(
-                        result->body.storage.blob_32 + position,
-                        separator->body.storage.blob_32,
-                        sgraphs * sizeof(MVMGrapheme32));
-                    position += sgraphs;
-                    break;
-                /* XXX Can special-case 8-bit NFG and ASCII here too. */
-                default:
-                    MVM_string_gi_init(tc, &gi, separator);
-                    while (MVM_string_gi_has_more(tc, &gi))
-                        result->body.storage.blob_32[position++] =
-                            MVM_string_gi_get_grapheme(tc, &gi);
-                    break;
+                    switch (separator->body.storage_type) {
+                    case MVM_STRING_GRAPHEME_32:
+                        memcpy(
+                            result->body.storage.blob_32 + position,
+                            separator->body.storage.blob_32,
+                            sgraphs * sizeof(MVMGrapheme32));
+                        position += sgraphs;
+                        break;
+                    /* XXX Can special-case 8-bit NFG and ASCII here too. */
+                    default:
+                        MVM_string_gi_init(tc, &gi, separator);
+                        while (MVM_string_gi_has_more(tc, &gi))
+                            result->body.storage.blob_32[position++] =
+                                MVM_string_gi_get_grapheme(tc, &gi);
+                        break;
+                    }
+                }
+                else {
+                    /* Separator has no graphemes, so NFG stability check
+                     * should consider pieces. */
+                    if (!concats_stable)
+                        /* Already stable; no more checks. */;
+                    else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], piece))
+                        concats_stable = 0;
                 }
             }
 
