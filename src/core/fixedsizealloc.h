@@ -69,7 +69,7 @@ struct MVMFixedSizeAllocSizeClass {
 #define MVM_FSA_BIN_MASK   ((1 << MVM_FSA_BIN_BITS) - 1)
 
 /* Number of bins in the FSA. Beyond this, we just degrade to malloc/free. */
-#define MVM_FSA_BINS       64 
+#define MVM_FSA_BINS       96
 
 /* The number of items that go into each page. */
 #define MVM_FSA_PAGE_ITEMS 128
