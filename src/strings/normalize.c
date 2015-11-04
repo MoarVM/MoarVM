@@ -617,7 +617,7 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
          * buffer, if any. We need to do this since it may have passed
          * quickcheck, but having seen some character that does pass then we
          * must make sure we decomposed the prior passing one too. */
-        if (MVM_NORMALIZE_COMPOSE(n->form) && n->buffer_end != n->buffer_start) {
+        if (MVM_NORMALIZE_COMPOSE(n->form) && n->buffer_end != n->buffer_norm_end) {
             MVMCodepoint decomp = n->buffer[n->buffer_end - 1];
             n->buffer_end--;
             decomp_codepoint_to_buffer(tc, n, decomp);
@@ -643,15 +643,16 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
     if (n->buffer_end - n->buffer_start <= 1)
         return 0;
 
-    /* Perform canonical sorting on everything from the start of the buffer
-     * up to but excluding the quick-check-passing thing we just added. */
-    canonical_sort(tc, n, n->buffer_start, n->buffer_end - 1);
+    /* Perform canonical sorting on everything from the start of the not yet
+     * normalized things in the buffer, up to but excluding the quick-check
+     * passing thing we just added. */
+    canonical_sort(tc, n, n->buffer_norm_end, n->buffer_end - 1);
 
     /* Perform canonical composition and grapheme composition if needed. */
     if (MVM_NORMALIZE_COMPOSE(n->form)) {
-        canonical_composition(tc, n, n->buffer_start, n->buffer_end - 1);
+        canonical_composition(tc, n, n->buffer_norm_end, n->buffer_end - 1);
         if (MVM_NORMALIZE_GRAPHEME(n->form))
-            grapheme_composition(tc, n, n->buffer_start, n->buffer_end - 1);
+            grapheme_composition(tc, n, n->buffer_norm_end, n->buffer_end - 1);
     }
 
     /* We've now normalized all except the latest, quick-check-passing
@@ -692,11 +693,11 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_norm_terminator(MVMThreadConte
 void MVM_unicode_normalizer_eof(MVMThreadContext *tc, MVMNormalizer *n) {
     /* Perform canonical ordering and, if needed, canonical composition on
      * what remains. */
-    canonical_sort(tc, n, n->buffer_start, n->buffer_end);
+    canonical_sort(tc, n, n->buffer_norm_end, n->buffer_end);
     if (MVM_NORMALIZE_COMPOSE(n->form)) {
-        canonical_composition(tc, n, n->buffer_start, n->buffer_end);
+        canonical_composition(tc, n, n->buffer_norm_end, n->buffer_end);
         if (MVM_NORMALIZE_GRAPHEME(n->form))
-            grapheme_composition(tc, n, n->buffer_start, n->buffer_end);
+            grapheme_composition(tc, n, n->buffer_norm_end, n->buffer_end);
     }
 
     /* We've now normalized all that remains. */
