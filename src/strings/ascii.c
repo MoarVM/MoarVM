@@ -44,7 +44,7 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
     MVMGrapheme32        *buffer;
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
-    MVMint32 last_accept_pos;
+    MVMint32 last_accept_pos, last_was_cr;
 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
@@ -61,15 +61,34 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
+    last_was_cr = 0;
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos   = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
         char     *bytes = cur_bytes->bytes;
         while (pos < cur_bytes->length) {
-            MVMGrapheme32 codepoint = bytes[pos++];
+            MVMCodepoint codepoint = bytes[pos++];
+            MVMGrapheme32 graph;
             if (codepoint > 127)
                 MVM_exception_throw_adhoc(tc,
                     "Will not decode invalid ASCII (code point > 127 found)");
+            if (last_was_cr) {
+                if (codepoint == '\n') {
+                    graph = MVM_nfg_crlf_grapheme(tc);
+                }
+                else {
+                    graph = '\r';
+                    pos--;
+                }
+                last_was_cr = 0;
+            }
+            else if (codepoint == '\r') {
+                last_was_cr = 1;
+                continue;
+            }
+            else {
+                graph = codepoint;
+            }
             if (count == bufsize) {
                 /* We filled the buffer. Attach this one to the buffers
                  * linked list, and continue with a new one. */
@@ -77,7 +96,7 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                 buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
                 count = 0;
             }
-            buffer[count++] = codepoint;
+            buffer[count++] = graph;
             last_accept_bytes = cur_bytes;
             last_accept_pos = pos;
             total++;
@@ -96,7 +115,7 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
         MVM_string_decodestream_add_chars(tc, ds, buffer, count);
     }
     else {
-	MVM_free(buffer);
+        MVM_free(buffer);
     }
     MVM_string_decodestream_discard_to(tc, ds, last_accept_bytes, last_accept_pos);
 }

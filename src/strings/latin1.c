@@ -37,7 +37,7 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
     MVMGrapheme32 *buffer;
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
-    MVMint32 last_accept_pos;
+    MVMint32 last_accept_pos, last_was_cr;
 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
@@ -54,12 +54,31 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
+    last_was_cr = 0;
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
         unsigned char *bytes = (unsigned char *)cur_bytes->bytes;
         while (pos < cur_bytes->length) {
             MVMCodepoint codepoint = bytes[pos++];
+            MVMGrapheme32 graph;
+            if (last_was_cr) {
+                if (codepoint == '\n') {
+                    graph = MVM_nfg_crlf_grapheme(tc);
+                }
+                else {
+                    graph = '\r';
+                    pos--;
+                }
+                last_was_cr = 0;
+            }
+            else if (codepoint == '\r') {
+                last_was_cr = 1;
+                continue;
+            }
+            else {
+                graph = codepoint;
+            }
             if (count == bufsize) {
                 /* We filled the buffer. Attach this one to the buffers
                  * linked list, and continue with a new one. */
@@ -67,7 +86,7 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                 buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
                 count = 0;
             }
-            buffer[count++] = codepoint; /* XXX NFG needs this to change. */
+            buffer[count++] = graph;
             last_accept_bytes = cur_bytes;
             last_accept_pos = pos;
             total++;
