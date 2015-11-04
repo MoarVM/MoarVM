@@ -951,7 +951,7 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
         else if (ch >= 'A' && ch <= 'Z') ch = ch - 'A' + 10;
         else if (ch >= 0xFF21 && ch <= 0xFF3A) ch = ch - 0xFF21 + 10; /* uppercase fullwidth */
         else if (ch >= 0xFF41 && ch <= 0xFF5A) ch = ch - 0xFF41 + 10; /* lowercase fullwidth */
-        else if (MVM_unicode_codepoint_has_property_value(tc, ch, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+        else if (ch > 0 && MVM_unicode_codepoint_has_property_value(tc, ch, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
                 MVM_unicode_cname_to_property_value_code(tc, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Nd")))) {
             /* as of Unicode 6.0.0, characters with the 'de' Numeric Type (and are
              * thus also of General Category Nd, since 4.0.0) are contiguous
