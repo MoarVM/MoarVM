@@ -1,0 +1,5 @@
+((c-mode . ((c-basic-offset . 4)
+            (c-file-style . "bsd")
+            (fill-column . 80)
+            (indent-tabs-mode . nil)
+            (tab-width . 8))))
