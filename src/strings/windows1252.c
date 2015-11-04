@@ -198,13 +198,23 @@ MVMString * MVM_string_windows1252_decode(MVMThreadContext *tc,
         const MVMObject *result_type, char *windows1252_c, size_t bytes) {
     MVMuint8 *windows1252 = (MVMuint8 *)windows1252_c;
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
-    size_t i;
+    size_t i, result_graphs;
 
-    result->body.num_graphs      = bytes;
     result->body.storage_type    = MVM_STRING_GRAPHEME_32;
     result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
-    for (i = 0; i < bytes; i++)
-        result->body.storage.blob_32[i] = WINDOWS1252_CHAR_TO_CP(windows1252[i]);
+
+    result_graphs = 0;
+    for (i = 0; i < bytes; i++) {
+        if (windows1252[i] == '\r' && i + 1 < bytes && windows1252[i + 1] == '\n') {
+            result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
+            i++;
+        }
+        else {
+            result->body.storage.blob_32[result_graphs++] = WINDOWS1252_CHAR_TO_CP(windows1252[i]);
+        }
+    }
+    result->body.num_graphs = result_graphs;
+
     return result;
 }
 

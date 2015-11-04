@@ -216,6 +216,12 @@ MVMGrapheme32 MVM_nfg_codes_to_grapheme(MVMThreadContext *tc, MVMCodepoint *code
         return lookup_or_add_synthetic(tc, codes, num_codes);
 }
 
+/* Gets the \r\n synthetic. */
+MVMGrapheme32 MVM_nfg_crlf_grapheme(MVMThreadContext *tc) {
+    MVMCodepoint codes[2] = { '\r', '\n' };
+    return lookup_or_add_synthetic(tc, codes, 2);
+}
+
 /* Does a lookup of information held about a synthetic. The synth parameter
  * must be a synthetic codepoint (that is, negative). The memory returned is
  * not to be freed by the caller; it also is only valid until the next GC

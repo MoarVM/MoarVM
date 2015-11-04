@@ -4,21 +4,26 @@
  * a result of the specified type. The type must have the MVMString REPR. */
 MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, const MVMObject *result_type, const char *ascii, size_t bytes) {
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
-    size_t i;
+    size_t i, result_graphs;
 
-    /* There's no combining chars and such stuff in ASCII, so the grapheme count
-     * is trivially the same as the buffer length. */
-    result->body.num_graphs = bytes;
+    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
 
-    /* Allocate grapheme buffer and decode the ASCII string. */
-    result->body.storage_type       = MVM_STRING_GRAPHEME_ASCII;
-    result->body.storage.blob_ascii = MVM_malloc(bytes);
-    for (i = 0; i < bytes; i++)
-        if (ascii[i] >= 0)
-            result->body.storage.blob_ascii[i] = ascii[i];
-        else
+    result_graphs = 0;
+    for (i = 0; i < bytes; i++) {
+        if (ascii[i] == '\r' && i + 1 < bytes && ascii[i + 1] == '\n') {
+            result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
+            i++;
+        }
+        else if (ascii[i] >= 0) {
+            result->body.storage.blob_32[result_graphs++] = ascii[i];
+        }
+        else {
             MVM_exception_throw_adhoc(tc,
-                "Will not decode invalid ASCII (code point < 0 found)");
+                "Will not decode invalid ASCII (code point > 127 found)");
+        }
+    }
+    result->body.num_graphs = result_graphs;
 
     return result;
 }
