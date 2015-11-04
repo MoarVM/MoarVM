@@ -218,6 +218,7 @@ char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str
     MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
     MVMuint8 *result;
+    size_t result_alloc;
 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
@@ -225,11 +226,14 @@ char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str
     if (length < -1 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
 
-    result = MVM_malloc(lengthu + 1);
+    result_alloc = lengthu;
+    result = MVM_malloc(result_alloc + 1);
     if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
         /* No encoding needed; directly copy. */
         memcpy(result, str->body.storage.blob_ascii, lengthu);
         result[lengthu] = 0;
+        if (output_size)
+            *output_size = lengthu;
     }
     else {
         MVMuint32 i = 0;
@@ -237,6 +241,10 @@ char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str
         MVM_string_ci_init(tc, &ci, str);
         while (MVM_string_ci_has_more(tc, &ci)) {
             MVMCodepoint codepoint = MVM_string_ci_get_codepoint(tc, &ci);
+            if (i == result_alloc) {
+                result_alloc += 8;
+                result = MVM_realloc(result, result_alloc + 1);
+            }
             if ((codepoint >= 0 && codepoint < 128) || (codepoint >= 152 && codepoint < 256))
                 result[i] = (MVMuint8)codepoint;
             else if (codepoint > 8364 || codepoint < 0)
@@ -246,10 +254,9 @@ char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str
             i++;
         }
         result[i] = 0;
+        if (output_size)
+            *output_size = i;
     }
-
-    if (output_size)
-        *output_size = lengthu;
 
     return (char *)result;
 }
