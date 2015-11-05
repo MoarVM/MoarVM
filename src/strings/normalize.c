@@ -405,7 +405,6 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
                     memmove(n->buffer + c_idx, n->buffer + c_idx + 1,
                         (n->buffer_end - (c_idx + 1)) * sizeof(MVMCodepoint));
                     n->buffer_end--;
-                    n->buffer_norm_end--;
 
                     /* Sync cc_idx and to with the change. */
                     c_idx--;
@@ -459,7 +458,6 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
                 memmove(n->buffer + c_idx + 1, n->buffer + c_idx + 1 + composed,
                         (n->buffer_end - (c_idx + 1 + composed)) * sizeof(MVMCodepoint));
                 n->buffer_end -= composed;
-                n->buffer_norm_end -= composed;
 
                 /* Sync to with updated buffer size. */
                 to -= composed;
