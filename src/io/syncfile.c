@@ -132,7 +132,8 @@ static MVMString * read_line(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 chom
     } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);
 
     /* Reached end of file, or last (non-termianted) line. */
-    return MVM_string_decodestream_get_all(tc, data->ds);
+    return MVM_string_decodestream_get_until_sep_eof(tc, data->ds,
+        &(data->sep_spec), chomp);
 }
 
 /* Reads the file from the current position to the end into a string. */

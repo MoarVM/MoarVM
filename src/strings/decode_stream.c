@@ -263,14 +263,12 @@ MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecod
         return NULL;
 }
 
-/* Decodes all the buffers, producing a string containing all the decoded
- * characters. */
-MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStream *ds) {
-    MVMString *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    result->body.storage_type = MVM_STRING_GRAPHEME_32;
-
+/* In situations where we have hit EOF, we need to decode what's left and flush
+ * the normalization buffer also. */
+static void reached_eof(MVMThreadContext *tc, MVMDecodeStream *ds) {
     /* Decode all the things. */
-    run_decode(tc, ds, NULL, NULL);
+    if (ds->bytes_head)
+        run_decode(tc, ds, NULL, NULL);
 
     /* If there's some things left in the normalization buffer, take them. */
     MVM_unicode_normalizer_eof(tc, &(ds->norm));
@@ -282,6 +280,36 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
             buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &(ds->norm));
         MVM_string_decodestream_add_chars(tc, ds, buffer, count);
     }
+}
+
+/* Variant of MVM_string_decodestream_get_until_sep that is called when we
+ * reach EOF. Trims the final separator if there is one, or returns the last
+ * line without the EOF marker. */
+MVMString * MVM_string_decodestream_get_until_sep_eof(MVMThreadContext *tc, MVMDecodeStream *ds,
+                                                      MVMDecodeStreamSeparators *sep_spec, MVMint32 chomp) {
+    MVMint32 sep_loc, sep_length;
+
+    /* Decode anything remaining and flush normalization buffer. */
+    reached_eof(tc, ds);
+
+    /* Look for separator, which should by now be at the end, and chomp it
+     * off if needed. */
+    sep_loc = find_separator(tc, ds, sep_spec, &sep_length);
+    if (sep_loc)
+        return take_chars(tc, ds, sep_loc, chomp ? sep_length : 0);
+
+    /* Otherwise, take all remaining chars. */
+    return MVM_string_decodestream_get_all(tc, ds);
+}
+
+/* Decodes all the buffers, producing a string containing all the decoded
+ * characters. */
+MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStream *ds) {
+    MVMString *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    result->body.storage_type = MVM_STRING_GRAPHEME_32;
+
+    /* Decode anything remaining and flush normalization buffer. */
+    reached_eof(tc, ds);
 
     /* If there's no codepoint buffer, then return the empty string. */
     if (!ds->chars_head) {
