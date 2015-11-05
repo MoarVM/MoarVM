@@ -327,8 +327,11 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
             /* We're right at the start of the stream of things to decode. See
              * if we have a BOM, and skip over it if so. */
             if (pos + 3 <= cur_bytes->length) {
-                if (its_the_bom(bytes + pos))
+                if (its_the_bom(bytes + pos)) {
                     pos += 3;
+                    last_accept_bytes = cur_bytes;
+                    last_accept_pos = pos;
+                }
             }
             at_start = 0;
         }
