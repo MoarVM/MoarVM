@@ -121,9 +121,10 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 }
 
 /* Encodes the specified substring to ASCII. Anything outside of ASCII range
- * will become a ?. The result string is NULL terminated, but the specified
- * size is the non-null part. */
-char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
+ * will become replaced with the supplied replacement, or an exception will be
+ * thrown if there isn't one. The result string is NULL terminated, but the
+ * specified size is the non-null part. */
+char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement) {
     /* ASCII is a single byte encoding, but \r\n is a 2-byte grapheme, so we
      * may have to resize as we go. */
     MVMuint32      startu    = (MVMuint32)start;
@@ -131,12 +132,17 @@ char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
     MVMuint32      lengthu   = (MVMuint32)(length == -1 ? strgraphs - startu : length);
     MVMuint8      *result;
     size_t         result_alloc;
+    MVMuint8      *repl_bytes = NULL;
+    MVMuint64      repl_length;
 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
     if (length < -1 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
+
+    if (replacement)
+        repl_bytes = MVM_string_ascii_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);
 
     result_alloc = lengthu;
     result = MVM_malloc(result_alloc + 1);
@@ -157,28 +163,39 @@ char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
                 result_alloc += 8;
                 result = MVM_realloc(result, result_alloc + 1);
             }
-            if (ord >= 0 && ord <= 127)
+            if (ord >= 0 && ord <= 127) {
                 result[i] = (MVMuint8)ord;
+                i++;
+            }
+            else if (replacement) {
+                if (i >= result_alloc - repl_length) {
+                    result_alloc += repl_length;
+                    result = MVM_realloc(result, result_alloc + 1);
+                }
+                memcpy(result + i, repl_bytes, repl_length);
+                i += repl_length;
+            }
             else {
                 MVM_free(result);
+                MVM_free(repl_bytes);
                 MVM_exception_throw_adhoc(tc,
                     "Error encoding ASCII string: could not encode codepoint %d",
                     ord);
             }
-            i++;
         }
         result[i] = 0;
         if (output_size)
             *output_size = i;
     }
 
+    MVM_free(repl_bytes);
     return (char *)result;
 }
 
 /* Encodes the specified string to ASCII.  */
 char * MVM_string_ascii_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
     return MVM_string_ascii_encode_substr(tc, str, output_size, 0,
-        MVM_string_graphs(tc, str));
+        MVM_string_graphs(tc, str), NULL);
 }
 
 /* Encodes the specified string to ASCII not returning length.  */

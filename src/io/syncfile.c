@@ -205,7 +205,7 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     MVMuint64 output_size;
     MVMint64 bytes_written;
-    char *output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
+    char *output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding, NULL);
     uv_buf_t write_buf  = uv_buf_init(output, output_size);
     uv_fs_t req;
 

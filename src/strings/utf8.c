@@ -387,11 +387,13 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 
 /* Encodes the specified string to UTF-8. */
 char * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
-        MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
+        MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement) {
     MVMuint8        *result;
     size_t           result_pos, result_limit;
     MVMCodepointIter ci;
     MVMStringIndex   strgraphs = MVM_string_graphs(tc, str);
+    MVMuint8        *repl_bytes = NULL;
+    MVMuint64        repl_length;
 
     if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
@@ -399,6 +401,9 @@ char * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
         length = strgraphs;
     if (length < 0 || start + length > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
+
+    if (replacement)
+        repl_bytes = MVM_string_utf8_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);
 
     /* Guesstimate that we'll be within 2 bytes for most chars most of the
      * time, and give ourselves 4 bytes breathing space. */
@@ -416,24 +421,35 @@ char * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
             result = MVM_realloc(result, result_limit + 4);
         }
         bytes = utf8_encode(result + result_pos, cp);
-        if (!bytes) {
+        if (bytes)
+            result_pos += bytes;
+        else if (replacement) {
+            if (result_pos >= result_limit - repl_length) {
+                result_limit += repl_length;
+                result = MVM_realloc(result, result_limit + 4);
+            }
+            memcpy(result + result_pos, repl_bytes, repl_length);
+            result_pos += repl_length;
+        }
+        else {
             MVM_free(result);
+            MVM_free(repl_bytes);
             MVM_exception_throw_adhoc(tc,
                 "Error encoding UTF-8 string: could not encode codepoint %d",
                 cp);
         }
-        result_pos += bytes;
     }
 
     if (output_size)
         *output_size = (MVMuint64)result_pos;
+    MVM_free(repl_bytes);
     return (char *)result;
 }
 
 /* Encodes the specified string to UTF-8. */
 char * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
     return MVM_string_utf8_encode_substr(tc, str, output_size, 0,
-        MVM_string_graphs(tc, str));
+        MVM_string_graphs(tc, str), NULL);
 }
 
 /* Encodes the specified string to a UTF-8 C string. */
