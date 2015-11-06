@@ -434,9 +434,10 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         MVM_exception_throw_adhoc_free(tc, waste, "Invalid open mode: %s", fmode);
     }
     MVM_free(fmode);
+    MVM_platform_add_binary_flag(flag);
 
     /* Try to open the file. */
-    if ((fd = MVM_platform_open((const char *)fname, flag | _O_BINARY, DEFAULT_MODE)) < 0) {
+    if ((fd = MVM_platform_open((const char *)fname, flag, DEFAULT_MODE)) < 0) {
         char *waste[] = { fname, NULL };
         MVM_exception_throw_adhoc_free(tc, waste, "Failed to open file %s: %s", fname,
             strerror(errno));
