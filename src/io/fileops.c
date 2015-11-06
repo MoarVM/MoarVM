@@ -330,33 +330,7 @@ void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename,
 
 /* return an OSHandle representing one of the standard streams */
 MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable) {
-    switch(uv_guess_handle(type)) {
-        case UV_TTY: {
-            uv_tty_t * const handle = MVM_malloc(sizeof(uv_tty_t));
-            uv_tty_init(tc->loop, handle, type, readable);
-#ifdef _WIN32
-            uv_stream_set_blocking((uv_stream_t *)handle, 1);
-#else
-            ((uv_stream_t *)handle)->flags = 0x80; /* UV_STREAM_BLOCKING */
-#endif
-            return MVM_io_syncstream_from_uvstream(tc, (uv_stream_t *)handle);
-        }
-        case UV_FILE:
-            return MVM_file_handle_from_fd(tc, type);
-        case UV_NAMED_PIPE: {
-            uv_pipe_t * const handle = MVM_malloc(sizeof(uv_pipe_t));
-            uv_pipe_init(tc->loop, handle, 0);
-#ifdef _WIN32
-            uv_stream_set_blocking((uv_stream_t *)handle, 1);
-#else
-            ((uv_stream_t *)handle)->flags = 0x80; /* UV_STREAM_BLOCKING */
-#endif
-            uv_pipe_open(handle, type);
-            return MVM_io_syncstream_from_uvstream(tc, (uv_stream_t *)handle);
-        }
-        default:
-            MVM_exception_throw_adhoc(tc, "get_stream failed, unsupported std handle");
-    }
+    return MVM_file_handle_from_fd(tc, type);
 }
 
 /* Takes a filename and prepends any --libpath value we have, if it's not an
