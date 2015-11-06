@@ -1,6 +1,7 @@
 #if defined _WIN32
 MVMint64 MVM_platform_lseek(int fd, MVMint64 offset, int origin);
 MVMint64 MVM_platform_unlink(const char *pathname);
+MVMint64 MVM_platform_size_from_fd(int fd);
 #define MVM_platform_open _open
 #define MVM_platform_read _read
 #define MVM_platform_write _write

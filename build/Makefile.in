@@ -55,6 +55,7 @@ PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
 
 PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
                  src/platform/posix/time@obj@ \
+                 src/platform/posix/io@obj@ \
                  src/platform/posix/sys@obj@
 
 DASM_FLAGS_WIN32 = -D WIN32=1

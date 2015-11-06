@@ -136,15 +136,14 @@ static MVMString * read_line(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 chom
 /* Reads the file from the current position to the end into a string. */
 static MVMString * slurp(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    uv_fs_t req;
+    MVMint64 file_size;
     ensure_decode_stream(tc, data);
 
     /* Typically we're slurping an entire file, so just request the bytes
      * until the end; repeat to ensure we get 'em all. */
-    if (uv_fs_fstat(tc->loop, &req, data->fd, NULL) < 0) {
-        MVM_exception_throw_adhoc(tc, "slurp from filehandle failed: %s", uv_strerror(req.result));
-    }
-    while (read_to_buffer(tc, data, req.statbuf.st_size) > 0)
+    if ((file_size = MVM_platform_size_from_fd(data->fd)) < 0)
+        MVM_exception_throw_adhoc(tc, "slurp from filehandle failed: %s", strerror(errno));
+    while (read_to_buffer(tc, data, file_size) > 0)
         ;
     return MVM_string_decodestream_get_all(tc, data->ds);
 }
@@ -185,16 +184,14 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
 /* Checks if the end of file has been reached. */
 static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 seek_pos;
-    uv_fs_t  req;
+    MVMint64 file_size, seek_pos;
     if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))
         return 0;
-    if (uv_fs_fstat(tc->loop, &req, data->fd, NULL) == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s", uv_strerror(req.result));
-    }
+    if ((file_size = MVM_platform_size_from_fd(data->fd)) < 0)
+        MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s", strerror(errno));
     if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
-    return req.statbuf.st_size == seek_pos;
+    return file_size == seek_pos;
 }
 
 /* Writes the specified string to the file handle, maybe with a newline. */

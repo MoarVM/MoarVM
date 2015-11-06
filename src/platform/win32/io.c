@@ -106,3 +106,11 @@ MVMint64 MVM_platform_unlink(const char *pathname) {
 
     return 0;
 }
+
+MVMint64 MVM_platform_size_from_fd(int fd) {
+    HANDLE handle = (HANDLE)_get_osfhandle(fd);
+    LARGE_INTEGER fileSize;
+    if (GetFileSizeEx(handle, &fileSize) == 0)
+        return -1;
+    return fileSize.QuadPart;
+}
