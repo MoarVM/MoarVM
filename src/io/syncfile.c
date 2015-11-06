@@ -184,14 +184,10 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
 /* Checks if the end of file has been reached. */
 static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 file_size, seek_pos;
-    if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))
+    ensure_decode_stream(tc, data);
+    if (!MVM_string_decodestream_is_empty(tc, data->ds))
         return 0;
-    if ((file_size = MVM_platform_size_from_fd(data->fd)) < 0)
-        MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s", strerror(errno));
-    if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
-    return file_size == seek_pos;
+    return read_to_buffer(tc, data, CHUNK_SIZE) == 0;
 }
 
 /* Writes the specified string to the file handle, maybe with a newline. */
