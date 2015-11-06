@@ -216,6 +216,12 @@ MVMGrapheme32 MVM_nfg_codes_to_grapheme(MVMThreadContext *tc, MVMCodepoint *code
         return lookup_or_add_synthetic(tc, codes, num_codes);
 }
 
+/* Gets the \r\n synthetic. */
+MVMGrapheme32 MVM_nfg_crlf_grapheme(MVMThreadContext *tc) {
+    MVMCodepoint codes[2] = { '\r', '\n' };
+    return lookup_or_add_synthetic(tc, codes, 2);
+}
+
 /* Does a lookup of information held about a synthetic. The synth parameter
  * must be a synthetic codepoint (that is, negative). The memory returned is
  * not to be freed by the caller; it also is only valid until the next GC
@@ -238,7 +244,7 @@ static void compute_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVMNF
     MVMint32 num_result_graphs;
 
     /* Transform the base character. */
-    MVMCodepoint *result_cps;
+    const MVMCodepoint *result_cps;
     MVMuint32     num_result_cps = MVM_unicode_get_case_change(tc, synth_info->base,
         case_, &result_cps);
     if (num_result_cps == 0 || *result_cps == synth_info->base) {
@@ -328,7 +334,7 @@ MVMuint32 MVM_nfg_get_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVM
 /* Returns non-zero if the result of concatenating the two strings will freely
  * leave us in NFG without any further effort. */
 static MVMint32 passes_quickcheck_and_zero_ccc(MVMThreadContext *tc, MVMCodepoint cp) {
-    const char *qc_str  = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_NFC_QC);
+    const char *qc_str  = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_NFG_QC);
     const char *ccc_str = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
     return qc_str && qc_str[0] == 'Y' &&
         (!ccc_str || strlen(ccc_str) > 3 || (strlen(ccc_str) == 1 && ccc_str[0] == 0));
@@ -351,8 +357,10 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
     if (last_a < 0 || first_b < 0)
         return 0;
 
-    /* If both less than the first significant char for NFC, we're good. */
-    if (last_a < MVM_NORMALIZE_FIRST_SIG_NFC && first_b < MVM_NORMALIZE_FIRST_SIG_NFC)
+    /* If both less than the first significant char for NFC, and the first is
+     * not \r, we're good. */
+    if (last_a != 0x0D && last_a < MVM_NORMALIZE_FIRST_SIG_NFC
+                       && first_b < MVM_NORMALIZE_FIRST_SIG_NFC)
         return 1;
 
     /* If either fail quickcheck or have ccc > 0, have to re-normalize. */

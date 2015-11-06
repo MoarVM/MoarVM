@@ -75,18 +75,50 @@ void MVM_io_set_separator(MVMThreadContext *tc, MVMObject *oshandle, MVMString *
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "set separator");
     if (handle->body.ops->sync_readable) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        handle->body.ops->sync_readable->set_separator(tc, handle, sep);
+        handle->body.ops->sync_readable->set_separator(tc, handle, &sep, 1);
         release_mutex(tc, mutex);
     }
     else
         MVM_exception_throw_adhoc(tc, "Cannot set a separator on this kind of handle");
 }
 
-MVMString * MVM_io_readline(MVMThreadContext *tc, MVMObject *oshandle) {
+void MVM_io_set_separators(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *seps) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "set separators");
+    if (handle->body.ops->sync_readable) {
+        MVMint32 is_str_array = REPR(seps)->pos_funcs.get_elem_storage_spec(tc,
+            STABLE(seps)).boxed_primitive == MVM_STORAGE_SPEC_BP_STR;
+        if (is_str_array) {
+            uv_mutex_t *mutex;
+            MVMString **c_seps;
+            MVMuint64 i;
+
+            MVMuint64 num_seps = MVM_repr_elems(tc, seps);
+            if (num_seps > 0xFFFFFF)
+                MVM_exception_throw_adhoc(tc, "Too many line separators");
+            c_seps = MVM_malloc((num_seps ? num_seps : 1) * sizeof(MVMString *));
+            for (i = 0; i < num_seps; i++)
+                c_seps[i] = MVM_repr_at_pos_s(tc, seps, i);
+
+            mutex = acquire_mutex(tc, handle);
+            handle->body.ops->sync_readable->set_separator(tc, handle, c_seps, (MVMint32)num_seps);
+            release_mutex(tc, mutex);
+
+            MVM_free(c_seps);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc, "Set separators requires a native string array");
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Cannot set separators on this kind of handle");
+    }
+}
+
+MVMString * MVM_io_readline(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 chomp) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "readline");
     if (handle->body.ops->sync_readable) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        MVMString *result = handle->body.ops->sync_readable->read_line(tc, handle);
+        MVMString *result = handle->body.ops->sync_readable->read_line(tc, handle, chomp);
         release_mutex(tc, mutex);
         return result;
     }

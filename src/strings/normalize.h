@@ -1,7 +1,8 @@
 /* Normalization modes. Numbers picked so that:
  *  - The LSB tells us whether to do canonical or compatibility normalization
  *  - The second bit tells us whether to do canonical normalization
- *  - The third bit tells us to go a step further and create synthetic codes.
+ *  - The third bit tells us to go a step further and create synthetic codes
+ *    for graphemes.
  */ 
 typedef enum {
     MVM_NORMALIZE_NFD   = 0,
@@ -22,6 +23,9 @@ typedef enum {
 #define MVM_NORMALIZE_FIRST_SIG_NFC     0x0300
 #define MVM_NORMALIZE_FIRST_SIG_NFKD    0x00A0
 #define MVM_NORMALIZE_FIRST_SIG_NFKC    0x00A0
+
+/* First codepoint with a non-zero canonical combining class. */
+#define MVM_NORMALIZE_FIRST_NONZERO_CCC 0x300
 
 /* Streaming Unicode normalizer structure. */
 struct MVMNormalizer {
@@ -62,10 +66,14 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_norm_terminator(MVMThreadConte
  * codepoints now available including the one we just passed out. If we can't
  * produce a normalized codepoint right now, we return a 0. */
 MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out) {
-    /* If we have \n then we always treat this as a "sequence point" in the
-     * normalization process. */
-    if (in == '\n')
-        return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
+    /* Control characters in the Latin-1 range are normalization terminators -
+     * that is, we know we can spit out whatever codepoints we have seen so
+     * far in normalized form without having to consider them into the
+     * normalization process. The exception is if we're computing NFG, and
+     * we got \r, which can form a grapheme in the case of \r\n. */
+    if (in < 0x20 || in >= 0x7F && in <= 0x9F || in == 0xAD)
+        if (!(MVM_NORMALIZE_GRAPHEME(n->form) && in == 0x0D))
+            return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
 
     /* Fast-paths apply when the codepoint to consider is too low to have any
      * interesting properties in the target normalization form. */
@@ -73,12 +81,15 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
         if (MVM_NORMALIZE_COMPOSE(n->form)) {
             /* For the composition fast path we always have to know that we've
             * seen two codepoints in a row that are below those needing a full
-            * check. Then we can spit out the first one. */
-            if (n->buffer_end - n->buffer_start == 1) {
-                if (n->buffer[n->buffer_start] < n->first_significant) {
-                    *out = n->buffer[n->buffer_start];
-                    n->buffer[n->buffer_start] = in;
-                    return 1;
+            * check. Then we can spit out the first one. Exception: we are
+            * normalizing to graphemes and see \r. */
+            if (!(MVM_NORMALIZE_GRAPHEME(n->form) && in == 0x0D)) {
+                if (n->buffer_end - n->buffer_start == 1) {
+                    if (n->buffer[n->buffer_start] < n->first_significant) {
+                        *out = n->buffer[n->buffer_start];
+                        n->buffer[n->buffer_start] = in;
+                        return 1;
+                    }
                 }
             }
         }
@@ -105,7 +116,7 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint_to_grapheme(
 }
 
 /* Push a number of codepoints into the "to normalize" buffer. */
-void MVM_unicode_normalizer_push_codepoints(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint *in, MVMint32 num_codepoints);
+void MVM_unicode_normalizer_push_codepoints(MVMThreadContext *tc, MVMNormalizer *n, const MVMCodepoint *in, MVMint32 num_codepoints);
 
 /* Get the number of codepoints/graphemes ready to fetch. */
 MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_available(MVMThreadContext *tc, MVMNormalizer *n) {

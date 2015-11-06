@@ -32,8 +32,8 @@ struct MVMIOEncodable {
 
 /* I/O operations on handles that can do synchronous reading. */
 struct MVMIOSyncReadable {
-    void (*set_separator) (MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep);
-    MVMString * (*read_line) (MVMThreadContext *tc, MVMOSHandle *h);
+    void (*set_separator) (MVMThreadContext *tc, MVMOSHandle *h, MVMString **seps, MVMint32 num_seps);
+    MVMString * (*read_line) (MVMThreadContext *tc, MVMOSHandle *h, MVMint32 chomp);
     MVMString * (*slurp) (MVMThreadContext *tc, MVMOSHandle *h);
     MVMString * (*read_chars) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 chars);
     MVMint64 (*read_bytes) (MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes);
@@ -94,7 +94,8 @@ void MVM_io_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *e
 void MVM_io_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag);
 MVMint64 MVM_io_tell(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_set_separator(MVMThreadContext *tc, MVMObject *oshandle, MVMString *sep);
-MVMString * MVM_io_readline(MVMThreadContext *tc, MVMObject *oshandle);
+void MVM_io_set_separators(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *seps);
+MVMString * MVM_io_readline(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 chomp);
 MVMString * MVM_io_read_string(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 length);
 void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length);
 MVMString * MVM_io_slurp(MVMThreadContext *tc, MVMObject *oshandle);

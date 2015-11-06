@@ -37,8 +37,8 @@ typedef struct {
     /* Decode stream, for turning bytes from disk into strings. */
     MVMDecodeStream *ds;
 
-    /* Current separator codepoint. */
-    MVMGrapheme32 sep;
+    /* Current separator specification for line-by-line reading. */
+    MVMDecodeStreamSeparators sep_spec;
 } MVMIOFileData;
 
 /* Closes the file. */
@@ -91,10 +91,9 @@ static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
 }
 
 /* Set the line separator. */
-static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) {
+static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString **seps, MVMint32 num_seps) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    data->sep = (MVMGrapheme32)MVM_string_get_grapheme_at(tc, sep,
-        MVM_string_graphs(tc, sep) - 1);
+    MVM_string_decode_stream_sep_from_strings(tc, &(data->sep_spec), seps, num_seps);
 }
 
 /* Read a bunch of bytes into the current decode stream. */
@@ -120,19 +119,21 @@ static void ensure_decode_stream(MVMThreadContext *tc, MVMIOFileData *data) {
 
 /* Reads a single line from the file handle. May serve it from a buffer, if we
  * already read enough data. */
-static MVMString * read_line(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMString * read_line(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 chomp) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     ensure_decode_stream(tc, data);
 
     /* Pull data until we can read a line. */
     do {
-        MVMString *line = MVM_string_decodestream_get_until_sep(tc, data->ds, data->sep);
+        MVMString *line = MVM_string_decodestream_get_until_sep(tc,
+            data->ds, &(data->sep_spec), chomp);
         if (line != NULL)
             return line;
     } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);
 
     /* Reached end of file, or last (non-termianted) line. */
-    return MVM_string_decodestream_get_all(tc, data->ds);
+    return MVM_string_decodestream_get_until_sep_eof(tc, data->ds,
+        &(data->sep_spec), chomp);
 }
 
 /* Reads the file from the current position to the end into a string. */
@@ -204,7 +205,7 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     MVMuint64 output_size;
     MVMint64 bytes_written;
-    char *output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
+    char *output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding, NULL);
     uv_buf_t write_buf  = uv_buf_init(output, output_size);
     uv_fs_t req;
 
@@ -453,6 +454,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     data->fd          = fd;
     data->filename    = fname;
     data->encoding    = MVM_encoding_type_utf8;
+    MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;
 

@@ -1,3 +1,16 @@
+New in 2015.10
+
++ Profiling: fix data collection when exiting
++ Profiling: improve timing calculation
++ NFG: Strip BOM from UTF-8
++ NFG: Implement casefolding
++ NFG: handle SpecialCasing
++ JIT: fix devirtualized REPR ops; devirt more ops
++ JIT: improve logging
++ Misc: Improve handling of state when spawning child processes
++ Code: Throw better exceptions in several cases
++ Code: linting, consting, avoid segfaults, etc.
+
 New in 2015.09
 
 + Fix write to null handle on async socket

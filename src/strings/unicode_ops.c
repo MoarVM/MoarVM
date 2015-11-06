@@ -83,7 +83,7 @@ MVMint64 MVM_unicode_codepoint_has_property_value(MVMThreadContext *tc, MVMGraph
  * points can be read from. The caller must not mutate the buffer, nor free
  * it. */
 MVMuint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint codepoint, MVMint32 case_,
-                                      MVMCodepoint **result) {
+                                      const MVMCodepoint **result) {
     if (case_ == MVM_unicode_case_change_type_fold) {
         MVMint32 folding_index = MVM_unicode_get_property_int(tc,
             codepoint, MVM_UNICODE_PROPERTY_CASE_FOLDING);
@@ -117,7 +117,7 @@ MVMuint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint codepoi
             MVMint32 changes_index = MVM_unicode_get_property_int(tc,
                 codepoint, MVM_UNICODE_PROPERTY_CASE_CHANGE_INDEX);
             if (changes_index) {
-                MVMCodepoint *found = &(case_changes[changes_index][case_]);
+                const MVMCodepoint *found = &(case_changes[changes_index][case_]);
                 if (*found != 0) {
                     *result = found;
                     return 1;

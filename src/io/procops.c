@@ -943,7 +943,8 @@ static void spawn_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
     MVMIOAsyncProcessData *apd     = (MVMIOAsyncProcessData *)handle->body.data;
     uv_process_t          *phandle = apd->handle;
 
-    /* If it didn't already end, try to kill it. */
+    /* If it didn't already end, try to kill it. exit_cb will clean up phandle
+     * should the signal lead to process exit. */
     if (phandle) {
 #ifdef _WIN32
         /* On Windows, make sure we use a signal that will actually work. */
@@ -951,8 +952,6 @@ static void spawn_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
             apd->signal = SIGKILL;
 #endif
         uv_process_kill(phandle, (int)apd->signal);
-        uv_close((uv_handle_t *)phandle, spawn_async_close);
-        apd->handle = NULL;
     }
 }
 

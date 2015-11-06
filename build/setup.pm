@@ -288,7 +288,7 @@ our %COMPILERS = (
         ld => undef,
 
         ccmiscflags  =>  '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
-        ccwarnflags  => '',
+        ccwarnflags  => '-Wno-logical-op-parentheses',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
         ccinstflags  => '-fsanitize=address',
@@ -447,6 +447,16 @@ our %OS_FREEBSD = (
     },
 );
 
+our %OS_DRAGONFLY = (
+    %OS_POSIX,
+
+    syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
+
+    -thirdparty => {
+        uv => { %TP_UVDUMMY, objects => '$(UV_FREEBSD)' },
+    },
+);
+
 our %OS_GNUKFREEBSD = (
     %OS_FREEBSD,
 
@@ -495,6 +505,7 @@ our %SYSTEMS = (
     darwin      => [ qw( posix gnu   clang ), { %OS_DARWIN } ],
     openbsd     => [ qw( posix bsd   gcc ),   { %OS_OPENBSD} ],
     netbsd      => [ qw( posix bsd   gcc ),   { %OS_NETBSD } ],
+    dragonfly   => [ qw( posix bsd   gcc ),   { %OS_DRAGONFLY } ],
     freebsd     => [ qw( posix bsd   clang ), { %OS_FREEBSD } ],
     gnukfreebsd => [ qw( posix gnu   gcc ),   { %OS_GNUKFREEBSD } ],
     solaris     => [ qw( posix posix cc ),    { %OS_SOLARIS } ],

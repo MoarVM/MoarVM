@@ -37,11 +37,9 @@ MVMint64 MVM_io_syncstream_tell(MVMThreadContext *tc, MVMOSHandle *h) {
 }
 
 /* Set the line separator. */
-void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep) {
-    /* For now, take last character. */
+void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString **seps, MVMint32 num_seps) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    data->sep = (MVMGrapheme32)MVM_string_get_grapheme_at(tc, sep,
-        MVM_string_graphs(tc, sep) - 1);
+    MVM_string_decode_stream_sep_from_strings(tc, &(data->sep_spec), seps, num_seps);
 }
 
 /* Read a bunch of bytes into the current decode stream. Returns true if we
@@ -93,19 +91,21 @@ static void ensure_decode_stream(MVMThreadContext *tc, MVMIOSyncStreamData *data
 
 /* Reads a single line from the stream. May serve it from a buffer, if we
  * already read enough data. */
-MVMString * MVM_io_syncstream_read_line(MVMThreadContext *tc, MVMOSHandle *h) {
+MVMString * MVM_io_syncstream_read_line(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 chomp) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
     ensure_decode_stream(tc, data);
 
     /* Pull data until we can read a line. */
     do {
-        MVMString *line = MVM_string_decodestream_get_until_sep(tc, data->ds, data->sep);
+        MVMString *line = MVM_string_decodestream_get_until_sep(tc,
+            data->ds, &(data->sep_spec), chomp);
         if (line != NULL)
             return line;
     } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);
 
     /* Reached end of stream, or last (non-termianted) line. */
-    return MVM_string_decodestream_get_all(tc, data->ds);
+    return MVM_string_decodestream_get_until_sep_eof(tc, data->ds,
+        &(data->sep_spec), chomp);
 }
 
 /* Reads the stream from the current position to the end into a string,
@@ -185,7 +185,7 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
     uv_buf_t write_buf;
     int r;
 
-    output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
+    output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding, NULL);
     if (newline) {
         output = (char *)MVM_realloc(output, ++output_size);
         output[output_size - 1] = '\n';
@@ -316,7 +316,7 @@ MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *h
     MVMIOSyncStreamData * const data   = MVM_calloc(1, sizeof(MVMIOSyncStreamData));
     data->handle      = handle;
     data->encoding    = MVM_encoding_type_utf8;
-    data->sep         = '\n';
+    MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;

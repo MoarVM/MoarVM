@@ -18,15 +18,15 @@ struct MVMIOSyncStreamData {
     /* Total bytes we've written. */
     MVMint64 total_bytes_written;
 
-    /* Current separator codepoint. */
-    MVMGrapheme32 sep;
+    /* Current separator specification for line-by-line reading. */
+    MVMDecodeStreamSeparators sep_spec;
 };
 
 void MVM_io_syncstream_set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding);
 void MVM_io_syncstream_seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64 whence);
 MVMint64 MVM_io_syncstream_tell(MVMThreadContext *tc, MVMOSHandle *h);
-void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString *sep);
-MVMString * MVM_io_syncstream_read_line(MVMThreadContext *tc, MVMOSHandle *h);
+void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString **sep, MVMint32 num_seps);
+MVMString * MVM_io_syncstream_read_line(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 chomp);
 MVMString * MVM_io_syncstream_slurp(MVMThreadContext *tc, MVMOSHandle *h);
 MVMString * MVM_io_syncstream_read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 chars);
 MVMint64 MVM_io_syncstream_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes);

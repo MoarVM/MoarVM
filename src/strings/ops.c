@@ -22,13 +22,6 @@ static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
 #define STRAND_CHECK(tc, s)
 #endif
 
-/* Checks a string is not null or non-concrete and throws if so. */
-MVM_STATIC_INLINE void MVM_string_check_arg(MVMThreadContext *tc, const MVMString *s, const char *operation) {
-    if (!s || !IS_CONCRETE(s))
-        MVM_exception_throw_adhoc(tc, "%s requires a concrete string, but got %s",
-            operation, s ? "a type object" : "null");
-}
-
 /* Allocates strand storage. */
 static MVMStringStrand * allocate_strands(MVMThreadContext *tc, MVMuint16 num_strands) {
     return MVM_malloc(num_strands * sizeof(MVMStringStrand));
@@ -677,7 +670,7 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
                 }
             }
             else if (g >= 0) {
-                MVMCodepoint *result_cps;
+                const MVMCodepoint *result_cps;
                 MVMuint32 num_result_cps = MVM_unicode_get_case_change(tc,
                     g, type, &result_cps);
                 if (num_result_cps == 0) {
@@ -785,18 +778,18 @@ MVMString * MVM_string_decode(MVMThreadContext *tc,
 }
 
 /* Encodes an MVMString to a C buffer, dependent on the encoding type flag */
-char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag) {
+char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag, MVMString *replacement) {
     switch(encoding_flag) {
         case MVM_encoding_type_utf8:
-            return MVM_string_utf8_encode_substr(tc, s, output_size, start, length);
+            return MVM_string_utf8_encode_substr(tc, s, output_size, start, length, replacement);
         case MVM_encoding_type_ascii:
-            return MVM_string_ascii_encode_substr(tc, s, output_size, start, length);
+            return MVM_string_ascii_encode_substr(tc, s, output_size, start, length, replacement);
         case MVM_encoding_type_latin1:
-            return MVM_string_latin1_encode_substr(tc, s, output_size, start, length);
+            return MVM_string_latin1_encode_substr(tc, s, output_size, start, length, replacement);
         case MVM_encoding_type_utf16:
-            return MVM_string_utf16_encode_substr(tc, s, output_size, start, length);
+            return MVM_string_utf16_encode_substr(tc, s, output_size, start, length, replacement);
         case MVM_encoding_type_windows1252:
-            return MVM_string_windows1252_encode_substr(tc, s, output_size, start, length);
+            return MVM_string_windows1252_encode_substr(tc, s, output_size, start, length, replacement);
         default:
             MVM_exception_throw_adhoc(tc, "invalid encoding type flag: %"PRId64, encoding_flag);
     }
@@ -804,7 +797,7 @@ char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVM
 
 /* Encodes a string, and writes the encoding string into the supplied Buf
  * instance, which should be an integer array with MVMArray REPR. */
-void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name, MVMObject *buf) {
+void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name, MVMObject *buf, MVMString *replacement) {
     MVMuint64 output_size;
     MVMuint8 *encoded;
     MVMArrayREPRData *buf_rd;
@@ -838,7 +831,7 @@ void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc
     MVMROOT(tc, s, {
         const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, enc_name);
         encoded = (MVMuint8 *)MVM_string_encode(tc, s, 0, MVM_string_graphs(tc, s), &output_size,
-            encoding_flag);
+            encoding_flag, replacement);
     });
     });
 
@@ -1032,28 +1025,38 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
 
             /* Add separator if needed. */
             if (i > 0) {
-                if (!concats_stable)
-                    /* Already stable; no more checks. */;
-                else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], separator))
-                    concats_stable = 0;
-                else if (!MVM_nfg_is_concat_stable(tc, separator, piece))
-                    concats_stable = 0;
+                if (sgraphs) {
+                    if (!concats_stable)
+                        /* Already stable; no more checks. */;
+                    else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], separator))
+                        concats_stable = 0;
+                    else if (!MVM_nfg_is_concat_stable(tc, separator, piece))
+                        concats_stable = 0;
 
-                switch (separator->body.storage_type) {
-                case MVM_STRING_GRAPHEME_32:
-                    memcpy(
-                        result->body.storage.blob_32 + position,
-                        separator->body.storage.blob_32,
-                        sgraphs * sizeof(MVMGrapheme32));
-                    position += sgraphs;
-                    break;
-                /* XXX Can special-case 8-bit NFG and ASCII here too. */
-                default:
-                    MVM_string_gi_init(tc, &gi, separator);
-                    while (MVM_string_gi_has_more(tc, &gi))
-                        result->body.storage.blob_32[position++] =
-                            MVM_string_gi_get_grapheme(tc, &gi);
-                    break;
+                    switch (separator->body.storage_type) {
+                    case MVM_STRING_GRAPHEME_32:
+                        memcpy(
+                            result->body.storage.blob_32 + position,
+                            separator->body.storage.blob_32,
+                            sgraphs * sizeof(MVMGrapheme32));
+                        position += sgraphs;
+                        break;
+                    /* XXX Can special-case 8-bit NFG and ASCII here too. */
+                    default:
+                        MVM_string_gi_init(tc, &gi, separator);
+                        while (MVM_string_gi_has_more(tc, &gi))
+                            result->body.storage.blob_32[position++] =
+                                MVM_string_gi_get_grapheme(tc, &gi);
+                        break;
+                    }
+                }
+                else {
+                    /* Separator has no graphemes, so NFG stability check
+                     * should consider pieces. */
+                    if (!concats_stable)
+                        /* Already stable; no more checks. */;
+                    else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], piece))
+                        concats_stable = 0;
                 }
             }
 

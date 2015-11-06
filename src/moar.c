@@ -195,12 +195,12 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->cross_thread_write_logging = 0;
     }
 
-    /* Create std[in/out/err]. */
-    setup_std_handles(instance->main_thread);
-
     /* Set up NFG state mutation mutex. */
     instance->nfg = calloc(1, sizeof(MVMNFGState));
     init_mutex(instance->nfg->update_mutex, "NFG update mutex");
+
+    /* Create std[in/out/err]. */
+    setup_std_handles(instance->main_thread);
 
     /* Back to nursery allocation, now we're set up. */
     MVM_gc_allocate_gen2_default_clear(instance->main_thread);

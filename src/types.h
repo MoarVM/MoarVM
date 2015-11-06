@@ -201,6 +201,7 @@ typedef struct MVMIOSyncPipeData MVMIOSyncPipeData;
 typedef struct MVMDecodeStream MVMDecodeStream;
 typedef struct MVMDecodeStreamBytes MVMDecodeStreamBytes;
 typedef struct MVMDecodeStreamChars MVMDecodeStreamChars;
+typedef struct MVMDecodeStreamSeparators MVMDecodeStreamSeparators;
 typedef struct MVMNativeCallback MVMNativeCallback;
 typedef struct MVMNativeCallbackCacheHead MVMNativeCallbackCacheHead;
 typedef struct MVMJitGraph MVMJitGraph;

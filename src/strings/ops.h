@@ -26,10 +26,19 @@
 #define MVM_CCLASS_NEWLINE      4096
 #define MVM_CCLASS_WORD         8192
 
+/* Checks a string is not null or non-concrete and throws if so. */
+MVM_STATIC_INLINE void MVM_string_check_arg(MVMThreadContext *tc, const MVMString *s, const char *operation) {
+    if (!s || !IS_CONCRETE(s))
+        MVM_exception_throw_adhoc(tc, "%s requires a concrete string, but got %s",
+            operation, s ? "a type object" : "null");
+}
+
 MVM_STATIC_INLINE MVMuint32 MVM_string_graphs(MVMThreadContext *tc, MVMString *s) {
+    MVM_string_check_arg(tc, s, "chars");
     return s->body.num_graphs;
 }
 MVM_STATIC_INLINE MVMuint32 MVM_string_codes(MVMThreadContext *tc, MVMString *s) {
+    MVM_string_check_arg(tc, s, "codes");
     return s->body.num_graphs; /* Don't do NFG yet; this will do us. */
 }
 
@@ -54,8 +63,8 @@ MVMString * MVM_string_lc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_tc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_fc(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_decode(MVMThreadContext *tc, const MVMObject *type_object, char *Cbuf, MVMint64 byte_length, MVMint64 encoding_flag);
-char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag);
-void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name, MVMObject *buf);
+char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag, MVMString *replacement);
+void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name, MVMObject *buf, MVMString *replacement);
 MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVMString *enc_name);
 MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMString *input);
 MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObject *input);
