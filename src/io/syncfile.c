@@ -464,5 +464,6 @@ MVMObject * MVM_file_handle_from_fd(MVMThreadContext *tc, int fd) {
     data->encoding    = MVM_encoding_type_utf8;
     result->body.ops  = &op_table;
     result->body.data = data;
+    MVM_platform_ensure_binary_fd(fd);
     return (MVMObject *)result;
 }
