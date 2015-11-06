@@ -9,10 +9,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #define DEFAULT_MODE 0x01B6
-#define open _open
-#define read _read
-#define write _write
-#define close _close
 #else
 #include <fcntl.h>
 #define O_CREAT  _O_CREAT
@@ -53,7 +49,7 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
         MVM_string_decodestream_destory(tc, data->ds);
         data->ds = NULL;
     }
-    result = close(data->fd);
+    result = MVM_platform_close(data->fd);
     data->fd = 0;
     if (result != 0)
         MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", strerror(errno));
@@ -102,7 +98,7 @@ static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString **seps
 /* Read a bunch of bytes into the current decode stream. */
 static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint32 bytes) {
     char *buf = MVM_malloc(bytes);
-    size_t bytes_read = read(data->fd, buf, bytes);
+    size_t bytes_read = MVM_platform_read(data->fd, buf, bytes);
     if (bytes_read < 0) {
         MVM_free(buf);
         MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
@@ -208,7 +204,7 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
     MVMint64 bytes_written;
     char *output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding);
 
-    bytes_written = write(data->fd, output, output_size);
+    bytes_written = MVM_platform_write(data->fd, output, output_size);
     if (bytes_written < 0) {
         MVM_free(output);
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s",
@@ -217,7 +213,7 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
     MVM_free(output);
 
     if (newline) {
-        if (write(data->fd, "\n", 1) < 0)
+        if (MVM_platform_write(data->fd, "\n", 1) < 0)
             MVM_exception_throw_adhoc(tc, "Failed to write newline to filehandle: %s",
                 strerror(errno));
         bytes_written++;
@@ -230,7 +226,7 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
 static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     MVMint64 bytes_written;
-    bytes_written = write(data->fd, buf, bytes);
+    bytes_written = MVM_platform_write(data->fd, buf, bytes);
     if (bytes_written < 0)
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s",
             strerror(errno));
@@ -443,7 +439,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     MVM_free(fmode);
 
     /* Try to open the file. */
-    if ((fd = open((const char *)fname, flag | _O_BINARY, DEFAULT_MODE)) < 0) {
+    if ((fd = MVM_platform_open((const char *)fname, flag | _O_BINARY, DEFAULT_MODE)) < 0) {
         char *waste[] = { fname, NULL };
         MVM_exception_throw_adhoc_free(tc, waste, "Failed to open file %s: %s", fname,
             strerror(errno));
