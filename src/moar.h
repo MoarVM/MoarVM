@@ -145,6 +145,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "strings/decode_stream.h"
 #include "strings/ascii.h"
 #include "strings/utf8.h"
+#include "strings/utf8_c8.h"
 #include "strings/utf16.h"
 #include "strings/nfg.h"
 #include "strings/iter.h"

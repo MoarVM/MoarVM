@@ -43,6 +43,9 @@ struct MVMNFGSynthetic {
     MVMint32 case_lc_graphs;
     MVMint32 case_tc_graphs;
     MVMint32 case_fc_graphs;
+
+    /* Is this a UTF-8 C-8 synthetic? */
+    MVMint32 is_utf8_c8;
 };
 
 /* A node in the NFG trie. */
@@ -70,6 +73,7 @@ struct MVMNGFTrieNodeEntry {
 
 /* Functions related to grapheme handling. */
 MVMGrapheme32 MVM_nfg_codes_to_grapheme(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes);
+MVMGrapheme32 MVM_nfg_codes_to_grapheme_utf8_c8(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes);
 MVMGrapheme32 MVM_nfg_crlf_grapheme(MVMThreadContext *tc);
 MVMNFGSynthetic * MVM_nfg_get_synthetic_info(MVMThreadContext *tc, MVMGrapheme32 synth);
 MVMuint32 MVM_nfg_get_case_change(MVMThreadContext *tc, MVMGrapheme32 codepoint, MVMint32 case_, MVMGrapheme32 **result);

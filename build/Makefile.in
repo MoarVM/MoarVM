@@ -184,6 +184,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \
+          src/strings/utf8_c8@obj@ \
           src/strings/nfg@obj@ \
           src/strings/ops@obj@ \
           src/strings/unicode@obj@ \
@@ -321,6 +322,7 @@ HEADERS = src/moar.h \
           src/strings/decode_stream.h \
           src/strings/ascii.h \
           src/strings/utf8.h \
+          src/strings/utf8_c8.h \
           src/strings/iter.h \
           src/strings/nfg.h \
           src/strings/ops.h \

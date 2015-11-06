@@ -91,6 +91,9 @@ static MVMint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMi
     case MVM_encoding_type_windows1252:
         MVM_string_windows1252_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
+    case MVM_encoding_type_utf8_c8:
+        MVM_string_utf8_c8_decodestream(tc, ds, stopper_chars, sep_spec);
+        break;
     default:
         MVM_exception_throw_adhoc(tc, "Streaming decode NYI for encoding %d",
             (int)ds->encoding);
