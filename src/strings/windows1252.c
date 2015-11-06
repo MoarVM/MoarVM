@@ -38,6 +38,9 @@ static const MVMuint16 codepoints[] = {
 };
 
 static MVMuint8 windows1252_cp_to_char(MVMint32 codepoint) {
+    if (codepoint > 8364 || codepoint < 0)
+        return '\0';
+
     if (codepoint <= 8216) {
         if (codepoint <= 352) {
             if (codepoint <= 143) {
@@ -123,8 +126,7 @@ static MVMuint8 windows1252_cp_to_char(MVMint32 codepoint) {
         }
     }
 
-    return '?';
-
+    return '\0';
 }
 
 /* Decodes using a decodestream. Decodes as far as it can with the input
@@ -240,7 +242,7 @@ MVMString * MVM_string_windows1252_decode(MVMThreadContext *tc,
 /* Encodes the specified substring to Windows-1252. Anything outside of Windows-1252 range
  * will become a ?. The result string is NULL terminated, but the specified
  * size is the non-null part. */
-char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
+char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement) {
     /* Windows-1252 is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
@@ -248,12 +250,17 @@ char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - startu : length);
     MVMuint8 *result;
     size_t result_alloc;
+    MVMuint8 *repl_bytes = NULL;
+    MVMuint64 repl_length;
 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
     if (length < -1 || start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
+
+    if (replacement)
+        repl_bytes = MVM_string_windows1252_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);
 
     result_alloc = lengthu;
     result = MVM_malloc(result_alloc + 1);
@@ -274,18 +281,34 @@ char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str
                 result_alloc += 8;
                 result = MVM_realloc(result, result_alloc + 1);
             }
-            if ((codepoint >= 0 && codepoint < 128) || (codepoint >= 152 && codepoint < 256))
+            if ((codepoint >= 0 && codepoint < 128) || (codepoint >= 152 && codepoint < 256)) {
                 result[i] = (MVMuint8)codepoint;
-            else if (codepoint > 8364 || codepoint < 0)
-                result[i] = '?';
-            else
-                result[i] = windows1252_cp_to_char(codepoint);
-            i++;
+                i++;
+            }
+            else if ((result[i] = windows1252_cp_to_char(codepoint)) != '\0') {
+                i++;
+            }
+            else if (replacement) {
+                if (i >= result_alloc - repl_length) {
+                    result_alloc += repl_length;
+                    result = MVM_realloc(result, result_alloc + 1);
+                }
+                memcpy(result + i, repl_bytes, repl_length);
+                i += repl_length;
+            }
+            else {
+                MVM_free(result);
+                MVM_free(repl_bytes);
+                MVM_exception_throw_adhoc(tc,
+                    "Error encoding Windows-1252 string: could not encode codepoint %d",
+                     codepoint);
+            }
         }
         result[i] = 0;
         if (output_size)
             *output_size = i;
     }
 
+    MVM_free(repl_bytes);
     return (char *)result;
 }

@@ -98,18 +98,23 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
 /* Encodes the specified substring to utf16. The result string is NULL terminated, but
  * the specified size is the non-null part. (This being UTF-16, there are 2 null bytes
  * on the end.) */
-char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length) {
+char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement) {
     MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - start : length);
     MVMuint16 *result;
     MVMuint16 *result_pos;
     MVMCodepointIter ci;
+    MVMuint8 *repl_bytes = NULL;
+    MVMuint64 repl_length;
 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
         MVM_exception_throw_adhoc(tc, "start out of range");
     if (start + lengthu > strgraphs)
         MVM_exception_throw_adhoc(tc, "length out of range");
+
+    if (replacement)
+        repl_bytes = MVM_string_utf16_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);
 
     /* Kke the result grow as needed instead of allocating so much to start? */
     result = MVM_malloc(lengthu * 4 + 2);
@@ -121,20 +126,33 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
             result_pos[0] = value;
             result_pos++;
         }
-        else {
+        else if (value <= 0x1FFFFF) {
             value -= 0x10000;
             result_pos[0] = 0xD800 + (value >> 10);
             result_pos[1] = 0xDC00 + (value & 0x3FF);
             result_pos += 2;
         }
+        else if (replacement) {
+            /* XXX: May overflow */
+            memcpy(result_pos, repl_bytes, repl_length);
+            result_pos += repl_length/2;
+        }
+        else {
+            MVM_free(result);
+            MVM_free(repl_bytes);
+            MVM_exception_throw_adhoc(tc,
+                "Error encoding UTF-16 string: could not encode codepoint %d",
+                value);
+        }
     }
     result_pos[0] = 0;
     if (output_size)
         *output_size = (char *)result_pos - (char *)result;
+    MVM_free(repl_bytes);
     return (char *)result;
 }
 
 /* Encodes the whole string, double-NULL terminated. */
 char * MVM_string_utf16_encode(MVMThreadContext *tc, MVMString *str) {
-    return MVM_string_utf16_encode_substr(tc, str, NULL, 0, MVM_string_graphs(tc, str));
+    return MVM_string_utf16_encode_substr(tc, str, NULL, 0, MVM_string_graphs(tc, str), NULL);
 }
