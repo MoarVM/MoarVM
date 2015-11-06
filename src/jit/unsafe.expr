@@ -1,0 +1,222 @@
+# Difficult stuff, that hasn't been tested sufficiently adequately to support
+
+(macro: ^objflag (,cv) (const (&QUOTE ,cv) (&SIZEOF_MEMBER MVMObject header.flags)))
+
+(macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
+(macro: ^p6obody (,a) (let: (($replace (^getf ,a MVMP6opaque body.replaced)))
+                      (if (nz $replace)
+                              $replace
+                              (addr ,a (&offsetof MVMP6opaque body)))))
+
+
+(template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
+(template: sp_p6oget_n (load (add (^p6obody $1) $2) (&sizeof MVMnum64)))
+(template: sp_p6oget_s (load (add (^p6obody $1) $2) ptr_sz))
+(template: sp_p6oget_o
+           (let: (($val (load (add (^p6obody $1) $2) ptr_sz)))
+                (if (nz $val) $val (vmnull))))
+
+# hit write barrier for object - this one is rather large
+# NB - it is probably better to use direct variables, rather than trees,
+# as arguments to the write-barrier macro. Usually the compiler can
+# eliminate duplications, but call is a notable exception
+
+(macro: ^write_barrier (,obj ,ref)
+   (when (all 3 (nz (and (^getf ,obj MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN)))
+                (nz ,ref)
+                (zr (and (^getf ,ref MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN))))
+         (call (^func &MVM_gc_write_barrier_hit)
+               (arglist 2 (carg (tc) ptr)
+                          (carg ,obj ptr))
+                 void)))
+
+(template: sp_p6ogetvt_o
+           (let: (($addr (add (^p6obody $1) $2))
+                 ($val (load $addr ptr_sz))
+                 ($type (load (^spesh_slot $3) ptr_sz)))
+                 (if (nz $val)
+                      $val
+                      (do 3 (^write_barrier $1 $type)
+                            (store $addr $type ptr_sz)
+                             $type))))
+
+(template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 int_sz))
+(template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 int_sz))
+(template: sp_p6obind_o (let: (($addr (add (^p6obody $0) $1)))
+                             (do 2 (^write_barrier $0 $2)
+                                   (store $addr $2 ptr_sz))))
+(template: sp_p6obind_s (let: (($addr (add (^p6obody $0) $1)))
+                             (do 2 (^write_barrier $0 $2)
+                                   (store $addr $2 ptr_sz))))
+
+
+
+
+(macro: ^repr (,a) (^getf ,a MVMSTable REPR))
+(macro: ^is_type_obj (,a)
+  (nz (and (^getf ,a MVMObject header.flags) (^objflag MVM_CF_TYPE_OBJECT))))
+
+(macro: ^repr_cont_func (,obj ,func)
+    (load
+        (addr
+            (^getf (^stable ,obj) MVMSTable container_spec)
+            (&offsetof MVMContainerSpec ,func))
+        ptr_sz))
+
+
+(template: getwho  (let: (($who (^getf (^stable $1) MVMSTable WHO)))
+                         (if (nz $who) $who (vmnull))))
+
+
+(template: decont!
+    (let: (($obj (copy $1)))
+        (either
+            (any 3
+                (zr $1)
+                (^is_type_obj $1)
+                (zr (^getf (^stable $1) MVMSTable container_spec)))
+            (store $0 $1 ptr_sz)
+            (call (^repr_cont_func $1 fetch)
+                (arglist 3
+                    (carg (tc) ptr)
+                    (carg $1 ptr)
+                    (carg $0 ptr)
+                )
+                void))))
+
+(template: say (call (^func &MVM_string_say)
+                     (arglist 2 (carg (tc) ptr)
+                                (carg $0 ptr))
+                     void))
+
+
+(template: getlex_no
+  (let: (($res
+    (call (^func &MVM_frame_find_lexical_by_name)
+          (arglist 3 (carg (tc) ptr)
+                     (carg (load (^cu_string $1) ptr_sz) ptr)
+                     (carg (const (&QUOTE MVM_reg_obj) int_sz) int))
+           ptr)))
+   (if (nz $res) (load $res ptr_sz) $res)))
+
+
+(template: wval (call (^func MVM_sc_get_sc_object)
+                      (arglist 4 (carg (tc) ptr)
+                                 (carg (cu) ptr)
+                                 (carg $1 int)
+                                 (carg $2 int))
+                       ptr))
+
+(template: goto (branch (label $0)))
+
+(macro: ^jump_out () (branch (label (const branch_exit int_sz))))
+
+(template: return
+  (do 3
+     (call (^func &MVM_args_assert_void_return_ok)
+           (arglist 2
+              (carg (tc) ptr)
+              (carg (const 0 int_sz) int))
+           void)
+     (call (^func &MVM_frame_try_return)
+           (arglist 1 (carg (tc) ptr))
+           void)
+     (^jump_out)))
+
+(template: return_o
+  (do 3
+     (call (^func &MVM_args_set_result_obj)
+           (arglist 3
+              (carg (tc) ptr)
+              (carg $0 ptr)
+              (carg (const 0 int_sz) int))
+           void)
+     (call (^func &MVM_frame_try_return)
+           (arglist 1 (carg (tc) ptr))
+           void)
+     (^jump_out)))
+
+(template: setdispatcher
+  (^setf (tc) MVMThreadContext cur_dispatcher $0))
+
+(template: takedispatcher
+  (let: (($cur (^getf (tc) MVMThreadContext cur_dispatcher)))
+        (do 2
+           (^setf (tc) MVMThreadContext cur_dispatcher (const 0 ptr_sz))
+           (copy $cur))))
+
+
+(template: getcode
+  (let: (($arr (^getf (cu) MVMCompUnit body.coderefs)))
+        (load (idx $arr $1 ptr_sz) ptr_sz)))
+
+(template: callercode
+  (let: (($caller (^getf (frame) MVMFrame caller)))
+        (if (nz $caller)
+            (^getf $caller MVMFrame code_ref)
+            (const 0 ptr_sz))))
+
+
+(template: sp_fastcreate
+   (let: (($block
+           (call (^func &MVM_gc_allocate_zeroed)
+                 (arglist 2 (carg (tc) ptr)
+                            (carg $1 int))
+                  ptr)))
+      (do 4
+          (^setf $block MVMObject st (load (^spesh_slot $2) ptr_sz))
+          (^setf $block MVMObject header.size $1)
+          (^setf $block MVMObject header.owner (^getf (tc) MVMThreadContext thread_id))
+          (copy $block))))
+
+(macro: ^throw_adhoc (,msg)
+   (call (^func &MVM_exception_throw_adhoc)
+         (arglist 2 (carg (tc) ptr)
+                    (carg (const ,msg ptr_sz) ptr))
+         void))
+
+
+(template: ctxcode
+    (do 2
+        (when (any 2 (^is_type_obj $1)
+                     (ne (^getf (^repr $1) MVMREPROps ID)
+                         (const (&QUOTE MVM_REPR_ID_MVMContext) (&SIZEOF_MEMBER MVMREPROps ID))))
+              (^throw_adhoc (&MSG ctxcode needs an MVMContext)))
+        (^getf (^getf $1 MVMContext body.context) MVMFrame code_ref)))
+
+# These properly yield a flag, not a register value.
+# I maybe want to add a flag-to-register op
+
+
+(macro: ^body (,a) (addr ,a (&offsetof MVMObjectStooge data)))
+#  GET_REG(cur_op, 0).i64 = (MVMint64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+(template: elems
+   (let: (($func (^getf (^repr $1) MVMREPROps elems)))
+        (call $func
+             (arglist 4
+                  (carg (tc) ptr)
+                  (carg (^stable $1) ptr)
+                  (carg $1 ptr)
+                  (carg (^body $1) ptr))
+              int)))
+
+#  REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
+#       OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
+#       &GET_REG(cur_op, 0), MVM_reg_obj);
+(template: atpos_o!
+# maybe have another operator for statement if-with-else
+  (let: (($addr (copy $0)))
+    (either (^is_type_obj $1)
+      (store $addr (vmnull) ptr_sz)
+# else
+      (call (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
+         (arglist 7
+           (carg (tc) ptr)
+           (carg (^stable $1) ptr)
+           (carg $1 ptr)
+           (carg (^body $1) ptr)
+           (carg $2 int)
+# our write address
+           (carg $addr ptr)
+           (carg (const (&QUOTE MVM_reg_obj) int_sz) int))
+         void))))
