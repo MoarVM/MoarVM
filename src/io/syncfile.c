@@ -140,9 +140,12 @@ static MVMString * slurp(MVMThreadContext *tc, MVMOSHandle *h) {
     ensure_decode_stream(tc, data);
 
     /* Typically we're slurping an entire file, so just request the bytes
-     * until the end; repeat to ensure we get 'em all. */
+     * until the end; repeat to ensure we get 'em all. If it's not a file,
+     * we may get 0 back, in which case use the default chunk size.*/
     if ((file_size = MVM_platform_size_from_fd(data->fd)) < 0)
         MVM_exception_throw_adhoc(tc, "slurp from filehandle failed: %s", strerror(errno));
+    if (file_size == 0)
+        file_size = CHUNK_SIZE;
     while (read_to_buffer(tc, data, file_size) > 0)
         ;
     return MVM_string_decodestream_get_all(tc, data->ds);
