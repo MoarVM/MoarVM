@@ -8,6 +8,7 @@ MVMint64 MVM_platform_size_from_fd(int fd);
 #define MVM_platform_close _close
 #define MVM_platform_ensure_binary_fd(fd) _setmode(fd, _O_BINARY)
 #define MVM_platform_add_binary_flag(flag) (flag) |= _O_BINARY
+#define MVM_platform_isatty _isatty
 #else
 #define MVM_platform_lseek lseek
 #define MVM_platform_unlink unlink
@@ -17,4 +18,5 @@ MVMint64 MVM_platform_size_from_fd(int fd);
 #define MVM_platform_close close
 #define MVM_platform_ensure_binary_fd(fd) /* no-op on POSIX */
 #define MVM_platform_add_binary_flag(flag) /* no-op on POSIX */
+#define MVM_platform_isatty isatty
 #endif
