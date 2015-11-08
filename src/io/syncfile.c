@@ -147,8 +147,19 @@ static MVMString * slurp(MVMThreadContext *tc, MVMOSHandle *h) {
     if (uv_fs_fstat(tc->loop, &req, data->fd, NULL) < 0) {
         MVM_exception_throw_adhoc(tc, "slurp from filehandle failed: %s", uv_strerror(req.result));
     }
-    while (read_to_buffer(tc, data, req.statbuf.st_size) > 0)
-        ;
+    /* Sometimes - usually for special files like those in /proc - the file
+     * size comes up 0, even though the S_ISREG test succeeds. So in that case
+     * we try a small read and switch to a "read chunks until EOF" impl.
+     * Otherwise we just read the exact size of the file. */
+    if (req.statbuf.st_size == 0) {
+        if (read_to_buffer(tc, data, 32) > 0) {
+            while (read_to_buffer(tc, data, 4096) > 0)
+                ;
+        }
+    } else {
+        while (read_to_buffer(tc, data, req.statbuf.st_size) > 0)
+            ;
+    }
     return MVM_string_decodestream_get_all(tc, data->ds);
 }
 
