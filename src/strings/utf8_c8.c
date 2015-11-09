@@ -189,6 +189,13 @@ static MVMint32 utf8_encode(MVMuint8 *bp, MVMCodepoint cp) {
 
 #define UTF8_MAXINC (32 * 1024 * 1024)
 
+static void ensure_buffer(MVMGrapheme32 **buffer, MVMint32 *bufsize, MVMint32 needed) {
+    while (needed >= *bufsize)
+        *buffer = MVM_realloc(*buffer, sizeof(MVMGrapheme32) * (
+            *bufsize >= UTF8_MAXINC ? (*bufsize += UTF8_MAXINC) : (*bufsize *= 2)
+        ));
+}
+
 static const MVMuint8 hex_chars[] = { '0', '1', '2', '3', '4', '5', '6', '7',
                                       '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 static MVMGrapheme32 synthetic_for(MVMThreadContext *tc, MVMuint8 invalid) {
@@ -228,11 +235,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
             MVMGrapheme32 g;
             ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, codepoint, &g);
             if (ready) {
-                while (count + ready >= bufsize) { /* if the buffer's full make a bigger one */
-                    buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (
-                        bufsize >= UTF8_MAXINC ? (bufsize += UTF8_MAXINC) : (bufsize *= 2)
-                    ));
-                }
+                ensure_buffer(&buffer, &bufsize, count + ready);
                 buffer[count++] = g;
                 while (--ready > 0)
                     buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
@@ -243,10 +246,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
         case UTF8_REJECT:
             while (last_accept_utf8++ != utf8) {
                 MVMGrapheme32 g = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8));
-                if (count + 1 >= bufsize)
-                    buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (
-                        bufsize >= UTF8_MAXINC ? (bufsize += UTF8_MAXINC) : (bufsize *= 2)
-                    ));
+                ensure_buffer(&buffer, &bufsize, count + 1);
                 buffer[count++] = g;
             }
             state = UTF8_ACCEPT;
@@ -256,10 +256,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
     if (state != UTF8_ACCEPT) {
         while (last_accept_utf8++ != utf8) {
             MVMGrapheme32 g = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8));
-            if (count + 1 >= bufsize)
-                buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (
-                    bufsize >= UTF8_MAXINC ? (bufsize += UTF8_MAXINC) : (bufsize *= 2)
-                ));
+            ensure_buffer(&buffer, &bufsize, count + 1);
             buffer[count++] = g;
         }
     }
@@ -268,9 +265,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
     MVM_unicode_normalizer_eof(tc, &norm);
     ready = MVM_unicode_normalizer_available(tc, &norm);
     if (ready) {
-        if (count + ready >= bufsize) {
-            buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (count + ready));
-        }
+        ensure_buffer(&buffer, &bufsize, count + ready);
         while (ready--)
             buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
     }
