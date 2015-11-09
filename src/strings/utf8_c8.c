@@ -374,11 +374,46 @@ void MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 }
 
 /* Encodes the specified string to UTF-8. */
+static void emit_cp(MVMThreadContext *tc, MVMCodepoint cp, MVMuint8 **result,
+                    size_t *result_pos, size_t *result_limit,
+                    MVMuint8 *repl_bytes, MVMuint64 repl_length) {
+    MVMint32 bytes;
+    if (*result_pos >= *result_limit) {
+        *result_limit *= 2;
+        *result = MVM_realloc(*result, *result_limit + 4);
+    }
+    bytes = utf8_encode(*result + *result_pos, cp);
+    if (bytes)
+        *result_pos += bytes;
+    else if (repl_bytes) {
+        if (*result_pos >= *result_limit - repl_length) {
+            *result_limit += repl_length;
+            *result = MVM_realloc(*result, *result_limit + 4);
+        }
+        memcpy(*result + *result_pos, repl_bytes, repl_length);
+        *result_pos += repl_length;
+    }
+    else {
+        MVM_free(*result);
+        MVM_free(repl_bytes);
+        MVM_exception_throw_adhoc(tc,
+            "Error encoding UTF-8 string: could not encode codepoint %d",
+            cp);
+    }
+}
+static int hex2int(MVMThreadContext *tc, MVMCodepoint cp) {
+    if (cp >= '0' && cp <= '9')
+        return cp - '0';
+    else if (cp >= 'A' && cp <= 'F')
+        return 10 + (cp - 'A');
+    else
+        MVM_exception_throw_adhoc(tc, "UTF-8 C-8 encoding encountered corrupt synthetic");
+}
 char * MVM_string_utf8_c8_encode_substr(MVMThreadContext *tc,
         MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement) {
     MVMuint8        *result;
     size_t           result_pos, result_limit;
-    MVMCodepointIter ci;
+    MVMGraphemeIter  gi;
     MVMStringIndex   strgraphs = MVM_string_graphs(tc, str);
     MVMuint8        *repl_bytes = NULL;
     MVMuint64        repl_length;
@@ -399,32 +434,32 @@ char * MVM_string_utf8_c8_encode_substr(MVMThreadContext *tc,
     result       = MVM_malloc(result_limit + 4);
     result_pos   = 0;
 
-    /* Iterate the codepoints and encode them. */
-    MVM_string_ci_init(tc, &ci, str);
-    while (MVM_string_ci_has_more(tc, &ci)) {
-        MVMint32 bytes;
-        MVMCodepoint cp = MVM_string_ci_get_codepoint(tc, &ci);
-        if (result_pos >= result_limit) {
-            result_limit *= 2;
-            result = MVM_realloc(result, result_limit + 4);
-        }
-        bytes = utf8_encode(result + result_pos, cp);
-        if (bytes)
-            result_pos += bytes;
-        else if (replacement) {
-            if (result_pos >= result_limit - repl_length) {
-                result_limit += repl_length;
-                result = MVM_realloc(result, result_limit + 4);
-            }
-            memcpy(result + result_pos, repl_bytes, repl_length);
-            result_pos += repl_length;
+    /* We iterate graphemes, looking out for any synthetics. If we find a
+     * UTF-8 C-8 synthetic, then we spit out the raw byte. If we find any
+     * other synthetic, we iterate its codepoints. */
+    MVM_string_gi_init(tc, &gi, str);
+    while (MVM_string_gi_has_more(tc, &gi)) {
+        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+        if (g >= 0) {
+            emit_cp(tc, g, &result, &result_pos, &result_limit, repl_bytes, repl_length);
         }
         else {
-            MVM_free(result);
-            MVM_free(repl_bytes);
-            MVM_exception_throw_adhoc(tc,
-                "Error encoding UTF-8 string: could not encode codepoint %d",
-                cp);
+            MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
+            if (synth->is_utf8_c8) {
+                /* UTF-8 C-8 synthetic; emit the byte. */
+                if (result_pos >= result_limit) {
+                    result_limit *= 2;
+                    result = MVM_realloc(result, result_limit + 1);
+                }
+                result[result_pos++] = (hex2int(tc, synth->combs[1]) << 4) +
+                    hex2int(tc, synth->combs[2]);
+            }
+            else {
+                MVMint32 i;
+                emit_cp(tc, synth->base, &result, &result_pos, &result_limit, repl_bytes, repl_length);
+                for (i = 0; i < synth->num_combs; i++)
+                    emit_cp(tc, synth->combs[i], &result, &result_pos, &result_limit, repl_bytes, repl_length);
+            }
         }
     }
 
