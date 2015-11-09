@@ -373,8 +373,8 @@ static const char *dlerror(void)
 /* Builds up a native call site out of the supplied arguments. */
 void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
         MVMString *sym, MVMString *conv, MVMObject *arg_info, MVMObject *ret_info) {
-    char *lib_name = MVM_string_utf8_encode_C_string(tc, lib);
-    char *sym_name = MVM_string_utf8_encode_C_string(tc, sym);
+    char *lib_name = MVM_string_utf8_c8_encode_C_string(tc, lib);
+    char *sym_name = MVM_string_utf8_c8_encode_C_string(tc, sym);
     MVMint16 i;
 
     /* Initialize the object; grab native call part of its body. */
@@ -574,8 +574,8 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
 }
 
 MVMObject * MVM_nativecall_global(MVMThreadContext *tc, MVMString *lib, MVMString *sym, MVMObject *target_spec, MVMObject *target_type) {
-    char *lib_name = MVM_string_utf8_encode_C_string(tc, lib);
-    char *sym_name = MVM_string_utf8_encode_C_string(tc, sym);
+    char *lib_name = MVM_string_utf8_c8_encode_C_string(tc, lib);
+    char *sym_name = MVM_string_utf8_c8_encode_C_string(tc, sym);
     DLLib *lib_handle;
     void *entry_point;
     MVMObject *ret = NULL;

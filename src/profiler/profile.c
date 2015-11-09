@@ -87,8 +87,8 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
             box_i(tc, (MVMint64)pcn->sf));
     } else {
         MVMString *function_name_string =
-            MVM_string_utf8_decode(tc, tc->instance->VMString,
-                                   pcn->native_target_name, strlen(pcn->native_target_name));
+            MVM_string_utf8_c8_decode(tc, tc->instance->VMString,
+                                      pcn->native_target_name, strlen(pcn->native_target_name));
 
         MVM_repr_bind_key_o(tc, node_hash, pds->name,
             box_s(tc, function_name_string));
