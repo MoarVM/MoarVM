@@ -211,10 +211,18 @@ static void flush_normalizer(MVMThreadContext *tc, MVMNormalizer *norm, MVMGraph
 static const MVMuint8 hex_chars[] = { '0', '1', '2', '3', '4', '5', '6', '7',
                                       '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 static MVMGrapheme32 synthetic_for(MVMThreadContext *tc, MVMuint8 invalid) {
-    MVMuint8 high = invalid >> 4;
-    MVMuint8 low = invalid & 0x0F;
-    MVMCodepoint cps[] = { 0x10FFFD, 'x', hex_chars[high], hex_chars[low] };
-    return MVM_nfg_codes_to_grapheme_utf8_c8(tc, cps, 4);
+    if (invalid > 0x7F) {
+        /* A real invalid. */
+        MVMuint8 high = invalid >> 4;
+        MVMuint8 low = invalid & 0x0F;
+        MVMCodepoint cps[] = { 0x10FFFD, 'x', hex_chars[high], hex_chars[low] };
+        return MVM_nfg_codes_to_grapheme_utf8_c8(tc, cps, 4);
+    }
+    else {
+        /* Was in things thrown out as invalid by the decoder, but has an
+         * ASCII interpretation, so hand it back as is. */
+        return invalid;
+    }
 }
 
 /* Decodes the specified number of bytes of utf8 into an NFG string, creating
