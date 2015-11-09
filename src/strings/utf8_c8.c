@@ -518,8 +518,20 @@ char * MVM_string_utf8_c8_encode_substr(MVMThreadContext *tc,
     return (char *)result;
 }
 
-/* Encodes the specified string to UTF-8. */
+/* Encodes the specified string to UTF-8 C-8. */
 char * MVM_string_utf8_c8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
     return MVM_string_utf8_encode_substr(tc, str, output_size, 0,
         MVM_string_graphs(tc, str), NULL);
+}
+
+/* Encodes the specified string to a UTF-8 C-8 C string. */
+char * MVM_string_utf8_c8_encode_C_string(MVMThreadContext *tc, MVMString *str) {
+    MVMuint64 output_size;
+    char *result;
+    char *utf8_string = MVM_string_utf8_c8_encode(tc, str, &output_size);
+    result = MVM_malloc(output_size + 1);
+    memcpy(result, utf8_string, output_size);
+    MVM_free(utf8_string);
+    result[output_size] = (char)0;
+    return result;
 }

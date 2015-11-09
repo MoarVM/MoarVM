@@ -3,3 +3,4 @@ MVM_PUBLIC void MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeS
 MVM_PUBLIC char * MVM_string_utf8_c8_encode_substr(MVMThreadContext *tc,
         MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement);
 MVM_PUBLIC char * MVM_string_utf8_c8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size);
+MVM_PUBLIC char * MVM_string_utf8_c8_encode_C_string(MVMThreadContext *tc, MVMString *str);
