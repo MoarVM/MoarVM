@@ -144,7 +144,7 @@ static void add_synthetic_to_trie(MVMThreadContext *tc, MVMCodepoint *codes, MVM
  * checked that the synthetic does not exist. Adds it to the lookup trie and
  * synthetics table, making sure to do enough copy/free-at-safe-point work to
  * not upset other threads possibly doing concurrent reads. */
-static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes) {
+static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes, MVMint32 utf8_c8) {
     MVMNFGState     *nfg = tc->instance->nfg;
     MVMNFGSynthetic *synth;
     MVMGrapheme32    result;
@@ -169,10 +169,11 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
     comb_size        = synth->num_combs * sizeof(MVMCodepoint);
     synth->combs     = MVM_fixed_size_alloc(tc, tc->instance->fsa, comb_size);
     memcpy(synth->combs, codes + 1, comb_size);
-    synth->case_uc   = 0;
-    synth->case_lc   = 0;
-    synth->case_tc   = 0;
-    synth->case_fc   = 0;
+    synth->case_uc    = 0;
+    synth->case_lc    = 0;
+    synth->case_tc    = 0;
+    synth->case_fc    = 0;
+    synth->is_utf8_c8 = utf8_c8;
 
     /* Memory barrier to make sure the synthetic is fully in place before we
      * bump the count. */
@@ -192,13 +193,13 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
 /* Does a lookup of a synthetic in the trie. If we find one, returns it. If
  * not, acquires the update lock, re-checks that we really are missing the
  * synthetic, and then adds it. */
-static MVMGrapheme32 lookup_or_add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes) {
+static MVMGrapheme32 lookup_or_add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes, MVMint32 utf8_c8) {
     MVMGrapheme32 result = lookup_synthetic(tc, codes, num_codes);
     if (!result) {
         uv_mutex_lock(&tc->instance->nfg->update_mutex);
         result = lookup_synthetic(tc, codes, num_codes);
         if (!result)
-            result = add_synthetic(tc, codes, num_codes);
+            result = add_synthetic(tc, codes, num_codes, utf8_c8);
         uv_mutex_unlock(&tc->instance->nfg->update_mutex);
     }
     return result;
@@ -213,13 +214,22 @@ MVMGrapheme32 MVM_nfg_codes_to_grapheme(MVMThreadContext *tc, MVMCodepoint *code
     if (num_codes == 1)
         return codes[0];
     else
-        return lookup_or_add_synthetic(tc, codes, num_codes);
+        return lookup_or_add_synthetic(tc, codes, num_codes, 0);
+}
+
+/* Does the same as MVM_nfg_codes_to_grapheme, but flags the added grapheme as
+ * being an UTF8-C8 synthetic. */
+MVMGrapheme32 MVM_nfg_codes_to_grapheme_utf8_c8(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes) {
+    if (num_codes == 1)
+        return codes[0];
+    else
+        return lookup_or_add_synthetic(tc, codes, num_codes, 1);
 }
 
 /* Gets the \r\n synthetic. */
 MVMGrapheme32 MVM_nfg_crlf_grapheme(MVMThreadContext *tc) {
     MVMCodepoint codes[2] = { '\r', '\n' };
-    return lookup_or_add_synthetic(tc, codes, 2);
+    return lookup_or_add_synthetic(tc, codes, 2, 0);
 }
 
 /* Does a lookup of information held about a synthetic. The synth parameter

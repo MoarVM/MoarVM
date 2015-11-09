@@ -87,7 +87,7 @@ static int mkdir_p(char *pathname, MVMint64 mode) {
 
 /* Create a directory recursively. */
 void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
-    char * const pathname = MVM_string_utf8_encode_C_string(tc, path);
+    char * const pathname = MVM_string_utf8_c8_encode_C_string(tc, path);
 
 #ifdef _WIN32
     /* Must using UTF8ToUnicode for supporting CJK Windows file name. */
@@ -135,7 +135,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
 
 /* Remove a directory recursively. */
 void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
-    char * const pathname = MVM_string_utf8_encode_C_string(tc, path);
+    char * const pathname = MVM_string_utf8_c8_encode_C_string(tc, path);
     uv_fs_t req;
 
     if(uv_fs_rmdir(tc->loop, &req, pathname, NULL) < 0 ) {
@@ -162,12 +162,12 @@ MVMString * MVM_dir_cwd(MVMThreadContext *tc) {
         MVM_exception_throw_adhoc(tc, "chdir failed: %s", uv_strerror(r));
     }
 
-    return MVM_string_utf8_decode(tc, tc->instance->VMString, path, strlen(path));
+    return MVM_string_utf8_c8_decode(tc, tc->instance->VMString, path, strlen(path));
 }
 
 /* Change directory. */
 void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {
-    char * const dirstring = MVM_string_utf8_encode_C_string(tc, dir);
+    char * const dirstring = MVM_string_utf8_c8_encode_C_string(tc, dir);
 
     if (uv_chdir((const char *)dirstring) != 0) {
         MVM_free(dirstring);
@@ -239,7 +239,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     wchar_t *wname;
     wchar_t *dir_name;
 
-    name  = MVM_string_utf8_encode_C_string(tc, dirname);
+    name  = MVM_string_utf8_c8_encode_C_string(tc, dirname);
     wname = UTF8ToUnicode(name);
     MVM_free(name);
 
@@ -275,7 +275,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     data->dir_handle = INVALID_HANDLE_VALUE;
 
 #else
-    char * const dir_name = MVM_string_utf8_encode_C_string(tc, dirname);
+    char * const dir_name = MVM_string_utf8_c8_encode_C_string(tc, dirname);
     DIR * const dir_handle = opendir(dir_name);
     MVM_free(dir_name);
 
@@ -321,7 +321,7 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
 
         data->dir_handle = hFind;
         dir_str = UnicodeToUTF8(ffd.cFileName);
-        result = MVM_string_utf8_decode(tc, tc->instance->VMString, dir_str, strlen(dir_str));
+        result = MVM_string_utf8_c8_decode(tc, tc->instance->VMString, dir_str, strlen(dir_str));
         MVM_free(dir_str);
         return result;
     }

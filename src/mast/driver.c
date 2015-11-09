@@ -90,7 +90,7 @@ void MVM_mast_to_file(MVMThreadContext *tc, MVMObject *mast, MVMObject *types, M
         /* Write it out to a file. (Not using VM-level IO for this right now;
          * may want to do that, but really we just want to shove the bytes out
          * to disk, without having to go via string subsystem, etc. */
-        c_filename = MVM_string_utf8_encode_C_string(tc, filename);
+        c_filename = MVM_string_utf8_c8_encode_C_string(tc, filename);
         if ((fh = fopen(c_filename, "wb+"))) {
             fwrite(bytecode, 1, size, fh);
             fclose(fh);

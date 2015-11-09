@@ -20,7 +20,7 @@ static void on_changed(uv_fs_event_t *handle, const char *filename, int events, 
         MVMObject *filename_boxed;
         MVMObject *rename_boxed;
         if (filename) {
-            MVMString *filename_str = MVM_string_utf8_decode(tc,
+            MVMString *filename_str = MVM_string_utf8_c8_decode(tc,
                 tc->instance->VMString, filename, strlen(filename));
             filename_boxed = MVM_repr_box_str(tc,
                 tc->instance->boot_types.BOOTStr,
@@ -94,7 +94,7 @@ MVMObject * MVM_io_file_watch(MVMThreadContext *tc, MVMObject *queue,
     WatchInfo    *watch_info;
 
     /* Encode path. */
-    char *c_path = MVM_string_utf8_encode_C_string(tc, path);
+    char *c_path = MVM_string_utf8_c8_encode_C_string(tc, path);
 
     /* Validate REPRs. */
     if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
