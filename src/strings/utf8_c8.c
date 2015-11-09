@@ -256,21 +256,21 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
             break;
         }
         case UTF8_REJECT:
-            while (last_accept_utf8++ != utf8) {
-                flush_normalizer(tc, &norm, &buffer, &bufsize, &count);
+            flush_normalizer(tc, &norm, &buffer, &bufsize, &count);
+            do {
                 ensure_buffer(&buffer, &bufsize, count + 1);
                 buffer[count++] = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8));
-            }
+            } while (++last_accept_utf8 != utf8);
             state = UTF8_ACCEPT;
             break;
         }
     }
     if (state != UTF8_ACCEPT) {
-        while (last_accept_utf8++ != utf8) {
-            flush_normalizer(tc, &norm, &buffer, &bufsize, &count);
+        flush_normalizer(tc, &norm, &buffer, &bufsize, &count);
+        do {
             ensure_buffer(&buffer, &bufsize, count + 1);
             buffer[count++] = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8));
-        }
+        } while (++last_accept_utf8 != utf8);
     }
 
     /* Get any final graphemes from the normalizer, and clean it up. */
