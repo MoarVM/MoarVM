@@ -196,6 +196,18 @@ static void ensure_buffer(MVMGrapheme32 **buffer, MVMint32 *bufsize, MVMint32 ne
         ));
 }
 
+static void flush_normalizer(MVMThreadContext *tc, MVMNormalizer *norm, MVMGrapheme32 **buffer,
+                             MVMint32 *bufsize, MVMint32 *count) {
+    MVMint32 ready;
+    MVM_unicode_normalizer_eof(tc, norm);
+    ready = MVM_unicode_normalizer_available(tc, norm);
+    if (ready) {
+        ensure_buffer(buffer, bufsize, *count + ready);
+        while (ready--)
+            (*buffer)[(*count)++] = MVM_unicode_normalizer_get_grapheme(tc, norm);
+    }
+}
+
 static const MVMuint8 hex_chars[] = { '0', '1', '2', '3', '4', '5', '6', '7',
                                       '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 static MVMGrapheme32 synthetic_for(MVMThreadContext *tc, MVMuint8 invalid) {
@@ -245,9 +257,9 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
         }
         case UTF8_REJECT:
             while (last_accept_utf8++ != utf8) {
-                MVMGrapheme32 g = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8));
+                flush_normalizer(tc, &norm, &buffer, &bufsize, &count);
                 ensure_buffer(&buffer, &bufsize, count + 1);
-                buffer[count++] = g;
+                buffer[count++] = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8));
             }
             state = UTF8_ACCEPT;
             break;
@@ -255,20 +267,14 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
     }
     if (state != UTF8_ACCEPT) {
         while (last_accept_utf8++ != utf8) {
-            MVMGrapheme32 g = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8));
+            flush_normalizer(tc, &norm, &buffer, &bufsize, &count);
             ensure_buffer(&buffer, &bufsize, count + 1);
-            buffer[count++] = g;
+            buffer[count++] = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8));
         }
     }
 
     /* Get any final graphemes from the normalizer, and clean it up. */
-    MVM_unicode_normalizer_eof(tc, &norm);
-    ready = MVM_unicode_normalizer_available(tc, &norm);
-    if (ready) {
-        ensure_buffer(&buffer, &bufsize, count + ready);
-        while (ready--)
-            buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
-    }
+    flush_normalizer(tc, &norm, &buffer, &bufsize, &count);
     MVM_unicode_normalizer_cleanup(tc, &norm);
 
     /* just keep the same buffer as the MVMString's buffer.  Later
