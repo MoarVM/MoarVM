@@ -259,7 +259,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
             flush_normalizer(tc, &norm, &buffer, &bufsize, &count);
             do {
                 ensure_buffer(&buffer, &bufsize, count + 1);
-                buffer[count++] = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8));
+                buffer[count++] = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8 + 1));
             } while (++last_accept_utf8 != utf8);
             state = UTF8_ACCEPT;
             break;
@@ -269,7 +269,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
         flush_normalizer(tc, &norm, &buffer, &bufsize, &count);
         do {
             ensure_buffer(&buffer, &bufsize, count + 1);
-            buffer[count++] = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8));
+            buffer[count++] = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8 + 1));
         } while (++last_accept_utf8 != utf8);
     }
 
