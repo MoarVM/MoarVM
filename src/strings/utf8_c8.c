@@ -353,9 +353,58 @@ void MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                 }
                 break;
             }
-            case UTF8_REJECT:
-                MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
+            case UTF8_REJECT: {
+                /* First, flush anything in the normalizer. */
+                MVMint32 ready;
+                MVM_unicode_normalizer_eof(tc, &(ds->norm));
+                ready = MVM_unicode_normalizer_available(tc, &(ds->norm));
+                /* Get a new result buffer, if we'd overflow existing. We
+                 * should never be able to get an invalid sequence longer
+                 * than 4 bytes. */
+                if (count + ready + 4 >= bufsize) {
+                    MVM_string_decodestream_add_chars(tc, ds, buffer, count);
+                    if (ready + 4 > bufsize)
+                        bufsize = ready + 4;
+                    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+                    count = 0;
+                }
+
+                /* Add chars from the normalizer; look out for any of them
+                 * being the separator. */
+                while (ready--) {
+                    MVMGrapheme32 g = MVM_unicode_normalizer_get_grapheme(tc, &(ds->norm));
+                    buffer[count++] = g;
+                    total++;
+                    if (stopper_chars && *stopper_chars == total)
+                        goto done;
+                    if (MVM_string_decode_stream_maybe_sep(tc, seps, g))
+                        goto done;
+                }
+
+                /* Go through invalid bytes, making synthetics. */
+                do {
+                    if (last_accept_pos < last_accept_bytes->length) {
+                        /* Still some in the last accepted byte buffer. */
+                        buffer[count++] = synthetic_for(tc,
+                            last_accept_bytes->bytes[last_accept_pos]);
+                        total++;
+                        last_accept_pos++;
+                        if (stopper_chars && *stopper_chars == total)
+                            goto done;
+                    }
+                    else if (last_accept_bytes->next) {
+                        /* Progress to next buffer. */
+                        last_accept_bytes = last_accept_bytes->next;
+                        last_accept_pos = -1;
+                    }
+                }
+                while (last_accept_bytes != cur_bytes && last_accept_pos != pos - 1);
+
+                /* Accept the invalid bytes. */
+                state = UTF8_ACCEPT;
+
                 break;
+            }
             }
         }
         cur_bytes = cur_bytes->next;
