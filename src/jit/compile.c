@@ -19,10 +19,9 @@ void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitGraph
     cl->dasm_globals = MVM_malloc(num_globals * sizeof(void*));
     dasm_setupglobal(cl, cl->dasm_globals, num_globals);
     dasm_setup(cl, MVM_jit_actions());
-    /* space for our dynamic labels */
-    dasm_growpc(cl, jg->labels_num);
-    /* next (internal) label to assign */
-    cl->next_label = jg->labels_num;
+
+    /* space for dynamic labels */
+    dasm_growpc(cl, jg->num_labels);
 }
 
 void MVM_jit_compiler_deinit(MVMThreadContext *tc, MVMJitCompiler *cl) {
@@ -125,8 +124,9 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     code->sf         = jg->sg->sf;
 
     /* Get the basic block labels */
-    code->num_labels = jg->labels_num;
-    code->labels = MVM_malloc(sizeof(void*) * code->num_labels);
+    code->num_labels = jg->num_labels;
+    code->labels = MVM_calloc(code->num_labels, sizeof(void*));
+
     for (i = 0; i < code->num_labels; i++) {
         MVMint32 offset = dasm_getpclabel(cl, i);
         if (offset < 0)
@@ -137,9 +137,6 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     /* Copy the deopts, inlines, and handlers. Because these use the
      * label index rather than the direct pointer, no fixup is
      * necessary */
-    code->num_bbs      = jg->bbs_num;
-    code->bb_labels    = COPY_ARRAY(jg->bbs, jg->bbs_num);
-
     code->num_deopts   = jg->deopts_num;
     code->deopts       = code->num_deopts ? COPY_ARRAY(jg->deopts, jg->deopts_num) : NULL;
     code->num_handlers = jg->handlers_num;
@@ -152,7 +149,6 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
 
 void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
     MVM_platform_free_pages(code->func_ptr, code->size);
-    MVM_free(code->bb_labels);
     MVM_free(code->deopts);
     MVM_free(code->handlers);
     MVM_free(code->inlines);

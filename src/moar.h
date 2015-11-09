@@ -188,6 +188,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "core/intcache.h"
 #include "core/fixedsizealloc.h"
 #include "jit/graph.h"
+#include "jit/label.h"
 #include "jit/compile.h"
 #include "jit/log.h"
 #include "profiler/instrument.h"

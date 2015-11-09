@@ -109,7 +109,6 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
 
             size += sizeof(void *) * code->num_labels;
 
-            size += sizeof(MVMint32) * code->num_bbs;
             size += sizeof(MVMJitDeopt) * code->num_deopts;
             size += sizeof(MVMJitInline) * code->num_inlines;
             size += sizeof(MVMJitHandler) * code->num_handlers;

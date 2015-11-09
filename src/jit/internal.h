@@ -15,7 +15,6 @@
 struct MVMJitCompiler {
     dasm_State *dasm_handle;
     void      **dasm_globals;
-    MVMint32    next_label;
 };
 
 /* Declarations for architecture-specific codegen stuff */

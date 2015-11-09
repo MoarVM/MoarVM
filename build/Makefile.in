@@ -188,6 +188,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/plan@obj@ \
           src/spesh/arg_guard@obj@ \
           src/jit/graph@obj@ \
+          src/jit/label@obj@ \
           src/jit/compile@obj@ \
           src/jit/log@obj@ \
           src/strings/decode_stream@obj@ \
@@ -370,6 +371,7 @@ HEADERS = src/moar.h \
           src/platform/setjmp.h \
           src/platform/memmem.h \
           src/jit/graph.h \
+          src/jit/label.h \
           src/jit/compile.h \
           src/jit/log.h \
           src/instrument/crossthreadwrite.h \
