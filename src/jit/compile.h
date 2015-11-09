@@ -13,9 +13,6 @@ struct MVMJitCode {
     MVMint32   num_labels;
     void     **labels;
 
-    MVMint32       num_bbs;
-    MVMint32      *bb_labels;
-
     MVMint32       num_deopts;
     MVMJitDeopt    *deopts;
 

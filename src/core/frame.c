@@ -411,8 +411,14 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 /* In the post-specialize phase; can safely used the code. */
                 frame = allocate_frame(tc, static_frame_body, chosen_cand);
                 if (chosen_cand->jitcode) {
-                    frame->effective_bytecode = chosen_cand->jitcode->bytecode;
-                    frame->jit_entry_label    = chosen_cand->jitcode->labels[0];
+                    MVMJitCode *code = chosen_cand->jitcode;
+                    frame->effective_bytecode = code->bytecode;
+                    frame->jit_entry_label    = code->labels[0];
+                    if (frame->jit_entry_label == NULL ||
+                        frame->jit_entry_label - (void*)code->func_ptr > code->size ||
+                        frame->jit_entry_label - (void*)code->func_ptr < 0) {
+                        MVM_oops(tc, "Label not correctly initialized!");
+                    }
                 }
                 else {
                     frame->effective_bytecode = chosen_cand->bytecode;

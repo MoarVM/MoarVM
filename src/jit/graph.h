@@ -5,11 +5,14 @@ struct MVMJitGraph {
     MVMJitNode    *first_node;
     MVMJitNode    *last_node;
 
+    /* Number of instruction+bb+graph labels, but excluding the expression labels */
+    MVMint32       num_labels;
+    /* Offset for instruction labels */
+    MVMint32       ins_label_ofs;
+
+
     /* All labeled things */
-    MVM_DYNAR_DECL(void*, labels);
-    /* bb labels are all basic block label numbers, indexed by basic
-       block number */
-    MVM_DYNAR_DECL(MVMint32, bbs);
+    MVM_DYNAR_DECL(MVMSpeshIns*, ins_labels);
     MVM_DYNAR_DECL(MVMJitDeopt, deopts);
     MVM_DYNAR_DECL(MVMJitHandler, handlers);
     MVM_DYNAR_DECL(MVMJitInline, inlines);
@@ -111,7 +114,7 @@ typedef enum {
     MVM_JIT_RV_VOID,
     /* ptr and int are mostly the same, but they might not be on all
        platforms */
-    MVM_JIT_RV_INT, 
+    MVM_JIT_RV_INT,
     MVM_JIT_RV_PTR,
     /* floats aren't */
     MVM_JIT_RV_NUM,
@@ -123,7 +126,7 @@ typedef enum {
 
 
 struct MVMJitCallC {
-    void       *func_ptr; 
+    void       *func_ptr;
     MVMJitCallArg  *args;
     MVMuint16   num_args;
     MVMuint16  has_vargs;
@@ -182,5 +185,4 @@ struct MVMJitNode {
 };
 
 MVMJitGraph* MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg);
-MVMint32 MVM_jit_graph_get_label_for_bb(MVMThreadContext *tc, MVMJitGraph *graph, MVMSpeshBB *bb);
 void MVM_jit_graph_destroy(MVMThreadContext *tc, MVMJitGraph *graph);

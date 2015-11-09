@@ -178,6 +178,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/inline@obj@ \
           src/spesh/osr@obj@ \
           src/jit/graph@obj@ \
+          src/jit/label@obj@ \
           src/jit/compile@obj@ \
           src/jit/log@obj@ \
           src/jit/expr@obj@ \
@@ -341,6 +342,7 @@ HEADERS = src/moar.h \
           src/platform/io.h \
           src/platform/sys.h \
           src/jit/graph.h \
+          src/jit/label.h \
           src/jit/expr.h \
           src/jit/compile.h \
           src/jit/tile.h \

@@ -104,7 +104,7 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
         break;
     case MVM_operand_ins:
         /* use uintptr_t to convert to integer - shouold convert to label */
-        template[1] = MVM_jit_graph_get_label_for_bb(tc, tree->graph, opr.ins_bb);
+        template[1] = MVM_jit_label_before_bb(tc, tree->graph, opr.ins_bb);
         template[2] = sizeof(MVMint32);
         break;
     case MVM_operand_spesh_slot:
