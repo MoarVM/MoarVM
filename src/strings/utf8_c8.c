@@ -12,7 +12,7 @@
  *   * The lower 4 bits as the non-decodable byte as a hex char (0..9A..F)
  *
  * Under normal UTF-8 encoding, this means the unrepresentable characters will
- * come out as something like `\xFF`.
+ * come out as something like `?xFF`.
  *
  * UTF-8 Clean-8 is used in places where MoarVM receives strings from the
  * operating system or passes strings to the operating system. This means that
