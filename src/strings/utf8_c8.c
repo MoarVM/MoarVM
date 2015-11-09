@@ -528,7 +528,7 @@ char * MVM_string_utf8_c8_encode_substr(MVMThreadContext *tc,
 
 /* Encodes the specified string to UTF-8 C-8. */
 char * MVM_string_utf8_c8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
-    return MVM_string_utf8_encode_substr(tc, str, output_size, 0,
+    return MVM_string_utf8_c8_encode_substr(tc, str, output_size, 0,
         MVM_string_graphs(tc, str), NULL);
 }
 
