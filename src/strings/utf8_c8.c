@@ -443,7 +443,7 @@ static void emit_cp(MVMThreadContext *tc, MVMCodepoint cp, MVMuint8 **result,
     if (bytes)
         *result_pos += bytes;
     else if (repl_bytes) {
-        if (*result_pos >= *result_limit - repl_length) {
+        if (repl_length >= *result_limit || *result_pos >= *result_limit - repl_length) {
             *result_limit += repl_length;
             *result = MVM_realloc(*result, *result_limit + 4);
         }

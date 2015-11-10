@@ -424,7 +424,7 @@ char * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
         if (bytes)
             result_pos += bytes;
         else if (replacement) {
-            if (result_pos >= result_limit - repl_length) {
+            if (repl_length >= result_limit || result_pos >= result_limit - repl_length) {
                 result_limit += repl_length;
                 result = MVM_realloc(result, result_limit + 4);
             }
