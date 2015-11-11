@@ -221,6 +221,30 @@ static const MVMREPROps this_repr = {
     0, /* refs_frames */
 };
 
+/* We may be provided a grapheme as a codepoint for non-synthetics, or as a
+ * 1-char string for synthetics. */
+static MVMGrapheme32 get_grapheme(MVMThreadContext *tc, MVMObject *obj) {
+    /* Handle null and non-concrete case. */
+    if (MVM_is_null(tc, obj) || !IS_CONCRETE(obj)) {
+        MVM_exception_throw_adhoc(tc,
+            "NFA must be provided with a concrete string or integer for graphemes");
+    }
+
+    /* Otherwise, guess something appropriate. */
+    else {
+        const MVMStorageSpec *ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+        if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
+            return REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
+            return MVM_string_get_grapheme_at(tc,
+                REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)),
+                0);
+        else
+            MVM_exception_throw_adhoc(tc,
+                "NFA must be provided with a string or integer for graphemes");
+    }
+}
+
 MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMObject *nfa_type) {
     MVMObject  *nfa_obj;
     MVMNFABody *nfa;
@@ -270,7 +294,7 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                 case MVM_NFA_EDGE_CODEPOINT_M_NEG:
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
-                    nfa->states[i][cur_edge].arg.i = MVM_coerce_simple_intify(tc,
+                    nfa->states[i][cur_edge].arg.i = get_grapheme(tc,
                         MVM_repr_at_pos_o(tc, edge_info, j + 1));
                     break;
                 case MVM_NFA_EDGE_CHARLIST:
