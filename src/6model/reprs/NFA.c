@@ -96,9 +96,24 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
                 case MVM_NFA_EDGE_CODEPOINT_LL:
                 case MVM_NFA_EDGE_CODEPOINT_NEG:
                 case MVM_NFA_EDGE_CODEPOINT_M:
-                case MVM_NFA_EDGE_CODEPOINT_M_NEG:
-                    MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.g);
+                case MVM_NFA_EDGE_CODEPOINT_M_NEG: {
+                    MVMGrapheme32 g = body->states[i][j].arg.g;
+                    if (g >= 0) {
+                        /* Non-synthetic. */
+                        MVM_serialization_write_varint(tc, writer, g);
+                    }
+                    else {
+                        /* Synthetic. Write the number of codepoints negated,
+                         * and then each of the codepoints. */
+                        MVMNFGSynthetic *si = MVM_nfg_get_synthetic_info(tc, g);
+                        MVMint32 k;
+                        MVM_serialization_write_varint(tc, writer, -(si->num_combs + 1));
+                        MVM_serialization_write_varint(tc, writer, si->base);
+                        for (k = 0; k < si->num_combs; k++)
+                            MVM_serialization_write_varint(tc, writer, si->combs[k]);
+                    }
                     break;
+                }
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
                     MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.i);
@@ -157,9 +172,22 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                     case MVM_NFA_EDGE_CODEPOINT_LL:
                     case MVM_NFA_EDGE_CODEPOINT_NEG:
                     case MVM_NFA_EDGE_CODEPOINT_M:
-                    case MVM_NFA_EDGE_CODEPOINT_M_NEG:
-                        body->states[i][j].arg.g = MVM_serialization_read_varint(tc, reader);
+                    case MVM_NFA_EDGE_CODEPOINT_M_NEG: {
+                        MVMint64 cp_or_synth_count = MVM_serialization_read_varint(tc, reader);
+                        if (cp_or_synth_count >= 0) {
+                            body->states[i][j].arg.g = (MVMGrapheme32)cp_or_synth_count;
+                        }
+                        else {
+                            MVMint32 num_codes = -cp_or_synth_count;
+                            MVMCodepoint *codes = MVM_malloc(num_codes * sizeof(MVMCodepoint));
+                            MVMint32 k;
+                            for (k = 0; k < num_codes; k++)
+                                codes[k] = (MVMCodepoint)MVM_serialization_read_varint(tc, reader);
+                            body->states[i][j].arg.g = MVM_nfg_codes_to_grapheme(tc, codes, num_codes);
+                            MVM_free(codes);
+                        }
                         break;
+                    }
                     case MVM_NFA_EDGE_CHARCLASS:
                     case MVM_NFA_EDGE_CHARCLASS_NEG:
                         body->states[i][j].arg.i = MVM_serialization_read_varint(tc, reader);
