@@ -1199,12 +1199,15 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
     MVMStringIndex  bpos    = 0;
     MVMStringIndex  sgraphs, balloc;
     MVMGrapheme32  *buffer;
+    MVMGrapheme32 crlf;
 
     MVM_string_check_arg(tc, s, "escape");
 
     sgraphs = MVM_string_graphs(tc, s);
     balloc  = sgraphs;
     buffer  = MVM_malloc(sizeof(MVMGrapheme32) * balloc);
+
+    crlf = MVM_nfg_crlf_grapheme(tc);
 
     for (; spos < sgraphs; spos++) {
         MVMGrapheme32 graph = MVM_string_get_grapheme_at_nocheck(tc, s, spos);
@@ -1227,6 +1230,16 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
             }
             buffer[bpos++] = '\\';
             buffer[bpos++] = esc;
+        }
+        else if (graph == crlf) {
+            if (bpos + 4 > balloc) {
+                balloc += 32;
+                buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * balloc);
+            }
+            buffer[bpos++] = '\\';
+            buffer[bpos++] = 'r';
+            buffer[bpos++] = '\\';
+            buffer[bpos++] = 'n';
         }
         else {
             if (bpos + 1 > balloc) {
