@@ -27,8 +27,9 @@ struct MVMNFAStateInfo {
     MVMint64 act;
     MVMint64 to;
     union {
-        MVMint64   i;
-        MVMString *s;
+        MVMGrapheme32  g;
+        MVMint64       i;
+        MVMString     *s;
         struct {
             MVMGrapheme32 uc;
             MVMGrapheme32 lc;
