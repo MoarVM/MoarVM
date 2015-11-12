@@ -163,8 +163,14 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
         if (arg_type == MVM_CALLSITE_ARG_OBJ) {
             MVMObject *arg = MVM_args_get_pos_obj(tc, apc, i, 1).arg.o;
             if (arg) {
+                MVMuint8 rwness = 0;
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
                 if (contspec && IS_CONCRETE(arg)) {
+                    if (MVM_6model_container_iscont_i(tc, arg)
+                    ||  MVM_6model_container_iscont_n(tc, arg)
+                    ||  MVM_6model_container_iscont_s(tc, arg)
+                    || (!MVM_is_null(tc, arg) && contspec && contspec->can_store(tc, arg)))
+                        rwness = 2;
                     if (contspec->fetch_never_invokes) {
                         if (REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
                             MVMRegister r;
@@ -176,14 +182,14 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
                         goto DONE;
                     }
                 }
-                arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0);
+                arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0) | rwness;
             }
             else {
                 goto DONE;
             }
         }
         else {
-            arg_tup[i] = (arg_type << 1) | 1;
+            arg_tup[i] = (arg_type << 2) | 1;
         }
     }
 
@@ -257,8 +263,14 @@ MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache_obj, MVM
         if (arg_type == MVM_CALLSITE_ARG_OBJ) {
             MVMObject *arg = MVM_args_get_pos_obj(tc, apc, i, 1).arg.o;
             if (arg) {
+                MVMuint8 rwness = 0;
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
                 if (contspec && IS_CONCRETE(arg)) {
+                    if (MVM_6model_container_iscont_i(tc, arg)
+                    ||  MVM_6model_container_iscont_n(tc, arg)
+                    ||  MVM_6model_container_iscont_s(tc, arg)
+                    || (!MVM_is_null(tc, arg) && contspec && contspec->can_store(tc, arg)))
+                        rwness = 2;
                     if (contspec->fetch_never_invokes) {
                         if (REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
                             MVMRegister r;
@@ -270,14 +282,14 @@ MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache_obj, MVM
                         return NULL;
                     }
                 }
-                arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0);
+                arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0) | rwness;
             }
             else {
                 return NULL;
             }
         }
         else {
-            arg_tup[i] = (arg_type << 1) | 1;
+            arg_tup[i] = (arg_type << 2) | 1;
         }
     }
 
@@ -337,8 +349,14 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
         if (arg_type == MVM_CALLSITE_ARG_OBJ) {
             MVMObject *arg = args[i].o;
             if (arg) {
+                MVMuint8 rwness = 0;
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
                 if (contspec && IS_CONCRETE(arg)) {
+                    if (MVM_6model_container_iscont_i(tc, arg)
+                    ||  MVM_6model_container_iscont_n(tc, arg)
+                    ||  MVM_6model_container_iscont_s(tc, arg)
+                    || (!MVM_is_null(tc, arg) &&contspec && contspec->can_store(tc, arg)))
+                        rwness = 2;
                     if (contspec->fetch_never_invokes) {
                         if (REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
                             MVMRegister r;
@@ -350,14 +368,14 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
                         return NULL;
                     }
                 }
-                arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0);
+                arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0) | rwness;
             }
             else {
                 return NULL;
             }
         }
         else {
-            arg_tup[i] = (arg_type << 1) | 1;
+            arg_tup[i] = (arg_type << 2) | 1;
         }
     }
 
@@ -445,7 +463,7 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
             }
         }
         else {
-            arg_tup[i] = (arg_type << 1) | 1;
+            arg_tup[i] = (arg_type << 2) | 1;
         }
     }
 
