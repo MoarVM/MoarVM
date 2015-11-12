@@ -45,7 +45,7 @@ MVMint32 MVM_jit_label_after_ins(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpesh
     }
     /* Or before the next basic block */
     if (bb->linear_next) {
-v        return MVM_jit_label_before_bb(tc, jg, bb->linear_next);
+        return MVM_jit_label_before_bb(tc, jg, bb->linear_next);
     }
     /* And in the edge case after the graph */
     return MVM_jit_label_after_graph(tc, jg, jg->sg);
