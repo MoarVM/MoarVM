@@ -2,10 +2,8 @@
  * probably be used by the code generator, somehow. */
 typedef enum { /* value type */
      MVM_JIT_VOID,
-     MVM_JIT_MEM,
      MVM_JIT_REG,
      MVM_JIT_FLAG,
-     MVM_JIT_LBL,
      MVM_JIT_INT,
      MVM_JIT_NUM,
      MVM_JIT_PTR,

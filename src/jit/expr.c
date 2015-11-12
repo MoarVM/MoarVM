@@ -103,7 +103,6 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
         template[2] = sizeof(MVMuint32);
         break;
     case MVM_operand_ins:
-        /* use uintptr_t to convert to integer - shouold convert to label */
         template[1] = MVM_jit_label_before_bb(tc, tree->graph, opr.ins_bb);
         template[2] = sizeof(MVMint32);
         break;
@@ -234,20 +233,6 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMJitExprNodeInfo *node_info = tree->info + node;
     MVMint32 i;
 
-
-    /*
-     * Disable this for now. We don't actually use it. We will in the future, but I think I might
-     * as well add it during building rather than analysis.
-     *
-    MVMSpeshIns **node_ins = traverser->data;
-    node_info->spesh_ins = node_ins[node];
-    if (node_info->spesh_ins &&
-        (node_info->spesh_ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
-        node_info->local_addr = node_info->spesh_ins->operands[0].reg.orig;
-    } else {
-        node_info->local_addr = -1;
-    }
-    */
     node_info->op_info   = op_info;
     /* propagate node sizes and assign labels */
     switch (tree->nodes[node]) {
