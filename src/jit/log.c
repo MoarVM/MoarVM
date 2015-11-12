@@ -71,29 +71,41 @@ static void ascend_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 }
 
 
+static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+                                MVMJitExprTree *tree, MVMint32 node) {
+    FILE *graph_file            = traverser->data;
+    const MVMJitExprOpInfo *op_info = tree->info[node].op_info;
+    MVMint32 first_child        = node + 1;
+    MVMint32 nchild             = op_info->nchild < 0 ? tree->nodes[first_child++] : op_info->nchild;
+    MVMint32 first_arg          = first_child + nchild;
+    MVMint32 i;
+    fprintf(graph_file, "  n_%04d [label=\"%s\"];\n", node, op_info->name);
+    for (i = 0; i < nchild; i++) {
+        fprintf(graph_file, "    n_%04d -> n_%04d;\n", node, tree->nodes[first_child+i]);
+    }
+    for (i = 0; i < op_info->nargs; i++) {
+        fprintf(graph_file, "  n_%04d_a_%d [label=%d];\n", node, i, tree->nodes[first_arg+i]);
+        fprintf(graph_file, "    n_%04d -> n_%04d_a_%d;\n", node, node, i);
+    }
+}
+
+
 /* NB - move this to log.c in due course */
 void MVM_jit_log_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
-    MVMint32 cur_depth = 0;
-    char roots_list[80];
-    MVMint32 i,j;
-    traverser.policy    = MVM_JIT_TRAVERSER_REPEAT;
-    traverser.preorder  = &dump_tree;
+    if (!tc->instance->jit_log_fh)
+        return;
+    traverser.policy    = MVM_JIT_TRAVERSER_ONCE;
+    traverser.preorder  = NULL;
     traverser.inorder   = NULL;
-    traverser.postorder = &ascend_tree;
-    traverser.data      = &cur_depth;
+    traverser.postorder = &write_graphviz_node;
+    traverser.data      = tc->instance->jit_log_fh;
+
     MVM_jit_log(tc, "Starting dump of JIT expression tree\n"
                     "====================================\n");
-    j = 0;
-    for (i = 0; i < tree->roots_num; i++) {
-        if (j >= sizeof(roots_list))
-            break;
-        j += snprintf(roots_list+j, sizeof(roots_list)-j, "%d, ", tree->roots[i]);
-    }
-    roots_list[j] = 0;
-    MVM_jit_log(tc, "Tree Roots: [%s]\n", roots_list);
+    MVM_jit_log(tc, "digraph {\n");
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
+    MVM_jit_log(tc, "}\n");
     MVM_jit_log(tc, "End dump of JIT expression tree\n"
                     "====================================\n");
-
 }
