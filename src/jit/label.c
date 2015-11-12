@@ -63,7 +63,7 @@ MVMint32 MVM_jit_label_is_for_ins(MVMThreadContext *tc, MVMJitGraph *jg, MVMint3
     return label > jg->sg->num_bbs && label < jg->sg->num_bbs + jg->ins_labels_num;
 }
 
-MVMint32 MVM_jit_label_is_internal(MVMThreadContext *tc, MVMJitGraph *jg, MVMitn32 label) {
+MVMint32 MVM_jit_label_is_internal(MVMThreadContext *tc, MVMJitGraph *jg, MVMint32 label) {
     /* WARNING: This is *NOT VALID* during jit graph building */
     return label >= jg->num_labels;
 }
