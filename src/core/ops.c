@@ -7726,6 +7726,28 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_spesh_slot }
     },
     {
+        MVM_OP_sp_guardrwconc,
+        "sp_guardrwconc",
+        ".s",
+        3,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_spesh_slot }
+    },
+    {
+        MVM_OP_sp_guardrwtype,
+        "sp_guardrwtype",
+        ".s",
+        3,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_spesh_slot, MVM_operand_spesh_slot }
+    },
+    {
         MVM_OP_sp_getarg_o,
         "sp_getarg_o",
         ".s",
@@ -8252,7 +8274,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 751;
+static const unsigned short MVM_op_counts = 753;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

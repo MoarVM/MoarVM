@@ -4801,6 +4801,51 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_spesh_deopt_one(tc);
                 goto NEXT;
             }
+            
+            OP(sp_guardrwconc): {
+                MVMint32   ok     = 0;
+                MVMObject *check  = GET_REG(cur_op, 0).o;
+                MVMSTable *want_c = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                MVMSTable *want_v = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                cur_op += 6;
+                if (check && IS_CONCRETE(check) && STABLE(check) == want_c) {
+                    MVMContainerSpec const *contspec = STABLE(check)->container_spec;
+                    if (contspec->can_store(tc, check)) {
+                        MVMRegister r;
+                        contspec->fetch(tc, check, &r);
+                        if (r.o && IS_CONCRETE(r.o) && STABLE(r.o) == want_v)
+                            ok = 1;
+                    }
+                }
+                if (!ok)
+                    MVM_spesh_deopt_one(tc);
+                goto NEXT;
+            }
+            OP(sp_guardrwtype): {
+                MVMint32   ok     = 0;
+                MVMObject *check  = GET_REG(cur_op, 0).o;
+                MVMSTable *want_c = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                MVMSTable *want_v = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                cur_op += 6;
+                if (check && IS_CONCRETE(check) && STABLE(check) == want_c) {
+                    MVMContainerSpec const *contspec = STABLE(check)->container_spec;
+                    if (contspec->can_store(tc, check)) {
+                        MVMRegister r;
+                        contspec->fetch(tc, check, &r);
+                        if (r.o && !IS_CONCRETE(r.o) && STABLE(r.o) == want_v)
+                            ok = 1;
+                    }
+                }
+                if (!ok)
+                    MVM_spesh_deopt_one(tc);
+                goto NEXT;
+            }
+            
+            
             OP(sp_getarg_o):
                 GET_REG(cur_op, 0).o = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].o;
                 cur_op += 4;
