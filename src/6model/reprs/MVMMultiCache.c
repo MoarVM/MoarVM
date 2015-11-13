@@ -166,16 +166,16 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
                 MVMuint8 rwness = 0;
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
                 if (contspec && IS_CONCRETE(arg)) {
-                    if (MVM_6model_container_iscont_i(tc, arg)
-                    ||  MVM_6model_container_iscont_n(tc, arg)
-                    ||  MVM_6model_container_iscont_s(tc, arg)
-                    || (!MVM_is_null(tc, arg) && contspec && contspec->can_store(tc, arg)))
-                        rwness = 2;
                     if (contspec->fetch_never_invokes) {
                         if (REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
                             MVMRegister r;
+                            if (contspec->can_store(tc, arg))
+                                rwness = 2;
                             contspec->fetch(tc, arg, &r);
                             arg = r.o;
+                        }
+                        else {
+                            rwness = 2; /* Native refs are always writable. */
                         }
                     }
                     else {
@@ -266,16 +266,16 @@ MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache_obj, MVM
                 MVMuint8 rwness = 0;
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
                 if (contspec && IS_CONCRETE(arg)) {
-                    if (MVM_6model_container_iscont_i(tc, arg)
-                    ||  MVM_6model_container_iscont_n(tc, arg)
-                    ||  MVM_6model_container_iscont_s(tc, arg)
-                    || (!MVM_is_null(tc, arg) && contspec && contspec->can_store(tc, arg)))
-                        rwness = 2;
                     if (contspec->fetch_never_invokes) {
                         if (REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
                             MVMRegister r;
+                            if (contspec->can_store(tc, arg))
+                                rwness = 2;
                             contspec->fetch(tc, arg, &r);
                             arg = r.o;
+                        }
+                        else {
+                            rwness = 2; /* Native refs are always writable. */
                         }
                     }
                     else {
@@ -351,17 +351,17 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
             if (arg) {
                 MVMuint8 rwness = 0;
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
-                if (contspec && IS_CONCRETE(arg)) {
-                    if (MVM_6model_container_iscont_i(tc, arg)
-                    ||  MVM_6model_container_iscont_n(tc, arg)
-                    ||  MVM_6model_container_iscont_s(tc, arg)
-                    || (!MVM_is_null(tc, arg) && contspec && contspec->can_store(tc, arg)))
-                        rwness = 2;
+                if (contspec && IS_CONCRETE(arg)) {    
                     if (contspec->fetch_never_invokes) {
                         if (REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
                             MVMRegister r;
+                            if (contspec->can_store(tc, arg))
+                                rwness = 2;
                             contspec->fetch(tc, arg, &r);
                             arg = r.o;
+                        }
+                        else {
+                            rwness = 2; /* Native refs are always writable. */
                         }
                     }
                     else {
@@ -444,7 +444,7 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
 
                 /* If it's a container, must know what's inside it. Otherwise,
                  * we're already good on type info. */
-                if ((facts->flags & MVM_SPESH_FACT_CONCRETE)&& STABLE(facts->type)->container_spec) {
+                if ((facts->flags & MVM_SPESH_FACT_CONCRETE) && STABLE(facts->type)->container_spec) {
                     /* Again, need to know type and concreteness. */
                     if (!(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE))
                         return NULL;
