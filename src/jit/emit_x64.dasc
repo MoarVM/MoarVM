@@ -1987,6 +1987,70 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
         | get_spesh_slot TMP1, val_spesh_idx;
         | cmp TMP1, TMP2;
         | jne >1;
+    } else if (op == MVM_OP_sp_guardrwconc) {
+        MVMint16 val_spesh_idx  = guard->ins->operands[2].lit_i16;
+        | test TMP1, TMP1;
+        | jz >1;
+        | is_type_object TMP1;
+        | jnz >1;
+        | mov FUNCTION, OBJECT:TMP1->st;
+        | cmp TMP2, FUNCTION;
+        | jne >1;
+        | mov FUNCTION, STABLE:FUNCTION->container_spec;
+        | mov FUNCTION, CONTAINERSPEC:FUNCTION->can_store;
+        | mov ARG2, TMP1;
+        | mov ARG1, TC;
+        | call FUNCTION;
+        | mov FUNCTION, OBJECT:TMP1->st; // restore FUNCTION to the st as before
+        | test TMP3, TMP3;
+        | jz >1;
+        | mov FUNCTION, STABLE:FUNCTION->container_spec;
+        | mov FUNCTION, CONTAINERSPEC:FUNCTION->fetch;
+        | mov ARG2, TMP1;
+        | mov ARG1, TC;
+        | lea ARG3, [rbp-0x28]; // hurray for scratch space
+        | call FUNCTION;
+        | mov TMP3, aword [rbp-0x28];
+        | test TMP3, TMP3;
+        | jz >1;
+        | is_type_object TMP3;
+        | jnz >1;
+        | mov TMP2, OBJECT:TMP3->st;
+        | get_spesh_slot TMP1, val_spesh_idx;
+        | cmp TMP1, TMP2;
+        | jne >1;
+    } else if (op == MVM_OP_sp_guardrwtype) {
+        MVMint16 val_spesh_idx  = guard->ins->operands[2].lit_i16;
+        | test TMP1, TMP1;
+        | jz >1;
+        | is_type_object TMP1;
+        | jnz >1;
+        | mov FUNCTION, OBJECT:TMP1->st;
+        | cmp TMP2, FUNCTION;
+        | jne >1;
+        | mov FUNCTION, STABLE:FUNCTION->container_spec;
+        | mov FUNCTION, CONTAINERSPEC:FUNCTION->can_store;
+        | mov ARG2, TMP1;
+        | mov ARG1, TC;
+        | call FUNCTION;
+        | mov FUNCTION, OBJECT:TMP1->st; // restore FUNCTION to the st as before
+        | test TMP3, TMP3;
+        | jz >1;
+        | mov FUNCTION, STABLE:FUNCTION->container_spec;
+        | mov FUNCTION, CONTAINERSPEC:FUNCTION->fetch;
+        | mov ARG2, TMP1;
+        | mov ARG1, TC;
+        | lea ARG3, [rbp-0x28]; // hurray for scratch space
+        | call FUNCTION;
+        | mov TMP3, aword [rbp-0x28];
+        | test TMP3, TMP3;
+        | jz >1;
+        | is_type_object TMP3;
+        | jz >1;
+        | mov TMP2, OBJECT:TMP3->st;
+        | get_spesh_slot TMP1, val_spesh_idx;
+        | cmp TMP1, TMP2;
+        | jne >1;
     }
     /* if we're here, we didn't jump to deopt, so skip it */
     | jmp >2;
