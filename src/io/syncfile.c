@@ -324,7 +324,6 @@ static MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
 
     if (r == -1) {
         MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: %d", errno);
-        return 0;
     }
 
     return 1;
