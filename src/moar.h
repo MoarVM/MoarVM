@@ -213,6 +213,3 @@ MVM_PUBLIC void MVM_vm_set_lib_path(MVMInstance *instance, int count, const char
  * which the other atomic operation macros are used... */
 #define MVM_store(addr, new) AO_store_full((volatile AO_t *)(addr), (AO_t)(new))
 #define MVM_load(addr) AO_load_full((volatile AO_t *)(addr))
-
-/* Constant for incrementing the type cache ID for new STables */
-#define MVM_TYPE_CACHE_ID_INCR 128
