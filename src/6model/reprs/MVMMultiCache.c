@@ -452,6 +452,8 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
                         return NULL;
                     arg_tup[i] = STABLE(facts->decont_type)->type_cache_id |
                         ((facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) ? 1 : 0);
+                    if (facts->flags & MVM_SPESH_FACT_RW_CONT)
+                        arg_tup[i] |= 2;
                 }
                 else {
                     arg_tup[i] = STABLE(facts->type)->type_cache_id |
