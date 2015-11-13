@@ -280,13 +280,29 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MV
         facts->flags        |= (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE |
                                MVM_SPESH_FACT_KNOWN_DECONT_TYPE);
         facts->decont_type   = STABLE(stable_value)->WHAT;
-        if (IS_CONCRETE(stable_value)) {
-            facts->flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
-            ins->info = MVM_op_get_op(MVM_OP_sp_guardcontconc);
+        if (STABLE(stable_cont)->container_spec->can_store(tc, stable_cont)) {
+            /* We could do stability testing on rw-ness too, but it's quite
+             * unlikely we'll have codepaths with a mix of readable and
+             * writable containers. */
+            facts->flags |= MVM_SPESH_FACT_RW_CONT;
+            if (IS_CONCRETE(stable_value)) {
+                facts->flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
+                ins->info = MVM_op_get_op(MVM_OP_sp_guardrwconc);
+            }
+            else {
+                facts->flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
+                ins->info = MVM_op_get_op(MVM_OP_sp_guardrwtype);
+            }
         }
         else {
-            facts->flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
-            ins->info = MVM_op_get_op(MVM_OP_sp_guardconttype);
+            if (IS_CONCRETE(stable_value)) {
+                facts->flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
+                ins->info = MVM_op_get_op(MVM_OP_sp_guardcontconc);
+            }
+            else {
+                facts->flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
+                ins->info = MVM_op_get_op(MVM_OP_sp_guardconttype);
+            }
         }
         ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
         ins->operands[0] = reg;

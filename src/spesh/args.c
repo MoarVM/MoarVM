@@ -42,6 +42,9 @@ static void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint3
     /* If we know it's a container, might be able to look inside it to
      * further optimize. */
     if (is_cont && STABLE(type)->container_spec->fetch_never_invokes) {
+        /* See if it's an rw container. */
+        MVMint32 is_rw = STABLE(type)->container_spec->can_store(tc, arg);
+
         /* Fetch argument from the container. */
         MVMRegister r;
         STABLE(type)->container_spec->fetch(tc, arg, &r);
@@ -58,14 +61,24 @@ static void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint3
             g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
         else
             g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
+        if (is_rw)
+            g->facts[orig][i].flags |= MVM_SPESH_FACT_RW_CONT;
 
         /* Add guard for contained value. */
         g->arg_guards[g->num_arg_guards].slot  = slot;
         g->arg_guards[g->num_arg_guards].match = (MVMCollectable *)STABLE(type);
-        if (concrete)
-            g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_CONC;
-        else
-            g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_TYPE;
+        if (is_rw) {
+            if (concrete)
+                g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_CONC_RW;
+            else
+                g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_TYPE_RW;
+        }
+        else {
+            if (concrete)
+                g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_CONC;
+            else
+                g->arg_guards[g->num_arg_guards].kind = MVM_SPESH_GUARD_DC_TYPE;
+        }
         g->num_arg_guards++;
     }
 }

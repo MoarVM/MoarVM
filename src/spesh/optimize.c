@@ -996,6 +996,20 @@ static MVMint32 try_find_spesh_candidate(MVMThreadContext *tc, MVMCode *code, MV
                             STABLE(facts->decont_type) != want_st)
                         guard_failed = 1;
                     break;
+                case MVM_SPESH_GUARD_DC_CONC_RW:
+                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) ||
+                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
+                            STABLE(facts->decont_type) != want_st ||
+                            !(facts->flags & MVM_SPESH_FACT_RW_CONT))
+                        guard_failed = 1;
+                    break;
+                case MVM_SPESH_GUARD_DC_TYPE_RW:
+                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_TYPEOBJ) ||
+                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
+                            STABLE(facts->decont_type) != want_st ||
+                            !(facts->flags & MVM_SPESH_FACT_RW_CONT))
+                        guard_failed = 1;
+                    break;
                 default:
                     guard_failed = 1;
                     break;
@@ -1327,6 +1341,10 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
         if (common_flags & MVM_SPESH_FACT_DECONT_TYPEOBJ) {
             /*fprintf(stderr, "decont_typeobj ");*/
             target_facts->flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
+        }
+        if (common_flags & MVM_SPESH_FACT_RW_CONT) {
+            /*fprintf(stderr, "rw_cont ");*/
+            target_facts->flags |= MVM_SPESH_FACT_RW_CONT;
         }
         /*if (common_flags & MVM_SPESH_FACT_FROM_LOG_GUARD) fprintf(stderr, "from_log_guard ");*/
         /*if (common_flags & MVM_SPESH_FACT_HASH_ITER) fprintf(stderr, "hash_iter ");*/

@@ -102,10 +102,12 @@ struct MVMSpeshGuard {
 };
 
 /* Kinds of guard we have. */
-#define MVM_SPESH_GUARD_CONC    1   /* Value is concrete with match type. */
-#define MVM_SPESH_GUARD_TYPE    2   /* Value is type object with match type. */
-#define MVM_SPESH_GUARD_DC_CONC 3   /* Decont'd value is concrete with match type. */
-#define MVM_SPESH_GUARD_DC_TYPE 4   /* Decont'd value is type object with match type. */
+#define MVM_SPESH_GUARD_CONC       1   /* Value is concrete with match type. */
+#define MVM_SPESH_GUARD_TYPE       2   /* Value is type object with match type. */
+#define MVM_SPESH_GUARD_DC_CONC    3   /* Decont'd value is concrete with match type. */
+#define MVM_SPESH_GUARD_DC_TYPE    4   /* Decont'd value is type object with match type. */
+#define MVM_SPESH_GUARD_DC_CONC_RW 5   /* Decont'd value is concrete with match type; rw cont. */
+#define MVM_SPESH_GUARD_DC_TYPE_RW 6   /* Decont'd value is type object with match type; rw cont. */
 
 /* Functions for generating a specialization. */
 MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,

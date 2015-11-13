@@ -369,6 +369,30 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                             match = 0;
                         break;
                     }
+                    case MVM_SPESH_GUARD_DC_CONC_RW: {
+                        if (STABLE(arg)->container_spec->can_store(tc, arg)) {
+                            MVMRegister dc;
+                            STABLE(arg)->container_spec->fetch(tc, arg, &dc);
+                            if (!dc.o || !IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
+                                match = 0;
+                        }
+                        else {
+                            match = 0;
+                        }
+                        break;
+                    }
+                    case MVM_SPESH_GUARD_DC_TYPE_RW: {
+                        if (STABLE(arg)->container_spec->can_store(tc, arg)) {
+                            MVMRegister dc;
+                            STABLE(arg)->container_spec->fetch(tc, arg, &dc);
+                            if (!dc.o || IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
+                                match = 0;
+                        }
+                        else {
+                            match = 0;
+                        }
+                        break;
+                    }
                     }
                     if (!match)
                         break;
