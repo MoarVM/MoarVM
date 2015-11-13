@@ -451,9 +451,6 @@ void MVM_string_decodestream_destory(MVMThreadContext *tc, MVMDecodeStream *ds) 
 
 /* Sets a decode stream separator to its default value. */
 void MVM_string_decode_stream_sep_default(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec) {
-    MVMCodepoint rn_codes[2] = { '\r', '\n' };
-    MVMGrapheme32 rn_graph = MVM_nfg_codes_to_grapheme(tc, rn_codes, 2);
-
     sep_spec->num_seps = 2;
     sep_spec->sep_lengths = MVM_malloc(sep_spec->num_seps * sizeof(MVMint32));
     sep_spec->sep_graphemes = MVM_malloc(sep_spec->num_seps * sizeof(MVMGrapheme32));
@@ -462,7 +459,7 @@ void MVM_string_decode_stream_sep_default(MVMThreadContext *tc, MVMDecodeStreamS
     sep_spec->sep_graphemes[0] = '\n';
 
     sep_spec->sep_lengths[1] = 1;
-    sep_spec->sep_graphemes[1] = rn_graph;
+    sep_spec->sep_graphemes[1] = MVM_nfg_crlf_grapheme(tc);
 }
 
 /* Takes a string and sets it up as a decode stream separator. */
