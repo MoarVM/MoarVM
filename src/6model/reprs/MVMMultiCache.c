@@ -355,7 +355,7 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
                     if (MVM_6model_container_iscont_i(tc, arg)
                     ||  MVM_6model_container_iscont_n(tc, arg)
                     ||  MVM_6model_container_iscont_s(tc, arg)
-                    || (!MVM_is_null(tc, arg) &&contspec && contspec->can_store(tc, arg)))
+                    || (!MVM_is_null(tc, arg) && contspec && contspec->can_store(tc, arg)))
                         rwness = 2;
                     if (contspec->fetch_never_invokes) {
                         if (REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
