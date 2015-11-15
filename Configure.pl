@@ -792,6 +792,13 @@ options.
 Build with AddressSanitizer (ASAN) support. Requires clang and LLVM 3.1 or newer.
 See L<https://code.google.com/p/address-sanitizer/wiki/AddressSanitizer>
 
+You can use C<ASAN_OPTIONS> to configure ASAN at runtime; for example, to disable
+memory leak checking (which can make Rakudo fail to build), you can set the following:
+
+    export ASAN_OPTIONS=detect_leaks=0
+
+A full list of options is displayed if you set C<ASAN_OPTIONS> to C<help=1>.
+
 =item --ld <ld>
 
 Explicitly set the linker without affecting other configuration
