@@ -1989,10 +1989,12 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
         | jne >1;
     } else if (op == MVM_OP_sp_guardrwconc) {
         MVMint16 val_spesh_idx  = guard->ins->operands[2].lit_i16;
+        /* if (check && IS_CONCRETE(check) */
         | test TMP1, TMP1;
         | jz >1;
         | is_type_object TMP1;
         | jnz >1;
+        /* && STABLE(check) == (want_c = cur_frame->effective_spesh_slots[GET_UI16(cur_op,2)] */
         | mov FUNCTION, OBJECT:TMP1->st;
         | cmp TMP2, FUNCTION;
         | jne >1;
@@ -2001,15 +2003,20 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov ARG2, TMP1;
         | mov ARG1, TC;
         | call FUNCTION;
-        | mov FUNCTION, OBJECT:TMP1->st; // restore FUNCTION to the st as before
-        | test TMP3, TMP3;
+        /* if (constspec->can_store(tc, check) */
+        | test RV, RV;
         | jz >1;
+        /* restore TMP1 */
+        | mov TMP1, WORK[obj];
+        | mov FUNCTION, OBJECT:TMP1->st; // restore FUNCTION to the st as before
         | mov FUNCTION, STABLE:FUNCTION->container_spec;
         | mov FUNCTION, CONTAINERSPEC:FUNCTION->fetch;
+        /* constpec->fetch(tc, check, &r) */
         | mov ARG2, TMP1;
         | mov ARG1, TC;
         | lea ARG3, [rbp-0x28]; // hurray for scratch space
         | call FUNCTION;
+        /* if (r.o && IS_CONCRETE(r.o) && STABLE(r.o) == want_v) */
         | mov TMP3, aword [rbp-0x28];
         | test TMP3, TMP3;
         | jz >1;
@@ -2021,6 +2028,7 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
         | jne >1;
     } else if (op == MVM_OP_sp_guardrwtype) {
         MVMint16 val_spesh_idx  = guard->ins->operands[2].lit_i16;
+        /* if (check && IS_CONCRETE(check) && STABLE(check) == want_c) */
         | test TMP1, TMP1;
         | jz >1;
         | is_type_object TMP1;
@@ -2028,21 +2036,25 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov FUNCTION, OBJECT:TMP1->st;
         | cmp TMP2, FUNCTION;
         | jne >1;
+        /* if (constpect->can_store(tc, check)) */
         | mov FUNCTION, STABLE:FUNCTION->container_spec;
         | mov FUNCTION, CONTAINERSPEC:FUNCTION->can_store;
         | mov ARG2, TMP1;
         | mov ARG1, TC;
         | call FUNCTION;
-        | mov FUNCTION, OBJECT:TMP1->st; // restore FUNCTION to the st as before
-        | test TMP3, TMP3;
+        | test RV, RV;
         | jz >1;
+        | mov TMP1, WORK[obj];
+        | mov FUNCTION, OBJECT:TMP1->st; // restore FUNCTION to the st as before
         | mov FUNCTION, STABLE:FUNCTION->container_spec;
         | mov FUNCTION, CONTAINERSPEC:FUNCTION->fetch;
         | mov ARG2, TMP1;
         | mov ARG1, TC;
-        | lea ARG3, [rbp-0x28]; // hurray for scratch space
+        | lea ARG3, [rbp-0x28];
+        /* contspec->fetch(tc, check, &r); */
         | call FUNCTION;
         | mov TMP3, aword [rbp-0x28];
+        /* if (r.o && !IS_CONCRETE(r.o) && STABLE(r.o) == want_v) */
         | test TMP3, TMP3;
         | jz >1;
         | is_type_object TMP3;
