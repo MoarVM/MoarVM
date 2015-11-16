@@ -1,3 +1,5 @@
+#include <stdbool.>
+#include <stdref.h>
 #include "moar.h"
 
 /* This representation's function pointer table. */
@@ -116,7 +118,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                 case MVM_P6INT_C_TYPE_LONG:     repr_data->bits = 8 * sizeof(long);      break;
                 case MVM_P6INT_C_TYPE_LONGLONG: repr_data->bits = 8 * sizeof(long long); break;
                 case MVM_P6INT_C_TYPE_SIZE_T: repr_data->bits = 8 * sizeof(size_t); break;
-                case MVM_P6INT_C_TYPE_BOOL: repr_data->bits = 8 * sizeof(_Bool); break;
+                case MVM_P6INT_C_TYPE_BOOL: repr_data->bits = 8 * sizeof(bool); break;
             }
 
             if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
