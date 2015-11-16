@@ -676,9 +676,16 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
     return result;
 }
 
+static MVMint32 seen_name(MVMThreadContext *tc, MVMString *name, MVMRegister *new_args, MVMint32 first_named, MVMint32 num_new_args) {
+    MVMint32 j;
+    for (j = first_named; j < num_new_args; j += 2)
+        if (MVM_string_equal(tc, new_args[j].s, name))
+            return 1;
+    return 0;
+}
 static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     MVMArgInfo arg_info;
-    MVMuint16 flag_pos = 0, arg_pos = 0, new_arg_pos = 0,
+    MVMint32 flag_pos = 0, arg_pos = 0, new_arg_pos = 0,
         new_arg_flags_size = ctx->arg_count > 0x7FFF ? ctx->arg_count : ctx->arg_count * 2,
         new_args_size = new_arg_flags_size, i, new_flag_pos = 0, new_num_pos = 0;
     MVMCallsiteEntry *new_arg_flags;
@@ -689,14 +696,15 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     new_arg_flags = MVM_malloc(new_arg_flags_size * sizeof(MVMCallsiteEntry));
     new_args = MVM_malloc(new_args_size * sizeof(MVMRegister));
 
-    /* first flatten any positionals */
+    /* First flatten any positionals in amongst any non-flattening
+     * positionals. */
     for ( ; arg_pos < ctx->num_pos; arg_pos++) {
 
         arg_info.arg    = ctx->args[arg_pos];
         arg_info.flags  = ctx->callsite->arg_flags[arg_pos];
         arg_info.exists = 1;
 
-        /* skip it if it's not flattening or is null. The bytecode loader
+        /* Skip it if it's not flattening or is null. The bytecode loader
          * verifies it's a MVM_CALLSITE_ARG_OBJ. */
         if ((arg_info.flags & MVM_CALLSITE_ARG_FLAT) && arg_info.arg.o) {
             MVMObject      *list  = arg_info.arg.o;
@@ -749,49 +757,45 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     }
     new_num_pos = new_arg_pos;
 
-    /* then append any nameds from the original */
-    flag_pos = arg_pos;
-    while (arg_pos < ctx->arg_count) {
+    /* Then flatten in any nameds, amongst non-flattening nameds, starting
+     * from the right and skipping duplicates. */
+    flag_pos = ctx->callsite->flag_count;
+    arg_pos = ctx->arg_count;
+    while (flag_pos > ctx->num_pos) {
+        flag_pos--;
         if (ctx->callsite->arg_flags[flag_pos] & MVM_CALLSITE_ARG_FLAT_NAMED) {
-            flag_pos++;
-            arg_pos++;
+            arg_info.flags = ctx->callsite->arg_flags[flag_pos];
+            arg_pos--;
+            arg_info.arg = ctx->args[arg_pos];
+
+            if (arg_info.arg.o && REPR(arg_info.arg.o)->ID == MVM_REPR_ID_MVMHash) {
+                MVMHashBody *body = &((MVMHash *)arg_info.arg.o)->body;
+                MVMHashEntry *current, *tmp;
+                unsigned bucket_tmp;
+
+                HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
+                    MVMString *arg_name = (MVMString *)current->key;
+                    if (!seen_name(tc, arg_name, new_args, new_num_pos, new_arg_pos)) {
+                        if (new_arg_pos + 1 >= new_args_size) {
+                            new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
+                        }
+                        if (new_flag_pos == new_arg_flags_size) {
+                            new_arg_flags = MVM_realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
+                        }
+
+                        (new_args + new_arg_pos++)->s = arg_name;
+                        (new_args + new_arg_pos++)->o = current->value;
+                        new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
+                    }
+                }
+            }
+            else if (arg_info.arg.o) {
+                MVM_exception_throw_adhoc(tc, "flattening of other hash reprs NYI.");
+            }
         }
         else {
-            if (new_arg_pos + 1 >= new_args_size) {
-                new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
-            }
-            if (new_flag_pos == new_arg_flags_size) {
-                new_arg_flags = MVM_realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
-            }
-    
-            (new_args + new_arg_pos++)->s = (ctx->args + arg_pos)->s;
-            *(new_args + new_arg_pos++) = *(ctx->args + arg_pos + 1);
-            new_arg_flags[new_flag_pos++] = ctx->callsite->arg_flags[flag_pos];
-
-            flag_pos++;
-            arg_pos += 2;
-        }
-    }
-
-    /* now flatten any flattening hashes */
-    arg_pos = flag_pos = ctx->num_pos;
-    while (arg_pos < ctx->arg_count) {
-        arg_info.flags = ctx->callsite->arg_flags[flag_pos];
-        if (!(arg_info.flags & MVM_CALLSITE_ARG_FLAT_NAMED)) {
-            arg_pos += 2;
-            flag_pos++;
-            continue;
-        }
-
-        arg_info.arg = ctx->args[arg_pos];
-
-        if (arg_info.arg.o && REPR(arg_info.arg.o)->ID == MVM_REPR_ID_MVMHash) {
-            MVMHashBody *body = &((MVMHash *)arg_info.arg.o)->body;
-            MVMHashEntry *current, *tmp;
-            unsigned bucket_tmp;
-
-            HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
-
+            arg_pos -= 2;
+            if (!seen_name(tc, (ctx->args + arg_pos)->s, new_args, new_num_pos, new_arg_pos)) {
                 if (new_arg_pos + 1 >= new_args_size) {
                     new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
                 }
@@ -799,17 +803,11 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                     new_arg_flags = MVM_realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
                 }
 
-                (new_args + new_arg_pos++)->s = (MVMString *)current->key;
-                (new_args + new_arg_pos++)->o = current->value;
-                new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
+                (new_args + new_arg_pos++)->s = (ctx->args + arg_pos)->s;
+                *(new_args + new_arg_pos++) = *(ctx->args + arg_pos + 1);
+                new_arg_flags[new_flag_pos++] = ctx->callsite->arg_flags[flag_pos];
             }
         }
-        else if (arg_info.arg.o) {
-            MVM_exception_throw_adhoc(tc, "flattening of other hash reprs NYI.");
-        }
-
-        arg_pos++;
-        flag_pos++;
     }
 
     init_named_used(tc, ctx, (new_arg_pos - new_num_pos) / 2);
