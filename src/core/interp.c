@@ -188,7 +188,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint16    outers = GET_UI16(cur_op, 4);
                 MVMRegister  found;
                 while (outers) {
-                    if (!f)
+                    if (!f->outer)
                         MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");
                     f = f->outer;
                     outers--;
