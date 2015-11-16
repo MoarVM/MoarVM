@@ -752,7 +752,7 @@ MVMuint8 MVM_bytecode_find_static_lexical_scref(MVMThreadContext *tc, MVMCompUni
 static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
     MVMCallsite **callsites;
     MVMuint8     *pos;
-    MVMuint32     i, j, elems, positionals, nameds;
+    MVMuint32     i, j, elems;
     MVMCompUnitBody *cu_body = &cu->body;
 
     /* Allocate space for callsites. */
@@ -764,8 +764,9 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     pos = rs->callsite_seg;
     for (i = 0; i < rs->expected_callsites; i++) {
         MVMuint8 has_flattening = 0;
-        positionals = 0;
-        nameds = 0;
+        MVMuint32 positionals = 0;
+        MVMuint32 nameds_slots = 0;
+        MVMuint32 nameds_non_flattening = 0;
 
         /* Ensure we can read at least an element count. */
         ensure_can_read(tc, cu, rs, pos, 2);
@@ -774,6 +775,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
 
         /* Allocate space for the callsite. */
         callsites[i] = MVM_malloc(sizeof(MVMCallsite));
+        callsites[i]->flag_count = elems;
         if (elems)
             callsites[i]->arg_flags = MVM_malloc(elems);
 
@@ -786,37 +788,44 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         /* Add alignment. */
         pos += elems % 2;
 
-        /* Count positional arguments. */
-        /* Validate that all positionals come before all nameds. */
+        /* Count positional arguments, and validate that all positionals come
+         * before all nameds (flattening named counts as named). */
         for (j = 0; j < elems; j++) {
-            if (callsites[i]->arg_flags[j] & (MVM_CALLSITE_ARG_FLAT | MVM_CALLSITE_ARG_FLAT_NAMED)) {
-                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {
-                    MVM_exception_throw_adhoc(tc, "Flattened args must be objects");
-                }
-                if (nameds) {
-                    MVM_exception_throw_adhoc(tc, "All positional args must appear first");
-                }
+            if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT) {
+                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ))
+                    MVM_exception_throw_adhoc(tc, "Flattened positional args must be objects");
+                if (nameds_slots)
+                    MVM_exception_throw_adhoc(tc, "Flattened positional args must appear before named args");
                 has_flattening = 1;
                 positionals++;
             }
+            else if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT_NAMED) {
+                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ))
+                    MVM_exception_throw_adhoc(tc, "Flattened named args must be objects");
+                has_flattening = 1;
+                nameds_slots++;
+            }
             else if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
-                nameds += 2;
+                nameds_slots += 2;
+                nameds_non_flattening++;
             }
-            else if (nameds) { /* positional appearing after a named one */
-                MVM_exception_throw_adhoc(tc, "All positional args must appear first");
+            else if (nameds_slots) {
+                MVM_exception_throw_adhoc(tc, "All positional args must appear before named args");
             }
-            else positionals++;
+            else {
+                positionals++;
+            }
         }
         callsites[i]->num_pos        = positionals;
-        callsites[i]->arg_count      = positionals + nameds;
+        callsites[i]->arg_count      = positionals + nameds_slots;
         callsites[i]->has_flattening = has_flattening;
         callsites[i]->is_interned    = 0;
         callsites[i]->with_invocant  = NULL;
 
-        if (rs->version >= 3 && nameds) {
-            ensure_can_read(tc, cu, rs, pos, (nameds / 2) * 4);
-            callsites[i]->arg_names = MVM_malloc((nameds / 2) * sizeof(MVMString));
-            for (j = 0; j < nameds / 2; j++) {
+        if (rs->version >= 3 && nameds_non_flattening) {
+            ensure_can_read(tc, cu, rs, pos, nameds_non_flattening * 4);
+            callsites[i]->arg_names = MVM_malloc(nameds_non_flattening * sizeof(MVMString));
+            for (j = 0; j < nameds_non_flattening; j++) {
                 callsites[i]->arg_names[j] = get_heap_string(tc, cu, rs, pos, 0);
                 pos += 4;
             }
@@ -826,8 +835,8 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
 
         /* Track maximum callsite size we've seen. (Used for now, though
          * in the end we probably should calculate it by frame.) */
-        if (positionals + nameds > cu_body->max_callsite_size)
-            cu_body->max_callsite_size = positionals + nameds;
+        if (callsites[i]->arg_count > cu_body->max_callsite_size)
+            cu_body->max_callsite_size = callsites[i]->arg_count;
 
         /* Try to intern the callsite (that is, see if it matches one the
          * VM already knows about). If it does, it will free the memory

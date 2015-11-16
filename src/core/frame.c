@@ -1488,8 +1488,9 @@ static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, 
             }
             else {
                 MVMCallsite *new   = MVM_malloc(sizeof(MVMCallsite));
-                MVMint32     fsize = orig->num_pos + (orig->arg_count - orig->num_pos) / 2;
-                new->arg_flags     = MVM_malloc((fsize + 1) * sizeof(MVMCallsiteEntry));
+                MVMint32     fsize = orig->flag_count;
+                new->flag_count    = fsize + 1;
+                new->arg_flags     = MVM_malloc(new->flag_count * sizeof(MVMCallsiteEntry));
                 new->arg_flags[0]  = MVM_CALLSITE_ARG_OBJ;
                 memcpy(new->arg_flags + 1, orig->arg_flags, fsize);
                 new->arg_count      = orig->arg_count + 1;

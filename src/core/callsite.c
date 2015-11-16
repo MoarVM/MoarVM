@@ -15,40 +15,40 @@ static MVMint32 callsites_equal(MVMThreadContext *tc, MVMCallsite *cs1, MVMCalls
     return 1;
 }
 
-static MVMCallsite   null_args_callsite = { NULL, 0, 0, 0, 0, 0, 0 };
+static MVMCallsite   null_args_callsite = { NULL, 0, 0, 0, 0, 0, 0, 0 };
 
 static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     inv_arg_callsite = { obj_arg_flags, 1, 1, 0, 0, 0, 0 };
+static MVMCallsite     inv_arg_callsite = { obj_arg_flags, 1, 1, 1, 0, 0, 0, 0 };
 
 static MVMCallsiteEntry two_obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                                 MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite    two_args_callsite = { two_obj_arg_flags, 2, 2, 0, 0, 0 };
+static MVMCallsite    two_args_callsite = { two_obj_arg_flags, 2, 2, 2, 0, 0, 0 };
 
 static MVMCallsiteEntry mnfe_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                          MVM_CALLSITE_ARG_STR };
-static MVMCallsite     methnotfound_callsite = { mnfe_flags, 2, 2, 0 };
+static MVMCallsite     methnotfound_callsite = { mnfe_flags, 2, 2, 2, 0 };
 
 static MVMCallsiteEntry fm_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_STR };
-static MVMCallsite     findmeth_callsite = { fm_flags, 3, 3, 0 };
+static MVMCallsite     findmeth_callsite = { fm_flags, 3, 3, 3, 0 };
 
 static MVMCallsiteEntry tc_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     typecheck_callsite = { tc_flags, 3, 3, 0 };
+static MVMCallsite     typecheck_callsite = { tc_flags, 3, 3, 3, 0 };
 
 static MVMCallsiteEntry obj_int_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                             MVM_CALLSITE_ARG_INT };
-static MVMCallsite    obj_int_callsite = { obj_int_flags, 2, 2, 0, 0, 0 };
+static MVMCallsite    obj_int_callsite = { obj_int_flags, 2, 2, 2, 0, 0, 0 };
 
 static MVMCallsiteEntry obj_num_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                             MVM_CALLSITE_ARG_NUM };
-static MVMCallsite    obj_num_callsite = { obj_num_flags, 2, 2, 0, 0, 0 };
+static MVMCallsite    obj_num_callsite = { obj_num_flags, 2, 2, 2, 0, 0, 0 };
 
 static MVMCallsiteEntry obj_str_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                             MVM_CALLSITE_ARG_STR };
-static MVMCallsite    obj_str_callsite = { obj_str_flags, 2, 2, 0, 0, 0 };
+static MVMCallsite    obj_str_callsite = { obj_str_flags, 2, 2, 2, 0, 0, 0 };
 
 MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id) {
     switch (id) {
@@ -98,20 +98,20 @@ void MVM_callsite_initialize_common(MVMThreadContext *tc) {
 MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {
     MVMCallsiteInterns *interns    = tc->instance->callsite_interns;
     MVMCallsite        *cs         = *cs_ptr;
-    MVMint32            num_nameds = (cs->arg_count - cs->num_pos) / 2;
-    MVMint32            num_flags  = cs->num_pos + num_nameds;
+    MVMint32            num_flags  = cs->flag_count;
+    MVMint32            num_nameds = MVM_callsite_num_nameds(tc, cs);
     MVMint32 i, found;
 
     /* Can't intern anything with flattening. */
     if (cs->has_flattening)
         return;
 
-    /* Can intern things with nameds, provided we know the names. */
-    if (num_nameds > 0 && !cs->arg_names)
-        return;
-
     /* Also can't intern past the max arity. */
     if (num_flags >= MVM_INTERN_ARITY_LIMIT)
+        return;
+
+    /* Can intern things with nameds, provided we know the names. */
+    if (num_nameds > 0 && !cs->arg_names)
         return;
 
     /* Obtain mutex protecting interns store. */

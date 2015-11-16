@@ -116,6 +116,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
 
         /* We'll also build up a MoarVM callsite as we go. */
         cs                 = MVM_malloc(sizeof(MVMCallsite));
+        cs->flag_count     = num_info - 1;
         cs->arg_flags      = MVM_malloc(num_info * sizeof(MVMCallsiteEntry));
         cs->arg_count      = num_info - 1;
         cs->num_pos        = num_info - 1;

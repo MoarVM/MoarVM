@@ -69,10 +69,14 @@ struct MVMCallsite {
     /* The set of flags. */
     MVMCallsiteEntry *arg_flags;
 
+    /* The number of arg flags. */
+    MVMuint16 flag_count;
+
     /* The total argument count (including 2 for each named arg). */
     MVMuint16 arg_count;
 
-    /* Number of positionals. */
+    /* Number of positionals, including flattening positionals but
+     * excluding named positionals. */
     MVMuint16 num_pos;
 
     /* Whether it has any flattening args. */
@@ -86,7 +90,8 @@ struct MVMCallsite {
     MVMCallsite *with_invocant;
 
     /* Names of named arguments, in the order that they are passed (and thus
-     * matching the flags). */
+     * matching the flags). Note that named flattening args do not have an
+     * entry here, even though they come in the nameds section. */
     MVMString **arg_names;
 };
 
@@ -114,3 +119,15 @@ MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonC
 
 /* Callsite interning function. */
 MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
+
+/* Count the number of nameds (excluding flattening). */
+MVM_STATIC_INLINE MVMuint16 MVM_callsite_num_nameds(MVMThreadContext *tc, MVMCallsite *cs) {
+    MVMuint16 i = cs->num_pos;
+    MVMuint16 nameds = 0;
+    while (i < cs->flag_count) {
+        if (!(cs->arg_flags[i] & MVM_CALLSITE_ARG_FLAT_NAMED))
+            nameds++;
+        i++;
+    }
+    return nameds;
+}

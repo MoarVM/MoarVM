@@ -3,7 +3,8 @@ struct MVMArgProcContext {
     /* The callsite we're processing. */
     MVMCallsite *callsite;
 
-    /* The set of flags. */
+    /* The set of flags (only set if we flattened, otherwise we use the ones
+     * from callsite). */
     MVMCallsiteEntry *arg_flags;
 
     /* The arguments. */
@@ -21,6 +22,9 @@ struct MVMArgProcContext {
 
     /* Number of positionals. */
     MVMuint16 num_pos;
+
+    /* The number of arg flags; only valid if arg_flags isn't NULL. */
+    MVMuint16 flag_count;
 };
 
 /* Expected return type flags. */
