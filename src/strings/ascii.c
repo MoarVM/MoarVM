@@ -168,7 +168,7 @@ char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
                 i++;
             }
             else if (replacement) {
-                if (i >= result_alloc - repl_length) {
+                if (repl_length >= result_alloc || i >= result_alloc - repl_length) {
                     result_alloc += repl_length;
                     result = MVM_realloc(result, result_alloc + 1);
                 }
