@@ -154,5 +154,5 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
 
 /* Encodes the whole string, double-NULL terminated. */
 char * MVM_string_utf16_encode(MVMThreadContext *tc, MVMString *str) {
-    return MVM_string_utf16_encode_substr(tc, str, NULL, 0, MVM_string_graphs(tc, str), NULL);
+    return MVM_string_utf16_encode_substr(tc, str, NULL, 0, -1, NULL);
 }
