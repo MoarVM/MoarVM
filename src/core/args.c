@@ -31,17 +31,14 @@ void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsit
 
 /* Clean up an arguments processing context for cache. */
 void MVM_args_proc_cleanup_for_cache(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    /* Really, just if ctx->arg_flags, which indicates a flattening occurred. */
-    if (ctx->callsite && ctx->callsite->has_flattening) {
-        if (ctx->arg_flags) {
-            /* Free the generated flags. */
-            MVM_free(ctx->arg_flags);
-            ctx->arg_flags = NULL;
+    if (ctx->arg_flags) {
+        /* Free the generated flags. */
+        MVM_free(ctx->arg_flags);
+        ctx->arg_flags = NULL;
 
-            /* Free the generated args buffer. */
-            MVM_free(ctx->args);
-            ctx->args = NULL;
-        }
+        /* Free the generated args buffer. */
+        MVM_free(ctx->args);
+        ctx->args = NULL;
     }
 }
 
