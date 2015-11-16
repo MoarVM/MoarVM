@@ -177,6 +177,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/threshold@obj@ \
           src/spesh/inline@obj@ \
           src/spesh/osr@obj@ \
+          src/spesh/iterator@obj@ \
           src/jit/graph@obj@ \
           src/jit/label@obj@ \
           src/jit/compile@obj@ \
@@ -320,6 +321,7 @@ HEADERS = src/moar.h \
           src/spesh/threshold.h \
           src/spesh/inline.h \
           src/spesh/osr.h \
+          src/spesh/iterator.h \
           src/strings/unicode_gen.h \
           src/strings/normalize.h \
           src/strings/decode_stream.h \

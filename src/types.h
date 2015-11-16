@@ -168,6 +168,7 @@ typedef struct MVMSpeshGuard MVMSpeshGuard;
 typedef struct MVMSpeshLogGuard MVMSpeshLogGuard;
 typedef struct MVMSpeshCallInfo MVMSpeshCallInfo;
 typedef struct MVMSpeshInline MVMSpeshInline;
+typedef struct MVMSpeshIterator MVMSpeshIterator;
 typedef struct MVMSTable MVMSTable;
 typedef struct MVMStaticFrame MVMStaticFrame;
 typedef struct MVMStaticFrameBody MVMStaticFrameBody;
