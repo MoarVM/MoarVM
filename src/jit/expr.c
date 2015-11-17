@@ -122,19 +122,6 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
 void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMSpeshIns *ins,
                                 MVMint32 *computed, MVMint32 *operands) {
     MVMint32 i;
-    MVMint32 opcode = ins->info->opcode;
-    if (opcode == MVM_OP_inc_i || opcode == MVM_OP_dec_i || opcode == MVM_OP_inc_u || opcode == MVM_OP_dec_u) {
-        /* Don't repeat yourself? No special cases? Who are we kidding */
-        MVMuint16 reg = ins->operands[0].reg.orig;
-        if (computed[reg] > 0) {
-            operands[0] = computed[reg];
-        } else {
-            operands[0] = MVM_jit_expr_add_loadreg(tc, tree, reg);
-            computed[reg] = operands[0];
-        }
-        return;
-    }
-
     for (i = 0; i < ins->info->num_operands; i++) {
         MVMSpeshOperand opr = ins->operands[i];
         switch(ins->info->operands[i] & MVM_operand_rw_mask) {
@@ -480,17 +467,17 @@ void MVM_jit_expr_tree_analyze(MVMThreadContext *tc, MVMJitExprTree *tree) {
 }
 
 /* TODO add labels to the expression tree */
-MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
-                                         MVMSpeshBB *bb) {
+MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter) {
+    MVMSpeshGraph *sg = jg->sg;
+    MVMSpeshIns *entry = iter->ins;
+    MVMSpeshIns *ins;
+    MVMJitExprTree *tree;
     MVMint32 operands[MVM_MAX_OPERANDS];
     MVMint32 *computed;
     MVMint32 root;
-    MVMSpeshGraph *sg = jg->sg;
-    MVMSpeshIns *ins;
-    MVMJitExprTree *tree;
     MVMuint16 i;
-
-    if (!bb->first_ins)
+    /* No instructions, just skip */
+    if (!iter->ins)
         return NULL;
     /* Make the tree */
     tree = MVM_malloc(sizeof(MVMJitExprTree));
@@ -511,52 +498,74 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg,
        which is a): filled with nodes coming from operands and b):
        internally linked together (relative to absolute indexes).
        Afterwards stores are inserted for computed values. */
-    for (ins = bb->first_ins; ins != NULL; ins = ins->next) {
-        /* NB - we probably will want to involve the spesh info in
-           selecting a template. And/or add in c function calls to
-           them mix.. */
+    for (ins = iter->ins; ins; ins = MVM_spesh_iterator_next_ins(tc, iter)) {
+        /* NB - we probably will want to involve the spesh info in selecting a
+           template. And for optimisation, I'd like to copy spesh facts (if any)
+           to the tree info */
         MVMuint16 opcode = ins->info->opcode;
-        const MVMJitExprTemplate *templ;
+        MVMSpeshAnn *ann;
+        const MVMJitExprTemplate *template;
         if (opcode == MVM_SSA_PHI || opcode == MVM_OP_no_op) {
             continue;
         }
-        templ = MVM_jit_get_template_for_opcode(opcode);
-        if (templ == NULL) {
+
+        /* Check annotations that require handling before the expression  */
+        for (ann = ins->annotations; ann != NULL; ann = ann->next) {
+            switch (ann->type) {
+            case MVM_SPESH_ANN_DEOPT_OSR:
+                /* If we have a deopt annotation in the middle of the tree, it
+                 * breaks the expression because the interpreter is allowed to
+                 * jump right in the middle of the block. It is much simpler not
+                 * to allow that. On the other hand, if this is the first node
+                 * of the block, the graph builder must already have handled
+                 * it, and we may continue.. */
+                if (tree->nodes_num > 0) {
+                    goto done;
+                }
+            default:
+                break;
+            }
+        }
+
+        template = MVM_jit_get_template_for_opcode(opcode);
+        if (template == NULL) {
             /* we don't have a template for this yet, so we can't
              * convert it to an expression */
-            break;
+            MVM_jit_log(tc, "Cannot get template for %s\n", ins->info->name);
+            goto done;
         } else {
-            check_template(tc, templ, ins);
+            check_template(tc, template, ins);
         }
 
         MVM_jit_expr_load_operands(tc, tree, ins, computed, operands);
-        root = MVM_jit_expr_apply_template(tc, tree, templ, operands);
+        root = MVM_jit_expr_apply_template(tc, tree, template, operands);
 
         /* if this operation writes a register, it typically yields a value */
         if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg &&
             /* destructive templates are responsible for writing their
                own value to memory, and do not yield an expression */
-            (templ->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE) == 0) {
+            (template->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE) == 0) {
             MVMuint16 reg = ins->operands[0].reg.orig;
             /* assign computed value to computed nodes */
             computed[reg] = root;
             /* and add a store, which becomes the root */
             root = MVM_jit_expr_add_store(tc, tree, operands[0], root, MVM_JIT_REG_SZ);
         }
+        /* TODO implement post-instruction annotation handling (e.g. throwish, invokish) */
         /* Add root to tree to ensure source evaluation order */
         MVM_DYNAR_PUSH(tree->roots, root);
     }
 
-    if (ins == NULL) {
+ done:
+    if (tree->nodes_num > 0) {
         MVM_jit_expr_tree_analyze(tc, tree);
         MVM_jit_log(tc, "Build tree out of: [");
-        for (ins = bb->first_ins; ins; ins = ins->next) {
+        for (ins = entry; ins != iter->ins; ins = ins->next) {
             MVM_jit_log(tc, "%s, ", ins->info->name);
         }
         MVM_jit_log(tc, "]\n");
     } else {
-        MVM_jit_log(tc, "Could not build an expression tree, stuck at instruction %s\n",
-                    ins->info->name);
+        /* Don't return empty trees, nobody wants that */
         MVM_jit_expr_tree_destroy(tc, tree);
         tree = NULL;
     }

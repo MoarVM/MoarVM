@@ -21,8 +21,8 @@
 (template: set (copy $1))
 (template: add_i (add $1 $2))
 (template: sub_i (sub $1 $2))
-(template: inc_i (add $0 (const 1 int_sz)))
-(template: dec_i (sub $0 (const 1 int_sz)))
+(template: inc_i (add (load $0 int_sz) (const 1 int_sz)))
+(template: dec_i (sub (load $0 int_sz) (const 1 int_sz)))
 
 (macro: ^parg (,a) (idx (^getf (frame) MVMFrame params.args) ,a reg_sz))
 (template: sp_getarg_o (load (^parg $1) ptr_sz))

@@ -2415,6 +2415,27 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     return 1;
 }
 
+/* Partial copy of before_ins because before_expr is expected to handle fewer cases */
+static void before_expr(MVMThreadContext *tc, MVMJitGraph *jg,  MVMSpeshIterator *iter) {
+    MVMSpeshAnn *ann;
+    /* Skip PHI nodes - XXX I rely on PHI nodes not being annotated in a
+     * meaningful way, which has been true up to now, but which is not really a
+     * bulletproof assumption */
+    MVM_spesh_iterator_skip_phi(tc, iter);
+    if (!iter->ins)
+        return;
+    for (ann = iter->ins->annotations; ann != NULL; ann = ann->next) {
+        switch (ann->type) {
+        case MVM_SPESH_ANN_DEOPT_OSR: {
+            MVMint32 label = MVM_jit_label_before_ins(tc, jg, iter->bb, iter->ins);
+            jg_append_label(tc, jg, label);
+            add_deopt_idx(tc, jg, label, ann->data.deopt_idx);
+            break;
+        }
+        }
+    }
+}
+
 static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
                            MVMSpeshIterator *iter, MVMSpeshBB *bb) {
     MVMJitExprTree *tree = NULL;
@@ -2428,26 +2449,35 @@ static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
      * should be in force, and it failed to be. */
     jg_append_control(tc, jg, bb->first_ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
 
-    /* First try to create an expression tree */
+    /* Try to create an expression tree */
     if (tc->instance->jit_expr_enabled) {
-        tree = MVM_jit_expr_tree_build(tc, jg, bb);
-    }
-    if (tree != NULL) {
-        MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
-        node->type       = MVM_JIT_NODE_EXPR_TREE;
-        node->u.tree     = tree;
-        jg_append_node(jg, node);
-        /* Log the tree */
-        MVM_jit_log_expr_tree(tc, tree);
-    } else {
-        /* Otherwise, try to consume the basic block per instruction */
         while (iter->ins) {
-            before_ins(tc, jg, iter, iter->ins);
-            if(!consume_ins(tc, jg, iter, iter->ins))
-                return 0;
-            after_ins(tc, jg, iter, iter->ins);
-            MVM_spesh_iterator_next_ins(tc, iter);
+            /* handle pre-tree issues like deopt labels; this *would* conflict
+             * with before_ins, but appending a label (in the same spot) is
+             * idempotent */
+            before_expr(tc, jg, iter);
+            /* consumes iterator */
+            tree = MVM_jit_expr_tree_build(tc, jg, iter);
+            if (tree != NULL) {
+                MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
+                node->type       = MVM_JIT_NODE_EXPR_TREE;
+                node->u.tree     = tree;
+                jg_append_node(jg, node);
+                MVM_jit_log_expr_tree(tc, tree);
+            } else {
+                /* soemthing we can't compile yet, or simply an empty tree */
+                break;
+            }
         }
+    }
+
+    /* Try to consume the (rest of the) basic block per instruction */
+    while (iter->ins) {
+        before_ins(tc, jg, iter, iter->ins);
+        if(!consume_ins(tc, jg, iter, iter->ins))
+            return 0;
+        after_ins(tc, jg, iter, iter->ins);
+        MVM_spesh_iterator_next_ins(tc, iter);
     }
     return 1;
 }
