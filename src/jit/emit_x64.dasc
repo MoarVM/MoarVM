@@ -139,6 +139,7 @@ const unsigned int MVM_jit_num_globals(void) {
 
 /* return value */
 |.define RV, rax
+|.define RVd, eax
 |.define RVF, xmm0
 
 
@@ -1534,7 +1535,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov ARG1, TC;
         | mov ARG2, RV;
         | callp &MVM_nfg_get_synthetic_info;
-        | mov RV, NFGSYNTH:RV->base;
+	/* base is only 32 bit wide */
+        | mov RVd, dword NFGSYNTH:RV->base;
         |1:
         | mov qword WORK[dst], RV;
         break;
