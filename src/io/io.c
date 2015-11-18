@@ -33,6 +33,20 @@ MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle) {
         MVM_exception_throw_adhoc(tc, "Cannot close this kind of handle");
 }
 
+MVMint64 MVM_io_is_tty(MVMThreadContext *tc, MVMObject *oshandle) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "istty");
+    if (handle->body.ops->possibly_tty) {
+        uv_mutex_t *mutex = acquire_mutex(tc, handle);
+        MVMint64 ret = handle->body.ops->possibly_tty->is_tty(tc, handle);
+        release_mutex(tc, mutex);
+        return ret;
+    }
+    else {
+        return 0;
+    }
+}
+
+
 void MVM_io_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "set encoding");
     MVMROOT(tc, handle, {

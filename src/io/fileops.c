@@ -339,7 +339,7 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
 #else
             ((uv_stream_t *)handle)->flags = 0x80; /* UV_STREAM_BLOCKING */
 #endif
-            return MVM_io_syncstream_from_uvstream(tc, (uv_stream_t *)handle);
+            return MVM_io_syncstream_from_uvstream(tc, (uv_stream_t *)handle, 1);
         }
         case UV_FILE:
             return MVM_file_handle_from_fd(tc, type);
@@ -352,7 +352,7 @@ MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8
             ((uv_stream_t *)handle)->flags = 0x80; /* UV_STREAM_BLOCKING */
 #endif
             uv_pipe_open(handle, type);
-            return MVM_io_syncstream_from_uvstream(tc, (uv_stream_t *)handle);
+            return MVM_io_syncstream_from_uvstream(tc, (uv_stream_t *)handle, 0);
         }
         default:
             MVM_exception_throw_adhoc(tc, "get_stream failed, unsupported std handle");

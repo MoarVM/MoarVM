@@ -1,5 +1,8 @@
 /* Data that we keep for a stream-based handle. */
 struct MVMIOSyncStreamData {
+    /* is it a TTY? */
+    MVMint8 is_tty;
+
     /* The libuv handle to the stream-readable thingy. */
     uv_stream_t *handle;
 
@@ -35,4 +38,4 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
 MVMint64 MVM_io_syncstream_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes);
 void MVM_io_syncstream_flush(MVMThreadContext *tc, MVMOSHandle *h);
 void MVM_io_syncstream_truncate(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes);
-MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *handle);
+MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *handle, MVMint8 is_tty);
