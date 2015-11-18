@@ -19,6 +19,8 @@ struct MVMCallCaptureBody {
 
     /* Use or save mode? */
     MVMuint8 mode;
+
+    MVMuint8 owns_callsite;
 };
 struct MVMCallCapture {
     MVMObject common;
