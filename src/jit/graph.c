@@ -290,6 +290,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_bindattr_i: case MVM_OP_bindattr_n: case MVM_OP_bindattr_s: case MVM_OP_bindattr_o: return MVM_repr_bind_attr_inso;
     case MVM_OP_bindattrs_i: case MVM_OP_bindattrs_n: case MVM_OP_bindattrs_s: case MVM_OP_bindattrs_o: return MVM_repr_bind_attr_inso;
 
+    case MVM_OP_hintfor: return MVM_repr_hint_for;
+
     case MVM_OP_gt_s: case MVM_OP_ge_s: case MVM_OP_lt_s: case MVM_OP_le_s: case MVM_OP_cmp_s: return MVM_string_compare;
 
     case MVM_OP_elems: return MVM_repr_elems;
@@ -769,6 +771,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         case MVM_OP_getattrs_n:
         case MVM_OP_getattrs_s:
         case MVM_OP_getattrs_o:
+        case MVM_OP_hintfor:
             type_operand = ins->operands[1];
             break;
         case MVM_OP_box_i:
@@ -994,6 +997,29 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                     MVM_jit_log(tc, "devirt: couldn't %s; concreteness not sure\n", ins->info->name);
                     break;
                 }
+            }
+            case MVM_OP_hintfor: {
+                /*
+                 *  MVMint64 (*hint_for) (MVMThreadContext *tc, MVMSTable *st,
+                 *      MVMObject *class_handle, MVMString *name);
+                 */
+
+                MVMint32 result    = ins->operands[0].reg.orig;
+                MVMint32 type      = ins->operands[1].reg.orig;
+                MVMint32 attrname  = ins->operands[2].reg.orig;
+
+                void *function = ((MVMObject*)type_facts->type)->st->REPR->attr_funcs.hint_for;
+
+                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                         { MVM_JIT_REG_STABLE,  type },
+                                         { MVM_JIT_REG_VAL,     type },
+                                         { MVM_JIT_REG_VAL,     attrname } };
+
+
+                MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
+                jgb_append_call_c(tc, jgb, function, 4, args, MVM_JIT_RV_VOID, -1);
+                return 1;
+                break;
             }
             case MVM_OP_push_i:
             case MVM_OP_push_n:
@@ -1323,6 +1349,18 @@ skipdevirt:
                                  { op == MVM_OP_bindattrs_n ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL, val },
                                  { MVM_JIT_LITERAL, kind } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 7, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_hintfor: {
+        MVMint16 dst      = ins->operands[0].reg.orig;
+        MVMint32 type     = ins->operands[1].reg.orig;
+        MVMint32 attrname = ins->operands[2].reg.orig;
+
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL,     type },
+                                 { MVM_JIT_REG_VAL,     attrname } };
+
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_elems: {
@@ -1818,6 +1856,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_bindattrs_n:
     case MVM_OP_bindattrs_s:
     case MVM_OP_bindattrs_o:
+    case MVM_OP_hintfor:
     case MVM_OP_elems:
         if (!jgb_consume_reprop(tc, jgb, bb, ins)) {
             MVM_jit_log(tc, "BAIL: op <%s> (devirt attempted)\n", ins->info->name);

@@ -644,3 +644,7 @@ MVM_PUBLIC void MVM_repr_bind_attr_inso(MVMThreadContext *tc, MVMObject *object,
 MVM_PUBLIC MVMint64    MVM_repr_compare_repr_id(MVMThreadContext *tc, MVMObject *object, MVMuint32 REPRId) {
     return object && REPR(object)->ID == REPRId ? 1 : 0;
 }
+
+MVM_PUBLIC MVMint64    MVM_repr_hint_for(MVMThreadContext *tc, MVMObject *object, MVMString *attrname) {
+    return REPR(object)->attr_funcs.hint_for(tc, STABLE(object), object, attrname);
+}
