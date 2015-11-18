@@ -57,6 +57,12 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     return 0;
 }
 
+/* Checks if the file is a TTY. */
+static MVMint64 is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    return (uv_guess_handle(data->fd) == UV_TTY);
+}
+
 /* Sets the encoding used for string-based I/O. */
 static void set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
@@ -391,6 +397,8 @@ static const MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, 
 static const MVMIOSeekable     seekable      = { seek, mvm_tell };
 static const MVMIOPipeable     pipeable      = { bind_stdio_handle };
 static const MVMIOLockable     lockable      = { lock, unlock };
+static const MVMIOPossiblyTTY possibly_tty         = { is_tty };
+
 static const MVMIOOps op_table = {
     &closable,
     &encodable,
@@ -402,6 +410,7 @@ static const MVMIOOps op_table = {
     NULL,
     &pipeable,
     &lockable,
+    &possibly_tty,
     NULL,
     gc_free
 };

@@ -3155,6 +3155,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_io_close(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
+            OP(istty_fh):
+                GET_REG(cur_op, 0).i64 = MVM_io_is_tty(tc, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(read_fhs):
                 GET_REG(cur_op, 0).s = MVM_io_read_string(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).i64);

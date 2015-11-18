@@ -754,6 +754,7 @@
 #define MVM_OP_prof_exit 750
 #define MVM_OP_prof_allocated 751
 #define MVM_OP_ctw_check 752
+#define MVM_OP_istty_fh 753
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
