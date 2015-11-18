@@ -1017,7 +1017,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
 
                 MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
-                jgb_append_call_c(tc, jgb, function, 4, args, MVM_JIT_RV_VOID, -1);
+                jgb_append_call_c(tc, jgb, function, 4, args, MVM_JIT_RV_INT, result);
                 return 1;
                 break;
             }
