@@ -55,11 +55,22 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 
 MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     MVMCallsite      *res   = MVM_malloc(sizeof(MVMCallsite));
-    MVMint32          fsize = ctx->flag_count;
     MVMCallsiteEntry *flags = NULL;
+    MVMCallsiteEntry *src_flags;
+    MVMint32 fsize;
+
+    if (ctx->arg_flags) {
+        fsize = ctx->flag_count;
+        src_flags = ctx->arg_flags;
+    }
+    else {
+        fsize = ctx->callsite->flag_count;
+        src_flags = ctx->callsite->arg_flags;
+    }
+
     if (fsize) {
         flags = MVM_malloc(fsize);
-        memcpy(flags, ctx->arg_flags, fsize);
+        memcpy(flags, src_flags, fsize);
     }
     res->flag_count = fsize;
     res->arg_flags = flags;
