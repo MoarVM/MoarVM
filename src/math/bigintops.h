@@ -2,7 +2,7 @@ int MVM_bigint_mp_set_uint64(mp_int * a, MVMuint64 b);
 
 void MVM_bigint_abs(MVMThreadContext *tc, MVMObject *result, MVMObject *a);
 void MVM_bigint_neg(MVMThreadContext *tc, MVMObject *result, MVMObject *a);
-void MVM_bigint_not(MVMThreadContext *tc, MVMObject *result, MVMObject *a);
+MVMObject * MVM_bigint_not(MVMThreadContext *tc, MVMObject *result, MVMObject *a);
 /* unused */
 /* void MVM_bigint_sqrt(MVMObject *b, MVMObject *a); */
 
@@ -16,12 +16,12 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
 MVMObject * MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
 MVMObject * MVM_bigint_lcm(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b);
 
-void MVM_bigint_or(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
-void MVM_bigint_xor(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
-void MVM_bigint_and(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
+MVMObject * MVM_bigint_or(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
+MVMObject * MVM_bigint_xor(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
+MVMObject * MVM_bigint_and(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
 
-void MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMint64 n);
-void MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMint64 n);
+MVMObject * MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMint64 n);
+MVMObject * MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMint64 n);
 
 void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b, MVMObject *c);
 
