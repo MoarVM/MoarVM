@@ -461,6 +461,12 @@ static void dump_arg_guards(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g)
         case MVM_SPESH_GUARD_DC_TYPE:
             appendf(ds, "  deconted_type(%d, %p)\n", guard->slot, guard->match);
             break;
+        case MVM_SPESH_GUARD_DC_CONC_RW:
+            appendf(ds, "  deconted_concrete_rw(%d)\n", guard->slot);
+            break;
+        case MVM_SPESH_GUARD_DC_TYPE_RW:
+            appendf(ds, "  deconted_type_rw(%d, %p)\n", guard->slot, guard->match);
+            break;
         }
     }
     append(ds, "\n");

@@ -238,7 +238,7 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
     MVMROOT(tc, cu, {
         /* The call to MVM_string_utf8_decode() may allocate, invalidating the
            location cu->body.filename */
-        MVMString *const str = MVM_string_utf8_decode(tc, instance->VMString, filename, strlen(filename));
+        MVMString *const str = MVM_string_utf8_c8_decode(tc, instance->VMString, filename, strlen(filename));
         cu->body.filename = str;
 
         /* Run deserialization frame, if there is one. */

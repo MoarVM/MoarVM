@@ -369,6 +369,30 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                             match = 0;
                         break;
                     }
+                    case MVM_SPESH_GUARD_DC_CONC_RW: {
+                        if (STABLE(arg)->container_spec->can_store(tc, arg)) {
+                            MVMRegister dc;
+                            STABLE(arg)->container_spec->fetch(tc, arg, &dc);
+                            if (!dc.o || !IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
+                                match = 0;
+                        }
+                        else {
+                            match = 0;
+                        }
+                        break;
+                    }
+                    case MVM_SPESH_GUARD_DC_TYPE_RW: {
+                        if (STABLE(arg)->container_spec->can_store(tc, arg)) {
+                            MVMRegister dc;
+                            STABLE(arg)->container_spec->fetch(tc, arg, &dc);
+                            if (!dc.o || IS_CONCRETE(dc.o) || STABLE(dc.o) != st)
+                                match = 0;
+                        }
+                        else {
+                            match = 0;
+                        }
+                        break;
+                    }
                     }
                     if (!match)
                         break;
@@ -1470,8 +1494,9 @@ static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, 
             }
             else {
                 MVMCallsite *new   = MVM_malloc(sizeof(MVMCallsite));
-                MVMint32     fsize = orig->num_pos + (orig->arg_count - orig->num_pos) / 2;
-                new->arg_flags     = MVM_malloc((fsize + 1) * sizeof(MVMCallsiteEntry));
+                MVMint32     fsize = orig->flag_count;
+                new->flag_count    = fsize + 1;
+                new->arg_flags     = MVM_malloc(new->flag_count * sizeof(MVMCallsiteEntry));
                 new->arg_flags[0]  = MVM_CALLSITE_ARG_OBJ;
                 memcpy(new->arg_flags + 1, orig->arg_flags, fsize);
                 new->arg_count      = orig->arg_count + 1;

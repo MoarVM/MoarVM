@@ -14,7 +14,7 @@
 #endif
 
 static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) {
-    char * const a = MVM_string_utf8_encode_C_string(tc, filename);
+    char * const a = MVM_string_utf8_c8_encode_C_string(tc, filename);
     uv_fs_t req;
 
     if ((use_lstat
@@ -37,7 +37,7 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
         case MVM_STAT_EXISTS:             r = MVM_file_exists(tc, filename, use_lstat); break;
 
         case MVM_STAT_FILESIZE: {
-                char * const a = MVM_string_utf8_encode_C_string(tc, filename);
+                char * const a = MVM_string_utf8_c8_encode_C_string(tc, filename);
                 uv_fs_t req;
 
                 if ((use_lstat
@@ -112,8 +112,8 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString * dest) {
     uv_file in_fd = -1, out_fd = -1;
     MVMuint64 size, offset;
 
-    a = MVM_string_utf8_encode_C_string(tc, src);
-    b = MVM_string_utf8_encode_C_string(tc, dest);
+    a = MVM_string_utf8_c8_encode_C_string(tc, src);
+    b = MVM_string_utf8_c8_encode_C_string(tc, dest);
 
     /* If the file cannot be stat(), there is little point in going any further. */
     if (uv_fs_stat(tc->loop, &req, a, NULL) < 0)
@@ -181,8 +181,8 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString * dest) {
 
 /* rename one file to another. */
 void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
-    char * const a = MVM_string_utf8_encode_C_string(tc, src);
-    char * const b = MVM_string_utf8_encode_C_string(tc, dest);
+    char * const a = MVM_string_utf8_c8_encode_C_string(tc, src);
+    char * const b = MVM_string_utf8_c8_encode_C_string(tc, dest);
     uv_fs_t req;
 
     if(uv_fs_rename(tc->loop, &req, a, b, NULL) < 0 ) {
@@ -197,7 +197,7 @@ void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
 
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
     uv_fs_t req;
-    char * const a = MVM_string_utf8_encode_C_string(tc, f);
+    char * const a = MVM_string_utf8_c8_encode_C_string(tc, f);
 
 #ifdef _WIN32
     const int r = MVM_platform_unlink(a);
@@ -220,7 +220,7 @@ void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
 }
 
 void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
-    char * const a = MVM_string_utf8_encode_C_string(tc, f);
+    char * const a = MVM_string_utf8_c8_encode_C_string(tc, f);
     uv_fs_t req;
 
     if(uv_fs_chmod(tc->loop, &req, a, flag, NULL) < 0 ) {
@@ -233,7 +233,7 @@ void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
 
 MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f, MVMint32 use_lstat) {
     uv_fs_t req;
-    char * const a = MVM_string_utf8_encode_C_string(tc, f);
+    char * const a = MVM_string_utf8_c8_encode_C_string(tc, f);
     const MVMint64 result = (use_lstat
       ? uv_fs_lstat(tc->loop, &req, a, NULL)
       :  uv_fs_stat(tc->loop, &req, a, NULL)
@@ -272,7 +272,7 @@ MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint
                 MVMint64 n = MVM_string_index_from_end(tc, filename, dot, 0);
                 if (n >= 0) {
                     MVMString *fileext = MVM_string_substring(tc, filename, n, -1);
-                    char *ext  = MVM_string_utf8_encode_C_string(tc, fileext);
+                    char *ext  = MVM_string_utf8_c8_encode_C_string(tc, fileext);
                     char *pext = getenv("PATHEXT");
                     int plen   = strlen(pext);
                     int i;
@@ -367,7 +367,7 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
     if (lib_path) {
         /* We actually have a lib_path to consider. See if the filename is
          * absolute (XXX wants a platform abstraction, and doing better). */
-        char *orig_cstr = MVM_string_utf8_encode_C_string(tc, orig);
+        char *orig_cstr = MVM_string_utf8_c8_encode_C_string(tc, orig);
         int  absolute   = orig_cstr[0] == '/' || orig_cstr[0] == '\\' ||
                           (orig_cstr[1] == ':' && orig_cstr[2] == '\\');
         if (absolute) {
@@ -396,7 +396,7 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
                 else {
                     memcpy(new_path + lib_path_len, orig_cstr, orig_len);
                 }
-                result = MVM_string_utf8_decode(tc, tc->instance->VMString, new_path, new_len);
+                result = MVM_string_utf8_c8_decode(tc, tc->instance->VMString, new_path, new_len);
                 MVM_free(new_path);
                 if (!MVM_file_exists(tc, result, 1))
                     result = orig;
@@ -423,8 +423,8 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
 
 void MVM_file_link(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath) {
     uv_fs_t req;
-    char * const oldpath_s = MVM_string_utf8_encode_C_string(tc, oldpath);
-    char * const newpath_s = MVM_string_utf8_encode_C_string(tc, newpath);
+    char * const oldpath_s = MVM_string_utf8_c8_encode_C_string(tc, oldpath);
+    char * const newpath_s = MVM_string_utf8_c8_encode_C_string(tc, newpath);
 
     if (uv_fs_link(tc->loop, &req, oldpath_s, newpath_s, NULL)) {
         MVM_free(oldpath_s);
@@ -438,8 +438,8 @@ void MVM_file_link(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath)
 
 void MVM_file_symlink(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath) {
     uv_fs_t req;
-    char * const oldpath_s = MVM_string_utf8_encode_C_string(tc, oldpath);
-    char * const newpath_s = MVM_string_utf8_encode_C_string(tc, newpath);
+    char * const oldpath_s = MVM_string_utf8_c8_encode_C_string(tc, oldpath);
+    char * const newpath_s = MVM_string_utf8_c8_encode_C_string(tc, newpath);
 
     if (uv_fs_symlink(tc->loop, &req, oldpath_s, newpath_s, 0, NULL)) {
         MVM_free(oldpath_s);
@@ -455,14 +455,14 @@ MVMString * MVM_file_readlink(MVMThreadContext *tc, MVMString *path) {
     uv_fs_t req;
     MVMString *result;
 
-    char * const path_s = MVM_string_utf8_encode_C_string(tc, path);
+    char * const path_s = MVM_string_utf8_c8_encode_C_string(tc, path);
     if (uv_fs_readlink(tc->loop, &req, path_s, NULL) < 0) {
         MVM_free(path_s);
         MVM_exception_throw_adhoc(tc, "Failed to readlink file: %s", uv_strerror(req.result));
     }
 
     MVM_free(path_s);
-    result = MVM_string_utf8_decode(tc, tc->instance->VMString, req.ptr, strlen(req.ptr));
+    result = MVM_string_utf8_c8_decode(tc, tc->instance->VMString, req.ptr, strlen(req.ptr));
     MVM_free(req.ptr);
 
     return result;

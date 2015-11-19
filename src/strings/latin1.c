@@ -157,7 +157,7 @@ char * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVM
                 i++;
             }
             else if (replacement) {
-                if (i >= result_alloc - repl_length) {
+                if (repl_length >= result_alloc || i >= result_alloc - repl_length) {
                     result_alloc += repl_length;
                     result = MVM_realloc(result, result_alloc + 1);
                 }
@@ -184,6 +184,5 @@ char * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVM
  * will become a ?. The result string is NULL terminated, but the specified
  * size is the non-null part. */
 char * MVM_string_latin1_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
-    return MVM_string_latin1_encode_substr(tc, str, output_size, 0,
-        MVM_string_graphs(tc, str), NULL);
+    return MVM_string_latin1_encode_substr(tc, str, output_size, 0, -1, NULL);
 }

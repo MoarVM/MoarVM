@@ -10,6 +10,9 @@
 /* Standard integer types. */
 #include <platform/inttypes.h>
 
+/* platform-specific setjmp override */
+#include <platform/setjmp.h>
+
 /* stuff for uthash */
 #define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
 
@@ -147,6 +150,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "strings/decode_stream.h"
 #include "strings/ascii.h"
 #include "strings/utf8.h"
+#include "strings/utf8_c8.h"
 #include "strings/utf16.h"
 #include "strings/nfg.h"
 #include "strings/iter.h"

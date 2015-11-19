@@ -188,7 +188,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint16    outers = GET_UI16(cur_op, 4);
                 MVMRegister  found;
                 while (outers) {
-                    if (!f)
+                    if (!f->outer)
                         MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");
                     f = f->outer;
                     outers--;
@@ -209,7 +209,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMFrame *f = tc->cur_frame;
                 MVMuint16 outers = GET_UI16(cur_op, 2);
                 while (outers) {
-                    if (!f)
+                    if (!f->outer)
                         MVM_exception_throw_adhoc(tc, "bindlex: outer index out of range");
                     f = f->outer;
                     outers--;
@@ -1744,49 +1744,37 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(bor_I): {
                 MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_or(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+                GET_REG(cur_op, 0).o = MVM_bigint_or(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
             OP(bxor_I): {
                 MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_xor(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+                GET_REG(cur_op, 0).o = MVM_bigint_xor(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
             OP(band_I): {
                 MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_and(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = result;
+                GET_REG(cur_op, 0).o = MVM_bigint_and(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
             }
             OP(bnot_I): {
                 MVMObject *   const type = GET_REG(cur_op, 4).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_not(tc, result, GET_REG(cur_op, 2).o);
-                GET_REG(cur_op, 0).o = result;
+                GET_REG(cur_op, 0).o = MVM_bigint_not(tc, type, GET_REG(cur_op, 2).o);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(blshift_I): {
                 MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_shl(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
-                GET_REG(cur_op, 0).o = result;
+                GET_REG(cur_op, 0).o = MVM_bigint_shl(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
                 cur_op += 8;
                 goto NEXT;
             }
             OP(brshift_I): {
                 MVMObject *   const type = GET_REG(cur_op, 6).o;
-                MVMObject * const result = MVM_repr_alloc_init(tc, type);
-                MVM_bigint_shr(tc, result, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
-                GET_REG(cur_op, 0).o = result;
+                GET_REG(cur_op, 0).o = MVM_bigint_shr(tc, type, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
                 cur_op += 8;
                 goto NEXT;
             }
@@ -4801,6 +4789,51 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_spesh_deopt_one(tc);
                 goto NEXT;
             }
+            
+            OP(sp_guardrwconc): {
+                MVMint32   ok     = 0;
+                MVMObject *check  = GET_REG(cur_op, 0).o;
+                MVMSTable *want_c = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                MVMSTable *want_v = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                cur_op += 6;
+                if (check && IS_CONCRETE(check) && STABLE(check) == want_c) {
+                    MVMContainerSpec const *contspec = STABLE(check)->container_spec;
+                    if (contspec->can_store(tc, check)) {
+                        MVMRegister r;
+                        contspec->fetch(tc, check, &r);
+                        if (r.o && IS_CONCRETE(r.o) && STABLE(r.o) == want_v)
+                            ok = 1;
+                    }
+                }
+                if (!ok)
+                    MVM_spesh_deopt_one(tc);
+                goto NEXT;
+            }
+            OP(sp_guardrwtype): {
+                MVMint32   ok     = 0;
+                MVMObject *check  = GET_REG(cur_op, 0).o;
+                MVMSTable *want_c = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                MVMSTable *want_v = (MVMSTable *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                cur_op += 6;
+                if (check && IS_CONCRETE(check) && STABLE(check) == want_c) {
+                    MVMContainerSpec const *contspec = STABLE(check)->container_spec;
+                    if (contspec->can_store(tc, check)) {
+                        MVMRegister r;
+                        contspec->fetch(tc, check, &r);
+                        if (r.o && !IS_CONCRETE(r.o) && STABLE(r.o) == want_v)
+                            ok = 1;
+                    }
+                }
+                if (!ok)
+                    MVM_spesh_deopt_one(tc);
+                goto NEXT;
+            }
+            
+            
             OP(sp_getarg_o):
                 GET_REG(cur_op, 0).o = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].o;
                 cur_op += 4;

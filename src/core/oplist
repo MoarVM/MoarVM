@@ -755,10 +755,16 @@ sp_osrfinalize   .s
 #                   spesh slots with container type and then value type
 #   guardconttype = guard on container holding type object; indexes are
 #                   spesh slots with container type and then value type
+#   guardrwconc   = guard on rw container holding concrete type; indexes are
+#                   spesh slots with container type and then value type
+#   guardrwtype   = guard on rw container holding type object; indexes are
+#                   spesh slots with container type and then value type
 sp_guardconc     .s r(obj) sslot
 sp_guardtype     .s r(obj) sslot
 sp_guardcontconc .s r(obj) sslot sslot
 sp_guardconttype .s r(obj) sslot sslot
+sp_guardrwconc   .s r(obj) sslot sslot
+sp_guardrwtype   .s r(obj) sslot sslot
 
 # Following are for fast, unchecked grabbing of args from the arg buffer.
 sp_getarg_o      .s w(obj) int16 :pure

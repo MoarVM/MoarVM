@@ -1,5 +1,15 @@
 #include "moar.h"
 
+MVMint64 MVM_6model_container_iscont_rw(MVMThreadContext *tc, MVMObject *cont) {
+    if (cont && IS_CONCRETE(cont)) {
+        const MVMContainerSpec *cs = STABLE(cont)->container_spec;
+        if (cs && cs->can_store(tc, cont)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* ***************************************************************************
  * CodePair container configuration: container with FETCH/STORE code refs
  * ***************************************************************************/

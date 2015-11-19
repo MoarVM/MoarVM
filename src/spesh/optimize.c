@@ -620,6 +620,24 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     }
 }
 
+/* Checks like iscont, iscont_[ins] and isrwcont can be done at spesh time */
+static void optimize_container_check(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    if (ins->info->opcode == MVM_OP_isrwcont) {
+        MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+
+        if (facts->flags & MVM_SPESH_FACT_RW_CONT) {
+            MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+            ins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
+            result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
+            result_facts->value.i       = 1;
+            ins->operands[1].lit_i16    = 1;
+
+            MVM_spesh_use_facts(tc, g, facts);
+            facts->usages--;
+        }
+    }
+}
+
 /* Optimize away assertparamcheck if we know it will pass. */
 static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
@@ -996,6 +1014,20 @@ static MVMint32 try_find_spesh_candidate(MVMThreadContext *tc, MVMCode *code, MV
                             STABLE(facts->decont_type) != want_st)
                         guard_failed = 1;
                     break;
+                case MVM_SPESH_GUARD_DC_CONC_RW:
+                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) ||
+                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
+                            STABLE(facts->decont_type) != want_st ||
+                            !(facts->flags & MVM_SPESH_FACT_RW_CONT))
+                        guard_failed = 1;
+                    break;
+                case MVM_SPESH_GUARD_DC_TYPE_RW:
+                    if (!(facts->flags & MVM_SPESH_FACT_DECONT_TYPEOBJ) ||
+                            !(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) ||
+                            STABLE(facts->decont_type) != want_st ||
+                            !(facts->flags & MVM_SPESH_FACT_RW_CONT))
+                        guard_failed = 1;
+                    break;
                 default:
                     guard_failed = 1;
                     break;
@@ -1328,6 +1360,10 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
             /*fprintf(stderr, "decont_typeobj ");*/
             target_facts->flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
         }
+        if (common_flags & MVM_SPESH_FACT_RW_CONT) {
+            /*fprintf(stderr, "rw_cont ");*/
+            target_facts->flags |= MVM_SPESH_FACT_RW_CONT;
+        }
         /*if (common_flags & MVM_SPESH_FACT_FROM_LOG_GUARD) fprintf(stderr, "from_log_guard ");*/
         /*if (common_flags & MVM_SPESH_FACT_HASH_ITER) fprintf(stderr, "hash_iter ");*/
         /*if (common_flags & MVM_SPESH_FACT_ARRAY_ITER) fprintf(stderr, "array_iter ");*/
@@ -1532,6 +1568,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_getlexperinvtype_o:
             if (specialized_on_invocant(tc, g))
                 optimize_getlex_known(tc, g, bb, ins);
+            break;
+        case MVM_OP_isrwcont:
+            optimize_container_check(tc, g, bb, ins);
             break;
         case MVM_OP_sp_log:
         case MVM_OP_sp_osrfinalize:

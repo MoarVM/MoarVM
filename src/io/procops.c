@@ -69,10 +69,10 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 
     while ((env = environ[pos++]) != NULL) {
 #ifndef _WIN32
-        MVMString    *str = MVM_string_utf8_decode(tc, instance->VMString, env, strlen(env));
+        MVMString    *str = MVM_string_utf8_c8_decode(tc, instance->VMString, env, strlen(env));
 #else
         char * const _env = ANSIToUTF8(acp, env);
-        MVMString    *str = MVM_string_utf8_decode(tc, instance->VMString, _env, strlen(_env));
+        MVMString    *str = MVM_string_utf8_c8_decode(tc, instance->VMString, _env, strlen(_env));
 #endif
 
         MVMuint32 index = MVM_string_index(tc, str, needle, 0);
@@ -112,7 +112,7 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
                 env_str = MVM_string_concatenate(tc, MVM_iterkey_s(tc, iter), equal); \
                 iterval = MVM_iterval(tc, iter); \
                 env_str = MVM_string_concatenate(tc, env_str, MVM_repr_get_str(tc, iterval)); \
-                _env[i++] = MVM_string_utf8_encode_C_string(tc, env_str); \
+                _env[i++] = MVM_string_utf8_c8_encode_C_string(tc, env_str); \
             } \
             _env[size] = NULL; \
         }); \
@@ -173,8 +173,8 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     uv_stdio_container_t process_stdio[3];
     int i;
 
-    char * const cmdin = MVM_string_utf8_encode_C_string(tc, cmd);
-    char * const _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
+    char * const cmdin = MVM_string_utf8_c8_encode_C_string(tc, cmd);
+    char * const _cwd = MVM_string_utf8_c8_encode_C_string(tc, cwd);
     const MVMuint64 size = MVM_repr_elems(tc, env);
     MVMIter * const iter = (MVMIter *)MVM_iter(tc, env);
     char **_env = MVM_malloc((size + 1) * sizeof(char *));
@@ -244,7 +244,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
     uv_stdio_container_t process_stdio[3];
     int i;
 
-    char   * const      _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
+    char   * const      _cwd = MVM_string_utf8_c8_encode_C_string(tc, cwd);
     const MVMuint64     size = MVM_repr_elems(tc, env);
     MVMIter * const     iter = (MVMIter *)MVM_iter(tc, env);
     char              **_env = MVM_malloc((size + 1) * sizeof(char *));
@@ -255,7 +255,7 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
     i = 0;
     while(i < arg_size) {
         REPR(argv)->pos_funcs.at_pos(tc, STABLE(argv), argv, OBJECT_BODY(argv), i, &reg, MVM_reg_obj);
-        args[i++] = MVM_string_utf8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
+        args[i++] = MVM_string_utf8_c8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
     }
     args[arg_size] = NULL;
 
@@ -1026,13 +1026,13 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
     args = MVM_malloc((arg_size + 1) * sizeof(char *));
     for (i = 0; i < arg_size; i++) {
         REPR(argv)->pos_funcs.at_pos(tc, STABLE(argv), argv, OBJECT_BODY(argv), i, &reg, MVM_reg_obj);
-        args[i] = MVM_string_utf8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
+        args[i] = MVM_string_utf8_c8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
     }
     args[arg_size] = NULL;
     prog = args[0];
 
     /* Encode CWD. */
-    _cwd = MVM_string_utf8_encode_C_string(tc, cwd);
+    _cwd = MVM_string_utf8_c8_encode_C_string(tc, cwd);
 
     MVMROOT(tc, queue, {
     MVMROOT(tc, env, {
@@ -1140,7 +1140,7 @@ MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
 MVMString * MVM_executable_name(MVMThreadContext *tc) {
     MVMInstance * const instance = tc->instance;
     if (instance->exec_name)
-        return MVM_string_utf8_decode(tc,
+        return MVM_string_utf8_c8_decode(tc,
             instance->VMString,
             instance->exec_name, strlen(instance->exec_name));
     else
@@ -1157,7 +1157,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
             const MVMint64 num_clargs = instance->num_clargs;
             MVMint64 count;
 
-            MVMString *prog_string = MVM_string_utf8_decode(tc,
+            MVMString *prog_string = MVM_string_utf8_c8_decode(tc,
                 instance->VMString,
                 instance->prog_name, strlen(instance->prog_name));
             MVMObject *boxed_str = MVM_repr_box_str(tc,
@@ -1166,7 +1166,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
 
             for (count = 0; count < num_clargs; count++) {
                 char *raw_clarg = instance->raw_clargs[count];
-                MVMString *string = MVM_string_utf8_decode(tc,
+                MVMString *string = MVM_string_utf8_c8_decode(tc,
                     instance->VMString, raw_clarg, strlen(raw_clarg));
                 boxed_str = MVM_repr_box_str(tc,
                     instance->boot_types.BOOTStr, string);
@@ -1179,7 +1179,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
             const MVMint64 num_clargs = instance->num_clargs;
             MVMint64 count;
 
-            MVMString *prog_string = MVM_string_utf8_decode(tc,
+            MVMString *prog_string = MVM_string_utf8_c8_decode(tc,
                 instance->VMString,
                 instance->prog_name, strlen(instance->prog_name));
             MVMObject *boxed_str = MVM_repr_box_str(tc,
@@ -1189,7 +1189,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
             for (count = 0; count < num_clargs; count++) {
                 char *raw_clarg = instance->raw_clargs[count];
                 char * const _tmp = ANSIToUTF8(acp, raw_clarg);
-                MVMString *string = MVM_string_utf8_decode(tc,
+                MVMString *string = MVM_string_utf8_c8_decode(tc,
                     instance->VMString, _tmp, strlen(_tmp));
                 MVM_free(_tmp);
                 boxed_str = MVM_repr_box_str(tc,

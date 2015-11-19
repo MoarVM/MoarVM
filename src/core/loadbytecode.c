@@ -16,17 +16,17 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
 
     /* See if we already loaded this. */
     uv_mutex_lock(&tc->instance->mutex_loaded_compunits);
+    MVM_tc_set_ex_release_mutex(tc, &tc->instance->mutex_loaded_compunits);
     MVM_string_flatten(tc, filename);
     MVM_HASH_GET(tc, tc->instance->loaded_compunits, filename, loaded_name);
     if (loaded_name) {
         /* already loaded */
-        uv_mutex_unlock(&tc->instance->mutex_loaded_compunits);
-        return;
+        goto LEAVE;
     }
 
     /* Otherwise, load from disk. */
     MVMROOT(tc, filename, {
-        char *c_filename = MVM_string_utf8_encode_C_string(tc, filename);
+        char *c_filename = MVM_string_utf8_c8_encode_C_string(tc, filename);
         /* XXX any exception from MVM_cu_map_from_file needs to be handled
          *     and c_filename needs to be freed */
         cu = MVM_cu_map_from_file(tc, c_filename);
@@ -56,6 +56,8 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
         MVM_HASH_BIND(tc, tc->instance->loaded_compunits, filename, loaded_name);
     });
 
+LEAVE:
+    MVM_tc_clear_ex_release_mutex(tc);
     uv_mutex_unlock(&tc->instance->mutex_loaded_compunits);
 }
 

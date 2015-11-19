@@ -47,6 +47,7 @@ typedef struct {
     MVMCallsite      *cur_call;
     MVMuint16         cur_arg;
     MVMCallsiteEntry  expected_named_arg;
+    MVMuint16         remaining_args;
     MVMuint16         remaining_positionals;
     MVMuint32         remaining_jumplabels;
     MVMuint32         reg_type_var;
@@ -107,6 +108,13 @@ static void ensure_no_remaining_positionals(Validator *val) {
     if (val->remaining_positionals != 0)
         fail(val, MSG(val, "callsite expects %" PRIu16 " more positionals"),
                 val->remaining_positionals);
+}
+
+
+static void ensure_no_remaining_args(Validator *val) {
+    if (val->remaining_args != 0)
+        fail(val, MSG(val, "callsite expects %" PRIu16 " more args"),
+                val->remaining_args);
 }
 
 
@@ -437,6 +445,8 @@ terminate_seq:
 static void validate_arg(Validator *val) {
     MVMCallsiteEntry flags;
 
+    val->remaining_args--;
+
     if (val->expected_named_arg) {
         flags = val->expected_named_arg;
         val->expected_named_arg = 0;
@@ -454,8 +464,11 @@ static void validate_arg(Validator *val) {
         switch (flags & ~MVM_CALLSITE_ARG_MASK) {
             case 0: /* positionals */
             case MVM_CALLSITE_ARG_FLAT:
-            case MVM_CALLSITE_ARG_FLAT_NAMED:
                 val->remaining_positionals--;
+                break;
+
+            case MVM_CALLSITE_ARG_FLAT_NAMED:
+                /* Nothing to do for this case. */
                 break;
 
             case MVM_CALLSITE_ARG_NAMED:
@@ -527,7 +540,8 @@ static void validate_block(Validator *val) {
             index = GET_UI16(val->cur_op, -2);
             val->cur_call  = val->cu->body.callsites[index];
             val->cur_arg   = 0;
-            val->expected_named_arg    = 0;
+            val->expected_named_arg = 0;
+            val->remaining_args = val->cur_call->arg_count;
             val->remaining_positionals = val->cur_call->num_pos;
 
             break;

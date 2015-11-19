@@ -90,11 +90,30 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
             MVM_serialization_write_varint(tc, writer, body->states[i][j].to);
             switch (body->states[i][j].act & 0xff) {
                 case MVM_NFA_EDGE_FATE:
+                    MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.i);
+                    break;
                 case MVM_NFA_EDGE_CODEPOINT:
                 case MVM_NFA_EDGE_CODEPOINT_LL:
                 case MVM_NFA_EDGE_CODEPOINT_NEG:
                 case MVM_NFA_EDGE_CODEPOINT_M:
-                case MVM_NFA_EDGE_CODEPOINT_M_NEG:
+                case MVM_NFA_EDGE_CODEPOINT_M_NEG: {
+                    MVMGrapheme32 g = body->states[i][j].arg.g;
+                    if (g >= 0) {
+                        /* Non-synthetic. */
+                        MVM_serialization_write_varint(tc, writer, g);
+                    }
+                    else {
+                        /* Synthetic. Write the number of codepoints negated,
+                         * and then each of the codepoints. */
+                        MVMNFGSynthetic *si = MVM_nfg_get_synthetic_info(tc, g);
+                        MVMint32 k;
+                        MVM_serialization_write_varint(tc, writer, -(si->num_combs + 1));
+                        MVM_serialization_write_varint(tc, writer, si->base);
+                        for (k = 0; k < si->num_combs; k++)
+                            MVM_serialization_write_varint(tc, writer, si->combs[k]);
+                    }
+                    break;
+                }
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
                     MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.i);
@@ -109,7 +128,9 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
                 case MVM_NFA_EDGE_CODEPOINT_IM:
                 case MVM_NFA_EDGE_CODEPOINT_IM_NEG:
                 case MVM_NFA_EDGE_CHARRANGE:
-                case MVM_NFA_EDGE_CHARRANGE_NEG: {
+                case MVM_NFA_EDGE_CHARRANGE_NEG:
+                case MVM_NFA_EDGE_CHARRANGE_M:
+                case MVM_NFA_EDGE_CHARRANGE_M_NEG: {
                     MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.uclc.lc);
                     MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.uclc.uc);
                     break;
@@ -147,11 +168,28 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                 body->states[i][j].to = MVM_serialization_read_varint(tc, reader);
                 switch (body->states[i][j].act & 0xff) {
                     case MVM_NFA_EDGE_FATE:
+                        body->states[i][j].arg.i = MVM_serialization_read_varint(tc, reader);
+                        break;
                     case MVM_NFA_EDGE_CODEPOINT:
                     case MVM_NFA_EDGE_CODEPOINT_LL:
                     case MVM_NFA_EDGE_CODEPOINT_NEG:
                     case MVM_NFA_EDGE_CODEPOINT_M:
-                    case MVM_NFA_EDGE_CODEPOINT_M_NEG:
+                    case MVM_NFA_EDGE_CODEPOINT_M_NEG: {
+                        MVMint64 cp_or_synth_count = MVM_serialization_read_varint(tc, reader);
+                        if (cp_or_synth_count >= 0) {
+                            body->states[i][j].arg.g = (MVMGrapheme32)cp_or_synth_count;
+                        }
+                        else {
+                            MVMint32 num_codes = -cp_or_synth_count;
+                            MVMCodepoint *codes = MVM_malloc(num_codes * sizeof(MVMCodepoint));
+                            MVMint32 k;
+                            for (k = 0; k < num_codes; k++)
+                                codes[k] = (MVMCodepoint)MVM_serialization_read_varint(tc, reader);
+                            body->states[i][j].arg.g = MVM_nfg_codes_to_grapheme(tc, codes, num_codes);
+                            MVM_free(codes);
+                        }
+                        break;
+                    }
                     case MVM_NFA_EDGE_CHARCLASS:
                     case MVM_NFA_EDGE_CHARCLASS_NEG:
                         body->states[i][j].arg.i = MVM_serialization_read_varint(tc, reader);
@@ -166,7 +204,9 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                     case MVM_NFA_EDGE_CODEPOINT_IM:
                     case MVM_NFA_EDGE_CODEPOINT_IM_NEG:
                     case MVM_NFA_EDGE_CHARRANGE:
-                    case MVM_NFA_EDGE_CHARRANGE_NEG: {
+                    case MVM_NFA_EDGE_CHARRANGE_NEG:
+                    case MVM_NFA_EDGE_CHARRANGE_M:
+                    case MVM_NFA_EDGE_CHARRANGE_M_NEG: {
                         body->states[i][j].arg.uclc.lc = MVM_serialization_read_varint(tc, reader);
                         body->states[i][j].arg.uclc.uc = MVM_serialization_read_varint(tc, reader);
                         break;
@@ -221,6 +261,30 @@ static const MVMREPROps this_repr = {
     0, /* refs_frames */
 };
 
+/* We may be provided a grapheme as a codepoint for non-synthetics, or as a
+ * 1-char string for synthetics. */
+static MVMGrapheme32 get_grapheme(MVMThreadContext *tc, MVMObject *obj) {
+    /* Handle null and non-concrete case. */
+    if (MVM_is_null(tc, obj) || !IS_CONCRETE(obj)) {
+        MVM_exception_throw_adhoc(tc,
+            "NFA must be provided with a concrete string or integer for graphemes");
+    }
+
+    /* Otherwise, guess something appropriate. */
+    else {
+        const MVMStorageSpec *ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+        if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT)
+            return REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+        else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
+            return MVM_string_get_grapheme_at(tc,
+                REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)),
+                0);
+        else
+            MVM_exception_throw_adhoc(tc,
+                "NFA must be provided with a string or integer for graphemes");
+    }
+}
+
 MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMObject *nfa_type) {
     MVMObject  *nfa_obj;
     MVMNFABody *nfa;
@@ -263,11 +327,17 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
 
                 switch (act & 0xff) {
                 case MVM_NFA_EDGE_FATE:
+                    nfa->states[i][cur_edge].arg.i = MVM_coerce_simple_intify(tc,
+                        MVM_repr_at_pos_o(tc, edge_info, j + 1));
+                    break;
                 case MVM_NFA_EDGE_CODEPOINT:
                 case MVM_NFA_EDGE_CODEPOINT_LL:
                 case MVM_NFA_EDGE_CODEPOINT_NEG:
                 case MVM_NFA_EDGE_CODEPOINT_M:
                 case MVM_NFA_EDGE_CODEPOINT_M_NEG:
+                    nfa->states[i][cur_edge].arg.g = get_grapheme(tc,
+                        MVM_repr_at_pos_o(tc, edge_info, j + 1));
+                    break;
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
                     nfa->states[i][cur_edge].arg.i = MVM_coerce_simple_intify(tc,
@@ -287,7 +357,9 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                 /* That is not about uppercase/lowercase here, but lower and upper bounds
                    of our range. */
                 case MVM_NFA_EDGE_CHARRANGE:
-                case MVM_NFA_EDGE_CHARRANGE_NEG: {
+                case MVM_NFA_EDGE_CHARRANGE_NEG:
+                case MVM_NFA_EDGE_CHARRANGE_M:
+                case MVM_NFA_EDGE_CHARRANGE_M_NEG: {
                     MVMObject *arg = MVM_repr_at_pos_o(tc, edge_info, j + 1);
                     nfa->states[i][cur_edge].arg.uclc.lc = MVM_coerce_simple_intify(tc,
                         MVM_repr_at_pos_o(tc, arg, 0));
@@ -456,7 +528,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 else {
                     switch (act) {
                         case MVM_NFA_EDGE_CODEPOINT_LL: {
-                            MVMint64 arg = edge_info[i].arg.i;
+                            MVMGrapheme32 arg = edge_info[i].arg.g;
                             if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg) {
                                 MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
                                 nextst[numnext++] = to;
@@ -469,7 +541,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT: {
-                            MVMint64 arg = edge_info[i].arg.i;
+                            MVMGrapheme32 arg = edge_info[i].arg.g;
                             if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) == arg) {
                                 nextst[numnext++] = to;
                                 if (nfadeb)
@@ -478,7 +550,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT_NEG: {
-                            MVMint64 arg = edge_info[i].arg.i;
+                            MVMGrapheme32 arg = edge_info[i].arg.g;
                             if (MVM_string_get_grapheme_at_nocheck(tc, target, offset) != arg)
                                 nextst[numnext++] = to;
                             continue;
@@ -542,7 +614,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
                             MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                            if (ord >= lc_arg && ord <= uc_arg) /* TODO ignorecase? */
+                            if (ord >= lc_arg && ord <= uc_arg)
                                 nextst[numnext++] = to;
                             continue;
                         }
@@ -550,7 +622,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
                             MVMGrapheme32 ord    = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                            if (ord < lc_arg || ord > uc_arg) /* TODO ignorecase? */
+                            if (ord < lc_arg || ord > uc_arg)
                                 nextst[numnext++] = to;
                             continue;
                         }
@@ -562,7 +634,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         case MVM_NFA_EDGE_CODEPOINT_M_NEG: {
                             MVMNormalizer norm;
                             MVMint32 ready;
-                            MVMGrapheme32 ga = edge_info[i].arg.i;
+                            MVMGrapheme32 ga = edge_info[i].arg.g;
                             MVMGrapheme32 gb = MVM_string_ord_basechar_at(tc, target, offset);
 
                             MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
@@ -599,6 +671,22 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
 
                             if (((act == MVM_NFA_EDGE_CODEPOINT_IM)     && (ord == lc_arg || ord == uc_arg))
                              || ((act == MVM_NFA_EDGE_CODEPOINT_IM_NEG) && (ord != lc_arg && ord != uc_arg)))
+                                nextst[numnext++] = to;
+                            continue;
+                        }
+                        case MVM_NFA_EDGE_CHARRANGE_M: {
+                            MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                            MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                            MVMGrapheme32 ord    = MVM_string_ord_basechar_at(tc, target, offset);
+                            if (ord >= lc_arg && ord <= uc_arg)
+                                nextst[numnext++] = to;
+                            continue;
+                        }
+                        case MVM_NFA_EDGE_CHARRANGE_M_NEG: {
+                            MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
+                            MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
+                            MVMGrapheme32 ord    = MVM_string_ord_basechar_at(tc, target, offset);
+                            if (ord < lc_arg || ord > uc_arg)
                                 nextst[numnext++] = to;
                             continue;
                         }

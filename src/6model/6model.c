@@ -408,7 +408,7 @@ void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st) {
 
 /* Get the next type cache ID for a newly created STable. */
 MVMuint64 MVM_6model_next_type_cache_id(MVMThreadContext *tc) {
-    return (MVMuint64)MVM_add(&tc->instance->cur_type_cache_id, 64) + 64;
+    return (MVMuint64)MVM_add(&tc->instance->cur_type_cache_id, MVM_TYPE_CACHE_ID_INCR) + MVM_TYPE_CACHE_ID_INCR;
 }
 
 void MVM_6model_never_repossess(MVMThreadContext *tc, MVMObject *obj) {

@@ -111,6 +111,8 @@ MVM_PUBLIC void        MVM_repr_bind_attr_inso(MVMThreadContext *tc, MVMObject *
 
 MVM_PUBLIC MVMint64    MVM_repr_compare_repr_id(MVMThreadContext *tc, MVMObject *object, MVMuint32 REPRId);
 
+MVM_PUBLIC MVMint64    MVM_repr_hint_for(MVMThreadContext *tc, MVMObject *object, MVMString *attrname);
+
 #define MVM_repr_at_key_int(tc, obj, key) \
     MVM_repr_get_int((tc), MVM_repr_at_key_o((tc), (obj), (key)))
 #define MVM_repr_at_key_num(tc, obj, key) \

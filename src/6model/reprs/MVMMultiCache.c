@@ -163,27 +163,33 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
         if (arg_type == MVM_CALLSITE_ARG_OBJ) {
             MVMObject *arg = MVM_args_get_pos_obj(tc, apc, i, 1).arg.o;
             if (arg) {
+                MVMuint8 rwness = 0;
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
                 if (contspec && IS_CONCRETE(arg)) {
                     if (contspec->fetch_never_invokes) {
                         if (REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
                             MVMRegister r;
+                            if (contspec->can_store(tc, arg))
+                                rwness = 2;
                             contspec->fetch(tc, arg, &r);
                             arg = r.o;
+                        }
+                        else {
+                            rwness = 2; /* Native refs are always writable. */
                         }
                     }
                     else {
                         goto DONE;
                     }
                 }
-                arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0);
+                arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0) | rwness;
             }
             else {
                 goto DONE;
             }
         }
         else {
-            arg_tup[i] = (arg_type << 1) | 1;
+            arg_tup[i] = (arg_type << 2) | 1;
         }
     }
 
@@ -257,27 +263,33 @@ MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache_obj, MVM
         if (arg_type == MVM_CALLSITE_ARG_OBJ) {
             MVMObject *arg = MVM_args_get_pos_obj(tc, apc, i, 1).arg.o;
             if (arg) {
+                MVMuint8 rwness = 0;
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
                 if (contspec && IS_CONCRETE(arg)) {
                     if (contspec->fetch_never_invokes) {
                         if (REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
                             MVMRegister r;
+                            if (contspec->can_store(tc, arg))
+                                rwness = 2;
                             contspec->fetch(tc, arg, &r);
                             arg = r.o;
+                        }
+                        else {
+                            rwness = 2; /* Native refs are always writable. */
                         }
                     }
                     else {
                         return NULL;
                     }
                 }
-                arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0);
+                arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0) | rwness;
             }
             else {
                 return NULL;
             }
         }
         else {
-            arg_tup[i] = (arg_type << 1) | 1;
+            arg_tup[i] = (arg_type << 2) | 1;
         }
     }
 
@@ -337,27 +349,33 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
         if (arg_type == MVM_CALLSITE_ARG_OBJ) {
             MVMObject *arg = args[i].o;
             if (arg) {
+                MVMuint8 rwness = 0;
                 MVMContainerSpec const *contspec = STABLE(arg)->container_spec;
-                if (contspec && IS_CONCRETE(arg)) {
+                if (contspec && IS_CONCRETE(arg)) {    
                     if (contspec->fetch_never_invokes) {
                         if (REPR(arg)->ID != MVM_REPR_ID_NativeRef) {
                             MVMRegister r;
+                            if (contspec->can_store(tc, arg))
+                                rwness = 2;
                             contspec->fetch(tc, arg, &r);
                             arg = r.o;
+                        }
+                        else {
+                            rwness = 2; /* Native refs are always writable. */
                         }
                     }
                     else {
                         return NULL;
                     }
                 }
-                arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0);
+                arg_tup[i] = STABLE(arg)->type_cache_id | (IS_CONCRETE(arg) ? 1 : 0) | rwness;
             }
             else {
                 return NULL;
             }
         }
         else {
-            arg_tup[i] = (arg_type << 1) | 1;
+            arg_tup[i] = (arg_type << 2) | 1;
         }
     }
 
@@ -426,7 +444,7 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
 
                 /* If it's a container, must know what's inside it. Otherwise,
                  * we're already good on type info. */
-                if ((facts->flags & MVM_SPESH_FACT_CONCRETE)&& STABLE(facts->type)->container_spec) {
+                if ((facts->flags & MVM_SPESH_FACT_CONCRETE) && STABLE(facts->type)->container_spec) {
                     /* Again, need to know type and concreteness. */
                     if (!(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE))
                         return NULL;
@@ -434,6 +452,8 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
                         return NULL;
                     arg_tup[i] = STABLE(facts->decont_type)->type_cache_id |
                         ((facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) ? 1 : 0);
+                    if (facts->flags & MVM_SPESH_FACT_RW_CONT)
+                        arg_tup[i] |= 2;
                 }
                 else {
                     arg_tup[i] = STABLE(facts->type)->type_cache_id |
@@ -445,7 +465,7 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
             }
         }
         else {
-            arg_tup[i] = (arg_type << 1) | 1;
+            arg_tup[i] = (arg_type << 2) | 1;
         }
     }
 
