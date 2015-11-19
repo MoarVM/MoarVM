@@ -3155,10 +3155,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_io_close(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
-            OP(istty_fh):
-                GET_REG(cur_op, 0).i64 = MVM_io_is_tty(tc, GET_REG(cur_op, 2).o);
-                cur_op += 4;
-                goto NEXT;
             OP(read_fhs):
                 GET_REG(cur_op, 0).s = MVM_io_read_string(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).i64);
@@ -4728,6 +4724,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 4).s, GET_REG(cur_op, 8).o, GET_REG(cur_op, 6).s);
                 GET_REG(cur_op, 0).o = GET_REG(cur_op, 8).o;
                 cur_op += 10;
+                goto NEXT;
+            OP(istty_fh):
+                GET_REG(cur_op, 0).i64 = MVM_io_is_tty(tc, GET_REG(cur_op, 2).o);
+                cur_op += 4;
                 goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
