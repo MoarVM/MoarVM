@@ -140,6 +140,19 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMint32 nchild      = (tree->info[node].op_info->nchild < 0 ?
                             tree->nodes[first_child++] :
                             tree->info[node].op_info->nchild);
+    MVMint32 left_sym = tree->info[node].tile->left_sym,
+        right_sym = tree->info[node].tile->right_sym;
+
+/* Tile assignment is somewhat precarious due to (among other things), possible reallocation.
+ * So let's provide a single macro to do it correctly. */
+#define DO_ASSIGN_CHILD(NUM, SYM) do { \
+        MVMint32 child     = tree->nodes[first_child+(NUM)]; \
+        MVMint32 state     = tree->info[child].tile_state; \
+        MVMint32 rule      = MVM_jit_tile_select_lookup(tc, state, (SYM)); \
+        MVMint32 assigned  = assign_tile(tc, tree, child, rule); \
+        tree->nodes[first_child+(NUM)] = assigned; \
+    } while(0)
+
     switch (op) {
     case MVM_JIT_ALL:
     case MVM_JIT_ANY:
@@ -147,9 +160,7 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         {
             MVMint32 i;
             for (i = 0; i < nchild; i++) {
-                MVMint32 child = tree->nodes[first_child+i];
-                MVMint32 rule  = MVM_jit_tile_select_lookup(tc, tree->info[child].tile_state, tree->info[node].tile->left_sym);
-                tree->nodes[first_child+i] = assign_tile(tc, tree, child, rule);
+                DO_ASSIGN_CHILD(i, left_sym);
             }
         }
         break;
@@ -157,49 +168,26 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         {
             MVMint32 i, last_child, last_rule;
             for (i = 0; i < nchild - 1; i++) {
-                MVMint32 child = tree->nodes[first_child+i];
-                MVMint32 rule  = MVM_jit_tile_select_lookup(tc, tree->info[child].tile_state, tree->info[node].tile->left_sym);
-                tree->nodes[first_child+i] = assign_tile(tc, tree, child, rule);
+                DO_ASSIGN_CHILD(i, left_sym);
             }
-            last_child = tree->nodes[first_child+i];
-            last_rule  = MVM_jit_tile_select_lookup(tc, tree->info[last_child].tile_state, tree->info[node].tile->right_sym);
-            tree->nodes[first_child+i] = assign_tile(tc, tree, last_child, last_rule);
+            DO_ASSIGN_CHILD(i, right_sym);
         }
         break;
     case MVM_JIT_IF:
     case MVM_JIT_EITHER:
         {
-            MVMint32 cond = tree->nodes[first_child],
-                left  = tree->nodes[first_child+1],
-                right = tree->nodes[first_child+2],
-                rule;
-
-            rule = MVM_jit_tile_select_lookup(tc, tree->info[cond].tile_state, tree->info[node].tile->left_sym);
-            tree->nodes[first_child]   = assign_tile(tc, tree, cond, rule);
-
-            rule = MVM_jit_tile_select_lookup(tc, tree->info[left].tile_state, tree->info[node].tile->right_sym);
-            tree->nodes[first_child+1] = assign_tile(tc, tree, left, rule);
-
-            rule = MVM_jit_tile_select_lookup(tc, tree->info[right].tile_state, tree->info[node].tile->right_sym);
-            tree->nodes[first_child+2] = assign_tile(tc, tree, right, rule);
+            DO_ASSIGN_CHILD(0, left_sym);
+            DO_ASSIGN_CHILD(1, right_sym);
+            DO_ASSIGN_CHILD(2, right_sym);
         }
         break;
     default:
         {
-            /* Assign tiles to children */
             if (nchild > 0) {
-                MVMint32 left = tree->nodes[first_child];
-                MVMint32 rule = MVM_jit_tile_select_lookup(tc,
-                                                           tree->info[left].tile_state,
-                                                           tree->info[node].tile->left_sym);
-                tree->nodes[first_child] = assign_tile(tc, tree, left, rule);
+                DO_ASSIGN_CHILD(0, left_sym);
             }
             if (nchild > 1) {
-                MVMint32 right = tree->nodes[first_child+1];
-                MVMint32 rule  = MVM_jit_tile_select_lookup(tc,
-                                                            tree->info[right].tile_state,
-                                                            tree->info[node].tile->right_sym);
-                tree->nodes[first_child+1] = assign_tile(tc, tree, right, rule);
+                DO_ASSIGN_CHILD(1, right_sym);
             }
             if (nchild > 2) {
                 MVM_oops(tc, "Can't tile %d children of %s", nchild, tree->info[node].op_info->name);
@@ -208,6 +196,8 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     }
     /* Ensure that the visits array grows along with the tree */
     MVM_DYNAR_ENSURE_SIZE(traverser->visits, tree->nodes_num);
+
+#undef DO_ASSIGN_CHILD
 }
 
 static void arglist_get_values(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMJitExprValue **values) {

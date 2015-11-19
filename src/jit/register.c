@@ -47,6 +47,7 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compi
 void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                        MVMJitRegisterAllocator *alc) {
     MVM_free(alc->active);
+    MVM_free(alc->branches);
     MVM_free(alc->free_reg);
     MVM_free(alc->reg_use);
     compiler->allocator = NULL;

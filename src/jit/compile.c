@@ -534,7 +534,6 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
         values[0]->type = (args[0] == MVM_JIT_VOID ? MVM_JIT_VOID : MVM_JIT_REG);
         post_call(tc, cl, tree, node);
         break;
-
     case MVM_JIT_ARGLIST:
         compile_arglist(tc, cl, tree, node);
         /* compile_arglinst locks values into registers. */

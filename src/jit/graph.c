@@ -2616,23 +2616,36 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     /* Loop over basic blocks */
     while (iter.bb) {
         if (!consume_bb(tc, graph, &iter, iter.bb))
-            return NULL;
+            goto bail;
         MVM_spesh_iterator_next_bb(tc, &iter);
     }
     /* Check if we've added a instruction at all */
     if (!graph->first_node)
-        return NULL;
+        goto bail;
+
     /* append the end-of-graph label */
     jg_append_label(tc, graph, MVM_jit_label_after_graph(tc, graph, sg));
 
     /* Calculate number of basic block + graph labels */
     graph->num_labels = sg->num_bbs + 1 + graph->ins_labels_num;
     return graph;
+
+ bail:
+    MVM_jit_graph_destroy(tc, graph);
+    return NULL;
 }
 
 void MVM_jit_graph_destroy(MVMThreadContext *tc, MVMJitGraph *graph) {
+    MVMJitNode *node;
+    /* destroy all trees */
+    for (node = graph->first_node; node != NULL; node = node->next) {
+        if (node->type == MVM_JIT_NODE_EXPR_TREE) {
+            MVM_jit_expr_tree_destroy(tc, node->u.tree);
+        }
+    }
     MVM_free(graph->ins_labels);
     MVM_free(graph->deopts);
     MVM_free(graph->handlers);
     MVM_free(graph->inlines);
+
 }
