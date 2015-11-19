@@ -1,3 +1,50 @@
+New in 2015.11
+
++ Fix const warnings about pointers to Unicode case table
++ Elide a few key-values from profiler data for default values
++ All Latin-1 controls are normalization terminators
++ NFG now uses Unicode Grapheme Cluster algorithm; "\r\n" is now one grapheme
++ Fix a canonical composition bug
++ Fix SEGV on nqp::chars on a null string.
++ Support multiple line separators on I/O handles
++ Support multi-grapheme line separators on I/O handles
++ Include \r\n synthetic in default line separators
++ Serialization writes string offsets as 2 bytes if possible
++ Used varints in a few more places in the serialization format
++ Serialize the STable mode flags in a single byte
++ Serialize the STABLE boolification_spec mode in 1 byte
++ Serialize the container and invocation spec flag bits with the bool spec
++ Implement readlinechomp_fh op, for reading lines without line ending
++ Fix moar build on DragonFly BSD
++ Fix join NFG bug when separator is empty
++ Improve normalizer performance on paths needing canonical combining class
++ Boost number of fixed size allocation bins, to handle more allocations
++ Fix encoding/decoding \r\n grapheme in all encodings
++ Make radix ops not blow up over synthetics
++ Fix normalizer to never re-normalize what was already considered
++ Encoders now throw exceptions on unencodeable characters by default
++ Allow specifying a replacement string for unencodeable characters
++ New UTF-8 Clean-8bit encoding for strings we exchange with the OS
++ Make escape handle \r\n properly
++ Handle files where stat falseley reports 0 bytes size
++ Provide a way for NFA to be given synthetics, not just codepoints
++ Teach NFA about ignoremark charrange case
++ Make MVMMultiCache container aware, including spesh/JIT gurd updates
++ isrwcont can now be jit-compiled
++ We can spesh isrwcont into a const now
++ Document ASAN_OPTIONS
++ Fix possible SEGV in getlex and bindlex when walking scopes
++ Release mutex in MVM_load_bytecode on exception
++ Allow named flattening args to show up amongst named args in callsites
++ Make later named args that are flattened in override earlier ones
++ Override setjmp to two-argument version on mingw64
++ fix a callsite memory leak
++ Fix ordfist/ordat JIT
++ JIT bigint ops or, and, xor, brshift, blshift and bnot
++ JIT hintfor op
++ Fix native call struct size calculation bug
++ Implement istty_fh op
+
 New in 2015.10
 
 + Profiling: fix data collection when exiting
