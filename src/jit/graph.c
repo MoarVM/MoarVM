@@ -929,8 +929,8 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                          { MVM_JIT_REG_VAL,     attrname } };
 
 
-                MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
-                jgb_append_call_c(tc, jgb, function, 4, args, MVM_JIT_RV_INT, result);
+                MVM_jit_log(tc, "devirt: emitted a %s via jg_consume_reprop\n", ins->info->name);
+                jg_append_call_c(tc, jg, function, 4, args, MVM_JIT_RV_INT, result);
                 return 1;
                 break;
             }
@@ -1283,7 +1283,7 @@ skipdevirt:
                                  { MVM_JIT_REG_VAL,     type },
                                  { MVM_JIT_REG_VAL,     attrname } };
 
-        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_elems: {
@@ -2202,7 +2202,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { type } },
                                  { MVM_JIT_REG_VAL, { src } },
                                  { MVM_JIT_REG_VAL, { shift } } };
-        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_PTR, dst);
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_coerce_Is: {
@@ -2258,7 +2258,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_REG_VAL, type },
                                  { MVM_JIT_REG_VAL, invocant } };
-        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_getcodeobj: {
