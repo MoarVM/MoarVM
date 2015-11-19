@@ -95,6 +95,7 @@ static const MVMIOOps op_table = {
     &pipeable,
     NULL,
     NULL,
+    NULL,
     gc_free
 };
 

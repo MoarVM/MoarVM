@@ -255,6 +255,11 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     return 0;
 }
 
+static MVMint64 is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    return data->is_tty;
+}
+
 /* Operations aiding process spawning and I/O handling. */
 static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio,
         uv_process_t *process) {
@@ -295,6 +300,9 @@ static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_str,
 static const MVMIOSeekable          seekable = { MVM_io_syncstream_seek,
                                                  MVM_io_syncstream_tell };
 static const MVMIOPipeable     pipeable      = { bind_stdio_handle };
+
+static const MVMIOPossiblyTTY possibly_tty         = { is_tty };
+
 static const MVMIOOps op_table = {
     &closable,
     &encodable,
@@ -306,16 +314,18 @@ static const MVMIOOps op_table = {
     NULL,
     &pipeable,
     NULL,
+    &possibly_tty,
     NULL,
     gc_free
 };
 
 /* Wraps a libuv stream (likely, libuv pipe or TTY) up in a sync stream. */
-MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *handle) {
+MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *handle, MVMint8 is_tty) {
     MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     MVMIOSyncStreamData * const data   = MVM_calloc(1, sizeof(MVMIOSyncStreamData));
     data->handle      = handle;
     data->encoding    = MVM_encoding_type_utf8;
+    data->is_tty = is_tty;
     MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;

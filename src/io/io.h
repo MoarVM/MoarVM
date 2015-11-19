@@ -12,6 +12,7 @@ struct MVMIOOps {
     const MVMIOSockety       *sockety;
     const MVMIOPipeable      *pipeable;
     const MVMIOLockable      *lockable;
+    const MVMIOPossiblyTTY   *possibly_tty;
 
     /* How to mark the handle's data, if needed. */
     void (*gc_mark) (MVMThreadContext *tc, void *data, MVMGCWorklist *worklist);
@@ -83,6 +84,11 @@ struct MVMIOLockable {
     void (*unlock) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 
+/* Checking if a handle is a tty, when it's NULL we assume a handle is not a tty. */
+struct MVMIOPossiblyTTY {
+    MVMint64 (*is_tty) (MVMThreadContext *tc, MVMOSHandle *h);
+};
+
 /* Operations aiding process spawning and I/O handling.  */
 struct MVMIOPipeable {
     void (*bind_stdio_handle) (MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio,
@@ -90,6 +96,7 @@ struct MVMIOPipeable {
 };
 
 MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle);
+MVMint64 MVM_io_is_tty(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name);
 void MVM_io_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag);
 MVMint64 MVM_io_tell(MVMThreadContext *tc, MVMObject *oshandle);
