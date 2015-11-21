@@ -105,7 +105,7 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
     MVMuint16 *result_pos;
     MVMCodepointIter ci;
     MVMuint8 *repl_bytes = NULL;
-    MVMuint64 repl_length;
+    MVMuint64 repl_length = 0;
     MVMint32 alloc_size;
 
     /* must check start first since it's used in the length check */
