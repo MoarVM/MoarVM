@@ -1576,6 +1576,9 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
             ((MVMContext *)ctx)->body.context = MVM_frame_dec_ref(tc, f);
             ctx = (MVMObject *)MVM_load(&f->context_object);
         }
+        else {
+            f->keep_caller = 1;
+        }
     }
 
     return ctx;
