@@ -236,6 +236,7 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
         MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_objects[idx], obj);
         sc->body->num_objects = idx + 1;
     }
+    MVM_set_idx_in_sc(&obj->header, idx);
 }
 
 /* Given an SC and an index, fetch the STable stored there. */

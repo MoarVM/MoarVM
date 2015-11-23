@@ -2883,6 +2883,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         slot = read_int32(table_row, 4);
         MVM_sc_set_object(tc, reader->root.sc, slot, orig_obj);
         MVM_sc_set_obj_sc(tc, orig_obj, reader->root.sc);
+        MVM_set_idx_in_sc(&(orig_obj->header), slot);
 
         /* Clear it up, since we'll re-allocate all the bits inside
          * it on deserialization. */
@@ -2913,6 +2914,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         slot = read_int32(table_row, 4);
         MVM_sc_set_stable(tc, reader->root.sc, slot, orig_st);
         MVM_sc_set_stable_sc(tc, orig_st, reader->root.sc);
+        MVM_set_idx_in_sc(&(orig_st->header), slot);
 
         /* XXX TODO: consider clearing up STable, however we must do it out of
          * this repossess routine, since we may depend on original data to do
