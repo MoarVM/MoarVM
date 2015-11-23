@@ -2926,9 +2926,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(ctx): {
-                MVMObject *ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-                ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, tc->cur_frame);
-                GET_REG(cur_op, 0).o = ctx;
+                GET_REG(cur_op, 0).o = MVM_frame_context_wrapper(tc, tc->cur_frame);
                 cur_op += 2;
                 goto NEXT;
             }
