@@ -117,6 +117,8 @@ void MVM_callsite_initialize_common(MVMThreadContext *tc);
 /* Get any of the "common" callsites */
 MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id);
 
+int MVM_callsite_is_common(MVMCallsite *cs);
+
 /* Callsite interning function. */
 MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
 
