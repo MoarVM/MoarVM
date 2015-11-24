@@ -119,6 +119,8 @@ MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonC
 
 int MVM_callsite_is_common(MVMCallsite *cs);
 
+void MVM_callsite_destroy(MVMCallsite *cs);
+
 /* Callsite interning function. */
 MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
 
