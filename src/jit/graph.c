@@ -1513,6 +1513,9 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_paramnamesused:
     case MVM_OP_assertparamcheck:
     case MVM_OP_getobjsc:
+    case MVM_OP_getstderr:
+    case MVM_OP_getstdout:
+    case MVM_OP_getstdin:
     case MVM_OP_ordat:
     case MVM_OP_ordfirst:
         /* Profiling */

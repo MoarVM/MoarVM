@@ -1515,6 +1515,21 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         /* jumping out is handled by invokish */
         break;
     }
+    case MVM_OP_getstdin:
+    case MVM_OP_getstdout:
+    case MVM_OP_getstderr: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP3, aword TC->instance;
+        if (ins->info->opcode == MVM_OP_getstdin) {
+            | mov TMP3, aword MVMINSTANCE:TMP3->stdin_handle;
+        } else if (ins->info->opcode == MVM_OP_getstdout) {
+            | mov TMP3, aword MVMINSTANCE:TMP3->stdout_handle;
+        } else if (ins->info->opcode == MVM_OP_getstderr) {
+            | mov TMP3, aword MVMINSTANCE:TMP3->stderr_handle;
+        }
+        | mov aword WORK[dst], TMP3;
+        break;
+    }
     case MVM_OP_ordat:
     case MVM_OP_ordfirst: {
         MVMint16 dst = ins->operands[0].reg.orig;
