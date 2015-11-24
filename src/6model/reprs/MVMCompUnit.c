@@ -74,6 +74,18 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCompUnitBody *body = &((MVMCompUnit *)obj)->body;
+    int i;
+
+    for (i = 0; i < body->num_callsites; i++) {
+        MVMCallsite *cs = body->callsites[i];
+
+        if (cs->is_interned) {
+            continue;
+        }
+
+        MVM_callsite_destroy(cs);
+    }
+
     MVM_free(body->frames);
     MVM_free(body->coderefs);
     MVM_free(body->callsites);
