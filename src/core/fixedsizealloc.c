@@ -29,6 +29,23 @@ MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
     return al;
 }
 
+void MVM_fixed_size_destroy(MVMFixedSizeAlloc *al) {
+    int bin_no;
+
+    for (bin_no = 0; bin_no < MVM_FSA_BINS; bin_no++) {
+        int page_no;
+        int num_pages = al->size_classes[bin_no].num_pages;
+
+        for (page_no = 0; page_no < num_pages; page_no++) {
+            MVM_free(al->size_classes[bin_no].pages[page_no]);
+        }
+        MVM_free(al->size_classes[bin_no].pages);
+    }
+    uv_mutex_destroy(&(al->complex_alloc_mutex));
+    MVM_free(al->size_classes);
+    MVM_free(al);
+}
+
 /* Determine the bin. If we hit a bin exactly then it's off-by-one,
  * since the bins list is base-0. Otherwise we've some extra bits,
  * which round us up to the next bin, but that's a no-op. */

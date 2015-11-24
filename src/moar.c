@@ -372,6 +372,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->mutex_callsite_interns);
     cleanup_callsite_interns(instance);
 
+    /* Clean up fixed size allocator */
+    MVM_fixed_size_destroy(instance->fsa);
+
     /* Clean up spesh install mutex and close any log. */
     uv_mutex_destroy(&instance->mutex_spesh_install);
     if (instance->spesh_log_fh)
