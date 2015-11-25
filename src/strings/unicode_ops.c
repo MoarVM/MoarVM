@@ -156,7 +156,6 @@ MVMint32 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name
 }
 
 static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
-    /* XXX make this synchronized, I guess... */
     MVMUnicodeNameRegistry **hash_array = MVM_calloc(sizeof(MVMUnicodeNameRegistry *), MVM_NUM_PROPERTY_CODES);
     MVMuint32 index = 0;
     MVMUnicodeNameRegistry *entry = NULL, *binaries = NULL;
@@ -204,9 +203,6 @@ MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 
         char *cname = MVM_string_ascii_encode(tc, name, &size);
         MVMUnicodeNameRegistry *result;
 
-        if (!unicode_property_values_hashes) {
-            generate_unicode_property_values_hashes(tc);
-        }
         HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], cname, strlen((const char *)cname), result);
         MVM_free(cname); /* not really codepoint, really just an index */
         return result ? result->codepoint : 0;
@@ -221,9 +217,6 @@ MVMint32 MVM_unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64
         MVMuint64 size;
         MVMUnicodeNameRegistry *result;
 
-        if (!unicode_property_values_hashes) {
-            generate_unicode_property_values_hashes(tc);
-        }
         HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], cname, cname_length, result);
         return result ? result->codepoint : 0;
     }
@@ -244,4 +237,62 @@ MVMCodepoint MVM_unicode_find_primary_composite(MVMThreadContext *tc, MVMCodepoi
                 return pcs[i + 1];
     }
     return 0;
+}
+
+static uv_mutex_t property_hash_count_mutex;
+static int property_hash_count = 0;
+static uv_once_t property_hash_count_guard = UV_ONCE_INIT;
+
+static void setup_property_mutex(void)
+{
+    uv_mutex_init(&property_hash_count_mutex);
+}
+
+void MVM_unicode_init(MVMThreadContext *tc)
+{
+    uv_once(&property_hash_count_guard, setup_property_mutex);
+
+    uv_mutex_lock(&property_hash_count_mutex);
+    if (property_hash_count == 0) {
+        generate_unicode_property_values_hashes(tc);
+    }
+    property_hash_count++;
+    uv_mutex_unlock(&property_hash_count_mutex);
+}
+
+void MVM_unicode_release(MVMThreadContext *tc)
+{
+    uv_mutex_lock(&property_hash_count_mutex);
+    property_hash_count--;
+    if (property_hash_count == 0) {
+        int i;
+
+        for (i = 0; i < MVM_NUM_PROPERTY_CODES; i++) {
+            MVMUnicodeNameRegistry *entry;
+            MVMUnicodeNameRegistry *tmp;
+            unsigned bucket_tmp;
+            int j;
+
+            if (!unicode_property_values_hashes[i]) {
+                continue;
+            }
+
+            for(j = i + 1; j < MVM_NUM_PROPERTY_CODES; j++) {
+                if (unicode_property_values_hashes[i] == unicode_property_values_hashes[j]) {
+                    unicode_property_values_hashes[j] = NULL;
+                }
+            }
+
+            HASH_ITER(hash_handle, unicode_property_values_hashes[i], entry, tmp, bucket_tmp) {
+                HASH_DELETE(hash_handle, unicode_property_values_hashes[i], entry);
+                MVM_free(entry);
+            }
+            assert(!unicode_property_values_hashes[i]);
+        }
+
+        MVM_free(unicode_property_values_hashes);
+
+        unicode_property_values_hashes = NULL;
+    }
+    uv_mutex_unlock(&property_hash_count_mutex);
 }

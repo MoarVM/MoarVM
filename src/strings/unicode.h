@@ -16,3 +16,6 @@ struct MVMUnicodeNameRegistry {
     MVMGrapheme32 codepoint;
     UT_hash_handle hash_handle;
 };
+
+void MVM_unicode_init(MVMThreadContext *tc);
+void MVM_unicode_release(MVMThreadContext *tc);

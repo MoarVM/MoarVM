@@ -106,6 +106,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up hll symbol tables mutex. */
     init_mutex(instance->mutex_hll_syms, "hll syms");
 
+    /* Initialize Unicode database */
+    MVM_unicode_init(instance->main_thread);
+
     /* Initialize string cclass handling. */
     MVM_string_cclass_init(instance->main_thread);
 
@@ -374,6 +377,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up fixed size allocator */
     MVM_fixed_size_destroy(instance->fsa);
+
+    /* Release this interpreter's hold on Unicode database */
+    MVM_unicode_release(instance->main_thread);
 
     /* Clean up spesh install mutex and close any log. */
     uv_mutex_destroy(&instance->mutex_spesh_install);
