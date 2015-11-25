@@ -104,6 +104,40 @@ void MVM_callsite_destroy(MVMCallsite *cs) {
     MVM_free(cs);
 }
 
+MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
+    MVMCallsite *copy = MVM_malloc(sizeof(MVMCallsite));
+
+    if (cs->flag_count) {
+        copy->arg_flags =  MVM_malloc(cs->flag_count);
+        memcpy(copy->arg_flags, cs->arg_flags, cs->flag_count);
+    }
+
+    if (cs->arg_names) {
+        MVMint32 num_named = MVM_callsite_num_nameds(tc, cs);
+
+        copy->arg_names = MVM_malloc(num_named * sizeof(MVMString *));
+        memcpy(copy->arg_names, cs->arg_names, num_named * sizeof(MVMString *));
+    }
+    else {
+        copy->arg_names = NULL;
+    }
+
+    if (cs->with_invocant) {
+        copy->with_invocant = MVM_callsite_copy(tc, cs->with_invocant);
+    }
+    else {
+        copy->with_invocant = NULL;
+    }
+
+    copy->flag_count = cs->flag_count;
+    copy->arg_count = cs->arg_count;
+    copy->num_pos = cs->num_pos;
+    copy->has_flattening = cs->has_flattening;
+    copy->is_interned = cs->is_interned;
+
+    return copy;
+}
+
 void MVM_callsite_initialize_common(MVMThreadContext *tc) {
     MVMCallsite *ptr;
 

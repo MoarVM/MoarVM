@@ -121,6 +121,8 @@ int MVM_callsite_is_common(MVMCallsite *cs);
 
 void MVM_callsite_destroy(MVMCallsite *cs);
 
+MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs);
+
 /* Callsite interning function. */
 MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
 
