@@ -125,7 +125,7 @@ void MVM_callsite_destroy(MVMCallsite *cs);
 MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
 
 /* Count the number of nameds (excluding flattening). */
-MVM_STATIC_INLINE MVMuint16 MVM_callsite_num_nameds(MVMThreadContext *tc, MVMCallsite *cs) {
+MVM_STATIC_INLINE MVMuint16 MVM_callsite_num_nameds(MVMThreadContext *tc, const MVMCallsite *cs) {
     MVMuint16 i = cs->num_pos;
     MVMuint16 nameds = 0;
     while (i < cs->flag_count) {
