@@ -71,9 +71,9 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     else if (nread == UV_EOF) {
         MVMROOT(tc, t, {
         MVMROOT(tc, arr, {
-            MVMObject *minus_one = MVM_repr_box_int(tc,
-                tc->instance->boot_types.BOOTInt, -1);
-            MVM_repr_push_o(tc, arr, minus_one);
+            MVMObject *final = MVM_repr_box_int(tc,
+                tc->instance->boot_types.BOOTInt, ri->seq_number);
+            MVM_repr_push_o(tc, arr, final);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
         });
