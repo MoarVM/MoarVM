@@ -332,8 +332,8 @@ typedef struct {
     char             **args;
     MVMDecodeStream   *ds_stdout;
     MVMDecodeStream   *ds_stderr;
-    MVMint32           seq_stdout;
-    MVMint32           seq_stderr;
+    MVMuint32          seq_stdout;
+    MVMuint32          seq_stderr;
     uv_stream_t       *stdin_handle;
     ProcessState      state;
 } SpawnInfo;
@@ -700,7 +700,7 @@ static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) 
 
 /* Read functions for stdout/stderr. */
 static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, SpawnInfo *si,
-                       MVMObject *callback, MVMDecodeStream *ds, MVMint32 seq_number) {
+                       MVMObject *callback, MVMDecodeStream *ds, MVMuint32 seq_number) {
     MVMThreadContext *tc  = si->tc;
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
@@ -742,9 +742,9 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
     else if (nread == UV_EOF) {
         MVMROOT(tc, t, {
         MVMROOT(tc, arr, {
-            MVMObject *neg_final = MVM_repr_box_int(tc,
-                tc->instance->boot_types.BOOTInt, -seq_number);
-            MVM_repr_push_o(tc, arr, neg_final);
+            MVMObject *minus_one = MVM_repr_box_int(tc,
+                tc->instance->boot_types.BOOTInt, -1);
+            MVM_repr_push_o(tc, arr, minus_one);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
         });
