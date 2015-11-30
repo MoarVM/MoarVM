@@ -142,6 +142,44 @@ const MVMREPROps * MVMNativeRef_initialize(MVMThreadContext *tc) {
     return &this_repr;
 }
 
+static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMNativeRefREPRData * repr_data = (MVMNativeRefREPRData *)st->REPR_data;
+    MVMuint16              opcode    = ins->info->opcode;
+
+    if (!repr_data)
+        return;
+
+    if (repr_data->ref_kind != MVM_NATIVEREF_REG_OR_LEX)
+        return; /* TODO implement spesh for attribute and positional references */
+
+    switch (opcode) {
+        case MVM_OP_assign_i: {
+            MVMSpeshOperand target   = ins->operands[0];
+            MVMSpeshOperand value    = ins->operands[1];
+            if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_INT)
+                return; /* Shouldn't happen. so maybe throw an error? */
+            ins->info = MVM_op_get_op(MVM_OP_sp_deref_bind_i64);
+            ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0]         = target;
+            ins->operands[1]         = value;
+            ins->operands[2].lit_i64 = offsetof(MVMNativeRef, body.u.reg_or_lex.var);
+            break;
+        }
+        case MVM_OP_decont_i: {
+            MVMSpeshOperand target   = ins->operands[0];
+            MVMSpeshOperand source   = ins->operands[1];
+            if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_INT)
+                return; /* Shouldn't happen. so maybe throw an error? */
+            ins->info = MVM_op_get_op(MVM_OP_sp_deref_get_i64);
+            ins->operands            = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0]         = target;
+            ins->operands[1]         = source;
+            ins->operands[2].lit_i64 = offsetof(MVMNativeRef, body.u.reg_or_lex.var);
+            break;
+        }
+    }
+}
+
 static const MVMREPROps this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
@@ -165,7 +203,7 @@ static const MVMREPROps this_repr = {
     NULL, /* gc_mark_repr_data */
     gc_free_repr_data,
     compose,
-    NULL, /* spesh */
+    spesh, /* spesh */
     "NativeRef", /* name */
     MVM_REPR_ID_NativeRef,
     1, /* refs_frames */
