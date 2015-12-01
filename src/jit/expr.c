@@ -33,14 +33,39 @@ static MVMint32 MVM_jit_expr_add_regaddr(MVMThreadContext *tc, MVMJitExprTree *t
     return num + 1;
 }
 
-static MVMint32 MVM_jit_expr_add_loadreg(MVMThreadContext *tc, MVMJitExprTree *tree,
-                                         MVMuint16 reg) {
+static MVMint32 MVM_jit_expr_add_lexaddr(MVMThreadContext *tc, MVMJitExprTree *tree,
+                                         MVMuint16 outers, MVMuint16 idx) {
+    MVMint32 i;
+    MVMint32 num = tree->nodes_num;
+    /* (frame) as the root */
+    MVM_DYNAR_PUSH(tree->nodes, MVM_JIT_FRAME);
+    for (i = 0; i < outers; i++) {
+        /* (load (addr $val (&offsetof MVMFrame outer)) (&sizeof MVMFrame*)) */
+        MVMJitExprNode template[] = { MVM_JIT_ADDR, num, offsetof(MVMFrame, outer),
+                                      MVM_JIT_LOAD, tree->nodes_num, sizeof(MVMFrame*) };
+        MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+        num = tree->nodes_num - 3;
+    }
+    /* (addr (load (addr $frame (&offsetof MVMFrame env)) ptr_sz) ptr_sz*idx) */
+    {
+        MVMJitExprNode template[] = {
+            MVM_JIT_ADDR, num, offsetof(MVMFrame, env), /* (addr $frame (&offsetof MVMFrame env)) */
+            MVM_JIT_LOAD, tree->nodes_num, MVM_JIT_PTR_SZ, /* (load $addr ptr_sz) */
+            MVM_JIT_ADDR, tree->nodes_num + 3, idx * MVM_JIT_REG_SZ /* (addr $frame_env idx*reg_sz) */
+        };
+        MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+        num = tree->nodes_num - 3;
+    }
+    return num;
+}
+
+
+static MVMint32 MVM_jit_expr_add_load(MVMThreadContext *tc, MVMJitExprTree *tree,
+                                      MVMint32 addr) {
     MVMint32 num        = tree->nodes_num;
-    MVMJitExprNode template[] = { MVM_JIT_LOCAL,
-                                  MVM_JIT_ADDR, num, reg * MVM_JIT_REG_SZ,
-                                  MVM_JIT_LOAD, num + 1, MVM_JIT_REG_SZ };
+    MVMJitExprNode template[] = { MVM_JIT_LOAD, addr, MVM_JIT_REG_SZ };
     MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
-    return num + 4;
+    return num;
 }
 
 
@@ -59,7 +84,6 @@ static MVMint32 MVM_jit_expr_add_cast(MVMThreadContext *tc, MVMJitExprTree *tree
     MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
 }
-
 
 static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tree,
                                        MVMSpeshOperand opr, MVMuint8 info) {
@@ -113,11 +137,25 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
     default:
         MVM_oops(tc, "Can't add constant for operand type %d\n", (info & MVM_operand_type_mask) >> 3);
     }
-
     MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
 }
 
+static MVMint32 can_getlex(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns *ins) {
+    MVMint32 outers = ins->operands[1].lex.outers;
+    MVMint32 idx    = ins->operands[1].lex.idx;
+    MVMStaticFrame *sf = jg->sg->sf;
+    MVMuint16 *lexical_types;
+    MVMint32 i;
+    for (i = 0; i < outers; i++) {
+        sf = sf->body.outer;
+    }
+    /* Use speshed lexical types, if necessary */
+    lexical_types = (outers == 0 && jg->sg->lexical_types != NULL ?
+                     jg->sg->lexical_types : sf->body.lexical_types);
+    /* can't do getlex yet, if we have an object register */
+    return lexical_types[idx] != MVM_reg_obj;
+}
 
 void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMSpeshIns *ins,
                                 MVMint32 *computed, MVMint32 *operands) {
@@ -129,7 +167,8 @@ void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMS
             if (computed[opr.reg.orig] > 0) {
                 operands[i] = computed[opr.reg.orig];
             } else {
-                operands[i] = MVM_jit_expr_add_loadreg(tc, tree, opr.reg.orig);
+                MVMint32 addr = MVM_jit_expr_add_regaddr(tc, tree, opr.reg.orig);
+                operands[i] = MVM_jit_expr_add_load(tc, tree, addr);
                 computed[opr.reg.orig] = operands[i];
             }
             break;
@@ -140,8 +179,16 @@ void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree, MVMS
         case MVM_operand_literal:
             operands[i] = MVM_jit_expr_add_const(tc, tree, opr, ins->info->operands[i]);
             break;
+        case MVM_operand_read_lex:
+        {
+            MVMint32 addr = MVM_jit_expr_add_lexaddr(tc, tree, opr.lex.outers, opr.lex.idx);
+            operands[i] = MVM_jit_expr_add_load(tc, tree, addr);
+            break;
+        }
+        case MVM_operand_write_lex:
+            operands[i] = MVM_jit_expr_add_lexaddr(tc, tree, opr.lex.outers, opr.lex.idx);
+            break;
         default:
-            /* TODO implement readlex and writelex */
             continue;
         }
         if (operands[i] >= tree->nodes_num || operands[i] < 0) {
@@ -173,7 +220,8 @@ static void check_template(MVMThreadContext *tc, const MVMJitExprTemplate *templ
         }
     }
     if (template->info[i])
-        MVM_oops(tc, "JIT: Template info longer than template length (instruction: %s)");
+        MVM_oops(tc, "JIT: Template info longer than template length (instruction: %s)",
+                 ins->info->name);
 }
 
 /* Add template to nodes, filling in operands and linking tree nodes. Return template root */
@@ -509,6 +557,10 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             continue;
         }
 
+        /* check if this is a getlex and if we can handle it */
+        if (opcode == MVM_OP_getlex && !can_getlex(tc, jg, ins)) {
+            goto done;
+        }
         /* Check annotations that require handling before the expression  */
         for (ann = ins->annotations; ann != NULL; ann = ann->next) {
             switch (ann->type) {

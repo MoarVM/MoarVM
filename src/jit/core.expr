@@ -19,6 +19,9 @@
 (template: const_s (load (^cu_string $1) ptr_sz))
 
 (template: set (copy $1))
+(template: getlex (copy $1))
+(template: bindlex (store $0 $1 reg_sz))
+
 (template: add_i (add $1 $2))
 (template: sub_i (sub $1 $2))
 (template: inc_i (add (load $0 int_sz) (const 1 int_sz)))

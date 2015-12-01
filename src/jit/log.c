@@ -81,10 +81,10 @@ static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *trave
     MVMint32 i;
     fprintf(graph_file, "  n_%04d [label=\"%s\"];\n", node, op_info->name);
     for (i = 0; i < nchild; i++) {
-        fprintf(graph_file, "    n_%04d -> n_%04d;\n", node, tree->nodes[first_child+i]);
+        fprintf(graph_file, "    n_%04d -> n_%04d;\n", node, (MVMint32)tree->nodes[first_child+i]);
     }
     for (i = 0; i < op_info->nargs; i++) {
-        fprintf(graph_file, "  n_%04d_a_%d [label=%d];\n", node, i, tree->nodes[first_arg+i]);
+        fprintf(graph_file, "  n_%04d_a_%d [label=%ld];\n", node, i, tree->nodes[first_arg+i]);
         fprintf(graph_file, "    n_%04d -> n_%04d_a_%d;\n", node, node, i);
     }
 }
