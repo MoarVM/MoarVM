@@ -80,7 +80,7 @@ MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMi
     else if (strcmp(ctypename, "cppstruct") == 0)
         result = MVM_NATIVECALL_ARG_CPPSTRUCT;
     else if (strcmp(ctypename, "cpointer") == 0)
-        result = MVM_NATIVECALL_ARG_CPOINTER;
+        result = MVM_NATIVECALL_ARG_CPOINTER | get_rw_flag(tc, info);
     else if (strcmp(ctypename, "carray") == 0)
         result = MVM_NATIVECALL_ARG_CARRAY;
     else if (strcmp(ctypename, "cunion") == 0)

@@ -494,8 +494,15 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 *(void **)values[i] = MVM_nativecall_unmarshal_cstruct(tc, value);
                 break;
             case MVM_NATIVECALL_ARG_CPOINTER:
-                values[i]           = MVM_malloc(sizeof(void *));
-                *(void **)values[i] = MVM_nativecall_unmarshal_cpointer(tc, value);
+                if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
+                    values[i]                     = MVM_malloc(sizeof(void *));
+                    *(void **)values[i]           = MVM_malloc(sizeof(void *));
+                    *(void **)*(void **)values[i] = (void *)MVM_nativecall_unmarshal_cpointer(tc, value);
+                }
+                else {
+                    values[i]           = MVM_malloc(sizeof(void *));
+                    *(void **)values[i] = MVM_nativecall_unmarshal_cpointer(tc, value);
+                }
                 break;
             case MVM_NATIVECALL_ARG_CARRAY:
                 values[i]           = MVM_malloc(sizeof(void *));
@@ -701,6 +708,10 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 case MVM_NATIVECALL_ARG_ULONGLONG:
                     MVM_6model_container_assign_i(tc, value, (MVMint64)*(unsigned long long *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_CPOINTER:
+                    REPR(value)->box_funcs.set_int(tc, STABLE(value), value, OBJECT_BODY(value),
+                        (MVMint64)*(void **)*(void **)values[i]);
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled libffi argument type");
