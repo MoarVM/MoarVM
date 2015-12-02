@@ -501,9 +501,9 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
     MVMJitExprNodeInfo *info = &tree->info[node];
     const MVMJitTile *tile   = info->tile;
     MVMJitExprValue *values[8];
+    MVMJitExprNode     args[8];
     MVMint32 first_child = node + 1;
     MVMint32 nchild = info->op_info->nchild < 0 ? tree->nodes[first_child++] : info->op_info->nchild;
-    MVMJitExprNode *args = tree->nodes + first_child + nchild;
     MVMint32 i;
 
     /* Increment order nr - must follow the same convention as in tile.c:select_values */
@@ -513,15 +513,15 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
     switch (tree->nodes[node]) {
     case MVM_JIT_CALL:
         /* we should have a tile */
-        if (tile == NULL || tile->rule == NULL) {
-            MVM_oops(tc, "Tile without a rule!");
+        if (tile == NULL || tile->emit == NULL) {
+            MVM_oops(tc, "Tile without a emit function!");
         }
         /* pre call we should store all values */
         pre_call(tc, cl, tree, node);
         /* Emit call */
-        MVM_jit_tile_get_values(tc, tree, node, tile->path, values+1);
-        ensure_values(tc, cl, values+1, tile->num_values);
-        tile->rule(tc, cl, tree, node, values, args);
+        MVM_jit_tile_get_values(tc, tree, node, tile->path, tile->regs, values+1, args);
+        ensure_values(tc, cl, values+1, tile->nvals);
+        tile->emit(tc, cl, tree, node, values, args);
 
         /* Update return value */
         if (args[0] == MVM_JIT_NUM) {
@@ -581,22 +581,23 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
     case MVM_JIT_TC:
     case MVM_JIT_CU:
     case MVM_JIT_STACK:
-        if (tile->rule == NULL)
+        if (tile->emit == NULL)
             return;
-        tile->rule(tc, cl, tree, node, values, args);
+        tile->emit(tc, cl, tree, node, values, args);
         break;
     default:
         {
-            if (tile->rule == NULL)
+            if (tile->emit == NULL)
                 /* Empty tile rule */
                 return;
+
             /* Extract value pointers from the tree */
-            MVM_jit_tile_get_values(tc, tree, node, tile->path, values+1);
-            ensure_values(tc, cl, values+1, tile->num_values);
+            MVM_jit_tile_get_values(tc, tree, node, tile->path, tile->regs, values+1, args);
+            ensure_values(tc, cl, values+1, tile->nvals);
 
             if (tile->vtype == MVM_JIT_REG) {
                 /* allocate a register for the result */
-                if (tile->num_values > 0 &&
+                if (tile->nvals > 0 &&
                     values[1]->type == MVM_JIT_REG &&
                     values[1]->state == MVM_JIT_VALUE_ALLOCATED &&
                     values[1]->last_use == cl->order_nr) {
@@ -609,9 +610,9 @@ static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, M
             }
             values[0]->type = tile->vtype;
             /* Emit code */
-            tile->rule(tc, cl, tree, node, values, args);
+            tile->emit(tc, cl, tree, node, values, args);
             /* Release registers from use */
-            for (i = 0; i < tile->num_values + 1; i++) {
+            for (i = 0; i < tile->nvals + 1; i++) {
                 if (values[i]->type == MVM_JIT_REG) {
                     release_value(tc, cl, values[i]);
                 }

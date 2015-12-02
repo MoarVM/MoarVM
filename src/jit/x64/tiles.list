@@ -17,57 +17,57 @@
 # MEMORY TRAFFIC
 #
 
-(tile: addr  (addr reg) reg 2)
-(tile: idx   (idx reg reg) reg 2)
-(tile: const_reg (const) reg 2)
-(tile: load_reg  (load reg) reg 5)
-(tile: load_addr (load (addr reg)) reg 5)
-(tile: load_idx  (load (idx reg reg)) reg 5)
+(tile: addr  (addr reg $ofs) reg 2)
+(tile: idx   (idx reg reg $scl) reg 2)
+(tile: const_reg (const $val $size) reg 2)
+(tile: load_reg  (load reg $size) reg 5)
+(tile: load_addr (load (addr reg $ofs) $size) reg 5)
+(tile: load_idx  (load (idx reg reg $scale) $size) reg 5)
 
-(tile: store (store reg reg) void 5)
-(tile: store_addr (store (addr reg) reg) void 5)
-(tile: store_idx  (store (idx reg reg) reg) void 5)
+(tile: store (store reg reg $size) void 5)
+(tile: store_addr (store (addr reg $ofs) reg $size) void 5)
+(tile: store_idx  (store (idx reg reg $scl) reg $size) void 5)
 
 (tile: copy      (copy reg) reg 1)
 
-(tile: cast           (cast reg) reg 2)
-(tile: cast_load_addr (cast (load (addr reg))) reg 5)
+(tile: cast           (cast reg $size $signed) reg 2)
+(tile: cast_load_addr (cast (load (addr reg $ofs) $src_sz) $dst_size $signed) reg 5)
 
 #
 # ARITHMETIC
 #
 
 (tile: add_reg       (add reg reg) reg 2)
-(tile: add_const     (add reg (const)) reg 3)
-(tile: add_load_addr (add reg (load (addr reg))) reg 6)
-(tile: add_load_idx  (add reg (load (idx reg reg))) reg 6)
+(tile: add_const     (add reg (const $val $size)) reg 3)
+(tile: add_load_addr (add reg (load (addr reg $ofs) $sz)) reg 6)
+(tile: add_load_idx  (add reg (load (idx reg reg $scale) $size)) reg 6)
 
 (tile: and_reg       (and reg reg) reg 2)
-(tile: and_const     (and reg (const)) reg 3)
-(tile: and_load_addr (and reg (load (addr reg))) reg 6)
-(tile: and_load_idx  (and reg (load (idx reg reg))) reg 6)
+(tile: and_const     (and reg (const $val $size)) reg 3)
+(tile: and_load_addr (and reg (load (andr reg $ofs) $sz)) reg 6)
+(tile: and_load_idx  (and reg (load (idx reg reg $scale) $size)) reg 6)
 
 (tile: sub_reg       (sub reg reg) reg 2)
-(tile: sub_const     (sub reg (const)) reg 3)
-(tile: sub_load_addr (sub reg (load (addr reg))) reg 6)
-(tile: sub_load_idx  (sub reg (load (idx reg reg))) reg 6)
+(tile: sub_const     (sub reg (const $val $size)) reg 3)
+(tile: sub_load_addr (sub reg (load (subr reg $ofs) $sz)) reg 6)
+(tile: sub_load_idx  (sub reg (load (idx reg reg $scale) $size)) reg 6)
 
 
 #
 # Tests and Comparinsons
 #
 (tile: nz      (nz reg) flag 2)
-(tile: nz_addr (nz (load (addr reg))) flag 6)
-(tile: nz_idx  (nz (load (idx reg reg))) flag 6)
+(tile: nz_addr (nz (load (addr reg $ofs) $size)) flag 6)
+(tile: nz_idx  (nz (load (idx reg reg $scl) $size)) flag 6)
 (tile: nz_and  (nz (and reg reg)) flag 2)
 (tile: zr      (zr reg) flag 2)
 
-(tile: equal (eq reg reg) flag 2)
-(tile: lthan (lt reg reg) flag 2)
-(tile: gthan (gt reg reg) flag 2)
-(tile: nequal (ne reg reg) flag 2)
-(tile: lequal (le reg reg) flag 2)
-(tile: gequal (ge reg reg) flag 2)
+(tile: cmp (eq reg reg) flag 2)
+(tile: cmp (lt reg reg) flag 2)
+(tile: cmp (gt reg reg) flag 2)
+(tile: cmp (ne reg reg) flag 2)
+(tile: cmp (le reg reg) flag 2)
+(tile: cmp (ge reg reg) flag 2)
 
 #
 # CONTROL STATEMENTS
@@ -79,14 +79,14 @@
 (tile: do_reg  (do void reg) reg 0)
 (tile: do_void (do void void) void 0)
 
-(tile: label   (label (const)) reg 2)
+(tile: label   (label (const $val)) reg 2)
+(tile: branch_label (branch (label (const $val))) void 2)
 
-(tile: branch_label (branch (label (const))) void 2)
-
-(tile: call_func (call (const) (arglist (carg reg))) reg 4)
-(tile: call_func (call (const) (arglist (carg reg))) void 4)
 (tile: call      (call reg (arglist (carg reg))) reg 4)
 (tile: call      (call reg (arglist (carg reg))) void 4)
 
-(tile: call_addr (call (load (addr reg)) (arglist (carg reg))) reg 4)
-(tile: call_addr (call (load (addr reg)) (arglist (carg reg))) reg 4)
+(tile: call_func (call (const $ptr) (arglist (carg reg))) reg 4)
+(tile: call_func (call (const $ptr) (arglist (carg reg))) void 4)
+
+(tile: call_addr (call (load (addr reg $ofs)) (arglist (carg reg))) reg 4)
+(tile: call_addr (call (load (addr reg $ofs)) (arglist (carg reg))) void 4)

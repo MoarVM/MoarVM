@@ -59,12 +59,7 @@ MVM_JIT_TILE_DECL(when);
 MVM_JIT_TILE_DECL(label);
 MVM_JIT_TILE_DECL(branch_label);
 
-MVM_JIT_TILE_DECL(equal);
-MVM_JIT_TILE_DECL(lthan);
-MVM_JIT_TILE_DECL(gthan);
-MVM_JIT_TILE_DECL(nequal);
-MVM_JIT_TILE_DECL(lequal);
-MVM_JIT_TILE_DECL(gequal);
+MVM_JIT_TILE_DECL(cmp);
 
 MVM_JIT_TILE_DECL(call);
 MVM_JIT_TILE_DECL(call_func);

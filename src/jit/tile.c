@@ -97,14 +97,14 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 
 
 static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
-                            MVMJitExprNode node, MVMint32 tile_rule) {
-    const MVMJitTile *tile = &MVM_jit_tile_table[tile_rule];
-    if (tile_rule > (sizeof(MVM_jit_tile_table)/sizeof(MVM_jit_tile_table[0])))
-        MVM_oops(tc, "What, trying to assign tile rule %d\n", tile_rule);
+                            MVMJitExprNode node, MVMint32 rule_nr) {
+    const MVMJitTile *tile = &MVM_jit_tile_rules[rule_nr];
+    if (rule_nr > (sizeof(MVM_jit_tile_rules)/sizeof(MVM_jit_tile_rules[0])))
+        MVM_oops(tc, "Attempt to assign invalid tile rule %d\n", rule_nr);
     if (tree->info[node].tile == NULL || tree->info[node].tile == tile ||
         memcmp(tile, tree->info[node].tile, sizeof(MVMJitTile)) == 0) {
         /* happy case, no conflict */
-        tree->info[node].tile_rule = tile_rule;
+        tree->info[node].tile_rule = rule_nr;
         tree->info[node].tile      = tile;
         return node;
     } else {
@@ -123,7 +123,7 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
         MVM_DYNAR_ENSURE_SIZE(tree->info, num);
         memcpy(tree->info + num, tree->info + node, sizeof(MVMJitExprNodeInfo));
         /* Assign the new tile */
-        tree->info[num].tile_rule = tile_rule;
+        tree->info[num].tile_rule = rule_nr;
         tree->info[num].tile      = tile;
         /* Return reference to new node */
         return num;
@@ -214,12 +214,14 @@ static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                           MVMJitExprTree *tree, MVMint32 node) {
     const MVMJitTile *tile = tree->info[node].tile;
     MVMJitExprValue *values[16], *cur_value = &tree->info[node].value;
+    MVMJitExprNode args[8];
     MVMint32 *order_nr = traverser->data;
     MVMint32 i, num_values;
     /* pre-increment order nr  */
     (*order_nr)++;
     /* Log tile for debugging */
-    MVM_jit_log(tc, "%04d/%04d: %s\n", (*order_nr), node, tile->descr);
+    if (tile->expr)
+        MVM_jit_log(tc, "%04d/%04d: %s\n", (*order_nr), node, tile->expr);
 
     /* Minimum number of registers required is given by tile */
     /* cur_value->reg_req =  tile->reg_req; */
@@ -244,8 +246,8 @@ static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         if (tile->path == NULL)
             return;
         cur_value->first_created = (*order_nr);
-        MVM_jit_tile_get_values(tc, tree, node, tile->path, values);
-        num_values = tile->num_values;
+        MVM_jit_tile_get_values(tc, tree, node, tile->path, tile->regs, values, args);
+        num_values = tile->nvals;
         break;
     }
 
@@ -254,7 +256,6 @@ static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     for (i = 0; i < num_values; i++) {
         values[i]->last_use  = MAX(values[i]->last_use, (*order_nr));
         values[i]->num_use++;
-        /* cur_value->reg_req   = MAX(values[i]->reg_req, cur_value->reg_req); */
     }
 }
 
@@ -281,17 +282,24 @@ void MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
 }
 
 #define FIRST_CHILD(t,x) (t->info[x].op_info->nchild < 0 ? x + 2 : x + 1)
-/* Get input for a tile rule, write into values */
-void MVM_jit_tile_get_values(MVMThreadContext *tc, MVMJitExprTree *tree,
-                             MVMint32 node, const MVMint8 *path,
-                             MVMJitExprValue **values) {
-    while (*path > 0) {
-        MVMint32 cur_node = node;
+/* Get input for a tile rule, write into values and args */
+void MVM_jit_tile_get_values(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node,
+                             const MVMint8 *path, MVMint32 regs,
+                             MVMJitExprValue **values, MVMJitExprNode *args) {
+    while (*path) {
+        MVMJitExprNode cur_node = node;
         do {
             MVMint32 first_child = FIRST_CHILD(tree, cur_node) - 1;
-            cur_node = tree->nodes[first_child+*path++];
-        } while (*path > 0);
-        *values++ = &tree->info[cur_node].value;
+            MVMint32 child_nr    = *path++ - '0';
+            cur_node = tree->nodes[first_child+child_nr];
+        } while (*path != '.');
+        /* regs nodes go to values, others to args */
+        if (regs & 1) {
+            *values++ = &tree->info[cur_node].value;
+        } else {
+            *args++ = cur_node;
+        }
+        regs >>= 1;
         path++;
     }
 }
