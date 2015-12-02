@@ -84,7 +84,11 @@ MVMFrame * MVM_frame_inc_ref(MVMThreadContext *tc, MVMFrame *frame) {
  * the stack top. If there's a chance it may be referenced only by an object,
  * use MVM_frame_acquire_ref to avoid races. */
 MVMFrame * MVM_frame_inc_ref_by_frame(MVMThreadContext *tc, MVMFrame *frame) {
-    MVM_incr(&frame->ref_count);
+    if (!MVM_instance_have_user_threads(tc)) {
+        frame->ref_count += 1;
+    } else {
+        MVM_incr(&frame->ref_count);
+    }
     return frame;
 }
 
@@ -107,12 +111,20 @@ MVMFrame * MVM_frame_acquire_ref(MVMThreadContext *tc, MVMFrame **frame) {
     }
 }
 
+MVM_STATIC_INLINE int try_decrease_ref_count_to_zero(MVMThreadContext *tc, MVMFrame *frame) {
+    if (MVM_instance_have_user_threads(tc)) {
+        return (frame->ref_count -= 1) == 0;
+    } else {
+        /* MVM_dec returns what the count was before it decremented it
+         * to zero, so we look for 1 here. */
+        return MVM_decr(&frame->ref_count) == 1;
+    }
+}
+
 /* Decreases the reference count of a frame. If it hits zero, then we can
  * free it. Returns null for convenience. */
 MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
-    /* MVM_dec returns what the count was before it decremented it
-     * to zero, so we look for 1 here. */
-    while (MVM_decr(&frame->ref_count) == 1) {
+    while (try_decrease_ref_count_to_zero(tc, frame)) {
         MVMFrame *outer_to_decr = frame->outer;
 
         /* If there's a caller pointer, decrement that. */
