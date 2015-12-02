@@ -1467,6 +1467,10 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_sp_get_n:
     case MVM_OP_sp_get_s:
     case MVM_OP_sp_get_o:
+    case MVM_OP_sp_deref_bind_i64:
+    case MVM_OP_sp_deref_bind_n:
+    case MVM_OP_sp_deref_get_i64:
+    case MVM_OP_sp_deref_get_n:
     case MVM_OP_set:
     case MVM_OP_getlex:
     case MVM_OP_getlex_no:

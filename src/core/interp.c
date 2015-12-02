@@ -5116,6 +5116,34 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_deref_get_i64): {
+                MVMObject *o      = GET_REG(cur_op, 2).o;
+                MVMint64 **target = ((MVMint64 **)((char *)o + GET_UI16(cur_op, 4)));
+                GET_REG(cur_op, 0).i64 = **target;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_deref_get_n): {
+                MVMObject *o      = GET_REG(cur_op, 2).o;
+                MVMnum64 **target = ((MVMnum64 **)((char *)o + GET_UI16(cur_op, 4)));
+                GET_REG(cur_op, 0).n64 = **target;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_deref_bind_i64): {
+                MVMObject *o      = GET_REG(cur_op, 0).o;
+                MVMint64 **target = ((MVMint64 **)((char *)o + GET_UI16(cur_op, 4)));
+                **target          = GET_REG(cur_op, 2).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_deref_bind_n): {
+                MVMObject *o      = GET_REG(cur_op, 0).o;
+                MVMnum64 **target = ((MVMnum64 **)((char *)o + GET_UI16(cur_op, 4)));
+                **target          = GET_REG(cur_op, 2).n64;
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_jit_enter): {
                 if (tc->cur_frame->spesh_cand->jitcode == NULL) {
                     MVM_exception_throw_adhoc(tc, "Try to enter NULL jitcode");

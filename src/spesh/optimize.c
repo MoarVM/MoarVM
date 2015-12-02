@@ -1509,6 +1509,8 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_bindattrs_n:
         case MVM_OP_bindattrs_s:
         case MVM_OP_bindattrs_o:
+        case MVM_OP_assign_i:
+        case MVM_OP_assign_n:
             optimize_repr_op(tc, g, bb, ins, 0);
             break;
         case MVM_OP_atpos_i:
@@ -1538,6 +1540,8 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_getattrs_n:
         case MVM_OP_getattrs_s:
         case MVM_OP_getattrs_o:
+        case MVM_OP_decont_i:
+        case MVM_OP_decont_n:
         case MVM_OP_create:
             optimize_repr_op(tc, g, bb, ins, 1);
             break;
