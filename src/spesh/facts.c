@@ -275,39 +275,59 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MV
     /* Produce a guard op and set facts. */
     if (stable_cont) {
         MVMSpeshOperand reg  = ins->operands[0];
+        MVMContainerSpec *cs = STABLE(stable_cont)->container_spec;
         facts                = &g->facts[reg.reg.orig][reg.reg.i];
         facts->type          = STABLE(stable_cont)->WHAT;
         facts->flags        |= (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE |
                                MVM_SPESH_FACT_KNOWN_DECONT_TYPE);
         facts->decont_type   = STABLE(stable_value)->WHAT;
-        if (STABLE(stable_cont)->container_spec->can_store(tc, stable_cont)) {
-            /* We could do stability testing on rw-ness too, but it's quite
-             * unlikely we'll have codepaths with a mix of readable and
-             * writable containers. */
+
+        /* If this is a native container, we get away with testing
+         * against the STABLE only, as the NativeRef REPR has all
+         * interesting values in its REPRData. */
+        if (cs->can_store(tc, stable_cont) &&
+                (MVM_6model_container_iscont_i(tc, stable_cont) ||
+                MVM_6model_container_iscont_n(tc, stable_cont) ||
+                MVM_6model_container_iscont_s(tc, stable_cont))) {
+            facts         = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
+            /*facts->type   = STABLE(stable_value)->WHAT;*/
             facts->flags |= MVM_SPESH_FACT_RW_CONT;
-            if (IS_CONCRETE(stable_value)) {
-                facts->flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
-                ins->info = MVM_op_get_op(MVM_OP_sp_guardrwconc);
+
+            ins->info = MVM_op_get_op(MVM_OP_sp_guardconc);
+
+            ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+            ins->operands[0] = reg;
+            ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)STABLE(stable_cont));
+        } else {
+            if (cs->can_store(tc, stable_cont)) {
+                /* We could do stability testing on rw-ness too, but it's quite
+                 * unlikely we'll have codepaths with a mix of readable and
+                 * writable containers. */
+                facts->flags |= MVM_SPESH_FACT_RW_CONT;
+                if (IS_CONCRETE(stable_value)) {
+                    facts->flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
+                    ins->info = MVM_op_get_op(MVM_OP_sp_guardrwconc);
+                }
+                else {
+                    facts->flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
+                    ins->info = MVM_op_get_op(MVM_OP_sp_guardrwtype);
+                }
             }
             else {
-                facts->flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
-                ins->info = MVM_op_get_op(MVM_OP_sp_guardrwtype);
+                if (IS_CONCRETE(stable_value)) {
+                    facts->flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
+                    ins->info = MVM_op_get_op(MVM_OP_sp_guardcontconc);
+                }
+                else {
+                    facts->flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
+                    ins->info = MVM_op_get_op(MVM_OP_sp_guardconttype);
+                }
             }
+            ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0] = reg;
+            ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)STABLE(stable_cont));
+            ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)STABLE(stable_value));
         }
-        else {
-            if (IS_CONCRETE(stable_value)) {
-                facts->flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
-                ins->info = MVM_op_get_op(MVM_OP_sp_guardcontconc);
-            }
-            else {
-                facts->flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
-                ins->info = MVM_op_get_op(MVM_OP_sp_guardconttype);
-            }
-        }
-        ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-        ins->operands[0] = reg;
-        ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)STABLE(stable_cont));
-        ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)STABLE(stable_value));
     }
     else {
         facts         = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
