@@ -1496,16 +1496,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(ordfirst): {
-                MVMString *s = GET_REG(cur_op, 2).s;
-                MVMGrapheme32 g = MVM_string_get_grapheme_at(tc, s, 0);
-                GET_REG(cur_op, 0).i64 = g >= 0 ? g : MVM_nfg_get_synthetic_info(tc, g)->base;
+                GET_REG(cur_op, 0).i64 = MVM_string_ord_at(tc, GET_REG(cur_op, 2).s, 0);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(ordat): {
-                MVMString *s = GET_REG(cur_op, 2).s;
-                MVMGrapheme32 g = MVM_string_get_grapheme_at(tc, s, GET_REG(cur_op, 4).i64);
-                GET_REG(cur_op, 0).i64 = g >= 0 ? g : MVM_nfg_get_synthetic_info(tc, g)->base;
+                GET_REG(cur_op, 0).i64 = MVM_string_ord_at(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
             }
