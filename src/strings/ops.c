@@ -540,9 +540,19 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *a, MVM
 }
 
 MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
-    MVMGrapheme32 g = MVM_string_get_grapheme_at(tc, s, offset);
+    MVMStringIndex agraphs;
+    MVMGrapheme32 g;
     MVMNormalizer norm;
     MVMint32 ready;
+
+    MVM_string_check_arg(tc, s, "grapheme_at");
+
+    agraphs = MVM_string_graphs(tc, s);
+    if (offset > agraphs)
+	return -1;  /* not clear whether this is best approach but fixes RT #126771 */
+
+    g = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
+
     if (g < 0) {
 	MVMNFGSynthetic *si = MVM_nfg_get_synthetic_info(tc, g);
 	g = si->base;
