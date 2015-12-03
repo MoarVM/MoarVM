@@ -548,7 +548,7 @@ MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVM
     MVM_string_check_arg(tc, s, "grapheme_at");
 
     agraphs = MVM_string_graphs(tc, s);
-    if (offset > agraphs)
+    if (offset < 0 || offset >= agraphs)
 	return -1;  /* not clear whether this is best approach but fixes RT #126771 */
 
     g = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
