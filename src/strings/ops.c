@@ -543,11 +543,18 @@ MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVM
     MVMGrapheme32 g = MVM_string_get_grapheme_at(tc, s, offset);
     MVMNormalizer norm;
     MVMint32 ready;
-    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
-    ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, g, &g);
-    MVM_unicode_normalizer_eof(tc, &norm);
-    if (!ready)
-        g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+    if (g < 0) {
+	MVMNFGSynthetic *si = MVM_nfg_get_synthetic_info(tc, g);
+	g = si->base;
+    }
+    else {
+	MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
+	ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, g, &g);
+	MVM_unicode_normalizer_eof(tc, &norm);
+	if (!ready)
+	    g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+    }
+
     return g;
 }
 
