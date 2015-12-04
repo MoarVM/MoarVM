@@ -85,7 +85,7 @@ MVMuint16 MVM_cu_callsite_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMCallsite
         idx = cu->body.num_callsites;
         cu->body.callsites = MVM_realloc(cu->body.callsites,
             (idx + 1) * sizeof(MVMCallsite *));
-        cu->body.callsites[idx] = cs;
+        cu->body.callsites[idx] = MVM_callsite_copy(tc, cs);
         cu->body.num_callsites++;
     }
 

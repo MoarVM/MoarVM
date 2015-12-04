@@ -105,7 +105,8 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
     MVMuint16 *result_pos;
     MVMCodepointIter ci;
     MVMuint8 *repl_bytes = NULL;
-    MVMuint64 repl_length;
+    MVMuint64 repl_length = 0;
+    MVMint32 alloc_size;
 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
@@ -116,12 +117,34 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
     if (replacement)
         repl_bytes = MVM_string_utf16_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);
 
-    /* Kke the result grow as needed instead of allocating so much to start? */
-    result = MVM_malloc(lengthu * 4 + 2);
+    alloc_size = lengthu * 2;
+    result = MVM_malloc(alloc_size + 2);
     result_pos = result;
     MVM_string_ci_init(tc, &ci, str);
     while (MVM_string_ci_has_more(tc, &ci)) {
+        int bytes_needed;
         MVMCodepoint value = MVM_string_ci_get_codepoint(tc, &ci);
+
+        if (value < 0x10000) {
+            bytes_needed = 2;
+        }
+        else if (value <= 0x1FFFFF) {
+            bytes_needed = 4;
+        }
+        else {
+            bytes_needed = repl_length;
+        }
+
+        while ((alloc_size - 2 * (result_pos - result)) < bytes_needed) {
+            MVMuint16 *new_result;
+
+            alloc_size *= 2;
+            new_result  = MVM_realloc(result, alloc_size + 2);
+
+            result_pos = new_result + (result_pos - result);
+            result     = new_result;
+        }
+
         if (value < 0x10000) {
             result_pos[0] = value;
             result_pos++;
@@ -133,7 +156,6 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
             result_pos += 2;
         }
         else if (replacement) {
-            /* XXX: May overflow */
             memcpy(result_pos, repl_bytes, repl_length);
             result_pos += repl_length/2;
         }
@@ -148,6 +170,7 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
     result_pos[0] = 0;
     if (output_size)
         *output_size = (char *)result_pos - (char *)result;
+    result = MVM_realloc(result, *output_size);
     MVM_free(repl_bytes);
     return (char *)result;
 }

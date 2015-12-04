@@ -117,11 +117,17 @@ void MVM_callsite_initialize_common(MVMThreadContext *tc);
 /* Get any of the "common" callsites */
 MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id);
 
+int MVM_callsite_is_common(MVMCallsite *cs);
+
+void MVM_callsite_destroy(MVMCallsite *cs);
+
+MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs);
+
 /* Callsite interning function. */
 MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
 
 /* Count the number of nameds (excluding flattening). */
-MVM_STATIC_INLINE MVMuint16 MVM_callsite_num_nameds(MVMThreadContext *tc, MVMCallsite *cs) {
+MVM_STATIC_INLINE MVMuint16 MVM_callsite_num_nameds(MVMThreadContext *tc, const MVMCallsite *cs) {
     MVMuint16 i = cs->num_pos;
     MVMuint16 nameds = 0;
     while (i < cs->flag_count) {

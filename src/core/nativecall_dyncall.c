@@ -524,7 +524,18 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 }
                 break;
             case MVM_NATIVECALL_ARG_CPOINTER:
-                dcArgPointer(vm, MVM_nativecall_unmarshal_cpointer(tc, value));
+                if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
+                    DCpointer *rw = (DCpointer *)MVM_malloc(sizeof(DCpointer *));
+                    *rw           = (DCpointer)MVM_nativecall_unmarshal_cpointer(tc, value);
+                    if (!free_rws)
+                        free_rws = (void **)MVM_malloc(num_args * sizeof(void *));
+                    free_rws[num_rws] = rw;
+                    num_rws++;
+                    dcArgPointer(vm, rw);
+                }
+                else {
+                    dcArgPointer(vm, MVM_nativecall_unmarshal_cpointer(tc, value));
+                }
                 break;
             case MVM_NATIVECALL_ARG_CARRAY:
                 dcArgPointer(vm, MVM_nativecall_unmarshal_carray(tc, value));
@@ -682,6 +693,10 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 case MVM_NATIVECALL_ARG_ULONGLONG:
                     MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCulonglong *)free_rws[num_rws]);
+                    break;
+                case MVM_NATIVECALL_ARG_CPOINTER:
+                    REPR(value)->box_funcs.set_int(tc, STABLE(value), value, OBJECT_BODY(value),
+                        (MVMint64)*(DCpointer *)free_rws[num_rws]);
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall argument type");

@@ -11,7 +11,7 @@
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
 #define CURRENT_VERSION 16
-#define MIN_VERSION     15
+#define MIN_VERSION     16
 
 /* Various sizes (in bytes). */
 #define HEADER_SIZE                 (4 * 18)
@@ -1602,21 +1602,15 @@ MVMnum64 MVM_serialization_read_num(MVMThreadContext *tc, MVMSerializationReader
 MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint32 offset;
 
-    if (reader->root.version <= 15) {
-        assert_can_read(tc, reader, 4);
-        offset = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-        *(reader->cur_read_offset) += 4;
-    } else {
+    assert_can_read(tc, reader, 2);
+    offset = read_uint16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 2;
+    if (offset & STRING_HEAP_LOC_PACKED_OVERFLOW) {
         assert_can_read(tc, reader, 2);
-        offset = read_uint16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        offset ^= STRING_HEAP_LOC_PACKED_OVERFLOW;
+        offset <<= STRING_HEAP_LOC_PACKED_SHIFT;
+        offset |= read_uint16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
         *(reader->cur_read_offset) += 2;
-        if (offset & STRING_HEAP_LOC_PACKED_OVERFLOW) {
-            assert_can_read(tc, reader, 2);
-            offset ^= STRING_HEAP_LOC_PACKED_OVERFLOW;
-            offset <<= STRING_HEAP_LOC_PACKED_SHIFT;
-            offset |= read_uint16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-            *(reader->cur_read_offset) += 2;
-        }
     }
     return read_string_from_heap(tc, reader, offset);
 }
@@ -1669,13 +1663,7 @@ static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *
     MVMint32 elems, i;
 
     /* Read the element count. */
-    if (reader->root.version <= 15) {
-        assert_can_read(tc, reader, 4);
-        elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-        *(reader->cur_read_offset) += 4;
-    } else {
-        elems = MVM_serialization_read_varint(tc, reader);
-    }
+    elems = MVM_serialization_read_varint(tc, reader);
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++)
@@ -2285,19 +2273,14 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
         for (i = 0; i < elems; i++) {
             MVMuint32 packed;
             MVMuint8 inner_discrim;
+            MVMint32 offset;
             /* Skip string. */
-            if (reader->root.version <= 15) {
-                assert_can_read(tc, reader, 4);
-                *(reader->cur_read_offset) += 4;
-            } else {
-                MVMint32 offset;
+            assert_can_read(tc, reader, 2);
+            offset = read_uint16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+            *(reader->cur_read_offset) += 2;
+            if (offset & STRING_HEAP_LOC_PACKED_OVERFLOW) {
                 assert_can_read(tc, reader, 2);
-                offset = read_uint16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
                 *(reader->cur_read_offset) += 2;
-                if (offset & STRING_HEAP_LOC_PACKED_OVERFLOW) {
-                    assert_can_read(tc, reader, 2);
-                    *(reader->cur_read_offset) += 2;
-                }
             }
 
             /* Ensure we've a coderef or code object. */
@@ -2388,6 +2371,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
     MVMString *hll_name;
     MVMuint8 flags;
+    MVMuint8 mode;
 
     /* Set STable read position, and set current read buffer to the correct thing. */
     reader->stables_data_offset = read_int32(st_table_row, 4);
@@ -2404,11 +2388,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     deserialize_method_cache_lazy(tc, st, reader);
 
     /* Type check cache. */
-    if (reader->root.version <= 15) {
-        st->type_check_cache_length = MVM_serialization_read_int(tc, reader);
-    } else {
-        st->type_check_cache_length = MVM_serialization_read_varint(tc, reader);
-    }
+    st->type_check_cache_length = MVM_serialization_read_varint(tc, reader);
     if (st->type_check_cache_length > 0) {
         st->type_check_cache = (MVMObject **)MVM_malloc(st->type_check_cache_length * sizeof(MVMObject *));
         for (i = 0; i < st->type_check_cache_length; i++)
@@ -2416,40 +2396,26 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     }
 
     /* Mode flags. */
-    if (reader->root.version <= 15) {
-        st->mode_flags = MVM_serialization_read_int(tc, reader);
-    } else {
-        assert_can_read(tc, reader, 1);
-        st->mode_flags = *(*(reader->cur_read_buffer) + *(reader->cur_read_offset));
-        *(reader->cur_read_offset) += 1;
-    }
+    assert_can_read(tc, reader, 1);
+    st->mode_flags = *(*(reader->cur_read_buffer) + *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 1;
     if (st->mode_flags & MVM_PARAMETRIC_TYPE && st->mode_flags & MVM_PARAMETERIZED_TYPE)
         fail_deserialize(tc, reader,
             "STable mode flags cannot indicate both parametric and parameterized");
 
     /* Boolification spec. */
-    if (reader->root.version <= 15) {
-        if (MVM_serialization_read_int(tc, reader)) {
-            st->boolification_spec = (MVMBoolificationSpec *)MVM_malloc(sizeof(MVMBoolificationSpec));
-            st->boolification_spec->mode = MVM_serialization_read_int(tc, reader);
-            MVM_ASSIGN_REF(tc, &(st->header), st->boolification_spec->method, MVM_serialization_read_ref(tc, reader));
-        }
-    } else {
-        MVMuint8 mode;
-        assert_can_read(tc, reader, 1);
-        flags = *(*(reader->cur_read_buffer) + *(reader->cur_read_offset));
-        *(reader->cur_read_offset) += 1;
-        mode = flags & 0xF;
-        if (mode != 0xF) {
-            st->boolification_spec = (MVMBoolificationSpec *)MVM_malloc(sizeof(MVMBoolificationSpec));
-            st->boolification_spec->mode = mode;
-            MVM_ASSIGN_REF(tc, &(st->header), st->boolification_spec->method, MVM_serialization_read_ref(tc, reader));
-        }
+    assert_can_read(tc, reader, 1);
+    flags = *(*(reader->cur_read_buffer) + *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 1;
+    mode = flags & 0xF;
+    if (mode != 0xF) {
+        st->boolification_spec = (MVMBoolificationSpec *)MVM_malloc(sizeof(MVMBoolificationSpec));
+        st->boolification_spec->mode = mode;
+        MVM_ASSIGN_REF(tc, &(st->header), st->boolification_spec->method, MVM_serialization_read_ref(tc, reader));
     }
 
     /* Container spec. */
-    if (reader->root.version > 15 ? (flags & STABLE_HAS_CONTAINER_SPEC)
-        : MVM_serialization_read_int(tc, reader)) {
+    if (flags & STABLE_HAS_CONTAINER_SPEC) {
         const MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc,
             MVM_serialization_read_str(tc, reader));
         cc->set_container_spec(tc, st);
@@ -2457,41 +2423,22 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     }
 
     /* Invocation spec. */
-    if (reader->root.version > 15 ? (flags & STABLE_HAS_INVOCATION_SPEC)
-        : MVM_serialization_read_int(tc, reader)) {
+    if (flags & STABLE_HAS_INVOCATION_SPEC) {
         st->invocation_spec = (MVMInvocationSpec *)MVM_calloc(1, sizeof(MVMInvocationSpec));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->class_handle, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
-        if (reader->root.version <= 15) {
-            st->invocation_spec->hint = MVM_serialization_read_int(tc, reader);
-        } else {
-            st->invocation_spec->hint = MVM_serialization_read_varint(tc, reader);
-        }
+        st->invocation_spec->hint = MVM_serialization_read_varint(tc, reader);
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->invocation_handler, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_class_handle, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_cache_attr_name, MVM_serialization_read_str(tc, reader));
-        if (reader->root.version <= 15) {
-            st->invocation_spec->md_cache_hint = MVM_serialization_read_int(tc, reader);
-        } else {
-            st->invocation_spec->md_cache_hint = MVM_serialization_read_varint(tc, reader);
-        }
+        st->invocation_spec->md_cache_hint = MVM_serialization_read_varint(tc, reader);
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_valid_attr_name, MVM_serialization_read_str(tc, reader));
-        if (reader->root.version <= 15) {
-            st->invocation_spec->md_valid_hint = MVM_serialization_read_int(tc, reader);
-        } else {
-            st->invocation_spec->md_valid_hint = MVM_serialization_read_varint(tc, reader);
-        }
+        st->invocation_spec->md_valid_hint = MVM_serialization_read_varint(tc, reader);
     }
 
     /* HLL owner. */
-    if (reader->root.version <= 15) {
-        hll_name = MVM_serialization_read_str(tc, reader);
-        if (hll_name)
-            st->hll_owner = MVM_hll_get_config_for(tc, hll_name);
-    } else {
-        if (flags & STABLE_HAS_HLL_OWNER) {
-            st->hll_owner = MVM_hll_get_config_for(tc, MVM_serialization_read_str(tc, reader));
-        }
+    if (flags & STABLE_HAS_HLL_OWNER) {
+        st->hll_owner = MVM_hll_get_config_for(tc, MVM_serialization_read_str(tc, reader));
     }
 
     /* If it's a parametric type... */

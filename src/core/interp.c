@@ -1496,16 +1496,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(ordfirst): {
-                MVMString *s = GET_REG(cur_op, 2).s;
-                MVMGrapheme32 g = MVM_string_get_grapheme_at(tc, s, 0);
-                GET_REG(cur_op, 0).i64 = g >= 0 ? g : MVM_nfg_get_synthetic_info(tc, g)->base;
+                GET_REG(cur_op, 0).i64 = MVM_string_ord_at(tc, GET_REG(cur_op, 2).s, 0);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(ordat): {
-                MVMString *s = GET_REG(cur_op, 2).s;
-                MVMGrapheme32 g = MVM_string_get_grapheme_at(tc, s, GET_REG(cur_op, 4).i64);
-                GET_REG(cur_op, 0).i64 = g >= 0 ? g : MVM_nfg_get_synthetic_info(tc, g)->base;
+                GET_REG(cur_op, 0).i64 = MVM_string_ord_at(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -2926,9 +2922,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(ctx): {
-                MVMObject *ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-                ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, tc->cur_frame);
-                GET_REG(cur_op, 0).o = ctx;
+                GET_REG(cur_op, 0).o = MVM_frame_context_wrapper(tc, tc->cur_frame);
                 cur_op += 2;
                 goto NEXT;
             }
@@ -3216,8 +3210,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(bind_sk):
                 MVM_io_bind(tc, GET_REG(cur_op, 0).o,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64);
-                cur_op += 6;
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, (int)GET_REG(cur_op, 6).i64);
+                cur_op += 8;
                 goto NEXT;
             OP(setinputlinesep_fh):
                 MVM_io_set_separator(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
@@ -4096,8 +4090,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(asynclisten):
                 GET_REG(cur_op, 0).o = MVM_io_socket_listen_async(tc,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
-                    GET_REG(cur_op, 8).i64, GET_REG(cur_op, 10).o);
-                cur_op += 12;
+                    GET_REG(cur_op, 8).i64, (int)GET_REG(cur_op, 10).i64, GET_REG(cur_op, 12).o);
+                cur_op += 14;
                 goto NEXT;
             OP(asyncwritestr):
                 GET_REG(cur_op, 0).o = MVM_io_write_string_async(tc, GET_REG(cur_op, 2).o,
@@ -5115,6 +5109,34 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
                 MVM_ASSIGN_REF(tc, &(o->header), *((MVMString **)(data + GET_UI16(cur_op, 2))),
                     GET_REG(cur_op, 4).s);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_deref_get_i64): {
+                MVMObject *o      = GET_REG(cur_op, 2).o;
+                MVMint64 **target = ((MVMint64 **)((char *)o + GET_UI16(cur_op, 4)));
+                GET_REG(cur_op, 0).i64 = **target;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_deref_get_n): {
+                MVMObject *o      = GET_REG(cur_op, 2).o;
+                MVMnum64 **target = ((MVMnum64 **)((char *)o + GET_UI16(cur_op, 4)));
+                GET_REG(cur_op, 0).n64 = **target;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_deref_bind_i64): {
+                MVMObject *o      = GET_REG(cur_op, 0).o;
+                MVMint64 **target = ((MVMint64 **)((char *)o + GET_UI16(cur_op, 4)));
+                **target          = GET_REG(cur_op, 2).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_deref_bind_n): {
+                MVMObject *o      = GET_REG(cur_op, 0).o;
+                MVMnum64 **target = ((MVMnum64 **)((char *)o + GET_UI16(cur_op, 4)));
+                **target          = GET_REG(cur_op, 2).n64;
                 cur_op += 6;
                 goto NEXT;
             }

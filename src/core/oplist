@@ -525,7 +525,7 @@ getstdout           w(obj) :pure
 getstderr           w(obj) :pure
 connect_sk          r(obj) r(str) r(int64)
 socket              w(obj) r(int64)
-bind_sk             r(obj) r(str) r(int64)
+bind_sk             r(obj) r(str) r(int64) r(int64)
 setinputlinesep_fh  r(obj) r(str)
 accept_sk           w(obj) r(obj)
 decodetocodes       r(obj) r(str) r(int64) r(obj)
@@ -627,7 +627,7 @@ cancel              r(obj)
 signal              w(obj) r(obj) r(obj) r(int64) r(obj)
 watchfile           w(obj) r(obj) r(obj) r(str) r(obj)
 asyncconnect        w(obj) r(obj) r(obj) r(str) r(int64) r(obj)
-asynclisten         w(obj) r(obj) r(obj) r(str) r(int64) r(obj)
+asynclisten         w(obj) r(obj) r(obj) r(str) r(int64) r(int64) r(obj)
 asyncwritestr       w(obj) r(obj) r(obj) r(obj) r(str) r(obj)
 asyncwritebytes     w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 asyncreadchars      w(obj) r(obj) r(obj) r(obj) r(obj)
@@ -823,6 +823,12 @@ sp_p6obind_o     .s r(obj) int16 r(obj)
 sp_p6obind_i     .s r(obj) int16 r(int64)
 sp_p6obind_n     .s r(obj) int16 r(num64)
 sp_p6obind_s     .s r(obj) int16 r(str)
+
+# Follow a pointer at an offset to an object and get/store a value there.
+sp_deref_get_i64      .s w(int64) r(obj) int16 :pure
+sp_deref_get_n        .s w(num64) r(obj) int16 :pure
+sp_deref_bind_i64     .s r(obj) r(int64) int16
+sp_deref_bind_n       .s r(obj) r(num64) int16
 
 # Enter the JIT
 sp_jit_enter     .s w(obj)

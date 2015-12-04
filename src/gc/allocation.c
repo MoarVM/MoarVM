@@ -104,5 +104,7 @@ void MVM_gc_allocate_gen2_default_set(MVMThreadContext *tc) {
 
 /* Sets allocation for this thread to be from the nursery by default. */
 void MVM_gc_allocate_gen2_default_clear(MVMThreadContext *tc) {
+    if (tc->allocate_in_gen2 <= 0)
+        MVM_oops(tc, "Cannot leave gen2 allocation without entering it");
     tc->allocate_in_gen2--;
 }

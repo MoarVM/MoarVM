@@ -556,6 +556,28 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], TMP2;
         break;
     }
+    case MVM_OP_sp_deref_bind_i64:
+    case MVM_OP_sp_deref_bind_n: {
+        MVMint16 obj    = ins->operands[0].reg.orig;
+        MVMint16 val    = ins->operands[1].reg.orig;
+        MVMint16 offset = ins->operands[2].lit_i16;
+        | mov TMP1, WORK[obj];            // object
+        | mov TMP2, WORK[val];            // value
+        | mov TMP1, qword [TMP1+offset];  // find address of target
+        | mov qword [TMP1], TMP2;
+        break;
+    }
+    case MVM_OP_sp_deref_get_i64:
+    case MVM_OP_sp_deref_get_n: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 obj    = ins->operands[1].reg.orig;
+        MVMint16 offset = ins->operands[2].lit_i16;
+        | mov TMP1, WORK[obj];            // object
+        | mov TMP3, qword [TMP1+offset];  // get value pointer from body
+        | mov TMP2, qword [TMP3];         // deref the pointer
+        | mov WORK[dst], TMP2;
+        break;
+    }
     case MVM_OP_sp_p6obind_i:
     case MVM_OP_sp_p6obind_n:
     case MVM_OP_sp_p6obind_s:
@@ -1508,6 +1530,21 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov FUNCTION, STABLE:FUNCTION->invoke;
         | call FUNCTION;
         /* jumping out is handled by invokish */
+        break;
+    }
+    case MVM_OP_getstdin:
+    case MVM_OP_getstdout:
+    case MVM_OP_getstderr: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP3, aword TC->instance;
+        if (ins->info->opcode == MVM_OP_getstdin) {
+            | mov TMP3, aword MVMINSTANCE:TMP3->stdin_handle;
+        } else if (ins->info->opcode == MVM_OP_getstdout) {
+            | mov TMP3, aword MVMINSTANCE:TMP3->stdout_handle;
+        } else if (ins->info->opcode == MVM_OP_getstderr) {
+            | mov TMP3, aword MVMINSTANCE:TMP3->stderr_handle;
+        }
+        | mov aword WORK[dst], TMP3;
         break;
     }
     case MVM_OP_ordat:

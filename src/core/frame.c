@@ -1200,11 +1200,13 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
          * use getdynlex for their own lexicals since the compiler already
          * knows where to find them */
         if (cand && cand->num_inlines) {
-            if (cand->jitcode) {
+            if (cand->jitcode && cur_frame->effective_bytecode == cand->jitcode->bytecode) {
                 void      **labels = cand->jitcode->labels;
                 void *return_label = cur_frame->jit_entry_label;
                 MVMJitInline *inls = cand->jitcode->inlines;
                 MVMint32 i;
+                if (return_label == NULL)
+                    MVM_oops(tc, "Return label is NULL!\n");
                 for (i = 0; i < cand->jitcode->num_inlines; i++) {
                     icost++;
                     if (return_label >= labels[inls[i].start_label] && return_label <= labels[inls[i].end_label]) {
@@ -1581,6 +1583,9 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
         if (MVM_casptr(&f->context_object, NULL, ctx) != NULL) {
             ((MVMContext *)ctx)->body.context = MVM_frame_dec_ref(tc, f);
             ctx = (MVMObject *)MVM_load(&f->context_object);
+        }
+        else {
+            f->keep_caller = 1;
         }
     }
 

@@ -40,7 +40,9 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
                 scb->sc = sc;
                 sc->body = scb;
                 MVM_ASSIGN_REF(tc, &(sc->common.header), scb->handle, handle);
+                MVM_gc_allocate_gen2_default_set(tc);
                 MVM_repr_init(tc, (MVMObject *)sc);
+                MVM_gc_allocate_gen2_default_clear(tc);
             }
             uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
         });

@@ -1390,6 +1390,10 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_get_n:
     case MVM_OP_sp_get_s:
     case MVM_OP_sp_get_o:
+    case MVM_OP_sp_deref_bind_i64:
+    case MVM_OP_sp_deref_bind_n:
+    case MVM_OP_sp_deref_get_i64:
+    case MVM_OP_sp_deref_get_n:
     case MVM_OP_set:
     case MVM_OP_getlex:
     case MVM_OP_getlex_no:
@@ -1436,6 +1440,9 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_paramnamesused:
     case MVM_OP_assertparamcheck:
     case MVM_OP_getobjsc:
+    case MVM_OP_getstderr:
+    case MVM_OP_getstdout:
+    case MVM_OP_getstdin:
     case MVM_OP_ordat:
     case MVM_OP_ordfirst:
         /* Profiling */
