@@ -657,6 +657,7 @@ typedef struct {
     uv_tcp_t         *socket;
     MVMThreadContext *tc;
     int               work_idx;
+    int               backlog;
 } ListenInfo;
 
 /* Handles an incoming connection. */
@@ -739,7 +740,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
     }
 
     /* Start listening. */
-    uv_listen((uv_stream_t *)li->socket, 128, on_connection);
+    uv_listen((uv_stream_t *)li->socket, li->backlog, on_connection);
 }
 
 /* Stops listening. */
@@ -769,7 +770,7 @@ static const MVMAsyncTaskOps listen_op_table = {
 /* Initiates an async socket listener. */
 MVMObject * MVM_io_socket_listen_async(MVMThreadContext *tc, MVMObject *queue,
                                        MVMObject *schedulee, MVMString *host,
-                                       MVMint64 port, MVMObject *async_type) {
+                                       MVMint64 port, MVMint32 backlog, MVMObject *async_type) {
     MVMAsyncTask *task;
     ListenInfo   *li;
 
@@ -795,6 +796,7 @@ MVMObject * MVM_io_socket_listen_async(MVMThreadContext *tc, MVMObject *queue,
     task->body.ops  = &listen_op_table;
     li              = MVM_calloc(1, sizeof(ListenInfo));
     li->dest        = dest;
+    li->backlog     = backlog;
     task->body.data = li;
 
     /* Hand the task off to the event loop. */
