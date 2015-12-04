@@ -3211,7 +3211,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bind_sk):
                 MVM_io_bind(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, (int)GET_REG(cur_op, 6).i64);
-                cur_op += 6;
+                cur_op += 8;
                 goto NEXT;
             OP(setinputlinesep_fh):
                 MVM_io_set_separator(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).s);
@@ -4091,7 +4091,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_io_socket_listen_async(tc,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
                     GET_REG(cur_op, 8).i64, (int)GET_REG(cur_op, 10).i64, GET_REG(cur_op, 12).o);
-                cur_op += 12;
+                cur_op += 14;
                 goto NEXT;
             OP(asyncwritestr):
                 GET_REG(cur_op, 0).o = MVM_io_write_string_async(tc, GET_REG(cur_op, 2).o,
