@@ -775,7 +775,7 @@ MVM_JIT_TILE_DECL(call) {
 }
 
 MVM_JIT_TILE_DECL(call_func) {
-    MVMint32 ptr = args[0];
+    MVMint64 ptr = args[0];
     MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
     | mov64 Rq(tmp), ptr;
     | call Rq(tmp);
