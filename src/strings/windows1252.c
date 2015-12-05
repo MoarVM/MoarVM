@@ -260,7 +260,7 @@ char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str
         MVM_exception_throw_adhoc(tc, "length out of range");
 
     if (replacement)
-        repl_bytes = MVM_string_windows1252_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);
+        repl_bytes = (MVMuint8 *) MVM_string_windows1252_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);
 
     result_alloc = lengthu;
     result = MVM_malloc(result_alloc + 1);

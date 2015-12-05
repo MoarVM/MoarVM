@@ -115,7 +115,7 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
         MVM_exception_throw_adhoc(tc, "length out of range");
 
     if (replacement)
-        repl_bytes = MVM_string_utf16_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);
+        repl_bytes = (MVMuint8 *) MVM_string_utf16_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);
 
     alloc_size = lengthu * 2;
     result = MVM_malloc(alloc_size + 2);
