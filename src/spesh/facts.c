@@ -275,7 +275,7 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MV
     /* Produce a guard op and set facts. */
     if (stable_cont) {
         MVMSpeshOperand reg  = ins->operands[0];
-        MVMContainerSpec *cs = STABLE(stable_cont)->container_spec;
+        MVMContainerSpec *cs = (MVMContainerSpec *) STABLE(stable_cont)->container_spec;
         facts                = &g->facts[reg.reg.orig][reg.reg.i];
         facts->type          = STABLE(stable_cont)->WHAT;
         facts->flags        |= (MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE |
