@@ -366,6 +366,10 @@ struct MVMInstance {
     MVMuint32  cross_thread_write_logging_include_locked;
     uv_mutex_t mutex_cross_thread_write_logging;
 
+    MVMuint32  coverage_logging;
+    /* Log file for coverage logging. */
+    FILE *coverage_log_fh;
+
     /* Cached backend config hash. */
     MVMObject *cached_backend_config;
 };

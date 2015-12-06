@@ -190,6 +190,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "profiler/profile.h"
 #include "profiler/heapsnapshot.h"
 #include "instrument/crossthreadwrite.h"
+#include "instrument/line_coverage.h"
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc);
 
