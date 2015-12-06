@@ -39,6 +39,16 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
         }
         if (!ins) ins = bb->last_ins;
 
+        /* Jumplists require the target BB to start in the goto op.
+         * We must not break this, or we cause the interpreter to derail */
+        if (bb->last_ins->info->opcode == MVM_OP_jumplist) {
+            MVMint16 to_skip = bb->num_succ;
+            for (; to_skip > 0; to_skip--) {
+                bb = bb->linear_next;
+            }
+            continue;
+        }
+
         log_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
         log_ins->info        = MVM_op_get_op(MVM_OP_coverage_log);
         log_ins->operands    = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
