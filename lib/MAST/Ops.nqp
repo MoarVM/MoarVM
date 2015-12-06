@@ -3672,8 +3672,8 @@ BEGIN {
     16,
     56,
     24,
-    16,
-    128);
+    24,
+    32);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
     'const_i16', 2,
