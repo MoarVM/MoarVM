@@ -5612,6 +5612,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_cross_thread_write_check(tc, obj, blame);
                 goto NEXT;
             }
+            OP(coverage_log): {
+                MVMString *filename = cu->body.strings[GET_UI32(cur_op, 0)];
+                MVMuint32 lineno    = GET_UI32(cur_op, 2);
+                MVMuint32 cacheidx  = GET_UI16(cur_op, 4);
+                MVMObject *cache    = (MVMObject *)tc->cur_frame
+                    ->effective_spesh_slots[GET_UI16(cur_op, 6)];
+                MVM_line_coverage_report(tc, filename, lineno, cacheidx, cache);
+                cur_op += 8;
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
