@@ -4,17 +4,11 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *bb = g->entry->linear_next;
     MVMuint16 array_slot = 0;
 
-    MVMSTable *st = STABLE(tc->instance->boot_types.BOOTIntArray);
-    MVMObject *line_report_store = MVM_calloc(1, st->size);
-
     MVMint32 last_line_number;
     MVMint32 last_filename;
 
-    line_report_store->header.size  = (MVMuint16)st->size;
-    line_report_store->header.owner = tc->thread_id;
-    line_report_store->st = st;
-    if (REPR(line_report_store)->initialize)
-        REPR(line_report_store)->initialize(tc, STABLE(line_report_store), line_report_store, OBJECT_BODY(line_report_store));
+    char *line_report_store = MVM_calloc(g->num_bbs, sizeof(char));
+    MVMuint16 allocd_slots = g->num_bbs;
 
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
@@ -73,10 +67,10 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
         bb = bb->linear_next;
     }
 
-    if (array_slot > 0) {
-        MVM_repr_pos_set_elems(tc, line_report_store, array_slot);
-    } else {
+    if (array_slot == 0) {
         MVM_free(line_report_store);
+    } else if (array_slot > g->num_bbs) {
+        MVM_panic("we've allocated %d slots for coverage reporting, but we've used up to %d!", g->num_bbs, array_slot);
     }
 }
 
@@ -114,14 +108,14 @@ void MVM_line_coverage_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
     }
 }
 
-void MVM_line_coverage_report(MVMThreadContext *tc, MVMString *filename, MVMuint32 line_number, MVMuint16 cache_slot, MVMObject *cache) {
-    if (MVM_repr_at_pos_i(tc, cache, cache_slot) == 0) {
+void MVM_line_coverage_report(MVMThreadContext *tc, MVMString *filename, MVMuint32 line_number, MVMuint16 cache_slot, char *cache) {
+    if (cache[cache_slot] == 0) {
         char *encoded_filename;
 
-        MVM_repr_bind_pos_i(tc, cache, cache_slot, 1);
+        cache[cache_slot] = 1;
 
         encoded_filename = MVM_string_utf8_encode_C_string(tc, filename);
-        fprintf(tc->instance->coverage_log_fh, "HIT %d %s %d\n", strlen(encoded_filename), encoded_filename, line_number);
+        fprintf(tc->instance->coverage_log_fh, "HIT  %s  %d\n", encoded_filename, line_number);
         MVM_free(encoded_filename);
     }
 }
