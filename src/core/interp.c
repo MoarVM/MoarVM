@@ -5632,12 +5632,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The continuationclone op was removed in MoarVM 2017.01.");
             OP(coverage_log): {
                 MVMString *filename = cu->body.strings[GET_UI32(cur_op, 0)];
-                MVMuint32 lineno    = GET_UI32(cur_op, 2);
-                MVMuint32 cacheidx  = GET_UI16(cur_op, 4);
-                MVMObject *cache    = (MVMObject *)tc->cur_frame
-                    ->effective_spesh_slots[GET_UI16(cur_op, 6)];
+                MVMuint32 lineno    = GET_UI32(cur_op, 4);
+                MVMuint32 cacheidx  = GET_UI32(cur_op, 8);
+                MVMObject *cache    = (MVMObject *)MVM_BC_get_I64(cur_op, 12);
                 MVM_line_coverage_report(tc, filename, lineno, cacheidx, cache);
-                cur_op += 8;
+                cur_op += 20;
                 goto NEXT;
             }
 #if MVM_CGOTO
