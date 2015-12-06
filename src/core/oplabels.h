@@ -822,7 +822,7 @@ static const void * const LABELS[] = {
     &&OP_prof_exit,
     &&OP_prof_allocated,
     &&OP_ctw_check,
-    NULL,
+    &&OP_coverage_log,
     NULL,
     NULL,
     NULL,
