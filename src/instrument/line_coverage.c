@@ -70,7 +70,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     if (array_slot == 0) {
         MVM_free(line_report_store);
     } else if (array_slot > g->num_bbs) {
-        MVM_panic("we've allocated %d slots for coverage reporting, but we've used up to %d!", g->num_bbs, array_slot);
+        MVM_panic(99, "we've allocated %d slots for coverage reporting, but we've used up to %d!", g->num_bbs, array_slot);
     }
 }
 
