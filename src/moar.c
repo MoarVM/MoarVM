@@ -257,7 +257,7 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->coverage_logging = 1;
         instance->instrumentation_level++;
         if (strlen(coverage_log))
-            instance->coverage_log_fh = fopen(coverage_log, "w");
+            instance->coverage_log_fh = fopen(coverage_log, "a");
         else
             instance->coverage_log_fh = stderr;
     }
