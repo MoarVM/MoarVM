@@ -52,6 +52,9 @@ struct MVMHLLConfig {
     MVMObject *int_pos_ref;
     MVMObject *num_pos_ref;
     MVMObject *str_pos_ref;
+    MVMObject *int_multidim_ref;
+    MVMObject *num_multidim_ref;
+    MVMObject *str_multidim_ref;
 
     /* Array of types to pass to compiler.c */
     MVMObject *mast_types;

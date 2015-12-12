@@ -736,6 +736,9 @@ setinputlineseps_fh r(obj) r(obj)
 readlinechomp_fh    w(str) r(obj)
 encoderep           w(obj) r(str) r(str) r(str) r(obj)
 istty_fh            w(int64) r(obj) :pure
+multidimref_i       w(obj) r(obj) r(obj) :pure
+multidimref_n       w(obj) r(obj) r(obj) :pure
+multidimref_s       w(obj) r(obj) r(obj) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
