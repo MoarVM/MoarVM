@@ -432,7 +432,7 @@ static MVMObject * md_posref(MVMThreadContext *tc, MVMObject *type, MVMObject *o
     MVMROOT(tc, indices, {
         ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
         MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.multidim.obj, obj);
-        ref->body.u.multidim.indices = indices;
+        MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.multidim.indices, indices);
     });
     });
     return (MVMObject *)ref;
