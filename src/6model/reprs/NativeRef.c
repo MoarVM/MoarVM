@@ -119,6 +119,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                 else if (MVM_string_equal(tc, refkind_s, str_consts->positional)) {
                     kind = MVM_NATIVEREF_POSITIONAL;
                 }
+                else if (MVM_string_equal(tc, refkind_s, str_consts->multidim)) {
+                    kind = MVM_NATIVEREF_MULTIDIM;
+                }
                 else {
                     MVM_exception_throw_adhoc(tc, "NativeRef: invalid refkind in compose");
                 }
