@@ -184,6 +184,9 @@ static void native_ref_fetch_i(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
         case MVM_NATIVEREF_POSITIONAL:
             res->i64 = MVM_nativeref_read_positional_i(tc, cont);
             break;
+        case MVM_NATIVEREF_MULTIDIM:
+            res->i64 = MVM_nativeref_read_multidim_i(tc, cont);
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native int reference kind");
     }
@@ -203,6 +206,9 @@ static void native_ref_fetch_n(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
         case MVM_NATIVEREF_POSITIONAL:
             res->n64 = MVM_nativeref_read_positional_n(tc, cont);
             break;
+        case MVM_NATIVEREF_MULTIDIM:
+            res->n64 = MVM_nativeref_read_multidim_n(tc, cont);
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native num reference kind");
     }
@@ -221,6 +227,9 @@ static void native_ref_fetch_s(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
             break;
         case MVM_NATIVEREF_POSITIONAL:
             res->s = MVM_nativeref_read_positional_s(tc, cont);
+            break;
+        case MVM_NATIVEREF_MULTIDIM:
+            res->s = MVM_nativeref_read_multidim_s(tc, cont);
             break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native str reference kind");
@@ -265,6 +274,9 @@ static void native_ref_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 v
         case MVM_NATIVEREF_POSITIONAL:
             MVM_nativeref_write_positional_i(tc, cont, value);
             break;
+        case MVM_NATIVEREF_MULTIDIM:
+            MVM_nativeref_write_multidim_i(tc, cont, value);
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native int reference kind");
     }
@@ -284,6 +296,9 @@ static void native_ref_store_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 v
         case MVM_NATIVEREF_POSITIONAL:
             MVM_nativeref_write_positional_n(tc, cont, value);
             break;
+        case MVM_NATIVEREF_MULTIDIM:
+            MVM_nativeref_write_multidim_n(tc, cont, value);
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native num reference kind");
     }
@@ -302,6 +317,9 @@ static void native_ref_store_s(MVMThreadContext *tc, MVMObject *cont, MVMString 
             break;
         case MVM_NATIVEREF_POSITIONAL:
             MVM_nativeref_write_positional_s(tc, cont, value);
+            break;
+        case MVM_NATIVEREF_MULTIDIM:
+            MVM_nativeref_write_multidim_s(tc, cont, value);
             break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native str reference kind");
