@@ -12,7 +12,7 @@ struct MVMIOOps {
     const MVMIOSockety       *sockety;
     const MVMIOPipeable      *pipeable;
     const MVMIOLockable      *lockable;
-    const MVMIOPossiblyTTY   *possibly_tty;
+    const MVMIOIntrospection *introspection;
 
     /* How to mark the handle's data, if needed. */
     void (*gc_mark) (MVMThreadContext *tc, void *data, MVMGCWorklist *worklist);
@@ -84,8 +84,8 @@ struct MVMIOLockable {
     void (*unlock) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 
-/* Checking if a handle is a tty, when it's NULL we assume a handle is not a tty. */
-struct MVMIOPossiblyTTY {
+/* Various bits of introspection we can perform on a handle. */
+struct MVMIOIntrospection {
     MVMint64 (*is_tty) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 

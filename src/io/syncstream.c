@@ -301,7 +301,7 @@ static const MVMIOSeekable          seekable = { MVM_io_syncstream_seek,
                                                  MVM_io_syncstream_tell };
 static const MVMIOPipeable     pipeable      = { bind_stdio_handle };
 
-static const MVMIOPossiblyTTY possibly_tty         = { is_tty };
+static const MVMIOIntrospection introspection = { is_tty };
 
 static const MVMIOOps op_table = {
     &closable,
@@ -314,7 +314,7 @@ static const MVMIOOps op_table = {
     NULL,
     &pipeable,
     NULL,
-    &possibly_tty,
+    &introspection,
     NULL,
     gc_free
 };

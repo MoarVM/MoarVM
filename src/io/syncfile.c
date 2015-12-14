@@ -390,14 +390,14 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 }
 
 /* IO ops table, populated with functions. */
-static const MVMIOClosable     closable      = { closefh };
-static const MVMIOEncodable    encodable     = { set_encoding };
-static const MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, mvm_eof };
-static const MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncatefh };
-static const MVMIOSeekable     seekable      = { seek, mvm_tell };
-static const MVMIOPipeable     pipeable      = { bind_stdio_handle };
-static const MVMIOLockable     lockable      = { lock, unlock };
-static const MVMIOPossiblyTTY possibly_tty         = { is_tty };
+static const MVMIOClosable      closable      = { closefh };
+static const MVMIOEncodable     encodable     = { set_encoding };
+static const MVMIOSyncReadable  sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, mvm_eof };
+static const MVMIOSyncWritable  sync_writable = { write_str, write_bytes, flush, truncatefh };
+static const MVMIOSeekable      seekable      = { seek, mvm_tell };
+static const MVMIOPipeable      pipeable      = { bind_stdio_handle };
+static const MVMIOLockable      lockable      = { lock, unlock };
+static const MVMIOIntrospection introspection = { is_tty };
 
 static const MVMIOOps op_table = {
     &closable,
@@ -410,7 +410,7 @@ static const MVMIOOps op_table = {
     NULL,
     &pipeable,
     &lockable,
-    &possibly_tty,
+    &introspection,
     NULL,
     gc_free
 };

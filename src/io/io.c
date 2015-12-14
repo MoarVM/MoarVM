@@ -35,9 +35,9 @@ MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle) {
 
 MVMint64 MVM_io_is_tty(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "istty");
-    if (handle->body.ops->possibly_tty) {
+    if (handle->body.ops->introspection) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        MVMint64 ret = handle->body.ops->possibly_tty->is_tty(tc, handle);
+        MVMint64 ret = handle->body.ops->introspection->is_tty(tc, handle);
         release_mutex(tc, mutex);
         return ret;
     }
