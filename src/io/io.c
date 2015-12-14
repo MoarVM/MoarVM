@@ -46,6 +46,18 @@ MVMint64 MVM_io_is_tty(MVMThreadContext *tc, MVMObject *oshandle) {
     }
 }
 
+MVMint64 MVM_io_fileno(MVMThreadContext *tc, MVMObject *oshandle) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "fileno");
+    if (handle->body.ops->introspection) {
+        uv_mutex_t *mutex = acquire_mutex(tc, handle);
+        MVMint64 ret = handle->body.ops->introspection->fileno(tc, handle);
+        release_mutex(tc, mutex);
+        return ret;
+    }
+    else {
+        return -1;
+    }
+}
 
 void MVM_io_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "set encoding");

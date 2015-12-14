@@ -260,6 +260,14 @@ static MVMint64 is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
     return data->is_tty;
 }
 
+static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    uv_os_fd_t fd;
+    if (uv_fileno((uv_handle_t *)data->handle, &fd) >= 0)
+        return (MVMint64)fd;
+    return -1;
+}
+
 /* Operations aiding process spawning and I/O handling. */
 static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio,
         uv_process_t *process) {
@@ -301,7 +309,7 @@ static const MVMIOSeekable          seekable = { MVM_io_syncstream_seek,
                                                  MVM_io_syncstream_tell };
 static const MVMIOPipeable     pipeable      = { bind_stdio_handle };
 
-static const MVMIOIntrospection introspection = { is_tty };
+static const MVMIOIntrospection introspection = { is_tty, mvm_fileno };
 
 static const MVMIOOps op_table = {
     &closable,
@@ -325,7 +333,7 @@ MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *h
     MVMIOSyncStreamData * const data   = MVM_calloc(1, sizeof(MVMIOSyncStreamData));
     data->handle      = handle;
     data->encoding    = MVM_encoding_type_utf8;
-    data->is_tty = is_tty;
+    data->is_tty      = is_tty;
     MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;

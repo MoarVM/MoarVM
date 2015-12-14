@@ -87,6 +87,7 @@ struct MVMIOLockable {
 /* Various bits of introspection we can perform on a handle. */
 struct MVMIOIntrospection {
     MVMint64 (*is_tty) (MVMThreadContext *tc, MVMOSHandle *h);
+    MVMint64 (*fileno) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 
 /* Operations aiding process spawning and I/O handling.  */
@@ -97,6 +98,7 @@ struct MVMIOPipeable {
 
 MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_is_tty(MVMThreadContext *tc, MVMObject *oshandle);
+MVMint64 MVM_io_fileno(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name);
 void MVM_io_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag);
 MVMint64 MVM_io_tell(MVMThreadContext *tc, MVMObject *oshandle);

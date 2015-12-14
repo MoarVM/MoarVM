@@ -63,6 +63,12 @@ static MVMint64 is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
     return (uv_guess_handle(data->fd) == UV_TTY);
 }
 
+/* Gets the file descriptor. */
+static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    return (MVMint64)data->fd;
+}
+
 /* Sets the encoding used for string-based I/O. */
 static void set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
@@ -397,7 +403,7 @@ static const MVMIOSyncWritable  sync_writable = { write_str, write_bytes, flush,
 static const MVMIOSeekable      seekable      = { seek, mvm_tell };
 static const MVMIOPipeable      pipeable      = { bind_stdio_handle };
 static const MVMIOLockable      lockable      = { lock, unlock };
-static const MVMIOIntrospection introspection = { is_tty };
+static const MVMIOIntrospection introspection = { is_tty, mvm_fileno };
 
 static const MVMIOOps op_table = {
     &closable,

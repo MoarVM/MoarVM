@@ -7588,7 +7588,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "numdimensions",
         "  ",
         2,
-        0,
+        1,
         0,
         0,
         0,
@@ -7610,7 +7610,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "isrwcont",
         "  ",
         2,
-        0,
+        1,
         0,
         0,
         0,
@@ -7703,6 +7703,17 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_fileno_fh,
+        "fileno_fh",
+        "  ",
+        2,
+        1,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_sp_log,
@@ -8362,7 +8373,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 761;
+static const unsigned short MVM_op_counts = 762;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

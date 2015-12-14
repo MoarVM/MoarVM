@@ -728,9 +728,9 @@ bindposnd_s         r(obj) r(obj) r(str)
 bindposnd_o         r(obj) r(obj) r(obj)
 dimensions          w(obj) r(obj)
 setdimensions       r(obj) r(obj)
-numdimensions       w(int64) r(obj)
+numdimensions       w(int64) r(obj) :pure
 ctxcode             w(obj) r(obj)
-isrwcont            w(int64) r(obj)
+isrwcont            w(int64) r(obj) :pure
 fc                  w(str) r(str) :pure
 setinputlineseps_fh r(obj) r(obj)
 readlinechomp_fh    w(str) r(obj)
@@ -739,6 +739,7 @@ istty_fh            w(int64) r(obj) :pure
 multidimref_i       w(obj) r(obj) r(obj) :pure
 multidimref_n       w(obj) r(obj) r(obj) :pure
 multidimref_s       w(obj) r(obj) r(obj) :pure
+fileno_fh           w(int64) r(obj) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
