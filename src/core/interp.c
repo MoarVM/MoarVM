@@ -4730,6 +4730,25 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_io_fileno(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
+            OP(asyncudp):
+                GET_REG(cur_op, 0).o = MVM_io_socket_udp_async(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
+                    GET_REG(cur_op, 8).i64, GET_REG(cur_op, 10).i64,
+                    GET_REG(cur_op, 12).o);
+                cur_op += 14;
+                goto NEXT;
+            OP(asyncwritestrto):
+                GET_REG(cur_op, 0).o = MVM_io_write_string_to_async(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).s,
+                    GET_REG(cur_op, 10).o, GET_REG(cur_op, 12).s, GET_REG(cur_op, 14).i64);
+                cur_op += 16;
+                goto NEXT;
+            OP(asyncwritebytesto):
+                GET_REG(cur_op, 0).o = MVM_io_write_bytes_to_async(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o,
+                    GET_REG(cur_op, 10).o, GET_REG(cur_op, 12).s, GET_REG(cur_op, 14).i64);
+                cur_op += 16;
+                goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

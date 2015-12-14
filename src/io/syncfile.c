@@ -412,6 +412,7 @@ static const MVMIOOps op_table = {
     &sync_writable,
     NULL,
     NULL,
+    NULL,
     &seekable,
     NULL,
     &pipeable,

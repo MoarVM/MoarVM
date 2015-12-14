@@ -2,17 +2,18 @@
  * these sections. */
 struct MVMIOOps {
     /* The various sections that may be implemented. */
-    const MVMIOClosable      *closable;
-    const MVMIOEncodable     *encodable;
-    const MVMIOSyncReadable  *sync_readable;
-    const MVMIOSyncWritable  *sync_writable;
-    const MVMIOAsyncReadable *async_readable;
-    const MVMIOAsyncWritable *async_writable;
-    const MVMIOSeekable      *seekable;
-    const MVMIOSockety       *sockety;
-    const MVMIOPipeable      *pipeable;
-    const MVMIOLockable      *lockable;
-    const MVMIOIntrospection *introspection;
+    const MVMIOClosable        *closable;
+    const MVMIOEncodable       *encodable;
+    const MVMIOSyncReadable    *sync_readable;
+    const MVMIOSyncWritable    *sync_writable;
+    const MVMIOAsyncReadable   *async_readable;
+    const MVMIOAsyncWritable   *async_writable;
+    const MVMIOAsyncWritableTo *async_writable_to;
+    const MVMIOSeekable        *seekable;
+    const MVMIOSockety         *sockety;
+    const MVMIOPipeable        *pipeable;
+    const MVMIOLockable        *lockable;
+    const MVMIOIntrospection   *introspection;
 
     /* How to mark the handle's data, if needed. */
     void (*gc_mark) (MVMThreadContext *tc, void *data, MVMGCWorklist *worklist);
@@ -63,6 +64,15 @@ struct MVMIOAsyncWritable {
         MVMObject *schedulee, MVMString *s, MVMObject *async_type);
     MVMAsyncTask * (*write_bytes) (MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
         MVMObject *schedulee, MVMObject *buffer, MVMObject *async_type);
+};
+
+/* I/O operations on handles that can do asynchronous writing to a given
+ * network destination. */
+struct MVMIOAsyncWritableTo {
+    MVMAsyncTask * (*write_str_to) (MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
+        MVMObject *schedulee, MVMString *s, MVMObject *async_type, MVMString *host, MVMint64 port);
+    MVMAsyncTask * (*write_bytes_to) (MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
+        MVMObject *schedulee, MVMObject *buffer, MVMObject *async_type, MVMString *host, MVMint64 port);
 };
 
 /* I/O operations on handles that can seek/tell. */
@@ -118,6 +128,10 @@ MVMObject * MVM_io_write_string_async(MVMThreadContext *tc, MVMObject *oshandle,
     MVMObject *schedulee, MVMString *s, MVMObject *async_type);
 MVMObject * MVM_io_write_bytes_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
         MVMObject *schedulee, MVMObject *buffer, MVMObject *async_type);
+MVMObject * MVM_io_write_string_to_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
+    MVMObject *schedulee, MVMString *s, MVMObject *async_type, MVMString *host, MVMint64 port);
+MVMObject * MVM_io_write_bytes_to_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
+        MVMObject *schedulee, MVMObject *buffer, MVMObject *async_type, MVMString *host, MVMint64 port);
 MVMint64 MVM_io_eof(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_lock(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 flag);
 void MVM_io_unlock(MVMThreadContext *tc, MVMObject *oshandle);

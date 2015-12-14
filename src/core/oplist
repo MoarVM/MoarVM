@@ -740,6 +740,9 @@ multidimref_i       w(obj) r(obj) r(obj) :pure
 multidimref_n       w(obj) r(obj) r(obj) :pure
 multidimref_s       w(obj) r(obj) r(obj) :pure
 fileno_fh           w(int64) r(obj) :pure
+asyncudp            w(obj) r(obj) r(obj) r(str) r(int64) r(int64) r(obj)
+asyncwritestrto     w(obj) r(obj) r(obj) r(obj) r(str) r(obj) r(str) r(int64)
+asyncwritebytesto   w(obj) r(obj) r(obj) r(obj) r(obj) r(obj) r(str) r(int64)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

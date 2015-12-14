@@ -192,6 +192,7 @@ typedef struct MVMIOSyncReadable MVMIOSyncReadable;
 typedef struct MVMIOSyncWritable MVMIOSyncWritable;
 typedef struct MVMIOAsyncReadable MVMIOAsyncReadable;
 typedef struct MVMIOAsyncWritable MVMIOAsyncWritable;
+typedef struct MVMIOAsyncWritableTo MVMIOAsyncWritableTo;
 typedef struct MVMIOSeekable MVMIOSeekable;
 typedef struct MVMIOSockety MVMIOSockety;
 typedef struct MVMIOPipeable MVMIOPipeable;
