@@ -319,6 +319,33 @@ EOT
     $config->{cancgoto} = $can_cgoto || 0
 }
 
+sub C_type_bool {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    my $template = <<'EOT';
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+int main(int argc, char **argv) {
+    %s foo = false;
+    foo    = true;
+    return foo ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+EOT
+
+    print ::dots('    probing C type support for: _Bool, bool');
+    my %have;
+    for my $type (qw(_Bool bool)) {
+        _spew('try.c', sprintf $template, $type);
+        $have{$type}   = compile($config, 'try');
+        $have{$type} &&= !system './try' unless $config->{crossconf};
+        delete $have{$type} unless $have{$type}
+    }
+    print %have ? "YES: " . join(',', sort keys %have) . "\n": "NO: none\n";
+    $config->{havebool} = (sort keys %have)[0];
+}
+
 sub pthread_yield {
     my ($config) = @_;
     my $restore = _to_probe_dir();

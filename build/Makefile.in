@@ -36,7 +36,7 @@ MASTDIR   = @mastdir@
 
 PKGCONFIGDIR = @prefix@/share/pkgconfig
 
-CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
+CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO) @ccdef@MVM_BOOL=@havebool@
 CINCLUDES = @cincludes@ \
             @ccinc@@shaincludedir@ \
             @ccinc@3rdparty/tinymt \

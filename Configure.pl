@@ -353,6 +353,7 @@ else {
     build::probe::ptr_size_native(\%config, \%defaults);
 }
 
+build::probe::C_type_bool(\%config, \%defaults);
 build::probe::computed_goto(\%config, \%defaults);
 build::probe::pthread_yield(\%config, \%defaults);
 
