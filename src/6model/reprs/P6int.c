@@ -1,3 +1,12 @@
+#if defined(_MSC_VER) && _MSC_VER < 1800
+#  define bool unsigned char
+#  define true  1
+#  define false 0
+#  define __bool_true_false_are_defined 1
+#else
+#  include <stdbool.h>
+#endif
+#include <stddef.h>
 #include "moar.h"
 
 /* This representation's function pointer table. */
@@ -115,6 +124,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                 case MVM_P6INT_C_TYPE_INT:      repr_data->bits = 8 * sizeof(int);       break;
                 case MVM_P6INT_C_TYPE_LONG:     repr_data->bits = 8 * sizeof(long);      break;
                 case MVM_P6INT_C_TYPE_LONGLONG: repr_data->bits = 8 * sizeof(long long); break;
+                case MVM_P6INT_C_TYPE_SIZE_T: repr_data->bits = 8 * sizeof(size_t); break;
+                case MVM_P6INT_C_TYPE_BOOL: repr_data->bits = 8 * sizeof(bool); break;
             }
 
             if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8

@@ -3,6 +3,8 @@
 #define MVM_P6INT_C_TYPE_INT       -3
 #define MVM_P6INT_C_TYPE_LONG      -4
 #define MVM_P6INT_C_TYPE_LONGLONG  -5
+#define MVM_P6INT_C_TYPE_SIZE_T    -6
+#define MVM_P6INT_C_TYPE_BOOL      -7
 
 /* Representation used by P6 native ints. */
 struct MVMP6intBody {
