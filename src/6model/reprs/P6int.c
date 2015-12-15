@@ -1,4 +1,7 @@
 #include "moar.h"
+#if MVM_BOOL
+#include <stdbool.h>
+#endif
 
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
