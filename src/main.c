@@ -62,6 +62,7 @@ The following environment variables are respected:\n\
     MVM_JIT_LOG                 Specifies a JIT-compiler log file\n\
     MVM_JIT_BYTECODE_DIR        Specifies a directory for JIT bytecode dumps\n\
     MVM_CROSS_THREAD_WRITE_LOG  Log unprotected cross-thread object writes to stderr\n\
+    MVM_COVERAGE_LOG            Append line-by-line coverage messages to this file\n\
 ";
 
 static int cmp_flag(const void *key, const void *value)
