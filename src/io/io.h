@@ -97,7 +97,7 @@ struct MVMIOLockable {
 /* Various bits of introspection we can perform on a handle. */
 struct MVMIOIntrospection {
     MVMint64 (*is_tty) (MVMThreadContext *tc, MVMOSHandle *h);
-    MVMint64 (*fileno) (MVMThreadContext *tc, MVMOSHandle *h);
+    MVMint64 (*native_descriptor) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 
 /* Operations aiding process spawning and I/O handling.  */
