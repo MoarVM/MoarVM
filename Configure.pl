@@ -136,6 +136,7 @@ $config{crossconf} //= '';
 $config{dllimport} //= '';
 $config{dllexport} //= '';
 $config{dlllocal}  //= '';
+$config{translate_newline_output} //= 0;
 
 # assume the compiler can be used as linker frontend
 $config{ld}           //= $config{cc};

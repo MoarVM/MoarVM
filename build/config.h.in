@@ -49,3 +49,6 @@
 #endif
 
 #define MVM_PTR_SIZE @ptr_size@
+
+/* Should we translate \n to \r\n on output? */
+#define MVM_TRANSLATE_NEWLINE_OUTPUT @translate_newline_output@
