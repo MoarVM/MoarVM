@@ -187,12 +187,13 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
 /* Initialize the MVMNormalizer pointed to to perform the specified kind of
  * normalization. */
 void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNormalization form) {
-    n->form            = form;
-    n->buffer_size     = 32;
-    n->buffer          = MVM_malloc(n->buffer_size * sizeof(MVMCodepoint));
-    n->buffer_start    = 0;
-    n->buffer_end      = 0;
-    n->buffer_norm_end = 0;
+    n->form               = form;
+    n->buffer_size        = 32;
+    n->buffer             = MVM_malloc(n->buffer_size * sizeof(MVMCodepoint));
+    n->buffer_start       = 0;
+    n->buffer_end         = 0;
+    n->buffer_norm_end    = 0;
+    n->translate_newlines = 0;
     switch (n->form) {
         case MVM_NORMALIZE_NFD:
             n->first_significant    = MVM_NORMALIZE_FIRST_SIG_NFD;
