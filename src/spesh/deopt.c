@@ -27,10 +27,12 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                 MVM_string_utf8_encode_C_string(tc, usf->body.cuuid));*/
 
             /* Copy the locals and lexicals into place. */
-            memcpy(uf->work, f->work + cand->inlines[i].locals_start,
-                usf->body.num_locals * sizeof(MVMRegister));
-            memcpy(uf->env, f->env + cand->inlines[i].lexicals_start,
-                usf->body.num_lexicals * sizeof(MVMRegister));
+            if (usf->body.num_locals)
+                memcpy(uf->work, f->work + cand->inlines[i].locals_start,
+                    usf->body.num_locals * sizeof(MVMRegister));
+            if (usf->body.num_lexicals)
+                memcpy(uf->env, f->env + cand->inlines[i].lexicals_start,
+                    usf->body.num_lexicals * sizeof(MVMRegister));
 
             /* Did we already uninline a frame? */
             if (last_uninlined) {

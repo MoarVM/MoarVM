@@ -363,8 +363,9 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     inliner->inlines = inliner->num_inlines
         ? MVM_realloc(inliner->inlines, total_inlines * sizeof(MVMSpeshInline))
         : MVM_malloc(total_inlines * sizeof(MVMSpeshInline));
-    memcpy(inliner->inlines + inliner->num_inlines, inlinee->inlines,
-        inlinee->num_inlines * sizeof(MVMSpeshInline));
+    if (inlinee->num_inlines)
+        memcpy(inliner->inlines + inliner->num_inlines, inlinee->inlines,
+            inlinee->num_inlines * sizeof(MVMSpeshInline));
     for (i = inliner->num_inlines; i < total_inlines - 1; i++) {
         inliner->inlines[i].locals_start += inliner->num_locals;
         inliner->inlines[i].lexicals_start += inliner->num_lexicals;
@@ -401,26 +402,28 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     inliner->num_inlines = total_inlines;
 
     /* Create/update per-specialization local and lexical type maps. */
-    if (!inliner->local_types) {
+    if (!inliner->local_types && inliner->num_locals) {
         MVMint32 local_types_size = inliner->num_locals * sizeof(MVMuint16);
         inliner->local_types = MVM_malloc(local_types_size);
         memcpy(inliner->local_types, inliner->sf->body.local_types, local_types_size);
     }
     inliner->local_types = MVM_realloc(inliner->local_types,
         (inliner->num_locals + inlinee->num_locals) * sizeof(MVMuint16));
-    memcpy(inliner->local_types + inliner->num_locals,
-        inlinee->local_types ? inlinee->local_types : inlinee->sf->body.local_types,
-        inlinee->num_locals * sizeof(MVMuint16));
-    if (!inliner->lexical_types) {
+    if (inlinee->num_locals)
+        memcpy(inliner->local_types + inliner->num_locals,
+            inlinee->local_types ? inlinee->local_types : inlinee->sf->body.local_types,
+            inlinee->num_locals * sizeof(MVMuint16));
+    if (!inliner->lexical_types && inliner->num_lexicals) {
         MVMint32 lexical_types_size = inliner->num_lexicals * sizeof(MVMuint16);
         inliner->lexical_types = MVM_malloc(lexical_types_size);
         memcpy(inliner->lexical_types, inliner->sf->body.lexical_types, lexical_types_size);
     }
     inliner->lexical_types = MVM_realloc(inliner->lexical_types,
         (inliner->num_lexicals + inlinee->num_lexicals) * sizeof(MVMuint16));
-    memcpy(inliner->lexical_types + inliner->num_lexicals,
-        inlinee->lexical_types ? inlinee->lexical_types : inlinee->sf->body.lexical_types,
-        inlinee->num_lexicals * sizeof(MVMuint16));
+    if (inlinee->num_lexicals)
+        memcpy(inliner->lexical_types + inliner->num_lexicals,
+            inlinee->lexical_types ? inlinee->lexical_types : inlinee->sf->body.lexical_types,
+            inlinee->num_lexicals * sizeof(MVMuint16));
 
     /* Merge handlers from inlinee. */
     if (inlinee->num_handlers) {
