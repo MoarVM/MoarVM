@@ -778,6 +778,8 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         callsites[i]->flag_count = elems;
         if (elems)
             callsites[i]->arg_flags = MVM_malloc(elems);
+        else
+            callsites[i]->arg_flags = NULL;
 
         /* Ensure we can read in a callsite of this size, and do so. */
         ensure_can_read(tc, cu, rs, pos, elems);
