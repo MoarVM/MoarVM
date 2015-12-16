@@ -1837,7 +1837,7 @@ static void check_and_dissect_input(MVMThreadContext *tc,
     char   *data_end;
     if (data_str) {
         /* Grab data from string. */
-        char *data_b64 = (char *)MVM_string_ascii_encode(tc, data_str, NULL);
+        char *data_b64 = (char *)MVM_string_ascii_encode(tc, data_str, NULL, 0);
         data = (char *)base64_decode(data_b64, &data_len);
         MVM_free(data_b64);
         reader->data_needs_free = 1;
@@ -2009,9 +2009,9 @@ static void resolve_dependencies(MVMThreadContext *tc, MVMSerializationReader *r
             if (!desc) desc = handle;
             fail_deserialize(tc, reader,
                 "Missing or wrong version of dependency '%s' (from '%s')",
-                MVM_string_ascii_encode(tc, desc, NULL),
+                MVM_string_ascii_encode(tc, desc, NULL, 0),
                 reader->root.sc->body->description
-                    ? MVM_string_ascii_encode(tc, reader->root.sc->body->description, NULL)
+                    ? MVM_string_ascii_encode(tc, reader->root.sc->body->description, NULL, 0)
                     : "<unkown>");
         }
         reader->root.dependent_scs[i] = sc;

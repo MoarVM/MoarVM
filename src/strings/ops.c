@@ -78,7 +78,7 @@ static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in) {
 
     /* Iterate codepoints and normalizer. */
     MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
-    MVM_string_ci_init(tc, &ci, in);
+    MVM_string_ci_init(tc, &ci, in, 0);
     while (MVM_string_ci_has_more(tc, &ci)) {
         MVMGrapheme32 g;
         ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, MVM_string_ci_get_codepoint(tc, &ci), &g);
@@ -812,18 +812,20 @@ MVMString * MVM_string_decode(MVMThreadContext *tc,
 }
 
 /* Encodes an MVMString to a C buffer, dependent on the encoding type flag */
-char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start, MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag, MVMString *replacement) {
+char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start,
+        MVMint64 length, MVMuint64 *output_size, MVMint64 encoding_flag,
+        MVMString *replacement, MVMint32 translate_newlines) {
     switch(encoding_flag) {
         case MVM_encoding_type_utf8:
-            return MVM_string_utf8_encode_substr(tc, s, output_size, start, length, replacement);
+            return MVM_string_utf8_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
         case MVM_encoding_type_ascii:
-            return MVM_string_ascii_encode_substr(tc, s, output_size, start, length, replacement);
+            return MVM_string_ascii_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
         case MVM_encoding_type_latin1:
-            return MVM_string_latin1_encode_substr(tc, s, output_size, start, length, replacement);
+            return MVM_string_latin1_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
         case MVM_encoding_type_utf16:
-            return MVM_string_utf16_encode_substr(tc, s, output_size, start, length, replacement);
+            return MVM_string_utf16_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
         case MVM_encoding_type_windows1252:
-            return MVM_string_windows1252_encode_substr(tc, s, output_size, start, length, replacement);
+            return MVM_string_windows1252_encode_substr(tc, s, output_size, start, length, replacement, translate_newlines);
         case MVM_encoding_type_utf8_c8:
             return MVM_string_utf8_c8_encode_substr(tc, s, output_size, start, length, replacement);
         default:
@@ -867,7 +869,7 @@ void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc
     MVMROOT(tc, s, {
         const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, enc_name);
         encoded = (MVMuint8 *)MVM_string_encode(tc, s, 0, MVM_string_graphs(tc, s), &output_size,
-            encoding_flag, replacement);
+            encoding_flag, replacement, 0);
     });
     });
 

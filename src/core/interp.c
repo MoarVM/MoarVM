@@ -1847,7 +1847,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(coerce_sI): {
                 MVMString *s = GET_REG(cur_op, 2).s;
                 MVMObject *type = GET_REG(cur_op, 4).o;
-                char *buf = MVM_string_ascii_encode(tc, s, NULL);
+                char *buf = MVM_string_ascii_encode(tc, s, NULL, 0);
                 MVMObject *a = MVM_repr_alloc_init(tc, type);
                 MVM_bigint_from_str(tc, a, buf);
                 MVM_free(buf);

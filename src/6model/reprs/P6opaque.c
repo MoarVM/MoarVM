@@ -200,8 +200,7 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
 /* Helper for complaining about attribute access errors. */
 MVM_NO_RETURN
 static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) {
-    MVMuint64 output_size;
-    char *c_name = MVM_string_ascii_encode(tc, name, &output_size);
+    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
     char *waste[] = { c_name, NULL };
     MVM_exception_throw_adhoc_free(tc, waste, "P6opaque: no such attribute '%s'", c_name);
 }

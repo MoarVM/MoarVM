@@ -145,7 +145,7 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
     result_pos   = 0;
 
     /* Create codepoint iterator. */
-    MVM_string_ci_init(tc, &ci, s);
+    MVM_string_ci_init(tc, &ci, s, 0);
 
     /* If we want NFC, just iterate, since NFG is constructed out of NFC. */
     if (form == MVM_NORMALIZE_NFC) {

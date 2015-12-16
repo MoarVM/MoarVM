@@ -271,7 +271,7 @@ char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, M
                 str = MVM_string_ascii_encode_any(tc, value_str);
                 break;
             case MVM_NATIVECALL_ARG_UTF16STR:
-                str = MVM_string_utf16_encode(tc, value_str);
+                str = MVM_string_utf16_encode(tc, value_str, 0);
                 break;
             default:
                 str = MVM_string_utf8_encode_C_string(tc, value_str);

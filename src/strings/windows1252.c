@@ -242,7 +242,9 @@ MVMString * MVM_string_windows1252_decode(MVMThreadContext *tc,
 /* Encodes the specified substring to Windows-1252. Anything outside of Windows-1252 range
  * will become a ?. The result string is NULL terminated, but the specified
  * size is the non-null part. */
-char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement) {
+char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str,
+        MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement,
+        MVMint32 translate_newlines) {
     /* Windows-1252 is a single byte encoding, so each grapheme will just become
      * a single byte. */
     MVMuint32 startu = (MVMuint32)start;
@@ -260,7 +262,8 @@ char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str
         MVM_exception_throw_adhoc(tc, "length out of range");
 
     if (replacement)
-        repl_bytes = (MVMuint8 *) MVM_string_windows1252_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);
+        repl_bytes = (MVMuint8 *) MVM_string_windows1252_encode_substr(tc,
+            replacement, &repl_length, 0, -1, NULL, translate_newlines);
 
     result_alloc = lengthu;
     result = MVM_malloc(result_alloc + 1);
@@ -274,7 +277,7 @@ char * MVM_string_windows1252_encode_substr(MVMThreadContext *tc, MVMString *str
     else {
         MVMuint32 i = 0;
         MVMCodepointIter ci;
-        MVM_string_ci_init(tc, &ci, str);
+        MVM_string_ci_init(tc, &ci, str, translate_newlines);
         while (MVM_string_ci_has_more(tc, &ci)) {
             MVMCodepoint codepoint = MVM_string_ci_get_codepoint(tc, &ci);
             if (i == result_alloc) {

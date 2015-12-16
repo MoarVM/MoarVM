@@ -153,16 +153,21 @@ struct MVMCodepointIter {
     MVMCodepoint  *synth_codes;
     MVMint32       visited_synth_codes;
     MVMint32       total_synth_codes;
+
+    /* If we should translate newline \n into \r\n. */
+    MVMint32       translate_newlines;
 };
 
 /* Initializes a code point iterator. */
-MVM_STATIC_INLINE void MVM_string_ci_init(MVMThreadContext *tc, MVMCodepointIter *ci, MVMString *s) {
+MVM_STATIC_INLINE void MVM_string_ci_init(MVMThreadContext *tc, MVMCodepointIter *ci, MVMString *s,
+        MVMint32 translate_newlines) {
     /* Initialize our underlying grapheme iterator. */
     MVM_string_gi_init(tc, &(ci->gi), s);
 
     /* We've no currently active synthetic codepoint (and other fields are
      * unused until we do, so leave them alone for now). */
     ci->synth_codes = NULL;
+    ci->translate_newlines = translate_newlines;
 };
 
 /* Checks if there is more to read from a code point iterator; this is the
@@ -191,6 +196,8 @@ MVM_STATIC_INLINE MVMCodepoint MVM_string_ci_get_codepoint(MVMThreadContext *tc,
     /* Otherwise, proceed to the next grapheme. */
     else {
         MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &(ci->gi));
+        if (ci->translate_newlines && g == '\n')
+            g = MVM_nfg_crlf_grapheme(tc);
         if (g >= 0) {
             /* It's not a synthetic, so we're done. */
             result = (MVMCodepoint)g;

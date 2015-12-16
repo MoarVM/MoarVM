@@ -2,7 +2,7 @@
 /* Looks up a codepoint by name. Lazily constructs a hash. */
 MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
-    char *cname = MVM_string_ascii_encode(tc, name, &size);
+    char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
     MVMUnicodeNameRegistry *result;
     if (!codepoints_by_name) {
         generate_codepoints_by_name(tc);
@@ -145,7 +145,7 @@ static void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
 
 MVMint32 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
-    char *cname = MVM_string_ascii_encode(tc, name, &size);
+    char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
     MVMUnicodeNameRegistry *result;
     if (!property_codes_by_names_aliases) {
         generate_property_codes_by_names_aliases(tc);
@@ -200,7 +200,7 @@ MVMint32 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 
     }
     else {
         MVMuint64 size;
-        char *cname = MVM_string_ascii_encode(tc, name, &size);
+        char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
         MVMUnicodeNameRegistry *result;
 
         HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], cname, strlen((const char *)cname), result);

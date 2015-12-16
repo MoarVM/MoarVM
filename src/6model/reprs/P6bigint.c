@@ -188,7 +188,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
         body->u.smallint.value = MVM_serialization_read_varint(tc, reader);
     } else {  /* big int */
-        char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), NULL);
+        char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), NULL, 0);
         body->u.bigint = MVM_malloc(sizeof(mp_int));
         mp_init(body->u.bigint);
         mp_read_radix(body->u.bigint, buf, 10);

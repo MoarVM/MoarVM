@@ -1330,8 +1330,8 @@ static char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_si
 
         /* Encode it with the chosen algorithm. */
         encoded = need_utf8
-            ? MVM_string_utf8_encode(tc, str, &bytelen)
-            : MVM_string_latin1_encode(tc, str, &bytelen);
+            ? MVM_string_utf8_encode(tc, str, &bytelen, 0)
+            : MVM_string_latin1_encode(tc, str, &bytelen, 0);
         if (bytelen > 0x3FFFFFFF) {
             cleanup_all(vm, ws);
             DIE(vm, "String too long for string constants segment");

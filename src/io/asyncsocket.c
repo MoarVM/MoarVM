@@ -303,7 +303,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Encode the string, or extract buf data. */
     if (wi->str_data) {
         MVMuint64 output_size_64;
-        output = MVM_string_utf8_encode(tc, wi->str_data, &output_size_64);
+        output = MVM_string_utf8_encode(tc, wi->str_data, &output_size_64, 0);
         output_size = (int)output_size_64;
     }
     else {
