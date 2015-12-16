@@ -182,7 +182,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(trunc_n32):
-                GET_REG(cur_op, 0).n32 = (MVMnum64)GET_REG(cur_op, 2).n64;
+                GET_REG(cur_op, 0).n32 = (MVMnum32)GET_REG(cur_op, 2).n64;
                 cur_op += 4;
                 goto NEXT;
             OP(set):
