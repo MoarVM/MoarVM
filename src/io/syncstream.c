@@ -86,7 +86,8 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncStreamData *data, 
 /* Ensures we have a decode stream, creating it if we're missing one. */
 static void ensure_decode_stream(MVMThreadContext *tc, MVMIOSyncStreamData *data) {
     if (!data->ds)
-        data->ds = MVM_string_decodestream_create(tc, data->encoding, 0);
+        data->ds = MVM_string_decodestream_create(tc, data->encoding, 0,
+            data->translate_newlines);
 }
 
 /* Reads a single line from the stream. May serve it from a buffer, if we
@@ -335,6 +336,7 @@ MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *h
     data->handle      = handle;
     data->encoding    = MVM_encoding_type_utf8;
     data->is_tty      = is_tty;
+    data->translate_newlines = 1;
     MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;

@@ -834,7 +834,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         pipe->data = si;
         process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         process_stdio[1].data.stream = (uv_stream_t *)pipe;
-        si->ds_stdout                = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0);
+        si->ds_stdout                = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0, 1);
         stdout_pipe                  = pipe;
         stdout_cb                    = async_spawn_stdout_chars_read;
     }
@@ -857,7 +857,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         pipe->data = si;
         process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         process_stdio[2].data.stream = (uv_stream_t *)pipe;
-        si->ds_stderr                = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0);
+        si->ds_stderr                = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0, 1);
         stderr_pipe                  = pipe;
         stderr_cb                    = async_spawn_stderr_chars_read;
     }

@@ -23,6 +23,9 @@ struct MVMIOSyncStreamData {
 
     /* Current separator specification for line-by-line reading. */
     MVMDecodeStreamSeparators sep_spec;
+
+    /* Should we translate newlines? */
+    MVMint32 translate_newlines;
 };
 
 void MVM_io_syncstream_set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding);

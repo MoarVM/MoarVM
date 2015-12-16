@@ -219,6 +219,11 @@ void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNorm
     }
 }
 
+/* Enable translation of newlines from \r\n to \n. */
+void MVM_unicode_normalizer_translate_newlines(MVMThreadContext *tc, MVMNormalizer *n) {
+    n->translate_newlines = 1;
+}
+
 /* Cleanup an MVMNormalization once we're done normalizing. */
 void MVM_unicode_normalizer_cleanup(MVMThreadContext *tc, MVMNormalizer *n) {
     free(n->buffer);
@@ -550,6 +555,8 @@ static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint3
                 /* Last in buffer or next code point is a non-starter; turn
                  * sequence into a synthetic. */
                 MVMGrapheme32 g = MVM_nfg_codes_to_grapheme(tc, n->buffer + starterish, next_pos - starterish);
+                if (n->translate_newlines && g == MVM_nfg_crlf_grapheme(tc))
+                    g = '\n';
                 n->buffer[insert_pos++] = g;
 
                 /* The next code point is our new starterish (harmless if we
