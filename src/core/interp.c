@@ -176,9 +176,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(trunc_i8):
             OP(trunc_i16):
             OP(trunc_i32):
-            OP(extend_n32):
-            OP(trunc_n32):
                 MVM_exception_throw_adhoc(tc, "extend/trunc NYI");
+            OP(extend_n32):
+                GET_REG(cur_op, 0).n64 = (MVMnum64)GET_REG(cur_op, 2).n32;
+                cur_op += 4;
+                goto NEXT;
+            OP(trunc_n32):
+                GET_REG(cur_op, 0).n32 = (MVMnum64)GET_REG(cur_op, 2).n64;
+                cur_op += 4;
+                goto NEXT;
             OP(set):
                 GET_REG(cur_op, 0) = GET_REG(cur_op, 2);
                 cur_op += 4;
