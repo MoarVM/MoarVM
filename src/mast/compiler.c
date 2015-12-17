@@ -1386,16 +1386,16 @@ static char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_s
     string_heap = form_string_heap(vm, ws, &string_heap_size);
 
     /* Work out total size. */
-    size += HEADER_SIZE;
-    size += string_heap_size;
-    size += ws->scdep_bytes;
-    size += ws->extops_bytes;
-    size += ws->frame_pos;
-    size += ws->callsite_pos;
-    size += ws->bytecode_pos;
-    size += ws->annotation_pos;
+    size += MVM_ALIGN_SECTION(HEADER_SIZE);
+    size += MVM_ALIGN_SECTION(string_heap_size);
+    size += MVM_ALIGN_SECTION(ws->scdep_bytes);
+    size += MVM_ALIGN_SECTION(ws->extops_bytes);
+    size += MVM_ALIGN_SECTION(ws->frame_pos);
+    size += MVM_ALIGN_SECTION(ws->callsite_pos);
+    size += MVM_ALIGN_SECTION(ws->bytecode_pos);
+    size += MVM_ALIGN_SECTION(ws->annotation_pos);
     if (vm->serialized)
-        size += vm->serialized_size;
+        size += MVM_ALIGN_SECTION(vm->serialized_size);
 
     /* Allocate space for the bytecode output. */
     output = (char *)MVM_malloc(size);
@@ -1404,37 +1404,37 @@ static char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_s
     /* Generate start of header. */
     memcpy(output, "MOARVM\r\n", 8);
     write_int32(output, 8, BYTECODE_VERSION);
-    pos += HEADER_SIZE;
+    pos += MVM_ALIGN_SECTION(HEADER_SIZE);
 
     /* Add SC dependencies section and its header entries. */
     write_int32(output, SCDEP_HEADER_OFFSET, pos);
     write_int32(output, SCDEP_HEADER_OFFSET + 4, ELEMS(vm, ws->cu->sc_handles));
     memcpy(output + pos, ws->scdep_seg, ws->scdep_bytes);
-    pos += ws->scdep_bytes;
+    pos += MVM_ALIGN_SECTION(ws->scdep_bytes);
 
     /* Add extension ops section and its header entries. */
     write_int32(output, EXTOP_HEADER_OFFSET, pos);
     write_int32(output, EXTOP_HEADER_OFFSET + 4, ws->num_extops);
     memcpy(output + pos, ws->extops_seg, ws->extops_bytes);
-    pos += ws->extops_bytes;
+    pos += MVM_ALIGN_SECTION(ws->extops_bytes);
 
     /* Add frames section and its header entries. */
     write_int32(output, FRAME_HEADER_OFFSET, pos);
     write_int32(output, FRAME_HEADER_OFFSET + 4, ws->num_frames);
     memcpy(output + pos, ws->frame_seg, ws->frame_pos);
-    pos += ws->frame_pos;
+    pos += MVM_ALIGN_SECTION(ws->frame_pos);
 
     /* Add callsites section and its header entries. */
     write_int32(output, CALLSITE_HEADER_OFFSET, pos);
     write_int32(output, CALLSITE_HEADER_OFFSET + 4, ws->num_callsites);
     memcpy(output + pos, ws->callsite_seg, ws->callsite_pos);
-    pos += ws->callsite_pos;
+    pos += MVM_ALIGN_SECTION(ws->callsite_pos);
 
     /* Add strings heap section and its header entries. */
     write_int32(output, STRING_HEADER_OFFSET, pos);
     write_int32(output, STRING_HEADER_OFFSET + 4, ELEMS(vm, ws->strings));
     memcpy(output + pos, string_heap, string_heap_size);
-    pos += string_heap_size;
+    pos += MVM_ALIGN_SECTION(string_heap_size);
     if (string_heap) {
         MVM_free(string_heap);
         string_heap = NULL;
@@ -1445,7 +1445,7 @@ static char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_s
         write_int32(output, SCDATA_HEADER_OFFSET, pos);
         write_int32(output, SCDATA_HEADER_OFFSET + 4, vm->serialized_size);
         memcpy(output + pos, vm->serialized, vm->serialized_size);
-        pos += vm->serialized_size;
+        pos += MVM_ALIGN_SECTION(vm->serialized_size);
         MVM_free(vm->serialized);
         vm->serialized = NULL;
         vm->serialized_size = 0;
@@ -1455,13 +1455,13 @@ static char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_s
     write_int32(output, BYTECODE_HEADER_OFFSET, pos);
     write_int32(output, BYTECODE_HEADER_OFFSET + 4, ws->bytecode_pos);
     memcpy(output + pos, ws->bytecode_seg, ws->bytecode_pos);
-    pos += ws->bytecode_pos;
+    pos += MVM_ALIGN_SECTION(ws->bytecode_pos);
 
     /* Add annotation section and its header entries (offset, length). */
     write_int32(output, ANNOTATION_HEADER_OFFSET, pos);
     write_int32(output, ANNOTATION_HEADER_OFFSET + 4, ws->annotation_pos);
     memcpy(output + pos, ws->annotation_seg, ws->annotation_pos);
-    pos += ws->annotation_pos;
+    pos += MVM_ALIGN_SECTION(ws->annotation_pos);
 
     /* Add HLL and special frame indexes. */
     write_int32(output, HLL_NAME_HEADER_OFFSET, hll_str_idx);
