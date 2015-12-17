@@ -176,6 +176,11 @@ sub static_inline_cross {
 sub _gen_unaligned_access {
     my ($config, $can) = @_;
     my @align = qw(int32 int64 num64);
+    my $no_msg = "your CPU can't";
+    if ($config->{cflags} =~ /\B-fsanitize=undefined\b/) {
+        $can = '';
+        $no_msg = "with UBSAN we won't";
+    }
     if ($can eq 'all') {
         ++$config->{"can_unaligned_$_"}
             foreach @align;
@@ -189,7 +194,7 @@ sub _gen_unaligned_access {
         if ($can) {
             print "    your CPU can read unaligned values for only $can\n";
         } else {
-            print "    your CPU can't read unaligned values for any of @align\n";
+            print "    $no_msg read unaligned values for any of @align\n";
         }
     }
 }
