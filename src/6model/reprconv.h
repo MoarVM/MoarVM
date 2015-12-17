@@ -89,13 +89,16 @@ MVM_PUBLIC MVMint64 MVM_repr_num_dimensions(MVMThreadContext *tc, MVMObject *obj
 MVM_PUBLIC MVMint64 MVM_repr_get_int(MVMThreadContext *tc, MVMObject *obj);
 MVM_PUBLIC MVMnum64 MVM_repr_get_num(MVMThreadContext *tc, MVMObject *obj);
 MVM_PUBLIC MVMString * MVM_repr_get_str(MVMThreadContext *tc, MVMObject *obj);
+MVM_PUBLIC MVMuint64 MVM_repr_get_uint(MVMThreadContext *tc, MVMObject *obj);
 MVM_PUBLIC void MVM_repr_set_int(MVMThreadContext *tc, MVMObject *obj, MVMint64 val);
 MVM_PUBLIC void MVM_repr_set_num(MVMThreadContext *tc, MVMObject *obj, MVMnum64 val);
 MVM_PUBLIC void MVM_repr_set_str(MVMThreadContext *tc, MVMObject *obj, MVMString *val);
+MVM_PUBLIC void MVM_repr_set_uint(MVMThreadContext *tc, MVMObject *obj, MVMuint64 val);
 
 MVM_PUBLIC MVMObject * MVM_repr_box_int(MVMThreadContext *tc, MVMObject *type, MVMint64 val);
 MVM_PUBLIC MVMObject * MVM_repr_box_num(MVMThreadContext *tc, MVMObject *type, MVMnum64 val);
 MVM_PUBLIC MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, MVMString *val);
+MVM_PUBLIC MVMObject * MVM_repr_box_uint(MVMThreadContext *tc, MVMObject *type, MVMuint64 val);
 
 MVM_PUBLIC MVMint64    MVM_repr_get_attr_i(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
                                            MVMString *name, MVMint16 hint);

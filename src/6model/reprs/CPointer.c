@@ -46,6 +46,23 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 #endif
 }
 
+static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 value) {
+    MVMCPointerBody *body = (MVMCPointerBody *)OBJECT_BODY(root);
+#if MVM_PTR_SIZE == 4
+    body->ptr = (void *)(MVMuint32)value;
+#else
+    body->ptr = (void *)value;
+#endif
+}
+
+static MVMuint64 get_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMCPointerBody *body = (MVMCPointerBody *)OBJECT_BODY(root);
+#if MVM_PTR_SIZE == 4
+    return (MVMuint64)(MVMuint32)body->ptr;
+#else
+    return (MVMuint64)body->ptr;
+#endif
+}
 
 static const MVMStorageSpec storage_spec = {
     MVM_STORAGE_SPEC_REFERENCE,       /* inlineable */
@@ -84,6 +101,8 @@ static const MVMREPROps this_repr = {
         MVM_REPR_DEFAULT_GET_NUM,
         MVM_REPR_DEFAULT_SET_STR,
         MVM_REPR_DEFAULT_GET_STR,
+        set_uint,
+        get_uint,
         MVM_REPR_DEFAULT_GET_BOXED_REF
     },    /* box_funcs */
     MVM_REPR_DEFAULT_POS_FUNCS,

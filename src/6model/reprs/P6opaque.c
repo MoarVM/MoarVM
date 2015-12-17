@@ -499,6 +499,36 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     }
 }
 
+/* Used with boxing. Sets an unsigned integer value, for representations that can hold
+ * one. */
+static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 value) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    data = MVM_p6opaque_real_data(tc, data);
+    if (repr_data->unbox_int_slot >= 0) {
+        MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_int_slot];
+        st->REPR->box_funcs.set_uint(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot], value);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "This type cannot box a native integer");
+    }
+}
+
+/* Used with boxing. Gets an unsigned integer value, for representations that can
+ * hold one. */
+static MVMuint64 get_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    data = MVM_p6opaque_real_data(tc, data);
+    if (repr_data->unbox_int_slot >= 0) {
+        MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_int_slot];
+        return st->REPR->box_funcs.get_uint(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot]);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "This type cannot unbox to a native integer");
+    }
+}
+
 static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     data = MVM_p6opaque_real_data(tc, data);
@@ -1503,6 +1533,8 @@ static const MVMREPROps this_repr = {
         get_num,
         set_str,
         get_str,
+        set_uint,
+        get_uint,
         get_boxed_ref
     },    /* box_funcs */
     {

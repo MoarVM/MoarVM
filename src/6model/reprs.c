@@ -52,6 +52,14 @@ MVMString * MVM_REPR_DEFAULT_GET_STR(MVMThreadContext *tc, MVMSTable *st, MVMObj
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) cannot unbox to a native string", st->REPR->name);
 }
+void MVM_REPR_DEFAULT_SET_UINT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 value) {
+    MVM_exception_throw_adhoc(tc,
+        "This representation (%s) cannot box an unsigned native int", st->REPR->name);
+}
+MVMuint64 MVM_REPR_DEFAULT_GET_UINT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVM_exception_throw_adhoc(tc,
+        "This representation (%s) cannot unbox to an unsigned native int", st->REPR->name);
+}
 void * MVM_REPR_DEFAULT_GET_BOXED_REF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) cannot unbox to other types", st->REPR->name);

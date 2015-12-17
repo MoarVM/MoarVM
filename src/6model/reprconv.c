@@ -544,7 +544,13 @@ MVMString * MVM_repr_get_str(MVMThreadContext *tc, MVMObject *obj) {
     return REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 }
 
-void MVM_repr_set_int(MVMThreadContext *tc, MVMObject *obj, MVMint64 val) {
+MVMuint64 MVM_repr_get_uint(MVMThreadContext *tc, MVMObject *obj) {
+    if (!IS_CONCRETE(obj))
+        MVM_exception_throw_adhoc(tc, "Cannot unbox a type object");
+    return REPR(obj)->box_funcs.get_uint(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+}
+
+void MVM_repr_set_int(MVMThreadContext *tc, MVMObject *obj, MVMuint64 val) {
     REPR(obj)->box_funcs.set_int(tc, STABLE(obj), obj, OBJECT_BODY(obj), val);
 }
 
@@ -554,6 +560,10 @@ void MVM_repr_set_num(MVMThreadContext *tc, MVMObject *obj, MVMnum64 val) {
 
 void MVM_repr_set_str(MVMThreadContext *tc, MVMObject *obj, MVMString *val) {
     REPR(obj)->box_funcs.set_str(tc, STABLE(obj), obj, OBJECT_BODY(obj), val);
+}
+
+void MVM_repr_set_uint(MVMThreadContext *tc, MVMObject *obj, MVMuint64 val) {
+    REPR(obj)->box_funcs.set_uint(tc, STABLE(obj), obj, OBJECT_BODY(obj), val);
 }
 
 MVMObject * MVM_repr_box_int(MVMThreadContext *tc, MVMObject *type, MVMint64 val) {
@@ -578,6 +588,12 @@ MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, MVMString *v
         res = MVM_repr_alloc_init(tc, type);
         MVM_repr_set_str(tc, res, val);
     });
+    return res;
+}
+
+MVMObject * MVM_repr_box_uint(MVMThreadContext *tc, MVMObject *type, MVMuint64 val) {
+    MVMObject *res = MVM_repr_alloc_init(tc, type);
+    MVM_repr_set_uint(tc, res, val);
     return res;
 }
 
