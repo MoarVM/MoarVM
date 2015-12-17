@@ -550,7 +550,7 @@ MVMuint64 MVM_repr_get_uint(MVMThreadContext *tc, MVMObject *obj) {
     return REPR(obj)->box_funcs.get_uint(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 }
 
-void MVM_repr_set_int(MVMThreadContext *tc, MVMObject *obj, MVMuint64 val) {
+void MVM_repr_set_int(MVMThreadContext *tc, MVMObject *obj, MVMint64 val) {
     REPR(obj)->box_funcs.set_int(tc, STABLE(obj), obj, OBJECT_BODY(obj), val);
 }
 
