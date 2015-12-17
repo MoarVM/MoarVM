@@ -7771,6 +7771,94 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
+        MVM_OP_getregref_i32,
+        "getregref_i32",
+        "  ",
+        2,
+        1,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int32 }
+    },
+    {
+        MVM_OP_getregref_i16,
+        "getregref_i16",
+        "  ",
+        2,
+        1,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int16 }
+    },
+    {
+        MVM_OP_getregref_i8,
+        "getregref_i8",
+        "  ",
+        2,
+        1,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int8 }
+    },
+    {
+        MVM_OP_getregref_n32,
+        "getregref_n32",
+        "  ",
+        2,
+        1,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_num32 }
+    },
+    {
+        MVM_OP_getlexref_i32,
+        "getlexref_i32",
+        "  ",
+        2,
+        1,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_int32 }
+    },
+    {
+        MVM_OP_getlexref_i16,
+        "getlexref_i16",
+        "  ",
+        2,
+        1,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_int16 }
+    },
+    {
+        MVM_OP_getlexref_i8,
+        "getlexref_i8",
+        "  ",
+        2,
+        1,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_int8 }
+    },
+    {
+        MVM_OP_getlexref_n32,
+        "getlexref_n32",
+        "  ",
+        2,
+        1,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_num32 }
+    },
+    {
         MVM_OP_sp_log,
         "sp_log",
         ".s",
@@ -8428,7 +8516,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 767;
+static const unsigned short MVM_op_counts = 775;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

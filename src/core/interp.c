@@ -4779,6 +4779,30 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(getregref_i32):
+            OP(getregref_i16):
+            OP(getregref_i8):
+                GET_REG(cur_op, 0).o = MVM_nativeref_reg_i(tc, tc->cur_frame,
+                    &GET_REG(cur_op, 2));
+                cur_op += 4;
+                goto NEXT;
+            OP(getregref_n32):
+                GET_REG(cur_op, 0).o = MVM_nativeref_reg_n(tc, tc->cur_frame,
+                    &GET_REG(cur_op, 2));
+                cur_op += 4;
+                goto NEXT;
+            OP(getlexref_i32):
+            OP(getlexref_i16):
+            OP(getlexref_i8):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_i(tc,
+                    GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
+                cur_op += 6;
+                goto NEXT;
+            OP(getlexref_n32):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_n(tc,
+                    GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
+                cur_op += 6;
+                goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

@@ -745,6 +745,14 @@ asyncwritestrto     w(obj) r(obj) r(obj) r(obj) r(str) r(obj) r(str) r(int64)
 asyncwritebytesto   w(obj) r(obj) r(obj) r(obj) r(obj) r(obj) r(str) r(int64)
 objprimbits         w(int64) r(obj)
 objprimunsigned     w(int64) r(obj)
+getregref_i32       w(obj) r(int32) :pure :noinline
+getregref_i16       w(obj) r(int16) :pure :noinline
+getregref_i8        w(obj) r(int8) :pure :noinline
+getregref_n32       w(obj) r(num32) :pure :noinline
+getlexref_i32       w(obj) rl(int32) :pure :noinline
+getlexref_i16       w(obj) rl(int16) :pure :noinline
+getlexref_i8        w(obj) rl(int8) :pure :noinline
+getlexref_n32       w(obj) rl(num32) :pure :noinline
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
