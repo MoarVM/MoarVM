@@ -4838,6 +4838,29 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
                 cur_op += 6;
                 goto NEXT;
+            OP(box_u): {
+                MVM_box_uint(tc, GET_REG(cur_op, 2).u64, GET_REG(cur_op, 4).o,
+                            &GET_REG(cur_op, 0));
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(unbox_u): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                if (!IS_CONCRETE(obj))
+                    MVM_exception_throw_adhoc(tc, "Cannot unbox a type object");
+                GET_REG(cur_op, 0).u64 = REPR(obj)->box_funcs.get_uint(tc,
+                    STABLE(obj), obj, OBJECT_BODY(obj));
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(coerce_iu):
+                GET_REG(cur_op, 0).u64 = (MVMuint64)GET_REG(cur_op, 0).i64;
+                cur_op += 4;
+                goto NEXT;
+            OP(coerce_ui):
+                GET_REG(cur_op, 0).i64 = (MVMuint64)GET_REG(cur_op, 0).u64;
+                cur_op += 4;
+                goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

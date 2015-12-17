@@ -753,6 +753,10 @@ getlexref_i32       w(obj) rl(int32) :pure :noinline
 getlexref_i16       w(obj) rl(int16) :pure :noinline
 getlexref_i8        w(obj) rl(int8) :pure :noinline
 getlexref_n32       w(obj) rl(num32) :pure :noinline
+box_u               w(obj) r(uint64) r(obj) :pure
+unbox_u             w(uint64) r(obj) :pure
+coerce_iu           w(uint64) r(int64) :pure
+coerce_ui           w(int64) r(uint64) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
