@@ -20,12 +20,13 @@ static void setup_std_handles(MVMThreadContext *tc);
 
 static FILE *fopen_perhaps_with_pid(char *path, const char *mode) {
     if (strstr(path, "%d")) {
-        MVMuint16 path_length = strlen(path);
-        MVMuint16 found_percents = 0;
+        MVMuint64 path_length = strlen(path);
+        MVMuint64 found_percents = 0;
+        MVMuint64 i;
 
         /* Let's sanitize the format string a bit. Must only have
          * a single printf-recognized directive. */
-        for (int i = 0; i < path_length; i++) {
+        for (i = 0; i < path_length; i++) {
             if (path[i] == '%') {
                 /* %% is all right. */
                 if (i + 1 < path_length && path[i + 1] == '%') {
