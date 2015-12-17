@@ -299,8 +299,9 @@ next_operand:
 
 
 static void validate_lex_operand(Validator *val, MVMuint32 flags) {
+    MVMuint32 operand_type = flags & MVM_operand_type_mask;
     MVMuint16 lex_index, frame_index, i;
-    MVMuint32 lex_count;
+    MVMuint32 lex_count, lex_type;
     MVMStaticFrame *frame = val->frame;
 
     /* Two steps forward, two steps back to keep the error reporting happy,
@@ -320,11 +321,30 @@ static void validate_lex_operand(Validator *val, MVMuint32 flags) {
                     " more enclosing scopes"), i);
     }
 
+    if (!frame->body.fully_deserialized)
+        MVM_bytecode_finish_frame(val->tc, frame->body.cu, frame, 0);
+
     lex_count = frame->body.num_lexicals;
     if (lex_index >= lex_count)
         fail(val, MSG(val, "lexical operand index %" PRIu16
                 " out of range 0.. %" PRIu32), lex_index, lex_count - 1);
 
+    lex_type = frame->body.lexical_types[lex_index] << 3;
+
+    if (operand_type == MVM_operand_type_var) {
+        if (!val->reg_type_var) {
+            val->reg_type_var = lex_type;
+            goto next_operand;
+        }
+
+        operand_type = val->reg_type_var;
+    }
+
+    if (lex_type != operand_type)
+        fail(val, MSG(val, "operand type %i does not match lexical type %i"),
+                operand_type, lex_type);
+
+  next_operand:
     val->cur_op += 4;
 }
 

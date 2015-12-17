@@ -167,18 +167,43 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(extend_u8):
             OP(extend_u16):
             OP(extend_u32):
+                MVM_exception_throw_adhoc(tc, "extend/trunc NYI");
             OP(extend_i8):
+                GET_REG(cur_op, 0).i64 = (MVMint64)GET_REG(cur_op, 2).i8;
+                cur_op += 4;
+                goto NEXT;
             OP(extend_i16):
+                GET_REG(cur_op, 0).i64 = (MVMint64)GET_REG(cur_op, 2).i16;
+                cur_op += 4;
+                goto NEXT;
             OP(extend_i32):
+                GET_REG(cur_op, 0).i64 = (MVMint64)GET_REG(cur_op, 2).i32;
+                cur_op += 4;
+                goto NEXT;
             OP(trunc_u8):
             OP(trunc_u16):
             OP(trunc_u32):
-            OP(trunc_i8):
-            OP(trunc_i16):
-            OP(trunc_i32):
-            OP(extend_n32):
-            OP(trunc_n32):
                 MVM_exception_throw_adhoc(tc, "extend/trunc NYI");
+            OP(trunc_i8):
+                GET_REG(cur_op, 0).i8 = (MVMint8)GET_REG(cur_op, 2).i64;
+                cur_op += 4;
+                goto NEXT;
+            OP(trunc_i16):
+                GET_REG(cur_op, 0).i16 = (MVMint16)GET_REG(cur_op, 2).i64;
+                cur_op += 4;
+                goto NEXT;
+            OP(trunc_i32):
+                GET_REG(cur_op, 0).i32 = (MVMint32)GET_REG(cur_op, 2).i64;
+                cur_op += 4;
+                goto NEXT;
+            OP(extend_n32):
+                GET_REG(cur_op, 0).n64 = (MVMnum64)GET_REG(cur_op, 2).n32;
+                cur_op += 4;
+                goto NEXT;
+            OP(trunc_n32):
+                GET_REG(cur_op, 0).n32 = (MVMnum32)GET_REG(cur_op, 2).n64;
+                cur_op += 4;
+                goto NEXT;
             OP(set):
                 GET_REG(cur_op, 0) = GET_REG(cur_op, 2);
                 cur_op += 4;
@@ -4748,6 +4773,54 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o,
                     GET_REG(cur_op, 10).o, GET_REG(cur_op, 12).s, GET_REG(cur_op, 14).i64);
                 cur_op += 16;
+                goto NEXT;
+            OP(objprimbits): {
+                MVMObject *type = GET_REG(cur_op, 2).o;
+                if (type) {
+                    const MVMStorageSpec *ss = REPR(type)->get_storage_spec(tc, STABLE(type));
+                    GET_REG(cur_op, 0).i64 = ss->boxed_primitive ? ss->bits : 0;
+                }
+                else {
+                    GET_REG(cur_op, 0).i64 = 0;
+                }
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(objprimunsigned): {
+                MVMObject *type = GET_REG(cur_op, 2).o;
+                if (type) {
+                    const MVMStorageSpec *ss = REPR(type)->get_storage_spec(tc, STABLE(type));
+                    GET_REG(cur_op, 0).i64 = ss->boxed_primitive == 1 ? ss->is_unsigned : 0;
+                }
+                else {
+                    GET_REG(cur_op, 0).i64 = 0;
+                }
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(getregref_i32):
+            OP(getregref_i16):
+            OP(getregref_i8):
+                GET_REG(cur_op, 0).o = MVM_nativeref_reg_i(tc, tc->cur_frame,
+                    &GET_REG(cur_op, 2));
+                cur_op += 4;
+                goto NEXT;
+            OP(getregref_n32):
+                GET_REG(cur_op, 0).o = MVM_nativeref_reg_n(tc, tc->cur_frame,
+                    &GET_REG(cur_op, 2));
+                cur_op += 4;
+                goto NEXT;
+            OP(getlexref_i32):
+            OP(getlexref_i16):
+            OP(getlexref_i8):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_i(tc,
+                    GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
+                cur_op += 6;
+                goto NEXT;
+            OP(getlexref_n32):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_n(tc,
+                    GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
+                cur_op += 6;
                 goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
