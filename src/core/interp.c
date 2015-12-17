@@ -165,9 +165,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     1);
                 goto NEXT;
             OP(extend_u8):
+                GET_REG(cur_op, 0).u64 = (MVMuint64)GET_REG(cur_op, 2).u8;
+                cur_op += 4;
+                goto NEXT;
             OP(extend_u16):
+                GET_REG(cur_op, 0).u64 = (MVMuint64)GET_REG(cur_op, 2).u16;
+                cur_op += 4;
+                goto NEXT;
             OP(extend_u32):
-                MVM_exception_throw_adhoc(tc, "extend/trunc NYI");
+                GET_REG(cur_op, 0).u64 = (MVMuint64)GET_REG(cur_op, 2).u32;
+                cur_op += 4;
+                goto NEXT;
             OP(extend_i8):
                 GET_REG(cur_op, 0).i64 = (MVMint64)GET_REG(cur_op, 2).i8;
                 cur_op += 4;
@@ -181,9 +189,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(trunc_u8):
+                GET_REG(cur_op, 0).u8 = (MVMuint8)GET_REG(cur_op, 2).u64;
+                cur_op += 4;
+                goto NEXT;
             OP(trunc_u16):
+                GET_REG(cur_op, 0).u16 = (MVMuint16)GET_REG(cur_op, 2).u64;
+                cur_op += 4;
+                goto NEXT;
             OP(trunc_u32):
-                MVM_exception_throw_adhoc(tc, "extend/trunc NYI");
+                GET_REG(cur_op, 0).u32 = (MVMuint32)GET_REG(cur_op, 2).u64;
+                cur_op += 4;
+                goto NEXT;
             OP(trunc_i8):
                 GET_REG(cur_op, 0).i8 = (MVMint8)GET_REG(cur_op, 2).i64;
                 cur_op += 4;
@@ -376,7 +392,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(div_u):
-                GET_REG(cur_op, 0).ui64 = GET_REG(cur_op, 2).ui64 / GET_REG(cur_op, 4).ui64;
+                GET_REG(cur_op, 0).u64 = GET_REG(cur_op, 2).u64 / GET_REG(cur_op, 4).u64;
                 cur_op += 6;
                 goto NEXT;
             OP(mod_i): {
@@ -389,7 +405,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(mod_u):
-                GET_REG(cur_op, 0).ui64 = GET_REG(cur_op, 2).ui64 % GET_REG(cur_op, 4).ui64;
+                GET_REG(cur_op, 0).u64 = GET_REG(cur_op, 2).u64 % GET_REG(cur_op, 4).u64;
                 cur_op += 6;
                 goto NEXT;
             OP(neg_i):
@@ -407,7 +423,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(inc_u):
-                GET_REG(cur_op, 0).ui64++;
+                GET_REG(cur_op, 0).u64++;
                 cur_op += 2;
                 goto NEXT;
             OP(dec_i):
@@ -415,7 +431,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(dec_u):
-                GET_REG(cur_op, 0).ui64--;
+                GET_REG(cur_op, 0).u64--;
                 cur_op += 2;
                 goto NEXT;
             OP(getcode):

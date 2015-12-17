@@ -16,13 +16,13 @@ union MVMRegister {
     MVMObject         *o;
     MVMString *s;
     MVMint8            i8;
-    MVMuint8           ui8;
+    MVMuint8           u8;
     MVMint16           i16;
-    MVMuint16          ui16;
+    MVMuint16          u16;
     MVMint32           i32;
-    MVMuint32          ui32;
+    MVMuint32          u32;
     MVMint64           i64;
-    MVMuint64          ui64;
+    MVMuint64          u64;
     MVMnum32           n32;
     MVMnum64           n64;
 };

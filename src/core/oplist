@@ -46,15 +46,15 @@ const_n32           w(num32) num32 :pure
 const_n64           w(num64) num64 :pure
 const_s             w(str) str :pure
 set                 w(`1) r(`1) :pure
-extend_u8           w(int64) r(int8) :pure
-extend_u16          w(int64) r(int16) :pure
-extend_u32          w(int64) r(int32) :pure
+extend_u8           w(uint64) r(uint8) :pure
+extend_u16          w(uint64) r(uint16) :pure
+extend_u32          w(uint64) r(uint32) :pure
 extend_i8           w(int64) r(int8) :pure
 extend_i16          w(int64) r(int16) :pure
 extend_i32          w(int64) r(int32) :pure
-trunc_u8            w(int8) r(int64) :pure
-trunc_u16           w(int16) r(int64) :pure
-trunc_u32           w(int32) r(int64) :pure
+trunc_u8            w(uint8) r(uint64) :pure
+trunc_u16           w(uint16) r(uint64) :pure
+trunc_u32           w(uint32) r(uint64) :pure
 trunc_i8            w(int8) r(int64) :pure
 trunc_i16           w(int16) r(int64) :pure
 trunc_i32           w(int32) r(int64) :pure
@@ -104,15 +104,15 @@ add_i               w(int64) r(int64) r(int64) :pure
 sub_i               w(int64) r(int64) r(int64) :pure
 mul_i               w(int64) r(int64) r(int64) :pure
 div_i               w(int64) r(int64) r(int64) :pure
-div_u               w(int64) r(int64) r(int64) :pure
+div_u               w(uint64) r(uint64) r(uint64) :pure
 mod_i               w(int64) r(int64) r(int64) :pure
-mod_u               w(int64) r(int64) r(int64) :pure
+mod_u               w(uint64) r(uint64) r(uint64) :pure
 neg_i               w(int64) r(int64) :pure
 abs_i               w(int64) r(int64) :pure
 inc_i               w(int64)
-inc_u               w(int64)
+inc_u               w(uint64)
 dec_i               w(int64)
-dec_u               w(int64)
+dec_u               w(uint64)
 band_i              w(int64) r(int64) r(int64) :pure
 bor_i               w(int64) r(int64) r(int64) :pure
 bxor_i              w(int64) r(int64) r(int64) :pure
