@@ -4755,6 +4755,30 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 10).o, GET_REG(cur_op, 12).s, GET_REG(cur_op, 14).i64);
                 cur_op += 16;
                 goto NEXT;
+            OP(objprimbits): {
+                MVMObject *type = GET_REG(cur_op, 2).o;
+                if (type) {
+                    const MVMStorageSpec *ss = REPR(type)->get_storage_spec(tc, STABLE(type));
+                    GET_REG(cur_op, 0).i64 = ss->boxed_primitive ? ss->bits : 0;
+                }
+                else {
+                    GET_REG(cur_op, 0).i64 = 0;
+                }
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(objprimunsigned): {
+                MVMObject *type = GET_REG(cur_op, 2).o;
+                if (type) {
+                    const MVMStorageSpec *ss = REPR(type)->get_storage_spec(tc, STABLE(type));
+                    GET_REG(cur_op, 0).i64 = ss->boxed_primitive == 1 ? ss->is_unsigned : 0;
+                }
+                else {
+                    GET_REG(cur_op, 0).i64 = 0;
+                }
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
