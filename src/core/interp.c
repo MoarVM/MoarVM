@@ -167,16 +167,35 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(extend_u8):
             OP(extend_u16):
             OP(extend_u32):
+                MVM_exception_throw_adhoc(tc, "extend/trunc NYI");
             OP(extend_i8):
+                GET_REG(cur_op, 0).i64 = (MVMint64)GET_REG(cur_op, 2).i8;
+                cur_op += 4;
+                goto NEXT;
             OP(extend_i16):
+                GET_REG(cur_op, 0).i64 = (MVMint64)GET_REG(cur_op, 2).i16;
+                cur_op += 4;
+                goto NEXT;
             OP(extend_i32):
+                GET_REG(cur_op, 0).i64 = (MVMint64)GET_REG(cur_op, 2).i32;
+                cur_op += 4;
+                goto NEXT;
             OP(trunc_u8):
             OP(trunc_u16):
             OP(trunc_u32):
-            OP(trunc_i8):
-            OP(trunc_i16):
-            OP(trunc_i32):
                 MVM_exception_throw_adhoc(tc, "extend/trunc NYI");
+            OP(trunc_i8):
+                GET_REG(cur_op, 0).i8 = (MVMint8)GET_REG(cur_op, 2).i64;
+                cur_op += 4;
+                goto NEXT;
+            OP(trunc_i16):
+                GET_REG(cur_op, 0).i16 = (MVMint16)GET_REG(cur_op, 2).i64;
+                cur_op += 4;
+                goto NEXT;
+            OP(trunc_i32):
+                GET_REG(cur_op, 0).i32 = (MVMint32)GET_REG(cur_op, 2).i64;
+                cur_op += 4;
+                goto NEXT;
             OP(extend_n32):
                 GET_REG(cur_op, 0).n64 = (MVMnum64)GET_REG(cur_op, 2).n32;
                 cur_op += 4;
