@@ -1,6 +1,13 @@
 #include "moar.h"
 #include <platform/threads.h>
 
+
+#ifndef _WIN32
+#  include <unistd.h>
+#else
+#  include <process.h>
+#endif
+
 #define init_mutex(loc, name) do { \
     if ((init_stat = uv_mutex_init(&loc)) < 0) { \
         fprintf(stderr, "MoarVM: Initialization of " name " mutex failed\n    %s\n", \
@@ -10,6 +17,47 @@
 } while (0)
 
 static void setup_std_handles(MVMThreadContext *tc);
+
+static FILE *fopen_perhaps_with_pid(char *path, const char *mode) {
+    if (strstr(path, "%d")) {
+        MVMuint16 path_length = strlen(path);
+        MVMuint16 found_percents = 0;
+
+        /* Let's sanitize the format string a bit. Must only have
+         * a single printf-recognized directive. */
+        for (int i = 0; i < path_length; i++) {
+            if (path[i] == '%') {
+                /* %% is all right. */
+                if (i + 1 < path_length && path[i + 1] == '%') {
+                    i++; continue;
+                }
+                found_percents++;
+            }
+        }
+        /* We expect to pass only a single argument to snprintf here;
+         * just bail out if there's more than one directive. */
+        if (found_percents > 1) {
+            return fopen(path, mode);
+        } else {
+            char *fixed_path = malloc(path_length + 16);
+            FILE *result;
+            MVMint64 pid;
+#ifdef _WIN32
+            pid = _getpid();
+#else
+            pid = getpid();
+#endif
+            /* We make the brave assumption that
+             * pids only go up to 16 characters. */
+            snprintf(fixed_path, path_length + 16, path, pid);
+            result = fopen(fixed_path, mode);
+            free(fixed_path);
+            return result;
+        }
+    } else {
+        return fopen(path, mode);
+    }
+}
 
 /* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
@@ -135,7 +183,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     init_mutex(instance->mutex_spesh_install, "spesh installations");
     spesh_log = getenv("MVM_SPESH_LOG");
     if (spesh_log && strlen(spesh_log))
-        instance->spesh_log_fh = fopen(spesh_log, "w");
+        instance->spesh_log_fh = fopen_perhaps_with_pid(spesh_log, "w");
     spesh_disable = getenv("MVM_SPESH_DISABLE");
     if (!spesh_disable || strlen(spesh_disable) == 0) {
         instance->spesh_enabled = 1;
@@ -160,7 +208,7 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->jit_enabled = 1;
     jit_log = getenv("MVM_JIT_LOG");
     if (jit_log && strlen(jit_log))
-        instance->jit_log_fh = fopen(jit_log, "w");
+        instance->jit_log_fh = fopen_perhaps_with_pid(jit_log, "w");
     jit_bytecode_dir = getenv("MVM_JIT_BYTECODE_DIR");
     if (jit_bytecode_dir && strlen(jit_bytecode_dir)) {
         char *bytecode_map_name = MVM_malloc(strlen(jit_bytecode_dir) + strlen("/jit-map.txt") + 1);
@@ -174,7 +222,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");
     if (dynvar_log && strlen(dynvar_log)) {
-        instance->dynvar_log_fh = fopen(dynvar_log, "w");
+        instance->dynvar_log_fh = fopen_perhaps_with_pid(dynvar_log, "w");
         fprintf(instance->dynvar_log_fh, "+ x 0 0 0 0 0 %llu\n", uv_hrtime());
         fflush(instance->dynvar_log_fh);
         instance->dynvar_log_lasttime = uv_hrtime();
