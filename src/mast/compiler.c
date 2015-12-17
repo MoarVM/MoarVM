@@ -321,18 +321,35 @@ static unsigned short type_to_local_type(VM, WriterState *ws, MASTNode *type) {
     if (ss->inlineable) {
         switch (ss->boxed_primitive) {
             case MVM_STORAGE_SPEC_BP_INT:
-                switch (ss->bits) {
-                    case 8:
-                        return MVM_reg_int8;
-                    case 16:
-                        return MVM_reg_int16;
-                    case 32:
-                        return MVM_reg_int32;
-                    case 64:
-                        return MVM_reg_int64;
-                    default:
-                        cleanup_all(vm, ws);
-                        DIE(vm, "Invalid int size for local/lexical");
+                if (ss->is_unsigned) {
+                    switch (ss->bits) {
+                        case 8:
+                            return MVM_reg_uint8;
+                        case 16:
+                            return MVM_reg_uint16;
+                        case 32:
+                            return MVM_reg_uint32;
+                        case 64:
+                            return MVM_reg_uint64;
+                        default:
+                            cleanup_all(vm, ws);
+                            DIE(vm, "Invalid int size for local/lexical");
+                    }
+                }
+                else {
+                    switch (ss->bits) {
+                        case 8:
+                            return MVM_reg_int8;
+                        case 16:
+                            return MVM_reg_int16;
+                        case 32:
+                            return MVM_reg_int32;
+                        case 64:
+                            return MVM_reg_int64;
+                        default:
+                            cleanup_all(vm, ws);
+                            DIE(vm, "Invalid int size for local/lexical");
+                    }
                 }
                 break;
             case MVM_STORAGE_SPEC_BP_NUM:
