@@ -334,6 +334,9 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
             if (flags & 4096) {
                 append(ds, " MgWLG");
             }
+            if (flags & 8192) {
+                append(ds, " KRWCn");
+            }
             if (g->facts[i][j].writer && g->facts[i][j].writer->info->opcode == MVM_SSA_PHI) {
                 appendf(ds, " (merged from %d regs)", g->facts[i][j].writer->info->num_operands - 1);
             }
