@@ -317,6 +317,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_index_s: return MVM_string_index;
     case MVM_OP_substr_s: return MVM_string_substring;
     case MVM_OP_join: return MVM_string_join;
+    case MVM_OP_replace: return MVM_string_replace;
     case MVM_OP_iscclass: return MVM_string_is_cclass;
     case MVM_OP_findcclass: return MVM_string_find_cclass;
     case MVM_OP_findnotcclass: return MVM_string_find_not_cclass;
@@ -2211,6 +2212,20 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, { sep } },
                                  { MVM_JIT_REG_VAL, { input } } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_replace: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 a       = ins->operands[1].reg.orig;
+        MVMint16 start   = ins->operands[2].reg.orig;
+        MVMint16 length  = ins->operands[3].reg.orig;
+        MVMint16 replace = ins->operands[4].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { a } },
+                                 { MVM_JIT_REG_VAL, { start } },
+                                 { MVM_JIT_REG_VAL, { length } },
+                                 { MVM_JIT_REG_VAL, { replace } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 5, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_substr_s: {
