@@ -280,7 +280,9 @@ MVMObject * MVM_nativeref_lex_i(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
             : f->static_info->body.lexical_types;
         MVMuint16 type = lexical_types[idx];
         if (type != MVM_reg_int64 && type != MVM_reg_int32 &&
-                type != MVM_reg_int16 && type != MVM_reg_int8)
+                type != MVM_reg_int16 && type != MVM_reg_int8 &&
+                type != MVM_reg_uint64 && type != MVM_reg_uint32 &&
+                type != MVM_reg_uint16 && type != MVM_reg_uint8)
             MVM_exception_throw_adhoc(tc, "getlexref_i: lexical is not an int");
         return reg_or_lex_ref(tc, ref_type, f, &(f->env[idx]), type);
     }

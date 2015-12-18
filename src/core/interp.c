@@ -4876,6 +4876,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_6model_container_decont_u(tc, obj, r);
                 goto NEXT;
             }
+            OP(getregref_u):
+            OP(getregref_u32):
+            OP(getregref_u16):
+            OP(getregref_u8):
+                /* XXX Cheat should have a _u here. */
+                GET_REG(cur_op, 0).o = MVM_nativeref_reg_i(tc, tc->cur_frame,
+                    &GET_REG(cur_op, 2));
+                cur_op += 4;
+                goto NEXT;
+            OP(getlexref_u):
+            OP(getlexref_u32):
+            OP(getlexref_u16):
+            OP(getlexref_u8):
+                /* XXX Cheat should have a _u here. */
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_i(tc,
+                    GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
+                cur_op += 6;
+                goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
