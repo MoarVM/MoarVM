@@ -287,6 +287,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_getattrs_i: return MVM_repr_get_attr_i;
     case MVM_OP_getattrs_o: return MVM_repr_get_attr_o;
 
+    case MVM_OP_attrinited: return MVM_repr_attribute_inited;
+
     case MVM_OP_bindattr_i: case MVM_OP_bindattr_n: case MVM_OP_bindattr_s: case MVM_OP_bindattr_o: return MVM_repr_bind_attr_inso;
     case MVM_OP_bindattrs_i: case MVM_OP_bindattrs_n: case MVM_OP_bindattrs_s: case MVM_OP_bindattrs_o: return MVM_repr_bind_attr_inso;
 
@@ -771,6 +773,7 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
         case MVM_OP_getattrs_n:
         case MVM_OP_getattrs_s:
         case MVM_OP_getattrs_o:
+        case MVM_OP_attrinited:
         case MVM_OP_hintfor:
             type_operand = ins->operands[1];
             break;
@@ -936,6 +939,43 @@ static MVMint32 jgb_consume_reprop(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                                                         MVM_reg_obj } };
                     MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
                     jgb_append_call_c(tc, jgb, function, 9, args, MVM_JIT_RV_VOID, -1);
+
+                    return 1;
+                } else {
+                    MVM_jit_log(tc, "devirt: couldn't %s; concreteness not sure\n", ins->info->name);
+                    break;
+                }
+            }
+            case MVM_OP_attrinited: {
+                /*attrinited          w(int64) r(obj) r(obj) r(str)*/
+
+                /*MVMint64 (*is_attribute_initialized) (MVMThreadContext *tc, MVMSTable *st,*/
+                    /*void *data, MVMObject *class_handle, MVMString *name,*/
+                    /*MVMint64 hint);*/
+
+                /* reprconv and interp.c check for concreteness, so we'd either
+                 * have to emit a bit of code to check and throw or just rely
+                 * on a concreteness fact */
+
+                MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, jgb->sg, ins->operands[1]);
+
+                if (object_facts->flags & MVM_SPESH_FACT_CONCRETE) {
+                    MVMint32 dst       = ins->operands[0].reg.orig;
+                    MVMint32 invocant  = ins->operands[1].reg.orig;
+                    MVMint32 type      = ins->operands[2].reg.orig;
+                    MVMint32 attrname  = ins->operands[3].reg.orig;
+                    MVMint32 attrhint  = MVM_NO_HINT;
+
+                    void *function = ((MVMObject*)type_facts->type)->st->REPR->attr_funcs.is_attribute_initialized;
+
+                    MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                             { MVM_JIT_REG_STABLE,  invocant },
+                                             { MVM_JIT_REG_OBJBODY, invocant },
+                                             { MVM_JIT_REG_VAL,     type },
+                                             { MVM_JIT_REG_VAL,     attrname },
+                                             { MVM_JIT_LITERAL,     attrhint } };
+                    MVM_jit_log(tc, "devirt: emitted a %s via jgb_consume_reprop\n", ins->info->name);
+                    jgb_append_call_c(tc, jgb, function, 6, args, MVM_JIT_RV_INT, dst);
 
                     return 1;
                 } else {
@@ -1303,6 +1343,19 @@ skipdevirt:
                                  { MVM_JIT_REG_VAL, str },
                                  { MVM_JIT_LITERAL, hint }};
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 5, args, kind, dst);
+        break;
+    }
+    case MVM_OP_attrinited: {
+        MVMint32 dst       = ins->operands[0].reg.orig;
+        MVMint32 invocant  = ins->operands[1].reg.orig;
+        MVMint32 type      = ins->operands[2].reg.orig;
+        MVMint32 attrname  = ins->operands[3].reg.orig;
+
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, invocant },
+                                 { MVM_JIT_REG_VAL, type },
+                                 { MVM_JIT_REG_VAL, attrname } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_bindattr_i:
@@ -1855,6 +1908,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_getattrs_n:
     case MVM_OP_getattrs_s:
     case MVM_OP_getattrs_o:
+    case MVM_OP_attrinited:
     case MVM_OP_bindattr_i:
     case MVM_OP_bindattr_n:
     case MVM_OP_bindattr_s:

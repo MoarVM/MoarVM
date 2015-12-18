@@ -657,6 +657,15 @@ MVM_PUBLIC void MVM_repr_bind_attr_inso(MVMThreadContext *tc, MVMObject *object,
     MVM_SC_WB_OBJ(tc, object);
 }
 
+MVM_PUBLIC MVMint64 MVM_repr_attribute_inited(MVMThreadContext *tc, MVMObject *obj, MVMObject *type,
+                                              MVMString *name) {
+    if (!IS_CONCRETE(obj))
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+    return REPR(obj)->attr_funcs.is_attribute_initialized(tc,
+        STABLE(obj), OBJECT_BODY(obj),
+        type, name, MVM_NO_HINT);
+}
+
 MVM_PUBLIC MVMint64    MVM_repr_compare_repr_id(MVMThreadContext *tc, MVMObject *object, MVMuint32 REPRId) {
     return object && REPR(object)->ID == REPRId ? 1 : 0;
 }
