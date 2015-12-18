@@ -1203,8 +1203,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov ARG1, TC;
         | mov ARG2, TMP6;
         | call FUNCTION;
-        | mov TMP6w, word STORAGESPEC:RV->boxed_primitive;
-        | movzx TMP6, TMP6w;
+        | movzx TMP6, word STORAGESPEC:RV->boxed_primitive;
         |1:
         | mov aword WORK[dst], TMP6;
         break;
