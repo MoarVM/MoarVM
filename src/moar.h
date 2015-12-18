@@ -63,7 +63,8 @@ typedef double   MVMnum64;
 #define ALIGNOF(t) ((char *)(&((struct { char c; t _h; } *)0)->_h) - (char *)0)
 #endif
 
-#define MVM_ALIGN_SECTION(offset) ((offset) + (offset) % ALIGNOF(MVMint64))
+#define MVM_ALIGN_SECTION_MASK ((MVMuint32)ALIGNOF(MVMint64) - 1)
+#define MVM_ALIGN_SECTION(offset) (((offset) + (MVM_ALIGN_SECTION_MASK)) & ~(MVM_ALIGN_SECTION_MASK))
 
 #if defined MVM_BUILD_SHARED
 #  define MVM_PUBLIC  MVM_DLL_EXPORT
