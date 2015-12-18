@@ -147,6 +147,8 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_MVMCallCapture,
     1, /* refs_frames */
 };
+
+/* This function was only introduced for the benefit of the JIT. */
 MVMint64 MVM_capture_pos_primspec(MVMThreadContext *tc, MVMObject *obj, MVMint64 i) {
     if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
         MVMCallCapture *cc = (MVMCallCapture *)obj;
@@ -174,4 +176,3 @@ MVMint64 MVM_capture_pos_primspec(MVMThreadContext *tc, MVMObject *obj, MVMint64
         MVM_exception_throw_adhoc(tc, "captureposprimspec needs a MVMCallCapture");
     }
 }
-
