@@ -365,8 +365,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_decont_i: return MVM_6model_container_decont_i;
     case MVM_OP_decont_n: return MVM_6model_container_decont_n;
     case MVM_OP_decont_s: return MVM_6model_container_decont_s;
-    case MVM_OP_getlexref_i: return MVM_nativeref_lex_i;
-    case MVM_OP_getlexref_n: return MVM_nativeref_lex_n;
+    case MVM_OP_getlexref_i32: case MVM_OP_getlexref_i16: case MVM_OP_getlexref_i8: case MVM_OP_getlexref_i: return MVM_nativeref_lex_i;
+    case MVM_OP_getlexref_n32: case MVM_OP_getlexref_n: return MVM_nativeref_lex_n;
     case MVM_OP_getlexref_s: return MVM_nativeref_lex_s;
     case MVM_OP_getattrref_i: return MVM_nativeref_attr_i;
     case MVM_OP_getattrref_n: return MVM_nativeref_attr_n;
@@ -2506,7 +2506,11 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         break;
     }
     case MVM_OP_getlexref_i:
+    case MVM_OP_getlexref_i32:
+    case MVM_OP_getlexref_i16:
+    case MVM_OP_getlexref_i8:
     case MVM_OP_getlexref_n:
+    case MVM_OP_getlexref_n32:
     case MVM_OP_getlexref_s: {
         MVMint16 dst     = ins->operands[0].reg.orig;
         MVMuint16 outers = ins->operands[1].lex.outers;
