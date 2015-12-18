@@ -33,6 +33,10 @@ static const char * get_typename(MVMuint16 type) {
         case MVM_reg_num64: return "num";
         case MVM_reg_str  : return "str";
         case MVM_reg_obj  : return "obj";
+        case MVM_reg_uint8 : return "uint8";
+        case MVM_reg_uint16: return "uint16";
+        case MVM_reg_uint32: return "uint32";
+        case MVM_reg_uint64: return "uint";
         default           : return "UNKNOWN";
     }
 }
