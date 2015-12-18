@@ -783,6 +783,39 @@ static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         bb = bb->linear_next;
     }
 
+    {
+    MVMSpeshIns *arg_ins = call_info->prepargs_ins->next;
+    /* If there's some args that are not fetched by our inlinee,
+     * we have to kick them out, as arg_* ops are only valid between
+     * a prepargs and invoke_* op. */
+    while (arg_ins) {
+        MVMuint16    opcode = arg_ins->info->opcode;
+        MVMSpeshIns *next   = arg_ins->next;
+        switch (opcode) {
+            case MVM_OP_arg_i:
+            case MVM_OP_arg_n:
+            case MVM_OP_arg_s:
+            case MVM_OP_arg_o:
+                MVM_spesh_get_facts(tc, inliner, arg_ins->operands[1])->usages--;
+            case MVM_OP_argconst_i:
+            case MVM_OP_argconst_n:
+            case MVM_OP_argconst_s:
+                MVM_spesh_manipulate_delete_ins(tc, inliner, bb, arg_ins);
+                break;
+            case MVM_OP_set:
+                break;
+            case MVM_OP_invoke_i:
+            case MVM_OP_invoke_n:
+            case MVM_OP_invoke_s:
+            case MVM_OP_invoke_o:
+            case MVM_OP_invoke_v:
+            default:
+                next = NULL;
+        }
+        arg_ins = next;
+    }
+    }
+
     /* Delete the prepargs instruction. */
     MVM_spesh_manipulate_delete_ins(tc, inliner, invoke_bb, call_info->prepargs_ins);
 }
