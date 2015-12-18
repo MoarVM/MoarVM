@@ -325,6 +325,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_nfarunproto: return MVM_nfa_run_proto;
     case MVM_OP_nfafromstatelist: return MVM_nfa_from_statelist;
     case MVM_OP_hllize: return MVM_hll_map;
+    case MVM_OP_gethllsym: return MVM_hll_sym_get;
     case MVM_OP_clone: return MVM_repr_clone;
     case MVM_OP_getcodeobj: return MVM_frame_get_code_object;
     case MVM_OP_isbig_I: return MVM_bigint_is_big;
@@ -1661,6 +1662,16 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, { type } },
                                  { MVM_JIT_REG_ADDR, { dst } }};
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_gethllsym: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 hll = ins->operands[1].reg.orig;
+        MVMint16 sym = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { hll } },
+                                 { MVM_JIT_REG_VAL, { sym } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_checkarity: {
