@@ -768,6 +768,12 @@ getlexref_u         w(obj) rl(uint64) :pure :noinline
 getlexref_u32       w(obj) rl(uint32) :pure :noinline
 getlexref_u16       w(obj) rl(uint16) :pure :noinline
 getlexref_u8        w(obj) rl(uint8) :pure :noinline
+param_rp_u          w(uint64) int16 :pure :noinline
+param_op_u          w(uint64) int16 ins :pure :noinline
+param_rn_u          w(uint64) str :noinline
+param_on_u          w(uint64) str ins :noinline
+param_rn2_u         w(uint64) str str :noinline
+param_on2_u         w(uint64) str str ins :noinline
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

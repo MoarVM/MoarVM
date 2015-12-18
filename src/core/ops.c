@@ -8024,6 +8024,72 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_lex | MVM_operand_uint8 }
     },
     {
+        MVM_OP_param_rp_u,
+        "param_rp_u",
+        "  ",
+        2,
+        1,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_param_op_u,
+        "param_op_u",
+        "  ",
+        3,
+        1,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_int16, MVM_operand_ins }
+    },
+    {
+        MVM_OP_param_rn_u,
+        "param_rn_u",
+        "  ",
+        2,
+        0,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_str }
+    },
+    {
+        MVM_OP_param_on_u,
+        "param_on_u",
+        "  ",
+        3,
+        0,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_str, MVM_operand_ins }
+    },
+    {
+        MVM_OP_param_rn2_u,
+        "param_rn2_u",
+        "  ",
+        3,
+        0,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_str, MVM_operand_str }
+    },
+    {
+        MVM_OP_param_on2_u,
+        "param_on2_u",
+        "  ",
+        4,
+        0,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_str, MVM_operand_str, MVM_operand_ins }
+    },
+    {
         MVM_OP_sp_log,
         "sp_log",
         ".s",
@@ -8681,7 +8747,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 790;
+static const unsigned short MVM_op_counts = 796;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
