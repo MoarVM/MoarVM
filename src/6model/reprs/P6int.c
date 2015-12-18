@@ -56,6 +56,26 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     }
 }
 
+static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 value) {
+    MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
+    switch (repr_data->bits) {
+        case 64: ((MVMP6intBody *)data)->value.u64 = value; break;
+        case 32: ((MVMP6intBody *)data)->value.u32 = (MVMuint32)value; break;
+        case 16: ((MVMP6intBody *)data)->value.u16 = (MVMuint16)value; break;
+        default: ((MVMP6intBody *)data)->value.u8 = (MVMuint8)value; break;
+    }
+}
+
+static MVMuint64 get_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
+    switch (repr_data->bits) {
+        case 64: return ((MVMP6intBody *)data)->value.u64;
+        case 32: return ((MVMP6intBody *)data)->value.u32;
+        case 16: return ((MVMP6intBody *)data)->value.u16;
+        default: return ((MVMP6intBody *)data)->value.u8;
+    }
+}
+
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
     switch (repr_data->bits) {
@@ -194,8 +214,8 @@ static const MVMREPROps this_repr = {
         MVM_REPR_DEFAULT_GET_NUM,
         MVM_REPR_DEFAULT_SET_STR,
         MVM_REPR_DEFAULT_GET_STR,
-        MVM_REPR_DEFAULT_SET_UINT,
-        MVM_REPR_DEFAULT_GET_UINT,
+        set_uint,
+        get_uint,
         MVM_REPR_DEFAULT_GET_BOXED_REF
     },    /* box_funcs */
     MVM_REPR_DEFAULT_POS_FUNCS,
