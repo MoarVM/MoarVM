@@ -757,6 +757,8 @@ box_u               w(obj) r(uint64) r(obj) :pure
 unbox_u             w(uint64) r(obj) :pure
 coerce_iu           w(uint64) r(int64) :pure
 coerce_ui           w(int64) r(uint64) :pure
+coerce_nu           w(uint64) r(num64) :pure
+coerce_un           w(num64) r(uint64) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

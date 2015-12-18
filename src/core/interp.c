@@ -4858,7 +4858,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(coerce_ui):
-                GET_REG(cur_op, 0).i64 = (MVMuint64)GET_REG(cur_op, 0).u64;
+                GET_REG(cur_op, 0).i64 = (MVMint64)GET_REG(cur_op, 0).u64;
+                cur_op += 4;
+                goto NEXT;
+            OP(coerce_nu):
+                GET_REG(cur_op, 0).u64 = (MVMuint64)GET_REG(cur_op, 0).n64;
+                cur_op += 4;
+                goto NEXT;
+            OP(coerce_un):
+                GET_REG(cur_op, 0).n64 = (MVMnum64)GET_REG(cur_op, 0).u64;
                 cur_op += 4;
                 goto NEXT;
             OP(sp_log):
