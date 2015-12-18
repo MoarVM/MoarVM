@@ -214,7 +214,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_continuationcontrol: return MVM_continuation_control;
     case MVM_OP_smrt_numify: return MVM_coerce_smart_numify;
     case MVM_OP_smrt_strify: return MVM_coerce_smart_stringify;
-    case MVM_OP_write_fhs: return MVM_io_write_string;
+    case MVM_OP_say_fhs: case MVM_OP_write_fhs: return MVM_io_write_string;
     case MVM_OP_gethow: return MVM_6model_get_how_obj;
     case MVM_OP_box_i: return MVM_box_int;
     case MVM_OP_box_s: return MVM_box_str;
@@ -2082,6 +2082,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                           MVM_JIT_RV_VOID, -1);
         break;
     }
+    case MVM_OP_say_fhs:
     case MVM_OP_write_fhs: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 fho = ins->operands[1].reg.orig;
@@ -2089,7 +2090,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { fho } },
                                  { MVM_JIT_REG_VAL, { str } },
-                                 { MVM_JIT_LITERAL, { 0 } }};
+                                 { MVM_JIT_LITERAL, { op == MVM_OP_say_fhs ? 1 : 0 } }};
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args, MVM_JIT_RV_INT, dst);
         break;
     }
