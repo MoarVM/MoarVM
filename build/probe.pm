@@ -348,7 +348,8 @@ EOT
         delete $have{$type} unless $have{$type}
     }
     print %have ? "YES: " . join(',', sort keys %have) . "\n": "NO: none\n";
-    $config->{havebool} = (sort keys %have)[0] || 0;
+    $config->{havebooltype} = %have ? 1 : 0;
+    $config->{booltype}     = (sort keys %have)[0] || 0;
 }
 
 sub pthread_yield {

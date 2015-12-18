@@ -1,5 +1,5 @@
 #include "moar.h"
-#if MVM_BOOL
+#ifdef MVM_BOOL
 #include <stdbool.h>
 #endif
 
@@ -139,7 +139,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                 case MVM_P6INT_C_TYPE_LONG:     repr_data->bits = 8 * sizeof(long);      break;
                 case MVM_P6INT_C_TYPE_LONGLONG: repr_data->bits = 8 * sizeof(long long); break;
                 case MVM_P6INT_C_TYPE_SIZE_T:   repr_data->bits = 8 * sizeof(size_t);    break;
-#if MVM_BOOL
+#ifdef MVM_BOOL
                 case MVM_P6INT_C_TYPE_BOOL:     repr_data->bits = 8 * sizeof(MVM_BOOL);  break;
 #else
                 case MVM_P6INT_C_TYPE_BOOL:     repr_data->bits = 8 * sizeof(char);      break;
