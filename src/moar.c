@@ -1,6 +1,9 @@
 #include "moar.h"
 #include <platform/threads.h>
 
+#if defined(_MSC_VER)
+#define snprintf _snprintf
+#endif
 
 #ifndef _WIN32
 #  include <unistd.h>
