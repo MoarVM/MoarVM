@@ -359,6 +359,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_randscale_n: return MVM_proc_randscale_n;
     case MVM_OP_isnanorinf: return MVM_num_isnanorinf;
     case MVM_OP_nativecallinvoke: return MVM_nativecall_invoke;
+    case MVM_OP_typeparameterized: return MVM_6model_parametric_type_parameterized;
+    case MVM_OP_typeparameters: return MVM_6model_parametric_type_parameters;
+    case MVM_OP_typeparameterat: return MVM_6model_parametric_type_parameter_at;
     case MVM_OP_iscont_i: return MVM_6model_container_iscont_i;
     case MVM_OP_iscont_n: return MVM_6model_container_iscont_n;
     case MVM_OP_iscont_s: return MVM_6model_container_iscont_s;
@@ -2507,6 +2510,25 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
                                  { MVM_JIT_REG_VAL, { cargs } } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 4, args,
                           MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_typeparameters:
+    case MVM_OP_typeparameterized: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_typeparameterat: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMint16 idx = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } },
+                                 { MVM_JIT_REG_VAL, { idx } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
         /* native references (as simple function calls for now) */
