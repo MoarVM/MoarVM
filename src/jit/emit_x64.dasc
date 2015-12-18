@@ -1209,6 +1209,31 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov aword WORK[dst], TMP6;
         break;
     }
+    case MVM_OP_objprimbits: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 type = ins->operands[1].reg.orig;
+        | mov TMP6, aword WORK[type];
+        | test TMP6, TMP6;
+        | jz >1;
+        | mov TMP6, OBJECT:TMP6->st;
+        | mov FUNCTION, STABLE:TMP6->REPR;
+        | mov FUNCTION, REPR:FUNCTION->get_storage_spec;
+        | mov ARG1, TC;
+        | mov ARG2, TMP6;
+        | call FUNCTION;
+        | mov TMP6w, word STORAGESPEC:RV->boxed_primitive;
+        | movzx TMP6, TMP6w;
+        | cmp TMP6, TMP6;
+        | jnz >1;
+        | mov TMP6w, word STORAGESPEC:RV->bits;
+        | movzx TMP6, TMP6w;
+        | mov aword WORK[dst], TMP6;
+        | jmp >2;
+        |1:
+        | mov aword WORK[dst], 0;
+        |2:
+        break;
+    }
     case MVM_OP_isnonnull: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
