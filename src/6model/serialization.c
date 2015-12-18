@@ -759,8 +759,8 @@ void MVM_serialization_write_stable_ref(MVMThreadContext *tc, MVMSerializationWr
 static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWriter *writer) {
     char      *output      = NULL;
     char      *output_b64  = NULL;
-    MVMint32   output_size = 0;
-    MVMint32   offset      = 0;
+    MVMuint32  output_size = 0;
+    MVMuint32  offset      = 0;
     MVMString *result;
 
     /* Calculate total size. */

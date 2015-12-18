@@ -1386,8 +1386,8 @@ static char * form_string_heap(VM, WriterState *ws, unsigned int *string_heap_si
 
 /* Takes all the pieces and forms the bytecode output. */
 static char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_size) {
-    unsigned int size    = 0;
-    unsigned int pos     = 0;
+    MVMuint32     size    = 0;
+    MVMuint32     pos     = 0;
     char         *output;
     unsigned int  string_heap_size;
     char         *string_heap;
