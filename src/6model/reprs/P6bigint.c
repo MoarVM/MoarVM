@@ -105,7 +105,7 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
 static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 value) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
-    if (MVM_IS_32BIT_INT(value)) {
+    if (value < 2147483647ULL) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
         body->u.smallint.value = (MVMint32)value;
     }
