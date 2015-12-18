@@ -4869,6 +4869,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = (MVMnum64)GET_REG(cur_op, 2).u64;
                 cur_op += 4;
                 goto NEXT;
+            OP(decont_u): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                cur_op += 4;
+                MVM_6model_container_decont_u(tc, obj, r);
+                goto NEXT;
+            }
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

@@ -492,6 +492,17 @@ void MVM_6model_container_decont_s(MVMThreadContext *tc, MVMObject *cont, MVMReg
         res->s = MVM_repr_get_str(tc, cont);
 }
 
+/* If it's a container, do a fetch_i. Otherwise, try to unbox the received
+ * value as a native unsigned integer. */
+void MVM_6model_container_decont_u(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    const MVMContainerSpec *cs = STABLE(cont)->container_spec;
+    if (cs && IS_CONCRETE(cont))
+        /* XXX We need a fetch_u at some point. */
+        cs->fetch_i(tc, cont, res);
+    else
+        res->u64 = MVM_repr_get_uint(tc, cont);
+}
+
 /* Checks we have a container, and provided we do, assigns an int into it. */
 void MVM_6model_container_assign_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
     const MVMContainerSpec *cs = STABLE(cont)->container_spec;
