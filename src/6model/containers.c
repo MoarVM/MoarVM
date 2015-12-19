@@ -85,12 +85,7 @@ static void code_pair_gc_mark_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWor
 }
 
 static void code_pair_gc_free_data(MVMThreadContext *tc, MVMSTable *st) {
-    CodePairContData *data = (CodePairContData *)st->container_data;
-
-    if (data) {
-        MVM_free(data);
-        st->container_data = NULL;
-    }
+    MVM_free_null(st->container_data);
 }
 
 static void code_pair_serialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
