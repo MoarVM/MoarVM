@@ -240,14 +240,14 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
 }
 
 MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *s) {
-    char     *enc = MVM_string_ascii_encode(tc, s, NULL);
+    char     *enc = MVM_string_ascii_encode(tc, s, NULL, 0);
     MVMint64  i   = strtoll(enc, NULL, 10);
     MVM_free(enc);
     return i;
 }
 
 MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s) {
-    char     *enc = MVM_string_ascii_encode(tc, s, NULL);
+    char     *enc = MVM_string_ascii_encode(tc, s, NULL, 0);
     MVMnum64  n;
     if (strcmp(enc, "NaN") == 0)
         n = MVM_num_nan(tc);
@@ -444,4 +444,13 @@ void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type,
                                          OBJECT_BODY(box), value);
             dst->o = box;
         });
+}
+
+void MVM_box_uint(MVMThreadContext *tc, MVMuint64 value, MVMObject *type,
+             MVMRegister * dst) {
+    MVMObject *box = REPR(type)->allocate(tc, STABLE(type));
+    if (REPR(box)->initialize)
+        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+    REPR(box)->box_funcs.set_uint(tc, STABLE(box), box, OBJECT_BODY(box), value);
+    dst->o = box;
 }

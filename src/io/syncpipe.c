@@ -90,6 +90,7 @@ static const MVMIOOps op_table = {
     &sync_writable,
     NULL,
     NULL,
+    NULL,
     &seekable,
     NULL,
     &pipeable,
@@ -107,6 +108,7 @@ MVMObject * MVM_io_syncpipe(MVMThreadContext *tc) {
     uv_pipe_init(tc->loop, handle, 0);
     data->ss.handle   = (uv_stream_t *)handle;
     data->ss.encoding = MVM_encoding_type_utf8;
+    data->ss.translate_newlines = 1;
     MVM_string_decode_stream_sep_default(tc, &(data->ss.sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;

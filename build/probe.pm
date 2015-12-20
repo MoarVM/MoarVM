@@ -176,6 +176,11 @@ sub static_inline_cross {
 sub _gen_unaligned_access {
     my ($config, $can) = @_;
     my @align = qw(int32 int64 num64);
+    my $no_msg = "your CPU can't";
+    if ($config->{cflags} =~ /\B-fsanitize=undefined\b/) {
+        $can = '';
+        $no_msg = "with UBSAN we won't";
+    }
     if ($can eq 'all') {
         ++$config->{"can_unaligned_$_"}
             foreach @align;
@@ -189,7 +194,7 @@ sub _gen_unaligned_access {
         if ($can) {
             print "    your CPU can read unaligned values for only $can\n";
         } else {
-            print "    your CPU can't read unaligned values for any of @align\n";
+            print "    $no_msg read unaligned values for any of @align\n";
         }
     }
 }
@@ -317,6 +322,34 @@ EOT
     }
     print $can_cgoto ? "YES\n": "NO\n";
     $config->{cancgoto} = $can_cgoto || 0
+}
+
+sub C_type_bool {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    my $template = <<'EOT';
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+int main(int argc, char **argv) {
+    %s foo = false;
+    foo    = true;
+    return foo ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+EOT
+
+    print ::dots('    probing C type support for: _Bool, bool');
+    my %have;
+    for my $type (qw(_Bool bool)) {
+        _spew('try.c', sprintf $template, $type);
+        $have{$type}   = compile($config, 'try');
+        $have{$type} &&= !system './try' unless $config->{crossconf};
+        delete $have{$type} unless $have{$type}
+    }
+    print %have ? "YES: " . join(',', sort keys %have) . "\n": "NO: none\n";
+    $config->{havebooltype} = %have ? 1 : 0;
+    $config->{booltype}     = (sort keys %have)[0] || 0;
 }
 
 sub pthread_yield {

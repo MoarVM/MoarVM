@@ -129,6 +129,10 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
                 case MVM_operand_str:
                 case MVM_operand_obj:
                 case MVM_operand_type_var:
+                case MVM_operand_uint8:
+                case MVM_operand_uint16:
+                case MVM_operand_uint32:
+                case MVM_operand_uint64:
                     continue;
 
                 default:

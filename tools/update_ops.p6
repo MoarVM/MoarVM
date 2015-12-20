@@ -115,6 +115,10 @@ my $value_map = {
     'MVM_reg_num64' => 6,
     'MVM_reg_str' => 7,
     'MVM_reg_obj' => 8,
+    'MVM_reg_uint8' => 17,
+    'MVM_reg_uint16' => 18,
+    'MVM_reg_uint32' => 19,
+    'MVM_reg_uint64' => 20,
     'MVM_operand_int8' => 8,
     'MVM_operand_int16' => 16,
     'MVM_operand_int32' => 24,
@@ -129,7 +133,11 @@ my $value_map = {
     'MVM_operand_coderef' => 96,
     'MVM_operand_callsite' => 104,
     'MVM_operand_type_mask' => 120,
-    'MVM_operand_spesh_slot' => 128
+    'MVM_operand_spesh_slot' => 128,
+    'MVM_operand_uint8' => 136,
+    'MVM_operand_uint16' => 144,
+    'MVM_operand_uint32' => 152,
+    'MVM_operand_uint64' => 160
 };
 
 # Generates MAST::Ops constants module.
@@ -238,7 +246,7 @@ grammar OperandFlag {
         | <special>
     }
     token rw       { < rl wl r w > }
-    token type     { < int8 int16 int32 int64 num32 num64 str obj > }
+    token type     { < int8 int16 int32 int64 num32 num64 str obj uint8 uint16 uint32 uint64 > }
     token type_var { '`1' }
     token special  { < ins lo coderef callsite sslot > }
 }

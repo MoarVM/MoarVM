@@ -111,6 +111,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/io/filewatchers@obj@ \
           src/io/signals@obj@ \
           src/io/asyncsocket@obj@ \
+          src/io/asyncsocketudp@obj@ \
           src/6model/reprs@obj@ \
           src/6model/reprconv@obj@ \
           src/6model/containers@obj@ \
@@ -248,6 +249,7 @@ HEADERS = src/moar.h \
           src/io/filewatchers.h \
           src/io/signals.h \
           src/io/asyncsocket.h \
+          src/io/asyncsocketudp.h \
           src/gc/orchestrate.h \
           src/gc/allocation.h \
           src/gc/worklist.h \

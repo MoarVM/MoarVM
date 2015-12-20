@@ -592,7 +592,8 @@ static void add_predecessors(MVMThreadContext *tc, MVMSpeshGraph *g) {
             MVMSpeshBB  *tgt = cur_bb->succ[i];
             MVMSpeshBB **new_pred = MVM_spesh_alloc(tc, g,
                 (tgt->num_pred + 1) * sizeof(MVMSpeshBB *));
-            memcpy(new_pred, tgt->pred, tgt->num_pred * sizeof(MVMSpeshBB *));
+            if (tgt->num_pred)
+                memcpy(new_pred, tgt->pred, tgt->num_pred * sizeof(MVMSpeshBB *));
             new_pred[tgt->num_pred] = cur_bb;
             tgt->pred = new_pred;
             tgt->num_pred++;
@@ -731,7 +732,8 @@ static void add_child(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *target
 
     /* Nope, so insert. */
     new_children = MVM_spesh_alloc(tc, g, (target->num_children + 1) * sizeof(MVMSpeshBB *));
-    memcpy(new_children, target->children, target->num_children * sizeof(MVMSpeshBB *));
+    if (target->num_children)
+        memcpy(new_children, target->children, target->num_children * sizeof(MVMSpeshBB *));
     new_children[target->num_children] = to_add;
     target->children = new_children;
     target->num_children++;
@@ -758,7 +760,8 @@ static void add_to_frontier_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
 
     /* Nope, so insert. */
     new_df = MVM_spesh_alloc(tc, g, (target->num_df + 1) * sizeof(MVMSpeshBB *));
-    memcpy(new_df, target->df, target->num_df * sizeof(MVMSpeshBB *));
+    if (target->num_df)
+        memcpy(new_df, target->df, target->num_df * sizeof(MVMSpeshBB *));
     new_df[target->num_df] = to_add;
     target->df = new_df;
     target->num_df++;

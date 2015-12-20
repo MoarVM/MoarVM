@@ -5,7 +5,7 @@ static MVMint32 callsites_equal(MVMThreadContext *tc, MVMCallsite *cs1, MVMCalls
                                 MVMint32 num_flags, MVMint32 num_nameds) {
     MVMint32 i;
 
-    if (memcmp(cs1->arg_flags, cs2->arg_flags, num_flags))
+    if (num_flags && memcmp(cs1->arg_flags, cs2->arg_flags, num_flags))
         return 0;
 
     for (i = 0; i < num_nameds; i++)

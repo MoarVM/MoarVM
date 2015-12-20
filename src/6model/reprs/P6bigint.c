@@ -103,6 +103,33 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     }
 }
 
+static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 value) {
+    MVMP6bigintBody *body = (MVMP6bigintBody *)data;
+    if (value < 2147483647ULL) {
+        body->u.smallint.flag = MVM_BIGINT_32_FLAG;
+        body->u.smallint.value = (MVMint32)value;
+    }
+    else {
+        mp_int *i = MVM_malloc(sizeof(mp_int));
+        mp_init(i);
+        MVM_bigint_mp_set_uint64(i, value);
+        body->u.bigint = i;
+    }
+}
+static MVMuint64 get_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMP6bigintBody *body = (MVMP6bigintBody *)data;
+    if (MVM_BIGINT_IS_BIG(body)) {
+        mp_int *i = body->u.bigint;
+        if (MP_LT == mp_cmp_d(i, 0))
+            MVM_exception_throw_adhoc(tc, "Cannot unbox negative bigint into native unsigned integer");
+        else
+            return mp_get_int64(tc, i);
+    }
+    else {
+        return body->u.smallint.value;
+    }
+}
+
 static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id) {
     if (repr_id == MVM_REPR_ID_P6bigint)
         return data;
@@ -188,7 +215,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
         body->u.smallint.value = MVM_serialization_read_varint(tc, reader);
     } else {  /* big int */
-        char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), NULL);
+        char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), NULL, 0);
         body->u.bigint = MVM_malloc(sizeof(mp_int));
         mp_init(body->u.bigint);
         mp_read_radix(body->u.bigint, buf, 10);
@@ -214,6 +241,8 @@ static const MVMREPROps this_repr = {
         MVM_REPR_DEFAULT_GET_NUM,
         MVM_REPR_DEFAULT_SET_STR,
         MVM_REPR_DEFAULT_GET_STR,
+        set_uint,
+        get_uint,
         get_boxed_ref
     },    /* box_funcs */
     MVM_REPR_DEFAULT_POS_FUNCS,

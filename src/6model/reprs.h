@@ -116,6 +116,8 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
     MVM_REPR_DEFAULT_GET_NUM, \
     MVM_REPR_DEFAULT_SET_STR, \
     MVM_REPR_DEFAULT_GET_STR, \
+    MVM_REPR_DEFAULT_SET_UINT, \
+    MVM_REPR_DEFAULT_GET_UINT, \
     MVM_REPR_DEFAULT_GET_BOXED_REF \
 }
 
@@ -172,6 +174,8 @@ void MVM_REPR_DEFAULT_SET_NUM(MVMThreadContext *tc, MVMSTable *st, MVMObject *ro
 MVMnum64 MVM_REPR_DEFAULT_GET_NUM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data);
 void MVM_REPR_DEFAULT_SET_STR(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value);
 MVMString * MVM_REPR_DEFAULT_GET_STR(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data);
+void MVM_REPR_DEFAULT_SET_UINT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 value);
+MVMuint64 MVM_REPR_DEFAULT_GET_UINT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data);
 void * MVM_REPR_DEFAULT_GET_BOXED_REF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint32 repr_id);
 
 /* Default positional indexing REPR function for a REPR that lacks it. */

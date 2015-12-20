@@ -331,8 +331,14 @@ MVMArgInfo MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MV
     autounbox(tc, MVM_CALLSITE_ARG_STR, "string", result);
     return result;
 }
+MVMArgInfo MVM_args_get_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos, MVMuint8 required) {
+    MVMArgInfo result;
+    args_get_pos(tc, ctx, pos, required, result);
+    autounbox(tc, MVM_CALLSITE_ARG_INT, "unsigned integer", result);
+    return result;
+}
 
-#define args_get_named(tc, ctx, name, required, _type) do { \
+#define args_get_named(tc, ctx, name, required) do { \
      \
     MVMuint32 flag_pos, arg_pos; \
     result.arg.s = NULL; \
@@ -361,26 +367,32 @@ MVMArgInfo MVM_args_get_pos_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MV
 
 MVMArgInfo MVM_args_get_named_obj(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     MVMArgInfo result;
-    args_get_named(tc, ctx, name, required, "object");
+    args_get_named(tc, ctx, name, required);
     autobox_switch(tc, result);
     return result;
 }
 MVMArgInfo MVM_args_get_named_int(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     MVMArgInfo result;
-    args_get_named(tc, ctx, name, required, "integer");
+    args_get_named(tc, ctx, name, required);
     autounbox(tc, MVM_CALLSITE_ARG_INT, "integer", result);
     return result;
 }
 MVMArgInfo MVM_args_get_named_num(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     MVMArgInfo result;
-    args_get_named(tc, ctx, name, required, "number");
+    args_get_named(tc, ctx, name, required);
     autounbox(tc, MVM_CALLSITE_ARG_NUM, "number", result);
     return result;
 }
 MVMArgInfo MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     MVMArgInfo result;
-    args_get_named(tc, ctx, name, required, "string");
+    args_get_named(tc, ctx, name, required);
     autounbox(tc, MVM_CALLSITE_ARG_STR, "string", result);
+    return result;
+}
+MVMArgInfo MVM_args_get_named_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
+    MVMArgInfo result;
+    args_get_named(tc, ctx, name, required);
+    autounbox(tc, MVM_CALLSITE_ARG_INT, "unsigned integer", result);
     return result;
 }
 MVMint64 MVM_args_has_named(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name) {

@@ -11,11 +11,14 @@
  */
 
 /* Creates a new decoding stream. */
-MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 encoding, MVMint64 abs_byte_pos) {
+MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 encoding,
+        MVMint64 abs_byte_pos, MVMint32 translate_newlines) {
     MVMDecodeStream *ds = MVM_calloc(1, sizeof(MVMDecodeStream));
     ds->encoding        = encoding;
     ds->abs_byte_pos    = abs_byte_pos;
     MVM_unicode_normalizer_init(tc, &(ds->norm), MVM_NORMALIZE_NFG);
+    if (translate_newlines)
+        MVM_unicode_normalizer_translate_newlines(tc, &(ds->norm));
     return ds;
 }
 

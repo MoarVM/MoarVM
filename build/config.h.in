@@ -50,5 +50,13 @@
 
 #define MVM_PTR_SIZE @ptr_size@
 
+
 #define MVM_JIT_ARCH @jit_arch@
 #define MVM_JIT_PLATFORM @jit_platform@
+
+#if @havebooltype@
+#define MVM_BOOL @booltype@
+#endif
+
+/* Should we translate \n to \r\n on output? */
+#define MVM_TRANSLATE_NEWLINE_OUTPUT @translate_newline_output@

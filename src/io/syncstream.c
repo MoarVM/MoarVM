@@ -86,7 +86,8 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncStreamData *data, 
 /* Ensures we have a decode stream, creating it if we're missing one. */
 static void ensure_decode_stream(MVMThreadContext *tc, MVMIOSyncStreamData *data) {
     if (!data->ds)
-        data->ds = MVM_string_decodestream_create(tc, data->encoding, 0);
+        data->ds = MVM_string_decodestream_create(tc, data->encoding, 0,
+            data->translate_newlines);
 }
 
 /* Reads a single line from the stream. May serve it from a buffer, if we
@@ -185,7 +186,8 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
     uv_buf_t write_buf;
     int r;
 
-    output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding, NULL);
+    output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding, NULL,
+        data->translate_newlines ? MVM_TRANSLATE_NEWLINE_OUTPUT : 0);
     if (newline) {
         output = (char *)MVM_realloc(output, ++output_size);
         output[output_size - 1] = '\n';
@@ -260,6 +262,14 @@ static MVMint64 is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
     return data->is_tty;
 }
 
+static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    uv_os_fd_t fd;
+    if (uv_fileno((uv_handle_t *)data->handle, &fd) >= 0)
+        return (MVMint64)fd;
+    return -1;
+}
+
 /* Operations aiding process spawning and I/O handling. */
 static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio,
         uv_process_t *process) {
@@ -301,7 +311,7 @@ static const MVMIOSeekable          seekable = { MVM_io_syncstream_seek,
                                                  MVM_io_syncstream_tell };
 static const MVMIOPipeable     pipeable      = { bind_stdio_handle };
 
-static const MVMIOPossiblyTTY possibly_tty         = { is_tty };
+static const MVMIOIntrospection introspection = { is_tty, mvm_fileno };
 
 static const MVMIOOps op_table = {
     &closable,
@@ -310,11 +320,12 @@ static const MVMIOOps op_table = {
     &sync_writable,
     NULL,
     NULL,
+    NULL,
     &seekable,
     NULL,
     &pipeable,
     NULL,
-    &possibly_tty,
+    &introspection,
     NULL,
     gc_free
 };
@@ -325,7 +336,8 @@ MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *h
     MVMIOSyncStreamData * const data   = MVM_calloc(1, sizeof(MVMIOSyncStreamData));
     data->handle      = handle;
     data->encoding    = MVM_encoding_type_utf8;
-    data->is_tty = is_tty;
+    data->is_tty      = is_tty;
+    data->translate_newlines = 1;
     MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;

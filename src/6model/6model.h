@@ -403,6 +403,16 @@ struct MVMREPROps_Boxing {
     MVMString * (*get_str) (MVMThreadContext *tc, MVMSTable *st,
         MVMObject *root, void *data);
 
+    /* Used with boxing. Sets an unsinged integer value, for representations
+     *  that can hold one. */
+    void (*set_uint) (MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data, MVMuint64 value);
+
+    /* Used with boxing. Gets an unsigned integer value, for representations
+     * that can hold one. */
+    MVMuint64 (*get_uint) (MVMThreadContext *tc, MVMSTable *st,
+        MVMObject *root, void *data);
+
     /* Some objects serve primarily as boxes of others, inlining them. This gets
      * gets the reference to such things, using the representation ID to distinguish
      * them. */

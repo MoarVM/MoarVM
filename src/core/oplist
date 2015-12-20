@@ -46,15 +46,15 @@ const_n32           w(num32) num32 :pure
 const_n64           w(num64) num64 :pure
 const_s             w(str) str :pure
 set                 w(`1) r(`1) :pure
-extend_u8           w(int64) r(int8) :pure
-extend_u16          w(int64) r(int16) :pure
-extend_u32          w(int64) r(int32) :pure
+extend_u8           w(uint64) r(uint8) :pure
+extend_u16          w(uint64) r(uint16) :pure
+extend_u32          w(uint64) r(uint32) :pure
 extend_i8           w(int64) r(int8) :pure
 extend_i16          w(int64) r(int16) :pure
 extend_i32          w(int64) r(int32) :pure
-trunc_u8            w(int8) r(int64) :pure
-trunc_u16           w(int16) r(int64) :pure
-trunc_u32           w(int32) r(int64) :pure
+trunc_u8            w(uint8) r(uint64) :pure
+trunc_u16           w(uint16) r(uint64) :pure
+trunc_u32           w(uint32) r(uint64) :pure
 trunc_i8            w(int8) r(int64) :pure
 trunc_i16           w(int16) r(int64) :pure
 trunc_i32           w(int32) r(int64) :pure
@@ -104,15 +104,15 @@ add_i               w(int64) r(int64) r(int64) :pure
 sub_i               w(int64) r(int64) r(int64) :pure
 mul_i               w(int64) r(int64) r(int64) :pure
 div_i               w(int64) r(int64) r(int64) :pure
-div_u               w(int64) r(int64) r(int64) :pure
+div_u               w(uint64) r(uint64) r(uint64) :pure
 mod_i               w(int64) r(int64) r(int64) :pure
-mod_u               w(int64) r(int64) r(int64) :pure
+mod_u               w(uint64) r(uint64) r(uint64) :pure
 neg_i               w(int64) r(int64) :pure
 abs_i               w(int64) r(int64) :pure
 inc_i               w(int64)
-inc_u               w(int64)
+inc_u               w(uint64)
 dec_i               w(int64)
-dec_u               w(int64)
+dec_u               w(uint64)
 band_i              w(int64) r(int64) r(int64) :pure
 bor_i               w(int64) r(int64) r(int64) :pure
 bxor_i              w(int64) r(int64) r(int64) :pure
@@ -728,14 +728,52 @@ bindposnd_s         r(obj) r(obj) r(str)
 bindposnd_o         r(obj) r(obj) r(obj)
 dimensions          w(obj) r(obj)
 setdimensions       r(obj) r(obj)
-numdimensions       w(int64) r(obj)
+numdimensions       w(int64) r(obj) :pure
 ctxcode             w(obj) r(obj)
-isrwcont            w(int64) r(obj)
+isrwcont            w(int64) r(obj) :pure
 fc                  w(str) r(str) :pure
 setinputlineseps_fh r(obj) r(obj)
 readlinechomp_fh    w(str) r(obj)
 encoderep           w(obj) r(str) r(str) r(str) r(obj)
 istty_fh            w(int64) r(obj) :pure
+multidimref_i       w(obj) r(obj) r(obj) :pure
+multidimref_n       w(obj) r(obj) r(obj) :pure
+multidimref_s       w(obj) r(obj) r(obj) :pure
+fileno_fh           w(int64) r(obj) :pure
+asyncudp            w(obj) r(obj) r(obj) r(str) r(int64) r(int64) r(obj)
+asyncwritestrto     w(obj) r(obj) r(obj) r(obj) r(str) r(obj) r(str) r(int64)
+asyncwritebytesto   w(obj) r(obj) r(obj) r(obj) r(obj) r(obj) r(str) r(int64)
+objprimbits         w(int64) r(obj)
+objprimunsigned     w(int64) r(obj)
+getregref_i32       w(obj) r(int32) :pure :noinline
+getregref_i16       w(obj) r(int16) :pure :noinline
+getregref_i8        w(obj) r(int8) :pure :noinline
+getregref_n32       w(obj) r(num32) :pure :noinline
+getlexref_i32       w(obj) rl(int32) :pure :noinline
+getlexref_i16       w(obj) rl(int16) :pure :noinline
+getlexref_i8        w(obj) rl(int8) :pure :noinline
+getlexref_n32       w(obj) rl(num32) :pure :noinline
+box_u               w(obj) r(uint64) r(obj) :pure
+unbox_u             w(uint64) r(obj) :pure
+coerce_iu           w(uint64) r(int64) :pure
+coerce_ui           w(int64) r(uint64) :pure
+coerce_nu           w(uint64) r(num64) :pure
+coerce_un           w(num64) r(uint64) :pure
+decont_u            w(uint64) r(obj) :pure :invokish
+getregref_u         w(obj) r(uint64) :pure :noinline
+getregref_u32       w(obj) r(uint32) :pure :noinline
+getregref_u16       w(obj) r(uint16) :pure :noinline
+getregref_u8        w(obj) r(uint8) :pure :noinline
+getlexref_u         w(obj) rl(uint64) :pure :noinline
+getlexref_u32       w(obj) rl(uint32) :pure :noinline
+getlexref_u16       w(obj) rl(uint16) :pure :noinline
+getlexref_u8        w(obj) rl(uint8) :pure :noinline
+param_rp_u          w(uint64) int16 :pure :noinline
+param_op_u          w(uint64) int16 ins :pure :noinline
+param_rn_u          w(uint64) str :noinline
+param_on_u          w(uint64) str ins :noinline
+param_rn2_u         w(uint64) str str :noinline
+param_on2_u         w(uint64) str str ins :noinline
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
@@ -859,4 +897,3 @@ prof_allocated   .s r(obj)
 
 # Cross-thread write analysis logging instruction.
 ctw_check        .s r(obj) int16
-

@@ -759,96 +759,96 @@ void MVM_serialization_write_stable_ref(MVMThreadContext *tc, MVMSerializationWr
 static MVMString * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWriter *writer) {
     char      *output      = NULL;
     char      *output_b64  = NULL;
-    MVMint32   output_size = 0;
-    MVMint32   offset      = 0;
+    MVMuint32  output_size = 0;
+    MVMuint32  offset      = 0;
     MVMString *result;
 
     /* Calculate total size. */
-    output_size += HEADER_SIZE;
-    output_size += writer->root.num_dependencies * DEP_TABLE_ENTRY_SIZE;
-    output_size += writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE;
-    output_size += writer->stables_data_offset;
-    output_size += writer->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE;
-    output_size += writer->objects_data_offset;
-    output_size += writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE;
-    output_size += writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE;
-    output_size += writer->contexts_data_offset;
-    output_size += writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE;
-    output_size += writer->param_interns_data_offset;
+    output_size += MVM_ALIGN_SECTION(HEADER_SIZE);
+    output_size += MVM_ALIGN_SECTION(writer->root.num_dependencies * DEP_TABLE_ENTRY_SIZE);
+    output_size += MVM_ALIGN_SECTION(writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE);
+    output_size += MVM_ALIGN_SECTION(writer->stables_data_offset);
+    output_size += MVM_ALIGN_SECTION(writer->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE);
+    output_size += MVM_ALIGN_SECTION(writer->objects_data_offset);
+    output_size += MVM_ALIGN_SECTION(writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE);
+    output_size += MVM_ALIGN_SECTION(writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE);
+    output_size += MVM_ALIGN_SECTION(writer->contexts_data_offset);
+    output_size += MVM_ALIGN_SECTION(writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
+    output_size += MVM_ALIGN_SECTION(writer->param_interns_data_offset);
 
     /* Allocate a buffer that size. */
     output = (char *)MVM_malloc(output_size);
 
     /* Write version into header. */
     write_int32(output, 0, CURRENT_VERSION);
-    offset += HEADER_SIZE;
+    offset += MVM_ALIGN_SECTION(HEADER_SIZE);
 
     /* Put dependencies table in place and set location/rows in header. */
     write_int32(output, 4, offset);
     write_int32(output, 8, writer->root.num_dependencies);
     memcpy(output + offset, writer->root.dependencies_table,
         writer->root.num_dependencies * DEP_TABLE_ENTRY_SIZE);
-    offset += writer->root.num_dependencies * DEP_TABLE_ENTRY_SIZE;
+    offset += MVM_ALIGN_SECTION(writer->root.num_dependencies * DEP_TABLE_ENTRY_SIZE);
 
     /* Put STables table in place, and set location/rows in header. */
     write_int32(output, 12, offset);
     write_int32(output, 16, writer->root.num_stables);
     memcpy(output + offset, writer->root.stables_table,
         writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE);
-    offset += writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE;
+    offset += MVM_ALIGN_SECTION(writer->root.num_stables * STABLES_TABLE_ENTRY_SIZE);
 
     /* Put STables data in place. */
     write_int32(output, 20, offset);
     memcpy(output + offset, writer->root.stables_data,
         writer->stables_data_offset);
-    offset += writer->stables_data_offset;
+    offset += MVM_ALIGN_SECTION(writer->stables_data_offset);
 
     /* Put objects table in place, and set location/rows in header. */
     write_int32(output, 24, offset);
     write_int32(output, 28, writer->root.num_objects);
     memcpy(output + offset, writer->root.objects_table,
         writer->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE);
-    offset += writer->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE;
+    offset += MVM_ALIGN_SECTION(writer->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE);
 
     /* Put objects data in place. */
     write_int32(output, 32, offset);
     memcpy(output + offset, writer->root.objects_data,
         writer->objects_data_offset);
-    offset += writer->objects_data_offset;
+    offset += MVM_ALIGN_SECTION(writer->objects_data_offset);
 
     /* Put closures table in place, and set location/rows in header. */
     write_int32(output, 36, offset);
     write_int32(output, 40, writer->root.num_closures);
     memcpy(output + offset, writer->root.closures_table,
         writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE);
-    offset += writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE;
+    offset += MVM_ALIGN_SECTION(writer->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE);
 
     /* Put contexts table in place, and set location/rows in header. */
     write_int32(output, 44, offset);
     write_int32(output, 48, writer->root.num_contexts);
     memcpy(output + offset, writer->root.contexts_table,
         writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE);
-    offset += writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE;
+    offset += MVM_ALIGN_SECTION(writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE);
 
     /* Put contexts data in place. */
     write_int32(output, 52, offset);
     memcpy(output + offset, writer->root.contexts_data,
         writer->contexts_data_offset);
-    offset += writer->contexts_data_offset;
+    offset += MVM_ALIGN_SECTION(writer->contexts_data_offset);
 
     /* Put repossessions table in place, and set location/rows in header. */
     write_int32(output, 56, offset);
     write_int32(output, 60, writer->root.num_repos);
     memcpy(output + offset, writer->root.repos_table,
         writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
-    offset += writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE;
+    offset += MVM_ALIGN_SECTION(writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
 
     /* Put parameterized type intern data in place. */
     write_int32(output, 64, offset);
     write_int32(output, 68, writer->root.num_param_interns);
     memcpy(output + offset, writer->root.param_interns_data,
         writer->param_interns_data_offset);
-    offset += writer->param_interns_data_offset;
+    offset += MVM_ALIGN_SECTION(writer->param_interns_data_offset);
 
     /* Sanity check. */
     if (offset != output_size)
@@ -1837,7 +1837,7 @@ static void check_and_dissect_input(MVMThreadContext *tc,
     char   *data_end;
     if (data_str) {
         /* Grab data from string. */
-        char *data_b64 = (char *)MVM_string_ascii_encode(tc, data_str, NULL);
+        char *data_b64 = (char *)MVM_string_ascii_encode(tc, data_str, NULL, 0);
         data = (char *)base64_decode(data_b64, &data_len);
         MVM_free(data_b64);
         reader->data_needs_free = 1;
@@ -2009,9 +2009,9 @@ static void resolve_dependencies(MVMThreadContext *tc, MVMSerializationReader *r
             if (!desc) desc = handle;
             fail_deserialize(tc, reader,
                 "Missing or wrong version of dependency '%s' (from '%s')",
-                MVM_string_ascii_encode(tc, desc, NULL),
+                MVM_string_ascii_encode(tc, desc, NULL, 0),
                 reader->root.sc->body->description
-                    ? MVM_string_ascii_encode(tc, reader->root.sc->body->description, NULL)
+                    ? MVM_string_ascii_encode(tc, reader->root.sc->body->description, NULL, 0)
                     : "<unkown>");
         }
         reader->root.dependent_scs[i] = sc;

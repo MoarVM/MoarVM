@@ -852,7 +852,7 @@ static int block_compare(const void *a, const void *b) {
 MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block_name) {
     MVMGrapheme32 ord = MVM_string_get_grapheme_at_nocheck(tc, str, pos);
     MVMuint64 size;
-    char *bname = MVM_string_ascii_encode(tc, block_name, &size);
+    char *bname = MVM_string_ascii_encode(tc, block_name, &size, 0);
     MVMint32 in_block = 0;
 
     struct UnicodeBlock *block = bsearch(&ord, unicode_blocks, sizeof(unicode_blocks) / sizeof(struct UnicodeBlock), sizeof(struct UnicodeBlock), block_compare);

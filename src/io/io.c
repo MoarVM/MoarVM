@@ -35,9 +35,9 @@ MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle) {
 
 MVMint64 MVM_io_is_tty(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "istty");
-    if (handle->body.ops->possibly_tty) {
+    if (handle->body.ops->introspection) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        MVMint64 ret = handle->body.ops->possibly_tty->is_tty(tc, handle);
+        MVMint64 ret = handle->body.ops->introspection->is_tty(tc, handle);
         release_mutex(tc, mutex);
         return ret;
     }
@@ -46,6 +46,18 @@ MVMint64 MVM_io_is_tty(MVMThreadContext *tc, MVMObject *oshandle) {
     }
 }
 
+MVMint64 MVM_io_fileno(MVMThreadContext *tc, MVMObject *oshandle) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "get native descriptor");
+    if (handle->body.ops->introspection) {
+        uv_mutex_t *mutex = acquire_mutex(tc, handle);
+        MVMint64 ret = handle->body.ops->introspection->native_descriptor(tc, handle);
+        release_mutex(tc, mutex);
+        return ret;
+    }
+    else {
+        return -1;
+    }
+}
 
 void MVM_io_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "set encoding");
@@ -289,6 +301,40 @@ MVMObject * MVM_io_write_bytes_async(MVMThreadContext *tc, MVMObject *oshandle, 
     }
     else
         MVM_exception_throw_adhoc(tc, "Cannot write bytes asynchronously to this kind of handle");
+}
+
+MVMObject * MVM_io_write_string_to_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
+                                         MVMObject *schedulee, MVMString *str, MVMObject *async_type,
+                                         MVMString *host, MVMint64 port) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "write string asynchronously to destination");
+    if (str == NULL)
+        MVM_exception_throw_adhoc(tc, "Failed to write to filehandle: NULL string given");
+    if (handle->body.ops->async_writable_to) {
+        uv_mutex_t *mutex = acquire_mutex(tc, handle);
+        MVMObject *result = (MVMObject *)handle->body.ops->async_writable_to->write_str_to(tc,
+            handle, queue, schedulee, str, async_type, host, port);
+        release_mutex(tc, mutex);
+        return result;
+    }
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot write a string to a destination asynchronously to this kind of handle");
+}
+
+MVMObject * MVM_io_write_bytes_to_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
+                                        MVMObject *schedulee, MVMObject *buffer, MVMObject *async_type,
+                                        MVMString *host, MVMint64 port) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "write buffer asynchronously to destination");
+    if (buffer == NULL)
+        MVM_exception_throw_adhoc(tc, "Failed to write to filehandle: NULL buffer given");
+    if (handle->body.ops->async_writable_to) {
+        uv_mutex_t *mutex = acquire_mutex(tc, handle);
+        MVMObject *result = (MVMObject *)handle->body.ops->async_writable_to->write_bytes_to(tc,
+            handle, queue, schedulee, buffer, async_type, host, port);
+        release_mutex(tc, mutex);
+        return result;
+    }
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot write bytes to a destination asynchronously to this kind of handle");
 }
 
 MVMint64 MVM_io_eof(MVMThreadContext *tc, MVMObject *oshandle) {

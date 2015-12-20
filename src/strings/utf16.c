@@ -98,7 +98,7 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
 /* Encodes the specified substring to utf16. The result string is NULL terminated, but
  * the specified size is the non-null part. (This being UTF-16, there are 2 null bytes
  * on the end.) */
-char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement) {
+char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement, MVMint32 translate_newlines) {
     MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
     MVMuint32 lengthu = (MVMuint32)(length == -1 ? strgraphs - start : length);
     MVMuint16 *result;
@@ -115,12 +115,13 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
         MVM_exception_throw_adhoc(tc, "length out of range");
 
     if (replacement)
-        repl_bytes = MVM_string_utf16_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);
+        repl_bytes = (MVMuint8 *) MVM_string_utf16_encode_substr(tc,
+            replacement, &repl_length, 0, -1, NULL, translate_newlines);
 
     alloc_size = lengthu * 2;
     result = MVM_malloc(alloc_size + 2);
     result_pos = result;
-    MVM_string_ci_init(tc, &ci, str);
+    MVM_string_ci_init(tc, &ci, str, translate_newlines);
     while (MVM_string_ci_has_more(tc, &ci)) {
         int bytes_needed;
         MVMCodepoint value = MVM_string_ci_get_codepoint(tc, &ci);
@@ -176,6 +177,6 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
 }
 
 /* Encodes the whole string, double-NULL terminated. */
-char * MVM_string_utf16_encode(MVMThreadContext *tc, MVMString *str) {
-    return MVM_string_utf16_encode_substr(tc, str, NULL, 0, -1, NULL);
+char * MVM_string_utf16_encode(MVMThreadContext *tc, MVMString *str, MVMint32 translate_newlines) {
+    return MVM_string_utf16_encode_substr(tc, str, NULL, 0, -1, NULL, translate_newlines);
 }

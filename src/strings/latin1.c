@@ -113,7 +113,8 @@ void MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 /* Encodes the specified substring to latin-1. Anything outside of latin-1 range
  * will become a ?. The result string is NULL terminated, but the specified
  * size is the non-null part. */
-char * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement) {
+char * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length,
+        MVMString *replacement, MVMint32 translate_newlines) {
     /* Latin-1 is a single byte encoding, but \r\n is a 2-byte grapheme, so we
      * may have to resize as we go. */
     MVMuint32 startu = (MVMuint32)start;
@@ -131,7 +132,8 @@ char * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVM
         MVM_exception_throw_adhoc(tc, "length out of range");
 
     if (replacement)
-        repl_bytes = MVM_string_latin1_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);
+        repl_bytes = (MVMuint8 *) MVM_string_latin1_encode_substr(tc,
+            replacement, &repl_length, 0, -1, NULL, translate_newlines);
 
     result_alloc = lengthu;
     result = MVM_malloc(result_alloc + 1);
@@ -145,7 +147,7 @@ char * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVM
     else {
         MVMuint32 i = 0;
         MVMCodepointIter ci;
-        MVM_string_ci_init(tc, &ci, str);
+        MVM_string_ci_init(tc, &ci, str, translate_newlines);
         while (MVM_string_ci_has_more(tc, &ci)) {
             MVMCodepoint ord = MVM_string_ci_get_codepoint(tc, &ci);
             if (i == result_alloc) {
@@ -183,6 +185,7 @@ char * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVM
 /* Encodes the specified string to latin-1. Anything outside of latin-1 range
  * will become a ?. The result string is NULL terminated, but the specified
  * size is the non-null part. */
-char * MVM_string_latin1_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size) {
-    return MVM_string_latin1_encode_substr(tc, str, output_size, 0, -1, NULL);
+char * MVM_string_latin1_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size,
+        MVMint32 translate_newlines) {
+    return MVM_string_latin1_encode_substr(tc, str, output_size, 0, -1, NULL, translate_newlines);
 }

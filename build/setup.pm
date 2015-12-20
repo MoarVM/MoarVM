@@ -361,6 +361,8 @@ our %OS_WIN32 = (
     dllexport => '__declspec(dllexport)',
     dlllocal  => '',
 
+    translate_newline_output => 1,
+
     -thirdparty => {
         # header only, no need to build anything
         lao => undef,
@@ -387,6 +389,8 @@ our %OS_MINGW32 = (
     moarshared => '',
     ldrpath    => '',
     sharedlib  => 'lib@moardll@.a',
+
+    translate_newline_output => 1,
 
     -thirdparty => {
         %{$OS_WIN32{-thirdparty}},

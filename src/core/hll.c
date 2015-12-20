@@ -58,6 +58,9 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->int_pos_ref);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->num_pos_ref);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->str_pos_ref);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->int_multidim_ref);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->num_multidim_ref);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->str_multidim_ref);
         MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
     }
 
@@ -128,6 +131,12 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
                 config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_POSITIONAL);
             check_config_key_reftype(tc, config_hash, "str_pos_ref", str_pos_ref,
                 config, MVM_STORAGE_SPEC_BP_STR, MVM_NATIVEREF_POSITIONAL);
+            check_config_key_reftype(tc, config_hash, "int_multidim_ref", int_multidim_ref,
+                config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_MULTIDIM);
+            check_config_key_reftype(tc, config_hash, "num_multidim_ref", num_multidim_ref,
+                config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_MULTIDIM);
+            check_config_key_reftype(tc, config_hash, "str_multidim_ref", str_multidim_ref,
+                config, MVM_STORAGE_SPEC_BP_STR, MVM_NATIVEREF_MULTIDIM);
         });
 
     MVM_intcache_for(tc, config->int_box_type);

@@ -22,3 +22,4 @@ MVMObject* MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMin
 void MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type, MVMRegister *dst);
 void MVM_box_num(MVMThreadContext *tc, MVMnum64 value, MVMObject *type, MVMRegister *dst);
 void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type, MVMRegister *dst);
+void MVM_box_uint(MVMThreadContext *tc, MVMuint64 value, MVMObject *type, MVMRegister *dst);

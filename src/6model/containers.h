@@ -83,6 +83,7 @@ MVMint64 MVM_6model_container_iscont_s(MVMThreadContext *tc, MVMObject *cont);
 void MVM_6model_container_decont_i(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
 void MVM_6model_container_decont_n(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
 void MVM_6model_container_decont_s(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
+void MVM_6model_container_decont_u(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
 void MVM_6model_container_assign_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
 void MVM_6model_container_assign_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value);
 void MVM_6model_container_assign_s(MVMThreadContext *tc, MVMObject *cont, MVMString *value);

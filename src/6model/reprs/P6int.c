@@ -1,4 +1,7 @@
 #include "moar.h"
+#ifdef MVM_BOOL
+#include <stdbool.h>
+#endif
 
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
@@ -50,6 +53,26 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         case 32: dest_body->value.i32 = src_body->value.i32; break;
         case 16: dest_body->value.i16 = src_body->value.i16; break;
         default: dest_body->value.i8 = src_body->value.i8; break;
+    }
+}
+
+static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 value) {
+    MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
+    switch (repr_data->bits) {
+        case 64: ((MVMP6intBody *)data)->value.u64 = value; break;
+        case 32: ((MVMP6intBody *)data)->value.u32 = (MVMuint32)value; break;
+        case 16: ((MVMP6intBody *)data)->value.u16 = (MVMuint16)value; break;
+        default: ((MVMP6intBody *)data)->value.u8 = (MVMuint8)value; break;
+    }
+}
+
+static MVMuint64 get_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
+    switch (repr_data->bits) {
+        case 64: return ((MVMP6intBody *)data)->value.u64;
+        case 32: return ((MVMP6intBody *)data)->value.u32;
+        case 16: return ((MVMP6intBody *)data)->value.u16;
+        default: return ((MVMP6intBody *)data)->value.u8;
     }
 }
 
@@ -115,6 +138,12 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                 case MVM_P6INT_C_TYPE_INT:      repr_data->bits = 8 * sizeof(int);       break;
                 case MVM_P6INT_C_TYPE_LONG:     repr_data->bits = 8 * sizeof(long);      break;
                 case MVM_P6INT_C_TYPE_LONGLONG: repr_data->bits = 8 * sizeof(long long); break;
+                case MVM_P6INT_C_TYPE_SIZE_T:   repr_data->bits = 8 * sizeof(size_t);    break;
+#ifdef MVM_BOOL
+                case MVM_P6INT_C_TYPE_BOOL:     repr_data->bits = 8 * sizeof(MVM_BOOL);  break;
+#else
+                case MVM_P6INT_C_TYPE_BOOL:     repr_data->bits = 8 * sizeof(char);      break;
+#endif
             }
 
             if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
@@ -185,6 +214,8 @@ static const MVMREPROps this_repr = {
         MVM_REPR_DEFAULT_GET_NUM,
         MVM_REPR_DEFAULT_SET_STR,
         MVM_REPR_DEFAULT_GET_STR,
+        set_uint,
+        get_uint,
         MVM_REPR_DEFAULT_GET_BOXED_REF
     },    /* box_funcs */
     MVM_REPR_DEFAULT_POS_FUNCS,

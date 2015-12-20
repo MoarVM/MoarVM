@@ -145,7 +145,7 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
     result_pos   = 0;
 
     /* Create codepoint iterator. */
-    MVM_string_ci_init(tc, &ci, s);
+    MVM_string_ci_init(tc, &ci, s, 0);
 
     /* If we want NFC, just iterate, since NFG is constructed out of NFC. */
     if (form == MVM_NORMALIZE_NFC) {
@@ -187,12 +187,13 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
 /* Initialize the MVMNormalizer pointed to to perform the specified kind of
  * normalization. */
 void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNormalization form) {
-    n->form            = form;
-    n->buffer_size     = 32;
-    n->buffer          = MVM_malloc(n->buffer_size * sizeof(MVMCodepoint));
-    n->buffer_start    = 0;
-    n->buffer_end      = 0;
-    n->buffer_norm_end = 0;
+    n->form               = form;
+    n->buffer_size        = 32;
+    n->buffer             = MVM_malloc(n->buffer_size * sizeof(MVMCodepoint));
+    n->buffer_start       = 0;
+    n->buffer_end         = 0;
+    n->buffer_norm_end    = 0;
+    n->translate_newlines = 0;
     switch (n->form) {
         case MVM_NORMALIZE_NFD:
             n->first_significant    = MVM_NORMALIZE_FIRST_SIG_NFD;
@@ -217,6 +218,11 @@ void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNorm
         default:
             abort();
     }
+}
+
+/* Enable translation of newlines from \r\n to \n. */
+void MVM_unicode_normalizer_translate_newlines(MVMThreadContext *tc, MVMNormalizer *n) {
+    n->translate_newlines = 1;
 }
 
 /* Cleanup an MVMNormalization once we're done normalizing. */
@@ -550,6 +556,8 @@ static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint3
                 /* Last in buffer or next code point is a non-starter; turn
                  * sequence into a synthetic. */
                 MVMGrapheme32 g = MVM_nfg_codes_to_grapheme(tc, n->buffer + starterish, next_pos - starterish);
+                if (n->translate_newlines && g == MVM_nfg_crlf_grapheme(tc))
+                    g = '\n';
                 n->buffer[insert_pos++] = g;
 
                 /* The next code point is our new starterish (harmless if we

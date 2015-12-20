@@ -87,6 +87,8 @@ static const MVMREPROps this_repr = {
         MVM_REPR_DEFAULT_GET_NUM,
         set_str,
         get_str,
+        MVM_REPR_DEFAULT_SET_UINT,
+        MVM_REPR_DEFAULT_GET_UINT,
         MVM_REPR_DEFAULT_GET_BOXED_REF
     },    /* box_funcs */
     MVM_REPR_DEFAULT_POS_FUNCS,

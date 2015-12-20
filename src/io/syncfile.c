@@ -63,6 +63,12 @@ static MVMint64 is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
     return (uv_guess_handle(data->fd) == UV_TTY);
 }
 
+/* Gets the file descriptor. */
+static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    return (MVMint64)data->fd;
+}
+
 /* Sets the encoding used for string-based I/O. */
 static void set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
@@ -87,7 +93,7 @@ static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     if ((r = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
-    data->ds = MVM_string_decodestream_create(tc, data->encoding, r);
+    data->ds = MVM_string_decodestream_create(tc, data->encoding, r, 1);
 }
 
 /* Get curernt position in the file. */
@@ -120,7 +126,7 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint
 /* Ensures we have a decode stream, creating it if we're missing one. */
 static void ensure_decode_stream(MVMThreadContext *tc, MVMIOFileData *data) {
     if (!data->ds)
-        data->ds = MVM_string_decodestream_create(tc, data->encoding, 0);
+        data->ds = MVM_string_decodestream_create(tc, data->encoding, 0, 1);
 }
 
 /* Reads a single line from the file handle. May serve it from a buffer, if we
@@ -222,7 +228,8 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     MVMuint64 output_size;
     MVMint64 bytes_written;
-    char *output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding, NULL);
+    char *output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding, NULL,
+        MVM_TRANSLATE_NEWLINE_OUTPUT);
     uv_buf_t write_buf  = uv_buf_init(output, output_size);
     uv_fs_t req;
 
@@ -390,14 +397,14 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 }
 
 /* IO ops table, populated with functions. */
-static const MVMIOClosable     closable      = { closefh };
-static const MVMIOEncodable    encodable     = { set_encoding };
-static const MVMIOSyncReadable sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, mvm_eof };
-static const MVMIOSyncWritable sync_writable = { write_str, write_bytes, flush, truncatefh };
-static const MVMIOSeekable     seekable      = { seek, mvm_tell };
-static const MVMIOPipeable     pipeable      = { bind_stdio_handle };
-static const MVMIOLockable     lockable      = { lock, unlock };
-static const MVMIOPossiblyTTY possibly_tty         = { is_tty };
+static const MVMIOClosable      closable      = { closefh };
+static const MVMIOEncodable     encodable     = { set_encoding };
+static const MVMIOSyncReadable  sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, mvm_eof };
+static const MVMIOSyncWritable  sync_writable = { write_str, write_bytes, flush, truncatefh };
+static const MVMIOSeekable      seekable      = { seek, mvm_tell };
+static const MVMIOPipeable      pipeable      = { bind_stdio_handle };
+static const MVMIOLockable      lockable      = { lock, unlock };
+static const MVMIOIntrospection introspection = { is_tty, mvm_fileno };
 
 static const MVMIOOps op_table = {
     &closable,
@@ -406,11 +413,12 @@ static const MVMIOOps op_table = {
     &sync_writable,
     NULL,
     NULL,
+    NULL,
     &seekable,
     NULL,
     &pipeable,
     &lockable,
-    &possibly_tty,
+    &introspection,
     NULL,
     gc_free
 };

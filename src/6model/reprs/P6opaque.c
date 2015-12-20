@@ -200,8 +200,7 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
 /* Helper for complaining about attribute access errors. */
 MVM_NO_RETURN
 static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) {
-    MVMuint64 output_size;
-    char *c_name = MVM_string_ascii_encode(tc, name, &output_size);
+    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
     char *waste[] = { c_name, NULL };
     MVM_exception_throw_adhoc_free(tc, waste, "P6opaque: no such attribute '%s'", c_name);
 }
@@ -497,6 +496,36 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     else {
         MVM_exception_throw_adhoc(tc,
             "This type cannot unbox to a native string");
+    }
+}
+
+/* Used with boxing. Sets an unsigned integer value, for representations that can hold
+ * one. */
+static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 value) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    data = MVM_p6opaque_real_data(tc, data);
+    if (repr_data->unbox_int_slot >= 0) {
+        MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_int_slot];
+        st->REPR->box_funcs.set_uint(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot], value);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "This type cannot box a native integer");
+    }
+}
+
+/* Used with boxing. Gets an unsigned integer value, for representations that can
+ * hold one. */
+static MVMuint64 get_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
+    data = MVM_p6opaque_real_data(tc, data);
+    if (repr_data->unbox_int_slot >= 0) {
+        MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_int_slot];
+        return st->REPR->box_funcs.get_uint(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot]);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "This type cannot unbox to a native integer");
     }
 }
 
@@ -1504,6 +1533,8 @@ static const MVMREPROps this_repr = {
         get_num,
         set_str,
         get_str,
+        set_uint,
+        get_uint,
         get_boxed_ref
     },    /* box_funcs */
     {

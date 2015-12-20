@@ -85,12 +85,7 @@ static void code_pair_gc_mark_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWor
 }
 
 static void code_pair_gc_free_data(MVMThreadContext *tc, MVMSTable *st) {
-    CodePairContData *data = (CodePairContData *)st->container_data;
-
-    if (data) {
-        MVM_free(data);
-        st->container_data = NULL;
-    }
+    MVM_free_null(st->container_data);
 }
 
 static void code_pair_serialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
@@ -184,6 +179,9 @@ static void native_ref_fetch_i(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
         case MVM_NATIVEREF_POSITIONAL:
             res->i64 = MVM_nativeref_read_positional_i(tc, cont);
             break;
+        case MVM_NATIVEREF_MULTIDIM:
+            res->i64 = MVM_nativeref_read_multidim_i(tc, cont);
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native int reference kind");
     }
@@ -203,6 +201,9 @@ static void native_ref_fetch_n(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
         case MVM_NATIVEREF_POSITIONAL:
             res->n64 = MVM_nativeref_read_positional_n(tc, cont);
             break;
+        case MVM_NATIVEREF_MULTIDIM:
+            res->n64 = MVM_nativeref_read_multidim_n(tc, cont);
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native num reference kind");
     }
@@ -221,6 +222,9 @@ static void native_ref_fetch_s(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
             break;
         case MVM_NATIVEREF_POSITIONAL:
             res->s = MVM_nativeref_read_positional_s(tc, cont);
+            break;
+        case MVM_NATIVEREF_MULTIDIM:
+            res->s = MVM_nativeref_read_multidim_s(tc, cont);
             break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native str reference kind");
@@ -265,6 +269,9 @@ static void native_ref_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 v
         case MVM_NATIVEREF_POSITIONAL:
             MVM_nativeref_write_positional_i(tc, cont, value);
             break;
+        case MVM_NATIVEREF_MULTIDIM:
+            MVM_nativeref_write_multidim_i(tc, cont, value);
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native int reference kind");
     }
@@ -284,6 +291,9 @@ static void native_ref_store_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 v
         case MVM_NATIVEREF_POSITIONAL:
             MVM_nativeref_write_positional_n(tc, cont, value);
             break;
+        case MVM_NATIVEREF_MULTIDIM:
+            MVM_nativeref_write_multidim_n(tc, cont, value);
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native num reference kind");
     }
@@ -302,6 +312,9 @@ static void native_ref_store_s(MVMThreadContext *tc, MVMObject *cont, MVMString 
             break;
         case MVM_NATIVEREF_POSITIONAL:
             MVM_nativeref_write_positional_s(tc, cont, value);
+            break;
+        case MVM_NATIVEREF_MULTIDIM:
+            MVM_nativeref_write_multidim_s(tc, cont, value);
             break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native str reference kind");
@@ -472,6 +485,17 @@ void MVM_6model_container_decont_s(MVMThreadContext *tc, MVMObject *cont, MVMReg
         cs->fetch_s(tc, cont, res);
     else
         res->s = MVM_repr_get_str(tc, cont);
+}
+
+/* If it's a container, do a fetch_i. Otherwise, try to unbox the received
+ * value as a native unsigned integer. */
+void MVM_6model_container_decont_u(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    const MVMContainerSpec *cs = STABLE(cont)->container_spec;
+    if (cs && IS_CONCRETE(cont))
+        /* XXX We need a fetch_u at some point. */
+        cs->fetch_i(tc, cont, res);
+    else
+        res->u64 = MVM_repr_get_uint(tc, cont);
 }
 
 /* Checks we have a container, and provided we do, assigns an int into it. */

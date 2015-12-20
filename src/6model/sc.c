@@ -104,6 +104,14 @@ MVMint64 MVM_sc_find_object_idx(MVMThreadContext *tc, MVMSerializationContext *s
         "Object does not exist in serialization context");
 }
 
+/* Calls MVM_sc_find_object_idx, but first checks if the sc is actually an SCRef. */
+MVMint64 MVM_sc_find_object_idx_jit(MVMThreadContext *tc, MVMObject *sc, MVMObject *obj) {
+    if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+        MVM_exception_throw_adhoc(tc,
+            "Must provide an SCRef operand to scgetobjidx");
+    return MVM_sc_find_object_idx(tc, (MVMSerializationContext *)sc, obj);
+}
+
 /* Given an SC, looks up the index of an STable that is in its root set. */
 MVMint64 MVM_sc_find_stable_idx(MVMThreadContext *tc, MVMSerializationContext *sc, MVMSTable *st) {
     MVMuint64 i;

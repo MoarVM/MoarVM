@@ -544,6 +544,12 @@ MVMString * MVM_repr_get_str(MVMThreadContext *tc, MVMObject *obj) {
     return REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
 }
 
+MVMuint64 MVM_repr_get_uint(MVMThreadContext *tc, MVMObject *obj) {
+    if (!IS_CONCRETE(obj))
+        MVM_exception_throw_adhoc(tc, "Cannot unbox a type object");
+    return REPR(obj)->box_funcs.get_uint(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+}
+
 void MVM_repr_set_int(MVMThreadContext *tc, MVMObject *obj, MVMint64 val) {
     REPR(obj)->box_funcs.set_int(tc, STABLE(obj), obj, OBJECT_BODY(obj), val);
 }
@@ -554,6 +560,10 @@ void MVM_repr_set_num(MVMThreadContext *tc, MVMObject *obj, MVMnum64 val) {
 
 void MVM_repr_set_str(MVMThreadContext *tc, MVMObject *obj, MVMString *val) {
     REPR(obj)->box_funcs.set_str(tc, STABLE(obj), obj, OBJECT_BODY(obj), val);
+}
+
+void MVM_repr_set_uint(MVMThreadContext *tc, MVMObject *obj, MVMuint64 val) {
+    REPR(obj)->box_funcs.set_uint(tc, STABLE(obj), obj, OBJECT_BODY(obj), val);
 }
 
 MVMObject * MVM_repr_box_int(MVMThreadContext *tc, MVMObject *type, MVMint64 val) {
@@ -578,6 +588,12 @@ MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, MVMString *v
         res = MVM_repr_alloc_init(tc, type);
         MVM_repr_set_str(tc, res, val);
     });
+    return res;
+}
+
+MVMObject * MVM_repr_box_uint(MVMThreadContext *tc, MVMObject *type, MVMuint64 val) {
+    MVMObject *res = MVM_repr_alloc_init(tc, type);
+    MVM_repr_set_uint(tc, res, val);
     return res;
 }
 
@@ -639,6 +655,15 @@ MVM_PUBLIC void MVM_repr_bind_attr_inso(MVMThreadContext *tc, MVMObject *object,
             type, name,
             hint, value_reg, kind);
     MVM_SC_WB_OBJ(tc, object);
+}
+
+MVM_PUBLIC MVMint64 MVM_repr_attribute_inited(MVMThreadContext *tc, MVMObject *obj, MVMObject *type,
+                                              MVMString *name) {
+    if (!IS_CONCRETE(obj))
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+    return REPR(obj)->attr_funcs.is_attribute_initialized(tc,
+        STABLE(obj), OBJECT_BODY(obj),
+        type, name, MVM_NO_HINT);
 }
 
 MVM_PUBLIC MVMint64    MVM_repr_compare_repr_id(MVMThreadContext *tc, MVMObject *object, MVMuint32 REPRId) {
