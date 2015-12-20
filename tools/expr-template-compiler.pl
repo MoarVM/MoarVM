@@ -1,9 +1,9 @@
 #!/usr/bin/env perl
-use Test::More;
-use Getopt::Long;
-use sexpr;
 use strict;
 use warnings;
+use Test;
+use Getopt::Long;
+use sexpr;
 
 # A S-EXP is the most trivial thing to parse in the world.  Writing S-EXP
 # is greatly preferable to hand-matching tree fragment offsets, We
