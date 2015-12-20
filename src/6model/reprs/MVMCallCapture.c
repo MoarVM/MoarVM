@@ -147,32 +147,3 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_MVMCallCapture,
     1, /* refs_frames */
 };
-
-/* This function was only introduced for the benefit of the JIT. */
-MVMint64 MVM_capture_pos_primspec(MVMThreadContext *tc, MVMObject *obj, MVMint64 i) {
-    if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
-        MVMCallCapture *cc = (MVMCallCapture *)obj;
-        if (i >= 0 && i < cc->body.apc->num_pos) {
-            MVMCallsiteEntry *arg_flags = cc->body.apc->arg_flags
-                ? cc->body.apc->arg_flags
-                : cc->body.apc->callsite->arg_flags;
-            switch (arg_flags[i] & MVM_CALLSITE_ARG_MASK) {
-                case MVM_CALLSITE_ARG_INT:
-                    return MVM_STORAGE_SPEC_BP_INT;
-                case MVM_CALLSITE_ARG_NUM:
-                    return MVM_STORAGE_SPEC_BP_NUM;
-                case MVM_CALLSITE_ARG_STR:
-                    return MVM_STORAGE_SPEC_BP_STR;
-                default:
-                    return MVM_STORAGE_SPEC_BP_NONE;
-            }
-        }
-        else {
-            MVM_exception_throw_adhoc(tc,
-                "Bad argument index given to captureposprimspec");
-        }
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "captureposprimspec needs a MVMCallCapture");
-    }
-}
