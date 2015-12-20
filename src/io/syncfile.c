@@ -297,7 +297,7 @@ static MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
     OVERLAPPED offset;
 
     if (hf == INVALID_HANDLE_VALUE) {
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: bad file descriptor");
+        MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: bad file descriptor");
     }
 
     flag = ((flag & MVM_FILE_FLOCK_NONBLOCK) ? LOCKFILE_FAIL_IMMEDIATELY : 0)
