@@ -29,3 +29,5 @@ struct MVMCallCapture {
 
 /* Function for REPR setup. */
 const MVMREPROps * MVMCallCapture_initialize(MVMThreadContext *tc);
+
+MVMint64 MVM_capture_pos_primspec(MVMThreadContext *tc, MVMObject *capture, MVMint64 index);

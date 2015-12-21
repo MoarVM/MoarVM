@@ -16,6 +16,8 @@
 |.type REGISTER, MVMRegister
 |.type ARGCTX, MVMArgProcContext
 |.type CAPTURE, MVMCallCapture
+|.type CAPTUREBODY, MVMCallCaptureBody
+|.type ARGPROCCONTEXT, MVMArgProcContext
 |.type STATICFRAME, MVMStaticFrame
 |.type P6OPAQUE, MVMP6opaque
 |.type P6OBODY, MVMP6opaqueBody
@@ -1206,6 +1208,31 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov aword WORK[dst], TMP6;
         break;
     }
+    case MVM_OP_objprimbits: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 type = ins->operands[1].reg.orig;
+        | mov TMP6, aword WORK[type];
+        | test TMP6, TMP6;
+        | jz >1;
+        | mov TMP6, OBJECT:TMP6->st;
+        | mov FUNCTION, STABLE:TMP6->REPR;
+        | mov FUNCTION, REPR:FUNCTION->get_storage_spec;
+        | mov ARG1, TC;
+        | mov ARG2, TMP6;
+        | call FUNCTION;
+        | mov TMP6w, word STORAGESPEC:RV->boxed_primitive;
+        | movzx TMP6, TMP6w;
+        | cmp TMP6, TMP6;
+        | jnz >1;
+        | mov TMP6w, word STORAGESPEC:RV->bits;
+        | movzx TMP6, TMP6w;
+        | mov aword WORK[dst], TMP6;
+        | jmp >2;
+        |1:
+        | mov aword WORK[dst], 0;
+        |2:
+        break;
+    }
     case MVM_OP_isnonnull: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
@@ -1534,6 +1561,50 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov FUNCTION, STABLE:FUNCTION->invoke;
         | call FUNCTION;
         /* jumping out is handled by invokish */
+        break;
+    }
+    case MVM_OP_captureposelems: {
+        MVMint16 dest    = ins->operands[0].reg.orig;
+        MVMint16 capture = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[capture];
+        /* if (IS_CONCRETE(capture) && REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) */
+        | is_type_object TMP1;
+        | jnz >1;
+        | mov TMP2, OBJECT:TMP1->st;
+        | mov TMP2, STABLE:TMP2->REPR;
+        | cmp dword REPR:TMP2->ID, MVM_REPR_ID_MVMCallCapture;
+        | je >2;
+        |1:
+        /* else throw */
+        | throw_adhoc "captureposelems needs a concrete MVMCallCapture";
+        |2:
+        | mov TMP2, CAPTURE:TMP1->body.apc;
+        | mov TMP2, ARGPROCCONTEXT:TMP2->num_pos;
+        | mov WORK[dest], TMP2;
+        break;
+    }
+    case MVM_OP_capturehasnameds: {
+        MVMint16 dest    = ins->operands[0].reg.orig;
+        MVMint16 capture = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[capture];
+        /* if (IS_CONCRETE(capture) && REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) */
+        | is_type_object TMP1;
+        | jnz >1;
+        | mov TMP2, OBJECT:TMP1->st;
+        | mov TMP2, STABLE:TMP2->REPR;
+        | cmp dword REPR:TMP2->ID, MVM_REPR_ID_MVMCallCapture;
+        | je >2;
+        |1:
+        /* else throw */
+        | throw_adhoc "capturehasnameds needs a concrete MVMCallCapture";
+        |2:
+        | mov TMP2, CAPTURE:TMP1->body.apc;
+        | mov TMP3, ARGPROCCONTEXT:TMP2->num_pos;
+        | mov TMP2, ARGPROCCONTEXT:TMP2->arg_count;
+        | cmp TMP2, TMP3;
+        | setne al;
+        | movzx rax, al;
+        | mov WORK[dest], rax;
         break;
     }
     case MVM_OP_getstdin:
