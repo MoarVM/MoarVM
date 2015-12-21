@@ -41,6 +41,33 @@ typedef struct {
     MVMDecodeStreamSeparators sep_spec;
 } MVMIOFileData;
 
+/* Ensures we have a decode stream, creating it if we're missing one. */
+static void ensure_decode_stream(MVMThreadContext *tc, MVMIOFileData *data) {
+    if (!data->ds) {
+        /* Get current position in file. */
+        MVMint64 pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR);
+        if (pos == -1)
+            MVM_exception_throw_adhoc(
+                tc, "Failed to create decode stream for filehandle: %d", errno);
+
+        /* Create the stream. */
+        data->ds = MVM_string_decodestream_create(tc, data->encoding, pos, 1);
+    }
+}
+
+/* Ensures no decode stream with invalid buffer hangs around. */
+static void invalidate_decode_stream(MVMThreadContext *tc, MVMIOFileData *data) {
+    if (data->ds) {
+        /* Move to logical position in file. */
+        if (MVM_platform_lseek(data->fd, MVM_string_decodestream_tell_bytes(tc, data->ds), SEEK_SET) == -1)
+            MVM_exception_throw_adhoc(tc, "Failed to invalidate decode stream for filehandle: %d", errno);
+
+        /* Destroy the stream. A new one gets created as necessary. */
+        MVM_string_decodestream_destory(tc, data->ds);
+        data->ds = NULL;
+    }
+}
+
 /* Closes the file. */
 static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
@@ -80,26 +107,28 @@ static void set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding
 /* Seek to the specified position in the file. */
 static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64 whence) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 r;
+    invalidate_decode_stream(tc, data);
 
-    if (data->ds) {
-        /* We'll start over from a new position. */
-        MVM_string_decodestream_destory(tc, data->ds);
-        data->ds = NULL;
-    }
-
-    /* Seek, then get absolute position for new decodestream. */
+    /* Perform the seek. */
     if (MVM_platform_lseek(data->fd, offset, whence) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
-    if ((r = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
-    data->ds = MVM_string_decodestream_create(tc, data->encoding, r, 1);
 }
 
-/* Get curernt position in the file. */
+/* Get current position in the file. */
 static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    return data->ds ? MVM_string_decodestream_tell_bytes(tc, data->ds) : 0;
+    if (data->ds) {
+        /* Get logical position. */
+        return MVM_string_decodestream_tell_bytes(tc, data->ds);
+    }
+    else {
+        /* No bytes have been buffered, so get actual position. */
+        MVMint64 pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR);
+        if (pos == -1)
+            MVM_exception_throw_adhoc(tc, "Failed to tell position of filehandle: %d", errno);
+
+        return pos;
+    }
 }
 
 /* Set the line separator. */
@@ -114,6 +143,8 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint
     uv_buf_t read_buf = uv_buf_init(buf, bytes);
     uv_fs_t req;
     MVMint32 read;
+    ensure_decode_stream(tc, data);
+
     if ((read = uv_fs_read(tc->loop, &req, data->fd, &read_buf, 1, -1, NULL)) < 0) {
         MVM_free(buf);
         MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
@@ -121,12 +152,6 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint
     }
     MVM_string_decodestream_add_bytes(tc, data->ds, buf, read);
     return read;
-}
-
-/* Ensures we have a decode stream, creating it if we're missing one. */
-static void ensure_decode_stream(MVMThreadContext *tc, MVMIOFileData *data) {
-    if (!data->ds)
-        data->ds = MVM_string_decodestream_create(tc, data->encoding, 0, 1);
 }
 
 /* Reads a single line from the file handle. May serve it from a buffer, if we
@@ -232,6 +257,7 @@ static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, 
         MVM_TRANSLATE_NEWLINE_OUTPUT);
     uv_buf_t write_buf  = uv_buf_init(output, output_size);
     uv_fs_t req;
+    invalidate_decode_stream(tc, data);
 
     bytes_written = uv_fs_write(tc->loop, &req, data->fd, &write_buf, 1, -1, NULL);
     if (bytes_written < 0) {
@@ -256,6 +282,8 @@ static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
     uv_buf_t write_buf  = uv_buf_init(buf, bytes);
     uv_fs_t  req;
     MVMint64 bytes_written;
+    invalidate_decode_stream(tc, data);
+
     bytes_written = uv_fs_write(tc->loop, &req, data->fd, &write_buf, 1, -1, NULL);
     if (bytes_written < 0)
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
