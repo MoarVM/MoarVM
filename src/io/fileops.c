@@ -202,7 +202,7 @@ void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
 #ifdef _WIN32
     const int r = MVM_platform_unlink(a);
 
-    if( r < 0 && r != ENOENT) {
+    if( r < 0 && errno != ENOENT) {
         MVM_free(a);
         MVM_exception_throw_adhoc(tc, "Failed to delete file: %d", errno);
     }
