@@ -1197,11 +1197,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP6, aword WORK[type];
         | test TMP6, TMP6;
         | jz >1;
-        | mov TMP6, OBJECT:TMP6->st;
-        | mov FUNCTION, STABLE:TMP6->REPR;
+        | mov ARG2, OBJECT:TMP6->st;
+        | mov FUNCTION, STABLE:ARG2->REPR;
         | mov FUNCTION, REPR:FUNCTION->get_storage_spec;
         | mov ARG1, TC;
-        | mov ARG2, TMP6;
         | call FUNCTION;
         | movzx TMP6, word STORAGESPEC:RV->boxed_primitive;
         |1:
@@ -1214,23 +1213,17 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP6, aword WORK[type];
         | test TMP6, TMP6;
         | jz >1;
-        | mov TMP6, OBJECT:TMP6->st;
-        | mov FUNCTION, STABLE:TMP6->REPR;
+        | mov ARG2, OBJECT:TMP6->st;
+        | mov FUNCTION, STABLE:ARG2->REPR;
         | mov FUNCTION, REPR:FUNCTION->get_storage_spec;
         | mov ARG1, TC;
-        | mov ARG2, TMP6;
         | call FUNCTION;
-        | mov TMP6w, word STORAGESPEC:RV->boxed_primitive;
-        | movzx TMP6, TMP6w;
-        | cmp TMP6, TMP6;
-        | jnz >1;
-        | mov TMP6w, word STORAGESPEC:RV->bits;
-        | movzx TMP6, TMP6w;
-        | mov aword WORK[dst], TMP6;
-        | jmp >2;
+        | movzx TMP6, word STORAGESPEC:RV->boxed_primitive;
+        | test TMP6, TMP6;
+        | jz >1;
+        | movzx TMP6, word STORAGESPEC:RV->bits;
         |1:
-        | mov aword WORK[dst], 0;
-        |2:
+        | mov aword WORK[dst], TMP6;
         break;
     }
     case MVM_OP_isnonnull: {
@@ -1578,8 +1571,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         /* else throw */
         | throw_adhoc "captureposelems needs a concrete MVMCallCapture";
         |2:
-        | mov TMP2, CAPTURE:TMP1->body.apc;
-        | mov TMP2, ARGPROCCONTEXT:TMP2->num_pos;
+        | mov TMP2, aword CAPTURE:TMP1->body.apc;
+        | movzx TMP2, word ARGPROCCONTEXT:TMP2->num_pos;
         | mov WORK[dest], TMP2;
         break;
     }
@@ -1599,9 +1592,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | throw_adhoc "capturehasnameds needs a concrete MVMCallCapture";
         |2:
         | mov TMP2, CAPTURE:TMP1->body.apc;
-        | mov TMP3, ARGPROCCONTEXT:TMP2->num_pos;
-        | mov TMP2, ARGPROCCONTEXT:TMP2->arg_count;
-        | cmp TMP2, TMP3;
+        | mov TMP3w, word ARGPROCCONTEXT:TMP2->num_pos;
+        | mov TMP2w, word ARGPROCCONTEXT:TMP2->arg_count;
+        | cmp TMP2w, TMP3w;
         | setne al;
         | movzx rax, al;
         | mov WORK[dest], rax;
