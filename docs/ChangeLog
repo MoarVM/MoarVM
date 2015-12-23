@@ -8,8 +8,8 @@ New in 2015.12
 + Clean up callsites in comp unit objects
 + Clean up interned callsites on interpreter shutdown
 + Clean up memory allocated by FSA
-+ Copy callsites when inliing
-+ Cleanup unicode property lookups on shutdown
++ Copy callsites when inlining
++ Cleanup Unicode property lookups on shutdown
 + When async streams are done, emit sequence number but no data
 + Force SC initialization to allocate in gen2, fixing a deadlock
 + Add a sanity check for gen2 allocation flag
