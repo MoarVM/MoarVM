@@ -34,18 +34,18 @@ New in 2015.12
 + Disable unaligned reads under UBSAN
 + Align bytecode sections to 8 bytes
 + Dump "known to be RW container" flag to speshlog
-+ Add missing unsigned operand types; clean up unsinged int ops
++ Add missing unsigned operand types; clean up unsigned int ops
 + Add box unsigned to REPR boxing API
 + A handful of extra unsigned int related ops
 + Teach assembler about unsigneds
 + JIT captureposprimspec, sized getlexref_, captureposelems, capturehasnameds
 + JIT jit eof_fh, readline[chomp]_fh, replace, gethllsym, objprimbits, say_fhs
 + JIT typeparameters, typeparameterized, typeparameterat
-+ Coercion between num and unsinged int
++ Coercion between num and unsigned int
 + Support boxing unsigneds in P6int REPR.
 + Recognize unsigned extop operands
 + Cheating native ref ops for unsigneds
-+ Somewhat cheating unsinged parameter ops.
++ Somewhat cheating unsigned parameter ops.
 + Kick out remaining unused arg_*/argconst_* ops after inlining
 + Fix bug that made Win32 throw on deleting nonexistent files
 
