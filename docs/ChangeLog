@@ -1,3 +1,54 @@
+New in 2015.12
+
++ Allow the backlog arg for socket listening to be set
++ Resize buffers as needed when taking a UTF-16 substring
++ Context-captured frames should remember caller
++ Re-use MVM_frame_context_wrapper for ctx op, to reduce code duplication
++ Fix bug with dynvar lookups when we fall out of JITted code
++ Clean up callsites in comp unit objects
++ Clean up interned callsites on interpreter shutdown
++ Clean up memory allocated by FSA
++ Copy callsites when inliing
++ Cleanup unicode property lookups on shutdown
++ When async streams are done, emit sequence number but no data
++ Force SC initialization to allocate in gen2, fixing a deadlock
++ Add a sanity check for gen2 allocation flag
++ Allow NativeRef to spesh assign_i and decont_i
++ Implement sp_deref_bind/get_i64/n in the JIT
++ Handle "is rw" pointers in native routines
++ Teach our guard op generator about NativeRef
++ Fix ordbaseat interaction with synthetics, and end of string semantics
++ make ordfirst and ordat consistent with ordbaseat
++ Add casts to resolve type warnings
++ Add UBSAN support to Configure.pl
++ Support native references to multi-dimensional indexes
++ Implement fileno_fh op
++ Implement async UDP sockets
++ Probe for _Bool, and expose bool/size_t to nativecall
++ Implement input newline translation, and translation on output on Win32
++ Validate lexical types properly
++ Implement truncate/extend ops for sized natives
++ Init cd->arg_flags so callsites_equal wont complain
++ Avoid memcpy(x, NULL, 0) in spesh
++ Ops to introspect type bits/unsignedness
++ Disable unaligned reads under UBSAN
++ Align bytecode sections to 8 bytes
++ Dump "known to be RW container" flag to speshlog
++ Add missing unsigned operand types; clean up unsinged int ops
++ Add box unsigned to REPR boxing API
++ A handful of extra unsigned int related ops
++ Teach assembler about unsigneds
++ JIT captureposprimspec, sized getlexref_, captureposelems, capturehasnameds
++ JIT jit eof_fh, readline[chomp]_fh, replace, gethllsym, objprimbits, say_fhs
++ JIT typeparameters, typeparameterized, typeparameterat
++ Coercion between num and unsinged int
++ Support boxing unsigneds in P6int REPR.
++ Recognize unsigned extop operands
++ Cheating native ref ops for unsigneds
++ Somewhat cheating unsinged parameter ops.
++ Kick out remaining unused arg_*/argconst_* ops after inlining
++ Fix bug that made Win32 throw on deleting nonexistent files
+
 New in 2015.11
 
 + Fix const warnings about pointers to Unicode case table
