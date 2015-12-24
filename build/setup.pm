@@ -482,6 +482,14 @@ our %OS_SOLARIS = (
 	    },
         uv => { %TP_UVDUMMY, objects => '$(UV_SOLARIS)' },
     },
+
+    luacflags => '-D_XOPEN_SOURCE=600 --std=c99',
+    lualdlibs => '-lm /usr/lib/amd64/values-xpg6.o',
+);
+
+our %OS_ILLUMOS = (
+    %OS_SOLARIS,
+    ccmiscflags => '',
 );
 
 our %OS_DARWIN = (
@@ -513,6 +521,7 @@ our %SYSTEMS = (
     freebsd     => [ qw( posix bsd   clang ), { %OS_FREEBSD } ],
     gnukfreebsd => [ qw( posix gnu   gcc ),   { %OS_GNUKFREEBSD } ],
     solaris     => [ qw( posix posix cc ),    { %OS_SOLARIS } ],
+    illumos     => [ qw( posix posix gcc ),    { %OS_ILLUMOS } ],
     win32       => [ qw( win32 msvc  cl ),    { %OS_WIN32 } ],
     cygwin      => [ qw( posix gnu   gcc ),   { %OS_WIN32 } ],
     mingw32     => [ qw( win32 gnu   gcc ),   { %OS_MINGW32 } ],

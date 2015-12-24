@@ -263,6 +263,10 @@ if ($args{'jit'}) {
 # fallback
 $config{jit} //= '$(JIT_STUB)';
 
+# fix lua flags if not explicilty set
+$config{luacflags} //= '';
+$config{lualdlibs} //= $config{ldsys} . 'm';
+
 
 # mangle library names
 $config{ldlibs} = join ' ',
@@ -496,6 +500,8 @@ sub setup_native {
 
     $os = build::probe::win32_compiler_toolchain(\%config, \%defaults)
         if $os eq 'MSWin32';
+    $os = (build::probe::is_solaris_illumos() ? 'illumos' : 'solaris')
+	if $os eq 'solaris';
 
     if (!exists $::SYSTEMS{$os}) {
         softfail("unknown OS '$os'");

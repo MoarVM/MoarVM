@@ -389,4 +389,8 @@ sub win32_compiler_toolchain {
     $config->{win32_compiler_toolchain}
 }
 
+sub is_solaris_illumos {
+    `uname -v` !~ m/solaris/;
+}
+
 '00';

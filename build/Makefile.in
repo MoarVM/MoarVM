@@ -526,7 +526,7 @@ src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_ops.c
 	$(CMD)$(CAT) src/strings/unicode_db.c src/strings/unicode_ops.c > $@ $(NOERR)
 
 3rdparty/dynasm/minilua@exe@: 3rdparty/dynasm/minilua.c
-	$(CC) $(CFLAGS) $(LDFLAGS) 3rdparty/dynasm/minilua.c -o $@ $(LDLIBS)
+	$(CC) @luacflags@ 3rdparty/dynasm/minilua.c -o $@ @lualdlibs@
 
 src/jit/emit_posix_x64.c: $(LUA) src/jit/emit_x64.dasc
 	$(DYNASM) $(DASM_FLAGS_POSIX) -o $@ src/jit/emit_x64.dasc
