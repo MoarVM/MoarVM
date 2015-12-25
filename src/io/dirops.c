@@ -37,9 +37,14 @@ static int mkdir_p(wchar_t *pathname, MVMint64 mode) {
 #else
 static int mkdir_p(char *pathname, MVMint64 mode) {
     size_t len = strlen(pathname);
+
 #endif
     ssize_t r;
     char tmp;
+
+    /* '/' always exists. */
+    if (len == 0)
+        return 0;
 
     while (len > 0 && IS_SLASH(pathname[len - 1]))
         len--;
