@@ -98,6 +98,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
     /* Must using UTF8ToUnicode for supporting CJK Windows file name. */
     wchar_t *wpathname = UTF8ToUnicode(pathname);
     int str_len = wcslen(wpathname);
+    MVM_free(pathname);
 
     if (str_len > MAX_PATH) {
         wchar_t  abs_dirname[4096]; /* 4096 should be enough for absolute path */
@@ -107,6 +108,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
          * relative paths are always limited to a total of MAX_PATH characters.
          * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
         if (!GetFullPathNameW(wpathname, 4096, abs_dirname, &lpp_part)) {
+            MVM_free(wpathname);
             MVM_exception_throw_adhoc(tc, "Directory path is wrong: %d", GetLastError());
         }
 
@@ -121,7 +123,6 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
     if (!mkdir_p(wpathname, mode)) {
         DWORD error = GetLastError();
         if (error != ERROR_ALREADY_EXISTS) {
-            MVM_free(pathname);
             MVM_free(wpathname);
             MVM_exception_throw_adhoc(tc, "Failed to mkdir: %d", error);
         }
@@ -134,8 +135,8 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
         MVM_exception_throw_adhoc(tc, "Failed to mkdir: %d", errno);
     }
 
-#endif
     MVM_free(pathname);
+#endif
 }
 
 /* Remove a directory recursively. */
