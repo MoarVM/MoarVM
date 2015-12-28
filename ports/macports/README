@@ -4,10 +4,9 @@ First, update the portfile
 
 1) update the version
 2) remove the revision, if any is currently specified.
-3) comment out the checksum lines.
 3) After saving the Portfile, run "sudo port -v extract MoarVM" from the shell.
    This will generate a bunch of output, including replacement checksum lines;
-   copy them back into the Portfile, replacing the commented out versions.
+   copy them back into the Portfile, replacing the original versions.
 
 Then, test out the portfile locally.
 
