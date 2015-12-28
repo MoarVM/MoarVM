@@ -22,8 +22,6 @@ master_sites        http://moarvm.org/releases/
 checksums           rmd160  c74a3ac21b5c1647aaf7451a97709fdc46e567f1 \
                     sha256  e93d1d2e918764971fd9e9fd68de73ad900abb25d224a5049a105aae54dba7d3
 
-# FIXME: may need ExtUtil::Command if by chance our default perl5 binary
-# does not match what Apple ships.
 depends_build       port:perl5
 
 # Unsupported by configure.pl.
