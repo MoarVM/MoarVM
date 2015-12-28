@@ -8,7 +8,7 @@ version             2015.12
 categories          lang devel
 platforms           darwin
 license             Artistic-2 MIT BSD ISC public-domain
-maintainers         coleda.com:will
+maintainers         coleda.com:will mojca openmaintainer
 description         A virtual machine for Perl 6
 long_description    MoarVM is a virtual machine built especially for \
                     Rakudo Perl 6 and the NQP Compiler Toolchain.
@@ -26,6 +26,5 @@ depends_build       port:perl5
 # Unsupported by configure.pl.
 configure.universal_args-delete --disable-dependency-tracking
 
-universal_variant   yes
-
 configure.cmd       ${prefix}/bin/perl Configure.pl
+
