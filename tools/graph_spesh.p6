@@ -66,6 +66,7 @@ for lines() -> $_ is copy {
               | lex '(' .*? ')'
               | sslot '(' <digit>+ ')'
               | BB '(' <digit>+ ')'
+              | coderef '(' ~ ')' <-[)]>+
               | '<nyi>'
               | '<nyi(lit)>'
             ] ]* % [',' \s*] \s* $ / {
