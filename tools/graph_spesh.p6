@@ -67,6 +67,7 @@ for lines() -> $_ is copy {
               | sslot '(' <digit>+ ')'
               | BB '(' <digit>+ ')'
               | coderef '(' ~ ')' <-[)]>+
+              | callsite '(' ~ ')' <-[)]>+
               | '<nyi>'
               | '<nyi(lit)>'
             ] ]* % [',' \s*] \s* $ / {
