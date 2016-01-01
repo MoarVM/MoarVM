@@ -25,7 +25,7 @@
 
 =end pod
 
-use lib $?FILE.path.parent.child("lib");
+use lib ~$?FILE.path.parent.child("lib");
 
 use MAST::Ops;
 
@@ -36,7 +36,7 @@ my %lit_str_serial;
 
 say 'digraph G {';
 say '  graph [rankdir="TB"];';
-say '  node [shape=record]';
+say '  node [shape=record];';
 
 my $insnum = 0;
 my $in_subgraph = 0;
