@@ -56,7 +56,7 @@ my @callsite_args;
 
 my %reg_writers;
 
-for lines() :eager -> $_ is copy {
+for lines() -> $_ is copy {
     when / ^ '      ' <!before '['> $<opname>=[<[a..z I 0..9 _]>+] \s+
             [ $<argument>=[
               | r \s* $<regnum>=[<.digit>+] \s* '(' \s* $<regver>=[<.digit>+] \s* ')'
