@@ -263,6 +263,10 @@ if ($args{'jit'}) {
 # fallback
 $config{jit} //= '$(JIT_STUB)';
 
+if ($config{'toolchain'} eq 'msvc') {
+    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/msinttypes\n"
+                        . "\t\$(CP) 3rdparty/msinttypes/*.h \$(DESTDIR)\$(PREFIX)/include/msinttypes\n";
+}
 
 
 
