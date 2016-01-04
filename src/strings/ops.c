@@ -402,14 +402,16 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             MVMString *effective_a = a;
             MVMString *effective_b = b;
             if (strands_a + strands_b > MVM_STRING_MAX_STRANDS) {
-                if (strands_a >= strands_b) {
-                    effective_a = collapse_strands(tc, effective_a);
-                    strands_a   = 1;
-                }
-                else {
-                    effective_b = collapse_strands(tc, effective_b);
-                    strands_b   = 1;
-                }
+                MVMROOT(tc, result, {
+                    if (strands_a >= strands_b) {
+                        effective_a = collapse_strands(tc, effective_a);
+                        strands_a   = 1;
+                    }
+                    else {
+                        effective_b = collapse_strands(tc, effective_b);
+                        strands_b   = 1;
+                    }
+                });
             }
 
             /* Assemble the result. */
