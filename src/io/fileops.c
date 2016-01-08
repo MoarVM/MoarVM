@@ -103,6 +103,21 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
     return r;
 }
 
+MVMnum64 MVM_file_time(MVMThreadContext *tc, MVMString *filename, MVMint64 status, MVMint32 use_lstat) {
+    uv_stat_t statbuf = file_info(tc, filename, use_lstat);
+    uv_timespec_t ts;
+
+    switch(status) {
+        case MVM_STAT_CREATETIME: ts = statbuf.st_birthtim; break;
+        case MVM_STAT_MODIFYTIME: ts = statbuf.st_mtim; break;
+        case MVM_STAT_ACCESSTIME: ts = statbuf.st_atim; break;
+        case MVM_STAT_CHANGETIME: ts = statbuf.st_ctim; break;
+        default: return -1;
+    }
+
+    return ts.tv_sec + 1e-9 * (MVMnum64)ts.tv_nsec;
+}
+
 /* copy a file from one to another */
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString * dest) {
     /* TODO: on Windows we can use the CopyFile API, which is probaly

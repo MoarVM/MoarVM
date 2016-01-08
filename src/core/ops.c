@@ -8090,6 +8090,28 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_str, MVM_operand_str, MVM_operand_ins }
     },
     {
+        MVM_OP_stat_time,
+        "stat_time",
+        "  ",
+        3,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_lstat_time,
+        "lstat_time",
+        "  ",
+        3,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
         MVM_OP_sp_log,
         "sp_log",
         ".s",
@@ -8747,7 +8769,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 796;
+static const unsigned short MVM_op_counts = 798;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
