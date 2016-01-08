@@ -3289,6 +3289,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 0);
                 cur_op += 6;
                 goto NEXT;
+            OP(stat_time):
+                GET_REG(cur_op, 0).n64 = MVM_file_time(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 0);
+                cur_op += 6;
+                goto NEXT;
             OP(readline_fh):
                 GET_REG(cur_op, 0).s = MVM_io_readline(tc, GET_REG(cur_op, 2).o, 0);
                 cur_op += 4;
@@ -4365,6 +4369,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(lstat):
                 GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 1);
+                cur_op += 6;
+                goto NEXT;
+            OP(lstat_time):
+                GET_REG(cur_op, 0).n64 = MVM_file_time(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 1);
                 cur_op += 6;
                 goto NEXT;
             OP(iscont_i):
