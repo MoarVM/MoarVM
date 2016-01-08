@@ -67,7 +67,7 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
             break;
         }
 
-        case MVM_STAT_CREATETIME:         r = file_info(tc, filename, use_lstat).st_ctim.tv_sec; break;
+        case MVM_STAT_CREATETIME:         r = file_info(tc, filename, use_lstat).st_birthtim.tv_sec; break;
 
         case MVM_STAT_ACCESSTIME:         r = file_info(tc, filename, use_lstat).st_atim.tv_sec; break;
 
