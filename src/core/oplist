@@ -249,6 +249,7 @@ concat_s            w(str) r(str) r(str) :pure
 repeat_s            w(str) r(str) r(int64) :pure
 substr_s            w(str) r(str) r(int64) r(int64) :pure
 index_s             w(int64) r(str) r(str) r(int64) :pure
+# graphs_s and codes_s will be DEPRECATED!
 graphs_s            w(int64) r(str) :pure
 codes_s             w(int64) r(str) :pure
 getcp_s             w(int64) r(str) r(int64) :pure
@@ -272,6 +273,7 @@ ordat               w(int64) r(str) r(int64) :pure
 rindexfrom          w(int64) r(str) r(str) r(int64) :pure
 escape              w(str) r(str) :pure
 flip                w(str) r(str) :pure
+# flattenropes will be DEPRECATED!
 flattenropes        r(str)
 iscclass            w(int64) r(int64) r(str) r(int64) :pure
 findcclass          w(int64) r(int64) r(str) r(int64) r(int64) :pure
