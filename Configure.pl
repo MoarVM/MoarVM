@@ -263,15 +263,6 @@ if ($args{'jit'}) {
 # fallback
 $config{jit} //= '$(JIT_STUB)';
 
-if ($config{'toolchain'} eq 'msvc') {
-    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/msinttypes\n"
-                        . "\t\$(CP) 3rdparty/msinttypes/*.h \$(DESTDIR)\$(PREFIX)/include/msinttypes\n";
-}
-
-
-
-
-
 
 # mangle library names
 $config{ldlibs} = join ' ',
@@ -356,6 +347,11 @@ else {
     build::probe::static_inline_native(\%config, \%defaults);
     build::probe::unaligned_access(\%config, \%defaults);
     build::probe::ptr_size_native(\%config, \%defaults);
+}
+
+if ($config{cc} eq 'cl') {
+    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/msinttypes\n"
+                        . "\t\$(CP) 3rdparty/msinttypes/*.h \$(DESTDIR)\$(PREFIX)/include/msinttypes\n";
 }
 
 build::probe::C_type_bool(\%config, \%defaults);
