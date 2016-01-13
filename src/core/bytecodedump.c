@@ -44,13 +44,13 @@ static const char * get_typename(MVMuint16 type) {
 #define a(...) append_string(&o,&s,&l, __VA_ARGS__)
 /* Macros for getting things from the bytecode stream. */
 /* GET_REG is defined differently here from interp.c */
-#define GET_I8(pc, idx)     *((MVMint8 *)(pc + idx))
-#define GET_REG(pc, idx)    *((MVMuint16 *)(pc + idx))
-#define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
-#define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
-#define GET_I32(pc, idx)    *((MVMint32 *)(pc + idx))
-#define GET_UI32(pc, idx)   *((MVMuint32 *)(pc + idx))
-#define GET_N32(pc, idx)    *((MVMnum32 *)(pc + idx))
+#define GET_I8(pc, idx)     *((MVMint8 *)((pc) + (idx)))
+#define GET_REG(pc, idx)    *((MVMuint16 *)((pc) + (idx)))
+#define GET_I16(pc, idx)    *((MVMint16 *)((pc) + (idx)))
+#define GET_UI16(pc, idx)   *((MVMuint16 *)((pc) + (idx)))
+#define GET_I32(pc, idx)    *((MVMint32 *)((pc) + (idx)))
+#define GET_UI32(pc, idx)   *((MVMuint32 *)((pc) + (idx)))
+#define GET_N32(pc, idx)    *((MVMnum32 *)((pc) + (idx)))
 
 enum {
     MVM_val_branch_target = 1,

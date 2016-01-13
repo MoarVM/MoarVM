@@ -429,7 +429,7 @@ static void validate_sequence(Validator *val) {
             case MARK_special:
                 if (id == seq_id)
                     break;
-                else; /* fallthrough */
+                /* FALLTHROUGH */
 
             case MARK_regular:
             case MARK_sequence:

@@ -472,10 +472,9 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
             case MVM_RETURN_NUM:
                 target->return_value->n64 = (MVMnum64)result;
                 break;
-            case MVM_RETURN_OBJ: {
+            case MVM_RETURN_OBJ:
                 autobox(tc, target, result, int_box_type, 0, set_int, target->return_value->o);
                 break;
-            }
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from int NYI; expects type %u", target->return_type);
         }
@@ -493,10 +492,9 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
             case MVM_RETURN_INT:
                 target->return_value->i64 = (MVMint64)result;
                 break;
-            case MVM_RETURN_OBJ: {
+            case MVM_RETURN_OBJ:
                 autobox(tc, target, result, num_box_type, 0, set_num, target->return_value->o);
                 break;
-            }
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from num NYI; expects type %u", target->return_type);
         }
@@ -511,10 +509,9 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
             case MVM_RETURN_STR:
                 target->return_value->s = result;
                 break;
-            case MVM_RETURN_OBJ: {
+            case MVM_RETURN_OBJ:
                 autobox(tc, target, result, str_box_type, 1, set_str, target->return_value->o);
                 break;
-            }
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from str NYI; expects type %u", target->return_type);
         }
