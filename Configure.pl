@@ -62,7 +62,7 @@ for my $target (@target_dirs) {
 
 if (-d '.git') {
     print dots("Updating submodules");
-    my $msg = qx{git submodule --quiet update --init 2>&1};
+    my $msg = qx{git submodule sync --quiet && git submodule --quiet update --init 2>&1};
     if ($? >> 8 == 0) { print "OK\n" }
     else { softfail("git error: $msg") }
 }
@@ -257,11 +257,6 @@ if ($args{'jit'}) {
 $config{jit} //= '$(JIT_STUB)';
 
 
-
-
-
-
-
 # mangle library names
 $config{ldlibs} = join ' ',
     (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),
@@ -345,6 +340,11 @@ else {
     build::probe::static_inline_native(\%config, \%defaults);
     build::probe::unaligned_access(\%config, \%defaults);
     build::probe::ptr_size_native(\%config, \%defaults);
+}
+
+if ($config{cc} eq 'cl') {
+    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/msinttypes\n"
+                        . "\t\$(CP) 3rdparty/msinttypes/*.h \$(DESTDIR)\$(PREFIX)/include/msinttypes\n";
 }
 
 build::probe::C_type_bool(\%config, \%defaults);

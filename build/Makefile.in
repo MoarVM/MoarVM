@@ -469,13 +469,7 @@ install: all
 	$(CP) src/instrument/*.h $(DESTDIR)$(PREFIX)/include/moar/instrument
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libuv
 	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libtommath
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/msinttypes
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/sha1
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/tinymt
 	$(CP) 3rdparty/libuv/include/*.h $(DESTDIR)$(PREFIX)/include/libuv
-	$(CP) 3rdparty/msinttypes/*.h $(DESTDIR)$(PREFIX)/include/msinttypes
-	$(CP) 3rdparty/sha1/*.h $(DESTDIR)$(PREFIX)/include/sha1
-	$(CP) 3rdparty/tinymt/*.h $(DESTDIR)$(PREFIX)/include/tinymt
 @install@
 
 lib: @moar@

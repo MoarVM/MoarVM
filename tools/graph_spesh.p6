@@ -25,7 +25,7 @@
 
 =end pod
 
-use lib $?FILE.path.parent.child("lib");
+use lib ~$?FILE.path.parent.child("lib");
 
 use MAST::Ops;
 
@@ -36,7 +36,7 @@ my %lit_str_serial;
 
 say 'digraph G {';
 say '  graph [rankdir="TB"];';
-say '  node [shape=record]';
+say '  node [shape=record];';
 
 my $insnum = 0;
 my $in_subgraph = 0;
@@ -56,7 +56,7 @@ my @callsite_args;
 
 my %reg_writers;
 
-for lines() :eager -> $_ is copy {
+for lines() -> $_ is copy {
     when / ^ '      ' <!before '['> $<opname>=[<[a..z I 0..9 _]>+] \s+
             [ $<argument>=[
               | r \s* $<regnum>=[<.digit>+] \s* '(' \s* $<regver>=[<.digit>+] \s* ')'
@@ -66,6 +66,8 @@ for lines() :eager -> $_ is copy {
               | lex '(' .*? ')'
               | sslot '(' <digit>+ ')'
               | BB '(' <digit>+ ')'
+              | coderef '(' ~ ')' <-[)]>+
+              | callsite '(' ~ ')' <-[)]>+
               | '<nyi>'
               | '<nyi(lit)>'
             ] ]* % [',' \s*] \s* $ / {
@@ -151,7 +153,7 @@ for lines() :eager -> $_ is copy {
         }
 
         if $arity && @props[0]<writes_tgt> {
-            @labelparts = @labelparts[1, 0], @labelparts[2..*];
+            @labelparts = flat @labelparts[1, 0], @labelparts[2..*];
         }
 
         # find outgoing connections

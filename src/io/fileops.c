@@ -67,7 +67,7 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
             break;
         }
 
-        case MVM_STAT_CREATETIME:         r = file_info(tc, filename, use_lstat).st_ctim.tv_sec; break;
+        case MVM_STAT_CREATETIME:         r = file_info(tc, filename, use_lstat).st_birthtim.tv_sec; break;
 
         case MVM_STAT_ACCESSTIME:         r = file_info(tc, filename, use_lstat).st_atim.tv_sec; break;
 
@@ -101,6 +101,21 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
     }
 
     return r;
+}
+
+MVMnum64 MVM_file_time(MVMThreadContext *tc, MVMString *filename, MVMint64 status, MVMint32 use_lstat) {
+    uv_stat_t statbuf = file_info(tc, filename, use_lstat);
+    uv_timespec_t ts;
+
+    switch(status) {
+        case MVM_STAT_CREATETIME: ts = statbuf.st_birthtim; break;
+        case MVM_STAT_MODIFYTIME: ts = statbuf.st_mtim; break;
+        case MVM_STAT_ACCESSTIME: ts = statbuf.st_atim; break;
+        case MVM_STAT_CHANGETIME: ts = statbuf.st_ctim; break;
+        default: return -1;
+    }
+
+    return ts.tv_sec + 1e-9 * (MVMnum64)ts.tv_nsec;
 }
 
 /* copy a file from one to another */
@@ -202,7 +217,7 @@ void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
 #ifdef _WIN32
     const int r = MVM_platform_unlink(a);
 
-    if( r < 0 && r != ENOENT) {
+    if( r < 0 && errno != ENOENT) {
         MVM_free(a);
         MVM_exception_throw_adhoc(tc, "Failed to delete file: %d", errno);
     }

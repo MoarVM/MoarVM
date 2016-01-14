@@ -14,8 +14,9 @@ Building the VM itself takes just:
     perl Configure.pl
     make
 
-(Or `nmake` on Windows). Currently it is known to build on Windows with MSVC,
-with `gcc` and `clang` on Linux & MacOS X.  We're expanding this with time.
+(Or `nmake`/`gmake` on Windows). Currently it is known to build on Windows
+with MSVC and gcc, and with `gcc` and `clang` on Linux & MacOS X.  We're
+expanding this with time.
 
 Type `perl Configure.pl --help` to see the configure-time options, as well
 as some descriptions of the make-time options/targets.
@@ -56,7 +57,7 @@ Some key features provided by MoarVM include:
 
 * Meta-object programming, using the 6model design
 * Precise, generational, and parallel GC
-* Unicode support (Unicode database lookup, encodings, normalization)
+* Unicode 8.0 support (Unicode Character Database, encodings, normalization)
 * First-class code objects, lexical variables and closures
 * Exceptions
 * Continuations

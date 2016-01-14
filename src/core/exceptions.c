@@ -1,5 +1,4 @@
 #include "moar.h"
-#include <stdarg.h>
 
 #ifdef _MSC_VER
 #define snprintf _snprintf

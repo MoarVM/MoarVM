@@ -72,7 +72,6 @@ MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonC
             return &obj_str_callsite;
         default:
             MVM_exception_throw_adhoc(tc, "get_common_callsite: id %d unknown", id);
-            return NULL;
     }
 }
 

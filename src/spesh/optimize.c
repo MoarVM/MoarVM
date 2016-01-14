@@ -872,6 +872,10 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
 
         switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
             case MVM_BOOL_MODE_UNBOX_INT:
+                /* This optimization can only handle values known to be concrete. */
+                if (!(facts->flags & MVM_SPESH_FACT_CONCRETE)) {
+                    return;
+                }
                 /* We can just unbox the int and pretend it's a bool. */
                 ins->info = MVM_op_get_op(MVM_OP_unbox_i);
                 if (negated_op)

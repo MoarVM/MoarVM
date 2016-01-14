@@ -249,6 +249,7 @@ concat_s            w(str) r(str) r(str) :pure
 repeat_s            w(str) r(str) r(int64) :pure
 substr_s            w(str) r(str) r(int64) r(int64) :pure
 index_s             w(int64) r(str) r(str) r(int64) :pure
+# graphs_s will be DEPRECATED!
 graphs_s            w(int64) r(str) :pure
 codes_s             w(int64) r(str) :pure
 getcp_s             w(int64) r(str) r(int64) :pure
@@ -774,6 +775,8 @@ param_rn_u          w(uint64) str :noinline
 param_on_u          w(uint64) str ins :noinline
 param_rn2_u         w(uint64) str str :noinline
 param_on2_u         w(uint64) str str ins :noinline
+stat_time           w(num64) r(str) r(int64)
+lstat_time          w(num64) r(str) r(int64)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
