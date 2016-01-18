@@ -6,7 +6,7 @@ struct MVMJitTileTemplate {
     MVMint32  left_sym;
     MVMint32 right_sym;
 
-    MVMint32  nvals;
+    MVMint32  num_vals;
     MVMint32  regs;
     MVMJitExprVtype vtype;
 };
@@ -17,6 +17,7 @@ struct MVMJitTile {
     MVMJitTile *next;
     MVMint32 order_nr;
     MVMint32 node;
+    MVMint32 num_vals;
     /* buffers for the args of this (pseudo) tile */
     MVMJitExprValue *values[8];
     MVMJitExprNode args[8];
@@ -24,10 +25,10 @@ struct MVMJitTile {
 
 struct MVMJitTileList {
     MVMJitTile *first;
-    MVMJitTile *next;
+    MVMJitTile *last;
 };
 
-void MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree);
+MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree);
 void MVM_jit_tile_get_values(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node,
                              const MVMint8 *path, MVMint32 regs,
                              MVMJitExprValue **values, MVMJitExprNode *args);

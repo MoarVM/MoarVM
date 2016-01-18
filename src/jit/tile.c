@@ -7,12 +7,18 @@
 #endif
 
 struct TileState {
+    /* state is junction of applicable tiles */
     MVMint32 state;
+    /* rule is number of best applicable tile */
     MVMint32 rule;
+    /* template is template of assigned tile */
+    const MVMJitTileTemplate *template;
 };
 
 struct TileTree {
-    MVM_DYNAR_DECL(struct TileState, s);
+    MVM_DYNAR_DECL(struct TileState, states);
+    MVMSpeshGraph *sg;
+    MVMJitTileList *list;
     MVMint32 order_nr;
 };
 
@@ -35,27 +41,27 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             MVMint32 i;
             for (i = 0; i < nchild; i++) {
                 MVMint32 child = tree->nodes[first_child+i];
-                state_info = MVM_jit_tile_state_lookup(tc, op, tiles->s[child].state, -1);
+                state_info = MVM_jit_tile_state_lookup(tc, op, tiles->states[child].state, -1);
                 if (state_info == NULL) {
                     MVM_oops(tc, "OOPS, %s can't be tiled with a %s child at position %d",
                              info->name, tree->info[child].op_info->name, i);
                 }
             }
-            tiles->s[node].state    = state_info[3];
-            tiles->s[node].rule     = state_info[4];
+            tiles->states[node].state    = state_info[3];
+            tiles->states[node].rule     = state_info[4];
         }
         break;
     case MVM_JIT_DO:
         {
             MVMint32 last_child = first_child+nchild-1;
-            MVMint32 left_state = tiles->s[tree->nodes[first_child]].state;
-            MVMint32 right_state = tiles->s[tree->nodes[last_child]].state;
+            MVMint32 left_state = tiles->states[tree->nodes[first_child]].state;
+            MVMint32 right_state = tiles->states[tree->nodes[last_child]].state;
             state_info = MVM_jit_tile_state_lookup(tc, op, left_state, right_state);
             if (state_info == NULL) {
                 MVM_oops(tc, "Can't tile this DO node");
             }
-            tiles->s[node].state = state_info[3];
-            tiles->s[node].rule  = state_info[4];
+            tiles->states[node].state = state_info[3];
+            tiles->states[node].rule  = state_info[4];
         }
         break;
     case MVM_JIT_IF:
@@ -64,17 +70,17 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             MVMint32 cond = tree->nodes[node+1],
                 left = tree->nodes[node+2],
                 right = tree->nodes[node+3];
-            MVMint32 *left_state  = MVM_jit_tile_state_lookup(tc, op, tiles->s[cond].state,
-                                                              tiles->s[left].state);
-            MVMint32 *right_state = MVM_jit_tile_state_lookup(tc, op, tiles->s[cond].state,
-                                                              tiles->s[right].state);
+            MVMint32 *left_state  = MVM_jit_tile_state_lookup(tc, op, tiles->states[cond].state,
+                                                              tiles->states[left].state);
+            MVMint32 *right_state = MVM_jit_tile_state_lookup(tc, op, tiles->states[cond].state,
+                                                              tiles->states[right].state);
             if (left_state == NULL || right_state == NULL ||
                 left_state[3] != right_state[3] ||
                 left_state[4] != right_state[4]) {
                 MVM_oops(tc, "Inconsistent %s tile state", info->name);
             }
-            tiles->s[node].state = left_state[3];
-            tiles->s[node].rule  = left_state[4];
+            tiles->states[node].state = left_state[3];
+            tiles->states[node].rule  = left_state[4];
         }
         break;
     default:
@@ -83,13 +89,13 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 state_info = MVM_jit_tile_state_lookup(tc, op, -1, -1);
             } else if (nchild == 1) {
                 MVMint32 left = tree->nodes[first_child];
-                MVMint32 lstate = tiles->s[left].state;
+                MVMint32 lstate = tiles->states[left].state;
                 state_info = MVM_jit_tile_state_lookup(tc, op, lstate, -1);
             } else if (nchild == 2) {
                 MVMint32 left  = tree->nodes[first_child];
-                MVMint32 lstate = tiles->s[left].state;
+                MVMint32 lstate = tiles->states[left].state;
                 MVMint32 right = tree->nodes[first_child+1];
-                MVMint32 rstate = tiles->s[right].state;
+                MVMint32 rstate = tiles->states[right].state;
                 state_info = MVM_jit_tile_state_lookup(tc, op, lstate, rstate);
             } else {
                 MVM_oops(tc, "Can't deal with %d children of node %s\n", nchild, info->name);
@@ -97,8 +103,8 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             if (state_info == NULL)
                 MVM_oops(tc, "Tiler table could not find next state for %s\n",
                          info->name);
-            tiles->s[node].state = state_info[3];
-            tiles->s[node].rule  = state_info[4];
+            tiles->states[node].state = state_info[3];
+            tiles->states[node].rule  = state_info[4];
         }
     }
 }
@@ -117,17 +123,17 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
                             MVMJitTreeTraverser *traverser,
                             MVMJitExprNode node, MVMint32 rule_nr) {
-    const MVMJitTileTemplate *tile = &MVM_jit_tile_rules[rule_nr];
+    const MVMJitTileTemplate *template = &MVM_jit_tile_rules[rule_nr];
     struct TileTree *tiles = traverser->data;
 
     if (rule_nr > (sizeof(MVM_jit_tile_rules)/sizeof(MVM_jit_tile_rules[0])))
         MVM_oops(tc, "Attempt to assign invalid tile rule %d\n", rule_nr);
 
-    if (tree->info[node].tile == NULL || tree->info[node].tile == tile ||
-        memcmp(tile, tree->info[node].tile, sizeof(MVMJitTile)) == 0) {
+    if (tiles->states[node].template == NULL || tiles->states[node].template == template ||
+        memcmp(template, tiles->states[node].template, sizeof(MVMJitTileTemplate)) == 0) {
         /* happy case, no conflict */
-        tiles->s[node].rule   = rule_nr;
-        tree->info[node].tile = tile;
+        tiles->states[node].rule     = rule_nr;
+        tiles->states[node].template = template;
         return node;
     } else {
         /* resolve conflict by copying this node */
@@ -150,12 +156,12 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
         memcpy(tree->info + num, tree->info + node, sizeof(MVMJitExprNodeInfo));
 
         /* Also ensure the visits and tiles array are of correct size */
-        MVM_DYNAR_ENSURE_SIZE(tiles->s, num);
+        MVM_DYNAR_ENSURE_SIZE(tiles->states, num);
         MVM_DYNAR_ENSURE_SIZE(traverser->visits, num);
 
         /* Assign the new tile */
-        tiles->s[num].rule   = rule_nr;
-        tree->info[num].tile = tile;
+        tiles->states[num].rule     = rule_nr;
+        tiles->states[num].template = template;
 
         /* Return reference to new node */
         return num;
@@ -173,15 +179,16 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMint32 nchild      = (tree->info[node].op_info->nchild < 0 ?
                             tree->nodes[first_child++] :
                             tree->info[node].op_info->nchild);
-    MVMint32 left_sym = tree->info[node].tile->left_sym,
-        right_sym = tree->info[node].tile->right_sym;
     struct TileTree *tiles = traverser->data;
+
+    const MVMJitTileTemplate *tile = tiles->states[node].template;
+    MVMint32 left_sym = tile->left_sym, right_sym = tile->right_sym;
 
 /* Tile assignment is somewhat precarious due to (among other things), possible
  * reallocation. So let's provide a single macro to do it correctly. */
 #define DO_ASSIGN_CHILD(NUM, SYM) do { \
         MVMint32 child     = tree->nodes[first_child+(NUM)]; \
-        MVMint32 state     = tiles->s[child].state; \
+        MVMint32 state     = tiles->states[child].state; \
         MVMint32 rule      = MVM_jit_tile_select_lookup(tc, state, (SYM)); \
         MVMint32 assigned  = assign_tile(tc, tree, traverser, child, rule); \
         tree->nodes[first_child+(NUM)] = assigned; \
@@ -242,62 +249,85 @@ static void arglist_get_values(MVMThreadContext *tc, MVMJitExprTree *tree, MVMin
 }
 
 
+
 static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                           MVMJitExprTree *tree, MVMint32 node) {
-    const MVMJitTileTemplate *tile = tree->info[node].tile;
-    MVMJitExprValue *values[16], *cur_value = &tree->info[node].value;
+
+    MVMJitExprValue *cur_value = &tree->info[node].value;
     MVMJitExprNode args[8];
     struct TileTree *tiles = traverser->data;
+    const MVMJitTileTemplate *template = tiles->states[node].template;
+    MVMJitTile *tile;
+    MVMJitTileList *list = tiles->list;
+
     MVMint32 i, num_values;
     /* pre-increment order nr  */
     tiles->order_nr++;
-    /* Log tile for debugging */
-    if (tile->expr)
-        MVM_jit_log(tc, "%04d/%04d: %s\n", tiles->order_nr, node, tile->expr);
 
-    /* Minimum number of registers required is given by tile */
-    /* cur_value->reg_req =  tile->reg_req; */
+    /* create tile object */
+    tile            = MVM_spesh_alloc(tc, tiles->sg, sizeof(MVMJitTile));
+    tile->emit      = template->emit;
+    tile->num_vals  = template->num_vals;
+    tile->node      = node;
+    tile->order_nr  = tiles->order_nr;
+    tile->values[0] = cur_value;
+    /* insert into tile list */
+    if (list->last != NULL) {
+        list->last->next = tile;
+    }
+    if (list->first == NULL) {
+        list->first = tile;
+    }
+    list->last = tile;
+    /* Log tile for debugging */
+    if (template->expr)
+        MVM_jit_log(tc, "%04d/%04d: %s\n", tiles->order_nr, node, template->expr);
+
     switch (tree->nodes[node]) {
     case MVM_JIT_IF:
         num_values = 0;
         cur_value->first_created = tiles->order_nr;
         break;
     case MVM_JIT_ARGLIST:
-        arglist_get_values(tc, tree, node, values);
+        arglist_get_values(tc, tree, node, tile->values + 1);
         num_values = tree->nodes[node+1];
         break;
     case MVM_JIT_DO:
         {
             MVMint32 nchild = tree->nodes[node+1];
             MVMint32 last_child = tree->nodes[node+1+nchild];
-            values[0] = &tree->info[last_child].value;
+            tile->values[1] = &tree->info[last_child].value;
             num_values = 1;
         }
         break;
     default:
-        if (tile->path == NULL)
+        if (template->path == NULL)
             return;
         cur_value->first_created = tiles->order_nr;
-        MVM_jit_tile_get_values(tc, tree, node, tile->path, tile->regs, values, args);
-        num_values = tile->nvals;
+        MVM_jit_tile_get_values(tc, tree, node, template->path, template->regs,
+                                tile->values + 1, tile->args);
+        num_values = template->num_vals;
         break;
     }
 
+    /* not sure if this is still the right place for these calculations! */
+    cur_value->type    = template->vtype;
     cur_value->num_use = 0;
     /* update use information */
     for (i = 0; i < num_values; i++) {
-        values[i]->last_use  = MAX(values[i]->last_use, tiles->order_nr);
-        values[i]->num_use++;
+        /* use +1 offset because values[0] now contains the nodes value */
+        tile->values[i+1]->last_use  = MAX(tile->values[i+1]->last_use, tiles->order_nr);
+        tile->values[i+1]->num_use++;
     }
 }
 
 
-void MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
+MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
     MVMint32 i;
     struct TileTree tiles;
 
-    MVM_DYNAR_INIT(tiles.s, tree->nodes_num);
+    MVM_DYNAR_INIT(tiles.states, tree->nodes_num);
     traverser.policy = MVM_JIT_TRAVERSER_ONCE;
     traverser.inorder = NULL;
     traverser.preorder = NULL;
@@ -308,16 +338,19 @@ void MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     /* 'pushdown' of tiles to roots */
     for (i = 0; i < tree->roots_num; i++) {
         MVMint32 node = tree->roots[i];
-        assign_tile(tc, tree, &traverser, node, tiles.s[node].rule);
+        assign_tile(tc, tree, &traverser, tree->roots[i], tiles.states[node].rule);
     }
 
     /* NB - we can add actual code generation during the postorder step here */
+    tiles.sg            = tree->graph->sg;
+    tiles.list          = MVM_spesh_alloc(tc, tiles.sg, sizeof(MVMJitTileList));
     tiles.order_nr      = 0;
     traverser.preorder  = &select_tiles;
     traverser.postorder = &select_values;
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
 
-    MVM_free(tiles.s);
+    MVM_free(tiles.states);
+    return tiles.list;
 }
 
 #define FIRST_CHILD(t,x) (t->info[x].op_info->nchild < 0 ? x + 2 : x + 1)

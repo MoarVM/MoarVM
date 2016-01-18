@@ -143,9 +143,6 @@ struct MVMJitExprNodeInfo {
     /* VM Local value of this node */
     MVMint16        local_addr;
 
-    /* Tiler result */
-    const MVMJitTileTemplate *tile;
-
     /* internal label for IF/WHEN/ALL/ANY etc, relative to the tree label offset */
     MVMint32          label;
 
