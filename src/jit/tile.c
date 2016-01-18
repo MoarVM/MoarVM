@@ -267,10 +267,10 @@ static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     /* create tile object */
     tile            = MVM_spesh_alloc(tc, tiles->sg, sizeof(MVMJitTile));
     tile->emit      = template->emit;
-    tile->num_vals  = template->num_vals;
     tile->node      = node;
     tile->order_nr  = tiles->order_nr;
     tile->values[0] = cur_value;
+;
     /* insert into tile list */
     if (list->last != NULL) {
         list->last->next = tile;
@@ -279,25 +279,35 @@ static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         list->first = tile;
     }
     list->last = tile;
+
+    /* assign type by tile */
+    cur_value->type    = template->vtype;
+
     /* Log tile for debugging */
     if (template->expr)
         MVM_jit_log(tc, "%04d/%04d: %s\n", tiles->order_nr, node, template->expr);
 
     switch (tree->nodes[node]) {
     case MVM_JIT_IF:
-        num_values = 0;
-        cur_value->first_created = tiles->order_nr;
-        break;
+    {
+        MVMint32 left = tree->nodes[node+2], right = tree->nodes[node+3];
+        /* assign results of IF to values array */
+        tile->values[1] = &tree->info[left].value;
+        tile->values[2] = &tree->info[right].value;
+        tile->num_vals  = 2;
+    }
+    break;
     case MVM_JIT_ARGLIST:
+        /* NB, arglist can conceivably use more than 7 values, although it can safely overflow into args, we may want to find a better solution */
         arglist_get_values(tc, tree, node, tile->values + 1);
-        num_values = tree->nodes[node+1];
+        tile->num_vals = tree->nodes[node+1];
         break;
     case MVM_JIT_DO:
         {
-            MVMint32 nchild = tree->nodes[node+1];
+            MVMint32 nchild     = tree->nodes[node+1];
             MVMint32 last_child = tree->nodes[node+1+nchild];
             tile->values[1] = &tree->info[last_child].value;
-            num_values = 1;
+            tile->num_vals  = 1;
         }
         break;
     default:
@@ -306,19 +316,10 @@ static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         cur_value->first_created = tiles->order_nr;
         MVM_jit_tile_get_values(tc, tree, node, template->path, template->regs,
                                 tile->values + 1, tile->args);
-        num_values = template->num_vals;
+        tile->num_vals = template->num_vals;
         break;
     }
 
-    /* not sure if this is still the right place for these calculations! */
-    cur_value->type    = template->vtype;
-    cur_value->num_use = 0;
-    /* update use information */
-    for (i = 0; i < num_values; i++) {
-        /* use +1 offset because values[0] now contains the nodes value */
-        tile->values[i+1]->last_use  = MAX(tile->values[i+1]->last_use, tiles->order_nr);
-        tile->values[i+1]->num_use++;
-    }
 }
 
 

@@ -536,12 +536,26 @@ static void MVM_jit_compile_tile(MVMThreadContext *tc, MVMJitCompiler *compiler,
     MVM_jit_expire_values(tc, compiler);
 }
 
+static void MVM_jit_compute_use(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTileList *list) {
+    MVMJitTile *tile;
+    MVMint32 i;
+    for (tile = list->first; tile != NULL; tile = tile->next) {
+        tile->values[0]->first_created = tile->order_nr;
+        for (i = 0; i < tile->num_vals; i++) {
+            tile->values[i+1]->last_use = tile->order_nr;
+            tile->values[i+1]->num_use++;
+        }
+    }
+
+}
+
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {
     MVMJitRegisterAllocator allocator;
     MVMJitTileList *list;
     MVMJitTile *tile;
     /* First stage, tile the tree */
     list = MVM_jit_tile_expr_tree(tc, tree);
+    MVM_jit_compute_use(tc, compiler, list);
 
     /* Allocate sufficient space for the internal labels */
     dasm_growpc(compiler, compiler->label_offset + tree->num_labels);
@@ -558,6 +572,7 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     /* Make sure no other tree reuses the same labels */
     compiler->label_offset += tree->num_labels;
 }
+
 
 
 /* Enter the JIT code segment. The label is a continuation point where control
