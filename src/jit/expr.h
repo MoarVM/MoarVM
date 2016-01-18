@@ -144,9 +144,7 @@ struct MVMJitExprNodeInfo {
     MVMint16        local_addr;
 
     /* Tiler result */
-    const MVMJitTile *tile;
-    MVMint32          tile_state;
-    MVMint32          tile_rule;
+    const MVMJitTileTemplate *tile;
 
     /* internal label for IF/WHEN/ALL/ANY etc, relative to the tree label offset */
     MVMint32          label;

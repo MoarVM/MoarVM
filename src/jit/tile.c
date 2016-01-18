@@ -117,7 +117,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
                             MVMJitTreeTraverser *traverser,
                             MVMJitExprNode node, MVMint32 rule_nr) {
-    const MVMJitTile *tile = &MVM_jit_tile_rules[rule_nr];
+    const MVMJitTileTemplate *tile = &MVM_jit_tile_rules[rule_nr];
     struct TileTree *tiles = traverser->data;
 
     if (rule_nr > (sizeof(MVM_jit_tile_rules)/sizeof(MVM_jit_tile_rules[0])))
@@ -244,7 +244,7 @@ static void arglist_get_values(MVMThreadContext *tc, MVMJitExprTree *tree, MVMin
 
 static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                           MVMJitExprTree *tree, MVMint32 node) {
-    const MVMJitTile *tile = tree->info[node].tile;
+    const MVMJitTileTemplate *tile = tree->info[node].tile;
     MVMJitExprValue *values[16], *cur_value = &tree->info[node].value;
     MVMJitExprNode args[8];
     struct TileTree *tiles = traverser->data;

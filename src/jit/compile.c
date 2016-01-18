@@ -499,7 +499,7 @@ void MVM_jit_compile_breakpoint(void) {
 static void compile_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, MVMJitExprTree *tree, MVMint32 node) {
     MVMJitCompiler *cl = traverser->data;
     MVMJitExprNodeInfo *info = &tree->info[node];
-    const MVMJitTile *tile   = info->tile;
+    const MVMJitTileTemplate *tile   = info->tile;
     MVMJitExprValue *values[8];
     MVMJitExprNode     args[8];
     MVMint32 first_child = node + 1;

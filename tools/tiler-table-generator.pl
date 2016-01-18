@@ -426,7 +426,7 @@ for (my $i = 0; $i < @symbols; $i++) {
 }
 
 
-print $output "static const MVMJitTile ${VARNAME}rules[] = {\n";
+print $output "static const MVMJitTileTemplate ${VARNAME}rules[] = {\n";
 for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
     my $rule = $rules[$rule_nr];
     my ($head, $sym1, $sym2) = @{$rule->{pat}};
