@@ -61,7 +61,15 @@
 
 
 const MVMint32 MVM_jit_support(void) {
+#ifdef __i386__
+    /* Usually, this file should only be compiled only on a amd64
+       platform; but when compiling 'fat' or 'universal' binaries, we
+       may compile it for other platform. In this case we use the
+       runtime check to disable the JIT */
+    return 0;
+#else
     return 1;
+#endif
 }
 
 const unsigned char * MVM_jit_actions(void) {
