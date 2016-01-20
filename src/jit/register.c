@@ -28,8 +28,6 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compi
                                      MVMJitRegisterAllocator *alc) {
     /* Store live ranges */
     MVM_DYNAR_INIT(alc->active, NUM_GPR);
-    /* And branches */
-    MVM_DYNAR_INIT(alc->branches, 4);
     /* Initialize free register buffer */
     alc->free_reg = MVM_malloc(sizeof(free_gpr));
     memcpy(alc->free_reg, free_gpr, NUM_GPR);
@@ -47,7 +45,6 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compi
 void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                        MVMJitRegisterAllocator *alc) {
     MVM_free(alc->active);
-    MVM_free(alc->branches);
     MVM_free(alc->free_reg);
     MVM_free(alc->reg_use);
     compiler->allocator = NULL;
@@ -352,27 +349,6 @@ void MVM_jit_spill_before_conditional(MVMThreadContext *tc, MVMJitCompiler *cl, 
              * not reassign it, but update it's state directly */
             value->state = MVM_JIT_VALUE_ALLOCATED;
             alc->reg_use[value->reg_num]++;
-        }
-    }
-}
-
-void MVM_jit_enter_branch(MVMThreadContext *tc, MVMJitCompiler *cl) {
-    MVM_DYNAR_PUSH(cl->allocator->branches, cl->order_nr);
-}
-
-void MVM_jit_leave_branch(MVMThreadContext *tc, MVMJitCompiler *cl) {
-    MVMJitRegisterAllocator *alc = cl->allocator;
-    MVMint32 entry_order_nr = MVM_DYNAR_POP(alc->branches);
-    MVMint32 i = 0;
-    while (i < alc->active_num) {
-        MVMJitExprValue *value = alc->active[i];
-        if (value->first_created >= entry_order_nr) {
-            if (value->last_use > cl->order_nr) {
-                MVM_oops(tc, "Last use of conditional value beyond conditional block");
-            }
-            MVM_jit_register_expire(tc, cl, value);
-        } else {
-            i++;
         }
     }
 }

@@ -199,173 +199,6 @@ static void ensure_values(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
             use_value(tc, compiler, value);
         }
     }
-
-}
-
-static void prepare_tile(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, MVMJitExprTree *tree, MVMint32 node) {
-    MVMJitCompiler *cl = traverser->data;
-    switch (tree->nodes[node]) {
-    case MVM_JIT_WHEN:
-    case MVM_JIT_IF:
-    case MVM_JIT_EITHER:
-        MVM_jit_spill_before_conditional(tc, cl, tree, node);
-        break;
-    case MVM_JIT_ALL:
-    case MVM_JIT_ANY:
-        MVM_jit_spill_before_conditional(tc, cl, tree, node);
-        MVM_jit_enter_branch(tc, cl);
-        break;
-    default:
-        break;
-    }
-}
-
-/* Logical negation of MVMJitExprOp flags */
-static enum MVMJitExprOp negate_flag(MVMThreadContext *tc, enum MVMJitExprOp op) {
-    switch(op) {
-    case MVM_JIT_LT:
-        return MVM_JIT_GE;
-    case MVM_JIT_LE:
-        return MVM_JIT_GT;
-    case MVM_JIT_EQ:
-        return MVM_JIT_NE;
-    case MVM_JIT_NE:
-        return MVM_JIT_EQ;
-    case MVM_JIT_GE:
-        return MVM_JIT_LT;
-    case MVM_JIT_GT:
-        return MVM_JIT_LE;
-    case MVM_JIT_NZ:
-        return MVM_JIT_ZR;
-    case MVM_JIT_ZR:
-        return MVM_JIT_NZ;
-    default:
-        MVM_oops(tc, "Not a flag!");
-    }
-}
-
-static void compile_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser, MVMJitExprTree *tree, MVMint32 node, MVMint32 i) {
-    MVMJitCompiler *cl = traverser->data;
-    switch (tree->nodes[node]) {
-    case MVM_JIT_WHEN:
-        {
-            /* Add current label offset to get the 'real' label number  */
-            MVMint32 label = tree->info[node].label + cl->label_offset;
-            if (i == 0) {
-                MVMint32 test  = tree->nodes[node+1];
-                MVMint32 flag  = tree->nodes[test];
-                /* First child is the test */
-                if (flag == MVM_JIT_ALL) {
-                    /* Do nothing, shortcircuit of ALL has skipped the
-                       left block if necessary */
-                } else if (flag == MVM_JIT_ANY) {
-                    /* If ANY hasn't short-circuited into the left
-                       block, jump to the right block */
-                    MVM_jit_emit_branch(tc, cl, label);
-                    /* Emit label for the left block entry */
-                    MVM_jit_emit_label(tc, cl, cl->graph, tree->info[test].label + cl->label_offset);
-                } else {
-                    /* Other tests require a conditional branch */
-                    MVM_jit_emit_conditional_branch(tc, cl, negate_flag(tc, flag), label);
-                }
-                MVM_jit_enter_branch(tc, cl);
-            } else {
-                /* Second child is conditional block */
-                MVM_jit_emit_label(tc, cl, cl->graph, label);
-                MVM_jit_leave_branch(tc, cl);
-            }
-        }
-        break;
-    case MVM_JIT_IF:
-    case MVM_JIT_EITHER:
-        {
-            MVMint32 label = tree->info[node].label + cl->label_offset;
-            if (i == 0) {
-                MVMint32 test  = tree->nodes[node+1];
-                MVMint32 flag = tree->nodes[test];
-                if (flag == MVM_JIT_ALL) {
-                    /* Like WHEN ALL, IF ALL short circuits into the
-                     * right  block if its tests are not kept */
-                } else if (flag == MVM_JIT_ANY) {
-                    /* Like WHEN ANY, branch into the right block
-                     * and emit a label for the left block */
-                    MVMint32 any_label = tree->info[test].label + cl->label_offset;
-                    MVM_jit_emit_branch(tc, cl, label);
-                    MVM_jit_emit_label(tc, cl, cl->graph, any_label);
-                } else {
-                    MVM_jit_emit_conditional_branch(tc, cl, negate_flag(tc, flag), label);
-                }
-                MVM_jit_enter_branch(tc, cl);
-            } else if (i == 1) {
-                /* Jump unconditionally to over the right block */
-                MVM_jit_emit_branch(tc, cl, label + 1);
-                /* Emit label for the right block */
-                MVM_jit_emit_label(tc, cl, cl->graph, label);
-                MVM_jit_leave_branch(tc, cl);
-                MVM_jit_enter_branch(tc, cl);
-            } else {
-                /* Just prior to leaving the right block, emit a copy
-                   to unify the value registers of both branches */
-                if (tree->nodes[node] == MVM_JIT_IF) {
-                    MVMJitExprValue *left_val = &tree->info[tree->nodes[node+2]].value,
-                        *right_val = &tree->info[tree->nodes[node+3]].value;
-                    if (left_val->reg_cls != right_val->reg_cls || left_val->reg_num != right_val->reg_num) {
-                        /* Ensure both left and right trees yield to the same value */
-                        MVM_jit_emit_copy(tc, cl, left_val->reg_cls, left_val->reg_num, right_val->reg_cls, right_val->reg_num);
-                    }
-                }
-                /* Emit the final label indiciating we left the right branch */
-                MVM_jit_emit_label(tc, cl, cl->graph, label + 1);
-                MVM_jit_leave_branch(tc, cl);
-            }
-        }
-        break;
-    case MVM_JIT_ALL:
-        {
-            MVMint32 test = tree->nodes[node+2+i];
-            MVMint32 flag = tree->nodes[test];
-            MVMint32 label = tree->info[node].label + cl->label_offset;
-            if (flag == MVM_JIT_ALL) {
-                /* Nested ALL short-circuits */
-            } else if (flag == MVM_JIT_ANY) {
-                /* If ANY reached it's end, that means it's false. So branch out */
-                MVMint32 any_label = tree->info[test].label + cl->label_offset;
-                MVM_jit_emit_branch(tc, cl, label);
-                /* And if ANY short-circuits we should continue the evaluation of ALL */
-                MVM_jit_emit_label(tc, cl, cl->graph, any_label);
-            } else {
-                /* Flag should be negated (if NOT condition we want to
-                   short-circuit, otherwise we continue) */
-                MVM_jit_emit_conditional_branch(tc, cl, negate_flag(tc, flag), label);
-            }
-        }
-        break;
-    case MVM_JIT_ANY:
-        {
-            MVMint32 test  = tree->nodes[node+2+i];
-            MVMint32 flag  = tree->nodes[test];
-            MVMint32 label = tree->info[node].label + cl->label_offset;
-            if (flag == MVM_JIT_ALL) {
-                /* If ALL reached the end, it must have been
-                   succesful, and short-circuit behaviour implies we
-                   should branch out */
-                MVMJitBranch branch;
-                MVMint32 all_label = tree->info[test].label + cl->label_offset;
-                MVM_jit_emit_branch(tc, cl, label);
-                /* If not succesful, testing should continue */
-                MVM_jit_emit_label(tc, cl, cl->graph, all_label);
-            } else if (flag == MVM_JIT_ANY) {
-                /* Nothing to do here, since nested ANY already
-                   short-circuits to our label */
-            } else {
-                /* Normal evaluation short-circuits on truth values */
-                MVM_jit_emit_conditional_branch(tc, cl, flag, label);
-            }
-        }
-        break;
-    default:
-        break;
-    }
 }
 
 
@@ -510,7 +343,7 @@ static void MVM_jit_compile_tile(MVMThreadContext *tc, MVMJitCompiler *compiler,
     /* Extract value pointers from the tree */
     ensure_values(tc, compiler, values+1, tile->num_vals);
 
-    if (values[0]->type == MVM_JIT_REG) {
+    if (values[0] != NULL && values[0]->type == MVM_JIT_REG) {
         /* allocate a register for the result */
         if (tile->num_vals > 0 &&
             values[1]->type == MVM_JIT_REG &&
@@ -527,7 +360,7 @@ static void MVM_jit_compile_tile(MVMThreadContext *tc, MVMJitCompiler *compiler,
     tile->emit(tc, compiler, tree, tile->node, tile->values, tile->args);
     /* Release registers from use */
     for (i = 0; i < tile->num_vals + 1; i++) {
-        if (values[i]->type == MVM_JIT_REG) {
+        if (values[i] != NULL && values[i]->type == MVM_JIT_REG) {
             release_value(tc, compiler, values[i]);
         }
     }
@@ -540,14 +373,34 @@ static void MVM_jit_compute_use(MVMThreadContext *tc, MVMJitCompiler *compiler, 
     MVMJitTile *tile;
     MVMint32 i;
     for (tile = list->first; tile != NULL; tile = tile->next) {
+        if (tile->values[0] == NULL) /* pseudotiles */
+            continue;
         tile->values[0]->first_created = tile->order_nr;
         for (i = 0; i < tile->num_vals; i++) {
             tile->values[i+1]->last_use = tile->order_nr;
             tile->values[i+1]->num_use++;
         }
     }
-
 }
+
+/* pseudotile emit functions */
+void MVM_jit_compile_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree,
+                            MVMint32 node, MVMJitExprValue **value, MVMJitExprNode *args) {
+    MVM_jit_emit_branch(tc, compiler, args[0] + compiler->label_offset);
+}
+
+void MVM_jit_compile_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                                        MVMJitExprTree *tree, MVMint32 node,
+                                        MVMJitExprValue **values, MVMJitExprNode *args) {
+    MVM_jit_emit_conditional_branch(tc, compiler, args[0], args[1] + compiler->label_offset);
+}
+
+void MVM_jit_compile_label(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                           MVMJitExprTree *tree, MVMint32 node,
+                           MVMJitExprValue **values, MVMJitExprNode *args) {
+    MVM_jit_emit_label(tc, compiler, tree->graph, args[0] + compiler->label_offset);
+}
+
 
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {
     MVMJitRegisterAllocator allocator;

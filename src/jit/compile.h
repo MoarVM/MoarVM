@@ -33,3 +33,14 @@ void MVM_jit_compile_breakpoint(void);
 void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code);
 void MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
                         MVMJitCode * code);
+
+/* Peseudotile compile functions */
+void MVM_jit_compile_label(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                           MVMJitExprTree *tree, MVMint32 node,
+                           MVMJitExprValue **values, MVMJitExprNode *args);
+void MVM_jit_compile_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                            MVMJitExprTree *tree, MVMint32 node,
+                            MVMJitExprValue **values, MVMJitExprNode *args);
+void MVM_jit_compile_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                                        MVMJitExprTree *tree, MVMint32 node,
+                                        MVMJitExprValue **values, MVMJitExprNode *args);

@@ -235,8 +235,8 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             }
         }
     }
-
 #undef DO_ASSIGN_CHILD
+    /* (Currently) we never insert into the tile list here */
 }
 
 static void arglist_get_values(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMJitExprValue **values) {
@@ -248,17 +248,103 @@ static void arglist_get_values(MVMThreadContext *tc, MVMJitExprTree *tree, MVMin
     }
 }
 
+MVM_STATIC_INLINE void append_tile(MVMJitTileList *list, MVMJitTile *tile) {
+    if (list->first == NULL)
+        list->first = tile;
+    if (list->last != NULL)
+        list->last->next = tile;
+    list->last = tile;
+}
 
 
-static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
-                          MVMJitExprTree *tree, MVMint32 node) {
+static void add_pseudotile(MVMThreadContext *tc, struct TileTree *tiles,
+                           void * emit, MVMint32 node, MVMint32 nargs, ...) {
+    MVMJitTile *tile;
+    MVMint32 i;
+    va_list arglist;
+    va_start(arglist, nargs);
+    tile = MVM_spesh_alloc(tc, tiles->sg, sizeof(MVMJitTile));
+    tile->emit = emit;
+    tile->node = node;
+    tile->num_vals = 0;
+    for (i = 0; i < nargs; i++) {
+        tile->args[i] = va_arg(arglist, MVMJitExprNode);
+    }
+    va_end(arglist);
+
+    append_tile(tiles->list, tile);
+}
+
+
+/* Logical negation of MVMJitExprOp flags */
+static enum MVMJitExprOp negate_flag(MVMThreadContext *tc, enum MVMJitExprOp op) {
+    switch(op) {
+    case MVM_JIT_LT:
+        return MVM_JIT_GE;
+    case MVM_JIT_LE:
+        return MVM_JIT_GT;
+    case MVM_JIT_EQ:
+        return MVM_JIT_NE;
+    case MVM_JIT_NE:
+        return MVM_JIT_EQ;
+    case MVM_JIT_GE:
+        return MVM_JIT_LT;
+    case MVM_JIT_GT:
+        return MVM_JIT_LE;
+    case MVM_JIT_NZ:
+        return MVM_JIT_ZR;
+    case MVM_JIT_ZR:
+        return MVM_JIT_NZ;
+    default:
+        MVM_oops(tc, "Not a flag!");
+    }
+}
+
+/* Insert labels, compute basic block extents (eventually) */
+static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+                         MVMJitExprTree *tree, MVMint32 node, MVMint32 i) {
+    struct TileTree *tiles = traverser->data;
+    switch (tree->nodes[node]) {
+    case MVM_JIT_WHEN:
+    {
+        MVMint32 label_value = tree->info[node].label;
+        if (i == 0) {
+            MVMint32 test  = tree->nodes[node+1];
+            MVMint32 flag  = tree->nodes[test];
+            /* First child is the test */
+            if (flag == MVM_JIT_ALL) {
+                /* Do nothing, shortcircuit of ALL has skipped the
+                   left block if necessary */
+            } else if (flag == MVM_JIT_ANY) {
+                /* If ANY hasn't short-circuited into the left
+                   block, jump to the right block */
+                add_pseudotile(tc, tiles, MVM_jit_compile_branch, node, 1, label_value);
+                /* Compile label for the left block entry */
+                add_pseudotile(tc, tiles, MVM_jit_compile_label, test, 1,
+                               tree->info[test].label);
+            } else {
+                /* Other tests require a conditional branch */
+                add_pseudotile(tc, tiles, MVM_jit_compile_conditional_branch, node,
+                               2, negate_flag(tc, flag), label_value);
+            }
+        } else {
+            /* after child of WHEN, insert the label */
+            add_pseudotile(tc, tiles, MVM_jit_compile_label, node, 1, label_value);
+        }
+        break;
+    }
+    }
+}
+
+
+static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
+                           MVMJitExprTree *tree, MVMint32 node) {
 
     MVMJitExprValue *cur_value = &tree->info[node].value;
     MVMJitExprNode args[8];
     struct TileTree *tiles = traverser->data;
     const MVMJitTileTemplate *template = tiles->states[node].template;
     MVMJitTile *tile;
-    MVMJitTileList *list = tiles->list;
 
     MVMint32 i, num_values;
     /* pre-increment order nr  */
@@ -270,15 +356,8 @@ static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     tile->node      = node;
     tile->order_nr  = tiles->order_nr;
     tile->values[0] = cur_value;
-;
-    /* insert into tile list */
-    if (list->last != NULL) {
-        list->last->next = tile;
-    }
-    if (list->first == NULL) {
-        list->first = tile;
-    }
-    list->last = tile;
+    append_tile(tiles->list, tile);
+
 
     /* assign type by tile */
     cur_value->type    = template->vtype;
@@ -287,6 +366,8 @@ static void select_values(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     if (template->expr)
         MVM_jit_log(tc, "%04d/%04d: %s\n", tiles->order_nr, node, template->expr);
 
+    /* I don't really think this is still necessary here, can be moved to
+     * live-range computation step, but we'll leave it here for now */
     switch (tree->nodes[node]) {
     case MVM_JIT_IF:
     {
@@ -347,7 +428,8 @@ MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tr
     tiles.list          = MVM_spesh_alloc(tc, tiles.sg, sizeof(MVMJitTileList));
     tiles.order_nr      = 0;
     traverser.preorder  = &select_tiles;
-    traverser.postorder = &select_values;
+    traverser.inorder   = &build_blocks;
+    traverser.postorder = &build_tilelist;
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
 
     MVM_free(tiles.states);

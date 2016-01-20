@@ -5,7 +5,6 @@
 struct MVMJitRegisterAllocator {
     /* List of active 'live' ranges */
     MVM_DYNAR_DECL(MVMJitExprValue*, active);
-    MVM_DYNAR_DECL(MVMint32, branches);
 
     /* stacks of free registers */
     MVMint8 *free_reg;
