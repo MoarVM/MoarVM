@@ -3,7 +3,7 @@ When updating the `Portfile` to reflect the new release:
 1. Setup a [local portfile directory](https://guide.macports.org/chunked/development.local-repositories.html)
     * Checkout the latest version from [SVN](http://trac.macports.org/browser/trunk/dports/lang/MoarVM) (or run `svn up` if you have done that already to make sure that you start with the latest version from the MacPorts repository).
 
-            export $MYDIR=/your/path
+            export MYDIR=/your/path
             cd $MYDIR
             svn co --depth=empty https://svn.macports.org/repository/macports/trunk/dports macports && cd macports
             svn up --depth=emtpy lang && cd lang
