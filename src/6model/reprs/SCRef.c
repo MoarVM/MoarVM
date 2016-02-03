@@ -104,6 +104,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         if (sc->body->sr->data_needs_free)
             MVM_free(sc->body->sr->data);
         MVM_free(sc->body->sr->contexts);
+        MVM_free(sc->body->sr->wl_objects.indexes);
+        MVM_free(sc->body->sr->wl_stables.indexes);
         MVM_free(sc->body->sr);
     }
 
