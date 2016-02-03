@@ -226,6 +226,8 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
 
 
 void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candidate) {
+    if (candidate->sg)
+        MVM_spesh_graph_destroy(tc, candidate->sg);
     MVM_free(candidate->guards);
     MVM_free(candidate->bytecode);
     MVM_free(candidate->handlers);
