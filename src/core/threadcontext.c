@@ -59,12 +59,15 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     MVM_free(tc->temproots);
     MVM_free(tc->gen2roots);
 
-    /* Destroy any memory allocated for NFAs. */
+    /* Free any memory allocated for NFAs. */
     MVM_free(tc->nfa_done);
     MVM_free(tc->nfa_curst);
     MVM_free(tc->nfa_nextst);
     MVM_free(tc->nfa_fates);
     MVM_free(tc->nfa_longlit);
+
+    /* Free per-thread lexotic cache. */
+    MVM_free(tc->lexotic_cache);
 
     /* Destroy the libuv event loop */
     uv_loop_delete(tc->loop);
