@@ -390,6 +390,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     if (data) {
         if (data->ds)
             MVM_string_decodestream_destory(tc, data->ds);
+        MVM_string_decode_stream_sep_destroy(tc, &(data->sep_spec));
         if (data->filename)
             MVM_free(data->filename);
         MVM_free(data);

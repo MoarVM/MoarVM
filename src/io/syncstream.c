@@ -290,6 +290,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
             MVM_string_decodestream_destory(tc, data->ds);
             data->ds = NULL;
         }
+        MVM_string_decode_stream_sep_destroy(tc, &(data->sep_spec));
         MVM_free(data);
     }
 }

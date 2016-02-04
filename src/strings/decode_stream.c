@@ -496,3 +496,9 @@ void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeSt
             sep_spec->sep_graphemes[graph_pos++] = MVM_string_gi_get_grapheme(tc, &gi);
     }
 }
+
+/* Cleans up memory associated with a stream separator set. */
+void MVM_string_decode_stream_sep_destroy(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec) {
+    MVM_free(sep_spec->sep_lengths);
+    MVM_free(sep_spec->sep_graphemes);
+}
