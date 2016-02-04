@@ -2432,9 +2432,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(setboolspec): {
                 MVMSTable            *st = GET_REG(cur_op, 0).o->st;
                 MVMBoolificationSpec *bs = MVM_malloc(sizeof(MVMBoolificationSpec));
+                MVMBoolificationSpec *orig_bs = st->boolification_spec;
                 bs->mode = (MVMuint32)GET_REG(cur_op, 2).i64;
                 MVM_ASSIGN_REF(tc, &(st->header), bs->method, GET_REG(cur_op, 4).o);
                 st->boolification_spec = bs;
+                MVM_free(orig_bs);
                 cur_op += 6;
                 goto NEXT;
             }
