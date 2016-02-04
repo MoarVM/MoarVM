@@ -123,9 +123,10 @@ MVMInstance * MVM_vm_create_instance(void) {
      * they will have program lifetime. */
     MVM_gc_allocate_gen2_default_set(instance->main_thread);
 
-    /* Set up integer constant cache. */
+    /* Set up integer constant and string cache. */
     init_mutex(instance->mutex_int_const_cache, "int constant cache");
     instance->int_const_cache = MVM_calloc(1, sizeof(MVMIntConstCache));
+    instance->int_to_str_cache = MVM_calloc(MVM_INT_TO_STR_CACHE_SIZE, sizeof(MVMString *));
 
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
@@ -168,9 +169,6 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Create callsite intern pool. */
     instance->callsite_interns = MVM_calloc(1, sizeof(MVMCallsiteInterns));
     init_mutex(instance->mutex_callsite_interns, "callsite interns");
-
-    /* Allocate int to str cache. */
-    instance->int_to_str_cache = MVM_calloc(MVM_INT_TO_STR_CACHE_SIZE, sizeof(MVMString *));
 
     /* There's some callsites we statically use all over the place. Intern
      * them, so that spesh may end up optimizing more "internal" stuff. */
@@ -445,9 +443,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->nfg->update_mutex);
     MVM_nfg_destroy(instance);
 
-    /* Clean up integer constant cache. */
+    /* Clean up integer constant and string cache. */
     uv_mutex_destroy(&instance->mutex_int_const_cache);
     MVM_free(instance->int_const_cache);
+    MVM_free(instance->int_to_str_cache);
 
     /* Clean up event loop starting mutex. */
     uv_mutex_destroy(&instance->mutex_event_loop_start);
