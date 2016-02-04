@@ -376,3 +376,21 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
     /* If either fail quickcheck or have ccc > 0, have to re-normalize. */
     return passes_quickcheck_and_zero_ccc(tc, last_a) && passes_quickcheck_and_zero_ccc(tc, first_b);
 }
+
+/* Free all memory allocated to hold synthetic graphemes. These are global
+ * to a VM instance. */
+void MVM_nfg_destroy(MVMInstance *instance) {
+    MVMNFGState *nfg = instance->nfg;
+    MVMint32 i;
+
+    /* Free all synthetics. */
+    for (i = 0; i < nfg->num_synthetics; i++) {
+        MVM_free(nfg->synthetics[i].case_uc);
+        MVM_free(nfg->synthetics[i].case_lc);
+        MVM_free(nfg->synthetics[i].case_tc);
+        MVM_free(nfg->synthetics[i].case_fc);
+    }
+    MVM_free(nfg->synthetics);
+
+    MVM_free(nfg);
+}

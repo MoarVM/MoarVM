@@ -440,6 +440,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     if (instance->jit_log_fh)
         fclose(instance->jit_log_fh);
 
+    /* Clean up NFG. */
+    uv_mutex_destroy(&instance->nfg->update_mutex);
+    MVM_nfg_destroy(instance);
+
     /* Clean up event loop starting mutex. */
     uv_mutex_destroy(&instance->mutex_event_loop_start);
 
