@@ -123,6 +123,7 @@ MVMInstance * MVM_vm_create_instance(void) {
      * they will have program lifetime. */
     MVM_gc_allocate_gen2_default_set(instance->main_thread);
 
+    /* Set up integer constant cache. */
     init_mutex(instance->mutex_int_const_cache, "int constant cache");
     instance->int_const_cache = MVM_calloc(1, sizeof(MVMIntConstCache));
 
@@ -443,6 +444,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up NFG. */
     uv_mutex_destroy(&instance->nfg->update_mutex);
     MVM_nfg_destroy(instance);
+
+    /* Clean up integer constant cache. */
+    uv_mutex_destroy(&instance->mutex_int_const_cache);
+    MVM_free(instance->int_const_cache);
 
     /* Clean up event loop starting mutex. */
     uv_mutex_destroy(&instance->mutex_event_loop_start);
