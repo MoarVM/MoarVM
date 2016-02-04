@@ -401,9 +401,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->mutex_extop_registry);
     MVM_HASH_DESTROY(hash_handle, MVMExtOpRegistry, instance->extop_registry);
 
-    /* Clean up Hash of all known serialization contexts. */
+    /* Clean up Hash of all known serialization contexts, along with list. */
     uv_mutex_destroy(&instance->mutex_sc_weakhash);
     MVM_HASH_DESTROY(hash_handle, MVMSerializationContextBody, instance->sc_weakhash);
+    MVM_free(instance->all_scs);
 
     /* Clean up Hash of filenames of compunits loaded from disk. */
     uv_mutex_destroy(&instance->mutex_loaded_compunits);
