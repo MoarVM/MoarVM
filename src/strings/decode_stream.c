@@ -34,6 +34,10 @@ void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds
         if (!ds->bytes_head)
             ds->bytes_head = new_bytes;
     }
+    else {
+        /* It's empty, so free the buffer right away and don't add. */
+        MVM_free(bytes);
+    }
 }
 
 /* Adds another char result buffer into the decoding stream. */
