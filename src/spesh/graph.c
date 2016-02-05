@@ -1190,6 +1190,10 @@ void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
         cur_block = prev;
     }
 
+    /* Free handlers, if they don't match those of the static frame. */
+    if (g->handlers != g->sf->body.handlers)
+        MVM_free(g->handlers);
+
     /* Free the graph itself. */
     MVM_free(g);
 }
