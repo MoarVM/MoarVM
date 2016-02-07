@@ -1132,6 +1132,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->spesh_slots       = cand->spesh_slots;
     g->num_spesh_slots   = cand->num_spesh_slots;
     g->phi_infos         = MVM_spesh_alloc(tc, g, MVMPhiNodeCacheSize * sizeof(MVMOpInfo));
+    g->cand              = cand;
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (sf->body.instrumentation_level == 0) {
@@ -1189,6 +1190,10 @@ void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
         MVM_free(cur_block);
         cur_block = prev;
     }
+
+    /* Free handlers array, if different from the static frame. */
+    if (!g->cand && g->handlers != g->sf->body.handlers)
+        MVM_free(g->handlers);
 
     /* Free the graph itself. */
     MVM_free(g);

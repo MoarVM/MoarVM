@@ -102,6 +102,10 @@ struct MVMSpeshGraph {
      * allocate fewer of them across our spesh alloc blocks.
      */
     MVMOpInfo *phi_infos;
+
+    /* If this graph was formed from a spesh candidate rather than an
+     * original static frame, the candidate will be stored here. */
+    MVMSpeshCandidate *cand;
 };
 
 /* The default allocation chunk size for memory blocks used to store spesh
