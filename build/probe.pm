@@ -320,19 +320,9 @@ sub C_type_bool {
 
 sub pthread_yield {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('try.c', <<'EOT');
-#include <stdlib.h>
-#include <pthread.h>
-
-int main(int argc, char **argv) {
-    pthread_yield();
-    return EXIT_SUCCESS;
-}
-EOT
 
     print ::dots('    probing pthread_yield support');
-    my $has_pthread_yield = compile($config, 'try');
+    my $has_pthread_yield = exists $Config{d_pthread_yield};
     print $has_pthread_yield ? "YES\n": "NO\n";
     $config->{has_pthread_yield} = $has_pthread_yield || 0
 }
