@@ -264,26 +264,9 @@ sub unaligned_access_cross {
 
 sub ptr_size_native {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('try.c', <<'EOT');
-#include <stdio.h>
-#include <stdlib.h>
-
-int main(int argc, char **argv) {
-    printf("%u\n", (unsigned int) sizeof(void *));
-    return EXIT_SUCCESS;
-}
-EOT
 
     print ::dots('    probing the size of pointers');
-    compile($config, 'try')
-        or die "Can't compile simple probe, so something is badly wrong";
-    my $size = `./try`;
-    die "Unable to run probe, so something is badly wrong"
-        unless defined $size;
-    chomp $size;
-    die "Probe gave nonsensical answer '$size', so something it badly wrong"
-        unless $size =~ /\A[0-9]+\z/;
+    my $size = $Config{ptrsize};
     print "$size\n";
     $config->{ptr_size} = $size;
 }
