@@ -2,6 +2,7 @@ package build::probe;
 use strict;
 use warnings;
 
+use Config;
 use File::Path qw(mkpath rmtree);
 use File::Spec::Functions qw(curdir catdir rel2abs devnull);
 
