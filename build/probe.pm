@@ -2,6 +2,7 @@ package build::probe;
 use strict;
 use warnings;
 
+use Config;
 use File::Path qw(mkpath rmtree);
 use File::Spec::Functions qw(curdir catdir rel2abs devnull);
 
@@ -263,26 +264,9 @@ sub unaligned_access_cross {
 
 sub ptr_size_native {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('try.c', <<'EOT');
-#include <stdio.h>
-#include <stdlib.h>
-
-int main(int argc, char **argv) {
-    printf("%u\n", (unsigned int) sizeof(void *));
-    return EXIT_SUCCESS;
-}
-EOT
 
     print ::dots('    probing the size of pointers');
-    compile($config, 'try')
-        or die "Can't compile simple probe, so something is badly wrong";
-    my $size = `./try`;
-    die "Unable to run probe, so something is badly wrong"
-        unless defined $size;
-    chomp $size;
-    die "Probe gave nonsensical answer '$size', so something it badly wrong"
-        unless $size =~ /\A[0-9]+\z/;
+    my $size = $Config{ptrsize};
     print "$size\n";
     $config->{ptr_size} = $size;
 }
@@ -326,47 +310,19 @@ EOT
 
 sub C_type_bool {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    my $template = <<'EOT';
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-
-int main(int argc, char **argv) {
-    %s foo = false;
-    foo    = true;
-    return foo ? EXIT_SUCCESS : EXIT_FAILURE;
-}
-EOT
 
     print ::dots('    probing C type support for: _Bool, bool');
-    my %have;
-    for my $type (qw(_Bool bool)) {
-        _spew('try.c', sprintf $template, $type);
-        $have{$type}   = compile($config, 'try');
-        $have{$type} &&= !system './try' unless $config->{crossconf};
-        delete $have{$type} unless $have{$type}
-    }
-    print %have ? "YES: " . join(',', sort keys %have) . "\n": "NO: none\n";
-    $config->{havebooltype} = %have ? 1 : 0;
-    $config->{booltype}     = (sort keys %have)[0] || 0;
+    my $has_stdbool = $Config{i_stdbool};
+    print $has_stdbool ? "YES\n" : "NO\n";
+    $config->{havebooltype} = $has_stdbool ? 1 : 0;
+    $config->{booltype}     = $has_stdbool ? '_Bool' : 0;
 }
 
 sub pthread_yield {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('try.c', <<'EOT');
-#include <stdlib.h>
-#include <pthread.h>
-
-int main(int argc, char **argv) {
-    pthread_yield();
-    return EXIT_SUCCESS;
-}
-EOT
 
     print ::dots('    probing pthread_yield support');
-    my $has_pthread_yield = compile($config, 'try');
+    my $has_pthread_yield = exists $Config{d_pthread_yield};
     print $has_pthread_yield ? "YES\n": "NO\n";
     $config->{has_pthread_yield} = $has_pthread_yield || 0
 }
