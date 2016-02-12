@@ -1118,6 +1118,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 0).o = ((MVMException *)ex)->body.payload;
                 else
                     MVM_exception_throw_adhoc(tc, "getexpayload needs a VMException");
+                if (!GET_REG(cur_op, 0).o)
+                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
             }
