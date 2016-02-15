@@ -696,6 +696,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
     MVMint32 i, num_classes, num_slots;
 
     MVM_serialization_write_varint(tc, writer, repr_data->struct_size);
+    MVM_serialization_write_varint(tc, writer, repr_data->struct_align);
     MVM_serialization_write_varint(tc, writer, repr_data->num_attributes);
     MVM_serialization_write_varint(tc, writer, repr_data->num_child_objs);
     for(i = 0; i < repr_data->num_attributes; i++){
@@ -735,6 +736,9 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     MVMint32 i, num_classes, num_slots;
 
     repr_data->struct_size = MVM_serialization_read_varint(tc, reader);
+    if (reader->root.version >= 17) {
+        repr_data->struct_align = MVM_serialization_read_varint(tc, reader);
+    }
     repr_data->num_attributes = MVM_serialization_read_varint(tc, reader);
     repr_data->num_child_objs = MVM_serialization_read_varint(tc, reader);
 
