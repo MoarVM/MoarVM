@@ -282,8 +282,10 @@ static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_con
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)d;
     if (data) {
-        if (data->handle && not_std_handle(tc, h)) {
+        if (data->handle) {
             uv_close((uv_handle_t *)data->handle, NULL);
+            uv_run(tc->loop, UV_RUN_DEFAULT);
+            MVM_free(data->handle);
             data->handle = NULL;
         }
         if (data->ds) {
