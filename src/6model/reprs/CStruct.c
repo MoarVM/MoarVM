@@ -263,8 +263,8 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             repr_data->struct_offsets[i] = cur_size;
             cur_size += bits / 8;
 
-            if (bits / 8 > multiple_of)
-                multiple_of = bits / 8;
+            if (align > multiple_of)
+                multiple_of = align;
         }
 
         /* Finally, put computed allocation size in place; it's body size plus
