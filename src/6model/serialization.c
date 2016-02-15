@@ -1375,6 +1375,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     result = concatenate_outputs(tc, writer);
 
     /* Clear up afterwards. */
+    MVM_free(writer->root.dependent_scs);
     MVM_free(writer->root.dependencies_table);
     MVM_free(writer->root.stables_table);
     MVM_free(writer->root.stables_data);
