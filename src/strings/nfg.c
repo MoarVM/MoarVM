@@ -379,18 +379,32 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
 
 /* Free all memory allocated to hold synthetic graphemes. These are global
  * to a VM instance. */
-void MVM_nfg_destroy(MVMInstance *instance) {
-    MVMNFGState *nfg = instance->nfg;
+void MVM_nfg_destroy(MVMThreadContext *tc) {
+    MVMNFGState *nfg = tc->instance->nfg;
     MVMint32 i;
 
     /* Free all synthetics. */
-    for (i = 0; i < nfg->num_synthetics; i++) {
-        MVM_free(nfg->synthetics[i].case_uc);
-        MVM_free(nfg->synthetics[i].case_lc);
-        MVM_free(nfg->synthetics[i].case_tc);
-        MVM_free(nfg->synthetics[i].case_fc);
+    if (nfg->synthetics) {
+        size_t used_synths_in_block = nfg->num_synthetics % MVM_SYNTHETIC_GROW_ELEMS;
+        size_t synths_to_free = used_synths_in_block
+            ? nfg->num_synthetics + (MVM_SYNTHETIC_GROW_ELEMS - used_synths_in_block)
+            : nfg->num_synthetics;
+
+        for (i = 0; i < nfg->num_synthetics; i++) {
+            if (nfg->synthetics[i].case_uc != CASE_UNCHANGED)
+                MVM_free(nfg->synthetics[i].case_uc);
+            if (nfg->synthetics[i].case_lc != CASE_UNCHANGED)
+                    MVM_free(nfg->synthetics[i].case_lc);
+            if (nfg->synthetics[i].case_tc != CASE_UNCHANGED)
+                MVM_free(nfg->synthetics[i].case_tc);
+            if (nfg->synthetics[i].case_fc != CASE_UNCHANGED)
+                MVM_free(nfg->synthetics[i].case_fc);
+        }
+
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+            synths_to_free * sizeof(MVMNFGSynthetic),
+            nfg->synthetics);
     }
-    MVM_free(nfg->synthetics);
 
     MVM_free(nfg);
 }

@@ -442,7 +442,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up NFG. */
     uv_mutex_destroy(&instance->nfg->update_mutex);
-    MVM_nfg_destroy(instance);
+    MVM_nfg_destroy(instance->main_thread);
 
     /* Clean up integer constant and string cache. */
     uv_mutex_destroy(&instance->mutex_int_const_cache);

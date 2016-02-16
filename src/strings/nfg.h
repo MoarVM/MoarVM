@@ -80,4 +80,4 @@ MVMuint32 MVM_nfg_get_case_change(MVMThreadContext *tc, MVMGrapheme32 codepoint,
 MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString *b);
 
 /* NFG subsystem cleanup. */
-void MVM_nfg_destroy(MVMInstance *i);
+void MVM_nfg_destroy(MVMThreadContext *tc);
