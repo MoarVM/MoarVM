@@ -131,6 +131,8 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
         if (frame->env)
             MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
                 frame->allocd_env, frame->env);
+        if (frame->continuation_tags)
+            MVM_continuation_free_tags(tc, frame);
         if (frame->refd_by_object)
             MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMFrame), frame);
         else
@@ -692,15 +694,8 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         }
 
         /* Clear up any continuation tags. */
-        if (returner->continuation_tags) {
-            MVMContinuationTag *tag = returner->continuation_tags;
-            while (tag) {
-                MVMContinuationTag *next = tag->next;
-                MVM_free(tag);
-                tag = next;
-            }
-            returner->continuation_tags = NULL;
-        }
+        if (returner->continuation_tags)
+            MVM_continuation_free_tags(tc, returner);
 
         /* Signal to the GC to ignore ->work */
         returner->tc = NULL;
