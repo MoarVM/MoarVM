@@ -391,6 +391,9 @@ void MVM_nfg_destroy(MVMThreadContext *tc) {
             : nfg->num_synthetics;
 
         for (i = 0; i < nfg->num_synthetics; i++) {
+            MVM_fixed_size_free(tc, tc->instance->fsa,
+                nfg->synthetics[i].num_combs * sizeof(MVMCodepoint),
+                nfg->synthetics[i].combs);
             if (nfg->synthetics[i].case_uc != CASE_UNCHANGED)
                 MVM_free(nfg->synthetics[i].case_uc);
             if (nfg->synthetics[i].case_lc != CASE_UNCHANGED)
@@ -401,7 +404,7 @@ void MVM_nfg_destroy(MVMThreadContext *tc) {
                 MVM_free(nfg->synthetics[i].case_fc);
         }
 
-        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+        MVM_fixed_size_free(tc, tc->instance->fsa,
             synths_to_free * sizeof(MVMNFGSynthetic),
             nfg->synthetics);
     }
