@@ -85,7 +85,7 @@ struct MVMThreadContext {
     /* Linked list of exception handlers that we're currently executing, topmost
      * one first in the list. */
     MVMActiveHandler *active_handlers;
-    
+
     /* Result object of the last-run exception handler. */
     MVMObject *last_handler_result;
 
@@ -191,6 +191,10 @@ struct MVMThreadContext {
     MVMint64  nfa_fates_len;
     MVMint64 *nfa_longlit;
     MVMint64  nfa_longlit_len;
+
+    /* Memory for doing multi-dim indexing with late-bound dimension counts. */
+    MVMint64 *multi_dim_indices;
+    MVMint64  num_multi_dim_indices;
 
     /* The number of locks the thread is holding. */
     MVMint64 num_locks;
