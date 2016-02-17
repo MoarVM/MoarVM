@@ -93,6 +93,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->strings);
     MVM_free(body->scs);
     MVM_free(body->scs_to_resolve);
+    MVM_free(body->sc_handle_idxs);
     switch (body->deallocate) {
     case MVM_DEALLOCATE_NOOP:
         break;

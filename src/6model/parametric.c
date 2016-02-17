@@ -51,6 +51,9 @@ static void finish_parameterizing(MVMThreadContext *tc, void *sr_data) {
     /* XXX handle possible race. */
     MVM_repr_push_o(tc, prd->parametric_type->st->paramet.ric.lookup, prd->parameters);
     MVM_repr_push_o(tc, prd->parametric_type->st->paramet.ric.lookup, prd->result->o);
+
+    /* Clean up parametric return data, now we're finished with it. */
+    MVM_free(prd);
 }
 static void mark_parameterize_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
     ParameterizeReturnData *prd = (ParameterizeReturnData *)frame->special_return_data;

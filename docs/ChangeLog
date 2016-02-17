@@ -1,3 +1,21 @@
+New in 2016.01
+
++ Assorted code cleanups (unreachable code, duplicated includes, etc.)
++ Various update to MacPorts portfile and instructions
++ Only optimize istrue to unbox_i when known concrete
++ Bump libuv to 1.8
++ Add submodule sync before update in Configure.pl
++ Suggest build-essential if no gcc
++ Various fixes/updates to graph_spesh.p6
++ Don't install sha1 and tinymt headers; they're only used internally
++ Only install msinttypes on MS platform
++ Fix a gc bug in string concatenation
++ Add subsecond file time ops stat_time and lstat_time
++ Fix stat CREATETIME return value
++ Note graphs_s will be deprecated; dupe of chars
++ Re-order ops in interp.c to match oplist
++ Add compile-time platform check for JIT support, to handle universal binaries
+
 New in 2015.12
 
 + Allow the backlog arg for socket listening to be set

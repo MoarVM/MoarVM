@@ -10,7 +10,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 16
+#define CURRENT_VERSION 17
 #define MIN_VERSION     16
 
 /* Various sizes (in bytes). */
@@ -1375,12 +1375,17 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     result = concatenate_outputs(tc, writer);
 
     /* Clear up afterwards. */
+    MVM_free(writer->root.dependent_scs);
     MVM_free(writer->root.dependencies_table);
     MVM_free(writer->root.stables_table);
     MVM_free(writer->root.stables_data);
     MVM_free(writer->root.objects_table);
     MVM_free(writer->root.objects_data);
+    MVM_free(writer->root.closures_table);
+    MVM_free(writer->root.contexts_table);
+    MVM_free(writer->root.contexts_data);
     MVM_free(writer->root.param_interns_data);
+    MVM_free(writer->root.repos_table);
     MVM_free(writer);
 
     /* Exit gen2 allocation. */

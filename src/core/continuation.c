@@ -12,7 +12,7 @@ static void clear_tag(MVMThreadContext *tc, void *sr_data) {
     }
     MVM_exception_throw_adhoc(tc, "Internal error: failed to clear continuation tag");
 }
-void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag, 
+void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag,
                             MVMObject *code, MVMRegister *res_reg) {
     /* Save the tag. */
     MVMContinuationTag *tag_record = MVM_malloc(sizeof(MVMContinuationTag));
@@ -222,4 +222,14 @@ MVMContinuation * MVM_continuation_clone(MVMThreadContext *tc, MVMContinuation *
     result->body.root    = cloned_root;
 
     return result;
+}
+
+void MVM_continuation_free_tags(MVMThreadContext *tc, MVMFrame *f) {
+    MVMContinuationTag *tag = f->continuation_tags;
+    while (tag) {
+        MVMContinuationTag *next = tag->next;
+        MVM_free(tag);
+        tag = next;
+    }
+    f->continuation_tags = NULL;
 }

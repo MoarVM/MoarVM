@@ -1309,7 +1309,7 @@ skipdevirt:
                                  { MVM_JIT_REG_VAL, typ },
                                  { MVM_JIT_STR_IDX, str_idx },
                                  { MVM_JIT_LITERAL, hint },
-                                 { op == MVM_OP_bindattr_n ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL, val },
+                                 { MVM_JIT_REG_VAL, val }, /* Takes MVMRegister, so no _F needed. */
                                  { MVM_JIT_LITERAL, kind } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 7, args, MVM_JIT_RV_VOID, -1);
         break;
@@ -1332,7 +1332,7 @@ skipdevirt:
                                  { MVM_JIT_REG_VAL, typ },
                                  { MVM_JIT_REG_VAL, str },
                                  { MVM_JIT_LITERAL, hint },
-                                 { op == MVM_OP_bindattrs_n ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL, val },
+                                 { MVM_JIT_REG_VAL, val }, /* Takes MVMRegister, so no _F needed. */
                                  { MVM_JIT_LITERAL, kind } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 7, args, MVM_JIT_RV_VOID, -1);
         break;

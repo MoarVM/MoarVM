@@ -95,14 +95,18 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     tc->instance->all_scs[sc->body->sc_idx] = NULL;
     uv_mutex_unlock(&tc->instance->mutex_sc_weakhash);
 
-    /* Free manually managed STable list memory. */
+    /* Free manually managed object and STable root list memory. */
+    MVM_free(sc->body->root_objects);
     MVM_free(sc->body->root_stables);
 
     /* If we have a serialization reader, clean that up too. */
     if (sc->body->sr) {
         if (sc->body->sr->data_needs_free)
             MVM_free(sc->body->sr->data);
+        MVM_free(sc->body->sr->root.dependent_scs);
         MVM_free(sc->body->sr->contexts);
+        MVM_free(sc->body->sr->wl_objects.indexes);
+        MVM_free(sc->body->sr->wl_stables.indexes);
         MVM_free(sc->body->sr);
     }
 

@@ -32,6 +32,9 @@ typedef struct {
     /* callsite ID */
     unsigned short callsite_id;
 
+    /* the identifier for the callsite, to clean up later */
+    unsigned char *identifier;
+
     /* the uthash hash handle. */
     UT_hash_handle hash_handle;
 } CallsiteReuseEntry;
@@ -260,6 +263,8 @@ static void cleanup_frame(VM, FrameState *fs) {
 
 /* Cleans up all allocated memory related to this compilation. */
 static void cleanup_all(VM, WriterState *ws) {
+    CallsiteReuseEntry *current, *tmp;
+    unsigned bucket_tmp;
     if (ws->cur_frame)
         cleanup_frame(vm, ws->cur_frame);
     if (ws->scdep_seg)
@@ -274,6 +279,9 @@ static void cleanup_all(VM, WriterState *ws) {
         MVM_free(ws->bytecode_seg);
     if (ws->annotation_seg)
         MVM_free(ws->annotation_seg);
+    HASH_ITER(hash_handle, ws->callsite_reuse_head, current, tmp, bucket_tmp) {
+        MVM_free(current->identifier);
+    }
     MVM_HASH_DESTROY(hash_handle, CallsiteReuseEntry, ws->callsite_reuse_head);
     MVM_free(ws);
 }
@@ -701,6 +709,7 @@ static unsigned short get_callsite_id(VM, WriterState *ws, MASTNode *flag_node, 
     }
     entry = (CallsiteReuseEntry *)MVM_malloc(sizeof(CallsiteReuseEntry));
     entry->callsite_id = (unsigned short)ws->num_callsites;
+    entry->identifier = identifier;
     HASH_ADD_KEYPTR(hash_handle, ws->callsite_reuse_head, identifier, identifier_len, entry);
 
     /* Emit callsite; be sure to pad if there's uneven number of flags. */

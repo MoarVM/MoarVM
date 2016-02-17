@@ -88,18 +88,19 @@ void MVM_mast_to_file(MVMThreadContext *tc, MVMObject *mast, MVMObject *types, M
         MVM_gc_allocate_gen2_default_clear(tc);
 
         /* Write it out to a file. (Not using VM-level IO for this right now;
-         * may want to do that, but really we just want to shove the bytes out
-         * to disk, without having to go via string subsystem, etc. */
+         * may want to do that in the future.) */
         c_filename = MVM_string_utf8_c8_encode_C_string(tc, filename);
         if ((fh = fopen(c_filename, "wb+"))) {
             fwrite(bytecode, 1, size, fh);
             fclose(fh);
             MVM_free(c_filename);
+            MVM_free(bytecode);
         }
         else {
             char *waste[2];
             waste[0] = c_filename;
             waste[1] = NULL;
+            MVM_free(bytecode);
             MVM_exception_throw_adhoc_free(tc, waste, "Unable to write bytecode to '%s'", c_filename);
         }
     });

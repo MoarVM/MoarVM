@@ -150,6 +150,7 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
 
 void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
     MVM_platform_free_pages(code->func_ptr, code->size);
+    MVM_free(code->labels);
     MVM_free(code->deopts);
     MVM_free(code->handlers);
     MVM_free(code->inlines);

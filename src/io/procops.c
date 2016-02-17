@@ -171,7 +171,7 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
-    int i;
+    int i, process_still_running;
 
     char * const cmdin = MVM_string_utf8_c8_encode_C_string(tc, cmd);
     char * const _cwd = MVM_string_utf8_c8_encode_C_string(tc, cwd);
@@ -209,6 +209,7 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     process_options.stdio_count = 3;
     process_options.exit_cb     = spawn_on_exit;
     if (flags & (MVM_PIPE_CAPTURE_IN | MVM_PIPE_CAPTURE_OUT | MVM_PIPE_CAPTURE_ERR)) {
+        process_still_running = 1;
         process->data = MVM_calloc(1, sizeof(MVMint64));
         uv_ref((uv_handle_t *)process);
         spawn_result = uv_spawn(tc->loop, process, &process_options);
@@ -216,6 +217,7 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
             result = spawn_result;
     }
     else {
+        process_still_running = 0;
         process->data = &result;
         uv_ref((uv_handle_t *)process);
         spawn_result = uv_spawn(tc->loop, process, &process_options);
@@ -232,6 +234,9 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 #endif
     MVM_free(cmdin);
     uv_unref((uv_handle_t *)process);
+
+    if (!process_still_running)
+        MVM_free(process);
 
     return result;
 }

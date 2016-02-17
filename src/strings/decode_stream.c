@@ -34,6 +34,10 @@ void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds
         if (!ds->bytes_head)
             ds->bytes_head = new_bytes;
     }
+    else {
+        /* It's empty, so free the buffer right away and don't add. */
+        MVM_free(bytes);
+    }
 }
 
 /* Adds another char result buffer into the decoding stream. */
@@ -356,6 +360,7 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
         /* Copy all the things into the target, freeing as we go. */
         cur_chars = ds->chars_head;
         while (cur_chars) {
+            MVMDecodeStreamChars *next_chars = cur_chars->next;
             if (cur_chars == ds->chars_head) {
                 MVMint32 to_copy = ds->chars_head->length - ds->chars_head_pos;
                 memcpy(result->body.storage.blob_32 + pos, cur_chars->chars + ds->chars_head_pos,
@@ -367,7 +372,9 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
                     cur_chars->length * sizeof(MVMGrapheme32));
                 pos += cur_chars->length;
             }
-            cur_chars = cur_chars->next;
+            MVM_free(cur_chars->chars);
+            MVM_free(cur_chars);
+            cur_chars = next_chars;
         }
         ds->chars_head = ds->chars_tail = NULL;
     }
@@ -495,4 +502,10 @@ void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeSt
         while (MVM_string_gi_has_more(tc, &gi))
             sep_spec->sep_graphemes[graph_pos++] = MVM_string_gi_get_grapheme(tc, &gi);
     }
+}
+
+/* Cleans up memory associated with a stream separator set. */
+void MVM_string_decode_stream_sep_destroy(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec) {
+    MVM_free(sep_spec->sep_lengths);
+    MVM_free(sep_spec->sep_graphemes);
 }
