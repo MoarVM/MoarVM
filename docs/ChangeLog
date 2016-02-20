@@ -1,3 +1,26 @@
+New in 2016.02
+
++ Numerous fixes for places where --full-cleanup leaked
++ Free per-thread NFA evaluation memory and lexotic cache
++ Free SC root objects and dependencies array when freeing SC
++ Free arg_names when interning callsites
++ Free deserialization work index lists
++ Clean up decode stream separators on handles
++ Don't leak a replaced boolification spec
++ Fully clean up callsite re-use hash in assembler
++ Fix leak involving inlining handlers
++ Fix a couple of leaks when decoding strings
++ JITted calls to functions with MVMRegister argument don't want float calling
+  conventions
++ Fix leak in type parameterization.
++ Don't create partly-initialized callsites in nativecall callback handlers
++ Check for NULL in exception payload and return VMNull in getexpayload
++ Fix bug for inlined structures in strutures in nativecall code
++ Fix structure size calculation when other structures are inlined
++ Plug memory leak when shelling out without capturing
++ Fix leak on out-of-bounds multi-dim access
++ Make sure unused continuation tags get freed
+
 New in 2016.01
 
 + Assorted code cleanups (unreachable code, duplicated includes, etc.)
