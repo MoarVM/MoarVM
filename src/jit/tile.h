@@ -12,6 +12,7 @@ struct MVMJitTileTemplate {
 };
 
 struct MVMJitTile {
+    const MVMJitTileTemplate *template;
     void (*emit)(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree,
                  MVMint32 node, MVMJitExprValue **values, MVMJitExprNode *args);
     MVMJitTile *next;
@@ -24,6 +25,7 @@ struct MVMJitTile {
 };
 
 struct MVMJitTileList {
+    MVMJitExprTree *tree;
     MVMJitTile *first;
     MVMJitTile *last;
 };

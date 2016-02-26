@@ -336,7 +336,6 @@ static void MVM_jit_compile_tile(MVMThreadContext *tc, MVMJitCompiler *compiler,
 
     /* Increment order nr - must follow the same convention as in tile.c:select_values */
     compiler->order_nr++;
-
     if (tile->emit == NULL)
         /* Empty tile rule */
         return;
@@ -409,6 +408,8 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     MVMJitTile *tile;
     /* First stage, tile the tree */
     list = MVM_jit_tile_expr_tree(tc, tree);
+    /* log it, replacing logigng-during-compilation */
+    MVM_jit_log_tile_list(tc, list);
     MVM_jit_compute_use(tc, compiler, list);
 
     /* Allocate sufficient space for the internal labels */

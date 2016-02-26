@@ -333,6 +333,50 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
         break;
     }
+    case MVM_JIT_ALL:
+    {
+        MVMint32 test = tree->nodes[node+2+i];
+        MVMint32 flag = tree->nodes[test];
+        MVMint32 label = tree->info[node].label;
+        if (flag == MVM_JIT_ALL) {
+            /* Nested ALL short-circuits identically */
+        } else if (flag == MVM_JIT_ANY) {
+            /* If ANY reached it's end, that means it's false. So branch out */
+            MVMint32 any_label = tree->info[test].label;
+            add_pseudotile(tc, tiles, MVM_jit_compile_branch, node, 1, label);
+            /* And if ANY short-circuits we should continue the evaluation of ALL */
+            add_pseudotile(tc, tiles, MVM_jit_compile_label, node, 1, any_label);
+        } else {
+            /* Flag should be negated (ALL = short-circiut unless condition)) */
+            add_pseudotile(tc, tiles, MVM_jit_compile_conditional_branch, node, 2,
+                           negate_flag(tc, flag), label);
+        }
+        break;
+    }
+    case MVM_JIT_ANY:
+    {
+        MVMint32 test  = tree->nodes[node+2+i];
+        MVMint32 flag  = tree->nodes[test];
+        MVMint32 label = tree->info[node].label;
+        if (flag == MVM_JIT_ALL) {
+            /* If ALL reached the end, it must have been
+               succesful, and short-circuit behaviour implies we
+               should branch out */
+            MVMint32 all_label = tree->info[test].label;
+            add_pseudotile(tc, tiles, MVM_jit_compile_branch, node, 1, label);
+            /* If not succesful, testing should continue */
+            add_pseudotile(tc, tiles, MVM_jit_compile_label, node, 1, all_label);
+        } else if (flag == MVM_JIT_ANY) {
+            /* Nothing to do here, since nested ANY already
+               short-circuits to our label */
+        } else {
+            /* Normal evaluation (ANY = short-circuit if condition) */
+            add_pseudotile(tc, tiles, MVM_jit_compile_conditional_branch, node, 2, flag, label);
+        }
+        break;
+    }
+    default:
+        break;
     }
 }
 
@@ -347,24 +391,25 @@ static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMJitTile *tile;
 
     MVMint32 i, num_values;
+
+    /* only need to add actual code-emitting tiles */
+    if (template->emit == NULL)
+        return;
+
     /* pre-increment order nr  */
     tiles->order_nr++;
 
     /* create tile object */
     tile            = MVM_spesh_alloc(tc, tiles->sg, sizeof(MVMJitTile));
+    tile->template  = template;
     tile->emit      = template->emit;
     tile->node      = node;
     tile->order_nr  = tiles->order_nr;
     tile->values[0] = cur_value;
     append_tile(tiles->list, tile);
 
-
     /* assign type by tile */
     cur_value->type    = template->vtype;
-
-    /* Log tile for debugging */
-    if (template->expr)
-        MVM_jit_log(tc, "%04d/%04d: %s\n", tiles->order_nr, node, template->expr);
 
     /* I don't really think this is still necessary here, can be moved to
      * live-range computation step, but we'll leave it here for now */
@@ -376,31 +421,35 @@ static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         tile->values[1] = &tree->info[left].value;
         tile->values[2] = &tree->info[right].value;
         tile->num_vals  = 2;
+        break;
     }
-    break;
     case MVM_JIT_ARGLIST:
+    {
         /* NB, arglist can conceivably use more than 7 values, although it can safely overflow into args, we may want to find a better solution */
         arglist_get_values(tc, tree, node, tile->values + 1);
         tile->num_vals = tree->nodes[node+1];
         break;
+    }
     case MVM_JIT_DO:
-        {
-            MVMint32 nchild     = tree->nodes[node+1];
-            MVMint32 last_child = tree->nodes[node+1+nchild];
-            tile->values[1] = &tree->info[last_child].value;
-            tile->num_vals  = 1;
-        }
+    {
+        MVMint32 nchild     = tree->nodes[node+1];
+        MVMint32 last_child = tree->nodes[node+1+nchild];
+        tile->values[1] = &tree->info[last_child].value;
+        tile->num_vals  = 1;
         break;
+    }
     default:
+    {
         if (template->path == NULL)
             return;
         cur_value->first_created = tiles->order_nr;
+        /* does this still belong here? */
         MVM_jit_tile_get_values(tc, tree, node, template->path, template->regs,
                                 tile->values + 1, tile->args);
         tile->num_vals = template->num_vals;
         break;
     }
-
+    }
 }
 
 
@@ -423,13 +472,15 @@ MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tr
         assign_tile(tc, tree, &traverser, tree->roots[i], tiles.states[node].rule);
     }
 
-    /* NB - we can add actual code generation during the postorder step here */
+    /* Create serial list of actual tiles which represent the final low-level code */
     tiles.sg            = tree->graph->sg;
     tiles.list          = MVM_spesh_alloc(tc, tiles.sg, sizeof(MVMJitTileList));
+    tiles.list->tree    = tree;
     tiles.order_nr      = 0;
     traverser.preorder  = &select_tiles;
     traverser.inorder   = &build_blocks;
     traverser.postorder = &build_tilelist;
+
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
 
     MVM_free(tiles.states);

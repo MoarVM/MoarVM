@@ -90,7 +90,6 @@ static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *trave
 }
 
 
-/* NB - move this to log.c in due course */
 void MVM_jit_log_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
     if (!tc->instance->jit_log_fh)
@@ -108,4 +107,21 @@ void MVM_jit_log_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVM_jit_log(tc, "}\n");
     MVM_jit_log(tc, "End dump of JIT expression tree\n"
                     "====================================\n");
+}
+
+
+void MVM_jit_log_tile_list(MVMThreadContext *tc, MVMJitTileList *list) {
+    MVMJitTile *tile;
+    MVM_jit_log(tc, "Start log of JIT tile list\n"
+                    "__________________________\n");
+    for (tile = list->first; tile != NULL; tile = tile->next) {
+        if (tile->template) {
+            MVM_jit_log(tc, "normal tile %d %s\n", tile->order_nr, tile->template->expr);
+        } else {
+            MVM_jit_log(tc, "pseudo tile (node %d/%s)\n", tile->node,
+                        list->tree->info[tile->node].op_info->name);
+        }
+    }
+    MVM_jit_log(tc, "End log of JIT tile list\n"
+                    "________________________\n");
 }
