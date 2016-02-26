@@ -334,30 +334,44 @@ static void MVM_jit_compile_tile(MVMThreadContext *tc, MVMJitCompiler *compiler,
     MVMJitExprValue **values = tile->values;
     MVMint32 i;
 
-    /* Increment order nr - must follow the same convention as in tile.c:select_values */
+    /* Increment order nr - must follow the same order as in tile.c:build_tilelist */
     compiler->order_nr++;
-    if (tile->emit == NULL)
-        /* Empty tile rule */
-        return;
 
     /* Extract value pointers from the tree */
     ensure_values(tc, compiler, values+1, tile->num_vals);
-
-    if (values[0] != NULL && values[0]->type == MVM_JIT_REG) {
-        /* allocate a register for the result */
-        if (tile->num_vals > 0 &&
-            values[1]->type == MVM_JIT_REG &&
-            values[1]->state == MVM_JIT_VALUE_ALLOCATED &&
-            values[1]->last_use == compiler->order_nr) {
-            /* First register expires immediately, therefore we can safely cross-assign */
-            MVM_jit_register_assign(tc, compiler, values[0], values[1]->reg_cls, values[1]->reg_num);
-        } else {
-            alloc_value(tc, compiler, values[0]);
+    switch (tree->nodes[tile->node]) {
+    case MVM_JIT_COPY:
+        values[0]->type = MVM_JIT_REG;
+        MVM_jit_register_assign(tc, compiler, values[0], values[1]->reg_cls, values[1]->reg_num);
+        break;
+    case MVM_JIT_TC:
+    case MVM_JIT_CU:
+    case MVM_JIT_FRAME:
+    case MVM_JIT_LOCAL:
+    case MVM_JIT_STACK:
+        /* this is weird and needs to be handled better */
+        tile->emit(tc, compiler, tree, tile->node, values, tile->args);
+        break;
+    default:
+        if (values[0] != NULL && values[0]->type == MVM_JIT_REG) {
+            /* allocate a register for the result */
+            if (tile->num_vals > 0 &&
+                values[1]->type == MVM_JIT_REG &&
+                values[1]->state == MVM_JIT_VALUE_ALLOCATED &&
+                values[1]->last_use == compiler->order_nr) {
+                /* First register expires immediately, therefore we can safely
+                 * cross-assign */
+                MVM_jit_register_assign(tc, compiler, values[0], values[1]->reg_cls, values[1]->reg_num);
+            } else {
+                alloc_value(tc, compiler, values[0]);
+            }
+            use_value(tc, compiler, values[0]);
         }
-        use_value(tc, compiler, values[0]);
+        /* Emit code */
+        tile->emit(tc, compiler, tree, tile->node, tile->values, tile->args);
+        break;
     }
-    /* Emit code */
-    tile->emit(tc, compiler, tree, tile->node, tile->values, tile->args);
+
     /* Release registers from use */
     for (i = 0; i < tile->num_vals + 1; i++) {
         if (values[i] != NULL && values[i]->type == MVM_JIT_REG) {
@@ -369,6 +383,7 @@ static void MVM_jit_compile_tile(MVMThreadContext *tc, MVMJitCompiler *compiler,
     MVM_jit_expire_values(tc, compiler);
 }
 
+/* TOOD build this out into live range calculations */
 static void MVM_jit_compute_use(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTileList *list) {
     MVMJitTile *tile;
     MVMint32 i;
