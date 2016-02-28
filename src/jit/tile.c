@@ -239,14 +239,6 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     /* (Currently) we never insert into the tile list here */
 }
 
-static void arglist_get_values(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMJitExprValue **values) {
-    MVMint32 i, nchild = tree->nodes[node+1];
-    for (i = 0; i < nchild; i++) {
-        MVMint32 carg = tree->nodes[node+2+i];
-        MVMint32 val  = tree->nodes[carg+1];
-        *values++     = &tree->info[val].value;
-    }
-}
 
 MVM_STATIC_INLINE void append_tile(MVMJitTileList *list, MVMJitTile *tile) {
     if (list->first == NULL)
@@ -384,12 +376,10 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                            MVMJitExprTree *tree, MVMint32 node) {
 
-    MVMJitExprValue *cur_value = &tree->info[node].value;
-    MVMJitExprNode args[8];
+
     struct TileTree *tiles = traverser->data;
     const MVMJitTileTemplate *template = tiles->states[node].template;
     MVMJitTile *tile;
-
     MVMint32 i, num_values;
 
     /* only need to add actual code-emitting tiles */
@@ -405,51 +395,9 @@ static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     tile->emit      = template->emit;
     tile->node      = node;
     tile->order_nr  = tiles->order_nr;
-    tile->values[0] = cur_value;
+
     append_tile(tiles->list, tile);
 
-    /* assign type by tile */
-    cur_value->type    = template->vtype;
-
-    /* I don't really think this is still necessary here, can be moved to
-     * live-range computation step, but we'll leave it here for now */
-    switch (tree->nodes[node]) {
-    case MVM_JIT_IF:
-    {
-        MVMint32 left = tree->nodes[node+2], right = tree->nodes[node+3];
-        /* assign results of IF to values array */
-        tile->values[1] = &tree->info[left].value;
-        tile->values[2] = &tree->info[right].value;
-        tile->num_vals  = 2;
-        break;
-    }
-    case MVM_JIT_ARGLIST:
-    {
-        /* NB, arglist can conceivably use more than 7 values, although it can safely overflow into args, we may want to find a better solution */
-        arglist_get_values(tc, tree, node, tile->values + 1);
-        tile->num_vals = tree->nodes[node+1];
-        break;
-    }
-    case MVM_JIT_DO:
-    {
-        MVMint32 nchild     = tree->nodes[node+1];
-        MVMint32 last_child = tree->nodes[node+1+nchild];
-        tile->values[1] = &tree->info[last_child].value;
-        tile->num_vals  = 1;
-        break;
-    }
-    default:
-    {
-        if (template->path == NULL)
-            return;
-        cur_value->first_created = tiles->order_nr;
-        /* does this still belong here? */
-        MVM_jit_tile_get_values(tc, tree, node, template->path, template->regs,
-                                tile->values + 1, tile->args);
-        tile->num_vals = template->num_vals;
-        break;
-    }
-    }
 }
 
 

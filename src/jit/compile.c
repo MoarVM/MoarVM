@@ -335,7 +335,8 @@ static void MVM_jit_compile_tile(MVMThreadContext *tc, MVMJitCompiler *compiler,
     MVMint32 i;
 
     /* Increment order nr - must follow the same order as in tile.c:build_tilelist */
-    compiler->order_nr++;
+    if (tile->template)
+        compiler->order_nr++;
 
     /* Extract value pointers from the tree */
     ensure_values(tc, compiler, values+1, tile->num_vals);
@@ -383,13 +384,69 @@ static void MVM_jit_compile_tile(MVMThreadContext *tc, MVMJitCompiler *compiler,
     MVM_jit_expire_values(tc, compiler);
 }
 
+static void arglist_get_values(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMJitExprValue **values) {
+    MVMint32 i, nchild = tree->nodes[node+1];
+    for (i = 0; i < nchild; i++) {
+        MVMint32 carg = tree->nodes[node+2+i];
+        MVMint32 val  = tree->nodes[carg+1];
+        *values++     = &tree->info[val].value;
+    }
+}
+
+
+static void MVM_jit_get_values(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree, MVMJitTile *tile) {
+    MVMint32 node = tile->node;
+    const MVMJitTileTemplate *template = tile->template;
+
+    tile->values[0]       = &tree->info[node].value;
+    tile->values[0]->type = template->vtype;
+    switch (tree->nodes[node]) {
+    case MVM_JIT_IF:
+    {
+        MVMint32 left = tree->nodes[node+2], right = tree->nodes[node+3];
+        /* assign results of IF to values array */
+        tile->values[1] = &tree->info[left].value;
+        tile->values[2] = &tree->info[right].value;
+        tile->num_vals  = 2;
+        break;
+    }
+    case MVM_JIT_ARGLIST:
+    {
+        /* NB, arglist can conceivably use more than 7 values, although it can safely overflow into args, we may want to find a better solution */
+        arglist_get_values(tc, tree, node, tile->values + 1);
+        tile->num_vals = tree->nodes[node+1];
+        break;
+    }
+    case MVM_JIT_DO:
+    {
+        MVMint32 nchild     = tree->nodes[node+1];
+        MVMint32 last_child = tree->nodes[node+1+nchild];
+        tile->values[1] = &tree->info[last_child].value;
+        tile->num_vals  = 1;
+        break;
+    }
+    default:
+    {
+        MVM_jit_tile_get_values(tc, tree, node,
+                                template->path, template->regs,
+                                tile->values + 1, tile->args);
+        tile->num_vals = template->num_vals;
+        break;
+    }
+    }
+}
+
+
 /* TOOD build this out into live range calculations */
 static void MVM_jit_compute_use(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTileList *list) {
     MVMJitTile *tile;
     MVMint32 i;
+
+
     for (tile = list->first; tile != NULL; tile = tile->next) {
-        if (tile->values[0] == NULL) /* pseudotiles */
+        if (tile->template == NULL) /* pseudotiles */
             continue;
+        MVM_jit_get_values(tc, compiler, list->tree, tile);
         tile->values[0]->first_created = tile->order_nr;
         for (i = 0; i < tile->num_vals; i++) {
             tile->values[i+1]->last_use = tile->order_nr;
