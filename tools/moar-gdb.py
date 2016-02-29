@@ -125,7 +125,7 @@ def generate_hilbert(amount):
             ry = (y & s) > 0
             d += s * s * ((3 * rx) ^ ry)
             (x, y) = rot(s, x, y, rx, ry)
-            s /= 2
+            s = s // 2
 
         return d
 
@@ -249,14 +249,14 @@ def show_histogram(hist, sort="value", multiply=False):
     that may sometimes lead to "long tail" trouble and buttloads of
     pages of output to scroll through."""
     if len(hist) == 0:
-        print "(empty histogram)"
+        print("(empty histogram)")
         return
     if sort == "value":
-        items = sorted(list(hist.iteritems()), key = lambda (k, v): -v)
+        items = sorted(list(hist.iteritems()), key = lambda k, v: -v)
     elif sort == "key":
-        items = sorted(list(hist.iteritems()), key = lambda (k, v): k)
+        items = sorted(list(hist.iteritems()), key = lambda k, v: k)
     else:
-        print "sorting mode", sort, "not implemented"
+        print("sorting mode", sort, "not implemented")
     maximum = max(hist.values())
     keymax = min(max([len(str(key)) for key in hist.keys()]), 20)
     lines_so_far = 0
@@ -271,17 +271,17 @@ def show_histogram(hist, sort="value", multiply=False):
             if val < 2:
                 continue
             appendix = prettify_size(int(key) * int(val)).rjust(10) if multiply else ""
-            print str(key).ljust(keymax + 1), ("[" + "=" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), str(val).ljust(len(str(maximum)) + 2), appendix
+            print(str(key).ljust(keymax + 1), ("[" + "=" * int((float(hist[key]) / maximum) * PRETTY_WIDTH)).ljust(PRETTY_WIDTH + 1), str(val).ljust(len(str(maximum)) + 2), appendix)
         else:
             if val == group:
                 num_in_group += 1
             else:
                 if num_in_group > 1:
-                    print num_in_group, " x ", group
+                    print(num_in_group, " x ", group)
                 group = val
                 num_in_group = 1
         lines_so_far += 1
-    print
+    print()
 
 def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
     """Works almost exactly like show_histogram, but takes two histograms that
@@ -304,11 +304,11 @@ def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
         zip_hist[k] = (hist_before[k], hist_after[k])
 
     if sort == "value":
-        items = sorted(list(zip_hist.iteritems()), key = lambda (k, (v1, v2)): -max(v1, v2))
+        items = sorted(list(zip_hist.iteritems()), key = lambda vals: -max(vals[1][0], vals[1][1]))
     elif sort == "key":
-        items = sorted(list(zip_hist.iteritems()), key = lambda (k, (v1, v2)): k)
+        items = sorted(list(zip_hist.iteritems()), key = lambda vals: vals[0])
     else:
-        print "sorting mode", sort, "not implemented"
+        print("sorting mode", sort, "not implemented")
 
     for key, (val1, val2) in items:
         lv, rv = min(val1, val2), max(val1, val2)
@@ -326,7 +326,9 @@ def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
                    + prettify_size(int(key) * int(val2)).rjust(10) \
                        if multiply else ""
 
-        print str(key).ljust(len(longest_key) + 2), bars.ljust(PRETTY_WIDTH), values, appendix
+        print(str(key).ljust(len(longest_key) + 2), bars.ljust(PRETTY_WIDTH), values, appendix)
+
+reached = -1
 
 class CommonHeapData(object):
     """This base class holds a bunch of histograms and stuff that are
@@ -367,48 +369,70 @@ class CommonHeapData(object):
 
         To make this scheme work well with the nursery analysis, it returns
         the size of the object analysed."""
+        reached = 1
         stooge = cursor.cast(gdb.lookup_type("MVMObjectStooge").pointer())
-        size = stooge['common']['header']['size']
+        size = int(stooge['common']['header']['size'])
         flags = int(stooge['common']['header']['flags'])
+
+        reached = 2
 
         is_typeobj = flags & 1
         is_stable = flags & 2
 
+        reached = 3
+
         STable = stooge['common']['st'].dereference()
+        reached = 4
         if not is_stable:
             REPR = STable["REPR"]
             REPRname = REPR["name"].string()
+            reached = 5
             if is_typeobj:
                 self.number_typeobs += 1
             else:
                 self.number_objects += 1
+            reached = 6
         else:
+            reached = 7
             REPR = None
             REPRname = "STable"
             self.number_stables += 1
+            reached = 8
 
         self.size_histogram[int(size)] += 1
         self.repr_histogram[REPRname] += 1
+
+        reached = 9
+
         if REPRname == "P6opaque":
             self.opaq_histogram[int(size)] += 1
+            reached = 10
         elif REPRname == "VMArray":
+            reached = 9.5
             slot_type = int(STable['REPR_data'].cast(gdb.lookup_type("MVMArrayREPRData").pointer())['slot_type'])
+            reached = 11
             self.arrstr_hist[array_storage_types[slot_type]] += 1
+            reached = 12
             array_body = cursor.cast(gdb.lookup_type("MVMArray").pointer())['body']
+            reached = 13
             if array_body['ssize'] == 0:
                 usage_perc = "N/A"
             else:
+                reached = 14
                 usage_perc = (int(array_body['elems'] * 10) / int(array_body['ssize'])) * 10
+                reached = 15
                 if usage_perc < 0 or usage_perc > 100:
                     usage_perc = "inv"
+                reached = 16
             self.arrusg_hist[usage_perc] += 1
+            reached = 17
         elif REPRname == "MVMString":
             try:
                 casted = cursor.cast(gdb.lookup_type('MVMString').pointer())
                 self.string_histogram[MVMStringPPrinter(casted).stringify()] += 1
             except gdb.MemoryError as e:
-                print e
-                print cursor.cast(gdb.lookup_type('MVMString').pointer())
+                print(e)
+                print(cursor.cast(gdb.lookup_type('MVMString').pointer()))
                 pass
 
         return size
@@ -427,11 +451,12 @@ class NurseryData(CommonHeapData):
         self.allocation_offs = allocation_offs
 
     def analyze(self, tc):
-        print "starting to analyze the nursery:"
+        print("starting to analyze the nursery:")
         cursor = gdb.Value(self.start_addr)
-        info_step = int(self.allocation_offs - cursor) / 50
+        print(cursor);
+        info_step = int(self.allocation_offs - cursor) // 50
         next_info = cursor + info_step
-        print "_" * 50
+        print("_" * 50)
         while cursor < self.allocation_offs:
             size = self.analyze_single_object(cursor)
 
@@ -441,42 +466,42 @@ class NurseryData(CommonHeapData):
                 sys.stdout.write("-")
                 sys.stdout.flush()
 
-        print
+        print()
 
     def summarize(self):
-        print "nursery state:"
+        print("nursery state:")
         sizes = (int(self.allocation_offs - self.start_addr), int(self.end_addr - self.allocation_offs))
         relsizes = [1.0 * size / (float(int(self.end_addr - self.start_addr))) for size in sizes]
-        print "[" + "=" * int(relsizes[0] * 20) + " " * int(relsizes[1] * 20) + "] ", int(relsizes[0] * 100),"%"
+        print("[" + "=" * int(relsizes[0] * 20) + " " * int(relsizes[1] * 20) + "] ", int(relsizes[0] * 100),"%")
 
-        print self.number_objects, "objects;", self.number_typeobs, " type objects;", self.number_stables, " STables"
+        print(self.number_objects, "objects;", self.number_typeobs, " type objects;", self.number_stables, " STables")
 
-        print "sizes of objects/stables:"
+        print("sizes of objects/stables:")
         show_histogram(self.size_histogram, "key", True)
-        print "sizes of P6opaques only:"
+        print("sizes of P6opaques only:")
         show_histogram(self.opaq_histogram, "key", True)
-        print "REPRs:"
+        print("REPRs:")
         show_histogram(self.repr_histogram)
-        print "VMArray storage types:"
+        print("VMArray storage types:")
         show_histogram(self.arrstr_hist)
-        print "VMArray usage percentages:"
+        print("VMArray usage percentages:")
         show_histogram(self.arrusg_hist, "key")
 
-        print "strings:"
+        print("strings:")
         show_histogram(self.string_histogram)
 
     def diff(self, other):
-        print "nursery state --DIFF--:"
+        print("nursery state --DIFF--:")
 
-        print "sizes of objects/stables:"
+        print("sizes of objects/stables:")
         diff_histogram(self.size_histogram, other.size_histogram, "key", True)
-        print "sizes of P6opaques only:"
+        print("sizes of P6opaques only:")
         diff_histogram(self.opaq_histogram, other.opaq_histogram, "key", True)
-        print "REPRs:"
+        print("REPRs:")
         diff_histogram(self.repr_histogram, other.repr_histogram)
-        print "VMArray storage types:"
+        print("VMArray storage types:")
         diff_histogram(self.arrstr_hist, other.arrstr_hist)
-        print "VMArray usage percentages:"
+        print("VMArray usage percentages:")
         diff_histogram(self.arrusg_hist, other.arrusg_hist, "key")
 
 
@@ -517,6 +542,7 @@ class Gen2Data(CommonHeapData):
         self.size_histogram = defaultdict(int)
 
     def analyze(self, tc):
+        print("tryign to analyze gen2data");
         if int(self.g2sc['pages'].cast(gdb.lookup_type("int"))) == 0:
             self.empty = True
             return
@@ -528,12 +554,14 @@ class Gen2Data(CommonHeapData):
 
         self.cur_page = int(self.g2sc['cur_page'])
 
+        print("current page:", self.cur_page);
+
         # we need to make sure we don't accidentally run into free_list'd slots
         # that's why we just collect addresses up front and sample them later on.
         sample_stooges = []
 
         page_cursor = self.g2sc['pages']
-        for page_idx in range(self.g2sc['num_pages']):
+        for page_idx in range(int(self.g2sc['num_pages'])):
             # collect the page addresses so that we can match arbitrary
             # pointers to page index/bucket index pairs later on.
             page_addrs.append(page_cursor.dereference())
@@ -543,7 +571,7 @@ class Gen2Data(CommonHeapData):
 
                 # if the page we're looking at is the "current" page, we look
                 # at the alloc_pos to find out where allocated objects stop.
-                alloc_bucket_idx = int(int(self.g2sc['alloc_pos'] - page_cursor.dereference()) / self.bucket_size)
+                alloc_bucket_idx = int(int(self.g2sc['alloc_pos'] - page_cursor.dereference()) // self.bucket_size)
                 pagebuckets[page_idx][alloc_bucket_idx:] = [False] * (MVM_GEN2_PAGE_ITEMS - alloc_bucket_idx)
             elif page_idx > self.cur_page:
                 # if we're past the page we're currently allocating in, the
@@ -555,7 +583,7 @@ class Gen2Data(CommonHeapData):
                 alloc_bucket_idx = MVM_GEN2_PAGE_ITEMS
 
             # sample a few objects for later analysis (after free list checking)
-            samplecount = int(min(MVM_GEN2_PAGE_CUBE_SIZE * EXTRA_SAMPLES, alloc_bucket_idx / 4))
+            samplecount = int(min(MVM_GEN2_PAGE_CUBE_SIZE * EXTRA_SAMPLES, alloc_bucket_idx // 4))
             samples = sorted(random.sample(range(0, alloc_bucket_idx), samplecount))
             for idx in samples:
                 stooge = (page_cursor.dereference() + (idx * self.bucket_size)).cast(gdb.lookup_type("MVMObjectStooge").pointer())
@@ -570,7 +598,7 @@ class Gen2Data(CommonHeapData):
             for idx, base in enumerate(page_addrs):
                 end = base + self.bucket_size * MVM_GEN2_PAGE_ITEMS
                 if base <= addr < end:
-                    return idx, int((addr - base) / self.bucket_size)
+                    return idx, int((addr - base) // self.bucket_size)
 
         self.length_freelist = 0
         while free_cursor.cast(gdb.lookup_type("int")) != 0:
@@ -581,32 +609,38 @@ class Gen2Data(CommonHeapData):
                     pagebuckets[page][bucket] = False
                     self.length_freelist += 1
             free_cursor = free_cursor.dereference().cast(gdb.lookup_type("char").pointer().pointer())
-        print ""
+        print("")
 
         #doubles = defaultdict(int)
 
         # now we can actually sample our objects
         for stooge, page, idx in sample_stooges:
+            reached = 99
             if pagebuckets[page][idx] != True:
                 continue
+            reached = 100
             try:
                 size = self.analyze_single_object(stooge)
+                reached = 101
             except Exception as e:
-                print e
+                print("while trying to analyze single object:");
+                print(e)
+                print(stooge)
+                print(reached)
 
         #if len(doubles) > 10:
             #show_histogram(doubles)
 
     def summarize(self):
-        print "size bucket:", self.bucket_size
+        print("size bucket:", self.bucket_size)
         if self.empty:
-            print "(unallocated)"
+            print("(unallocated)")
             return
-        print "setting up stuff"
+        print("setting up stuff")
         cols_per_block = int(math.sqrt(MVM_GEN2_PAGE_ITEMS))
-        lines_per_block = cols_per_block / 2
+        lines_per_block = cols_per_block // 2
         outlines = [[] for i in range(lines_per_block + 1)]
-        break_step = PRETTY_WIDTH / (lines_per_block + 1)
+        break_step = PRETTY_WIDTH // (lines_per_block + 1)
         next_break = break_step
         pgct = 0
         fullpages = 0
@@ -635,30 +669,30 @@ class Gen2Data(CommonHeapData):
                     outlines[-line_num - 1].append(" ")
 
 
-        print (u"\n".join(map(lambda l: u"".join(l), outlines))).encode("utf8")
+        print((u"\n".join(map(lambda l: u"".join(l), outlines))).encode("utf8"))
         if fullpages > 0:
-            print "(and", fullpages, "completely filled pages)",
+            print("(and", fullpages, "completely filled pages)",)
         if self.cur_page < len(self.pagebuckets):
-            print "(and", (len(self.pagebuckets) - self.cur_page + 1), "empty pages)",
+            print("(and", (len(self.pagebuckets) - self.cur_page + 1), "empty pages)",)
         if self.length_freelist > 0:
-            print "(freelist with", self.length_freelist, "entries)",
-        print ""
+            print("(freelist with", self.length_freelist, "entries)",)
+        print("")
 
         # does the allocator/copier set the size of the object to the exact bucket size
         # automatically?
         if len(self.size_histogram) > 1:
-            print "sizes of objects/stables:"
+            print("sizes of objects/stables:")
             try:
                 show_histogram(self.size_histogram, "key", True)
             except Exception as e:
-                print e
+                print(e)
         if len(self.repr_histogram) >= 1:
-            print "REPRs:"
+            print("REPRs:")
             try:
                 show_histogram(self.repr_histogram)
             except Exception as e:
-                print e
-        print "strings:"
+                print(e)
+        print("strings:")
         show_histogram(self.string_histogram)
 
 class OverflowData(CommonHeapData):
@@ -666,28 +700,32 @@ class OverflowData(CommonHeapData):
         g2a = tc['gen2']
 
         num_overflows = g2a["num_overflows"]
+        print(num_overflows)
 
-        for of_idx in range(num_overflows):
-            of_obj = g2a["overflows"][of_idx]
-            self.analyze_single_object(of_obj)
+        try:
+            for of_idx in range(num_overflows):
+                of_obj = g2a["overflows"][of_idx]
+                self.analyze_single_object(of_obj)
+        except:
+            print("error while analyze_single_object or something");
 
     def summarize(self):
-        print "overflows in the gen2"
+        print("overflows in the gen2")
 
-        print self.number_objects, "objects;", self.number_typeobs, " type objects;", self.number_stables, " STables"
+        print(self.number_objects, "objects;", self.number_typeobs, " type objects;", self.number_stables, " STables")
 
-        print "sizes of objects/stables:"
+        print("sizes of objects/stables:")
         show_histogram(self.size_histogram, "key", True)
-        print "sizes of P6opaques only:"
+        print("sizes of P6opaques only:")
         show_histogram(self.opaq_histogram, "key", True)
-        print "REPRs:"
+        print("REPRs:")
         show_histogram(self.repr_histogram)
-        print "VMArray storage types:"
+        print("VMArray storage types:")
         show_histogram(self.arrstr_hist)
-        print "VMArray usage percentages:"
+        print("VMArray usage percentages:")
         show_histogram(self.arrusg_hist, "key")
 
-        print "strings:"
+        print("strings:")
         show_histogram(self.string_histogram)
 
 
@@ -714,20 +752,35 @@ class AnalyzeHeapCommand(gdb.Command):
         instance = tc['instance']
         generation = instance['gc_seq_number']
 
+        print("building nursery");
+
         nursery = NurseryData(generation, tc['nursery_tospace'], tc['nursery_alloc_limit'], tc['nursery_alloc'])
+
+        print("analyzing nursery");
+
         nursery.analyze(tc)
+
+        print("appending to memory");
 
         nursery_memory.append(nursery)
 
-        #print "the current generation of the gc is", generation
+        print("the current generation of the gc is", generation)
 
         sizeclass_data = []
         for sizeclass in range(MVM_GEN2_BINS):
+            print("making gen2data for ", sizeclass);
             g2sc = Gen2Data(generation, tc['gen2']['size_classes'][sizeclass], sizeclass)
+            print("appending data");
             sizeclass_data.append(g2sc)
+            print("analyzing");
             g2sc.analyze(tc)
 
+        print("done making gen2data");
+
+        print("making overflow data");
         overflowdata = OverflowData(generation)
+
+        print("analyzing overflow data");
         overflowdata.analyze(tc)
 
         for g2sc in sizeclass_data:
@@ -769,23 +822,23 @@ def mvmobject_lookup_function(val):
             val.cast(gdb.lookup_type("MVMObject" + (" *" if pointer else "")))
             return MVMObjectPPrinter(val, pointer)
         except Exception as e:
-            print "couldn't cast this:", e
+            print("couldn't cast this:", e)
             pass
     return None
 
 def register_printers(objfile):
     objfile.pretty_printers.append(str_lookup_function)
-    print "MoarVM string pretty printer registered"
+    print("MoarVM string pretty printer registered")
     # XXX since this is currently nonfunctional, just ignore it for now
     # objfile.pretty_printers.append(mvmobject_lookup_function)
-    # print "MoarVM Object pretty printer registered"
+    # print("MoarVM Object pretty printer registered")
 
 commands = []
 def register_commands(objfile):
     commands.append(AnalyzeHeapCommand())
-    print "moar-heap registered"
+    print("moar-heap registered")
     commands.append(DiffHeapCommand())
-    print "diff-moar-heap registered"
+    print("diff-moar-heap registered")
 
 # We have to introduce our classes to gdb so that they can be used
 if __name__ == "__main__":
