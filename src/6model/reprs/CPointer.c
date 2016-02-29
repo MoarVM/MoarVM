@@ -83,6 +83,28 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMCPointer);
 }
 
+static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    MVMCPointerBody *body = (MVMCPointerBody *)data;
+    MVMint64 value = MVM_serialization_read_int(tc, reader);
+#if MVM_PTR_SIZE == 4
+    body->ptr = (void *)(MVMuint32)value;
+#else
+    body->ptr = (void *)value;
+#endif
+
+}
+
+static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    MVMCPointerBody *body = (MVMCPointerBody *)data;
+    MVM_serialization_write_int(tc, writer,
+#if MVM_PTR_SIZE == 4
+        (MVMuint64)(MVMuint32)body->ptr
+#else
+        (MVMuint64)body->ptr
+#endif
+    );
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMCPointer_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -110,8 +132,8 @@ static const MVMREPROps this_repr = {
     MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */
-    NULL, /* serialize */
-    NULL, /* deserialize */
+    serialize, /* serialize */
+    deserialize, /* deserialize */
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
     deserialize_stable_size,
