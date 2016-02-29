@@ -1,5 +1,13 @@
 #include "tommath.h"
 
+#ifndef MIN
+#define MIN(x,y) (((x) < (y)) ? (x) : (y))
+#endif
+
+#ifndef MAX
+#define MAX(x,y) (((x) > (y)) ? (x) : (y))
+#endif
+
 #define MVM_BIGINT_32_FLAG      0xFFFFFFFF
 #define MVM_BIGINT_IS_BIG(body) ((body)->u.smallint.flag != 0xFFFFFFFF)
 #define MVM_IS_32BIT_INT(i)     (i >= -2147483648LL && i <= 2147483647LL)
