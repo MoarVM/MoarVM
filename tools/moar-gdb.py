@@ -330,8 +330,6 @@ def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
 
         print(str(key).ljust(len(longest_key) + 2), bars.ljust(PRETTY_WIDTH), values, appendix)
 
-reached = -1
-
 class CommonHeapData(object):
     """This base class holds a bunch of histograms and stuff that are
     interesting regardless of wether we are looking at nursery objects
@@ -371,63 +369,42 @@ class CommonHeapData(object):
 
         To make this scheme work well with the nursery analysis, it returns
         the size of the object analysed."""
-        reached = 1
         stooge = cursor.cast(gdb.lookup_type("MVMObjectStooge").pointer())
         size = int(stooge['common']['header']['size'])
         flags = int(stooge['common']['header']['flags'])
 
-        reached = 2
-
         is_typeobj = flags & 1
         is_stable = flags & 2
 
-        reached = 3
-
         STable = stooge['common']['st'].dereference()
-        reached = 4
         if not is_stable:
             REPR = STable["REPR"]
             REPRname = REPR["name"].string()
-            reached = 5
             if is_typeobj:
                 self.number_typeobs += 1
             else:
                 self.number_objects += 1
-            reached = 6
         else:
-            reached = 7
             REPR = None
             REPRname = "STable"
             self.number_stables += 1
-            reached = 8
 
         self.size_histogram[int(size)] += 1
         self.repr_histogram[REPRname] += 1
 
-        reached = 9
-
         if REPRname == "P6opaque":
             self.opaq_histogram[int(size)] += 1
-            reached = 10
         elif REPRname == "VMArray":
-            reached = 9.5
             slot_type = int(STable['REPR_data'].cast(gdb.lookup_type("MVMArrayREPRData").pointer())['slot_type'])
-            reached = 11
             self.arrstr_hist[array_storage_types[slot_type]] += 1
-            reached = 12
             array_body = cursor.cast(gdb.lookup_type("MVMArray").pointer())['body']
-            reached = 13
             if array_body['ssize'] == 0:
                 usage_perc = "N/A"
             else:
-                reached = 14
                 usage_perc = (int(array_body['elems'] * 10) / int(array_body['ssize'])) * 10
-                reached = 15
                 if usage_perc < 0 or usage_perc > 100:
                     usage_perc = "inv"
-                reached = 16
             self.arrusg_hist[usage_perc] += 1
-            reached = 17
         elif REPRname == "MVMString":
             try:
                 casted = cursor.cast(gdb.lookup_type('MVMString').pointer())
@@ -614,19 +591,15 @@ class Gen2Data(CommonHeapData):
 
         # now we can actually sample our objects
         for stooge, page, idx in sample_stooges:
-            reached = 99
             if pagebuckets[page][idx] != True:
                 continue
-            reached = 100
             try:
                 size = self.analyze_single_object(stooge)
-                reached = 101
             except Exception as e:
                 print("while trying to analyze single object:");
                 traceback.print_exc()
                 print(stooge)
                 print(stooge.__repr__())
-                print(reached)
 
         #if len(doubles) > 10:
             #show_histogram(doubles)
