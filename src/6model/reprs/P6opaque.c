@@ -10,6 +10,84 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
+void hexDump (char *desc, void *addr, int len) {
+    int i;
+    unsigned char buff[17];
+    unsigned char *pc = (unsigned char*)addr;
+
+    // Output description if given.
+    if (desc != NULL)
+        fprintf (stderr, "%s:\n", desc);
+
+    if (len == 0) {
+        printf("  ZERO LENGTH\n");
+        return;
+    }
+    if (len < 0) {
+        printf("  NEGATIVE LENGTH: %i\n",len);
+        return;
+    }
+
+    // Process every byte in the data.
+    for (i = 0; i < len; i++) {
+        // Multiple of 16 means new line (with line offset).
+        // and we put an extra space in the middle
+
+        if ((i % 16) == 0) {
+            // Just don't print ASCII for the zeroth line.
+            if (i != 0) {
+                unsigned char rescued = buff[8];
+                buff[8] = 0;
+                fprintf (stderr, "  %s ", buff);
+                buff[8] = rescued;
+                fprintf (stderr, "%s\n", buff + 8);
+            }
+
+            // Output the offset.
+            fprintf (stderr, "  %04x: ", i);
+        } else if ((i % 16) == 8) {
+            fprintf (stderr, " ");
+        }
+
+        // Now the hex code for the specific character.
+        fprintf (stderr, "%02x", pc[i]);
+        if ((i % 2) == 1)
+            fprintf (stderr, " ");
+
+        // And store a printable ASCII character for later.
+        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
+            if (pc[i] == 0) {
+                buff[i % 16] = '`';
+            } else {
+                buff[i % 16] = '.';
+            }
+        else
+            buff[i % 16] = pc[i];
+        buff[(i % 16) + 1] = '\0';
+    }
+
+    // Pad out last line if not exactly 16 characters.
+    while ((i % 16) != 0) {
+        fprintf (stderr, "  ");
+        if ((i % 2) == 1) {
+            fprintf (stderr, " ");
+        } else if ((i % 16) == 8) {
+            fprintf (stderr, " ");
+        }
+        buff[i % 16] = 0;
+        i++;
+    }
+
+    // And print the final ASCII bit.
+    {
+        unsigned char rescued = buff[8];
+        buff[8] = 0;
+        fprintf (stderr, "  %s ", buff);
+        buff[8] = rescued;
+        fprintf (stderr, "%s\n", buff + 8);
+    }
+}
+
 /* Helpers for reading/writing values. */
 MVM_STATIC_INLINE MVMObject * get_obj_at_offset(void *data, MVMint64 offset) {
     void *location = (char *)data + offset;
@@ -684,6 +762,10 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
     fprintf(stderr, "for a P6opaque with %4d num_attributes, we'll build a blob of size %4d\n", total_attrs, needed_space);
 
+    fprintf(stderr, "offsets: %4x %4x %4x %4x %4x %4x %4x %4x\n",
+            repr_data->attribute_offsets, repr_data->flattened_stables, repr_data->auto_viv_values, repr_data->gc_obj_mark_offsets, repr_data->name_to_index_mapping, repr_data->initialize_slots, repr_data->gc_mark_slots, repr_data->gc_cleanup_slots);
+    fprintf(stderr, "\n");
+
     if (total_attrs) {
         repr_data->attribute_offsets     = (MVMuint16 *)((char *)allocated_repr_blob + (ptrdiff_t)repr_data->attribute_offsets);
         repr_data->flattened_stables     = (MVMSTable **)((char *)allocated_repr_blob + (ptrdiff_t)repr_data->flattened_stables);
@@ -884,6 +966,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     repr_data->initialize_slots[cur_init_slot] = -1;
     repr_data->gc_mark_slots[cur_mark_slot] = -1;
     repr_data->gc_cleanup_slots[cur_cleanup_slot] = -1;
+
+    hexDump(NULL, allocated_repr_blob, needed_space);
 
     /* Add storage spec */
     mk_storage_spec(tc, repr_data, &repr_data->storage_spec);
@@ -1104,6 +1188,9 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->fsa_allocated_bytes = needed_space;
 
     fprintf(stderr, "for a P6opaque with %4d num_attributes, we'll build a blob of size %4d (deserialized)\n", repr_data->num_attributes, needed_space);
+    fprintf(stderr, "offsets: %4x %4x %4x %4x %4x %4x %4x %4x\n",
+            repr_data->attribute_offsets, repr_data->flattened_stables, repr_data->auto_viv_values, repr_data->gc_obj_mark_offsets, repr_data->name_to_index_mapping, repr_data->initialize_slots, repr_data->gc_mark_slots, repr_data->gc_cleanup_slots);
+    fprintf(stderr, "\n");
 
     if (repr_data->num_attributes) {
         repr_data->attribute_offsets     = (MVMuint16 *)((char *)allocated_repr_blob + (ptrdiff_t)repr_data->attribute_offsets);
@@ -1214,6 +1301,8 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->initialize_slots[cur_initialize_slot] = -1;
     repr_data->gc_mark_slots[cur_gc_mark_slot] = -1;
     repr_data->gc_cleanup_slots[cur_gc_cleanup_slot] = -1;
+
+    hexDump(NULL, allocated_repr_blob, needed_space);
 
     mk_storage_spec(tc, repr_data, &repr_data->storage_spec);
 
