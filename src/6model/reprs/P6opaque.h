@@ -98,6 +98,8 @@ struct MVMP6opaqueREPRData {
 
     /* Hold the storage spec */
     MVMStorageSpec storage_spec;
+
+    size_t fsa_allocated_bytes;
 };
 
 /* Function for REPR setup. */
