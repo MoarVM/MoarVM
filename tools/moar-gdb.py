@@ -43,6 +43,8 @@ import random
 #import blessings
 import sys
 
+import traceback # debugging
+
 # These are the flags from MVMString's body.flags
 str_t_info = {0: 'blob_32',
               1: 'blob_ascii',
@@ -164,7 +166,7 @@ class MVMStringPPrinter(object):
             data = self.val['body']['storage'][stringtyp]
             i = 0
             pieces = []
-            graphs = self.val['body']['num_graphs']
+            graphs = int(self.val['body']['num_graphs'])
             # XXX are the strings actually null-terminated, or do we have to
             # XXX check the graphs attribute?
             for i in range(graphs):
@@ -252,9 +254,9 @@ def show_histogram(hist, sort="value", multiply=False):
         print("(empty histogram)")
         return
     if sort == "value":
-        items = sorted(list(hist.iteritems()), key = lambda k, v: -v)
+        items = sorted(list(hist.items()), key = lambda vals: -vals[1])
     elif sort == "key":
-        items = sorted(list(hist.iteritems()), key = lambda k, v: k)
+        items = sorted(list(hist.items()), key = lambda vals: vals[0])
     else:
         print("sorting mode", sort, "not implemented")
     maximum = max(hist.values())
@@ -293,7 +295,7 @@ def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
     max_val = 0
     max_key = 0
     longest_key = ""
-    for k,v in chain(hist_before.iteritems(), hist_after.iteritems()):
+    for k,v in chain(hist_before.items(), hist_after.items()):
         max_hist[k] = max(max_hist[k], v)
         min_hist[k] = min(max_hist[k], v)
         max_val = max(max_val, v)
@@ -304,9 +306,9 @@ def diff_histogram(hist_before, hist_after, sort="value", multiply=False):
         zip_hist[k] = (hist_before[k], hist_after[k])
 
     if sort == "value":
-        items = sorted(list(zip_hist.iteritems()), key = lambda vals: -max(vals[1][0], vals[1][1]))
+        items = sorted(list(zip_hist.items()), key = lambda vals: -max(vals[1][0], vals[1][1]))
     elif sort == "key":
-        items = sorted(list(zip_hist.iteritems()), key = lambda vals: vals[0])
+        items = sorted(list(zip_hist.items()), key = lambda vals: vals[0])
     else:
         print("sorting mode", sort, "not implemented")
 
@@ -542,7 +544,6 @@ class Gen2Data(CommonHeapData):
         self.size_histogram = defaultdict(int)
 
     def analyze(self, tc):
-        print("tryign to analyze gen2data");
         if int(self.g2sc['pages'].cast(gdb.lookup_type("int"))) == 0:
             self.empty = True
             return
@@ -553,8 +554,6 @@ class Gen2Data(CommonHeapData):
         self.pagebuckets = pagebuckets
 
         self.cur_page = int(self.g2sc['cur_page'])
-
-        print("current page:", self.cur_page);
 
         # we need to make sure we don't accidentally run into free_list'd slots
         # that's why we just collect addresses up front and sample them later on.
@@ -624,8 +623,9 @@ class Gen2Data(CommonHeapData):
                 reached = 101
             except Exception as e:
                 print("while trying to analyze single object:");
-                print(e)
+                traceback.print_exc()
                 print(stooge)
+                print(stooge.__repr__())
                 print(reached)
 
         #if len(doubles) > 10:
@@ -636,7 +636,6 @@ class Gen2Data(CommonHeapData):
         if self.empty:
             print("(unallocated)")
             return
-        print("setting up stuff")
         cols_per_block = int(math.sqrt(MVM_GEN2_PAGE_ITEMS))
         lines_per_block = cols_per_block // 2
         outlines = [[] for i in range(lines_per_block + 1)]
@@ -669,7 +668,7 @@ class Gen2Data(CommonHeapData):
                     outlines[-line_num - 1].append(" ")
 
 
-        print((u"\n".join(map(lambda l: u"".join(l), outlines))).encode("utf8"))
+        print((u"\n".join(map(lambda l: u"".join(l), outlines))))
         if fullpages > 0:
             print("(and", fullpages, "completely filled pages)",)
         if self.cur_page < len(self.pagebuckets):
@@ -752,15 +751,9 @@ class AnalyzeHeapCommand(gdb.Command):
         instance = tc['instance']
         generation = instance['gc_seq_number']
 
-        print("building nursery");
-
         nursery = NurseryData(generation, tc['nursery_tospace'], tc['nursery_alloc_limit'], tc['nursery_alloc'])
 
-        print("analyzing nursery");
-
         nursery.analyze(tc)
-
-        print("appending to memory");
 
         nursery_memory.append(nursery)
 
@@ -768,19 +761,12 @@ class AnalyzeHeapCommand(gdb.Command):
 
         sizeclass_data = []
         for sizeclass in range(MVM_GEN2_BINS):
-            print("making gen2data for ", sizeclass);
             g2sc = Gen2Data(generation, tc['gen2']['size_classes'][sizeclass], sizeclass)
-            print("appending data");
             sizeclass_data.append(g2sc)
-            print("analyzing");
             g2sc.analyze(tc)
 
-        print("done making gen2data");
-
-        print("making overflow data");
         overflowdata = OverflowData(generation)
 
-        print("analyzing overflow data");
         overflowdata.analyze(tc)
 
         for g2sc in sizeclass_data:
