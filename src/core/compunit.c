@@ -121,3 +121,93 @@ MVMuint32 MVM_cu_string_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMString *st
 
     return idx;
 }
+
+/* Used when we try to read a string from the string heap, but it's not there.
+ * Decodes it "on-demand" and stores it in the string heap. */
+static MVMuint32 read_uint32(MVMuint8 *src) {
+#ifdef MVM_BIGENDIAN
+    MVMuint32 value;
+    size_t i;
+    MVMuint8 *destbytes = (MVMuint8 *)&value;
+    for (i = 0; i < 4; i++)
+         destbytes[4 - i - 1] = src[i];
+    return value;
+#else
+    return *((MVMuint32 *)src);
+#endif
+}
+static void compute_fast_table_upto(MVMThreadContext *tc, MVMCompUnit *cu, MVMuint32 end_bin) {
+    MVMuint32  cur_bin = cu->body.string_heap_fast_table_top;
+    MVMuint8  *cur_pos = cu->body.string_heap_start + cu->body.string_heap_fast_table[cur_bin];
+    MVMuint8  *limit   = cu->body.string_heap_read_limit;
+    while (cur_bin < end_bin) {
+        MVMuint32 i;
+        for (i = 0; i < MVM_STRING_FAST_TABLE_SPAN; i++) {
+            if (cur_pos + 4 < limit) {
+                MVMuint32 bytes = read_uint32(cur_pos) >> 1;
+                cur_pos += 4 + bytes + (bytes & 3 ? 4 - (bytes & 3) : 0);
+            }
+            else {
+                MVM_exception_throw_adhoc(tc,
+                    "Attempt to read past end of string heap when locating string");
+            }
+        }
+        cur_bin++;
+        cu->body.string_heap_fast_table[cur_bin] = (MVMuint32)
+            (cur_pos - cu->body.string_heap_start);
+    }
+    MVM_barrier();
+    cu->body.string_heap_fast_table_top = end_bin;
+}
+MVMString * MVM_cu_obtain_string(MVMThreadContext *tc, MVMCompUnit *cu, MVMuint32 idx) {
+    MVMuint32  cur_idx;
+    MVMuint8  *cur_pos;
+    MVMuint8  *limit = cu->body.string_heap_read_limit;
+
+    /* Make sure we've enough entries in the fast table to jump close to where
+     * the string will be. */
+    MVMuint32 fast_bin = idx / MVM_STRING_FAST_TABLE_SPAN;
+    if (fast_bin > cu->body.string_heap_fast_table_top)
+        compute_fast_table_upto(tc, cu, fast_bin);
+
+    /* Scan from that position to find the string we need. */
+    cur_idx = fast_bin * MVM_STRING_FAST_TABLE_SPAN;
+    cur_pos = cu->body.string_heap_start + cu->body.string_heap_fast_table[fast_bin];
+    while (cur_idx != idx) {
+        if (cur_pos + 4 < limit) {
+            MVMuint32 bytes = read_uint32(cur_pos) >> 1;
+            cur_pos += 4 + bytes + (bytes & 3 ? 4 - (bytes & 3) : 0);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc,
+                "Attempt to read past end of string heap when locating string");
+        }
+        cur_idx++;
+    }
+
+    /* Read the string. */
+    if (cur_pos + 4 < limit) {
+        MVMuint32 ss = read_uint32(cur_pos);
+        MVMuint32 bytes = ss >> 1;
+        MVMuint32 decode_utf8 = ss & 1;
+        cur_pos += 4;
+        if (cur_pos + bytes < limit) {
+            MVMString *s;
+            MVM_gc_allocate_gen2_default_set(tc);
+            s = decode_utf8
+                ? MVM_string_utf8_decode(tc, tc->instance->VMString, (char *)cur_pos, bytes)
+                : MVM_string_latin1_decode(tc, tc->instance->VMString, (char *)cur_pos, bytes);
+            MVM_ASSIGN_REF(tc, &(cu->common.header), cu->body.strings[idx], s);
+            MVM_gc_allocate_gen2_default_clear(tc);
+            return s;
+        }
+        else {
+            MVM_exception_throw_adhoc(tc,
+                "Attempt to read past end of string heap when reading string");
+        }
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Attempt to read past end of string heap when reading string length");
+    }
+}
