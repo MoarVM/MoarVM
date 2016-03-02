@@ -71,7 +71,7 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
         /* Add line number and file name. */
         if (fshi >= 0 && fshi < pcn->sf->body.cu->body.num_strings)
             MVM_repr_bind_key_o(tc, node_hash, pds->file,
-                box_s(tc, pcn->sf->body.cu->body.strings[fshi]));
+                box_s(tc, MVM_cu_string(tc, pcn->sf->body.cu, fshi)));
         else if (pcn->sf->body.cu->body.filename)
             MVM_repr_bind_key_o(tc, node_hash, pds->file,
                 box_s(tc, pcn->sf->body.cu->body.filename));

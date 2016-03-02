@@ -192,7 +192,8 @@ static void literal_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
             tgt_facts->value.i = ins->operands[1].lit_i16;
             break;
         case MVM_OP_const_s:
-            tgt_facts->value.s   = g->sf->body.cu->body.strings[ins->operands[1].lit_str_idx];
+            tgt_facts->value.s = MVM_cu_string(tc, g->sf->body.cu,
+                ins->operands[1].lit_str_idx);
             break;
         default:
             return;

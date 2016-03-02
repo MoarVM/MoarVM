@@ -104,7 +104,7 @@ MVMuint32 MVM_cu_string_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMString *st
     /* See if we already know this string; only consider those added already by
      * inline, since we don't intern and don't want this to be costly to hunt. */
     for (idx = cu->body.orig_strings; idx < cu->body.num_strings; idx++)
-        if (cu->body.strings[idx] == str) {
+        if (MVM_cu_string(tc, cu, idx) == str) {
             found = 1;
             break;
         }

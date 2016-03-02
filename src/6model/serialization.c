@@ -1474,7 +1474,7 @@ static MVMString * read_string_from_heap(MVMThreadContext *tc, MVMSerializationR
             return NULL;
         idx--;
         if (idx < cu->body.num_strings)
-            return cu->body.strings[idx];
+            return MVM_cu_string(tc, cu, idx);
         else
             fail_deserialize(tc, reader,
                 "Attempt to read past end of compilation unit string heap (index %d)", idx);

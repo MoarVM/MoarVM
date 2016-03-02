@@ -37,7 +37,7 @@ void MVM_spesh_use_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *
 
 /* Obtains a string constant. */
 MVMString * MVM_spesh_get_string(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
-    return g->sf->body.cu->body.strings[o.lit_str_idx];
+    return MVM_cu_string(tc, g->sf->body.cu, o.lit_str_idx);
 }
 
 /* Copy facts between two register operands. */

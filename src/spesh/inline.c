@@ -159,7 +159,7 @@ static void fix_coderef(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 static void fix_str(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     MVMSpeshGraph *inlinee, MVMSpeshOperand *to_fix) {
     to_fix->lit_str_idx = MVM_cu_string_add(tc, inliner->sf->body.cu,
-        inlinee->sf->body.cu->body.strings[to_fix->lit_str_idx]);
+        MVM_cu_string(tc, inlinee->sf->body.cu, to_fix->lit_str_idx));
 }
 static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                      MVMSpeshGraph *inlinee, MVMSpeshIns *to_fix) {

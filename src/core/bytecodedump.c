@@ -69,7 +69,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     for (k = 0; k < cu->body.num_scs; k++) {
         char *tmpstr = MVM_string_utf8_encode_C_string(
-            tc, cu->body.strings[cu->body.sc_handle_idxs[k]]);
+            tc, MVM_cu_string(tc, cu, cu->body.sc_handle_idxs[k]));
         a("  SC_%u : %s\n", k, tmpstr);
         MVM_free(tmpstr);
     }
@@ -276,7 +276,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                     case MVM_operand_str:
                         operand_size = 4;
                         tmpstr = MVM_string_utf8_encode_C_string(
-                            tc, cu->body.strings[GET_UI32(cur_op, 0)]);
+                            tc, MVM_cu_string(tc, cu, GET_UI32(cur_op, 0)));
                         /* XXX C-string-literal escape the \ and '
                             and line breaks and non-ascii someday */
                         a("'%s'", tmpstr);
@@ -365,9 +365,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             if (annotations[j]) {
 				MVMuint16 shi = GET_UI16(frame->body.annotations_data + 4, (annotations[j] - 1)*12);
                 tmpstr = MVM_string_utf8_encode_C_string(
-                    tc, cu->body.strings[
-						shi < cu->body.num_strings ? shi : 0
-					]);
+                    tc, MVM_cu_string(tc, cu, shi < cu->body.num_strings ? shi : 0));
                 a("     annotation: %s:%u\n", tmpstr, GET_UI32(frame->body.annotations_data, (annotations[j] - 1)*12 + 8));
                 MVM_free(tmpstr);
             }

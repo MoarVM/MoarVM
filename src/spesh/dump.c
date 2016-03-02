@@ -221,7 +221,8 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             appendf(ds, "litn64(%g)", cur_ins->operands[i].lit_n64);
                             break;
                         case MVM_operand_str: {
-                            char *cstr = MVM_string_utf8_encode_C_string(tc, g->sf->body.cu->body.strings[cur_ins->operands[i].lit_str_idx]);
+                            char *cstr = MVM_string_utf8_encode_C_string(tc,
+                                MVM_cu_string(tc, g->sf->body.cu, cur_ins->operands[i].lit_str_idx));
                             appendf(ds, "lits(%s)", cstr);
                             MVM_free(cstr);
                             break;
@@ -246,7 +247,8 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             append(ds, "coderef(");
 
                             if (anno) {
-                                char *filestr = MVM_string_utf8_encode_C_string(tc, g->sf->body.cu->body.strings[anno->filename_string_heap_index]);
+                                char *filestr = MVM_string_utf8_encode_C_string(tc,
+                                    MVM_cu_string(tc, g->sf->body.cu, anno->filename_string_heap_index));
                                 appendf(ds, "%s:%d%s)", filestr, anno->line_number, body->outer ? " (closure)" : "");
                                 MVM_free(filestr);
                             } else {
@@ -483,7 +485,7 @@ static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     MVMString        *filename = cu->body.filename;
     char        *filename_utf8 = "<unknown>";
     if (ann && str_idx < cu->body.num_strings) {
-        filename = cu->body.strings[str_idx];
+        filename = MVM_cu_string(tc, cu, str_idx);
     }
     if (filename)
         filename_utf8 = MVM_string_utf8_encode_C_string(tc, filename);

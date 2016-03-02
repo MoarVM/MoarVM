@@ -295,8 +295,8 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
     MVMuint32 line_number = annot ? annot->line_number : 1;
     MVMuint16 string_heap_index = annot ? annot->filename_string_heap_index : 0;
     char *tmp1 = annot && string_heap_index < cur_frame->static_info->body.cu->body.num_strings
-        ? MVM_string_utf8_encode_C_string(tc,
-            cur_frame->static_info->body.cu->body.strings[string_heap_index])
+        ? MVM_string_utf8_encode_C_string(tc, MVM_cu_string(tc,
+                cur_frame->static_info->body.cu, string_heap_index))
         : NULL;
 
     char *filename_c = filename
@@ -375,10 +375,10 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
         /* file */
         if (fshi >= 0 && fshi < cur_frame->static_info->body.cu->body.num_strings)
             value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
-                        cur_frame->static_info->body.cu->body.strings[fshi]);
+                MVM_cu_string(tc, cur_frame->static_info->body.cu, fshi));
         else
             value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
-                        cur_frame->static_info->body.cu->body.filename);
+                cur_frame->static_info->body.cu->body.filename);
         MVM_repr_bind_key_o(tc, annotations, k_file, value);
 
         /* line */

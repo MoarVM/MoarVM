@@ -121,14 +121,13 @@ MVM_STATIC_INLINE void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, Re
 /* Reads a string index, looks up the string and returns it. Bounds
  * checks the string heap index too. */
 static MVMString * get_heap_string(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, MVMuint8 *buffer, size_t offset) {
-    MVMCompUnitBody *cu_body = &cu->body;
     MVMuint32 heap_index = read_int32(buffer, offset);
-    if (heap_index >= cu_body->num_strings) {
+    if (heap_index >= cu->body.num_strings) {
         if (rs)
             cleanup_all(tc, rs);
         MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
     }
-    return cu_body->strings[heap_index];
+    return MVM_cu_string(tc, cu, heap_index);
 }
 
 /* Dissects the bytecode stream and hands back a reader pointing to the
@@ -322,7 +321,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
             MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
         }
         cu_body->sc_handle_idxs[i] = sh_idx;
-        handle = cu_body->strings[sh_idx];
+        handle = MVM_cu_string(tc, cu, sh_idx);
 
         /* See if we can resolve it. */
         uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
@@ -375,7 +374,7 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
             MVM_exception_throw_adhoc(tc,
                     "String heap index beyond end of string heap");
         }
-        extops[i].name = cu->body.strings[name_idx];
+        extops[i].name = MVM_cu_string(tc, cu, name_idx);
 
         /* Read operand descriptor. */
         ensure_can_read(tc, cu, rs, pos, 8);
@@ -913,7 +912,8 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     cu_body->orig_callsites = rs->expected_callsites;
 
     /* Resolve HLL name. */
-    MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->hll_name, cu_body->strings[rs->hll_str_idx]);
+    MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->hll_name,
+        MVM_cu_string(tc, cu, rs->hll_str_idx));
 
     /* Resolve special frames. */
     if (rs->main_frame)

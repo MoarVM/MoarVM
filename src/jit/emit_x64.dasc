@@ -334,7 +334,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
          MVMint16 reg = ins->operands[0].reg.orig;
          MVMuint32 idx = ins->operands[1].lit_str_idx;
          MVMStaticFrame *sf = jg->sg->sf;
-         MVMString * s = sf->body.cu->body.strings[idx];
+         MVMString * s = MVM_cu_string(tc, sf->body.cu, idx);
          if (!try_emit_gen2_ref(tc, jg, (MVMObject*)s, reg, Dst)) {
              | get_string TMP1, idx;
              | mov WORK[reg], TMP1;
@@ -2366,4 +2366,3 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         MVM_panic(1, "Unknown conrtol code: <%s>", ctrl->ins->info->name);
     }
 }
-
