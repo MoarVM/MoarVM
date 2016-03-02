@@ -54,7 +54,7 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 }
 
 MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    MVMCallsite      *res   = MVM_malloc(sizeof(MVMCallsite));
+    MVMCallsite      *res   = MVM_calloc(sizeof(MVMCallsite), 1);
     MVMCallsiteEntry *flags = NULL;
     MVMCallsiteEntry *src_flags;
     MVMint32 fsize;
@@ -76,8 +76,6 @@ MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ct
     res->arg_flags = flags;
     res->arg_count = ctx->arg_count;
     res->num_pos   = ctx->num_pos;
-    res->has_flattening = 0;
-    res->is_interned = 0;
     return res;
 }
 
