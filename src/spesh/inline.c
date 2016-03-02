@@ -59,6 +59,10 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     if (target->body.sf == inliner->sf)
         return NULL;
 
+    /* Ensure they're from the same HLL. */
+    if (target->body.sf->body.cu->body.hll_config != inliner->sf->body.cu->body.hll_config)
+        return NULL;
+
     /* Ensure the candidate isn't still logging. */
     if (cand->sg)
         return NULL;
