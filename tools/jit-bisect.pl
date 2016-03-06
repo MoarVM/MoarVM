@@ -7,7 +7,10 @@ use strict;
 my $interpreter = 'perl6';
 my $test;
 my @libs;
+
+# readable output
 local $\ = "\n";
+local $, = " ";
 
 
 GetOptions(
@@ -48,7 +51,7 @@ if ($code == 0) {
 }
 
 open my $frame_map_fh, '<', "$bytecode_dir/jit-map.txt";
-my %frame_map = map {  split /\t/; } <$frame_map_fh>;
+my %frame_map = map { my @a = split /\s/; $a[0] => "$a[1] $a[2]" } <$frame_map_fh>;
 close $frame_map_fh;
 
 my $num_frames = scalar keys %frame_map;
@@ -70,4 +73,7 @@ while (($max - $min) > 1) {
         $max = $mid;
     }
 }
+
 print "Breaks at frame $mid";
+my $frame_file = sprintf("%s/moar-jit-%04d.bin", $bytecode_dir, $mid);
+print $frame_file, $frame_map{$frame_file};
