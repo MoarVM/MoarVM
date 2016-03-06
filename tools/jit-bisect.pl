@@ -1,7 +1,9 @@
 #!/usr/bin/env perl
+use FindBin;
 use Getopt::Long;
 use File::Temp 'tempdir';
 use File::Spec;
+use File::Copy;
 use strict;
 
 my $interpreter = 'perl6';
@@ -39,14 +41,17 @@ my $bytecode_dir = tempdir();
 $ENV{'MVM_JIT_BYTECODE_DIR'} = $bytecode_dir;
 my @command = ('prove', '-e', $interpreter, (@libs ? '-I' : ''), @libs, $test);
 
-# do initial run
+# clone stdout, stderr
 open my $stdout, '>&', STDOUT;
 open my $stderr, '>&', STDERR;
+
+# silence prove
 close STDOUT;
 close STDERR;
 open STDOUT, '>', '/dev/null';
 open STDERR, '>', '/dev/null';
 
+# do initial run
 my $code = system @command;
 if ($code == 0) {
     print $stdout "Test is OK\n";
@@ -60,6 +65,7 @@ close $frame_map_fh;
 my $num_frames = scalar keys %frame_map;
 print $stdout "$num_frames compiled in test\n";
 
+# don't write more bytecode files
 $ENV{'MVM_JIT_BYTECODE_DIR'} = '';
 
 my $min = 1;
@@ -114,3 +120,33 @@ while (($max - $min) > 1) {
 }
 my $basic_block_nr = $max;
 print $stdout "Broken basic block nr $basic_block_nr of frame $frame_nr\n";
+
+# now, for a final trick
+print $stdout "Acquiring code diff...\n";
+$ENV{'MVM_JIT_BYTECODE_DIR'} = $bytecode_dir;
+$ENV{'MVM_JIT_EXPR_LAST_BB'} = $basic_block_nr;
+$ENV{'MVM_JIT_LOG'}          = 'broken-log.txt';
+# get the broken file
+system @command;
+copy($frame_file, 'broken-frame.bin');
+$ENV{'MVM_JIT_EXPR_LAST_BB'} = $basic_block_nr - 1;
+$ENV{'MVM_JIT_LOG'}          = 'working-log.txt';
+# and the working file
+system @command;
+copy($frame_file, 'working-frame.bin');
+
+# disassemble and make comparable
+close STDOUT;
+open STDOUT, '>', "broken-frame.asm";
+system qw(objdump -b binary -D -m i386 -M x86-64,intel broken-frame.bin);
+close STDOUT;
+
+open STDOUT, '>', "working-frame.asm";
+system qw(objdump -b binary -D -m i386 -M x86-64,intel working-frame.bin);
+close STDOUT;
+
+my $script = "$FindBin::Bin/jit-comparify-asm.pl";
+open STDOUT, '>', '/dev/null';
+
+system $^X, '-i', $script, "broken-frame.asm";
+system $^X, '-i', $script, "working-frame.asm";
