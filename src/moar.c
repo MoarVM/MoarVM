@@ -67,7 +67,7 @@ static FILE *fopen_perhaps_with_pid(char *path, const char *mode) {
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
     char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable, *spesh_osr_disable;
-    char *jit_log, *jit_expr_enable, *jit_disable, *jit_bytecode_dir;
+    char *jit_log, *jit_expr_enable, *jit_disable, *jit_bytecode_dir, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
 
@@ -210,7 +210,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     if (!jit_disable || strlen(jit_disable) == 0)
         instance->jit_enabled = 1;
     jit_expr_enable = getenv("MVM_JIT_EXPR_ENABLE");
-    if (jit_expr_enable && strlen(jit_expr_enable) > 0)
+    if (jit_expr_enable && atoi(jit_expr_enable) > 0)
         instance->jit_expr_enabled = 1;
 
     jit_log = getenv("MVM_JIT_LOG");
@@ -224,6 +224,12 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->jit_bytecode_dir = jit_bytecode_dir;
         MVM_free(bytecode_map_name);
     }
+    jit_last_frame = getenv("MVM_JIT_EXPR_LAST_FRAME");
+    jit_last_bb    = getenv("MVM_JIT_EXPR_LAST_BB");
+
+    /* what could possibly go wrong in integer formats? */
+    instance->jit_expr_last_frame = jit_last_frame != NULL ? atoi(jit_last_frame) : -1;
+    instance->jit_expr_last_bb    =    jit_last_bb != NULL ? atoi(jit_last_bb) : -1;
     instance->jit_seq_nr = 0;
 
     /* Various kinds of debugging that can be enabled. */

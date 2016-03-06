@@ -2654,9 +2654,8 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
 /* Partial copy of before_ins because before_expr is expected to handle fewer cases */
 static void before_expr(MVMThreadContext *tc, MVMJitGraph *jg,  MVMSpeshIterator *iter) {
     MVMSpeshAnn *ann;
-    /* Skip PHI nodes - XXX I rely on PHI nodes not being annotated in a
-     * meaningful way, which has been true up to now, but which is not really a
-     * bulletproof assumption */
+    /* Skip PHI nodes - NB PHI nodes usually have no annotation - if they do,
+     * we'll miss them */
     MVM_spesh_iterator_skip_phi(tc, iter);
     if (!iter->ins)
         return;
@@ -2680,13 +2679,18 @@ static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
     /* We always append a label update at the start of a basic block for now.
      * This may be more than is actually needed, but it's safe. The problem is
      * that a jump can move us out of the scope of an exception hander, and so
-     * we need a location update. This came to light in the case that we left
-     * an inline (which is a jump) and came back to a region where a handler
-     * should be in force, and it failed to be. */
+     * we need a location update. This came to light in the case that we left an
+     * inline (which is a jump) and came back to a region where a handler should
+     * be in force, and it failed to be. */
     jg_append_control(tc, jg, bb->first_ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
 
     /* Try to create an expression tree */
-    if (tc->instance->jit_expr_enabled) {
+    if (tc->instance->jit_expr_enabled &&
+        (tc->instance->jit_expr_last_frame < 0 ||
+         tc->instance->jit_seq_nr < tc->instance->jit_expr_last_frame ||
+         (tc->instance->jit_seq_nr == tc->instance->jit_expr_last_frame &&
+          (tc->instance->jit_expr_last_bb < 0 ||
+           iter->bb->idx <= tc->instance->jit_expr_last_bb)))) {
         while (iter->ins) {
             /* handle pre-tree issues like deopt labels; this *would* conflict
              * with before_ins, but appending a label (in the same spot) is
