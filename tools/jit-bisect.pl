@@ -8,10 +8,6 @@ my $interpreter = 'perl6';
 my $test;
 my @libs;
 
-# readable output
-local $\ = "\n";
-local $, = " ";
-
 
 GetOptions(
     'test=s' => \$test,
@@ -41,12 +37,19 @@ unless (@libs) {
 
 my $bytecode_dir = tempdir();
 $ENV{'MVM_JIT_BYTECODE_DIR'} = $bytecode_dir;
-my @command = ('prove', '-Q', '-e', $interpreter, (@libs ? '-I' : ''), @libs, $test);
+my @command = ('prove', '-e', $interpreter, (@libs ? '-I' : ''), @libs, $test);
 
 # do initial run
+open my $stdout, '>&', STDOUT;
+open my $stderr, '>&', STDERR;
+close STDOUT;
+close STDERR;
+open STDOUT, '>', '/dev/null';
+open STDERR, '>', '/dev/null';
+
 my $code = system @command;
 if ($code == 0) {
-    print "Test is OK";
+    print $stdout "Test is OK\n";
     exit;
 }
 
@@ -55,6 +58,7 @@ my %frame_map = map { my @a = split /\s/; $a[0] => "$a[1] $a[2]" } <$frame_map_f
 close $frame_map_fh;
 
 my $num_frames = scalar keys %frame_map;
+print $stdout "$num_frames compiled in test\n";
 
 $ENV{'MVM_JIT_BYTECODE_DIR'} = '';
 
@@ -64,16 +68,49 @@ my $mid;
 while (($max - $min) > 1) {
     $mid = int(($max + $min) / 2);
     $ENV{'MVM_JIT_EXPR_LAST_FRAME'} = $mid;
-    print "Testing up to $mid frames";
+    print $stdout "Testing up to $mid frames....";
     my $code = system @command;
     if ($code == 0) {
         # ok
+        print $stdout "OK\n";
         $min = $mid;
     } else {
+        print $stdout "Broken\n";
         $max = $mid;
     }
 }
+my $frame_nr = $max;
+print $stdout "Broken at frame $frame_nr\n";
+my $frame_file = sprintf("%s/moar-jit-%04d.bin", $bytecode_dir, $frame_nr);
 
-print "Breaks at frame $mid";
-my $frame_file = sprintf("%s/moar-jit-%04d.bin", $bytecode_dir, $mid);
-print $frame_file, $frame_map{$frame_file};
+print $stdout $frame_file, $frame_map{$frame_file}, "\n";
+
+
+# exponential probing of breaking basic block
+$ENV{'MVM_JIT_EXPR_LAST_FRAME'} = $max;
+my $code = 0;
+$min = 1;
+do {
+    $ENV{'MVM_JIT_EXPR_LAST_BB'} = $min;
+    print $stdout "Probing $min basic blocks\n";
+    $code = system @command;
+    $min *= 2 if $code == 0;
+} while ($code == 0);
+
+$max = $min;
+$min = $min / 2;
+while (($max - $min) > 1) {
+    $mid = int(($max + $min) / 2);
+    $ENV{'MVM_JIT_EXPR_LAST_BB'} = $mid;
+    print $stdout "Testing $mid basic blocks...";
+    $code = system @command;
+    if ($code == 0) {
+        print $stdout "OK\n";
+        $min = $mid;
+    } else {
+        print $stdout "Broken\n";
+        $max = $mid;
+    }
+}
+my $basic_block_nr = $max;
+print $stdout "Broken basic block nr $basic_block_nr of frame $frame_nr\n";
