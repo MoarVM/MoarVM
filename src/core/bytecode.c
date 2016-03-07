@@ -249,49 +249,6 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     return rs;
 }
 
-/* Loads the string heap. */
-static MVMString ** deserialize_strings(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
-    MVMString **strings;
-    MVMuint8   *pos;
-    MVMuint32   i, ss;
-
-    /* Allocate space for strings list. */
-    if (rs->expected_strings == 0)
-        return NULL;
-    strings = MVM_malloc(sizeof(MVMString *) * rs->expected_strings);
-
-    /* Load strings. */
-    pos = rs->string_seg;
-    for (i = 0; i < rs->expected_strings; i++) {
-        MVMint32 decode_utf8 = 1;
-
-        /* Ensure we can read at least a string size here and do so. */
-        ensure_can_read(tc, cu, rs, pos, 4);
-        ss = read_int32(pos, 0);
-        pos += 4;
-
-        /* At high enough bytecode file versions, the LSB on this number
-         * is 1 if we should decode as UTF-8, and 0 if Latin-1 will do. */
-        if (rs->version >= 5) {
-            decode_utf8 = ss & 1;
-            ss = ss >> 1;
-        }
-
-        /* Ensure we can read in the string of this size, and decode
-         * it if so. */
-        ensure_can_read(tc, cu, rs, pos, ss);
-        MVM_ASSIGN_REF(tc, &(cu->common.header), strings[i], decode_utf8
-            ? MVM_string_utf8_decode(tc, tc->instance->VMString, (char *)pos, ss)
-            : MVM_string_latin1_decode(tc, tc->instance->VMString, (char *)pos, ss));
-        pos += ss;
-
-        /* Add alignment. */
-        pos += ss & 3 ? 4 - (ss & 3) : 0;
-    }
-
-    return strings;
-}
-
 /* Loads the SC dependencies list. */
 static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
     MVMCompUnitBody *cu_body = &cu->body;
@@ -887,10 +844,15 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Dissect the bytecode into its parts. */
     rs = dissect_bytecode(tc, cu);
 
-    /* Load the strings heap. */
-    cu_body->strings = deserialize_strings(tc, cu, rs);
+    /* Allocate space for the strings heap; we deserialize it lazily. */
+    cu_body->strings = MVM_calloc(rs->expected_strings, sizeof(MVMString *));
     cu_body->num_strings = rs->expected_strings;
     cu_body->orig_strings = rs->expected_strings;
+    cu_body->string_heap_fast_table = MVM_calloc(
+        (rs->expected_strings / MVM_STRING_FAST_TABLE_SPAN) + 1,
+        sizeof(MVMuint32));
+    cu_body->string_heap_start = rs->string_seg;
+    cu_body->string_heap_read_limit = rs->read_limit;
 
     /* Load SC dependencies. */
     deserialize_sc_deps(tc, cu, rs);
