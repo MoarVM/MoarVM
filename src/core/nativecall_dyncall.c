@@ -464,6 +464,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     /* Create and set up call VM. */
     DCCallVM *vm = dcNewCallVM(8192);
     dcMode(vm, body->convention);
+    dcReset(vm);
 
     /* Process arguments. */
     for (i = 0; i < num_args; i++) {
