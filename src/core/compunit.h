@@ -8,3 +8,8 @@ MVM_STATIC_INLINE MVMString * MVM_cu_string(MVMThreadContext *tc, MVMCompUnit *c
     MVMString *s = cu->body.strings[idx];
     return s ? s : MVM_cu_obtain_string(tc, cu, idx);
 }
+
+MVM_STATIC_INLINE void MVM_cu_ensure_string_decoded(MVMThreadContext *tc, MVMCompUnit *cu, MVMuint32 idx) {
+    if (!cu->body.strings[idx])
+        MVM_cu_obtain_string(tc, cu, idx);
+}

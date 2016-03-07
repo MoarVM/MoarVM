@@ -194,6 +194,7 @@ const unsigned int MVM_jit_num_globals(void) {
 |.endmacro
 
 |.macro get_string, reg, idx
+|| MVM_cu_ensure_string_decoded(tc, jg->sg->sf->body.cu, idx);
 | mov reg, CU->body.strings;
 | mov reg, STRING:reg[idx];
 |.endmacro
@@ -1331,7 +1332,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint32 str_idx = ins->operands[2].lit_str_idx;
         MVMuint16 ss_idx = ins->operands[3].lit_i16;
         MVMStaticFrame *sf = jg->sg->sf;
-        MVM_cu_string(tc, sf->body.cu, str_idx);
         | get_spesh_slot TMP1, ss_idx;
         | mov TMP2, WORK[obj];
         | mov TMP2, OBJECT:TMP2->st;
