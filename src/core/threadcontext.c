@@ -10,8 +10,8 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     /* Associate with VM instance. */
     tc->instance = instance;
 
-    /* Set up GC nursery. */
-    tc->nursery_fromspace   = MVM_calloc(1, MVM_NURSERY_SIZE);
+    /* Set up GC nursery. We only allocate tospace initially, and allocate
+     * fromspace the first time this thread GCs, provided it ever does. */
     tc->nursery_tospace     = MVM_calloc(1, MVM_NURSERY_SIZE);
     tc->nursery_alloc       = tc->nursery_tospace;
     tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;

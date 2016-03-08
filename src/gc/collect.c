@@ -64,9 +64,13 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         process_worklist(tc, worklist, &wtp, gen);
     }
     else {
-        /* Main collection run. Swap fromspace and tospace. */
-        void * fromspace = tc->nursery_tospace;
-        void * tospace   = tc->nursery_fromspace;
+        /* Main collection run. Swap fromspace and tospace, allocating the
+         * new tospace if that didn't yet happen (we don't allocate it at
+         * startup, to cut memory use for threads that quit before a GC). */
+        void *fromspace = tc->nursery_tospace;
+        void *tospace   = tc->nursery_fromspace;
+        if (!tospace)
+            tospace = MVM_calloc(1, MVM_NURSERY_SIZE);
         tc->nursery_fromspace = fromspace;
         tc->nursery_tospace   = tospace;
 
