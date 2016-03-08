@@ -57,6 +57,10 @@ enum {
     MVM_val_op_boundary   = 2
 };
 
+static MVMStaticFrame * get_frame(MVMThreadContext *tc, MVMCompUnit *cu, int idx) {
+    return ((MVMCode *)cu->body.coderefs[idx])->body.sf;
+}
+
 char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 s = 1024;
     MVMuint32 l = 0;
@@ -112,12 +116,11 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             a("\n");
         }
     }
-
     for (k = 0; k < cu->body.num_frames; k++)
-        MVM_bytecode_finish_frame(tc, cu, cu->body.frames[k], 1);
+        MVM_bytecode_finish_frame(tc, cu, get_frame(tc, cu, k), 1);
 
     for (k = 0; k < cu->body.num_frames; k++) {
-        MVMStaticFrame *frame = cu->body.frames[k];
+        MVMStaticFrame *frame = get_frame(tc, cu, k);
         MVMLexicalRegistry *current, *tmp;
         unsigned bucket_tmp;
         char **lexicals;
@@ -136,7 +139,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         }
     }
     for (k = 0; k < cu->body.num_frames; k++) {
-        MVMStaticFrame *frame = cu->body.frames[k];
+        MVMStaticFrame *frame = get_frame(tc, cu, k);
         char *cuuid;
         char *fname;
         cuuid = MVM_string_utf8_encode_C_string(tc, frame->body.cuuid);
@@ -147,7 +150,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         a("    name : %s\n", fname);
         MVM_free(fname);
         for (j = 0; j < cu->body.num_frames; j++) {
-            if (cu->body.frames[j] == frame->body.outer)
+            if (get_frame(tc, cu, j) == frame->body.outer)
                 a("    outer : Frame_%u\n", j);
         }
 
@@ -320,7 +323,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
                 }
                 /* inefficient, I know. should use a hash. */
                 for (m = 0; m < cu->body.num_frames; m++) {
-                    if (cu->body.frames[m] == applicable_frame) {
+                    if (get_frame(tc, cu, m) == applicable_frame) {
                         a("lex_Frame_%u_%s_%s", m, frame_lexicals[m][idx],
                             get_typename(applicable_frame->body.lexical_types[idx]));
                     }
@@ -392,7 +395,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         }
     }
     for (k = 0; k < cu->body.num_frames; k++) {
-        for (j = 0; j < cu->body.frames[k]->body.num_lexicals; j++) {
+        for (j = 0; j < get_frame(tc, cu, k)->body.num_lexicals; j++) {
             MVM_free(frame_lexicals[k][j]);
         }
         MVM_free(frame_lexicals[k]);

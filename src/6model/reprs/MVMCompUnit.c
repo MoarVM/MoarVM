@@ -42,11 +42,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMCompUnitBody *body = (MVMCompUnitBody *)data;
     MVMuint32 i;
 
-    /* Add code refs and static frames to the worklists. */
-    for (i = 0; i < body->num_frames; i++) {
-        MVM_gc_worklist_add(tc, worklist, &body->frames[i]);
+    /* Add code refs to the worklists. */
+    for (i = 0; i < body->num_frames; i++)
         MVM_gc_worklist_add(tc, worklist, &body->coderefs[i]);
-    }
 
     /* Add extop names to the worklist. */
     for (i = 0; i < body->num_extops; i++)
@@ -86,7 +84,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVM_callsite_destroy(cs);
     }
 
-    MVM_free(body->frames);
     MVM_free(body->coderefs);
     MVM_free(body->callsites);
     MVM_free(body->extops);

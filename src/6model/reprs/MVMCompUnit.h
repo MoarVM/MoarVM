@@ -44,9 +44,7 @@ struct MVMCompUnitBody {
     MVMuint8  *data_start;
     MVMuint32  data_size;
 
-    /* The various static frames in the compilation unit, along with a
-     * code object for each one. */
-    MVMStaticFrame **frames;
+    /* The code objects for each frame, along with counts of frames. */
     MVMObject      **coderefs;
     MVMuint32        num_frames;    /* Total, inc. added by inliner. */
     MVMuint32        orig_frames;   /* Original from loading comp unit. */

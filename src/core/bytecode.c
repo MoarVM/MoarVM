@@ -62,6 +62,9 @@ typedef struct {
     /* The limit we can not read beyond. */
     MVMuint8 *read_limit;
 
+    /* Array of frames. */
+    MVMStaticFrame **frames;
+
     /* Special frame indexes */
     MVMuint32  main_frame;
     MVMuint32  load_frame;
@@ -102,10 +105,8 @@ static MVMuint8 read_int8(MVMuint8 *buffer, size_t offset) {
 
 /* Cleans up reader state. */
 static void cleanup_all(MVMThreadContext *tc, ReaderState *rs) {
-    if (rs->frame_outer_fixups) {
-        MVM_free(rs->frame_outer_fixups);
-        rs->frame_outer_fixups = NULL;
-    }
+    MVM_free(rs->frames);
+    MVM_free(rs->frame_outer_fixups);
     MVM_free(rs);
 }
 
@@ -441,7 +442,7 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
 }
 
 /* Loads the static frame information (what locals we have, bytecode offset,
- * lexicals, etc.) */
+ * lexicals, etc.) and returns a list of them. */
 static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
     MVMStaticFrame **frames;
     MVMuint8        *pos;
@@ -815,7 +816,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
 }
 
 /* Creates code objects to go with each of the static frames. */
-static void create_code_objects(MVMThreadContext *tc, MVMCompUnit *cu) {
+static void create_code_objects(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
     MVMuint32  i;
     MVMObject *code_type;
     MVMCompUnitBody *cu_body = &cu->body;
@@ -826,9 +827,9 @@ static void create_code_objects(MVMThreadContext *tc, MVMCompUnit *cu) {
     for (i = 0; i < cu_body->num_frames; i++) {
         MVMCode *coderef = (MVMCode *)REPR(code_type)->allocate(tc, STABLE(code_type));
         MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->coderefs[i], coderef);
-        MVM_ASSIGN_REF(tc, &(coderef->common.header), coderef->body.sf, cu_body->frames[i]);
-        MVM_ASSIGN_REF(tc, &(coderef->common.header), coderef->body.name, cu_body->frames[i]->body.name);
-        MVM_ASSIGN_REF(tc, &(cu_body->frames[i]->common.header), cu_body->frames[i]->body.static_code, coderef);
+        MVM_ASSIGN_REF(tc, &(coderef->common.header), coderef->body.sf, rs->frames[i]);
+        MVM_ASSIGN_REF(tc, &(coderef->common.header), coderef->body.name, rs->frames[i]->body.name);
+        MVM_ASSIGN_REF(tc, &(rs->frames[i]->common.header), rs->frames[i]->body.static_code, coderef);
     }
 }
 
@@ -862,10 +863,10 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     cu_body->num_extops = rs->expected_extops;
 
     /* Load the static frame info and give each one a code reference. */
-    cu_body->frames = deserialize_frames(tc, cu, rs);
+    rs->frames = deserialize_frames(tc, cu, rs);
     cu_body->num_frames = rs->expected_frames;
     cu_body->orig_frames = rs->expected_frames;
-    create_code_objects(tc, cu);
+    create_code_objects(tc, cu, rs);
 
     /* Load callsites. */
     cu_body->max_callsite_size = MVM_MIN_CALLSITE_SIZE;
@@ -878,12 +879,12 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
         MVM_cu_string(tc, cu, rs->hll_str_idx));
 
     /* Resolve special frames. */
-    if (rs->main_frame)
-        MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->main_frame, cu_body->frames[rs->main_frame - 1]);
+    MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->main_frame,
+        rs->main_frame ? rs->frames[rs->main_frame - 1] : rs->frames[0]);
     if (rs->load_frame)
-        MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->load_frame, cu_body->frames[rs->load_frame - 1]);
+        MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->load_frame, rs->frames[rs->load_frame - 1]);
     if (rs->deserialize_frame)
-        MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->deserialize_frame, cu_body->frames[rs->deserialize_frame - 1]);
+        MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->deserialize_frame, rs->frames[rs->deserialize_frame - 1]);
 
     /* Clean up reader state. */
     cleanup_all(tc, rs);

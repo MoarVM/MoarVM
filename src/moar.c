@@ -279,8 +279,6 @@ static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
 
 /* Loads bytecode from the specified file name and runs it. */
 void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
-    MVMStaticFrame *start_frame;
-
     /* Map the compilation unit into memory and dissect it. */
     MVMThreadContext *tc = instance->main_thread;
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
@@ -297,10 +295,8 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
         }
     });
 
-    /* Run the frame marked main, or if there is none then fall back to the
-     * first frame. */
-    start_frame = cu->body.main_frame ? cu->body.main_frame : cu->body.frames[0];
-    MVM_interp_run(tc, toplevel_initial_invoke, start_frame);
+    /* Run the entry-point frame. */
+    MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame);
 }
 
 /* Loads bytecode from the specified file name and dumps it. */
