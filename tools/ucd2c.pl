@@ -1191,7 +1191,7 @@ sub emit_composition_lookup {
     my $u_table_idx = 0;
     my $entries     = '';
     my $l_tables    = 'static const MVMint32 *comp_l_empty[] = {' . ('NULL,' x 256) . "};\n";
-    my $u_tables    = 'static const MVMint32 **comp_u_empty[] = {' . ('NULL,' x 256) . "};\n";
+    my $u_tables    = 'static const MVMint32 **comp_u_empty[] = {' . ('comp_l_empty,' x 256) . "};\n";
     my $p_table     = 'static const MVMint32 ***comp_p[] = {';
     for (my $p = 0; $p < 17; $p++) {
         unless ($lookup[$p]) {
