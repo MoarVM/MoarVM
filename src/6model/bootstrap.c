@@ -570,6 +570,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(dimensions, "dimensions");
     string_creator(ready, "ready");
     string_creator(multidim, "multidim");
+    string_creator(entry_point, "entry_point");
 }
 
 /* Drives the overall bootstrap process. */

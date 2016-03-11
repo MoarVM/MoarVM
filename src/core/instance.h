@@ -75,6 +75,7 @@ struct MVMStringConsts {
     MVMString *dimensions;
     MVMString *ready;
     MVMString *multidim;
+    MVMString *entry_point;
 };
 
 /* An entry in the representations registry. */

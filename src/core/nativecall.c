@@ -377,6 +377,9 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     char *sym_name = MVM_string_utf8_c8_encode_C_string(tc, sym);
     MVMint16 i;
 
+    MVMObject *entry_point_o = (MVMObject *)MVM_repr_at_key_o(tc, ret_info,
+        tc->instance->str_consts.entry_point);
+
     /* Initialize the object; grab native call part of its body. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
 
@@ -391,13 +394,20 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     }
 
     /* Try to locate the symbol. */
-    body->entry_point = MVM_nativecall_find_sym(body->lib_handle, sym_name);
-    if (!body->entry_point) {
-        char *waste[] = { sym_name, lib_name, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate symbol '%s' in native library '%s'",
-            sym_name, lib_name);
+    if (entry_point_o) {
+        body->entry_point = MVM_nativecall_unmarshal_cpointer(tc, entry_point_o);
+        body->sym_name    = sym_name;
     }
-    body->sym_name = sym_name;
+
+    if (!body->entry_point) {
+        body->entry_point = MVM_nativecall_find_sym(body->lib_handle, sym_name);
+        if (!body->entry_point) {
+            char *waste[] = { sym_name, lib_name, NULL };
+            MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate symbol '%s' in native library '%s'",
+                sym_name, lib_name);
+        }
+        body->sym_name = sym_name;
+    }
 
     /* Set calling convention, if any. */
     body->convention = MVM_nativecall_get_calling_convention(tc, conv);
@@ -492,6 +502,9 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                         result = MVM_nativecall_make_str(tc, target_type, MVM_NATIVECALL_ARG_UTF8STR,
                         (char *)cpointer_body);
                     }
+                    else
+                        MVM_exception_throw_adhoc(tc, "Internal error: unhandled target type");
+
                     break;
                 }
                 case MVM_REPR_ID_P6int: {
