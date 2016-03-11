@@ -67,6 +67,15 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     do_close(tc, data);
 }
 
+/* Get native file descriptor. */
+static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOSyncPipeData *data = (MVMIOSyncPipeData *)h->body.data;
+    uv_os_fd_t fd;
+    if (uv_fileno((uv_handle_t *)data->ss.handle, &fd) >= 0)
+        return (MVMint64)fd;
+    return -1;
+}
+
 /* IO ops table, populated with functions. */
 static const MVMIOClosable     closable      = { closefh };
 static const MVMIOEncodable    encodable     = { MVM_io_syncstream_set_encoding };
@@ -83,6 +92,7 @@ static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_str,
 static const MVMIOSeekable          seekable = { MVM_io_syncstream_seek,
                                                  MVM_io_syncstream_tell };
 static const MVMIOPipeable     pipeable      = { bind_stdio_handle };
+static const MVMIOIntrospection introspection = { NULL, mvm_fileno };
 static const MVMIOOps op_table = {
     &closable,
     &encodable,
@@ -95,7 +105,7 @@ static const MVMIOOps op_table = {
     NULL,
     &pipeable,
     NULL,
-    NULL,
+    &introspection,
     NULL,
     gc_free
 };
