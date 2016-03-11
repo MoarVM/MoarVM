@@ -262,6 +262,7 @@ static MVMint64 is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
     return data->is_tty;
 }
 
+/* Get native file descriptor. */
 static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
     uv_os_fd_t fd;
