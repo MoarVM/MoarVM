@@ -403,6 +403,10 @@ static void dump_log_values(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g)
             append(ds, (char *)STABLE(seen_table[log_index])->REPR->name);
             if (!IS_CONCRETE(seen_table[log_index]))
                 append(ds, "(type object)");
+            if (STABLE(seen_table[log_index])->debug_name) {
+                append(ds, " ");
+                appendf(ds, "%s", STABLE(seen_table[log_index])->debug_name);
+            }
         }
         append(ds, "\n");
     }
@@ -458,19 +462,34 @@ static void dump_arg_guards(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g)
             appendf(ds, "  concrete(%d)\n", guard->slot);
             break;
         case MVM_SPESH_GUARD_TYPE:
-            appendf(ds, "  type(%d, %p)\n", guard->slot, guard->match);
+            appendf(ds, "  type(%d, %p)", guard->slot, guard->match);
+            if (STABLE(guard->match)->debug_name) {
+                fprintf(stderr, "the debug name of something is %p: %s\n", STABLE(guard->match)->debug_name, STABLE(guard->match)->debug_name);
+                appendf(ds, "%s", STABLE(guard->match)->debug_name);
+            }
+            append(ds, "\n");
             break;
         case MVM_SPESH_GUARD_DC_CONC:
             appendf(ds, "  deconted_concrete(%d)\n", guard->slot);
             break;
         case MVM_SPESH_GUARD_DC_TYPE:
-            appendf(ds, "  deconted_type(%d, %p)\n", guard->slot, guard->match);
+            appendf(ds, "  deconted_type(%d, %p)", guard->slot, guard->match);
+            if (STABLE(guard->match)->debug_name) {
+                fprintf(stderr, "the debug name of something is %p: %s\n", STABLE(guard->match)->debug_name, STABLE(guard->match)->debug_name);
+                appendf(ds, "%s", STABLE(guard->match)->debug_name);
+            }
+            append(ds, "\n");
             break;
         case MVM_SPESH_GUARD_DC_CONC_RW:
             appendf(ds, "  deconted_concrete_rw(%d)\n", guard->slot);
             break;
         case MVM_SPESH_GUARD_DC_TYPE_RW:
-            appendf(ds, "  deconted_type_rw(%d, %p)\n", guard->slot, guard->match);
+            appendf(ds, "  deconted_type_rw(%d, %p)", guard->slot, guard->match);
+            if (STABLE(guard->match)->debug_name) {
+                fprintf(stderr, "the debug name of something is %p: %s\n", STABLE(guard->match)->debug_name, STABLE(guard->match)->debug_name);
+                appendf(ds, "%s", STABLE(guard->match)->debug_name);
+            }
+            append(ds, "\n");
             break;
         }
     }

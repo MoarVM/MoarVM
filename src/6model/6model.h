@@ -342,6 +342,10 @@ struct MVMSTable {
     /* Also info we need to lazily deserialize the method cache. */
     MVMuint32                method_cache_offset;
     MVMSerializationContext *method_cache_sc;
+
+    /* A string associated with this STable for debugging purposes.
+     * Usually the name of the class this belongs to. */
+    char *debug_name;
 };
 
 /* The representation operations table. Note that representations are not
