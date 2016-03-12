@@ -11,12 +11,18 @@ struct MVMHeapSnapshotCollection {
     /* Known types/REPRs. Just a list for now, but we might like to look at a
      * hash or trie if this ends up making taking a snapshot wicked slow. */
     MVMHeapSnapshotType *types;
+    MVMuint32 num_types;
+    MVMuint32 alloc_types;
 
     /* Known static frames. Same applies to searching this as to the above. */
     MVMHeapSnapshotStaticFrame *static_frames;
+    MVMuint32 num_static_frames;
+    MVMuint32 alloc_static_frames;
 
     /* Strings, referenced by index from various places. */
     char **strings;
+    MVMuint32 num_strings;
+    MVMuint32 alloc_strings;
 };
 
 /* An individual heap snapshot. */
@@ -104,3 +110,8 @@ struct MVMHeapSnapshotReference {
     /* The index of the collectable referenced. */
     MVMuint64 collectable_index;
 };
+
+MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc);
+void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config);
+void MVM_profile_heap_take_snapshot(MVMThreadContext *tc);
+MVMObject * MVM_profile_heap_end(MVMThreadContext *tc);

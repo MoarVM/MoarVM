@@ -346,8 +346,11 @@ struct MVMInstance {
      * to 1 which also triggers frame verification. */
     MVMuint32 instrumentation_level;
 
-    /* Whether profiling is turned on or not. */
+    /* Whether instrumented profiling is turned on or not. */
     MVMuint32 profiling;
+
+    /* Heap snapshots, if we're doing heap snapshotting. */
+    MVMHeapSnapshotCollection *heap_snapshots;
 
     /* Whether cross-thread write logging is turned on or not, and an output
      * mutex for it. */

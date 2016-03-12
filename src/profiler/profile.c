@@ -2,7 +2,7 @@
 
 /* Starts profiling with the specified configuration. */
 void MVM_profile_start(MVMThreadContext *tc, MVMObject *config) {
-    if (tc->instance->profiling)
+    if (tc->instance->profiling || MVM_profile_heap_profiling(tc))
         MVM_exception_throw_adhoc(tc, "Profiling is already started");
 
     if (MVM_repr_exists_key(tc, config, tc->instance->str_consts.kind)) {
@@ -10,6 +10,8 @@ void MVM_profile_start(MVMThreadContext *tc, MVMObject *config) {
             MVM_repr_at_key_o(tc, config, tc->instance->str_consts.kind));
         if (MVM_string_equal(tc, kind, tc->instance->str_consts.instrumented))
             MVM_profile_instrumented_start(tc, config);
+        else if (MVM_string_equal(tc, kind, tc->instance->str_consts.heap))
+            MVM_profile_heap_start(tc, config);
         else
             MVM_exception_throw_adhoc(tc, "Unknown profiler specified");
     }
@@ -24,6 +26,8 @@ void MVM_profile_start(MVMThreadContext *tc, MVMObject *config) {
 MVMObject * MVM_profile_end(MVMThreadContext *tc) {
     if (tc->instance->profiling)
         return MVM_profile_instrumented_end(tc);
+    else if (MVM_profile_heap_profiling(tc))
+        return MVM_profile_heap_end(tc);
     else
         MVM_exception_throw_adhoc(tc, "Cannot end profiling if not profiling");
 }
