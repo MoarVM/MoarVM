@@ -61,11 +61,15 @@ struct MVMHeapSnapshotStaticFrame {
     MVMuint32 file;
 };
 
-/* Kinds of collectable. */
-#define MVM_SNAPSHOT_COL_KIND_OBJECT        1
-#define MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT   2
-#define MVM_SNAPSHOT_COL_KIND_STABLE        3
-#define MVM_SNAPSHOT_COL_KIND_FRAME         4
+/* Kinds of collectable, plus a few "virtual" kinds to cover the various places
+ * we find roots. */
+#define MVM_SNAPSHOT_COL_KIND_OBJECT            1
+#define MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT       2
+#define MVM_SNAPSHOT_COL_KIND_STABLE            3
+#define MVM_SNAPSHOT_COL_KIND_FRAME             4
+#define MVM_SNAPSHOT_COL_KIND_PERM_ROOTS        5
+#define MVM_SNAPSHOT_COL_KIND_INSTANCE_ROOTS    6
+#define MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS      7
 
 /* Data about an individual collectable in the heap snapshot. Ordered to avoid
  * holes. */
