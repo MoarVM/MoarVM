@@ -404,7 +404,8 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
         entry = MVM_malloc(sizeof(MVMContainerRegistry));
         entry->name = name;
         entry->configurer  = configurer;
-        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name,
+            "Container configuration name");
     }
 
     HASH_ADD_KEYPTR(hash_handle, tc->instance->container_registry, kdata, klen, entry);

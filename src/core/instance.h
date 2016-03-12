@@ -220,10 +220,13 @@ struct MVMInstance {
     /* Number of permanent GC roots we've got, allocated space for, and
      * a list of the addresses to them. The mutex controls writing to the
      * list, just in case multiple threads somehow end up doing so. Note
-     * that during a GC the world is stopped so reading is safe. */
+     * that during a GC the world is stopped so reading is safe. We also
+     * keep a list of names for these, for the purpose of heap debugging
+     * and heap profiling. */
     MVMuint32             num_permroots;
     MVMuint32             alloc_permroots;
     MVMCollectable     ***permroots;
+    char                **permroot_descriptions;
     uv_mutex_t            mutex_permroots;
 
     /* The current GC run sequence number. May wrap around over time; that

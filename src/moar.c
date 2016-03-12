@@ -84,9 +84,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVM_store(&instance->next_user_thread_id, 2);
 
     /* Set up the permanent roots storage. */
-    instance->num_permroots   = 0;
-    instance->alloc_permroots = 16;
-    instance->permroots       = MVM_malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
+    instance->num_permroots         = 0;
+    instance->alloc_permroots       = 16;
+    instance->permroots             = MVM_malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
+    instance->permroot_descriptions = MVM_malloc(sizeof(char *) * instance->alloc_permroots);
     init_mutex(instance->mutex_permroots, "permanent roots");
 
     /* Create fixed size allocator. */
@@ -261,13 +262,16 @@ MVMInstance * MVM_vm_create_instance(void) {
 /* Set up some standard file handles. */
 static void setup_std_handles(MVMThreadContext *tc) {
     tc->instance->stdin_handle  = MVM_file_get_stdstream(tc, 0, 1);
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stdin_handle);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stdin_handle,
+        "stdin handle");
 
     tc->instance->stdout_handle = MVM_file_get_stdstream(tc, 1, 0);
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stdout_handle);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stdout_handle,
+        "stdout handle");
 
     tc->instance->stderr_handle = MVM_file_get_stdstream(tc, 2, 0);
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stderr_handle);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stderr_handle,
+        "stderr handle");
 }
 
 /* This callback is passed to the interpreter code. It takes care of making

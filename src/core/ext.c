@@ -38,7 +38,8 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
     entry->sym = sym;
     entry->name = name;
 
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name,
+        "Extension name");
     MVM_HASH_BIND(tc, tc->instance->ext_registry, name, entry);
 
     uv_mutex_unlock(&tc->instance->mutex_ext_registry);
@@ -166,7 +167,8 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     entry->no_jit     = flags & MVM_EXTOP_NO_JIT;
     entry->allocating = flags & MVM_EXTOP_ALLOCATING;
 
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
+    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name,
+        "Extension op name");
     MVM_HASH_BIND(tc, tc->instance->extop_registry, name, entry);
 
     uv_mutex_unlock(&tc->instance->mutex_extop_registry);

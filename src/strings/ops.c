@@ -1705,17 +1705,17 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     if (!encoding_name_init) {
         MVM_gc_allocate_gen2_default_set(tc);
         encoding_utf8_name        = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf8");
-        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_utf8_name);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_utf8_name, "Encoding name");
         encoding_ascii_name       = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "ascii");
-        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_ascii_name);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_ascii_name, "Encoding name");
         encoding_latin1_name      = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "iso-8859-1");
-        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_latin1_name);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_latin1_name, "Encoding name");
         encoding_utf16_name       = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf16");
-        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_utf16_name);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_utf16_name, "Encoding name");
         encoding_windows1252_name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "windows-1252");
-        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_windows1252_name);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_windows1252_name, "Encoding name");
         encoding_utf8_c8_name     = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "utf8-c8");
-        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_utf8_c8_name);
+        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&encoding_utf8_c8_name, "Encoding name");
         encoding_name_init   = 1;
         MVM_gc_allocate_gen2_default_clear(tc);
     }

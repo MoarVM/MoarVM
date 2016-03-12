@@ -53,7 +53,8 @@ const MVMREPROps * MVMDLLSym_initialize(MVMThreadContext *tc) {
     });
 
     MVM_gc_root_add_permanent(tc,
-            (MVMCollectable **)&tc->instance->raw_types.RawDLLSym);
+        (MVMCollectable **)&tc->instance->raw_types.RawDLLSym,
+        "RawDLLSym");
 
     return &this_repr;
 }
