@@ -232,8 +232,6 @@ void MVM_profile_ensure_uninstrumented(MVMThreadContext *tc, MVMStaticFrame *sf)
 /* Starts instrumted profiling. */
 void MVM_profile_instrumented_start(MVMThreadContext *tc, MVMObject *config) {
     /* Enable profiling. */
-    if (tc->instance->profiling)
-        MVM_exception_throw_adhoc(tc, "Profiling is already started");
     tc->instance->profiling = 1;
     tc->instance->instrumentation_level++;
 }
@@ -520,8 +518,6 @@ MVMObject * MVM_profile_instrumented_end(MVMThreadContext *tc) {
 
     /* Disable profiling. */
     /* XXX Needs to account for multiple threads. */
-    if (!tc->instance->profiling)
-        MVM_exception_throw_adhoc(tc, "Cannot end profiling if not profiling");
     tc->instance->profiling = 0;
     tc->instance->instrumentation_level++;
 
