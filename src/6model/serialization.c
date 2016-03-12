@@ -1652,7 +1652,6 @@ char *MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader *
         memcpy(strbuf, read_at, len);
         strbuf[len] = 0;
         *(reader->cur_read_offset) += len;
-        fprintf(stderr, "the debug name of this thing lives at %p and is %s\n", strbuf, strbuf);
     } else if (len < 0) {
         fail_deserialize(tc, reader, "Cannot read a c string with negative length %d.", len);
     }
