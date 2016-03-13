@@ -293,7 +293,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     data->dir_handle = dir_handle;
 #endif
 
-    data->encoding = MVM_encoding_type_utf8;
+    data->encoding = MVM_encoding_type_utf8_c8;
     result->body.ops  = &op_table;
     result->body.data = data;
 
