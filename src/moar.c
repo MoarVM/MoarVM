@@ -305,8 +305,22 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     MVMThreadContext *tc = instance->main_thread;
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
     char *dump = MVM_bytecode_dump(tc, cu);
+    size_t dumplen = strlen(dump);
+    int position = 0;
 
-    printf("%s", dump);
+    /* libuv already set up stdout to be nonblocking, but it can very well be
+     * we encounter EAGAIN (Resource temporarily unavailable), so we need to
+     * loop over our buffer, which can be quite big.
+     *
+     * The CORE.setting.moarvm has - as of writing this - about 32 megs of
+     * output from dumping.
+     */
+    while (position < dumplen) {
+        size_t written = write(1, dump + position, dumplen - position);
+        if (written > 0)
+            position += written;
+    }
+
     MVM_free(dump);
 }
 
