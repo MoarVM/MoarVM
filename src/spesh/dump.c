@@ -267,6 +267,32 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         append(ds, "<nyi>");
                 }
             }
+            if (cur_ins->info->opcode == MVM_OP_wval || cur_ins->info->opcode == MVM_OP_wval_wide) {
+                /* We can try to find out what the debug_name of this thing is. */
+                MVMint16 dep = cur_ins->operands[1].lit_i16;
+                MVMint64 idx;
+                MVMCollectable *result;
+                char *debug_name = NULL;
+                const char *repr_name = NULL;
+                if (cur_ins->info->opcode == MVM_OP_wval) {
+                    idx = cur_ins->operands[2].lit_i16;
+                } else {
+                    idx = cur_ins->operands[2].lit_i64;
+                }
+                result = (MVMCollectable *)MVM_sc_get_sc_object(tc, g->sf->body.cu, dep, idx);
+                if (result->flags & MVM_CF_STABLE) {
+                    debug_name = ((MVMSTable *)result)->debug_name;
+                    repr_name  = ((MVMSTable *)result)->REPR->name;
+                } else {
+                    debug_name = STABLE(result)->debug_name;
+                    repr_name  = REPR(result)->name;
+                }
+                if (debug_name) {
+                    appendf(ds, " (%s: %s)", repr_name, debug_name);
+                } else {
+                    appendf(ds, " (%s: ?)", repr_name);
+                }
+            }
         }
         append(ds, "\n");
         cur_ins = cur_ins->next;
