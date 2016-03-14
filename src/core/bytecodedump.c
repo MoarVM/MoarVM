@@ -179,7 +179,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint8 *labels = MVM_calloc(bytecode_size, 1);
     MVMuint32 *jumps = MVM_calloc(sizeof(MVMuint32) * bytecode_size, 1);
     char **lines = MVM_malloc(sizeof(char *) * bytecode_size);
-    MVMuint32 *linelocs = MVM_malloc(bytecode_size);
+    MVMuint32 *linelocs = MVM_malloc(sizeof(MVMuint32) * bytecode_size);
     MVMuint32 lineno = 0;
     MVMuint32 lineloc;
     MVMuint16 op_num;
