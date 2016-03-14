@@ -1027,13 +1027,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
                 | sete al;
                 break;
             case MVM_OP_ge_s:
-                | setl al;
+                | setle al;
                 break;
             case MVM_OP_lt_s:
                 | sete al;
                 break;
             case MVM_OP_le_s:
-                | setg al;
+                | setge al;
                 break;
         }
         | movzx rax, al;
