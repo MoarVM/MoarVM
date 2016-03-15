@@ -83,9 +83,6 @@ struct MVMStaticFrameBody {
     MVMuint32              num_annotations;
     MVMuint8              *annotations_data;
 
-    /* Cached instruction offsets */
-    MVMuint8 *instr_offsets;
-
     /* Does the frame have an exit handler we need to run? */
     MVMuint8 has_exit_handler;
 

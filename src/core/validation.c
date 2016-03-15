@@ -670,26 +670,6 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     validate_branch_targets(val);
     validate_final_return(val);
 
-    /* Validation successful. Cache the located instruction offsets. */
-    fb->instr_offsets = val->labels;
-}
-
-
-/* Returns MVM_BC_ILLEGAL_OFFSET if the offset is out of range or does not
- * point to an op boundary. */
-MVMuint32 MVM_bytecode_offset_to_instr_idx(MVMThreadContext *tc,
-        MVMStaticFrame *static_frame, MVMuint32 offset) {
-    MVMuint8 *labels = static_frame->body.instr_offsets;
-    MVMuint32 i, idx = 0;
-
-    if (offset >= static_frame->body.bytecode_size
-            || (labels[offset] & MVM_BC_op_boundary) == 0)
-        return MVM_BC_ILLEGAL_OFFSET;
-
-    for (i = 0; i < offset; i++) {
-        if (labels[i] & MVM_BC_op_boundary)
-            idx++;
-    }
-
-    return idx;
+    /* Validation successful. Clear up instruction offsets. */
+    MVM_free(val->labels);
 }
