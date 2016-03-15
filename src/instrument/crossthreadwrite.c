@@ -106,6 +106,7 @@ static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, sf, 1);
     instrument_graph(tc, sg);
     sc = MVM_spesh_codegen(tc, sg);
+    ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
     ins->instrumented_bytecode        = sc->bytecode;
     ins->instrumented_handlers        = sc->handlers;
     ins->instrumented_bytecode_size   = sc->bytecode_size;
