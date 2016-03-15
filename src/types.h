@@ -171,6 +171,7 @@ typedef struct MVMSpeshInline MVMSpeshInline;
 typedef struct MVMSTable MVMSTable;
 typedef struct MVMStaticFrame MVMStaticFrame;
 typedef struct MVMStaticFrameBody MVMStaticFrameBody;
+typedef struct MVMStaticFrameInstrumentation MVMStaticFrameInstrumentation;
 typedef struct MVMStorageSpec MVMStorageSpec;
 typedef struct MVMString MVMString;
 typedef struct MVMStringBody MVMStringBody;

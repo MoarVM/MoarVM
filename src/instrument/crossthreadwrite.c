@@ -102,28 +102,30 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
 /* Adds instrumented version of the unspecialized bytecode. */
 static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMSpeshCode  *sc;
+    MVMStaticFrameInstrumentation *ins;
     MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, sf, 1);
     instrument_graph(tc, sg);
     sc = MVM_spesh_codegen(tc, sg);
-    sf->body.instrumented_bytecode        = sc->bytecode;
-    sf->body.instrumented_handlers        = sc->handlers;
-    sf->body.instrumented_bytecode_size   = sc->bytecode_size;
-    sf->body.uninstrumented_bytecode      = sf->body.bytecode;
-    sf->body.uninstrumented_handlers      = sf->body.handlers;
-    sf->body.uninstrumented_bytecode_size = sf->body.bytecode_size;
+    ins->instrumented_bytecode        = sc->bytecode;
+    ins->instrumented_handlers        = sc->handlers;
+    ins->instrumented_bytecode_size   = sc->bytecode_size;
+    ins->uninstrumented_bytecode      = sf->body.bytecode;
+    ins->uninstrumented_handlers      = sf->body.handlers;
+    ins->uninstrumented_bytecode_size = sf->body.bytecode_size;
+    sf->body.instrumentation = ins;
     MVM_spesh_graph_destroy(tc, sg);
     MVM_free(sc);
 }
 
 /* Instruments code with detection and reporting of cross-thread writes. */
 void MVM_cross_thread_write_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
-    if (sf->body.bytecode != sf->body.instrumented_bytecode) {
+    if (!sf->body.instrumentation || sf->body.bytecode != sf->body.instrumentation->instrumented_bytecode) {
         /* Handle main, non-specialized, bytecode. */
-        if (!sf->body.instrumented_bytecode)
+        if (!sf->body.instrumentation)
             add_instrumentation(tc, sf);
-        sf->body.bytecode      = sf->body.instrumented_bytecode;
-        sf->body.handlers      = sf->body.instrumented_handlers;
-        sf->body.bytecode_size = sf->body.instrumented_bytecode_size;
+        sf->body.bytecode      = sf->body.instrumentation->instrumented_bytecode;
+        sf->body.handlers      = sf->body.instrumentation->instrumented_handlers;
+        sf->body.bytecode_size = sf->body.instrumentation->instrumented_bytecode_size;
 
         /* Throw away any specializations; we'll need to reproduce them as
          * instrumented versions. */

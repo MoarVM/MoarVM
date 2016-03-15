@@ -107,19 +107,23 @@ struct MVMStaticFrameBody {
     MVMint32 code_obj_sc_dep_idx;
     MVMint32 code_obj_sc_idx;
 
-    /* Profiling/instrumented version of the bytecode, if we're profiling.
-     * Also, a backup of the uninstrumented bytecode in case we turn off
-     * profiling. Same for handlers. */
+    /* Extra profiling/instrumentation state. */
+    MVMStaticFrameInstrumentation *instrumentation;
+};
+struct MVMStaticFrame {
+    MVMObject common;
+    MVMStaticFrameBody body;
+};
+
+/* Extra state that static frames carry when instrumented, so that the
+ * can later be removed again. */
+struct MVMStaticFrameInstrumentation {
     MVMuint8        *instrumented_bytecode;
     MVMuint8        *uninstrumented_bytecode;
     MVMFrameHandler *instrumented_handlers;
     MVMFrameHandler *uninstrumented_handlers;
     MVMuint32        uninstrumented_bytecode_size;
     MVMuint32        instrumented_bytecode_size;
-};
-struct MVMStaticFrame {
-    MVMObject common;
-    MVMStaticFrameBody body;
 };
 
 /* Function for REPR setup. */
