@@ -2,7 +2,7 @@
 #define MVM_MULTICACHE_MAX_ARITY    4
 
 /* Maximum entries we cache per arity. (Good to make it a power of 2.) */
-#define MVM_MULTICACHE_MAX_ENTRIES  16
+#define MVM_MULTICACHE_MAX_ENTRIES  32
 
 /* The cached info that we keep per arity. */
 struct MVMMultiArityCache {
