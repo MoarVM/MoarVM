@@ -233,3 +233,5 @@ typedef struct MVMHeapSnapshotType MVMHeapSnapshotType;
 typedef struct MVMHeapSnapshotStaticFrame MVMHeapSnapshotStaticFrame;
 typedef struct MVMHeapSnapshotCollectable MVMHeapSnapshotCollectable;
 typedef struct MVMHeapSnapshotReference MVMHeapSnapshotReference;
+typedef struct MVMHeapSnapshotState MVMHeapSnapshotState;
+typedef struct MVMHeapSnapshotWorkItem MVMHeapSnapshotWorkItem;

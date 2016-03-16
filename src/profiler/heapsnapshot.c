@@ -1,30 +1,5 @@
 #include "moar.h"
 
-/* Temporary state objects kept while making a snapshot. */
-typedef struct {
-    /* The kind of collectable. */
-    MVMuint16 kind;
-
-    /* Index in the collectables (assigned upon adding to the worklist). */
-    MVMuint64 col_idx;
-
-    /* Target collectable, if any. */
-    void *target;
-} WorkItem;
-typedef struct {
-    /* The heap snapshot collection and current working snapshot. */
-    MVMHeapSnapshotCollection *col;
-    MVMHeapSnapshot *hs;
-
-    /* Our current collectable worklist. */
-    WorkItem *workitems;
-    MVMuint64 num_workitems;
-    MVMuint64 alloc_workitems;
-
-    /* The collectable we're currently adding references for. */
-    MVMuint64 ref_from;
-} SnapshotState;
-
 /* Check if we're currently taking heap snapshots. */
 MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc) {
     return tc->instance->heap_snapshots != NULL;
@@ -46,7 +21,7 @@ static void grow_storage(void **store, MVMuint64 *num, MVMuint64 *alloc, size_t 
 }
 
 /* Get a string heap index for the specified C string, adding it if needed. */
- static MVMuint64 get_string_index(MVMThreadContext *tc, SnapshotState *ss,
+ static MVMuint64 get_string_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
                                    char *str, char is_const) {
      MVMuint64 i;
 
@@ -67,8 +42,9 @@ static void grow_storage(void **store, MVMuint64 *num, MVMuint64 *alloc, size_t 
 
 /* Push a collectable to the list of work items, allocating space for it and
  * returning the collectable index. */
-static MVMuint64 push_workitem(MVMThreadContext *tc, SnapshotState *ss, MVMuint16 kind, void *target) {
-    WorkItem *wi;
+static MVMuint64 push_workitem(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
+                               MVMuint16 kind, void *target) {
+    MVMHeapSnapshotWorkItem *wi;
     MVMuint64 col_idx;
 
     /* Mark space in collectables collection, and allocate an index. */
@@ -79,7 +55,7 @@ static MVMuint64 push_workitem(MVMThreadContext *tc, SnapshotState *ss, MVMuint1
 
     /* Add to the worklist. */
     grow_storage(&(ss->workitems), &(ss->num_workitems), &(ss->alloc_workitems),
-        sizeof(WorkItem));
+        sizeof(MVMHeapSnapshotWorkItem));
     wi = &(ss->workitems[ss->num_workitems]);
     wi->kind = kind;
     wi->col_idx = col_idx;
@@ -90,13 +66,13 @@ static MVMuint64 push_workitem(MVMThreadContext *tc, SnapshotState *ss, MVMuint1
 }
 
 /* Pop a work item. */
-static WorkItem pop_workitem(MVMThreadContext *tc, SnapshotState *ss) {
+static MVMHeapSnapshotWorkItem pop_workitem(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
     ss->num_workitems--;
     return ss->workitems[ss->num_workitems];
 }
 
 /* Sets the current reference "from" collectable. */
-static void set_ref_from(MVMThreadContext *tc, SnapshotState *ss, MVMuint64 col_idx) {
+static void set_ref_from(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMuint64 col_idx) {
     /* The references should be contiguous, so if this collectable already
      * has any, something's wrong. */
     if (ss->hs->collectables[col_idx].num_refs)
@@ -107,7 +83,7 @@ static void set_ref_from(MVMThreadContext *tc, SnapshotState *ss, MVMuint64 col_
 }
 
 /* Adds a reference. */
-static void add_reference(MVMThreadContext *tc, SnapshotState *ss, MVMuint16 ref_kind,
+static void add_reference(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMuint16 ref_kind,
                           MVMuint64 index, MVMuint64 to) {
     /* Add to the references collection. */
     MVMHeapSnapshotReference *ref;
@@ -127,14 +103,14 @@ static void add_reference(MVMThreadContext *tc, SnapshotState *ss, MVMuint16 ref
 // XXX
 
 /* Adds a reference with a C string description. */
-static void add_reference_cstr(MVMThreadContext *tc, SnapshotState *ss,
+static void add_reference_cstr(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
                                char *cstr,  MVMuint64 to) {
     MVMuint64 str_idx = get_string_index(tc, ss, cstr, 0);
     add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING, str_idx, to);
 }
 
 /* Adds a reference with a constant C string description. */
-static void add_reference_const_cstr(MVMThreadContext *tc, SnapshotState *ss,
+static void add_reference_const_cstr(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
                                      const char *cstr,  MVMuint64 to) {
     MVMuint64 str_idx = get_string_index(tc, ss, (char *)cstr, 1);
     add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING, str_idx, to);
@@ -144,9 +120,9 @@ static void add_reference_const_cstr(MVMThreadContext *tc, SnapshotState *ss,
 // XXX
 
 /* Processes the work items, until we've none left. */
-static void process_workitems(MVMThreadContext *tc, SnapshotState *ss) {
+static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
     while (ss->num_workitems > 0) {
-        WorkItem item = pop_workitem(tc, ss);
+        MVMHeapSnapshotWorkItem item = pop_workitem(tc, ss);
         MVMHeapSnapshotCollectable *col = &(ss->hs->collectables[item.col_idx]);
 
         col->kind = item.kind;
@@ -189,8 +165,8 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
     MVMuint64 perm_root_synth;
 
     /* Iinitialize state for taking a snapshot. */
-    SnapshotState ss;
-    memset(&ss, 0, sizeof(SnapshotState));
+    MVMHeapSnapshotState ss;
+    memset(&ss, 0, sizeof(MVMHeapSnapshotState));
     ss.col = col;
     ss.hs = hs;
 

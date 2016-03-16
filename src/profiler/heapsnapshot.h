@@ -122,6 +122,33 @@ struct MVMHeapSnapshotReference {
     MVMuint64 collectable_index;
 };
 
+/* Current state object whlie taking a heap snapshot. */
+struct MVMHeapSnapshotState {
+    /* The heap snapshot collection and current working snapshot. */
+    MVMHeapSnapshotCollection *col;
+    MVMHeapSnapshot *hs;
+
+    /* Our current collectable worklist. */
+    MVMHeapSnapshotWorkItem *workitems;
+    MVMuint64 num_workitems;
+    MVMuint64 alloc_workitems;
+
+    /* The collectable we're currently adding references for. */
+    MVMuint64 ref_from;
+};
+
+/* Work item used while taking a heap snapshot. */
+struct MVMHeapSnapshotWorkItem {
+    /* The kind of collectable. */
+    MVMuint16 kind;
+
+    /* Index in the collectables (assigned upon adding to the worklist). */
+    MVMuint64 col_idx;
+
+    /* Target collectable, if any. */
+    void *target;
+};
+
 MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc);
 void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config);
 void MVM_profile_heap_take_snapshot(MVMThreadContext *tc);
