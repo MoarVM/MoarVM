@@ -123,6 +123,27 @@ static void add_reference_const_cstr(MVMThreadContext *tc, MVMHeapSnapshotState 
 /* Adds a references with a string description. */
 // XXX
 
+/* Gets the index of a collectable, either returning an existing index if we've
+ * seen it before or adding it if not. */
+static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
+        MVMHeapSnapshotState *ss, MVMCollectable *collectable) {
+    /* XXX Seen hash */
+    if (collectable->flags & MVM_CF_STABLE)
+        return push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_STABLE, collectable);
+    else if (collectable->flags & MVM_CF_TYPE_OBJECT)
+        return push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT, collectable);
+    else
+        return push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_OBJECT, collectable);
+}
+
+/* Gets the index of a frame, either returning an existing inde if we've seen
+ * it before or adding it if not. */
+ static MVMuint64 get_frame_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
+        MVMFrame *frame) {
+    /* XXX Seen hash */
+    return push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME, frame);
+}
+
 /* Processes the work items, until we've none left. */
 static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
     while (ss->num_workitems > 0) {
@@ -166,12 +187,13 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
             case MVM_SNAPSHOT_COL_KIND_CSTACK_ROOTS:
                 MVM_gc_root_add_temps_to_worklist((MVMThreadContext *)item.target, NULL, ss);
                 break;
-            case MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS:
-                MVM_gc_root_add_tc_roots_to_worklist((MVMThreadContext *)item.target, NULL, ss);
-                /* XXX 
-                 * MVM_gc_worklist_add_frame(tc, worklist, tc->cur_frame);
-                 */
+            case MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS: {
+                MVMThreadContext *thread_tc = (MVMThreadContext *)item.target;
+                MVM_gc_root_add_tc_roots_to_worklist(thread_tc, NULL, ss);
+                add_reference_const_cstr(tc, ss, "Current frame",
+                    get_frame_idx(tc, ss, thread_tc->cur_frame));
                  break;
+            }
             case MVM_SNAPSHOT_COL_KIND_ROOT: {
                 MVMThread *cur_thread;
 
@@ -201,18 +223,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 MVM_panic(1, "Unknown heap snapshot worklist item kind %d", item.kind);
         }
     }
-}
-
-/* Gets the index of a collectable, either returning an existing index if we've
- * seen it before or adding it if not. */
-static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
-        MVMHeapSnapshotState *ss, MVMCollectable *collectable) {
-    if (collectable->flags & MVM_CF_STABLE)
-        return push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_STABLE, collectable);
-    else if (collectable->flags & MVM_CF_TYPE_OBJECT)
-        return push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT, collectable);
-    else
-        return push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_OBJECT, collectable);
 }
 
 /* API function for adding a collectable to the snapshot, describing its
