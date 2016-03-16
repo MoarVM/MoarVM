@@ -420,12 +420,12 @@ MVMObject * collectables_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
      * All of which are integers.
      */
      MVMObject *result;
-     size_t buffer_size = 20 * s->num_references;
+     size_t buffer_size = 20 * s->num_collectables;
      size_t buffer_pos  = 0;
      char *buffer       = MVM_malloc(buffer_size);
 
      MVMuint64 i;
-     for (i = 0; i < s->num_references; i++) {
+     for (i = 0; i < s->num_collectables; i++) {
          char tmp[256];
          size_t item_chars = snprintf(tmp, 256,
             "%"PRId16",%"PRId32",%"PRId16",%"PRId64",%"PRId32",%"PRId64";",
