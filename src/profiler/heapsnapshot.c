@@ -22,6 +22,16 @@ static void grow_storage(void **store, MVMuint32 *num, MVMuint32 *alloc, size_t 
 /* Drives the overall process of recording a snapshot of the heap. */
 static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapSnapshot *hs) {
     printf("Recording heap snapshot NYI\n");
+
+    /* XXX Root sources we're still to handle:
+     * MVM_gc_root_add_permanents_to_worklist(tc, worklist);
+     * MVM_gc_root_add_instance_roots_to_worklist(tc, worklist);
+     * MVM_gc_root_add_temps_to_worklist(tc, worklist);
+     * MVM_gc_root_add_tc_roots_to_worklist(tc, worklist);
+     * MVM_gc_worklist_add_frame(tc, worklist, tc->cur_frame);
+     */
+
+    printf("Recording completed\n");
 }
 
 /* Takes a snapshot of the heap, adding it to the current heap snapshot
