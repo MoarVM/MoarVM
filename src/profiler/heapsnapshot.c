@@ -35,8 +35,9 @@ static void grow_storage(void **store, MVMuint64 *num, MVMuint64 *alloc, size_t 
         &(col->alloc_strings), sizeof(char *));
     grow_storage(&(col->strings_free), &(col->num_strings_free),
         &(col->alloc_strings_free), sizeof(char));
+    col->strings_free[col->num_strings_free] = !is_const;
+    col->num_strings_free++;
     col->strings[col->num_strings] = str;
-    col->strings_free[col->num_strings] = !is_const;
     return col->num_strings++;
  }
 
