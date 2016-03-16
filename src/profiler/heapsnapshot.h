@@ -69,7 +69,8 @@ struct MVMHeapSnapshotStaticFrame {
 #define MVM_SNAPSHOT_COL_KIND_FRAME             4
 #define MVM_SNAPSHOT_COL_KIND_PERM_ROOTS        5
 #define MVM_SNAPSHOT_COL_KIND_INSTANCE_ROOTS    6
-#define MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS      7
+#define MVM_SNAPSHOT_COL_KIND_CSTACK_ROOTS      7
+#define MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS      8
 
 /* Data about an individual collectable in the heap snapshot. Ordered to avoid
  * holes. */
