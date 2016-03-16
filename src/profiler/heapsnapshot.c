@@ -174,6 +174,17 @@ static void set_type_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
 }
 
 /* Processes the work items, until we've none left. */
+static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
+        MVMHeapSnapshotCollectable *col, MVMObject *obj) {
+    col->collectable_size = obj->header.size;
+    set_type_index(tc, ss, col, obj->st);
+    /* XXX SC */
+    add_reference_const_cstr(tc, ss, "<STable>",
+        get_collectable_idx(tc, ss, (MVMCollectable *)obj->st));
+    if (IS_CONCRETE(obj)) {
+        /* XXX Walk object's state */
+    }
+}
 static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
     while (ss->num_workitems > 0) {
         MVMHeapSnapshotWorkItem item = pop_workitem(tc, ss);
@@ -183,20 +194,10 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
         set_ref_from(tc, ss, item.col_idx);
 
         switch (item.kind) {
-            case MVM_SNAPSHOT_COL_KIND_OBJECT: {
-                MVMObject *obj = (MVMObject *)item.target;
-                col->collectable_size = obj->header.size;
-                set_type_index(tc, ss, col, obj->st);
-                // XXX
+            case MVM_SNAPSHOT_COL_KIND_OBJECT:
+            case MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT:
+                process_object(tc, ss, col, (MVMObject *)item.target);
                 break;
-            }
-            case MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT: {
-                MVMObject *obj = (MVMObject *)item.target;
-                col->collectable_size = obj->header.size;
-                set_type_index(tc, ss, col, obj->st);
-                // XXX
-                break;
-            }
             case MVM_SNAPSHOT_COL_KIND_STABLE: {
                 MVMSTable *st = (MVMSTable *)item.target;
                 col->collectable_size = st->header.size;
