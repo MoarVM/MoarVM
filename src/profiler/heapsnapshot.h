@@ -44,13 +44,11 @@ struct MVMHeapSnapshot {
 
 /* An object/type object/STable type in the snapshot. */
 struct MVMHeapSnapshotType {
-    /* Name of the representation. Do not free; this is a reference to the
-     * REPR's name string itself. */
-    char *repr_name;
+    /* String heap index of the REPR name. */
+    MVMuint64 repr_name;
 
-    /* The type's debug name. We assume these are sufficiently unique we don't
-     * reference them in the string heap. */
-    char *type_name;
+    /* String heap index of the type's debug name. */
+    MVMuint64 type_name;
 };
 
 /* A static frame in the snapshot. */
