@@ -21,8 +21,11 @@ static void grow_storage(void **store, MVMuint64 *num, MVMuint64 *alloc, size_t 
 }
 
 /* Get a string heap index for the specified C string, adding it if needed. */
+#define STR_MODE_OWN    0
+#define STR_MODE_CONST  1
+#define STR_MODE_DUP    2
  static MVMuint64 get_string_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
-                                   char *str, char is_const) {
+                                   char *str, char str_mode) {
      MVMuint64 i;
 
      /* Add a lookup hash here if it gets to be a hotspot. */
@@ -35,9 +38,9 @@ static void grow_storage(void **store, MVMuint64 *num, MVMuint64 *alloc, size_t 
         &(col->alloc_strings), sizeof(char *));
     grow_storage(&(col->strings_free), &(col->num_strings_free),
         &(col->alloc_strings_free), sizeof(char));
-    col->strings_free[col->num_strings_free] = !is_const;
+    col->strings_free[col->num_strings_free] = str_mode != STR_MODE_CONST;
     col->num_strings_free++;
-    col->strings[col->num_strings] = str;
+    col->strings[col->num_strings] = str_mode == STR_MODE_DUP ? strdup(str) : str;
     return col->num_strings++;
  }
 
@@ -109,14 +112,14 @@ static void add_reference_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
 /* Adds a reference with a C string description. */
 static void add_reference_cstr(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
                                char *cstr,  MVMuint64 to) {
-    MVMuint64 str_idx = get_string_index(tc, ss, cstr, 0);
+    MVMuint64 str_idx = get_string_index(tc, ss, cstr, STR_MODE_OWN);
     add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING, str_idx, to);
 }
 
 /* Adds a reference with a constant C string description. */
 static void add_reference_const_cstr(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
                                      const char *cstr,  MVMuint64 to) {
-    MVMuint64 str_idx = get_string_index(tc, ss, (char *)cstr, 1);
+    MVMuint64 str_idx = get_string_index(tc, ss, (char *)cstr, STR_MODE_CONST);
     add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING, str_idx, to);
 }
 
