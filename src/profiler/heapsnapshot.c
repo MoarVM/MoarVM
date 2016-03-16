@@ -101,7 +101,10 @@ static void add_reference(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMuin
 }
 
 /* Adds a reference with an integer description. */
-// XXX
+static void add_reference_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
+                               MVMuint64 idx,  MVMuint64 to) {
+    add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_INDEX, idx, to);
+}
 
 /* Adds a reference with a C string description. */
 static void add_reference_cstr(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
@@ -161,7 +164,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 MVM_gc_root_add_instance_roots_to_worklist(tc, NULL, ss);
                 break;
             case MVM_SNAPSHOT_COL_KIND_CSTACK_ROOTS:
-                /* XXX MVM_gc_root_add_temps_to_worklist(tc, worklist); */
+                MVM_gc_root_add_temps_to_worklist((MVMThreadContext *)item.target, NULL, ss);
                 break;
             case MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS:
                 /* XXX 
@@ -200,21 +203,35 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
     }
 }
 
+/* Gets the index of a collectable, either returning an existing index if we've
+ * seen it before or adding it if not. */
+static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
+        MVMHeapSnapshotState *ss, MVMCollectable *collectable) {
+    if (collectable->flags & MVM_CF_STABLE)
+        return push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_STABLE, collectable);
+    else if (collectable->flags & MVM_CF_TYPE_OBJECT)
+        return push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT, collectable);
+    else
+        return push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_OBJECT, collectable);
+}
+
 /* API function for adding a collectable to the snapshot, describing its
  * relation to the current collectable with a constant C string that we
  * should not free. */
 void MVM_profile_heap_add_collectable_rel_const_cstr(MVMThreadContext *tc,
         MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc) {
-    if (collectable) {
-        MVMuint64 idx;
-        if (collectable->flags & MVM_CF_STABLE)
-            idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_STABLE, collectable);
-        else if (collectable->flags & MVM_CF_TYPE_OBJECT)
-            idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT, collectable);
-        else
-            idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_OBJECT, collectable);
-        add_reference_const_cstr(tc, ss, desc, idx);
-    }
+    if (collectable)
+        add_reference_const_cstr(tc, ss, desc,
+            get_collectable_idx(tc, ss, collectable));
+}
+
+/* API function for adding a collectable to the snapshot, describing its
+ * relation to the current collectable with an integer index. */
+void MVM_profile_heap_add_collectable_rel_idx(MVMThreadContext *tc,
+        MVMHeapSnapshotState *ss, MVMCollectable *collectable, MVMuint64 idx) {
+    if (collectable)
+        add_reference_idx(tc, ss, idx,
+            get_collectable_idx(tc, ss, collectable));
 }
 
 /* Drives the overall process of recording a snapshot of the heap. */

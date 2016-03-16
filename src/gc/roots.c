@@ -194,13 +194,19 @@ void MVM_gc_root_temp_pop_all(MVMThreadContext *tc) {
 }
 
 /* Adds the set of thread-local temporary roots to a GC worklist. */
-void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMuint32         i, num_roots;
     MVMCollectable ***temproots;
     num_roots = tc->num_temproots;
     temproots = tc->temproots;
-    for (i = 0; i < num_roots; i++)
-        MVM_gc_worklist_add(tc, worklist, temproots[i]);
+    if (worklist) {
+        for (i = 0; i < num_roots; i++)
+            MVM_gc_worklist_add(tc, worklist, temproots[i]);
+    }
+    else {
+        for (i = 0; i < num_roots; i++)
+            MVM_profile_heap_add_collectable_rel_idx(tc, snapshot, *(temproots[i]), i);
+    }
 }
 
 /* Pushes a collectable that is in generation 2, but now references a nursery
