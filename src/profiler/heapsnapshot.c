@@ -342,6 +342,38 @@ MVMObject * string_heap_array(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
         MVM_repr_bind_pos_s(tc, arr, i, vmstr(tc, col->strings[i]));
     return arr;
 }
+MVMObject * types_str(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    /* Produces ; separated sequences of:
+     *   repr_string_index,type_name_string_index
+     * Both of which are integers.
+     */
+     MVMObject *result;
+     size_t buffer_size = 10 * col->num_types;
+     size_t buffer_pos  = 0;
+     char *buffer       = MVM_malloc(buffer_size);
+
+     MVMuint64 i;
+     for (i = 0; i < col->num_types; i++) {
+         char tmp[256];
+         size_t item_chars = snprintf(tmp, 256,
+            "%"PRId64",%"PRId64";",
+            col->types[i].repr_name,
+            col->types[i].type_name);
+         if (item_chars < 0)
+             MVM_panic(1, "Failed to save type in heap snapshot");
+         if (buffer_pos + item_chars >= buffer_size) {
+             buffer_size += 4096;
+             buffer = MVM_realloc(buffer, buffer_size);
+         }
+         memcpy(buffer + buffer_pos, tmp, item_chars);
+         buffer_pos += item_chars;
+     }
+     buffer[buffer_pos] = 0;
+
+     result = box_s(tc, vmstr(tc, buffer));
+     MVM_free(buffer);
+     return result;
+}
 MVMObject * collectables_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
     /* Produces ; separated sequences of:
      *   kind,type_or_frame_index,collectable_size,unmanaged_size,refs_start,num_refs
@@ -436,6 +468,8 @@ MVMObject * collection_to_mvm_objects(MVMThreadContext *tc, MVMHeapSnapshotColle
     results = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
     MVM_repr_bind_key_o(tc, results, vmstr(tc, "strings"),
         string_heap_array(tc, col));
+    MVM_repr_bind_key_o(tc, results, vmstr(tc, "types"),
+        types_str(tc, col));
     MVM_repr_bind_key_o(tc, results, vmstr(tc, "snapshots"),
         snapshots_to_mvm_objects(tc, col));
 
