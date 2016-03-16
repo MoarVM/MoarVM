@@ -240,8 +240,122 @@ static void destroy_heap_snapshot_collection(MVMThreadContext *tc) {
     tc->instance->heap_snapshots = NULL;
 }
 
+/* Turns the collected data into MoarVM objects. */
+#define vmstr(tc, cstr) MVM_string_utf8_decode(tc, tc->instance->VMString, cstr, strlen(cstr))
+#define box_s(tc, str) MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, str)
+MVMObject * string_heap_array(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStrArray);
+    MVMuint64 i;
+    for (i = 0; i < col->num_strings; i++)
+        MVM_repr_bind_pos_s(tc, arr, i, vmstr(tc, col->strings[i]));
+    return arr;
+}
+MVMObject * collectables_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
+    /* Produces ; separated sequences of:
+     *   kind,type_or_frame_index,collectable_size,unmanaged_size,refs_start,num_refs
+     * All of which are integers.
+     */
+     MVMObject *result;
+     size_t buffer_size = 20 * s->num_references;
+     size_t buffer_pos  = 0;
+     char *buffer       = MVM_malloc(buffer_size);
+
+     MVMuint64 i;
+     for (i = 0; i < s->num_references; i++) {
+         char tmp[256];
+         size_t item_chars = snprintf(tmp, 256,
+            "%"PRId16",%"PRId32",%"PRId16",%"PRId64",%"PRId32",%"PRId64";",
+            s->collectables[i].kind,
+            s->collectables[i].type_or_frame_index,
+            s->collectables[i].collectable_size,
+            s->collectables[i].unmanaged_size,
+            s->collectables[i].refs_start,
+            s->collectables[i].num_refs);
+         if (item_chars < 0)
+             MVM_panic(1, "Failed to save collectable in heap snapshot");
+         if (buffer_pos + item_chars >= buffer_size) {
+             buffer_size += 4096;
+             buffer = MVM_realloc(buffer, buffer_size);
+         }
+         memcpy(buffer + buffer_pos, tmp, item_chars);
+         buffer_pos += item_chars;
+     }
+     buffer[buffer_pos] = 0;
+
+     result = box_s(tc, vmstr(tc, buffer));
+     MVM_free(buffer);
+     return result;
+}
+MVMObject * references_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
+    /* Produces ; separated sequences of:
+     *   kind,idx,to
+     * All of which are integers.
+     */
+    MVMObject *result;
+    size_t buffer_size = 10 * s->num_references;
+    size_t buffer_pos  = 0;
+    char *buffer       = MVM_malloc(buffer_size);
+
+    MVMuint64 i;
+    for (i = 0; i < s->num_references; i++) {
+        char tmp[128];
+        size_t item_chars = snprintf(tmp, 128, "%lu,%lu,%lu;",
+            s->references[i].description & ((1 << MVM_SNAPSHOT_REF_KIND_BITS) - 1),
+            s->references[i].description >> MVM_SNAPSHOT_REF_KIND_BITS,
+            s->references[i].collectable_index);
+        if (item_chars < 0)
+            MVM_panic(1, "Failed to save reference in heap snapshot");
+        if (buffer_pos + item_chars >= buffer_size) {
+            buffer_size += 4096;
+            buffer = MVM_realloc(buffer, buffer_size);
+        }
+        memcpy(buffer + buffer_pos, tmp, item_chars);
+        buffer_pos += item_chars;
+    }
+    buffer[buffer_pos] = 0;
+
+    result = box_s(tc, vmstr(tc, buffer));
+    MVM_free(buffer);
+    return result;
+}
+MVMObject * snapshot_to_mvm_object(MVMThreadContext *tc, MVMHeapSnapshot *s) {
+    MVMObject *snapshot = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
+    MVM_repr_bind_key_o(tc, snapshot, vmstr(tc, "collectables"),
+        collectables_str(tc, s));
+    MVM_repr_bind_key_o(tc, snapshot, vmstr(tc, "references"),
+        references_str(tc, s));
+    return snapshot;
+}
+MVMObject * snapshots_to_mvm_objects(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    MVMObject *arr = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+    MVMuint64 i;
+    for (i = 0; i < col->num_snapshots; i++)
+        MVM_repr_bind_pos_o(tc, arr, i,
+            snapshot_to_mvm_object(tc, &(col->snapshots[i])));
+    return arr;
+}
+MVMObject * collection_to_mvm_objects(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    MVMObject *results;
+
+    /* Allocate in gen2, so as not to trigger GC. */
+    MVM_gc_allocate_gen2_default_set(tc);
+
+    /* Top-level results is a hash. */
+    results = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
+    MVM_repr_bind_key_o(tc, results, vmstr(tc, "strings"),
+        string_heap_array(tc, col));
+    MVM_repr_bind_key_o(tc, results, vmstr(tc, "snapshots"),
+        snapshots_to_mvm_objects(tc, col));
+
+    /* Switch off gen2 allocations now we're done. */
+    MVM_gc_allocate_gen2_default_clear(tc);
+
+    return results;
+}
+
 /* Finishes heap profiling, getting the data. */
 MVMObject * MVM_profile_heap_end(MVMThreadContext *tc) {
+    MVMObject *dataset = collection_to_mvm_objects(tc, tc->instance->heap_snapshots);
     destroy_heap_snapshot_collection(tc);
-    return tc->instance->VMNull;
+    return dataset;
 }
