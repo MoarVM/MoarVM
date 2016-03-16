@@ -147,6 +147,32 @@ static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
     return push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME, frame);
 }
 
+static void set_type_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
+       MVMHeapSnapshotCollectable *col, MVMSTable *st) {
+    MVMuint64 repr_idx = get_string_index(tc, ss, (char *)st->REPR->name, STR_MODE_CONST);
+    MVMuint64 type_idx = st->debug_name
+        ? get_string_index(tc, ss, st->debug_name, STR_MODE_DUP)
+        : get_string_index(tc, ss, "<anon>", STR_MODE_CONST);
+
+    MVMuint64 i;
+    MVMHeapSnapshotType *t;
+    for (i = 0; i < ss->col->num_types; i++) {
+        t = &(ss->col->types[i]);
+        if (t->repr_name == repr_idx && t->type_name == type_idx) {
+            col->type_or_frame_index = i;
+            return;
+        }
+    }
+
+    grow_storage(&(ss->col->types), &(ss->col->num_types),
+        &(ss->col->alloc_types), sizeof(MVMHeapSnapshotType));
+    t = &(ss->col->types[ss->col->num_types]);
+    t->repr_name = repr_idx;
+    t->type_name = type_idx;
+    col->type_or_frame_index = ss->col->num_types;
+    ss->col->num_types++;
+}
+
 /* Processes the work items, until we've none left. */
 static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
     while (ss->num_workitems > 0) {
@@ -160,18 +186,21 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
             case MVM_SNAPSHOT_COL_KIND_OBJECT: {
                 MVMObject *obj = (MVMObject *)item.target;
                 col->collectable_size = obj->header.size;
+                set_type_index(tc, ss, col, obj->st);
                 // XXX
                 break;
             }
             case MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT: {
                 MVMObject *obj = (MVMObject *)item.target;
                 col->collectable_size = obj->header.size;
+                set_type_index(tc, ss, col, obj->st);
                 // XXX
                 break;
             }
             case MVM_SNAPSHOT_COL_KIND_STABLE: {
                 MVMSTable *st = (MVMSTable *)item.target;
                 col->collectable_size = st->header.size;
+                set_type_index(tc, ss, col, st);
                 // XXX
                 break;
             }
