@@ -130,6 +130,30 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
         set_ref_from(tc, ss, item.col_idx);
 
         switch (item.kind) {
+            case MVM_SNAPSHOT_COL_KIND_OBJECT: {
+                MVMObject *obj = (MVMObject *)item.target;
+                col->collectable_size = obj->header.size;
+                // XXX
+                break;
+            }
+            case MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT: {
+                MVMObject *obj = (MVMObject *)item.target;
+                col->collectable_size = obj->header.size;
+                // XXX
+                break;
+            }
+            case MVM_SNAPSHOT_COL_KIND_STABLE: {
+                MVMSTable *st = (MVMSTable *)item.target;
+                col->collectable_size = st->header.size;
+                // XXX
+                break;
+            }
+            case MVM_SNAPSHOT_COL_KIND_FRAME: {
+                MVMFrame *frame = (MVMFrame *)item.target;
+                col->collectable_size = sizeof(MVMFrame);
+                // XXX
+                break;
+            }
             case MVM_SNAPSHOT_COL_KIND_PERM_ROOTS:
                 MVM_gc_root_add_permanents_to_worklist(tc, NULL, ss);
                 break;
