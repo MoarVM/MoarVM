@@ -133,6 +133,9 @@ struct MVMHeapSnapshotState {
 
     /* The collectable we're currently adding references for. */
     MVMuint64 ref_from;
+
+    /* The seen hash of collectables (including frames). */
+    MVMHeapSnapshotSeen *seen;
 };
 
 /* Work item used while taking a heap snapshot. */
@@ -145,6 +148,18 @@ struct MVMHeapSnapshotWorkItem {
 
     /* Target collectable, if any. */
     void *target;
+};
+
+/* Heap seen hash entry used while taking a heap snapshot. */
+struct MVMHeapSnapshotSeen {
+    /* The seen address. */
+    void *address;
+
+    /* The collectables index it has. */
+    MVMuint64 idx;
+
+    /* Hash handle. */
+    UT_hash_handle hash_handle;
 };
 
 MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc);
