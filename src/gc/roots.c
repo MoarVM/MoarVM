@@ -47,40 +47,57 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
     }
 }
 
+/* This macro factors out the logic to check if we're adding to a GC worklist
+ * or a heap snapshot, and does the appropriate thing. */
+#define add_collectable(tc, worklist, snapshot, col, desc) \
+    do { \
+        if (worklist) { \
+            MVM_gc_worklist_add(tc, worklist, &(col)); \
+        } \
+        else { \
+            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot, \
+                (MVMCollectable *)col, desc); \
+        } \
+    } while (0)
+
 /* Adds anything that is a root thanks to being referenced by instance,
  * but that isn't permanent. */
-void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMSerializationContextBody *current, *tmp;
     MVMLoadedCompUnitName       *current_lcun, *tmp_lcun;
     unsigned                     bucket_tmp;
     MVMString                  **int_to_str_cache;
     MVMuint32                    i;
 
-    MVM_gc_worklist_add(tc, worklist, &tc->instance->threads);
-    MVM_gc_worklist_add(tc, worklist, &tc->instance->compiler_registry);
-    MVM_gc_worklist_add(tc, worklist, &tc->instance->hll_syms);
-    MVM_gc_worklist_add(tc, worklist, &tc->instance->clargs);
-    MVM_gc_worklist_add(tc, worklist, &tc->instance->event_loop_todo_queue);
-    MVM_gc_worklist_add(tc, worklist, &tc->instance->event_loop_cancel_queue);
-    MVM_gc_worklist_add(tc, worklist, &tc->instance->event_loop_active);
+    add_collectable(tc, worklist, snapshot, tc->instance->threads, "Thread list");
+    add_collectable(tc, worklist, snapshot, tc->instance->compiler_registry, "Compiler registry");
+    add_collectable(tc, worklist, snapshot, tc->instance->hll_syms, "HLL symbols");
+    add_collectable(tc, worklist, snapshot, tc->instance->clargs, "Command line args");
+    add_collectable(tc, worklist, snapshot, tc->instance->event_loop_todo_queue, "Event loop todo queue");
+    add_collectable(tc, worklist, snapshot, tc->instance->event_loop_cancel_queue, "Event loop cancel queue");
+    add_collectable(tc, worklist, snapshot, tc->instance->event_loop_active, "Event loop active");
 
     int_to_str_cache = tc->instance->int_to_str_cache;
     for (i = 0; i < MVM_INT_TO_STR_CACHE_SIZE; i++)
-        MVM_gc_worklist_add(tc, worklist, &(int_to_str_cache[i]));
+        add_collectable(tc, worklist, snapshot, int_to_str_cache[i],
+            "Integer to string cache entry");
 
     /* okay, so this makes the weak hash slightly less weak.. for certain
      * keys of it anyway... */
     HASH_ITER(hash_handle, tc->instance->sc_weakhash, current, tmp, bucket_tmp) {
         /* mark the string handle pointer iff it hasn't yet been resolved */
         if (!current->sc)
-            MVM_gc_worklist_add(tc, worklist, &current->handle);
+            add_collectable(tc, worklist, snapshot, current->handle,
+                "SC weakhash unresolved handle");
     }
 
     HASH_ITER(hash_handle, tc->instance->loaded_compunits, current_lcun, tmp_lcun, bucket_tmp) {
-        MVM_gc_worklist_add(tc, worklist, &current_lcun->filename);
+        add_collectable(tc, worklist, snapshot, current_lcun->filename,
+            "Loaded compilation unit filename");
     }
 
-    MVM_gc_worklist_add(tc, worklist, &tc->instance->cached_backend_config);
+    add_collectable(tc, worklist, snapshot, tc->instance->cached_backend_config,
+        "Cached backend configuration hash");
 }
 
 /* Adds anything that is a root thanks to being referenced by a thread,

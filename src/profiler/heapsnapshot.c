@@ -158,7 +158,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 MVM_gc_root_add_permanents_to_worklist(tc, NULL, ss);
                 break;
             case MVM_SNAPSHOT_COL_KIND_INSTANCE_ROOTS:
-                /* XXX MVM_gc_root_add_instance_roots_to_worklist(tc, worklist); */
+                MVM_gc_root_add_instance_roots_to_worklist(tc, NULL, ss);
                 break;
             case MVM_SNAPSHOT_COL_KIND_CSTACK_ROOTS:
                 /* XXX MVM_gc_root_add_temps_to_worklist(tc, worklist); */

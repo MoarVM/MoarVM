@@ -84,7 +84,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
             MVM_gc_root_add_permanents_to_worklist(tc, worklist, NULL);
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from instance permanents\n", worklist->items);
             process_worklist(tc, worklist, &wtp, gen);
-            MVM_gc_root_add_instance_roots_to_worklist(tc, worklist);
+            MVM_gc_root_add_instance_roots_to_worklist(tc, worklist, NULL);
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from instance roots\n", worklist->items);
             process_worklist(tc, worklist, &wtp, gen);
         }
