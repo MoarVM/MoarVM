@@ -5,24 +5,24 @@
 struct MVMHeapSnapshotCollection {
     /* List of taken snapshots. */
     MVMHeapSnapshot *snapshots;
-    MVMuint32 num_snapshots;
-    MVMuint32 alloc_snapshots;
+    MVMuint64 num_snapshots;
+    MVMuint64 alloc_snapshots;
 
     /* Known types/REPRs. Just a list for now, but we might like to look at a
      * hash or trie if this ends up making taking a snapshot wicked slow. */
     MVMHeapSnapshotType *types;
-    MVMuint32 num_types;
-    MVMuint32 alloc_types;
+    MVMuint64 num_types;
+    MVMuint64 alloc_types;
 
     /* Known static frames. Same applies to searching this as to the above. */
     MVMHeapSnapshotStaticFrame *static_frames;
-    MVMuint32 num_static_frames;
-    MVMuint32 alloc_static_frames;
+    MVMuint64 num_static_frames;
+    MVMuint64 alloc_static_frames;
 
     /* Strings, referenced by index from various places. */
     char **strings;
-    MVMuint32 num_strings;
-    MVMuint32 alloc_strings;
+    MVMuint64 num_strings;
+    MVMuint64 alloc_strings;
 };
 
 /* An individual heap snapshot. */
@@ -62,7 +62,8 @@ struct MVMHeapSnapshotStaticFrame {
 };
 
 /* Kinds of collectable, plus a few "virtual" kinds to cover the various places
- * we find roots. */
+ * we find roots. MVM_SNAPSHOT_COL_KIND_ROOT is the ultimate root of the heap
+ * snapshot and everything hangs off it. */
 #define MVM_SNAPSHOT_COL_KIND_OBJECT            1
 #define MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT       2
 #define MVM_SNAPSHOT_COL_KIND_STABLE            3
@@ -71,6 +72,7 @@ struct MVMHeapSnapshotStaticFrame {
 #define MVM_SNAPSHOT_COL_KIND_INSTANCE_ROOTS    6
 #define MVM_SNAPSHOT_COL_KIND_CSTACK_ROOTS      7
 #define MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS      8
+#define MVM_SNAPSHOT_COL_KIND_ROOT              9
 
 /* Data about an individual collectable in the heap snapshot. Ordered to avoid
  * holes. */
@@ -110,7 +112,7 @@ struct MVMHeapSnapshotReference {
      * array indexes) or an index into the string heap (for lexicals in frames
      * and attributes in objects). If kind is MVM_SNAPSHOT_REF_KIND_UNKNOWN the
      * rest of the bits will be zero; we know nothing of the relationship. */
-    MVMuint64 kind;
+    MVMuint64 description;
 
     /* The index of the collectable referenced. */
     MVMuint64 collectable_index;
