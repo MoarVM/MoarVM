@@ -147,7 +147,11 @@ static void add_reference_const_cstr(MVMThreadContext *tc, SnapshotState *ss,
 static void process_workitems(MVMThreadContext *tc, SnapshotState *ss) {
     while (ss->num_workitems > 0) {
         WorkItem item = pop_workitem(tc, ss);
+        MVMHeapSnapshotCollectable *col = &(ss->hs->collectables[item.col_idx]);
+
+        col->kind = item.kind;
         set_ref_from(tc, ss, item.col_idx);
+
         switch (item.kind) {
             case MVM_SNAPSHOT_COL_KIND_PERM_ROOTS:
                 /* XXX MVM_gc_root_add_permanents_to_worklist(tc, worklist); */
