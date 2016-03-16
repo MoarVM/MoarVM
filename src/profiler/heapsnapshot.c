@@ -169,16 +169,31 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                  * MVM_gc_worklist_add_frame(tc, worklist, tc->cur_frame);
                  */
                  break;
-            case MVM_SNAPSHOT_COL_KIND_ROOT:
+            case MVM_SNAPSHOT_COL_KIND_ROOT: {
+                MVMThread *cur_thread;
+
                 add_reference_const_cstr(tc, ss, "Permanent Roots",
                     push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_PERM_ROOTS, NULL));
                 add_reference_const_cstr(tc, ss, "VM Instance Roots",
                     push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_INSTANCE_ROOTS, NULL));
-                add_reference_const_cstr(tc, ss, "C Stack Roots",
-                    push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_CSTACK_ROOTS, NULL));
-                add_reference_const_cstr(tc, ss, "Thread Roots",
-                    push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS, NULL));
-                 break;
+
+                cur_thread = tc->instance->threads;
+                while (cur_thread) {
+                    if (cur_thread->body.tc) {
+                        add_reference_const_cstr(tc, ss, "C Stack Roots",
+                            push_workitem(tc, ss,
+                                MVM_SNAPSHOT_COL_KIND_CSTACK_ROOTS,
+                                cur_thread->body.tc));
+                        add_reference_const_cstr(tc, ss, "Thread Roots",
+                            push_workitem(tc, ss,
+                                MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS,
+                                cur_thread->body.tc));
+                    }
+                    cur_thread = cur_thread->body.next;
+                }
+
+                break;
+            }
             default:
                 MVM_panic(1, "Unknown heap snapshot worklist item kind %d", item.kind);
         }
