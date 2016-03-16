@@ -220,7 +220,7 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
 /* Frees all memory associated with the heap snapshot. */
 static void destroy_heap_snapshot_collection(MVMThreadContext *tc) {
     MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
-    MVMuint32 i;
+    MVMuint64 i;
 
     for (i = 0; i < col->num_snapshots; i++) {
         MVMHeapSnapshot *hs = &(col->snapshots[i]);
@@ -228,6 +228,11 @@ static void destroy_heap_snapshot_collection(MVMThreadContext *tc) {
         MVM_free(hs->references);
     }
     MVM_free(col->snapshots);
+
+    for (i = 0; i < col->num_strings; i++)
+        if (col->strings_free[i])
+            MVM_free(col->strings[i]);
+    MVM_free(col->strings);
 
     /* XXX Free other pieces. */
 
