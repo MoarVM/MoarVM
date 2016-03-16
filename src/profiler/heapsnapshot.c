@@ -59,7 +59,7 @@ static MVMuint64 push_workitem(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
     wi = &(ss->workitems[ss->num_workitems]);
     wi->kind = kind;
     wi->col_idx = col_idx;
-    wi->target = NULL;
+    wi->target = target;
     ss->num_workitems++;
 
     return col_idx;
@@ -130,7 +130,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
 
         switch (item.kind) {
             case MVM_SNAPSHOT_COL_KIND_PERM_ROOTS:
-                /* XXX MVM_gc_root_add_permanents_to_worklist(tc, worklist); */
+                MVM_gc_root_add_permanents_to_worklist(tc, NULL, ss);
                 break;
             case MVM_SNAPSHOT_COL_KIND_INSTANCE_ROOTS:
                 /* XXX MVM_gc_root_add_instance_roots_to_worklist(tc, worklist); */
@@ -157,6 +157,23 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
             default:
                 MVM_panic(1, "Unknown heap snapshot worklist item kind %d", item.kind);
         }
+    }
+}
+
+/* API function for adding a collectable to the snapshot, describing its
+ * relation to the current collectable with a constant C string that we
+ * should not free. */
+void MVM_profile_heap_add_collectable_rel_const_cstr(MVMThreadContext *tc,
+        MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc) {
+    if (collectable) {
+        MVMuint64 idx;
+        if (collectable->flags & MVM_CF_STABLE)
+            idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_STABLE, collectable);
+        else if (collectable->flags & MVM_CF_TYPE_OBJECT)
+            idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT, collectable);
+        else
+            idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_OBJECT, collectable);
+        add_reference_const_cstr(tc, ss, desc, idx);
     }
 }
 

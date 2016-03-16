@@ -30,13 +30,21 @@ void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref, c
 }
 
 /* Adds the set of permanently registered roots to a GC worklist. */
-void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMuint32         i, num_roots;
     MVMCollectable ***permroots;
     num_roots = tc->instance->num_permroots;
     permroots = tc->instance->permroots;
-    for (i = 0; i < num_roots; i++)
-        MVM_gc_worklist_add(tc, worklist, permroots[i]);
+    if (worklist) {
+        for (i = 0; i < num_roots; i++)
+            MVM_gc_worklist_add(tc, worklist, permroots[i]);
+    }
+    else {
+        char **permroot_descriptions = tc->instance->permroot_descriptions;
+        for (i = 0; i < num_roots; i++)
+            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
+                *(permroots[i]), permroot_descriptions[i]);
+    }
 }
 
 /* Adds anything that is a root thanks to being referenced by instance,

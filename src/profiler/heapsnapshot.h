@@ -153,3 +153,8 @@ MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc);
 void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config);
 void MVM_profile_heap_take_snapshot(MVMThreadContext *tc);
 MVMObject * MVM_profile_heap_end(MVMThreadContext *tc);
+
+/* API for things that want to contribute more detailed data to the heap
+ * profile. */
+MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_const_cstr(MVMThreadContext *tc,
+    MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc);
