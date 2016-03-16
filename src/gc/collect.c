@@ -90,7 +90,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         }
 
         /* Add per-thread state to worklist and process it. */
-        MVM_gc_root_add_tc_roots_to_worklist(tc, worklist);
+        MVM_gc_root_add_tc_roots_to_worklist(tc, worklist, NULL);
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from TC objects\n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
 

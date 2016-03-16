@@ -102,43 +102,43 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 
 /* Adds anything that is a root thanks to being referenced by a thread,
  * context, but that isn't permanent. */
-void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMNativeCallbackCacheHead *current_cbceh, *tmp_cbceh;
     unsigned bucket_tmp;
 
     /* Any active exception handlers. */
     MVMActiveHandler *cur_ah = tc->active_handlers;
     while (cur_ah != NULL) {
-        MVM_gc_worklist_add(tc, worklist, &cur_ah->ex_obj);
+        add_collectable(tc, worklist, snapshot, cur_ah->ex_obj, "Active exception object");
         cur_ah = cur_ah->next_handler;
     }
 
     /* The thread object. */
-    MVM_gc_worklist_add(tc, worklist, &tc->thread_obj);
+    add_collectable(tc, worklist, snapshot, tc->thread_obj, "Thread object");
 
     /* Any exception handler result. */
-    MVM_gc_worklist_add(tc, worklist, &tc->last_handler_result);
+    add_collectable(tc, worklist, snapshot, tc->last_handler_result, "Last handler result");
 
     /* The usecapture object. */
-    MVM_gc_worklist_add(tc, worklist, &tc->cur_usecapture);
+    add_collectable(tc, worklist, snapshot, tc->cur_usecapture, "Cached usecapture");
 
     /* List of SCs currently being compiled. */
-    MVM_gc_worklist_add(tc, worklist, &tc->compiling_scs);
+    add_collectable(tc, worklist, snapshot, tc->compiling_scs, "Compiling serialization contexts");
 
     /* compunit variable pointer (and be null if thread finished) */
     if (tc->interp_cu)
-        MVM_gc_worklist_add(tc, worklist, tc->interp_cu);
+        add_collectable(tc, worklist, snapshot, *(tc->interp_cu), "Current interpreter compilation unit");
 
     /* Lexotics cache. */
     if (tc->lexotic_cache_size) {
         MVMuint32 i;
         for (i = 0; i < tc->lexotic_cache_size; i++)
             if (tc->lexotic_cache[i])
-                MVM_gc_worklist_add(tc, worklist, &(tc->lexotic_cache[i]));
+                add_collectable(tc, worklist, snapshot, tc->lexotic_cache[i], "Lexotic cache entry");
     }
 
     /* Current dispatcher. */
-    MVM_gc_worklist_add(tc, worklist, &tc->cur_dispatcher);
+    add_collectable(tc, worklist, snapshot, tc->cur_dispatcher, "Current dispatcher");
 
     /* Callback cache. */
     HASH_ITER(hash_handle, tc->native_callback_cache, current_cbceh, tmp_cbceh, bucket_tmp) {
@@ -146,17 +146,21 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
         MVMNativeCallback *entry = current_cbceh->head;
         while (entry) {
             for (i = 0; i < entry->num_types; i++)
-                MVM_gc_worklist_add(tc, worklist, &(entry->types[i]));
-            MVM_gc_worklist_add(tc, worklist, &(entry->target));
+                add_collectable(tc, worklist, snapshot, entry->types[i],
+                    "Native callback cache type");
+            add_collectable(tc, worklist, snapshot, entry->target,
+                "Native callback cache target");
             entry = entry->next;
         }
     }
 
     /* Profiling data. */
-    MVM_profile_instrumented_mark_data(tc, worklist);
+    if (worklist)
+        MVM_profile_instrumented_mark_data(tc, worklist);
 
     /* Serialized string heap, if any. */
-    MVM_gc_worklist_add(tc, worklist, &tc->serialized_string_heap);
+    add_collectable(tc, worklist, snapshot, tc->serialized_string_heap,
+        "Serialized string heap");
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */

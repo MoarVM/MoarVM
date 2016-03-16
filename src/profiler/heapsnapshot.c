@@ -167,8 +167,8 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 MVM_gc_root_add_temps_to_worklist((MVMThreadContext *)item.target, NULL, ss);
                 break;
             case MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS:
+                MVM_gc_root_add_tc_roots_to_worklist((MVMThreadContext *)item.target, NULL, ss);
                 /* XXX 
-                 * MVM_gc_root_add_tc_roots_to_worklist(tc, worklist);
                  * MVM_gc_worklist_add_frame(tc, worklist, tc->cur_frame);
                  */
                  break;
