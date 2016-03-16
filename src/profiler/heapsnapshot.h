@@ -136,6 +136,11 @@ struct MVMHeapSnapshotState {
 
     /* The seen hash of collectables (including frames). */
     MVMHeapSnapshotSeen *seen;
+
+    /* We sometimes use GC mark functions to find references. Keep a worklist
+     * around for those times (much cheaper than allocating it whenever we
+     * need it). */
+    MVMGCWorklist *gcwl;
 };
 
 /* Work item used while taking a heap snapshot. */

@@ -213,6 +213,21 @@ static void process_collectable(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
                 (MVMCollectable *)tc->instance->all_scs[sc_idx]->sc));
     col->collectable_size = c->size;
 }
+static void process_gc_worklist(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
+    MVMCollectable **c_ptr;
+    MVMFrame *f;
+    while (c_ptr = MVM_gc_worklist_get(tc, ss->gcwl)) {
+        MVMCollectable *c = *c_ptr;
+        if (c)
+            add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_UNKNOWN, 0,
+                get_collectable_idx(tc, ss, c));
+    }
+    while (f = MVM_gc_worklist_get_frame(tc, ss->gcwl)) {
+        if (f)
+            add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_UNKNOWN, 0,
+                get_frame_idx(tc, ss, f));
+    }
+}
 static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         MVMHeapSnapshotCollectable *col, MVMObject *obj) {
     process_collectable(tc, ss, col, (MVMCollectable *)obj);
@@ -220,7 +235,13 @@ static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
     add_reference_const_cstr(tc, ss, "<STable>",
         get_collectable_idx(tc, ss, (MVMCollectable *)obj->st));
     if (IS_CONCRETE(obj)) {
-        /* XXX Walk object's state */
+        /* Use object's gc_mark function to find what it references. */
+        /* XXX We'll also add an API for getting better information, e.g.
+         * attribute names. */
+        if (REPR(obj)->gc_mark) {
+            REPR(obj)->gc_mark(tc, STABLE(obj), OBJECT_BODY(obj), ss->gcwl);
+            process_gc_worklist(tc, ss);
+        }
     }
 }
 static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
@@ -324,6 +345,7 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
     memset(&ss, 0, sizeof(MVMHeapSnapshotState));
     ss.col = col;
     ss.hs = hs;
+    ss.gcwl = MVM_gc_worklist_create(tc, 1);
 
     /* We push the ultimate "root of roots" onto the worklist to get things
      * going, then set off on our merry way. */
@@ -335,6 +357,7 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
     /* Clean up temporary state. */
     MVM_free(ss.workitems);
     MVM_HASH_DESTROY(hash_handle, MVMHeapSnapshotSeen, ss.seen);
+    MVM_gc_worklist_destroy(tc, ss.gcwl);
 }
 
 /* Takes a snapshot of the heap, adding it to the current heap snapshot
