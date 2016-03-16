@@ -45,6 +45,26 @@ static void grow_storage(void **store, MVMuint64 *num, MVMuint64 *alloc, size_t 
     }
 }
 
+/* Get a string heap index for the specified C string, adding it if needed. */
+ static MVMuint64 get_string_index(MVMThreadContext *tc, SnapshotState *ss,
+                                   char *str, char is_const) {
+     MVMuint64 i;
+
+     /* Add a lookup hash here if it gets to be a hotspot. */
+     MVMHeapSnapshotCollection *col = ss->col;
+     for (i = 0; i < col->num_strings; i++)
+        if (strcmp(col->strings[i], str) == 0)
+            return i;
+
+    grow_storage((void **)&(col->strings), &(col->num_strings),
+        &(col->alloc_strings), sizeof(char *));
+    grow_storage(&(col->strings_free), &(col->num_strings_free),
+        &(col->alloc_strings_free), sizeof(char));
+    col->strings[col->num_strings] = str;
+    col->strings_free[col->num_strings] = !is_const;
+    return col->num_strings++;
+ }
+
 /* Push a collectable to the list of work items, allocating space for it and
  * returning the collectable index. */
 static MVMuint64 push_workitem(MVMThreadContext *tc, SnapshotState *ss, MVMuint16 kind, void *target) {
@@ -109,8 +129,15 @@ static void add_reference(MVMThreadContext *tc, SnapshotState *ss, MVMuint16 ref
 /* Adds a reference with a C string description. */
 static void add_reference_cstr(MVMThreadContext *tc, SnapshotState *ss,
                                char *cstr,  MVMuint64 to) {
-    // XXX Add to strings heap, update call below
-    add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_UNKNOWN, 0, to);
+    MVMuint64 str_idx = get_string_index(tc, ss, cstr, 0);
+    add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING, str_idx, to);
+}
+
+/* Adds a reference with a constant C string description. */
+static void add_reference_const_cstr(MVMThreadContext *tc, SnapshotState *ss,
+                                     const char *cstr,  MVMuint64 to) {
+    MVMuint64 str_idx = get_string_index(tc, ss, (char *)cstr, 1);
+    add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING, str_idx, to);
 }
 
 /* Adds a references with a string description. */
@@ -138,13 +165,13 @@ static void process_workitems(MVMThreadContext *tc, SnapshotState *ss) {
                  */
                  break;
             case MVM_SNAPSHOT_COL_KIND_ROOT:
-                add_reference_cstr(tc, ss, "Permanent Roots",
+                add_reference_const_cstr(tc, ss, "Permanent Roots",
                     push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_PERM_ROOTS, NULL));
-                add_reference_cstr(tc, ss, "VM Instance Roots",
+                add_reference_const_cstr(tc, ss, "VM Instance Roots",
                     push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_INSTANCE_ROOTS, NULL));
-                add_reference_cstr(tc, ss, "C Stack Roots",
+                add_reference_const_cstr(tc, ss, "C Stack Roots",
                     push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_CSTACK_ROOTS, NULL));
-                add_reference_cstr(tc, ss, "Thread Roots",
+                add_reference_const_cstr(tc, ss, "Thread Roots",
                     push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS, NULL));
                  break;
             default:

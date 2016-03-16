@@ -19,10 +19,14 @@ struct MVMHeapSnapshotCollection {
     MVMuint64 num_static_frames;
     MVMuint64 alloc_static_frames;
 
-    /* Strings, referenced by index from various places. */
+    /* Strings, referenced by index from various places. Also a "should we
+     * free it" flag for each one. */
     char **strings;
     MVMuint64 num_strings;
     MVMuint64 alloc_strings;
+    char *strings_free;
+    MVMuint64 num_strings_free;
+    MVMuint64 alloc_strings_free;
 };
 
 /* An individual heap snapshot. */
