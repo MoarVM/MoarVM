@@ -21,12 +21,12 @@ void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
             obj = MVM_repr_alloc_init(tc, type);
             MVM_repr_set_int(tc, obj, val);
             tc->instance->int_const_cache->cache[type_index][val + 1] = obj;
-            MVM_gc_root_add_permanent(tc,
+            MVM_gc_root_add_permanent_desc(tc,
                 (MVMCollectable **)&tc->instance->int_const_cache->cache[type_index][val + 1],
                 "Boxed integer cache entry");
         }
         tc->instance->int_const_cache->types[type_index] = type;
-        MVM_gc_root_add_permanent(tc,
+        MVM_gc_root_add_permanent_desc(tc,
             (MVMCollectable **)&tc->instance->int_const_cache->types[type_index],
             "Boxed integer cache type");
     }

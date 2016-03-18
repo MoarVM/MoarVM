@@ -309,7 +309,7 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
 
     /* Stash the created KnowHOW. */
     tc->instance->KnowHOW = (MVMObject *)knowhow;
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->KnowHOW, "KnowHOW");
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&tc->instance->KnowHOW, "KnowHOW");
 }
 
 /* Takes a stub object that existed before we had bootstrapped things and
@@ -444,7 +444,7 @@ static void create_KnowHOWAttribute(MVMThreadContext *tc) {
 
         /* Stash the created type object. */
         tc->instance->KnowHOWAttribute = (MVMObject *)type_obj;
-        MVM_gc_root_add_permanent(tc,
+        MVM_gc_root_add_permanent_desc(tc,
             (MVMCollectable **)&tc->instance->KnowHOWAttribute,
             "KnowHOWAttribute");
     });
@@ -526,7 +526,7 @@ static void string_consts(MVMThreadContext *tc) {
 /* Set up some strings. */
 #define string_creator(variable, name) do { \
     instance->str_consts.variable = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, (name)); \
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&(instance->str_consts.variable), "VM string constant"); \
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&(instance->str_consts.variable), "VM string constant"); \
 } while (0)
 
     string_creator(empty, "");
@@ -637,7 +637,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Give stub types meta-objects. */
 #define meta_objectifier(tc, slot, name) do { \
     add_meta_object((tc), (tc)->instance->slot, (name)); \
-    MVM_gc_root_add_permanent((tc), (MVMCollectable **)&(tc)->instance->slot, name); \
+    MVM_gc_root_add_permanent_desc((tc), (MVMCollectable **)&(tc)->instance->slot, name); \
 } while (0)
     meta_objectifier(tc, VMString, "VMString");
     meta_objectifier(tc, VMNull, "VMNull");
@@ -671,17 +671,17 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     /* Bootstrap typed arrays. */
     tc->instance->boot_types.BOOTIntArray = boot_typed_array(tc, "BOOTIntArray",
         tc->instance->boot_types.BOOTInt);
-    MVM_gc_root_add_permanent(tc,
+    MVM_gc_root_add_permanent_desc(tc,
         (MVMCollectable **)&tc->instance->boot_types.BOOTIntArray,
         "BOOTIntArray");
     tc->instance->boot_types.BOOTNumArray = boot_typed_array(tc, "BOOTNumArray",
         tc->instance->boot_types.BOOTNum);
-    MVM_gc_root_add_permanent(tc,
+    MVM_gc_root_add_permanent_desc(tc,
         (MVMCollectable **)&tc->instance->boot_types.BOOTNumArray,
         "BOOTNumArray");
     tc->instance->boot_types.BOOTStrArray = boot_typed_array(tc, "BOOTStrArray",
         tc->instance->boot_types.BOOTStr);
-    MVM_gc_root_add_permanent(tc,
+    MVM_gc_root_add_permanent_desc(tc,
         (MVMCollectable **)&tc->instance->boot_types.BOOTStrArray,
         "BOOTStrArray");
 

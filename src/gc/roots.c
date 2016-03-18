@@ -6,7 +6,7 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
  * roots, so that it will always be marked and never die. Note that the
  * address of the collectable must be passed, since it will need to be
  * updated. */
-void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref, char *description) {
+void MVM_gc_root_add_permanent_desc(MVMThreadContext *tc, MVMCollectable **obj_ref, char *description) {
     if (obj_ref == NULL)
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as a permanent root");
 
@@ -27,6 +27,10 @@ void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref, c
     tc->instance->num_permroots++;
 
     uv_mutex_unlock(&tc->instance->mutex_permroots);
+}
+
+void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref) {
+    MVM_gc_root_add_permanent_desc(tc, obj_ref, "<??>");
 }
 
 /* Adds the set of permanently registered roots to a GC worklist. */
