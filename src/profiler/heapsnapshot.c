@@ -213,18 +213,24 @@ static void process_collectable(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
                 (MVMCollectable *)tc->instance->all_scs[sc_idx]->sc));
     col->collectable_size = c->size;
 }
-static void process_gc_worklist(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
+static void process_gc_worklist(MVMThreadContext *tc, MVMHeapSnapshotState *ss, char *desc) {
     MVMCollectable **c_ptr;
     MVMFrame *f;
+    MVMuint16 ref_kind = desc
+        ? MVM_SNAPSHOT_REF_KIND_STRING
+        : MVM_SNAPSHOT_REF_KIND_UNKNOWN;
+    MVMuint16 ref_index = desc
+        ? get_string_index(tc, ss, desc, STR_MODE_CONST)
+        : 0;
     while (c_ptr = MVM_gc_worklist_get(tc, ss->gcwl)) {
         MVMCollectable *c = *c_ptr;
         if (c)
-            add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_UNKNOWN, 0,
+            add_reference(tc, ss, ref_kind, ref_index,
                 get_collectable_idx(tc, ss, c));
     }
     while (f = MVM_gc_worklist_get_frame(tc, ss->gcwl)) {
         if (f)
-            add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_UNKNOWN, 0,
+            add_reference(tc, ss, ref_kind, ref_index,
                 get_frame_idx(tc, ss, f));
     }
 }
@@ -240,7 +246,7 @@ static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
          * attribute names. */
         if (REPR(obj)->gc_mark) {
             REPR(obj)->gc_mark(tc, STABLE(obj), OBJECT_BODY(obj), ss->gcwl);
-            process_gc_worklist(tc, ss);
+            process_gc_worklist(tc, ss, NULL);
         }
     }
 }
@@ -258,10 +264,82 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 process_object(tc, ss, col, (MVMObject *)item.target);
                 break;
             case MVM_SNAPSHOT_COL_KIND_STABLE: {
+                MVMuint16 i;
                 MVMSTable *st = (MVMSTable *)item.target;
                 process_collectable(tc, ss, col, (MVMCollectable *)st);
                 set_type_index(tc, ss, col, st);
-                // XXX
+
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)st->method_cache, "Method cache");
+
+                for (i = 0; i < st->type_check_cache_length; i++)
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable *)st->type_check_cache[i], "Type cache entry");
+
+                if (st->container_spec && st->container_spec->gc_mark_data) {
+                    st->container_spec->gc_mark_data(tc, st, ss->gcwl);
+                    process_gc_worklist(tc, ss, "Container spec data item");
+                }
+
+                if (st->boolification_spec)
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable *)st->boolification_spec->method,
+                        "Boolification method");
+
+                if (st->invocation_spec) {
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable *)st->invocation_spec->class_handle,
+                        "Invocation spec class handle");
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable *)st->invocation_spec->attr_name,
+                        "Invocation spec attribute name");
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable *)st->invocation_spec->invocation_handler,
+                        "Invocation spec invocation handler");
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable *)st->invocation_spec->md_class_handle,
+                        "Invocation spec class handle (multi)");
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable *)st->invocation_spec->md_cache_attr_name,
+                        "Invocation spec cache attribute name (multi)");
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable *)st->invocation_spec->md_valid_attr_name,
+                        "Invocation spec valid attribute name (multi)");
+                }
+
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)st->WHO, "WHO");
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)st->WHAT, "WHAT");
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)st->HOW, "HOW");
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)st->HOW_sc, "HOW serialization context");
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)st->method_cache_sc,
+                    "Method cache serialization context");
+
+                if (st->mode_flags & MVM_PARAMETRIC_TYPE) {
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable *)st->paramet.ric.parameterizer,
+                        "Parametric type parameterizer");
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable *)st->paramet.ric.lookup,
+                        "Parametric type intern table");
+                }
+                else if (st->mode_flags & MVM_PARAMETERIZED_TYPE) {
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable *)st->paramet.erized.parametric_type,
+                        "Parameterized type's parametric type");
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                        (MVMCollectable *)st->paramet.erized.parameters,
+                        "Parameterized type's parameters");
+                }
+
+                if (st->REPR->gc_mark_repr_data) {
+                    st->REPR->gc_mark_repr_data(tc, st, ss->gcwl);
+                    process_gc_worklist(tc, ss, "REPR data item");
+                }
                 break;
             }
             case MVM_SNAPSHOT_COL_KIND_FRAME: {
