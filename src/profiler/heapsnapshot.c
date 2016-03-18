@@ -466,8 +466,10 @@ static void destroy_heap_snapshot_collection(MVMThreadContext *tc) {
         if (col->strings_free[i])
             MVM_free(col->strings[i]);
     MVM_free(col->strings);
+    MVM_free(col->strings_free);
 
-    /* XXX Free other pieces. */
+    MVM_free(col->types);
+    MVM_free(col->static_frames);
 
     MVM_free(col);
     tc->instance->heap_snapshots = NULL;
