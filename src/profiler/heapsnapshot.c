@@ -431,6 +431,8 @@ MVMObject * types_str(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
          memcpy(buffer + buffer_pos, tmp, item_chars);
          buffer_pos += item_chars;
      }
+    if (buffer_pos > 1)
+        buffer[buffer_pos - 1] = 0; /* Cut off the trailing ; for ease of parsing */
      buffer[buffer_pos] = 0;
 
      result = box_s(tc, vmstr(tc, buffer));
@@ -467,6 +469,8 @@ MVMObject * collectables_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
          memcpy(buffer + buffer_pos, tmp, item_chars);
          buffer_pos += item_chars;
      }
+    if (buffer_pos > 1)
+        buffer[buffer_pos - 1] = 0; /* Cut off the trailing ; for ease of parsing */
      buffer[buffer_pos] = 0;
 
      result = box_s(tc, vmstr(tc, buffer));
@@ -499,6 +503,8 @@ MVMObject * references_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
         memcpy(buffer + buffer_pos, tmp, item_chars);
         buffer_pos += item_chars;
     }
+    if (buffer_pos > 1)
+        buffer[buffer_pos - 1] = 0; /* Cut off the trailing ; for ease of parsing */
     buffer[buffer_pos] = 0;
 
     result = box_s(tc, vmstr(tc, buffer));
