@@ -458,7 +458,7 @@ MVMObject * collectables_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
             s->collectables[i].type_or_frame_index,
             s->collectables[i].collectable_size,
             s->collectables[i].unmanaged_size,
-            s->collectables[i].refs_start,
+            s->collectables[i].num_refs ? s->collectables[i].refs_start : 0,
             s->collectables[i].num_refs);
          if (item_chars < 0)
              MVM_panic(1, "Failed to save collectable in heap snapshot");
