@@ -30,9 +30,13 @@ static void grow_storage(void **store, MVMuint64 *num, MVMuint64 *alloc, size_t 
 
      /* Add a lookup hash here if it gets to be a hotspot. */
      MVMHeapSnapshotCollection *col = ss->col;
-     for (i = 0; i < col->num_strings; i++)
-        if (strcmp(col->strings[i], str) == 0)
+     for (i = 0; i < col->num_strings; i++) {
+        if (strcmp(col->strings[i], str) == 0) {
+            if (str_mode == STR_MODE_OWN)
+                MVM_free(str);
             return i;
+        }
+    }
 
     grow_storage((void **)&(col->strings), &(col->num_strings),
         &(col->alloc_strings), sizeof(char *));
@@ -43,6 +47,13 @@ static void grow_storage(void **store, MVMuint64 *num, MVMuint64 *alloc, size_t 
     col->strings[col->num_strings] = str_mode == STR_MODE_DUP ? strdup(str) : str;
     return col->num_strings++;
  }
+
+/* Gets a string index in the string heap for a VM string. */
+static MVMuint64 get_vm_string_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMString *str) {
+    return str
+        ? get_string_index(tc, ss, MVM_string_utf8_encode_C_string(tc, str), STR_MODE_OWN)
+        : get_string_index(tc, ss, "<null>", STR_MODE_CONST);
+}
 
 /* Push a collectable to the list of work items, allocating space for it and
  * returning the collectable index. */
@@ -177,6 +188,8 @@ static MVMuint64 get_frame_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
     return idx;
 }
 
+/* Adds a type table index reference to the collectable snapshot entry, either
+ * using an existing type table entry or adding a new one. */
 static void set_type_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
        MVMHeapSnapshotCollectable *col, MVMSTable *st) {
     MVMuint64 repr_idx = get_string_index(tc, ss, (char *)st->REPR->name, STR_MODE_CONST);
@@ -201,6 +214,41 @@ static void set_type_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
     t->type_name = type_idx;
     col->type_or_frame_index = ss->col->num_types;
     ss->col->num_types++;
+}
+
+/* Adds a static frame table index reference to the collectable snapshot entry,
+ * either using an existing table entry or adding a new one. */
+static void set_static_frame_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
+       MVMHeapSnapshotCollectable *col, MVMStaticFrame *sf) {
+    MVMuint64 name_idx = get_vm_string_index(tc, ss, sf->body.name);
+    MVMuint64 cuid_idx = get_vm_string_index(tc, ss, sf->body.cuuid);
+
+    MVMCompUnit *cu = sf->body.cu;
+    MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &(sf->body), 0);
+    MVMuint64 line = ann ? ann->line_number : 1;
+    MVMuint64 file_idx = ann && ann->filename_string_heap_index < cu->body.num_strings
+        ? get_vm_string_index(tc, ss, MVM_cu_string(tc, cu, ann->filename_string_heap_index))
+        : get_vm_string_index(tc, ss, cu->body.filename);
+
+    MVMuint64 i;
+    MVMHeapSnapshotStaticFrame *s;
+    for (i = 0; i < ss->col->num_static_frames; i++) {
+        s = &(ss->col->static_frames[i]);
+        if (s->name == name_idx && s->cuid == cuid_idx && s->line == line && s->file == file_idx) {
+            col->type_or_frame_index = i;
+            return;
+        }
+    }
+
+    grow_storage(&(ss->col->static_frames), &(ss->col->num_static_frames),
+        &(ss->col->alloc_static_frames), sizeof(MVMHeapSnapshotStaticFrame));
+    s = &(ss->col->static_frames[ss->col->num_static_frames]);
+    s->name = name_idx;
+    s->cuid = cuid_idx;
+    s->line = line;
+    s->file = file_idx;
+    col->type_or_frame_index = ss->col->num_static_frames;
+    ss->col->num_static_frames++;
 }
 
 /* Processes the work items, until we've none left. */
@@ -345,7 +393,8 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
             case MVM_SNAPSHOT_COL_KIND_FRAME: {
                 MVMFrame *frame = (MVMFrame *)item.target;
                 col->collectable_size = sizeof(MVMFrame);
-                // XXX
+                set_static_frame_index(tc, ss, col, frame->static_info);
+                // XXX frame locals, lexicals, etc.
                 break;
             }
             case MVM_SNAPSHOT_COL_KIND_PERM_ROOTS:
