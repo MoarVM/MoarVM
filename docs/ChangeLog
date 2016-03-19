@@ -1,3 +1,32 @@
+New in 2016.03
+
++ Fix the build when not bundling libtommath
++ Updates to moar-gdb.py (MoarVM GDB plug-in)
++ Add serialize and deserialize to CPointer REPR
++ Don't do cross-HLL inlining
++ Fix missing call optimization/inlining of non-multis in some cases
++ Remove dangerous/broken usecapture optimization, fixing a big memory leak
++ Lazily decode the string heap, improving startup time and reducing memory
++ JIT the atposref_* ops
++ All the ref ops now properly set up facts in spesh
++ Fix dyncall on raspberrypi for calls > 4 params
++ Don't allocate a thread's second GC semi-space until needed
++ Don't keep an MVMStaticFrame array in MVMCompUnit, saving memory
++ Fix primary composite table generation, in turn fixing a SEGV
++ Measure slurpy param and param autoboxing allocations in the profiler
++ Implement native descriptor introspection for pipes
++ Further support for function pointers in native calling
++ Add debug_name field to STable struct and setdebugtypename, to allow easier
+  debugging and analysis
++ Get directory listing in utf8-c8 encoding
++ Fix JIT compiler bug in string le/ge ops
++ Handle nonblocking stdout properly for --dump
++ Fix linelocs buffer overflow in bytecode dumping
++ Include type info of wval/wval_wide referenced objects in spesh log
++ Don't keep around barely-used bytecode maps, saving memory
++ Only allocate instrumentation state if needed, saving memory
++ Boost size of the multi-dispatch cache
+
 New in 2016.02
 
 + Numerous fixes for places where --full-cleanup leaked
