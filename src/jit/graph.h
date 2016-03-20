@@ -16,6 +16,7 @@ struct MVMJitGraph {
     MVM_DYNAR_DECL(MVMJitDeopt, deopts);
     MVM_DYNAR_DECL(MVMJitHandler, handlers);
     MVM_DYNAR_DECL(MVMJitInline, inlines);
+    MVM_DYNAR_DECL(MVMJitNode*, label_nodes);
 };
 
 struct MVMJitDeopt {
