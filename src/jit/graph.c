@@ -76,14 +76,17 @@ static void jg_append_branch(MVMThreadContext *tc, MVMJitGraph *jg,
 
 static void jg_append_label(MVMThreadContext *tc, MVMJitGraph *jg, MVMint32 name) {
     MVMJitNode *node;
-    if (jg->last_node &&
-        jg->last_node->type == MVM_JIT_NODE_LABEL &&
-        jg->last_node->u.label.name == name)
-        return; /* don't double-add labels, even if it may be harmless */
+    /* does this label already exist? */
+    MVM_DYNAR_ENSURE_SIZE(jg->label_nodes, name);
+    if (jg->label_nodes[name] != NULL)
+        return;
+
     node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
     node->type = MVM_JIT_NODE_LABEL;
     node->u.label.name = name;
     jg_append_node(jg, node);
+
+    jg->label_nodes[name] = node;
     MVM_jit_log(tc, "append label: %d\n", node->u.label.name);
 }
 
@@ -576,28 +579,28 @@ static void before_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMSpeshBB   *bb = iter->bb;
     MVMSpeshAnn *ann = ins->annotations;
 
+    MVMint32 has_label = 0, has_dynamic_control = 0, label;
     /* Search annotations for stuff that may need a label. */
     while (ann) {
         switch(ann->type) {
         case MVM_SPESH_ANN_DEOPT_OSR: {
             /* get label before our instruction */
-            MVMint32 label = MVM_jit_label_before_ins(tc, jg, bb, ins);
-            jg_append_label(tc, jg, label);
+            label = MVM_jit_label_before_ins(tc, jg, bb, ins);
             add_deopt_idx(tc, jg, label, ann->data.deopt_idx);
+            has_label = 1;
             break;
         }
         case MVM_SPESH_ANN_FH_START: {
-            MVMint32 label = MVM_jit_label_before_ins(tc, jg, bb, ins);
-            jg_append_label(tc, jg, label);
+            label = MVM_jit_label_before_ins(tc, jg, bb, ins);
             jg->handlers[ann->data.frame_handler_index].start_label = label;
+            has_label = 1;
+            has_dynamic_control = 1;
             /* Load the current position into the jit entry label, so that
              * when throwing we'll know which handler to use */
-            jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
             break;
         }
         case MVM_SPESH_ANN_FH_END: {
-            MVMint32 label = MVM_jit_label_before_ins(tc, jg, bb, ins);
-            jg_append_label(tc, jg, label);
+            label = MVM_jit_label_before_ins(tc, jg, bb, ins);
             jg->handlers[ann->data.frame_handler_index].end_label = label;
             /* Same as above. Note that the dynamic label control
              * actually loads a position a few bytes away from the
@@ -608,25 +611,33 @@ static void before_ins(MVMThreadContext *tc, MVMJitGraph *jg,
              * distinguish between the end of the basic block to which
              * the handler applies and the start of the basic block to
              * which it doesn't. */
-            jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
+            has_label = 1;
+            has_dynamic_control = 1;
             break;
         }
         case MVM_SPESH_ANN_FH_GOTO: {
-            MVMint32 label = MVM_jit_label_before_ins(tc, jg, bb, ins);
-            jg_append_label(tc, jg, label);
+            label = MVM_jit_label_before_ins(tc, jg, bb, ins);
             jg->handlers[ann->data.frame_handler_index].goto_label = label;
+            has_label = 1;
             break;
         }
         case MVM_SPESH_ANN_INLINE_START: {
-            MVMint32 label = MVM_jit_label_before_ins(tc, jg, bb, ins);
-            jg_append_label(tc, jg, label);
+            label = MVM_jit_label_before_ins(tc, jg, bb, ins);
             jg->inlines[ann->data.inline_idx].start_label = label;
             if (tc->instance->jit_log_fh)
                 log_inline(tc, jg->sg, ann->data.inline_idx, 1);
+            has_label = 1;
             break;
         }
         } /* switch */
         ann = ann->next;
+    }
+
+    if (has_label) {
+        jg_append_label(tc, jg, label);
+    }
+    if (has_dynamic_control) {
+        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
     }
 
     if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
@@ -3045,10 +3056,14 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     /* Set initial instruction label offset */
     graph->obj_label_ofs = sg->num_bbs + 1;
 
+
     /* Total (expected) number of labels. May grow if there are more than 4
      * deopt labels (OSR deopt labels or deopt_all labels). */
     MVM_DYNAR_INIT(graph->obj_labels, 16);
+    /* Deoptimization labels */
     MVM_DYNAR_INIT(graph->deopts, 8);
+    /* Nodes for each label, used to ensure labels aren't added twice */
+    MVM_DYNAR_INIT(graph->label_nodes, 16 + sg->num_bbs);
 
     /* JIT handlers are indexed by spesh graph handler index */
     if (sg->num_handlers > 0) {
@@ -3094,8 +3109,8 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
 
 void MVM_jit_graph_destroy(MVMThreadContext *tc, MVMJitGraph *graph) {
     MVM_free(graph->obj_labels);
+    MVM_free(graph->label_nodes);
     MVM_free(graph->deopts);
     MVM_free(graph->handlers);
     MVM_free(graph->inlines);
-
 }
