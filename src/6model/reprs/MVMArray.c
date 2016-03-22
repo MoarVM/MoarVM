@@ -309,6 +309,10 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64
         elems = zero_slots(tc, body, elems, ssize, repr_data->slot_type);
     }
 
+    /* if reducing the elems, fill out new unused slots with NULL or zero values */
+    if (n < elems)
+        zero_slots(tc, body, n + start, elems + start, repr_data->slot_type);
+
     body->elems = n;
     if (n <= ssize) {
         /* we already have n slots available, we can just return */
