@@ -24,7 +24,7 @@ static void grow_storage(void **store, MVMuint64 *num, MVMuint64 *alloc, size_t 
 #define STR_MODE_OWN    0
 #define STR_MODE_CONST  1
 #define STR_MODE_DUP    2
- static MVMuint64 get_string_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
+static MVMuint64 get_string_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
                                    char *str, char str_mode) {
      MVMuint64 i;
 
@@ -134,8 +134,12 @@ static void add_reference_const_cstr(MVMThreadContext *tc, MVMHeapSnapshotState 
     add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING, str_idx, to);
 }
 
-/* Adds a references with a string description. */
-// XXX
+/* Adds a reference with a VM string description. */
+static void add_reference_vm_str(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
+                               MVMString *str,  MVMuint64 to) {
+   MVMuint64 str_idx = get_vm_string_index(tc, ss, str);
+   add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING, str_idx, to);
+}
 
 /* Adds an entry to the seen hash. */
 static void saw(MVMThreadContext *tc, MVMHeapSnapshotState *ss, void *addr, MVMuint64 idx) {
@@ -394,7 +398,66 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 MVMFrame *frame = (MVMFrame *)item.target;
                 col->collectable_size = sizeof(MVMFrame);
                 set_static_frame_index(tc, ss, col, frame->static_info);
-                // XXX frame locals, lexicals, etc.
+
+                if (frame->caller)
+                    add_reference_const_cstr(tc, ss, "Caller",
+                        get_frame_idx(tc, ss, frame->caller));
+                if (frame->outer)
+                    add_reference_const_cstr(tc, ss, "Outer",
+                        get_frame_idx(tc, ss, frame->outer));
+
+                MVM_gc_root_add_frame_registers_to_worklist(tc, ss->gcwl, frame);
+                process_gc_worklist(tc, ss, "Register");
+
+                if (frame->env) {
+                    MVMuint16  i, count;
+                    MVMuint16 *type_map;
+                    MVMuint16  name_count = frame->static_info->body.num_lexicals;
+                    MVMLexicalRegistry **names = frame->static_info->body.lexical_names_list;
+                    if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->lexical_types) {
+                        type_map = frame->spesh_cand->lexical_types;
+                        count    = frame->spesh_cand->num_lexicals;
+                    }
+                    else {
+                        type_map = frame->static_info->body.lexical_types;
+                        count    = frame->static_info->body.num_lexicals;
+                    }
+                    for (i = 0; i < count; i++) {
+                        if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj) {
+                            if (i < name_count)
+                                MVM_profile_heap_add_collectable_rel_vm_str(tc, ss,
+                                    (MVMCollectable *)frame->env[i].o, names[i]->key);
+                            else
+                                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                                    (MVMCollectable *)frame->env[i].o, "Lexical (inlined)");
+                        }
+                    }
+                }
+
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)frame->code_ref, "Code reference");
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)frame->static_info, "Static frame");
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)frame->context_object, "Context object");
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)frame->dynlex_cache_name,
+                    "Dynamic lexical cache name");
+
+                if (frame->special_return_data && frame->mark_special_return_data) {
+                    frame->mark_special_return_data(tc, frame, ss->gcwl);
+                    process_gc_worklist(tc, ss, "Special return data");
+                }
+
+                if (frame->continuation_tags) {
+                    MVMContinuationTag *tag = frame->continuation_tags;
+                    while (tag) {
+                        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                            (MVMCollectable *)tag->tag, "Continuation tag");
+                        tag = tag->next;
+                    }
+                }
+
                 break;
             }
             case MVM_SNAPSHOT_COL_KIND_PERM_ROOTS:
@@ -451,6 +514,15 @@ void MVM_profile_heap_add_collectable_rel_const_cstr(MVMThreadContext *tc,
         MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc) {
     if (collectable)
         add_reference_const_cstr(tc, ss, desc,
+            get_collectable_idx(tc, ss, collectable));
+}
+
+/* API function for adding a collectable to the snapshot, describing its
+ * relation to the current collectable with an MVMString. */
+void MVM_profile_heap_add_collectable_rel_vm_str(MVMThreadContext *tc,
+        MVMHeapSnapshotState *ss, MVMCollectable *collectable, MVMString *desc) {
+    if (collectable)
+        add_reference_vm_str(tc, ss, desc,
             get_collectable_idx(tc, ss, collectable));
 }
 

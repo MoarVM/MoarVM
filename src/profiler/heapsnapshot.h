@@ -180,5 +180,7 @@ MVMObject * MVM_profile_heap_end(MVMThreadContext *tc);
  * profile. */
 MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_const_cstr(MVMThreadContext *tc,
     MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc);
+MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_vm_str(MVMThreadContext *tc,
+    MVMHeapSnapshotState *ss, MVMCollectable *collectable, MVMString *desc);
 MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_idx(MVMThreadContext *tc,
     MVMHeapSnapshotState *ss, MVMCollectable *collectable, MVMuint64 idx);

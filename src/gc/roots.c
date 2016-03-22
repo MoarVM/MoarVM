@@ -1,8 +1,5 @@
 #include "moar.h"
 
-static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
-static void scan_lexicals(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
-
 /* Adds a location holding a collectable object to the permanent list of GC
  * roots, so that it will always be marked and never die. Note that the
  * address of the collectable must be passed, since it will need to be
@@ -315,6 +312,7 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
 
 /* Walks frames and compilation units. Adds the roots it finds into the
  * GC worklist. */
+static void scan_lexicals(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame) {
     MVMFrame *cur_frame = start_frame;
     MVMuint32 cur_seq_number = MVM_load(&tc->instance->gc_seq_number);
@@ -356,12 +354,12 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
         MVM_gc_worklist_add(tc, worklist, &cur_frame->dynlex_cache_name);
 
     /* Scan the registers. */
-    scan_registers(tc, worklist, cur_frame);
+    MVM_gc_root_add_frame_registers_to_worklist(tc, worklist, cur_frame);
     scan_lexicals(tc, worklist, cur_frame);
 }
 
 /* Takes a frame, scans its registers and adds them to the roots. */
-static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame) {
+void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame) {
     MVMuint16  i, count, flag;
     MVMuint16 *type_map;
     MVMuint8  *flag_map;
