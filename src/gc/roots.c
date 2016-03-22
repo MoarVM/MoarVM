@@ -1,6 +1,7 @@
 #include "moar.h"
 
 static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
+static void scan_lexicals(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 
 /* Adds a location holding a collectable object to the permanent list of GC
  * roots, so that it will always be marked and never die. Note that the
@@ -356,6 +357,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
 
     /* Scan the registers. */
     scan_registers(tc, worklist, cur_frame);
+    scan_lexicals(tc, worklist, cur_frame);
 }
 
 /* Takes a frame, scans its registers and adds them to the roots. */
@@ -394,21 +396,6 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
         }
     }
 
-    /* Scan lexicals. */
-    if (frame->env) {
-        if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->lexical_types) {
-            type_map = frame->spesh_cand->lexical_types;
-            count    = frame->spesh_cand->num_lexicals;
-        }
-        else {
-            type_map = frame->static_info->body.lexical_types;
-            count    = frame->static_info->body.num_lexicals;
-        }
-        for (i = 0; i < count; i++)
-            if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
-                MVM_gc_worklist_add(tc, worklist, &frame->env[i].o);
-    }
-
     /* Scan arguments in case there was a flattening. Don't need to if
      * there wasn't a flattening because orig args is a subset of locals. */
     if (frame->params.arg_flags && frame->params.callsite->has_flattening) {
@@ -424,5 +411,24 @@ static void scan_registers(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFra
             if (flag_map[flag] & MVM_CALLSITE_ARG_STR || flag_map[flag] & MVM_CALLSITE_ARG_OBJ)
                 MVM_gc_worklist_add(tc, worklist, &ctx->args[i].o);
         }
+    }
+}
+
+/* Takes a frame, scans its lexicals and adds them to the roots. */
+static void scan_lexicals(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame) {
+    if (frame->env) {
+        MVMuint16  i, count;
+        MVMuint16 *type_map;
+        if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->lexical_types) {
+            type_map = frame->spesh_cand->lexical_types;
+            count    = frame->spesh_cand->num_lexicals;
+        }
+        else {
+            type_map = frame->static_info->body.lexical_types;
+            count    = frame->static_info->body.num_lexicals;
+        }
+        for (i = 0; i < count; i++)
+            if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
+                MVM_gc_worklist_add(tc, worklist, &frame->env[i].o);
     }
 }
