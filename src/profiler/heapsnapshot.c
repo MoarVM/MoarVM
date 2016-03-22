@@ -640,6 +640,42 @@ MVMObject * types_str(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
      MVM_free(buffer);
      return result;
 }
+MVMObject * static_frames_str(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+    /* Produces ; separated sequences of:
+     *   name_string_index,cuid_string_index,line_number,file_string_index
+     * All of which are integers.
+     */
+     MVMObject *result;
+     size_t buffer_size = 16 * col->num_static_frames;
+     size_t buffer_pos  = 0;
+     char *buffer       = MVM_malloc(buffer_size);
+
+     MVMuint64 i;
+     for (i = 0; i < col->num_static_frames; i++) {
+         char tmp[256];
+         size_t item_chars = snprintf(tmp, 256,
+            "%"PRId64",%"PRId64",%"PRId64",%"PRId64";",
+            col->static_frames[i].name,
+            col->static_frames[i].cuid,
+            col->static_frames[i].line,
+            col->static_frames[i].file);
+         if (item_chars < 0)
+             MVM_panic(1, "Failed to save static frame in heap snapshot");
+         if (buffer_pos + item_chars >= buffer_size) {
+             buffer_size += 4096;
+             buffer = MVM_realloc(buffer, buffer_size);
+         }
+         memcpy(buffer + buffer_pos, tmp, item_chars);
+         buffer_pos += item_chars;
+     }
+    if (buffer_pos > 1)
+        buffer[buffer_pos - 1] = 0; /* Cut off the trailing ; for ease of parsing */
+     buffer[buffer_pos] = 0;
+
+     result = box_s(tc, vmstr(tc, buffer));
+     MVM_free(buffer);
+     return result;
+}
 MVMObject * collectables_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
     /* Produces ; separated sequences of:
      *   kind,type_or_frame_index,collectable_size,unmanaged_size,refs_start,num_refs
@@ -740,6 +776,8 @@ MVMObject * collection_to_mvm_objects(MVMThreadContext *tc, MVMHeapSnapshotColle
         string_heap_array(tc, col));
     MVM_repr_bind_key_o(tc, results, vmstr(tc, "types"),
         types_str(tc, col));
+    MVM_repr_bind_key_o(tc, results, vmstr(tc, "static_frames"),
+        static_frames_str(tc, col));
     MVM_repr_bind_key_o(tc, results, vmstr(tc, "snapshots"),
         snapshots_to_mvm_objects(tc, col));
 
