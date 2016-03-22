@@ -76,6 +76,9 @@ struct MVMStringConsts {
     MVMString *ready;
     MVMString *multidim;
     MVMString *entry_point;
+    MVMString *kind;
+    MVMString *instrumented;
+    MVMString *heap;
 };
 
 /* An entry in the representations registry. */
@@ -217,10 +220,13 @@ struct MVMInstance {
     /* Number of permanent GC roots we've got, allocated space for, and
      * a list of the addresses to them. The mutex controls writing to the
      * list, just in case multiple threads somehow end up doing so. Note
-     * that during a GC the world is stopped so reading is safe. */
+     * that during a GC the world is stopped so reading is safe. We also
+     * keep a list of names for these, for the purpose of heap debugging
+     * and heap profiling. */
     MVMuint32             num_permroots;
     MVMuint32             alloc_permroots;
     MVMCollectable     ***permroots;
+    char                **permroot_descriptions;
     uv_mutex_t            mutex_permroots;
 
     /* The current GC run sequence number. May wrap around over time; that
@@ -343,8 +349,11 @@ struct MVMInstance {
      * to 1 which also triggers frame verification. */
     MVMuint32 instrumentation_level;
 
-    /* Whether profiling is turned on or not. */
+    /* Whether instrumented profiling is turned on or not. */
     MVMuint32 profiling;
+
+    /* Heap snapshots, if we're doing heap snapshotting. */
+    MVMHeapSnapshotCollection *heap_snapshots;
 
     /* Whether cross-thread write logging is turned on or not, and an output
      * mutex for it. */

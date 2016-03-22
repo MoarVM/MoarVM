@@ -48,17 +48,19 @@ MVM_STATIC_INLINE void MVM_gc_root_temp_pop_n(MVMThreadContext *tc, MVMuint32 n)
 
 /* Other functions related to roots. */
 MVM_PUBLIC void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref);
-void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
-void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
-void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
+MVM_PUBLIC void MVM_gc_root_add_permanent_desc(MVMThreadContext *tc, MVMCollectable **obj_ref, char *description);
+void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
+void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
+void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
 MVMuint32 MVM_gc_root_temp_mark(MVMThreadContext *tc);
 void MVM_gc_root_temp_mark_reset(MVMThreadContext *tc, MVMuint32 mark);
 void MVM_gc_root_temp_pop_all(MVMThreadContext *tc);
-void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
+void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
 void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c);
 void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
 void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc);
 void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame);
+void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 
 /* Macros related to rooting objects into the temporaries list, and
  * unrooting them afterwards. */
