@@ -54,17 +54,17 @@ struct MVMHeapSnapshotType {
 /* A static frame in the snapshot. */
 struct MVMHeapSnapshotStaticFrame {
     /* The static frame name; index into the snapshot collection string heap. */
-    MVMuint32 name;
+    MVMuint64 name;
 
     /* The static frame compilation unit ID, for added uniqueness checking.
      * Also an index into the string heap. */
-    MVMuint32 cuid;
+    MVMuint64 cuid;
 
     /* The line number where it's declared. */
-    MVMuint32 line;
+    MVMuint64 line;
 
     /* And the filename; also an index into snapshot collection string heap. */
-    MVMuint32 file;
+    MVMuint64 file;
 };
 
 /* Kinds of collectable, plus a few "virtual" kinds to cover the various places
