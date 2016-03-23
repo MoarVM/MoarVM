@@ -190,6 +190,7 @@ static const MVMREPROps this_repr = {
     "VMIter", /* name */
     MVM_REPR_ID_MVMIter,
     0, /* refs_frames */
+    NULL, /* unmanaged_size */
 };
 
 MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {

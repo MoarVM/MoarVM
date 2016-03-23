@@ -86,4 +86,5 @@ static const MVMREPROps this_repr = {
     "MVMDLLSym",
     MVM_REPR_ID_MVMDLLSym,
     0, /* refs_frames */
+    NULL, /* unmanaged_size */
 };

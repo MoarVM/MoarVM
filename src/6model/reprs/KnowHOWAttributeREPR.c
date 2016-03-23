@@ -102,4 +102,5 @@ static const MVMREPROps this_repr = {
     "KnowHOWAttributeREPR", /* name */
     MVM_REPR_ID_KnowHOWAttributeREPR,
     0, /* refs_frames */
+    NULL, /* unmanaged_size */
 };

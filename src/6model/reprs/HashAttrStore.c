@@ -182,4 +182,5 @@ static const MVMREPROps this_repr = {
     "HashAttrStore", /* name */
     MVM_REPR_ID_HashAttrStore,
     0, /* refs_frames */
+    NULL, /* unmanaged_size */
 };

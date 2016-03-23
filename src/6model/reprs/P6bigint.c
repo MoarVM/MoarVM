@@ -269,4 +269,5 @@ static const MVMREPROps this_repr = {
     "P6bigint", /* name */
     MVM_REPR_ID_P6bigint,
     0, /* refs_frames */
+    NULL, /* unmanaged_size */
 };

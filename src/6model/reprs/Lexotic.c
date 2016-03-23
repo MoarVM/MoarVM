@@ -106,4 +106,5 @@ static const MVMREPROps this_repr = {
     "Lexotic", /* name */
     MVM_REPR_ID_Lexotic,
     0, /* refs_frames */
+    NULL, /* unmanaged_size */
 };

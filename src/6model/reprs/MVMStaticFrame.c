@@ -249,4 +249,5 @@ static const MVMREPROps this_repr = {
     "MVMStaticFrame", /* name */
     MVM_REPR_ID_MVMStaticFrame,
     0, /* refs_frames */
+    NULL, /* unmanaged_size */
 };

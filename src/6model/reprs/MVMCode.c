@@ -125,6 +125,7 @@ static const MVMREPROps this_repr = {
     "MVMCode", /* name */
     MVM_REPR_ID_MVMCode,
     1, /* refs_frames */
+    NULL, /* unmanaged_size */
 };
 
 MVM_PUBLIC MVMObject * MVM_code_location(MVMThreadContext *tc, MVMObject *code) {

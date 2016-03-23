@@ -192,4 +192,5 @@ static const MVMREPROps this_repr = {
     "MVMContext", /* name */
     MVM_REPR_ID_MVMContext,
     1, /* refs_frames */
+    NULL, /* unmanaged_size */
 };

@@ -96,6 +96,7 @@ static const MVMREPROps this_repr = {
     "MVMMultiCache", /* name */
     MVM_REPR_ID_MVMMultiCache,
     0, /* refs_frames */
+    NULL, /* unmanaged_size */
 };
 
 MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMObject *capture, MVMObject *result) {

@@ -821,4 +821,5 @@ static const MVMREPROps this_repr = {
     "CPPStruct", /* name */
     MVM_REPR_ID_MVMCPPStruct,
     0, /* refs_frames */
+    NULL, /* unmanaged_size */
 };

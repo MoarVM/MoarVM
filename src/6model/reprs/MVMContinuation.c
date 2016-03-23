@@ -112,4 +112,5 @@ static const MVMREPROps this_repr = {
     "MVMContinuation", /* name */
     MVM_REPR_ID_MVMContinuation,
     1, /* refs_frames */
+    NULL, /* unmanaged_size */
 };

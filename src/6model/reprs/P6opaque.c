@@ -1577,4 +1577,5 @@ static const MVMREPROps this_repr = {
     "P6opaque", /* name */
     MVM_REPR_ID_P6opaque,
     0, /* refs_frames */
+    NULL, /* unmanaged_size */
 };

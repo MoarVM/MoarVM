@@ -94,4 +94,5 @@ static const MVMREPROps this_repr = {
     "AsyncTask", /* name */
     MVM_REPR_ID_MVMAsyncTask,
     0, /* refs_frames */
+    NULL, /* unmanaged_size */
 };

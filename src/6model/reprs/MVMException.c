@@ -90,4 +90,5 @@ static const MVMREPROps this_repr = {
     "VMException", /* name */
     MVM_REPR_ID_MVMException,
     1, /* refs_frames */
+    NULL, /* unmanaged_size */
 };

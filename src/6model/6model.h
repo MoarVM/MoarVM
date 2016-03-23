@@ -621,6 +621,10 @@ struct MVMREPROps {
     /* Does this representation reference frames (either MVMStaticFrame or
      * MVMFrame)? */
     MVMuint32 refs_frames;
+
+    /* Optional API, for representations that allocate additonal memory and
+     * want to report its size for debugging purposes. */
+    MVMuint64 (*unmanaged_size) (MVMThreadContext *tc, MVMSTable *st, void *data);
 };
 
 /* Various handy macros for getting at important stuff. */

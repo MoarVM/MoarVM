@@ -105,4 +105,5 @@ static const MVMREPROps this_repr = {
     "MVMOSHandle", /* name */
     MVM_REPR_ID_MVMOSHandle,
     0, /* refs_frames */
+    NULL, /* unmanaged_size */
 };

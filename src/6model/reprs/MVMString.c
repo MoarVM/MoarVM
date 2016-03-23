@@ -118,4 +118,5 @@ static const MVMREPROps this_repr = {
     "MVMString", /* name */
     MVM_REPR_ID_MVMString,
     0, /* refs_frames */
+    NULL, /* unmanaged_size */
 };
