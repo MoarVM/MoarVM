@@ -227,6 +227,20 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMNFA);
 }
 
+/* Calculates the non-GC-managed memory we hold on to. */
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMNFABody *body = (MVMNFABody *)data;
+    MVMuint64 total;
+    MVMint64 i;
+
+    total = body->num_states * sizeof(MVMint64); /* for num_state_edges */
+    total += body->num_states * sizeof(MVMNFAStateInfo *); /* for states level 1 */
+    for (i = 0; i < body->num_states; i++)
+        total += body->num_state_edges[i] * sizeof(MVMNFAStateInfo);
+
+    return total;
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMNFA_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -259,7 +273,7 @@ static const MVMREPROps this_repr = {
     "NFA", /* name */
     MVM_REPR_ID_NFA,
     0, /* refs_frames */
-    NULL, /* unmanaged_size */
+    unmanaged_size,
 };
 
 /* We may be provided a grapheme as a codepoint for non-synthetics, or as a
