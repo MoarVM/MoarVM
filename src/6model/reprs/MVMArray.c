@@ -1195,7 +1195,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
 }
 
 /* Calculates the non-GC-managed memory we hold on to. */
-MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *) st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     return body->ssize * repr_data->elem_size;
