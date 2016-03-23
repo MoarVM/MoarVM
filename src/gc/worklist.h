@@ -29,6 +29,9 @@ struct MVMGCWorklist {
 
     /* Whether we should include gen2 entries. */
     MVMuint8 include_gen2;
+
+    /* Whether we should always include frames. */
+    MVMuint8 always_frames;
 };
 
 /* Turn this on to define a worklist addition that panics if it spots
@@ -69,7 +72,7 @@ struct MVMGCWorklist {
 
 #define MVM_gc_worklist_add_frame(tc, worklist, frame) \
     do { \
-        if ((frame) && MVM_load(&(tc)->instance->gc_seq_number) != MVM_load(&(frame)->gc_seq_number)) { \
+        if ((frame) && (worklist->always_frames || MVM_load(&(tc)->instance->gc_seq_number) != MVM_load(&(frame)->gc_seq_number))) { \
             if (worklist->frames == worklist->frames_alloc) \
                 MVM_gc_worklist_add_frame_slow(tc, worklist, (frame)); \
             else \
@@ -88,7 +91,7 @@ struct MVMGCWorklist {
         NULL)
 
 /* Various functions for worklist manipulation. */
-MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_gen2);
+MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_gen2, MVMuint8 always_frames);
 MVM_PUBLIC void MVM_gc_worklist_add_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **item);
 MVM_PUBLIC void MVM_gc_worklist_add_frame_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMint32 items);

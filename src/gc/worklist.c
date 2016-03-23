@@ -1,7 +1,7 @@
 #include "moar.h"
 
 /* Allocates a new GC worklist. */
-MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_gen2) {
+MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_gen2, MVMuint8 always_frames) {
     MVMGCWorklist *worklist = MVM_malloc(sizeof(MVMGCWorklist));
     worklist->items = 0;
     worklist->frames = 0;
@@ -10,6 +10,7 @@ MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_ge
     worklist->list  = MVM_malloc(worklist->alloc * sizeof(MVMCollectable **));
     worklist->frames_list  = MVM_malloc(worklist->frames_alloc * sizeof(MVMFrame *));
     worklist->include_gen2 = include_gen2;
+    worklist->always_frames = always_frames;
     return worklist;
 }
 
@@ -55,4 +56,3 @@ void MVM_gc_worklist_mark_frame_roots(MVMThreadContext *tc, MVMGCWorklist *workl
     while ((cur_frame = MVM_gc_worklist_get_frame((tc), (worklist))))
         MVM_gc_root_add_frame_roots_to_worklist((tc), (worklist), cur_frame);
 }
-

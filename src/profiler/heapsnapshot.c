@@ -544,7 +544,7 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
     memset(&ss, 0, sizeof(MVMHeapSnapshotState));
     ss.col = col;
     ss.hs = hs;
-    ss.gcwl = MVM_gc_worklist_create(tc, 1);
+    ss.gcwl = MVM_gc_worklist_create(tc, 1, 1);
 
     /* We push the ultimate "root of roots" onto the worklist to get things
      * going, then set off on our merry way. */
