@@ -28,7 +28,7 @@ void MVM_gc_root_add_permanent_desc(MVMThreadContext *tc, MVMCollectable **obj_r
 }
 
 void MVM_gc_root_add_permanent(MVMThreadContext *tc, MVMCollectable **obj_ref) {
-    MVM_gc_root_add_permanent_desc(tc, obj_ref, "<??>");
+    MVM_gc_root_add_permanent_desc(tc, obj_ref, "<\?\?>");
 }
 
 /* Adds the set of permanently registered roots to a GC worklist. */
