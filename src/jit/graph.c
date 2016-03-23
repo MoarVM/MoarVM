@@ -198,6 +198,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_coerce_si: return MVM_coerce_s_i;
     case MVM_OP_coerce_sn: return MVM_coerce_s_n;
     case MVM_OP_coerce_In: return MVM_bigint_to_num;
+    case MVM_OP_coerce_nI: return MVM_bigint_from_num;
     case MVM_OP_iterkey_s: return MVM_iterkey_s;
     case MVM_OP_iter: return MVM_iter;
     case MVM_OP_iterval: return MVM_iterval;
@@ -2070,7 +2071,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_coerce_ns:
     case MVM_OP_coerce_si:
     case MVM_OP_coerce_is:
-    case MVM_OP_coerce_In: {
+    case MVM_OP_coerce_In:
+    case MVM_OP_coerce_nI: {
         MVMint16 src = ins->operands[1].reg.orig;
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMJitCallArg args[] = {{ MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
@@ -2078,7 +2080,7 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMJitRVMode rv_mode = ((op == MVM_OP_coerce_sn || op == MVM_OP_coerce_In) ? MVM_JIT_RV_NUM :
                                 op == MVM_OP_coerce_si ? MVM_JIT_RV_INT :
                                 MVM_JIT_RV_PTR);
-        if (op == MVM_OP_coerce_ns) {
+        if (op == MVM_OP_coerce_ns || op == MVM_OP_coerce_nI) {
             args[1].type = MVM_JIT_REG_VAL_F;
         }
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, rv_mode, dst);
