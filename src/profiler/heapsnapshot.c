@@ -408,6 +408,8 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
 
                 MVM_gc_root_add_frame_registers_to_worklist(tc, ss->gcwl, frame);
                 process_gc_worklist(tc, ss, "Register");
+                if (frame->work)
+                    col->unmanaged_size += frame->allocd_work;
 
                 if (frame->env) {
                     MVMuint16  i, count;
@@ -432,6 +434,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                                     (MVMCollectable *)frame->env[i].o, "Lexical (inlined)");
                         }
                     }
+                    col->unmanaged_size += frame->allocd_env;
                 }
 
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
@@ -454,6 +457,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                     while (tag) {
                         MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                             (MVMCollectable *)tag->tag, "Continuation tag");
+                        col->unmanaged_size += sizeof(MVMContinuationTag);
                         tag = tag->next;
                     }
                 }
