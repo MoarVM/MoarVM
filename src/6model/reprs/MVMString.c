@@ -86,6 +86,19 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
+/* Calculates the non-GC-managed memory we hold on to. */
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMStringBody *body = (MVMStringBody *)data;
+    switch (body->storage_type) {
+        case MVM_STRING_GRAPHEME_32:
+            return sizeof(MVMGrapheme32) * body->num_graphs;
+        case MVM_STRING_STRAND:
+            return sizeof(MVMStringStrand) * body->num_strands;
+        default:
+            return body->num_graphs;
+    }
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMString_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -118,5 +131,5 @@ static const MVMREPROps this_repr = {
     "MVMString", /* name */
     MVM_REPR_ID_MVMString,
     0, /* refs_frames */
-    NULL, /* unmanaged_size */
+    unmanaged_size,
 };
