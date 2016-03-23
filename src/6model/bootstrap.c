@@ -59,6 +59,7 @@ static void new_type(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *a
     /* See if we were given a name; put it into the meta-object if so. */
     name = name_arg.exists ? name_arg.arg.s : instance->str_consts.anon;
     MVM_ASSIGN_REF(tc, &(HOW->header), ((MVMKnowHOWREPR *)HOW)->body.name, name);
+    type_object->st->debug_name = MVM_string_utf8_encode_C_string(tc, name);
 
     /* Set .WHO to an empty hash. */
     BOOTHash = tc->instance->boot_types.BOOTHash;
@@ -327,6 +328,7 @@ static void add_meta_object(MVMThreadContext *tc, MVMObject *type_obj, char *nam
         /* Set name. */
         name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, name);
         MVM_ASSIGN_REF(tc, &(meta_obj->header), ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
+        type_obj->st->debug_name = strdup(name);
     });
 }
 
