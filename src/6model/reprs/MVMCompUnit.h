@@ -44,9 +44,7 @@ struct MVMCompUnitBody {
     MVMuint8  *data_start;
     MVMuint32  data_size;
 
-    /* The various static frames in the compilation unit, along with a
-     * code object for each one. */
-    MVMStaticFrame **frames;
+    /* The code objects for each frame, along with counts of frames. */
     MVMObject      **coderefs;
     MVMuint32        num_frames;    /* Total, inc. added by inliner. */
     MVMuint32        orig_frames;   /* Original from loading comp unit. */
@@ -70,6 +68,26 @@ struct MVMCompUnitBody {
     MVMString **strings;
     MVMuint32   num_strings;
     MVMuint32   orig_strings;
+
+    /* We decode strings on first use. Scanning through the string heap every
+     * time to find where a string lives, however, would be extremely time
+     * consuming. So, we keep a table that has the offsets into the string heap
+     * every MVM_STRING_FAST_TABLE_SPAN strings. For example, were it 16, then
+     * string_heap_fast_table[1] is where we'd look to find out how to locate
+     * strings 16..31, then scanning through the string blob itself to get to
+     * the string within that region. string_heap_fast_table_top contains the
+     * top location in string_heap_fast_table that has been initialized so far.
+     * It starts out at 0, which is safe even if we don't do anything since the
+     * first string will be at the start of the blob anyway. Finally, we don't
+     * do any concurrency control over this table, since all threads will be
+     * working towards the same result anyway. Duplicate work occasionally will
+     * almost always be cheaper than unrequired synchronization every time. A
+     * memory barrier before updating string_heap_fast_table_top makes sure we
+     * never have its update getting moved ahead of writes into the table. */
+    MVMuint32 *string_heap_fast_table;
+    MVMuint32  string_heap_fast_table_top;
+    MVMuint8  *string_heap_start;
+    MVMuint8  *string_heap_read_limit;
 
     /* Serialized data, if any. */
     MVMint32  serialized_size;
@@ -115,6 +133,9 @@ struct MVMCompUnit {
     MVMObject common;
     MVMCompUnitBody body;
 };
+
+/* Strings per entry in the fast table; see above for details. */
+#define MVM_STRING_FAST_TABLE_SPAN 16
 
 struct MVMLoadedCompUnitName {
     /* Loaded filename. */

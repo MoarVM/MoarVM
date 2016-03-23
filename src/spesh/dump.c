@@ -221,7 +221,8 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             appendf(ds, "litn64(%g)", cur_ins->operands[i].lit_n64);
                             break;
                         case MVM_operand_str: {
-                            char *cstr = MVM_string_utf8_encode_C_string(tc, g->sf->body.cu->body.strings[cur_ins->operands[i].lit_str_idx]);
+                            char *cstr = MVM_string_utf8_encode_C_string(tc,
+                                MVM_cu_string(tc, g->sf->body.cu, cur_ins->operands[i].lit_str_idx));
                             appendf(ds, "lits(%s)", cstr);
                             MVM_free(cstr);
                             break;
@@ -246,7 +247,8 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             append(ds, "coderef(");
 
                             if (anno) {
-                                char *filestr = MVM_string_utf8_encode_C_string(tc, g->sf->body.cu->body.strings[anno->filename_string_heap_index]);
+                                char *filestr = MVM_string_utf8_encode_C_string(tc,
+                                    MVM_cu_string(tc, g->sf->body.cu, anno->filename_string_heap_index));
                                 appendf(ds, "%s:%d%s)", filestr, anno->line_number, body->outer ? " (closure)" : "");
                                 MVM_free(filestr);
                             } else {
@@ -263,6 +265,32 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                     }
                     default:
                         append(ds, "<nyi>");
+                }
+            }
+            if (cur_ins->info->opcode == MVM_OP_wval || cur_ins->info->opcode == MVM_OP_wval_wide) {
+                /* We can try to find out what the debug_name of this thing is. */
+                MVMint16 dep = cur_ins->operands[1].lit_i16;
+                MVMint64 idx;
+                MVMCollectable *result;
+                char *debug_name = NULL;
+                const char *repr_name = NULL;
+                if (cur_ins->info->opcode == MVM_OP_wval) {
+                    idx = cur_ins->operands[2].lit_i16;
+                } else {
+                    idx = cur_ins->operands[2].lit_i64;
+                }
+                result = (MVMCollectable *)MVM_sc_get_sc_object(tc, g->sf->body.cu, dep, idx);
+                if (result->flags & MVM_CF_STABLE) {
+                    debug_name = ((MVMSTable *)result)->debug_name;
+                    repr_name  = ((MVMSTable *)result)->REPR->name;
+                } else {
+                    debug_name = STABLE(result)->debug_name;
+                    repr_name  = REPR(result)->name;
+                }
+                if (debug_name) {
+                    appendf(ds, " (%s: %s)", repr_name, debug_name);
+                } else {
+                    appendf(ds, " (%s: ?)", repr_name);
                 }
             }
         }
@@ -401,6 +429,9 @@ static void dump_log_values(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g)
             append(ds, (char *)STABLE(seen_table[log_index])->REPR->name);
             if (!IS_CONCRETE(seen_table[log_index]))
                 append(ds, "(type object)");
+            if (STABLE(seen_table[log_index])->debug_name) {
+                appendf(ds, " debugname: %s", STABLE(seen_table[log_index])->debug_name);
+            }
         }
         append(ds, "\n");
     }
@@ -456,19 +487,31 @@ static void dump_arg_guards(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g)
             appendf(ds, "  concrete(%d)\n", guard->slot);
             break;
         case MVM_SPESH_GUARD_TYPE:
-            appendf(ds, "  type(%d, %p)\n", guard->slot, guard->match);
+            appendf(ds, "  type(%d, %p)", guard->slot, guard->match);
+            if (((MVMSTable*)(guard->match))->debug_name) {
+                appendf(ds, " debugname: %s", ((MVMSTable*)(guard->match))->debug_name);
+            }
+            append(ds, "\n");
             break;
         case MVM_SPESH_GUARD_DC_CONC:
             appendf(ds, "  deconted_concrete(%d)\n", guard->slot);
             break;
         case MVM_SPESH_GUARD_DC_TYPE:
-            appendf(ds, "  deconted_type(%d, %p)\n", guard->slot, guard->match);
+            appendf(ds, "  deconted_type(%d, %p)", guard->slot, guard->match);
+            if (((MVMSTable*)(guard->match))->debug_name) {
+                appendf(ds, " debugname: %s", ((MVMSTable*)(guard->match))->debug_name);
+            }
+            append(ds, "\n");
             break;
         case MVM_SPESH_GUARD_DC_CONC_RW:
             appendf(ds, "  deconted_concrete_rw(%d)\n", guard->slot);
             break;
         case MVM_SPESH_GUARD_DC_TYPE_RW:
-            appendf(ds, "  deconted_type_rw(%d, %p)\n", guard->slot, guard->match);
+            appendf(ds, "  deconted_type_rw(%d, %p)", guard->slot, guard->match);
+            if (((MVMSTable*)(guard->match))->debug_name) {
+                appendf(ds, " debugname: %s", ((MVMSTable*)(guard->match))->debug_name);
+            }
+            append(ds, "\n");
             break;
         }
     }
@@ -483,7 +526,7 @@ static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     MVMString        *filename = cu->body.filename;
     char        *filename_utf8 = "<unknown>";
     if (ann && str_idx < cu->body.num_strings) {
-        filename = cu->body.strings[str_idx];
+        filename = MVM_cu_string(tc, cu, str_idx);
     }
     if (filename)
         filename_utf8 = MVM_string_utf8_encode_C_string(tc, filename);

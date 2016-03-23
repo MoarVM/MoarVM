@@ -84,9 +84,10 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVM_store(&instance->next_user_thread_id, 2);
 
     /* Set up the permanent roots storage. */
-    instance->num_permroots   = 0;
-    instance->alloc_permroots = 16;
-    instance->permroots       = MVM_malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
+    instance->num_permroots         = 0;
+    instance->alloc_permroots       = 16;
+    instance->permroots             = MVM_malloc(sizeof(MVMCollectable **) * instance->alloc_permroots);
+    instance->permroot_descriptions = MVM_malloc(sizeof(char *) * instance->alloc_permroots);
     init_mutex(instance->mutex_permroots, "permanent roots");
 
     /* Create fixed size allocator. */
@@ -271,13 +272,16 @@ MVMInstance * MVM_vm_create_instance(void) {
 /* Set up some standard file handles. */
 static void setup_std_handles(MVMThreadContext *tc) {
     tc->instance->stdin_handle  = MVM_file_get_stdstream(tc, 0, 1);
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stdin_handle);
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&tc->instance->stdin_handle,
+        "stdin handle");
 
     tc->instance->stdout_handle = MVM_file_get_stdstream(tc, 1, 0);
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stdout_handle);
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&tc->instance->stdout_handle,
+        "stdout handle");
 
     tc->instance->stderr_handle = MVM_file_get_stdstream(tc, 2, 0);
-    MVM_gc_root_add_permanent(tc, (MVMCollectable **)&tc->instance->stderr_handle);
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&tc->instance->stderr_handle,
+        "stderr handle");
 }
 
 /* This callback is passed to the interpreter code. It takes care of making
@@ -289,8 +293,6 @@ static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
 
 /* Loads bytecode from the specified file name and runs it. */
 void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
-    MVMStaticFrame *start_frame;
-
     /* Map the compilation unit into memory and dissect it. */
     MVMThreadContext *tc = instance->main_thread;
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
@@ -307,10 +309,8 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
         }
     });
 
-    /* Run the frame marked main, or if there is none then fall back to the
-     * first frame. */
-    start_frame = cu->body.main_frame ? cu->body.main_frame : cu->body.frames[0];
-    MVM_interp_run(tc, toplevel_initial_invoke, start_frame);
+    /* Run the entry-point frame. */
+    MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame);
 }
 
 /* Loads bytecode from the specified file name and dumps it. */
@@ -319,8 +319,22 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     MVMThreadContext *tc = instance->main_thread;
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
     char *dump = MVM_bytecode_dump(tc, cu);
+    size_t dumplen = strlen(dump);
+    int position = 0;
 
-    printf("%s", dump);
+    /* libuv already set up stdout to be nonblocking, but it can very well be
+     * we encounter EAGAIN (Resource temporarily unavailable), so we need to
+     * loop over our buffer, which can be quite big.
+     *
+     * The CORE.setting.moarvm has - as of writing this - about 32 megs of
+     * output from dumping.
+     */
+    while (position < dumplen) {
+        size_t written = write(1, dump + position, dumplen - position);
+        if (written > 0)
+            position += written;
+    }
+
     MVM_free(dump);
 }
 

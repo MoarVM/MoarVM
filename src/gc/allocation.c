@@ -61,6 +61,7 @@ MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, const MVMREPROps *repr,
         st->REPR          = repr;
         st->invoke        = MVM_6model_invoke_default;
         st->type_cache_id = MVM_6model_next_type_cache_id(tc);
+        st->debug_name    = NULL;
         MVM_ASSIGN_REF(tc, &(st->header), st->HOW, how);
     });
     return st;

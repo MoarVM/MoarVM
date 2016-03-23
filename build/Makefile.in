@@ -201,6 +201,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/profiler/instrument@obj@ \
           src/profiler/log@obj@ \
           src/profiler/profile@obj@ \
+          src/profiler/heapsnapshot@obj@ \
           src/instrument/crossthreadwrite@obj@ \
           src/moar@obj@ \
           @platform@ \
@@ -342,6 +343,7 @@ HEADERS = src/moar.h \
           src/profiler/instrument.h \
           src/profiler/log.h \
           src/profiler/profile.h \
+          src/profiler/heapsnapshot.h \
           src/platform/mmap.h \
           src/platform/time.h \
           src/platform/threads.h \

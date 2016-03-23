@@ -1,5 +1,9 @@
 #include "moar.h"
 
+#ifndef MIN
+   #define MIN(x,y) ((x)<(y)?(x):(y))
+#endif
+
 /* A forced 64-bit version of mp_get_long, since on some platforms long is
  * not all that long. */
 static MVMuint64 mp_get_int64(MVMThreadContext *tc, mp_int * a) {

@@ -193,6 +193,7 @@ const unsigned int MVM_jit_num_globals(void) {
 |.endmacro
 
 |.macro get_string, reg, idx
+|| MVM_cu_ensure_string_decoded(tc, jg->sg->sf->body.cu, idx);
 | mov reg, CU->body.strings;
 | mov reg, STRING:reg[idx];
 |.endmacro
@@ -329,7 +330,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
          MVMint16 reg = ins->operands[0].reg.orig;
          MVMuint32 idx = ins->operands[1].lit_str_idx;
          MVMStaticFrame *sf = jg->sg->sf;
-         MVMString * s = sf->body.cu->body.strings[idx];
+         MVMString * s = MVM_cu_string(tc, sf->body.cu, idx);
          if (!try_emit_gen2_ref(tc, compiler, jg, (MVMObject*)s, reg)) {
              | get_string TMP1, idx;
              | mov WORK[reg], TMP1;
@@ -1021,13 +1022,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
                 | sete al;
                 break;
             case MVM_OP_ge_s:
-                | setl al;
+                | setle al;
                 break;
             case MVM_OP_lt_s:
                 | sete al;
                 break;
             case MVM_OP_le_s:
-                | setg al;
+                | setge al;
                 break;
         }
         | movzx rax, al;
@@ -1325,6 +1326,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 obj = ins->operands[1].reg.orig;
         MVMint32 str_idx = ins->operands[2].lit_str_idx;
         MVMuint16 ss_idx = ins->operands[3].lit_i16;
+        MVMStaticFrame *sf = jg->sg->sf;
         | get_spesh_slot TMP1, ss_idx;
         | mov TMP2, WORK[obj];
         | mov TMP2, OBJECT:TMP2->st;
@@ -2390,6 +2392,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         MVM_panic(1, "Unknown conrtol code: <%s>", ctrl->ins->info->name);
     }
 }
+
 
 void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location,
                        MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {

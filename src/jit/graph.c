@@ -299,6 +299,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_getattrsref_i: return MVM_nativeref_attr_i;
     case MVM_OP_getattrsref_n: return MVM_nativeref_attr_n;
     case MVM_OP_getattrsref_s: return MVM_nativeref_attr_s;
+    case MVM_OP_atposref_i: return MVM_nativeref_pos_i;
+    case MVM_OP_atposref_n: return MVM_nativeref_pos_n;
+    case MVM_OP_atposref_s: return MVM_nativeref_pos_s;
     case MVM_OP_sp_boolify_iter: return MVM_iter_istrue;
     case MVM_OP_prof_allocated: return MVM_profile_log_allocated;
     case MVM_OP_prof_exit: return MVM_profile_log_exit;
@@ -2575,6 +2578,18 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { class } },
                                  { MVM_JIT_REG_VAL, { name } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_atposref_i:
+    case MVM_OP_atposref_n:
+    case MVM_OP_atposref_s: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 obj     = ins->operands[1].reg.orig;
+        MVMint16 index   = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } },
+                                 { MVM_JIT_REG_VAL, { index } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
         /* profiling */

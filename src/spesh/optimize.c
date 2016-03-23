@@ -37,7 +37,7 @@ void MVM_spesh_use_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshFacts *
 
 /* Obtains a string constant. */
 MVMString * MVM_spesh_get_string(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
-    return g->sf->body.cu->body.strings[o.lit_str_idx];
+    return MVM_cu_string(tc, g->sf->body.cu, o.lit_str_idx);
 }
 
 /* Copy facts between two register operands. */
@@ -1096,6 +1096,17 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                             }
                         }
                     }
+                }
+                else if (!MVM_is_null(tc, is->class_handle)) {
+                    /* This type of code object supports multi-dispatch,
+                     * but we actually have a single dispatch routine. */
+                    MVMRegister dest;
+                    REPR(code)->attr_funcs.get_attribute(tc,
+                        STABLE(code), code, OBJECT_BODY(code),
+                        is->class_handle, is->attr_name,
+                        is->hint, &dest, MVM_reg_obj);
+                    if (REPR(dest.o)->ID == MVM_REPR_ID_MVMCode)
+                        target = dest.o;
                 }
             }
             else if (!MVM_is_null(tc, is->class_handle)) {

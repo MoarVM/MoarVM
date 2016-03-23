@@ -10,7 +10,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 17
+#define CURRENT_VERSION 18
 #define MIN_VERSION     16
 
 /* Various sizes (in bytes). */
@@ -321,6 +321,23 @@ static void expand_storage_if_needed(MVMThreadContext *tc, MVMSerializationWrite
         *(writer->cur_write_limit) *= 2;
         *(writer->cur_write_buffer) = (char *)MVM_realloc(*(writer->cur_write_buffer),
             *(writer->cur_write_limit));
+    }
+}
+
+/* Writing function for null-terminated char array strings */
+void MVM_serialization_write_cstr(MVMThreadContext *tc, MVMSerializationWriter *writer, char *string) {
+    size_t len;
+    if (string)
+        len = strlen(string);
+    else
+        len = 0;
+    if (len) {
+        MVM_serialization_write_varint(tc, writer, len);
+        expand_storage_if_needed(tc, writer, len);
+        memcpy(*(writer->cur_write_buffer) + *(writer->cur_write_offset), string, len);
+        *(writer->cur_write_offset) += len;
+    } else {
+        MVM_serialization_write_varint(tc, writer, 0);
     }
 }
 
@@ -1107,6 +1124,8 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
             add_param_intern(tc, writer, st->WHAT, ptype, params);
     }
 
+    MVM_serialization_write_cstr(tc, writer, st->debug_name);
+
     /* Store offset we save REPR data at. */
     write_int32(writer->root.stables_table, offset + 8, writer->stables_data_offset);
 
@@ -1474,7 +1493,7 @@ static MVMString * read_string_from_heap(MVMThreadContext *tc, MVMSerializationR
             return NULL;
         idx--;
         if (idx < cu->body.num_strings)
-            return cu->body.strings[idx];
+            return MVM_cu_string(tc, cu, idx);
         else
             fail_deserialize(tc, reader,
                 "Attempt to read past end of compilation unit string heap (index %d)", idx);
@@ -1618,6 +1637,25 @@ MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationRea
         *(reader->cur_read_offset) += 2;
     }
     return read_string_from_heap(tc, reader, offset);
+}
+
+/* Reading function for null-terminated char array strings */
+char *MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    size_t len = MVM_serialization_read_varint(tc, reader);
+    char *strbuf = 0;
+    if (len > 0) {
+        const MVMuint8 *read_at = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
+        assert_can_read(tc, reader, len);
+        strbuf = MVM_malloc(len + 1);
+        if (strbuf == 0)
+            fail_deserialize(tc, reader, "Cannot read a c string: malloc failed.");
+        memcpy(strbuf, read_at, len);
+        strbuf[len] = 0;
+        *(reader->cur_read_offset) += len;
+    } else if (len < 0) {
+        fail_deserialize(tc, reader, "Cannot read a c string with negative length %d.", len);
+    }
+    return strbuf;
 }
 
 /* The SC id,idx pair is used in various ways, but common to them all is to
@@ -2479,6 +2517,12 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         }
         MVM_repr_push_o(tc, lookup, params);
         MVM_repr_push_o(tc, lookup, st->WHAT);
+    }
+
+    if (reader->root.version >= 18) {
+        st->debug_name = MVM_serialization_read_cstr(tc, reader);
+    } else {
+        st->debug_name = 0;
     }
 
     /* If the REPR has a function to deserialize representation data, call it. */

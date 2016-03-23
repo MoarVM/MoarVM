@@ -39,7 +39,8 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
         entry->name = name;
         entry->refcount = 0;
 
-        MVM_gc_root_add_permanent(tc, (MVMCollectable **)&entry->name);
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
+            "DLL name");
         MVM_HASH_BIND(tc, tc->instance->dll_registry, name, entry);
     }
 

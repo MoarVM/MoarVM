@@ -1,6 +1,10 @@
 #include "moar.h"
 #include <math.h>
 
+#ifndef MAX
+    #define MAX(x,y) ((x)>(y)?(x):(y))
+#endif
+
 /* Taken from mp_set_long, but portably accepts a 64-bit number. */
 int MVM_bigint_mp_set_uint64(mp_int * a, MVMuint64 b) {
   int     x, res;

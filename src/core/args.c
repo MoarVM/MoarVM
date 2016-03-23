@@ -54,7 +54,7 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 }
 
 MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    MVMCallsite      *res   = MVM_malloc(sizeof(MVMCallsite));
+    MVMCallsite      *res   = MVM_calloc(sizeof(MVMCallsite), 1);
     MVMCallsiteEntry *flags = NULL;
     MVMCallsiteEntry *src_flags;
     MVMint32 fsize;
@@ -76,8 +76,6 @@ MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ct
     res->arg_flags = flags;
     res->arg_count = ctx->arg_count;
     res->num_pos   = ctx->num_pos;
-    res->has_flattening = 0;
-    res->is_interned = 0;
     return res;
 }
 
@@ -95,16 +93,13 @@ MVMCallsite * MVM_args_proc_to_callsite(MVMThreadContext *tc, MVMArgProcContext 
     }
 }
 
-/* Puts the args passed to the specified frame into the current use_capture. */
 MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
-    MVMCallCapture *capture = (MVMCallCapture *)tc->cur_usecapture;
-    if (capture->body.use_mode_frame)
-        MVM_frame_dec_ref(tc, capture->body.use_mode_frame);
-    capture->body.mode               = MVM_CALL_CAPTURE_MODE_USE;
-    capture->body.use_mode_frame     = MVM_frame_inc_ref(tc, f);
-    capture->body.apc                = &f->params;
-    capture->body.effective_callsite = MVM_args_proc_to_callsite(tc, &f->params, &capture->body.owns_callsite);
-    return tc->cur_usecapture;
+    /* We used to try and avoid some GC churn by keeping one call capture per
+     * thread that was mutated. However, its lifetime was difficult to manage,
+     * leading to leaks and subtle bugs. So, we use save_capture always now
+     * for this; we may later eliminate it using escape analysis, or treat
+     * it differently in the optimizer. */
+    return MVM_args_save_capture(tc, f);
 }
 
 MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {

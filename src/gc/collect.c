@@ -64,9 +64,13 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         process_worklist(tc, worklist, &wtp, gen);
     }
     else {
-        /* Main collection run. Swap fromspace and tospace. */
-        void * fromspace = tc->nursery_tospace;
-        void * tospace   = tc->nursery_fromspace;
+        /* Main collection run. Swap fromspace and tospace, allocating the
+         * new tospace if that didn't yet happen (we don't allocate it at
+         * startup, to cut memory use for threads that quit before a GC). */
+        void *fromspace = tc->nursery_tospace;
+        void *tospace   = tc->nursery_fromspace;
+        if (!tospace)
+            tospace = MVM_calloc(1, MVM_NURSERY_SIZE);
         tc->nursery_fromspace = fromspace;
         tc->nursery_tospace   = tospace;
 
@@ -74,23 +78,19 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         tc->nursery_alloc       = tospace;
         tc->nursery_alloc_limit = (char *)tc->nursery_alloc + MVM_NURSERY_SIZE;
 
-        MVM_gc_worklist_add(tc, worklist, &tc->thread_obj);
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from thread_obj\n", worklist->items);
-        process_worklist(tc, worklist, &wtp, gen);
-
         /* Add permanent roots and process them; only one thread will do
         * this, since they are instance-wide. */
         if (what_to_do != MVMGCWhatToDo_NoInstance) {
-            MVM_gc_root_add_permanents_to_worklist(tc, worklist);
+            MVM_gc_root_add_permanents_to_worklist(tc, worklist, NULL);
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from instance permanents\n", worklist->items);
             process_worklist(tc, worklist, &wtp, gen);
-            MVM_gc_root_add_instance_roots_to_worklist(tc, worklist);
+            MVM_gc_root_add_instance_roots_to_worklist(tc, worklist, NULL);
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from instance roots\n", worklist->items);
             process_worklist(tc, worklist, &wtp, gen);
         }
 
         /* Add per-thread state to worklist and process it. */
-        MVM_gc_root_add_tc_roots_to_worklist(tc, worklist);
+        MVM_gc_root_add_tc_roots_to_worklist(tc, worklist, NULL);
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from TC objects\n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
 
@@ -100,7 +100,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         process_worklist(tc, worklist, &wtp, gen);
 
         /* Add temporary roots and process them (these are per-thread). */
-        MVM_gc_root_add_temps_to_worklist(tc, worklist);
+        MVM_gc_root_add_temps_to_worklist(tc, worklist, NULL);
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from thread temps\n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
 
@@ -112,13 +112,6 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         if (gen == MVMGCGenerations_Nursery) {
             MVM_gc_root_add_gen2s_to_worklist(tc, worklist);
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from gen2 \n", worklist->items);
-            process_worklist(tc, worklist, &wtp, gen);
-        }
-
-        /* Find roots in frames and process them. */
-        if (tc->cur_frame) {
-            MVM_gc_worklist_add_frame(tc, worklist, tc->cur_frame);
-            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from cur_frame \n", worklist->items);
             process_worklist(tc, worklist, &wtp, gen);
         }
 

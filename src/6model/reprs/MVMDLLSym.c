@@ -52,8 +52,9 @@ const MVMREPROps * MVMDLLSym_initialize(MVMThreadContext *tc) {
         st->size = sizeof(MVMDLLSym);
     });
 
-    MVM_gc_root_add_permanent(tc,
-            (MVMCollectable **)&tc->instance->raw_types.RawDLLSym);
+    MVM_gc_root_add_permanent_desc(tc,
+        (MVMCollectable **)&tc->instance->raw_types.RawDLLSym,
+        "RawDLLSym");
 
     return &this_repr;
 }

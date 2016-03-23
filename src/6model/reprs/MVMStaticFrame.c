@@ -183,7 +183,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     /* If it's not fully deserialized, none of the following can apply. */
     if (!body->fully_deserialized)
         return;
-    MVM_free(body->instr_offsets);
     MVM_free(body->handlers);
     MVM_free(body->static_env);
     MVM_free(body->static_env_flags);
