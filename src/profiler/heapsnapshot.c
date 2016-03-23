@@ -300,6 +300,9 @@ static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
             REPR(obj)->gc_mark(tc, STABLE(obj), OBJECT_BODY(obj), ss->gcwl);
             process_gc_worklist(tc, ss, NULL);
         }
+        if (REPR(obj)->unmanaged_size)
+            col->unmanaged_size += REPR(obj)->unmanaged_size(tc, STABLE(obj),
+                OBJECT_BODY(obj));
     }
 }
 static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
