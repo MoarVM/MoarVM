@@ -114,12 +114,15 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint
     uv_buf_t read_buf = uv_buf_init(buf, bytes);
     uv_fs_t req;
     MVMint32 read;
+    MVM_gc_mark_thread_blocked(tc);
     if ((read = uv_fs_read(tc->loop, &req, data->fd, &read_buf, 1, -1, NULL)) < 0) {
         MVM_free(buf);
+        MVM_gc_mark_thread_unblocked(tc);
         MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
             uv_strerror(req.result));
     }
     MVM_string_decodestream_add_bytes(tc, data->ds, buf, read);
+    MVM_gc_mark_thread_unblocked(tc);
     return read;
 }
 
