@@ -310,10 +310,11 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
         MVMHeapSnapshotWorkItem item = pop_workitem(tc, ss);
 
         /* We take our own working copy of the collectable info, since the
-         * collectables array can grow and be reallocated. */
-        MVMHeapSnapshotCollectable col = ss->hs->collectables[item.col_idx];
-        col.kind = item.kind;
+         * collectables array can grow and be reallocated. */ 
+        MVMHeapSnapshotCollectable col;
         set_ref_from(tc, ss, item.col_idx);
+        col = ss->hs->collectables[item.col_idx];
+        col.kind = item.kind;
 
         switch (item.kind) {
             case MVM_SNAPSHOT_COL_KIND_OBJECT:
@@ -514,7 +515,9 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 MVM_panic(1, "Unknown heap snapshot worklist item kind %d", item.kind);
         }
 
-        /* Store updated collectable info into array. */
+        /* Store updated collectable info into array. Note that num_refs was
+         * updated "at a distance". */
+        col.num_refs = ss->hs->collectables[item.col_idx].num_refs;
         ss->hs->collectables[item.col_idx] = col;
     }
 }
