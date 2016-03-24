@@ -156,12 +156,14 @@ static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMST
     if (body->sr)
         return;
 
-    /*for (index = 0; index < body->alloc_objects; index++) {
+    /*
+    for (index = 0; index < body->num_objects; index++) {
         MVM_profile_heap_add_collectable_rel_idx(tc, ss, body->root_objects[index], index);
     }
-    for (index = 0; index < body->alloc_stables; index++) {
+    for (index = 0; index < body->num_stables; index++) {
         MVM_profile_heap_add_collectable_rel_idx(tc, ss, body->root_stables[index], index);
-    }*/
+    }
+    */
 
     /*
     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->root_codes,    "root_codes");
