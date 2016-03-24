@@ -625,6 +625,10 @@ struct MVMREPROps {
     /* Optional API, for representations that allocate additonal memory and
      * want to report its size for debugging purposes. */
     MVMuint64 (*unmanaged_size) (MVMThreadContext *tc, MVMSTable *st, void *data);
+
+    /* Optional API to describe references to other Collectables either by
+     * index or by name, i.E. names of attributes or lexicals. */
+    void (*describe_refs) (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data);
 };
 
 /* Various handy macros for getting at important stuff. */
