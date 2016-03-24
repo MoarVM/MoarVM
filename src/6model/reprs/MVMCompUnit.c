@@ -168,6 +168,15 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
     return size;
 }
 
+static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
+    MVMCompUnitBody     *body      = (MVMCompUnitBody *)data;
+    MVMuint32 index;
+
+    for (index = 0; index < body->num_frames; index++) {
+        MVM_profile_heap_add_collectable_rel_idx(tc, ss, body->coderefs[index], index);
+    }
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMCompUnit_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -201,5 +210,5 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_MVMCompUnit,
     0, /* refs_frames */
     unmanaged_size,
-    NULL, /* describe_refs */
+    describe_refs,
 };
