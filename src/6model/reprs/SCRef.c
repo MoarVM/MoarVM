@@ -133,44 +133,36 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
-/* Calculates the non-GC-managed memory we hold on to. */
-/* FIXME this is currently b0rked, see MoarVM Issue #348. */
-/* static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
-    MVMSerializationContextBody *body = (MVMSerializationContextBody *)data;
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMSerializationContextBody     *body      = ((MVMSerializationContextBody **)data)[0];
     MVMuint64 size = 0;
 
     size += sizeof(MVMObject *) * body->num_objects;
     size += sizeof(MVMSTable *) * body->num_stables;
 
-    fprintf(stderr, "SCRef size: %"PRIu64" objects, %"PRIu64" stables, size is %"PRIu64"\n", body->num_objects, body->num_stables, size); */
-
     /* XXX probably have to measure the MVMSerializationReader, too */
 
-/*    return size;
-}*/
+    return size;
+}
 
 static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
-    MVMSerializationContextBody     *body      = (MVMSerializationContextBody *)data;
+    MVMSerializationContextBody     *body      = ((MVMSerializationContextBody **)data)[0];
     MVMuint64 index;
 
     if (body->sr)
         return;
 
-    /*
     for (index = 0; index < body->num_objects; index++) {
         MVM_profile_heap_add_collectable_rel_idx(tc, ss, body->root_objects[index], index);
     }
     for (index = 0; index < body->num_stables; index++) {
         MVM_profile_heap_add_collectable_rel_idx(tc, ss, body->root_stables[index], index);
     }
-    */
 
-    /*
     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->root_codes,    "root_codes");
     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->rep_indexes,   "rep_indexes");
     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->rep_scs,       "rep_scs");
     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->owned_objects, "owned_objects");
-    */
 }
 
 /* Initializes the representation. */
@@ -205,6 +197,6 @@ static const MVMREPROps this_repr = {
     "SCRef", /* name */
     MVM_REPR_ID_SCRef,
     0, /* refs_frames */
-    NULL, /* unmanaged_size */
+    unmanaged_size,
     describe_refs,
 };
