@@ -87,4 +87,5 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_MVMCFunction,
     0, /* refs_frames */
     NULL, /* unmanaged_size */
+    NULL, /* describe_refs */
 };
