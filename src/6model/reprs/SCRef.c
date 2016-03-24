@@ -133,6 +133,19 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
+/* Calculates the non-GC-managed memory we hold on to. */
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMSerializationContextBody *body = (MVMSerializationContextBody *)data;
+    MVMuint64 size = 0;
+
+    size += sizeof(MVMObject *) * body->num_objects;
+    size += sizeof(MVMSTable *) * body->num_stables;
+
+    /* XXX probably have to measure the MVMSerializationReader, too */
+
+    return size;
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMSCRef_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -165,5 +178,5 @@ static const MVMREPROps this_repr = {
     "SCRef", /* name */
     MVM_REPR_ID_SCRef,
     0, /* refs_frames */
-    NULL, /* unmanaged_size */
+    unmanaged_size,
 };
