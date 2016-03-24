@@ -163,6 +163,22 @@ static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMST
     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->rep_indexes,   "rep_indexes");
     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->rep_scs,       "rep_scs");
     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->owned_objects, "owned_objects");
+
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->handle,      "handle");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->description, "description");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->sc,          "sc");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->mutex,       "mutex");
+
+    /* Mark serialization reader, if we have one. */
+    if (body->sr) {
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->sr->root.sc, "reader root sc");
+        for (index = 0; index < body->sr->root.num_dependencies; index++)
+            MVM_profile_heap_add_collectable_rel_idx(tc, ss, body->sr->root.dependent_scs[index], index);
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->sr->root.string_heap, "reader stringheap");
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->sr->root.string_comp_unit, "reader string cu");
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->sr->codes_list, "reader codes list");
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->sr->current_object, "reader current object");
+    }
 }
 
 /* Initializes the representation. */
