@@ -134,8 +134,8 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
 
     size += sizeof(MVMCallsite *) * body->num_callsites;
     for (index = 0; index < body->num_callsites; index++) {
-        MVMCallsite *cs = body->callsites[index]->is_interned;
-        if (!cs) {
+        MVMCallsite *cs = body->callsites[index];
+        if (!cs->is_interned) {
             size += sizeof(MVMCallsite);
 
             size += sizeof(MVMCallsiteEntry) * cs->flag_count;
