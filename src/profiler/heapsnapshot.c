@@ -303,6 +303,8 @@ static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         if (REPR(obj)->unmanaged_size)
             col->unmanaged_size += REPR(obj)->unmanaged_size(tc, STABLE(obj),
                 OBJECT_BODY(obj));
+        if (REPR(obj)->describe_refs)
+            REPR(obj)->describe_refs(tc, ss, STABLE(obj), OBJECT_BODY(obj));
     }
 }
 static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
