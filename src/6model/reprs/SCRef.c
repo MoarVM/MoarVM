@@ -134,17 +134,20 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 }
 
 /* Calculates the non-GC-managed memory we hold on to. */
-static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+/* FIXME this is currently b0rked, see MoarVM Issue #348. */
+/* static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMSerializationContextBody *body = (MVMSerializationContextBody *)data;
     MVMuint64 size = 0;
 
     size += sizeof(MVMObject *) * body->num_objects;
     size += sizeof(MVMSTable *) * body->num_stables;
 
+    fprintf(stderr, "SCRef size: %"PRIu64" objects, %"PRIu64" stables, size is %"PRIu64"\n", body->num_objects, body->num_stables, size); */
+
     /* XXX probably have to measure the MVMSerializationReader, too */
 
-    return size;
-}
+/*    return size;
+}*/
 
 /* Initializes the representation. */
 const MVMREPROps * MVMSCRef_initialize(MVMThreadContext *tc) {
@@ -178,5 +181,5 @@ static const MVMREPROps this_repr = {
     "SCRef", /* name */
     MVM_REPR_ID_SCRef,
     0, /* refs_frames */
-    unmanaged_size,
+    NULL, /* unmanaged_size */
 };
