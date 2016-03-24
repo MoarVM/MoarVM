@@ -705,7 +705,7 @@ MVMObject * collectables_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
      for (i = 0; i < s->num_collectables; i++) {
          char tmp[256];
          size_t item_chars = snprintf(tmp, 256,
-            "%"PRId16",%"PRId32",%"PRId16",%"PRId64",%"PRId64",%"PRId32";",
+            "%"PRIu16",%"PRId32",%"PRIu16",%"PRIu64",%"PRIu64",%"PRIu32";",
             s->collectables[i].kind,
             s->collectables[i].type_or_frame_index,
             s->collectables[i].collectable_size,
