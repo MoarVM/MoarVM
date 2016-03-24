@@ -1201,6 +1201,37 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
     return body->ssize * repr_data->elem_size;
 }
 
+static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *) st->REPR_data;
+    MVMArrayBody     *body      = (MVMArrayBody *)data;
+    MVMuint64         elems     = body->elems;
+    MVMuint64         start     = body->start;
+    MVMuint64         i         = 0;
+
+    switch (repr_data->slot_type) {
+        case MVM_ARRAY_OBJ: {
+            MVMObject **slots = body->slots.o;
+            slots += start;
+            while (i < elems) {
+                MVM_profile_heap_add_collectable_rel_idx(tc, ss,
+                    (MVMCollectable *)slots[i], i);
+                i++;
+            }
+            break;
+        }
+        case MVM_ARRAY_STR: {
+            MVMString **slots = body->slots.s;
+            slots += start;
+            while (i < elems) {
+                MVM_profile_heap_add_collectable_rel_idx(tc, ss,
+                    (MVMCollectable *)slots[i], i);
+                i++;
+            }
+            break;
+        }
+    }
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -1248,5 +1279,5 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_MVMArray,
     0, /* refs_frames */
     unmanaged_size,
-    NULL, /* describe_refs */
+    describe_refs,
 };
