@@ -628,7 +628,7 @@ struct MVMREPROps {
 
     /* Optional API to describe references to other Collectables either by
      * index or by name, i.E. names of attributes or lexicals. */
-    MVMuint64 (*describe_refs) (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data);
+    void (*describe_refs) (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data);
 };
 
 /* Various handy macros for getting at important stuff. */
