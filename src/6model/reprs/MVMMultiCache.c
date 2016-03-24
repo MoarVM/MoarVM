@@ -64,6 +64,23 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
+/* Calculates the non-GC-managed memory we hold on to. */
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMMultiCacheBody *body = (MVMMultiCacheBody *)data;
+    MVMuint8 arity;
+    MVMuint64 size = 0;
+
+    for (arity = 0; arity < MVM_MULTICACHE_MAX_ARITY; arity++) {
+        if (body->arity_caches[arity].num_entries != 0) {
+            size += (arity + 1) * sizeof(MVMuint64  ) * MVM_MULTICACHE_MAX_ENTRIES; /* type_ids */
+            size +=               sizeof(MVMuint8   ) * MVM_MULTICACHE_MAX_ENTRIES; /* named_os */
+            size +=               sizeof(MVMObject *) * MVM_MULTICACHE_MAX_ENTRIES; /* results  */
+        }
+    }
+
+    return size;
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMMultiCache_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -96,7 +113,7 @@ static const MVMREPROps this_repr = {
     "MVMMultiCache", /* name */
     MVM_REPR_ID_MVMMultiCache,
     0, /* refs_frames */
-    NULL, /* unmanaged_size */
+    unmanaged_size, /* unmanaged_size */
 };
 
 MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMObject *capture, MVMObject *result) {
