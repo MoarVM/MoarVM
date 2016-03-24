@@ -635,7 +635,7 @@ MVMObject * types_str(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
      for (i = 0; i < col->num_types; i++) {
          char tmp[256];
          size_t item_chars = snprintf(tmp, 256,
-            "%"PRId64",%"PRId64";",
+            "%"PRIu64",%"PRIu64";",
             col->types[i].repr_name,
             col->types[i].type_name);
          if (item_chars < 0)
