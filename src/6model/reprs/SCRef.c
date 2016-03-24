@@ -149,6 +149,28 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 /*    return size;
 }*/
 
+static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
+    MVMSerializationContextBody     *body      = (MVMSerializationContextBody *)data;
+    MVMuint64 index;
+
+    if (body->sr)
+        return;
+
+    /*for (index = 0; index < body->alloc_objects; index++) {
+        MVM_profile_heap_add_collectable_rel_idx(tc, ss, body->root_objects[index], index);
+    }
+    for (index = 0; index < body->alloc_stables; index++) {
+        MVM_profile_heap_add_collectable_rel_idx(tc, ss, body->root_stables[index], index);
+    }*/
+
+    /*
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->root_codes,    "root_codes");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->rep_indexes,   "rep_indexes");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->rep_scs,       "rep_scs");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->owned_objects, "owned_objects");
+    */
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMSCRef_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -182,5 +204,5 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_SCRef,
     0, /* refs_frames */
     NULL, /* unmanaged_size */
-    NULL, /* describe_refs */
+    describe_refs,
 };
