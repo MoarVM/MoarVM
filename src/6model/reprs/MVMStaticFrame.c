@@ -245,7 +245,15 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
 
         /* XXX i believe we have to add the size of spesh candidates here,
          * which also has a bunch of unmanaged data of its own. */
-        /* XXX also include instrumentation data */
+
+        if (body->instrumentation) {
+            size += body->instrumentation->uninstrumented_bytecode_size;
+            size += body->instrumentation->instrumented_bytecode_size;
+
+            /* XXX not 100% sure if num_handlers from the body is also the
+             * number of handlers in instrumented version. should be, though. */
+            size += sizeof(MVMFrameHandler) * body->num_handlers * 2;
+        }
     }
 
     return size;
