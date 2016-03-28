@@ -223,6 +223,8 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
     MVMuint64 size = 0;
 
     if (body->fully_deserialized) {
+        MVMuint32 spesh_idx;
+
         size += sizeof(MVMuint16) * body->num_locals;
         size += sizeof(MVMuint16) * body->num_lexicals;
 
@@ -243,8 +245,46 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
         size += body->env_size; /* static_env */
         size += body->num_lexicals; /* static_env_flags */
 
-        /* XXX i believe we have to add the size of spesh candidates here,
-         * which also has a bunch of unmanaged data of its own. */
+        for (spesh_idx = 0; spesh_idx < body->num_spesh_candidates; spesh_idx++) {
+            MVMSpsehCandidate *cand = body->spesh_candidates[cand];
+            size += sizeof(MVMSpeshGuard) * cand->num_guards;
+
+            size += cand->bytecode_size;
+
+            size += sizeof(MVMFrameHandler) * cand->num_handlers;
+
+            size += sizeof(MVMCollectable *) * cand->num_spesh_slots;
+
+            size += sizeof(MVMint32) * cand->num_deopts;
+
+            if (cand->sg)
+                /* XXX we ought to descend into the speshgraph, too. */
+                size += sizeof(MVMSpeshGraph);
+
+            size += sizeof(MVMCollectable *) * cand->num_log_slots;
+
+            size += sizeof(MVMSpeshInline) * cand->num_inlines;
+
+            size += sizeof(MVMuint16) * (cand->num_locals + cand->num_lexicals);
+
+            /* XXX probably don't need to measure the bytecode size here,
+             * as it's probably just a pointer to the same bytecode we have in
+             * the static frame anyway. */
+
+            /* Dive into the jit code */
+            if (cand->jitcode) {
+                MVMJitCode code = cand->jitcode;
+
+                size += sizeof(MVMJitCode);
+
+                size += sizeof(void *) * code->num_labels;
+
+                size += sizeof(MVMint32) * code->num_bbs;
+                size += sizeof(MVMJitDeopt) * code->num_deopts;
+                size += sizeof(MVMJitInline) * code->num_inlines;
+                size += sizeof(MVMJitHandler) * code->num_handlers;
+            }
+        }
 
         if (body->instrumentation) {
             size += body->instrumentation->uninstrumented_bytecode_size;
