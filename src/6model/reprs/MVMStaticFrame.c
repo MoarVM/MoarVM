@@ -246,7 +246,7 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
         size += body->num_lexicals; /* static_env_flags */
 
         for (spesh_idx = 0; spesh_idx < body->num_spesh_candidates; spesh_idx++) {
-            MVMSpsehCandidate *cand = body->spesh_candidates[cand];
+            MVMSpeshCandidate *cand = &body->spesh_candidates[spesh_idx];
             size += sizeof(MVMSpeshGuard) * cand->num_guards;
 
             size += cand->bytecode_size;
@@ -273,7 +273,7 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
 
             /* Dive into the jit code */
             if (cand->jitcode) {
-                MVMJitCode code = cand->jitcode;
+                MVMJitCode *code = cand->jitcode;
 
                 size += sizeof(MVMJitCode);
 
