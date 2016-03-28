@@ -168,6 +168,37 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
     return size;
 }
 
+static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
+    MVMCompUnitBody     *body      = (MVMCompUnitBody *)data;
+    MVMuint32 i;
+
+    /* Add code refs to the worklists. */
+    for (i = 0; i < body->num_frames; i++)
+        MVM_profile_heap_add_collectable_rel_idx(tc, ss, body->coderefs[i], i);
+
+    /* Add extop names to the worklist. */
+    for (i = 0; i < body->num_extops; i++)
+        MVM_profile_heap_add_collectable_rel_idx(tc, ss, body->extops[i].name, i);
+
+    /* Add strings to the worklists. */
+    for (i = 0; i < body->num_strings; i++)
+        MVM_profile_heap_add_collectable_rel_idx(tc, ss, body->strings[i], i);
+
+    /* Add serialization contexts to the worklist. */
+    for (i = 0; i < body->num_scs; i++) {
+        if (body->scs[i]) {
+            MVM_profile_heap_add_collectable_rel_idx(tc, ss, body->scs[i], i);
+        }
+        /* Unresolved sc bodies' handles are marked by the GC instance root marking. */
+    }
+
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->update_mutex, "update_mutex");
+
+    /* Add various other referenced strings, etc. */
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->hll_name, "hll_name");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, body->filename, "filename");
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMCompUnit_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -201,4 +232,5 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_MVMCompUnit,
     0, /* refs_frames */
     unmanaged_size,
+    describe_refs,
 };

@@ -274,6 +274,7 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_NFA,
     0, /* refs_frames */
     unmanaged_size,
+    NULL, /* describe_refs */
 };
 
 /* We may be provided a grapheme as a codepoint for non-synthetics, or as a

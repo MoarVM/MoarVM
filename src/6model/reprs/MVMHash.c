@@ -195,6 +195,12 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
     }
 }
 
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMHashBody *body = (MVMHashBody *)data;
+
+    return sizeof(MVMHashEntry) * HASH_CNT(hash_handle, body->hash_head);
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -233,5 +239,6 @@ static const MVMREPROps this_repr = {
     "VMHash", /* name */
     MVM_REPR_ID_MVMHash,
     0, /* refs_frames */
-    NULL, /* unmanaged_size */
+    unmanaged_size, /* unmanaged_size */
+    NULL, /* describe_refs */
 };

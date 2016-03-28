@@ -189,4 +189,5 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_P6num,
     0, /* refs_frames */
     NULL, /* unmanaged_size */
+    NULL, /* describe_refs */
 };

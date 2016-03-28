@@ -296,7 +296,9 @@ static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         /* Use object's gc_mark function to find what it references. */
         /* XXX We'll also add an API for getting better information, e.g.
          * attribute names. */
-        if (REPR(obj)->gc_mark) {
+        if (REPR(obj)->describe_refs)
+            REPR(obj)->describe_refs(tc, ss, STABLE(obj), OBJECT_BODY(obj));
+        else if (REPR(obj)->gc_mark) {
             REPR(obj)->gc_mark(tc, STABLE(obj), OBJECT_BODY(obj), ss->gcwl);
             process_gc_worklist(tc, ss, NULL);
         }

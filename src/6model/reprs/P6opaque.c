@@ -1514,6 +1514,45 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
     }
 }
 
+static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
+    MVMP6opaqueREPRData *repr_data;
+    MVMP6opaqueBody     *body;
+    MVMP6opaqueNameMap *nim;
+
+    data = MVM_p6opaque_real_data(tc, data);
+
+    repr_data = (MVMP6opaqueREPRData *) st->REPR_data;
+    body      = (MVMP6opaqueBody *)data;
+
+    nim = repr_data->name_to_index_mapping;
+
+    while (nim->class_key) {
+        MVMuint32 attr_idx;
+
+        for (attr_idx = 0; attr_idx < nim->num_attrs; attr_idx++) {
+            MVMuint16 attr_offs = repr_data->attribute_offsets[nim->slots[attr_idx]];
+            MVMuint16 gcs_idx;
+            MVMuint8 found = 0;
+
+            /* search for the offset in the gc_obj_mark_offsets, because we
+             * only want to work with collectables being pointed at here. */
+            for (gcs_idx = 0; !found && gcs_idx < repr_data->gc_obj_mark_offsets_count; gcs_idx++) {
+                if (attr_offs == repr_data->gc_obj_mark_offsets[gcs_idx])
+                    found = 1;
+            }
+
+            if (found) {
+                /* XXX using these values currently segfaults :( */
+                /*MVM_profile_heap_add_collectable_rel_vm_str(tc, ss, (char*)data + attr_offs, nim->names[attr_idx]);*/
+            }
+        }
+
+        nim++;
+    }
+
+    /* XXX need to recurse into inlined/nested reprs */
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -1578,4 +1617,5 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_P6opaque,
     0, /* refs_frames */
     NULL, /* unmanaged_size */
+    NULL, /* describe_refs */
 };

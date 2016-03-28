@@ -147,6 +147,7 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_MVMCallCapture,
     1, /* refs_frames */
     NULL, /* unmanaged_size */
+    NULL, /* describe_refs */
 };
 
 /* This function was only introduced for the benefit of the JIT. */
