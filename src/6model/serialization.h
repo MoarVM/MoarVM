@@ -6,6 +6,10 @@ struct MVMSerializationRoot {
     /* The version of the serialization format. */
     MVMint32 version;
 
+    /* The number of parameterized type intern entries.
+     * Moved up here to close a hole in the struct. */
+    MVMint32  num_param_interns;
+
     /* The SC we're serializing/deserializing. */
     MVMSerializationContext *sc;
 
@@ -44,9 +48,7 @@ struct MVMSerializationRoot {
     MVMint32  num_repos;
     char     *repos_table;
 
-    /* The number of parameterized type intern entries, and the data segment
-     * containing them. */
-    MVMint32  num_param_interns;
+    /* The parameterized type intern entries are in this data segment */
     char     *param_interns_data;
 
     /* Array of strings making up the string heap we are constructing. If we
@@ -98,6 +100,9 @@ struct MVMSerializationReader {
     /* Number of static code objects. */
     MVMuint32 num_static_codes;
 
+    /* Whether we're already working on these worklists. */
+    MVMuint32 working;
+
     /* Array of contexts (num_contexts in length). */
     MVMFrame **contexts;
 
@@ -106,9 +111,6 @@ struct MVMSerializationReader {
      * done, and we have the required object graph. */
     MVMDeserializeWorklist wl_objects;
     MVMDeserializeWorklist wl_stables;
-
-    /* Whether we're already working on these worklists. */
-    MVMuint32 working;
 
     /* The current object we're deserializing. */
     MVMObject *current_object;

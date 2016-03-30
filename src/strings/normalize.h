@@ -32,6 +32,10 @@ struct MVMNormalizer {
     /* What form of normalization are we doing? */
     MVMNormalization form;
 
+    /* If we should translate the \r\n grapheme to \n (only applicable when
+     * normalizing to NFG). */
+    MVMint32 translate_newlines;
+
     /* Current buffer of codepoints we're working to normalize. */
     MVMCodepoint *buffer;
 
@@ -54,10 +58,6 @@ struct MVMNormalizer {
 
     /* The quickcheck property for the normalization form in question. */
     MVMint32 quick_check_property;
-
-    /* If we should translate the \r\n grapheme to \n (only applicable when
-     * normalizing to NFG). */
-    MVMint32 translate_newlines;
 };
 
 /* Guts-y functions, called by the API level ones below. */

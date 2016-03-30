@@ -43,6 +43,8 @@ struct MVMCompUnitBody {
     /* The start and size of the raw data for this compilation unit. */
     MVMuint8  *data_start;
     MVMuint32  data_size;
+    MVMuint16       num_extops; /* moved up here for struct layout */
+    MVMuint16     max_callsite_size; /* moved down here to improve struct layout */
 
     /* The code objects for each frame, along with counts of frames. */
     MVMObject      **coderefs;
@@ -58,10 +60,8 @@ struct MVMCompUnitBody {
     MVMCallsite **callsites;
     MVMuint32     num_callsites;
     MVMuint32     orig_callsites;
-    MVMuint16     max_callsite_size;
 
     /* The extension ops used by the compilation unit. */
-    MVMuint16       num_extops;
     MVMExtOpRecord *extops;
 
     /* The string heap and number of strings. */
@@ -86,11 +86,11 @@ struct MVMCompUnitBody {
      * never have its update getting moved ahead of writes into the table. */
     MVMuint32 *string_heap_fast_table;
     MVMuint32  string_heap_fast_table_top;
+    MVMint32  serialized_size; /* moved up here to improve struct layout */
     MVMuint8  *string_heap_start;
     MVMuint8  *string_heap_read_limit;
 
     /* Serialized data, if any. */
-    MVMint32  serialized_size;
     MVMuint8 *serialized;
 
     /* Array of the resolved serialization contexts, and how many we

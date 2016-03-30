@@ -12,13 +12,13 @@ struct MVMJitGraph {
        block number */
     MVMint32       num_bbs;
     MVMint32      *bb_labels;
-    
-    MVMint32       num_deopts;
-    MVMJitDeopt   *deopts;
 
+    MVMint32       num_deopts;
     MVMint32       num_handlers;
+
+    MVMJitDeopt   *deopts;
     MVMJitHandler *handlers;
-    
+
     MVMint32       num_inlines;
     MVMJitInline  *inlines;
 };

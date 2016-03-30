@@ -83,6 +83,9 @@ struct MVMFrame {
     /* Is the frame referenced by a garbage-collectable object? */
     MVMint32 refd_by_object;
 
+    /* The type of return value that is expected. */
+    MVMReturnType return_type;
+
     /* Effective bytecode for the frame (either the original bytecode or a
      * specialization of it). */
     MVMuint8 *effective_bytecode;
@@ -104,9 +107,6 @@ struct MVMFrame {
 
     /* The register we should store the return value in, if any. */
     MVMRegister *return_value;
-
-    /* The type of return value that is expected. */
-    MVMReturnType return_type;
 
     /* If we want to invoke a special handler upon a return to this
      * frame, this function pointer is set. */

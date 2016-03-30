@@ -38,11 +38,11 @@ struct MVMSpeshGraph {
     /* Number of argument guards we have. */
     MVMint32 num_arg_guards;
 
-    /* Log-based guards added. */
-    MVMSpeshLogGuard *log_guards;
-
     /* Number of log-based guards we have. */
     MVMint32 num_log_guards;
+
+    /* Log-based guards added. */
+    MVMSpeshLogGuard *log_guards;
 
     /* Memory blocks we allocate to store spesh nodes, and which we free along
      * with the graph. Contains a link to previous blocks. */
@@ -78,6 +78,10 @@ struct MVMSpeshGraph {
     /* Number of basic blocks we have. */
     MVMint32 num_bbs;
 
+    /* Num of temps allocated and used in "temps" further down below. */
+    MVMuint16          alloc_temps;
+    MVMuint16          num_temps;
+
     /* The list of local types (only set up if we do inlines). */
     MVMuint16 *local_types;
 
@@ -91,10 +95,8 @@ struct MVMSpeshGraph {
     /* The total number of lexicals, accounting for any inlining done. */
     MVMuint16 num_lexicals;
 
-    /* Temporary local registers added to aid transformations, along with a
-     * count of the number we have and have allocated space for so far. */
-    MVMuint16          num_temps;
-    MVMuint16          alloc_temps;
+    /* Temporary local registers added to aid transformations.
+     * For number of allocated/used temps see above. */
     MVMSpeshTemporary *temps;
 
     /* We need to create new MVMOpInfo structs for each number of

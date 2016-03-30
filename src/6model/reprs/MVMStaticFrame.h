@@ -64,6 +64,15 @@ struct MVMStaticFrameBody {
     /* The number of exception handlers this frame has. */
     MVMuint32 num_handlers;
 
+    /* Is the frame full deserialized? */
+    MVMuint8 fully_deserialized;
+
+    /* Is the frame a thunk, and thus hidden to caller/outer? */
+    MVMuint8 is_thunk;
+
+    /* Does the frame have an exit handler we need to run? */
+    MVMuint8 has_exit_handler;
+
     /* The compilation unit unique ID of this frame. */
     MVMString *cuuid;
 
@@ -82,15 +91,6 @@ struct MVMStaticFrameBody {
     /* Annotation details */
     MVMuint32              num_annotations;
     MVMuint8              *annotations_data;
-
-    /* Does the frame have an exit handler we need to run? */
-    MVMuint8 has_exit_handler;
-
-    /* Is the frame a thunk, and thus hidden to caller/outer? */
-    MVMuint8 is_thunk;
-
-    /* Is the frame full deserialized? */
-    MVMuint8 fully_deserialized;
 
     /* The original bytecode for this frame (before endian swapping). */
     MVMuint8 *orig_bytecode;
