@@ -645,8 +645,8 @@ sub generate {
             # In-between slashes in makefiles need to be backslashes on Windows.
             # Double backslashes in config.c, beause these are in qq-strings.
             my $bs = $dest =~ /Makefile/ ? '\\' : '\\\\';
-            $line =~ s/(\w|\.|\w\:|\$\(PREFIX\))\/(\w|\.|\*)/$1$bs$2/g;
-            $line =~ s/(\w|\.|\w\:|\$\(PREFIX\))\\(\w|\.|\*)/$1$bs$2/g if $bs eq '\\\\';
+			$line =~ s/(\w|\.|\w\:|\$\(PREFIX\))\/(?=\w|\.|\*)/$1$bs/g;
+			$line =~ s/(\w|\.|\w\:|\$\(PREFIX\))\\(?=\w|\.|\*)/$1$bs/g if $bs eq '\\\\';
 
             # gmake doesn't like \*
             $line =~ s/(\w|\.|\w\:|\$\(PREFIX\))\\\*/$1\\\\\*/g
