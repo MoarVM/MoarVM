@@ -247,7 +247,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
 
     orig_bytes = bytes;
     orig_utf8 = utf8;
-    last_accept_utf8 = utf8;
+    last_accept_utf8 = utf8 - 1;
 
     for (; bytes; ++utf8, --bytes) {
         switch(decode_utf8_byte(&state, &codepoint, (MVMuint8)*utf8)) {
