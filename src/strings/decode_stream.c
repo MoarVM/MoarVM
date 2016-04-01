@@ -83,29 +83,38 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
 
 /* Does a decode run, selected by encoding. Returns non-zero if we actually
  * decoded more chars. */
-static MVMint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *sep_spec) {
+#define RUN_DECODE_NOTHING_DECODED          0
+#define RUN_DECODE_STOPPER_NOT_REACHED      1
+#define RUN_DECODE_STOPPER_REACHED          2
+static MVMuint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *sep_spec) {
     MVMDecodeStreamChars *prev_chars_tail = ds->chars_tail;
+    MVMuint32 reached_stopper;
     switch (ds->encoding) {
     case MVM_encoding_type_utf8:
-        MVM_string_utf8_decodestream(tc, ds, stopper_chars, sep_spec);
+        reached_stopper = MVM_string_utf8_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
     case MVM_encoding_type_ascii:
-        MVM_string_ascii_decodestream(tc, ds, stopper_chars, sep_spec);
+        reached_stopper = MVM_string_ascii_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
     case MVM_encoding_type_latin1:
-        MVM_string_latin1_decodestream(tc, ds, stopper_chars, sep_spec);
+        reached_stopper = MVM_string_latin1_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
     case MVM_encoding_type_windows1252:
-        MVM_string_windows1252_decodestream(tc, ds, stopper_chars, sep_spec);
+        reached_stopper = MVM_string_windows1252_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
     case MVM_encoding_type_utf8_c8:
-        MVM_string_utf8_c8_decodestream(tc, ds, stopper_chars, sep_spec);
+        reached_stopper = MVM_string_utf8_c8_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
     default:
         MVM_exception_throw_adhoc(tc, "Streaming decode NYI for encoding %d",
             (int)ds->encoding);
     }
-    return ds->chars_tail != prev_chars_tail;
+    if (ds->chars_tail == prev_chars_tail)
+        return RUN_DECODE_NOTHING_DECODED;
+    else if (reached_stopper)
+        return RUN_DECODE_STOPPER_REACHED;
+    else
+        return RUN_DECODE_STOPPER_NOT_REACHED;
 }
 
 /* Gets the specified number of characters. If we are not yet able to decode
@@ -263,9 +272,11 @@ MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecod
      * the separator, so we may need to loop a few times around this. */
     sep_loc = find_separator(tc, ds, sep_spec, &sep_length);
     while (!sep_loc) {
-        if (!run_decode(tc, ds, NULL, sep_spec))
+        MVMuint32 decode_outcome = run_decode(tc, ds, NULL, sep_spec);
+        if (decode_outcome == RUN_DECODE_NOTHING_DECODED)
             break;
-        sep_loc = find_separator(tc, ds, sep_spec, &sep_length);
+        if (decode_outcome == RUN_DECODE_STOPPER_REACHED)
+            sep_loc = find_separator(tc, ds, sep_spec, &sep_length);
     }
     if (sep_loc)
         return take_chars(tc, ds, sep_loc, chomp ? sep_length : 0);
