@@ -201,7 +201,7 @@ MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStr
 }
 
 /* Gets characters up until one of the specified separators is encountered. If
- * we do not encounter it, returns 9. This may mean more input buffers are needed
+ * we do not encounter it, returns 0. This may mean more input buffers are needed
  * or that we reached the end of the stream. */
 static MVMint32 have_separator(MVMThreadContext *tc, MVMDecodeStreamChars *start_chars, MVMint32 start_pos,
                                MVMDecodeStreamSeparators *sep_spec, MVMint32 sep_idx, MVMint32 sep_graph_pos) {
