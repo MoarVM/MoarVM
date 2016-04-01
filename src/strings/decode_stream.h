@@ -85,4 +85,5 @@ MVMint32 MVM_string_decodestream_is_empty(MVMThreadContext *tc, MVMDecodeStream 
 void MVM_string_decodestream_destory(MVMThreadContext *tc, MVMDecodeStream *ds);
 void MVM_string_decode_stream_sep_default(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec);
 void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec, MVMString **seps, MVMint32 num_seps);
+MVMint32 MVM_string_decode_stream_sep_max_chars(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec);
 void MVM_string_decode_stream_sep_destroy(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec);

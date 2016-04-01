@@ -211,7 +211,9 @@ MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStr
 
 /* Gets characters up until one of the specified separators is encountered. If
  * we do not encounter it, returns 0. This may mean more input buffers are needed
- * or that we reached the end of the stream. */
+ * or that we reached the end of the stream. Note that it assumes the separator
+ * will exist near the end of the buffer, if it occurs at all, due to decode
+ * streams looking for stoppers. */
 static MVMint32 have_separator(MVMThreadContext *tc, MVMDecodeStreamChars *start_chars, MVMint32 start_pos,
                                MVMDecodeStreamSeparators *sep_spec, MVMint32 sep_idx, MVMint32 sep_graph_pos) {
     MVMint32 sep_pos = 1;
@@ -236,6 +238,17 @@ static MVMint32 find_separator(MVMThreadContext *tc, const MVMDecodeStream *ds,
                                MVMDecodeStreamSeparators *sep_spec, MVMint32 *sep_length) {
     MVMint32 sep_loc = 0;
     MVMDecodeStreamChars *cur_chars = ds->chars_head;
+
+    /* First, skip over any buffers we need not consider. */
+    MVMint32 max_sep_chars = MVM_string_decode_stream_sep_max_chars(tc, sep_spec);
+    while (cur_chars && cur_chars->next) {
+        if (cur_chars->next->length < max_sep_chars)
+            break;
+        sep_loc += cur_chars->length;
+        cur_chars = cur_chars->next;
+    }
+
+    /* Now scan for the separator. */
     while (cur_chars) {
         MVMint32 start = cur_chars == ds->chars_head ? ds->chars_head_pos : 0;
         MVMint32 i, j;
@@ -513,6 +526,16 @@ void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeSt
         while (MVM_string_gi_has_more(tc, &gi))
             sep_spec->sep_graphemes[graph_pos++] = MVM_string_gi_get_grapheme(tc, &gi);
     }
+}
+
+/* Rerturns the maximum length of any separator, in graphemes. */
+MVMint32 MVM_string_decode_stream_sep_max_chars(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec) {
+    MVMint32 i;
+    MVMint32 max_length = 1;
+    for (i = 0; i < sep_spec->num_seps; i++)
+        if (sep_spec->sep_lengths[i] > max_length)
+            max_length = sep_spec->sep_lengths[i];
+    return max_length;
 }
 
 /* Cleans up memory associated with a stream separator set. */
