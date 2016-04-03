@@ -33,8 +33,10 @@ void MVM_gc_worklist_add_frame_slow(MVMThreadContext *tc, MVMGCWorklist *worklis
 }
 
 /* Adds a lot of items to the worklist that are laid out consecutively in memory, expanding it if needed. */
-void MVM_gc_worklist_add_vector(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **firstitem, MVMuint32 count, MVMuint32 offset) {
+void MVM_gc_worklist_add_vector(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **firstitem, MVMuint32 count) {
     MVMint32 index = 0;
+
+    /*MVMuint32 beginning_item = worklist->items;*/
     while (worklist->items + count > worklist->alloc) {
         index = 1;
         worklist->alloc *= 2;
@@ -43,10 +45,23 @@ void MVM_gc_worklist_add_vector(MVMThreadContext *tc, MVMGCWorklist *worklist, M
         worklist->list = MVM_realloc(worklist->list, worklist->alloc * sizeof(MVMCollectable **));
     }
 
-    for (index = 0; index < count; index++) {
-        worklist->list[worklist->items++] = firstitem;
-        firstitem = (MVMCollectable **)((char *)firstitem + offset);
+    if (worklist->include_gen2) {
+        for (index = 0; index < count; index++) {
+            if (*firstitem) {
+                worklist->list[worklist->items++] = firstitem;
+            }
+            firstitem++;
+        }
+    } else {
+        for (index = 0; index < count; index++) {
+            if (*firstitem && !((*firstitem)->flags & MVM_CF_SECOND_GEN)) {
+                worklist->list[worklist->items++] = firstitem;
+            }
+            firstitem++;
+        }
     }
+    /*fprintf(stderr, "items went from %d to %d for %d count (should be %d)\n",*/
+            /*beginning_item, worklist->items, count, beginning_item + count);*/
 }
 
 /* Pre-sizes the worklist in expectation a certain number of items is about to be

@@ -94,7 +94,7 @@ struct MVMGCWorklist {
 MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_gen2, MVMuint8 always_frames);
 MVM_PUBLIC void MVM_gc_worklist_add_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **item);
 MVM_PUBLIC void MVM_gc_worklist_add_frame_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
-MVM_PUBLIC void MVM_gc_worklist_add_vector(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **first, MVMuint32 count, MVMuint32 offset);
+MVM_PUBLIC void MVM_gc_worklist_add_vector(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **first, MVMuint32 count);
 void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMint32 items);
 void MVM_gc_worklist_destroy(MVMThreadContext *tc, MVMGCWorklist *worklist);
 void MVM_gc_worklist_mark_frame_roots(MVMThreadContext *tc, MVMGCWorklist *worklist);

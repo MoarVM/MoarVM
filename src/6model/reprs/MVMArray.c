@@ -57,8 +57,12 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         case MVM_ARRAY_OBJ: {
             MVMObject **slots = body->slots.o;
             slots += start;
-            if (elems > 256) {
-                MVM_gc_worklist_add_vector(tc, worklist, &slots[0], elems, (char *)&slots[1] - (char *)&slots[0]);
+            if (elems > 1024) {
+                MVMuint32 start;
+                for (start = 0; start < elems; start += 1024) {
+                    MVM_gc_worklist_add_vector(tc, worklist, &slots[start], elems - start > 1024 ? 1024 : elems - start);
+                }
+                /*MVM_gc_worklist_add_vector(tc, worklist, &slots[0], elems);*/
             } else {
                 while (i < elems) {
                     MVM_gc_worklist_add(tc, worklist, &slots[i]);
@@ -70,8 +74,12 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         case MVM_ARRAY_STR: {
             MVMString **slots = body->slots.s;
             slots += start;
-            if (elems > 256) {
-                MVM_gc_worklist_add_vector(tc, worklist, (MVMCollectable **)&slots[0], elems, (char *)&slots[1] - (char *)&slots[0]);
+            if (elems > 1024) {
+                MVMuint32 start;
+                for (start = 0; start < elems; start += 1024) {
+                    MVM_gc_worklist_add_vector(tc, worklist, &slots[start], elems - start > 1024 ? 1024 : elems - start);
+                }
+                /*MVM_gc_worklist_add_vector(tc, worklist, &slots[0], elems);*/
             } else {
                 while (i < elems) {
                     MVM_gc_worklist_add(tc, worklist, &slots[i]);
