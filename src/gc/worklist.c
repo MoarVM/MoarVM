@@ -32,6 +32,23 @@ void MVM_gc_worklist_add_frame_slow(MVMThreadContext *tc, MVMGCWorklist *worklis
     worklist->frames_list[worklist->frames++] = frame;
 }
 
+/* Adds a lot of items to the worklist that are laid out consecutively in memory, expanding it if needed. */
+void MVM_gc_worklist_add_vector(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **firstitem, MVMuint32 count, MVMuint32 offset) {
+    MVMint32 index = 0;
+    while (worklist->items + count > worklist->alloc) {
+        index = 1;
+        worklist->alloc *= 2;
+    }
+    if (index == 1) {
+        worklist->list = MVM_realloc(worklist->list, worklist->alloc * sizeof(MVMCollectable **));
+    }
+
+    for (index = 0; index < count; index++) {
+        worklist->list[worklist->items++] = item;
+        firstitem = (MVMCollectable **)((char *)firstitem + offset);
+    }
+}
+
 /* Pre-sizes the worklist in expectation a certain number of items is about to be
  * added. */
 void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMint32 items) {
