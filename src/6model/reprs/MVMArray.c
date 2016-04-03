@@ -58,7 +58,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             MVMObject **slots = body->slots.o;
             slots += start;
             if (elems > 256) {
-                MVM_gc_worklist_add_vector(tc, worklist, &slots[0], (char *)&slots[1] - (char *)&slots[0]);
+                MVM_gc_worklist_add_vector(tc, worklist, &slots[0], elems, (char *)&slots[1] - (char *)&slots[0]);
             } else {
                 while (i < elems) {
                     MVM_gc_worklist_add(tc, worklist, &slots[i]);
@@ -71,7 +71,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             MVMString **slots = body->slots.s;
             slots += start;
             if (elems > 256) {
-                MVM_gc_worklist_add_vector(tc, worklist, &slots[0], (char *)&slots[1] - (char *)&slots[0]);
+                MVM_gc_worklist_add_vector(tc, worklist, (MVMCollectable **)&slots[0], elems, (char *)&slots[1] - (char *)&slots[0]);
             } else {
                 while (i < elems) {
                     MVM_gc_worklist_add(tc, worklist, &slots[i]);

@@ -44,7 +44,7 @@ void MVM_gc_worklist_add_vector(MVMThreadContext *tc, MVMGCWorklist *worklist, M
     }
 
     for (index = 0; index < count; index++) {
-        worklist->list[worklist->items++] = item;
+        worklist->list[worklist->items++] = firstitem;
         firstitem = (MVMCollectable **)((char *)firstitem + offset);
     }
 }
