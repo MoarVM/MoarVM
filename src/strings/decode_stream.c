@@ -528,7 +528,7 @@ void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeSt
     }
 }
 
-/* Rerturns the maximum length of any separator, in graphemes. */
+/* Returns the maximum length of any separator, in graphemes. */
 MVMint32 MVM_string_decode_stream_sep_max_chars(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec) {
     MVMint32 i;
     MVMint32 max_length = 1;
