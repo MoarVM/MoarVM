@@ -282,7 +282,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     MVMuint32  i, n;
 
     /* Decide nursery or full collection. */
-    gen = is_full_collection(tc) ? MVMGCGenerations_Both : MVMGCGenerations_Nursery;
+    gen = tc->instance->gc_full_collect ? MVMGCGenerations_Both : MVMGCGenerations_Nursery;
 
     /* Do GC work for ourselves and any work threads. */
     for (i = 0, n = tc->gc_work_count ; i < n; i++) {
@@ -336,7 +336,6 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     if (MVM_trycas(&tc->instance->gc_start, 0, 1)) {
         MVMThread *last_starter = NULL;
         MVMuint32 num_threads = 0;
-        MVMuint32 is_full;
 
         /* Need to wait for other threads to reset their gc_status. */
         while (MVM_load(&tc->instance->gc_ack)) {
@@ -354,11 +353,11 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
             (int)MVM_load(&tc->instance->gc_seq_number));
 
         /* Decide if it will be a full collection. */
-        is_full = is_full_collection(tc);
+        tc->instance->gc_full_collect = is_full_collection(tc);
 
         /* If profiling, record that GC is starting. */
         if (tc->instance->profiling)
-            MVM_profiler_log_gc_start(tc, is_full);
+            MVM_profiler_log_gc_start(tc, tc->instance->gc_full_collect);
 
         /* Ensure our stolen list is empty. */
         tc->gc_work_count = 0;
@@ -409,7 +408,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
 
         /* Now we're ready to start, zero promoted since last full collection
          * counter if this is a full collect. */
-        if (is_full)
+        if (tc->instance->gc_full_collect)
             MVM_store(&tc->instance->gc_promoted_bytes_since_last_full, 0);
 
         /* This is a safe point for us to free any STables that have been marked
