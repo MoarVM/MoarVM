@@ -235,7 +235,9 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                     ? MVM_gc_object_id_use_allocation(tc, item)
                     : MVM_gc_gen2_allocate(gen2, item->size);
 
-                /* Add on to the promoted amount (used by profiler). */
+                /* Add on to the promoted amount (used both to decide when to do
+                 * the next full collection, as well as for profiling). Note we
+                 * add unmanaged size on for objects below. */
                 tc->gc_promoted_bytes += item->size;
 
                 /* Copy the object to the second generation and mark it as
@@ -247,11 +249,14 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 new_addr->flags |= MVM_CF_SECOND_GEN;
 
                 /* If it references frames or static frames, we need to keep
-                 * on visiting it. */
+                 * on visiting it. Also add on object's unmanaged size. */
                 if (!(new_addr->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
                     MVMObject *new_obj_addr = (MVMObject *)new_addr;
                     if (REPR(new_obj_addr)->refs_frames)
                         MVM_gc_root_gen2_add(tc, (MVMCollectable *)new_obj_addr);
+                    if (REPR(new_obj_addr)->unmanaged_size)
+                        tc->gc_promoted_bytes += REPR(new_obj_addr)->unmanaged_size(tc,
+                            STABLE(new_obj_addr), OBJECT_BODY(new_obj_addr));
                 }
 
                 /* If we're going to sweep the second generation, also need
