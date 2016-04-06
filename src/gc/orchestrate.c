@@ -272,9 +272,19 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
 }
 
 static MVMint32 is_full_collection(MVMThreadContext *tc) {
-    MVMuint64 threshold = MVM_GC_GEN2_THRESHOLD_BASE +
-        ((MVMuint64)tc->instance->num_user_threads * MVM_GC_GEN2_THRESHOLD_THREAD);
-    return MVM_load(&tc->instance->gc_promoted_bytes_since_last_full) > threshold;
+    MVMuint64 percent_growth, threshold;
+    size_t rss, promoted;
+
+    /* If it's below the absolute minimum, quickly return. */
+    promoted = (size_t)MVM_load(&tc->instance->gc_promoted_bytes_since_last_full);
+    if (promoted < MVM_GC_GEN2_THRESHOLD_MINIMUM)
+        return 0;
+
+    /* Otherwise, consider percentage of resident set size. */
+    if (uv_resident_set_memory(&rss) < 0)
+        rss = 50 * 1024 * 1024;
+    percent_growth = (100 * promoted) / rss;
+    return percent_growth >= MVM_GC_GEN2_THRESHOLD_PERCENT;
 }
 
 static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
