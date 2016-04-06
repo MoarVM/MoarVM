@@ -285,6 +285,15 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
     tc->num_gen2roots = insert_pos;
 }
 
+/* Adds inter-generational roots to a heap snapshot. */
+void MVM_gc_root_add_gen2s_to_snapshot(MVMThreadContext *tc, MVMHeapSnapshotState *snapshot) {
+    MVMCollectable **gen2roots = tc->gen2roots;
+    MVMuint32        num_roots = tc->num_gen2roots;
+    MVMuint32        i;
+    for (i = 0; i < num_roots; i++)
+        MVM_profile_heap_add_collectable_rel_idx(tc, snapshot, gen2roots[i], i);
+}
+
 /* Visits all of the roots in the gen2 list and removes those that have been
  * collected. Applied after a full collection. */
 void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
