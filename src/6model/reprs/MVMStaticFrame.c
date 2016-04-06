@@ -299,6 +299,77 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
     return size;
 }
 
+static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
+    MVMStaticFrameBody *body = (MVMStaticFrameBody *)data;
+    MVMLexicalRegistry *current, *tmp;
+    unsigned bucket_tmp;
+
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->cu, "Compilation Unit");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->cuuid, "Compilation Unit Unique ID");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->name, "Name");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->outer, "Outer static frame");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->static_code, "Static code object");
+
+    /* If it's not fully deserialized, none of the following can apply. */
+    if (!body->fully_deserialized)
+        return;
+
+    /* lexical names hash keys */
+    HASH_ITER(hash_handle, body->lexical_names, current, tmp, bucket_tmp) {
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+            (MVMCollectable *)current->key, "Lexical name");
+    }
+
+    /* static env */
+    if (body->static_env) {
+        MVMuint16 *type_map = body->lexical_types;
+        MVMuint16  count    = body->num_lexicals;
+        MVMuint16  i;
+        for (i = 0; i < count; i++)
+            if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->static_env[i].o, "Static Environment Entry");
+    }
+
+    /* Spesh slots. */
+    if (body->num_spesh_candidates) {
+        MVMint32 i, j;
+        for (i = 0; i < body->num_spesh_candidates; i++) {
+            for (j = 0; j < body->spesh_candidates[i].num_guards; j++)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->spesh_candidates[i].guards[j].match,
+                    "Spesh guard match");
+            for (j = 0; j < body->spesh_candidates[i].num_spesh_slots; j++)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->spesh_candidates[i].spesh_slots[j],
+                    "Spesh slot entry");
+            if (body->spesh_candidates[i].log_slots)
+                for (j = 0; j < body->spesh_candidates[i].num_log_slots * MVM_SPESH_LOG_RUNS; j++)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->spesh_candidates[i].log_slots[j],
+                    "Spesh log slots");
+            for (j = 0; j < body->spesh_candidates[i].num_inlines; j++)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->spesh_candidates[i].inlines[j].code,
+                    "Spesh inlined code object");
+            if (body->spesh_candidates[i].sg) {
+                MVMCollectable **c_ptr;
+                MVM_spesh_graph_mark(tc, body->spesh_candidates[i].sg, ss->gcwl);
+                while (c_ptr = MVM_gc_worklist_get(tc, ss->gcwl)) {
+                    MVMCollectable *c = *c_ptr;
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, c,
+                        "Object held by spesh graph");
+                }
+            }
+        }
+    }
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMStaticFrame_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -332,5 +403,5 @@ static const MVMREPROps this_repr = {
     MVM_REPR_ID_MVMStaticFrame,
     0, /* refs_frames */
     unmanaged_size, /* unmanaged_size */
-    NULL, /* describe_refs */
+    describe_refs,
 };
