@@ -570,20 +570,12 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
     return frames;
 }
 
-MVM_STATIC_INLINE void ensure_can_access(MVMThreadContext *tc, MVMuint8 *read_limit, MVMuint8 *pos, MVMuint32 amount, MVMObject *to_unlock) {
-    if (pos + amount > read_limit) {
-        MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)to_unlock);
-        MVM_exception_throw_adhoc(tc, "Could not finish deserializing frame: Read past end");
-    }
-}
-
 /* Finishes up reading and exploding of a frame. */
 void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
                                MVMStaticFrame *sf, MVMint32 dump_only) {
     MVMuint32 j;
     MVMuint8 *pos;
     MVMuint16 slvs;
-    MVMuint8 *read_limit;
 
     /* Ensure we've not already done this. */
     if (sf->body.fully_deserialized)
@@ -600,8 +592,6 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
 
     /* Locate start of frame body. */
     pos = sf->body.frame_data_pos;
-
-    read_limit = cu->body.serialized + cu->body.serialized_size;
 
     /* Get the number of static lex values we'll need to apply. */
     slvs = read_int16(pos, 40);
@@ -648,7 +638,6 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
 
         /* Read each handler. */
         for (j = 0; j < sf->body.num_handlers; j++) {
-            ensure_can_access(tc, read_limit, pos, 20, cu->body.update_mutex);
             sf->body.handlers[j].start_offset  = read_int32(pos, 0);
             sf->body.handlers[j].end_offset    = read_int32(pos, 4);
             sf->body.handlers[j].category_mask = read_int32(pos, 8);
@@ -657,7 +646,6 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
             sf->body.handlers[j].goto_offset   = read_int32(pos, 16);
             pos += FRAME_HANDLER_SIZE;
             if (sf->body.handlers[j].category_mask & MVM_EX_CAT_LABELED) {
-                ensure_can_access(tc, read_limit, pos, 2, cu->body.update_mutex);
                 sf->body.handlers[j].label_reg = read_int16(pos, 0);
                 pos += 2;
             }
@@ -675,22 +663,13 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
 
     /* Read in static lexical flags. */
     for (j = 0; j < slvs; j++) {
-        MVMuint16 lex_idx;
-        MVMuint16 flags;
-        ensure_can_access(tc, read_limit, pos, 4, cu->body.update_mutex);
-        lex_idx = read_int16(pos, 0);
-        flags   = read_int16(pos, 2);
-        if (lex_idx > sf->body.num_lexicals) {
-            MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
-            MVM_exception_throw_adhoc(tc, "Cannot set flags of lexical outside bounds: %d > %d", lex_idx, sf->body.num_lexicals);
-        }
+        MVMuint16 lex_idx = read_int16(pos, 0);
+        MVMuint16 flags   = read_int16(pos, 2);
         sf->body.static_env_flags[lex_idx] = flags;
         if (flags == 2 && !dump_only) {
             /* State variable; need to resolve wval immediately. Other kinds
              * can wait. */
-            MVMSerializationContext *sc;
-            ensure_can_access(tc, read_limit, pos, 12, cu->body.update_mutex);
-            sc = MVM_sc_get_sc(tc, cu, read_int32(pos, 4));
+            MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, read_int32(pos, 4));
             if (sc == NULL) {
                 MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
                 MVM_exception_throw_adhoc(tc, "SC not yet resolved; lookup failed");
