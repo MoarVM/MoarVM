@@ -680,6 +680,10 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         ensure_can_access(tc, read_limit, pos, 4, cu->body.update_mutex);
         lex_idx = read_int16(pos, 0);
         flags   = read_int16(pos, 2);
+        if (lex_idx > sf->body.num_lexicals) {
+            MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+            MVM_exception_throw_adhoc(tc, "Cannot set flags of lexical outside bounds: %d > %d", lex_idx, sf->body.num_lexicals);
+        }
         sf->body.static_env_flags[lex_idx] = flags;
         if (flags == 2 && !dump_only) {
             /* State variable; need to resolve wval immediately. Other kinds
