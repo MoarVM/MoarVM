@@ -897,7 +897,7 @@ void MVM_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     mp_int workaround;
     mp_init (&workaround);
     mp_rand(&workaround, USED(max) + 1);
-    mp_mul_2d(&workaround, 28, &workaround);
+    mp_mul_2d(&workaround, 29, &workaround);
 
     mp_init(rnd);
     mp_rand(rnd, USED(max) + 1);
