@@ -893,8 +893,18 @@ void MVM_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     mp_int *rnd = MVM_malloc(sizeof(mp_int));
     mp_int *max = force_bigint(bb, tmp);
 
+    /* Workaround tommath issue #56 */
+    mp_int workaround;
+    mp_init (&workaround);
+    mp_rand(&workaround, USED(max) + 1);
+    mp_mul_2d(&workaround, 28, &workaround);
+
     mp_init(rnd);
     mp_rand(rnd, USED(max) + 1);
+
+    mp_xor(rnd, &workaround, rnd);
+    mp_clear(&workaround);
+
     mp_mod(rnd, max, rnd);
     store_bigint_result(ba, rnd);
     clear_temp_bigints(tmp, 1);
