@@ -567,6 +567,46 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         }
     }
 
+    /* verify that frames' outers are sane. */
+    {
+        /* XXX if we find a little space in the frame object (like its headers' flags?),
+         * this can go from quadratic to linear. */
+        MVMuint8 *sanity = MVM_calloc(rs->expected_frames, 1);
+        MVMuint32 sane_frames = 0;
+        MVMuint32 changed = 1;
+        MVMuint32 j;
+
+        while (changed) {
+            changed = 0;
+            for (i = 0; i < rs->expected_frames; i++) {
+                if (sanity[i])
+                    continue;
+
+                if (!frames[i]->body.outer) {
+                    sanity[i] = 1;
+                    sane_frames++;
+                    changed = 1;
+                } else {
+                    for (j = 0; j < rs->expected_frames; j++) {
+                        if (j == i) continue;
+
+                        if (frames[j] == frames[i]->body.outer && sanity[j]) {
+                            sanity[i] = 1;
+                            sane_frames++;
+                            changed = 1;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (sane_frames != rs->expected_frames) {
+            cleanup_all(tc, rs);
+            MVM_exception_throw_adhoc(tc, "Invalid frame outer indices; circular 'outer' chain.");
+        }
+    }
+
     return frames;
 }
 
