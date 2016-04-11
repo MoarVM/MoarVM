@@ -84,7 +84,9 @@ static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in) {
         MVMGrapheme32 g;
         ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, MVM_string_ci_get_codepoint(tc, &ci), &g);
         if (ready) {
-            if (out_pos + ready > in->body.num_graphs) {
+            if (out_pos + ready > bufsize) {
+                /* Doubling up the buffer size seems excessive, so just
+                 * add a generous amount of storage */
                 bufsize += ready + 32;
                 out_buffer = MVM_realloc(out_buffer, bufsize * sizeof(MVMGrapheme32));
             }
@@ -96,7 +98,7 @@ static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in) {
     }
     MVM_unicode_normalizer_eof(tc, &norm);
     ready = MVM_unicode_normalizer_available(tc, &norm);
-    if (out_pos + ready > in->body.num_graphs) {
+    if (out_pos + ready > bufsize) {
         bufsize += ready + 1;
         out_buffer = MVM_realloc(out_buffer, bufsize * sizeof(MVMGrapheme32));
     }
