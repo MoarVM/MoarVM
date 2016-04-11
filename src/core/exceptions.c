@@ -405,7 +405,7 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
     MVMFrame *cur_frame;
     MVMObject *arr;
 
-    if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
+    if (!MVM_is_null(tc, ex_obj) && IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)ex_obj;
     else
         MVM_exception_throw_adhoc(tc, "Op 'backtracestrings' needs an exception object");
@@ -508,7 +508,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     LocatedHandler  lh;
     MVMException   *ex;
 
-    if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
+    if (!MVM_is_null(tc, ex_obj) && IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)ex_obj;
     else
         MVM_exception_throw_adhoc(tc, "Can only throw an exception object");
@@ -540,7 +540,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVMFrame         *target;
     MVMActiveHandler *ah;
 
-    if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
+    if (!MVM_is_null(tc, ex_obj) && IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)ex_obj;
     else
         MVM_exception_throw_adhoc(tc, "Can only resume an exception object");

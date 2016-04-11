@@ -904,7 +904,7 @@ MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
 void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
     MVMCode *code_obj = (MVMCode *)code;
 
-    if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
+    if (MVM_is_null(tc, code) || REPR(code)->ID != MVM_REPR_ID_MVMCode)
         MVM_exception_throw_adhoc(tc,
             "Can only perform capturelex on object with representation MVMCode");
 
@@ -929,6 +929,10 @@ void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
  * captures a closure over the current scope. */
 MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
     MVMCode *closure;
+
+    if (MVM_is_null(tc, code))
+        MVM_exception_throw_adhoc(tc,
+            "Tried to takeclosure a null object.");
 
     if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
         MVM_exception_throw_adhoc(tc,

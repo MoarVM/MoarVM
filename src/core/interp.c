@@ -812,6 +812,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(arg_o):
+                if ((char *)(&tc->cur_frame->args[GET_UI16(cur_op, 0)]) > (char *)tc->cur_frame->work + tc->cur_frame->allocd_work) {
+                    MVM_exception_throw_adhoc(tc, "Tried to read argument from outside stack frame");
+                }
                 tc->cur_frame->args[GET_UI16(cur_op, 0)].o = GET_REG(cur_op, 2).o;
                 cur_op += 4;
                 goto NEXT;
@@ -1076,7 +1079,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(bindexmessage): {
                 MVMObject *ex = GET_REG(cur_op, 0).o;
-                if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException) {
+                if (!MVM_is_null(tc, ex) && IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException) {
                     MVM_ASSIGN_REF(tc, &(ex->header), ((MVMException *)ex)->body.message,
                         GET_REG(cur_op, 2).s);
                 }
@@ -1088,7 +1091,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(bindexpayload): {
                 MVMObject *ex = GET_REG(cur_op, 0).o;
-                if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException) {
+                if (!MVM_is_null(tc, ex) && IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException) {
                     MVM_ASSIGN_REF(tc, &(ex->header), ((MVMException *)ex)->body.payload,
                         GET_REG(cur_op, 2).o);
                 }
@@ -1100,7 +1103,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(bindexcategory): {
                 MVMObject *ex = GET_REG(cur_op, 0).o;
-                if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+                if (!MVM_is_null(tc, ex) && IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     ((MVMException *)ex)->body.category = GET_REG(cur_op, 2).i64;
                 else
                     MVM_exception_throw_adhoc(tc, "bindexcategory needs a VMException");
@@ -1109,7 +1112,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getexmessage): {
                 MVMObject *ex = GET_REG(cur_op, 2).o;
-                if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+                if (!MVM_is_null(tc, ex) && IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     GET_REG(cur_op, 0).s = ((MVMException *)ex)->body.message;
                 else
                     MVM_exception_throw_adhoc(tc, "getexmessage needs a VMException");
@@ -1118,7 +1121,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getexpayload): {
                 MVMObject *ex = GET_REG(cur_op, 2).o;
-                if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+                if (!MVM_is_null(tc, ex) && IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     GET_REG(cur_op, 0).o = ((MVMException *)ex)->body.payload;
                 else
                     MVM_exception_throw_adhoc(tc, "getexpayload needs a VMException");
@@ -1129,7 +1132,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getexcategory): {
                 MVMObject *ex = GET_REG(cur_op, 2).o;
-                if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+                if (!MVM_is_null(tc, ex) && IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     GET_REG(cur_op, 0).i64 = ((MVMException *)ex)->body.category;
                 else
                     MVM_exception_throw_adhoc(tc, "getexcategory needs a VMException");
@@ -1210,7 +1213,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(lexoticresult): {
                 MVMObject *lex = GET_REG(cur_op, 2).o;
-                if (IS_CONCRETE(lex) && REPR(lex)->ID == MVM_REPR_ID_Lexotic)
+                if (!MVM_is_null(tc, lex) && IS_CONCRETE(lex) && REPR(lex)->ID == MVM_REPR_ID_Lexotic)
                     GET_REG(cur_op, 0).o = ((MVMLexotic *)lex)->body.result;
                 else
                     MVM_exception_throw_adhoc(tc, "lexoticresult needs a Lexotic");
@@ -1727,6 +1730,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(clone): {
                 MVMObject *value = GET_REG(cur_op, 2).o;
+                /* We don't check via MVM_is_null here,
+                 * because nqp::clone(nqp::null)) doesn't seem wrong. */
+                if (!value) {
+                    MVM_exception_throw_adhoc(tc, "Cannot clone a null value.");
+                }
                 if (IS_CONCRETE(value)) {
                     MVMROOT(tc, value, {
                         MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
@@ -2618,11 +2626,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(settypehll):
+                if (MVM_is_null(tc, GET_REG(cur_op, 0).o)) {
+                    MVM_exception_throw_adhoc(tc, "settypehll requires a non-null operand");
+                }
                 STABLE(GET_REG(cur_op, 0).o)->hll_owner = MVM_hll_get_config_for(tc,
                     GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(settypehllrole):
+                if (MVM_is_null(tc, GET_REG(cur_op, 0).o)) {
+                    MVM_exception_throw_adhoc(tc, "settypehllrole requires a non-null operand");
+                }
                 STABLE(GET_REG(cur_op, 0).o)->hll_role = GET_REG(cur_op, 2).i64;
                 cur_op += 4;
                 goto NEXT;
@@ -2685,7 +2699,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(setcodeobj): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
-                if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) {
+                if (!MVM_is_null(tc, obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCode) {
                     MVM_ASSIGN_REF(tc, &(obj->header), ((MVMCode *)obj)->body.code_object,
                         GET_REG(cur_op, 2).o);
                 }
@@ -2697,7 +2711,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(setcodename): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
-                if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) {
+                if (!MVM_is_null(tc, obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCode) {
                     MVM_ASSIGN_REF(tc, &(obj->header), ((MVMCode *)obj)->body.name,
                         GET_REG(cur_op, 2).s);
                 }
@@ -2712,10 +2726,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMFrame *orig;
                 MVMFrame *context;
                 MVMStaticFrame *sf;
-                if (REPR(obj)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(obj)) {
+                if (MVM_is_null(tc, obj) || REPR(obj)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(obj)) {
                     MVM_exception_throw_adhoc(tc, "forceouterctx needs a code ref");
                 }
-                if (REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx)) {
+                if (MVM_is_null(tc, ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext || !IS_CONCRETE(ctx)) {
                     MVM_exception_throw_adhoc(tc, "forceouterctx needs a context");
                 }
 
@@ -2822,7 +2836,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(assign): {
                 MVMObject *cont  = GET_REG(cur_op, 0).o;
                 MVMObject *obj = GET_REG(cur_op, 2).o;
-                const MVMContainerSpec *spec = STABLE(cont)->container_spec;
+                MVMContainerSpec *spec;
+                if (MVM_is_null(tc, cont))
+                    MVM_exception_throw_adhoc(tc, "Cannot assign to a null object");
+                spec = STABLE(cont)->container_spec;
                 cur_op += 4;
                 if (spec) {
                     spec->store(tc, cont, obj);
@@ -2834,7 +2851,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(assignunchecked): {
                 MVMObject *cont  = GET_REG(cur_op, 0).o;
                 MVMObject *obj = GET_REG(cur_op, 2).o;
-                const MVMContainerSpec *spec = STABLE(cont)->container_spec;
+                MVMContainerSpec *spec;
+                if (MVM_is_null(tc, cont))
+                    MVM_exception_throw_adhoc(tc, "Cannot assign to a null object");
+                spec = STABLE(cont)->container_spec;
                 cur_op += 4;
                 if (spec) {
                     spec->store_unchecked(tc, cont, obj);
