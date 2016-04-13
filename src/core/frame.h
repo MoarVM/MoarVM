@@ -40,8 +40,14 @@ typedef void (* MVMSpecialReturn)(MVMThreadContext *tc, void *data);
 typedef void (* MVMSpecialReturnDataMark)(MVMThreadContext *tc, MVMFrame *frame,
                                           MVMGCWorklist *worklist);
 
-/* This represents an active call frame. */
+/* This represents an call frame, aka invocation record. It may exist either on
+ * the heap, in which case its header will have the MVM_CF_FRAME flag set, or
+ * in on a thread-local stack, in which case the collectable header will be
+ * fully zeroed. */
 struct MVMFrame {
+    /* Commonalities that all collectable entities have. */
+    MVMCollectable header;
+
     /* The thread that is executing, or executed, this frame. */
     MVMThreadContext *tc;
 
