@@ -66,6 +66,8 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVMContextBody *body  = (MVMContextBody *)data;
     MVMFrame       *frame = body->context;
     MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
+    MVMuint16 got_kind;
+
     if (!lexical_names) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
@@ -73,6 +75,7 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
             "Lexical with name '%s' does not exist in this frame",
                 c_name);
     }
+
     MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, lexical_names, name, entry);
     if (!entry) {
@@ -82,14 +85,22 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
             "Lexical with name '%s' does not exist in this frame",
                 c_name);
     }
-    if (frame->static_info->body.lexical_types[entry->value] != kind) {
+
+    got_kind = frame->static_info->body.lexical_types[entry->value];
+    if (got_kind != kind) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste,
             "Lexical with name '%s' has a different type in this frame",
                 c_name);
     }
-    frame->env[entry->value] = value;
+
+    if (got_kind == MVM_reg_obj || got_kind == MVM_reg_str) {
+        MVM_ASSIGN_REF(tc, &(frame->header), frame->env[entry->value].o, value.o);
+    }
+    else {
+        frame->env[entry->value] = value;
+    }
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {

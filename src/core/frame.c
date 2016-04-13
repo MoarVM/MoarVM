@@ -896,15 +896,18 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
     }
     if (flag == 0) {
         MVMObject *viv = static_env[effective_idx].o;
-        return f->env[idx].o = viv ? viv : tc->instance->VMNull;
+        if (!viv)
+            viv = tc->instance->VMNull;
+        MVM_ASSIGN_REF(tc, &(f->header), f->env[idx].o, viv);
+        return viv;
     }
     else if (flag == 1) {
-        MVMObject *viv = static_env[effective_idx].o;
+        MVMObject *viv;
         MVMROOT(tc, f, {
-            MVMObject *clone = MVM_repr_clone(tc, viv);
-            MVM_ASSIGN_REF(tc, &(f->header), f->env[idx].o, clone);
+            viv = MVM_repr_clone(tc, static_env[effective_idx].o);
+            MVM_ASSIGN_REF(tc, &(f->header), f->env[idx].o, viv);
         });
-        return f->env[idx].o;
+        return viv;
     }
     else {
         return tc->instance->VMNull;

@@ -286,13 +286,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindlex): {
                 MVMFrame *f = tc->cur_frame;
                 MVMuint16 outers = GET_UI16(cur_op, 2);
+                MVMuint16 kind = f->spesh_cand && f->spesh_cand->local_types
+                    ? f->spesh_cand->local_types[GET_UI16(cur_op, 4)]
+                    : f->static_info->body.local_types[GET_UI16(cur_op, 4)];
                 while (outers) {
                     if (!f->outer)
                         MVM_exception_throw_adhoc(tc, "bindlex: outer index out of range");
                     f = f->outer;
                     outers--;
                 }
-                GET_LEX(cur_op, 0, f) = GET_REG(cur_op, 4);
+                if (kind == MVM_reg_obj || kind == MVM_reg_str) {
+                    MVM_ASSIGN_REF(tc, &(f->header), GET_LEX(cur_op, 0, f).o,
+                        GET_REG(cur_op, 4).o);
+                }
+                else {
+                    GET_LEX(cur_op, 0, f) = GET_REG(cur_op, 4);
+                }
                 cur_op += 6;
                 goto NEXT;
             }
