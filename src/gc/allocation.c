@@ -97,6 +97,15 @@ MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
     return obj;
 }
 
+/* Allocates a new heap frame. */
+MVMFrame * MVM_gc_allocate_frame(MVMThreadContext *tc) {
+    MVMFrame *f = MVM_gc_allocate_zeroed(tc, sizeof(MVMFrame));
+    f->header.flags |= MVM_CF_FRAME;
+    f->header.size   = sizeof(MVMFrame);
+    f->header.owner  = tc->thread_id;
+    return f;
+}
+
 /* Sets allocate for this thread to be from the second generation by
  * default. */
 void MVM_gc_allocate_gen2_default_set(MVMThreadContext *tc) {
