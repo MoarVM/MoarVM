@@ -103,7 +103,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "Semaphore", /* name */
     MVM_REPR_ID_Semaphore,
-    0, /* Semaphore */
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };

@@ -807,7 +807,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "CUnion", /* name */
     MVM_REPR_ID_MVMCUnion,
-    0, /* refs_frames */
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };

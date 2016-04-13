@@ -189,7 +189,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "VMIter", /* name */
     MVM_REPR_ID_MVMIter,
-    0, /* refs_frames */
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };

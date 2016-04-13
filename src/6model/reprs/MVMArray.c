@@ -1277,7 +1277,6 @@ static const MVMREPROps this_repr = {
     spesh,
     "VMArray", /* name */
     MVM_REPR_ID_MVMArray,
-    0, /* refs_frames */
     unmanaged_size,
     describe_refs,
 };

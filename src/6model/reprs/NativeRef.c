@@ -205,7 +205,6 @@ static const MVMREPROps this_repr = {
     spesh, /* spesh */
     "NativeRef", /* name */
     MVM_REPR_ID_NativeRef,
-    1, /* refs_frames */
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };

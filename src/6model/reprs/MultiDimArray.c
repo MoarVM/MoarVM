@@ -792,7 +792,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "MultiDimArray", /* name */
     MVM_REPR_ID_MultiDimArray,
-    0, /* refs_frames */
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };

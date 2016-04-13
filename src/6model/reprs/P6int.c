@@ -237,7 +237,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "P6int", /* name */
     MVM_REPR_ID_P6int,
-    0, /* refs_frames */
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };
