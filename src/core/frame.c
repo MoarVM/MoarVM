@@ -277,20 +277,24 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrameBody *stati
     work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
     if (work_size) {
         MVMuint32 i;
-        MVMuint32 num_locals = spesh_cand ? spesh_cand->num_locals : static_frame_body->num_locals;
-        MVMuint16 *local_types = spesh_cand ?
-                                    spesh_cand->local_types ? spesh_cand->local_types :
-                                 static_frame_body->local_types : static_frame_body->local_types;
+        MVMuint32 num_locals;
+        MVMuint16 *local_types;
 
         frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, work_size);
-        /* Fill up all object registers with a pointer to our VMNull object */
+        frame->allocd_work = work_size;
 
-        for (i = 0; i < num_locals; i++) {
+        /* Fill up all object registers with a pointer to our VMNull object */
+        if (spesh_cand && spesh_cand->local_types) {
+            num_locals = spesh_cand->num_locals;
+            local_types = spesh_cand->local_types;
+        }
+        else {
+            num_locals = static_frame_body->num_locals;
+            local_types = static_frame_body->local_types;
+        }
+        for (i = 0; i < num_locals; i++)
             if (local_types[i] == MVM_reg_obj)
                 frame->work[i].o = tc->instance->VMNull;
-        }
-
-        frame->allocd_work = work_size;
     }
     else {
         frame->work = NULL;
