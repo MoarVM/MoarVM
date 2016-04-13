@@ -54,7 +54,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)st->REPR_data;
     switch (repr_data->ref_kind) {
         case MVM_NATIVEREF_REG_OR_LEX:
-            MVM_gc_worklist_add_frame(tc, worklist, ref->u.reg_or_lex.frame);
+            MVM_gc_worklist_add(tc, worklist, &ref->u.reg_or_lex.frame);
             break;
         case MVM_NATIVEREF_ATTRIBUTE:
             MVM_gc_worklist_add(tc, worklist, &ref->u.attribute.obj);
@@ -69,14 +69,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             MVM_gc_worklist_add(tc, worklist, &ref->u.multidim.indices);
             break;
     }
-}
-
-/* Called by the VM in order to free memory associated with this object. */
-static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMNativeRef *ref = (MVMNativeRef *)obj;
-    MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(obj)->REPR_data;
-    if (repr_data->ref_kind == MVM_NATIVEREF_REG_OR_LEX)
-        MVM_frame_dec_ref(tc, ref->body.u.reg_or_lex.frame);
 }
 
 /* Frees the representation data, if any. */
@@ -205,7 +197,7 @@ static const MVMREPROps this_repr = {
     deserialize_repr_data,
     deserialize_stable_size,
     gc_mark,
-    gc_free,
+    NULL, /* gc_free */
     NULL, /* gc_cleanup */
     NULL, /* gc_mark_repr_data */
     gc_free_repr_data,
@@ -237,8 +229,11 @@ void MVM_nativeref_ensure(MVMThreadContext *tc, MVMObject *type, MVMuint16 wantp
 
 /* Creation of native references for registers. */
 static MVMObject * reg_or_lex_ref(MVMThreadContext *tc, MVMObject *type, MVMFrame *f, MVMRegister *r, MVMuint16 reg_type) {
-    MVMNativeRef *ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
-    ref->body.u.reg_or_lex.frame = MVM_frame_inc_ref(tc, f);
+    MVMNativeRef *ref;
+    MVMROOT(tc, f, {
+        ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
+    });
+    MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.reg_or_lex.frame, f);
     ref->body.u.reg_or_lex.var   = r;
     ref->body.u.reg_or_lex.type  = reg_type;
     return (MVMObject *)ref;

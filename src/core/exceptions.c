@@ -192,7 +192,11 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
         /* Ensure we have an exception object. */
         if (ex_obj == NULL) {
-            ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+            MVMROOT(tc, cur_frame, {
+            MVMROOT(tc, lh.frame, {
+                ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+            });
+            });
             ((MVMException *)ex_obj)->body.category = category;
         }
 
@@ -200,7 +204,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         handler_code = MVM_frame_find_invokee(tc, lh.frame->work[lh.handler->block_reg].o, NULL);
 
         /* Install active handler record. */
-        ah->frame           = MVM_frame_inc_ref(tc, lh.frame);
+        ah->frame           = lh.frame;
         ah->handler         = lh.handler;
         ah->jit_handler     = lh.jit_handler;
         ah->ex_obj          = ex_obj;
@@ -254,7 +258,6 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     }
     /* Clean up. */
     tc->active_handlers = ah->next_handler;
-    MVM_frame_dec_ref(tc, ah->frame);
     MVM_free(ah);
 
     /* Do the unwinding as needed. */
@@ -276,7 +279,6 @@ static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data) {
 
     /* Clean up. */
     tc->active_handlers = ah->next_handler;
-    MVM_frame_dec_ref(tc, ah->frame);
     MVM_free(ah);
 }
 
@@ -527,7 +529,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
         panic_unhandled_ex(tc, ex);
 
     if (!ex->body.origin) {
-        ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
+        MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.origin, tc->cur_frame);
         tc->cur_frame->throw_address = *(tc->interp_cur_op);
         tc->cur_frame->keep_caller   = 1;
     }
@@ -569,7 +571,6 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     /* Clear the current active handler. */
     ah = tc->active_handlers;
     tc->active_handlers = ah->next_handler;
-    MVM_frame_dec_ref(tc, ah->frame);
     MVM_free(ah);
 
     /* Unwind to the thrower of the exception; set PC and jit entry label. */
@@ -766,7 +767,7 @@ void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const
 
         MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.message, message);
         if (tc->cur_frame) {
-            ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
+            ex->body.origin = tc->cur_frame;
             tc->cur_frame->throw_address = *(tc->interp_cur_op);
             tc->cur_frame->keep_caller   = 1;
         }

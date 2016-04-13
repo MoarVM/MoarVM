@@ -21,7 +21,18 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             /* Create the frame. */
             MVMCode        *ucode = cand->inlines[i].code;
             MVMStaticFrame *usf   = ucode->body.sf;
-            MVMFrame       *uf    = MVM_frame_create_for_deopt(tc, usf, ucode);
+            MVMFrame       *uf;
+            MVMROOT(tc, f, {
+            MVMROOT(tc, callee, {
+            MVMROOT(tc, last_uninlined, {
+            MVMROOT(tc, ucode, {
+            MVMROOT(tc, usf, {
+                uf = MVM_frame_create_for_deopt(tc, usf, ucode);
+            });
+            });
+            });
+            });
+            });
             /*fprintf(stderr, "Recreated frame '%s' (cuid '%s')\n",
                 MVM_string_utf8_encode_C_string(tc, usf->body.name),
                 MVM_string_utf8_encode_C_string(tc, usf->body.cuuid));*/
@@ -55,7 +66,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                     uf->return_value = uf->work + last_res_reg;
 
                 /* Set up last uninlined's caller to us. */
-                last_uninlined->caller = MVM_frame_inc_ref_by_frame(tc, uf);
+                MVM_ASSIGN_REF(tc, &(last_uninlined->header), last_uninlined->caller, uf);
             }
             else {
                 /* First uninlined frame. Are we in the middle of the call
@@ -64,12 +75,10 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                     /* Tweak the callee's caller to the uninlined frame, not
                      * the frame holding the inlinings. */
                     MVMFrame *orig_caller = callee->caller;
-                    callee->caller = MVM_frame_inc_ref_by_frame(tc, uf);
-                    MVM_frame_dec_ref(tc, orig_caller);
+                    MVM_ASSIGN_REF(tc, &(callee->header), callee->caller, uf);
 
                     /* Copy over the return location. */
-                    uf->return_address = uf->effective_bytecode +
-                        deopt_offset;
+                    uf->return_address = uf->effective_bytecode + deopt_offset;
 
                     /* Set result type and register. */
                     uf->return_type = f->return_type;
@@ -115,7 +124,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             f->return_value = f->work + last_res_reg;
 
         /* Set up inliner as the caller, given we now have a direct inline. */
-        last_uninlined->caller = MVM_frame_inc_ref_by_frame(tc, f);
+        MVM_ASSIGN_REF(tc, &(last_uninlined->header), last_uninlined->caller, f);
     }
     else {
         /* Weren't in an inline after all. What kind of deopt? */
@@ -150,7 +159,9 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
         /* Yes, going to have to re-create the frames; uninline
          * moves the interpreter, so we can just tweak the last
          * frame. */
-        uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, NULL);
+        MVMROOT(tc, f, {
+            uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, NULL);
+        });
         f->effective_bytecode    = f->static_info->body.bytecode;
         f->effective_handlers    = f->static_info->body.handlers;
         f->effective_spesh_slots = NULL;
@@ -247,10 +258,16 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
 
                         /* Re-create any frames needed if we're in an inline; if not,
                         * just update return address. */
-                        if (f->spesh_cand->inlines)
-                            uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
-                        else
+                        if (f->spesh_cand->inlines) {
+                            MVMROOT(tc, f, {
+                            MVMROOT(tc, l, {
+                                uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
+                            });
+                            });
+                        }
+                        else {
                             f->return_address = f->effective_bytecode + deopt_target;
+                        }
 
                         /* No spesh cand/slots needed now. */
                         f->effective_spesh_slots = NULL;
@@ -278,10 +295,16 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
 
                         /* Re-create any frames needed if we're in an inline; if not,
                         * just update return address. */
-                        if (f->spesh_cand->inlines)
-                            uninline(tc, f, f->spesh_cand, ret_offset, f->spesh_cand->deopts[i], l);
-                        else
+                        if (f->spesh_cand->inlines) {
+                            MVMROOT(tc, f, {
+                            MVMROOT(tc, l, {
+                                uninline(tc, f, f->spesh_cand, ret_offset, f->spesh_cand->deopts[i], l);
+                            });
+                            });
+                        }
+                        else {
                             f->return_address = f->effective_bytecode + f->spesh_cand->deopts[i];
+                        }
 
                         /* No spesh cand/slots needed now. */
                         f->effective_spesh_slots = NULL;

@@ -17,21 +17,15 @@ struct MVMGCWorklist {
      * collectables (yes, two levels of indirection, since we need to
      * update addresses in copying/moving algorithms.) */
     MVMCollectable ***list;
-    MVMFrame        **frames_list;
 
     /* The number of items on the worklist. */
     MVMuint32 items;
-    MVMuint32 frames;
 
     /* The number of items the work list is allocated to hold. */
     MVMuint32 alloc;
-    MVMuint32 frames_alloc;
 
     /* Whether we should include gen2 entries. */
     MVMuint8 include_gen2;
-
-    /* Whether we should always include frames. */
-    MVMuint8 always_frames;
 };
 
 /* Turn this on to define a worklist addition that panics if it spots
@@ -70,33 +64,16 @@ struct MVMGCWorklist {
     } while (0)
 #endif
 
-#define MVM_gc_worklist_add_frame(tc, worklist, frame) \
-    do { \
-        if ((frame) && (worklist->always_frames || MVM_load(&(tc)->instance->gc_seq_number) != MVM_load(&(frame)->gc_seq_number))) { \
-            if (worklist->frames == worklist->frames_alloc) \
-                MVM_gc_worklist_add_frame_slow(tc, worklist, (frame)); \
-            else \
-                worklist->frames_list[worklist->frames++] = (frame); \
-        } \
-    } while (0)
-
 #define MVM_gc_worklist_get(tc, worklist) \
     (worklist->items ? \
         worklist->list[--worklist->items] : \
         NULL)
 
-#define MVM_gc_worklist_get_frame(tc, worklist) \
-    (worklist->frames ? \
-        worklist->frames_list[--worklist->frames] : \
-        NULL)
-
 /* Various functions for worklist manipulation. */
-MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_gen2, MVMuint8 always_frames);
+MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_gen2);
 MVM_PUBLIC void MVM_gc_worklist_add_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **item);
-MVM_PUBLIC void MVM_gc_worklist_add_frame_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMint32 items);
 void MVM_gc_worklist_destroy(MVMThreadContext *tc, MVMGCWorklist *worklist);
-void MVM_gc_worklist_mark_frame_roots(MVMThreadContext *tc, MVMGCWorklist *worklist);
 
 /* The number of pointers we assume the list may need to hold initially;
  * it will be resized as needed. */

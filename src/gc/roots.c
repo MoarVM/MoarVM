@@ -258,7 +258,6 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
     for (i = 0; i < num_roots; i++) {
         /* Count items on worklist before we mark it. */
         MVMuint32 items_before_mark  = worklist->items;
-        MVMuint32 frames_before_mark = worklist->frames;
 
         /* Put things it references into the worklist; since the worklist will
          * be set not to include gen2 things, only nursery things will make it
@@ -266,11 +265,10 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
         assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
         MVM_gc_mark_collectable(tc, worklist, gen2roots[i]);
 
-        /* If we added any nursery objects or frames, or if we are marked as
-         * referencing frames, then we need to stay in this list. */
+        /* If we added any nursery objects, or if we are a frame with ->work
+         * area, keep in this list. */
         if (worklist->items != items_before_mark ||
-                worklist->frames != frames_before_mark ||
-                (!(gen2roots[i]->flags & MVM_CF_STABLE) && REPR(gen2roots[i])->refs_frames)) {
+                (gen2roots[i]->flags & MVM_CF_FRAME && ((MVMFrame *)gen2roots[i])->work)) {
             gen2roots[insert_pos] = gen2roots[i];
             insert_pos++;
         }
@@ -324,17 +322,10 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
 static void scan_lexicals(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame) {
     MVMFrame *cur_frame = start_frame;
-    MVMuint32 cur_seq_number = MVM_load(&tc->instance->gc_seq_number);
-    /* If we already saw the frame this run, skip it. */
-    MVMuint32 orig_seq = MVM_load(&cur_frame->gc_seq_number);
-    if (orig_seq == cur_seq_number)
-        return;
-    if (MVM_cas(&cur_frame->gc_seq_number, orig_seq, cur_seq_number) != orig_seq)
-        return;
 
     /* Add caller and outer to frames work list. */
-    MVM_gc_worklist_add_frame(tc, worklist, cur_frame->caller);
-    MVM_gc_worklist_add_frame(tc, worklist, cur_frame->outer);
+    MVM_gc_worklist_add(tc, worklist, &cur_frame->caller);
+    MVM_gc_worklist_add(tc, worklist, &cur_frame->outer);
 
     /* add code_ref to work list unless we're the top-level frame. */
     if (cur_frame->code_ref)

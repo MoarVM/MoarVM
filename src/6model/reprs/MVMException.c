@@ -27,15 +27,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMExceptionBody *body = (MVMExceptionBody *)data;
     MVM_gc_worklist_add(tc, worklist, &body->message);
     MVM_gc_worklist_add(tc, worklist, &body->payload);
-    MVM_gc_worklist_add_frame(tc, worklist, body->origin);
-}
-
-/* Called by the VM in order to free memory associated with this object. */
-static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMException *ctx = (MVMException *)obj;
-    if (ctx->body.origin) {
-        ctx->body.origin = MVM_frame_dec_ref(tc, ctx->body.origin);
-    }
+    MVM_gc_worklist_add(tc, worklist, &body->origin);
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -81,7 +73,7 @@ static const MVMREPROps this_repr = {
     NULL, /* deserialize_repr_data */
     NULL, /* deserialize_stable_size */
     gc_mark,
-    gc_free,
+    NULL, /* gc_free */
     NULL, /* gc_cleanup */
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */

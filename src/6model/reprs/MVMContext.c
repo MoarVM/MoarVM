@@ -25,15 +25,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMContextBody *body = (MVMContextBody *)data;
-    MVM_gc_worklist_add_frame(tc, worklist, body->context);
-}
-
-/* Called by the VM in order to free memory associated with this object. */
-static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMContext *ctx = (MVMContext *)obj;
-    if (ctx->body.context) {
-        ctx->body.context = MVM_frame_dec_ref(tc, ctx->body.context);
-    }
+    MVM_gc_worklist_add(tc, worklist, &body->context);
 }
 
 static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind) {
@@ -183,7 +175,7 @@ static const MVMREPROps this_repr = {
     NULL, /* deserialize_repr_data */
     NULL, /* deserialize_stable_size */
     gc_mark,
-    gc_free,
+    NULL, /* gc_free */
     NULL, /* gc_cleanup */
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */

@@ -88,10 +88,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
             MVM_free(ctx->body.apc);
         }
     }
-    else {
-        if (ctx->body.use_mode_frame)
-            MVM_frame_dec_ref(tc, ctx->body.use_mode_frame);
-    }
 }
 
 

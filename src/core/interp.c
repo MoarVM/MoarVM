@@ -2724,13 +2724,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 context = ((MVMContext *)ctx)->body.context;
 
                 MVM_ASSIGN_REF(tc, &(((MVMObject *)sf)->header), sf->body.outer, context->static_info);
-                if (orig != context) {
-                    ((MVMCode *)obj)->body.outer = context;
-                    MVM_frame_inc_ref(tc, context);
-                    if (orig) {
-                        MVM_frame_dec_ref(tc, orig);
-                    }
-                }
+                if (orig != context)
+                    MVM_ASSIGN_REF(tc, &(obj->header), ((MVMCode *)obj)->body.outer, context);
+
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3142,8 +3138,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
                 }
                 if ((frame = ((MVMContext *)this_ctx)->body.context->outer)) {
-                    ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-                    ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
+                    MVMROOT(tc, frame, {
+                        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
+                    });
+                    MVM_ASSIGN_REF(tc, (&ctx->header), ((MVMContext *)ctx)->body.context, frame);
                     GET_REG(cur_op, 0).o = ctx;
                 }
                 else {
@@ -3159,8 +3157,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "ctxcaller needs an MVMContext");
                 }
                 if ((frame = ((MVMContext *)this_ctx)->body.context->caller)) {
-                    ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-                    ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
+                    MVMROOT(tc, frame, {
+                        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
+                    });
+                    MVM_ASSIGN_REF(tc, (&ctx->header), ((MVMContext *)ctx)->body.context, frame);
                 }
                 GET_REG(cur_op, 0).o = ctx ? ctx : tc->instance->VMNull;
                 cur_op += 4;
@@ -4085,8 +4085,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 while (frame && frame->static_info->body.is_thunk)
                     frame = frame->caller;
                 if (frame) {
-                    ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-                    ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
+                    MVMROOT(tc, frame, {
+                        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
+                    });
+                    MVM_ASSIGN_REF(tc, (&ctx->header), ((MVMContext *)ctx)->body.context, frame);
                     GET_REG(cur_op, 0).o = ctx;
                 }
                 else {
@@ -4105,8 +4107,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 while (frame && frame->static_info->body.is_thunk)
                     frame = frame->caller;
                 if (frame) {
-                    ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-                    ((MVMContext *)ctx)->body.context = MVM_frame_inc_ref(tc, frame);
+                    MVMROOT(tc, frame, {
+                        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
+                    });
+                    MVM_ASSIGN_REF(tc, (&ctx->header), ((MVMContext *)ctx)->body.context, frame);
                 }
                 GET_REG(cur_op, 0).o = ctx ? ctx : tc->instance->VMNull;
                 cur_op += 4;
@@ -5132,8 +5136,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 tc->cur_frame->return_address = cur_op;
                 MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
-                    MVM_frame_acquire_ref(tc, &(code->body.outer)),
-                    (MVMObject *)code, spesh_cand);
+                    code->body.outer, (MVMObject *)code, spesh_cand);
                 goto NEXT;
             }
             OP(sp_fastinvoke_i): {
@@ -5145,8 +5148,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 tc->cur_frame->return_address = cur_op;
                 MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
-                    MVM_frame_acquire_ref(tc, &(code->body.outer)),
-                    (MVMObject *)code, spesh_cand);
+                    code->body.outer, (MVMObject *)code, spesh_cand);
                 goto NEXT;
             }
             OP(sp_fastinvoke_n): {
@@ -5158,8 +5160,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 tc->cur_frame->return_address = cur_op;
                 MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
-                    MVM_frame_acquire_ref(tc, &(code->body.outer)),
-                    (MVMObject *)code, spesh_cand);
+                    code->body.outer, (MVMObject *)code, spesh_cand);
                 goto NEXT;
             }
             OP(sp_fastinvoke_s): {
@@ -5171,8 +5172,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 tc->cur_frame->return_address = cur_op;
                 MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
-                    MVM_frame_acquire_ref(tc, &(code->body.outer)),
-                    (MVMObject *)code, spesh_cand);
+                    code->body.outer, (MVMObject *)code, spesh_cand);
                 goto NEXT;
             }
             OP(sp_fastinvoke_o): {
@@ -5184,8 +5184,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 tc->cur_frame->return_address = cur_op;
                 MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
-                    MVM_frame_acquire_ref(tc, &(code->body.outer)),
-                    (MVMObject *)code, spesh_cand);
+                    code->body.outer, (MVMObject *)code, spesh_cand);
                 goto NEXT;
             }
             OP(sp_namedarg_used):
