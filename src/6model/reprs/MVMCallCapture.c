@@ -61,6 +61,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
                 MVM_gc_worklist_add(tc, worklist, &ctx->args[i].o);
         }
     }
+    else {
+        MVM_gc_worklist_add(tc, worklist, &(body->use_mode_frame));
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */

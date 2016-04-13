@@ -31,6 +31,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         MVMActiveHandler *cur_ah = body->active_handlers;
         while (cur_ah != NULL) {
             MVM_gc_worklist_add(tc, worklist, &cur_ah->ex_obj);
+            MVM_gc_worklist_add(tc, worklist, &cur_ah->frame);
             cur_ah = cur_ah->next_handler;
         }
     }

@@ -111,7 +111,8 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     /* Any active exception handlers. */
     MVMActiveHandler *cur_ah = tc->active_handlers;
     while (cur_ah != NULL) {
-        add_collectable(tc, worklist, snapshot, cur_ah->ex_obj, "Active exception object");
+        add_collectable(tc, worklist, snapshot, cur_ah->ex_obj, "Active handler exception object");
+        add_collectable(tc, worklist, snapshot, cur_ah->frame, "Active handler frame");
         cur_ah = cur_ah->next_handler;
     }
 
