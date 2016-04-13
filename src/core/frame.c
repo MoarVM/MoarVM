@@ -107,6 +107,24 @@ MVMFrame * MVM_frame_acquire_ref(MVMThreadContext *tc, MVMFrame **frame) {
     }
 }
 
+/* Destroys a frame. */
+void MVM_frame_destory(MVMThreadContext *tc, MVMFrame *frame) {
+    if (frame->work) {
+        MVM_args_proc_cleanup(tc, &frame->params);
+        MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_work,
+            frame->work);
+    }
+    if (frame->env)
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+            frame->allocd_env, frame->env);
+    if (frame->continuation_tags)
+        MVM_continuation_free_tags(tc, frame);
+    if (frame->refd_by_object)
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMFrame), frame);
+    else
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrame), frame);
+}
+
 /* Decreases the reference count of a frame. If it hits zero, then we can
  * free it. Returns null for convenience. */
 MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
@@ -123,20 +141,7 @@ MVMFrame * MVM_frame_dec_ref(MVMThreadContext *tc, MVMFrame *frame) {
          * free it at the next safe point; the 0'd ref count must remain
          * readable until then since we use it as a sentinel value to avoid
          * anything acquiring a reference to a dead frame. */
-        if (frame->work) {
-            MVM_args_proc_cleanup(tc, &frame->params);
-            MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_work,
-                frame->work);
-        }
-        if (frame->env)
-            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
-                frame->allocd_env, frame->env);
-        if (frame->continuation_tags)
-            MVM_continuation_free_tags(tc, frame);
-        if (frame->refd_by_object)
-            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMFrame), frame);
-        else
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrame), frame);
+        MVM_frame_destory(tc, frame);
 
         /* Decrement any outer. */
         if (outer_to_decr)
