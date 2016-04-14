@@ -79,14 +79,22 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
             }
             case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO: {
                 MVMString *str;
+                MVMint64 chars;
                 if (!IS_CONCRETE(obj)) {
                     result = 0;
                     break;
                 }
                 str = REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
-                result = str == NULL ||
-                        !IS_CONCRETE(str) ||
-                        (MVM_string_graphs(tc, str) == 1 && MVM_string_get_grapheme_at_nocheck(tc, str, 0) == 48)
+
+                if (str == NULL || !IS_CONCRETE(str)) {
+                    result = 0;
+                    break;
+                }
+
+                chars = MVM_string_graphs(tc, str);
+
+                result = chars == 0 ||
+                        (chars == 1 && MVM_string_get_grapheme_at_nocheck(tc, str, 0) == 48)
                         ? 0 : 1;
                 break;
             }
