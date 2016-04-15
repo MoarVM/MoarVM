@@ -217,6 +217,8 @@ MVMObject * MVM_sc_try_get_object(MVMThreadContext *tc, MVMSerializationContext 
 void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *obj) {
     if (idx < 0)
         MVM_exception_throw_adhoc(tc, "Invalid (negative) object root index %"PRId64"", idx);
+    if (IS_CONCRETE(obj) && !REPR(obj)->serialize)
+        MVM_exception_throw_adhoc(tc, "Trying to put a non-serializable object into an SC: %p", obj);
     if (idx < sc->body->num_objects) {
         /* Just updating an existing one. */
         MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_objects[idx], obj);
