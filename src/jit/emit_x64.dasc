@@ -217,7 +217,7 @@ const unsigned int MVM_jit_num_globals(void) {
 | callp &MVM_exception_throw_adhoc;
 |.endmacro
 
-/* A function prologue is always the same in x86 / x64, becuase
+/* A function prologue is always the same in x86 / x64, because
  * we do not provide variable arguments, instead arguments are provided
  * via a frame. All JIT entry points receive a prologue. */
 void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
