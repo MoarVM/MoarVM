@@ -429,6 +429,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     }
     case MVM_OP_bindlex: {
+        MVMuint16 *lexical_types;
+        MVMStaticFrame *sf = jg->sg->sf;
         MVMint16 idx = ins->operands[0].lex.idx;
         MVMint16 out = ins->operands[0].lex.outers;
         MVMint16 src = ins->operands[1].reg.orig;
@@ -436,10 +438,17 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP1, FRAME;
         for (i = 0; i < out; i++) {
             | mov TMP1, FRAME:TMP1->outer;
+            sf = sf->body.outer;
         }
-        | mov TMP1, FRAME:TMP1->env;
-        | mov TMP2, WORK[src];
-        | mov REGISTER:TMP1[idx], TMP2;
+        lexical_types = (!out && jg->sg->lexical_types ?
+                         jg->sg->lexical_types :
+                         sf->body.lexical_types);
+        | mov TMP2, FRAME:TMP1->env;
+        | mov TMP3, WORK[src];
+        | mov REGISTER:TMP2[idx], TMP3;
+        if (lexical_types[idx] == MVM_reg_obj || lexical_types[idx] == MVM_reg_str) {
+            | check_wb TMP1, TMP3;
+        }
         break;
     }
     case MVM_OP_sp_getarg_o:
