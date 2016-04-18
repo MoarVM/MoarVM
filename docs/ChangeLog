@@ -1,3 +1,31 @@
+New in 2016.04
+
++ Implement heap snapshots support, exposed through the profiling API
++ Don't mark tc->cur_frame twice during GC
++ Move thread object mark into thread root mark, removing a special case in the
+  main collector
++ Add API for adding a permanent root together with a description
++ Mark thread blocked for GC when doing synchronous reads
++ Make MVM_bigint_from_num jit-friendly
++ JIT coerce_nI as a call to bigint_from_num
++ Set debug_name on a few more built-in types
++ Add REPR API for getting unmanaged size, implement it for many REPRs
++ Fix compile on FreeBSD 9
++ Handle single-char build directory names by changing capture to lookahead
++ Fix performance of reading very long lines
++ Fix utf8-c8 decode crash caused by off-by-1
++ Fix a full vs. partial collection detection bug
++ Factor unmanaged size into promoted bytes.
++ Enhance scheme for deciding when to do a full collect
++ Bail out if HLL name string index is invalid in bytecode unpack
++ Don't try to set flags beyond num_lexicals when reading in call frames
++ Adjust byte count when UTF-16 BOM marker consumed
++ Fix buffer overrun in utf8-c8 decoding
++ Initialize object registers with VMNull when allocating frames, to avoid a
+  number of possible segfaults
++ Fix incorrect boolification of "" under mode MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO
++ Utilize debug_name in nativecall error messages
+
 New in 2016.03
 
 + Fix the build when not bundling libtommath
