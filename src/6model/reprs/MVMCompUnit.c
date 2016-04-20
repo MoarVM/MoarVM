@@ -59,9 +59,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         if (body->scs[i]) {
             MVM_gc_worklist_add(tc, worklist, &body->scs[i]);
         }
-        else if (body->scs_to_resolve[i]) {
-            MVM_gc_worklist_add(tc, worklist, &body->scs_to_resolve[i]->sc);
-        }
+        /* Unresolved sc bodies' handles are marked by the GC instance root marking. */
     }
 
     MVM_gc_worklist_add(tc, worklist, &body->update_mutex);
