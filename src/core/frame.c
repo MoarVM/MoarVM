@@ -585,8 +585,7 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
     frame->tc                       = tc;
     MVM_ASSIGN_REF(tc, &(frame->header), frame->static_info, static_frame);
     MVM_ASSIGN_REF(tc, &(frame->header), frame->code_ref, code_ref);
-    if (code_ref->body.outer)
-        MVM_ASSIGN_REF(tc, &(frame->header), frame->outer, code_ref->body.outer);
+    MVM_ASSIGN_REF(tc, &(frame->header), frame->outer, code_ref->body.outer);
     return frame;
 }
 
