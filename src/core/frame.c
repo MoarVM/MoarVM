@@ -1561,9 +1561,14 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
   * do so. */
 MVMFrame * MVM_frame_clone(MVMThreadContext *tc, MVMFrame *f) {
     /* First, just grab a copy of everything. */
-    /* XXX GCF */
-    MVMFrame *clone =  MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMFrame));
-    memcpy(clone, f, sizeof(MVMFrame));
+    MVMFrame *clone;
+    MVMROOT(tc, f, {
+        clone = MVM_gc_allocate_frame(tc);
+    });
+    memcpy(
+        (char *)clone + sizeof(MVMCollectable),
+        (char *)f + sizeof(MVMCollectable),
+        sizeof(MVMFrame) - sizeof(MVMCollectable));
 
     /* Need fresh env and work. */
     if (f->static_info->body.env_size) {
