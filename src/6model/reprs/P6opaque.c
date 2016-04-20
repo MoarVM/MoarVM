@@ -1095,7 +1095,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
             if (a_st->REPR->serialize)
                 a_st->REPR->serialize(tc, a_st, (char *)data + a_offset, writer);
             else
-                MVM_exception_throw_adhoc(tc, "Missing serialize REPR function for REPR %s", a_st->REPR->name);
+                MVM_exception_throw_adhoc(tc, "Missing serialize REPR function for REPR %s in type %s", a_st->REPR->name, a_st->debug_name);
         }
         else
             MVM_serialization_write_ref(tc, writer, get_obj_at_offset(data, a_offset));
@@ -1128,7 +1128,7 @@ static void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_typ
     while (cur_map_entry->class_key != NULL) {
         if (new_map_entry->class_key == NULL || new_map_entry->class_key != cur_map_entry->class_key)
             MVM_exception_throw_adhoc(tc,
-                "Incompatible MROs in P6opaque rebless");
+                "Incompatible MROs in P6opaque rebless for types %s and %s", STABLE(obj)->debug_name, STABLE(new_type)->debug_name);
         cur_map_entry++;
         new_map_entry++;
     }
