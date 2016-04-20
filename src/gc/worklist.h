@@ -43,9 +43,8 @@ struct MVMGCWorklist {
                 MVM_panic(1, "Zeroed owner in item added to GC worklist"); \
             if ((*item_to_add)->flags & MVM_CF_STABLE == 0 && !STABLE(*item_to_add)) \
                 MVM_panic(1, "NULL STable in time added to GC worklist"); \
-            if (tc->nursery_fromspace && \
-                    (char *)(*item_to_add) >= (char *)tc->nursery_fromspace && \
-                    (char *)(*item_to_add) < (char *)tc->nursery_fromspace + MVM_NURSERY_SIZE) \
+            if (*item_to_add >= (MVMCollectable *)tc->nursery_alloc && \
+                    *item_to_add < (MVMCollectable *)tc->nursery_alloc_limit) \
                 MVM_panic(1, "Adding item to past fromspace to GC worklist"); \
         } \
         if (*item_to_add && (worklist->include_gen2 || !((*item_to_add)->flags & MVM_CF_SECOND_GEN))) { \
