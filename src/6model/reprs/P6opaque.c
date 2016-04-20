@@ -209,6 +209,13 @@ static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObjec
     MVM_exception_throw_adhoc_free(tc, waste, "P6opaque: no such attribute '%s' in type %s when trying to %s", c_name, STABLE(class_handle)->debug_name, action);
 }
 
+MVM_NO_RETURN
+static void invalid_access_kind(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name, const char *kind_desc) {
+    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+    char *waste[] = { c_name, NULL };
+    MVM_exception_throw_adhoc_free(tc, waste, "P6opaque: invalid %s attribute '%s' in type %s for kind %s", action, c_name, STABLE(class_handle)->debug_name, kind_desc);
+}
+
 /* Gets the current value for an attribute. */
 static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
@@ -291,7 +298,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 result_reg->i64 = attr_st->REPR->box_funcs.get_int(tc, attr_st, root,
                     (char *)data + repr_data->attribute_offsets[slot]);
             else
-                MVM_exception_throw_adhoc(tc, "P6opaque: invalid native access to object attribute");
+                invalid_access_kind(tc, "native access", class_handle, name, "int64");
             break;
         }
         case MVM_reg_num64: {
@@ -299,7 +306,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 result_reg->n64 = attr_st->REPR->box_funcs.get_num(tc, attr_st, root,
                     (char *)data + repr_data->attribute_offsets[slot]);
             else
-                MVM_exception_throw_adhoc(tc, "P6opaque: invalid native access to object attribute");
+                invalid_access_kind(tc, "native access", class_handle, name, "num64");
             break;
         }
         case MVM_reg_str: {
@@ -307,7 +314,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 result_reg->s = attr_st->REPR->box_funcs.get_str(tc, attr_st, root,
                     (char *)data + repr_data->attribute_offsets[slot]);
             else
-                MVM_exception_throw_adhoc(tc, "P6opaque: invalid native access to object attribute");
+                invalid_access_kind(tc, "native access", class_handle, name, "str");
             break;
         }
         default: {
@@ -359,7 +366,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     (char *)data + repr_data->attribute_offsets[slot],
                     value_reg.i64);
             else
-                MVM_exception_throw_adhoc(tc, "P6opaque: invalid native binding to object attribute");
+                invalid_access_kind(tc, "native bind to", class_handle, name, "int64");
             break;
         }
         case MVM_reg_num64: {
@@ -368,7 +375,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     (char *)data + repr_data->attribute_offsets[slot],
                     value_reg.n64);
             else
-                MVM_exception_throw_adhoc(tc, "P6opaque: invalid native binding to object attribute");
+                invalid_access_kind(tc, "native bind to", class_handle, name, "num64");
             break;
         }
         case MVM_reg_str: {
@@ -377,7 +384,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     (char *)data + repr_data->attribute_offsets[slot],
                     value_reg.s);
             else
-                MVM_exception_throw_adhoc(tc, "P6opaque: invalid native binding to object attribute");
+                invalid_access_kind(tc, "native bind to", class_handle, name, "str");
             break;
         }
         default: {
