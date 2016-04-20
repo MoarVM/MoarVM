@@ -91,6 +91,9 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         if (!current->sc)
             add_collectable(tc, worklist, snapshot, current->handle,
                 "SC weakhash unresolved handle");
+        else if (!current->claimed)
+            add_collectable(tc, worklist, snapshot, current->sc,
+                "SC weakhash unclaimed SC");
     }
 
     HASH_ITER(hash_handle, tc->instance->loaded_compunits, current_lcun, tmp_lcun, bucket_tmp) {
