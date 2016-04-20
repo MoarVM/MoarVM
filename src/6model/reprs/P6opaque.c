@@ -206,7 +206,7 @@ MVM_NO_RETURN
 static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name) {
     char *c_name = MVM_string_utf8_encode_C_string(tc, name);
     char *waste[] = { c_name, NULL };
-    MVM_exception_throw_adhoc_free(tc, waste, "P6opaque: no such attribute '%s'", c_name);
+    MVM_exception_throw_adhoc_free(tc, waste, "P6opaque: no such attribute '%s' in type %s when trying to %s", c_name, STABLE(class_handle)->debug_name, action);
 }
 
 /* Gets the current value for an attribute. */
@@ -317,7 +317,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     }
     else {
         /* Otherwise, complain that the attribute doesn't exist. */
-        no_such_attribute(tc, "get", class_handle, name);
+        no_such_attribute(tc, "get a value", class_handle, name);
     }
 }
 
@@ -387,7 +387,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     }
     else {
         /* Otherwise, complain that the attribute doesn't exist. */
-        no_such_attribute(tc, "bind", class_handle, name);
+        no_such_attribute(tc, "bind a value", class_handle, name);
     }
 }
 
@@ -399,7 +399,7 @@ static MVMint64 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, vo
     if (slot >= 0)
         return NULL != get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
     else
-        no_such_attribute(tc, "initializedness check", class_handle, name);
+        no_such_attribute(tc, "check if it's initialized", class_handle, name);
     return 0;
 }
 
