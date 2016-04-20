@@ -424,7 +424,7 @@ static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "This type cannot box a native integer");
+            "This type cannot box a native integer: P6opaque, %s", st->debug_name);
     }
 }
 
@@ -439,7 +439,7 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "This type cannot unbox to a native integer");
+            "This type cannot unbox to a native integer: P6opaque, %s", st->debug_name);
     }
 }
 
@@ -454,7 +454,7 @@ static void set_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "This type cannot box a native number");
+            "This type cannot box a native number: P6opaque, %s", st->debug_name);
     }
 }
 
@@ -469,7 +469,7 @@ static MVMnum64 get_num(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "This type cannot unbox to a native number");
+            "This type cannot unbox to a native number: P6opaque, %s", st->debug_name);
     }
 }
 
@@ -484,7 +484,7 @@ static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "This type cannot box a native string");
+            "This type cannot box a native string: P6opaque, %s", st->debug_name);
     }
 }
 
@@ -499,7 +499,7 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "This type cannot unbox to a native string");
+            "This type cannot unbox to a native string: P6opaque, %s", st->debug_name);
     }
 }
 
@@ -514,7 +514,7 @@ static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "This type cannot box a native integer");
+            "This type cannot box a native integer: P6opaque, %s", st->debug_name);
     }
 }
 
@@ -529,7 +529,7 @@ static MVMuint64 get_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "This type cannot unbox to a native integer");
+            "This type cannot unbox to a native integer: P6opaque, %s", st->debug_name);
     }
 }
 
@@ -547,7 +547,7 @@ static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
     }
 
     MVM_exception_throw_adhoc(tc,
-        "P6opaque: get_boxed_ref could not unbox for the representation '%d'", repr_id);
+        "P6opaque: get_boxed_ref could not unbox for the representation '%d' of type", repr_id, st->debug_name);
 }
 
 static const MVMStorageSpec default_storage_spec = {
@@ -1163,15 +1163,15 @@ static void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_typ
     MVM_ASSIGN_REF(tc, &(obj->header), obj->st, STABLE(new_type));
 }
 
-static void die_no_pos_del(MVMThreadContext *tc) {
-    MVM_exception_throw_adhoc(tc, "This type does not support positional operations");
+static void die_no_pos_del(MVMThreadContext *tc, MVMSTable *st) {
+    MVM_exception_throw_adhoc(tc, "This type (%s) does not support positional operations", st->debug_name);
 }
 
 static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
-        die_no_pos_del(tc);
+        die_no_pos_del(tc, st);
     data = MVM_p6opaque_real_data(tc, data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs.at_pos(tc, STABLE(del), del, OBJECT_BODY(del), index, value, kind);
@@ -1181,7 +1181,7 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
-        die_no_pos_del(tc);
+        die_no_pos_del(tc, st);
     data = MVM_p6opaque_real_data(tc, data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs.bind_pos(tc, STABLE(del), del, OBJECT_BODY(del), index, value, kind);
@@ -1191,7 +1191,7 @@ static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
-        die_no_pos_del(tc);
+        die_no_pos_del(tc, st);
     data = MVM_p6opaque_real_data(tc, data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs.set_elems(tc, STABLE(del), del, OBJECT_BODY(del), count);
@@ -1201,7 +1201,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
-        die_no_pos_del(tc);
+        die_no_pos_del(tc, st);
     data = MVM_p6opaque_real_data(tc, data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs.push(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
@@ -1211,7 +1211,7 @@ static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
-        die_no_pos_del(tc);
+        die_no_pos_del(tc, st);
     data = MVM_p6opaque_real_data(tc, data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs.pop(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
@@ -1221,7 +1221,7 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
-        die_no_pos_del(tc);
+        die_no_pos_del(tc, st);
     data = MVM_p6opaque_real_data(tc, data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs.unshift(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
@@ -1231,7 +1231,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
-        die_no_pos_del(tc);
+        die_no_pos_del(tc, st);
     data = MVM_p6opaque_real_data(tc, data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs.shift(tc, STABLE(del), del, OBJECT_BODY(del), value, kind);
@@ -1241,21 +1241,21 @@ static void osplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->pos_del_slot == -1)
-        die_no_pos_del(tc);
+        die_no_pos_del(tc, st);
     data = MVM_p6opaque_real_data(tc, data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
     REPR(del)->pos_funcs.splice(tc, STABLE(del), del, OBJECT_BODY(del), target_array, offset, elems);
 }
 
-static void die_no_ass_del(MVMThreadContext *tc) {
-    MVM_exception_throw_adhoc(tc, "This type does not support associative operations");
+static void die_no_ass_del(MVMThreadContext *tc, MVMSTable *st) {
+    MVM_exception_throw_adhoc(tc, "This type (%s) does not support associative operations", st->debug_name);
 }
 
 static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
-        die_no_ass_del(tc);
+        die_no_ass_del(tc, st);
     data = MVM_p6opaque_real_data(tc, data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
     REPR(del)->ass_funcs.at_key(tc, STABLE(del), del, OBJECT_BODY(del), key, result, kind);
@@ -1265,7 +1265,7 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
-        die_no_ass_del(tc);
+        die_no_ass_del(tc, st);
     data = MVM_p6opaque_real_data(tc, data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
     REPR(del)->ass_funcs.bind_key(tc, STABLE(del), del, OBJECT_BODY(del), key, value, kind);
@@ -1275,7 +1275,7 @@ static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
-        die_no_ass_del(tc);
+        die_no_ass_del(tc, st);
     data = MVM_p6opaque_real_data(tc, data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
     return REPR(del)->ass_funcs.exists_key(tc, STABLE(del), del, OBJECT_BODY(del), key);
@@ -1285,7 +1285,7 @@ static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMObject *del;
     if (repr_data->ass_del_slot == -1)
-        die_no_ass_del(tc);
+        die_no_ass_del(tc, st);
     data = MVM_p6opaque_real_data(tc, data);
     del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
     REPR(del)->ass_funcs.delete_key(tc, STABLE(del), del, OBJECT_BODY(del), key);
@@ -1303,7 +1303,7 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
         return REPR(del)->elems(tc, STABLE(del), del, OBJECT_BODY(del));
     }
     else {
-        MVM_exception_throw_adhoc(tc, "This type does not support elems");
+        MVM_exception_throw_adhoc(tc, "This type (%s) does not support elems", st->debug_name);
     }
 }
 
