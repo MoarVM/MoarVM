@@ -260,7 +260,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         if (!chosen_cand->sg) {
             MVMROOT(tc, static_frame, {
             MVMROOT(tc, code_ref, {
+            MVMROOT(tc, outer, {
                 frame = allocate_frame(tc, static_frame, chosen_cand);
+            });
             });
             });
             frame->effective_bytecode    = chosen_cand->bytecode;
@@ -364,7 +366,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         /* We get to log. */
                         MVMROOT(tc, static_frame, {
                         MVMROOT(tc, code_ref, {
+                        MVMROOT(tc, outer, {
                             frame = allocate_frame(tc, static_frame, chosen_cand);
+                        });
                         });
                         });
                         frame->effective_bytecode    = chosen_cand->bytecode;
@@ -381,7 +385,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 /* In the post-specialize phase; can safely used the code. */
                 MVMROOT(tc, static_frame, {
                 MVMROOT(tc, code_ref, {
+                MVMROOT(tc, outer, {
                     frame = allocate_frame(tc, static_frame, chosen_cand);
+                });
                 });
                 });
                 if (chosen_cand->jitcode) {
@@ -402,7 +408,9 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (!found_spesh) {
         MVMROOT(tc, static_frame, {
         MVMROOT(tc, code_ref, {
+        MVMROOT(tc, outer, {
             frame = allocate_frame(tc, static_frame, NULL);
+        });
         });
         });
         frame->effective_bytecode = static_frame->body.bytecode;
