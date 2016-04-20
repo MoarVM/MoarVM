@@ -1109,7 +1109,7 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
         from = from->caller;
     }
 }
-MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify) {
+MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify, MVMFrame **found_frame) {
     FILE *dlog = tc->instance->dynvar_log_fh;
     MVMuint32 fcost = 0;  /* frames traversed */
     MVMuint32 icost = 0;  /* inlines traversed */
@@ -1172,6 +1172,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                     MVM_free(c_name);
                                     tc->instance->dynvar_log_lasttime = uv_hrtime();
                                 }
+                                *found_frame = cur_frame;
                                 return result;
                             }
                         }
@@ -1208,6 +1209,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                     MVM_free(c_name);
                                     tc->instance->dynvar_log_lasttime = uv_hrtime();
                                 }
+                                *found_frame = cur_frame;
                                 return result;
                             }
                         }
@@ -1229,6 +1231,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                     MVM_free(c_name);
                     tc->instance->dynvar_log_lasttime = uv_hrtime();
                 }
+                *found_frame = cur_frame;
                 return result;
             }
             else
@@ -1261,6 +1264,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 }
                 if (fcost+icost > 1)
                     try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
+                *found_frame = cur_frame;
                 return result;
             }
         }
@@ -1273,12 +1277,14 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
         MVM_free(c_name);
         tc->instance->dynvar_log_lasttime = uv_hrtime();
     }
+    *found_frame = NULL;
     return NULL;
 }
 
 MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
     MVMuint16 type;
-    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 1);
+    MVMFrame *found_frame;
+    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 1, &found_frame);
     MVMObject *result = NULL, *result_type = NULL;
     if (lex_reg) {
         switch (type) {
@@ -1330,7 +1336,8 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame 
 
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame) {
     MVMuint16 type;
-    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 0);
+    MVMFrame *found_frame;
+    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 0, &found_frame);
     if (!lex_reg) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
@@ -1347,11 +1354,11 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
                 STABLE(value), value, OBJECT_BODY(value));
             break;
         case MVM_reg_str:
-            lex_reg->s = REPR(value)->box_funcs.get_str(tc,
-                STABLE(value), value, OBJECT_BODY(value));
+            MVM_ASSIGN_REF(tc, &(found_frame->header), lex_reg->s,
+                REPR(value)->box_funcs.get_str(tc, STABLE(value), value, OBJECT_BODY(value)));
             break;
         case MVM_reg_obj:
-            lex_reg->o = value;
+            MVM_ASSIGN_REF(tc, &(found_frame->header), lex_reg->o, value);
             break;
         default:
             MVM_exception_throw_adhoc(tc, "invalid register type in binddynlex");
