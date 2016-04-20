@@ -2211,10 +2211,12 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
                 lex->n64 = MVM_serialization_read_num(tc, reader);
                 break;
             case MVM_STORAGE_SPEC_BP_STR:
-                lex->s = MVM_serialization_read_str(tc, reader);
+                MVM_ASSIGN_REF(tc, &(f->header), lex->s,
+                    MVM_serialization_read_str(tc, reader));
                 break;
             default:
-                lex->o = MVM_serialization_read_ref(tc, reader);
+                MVM_ASSIGN_REF(tc, &(f->header), lex->o,
+                    MVM_serialization_read_ref(tc, reader));
         }
     }
 
