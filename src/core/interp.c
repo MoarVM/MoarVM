@@ -328,37 +328,29 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(bindlex_ni):
-                MVM_frame_find_lexical_by_name(tc,
+                MVM_frame_bind_lexical_by_name(tc,
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 0)),
-                    MVM_reg_int64)->i64 = GET_REG(cur_op, 4).i64;
+                    MVM_reg_int64, &(GET_REG(cur_op, 4)));
                 cur_op += 6;
                 goto NEXT;
             OP(bindlex_nn):
-                MVM_frame_find_lexical_by_name(tc,
+                MVM_frame_bind_lexical_by_name(tc,
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 0)),
-                    MVM_reg_num64)->n64 = GET_REG(cur_op, 4).n64;
+                    MVM_reg_num64, &(GET_REG(cur_op, 4)));
                 cur_op += 6;
                 goto NEXT;
             OP(bindlex_ns):
-                MVM_frame_find_lexical_by_name(tc,
+                MVM_frame_bind_lexical_by_name(tc,
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 0)),
-                    MVM_reg_str)->s = GET_REG(cur_op, 4).s;
+                    MVM_reg_str, &(GET_REG(cur_op, 4)));
                 cur_op += 6;
                 goto NEXT;
-            OP(bindlex_no): {
-                MVMString *str = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
-                MVMRegister *r = MVM_frame_find_lexical_by_name(tc, str, MVM_reg_obj);
-                if (r)
-                    r->o = GET_REG(cur_op, 4).o;
-                else {
-                    char *c_str = MVM_string_utf8_encode_C_string(tc, str);
-                    char *waste[] = { c_str, NULL };
-                    MVM_exception_throw_adhoc_free(tc, waste, "Cannot bind to non-existing object lexical '%s'",
-                        c_str);
-                }
+            OP(bindlex_no):
+                MVM_frame_bind_lexical_by_name(tc,
+                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 0)),
+                    MVM_reg_obj, &(GET_REG(cur_op, 4)));
                 cur_op += 6;
                 goto NEXT;
-            }
             OP(getlex_ng):
             OP(bindlex_ng):
                 MVM_exception_throw_adhoc(tc, "get/bindlex_ng NYI");

@@ -956,6 +956,46 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
     return NULL;
 }
 
+/* Binds the specified value to the given lexical, finding it along the static
+ * chain. */
+MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister *value) {
+    MVMFrame *cur_frame = tc->cur_frame;
+    MVM_string_flatten(tc, name);
+    while (cur_frame != NULL) {
+        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
+        if (lexical_names) {
+            MVMLexicalRegistry *entry;
+            MVM_HASH_GET(tc, lexical_names, name, entry)
+            if (entry) {
+                if (cur_frame->static_info->body.lexical_types[entry->value] == type) {
+                    if (type == MVM_reg_obj || type == MVM_reg_str) {
+                        MVM_ASSIGN_REF(tc, &(cur_frame->header),
+                            cur_frame->env[entry->value].o, value->o);
+                    }
+                    else {
+                        cur_frame->env[entry->value] = *value;
+                    }
+                    return;
+                }
+                else {
+                    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                    char *waste[] = { c_name, NULL };
+                    MVM_exception_throw_adhoc_free(tc, waste,
+                        "Lexical with name '%s' has wrong type",
+                            c_name);
+                }
+            }
+        }
+        cur_frame = cur_frame->outer;
+    }
+    {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
+            c_name);
+    }
+}
+
 /* Finds a lexical in the outer frame, throwing if it's not there. */
 MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name) {
     MVMRegister *r = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer);
