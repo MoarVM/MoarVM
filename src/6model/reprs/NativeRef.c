@@ -556,7 +556,8 @@ void MVM_nativeref_write_reg_or_lex_n(MVMThreadContext *tc, MVMObject *ref_obj, 
 }
 void MVM_nativeref_write_reg_or_lex_s(MVMThreadContext *tc, MVMObject *ref_obj, MVMString *value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
-    ref->body.u.reg_or_lex.var->s = value;
+    MVM_ASSIGN_REF(tc, &(ref->body.u.reg_or_lex.frame->header),
+        ref->body.u.reg_or_lex.var->s, value);
 }
 void MVM_nativeref_write_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
