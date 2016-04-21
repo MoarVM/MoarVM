@@ -232,6 +232,9 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
             ? spesh_cand->num_locals
             : static_frame_body->num_locals);
 
+    /* Assign a sequence nr */
+    frame->sequence_nr = tc->next_frame_nr++;
+
     return frame;
 }
 
@@ -578,6 +581,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     *(tc->interp_reg_base) = frame->work;
     *(tc->interp_cu) = static_frame->body.cu;
 
+    tc->current_frame_nr = frame->sequence_nr;
+
     /* If we need to do so, make clones of things in the lexical environment
      * that need it. Note that we do this after tc->cur_frame became the
      * current frame, to make sure these new objects will certainly get
@@ -815,6 +820,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         *(tc->interp_bytecode_start) = caller->effective_bytecode;
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->body.cu;
+        tc->current_frame_nr = caller->sequence_nr;
 
         /* Handle any special return hooks. */
         if (caller->special_return || caller->special_unwind) {
