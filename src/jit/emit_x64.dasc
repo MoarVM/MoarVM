@@ -14,6 +14,7 @@
 
 /* type declarations */
 |.type REGISTER, MVMRegister
+|.type FRAME, MVMFrame
 |.type ARGCTX, MVMArgProcContext
 |.type CAPTURE, MVMCallCapture
 |.type CAPTUREBODY, MVMCallCaptureBody
@@ -54,7 +55,6 @@
  * here rather than the extended registers will lead to smaller
  * bytecode */
 |.type WORK, MVMRegister, rbx
-|.type FRAME, MVMFrame, r12
 |.type CU, MVMCompUnit, r13
 
 
@@ -178,7 +178,8 @@ const unsigned int MVM_jit_num_globals(void) {
 |.endmacro
 
 |.macro get_spesh_slot, reg, idx;
-| mov reg, FRAME->effective_spesh_slots;
+| mov reg, TC->cur_frame;
+| mov reg, FRAME:reg->effective_spesh_slots;
 | mov reg, OBJECTPTR:reg[idx];
 |.endmacro
 
@@ -237,13 +238,15 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
     /* save callee-save registers */
     | mov [rbp-0x8],  TC;
     | mov [rbp-0x10], CU;
-    | mov [rbp-0x18], FRAME;
-    | mov [rbp-0x20], WORK;
+    | mov [rbp-0x18], WORK;
+    /* store the current frame number for cheap comparisons */
+    | mov TMP6d, dword TC:ARG1->current_frame_nr;
+    | mov dword [rbp-0x20], TMP6d;
     /* setup special frame variables */
     | mov TC,   ARG1;
     | mov CU,   ARG2;
-    | mov FRAME, TC->cur_frame;
-    | mov WORK, FRAME->work;
+    | mov TMP6, TC->cur_frame;
+    | mov WORK, FRAME:TMP6->work;
     /* ARG3 contains our 'entry label' */
     | jmp ARG3
 }
@@ -257,8 +260,7 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitGraph *jg,
     /* restore callee-save registers */
     | mov TC, [rbp-0x8];
     | mov CU, [rbp-0x10];
-    | mov FRAME, [rbp-0x18];
-    | mov WORK, [rbp-0x20];
+    | mov WORK, [rbp-0x18];
     /* Restore stack */
     | mov rsp, rbp;
     | pop rbp;
@@ -372,7 +374,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 idx = ins->operands[1].lex.idx;
         MVMint16 out = ins->operands[1].lex.outers;
         MVMint16 i;
-        | mov TMP6, FRAME;
+        | mov TMP6, TC->cur_frame;
         for (i = 0; i < out; i++) {
             /* I'm going to skip compiling the check whether the outer
              * node really exists, because if the code has run N times
@@ -435,7 +437,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 out = ins->operands[0].lex.outers;
         MVMint16 src = ins->operands[1].reg.orig;
         MVMint16 i;
-        | mov TMP1, FRAME;
+        | mov TMP1, TC->cur_frame;
         for (i = 0; i < out; i++) {
             | mov TMP1, FRAME:TMP1->outer;
             sf = sf->body.outer;
@@ -457,7 +459,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_getarg_i: {
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMuint16 idx = ins->operands[1].callsite_idx;
-        | mov TMP1, FRAME->params.args;
+        | mov TMP1, TC->cur_frame;
+        | mov TMP1, FRAME:TMP1->params.args;
         | mov TMP1, REGISTER:TMP1[idx];
         | mov WORK[reg], TMP1;
         break;
@@ -661,7 +664,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     case MVM_OP_curcode: {
         MVMint16 dst = ins->operands[0].reg.orig;
-        | mov TMP1, aword FRAME->code_ref;
+        | mov TMP1, TC->cur_frame;
+        | mov TMP1, aword FRAME:TMP1->code_ref;
         | mov aword WORK[dst], TMP1;
         break;
     }
@@ -675,7 +679,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     case MVM_OP_callercode: {
         MVMint16 dst = ins->operands[0].reg.orig;
-        | mov TMP1, aword FRAME->caller;
+        | mov TMP1, TC->cur_frame;
+        | mov TMP1, aword FRAME:TMP1->caller;
         | test TMP1, TMP1;
         | jz >1;
         | mov TMP1, aword FRAME:TMP1->code_ref;
@@ -1331,7 +1336,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     case MVM_OP_sp_namedarg_used: {
         MVMuint16 param = ins->operands[0].lit_i16;
-        | mov TMP1, FRAME->params.named_used;
+        | mov TMP1, TC->cur_frame;
+        | mov TMP1, FRAME:TMP1->params.named_used;
         | mov byte U8:TMP1[param], 1;
         break;
     }
@@ -1364,9 +1370,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | test RV, RV;
         | jz >2;
         /* invokish, fall out to the interpreter */
-        | mov RV, 1;
+        | mov RV, TC->cur_frame;
         | lea TMP1, [>2];
-        | mov aword FRAME->jit_entry_label, TMP1;
+        | mov aword FRAME:RV->jit_entry_label, TMP1;
+        | mov RV, 1;
         | jmp ->out;
         |2:
         break;
@@ -1483,7 +1490,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     }
     case MVM_OP_paramnamesused:
-        | lea ARG2, FRAME->params;
+        | mov ARG2, TC->cur_frame;
+        | lea ARG2, FRAME:ARG2->params;
         | mov TMP5w, word ARGCTX:ARG2->num_pos;
         | cmp TMP5w, word ARGCTX:ARG2->arg_count;
         | je >1;
@@ -1503,7 +1511,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     case MVM_OP_prof_enterspesh:
         | mov ARG1, TC;
-        | mov ARG2, aword FRAME->static_info;
+        | mov ARG2, TC->cur_frame;
+        | mov ARG2, aword FRAME:ARG2->static_info;
         | mov ARG3, aword MVM_PROFILE_ENTER_JIT;
         | callp &MVM_profile_log_enter;
         break;
@@ -1556,12 +1565,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov ARG2, RV; // ARG2 = code
         /* tc->cur_frame->return_value = &GET_REG(cur_op, 2) */
         | lea ARG1, WORK[dest]; // ARG1 is used as scratch space
-        | mov aword FRAME->return_value, ARG1;
+        | mov TMP6, aword TC->cur_frame;
+        | mov aword FRAME:TMP6->return_value, ARG1;
         /* tc->cur_frame->return_type = MVM_RETURN_OBJ */
-        | mov dword FRAME->return_type, MVM_RETURN_OBJ;
+        | mov dword FRAME:TMP6->return_type, MVM_RETURN_OBJ;
         /* tc->cur_frame->return_address = cur_op */
         | get_cur_op ARG1;
-        | mov aword FRAME->return_address, ARG1;
+        | mov aword FRAME:TMP6->return_address, ARG1;
         /* STABLE(code)->invoke(tc, code, capture->body.effective_callsite,
            capture->body.apc->arg) */
         | mov ARG1, TC;
@@ -1680,13 +1690,15 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitGraph *jg,
             | mov TMP6, CU;
             break;
         case MVM_JIT_INTERP_FRAME:
-            | mov TMP6, FRAME;
+            | mov TMP6, TC->cur_frame;
             break;
         case MVM_JIT_INTERP_PARAMS:
-            | lea TMP6, FRAME->params;
+            | mov TMP6, TC->cur_frame;
+            | lea TMP6, FRAME:TMP6->params;
             break;
         case MVM_JIT_INTERP_CALLER:
-            | mov TMP6, aword FRAME->caller;
+            | mov TMP6, TC->cur_frame;
+            | mov TMP6, aword FRAME:TMP6->caller;
             break;
         }
         break;
@@ -2211,7 +2223,31 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
     | mov TMP6, RV; // store callsite in tmp6, which we don't use until the end
     /* Store arguments in the buffer. I use TMP5 as it never conflicts
      * with argument passing (like TMP6, but unlike other TMP regs) */
-    | mov TMP5, FRAME->args;
+    | mov TMP5, TC->cur_frame;
+
+    /* Setup the frame for returning to our current position */
+    if (sizeof(MVMReturnType) == 4) {
+        | mov dword FRAME:TMP5->return_type, invoke->return_type;
+    } else {
+        MVM_panic(1, "JIT: MVMReturnType has unexpected size");
+    }
+    /* The register for our return value */
+    if (invoke->return_type == MVM_RETURN_VOID) {
+        | mov aword FRAME:TMP5->return_value, NULL;
+    } else {
+        | lea TMP2, WORK[invoke->return_register];
+        | mov aword FRAME:TMP5->return_value, TMP2;
+    }
+    /* The return address for the interpreter */
+    | get_cur_op TMP2;
+    | mov aword FRAME:TMP5->return_address, TMP2;
+
+    /* The re-entry label for the JIT, so that we continue in the next BB */
+    | lea TMP2, [=>(invoke->reentry_label)];
+    | mov aword FRAME:TMP5->jit_entry_label, TMP2;
+
+    /* Install invoke args */
+    | mov TMP5, FRAME:TMP5->args;
     for (i = 0;  i < invoke->arg_count; i++) {
         MVMSpeshIns *ins = invoke->arg_ins[i];
         switch (ins->info->opcode) {
@@ -2245,27 +2281,6 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *in
                       ins->info->name);
         }
     }
-
-    /* Setup the frame for returning to our current position */
-    if (sizeof(MVMReturnType) == 4) {
-        | mov dword FRAME->return_type, invoke->return_type;
-    } else {
-        MVM_panic(1, "JIT: MVMReturnType has unexpected size");
-    }
-    /* The register for our return value */
-    if (invoke->return_type == MVM_RETURN_VOID) {
-        | mov aword FRAME->return_value, NULL;
-    } else {
-        | lea TMP2, WORK[invoke->return_register];
-        | mov aword FRAME->return_value, TMP2;
-    }
-    /* The return address for the interpreter */
-    | get_cur_op TMP2;
-    | mov aword FRAME->return_address, TMP2;
-
-    /* The re-entry label for the JIT, so that we continue in the next BB */
-    | lea TMP2, [=>(invoke->reentry_label)];
-    | mov aword FRAME->jit_entry_label, TMP2;
 
     /* if we're not fast, then we should get the code from multi resolution */
     if (!invoke->is_fast) {
@@ -2330,10 +2345,12 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
                           MVMJitControl *ctrl, dasm_State **Dst) {
     if (ctrl->type == MVM_JIT_CONTROL_INVOKISH) {
         MVM_jit_log(tc, "Emit invokish control guard\n");
-        | cmp FRAME, aword TC->cur_frame;
+        | mov TMP1d, TC->current_frame_nr;
+        | cmp TMP1d, dword [rbp-0x20];
         | je >1;
         | lea TMP1, [>1];
-        | mov aword FRAME->jit_entry_label, TMP1;
+        | mov TMP2, TC->cur_frame;
+        | mov aword FRAME:TMP2->jit_entry_label, TMP1;
         | mov RV, 1;
         | jmp ->out;
         |1:
@@ -2344,7 +2361,8 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
          * operators will know where we're throwing from - NB, I'm not
          * totally sure this is still necessary now */
         | lea TMP1, [>1];
-        | mov aword FRAME->jit_entry_label, TMP1;
+        | mov TMP2, TC->cur_frame;
+        | mov aword FRAME:TMP2->jit_entry_label, TMP1;
         |1:
     }
     else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_PRE) {
@@ -2352,17 +2370,20 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
          * isn't used in the intermediate instructions, which is
          * basically valid throughout this codebase. */
         | lea TMP1, [>9];
-        | mov aword FRAME->jit_entry_label, TMP1;
+        | mov TMP2, TC->cur_frame;
+        | mov aword FRAME:TMP2->jit_entry_label, TMP1;
     }
     else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_POST) {
         /* check if our current frame is the same as it was */
-        | cmp FRAME, aword TC->cur_frame;
+        | mov TMP1d, dword TC->current_frame_nr;
+        | cmp TMP1d, dword [rbp-0x20];
         | jne >8;
         /* if it is, we may still be in a goto-handler, so in that
          * case the throwing machinery should have ensured that
          * jit_entry_label now points to the correct label. If not, it
          * still points to 9:. */
-        | jmp aword FRAME->jit_entry_label;
+        | mov TMP1, TC->cur_frame;
+        | jmp aword FRAME:TMP1->jit_entry_label;
         /* if not the same frame, trampoline to interpreter */
         |8:
         | mov RV, 1;
