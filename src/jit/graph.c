@@ -678,7 +678,7 @@ static void jgb_before_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         } /* switch */
         ann = ann->next;
     }
-    if (ins->info->jittivity & MVM_JIT_INFO_THROWISH) {
+    if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
         jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_THROWISH_PRE);
     }
 }
