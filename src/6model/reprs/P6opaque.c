@@ -879,7 +879,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMuint16 i, num_classes;
 
-    if (!repr_data->name_to_index_mapping)
+    if (!repr_data)
         MVM_exception_throw_adhoc(tc,
             "Representation must be composed before it can be serialized");
 
@@ -1082,7 +1082,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     MVMuint16 num_attributes = repr_data->num_attributes;
     MVMuint16 i;
 
-    if (!repr_data->name_to_index_mapping)
+    if (!repr_data)
         MVM_exception_throw_adhoc(tc,
             "Representation must be composed before it can be serialized");
 
