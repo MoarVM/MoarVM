@@ -748,6 +748,10 @@ typedef struct {
     MVMuint8  *abs_addr;
     MVMuint32  rel_addr;
 } MVMUnwindData;
+static void mark_unwind_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
+    MVMUnwindData *ud  = (MVMUnwindData *)frame->special_return_data;
+    MVM_gc_worklist_add(tc, worklist, &(ud->frame));
+}
 static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVMUnwindData *ud  = (MVMUnwindData *)sr_data;
     MVMFrame *frame    = ud->frame;
@@ -781,6 +785,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             cur_frame->args[0].o = cur_frame->code_ref;
             cur_frame->args[1].o = NULL;
             cur_frame->special_return = continue_unwind;
+            cur_frame->mark_special_return_data = mark_unwind_data;
             {
                 MVMUnwindData *ud = MVM_malloc(sizeof(MVMUnwindData));
                 ud->frame = frame;
