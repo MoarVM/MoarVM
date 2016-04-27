@@ -454,9 +454,6 @@ install: all
 	$(CP) src/strings/*.h $(DESTDIR)$(PREFIX)/include/moar/strings
 	$(CP) src/jit/*.h $(DESTDIR)$(PREFIX)/include/moar/jit
 	$(CP) src/instrument/*.h $(DESTDIR)$(PREFIX)/include/moar/instrument
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libuv
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libtommath
-	$(CP) 3rdparty/libuv/include/*.h $(DESTDIR)$(PREFIX)/include/libuv
 @install@
 
 lib: @moar@

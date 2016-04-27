@@ -32,7 +32,7 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     ar=s cc=s ld=s make=s has-sha has-libuv
     static has-libtommath has-libatomic_ops
-    has-dyncall has-libffi
+    has-dyncall has-libffi pkgconfig=s
     build=s host=s big-endian jit! enable-jit lua=s has-dynasm
     prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
@@ -99,6 +99,7 @@ $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 $config{osname} = $^O;
 $config{osvers} = $Config{osvers};
 $config{lua} = $args{lua} // './3rdparty/dynasm/minilua@exe@';
+$config{pkgconfig} = $args{pkgconfig} // '/usr/bin/pkg-config';
 
 # set options that take priority over all others
 my @keys = qw( ar cc ld make );
@@ -164,12 +165,30 @@ if (-e '3rdparty/libuv/src/unix/threadpool' . $defaults{obj}
     system($defaults{make}, 'realclean')
 }
 
+# test whether pkg-config works
+system("$config{pkgconfig}", "--version");
+if ( $? == 0 ) {
+    $config{pkgconfig_works} = 1;
+} else {
+    $config{pkgconfig_works} = 0;
+}
+
 # conditionally set include dirs and install rules
 $config{cincludes} //= '';
 $config{install}   //= '';
 if ($args{'has-libuv'}) {
     $defaults{-thirdparty}->{uv} = undef;
     unshift @{$config{usrlibs}}, 'uv';
+    if ($config{pkgconfig_works}) {
+        my $result = `$config{pkgconfig} --cflags libuv`;
+        if ( $? == 0 ) {
+            $result =~ s/\n/ /g;
+            $config{cincludes} .= ' ' . "$result";
+            print("Adding extra include for libuv: $result\n");
+        } else {
+            print("Error occured when running $config{pkgconfig} --cflags libuv.");
+        }
+    }
 }
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libuv/include'
@@ -181,6 +200,16 @@ else {
 if ($args{'has-libatomic_ops'}) {
     $defaults{-thirdparty}->{lao} = undef;
     unshift @{$config{usrlibs}}, 'atomic_ops';
+    if ($config{pkgconfig_works}) {
+        my $result = `$config{pkgconfig} --cflags atomic_ops`;
+        if ( $? == 0 ) {
+            $result =~ s/\n/ /g;
+            $config{cincludes} .= ' ' . "$result";
+            print("Adding extra include for atomic_ops: $result\n");
+        } else {
+            print("Error occured when running $config{pkgconfig} --cflags atomic_ops.");
+        }
+    }
 }
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libatomic_ops/src';
@@ -232,6 +261,16 @@ if ($args{'has-libffi'}) {
     $config{nativecall_backend} = 'libffi';
     unshift @{$config{usrlibs}}, 'ffi';
     push @{$config{defs}}, 'HAVE_LIBFFI';
+    if ($config{pkgconfig_works}) {
+        my $result = `$config{pkgconfig} --cflags libffi`;
+        if ( $? == 0 ) {
+            $result =~ s/\n/ /g;
+            $config{cincludes} .= ' ' . "$result";
+            print("Adding extra include for libffi: $result\n");
+        } else {
+            print("Error occured when running $config{pkgconfig} --cflags libffi.");
+        }
+    }
 }
 elsif ($args{'has-dyncall'}) {
     unshift @{$config{usrlibs}}, 'dyncall_s', 'dyncallback_s', 'dynload_s';
@@ -364,6 +403,7 @@ my $order = $config{be} ? 'big endian' : 'little endian';
 print "\n", <<TERM, "\n";
         make: $config{make}
      compile: $config{cc} $config{cflags}
+    includes: $config{cincludes}
         link: $config{ld} $config{ldflags}
         libs: $config{ldlibs}
 
@@ -872,6 +912,10 @@ Build and install MoarVM in addition to configuring it.
 =item --has-dyncall
 
 =item --has-libffi
+
+=item --pkgconfig=/path/to/pkgconfig/executable
+
+Provide path to the pkgconfig executable. Default: /usr/bin/pkg-config
 
 =item --no-jit
 
