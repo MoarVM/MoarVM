@@ -31,7 +31,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     /* Unstarted threads are not yet in the running threads list, so their TC
      * needs marking here. The rest of the time, it's marked due to being in
      * the running threads list. */
-    if (body->status == MVM_thread_stage_unstarted)
+    if (MVM_load(&(body->stage)) == MVM_thread_stage_unstarted)
         MVM_gc_root_add_tc_roots_to_worklist(body->tc, worklist, NULL);
 }
 
