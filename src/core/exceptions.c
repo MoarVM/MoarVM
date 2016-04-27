@@ -347,6 +347,7 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_line);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_sub);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_anno);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&cur_frame);
 
     k_file = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "file");
     k_line = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "line");
@@ -396,7 +397,7 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
         count++;
     }
 
-    MVM_gc_root_temp_pop_n(tc, 8);
+    MVM_gc_root_temp_pop_n(tc, 9);
 
     return arr;
 }
@@ -412,10 +413,11 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
     else
         MVM_exception_throw_adhoc(tc, "Op 'backtracestrings' needs an exception object");
 
-    cur_frame = ex->body.origin;
     arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+    cur_frame = ex->body.origin;
 
     MVMROOT(tc, arr, {
+    MVMROOT(tc, cur_frame, {
         MVMuint32 count = 0;
         while (cur_frame != NULL) {
             char      *line     = MVM_exception_backtrace_line(tc, cur_frame, count++);
@@ -426,6 +428,7 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
             MVM_free(line);
         }
     });
+    });
 
     return arr;
 }
@@ -434,12 +437,14 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
 void MVM_dump_backtrace(MVMThreadContext *tc) {
     MVMFrame *cur_frame = tc->cur_frame;
     MVMuint32 count = 0;
-    while (cur_frame != NULL) {
-        char *line = MVM_exception_backtrace_line(tc, cur_frame, count++);
-        fprintf(stderr, "%s\n", line);
-        MVM_free(line);
-        cur_frame = cur_frame->caller;
-    }
+    MVMROOT(tc, cur_frame, {
+        while (cur_frame != NULL) {
+            char *line = MVM_exception_backtrace_line(tc, cur_frame, count++);
+            fprintf(stderr, "%s\n", line);
+            MVM_free(line);
+            cur_frame = cur_frame->caller;
+        }
+    });
 }
 
 /* Panic over an unhandled exception throw by category. */
