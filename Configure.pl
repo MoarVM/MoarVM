@@ -166,11 +166,14 @@ if (-e '3rdparty/libuv/src/unix/threadpool' . $defaults{obj}
 }
 
 # test whether pkg-config works
-system("$config{pkgconfig}", "--version");
-if ( $? == 0 ) {
-    $config{pkgconfig_works} = 1;
-} else {
-    $config{pkgconfig_works} = 0;
+if (-e "$config{pkgconfig}") {
+    print("\nTesting pkgconfig ... ");
+    system("$config{pkgconfig}", "--version");
+    if ( $? == 0 ) {
+        $config{pkgconfig_works} = 1;
+    } else {
+        $config{pkgconfig_works} = 0;
+    }
 }
 
 # conditionally set include dirs and install rules
@@ -186,7 +189,7 @@ if ($args{'has-libuv'}) {
             $config{cincludes} .= ' ' . "$result";
             print("Adding extra include for libuv: $result\n");
         } else {
-            print("Error occured when running $config{pkgconfig} --cflags libuv.");
+            print("Error occured when running $config{pkgconfig} --cflags libuv.\n");
         }
     }
 }
@@ -207,7 +210,7 @@ if ($args{'has-libatomic_ops'}) {
             $config{cincludes} .= ' ' . "$result";
             print("Adding extra include for atomic_ops: $result\n");
         } else {
-            print("Error occured when running $config{pkgconfig} --cflags atomic_ops.");
+            print("Error occured when running $config{pkgconfig} --cflags atomic_ops.\n");
         }
     }
 }
@@ -245,7 +248,8 @@ if ($args{'has-libtommath'}) {
 }
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
-    $config{install}   .= "\t\$(CP) 3rdparty/libtommath/*.h \$(DESTDIR)\$(PREFIX)/include/libtommath\n";
+    $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/libtommath\n"
+                        . "\t\$(CP) 3rdparty/libtommath/*.h \$(DESTDIR)\$(PREFIX)/include/libtommath\n";
 }
 
 if ($args{'has-dynasm'}) {
@@ -268,7 +272,7 @@ if ($args{'has-libffi'}) {
             $config{cincludes} .= ' ' . "$result";
             print("Adding extra include for libffi: $result\n");
         } else {
-            print("Error occured when running $config{pkgconfig} --cflags libffi.");
+            print("Error occured when running $config{pkgconfig} --cflags libffi.\n");
         }
     }
 }
