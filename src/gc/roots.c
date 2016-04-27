@@ -280,9 +280,14 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
             insert_pos++;
         }
 
-        /* Otherwise, clear the "in gen2 root list" flag. */
+        /* Otherwise, clear the "in gen2 root list" flag. Note that another
+         * thread may also clear this flag if it also had the entry in its
+         * inter-gen list, so be sure to check we really are clearing it. */
         else {
-            gen2roots[i]->flags ^= MVM_CF_IN_GEN2_ROOT_LIST;
+            MVMuint16 flags = gen2roots[i]->flags;
+            if (flags & MVM_CF_IN_GEN2_ROOT_LIST)
+                flags ^= MVM_CF_IN_GEN2_ROOT_LIST;
+            gen2roots[i]->flags = flags;
         }
     }
 
