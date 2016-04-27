@@ -5,5 +5,5 @@
     if (tc->nursery_fromspace && \
             (char *)(c) >= (char *)tc->nursery_fromspace && \
             (char *)(c) < (char *)tc->nursery_fromspace + MVM_NURSERY_SIZE) \
-        MVM_exception_throw_adhoc(tc, "Collectable %p in fromspace accessed", c); \
+        MVM_panic(1, "Collectable %p in fromspace accessed", c); \
 } while (0)
