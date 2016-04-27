@@ -501,7 +501,10 @@ void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, 
 }
 
 void MVM_exception_die(MVMThreadContext *tc, MVMString *str, MVMRegister *rr) {
-    MVMException *ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+    MVMException *ex;
+    MVMROOT(tc, str, {
+        ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+    });
     ex->body.category = MVM_EX_CAT_CATCH;
     MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.message, str);
     MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, (MVMObject *)ex, rr);
