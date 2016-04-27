@@ -86,13 +86,13 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
         MVMObject *code_ref, MVMint32 autoclose) {
     MVMFrame *frame;
 
-    /* If the frame was never invoked before, need initial calculations
-     * and verification. */
-    if (static_frame->body.instrumentation_level == 0)
-        instrumentation_level_barrier(tc, static_frame);
-
     MVMROOT(tc, static_frame, {
     MVMROOT(tc, code_ref, {
+        /* If the frame was never invoked before, need initial calculations
+         * and verification. */
+         if (static_frame->body.instrumentation_level == 0)
+             instrumentation_level_barrier(tc, static_frame);
+
         frame = MVM_gc_allocate_frame(tc);
     });
     });
@@ -250,8 +250,15 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* If the frame was never invoked before, or never before at the current
      * instrumentation level, we need to trigger the instrumentation level
      * barrier. */
-    if (static_frame->body.instrumentation_level != tc->instance->instrumentation_level)
-        instrumentation_level_barrier(tc, static_frame);
+    if (static_frame->body.instrumentation_level != tc->instance->instrumentation_level) {
+        MVMROOT(tc, static_frame, {
+        MVMROOT(tc, code_ref, {
+        MVMROOT(tc, outer, {
+            instrumentation_level_barrier(tc, static_frame);
+        });
+        });
+        });
+    }
 
     /* See if any specializations apply. */
     found_spesh = 0;
