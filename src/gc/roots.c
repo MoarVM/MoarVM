@@ -122,6 +122,9 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     /* The thread object. */
     add_collectable(tc, worklist, snapshot, tc->thread_obj, "Thread object");
 
+    /* The thread's entry frame. */
+    add_collectable(tc, worklist, snapshot, tc->thread_entry_frame, "Thread entry frame");
+
     /* Any exception handler result. */
     add_collectable(tc, worklist, snapshot, tc->last_handler_result, "Last handler result");
 
