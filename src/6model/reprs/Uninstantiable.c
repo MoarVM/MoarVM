@@ -20,7 +20,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
     MVM_exception_throw_adhoc(tc,
-        "You cannot create an instance of this type");
+        "You cannot create an instance of this type (%s)", st->debug_name);
 }
 
 /* Copies the body of one object to another. */
