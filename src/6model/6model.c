@@ -51,8 +51,8 @@ static void die_over_missing_method(MVMThreadContext *tc, MVMObject *obj, MVMStr
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste,
-            "Cannot find method '%s'",
-            c_name);
+            "Cannot find method '%s' on object of type %s",
+            c_name, STABLE(obj)->debug_name);
     }
 }
 static void late_bound_find_method_return(MVMThreadContext *tc, void *sr_data) {
