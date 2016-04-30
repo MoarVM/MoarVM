@@ -678,6 +678,7 @@ static void jgb_before_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         } /* switch */
         ann = ann->next;
     }
+
     if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
         jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_THROWISH_PRE);
     }
@@ -1638,6 +1639,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
             MVM_oops(tc, "JIT: no space in args buffer to store"
                      " temporary result for <%s>", ins->info->name);
         }
+        /* This is now necessary for the invokish control to work correctly */
+        jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_THROWISH_PRE);
         jgb_append_call_c(tc, jgb, op_to_func(tc, MVM_OP_istrue), 6,
                           args, MVM_JIT_RV_VOID, -1);
         /* guard the potential invoke */
