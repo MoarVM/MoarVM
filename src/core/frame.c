@@ -1372,7 +1372,7 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame 
                 result = lex_reg->o;
                 break;
             default:
-                MVM_exception_throw_adhoc(tc, "invalid register type in getdynlex");
+                MVM_exception_throw_adhoc(tc, "invalid register type in getdynlex: %d", type);
         }
     }
     return result;
