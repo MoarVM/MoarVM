@@ -36,7 +36,7 @@ my %lit_str_serial;
 
 say 'digraph G {';
 say '  graph [rankdir="TB"];';
-say '  node [shape=record];';
+say '  node [shape=record,style=filled,fillcolor=white];';
 
 my $insnum = 0;
 my $in_subgraph = 0;
@@ -56,6 +56,10 @@ my @callsite_args;
 
 my %reg_writers;
 my @delayed_writer_connections;
+
+my @bb_overview;
+
+constant @bb_colors = (((1 .. *) X* 0.618033988749895) X% 1.0) .map: *.fmt("%.5f") ~ " 0.1900 0.9900";
 
 for lines() -> $_ is copy {
     when / ^ '      ' <!before '['> $<opname>=[<[a..z I 0..9 _]>+] \s+
@@ -179,7 +183,7 @@ for lines() -> $_ is copy {
         if $previous_ins ~~ / entry / {
             say "    $previous_ins -> $last_ins [style=dotted];";
         } else {
-            say "    $previous_ins -> $last_ins [color=lightgrey];";
+            say "    $previous_ins -> $last_ins [color=\"#999999\"];";
         }
         say "";
 
@@ -199,6 +203,8 @@ for lines() -> $_ is copy {
         }
         say "  subgraph ";
         say "\"cluster_{~$<addr>}\" \{";
+        say "    style=filled;";
+        say "    color=\"@bb_colors[+$<bbnum>]\";";
         say "    rankdir = TB;";
         #say "    label = \"$<bbnum>\";";
         say "    \"entry_$<addr>\" [label=\"<op> entry of block $<bbnum>\"];";
