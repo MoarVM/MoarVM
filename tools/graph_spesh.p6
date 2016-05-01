@@ -125,7 +125,7 @@ for lines() -> $_ is copy {
                     type => $type,
                     targets_reg => 1,
                     writes_tgt => 1 ),
-                do for 1..^$arity { $%(
+                slip do for 1..^$arity { $%(
                     flags => 0,
                     rwmasked => (my $boringtype = %MAST::Ops::flags<MVM_operand_read_reg>),
                     type => $boringtype,
