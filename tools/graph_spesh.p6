@@ -75,7 +75,7 @@ for lines() -> $_ is copy {
               | callsite '(' ~ ')' <-[)]>+
               | '<nyi>'
               | '<nyi(lit)>'
-            ] ]* % [',' \s*] \s* $ / {
+            ] ]* % [',' \s*] [\s* '(' <-[)]>+ ')']? \s* $ / {
         say "";
         say "    \"{$<opname>}_{$insnum}\" ";
         print "    [";
