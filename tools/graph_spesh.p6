@@ -77,11 +77,11 @@ for lines() -> $_ is copy {
               | '<nyi(lit)>'
             ] ]* % [',' \s*] \s* $ / {
         say "";
-        print "    \"{$<opname>}_{$insnum}\" ";
-        say "    [";
+        say "    \"{$<opname>}_{$insnum}\" ";
+        print "    [";
 
         if $<opname> eq "set" | "decont" {
-            say "       shape=Mrecord";
+            print "shape=Mrecord ";
         }
 
         my $previous_ins = $last_ins;
@@ -201,6 +201,7 @@ for lines() -> $_ is copy {
             say "    $last_ins -> \"exit_$current_bb\" [style=dotted];";
             say "  }" if $in_subgraph;
         }
+
         say "  subgraph ";
         say "\"cluster_{~$<addr>}\" \{";
         say "    style=filled;";
@@ -211,6 +212,9 @@ for lines() -> $_ is copy {
         $in_subgraph = True;
         $current_bb = ~$<addr>;
         $last_ins = "\"entry_$<addr>\"";
+
+        @bb_overview.push: "    \"bb_ov_$<addr>\" [fillcolor=\"@bb_colors[+$<bbnum>]\",color=black,style=filled,label=\"$<bbnum>\"];";
+        @bb_overview.push: "    \"bb_ov_d_$<addr>\" [fillcolor=\"@bb_colors[+$<bbnum>]\",color=black,style=filled,label=\"$<bbnum>\"];";
     }
     when / ^ '    ' 'Successors: ' [$<succ>=[<.digit>+]]* % ', ' $ / {
         %bb_connections{$current_bb} = @<succ>>>.Str;
@@ -270,6 +274,8 @@ for @connections {
 
 for @dominance_conns {
     say "\"exit_$_.key()\" -> \"entry_%bb_map{$_.value}\" [style=tapered;penwidth=10;arrowhead=none;color=grey];";
+    say "\"bb_ov_d_$_.key()\" -> \"bb_ov_d_%bb_map{$_.value}\" [style=tapered;penwidth=10;arrowhead=none;color=grey];";
+    once say "\"Dominance Tree\" -> \"bb_ov_d_$_.key()\";";
 }
 
 for @delayed_writer_connections -> $conn {
@@ -294,9 +300,13 @@ for %bb_connections.kv -> $k, $v {
         ?? %bb_map{@$v}
         !! %bb_map{$v[*-1]};
     for @candidates -> $cand {
-        say "\"exit_$k\" -> \"entry_$cand\" [style=dotted];";
+        say "    \"exit_$k\" -> \"entry_$cand\" [style=dotted];";
+        say "    \"bb_ov_$k\" -> \"bb_ov_$cand\";";
     }
+    once say "\"Control Flow Graph\" -> \"bb_ov_$k\";";
 }
+
+.say for @bb_overview;
 
 say '}';
 
