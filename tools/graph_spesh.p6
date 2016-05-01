@@ -55,6 +55,7 @@ my @dominance_conns;
 my @callsite_args;
 
 my %reg_writers;
+my @delayed_writer_connections;
 
 for lines() -> $_ is copy {
     when / ^ '      ' <!before '['> $<opname>=[<[a..z I 0..9 _]>+] \s+
@@ -146,7 +147,7 @@ for lines() -> $_ is copy {
                 if %reg_writers{$v}:exists {
                     @back_connections.push: %reg_writers{$v} => $current_ins ~ ":$k";
                 } else {
-                    note "found register without writer: $v for instruction $current_ins argument $k (this is harmless)"
+                    @delayed_writer_connections.push: $v => $current_ins ~ ":$k";
                 }
             }
             @labelparts.push: "<$k> $v";
@@ -263,6 +264,18 @@ for @connections {
 
 for @dominance_conns {
     say "\"exit_$_.key()\" -> \"entry_%bb_map{$_.value}\" [style=tapered;penwidth=10;arrowhead=none;color=grey];";
+}
+
+for @delayed_writer_connections -> $conn {
+    my $from = $conn.key;
+    my $to   = $conn.value;
+
+    if %reg_writers{$from}:exists {
+        say "    %reg_writers{$from} -> $to;";
+        note "found a connection for $from even after reading the whole file ...";
+    } else {
+        note "Couldn't find a writer for $from anywhere! (harmless error)";
+    }
 }
 
 for %bb_connections.kv -> $k, $v {
