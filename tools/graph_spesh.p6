@@ -38,6 +38,9 @@ say 'digraph G {';
 say '  graph [rankdir="TB"];';
 say '  node [shape=record,style=filled,fillcolor=white];';
 
+say "    \"Control Flow Graph\";";
+say "    \"Dominance Tree\";";
+
 my $insnum = 0;
 my $in_subgraph = 0;
 
