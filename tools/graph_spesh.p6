@@ -62,7 +62,9 @@ my @delayed_writer_connections;
 
 my @bb_overview;
 
-constant @bb_colors = (((1 .. *) X* 0.618033988749895) X% 1.0) .map: *.fmt("%.5f") ~ " 0.1900 0.9900";
+constant @bb_colors = ((((1 .. *) X* 0.618033988749895) X% 1.0) .map(*.fmt("%.5f "))
+                      Z~ (((0, -1 ... *) X* 0.0618033988749895) X% 0.05 + 0.95) .map(*.fmt("%.5f ")))
+                      X~ "0.9900";
 
 for lines() -> $_ is copy {
     when / ^ '      ' <!before '['> $<opname>=[<[a..z I 0..9 _]>+] \s+
