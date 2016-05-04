@@ -1557,6 +1557,8 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_getattrs_o:
         case MVM_OP_decont_i:
         case MVM_OP_decont_n:
+        case MVM_OP_decont_s:
+        case MVM_OP_decont_u:
         case MVM_OP_create:
             optimize_repr_op(tc, g, bb, ins, 1);
             break;
