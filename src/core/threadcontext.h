@@ -54,9 +54,6 @@ struct MVMThreadContext {
     /* Thread object representing the thread. */
     MVMThread *thread_obj;
 
-    /* The frame lying at the base of the current thread. */
-    MVMFrame *thread_entry_frame;
-
     /* Pointer to where the interpreter's current opcode is stored. */
     MVMuint8 **interp_cur_op;
 
@@ -71,8 +68,17 @@ struct MVMThreadContext {
      * is stored. */
     MVMCompUnit **interp_cu;
 
+    /* First call stack memory region, so we can traverse them for cleanup. */
+    MVMCallStackRegion *stack_first;
+
+    /* Current call stack region, which the next frame will be allocated in. */
+    MVMCallStackRegion *stack_current;
+
     /* The frame we're currently executing. */
     MVMFrame *cur_frame;
+
+    /* The frame lying at the base of the current thread. */
+    MVMFrame *thread_entry_frame;
 
     /* libuv event loop */
     uv_loop_t *loop;
