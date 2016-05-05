@@ -620,6 +620,71 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     }
 }
 
+/* Turn a native decont (int, unsigned int, num, string) into maybe a more
+ * direct op, in order to hopefully remove an allocation for a FooBlahRef
+ * object in between. */
+static int try_optimize_decont_native(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *cont_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+
+    /* Only if we have the operation that generates the container object
+     * in our frame can we sensibly optimize the decont. */
+    if (!(cont_facts->flags & MVM_SPESH_FACT_KNOWN_BOX_SRC)) {
+        MVMSpeshIns *writer = cont_facts->writer;
+        MVMuint16 writer_opc = writer->info->opcode;
+
+        while ((writer_opc == MVM_OP_set || writer_opc == MVM_OP_hllize) && writer) {
+            MVMSpeshFacts *writer_facts = MVM_spesh_get_facts(tc, g, writer->operands[1]);
+            fprintf(stderr, "following a %s op to a %s\n", writer->info->name, writer_facts->writer->info->name);
+            writer = writer_facts->writer;
+            writer_opc = writer->info->opcode;
+        }
+
+        if (writer_opc == MVM_OP_getregref_i
+            || writer_opc == MVM_OP_getregref_n
+            || writer_opc == MVM_OP_getregref_s) {
+            /* Register references are the easiest. We can replace the decont
+             * op with just a set. */
+
+            cont_facts->usages--;
+
+            fprintf(stderr, "%s into set operation\n", ins->info->name);
+
+            ins->info = MVM_op_get_op(MVM_OP_set);
+            ins->operands[1] = writer->operands[1];
+
+            return 1;
+        } else if (writer_opc == MVM_OP_getlexref_i
+                   || writer_opc == MVM_OP_getlexref_n
+                   || writer_opc == MVM_OP_getlexref_s
+                   || writer_opc == MVM_OP_getlexref_i32
+                   || writer_opc == MVM_OP_getlexref_i16
+                   || writer_opc == MVM_OP_getlexref_i8
+                   || writer_opc == MVM_OP_getlexref_u32
+                   || writer_opc == MVM_OP_getlexref_u16
+                   || writer_opc == MVM_OP_getlexref_u8
+                   || writer_opc == MVM_OP_getlexref_n32) {
+
+            /* let's just turn this into a getlex */
+
+            cont_facts->usages--;
+
+            fprintf(stderr, "%s into getlex operation\n", ins->info->name);
+
+            ins->info = MVM_op_get_op(MVM_OP_getlex);
+            ins->operands[1] = writer->operands[1];
+            return 1;
+        }
+
+        fprintf(stderr, "%s for %s not handled in try_optimize_decont_native.\n", ins->info->name, writer->info->name);
+        return 0;
+    }
+
+    fprintf(stderr, "%d are the flags\n", cont_facts->flags);
+
+
+    return 0;
+}
+
 /* Checks like iscont, iscont_[ins] and isrwcont can be done at spesh time */
 static void optimize_container_check(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     if (ins->info->opcode == MVM_OP_isrwcont) {
@@ -1555,13 +1620,23 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_getattrs_n:
         case MVM_OP_getattrs_s:
         case MVM_OP_getattrs_o:
-        case MVM_OP_decont_i:
-        case MVM_OP_decont_n:
-        case MVM_OP_decont_s:
-        case MVM_OP_decont_u:
         case MVM_OP_create:
             optimize_repr_op(tc, g, bb, ins, 1);
             break;
+        case MVM_OP_decont_i:
+        case MVM_OP_decont_n:
+        case MVM_OP_decont_s:
+        case MVM_OP_decont_u: {
+            /* Try a general solution first that knows how to handle lexical,
+             * attribute or positional references. If we can't do that, we'll
+             * ask the repr itself. We may want to revise this at some point.
+             * Maybe by introducing a "did the repr actually do any spesh?"
+             * flag/return value. */
+            if (!try_optimize_decont_native(tc, g, bb, ins)) {
+                optimize_repr_op(tc, g, bb, ins, 1);
+            }
+            break;
+            }
         case MVM_OP_box_i:
         case MVM_OP_box_n:
         case MVM_OP_box_s:
