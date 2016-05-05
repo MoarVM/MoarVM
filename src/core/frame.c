@@ -685,16 +685,26 @@ MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
                 if (cur_to_promote == frame)
                     result = promoted;
 
-                /* If the caller is on the stack then it needs promotion too.
-                 * If not, we're done. */
-                if (cur_to_promote->caller && MVM_FRAME_IS_ON_CALLSTACK(tc, cur_to_promote->caller)) {
-                    /* Clear caller in promoted frame, to avoid a heap -> stack
-                     * reference if we GC during this loop. */
-                    promoted->caller = NULL;
-                    update_caller = promoted;
-                    cur_to_promote = cur_to_promote->caller;
+                /* Check if there's a caller, or if we reached the end of the
+                 * chain. */
+                if (cur_to_promote->caller) {
+                    /* If the caller is on the stack then it needs promotion too.
+                     * If not, we're done. */
+                    if (MVM_FRAME_IS_ON_CALLSTACK(tc, cur_to_promote->caller)) {
+                        /* Clear caller in promoted frame, to avoid a heap -> stack
+                         * reference if we GC during this loop. */
+                        promoted->caller = NULL;
+                        update_caller = promoted;
+                        cur_to_promote = cur_to_promote->caller;
+                    }
+                    else {
+                        cur_to_promote = NULL;
+                    }
                 }
                 else {
+                    /* End of caller chain; check if we promoted the entry
+                     * frame */
+                    tc->thread_entry_frame = promoted;
                     cur_to_promote = NULL;
                 }
             }
