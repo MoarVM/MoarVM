@@ -134,8 +134,11 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 
 void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
                              MVMObject *code, MVMRegister *res_reg) {
+    MVMFrame *orig_caller;
+
     /* Switch caller of the root to current invoker. */
-    MVMFrame *orig_caller = cont->body.root->caller;
+    MVM_frame_force_to_heap(tc, tc->cur_frame);
+    orig_caller = cont->body.root->caller;
     MVM_ASSIGN_REF(tc, &(cont->common.header), cont->body.root->caller, tc->cur_frame);
 
     /* Set up current frame to receive result. */
