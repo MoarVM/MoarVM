@@ -329,9 +329,7 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
 /* Walks frames and compilation units. Adds the roots it finds into the
  * GC worklist. */
 static void scan_lexicals(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
-void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame) {
-    MVMFrame *cur_frame = start_frame;
-
+void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *cur_frame) {
     /* Add caller and outer to frames work list. */
     MVM_gc_worklist_add(tc, worklist, &cur_frame->caller);
     MVM_gc_worklist_add(tc, worklist, &cur_frame->outer);
