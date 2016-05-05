@@ -45,9 +45,14 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 
     /* Hunt the tag on the stack; mark frames as being incorporated into a
      * continuation as we go to avoid a second pass. */
-    MVMFrame           *jump_frame  = tc->cur_frame;
     MVMFrame           *root_frame  = NULL;
     MVMContinuationTag *tag_record  = NULL;
+    MVMFrame            *jump_frame;
+    MVMROOT(tc, tag, {
+    MVMROOT(tc, code, {
+        jump_frame = MVM_frame_force_to_heap(tc, tc->cur_frame);
+    });
+    });
     while (jump_frame) {
         jump_frame->in_continuation = 1;
         tag_record = jump_frame->continuation_tags;

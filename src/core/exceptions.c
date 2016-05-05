@@ -518,6 +518,11 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     LocatedHandler  lh;
     MVMException   *ex;
 
+    /* The current frame will be assigned as the thrower of the exception, so
+     * force it onto the heap before we begin (promoting it later would mean
+     * outer handler search result would be outdated). */
+    MVM_frame_force_to_heap(tc, tc->cur_frame);
+
     if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)ex_obj;
     else
@@ -758,9 +763,15 @@ void MVM_exception_throw_adhoc_free(MVMThreadContext *tc, char **waste, const ch
 MVM_NO_RETURN
 void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const char *messageFormat, va_list args) {
     LocatedHandler lh;
+    MVMException *ex;
+
+    /* The current frame will be assigned as the thrower of the exception, so
+     * force it onto the heap before we begin. */
+    if (tc->cur_frame)
+        MVM_frame_force_to_heap(tc, tc->cur_frame);
 
     /* Create and set up an exception object. */
-    MVMException *ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+    ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
     MVMROOT(tc, ex, {
         char      *c_message = MVM_malloc(1024);
         int        bytes     = vsnprintf(c_message, 1024, messageFormat, args);

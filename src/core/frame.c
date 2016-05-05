@@ -260,6 +260,80 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         });
     }
 
+    /* Ensure we have an outer if needed. This is done ahead of allocating the
+     * new frame, since an autoclose will force the callstack on to the heap. */
+    if (outer) {
+        /* We were provided with an outer frame and it will already have had
+         * its reference count incremented; just ensure that it is based on the
+         * correct static frame (compare on bytecode address to cope with
+         * nqp::freshcoderef). */
+        if (outer->static_info->body.orig_bytecode != static_frame->body.outer->body.orig_bytecode) {
+            char *frame_cuuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid);
+            char *frame_name;
+            char *outer_cuuid = MVM_string_utf8_encode_C_string(tc, outer->static_info->body.cuuid);
+            char *outer_name;
+            char *frame_outer_cuuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.outer->body.cuuid);
+            char *frame_outer_name;
+
+            char *waste[7] = { frame_cuuid, outer_cuuid, frame_outer_cuuid, NULL, NULL, NULL, NULL };
+            int waste_counter = 3;
+
+            if (static_frame->body.name) {
+                frame_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.name);
+                waste[waste_counter++] = frame_name;
+            }
+            else {
+                frame_name = "<anonymous static frame>";
+            }
+
+            if (outer->static_info->body.name) {
+                outer_name = MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name);
+                waste[waste_counter++] = outer_name;
+            }
+            else {
+                outer_name = "<anonymous static frame>";
+            }
+
+            if (static_frame->body.outer->body.name) {
+                frame_outer_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.outer->body.name);
+                waste[waste_counter++] = frame_outer_name;
+            }
+            else {
+                frame_outer_name = "<anonymous static frame>";
+            }
+
+            MVM_exception_throw_adhoc_free(tc, waste,
+                "When invoking %s '%s', provided outer frame %p (%s '%s') does not match expected static frame %p (%s '%s')",
+                frame_cuuid,
+                frame_name,
+                outer->static_info,
+                outer_cuuid,
+                outer_name,
+                static_frame->body.outer,
+                frame_outer_cuuid,
+                frame_outer_name);
+        }
+    }
+    else if (static_frame->body.static_code) {
+        MVMCode *static_code = static_frame->body.static_code;
+        if (static_code->body.outer) {
+            /* We're lacking an outer, but our static code object may have one.
+            * This comes up in the case of cloned protoregexes, for example. */
+            outer = static_code->body.outer;
+        }
+        else if (static_frame->body.outer) {
+            /* Auto-close, and cache it in the static frame. */
+            MVMROOT(tc, static_frame, {
+            MVMROOT(tc, code_ref, {
+                MVMFrame *ac = autoclose(tc, static_frame->body.outer);
+                MVM_ASSIGN_REF(tc, &(static_code->common.header),
+                    static_code->body.outer, ac);
+                outer = ac;
+            });
+            });
+        }
+    }
+
     /* See if any specializations apply. */
     found_spesh = 0;
     if (spesh_cand >= 0 && spesh_cand < static_frame->body.num_spesh_candidates) {
@@ -434,78 +508,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     MVM_ASSIGN_REF(tc, &(frame->header), frame->code_ref, code_ref);
 
     /* Outer. */
-    if (outer) {
-        /* We were provided with an outer frame and it will already have had
-         * its reference count incremented; just ensure that it is based on the
-         * correct static frame (compare on bytecode address to cope with
-         * nqp::freshcoderef). */
-        if (outer->static_info->body.orig_bytecode == static_frame->body.outer->body.orig_bytecode) {
-            MVM_ASSIGN_REF(tc, &(frame->header), frame->outer, outer);
-        }
-        else {
-            char *frame_cuuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid);
-            char *frame_name;
-            char *outer_cuuid = MVM_string_utf8_encode_C_string(tc, outer->static_info->body.cuuid);
-            char *outer_name;
-            char *frame_outer_cuuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.outer->body.cuuid);
-            char *frame_outer_name;
-
-            char *waste[7] = { frame_cuuid, outer_cuuid, frame_outer_cuuid, NULL, NULL, NULL, NULL };
-            int waste_counter = 3;
-
-            if (static_frame->body.name) {
-                frame_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.name);
-                waste[waste_counter++] = frame_name;
-            }
-            else {
-                frame_name = "<anonymous static frame>";
-            }
-
-            if (outer->static_info->body.name) {
-                outer_name = MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name);
-                waste[waste_counter++] = outer_name;
-            }
-            else {
-                outer_name = "<anonymous static frame>";
-            }
-
-            if (static_frame->body.outer->body.name) {
-                frame_outer_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.outer->body.name);
-                waste[waste_counter++] = frame_outer_name;
-            }
-            else {
-                frame_outer_name = "<anonymous static frame>";
-            }
-
-            MVM_exception_throw_adhoc_free(tc, waste,
-                "When invoking %s '%s', provided outer frame %p (%s '%s') does not match expected static frame %p (%s '%s')",
-                frame_cuuid,
-                frame_name,
-                outer->static_info,
-                outer_cuuid,
-                outer_name,
-                static_frame->body.outer,
-                frame_outer_cuuid,
-                frame_outer_name);
-        }
-    }
-    else if (static_frame->body.static_code) {
-        MVMCode *static_code = static_frame->body.static_code;
-        if (static_code->body.outer) {
-            /* We're lacking an outer, but our static code object may have one.
-            * This comes up in the case of cloned protoregexes, for example. */
-            MVM_ASSIGN_REF(tc, &(frame->header), frame->outer, static_code->body.outer);
-        }
-        else if (static_frame->body.outer) {
-            /* Auto-close, and cache it in the static frame. */
-            MVMROOT(tc, frame, {
-                MVMFrame *ac = autoclose(tc, static_frame->body.outer);
-                MVM_ASSIGN_REF(tc, &(frame->header), frame->outer, ac);
-                MVM_ASSIGN_REF(tc, &(static_code->common.header),
-                    static_code->body.outer, ac);
-            });
-        }
-    }
+    MVM_ASSIGN_REF(tc, &(frame->header), frame->outer, outer);
 
     /* Caller is current frame in the thread context. */
     if (tc->cur_frame)
@@ -575,6 +578,17 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 }
             }
         });
+    }
+}
+
+/* Forces the specified frame from the stack and on to the heap, if it's not
+ * already there. */
+MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
+    if (MVM_FRAME_IS_ON_CALLSTACK(tc, frame)) {
+        MVM_panic(1, "CallStack -> Heap frame promotion NYI");
+    }
+    else {
+        return frame;
     }
 }
 
@@ -839,16 +853,21 @@ MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
 /* Given the specified code object, sets its outer to the current scope. */
 void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
     MVMCode *code_obj = (MVMCode *)code;
+    MVMFrame *captured;
     if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
         MVM_exception_throw_adhoc(tc,
             "Can only perform capturelex on object with representation MVMCode");
-    MVM_ASSIGN_REF(tc, &(code->header), code_obj->body.outer, tc->cur_frame);
+    MVMROOT(tc, code, {
+        captured = MVM_frame_force_to_heap(tc, tc->cur_frame);
+    });
+    MVM_ASSIGN_REF(tc, &(code->header), code_obj->body.outer, captured);
 }
 
 /* Given the specified code object, copies it and returns a copy which
  * captures a closure over the current scope. */
 MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
     MVMCode *closure;
+    MVMFrame *captured;
 
     if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
         MVM_exception_throw_adhoc(tc,
@@ -856,11 +875,14 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
 
     MVMROOT(tc, code, {
         closure = (MVMCode *)REPR(code)->allocate(tc, STABLE(code));
+        MVMROOT(tc, closure, {
+            captured = MVM_frame_force_to_heap(tc, tc->cur_frame);
+        });
     });
 
     MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.sf, ((MVMCode *)code)->body.sf);
     MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.name, ((MVMCode *)code)->body.name);
-    MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.outer, tc->cur_frame);
+    MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.outer, captured);
 
     MVM_ASSIGN_REF(tc, &(closure->common.header), closure->body.code_object,
         ((MVMCode *)code)->body.code_object);
@@ -1559,6 +1581,7 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
     MVMObject *ctx = (MVMObject *)MVM_load(&f->context_object);
 
     if (!ctx) {
+        f = MVM_frame_force_to_heap(tc, f);
         MVMROOT(tc, f, {
             ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
             MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);

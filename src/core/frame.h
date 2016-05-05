@@ -196,6 +196,7 @@ void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
                       MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand);
+MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame);
 MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMObject *code_ref);
 MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *static_frame,
