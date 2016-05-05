@@ -330,13 +330,13 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
  * GC worklist. */
 static void scan_lexicals(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *cur_frame) {
-    /* Add caller and outer to frames work list. */
-    MVM_gc_worklist_add(tc, worklist, &cur_frame->caller);
-    MVM_gc_worklist_add(tc, worklist, &cur_frame->outer);
+    /* Add caller to worklist if it's heap-allocated. */
+    if (!MVM_FRAME_IS_ON_CALLSTACK(tc, cur_frame->caller))
+        MVM_gc_worklist_add(tc, worklist, &cur_frame->caller);
 
-    /* add code_ref to work list unless we're the top-level frame. */
-    if (cur_frame->code_ref)
-        MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
+    /* Add outer, code_ref and static info to work list. */
+    MVM_gc_worklist_add(tc, worklist, &cur_frame->outer);
+    MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
     MVM_gc_worklist_add(tc, worklist, &cur_frame->static_info);
 
     /* Add any context object. */
