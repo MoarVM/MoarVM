@@ -331,7 +331,7 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
 static void scan_lexicals(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *cur_frame) {
     /* Add caller to worklist if it's heap-allocated. */
-    if (!MVM_FRAME_IS_ON_CALLSTACK(tc, cur_frame->caller))
+    if (cur_frame->caller && !MVM_FRAME_IS_ON_CALLSTACK(tc, cur_frame->caller))
         MVM_gc_worklist_add(tc, worklist, &cur_frame->caller);
 
     /* Add outer, code_ref and static info to work list. */
