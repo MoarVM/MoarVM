@@ -3138,16 +3138,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
                     MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
                 }
-                if ((frame = ((MVMContext *)this_ctx)->body.context->outer)) {
-                    MVMROOT(tc, frame, {
-                        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-                    });
-                    MVM_ASSIGN_REF(tc, (&ctx->header), ((MVMContext *)ctx)->body.context, frame);
-                    GET_REG(cur_op, 0).o = ctx;
-                }
-                else {
+                if ((frame = ((MVMContext *)this_ctx)->body.context->outer))
+                    GET_REG(cur_op, 0).o = MVM_frame_context_wrapper(tc, frame);
+                else
                     GET_REG(cur_op, 0).o = tc->instance->VMNull;
-                }
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3157,12 +3151,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
                     MVM_exception_throw_adhoc(tc, "ctxcaller needs an MVMContext");
                 }
-                if ((frame = ((MVMContext *)this_ctx)->body.context->caller)) {
-                    MVMROOT(tc, frame, {
-                        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-                    });
-                    MVM_ASSIGN_REF(tc, (&ctx->header), ((MVMContext *)ctx)->body.context, frame);
-                }
+                if ((frame = ((MVMContext *)this_ctx)->body.context->caller))
+                    ctx = MVM_frame_context_wrapper(tc, frame);
                 GET_REG(cur_op, 0).o = ctx ? ctx : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
@@ -4085,16 +4075,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 frame = ((MVMContext *)this_ctx)->body.context->outer;
                 while (frame && frame->static_info->body.is_thunk)
                     frame = frame->caller;
-                if (frame) {
-                    MVMROOT(tc, frame, {
-                        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-                    });
-                    MVM_ASSIGN_REF(tc, (&ctx->header), ((MVMContext *)ctx)->body.context, frame);
-                    GET_REG(cur_op, 0).o = ctx;
-                }
-                else {
+                if (frame)
+                    GET_REG(cur_op, 0).o = MVM_frame_context_wrapper(tc, frame);
+                else
                     GET_REG(cur_op, 0).o = tc->instance->VMNull;
-                }
                 cur_op += 4;
                 goto NEXT;
             }
@@ -4107,12 +4091,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 frame = ((MVMContext *)this_ctx)->body.context->caller;
                 while (frame && frame->static_info->body.is_thunk)
                     frame = frame->caller;
-                if (frame) {
-                    MVMROOT(tc, frame, {
-                        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-                    });
-                    MVM_ASSIGN_REF(tc, (&ctx->header), ((MVMContext *)ctx)->body.context, frame);
-                }
+                if (frame)
+                    ctx = MVM_frame_context_wrapper(tc, frame);
                 GET_REG(cur_op, 0).o = ctx ? ctx : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
