@@ -7,6 +7,69 @@
 #pragma warning( disable : 4129 )
 #endif
 
+/**
+ * CONVENTIONS
+
+ * Much of this file contains snippets of assembly code, which are concatenated
+ * at runtime in order to form a single executable routine. It is essential for
+ * the correctness of the result that each of the snippets behaves
+ * nicely. Because you can't be expected to know what that is, it is documented
+ * here.
+
+ * REGISTERS:
+
+ * Register and calling conventions differ between POSIX and windows
+ * systems. The registers rax, rcx, rdx, r8, r9, r10 and r11 are caller-saved,
+ * meaning that you are free to overwrrite them, and functions you may call are
+ * free to do thesame. Hence you should save their values on stack, if you wish
+ * to keep them after calling. In contrast, rbx, rsp, rbp, and r12-r15 are
+ * callee-saved, meaning that their values before entering and after returning
+ * from a function must be the same. POSIX also makes rdi and rsi caller-saved,
+ * windows makes them callee-saved. For this reason we avoid using them.  The
+ * first 4 (windows) or 6 (POSIX) function call arguments are placed in
+ * registers. These registers sets are not the same between windows and POSIX,
+ * but they're always caller-saved.
+
+ * To deal with the ambiguity, register names have been aliased.
+
+ * + RV stands for 'return value', and is aliased to rax
+ * + TMP1-6 are the 6 shared caller-saved registers
+ * + ARG1-4 are (different) aliases for argument registers
+ * + TC, CU, WORK are registers that hold interpreter variables; these are callee-
+ *   saved registers set up at entry and restored at exit
+ * + TMP5 (r10) is also aliased as FUNCTION; it never conflicts with an argument
+ *   register, and neither does TMP6.
+ * + The suffixes d, w, and b stand for the 4, 2, and 1 byte-width value of the
+ *   registers.
+
+ * Note that the current convention for function calls is to load the function
+ * pointer as a 64 bit value in a register from the machine code, and call on
+ * that register. This is not ideal, but call doesn't natively take 64 bit
+ * values, and it is neccesary to ensure that the function lives within 32 bits
+ * distance from the function otherwise. Other methods are being considered.
+
+ * LABELS:
+
+ * Don't use dynamic labels in this code, unless they have been passed to you
+ * from outside. Dynamic labels need to be allocated and not conflict, hence
+ * just picking one is typically unsafe. You are allowed to use in a snippet
+ * the local labels 1-5; the labels 6-9 are reserved by special constructs like
+ * THROWISH_PRE and INVOKISH.
+
+ * WRITE BARRIERS:
+
+ * Use of write barriers is tricky, because they may involve a function call, and
+ * that may or may not mean you have to store your temporaries on the stack.
+ * Hence, a write barrier (MVM_ASSIGN_REF) is split into two parts:
+
+ * + check_wb (root, value, label)
+ * + hit_wb (root)
+
+ * You should have the label parameter point somewhere after hit_wb, and save
+ * and restore your temporaries around the hib_wb.
+ **/
+
+
 |.arch x64
 |.actionlist actions
 |.section code
@@ -159,21 +222,18 @@ const unsigned int MVM_jit_num_globals(void) {
 |.endmacro
 
 
-|.macro check_wb, root, ref;
+|.macro check_wb, root, ref, lbl;
 | test word COLLECTABLE:root->flags, MVM_CF_SECOND_GEN;
-| setnz al;
-| cmp ref, 0x0;
-| setne ah;
-| test ah, al;
-| setnz al;
+| jz lbl;
+| test ref, ref;
+| jz lbl;
 | test word COLLECTABLE:ref->flags, MVM_CF_SECOND_GEN;
-| setz ah;
-| test ah, al;
+| jnz lbl;
 |.endmacro;
 
 |.macro hit_wb, obj
-| mov ARG1, TC;
 | mov ARG2, obj;
+| mov ARG1, TC;
 | callp &MVM_gc_write_barrier_hit;
 |.endmacro
 
@@ -182,7 +242,6 @@ const unsigned int MVM_jit_num_globals(void) {
 | mov reg, FRAME:reg->effective_spesh_slots;
 | mov reg, OBJECTPTR:reg[idx];
 |.endmacro
-
 
 |.macro get_vmnull, reg
 | mov reg, TC->instance;
@@ -448,8 +507,11 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP2, FRAME:TMP1->env;
         | mov TMP3, WORK[src];
         | mov REGISTER:TMP2[idx], TMP3;
-        if (lexical_types[idx] == MVM_reg_obj || lexical_types[idx] == MVM_reg_str) {
-            | check_wb TMP1, TMP3;
+        if (lexical_types[idx] == MVM_reg_obj ||
+            lexical_types[idx] == MVM_reg_str) {
+            | check_wb TMP1, TMP3, >2;
+            | hit_wb TMP1;
+            |2:
         }
         break;
     }
@@ -501,8 +563,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             /* if null, vivify as type object from spesh slot */
             | get_spesh_slot TMP3, spesh_idx;
             /* need to hit write barrier? */
-            | check_wb TMP1, TMP3;
-            | jz >3;
+            | check_wb TMP1, TMP3, >3;
             | mov qword [rbp-0x28], TMP2; // address
             | mov qword [rbp-0x30], TMP3; // value
             | hit_wb WORK[obj]; // write barrier for header
@@ -530,8 +591,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
             | test TMP4, TMP4;
             | cmovnz TMP2, TMP5;
             /* assign with write barrier */
-            | check_wb TMP1, TMP3;
-            | jz >3;
+            | check_wb TMP1, TMP3, >3;
             | mov qword [rbp-0x28], TMP2; // address
             | mov qword [rbp-0x30], TMP3; // value
             | hit_wb WORK[obj]; // write barrier for header
@@ -560,10 +620,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP2, WORK[val];            // value
         if (op == MVM_OP_sp_bind_o || op == MVM_OP_sp_bind_s) {
             /* check if we should hit write barrier */
-            | check_wb TMP1, TMP2;
+            | check_wb TMP1, TMP2, >2;
             /* note: it is uneccesary to store pointers, because they
                can just be loaded from memory */
-            | jz >2;
             | hit_wb WORK[obj];
             | mov TMP1, aword WORK[obj]; // reload object
             | mov TMP2, aword WORK[val]; // reload value
@@ -622,8 +681,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         |1:
         if (op == MVM_OP_sp_p6obind_o || op == MVM_OP_sp_p6obind_s) {
             /* check if we should hit write barrier */
-            | check_wb TMP1, TMP2;
-            | jz >2;
+            | check_wb TMP1, TMP2, >2;
             | mov qword [rbp-0x28], TMP2; // store value
             | mov qword [rbp-0x30], TMP3; // store body pointer
             | hit_wb WORK[obj];
@@ -1450,7 +1508,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov TMP1d, dword TC->sc_wb_disable_depth; // should do zero-extension
         | sub TMP1d, 1;
         | mov dword TC->sc_wb_disable_depth, TMP1d;
-        | mov qword WORK[dst], TMP1; 
+        | mov qword WORK[dst], TMP1;
         break;
     }
     case MVM_OP_assign:
