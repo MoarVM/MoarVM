@@ -181,9 +181,63 @@ static MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
     return result;
 }
 
-/* Obtains memory for a frame. */
+/* Obtains memory for a frame on the thread-local call stack. */
 static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                                  MVMSpeshCandidate *spesh_cand) {
+    MVMFrame *frame;
+    MVMint32  env_size, work_size;
+    MVMStaticFrameBody *static_frame_body;
+
+    /* Allocate the frame. */
+    MVMCallStackRegion *stack = tc->stack_current;
+    if (stack->alloc + sizeof(MVMFrame) >= stack->alloc_limit)
+        stack = MVM_callstack_region_next(tc);
+    frame = (MVMFrame *)stack->alloc;
+    stack->alloc += sizeof(MVMFrame);
+    memset(frame, 0, sizeof(MVMFrame));
+
+    /* Allocate space for lexicals and work area. */
+    static_frame_body = &(static_frame->body);
+    env_size = spesh_cand ? spesh_cand->env_size : static_frame_body->env_size;
+    if (env_size) {
+        frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
+        frame->allocd_env = env_size;
+    }
+    work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
+    if (work_size) {
+        MVMuint32 i;
+        MVMuint32 num_locals;
+        MVMuint16 *local_types;
+
+        frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, work_size);
+        frame->allocd_work = work_size;
+
+        /* Fill up all object registers with a pointer to our VMNull object */
+        if (spesh_cand && spesh_cand->local_types) {
+            num_locals = spesh_cand->num_locals;
+            local_types = spesh_cand->local_types;
+        }
+        else {
+            num_locals = static_frame_body->num_locals;
+            local_types = static_frame_body->local_types;
+        }
+        for (i = 0; i < num_locals; i++)
+            if (local_types[i] == MVM_reg_obj)
+                frame->work[i].o = tc->instance->VMNull;
+    }
+
+    /* Calculate args buffer position. */
+    if (work_size)
+        frame->args = frame->work + (spesh_cand
+            ? spesh_cand->num_locals
+            : static_frame_body->num_locals);
+
+    return frame;
+}
+
+/* Obtains memory for a frame on the heap. */
+static MVMFrame * allocate_heap_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame,
+                                      MVMSpeshCandidate *spesh_cand) {
     MVMFrame *frame;
     MVMint32  env_size, work_size;
     MVMStaticFrameBody *static_frame_body;
@@ -325,10 +379,10 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             /* Auto-close, and cache it in the static frame. */
             MVMROOT(tc, static_frame, {
             MVMROOT(tc, code_ref, {
-                MVMFrame *ac = autoclose(tc, static_frame->body.outer);
+                MVM_frame_force_to_heap(tc, tc->cur_frame);
+                outer = autoclose(tc, static_frame->body.outer);
                 MVM_ASSIGN_REF(tc, &(static_code->common.header),
-                    static_code->body.outer, ac);
-                outer = ac;
+                    static_code->body.outer, outer);
             });
             });
         }
@@ -502,17 +556,16 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     frame->tc = tc;
 
     /* Set static frame. */
-    MVM_ASSIGN_REF(tc, &(frame->header), frame->static_info, static_frame);
+    frame->static_info = static_frame;
 
     /* Store the code ref (NULL at the top-level). */
-    MVM_ASSIGN_REF(tc, &(frame->header), frame->code_ref, code_ref);
+    frame->code_ref = code_ref;
 
     /* Outer. */
-    MVM_ASSIGN_REF(tc, &(frame->header), frame->outer, outer);
+    frame->outer = outer;
 
     /* Caller is current frame in the thread context. */
-    if (tc->cur_frame)
-        MVM_ASSIGN_REF(tc, &(frame->header), frame->caller, tc->cur_frame);
+    frame->caller = tc->cur_frame;
 
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
@@ -565,12 +618,12 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         goto redo_state;
                     case 1: {
                         MVMObject *cloned = MVM_repr_clone(tc, env[i].o);
-                        MVM_ASSIGN_REF(tc, &(frame->header), frame->env[i].o, cloned);
+                        frame->env[i].o = cloned;
                         MVM_ASSIGN_REF(tc, &(frame->code_ref->header), state[i].o, cloned);
                         break;
                     }
                     case 2:
-                        MVM_ASSIGN_REF(tc, &(frame->header), frame->env[i].o, state[i].o);
+                        frame->env[i].o = state[i].o;
                         break;
                     }
                 }
@@ -670,7 +723,7 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
     MVMFrame *frame;
     MVMROOT(tc, static_frame, {
     MVMROOT(tc, code_ref, {
-        frame = allocate_frame(tc, static_frame, NULL);
+        frame = allocate_heap_frame(tc, static_frame, NULL);
     });
     });
     frame->effective_bytecode       = static_frame->body.bytecode;
@@ -731,6 +784,15 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
             else if (unwind)
                 caller->keep_caller = 1;
         }
+    }
+
+    /* If it's a call stack frame, remove it from the stack. */
+    if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner)) {
+        MVMCallStackRegion *stack = tc->stack_current;
+        stack->alloc = (char *)returner;
+        if ((char *)stack->alloc - sizeof(MVMCallStackRegion) == (char *)stack)
+            MVM_callstack_region_prev(tc);
+        MVM_frame_destroy(tc, returner);
     }
 
     /* Switch back to the caller frame if there is one. */
