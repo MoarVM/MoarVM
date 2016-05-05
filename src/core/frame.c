@@ -601,10 +601,6 @@ MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
                     (char *)cur_to_promote + sizeof(MVMCollectable),
                     sizeof(MVMFrame) - sizeof(MVMCollectable));
 
-                /* Clear caller in promoted frame, to avoid a heap -> stack
-                 * reference if we GC during this loop. */
-                promoted->caller;
-
                 /* Update caller of previously promtoed frame, if any. This is the
                  * only reference that might point to a non-heap frame. */
                 if (update_caller) {
@@ -627,7 +623,10 @@ MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
 
                 /* If the caller is on the stack then it needs promotion too.
                  * If not, we're done. */
-                if (MVM_FRAME_IS_ON_CALLSTACK(tc, cur_to_promote)) {
+                if (cur_to_promote->caller && MVM_FRAME_IS_ON_CALLSTACK(tc, cur_to_promote->caller)) {
+                    /* Clear caller in promoted frame, to avoid a heap -> stack
+                     * reference if we GC during this loop. */
+                    promoted->caller = NULL;
                     update_caller = promoted;
                     cur_to_promote = cur_to_promote->caller;
                 }
