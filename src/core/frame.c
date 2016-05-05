@@ -513,8 +513,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Caller is current frame in the thread context. */
     if (tc->cur_frame)
         MVM_ASSIGN_REF(tc, &(frame->header), frame->caller, tc->cur_frame);
-    frame->keep_caller = 0;
-    frame->in_continuation = 0;
 
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
