@@ -105,8 +105,7 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
         }
     }
 
-    /* Move back to the frame with the reset in it (which is already on the
-     * call stack, so has a "I'm running" ref count already). */
+    /* Move back to the frame with the reset in it. */
     while (tc->cur_frame != jump_frame)
         tc->cur_frame = tc->cur_frame->caller;
     *(tc->interp_cur_op) = tc->cur_frame->return_address;
