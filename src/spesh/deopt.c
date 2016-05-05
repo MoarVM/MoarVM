@@ -158,7 +158,11 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
     if (inlines) {
         /* Yes, going to have to re-create the frames; uninline
          * moves the interpreter, so we can just tweak the last
-         * frame. */
+         * frame. For the moment, uninlining creates its frames
+         * on the heap, so we'll force the current call stack to
+         * the heap to preserve the "no heap -> stack pointers"
+         * invariant. */
+        f = MVM_frame_force_to_heap(tc, f);
         MVMROOT(tc, f, {
             uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, NULL);
         });
@@ -229,7 +233,7 @@ void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMint32 deopt_offset,
  * (such as a mix-in). */
 void MVM_spesh_deopt_all(MVMThreadContext *tc) {
     /* Walk frames looking for any callers in specialized bytecode. */
-    MVMFrame *l = tc->cur_frame;
+    MVMFrame *l = MVM_frame_force_to_heap(tc, tc->cur_frame);
     MVMFrame *f = tc->cur_frame->caller;
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_all(tc);
