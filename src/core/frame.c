@@ -616,6 +616,17 @@ MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
                     new_cur_frame = promoted;
                 }
 
+                /* If the frame we're promoting was in the active handlers list,
+                 * update the address there. */
+                if (tc->active_handlers) {
+                    MVMActiveHandler *ah = tc->active_handlers;
+                    while (ah) {
+                        if (ah->frame == cur_to_promote)
+                            ah->frame = promoted;
+                        ah = ah->next_handler;
+                    }
+                }
+
                 /* If we're replacing the frame we were asked to promote, that will
                  * become our result. */
                 if (cur_to_promote == frame)
