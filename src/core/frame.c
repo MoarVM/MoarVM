@@ -583,7 +583,71 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
  * already there. */
 MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     if (MVM_FRAME_IS_ON_CALLSTACK(tc, frame)) {
-        MVM_panic(1, "CallStack -> Heap frame promotion NYI");
+        /* To keep things simple, we'll promote the entire stack. */
+        MVMFrame *cur_to_promote = tc->cur_frame;
+        MVMFrame *new_cur_frame = NULL;
+        MVMFrame *update_caller = NULL;
+        MVMFrame *result = NULL;
+        MVMROOT(tc, new_cur_frame, {
+        MVMROOT(tc, update_caller, {
+        MVMROOT(tc, result, {
+            while (cur_to_promote) {
+                /* Allocate a heap frame. */
+                MVMFrame *promoted = MVM_gc_allocate_frame(tc);
+
+                /* Copy current frame's body to it. */
+                memcpy(
+                    (char *)promoted + sizeof(MVMCollectable),
+                    (char *)cur_to_promote + sizeof(MVMCollectable),
+                    sizeof(MVMFrame) - sizeof(MVMCollectable));
+
+                /* Clear caller in promoted frame, to avoid a heap -> stack
+                 * reference if we GC during this loop. */
+                promoted->caller;
+
+                /* Update caller of previously promtoed frame, if any. This is the
+                 * only reference that might point to a non-heap frame. */
+                if (update_caller) {
+                    MVM_ASSIGN_REF(tc, &(update_caller->header),
+                        update_caller->caller, promoted);
+                }
+
+                /* If we're the first time through the lopo, then we're instead
+                 * replacing the current stack top. Note we do it at the end,
+                 * so that the GC can still walk unpromoted frames if it runs
+                 * in this loop. */
+                else {
+                    new_cur_frame = promoted;
+                }
+
+                /* If we're replacing the frame we were asked to promote, that will
+                 * become our result. */
+                if (cur_to_promote == frame)
+                    result = promoted;
+
+                /* If the caller is on the stack then it needs promotion too.
+                 * If not, we're done. */
+                if (MVM_FRAME_IS_ON_CALLSTACK(tc, cur_to_promote)) {
+                    update_caller = promoted;
+                    cur_to_promote = cur_to_promote->caller;
+                }
+                else {
+                    cur_to_promote = NULL;
+                }
+            }
+        });
+        });
+        });
+
+        /* All is promoted. Update thread's current frame and reset the thread
+         * local callstack. */
+        tc->cur_frame = new_cur_frame;
+        MVM_callstack_reset(tc);
+
+        /* Hand back new location of promoted frame. */
+        if (!result)
+            MVM_panic(1, "Failed to find frame to promote on call stack");
+        return result;
     }
     else {
         return frame;

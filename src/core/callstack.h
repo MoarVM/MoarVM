@@ -29,4 +29,5 @@ MVM_STATIC_INLINE MVMuint32 MVM_FRAME_IS_ON_CALLSTACK(MVMThreadContext *tc, MVMF
 void MVM_callstack_region_init(MVMThreadContext *tc);
 MVMCallStackRegion * MVM_callstack_region_next(MVMThreadContext *tc);
 MVMCallStackRegion * MVM_callstack_region_prev(MVMThreadContext *tc);
+void MVM_callstack_reset(MVMThreadContext *tc);
 void MVM_callstack_region_destroy_all(MVMThreadContext *tc);

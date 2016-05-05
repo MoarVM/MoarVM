@@ -40,6 +40,13 @@ MVMCallStackRegion * MVM_callstack_region_prev(MVMThreadContext *tc) {
     return prev_region;
 }
 
+/* Resets a threads's callstack to be empty. Used when its contents has been
+ * promoted to the heap. */
+void MVM_callstack_reset(MVMThreadContext *tc) {
+    tc->stack_current = tc->stack_first;
+    tc->stack_first->alloc = (char *)tc->stack_first + sizeof(MVMCallStackRegion);
+}
+
 /* Called at thread exit to destroy all callstack regions the thread has. */
 void MVM_callstack_region_destroy_all(MVMThreadContext *tc) {
     MVMCallStackRegion *cur = tc->stack_first;
