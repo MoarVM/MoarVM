@@ -441,9 +441,6 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->mutex_callsite_interns);
     cleanup_callsite_interns(instance);
 
-    /* Clean up fixed size allocator */
-    MVM_fixed_size_destroy(instance->fsa);
-
     /* Release this interpreter's hold on Unicode database */
     MVM_unicode_release(instance->main_thread);
 
@@ -457,6 +454,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up NFG. */
     uv_mutex_destroy(&instance->nfg->update_mutex);
     MVM_nfg_destroy(instance->main_thread);
+
+    /* Clean up fixed size allocator */
+    MVM_fixed_size_destroy(instance->fsa);
 
     /* Clean up integer constant and string cache. */
     uv_mutex_destroy(&instance->mutex_int_const_cache);
