@@ -450,6 +450,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
         fclose(instance->spesh_log_fh);
     if (instance->jit_log_fh)
         fclose(instance->jit_log_fh);
+    if (instance->dynvar_log_fh)
+        fclose(instance->dynvar_log_fh);
 
     /* Clean up NFG. */
     uv_mutex_destroy(&instance->nfg->update_mutex);
