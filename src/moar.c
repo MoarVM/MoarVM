@@ -453,6 +453,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     if (instance->dynvar_log_fh)
         fclose(instance->dynvar_log_fh);
 
+    /* Clean up cross-thread-write-logging mutex */
+    uv_mutex_destroy(&instance->cross_thread_write_logging);
+
     /* Clean up NFG. */
     uv_mutex_destroy(&instance->nfg->update_mutex);
     MVM_nfg_destroy(instance->main_thread);
