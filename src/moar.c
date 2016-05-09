@@ -397,6 +397,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up GC permanent roots related resources. */
     uv_mutex_destroy(&instance->mutex_permroots);
     MVM_free(instance->permroots);
+    MVM_free(instance->permroot_descriptions);
 
     /* Clean up Hash of HLLConfig. */
     uv_mutex_destroy(&instance->mutex_hllconfigs);
