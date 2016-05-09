@@ -404,6 +404,7 @@ void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st) {
         st->container_spec->gc_free_data(tc, st);
     MVM_free(st->invocation_spec);
     MVM_free(st->boolification_spec);
+    MVM_free(st->debug_name);
 }
 
 /* Get the next type cache ID for a newly created STable. */
