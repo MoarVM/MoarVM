@@ -58,6 +58,7 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     MVM_free(tc->gc_work);
     MVM_free(tc->temproots);
     MVM_free(tc->gen2roots);
+    MVM_free(tc->finalize);
 
     /* Free any memory allocated for NFAs and multi-dim indices. */
     MVM_free(tc->nfa_done);
