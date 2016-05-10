@@ -67,6 +67,35 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
     return cu;
 }
 
+/* Loads a compilation unit from a bytecode file handle, mapping it into memory. */
+MVMCompUnit * MVM_cu_map_from_file_handle(MVMThreadContext *tc, uv_file fd, MVMuint64 pos) {
+    MVMCompUnit *cu          = NULL;
+    void        *block       = NULL;
+    void        *handle      = NULL;
+    MVMuint64    size;
+    uv_fs_t req;
+
+    /* Ensure the file exists, and get its size. */
+    if (uv_fs_fstat(tc->loop, &req, fd, NULL) < 0) {
+        MVM_exception_throw_adhoc(tc, "Trying to stat: %s", uv_strerror(req.result));
+    }
+
+    size = req.statbuf.st_size;
+
+    if ((block = MVM_platform_map_file(fd, &handle, (size_t)size, 0)) == NULL) {
+        /* FIXME: check errno or GetLastError() */
+        MVM_exception_throw_adhoc(tc, "Could not map file into memory: %s", "FIXME");
+    }
+
+    block += pos;
+
+    /* Turn it into a compilation unit. */
+    cu = MVM_cu_from_bytes(tc, (MVMuint8 *)block, (MVMuint32)size);
+    cu->body.handle = handle;
+    cu->body.deallocate = MVM_DEALLOCATE_UNMAP;
+    return cu;
+}
+
 /* Adds an extra callsite, needed due to an inlining, and returns its index. */
 MVMuint16 MVM_cu_callsite_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMCallsite *cs) {
     MVMuint16 found = 0;

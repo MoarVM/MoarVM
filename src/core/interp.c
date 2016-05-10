@@ -3085,6 +3085,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_load_bytecode_buffer(tc, buffer);
                 goto NEXT;
             }
+            OP(loadbytecodefh): {
+                /* This op will end up returning into the runloop to run
+                 * deserialization and load code, so make sure we're done
+                 * processing this op really. */
+                MVMObject *file = GET_REG(cur_op, 0).o;
+                MVMString *filename = GET_REG(cur_op, 2).s;
+                cur_op += 4;
+
+                /* Set up return (really continuation after load) address
+                 * and enter bytecode loading process. */
+                tc->cur_frame->return_address = cur_op;
+                MVM_load_bytecode_fh(tc, file, filename);
+                goto NEXT;
+            }
             OP(masttofile):
                 MVM_mast_to_file(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s);

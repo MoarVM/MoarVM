@@ -779,6 +779,7 @@ stat_time           w(num64) r(str) r(int64)
 lstat_time          w(num64) r(str) r(int64)
 setdebugtypename    r(obj) r(str)
 loadbytecodebuffer  r(obj)
+loadbytecodefh      r(obj) r(str)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
