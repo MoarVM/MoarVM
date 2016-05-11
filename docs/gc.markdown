@@ -62,3 +62,33 @@ well as generation 1.
 ## Write Barrier
 All writes into an object in the second generation from an object in the nursery
 must be added to a remembered set. This is done through a write barrier.
+
+## MVMROOT
+
+Being able to move objects relies on being able to find and update all of the
+references to them. And, since MoarVM is written in C, that includes those
+references on the C stack. Consider this bit of code, which is the (general,
+unoptimized) path for boxing strings:
+
+    MVMObject * MVM_repr_box_str(
+        MVMThreadContext *tc,
+        MVMObject *type,
+        MVMString *val
+    ) {
+        MVMObject *res;
+        MVMROOT(tc, val, {
+            res = MVM_repr_alloc_init(tc, type);
+            MVM_repr_set_str(tc, res, val);
+        });
+        return res;
+    }
+
+It receives val, which is a string to box. Note that strings are garbage-
+collectable objects in MoarVM, and so may move. It then allocates a box of the
+specified type (for example, Perl 6’s Str), and puts the string inside of it.
+Since MVM_repr_alloc_init allocates an object, it may trigger garbage
+collection. And that in turn may move the object pointed to by val – meaning
+that the val pointer needs updating. The MVMROOT macro is used in order to add
+the memory address of val on the C stack to the set of roots that the GC
+considers and updates, thus ensuring that even if the allocation of the box
+triggers garbage collection, this code won’t end up with an old val pointer.
