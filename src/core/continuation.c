@@ -136,7 +136,11 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     MVMFrame *orig_caller;
 
     /* Switch caller of the root to current invoker. */
-    MVM_frame_force_to_heap(tc, tc->cur_frame);
+    MVMROOT(tc, cont, {
+    MVMROOT(tc, code, {
+        MVM_frame_force_to_heap(tc, tc->cur_frame);
+    });
+    });
     orig_caller = cont->body.root->caller;
     MVM_ASSIGN_REF(tc, &(cont->common.header), cont->body.root->caller, tc->cur_frame);
 
