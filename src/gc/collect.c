@@ -98,7 +98,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
          * heap-allocated frame. Note that tc->cur_frame may itself be a heap
          * frame, in which case we put it directly on the worklist as it can
          * move. */
-        if (MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame)) {
+        if (tc->cur_frame && MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame)) {
             MVMFrame *cur_frame = tc->cur_frame;
             while (cur_frame && MVM_FRAME_IS_ON_CALLSTACK(tc, cur_frame)) {
                 MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, cur_frame);
