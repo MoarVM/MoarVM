@@ -126,7 +126,13 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
 MVMint32 MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
                             MVMJitCode *code) {
     /* The actual JIT code returns 0 if it went through to the exit */
+    MVMint32 ctrl;
     void *label = tc->cur_frame->jit_entry_label;
-    MVMint32 ctrl = code->func_ptr(tc, cu, label);
+    if (label < (void*)code->func_ptr || (char*)label > (((char*)code->func_ptr) + code->size))
+        MVM_oops(tc, "JIT entry label out of range for code!\n"
+                 "(label %x, func_ptr %x, code size %d, offset %d, frame_nr %d, seq nr %d)",
+                 label, code->func_ptr, code->size, ((char*)label) - ((char*)code->func_ptr),
+                 tc->cur_frame->sequence_nr, code->seq_nr);
+    ctrl = code->func_ptr(tc, cu, label);
     return ctrl ? 0 : 1;
 }
