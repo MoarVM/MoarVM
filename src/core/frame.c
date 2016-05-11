@@ -927,11 +927,23 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             /* We're unwinding a frame with an exit handler. Thus we need to
              * pause the unwind, run the exit handler, and keep enough info
              * around in order to finish up the unwind afterwards. */
-            MVMFrame     *caller = cur_frame->caller;
             MVMHLLConfig *hll    = MVM_hll_current(tc);
+            MVMFrame     *caller;
             MVMObject    *handler;
             MVMCallsite *two_args_callsite;
 
+            /* Force the frame onto the heap, since we'll reference it from the
+             * unwind data. */
+            MVMROOT(tc, frame, {
+            MVMROOT(tc, cur_frame, {
+            MVMROOT(tc, return_value, {
+                frame = MVM_frame_force_to_heap(tc, frame);
+                cur_frame = tc->cur_frame;
+            });
+            });
+            });
+
+            caller = cur_frame->caller;
             if (!caller)
                 MVM_exception_throw_adhoc(tc, "Entry point frame cannot have an exit handler");
             if (cur_frame == tc->thread_entry_frame)
