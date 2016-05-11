@@ -698,13 +698,16 @@ MVMFrame * MVM_frame_force_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
                         cur_to_promote = cur_to_promote->caller;
                     }
                     else {
+                        if (cur_to_promote == tc->thread_entry_frame)
+                            tc->thread_entry_frame = promoted;
                         cur_to_promote = NULL;
                     }
                 }
                 else {
                     /* End of caller chain; check if we promoted the entry
                      * frame */
-                    tc->thread_entry_frame = promoted;
+                    if (cur_to_promote == tc->thread_entry_frame)
+                        tc->thread_entry_frame = promoted;
                     cur_to_promote = NULL;
                 }
             }
