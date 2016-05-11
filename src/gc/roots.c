@@ -208,7 +208,15 @@ void MVM_gc_root_temp_pop_all(MVMThreadContext *tc) {
     tc->num_temproots = tc->mark_temproots;
 }
 
-/* Adds the set of thread-local temporary roots to a GC worklist. */
+/* Adds the set of thread-local temporary roots to a GC worklist. Note that we
+ * may MVMROOT things that are actually frames on a therad local call stack as
+ * they may be GC-able; check for this and make sure such roots do not get
+ * added to the worklist. (Cheaper to do it here in the event we GC than to
+ * do it on every stack push). */
+static MVMuint32 is_stack_frame(MVMThreadContext *tc, MVMCollectable **c) {
+    MVMCollectable *maybe_frame = *c;
+    return maybe_frame && maybe_frame->flags == 0 && maybe_frame->owner == 0;
+}
 void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMuint32         i, num_roots;
     MVMCollectable ***temproots;
@@ -216,11 +224,13 @@ void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
     temproots = tc->temproots;
     if (worklist) {
         for (i = 0; i < num_roots; i++)
-            MVM_gc_worklist_add(tc, worklist, temproots[i]);
+            if (!is_stack_frame(tc, temproots[i]))
+                MVM_gc_worklist_add(tc, worklist, temproots[i]);
     }
     else {
         for (i = 0; i < num_roots; i++)
-            MVM_profile_heap_add_collectable_rel_idx(tc, snapshot, *(temproots[i]), i);
+            if (!is_stack_frame(tc, temproots[i]))
+                MVM_profile_heap_add_collectable_rel_idx(tc, snapshot, *(temproots[i]), i);
     }
 }
 
