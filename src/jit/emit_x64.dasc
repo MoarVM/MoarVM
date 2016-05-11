@@ -1414,6 +1414,11 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov WORK[dst], TMP3;
         | jmp >2;
         |1:
+        /* assign invokish label first */
+        | mov rax, TC->cur_frame;
+        | lea TMP6, [>2];
+        | mov aword FRAME:rax->jit_entry_label, TMP6;
+        /* call find_method_spesh */
         | mov ARG1, TC;
         | mov ARG2, WORK[obj];
         | get_string ARG3, str_idx;
@@ -1426,13 +1431,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         |.endif
         | callp &MVM_6model_find_method_spesh;
         | test RV, RV;
-        | jz >2;
-        /* invokish, fall out to the interpreter */
-        | mov RV, TC->cur_frame;
-        | lea TMP1, [>2];
-        | mov aword FRAME:RV->jit_entry_label, TMP1;
-        | mov RV, 1;
-        | jmp ->out;
+        /* fall out to interpreter */
+        | jnz ->out;
         |2:
         break;
     }
@@ -1722,7 +1722,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov ARG1, TC;
         | mov ARG2, RV;
         | callp &MVM_nfg_get_synthetic_info;
-	/* base is only 32 bit wide */
+        /* base is only 32 bit wide */
         | mov RVd, dword NFGSYNTH:RV->base;
         |1:
         | mov qword WORK[dst], RV;
