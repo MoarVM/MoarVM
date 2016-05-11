@@ -521,7 +521,9 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     /* The current frame will be assigned as the thrower of the exception, so
      * force it onto the heap before we begin (promoting it later would mean
      * outer handler search result would be outdated). */
-    MVM_frame_force_to_heap(tc, tc->cur_frame);
+    MVMROOT(tc, ex_obj, {
+        MVM_frame_force_to_heap(tc, tc->cur_frame);
+    });
 
     if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)ex_obj;
