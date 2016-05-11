@@ -91,6 +91,8 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 
 /* Headers for various other data structures and APIs. */
 #include "6model/6model.h"
+#include "gc/collect.h"
+#include "gc/debug.h"
 #include "gc/wb.h"
 #include "core/threadcontext.h"
 #include "core/instance.h"
@@ -130,7 +132,6 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "gc/gen2.h"
 #include "gc/allocation.h"
 #include "gc/worklist.h"
-#include "gc/collect.h"
 #include "gc/orchestrate.h"
 #include "gc/roots.h"
 #include "gc/objectid.h"

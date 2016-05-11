@@ -1,5 +1,5 @@
-/* Include this file after moar.h in a source file to get some help with GC
- * debugging. */
+/* Turn this flag on to enable various bits of GC debugging sanity checks. */
+#define MVM_GC_DEBUG 1
 
 #define MVM_ASSERT_NOT_FROMSPACE(tc, c) do { \
     if (tc->nursery_fromspace && \

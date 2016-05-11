@@ -28,13 +28,9 @@ struct MVMGCWorklist {
     MVMuint8 include_gen2;
 };
 
-/* Turn this on to define a worklist addition that panics if it spots
- * something untoward with an object being added to a worklist. */
-#define MVM_GC_WORKLIST_DEBUG_ADD 0
-
 /* Some macros for doing stuff fast with worklists, defined to look like
  * functions since perhaps they become them in the future if needed. */
-#if MVM_GC_WORKLIST_DEBUG_ADD
+#if MVM_GC_DEBUG
 #define MVM_gc_worklist_add(tc, worklist, item) \
     do { \
         MVMCollectable **item_to_add = (MVMCollectable **)(item);\
