@@ -87,7 +87,7 @@ MVMCompUnit * MVM_cu_map_from_file_handle(MVMThreadContext *tc, uv_file fd, MVMu
         MVM_exception_throw_adhoc(tc, "Could not map file into memory: %s", "FIXME");
     }
 
-    block += pos;
+    block = ((char*)block) + pos;
 
     /* Turn it into a compilation unit. */
     cu = MVM_cu_from_bytes(tc, (MVMuint8 *)block, (MVMuint32)size);
