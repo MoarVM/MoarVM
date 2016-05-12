@@ -95,6 +95,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                     /* No, it's the deopt_one case, so this is where we'll point
                      * the interpreter. */
                     tc->cur_frame                = uf;
+                    tc->current_frame_nr         = uf->sequence_nr;
                     *(tc->interp_cur_op)         = uf->effective_bytecode + deopt_offset;
                     *(tc->interp_bytecode_start) = uf->effective_bytecode;
                     *(tc->interp_reg_base)       = uf->work;

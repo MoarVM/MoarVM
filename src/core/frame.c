@@ -576,12 +576,14 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
     tc->cur_frame = frame;
+    tc->current_frame_nr = frame->sequence_nr;
+
     *(tc->interp_cur_op) = frame->effective_bytecode;
     *(tc->interp_bytecode_start) = frame->effective_bytecode;
     *(tc->interp_reg_base) = frame->work;
     *(tc->interp_cu) = static_frame->body.cu;
 
-    tc->current_frame_nr = frame->sequence_nr;
+
 
     /* If we need to do so, make clones of things in the lexical environment
      * that need it. Note that we do this after tc->cur_frame became the
@@ -816,11 +818,13 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     /* Switch back to the caller frame if there is one. */
     if (caller && returner != tc->thread_entry_frame) {
         tc->cur_frame = caller;
+        tc->current_frame_nr = caller->sequence_nr;
+
         *(tc->interp_cur_op) = caller->return_address;
         *(tc->interp_bytecode_start) = caller->effective_bytecode;
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->body.cu;
-        tc->current_frame_nr = caller->sequence_nr;
+
 
         /* Handle any special return hooks. */
         if (caller->special_return || caller->special_unwind) {
