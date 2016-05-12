@@ -277,6 +277,8 @@ const unsigned int MVM_jit_num_globals(void) {
 | callp &MVM_exception_throw_adhoc;
 |.endmacro
 
+|.define FRAME_NR, dword [rbp+0x20]
+
 /* A function prologue is always the same in x86 / x64, because
  * we do not provide variable arguments, instead arguments are provided
  * via a frame. All JIT entry points receive a prologue. */
@@ -300,7 +302,7 @@ void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
     | mov [rbp-0x18], WORK;
     /* store the current frame number for cheap comparisons */
     | mov TMP6d, dword TC:ARG1->current_frame_nr;
-    | mov dword [rbp-0x20], TMP6d;
+    | mov FRAME_NR, TMP6d;
     /* setup special frame variables */
     | mov TC,   ARG1;
     | mov CU,   ARG2;
@@ -2407,7 +2409,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
         /* This relies on the fact that MVM_JIT_THROWISH_PRE has already
          * assigned the jit entry label */
         | mov eax, dword TC->current_frame_nr;
-        | cmp eax, dword [rbp-0x20];
+        | cmp eax, FRAME_NR;
         | je >9;
         | mov RV, 1;
         | jmp ->out;
@@ -2434,7 +2436,7 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitGraph *jg,
     else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_POST) {
         /* check if our current frame is the same as it was */
         | mov TMP1d, dword TC->current_frame_nr;
-        | cmp TMP1d, dword [rbp-0x20];
+        | cmp TMP1d, FRAME_NR;
         | jne >8;
         /* if it is, we may still be in a goto-handler, so in that
          * case the throwing machinery should have ensured that
