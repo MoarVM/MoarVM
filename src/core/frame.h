@@ -192,6 +192,7 @@ struct MVMInvocationSpec {
     MVMString *md_valid_attr_name;
 };
 
+void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame);
 void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
                            MVMCallsite *callsite, MVMint32 spesh_cand);
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
