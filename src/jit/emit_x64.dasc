@@ -277,7 +277,7 @@ const unsigned int MVM_jit_num_globals(void) {
 | callp &MVM_exception_throw_adhoc;
 |.endmacro
 
-|.define FRAME_NR, dword [rbp+0x20]
+|.define FRAME_NR, dword [rbp-0x20]
 
 /* A function prologue is always the same in x86 / x64, because
  * we do not provide variable arguments, instead arguments are provided
