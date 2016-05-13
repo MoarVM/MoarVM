@@ -295,7 +295,9 @@ else {
 }
 
 if ($args{'jit'}) {
-    if ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
+    # Temporarily disabled on OSX; to re-enable add back to the regex below
+    # `|^darwin(-thread)?(-multi)?-2level`.
+    if ($Config{archname} =~ m/^x86_64|^amd64/) {
         $config{jit} = '$(JIT_POSIX_X64)';
     } elsif ($Config{archname} =~ /^MSWin32-x64/) {
         $config{jit} = '$(JIT_WIN32_X64)';
