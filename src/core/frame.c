@@ -1,5 +1,16 @@
 #include "moar.h"
 
+/* Computes the initial work area for a frame or a specialization of a frame. */
+MVMRegister * MVM_frame_initial_work(MVMThreadContext *tc, MVMuint16 *local_types,
+                                     MVMuint16 num_locals) {
+    MVMuint16 i;
+    MVMRegister *work_initial = MVM_calloc(sizeof(MVMRegister), num_locals);
+    for (i = 0; i < num_locals; i++)
+        if (local_types[i] == MVM_reg_obj)
+            work_initial[i].o = tc->instance->VMNull;
+    return work_initial;
+}
+
 /* Takes a static frame and does various one-off calculations about what
  * space it shall need. Also triggers bytecode verification of the frame's
  * bytecode. */
@@ -25,6 +36,13 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
 
         /* Obtain an index to each threadcontext's lexotic pool table */
         static_frame_body->pool_index = MVM_incr(&tc->instance->num_frames_run);
+
+        /* Compute work area initial state that we can memcpy into place each
+         * time. */
+        if (static_frame_body->num_locals)
+            static_frame_body->work_initial = MVM_frame_initial_work(tc,
+                static_frame_body->local_types,
+                static_frame_body->num_locals);
 
         /* Check if we have any state var lexicals. */
         if (static_frame_body->static_env_flags) {
@@ -205,32 +223,28 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     }
     work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
     if (work_size) {
-        MVMuint32 i;
-        MVMuint32 num_locals;
-        MVMuint16 *local_types;
-
-        frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, work_size);
-        frame->allocd_work = work_size;
-
         /* Fill up all object registers with a pointer to our VMNull object */
         if (spesh_cand && spesh_cand->local_types) {
-            num_locals = spesh_cand->num_locals;
-            local_types = spesh_cand->local_types;
+            MVMuint32 num_locals = spesh_cand->num_locals;
+            MVMuint16 *local_types = spesh_cand->local_types;
+            MVMuint32 i;
+            frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, work_size);
+            for (i = 0; i < num_locals; i++)
+                if (local_types[i] == MVM_reg_obj)
+                    frame->work[i].o = tc->instance->VMNull;
         }
         else {
-            num_locals = static_frame_body->num_locals;
-            local_types = static_frame_body->local_types;
+            frame->work = MVM_fixed_size_alloc(tc, tc->instance->fsa, work_size);
+            memcpy(frame->work, static_frame_body->work_initial,
+                sizeof(MVMRegister) * static_frame_body->num_locals);
         }
-        for (i = 0; i < num_locals; i++)
-            if (local_types[i] == MVM_reg_obj)
-                frame->work[i].o = tc->instance->VMNull;
-    }
+        frame->allocd_work = work_size;
 
-    /* Calculate args buffer position. */
-    if (work_size)
+        /* Calculate args buffer position. */
         frame->args = frame->work + (spesh_cand
             ? spesh_cand->num_locals
             : static_frame_body->num_locals);
+    }
 
     /* Assign a sequence nr */
     frame->sequence_nr = tc->next_frame_nr++;
@@ -259,32 +273,28 @@ static MVMFrame * allocate_heap_frame(MVMThreadContext *tc, MVMStaticFrame *stat
     }
     work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
     if (work_size) {
-        MVMuint32 i;
-        MVMuint32 num_locals;
-        MVMuint16 *local_types;
-
-        frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, work_size);
-        frame->allocd_work = work_size;
-
         /* Fill up all object registers with a pointer to our VMNull object */
         if (spesh_cand && spesh_cand->local_types) {
-            num_locals = spesh_cand->num_locals;
-            local_types = spesh_cand->local_types;
+            MVMuint32 num_locals = spesh_cand->num_locals;
+            MVMuint16 *local_types = spesh_cand->local_types;
+            MVMuint32 i;
+            frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, work_size);
+            for (i = 0; i < num_locals; i++)
+                if (local_types[i] == MVM_reg_obj)
+                    frame->work[i].o = tc->instance->VMNull;
         }
         else {
-            num_locals = static_frame_body->num_locals;
-            local_types = static_frame_body->local_types;
+            frame->work = MVM_fixed_size_alloc(tc, tc->instance->fsa, work_size);
+            memcpy(frame->work, static_frame_body->work_initial,
+                sizeof(MVMRegister) * static_frame_body->num_locals);
         }
-        for (i = 0; i < num_locals; i++)
-            if (local_types[i] == MVM_reg_obj)
-                frame->work[i].o = tc->instance->VMNull;
-    }
+        frame->allocd_work = work_size;
 
-    /* Calculate args buffer position. */
-    if (work_size)
+        /* Calculate args buffer position. */
         frame->args = frame->work + (spesh_cand
             ? spesh_cand->num_locals
             : static_frame_body->num_locals);
+    }
 
     return frame;
 }

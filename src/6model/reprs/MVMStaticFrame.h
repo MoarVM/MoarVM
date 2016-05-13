@@ -49,6 +49,10 @@ struct MVMStaticFrameBody {
     /* The size in bytes to allocate for the work and arguments area. */
     MVMuint32 work_size;
 
+    /* Inital contents of the work area, copied into place to make sure we have
+     * VMNulls in all the object slots. */
+    MVMRegister *work_initial;
+
     /* The size of the bytecode. */
     MVMuint32 bytecode_size;
 

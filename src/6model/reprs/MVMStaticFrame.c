@@ -184,6 +184,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     if (!body->fully_deserialized)
         return;
     MVM_free(body->handlers);
+    MVM_free(body->work_initial);
     MVM_free(body->static_env);
     MVM_free(body->static_env_flags);
     MVM_free(body->local_types);

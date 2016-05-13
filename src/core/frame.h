@@ -192,6 +192,8 @@ struct MVMInvocationSpec {
     MVMString *md_valid_attr_name;
 };
 
+MVMRegister * MVM_frame_initial_work(MVMThreadContext *tc, MVMuint16 *local_types,
+                                     MVMuint16 num_locals);
 void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame);
 void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
                            MVMCallsite *callsite, MVMint32 spesh_cand);
