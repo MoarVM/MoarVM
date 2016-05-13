@@ -12,7 +12,8 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
 
 /* Grows storage if it's full, zeroing the extension. Assumes it's only being
  * grown for one more item. */
-static void grow_storage(void **store, MVMuint64 *num, MVMuint64 *alloc, size_t size) {
+static void grow_storage(void *store_ptr, MVMuint64 *num, MVMuint64 *alloc, size_t size) {
+    void **store = (void **)store_ptr;
     if (*num == *alloc) {
         *alloc = *alloc ? 2 * *alloc : 32;
         *store = MVM_realloc(*store, *alloc * size);
