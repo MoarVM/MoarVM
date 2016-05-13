@@ -74,6 +74,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/core/compunit@obj@ \
           src/core/bytecode@obj@ \
           src/core/frame@obj@ \
+          src/core/callstack@obj@ \
           src/core/validation@obj@ \
           src/core/bytecodedump@obj@ \
           src/core/threads@obj@ \
@@ -216,6 +217,7 @@ HEADERS = src/moar.h \
           src/core/interp.h \
           src/core/alloc.h \
           src/core/frame.h \
+          src/core/callstack.h \
           src/core/compunit.h \
           src/core/bytecode.h \
           src/core/ops.h \

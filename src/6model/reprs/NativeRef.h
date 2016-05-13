@@ -47,9 +47,9 @@ const MVMREPROps * MVMNativeRef_initialize(MVMThreadContext *tc);
 
 /* Operations on a nativeref REPR. */
 void MVM_nativeref_ensure(MVMThreadContext *tc, MVMObject *val, MVMuint16 wantprim, MVMuint16 wantkind, char *guilty);
-MVMObject * MVM_nativeref_reg_i(MVMThreadContext *tc, MVMFrame *frame, MVMRegister *reg);
-MVMObject * MVM_nativeref_reg_n(MVMThreadContext *tc, MVMFrame *frame, MVMRegister *reg);
-MVMObject * MVM_nativeref_reg_s(MVMThreadContext *tc, MVMFrame *frame, MVMRegister *reg);
+MVMObject * MVM_nativeref_reg_i(MVMThreadContext *tc, MVMRegister *reg);
+MVMObject * MVM_nativeref_reg_n(MVMThreadContext *tc, MVMRegister *reg);
+MVMObject * MVM_nativeref_reg_s(MVMThreadContext *tc, MVMRegister *reg);
 MVMObject * MVM_nativeref_lex_i(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx);
 MVMObject * MVM_nativeref_lex_n(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx);
 MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx);

@@ -8,7 +8,7 @@ static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite
     if (IS_CONCRETE(invokee)) {
         MVMCode *code = (MVMCode *)invokee;
         MVM_frame_invoke(tc, code->body.sf, callsite, args,
-            MVM_frame_acquire_ref(tc, &(code->body.outer)), invokee, -1);
+            code->body.outer, invokee, -1);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Cannot invoke code type object");
@@ -35,8 +35,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMCodeBody *src_body  = (MVMCodeBody *)src;
     MVMCodeBody *dest_body = (MVMCodeBody *)dest;
     MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->sf, src_body->sf);
-    if (src_body->outer)
-        dest_body->outer = MVM_frame_acquire_ref(tc, &(src_body->outer));
+    if (src_body->outer) {
+        MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->outer, src_body->outer);
+    }
     MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->name, src_body->name);
     /* Explicitly do *not* copy state vars in a (presumably closure) clone. */
 }
@@ -44,7 +45,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMCodeBody *body = (MVMCodeBody *)data;
-    MVM_gc_worklist_add_frame(tc, worklist, body->outer);
+    MVM_gc_worklist_add(tc, worklist, &body->outer);
     MVM_gc_worklist_add(tc, worklist, &body->code_object);
     MVM_gc_worklist_add(tc, worklist, &body->sf);
     MVM_gc_worklist_add(tc, worklist, &body->name);
@@ -67,11 +68,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCode *code_obj = (MVMCode *)obj;
-    if (code_obj->body.outer)
-        code_obj->body.outer = MVM_frame_dec_ref(tc, code_obj->body.outer);
     MVM_free(code_obj->body.state_vars);
 }
-
 
 static const MVMStorageSpec storage_spec = {
     MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
@@ -124,7 +122,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "MVMCode", /* name */
     MVM_REPR_ID_MVMCode,
-    1, /* refs_frames */
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };

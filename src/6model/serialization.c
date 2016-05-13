@@ -2211,10 +2211,12 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
                 lex->n64 = MVM_serialization_read_num(tc, reader);
                 break;
             case MVM_STORAGE_SPEC_BP_STR:
-                lex->s = MVM_serialization_read_str(tc, reader);
+                MVM_ASSIGN_REF(tc, &(f->header), lex->s,
+                    MVM_serialization_read_str(tc, reader));
                 break;
             default:
-                lex->o = MVM_serialization_read_ref(tc, reader);
+                MVM_ASSIGN_REF(tc, &(f->header), lex->o,
+                    MVM_serialization_read_ref(tc, reader));
         }
     }
 
@@ -2234,7 +2236,7 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
             deserialize_context(tc, reader, outer_idx - 1);
 
         /* Attach it. */
-        f->outer = MVM_frame_inc_ref_by_frame(tc, reader->contexts[outer_idx - 1]);
+        MVM_ASSIGN_REF(tc, &(f->header), f->outer, reader->contexts[outer_idx - 1]);
     }
 }
 
@@ -2274,7 +2276,7 @@ static void deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *re
             deserialize_context(tc, reader, context_idx - 1);
 
         /* Attach it. */
-        ((MVMCode *)closure)->body.outer = MVM_frame_inc_ref(tc,
+        MVM_ASSIGN_REF(tc, &(closure->header), ((MVMCode *)closure)->body.outer,
             reader->contexts[context_idx - 1]);
     }
 }

@@ -280,11 +280,6 @@ static void process_gc_worklist(MVMThreadContext *tc, MVMHeapSnapshotState *ss, 
             add_reference(tc, ss, ref_kind, ref_index,
                 get_collectable_idx(tc, ss, c));
     }
-    while (f = MVM_gc_worklist_get_frame(tc, ss->gcwl)) {
-        if (f)
-            add_reference(tc, ss, ref_kind, ref_index,
-                get_frame_idx(tc, ss, f));
-    }
 }
 static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         MVMHeapSnapshotCollectable *col, MVMObject *obj) {
@@ -568,7 +563,7 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
     memset(&ss, 0, sizeof(MVMHeapSnapshotState));
     ss.col = col;
     ss.hs = hs;
-    ss.gcwl = MVM_gc_worklist_create(tc, 1, 1);
+    ss.gcwl = MVM_gc_worklist_create(tc, 1);
 
     /* We push the ultimate "root of roots" onto the worklist to get things
      * going, then set off on our merry way. */

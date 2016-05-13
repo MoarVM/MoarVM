@@ -820,7 +820,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "CStruct", /* name */
     MVM_REPR_ID_MVMCStruct,
-    0, /* refs_frames */
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };

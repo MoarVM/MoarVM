@@ -25,15 +25,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMContextBody *body = (MVMContextBody *)data;
-    MVM_gc_worklist_add_frame(tc, worklist, body->context);
-}
-
-/* Called by the VM in order to free memory associated with this object. */
-static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMContext *ctx = (MVMContext *)obj;
-    if (ctx->body.context) {
-        ctx->body.context = MVM_frame_dec_ref(tc, ctx->body.context);
-    }
+    MVM_gc_worklist_add(tc, worklist, &body->context);
 }
 
 static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind) {
@@ -74,6 +66,8 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVMContextBody *body  = (MVMContextBody *)data;
     MVMFrame       *frame = body->context;
     MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names, *entry;
+    MVMuint16 got_kind;
+
     if (!lexical_names) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
@@ -81,6 +75,7 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
             "Lexical with name '%s' does not exist in this frame",
                 c_name);
     }
+
     MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, lexical_names, name, entry);
     if (!entry) {
@@ -90,14 +85,22 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
             "Lexical with name '%s' does not exist in this frame",
                 c_name);
     }
-    if (frame->static_info->body.lexical_types[entry->value] != kind) {
+
+    got_kind = frame->static_info->body.lexical_types[entry->value];
+    if (got_kind != kind) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste,
             "Lexical with name '%s' has a different type in this frame",
                 c_name);
     }
-    frame->env[entry->value] = value;
+
+    if (got_kind == MVM_reg_obj || got_kind == MVM_reg_str) {
+        MVM_ASSIGN_REF(tc, &(frame->header), frame->env[entry->value].o, value.o);
+    }
+    else {
+        frame->env[entry->value] = value;
+    }
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -183,7 +186,7 @@ static const MVMREPROps this_repr = {
     NULL, /* deserialize_repr_data */
     NULL, /* deserialize_stable_size */
     gc_mark,
-    gc_free,
+    NULL, /* gc_free */
     NULL, /* gc_cleanup */
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
@@ -191,7 +194,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "MVMContext", /* name */
     MVM_REPR_ID_MVMContext,
-    1, /* refs_frames */
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };

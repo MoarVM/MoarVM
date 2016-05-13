@@ -56,7 +56,7 @@ struct MVMGen2Allocator {
 #define MVM_GEN2_BIN_MASK   ((1 << MVM_GEN2_BIN_BITS) - 1)
 
 /* Number of bins in the FSA. Beyond this, we just degrade to malloc/free. */
-#define MVM_GEN2_BINS       32
+#define MVM_GEN2_BINS       40
 
 /* Default overflow list size. */
 #define MVM_GEN2_OVERFLOWS  32

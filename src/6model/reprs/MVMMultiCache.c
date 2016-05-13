@@ -112,7 +112,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "MVMMultiCache", /* name */
     MVM_REPR_ID_MVMMultiCache,
-    0, /* refs_frames */
     unmanaged_size, /* unmanaged_size */
     NULL, /* describe_refs */
 };

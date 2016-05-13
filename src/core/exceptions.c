@@ -192,7 +192,11 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
         /* Ensure we have an exception object. */
         if (ex_obj == NULL) {
-            ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+            MVMROOT(tc, cur_frame, {
+            MVMROOT(tc, lh.frame, {
+                ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+            });
+            });
             ((MVMException *)ex_obj)->body.category = category;
         }
 
@@ -200,7 +204,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         handler_code = MVM_frame_find_invokee(tc, lh.frame->work[lh.handler->block_reg].o, NULL);
 
         /* Install active handler record. */
-        ah->frame           = MVM_frame_inc_ref(tc, lh.frame);
+        ah->frame           = lh.frame;
         ah->handler         = lh.handler;
         ah->jit_handler     = lh.jit_handler;
         ah->ex_obj          = ex_obj;
@@ -254,7 +258,6 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     }
     /* Clean up. */
     tc->active_handlers = ah->next_handler;
-    MVM_frame_dec_ref(tc, ah->frame);
     MVM_free(ah);
 
     /* Do the unwinding as needed. */
@@ -276,7 +279,6 @@ static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data) {
 
     /* Clean up. */
     tc->active_handlers = ah->next_handler;
-    MVM_frame_dec_ref(tc, ah->frame);
     MVM_free(ah);
 }
 
@@ -345,6 +347,7 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_line);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_sub);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&k_anno);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&cur_frame);
 
     k_file = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "file");
     k_line = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "line");
@@ -394,7 +397,7 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
         count++;
     }
 
-    MVM_gc_root_temp_pop_n(tc, 8);
+    MVM_gc_root_temp_pop_n(tc, 9);
 
     return arr;
 }
@@ -410,10 +413,11 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
     else
         MVM_exception_throw_adhoc(tc, "Op 'backtracestrings' needs an exception object");
 
-    cur_frame = ex->body.origin;
     arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+    cur_frame = ex->body.origin;
 
     MVMROOT(tc, arr, {
+    MVMROOT(tc, cur_frame, {
         MVMuint32 count = 0;
         while (cur_frame != NULL) {
             char      *line     = MVM_exception_backtrace_line(tc, cur_frame, count++);
@@ -424,6 +428,7 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
             MVM_free(line);
         }
     });
+    });
 
     return arr;
 }
@@ -432,12 +437,14 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
 void MVM_dump_backtrace(MVMThreadContext *tc) {
     MVMFrame *cur_frame = tc->cur_frame;
     MVMuint32 count = 0;
-    while (cur_frame != NULL) {
-        char *line = MVM_exception_backtrace_line(tc, cur_frame, count++);
-        fprintf(stderr, "%s\n", line);
-        MVM_free(line);
-        cur_frame = cur_frame->caller;
-    }
+    MVMROOT(tc, cur_frame, {
+        while (cur_frame != NULL) {
+            char *line = MVM_exception_backtrace_line(tc, cur_frame, count++);
+            fprintf(stderr, "%s\n", line);
+            MVM_free(line);
+            cur_frame = cur_frame->caller;
+        }
+    });
 }
 
 /* Panic over an unhandled exception throw by category. */
@@ -494,7 +501,10 @@ void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, 
 }
 
 void MVM_exception_die(MVMThreadContext *tc, MVMString *str, MVMRegister *rr) {
-    MVMException *ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+    MVMException *ex;
+    MVMROOT(tc, str, {
+        ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+    });
     ex->body.category = MVM_EX_CAT_CATCH;
     MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.message, str);
     MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, (MVMObject *)ex, rr);
@@ -507,6 +517,13 @@ void MVM_exception_die(MVMThreadContext *tc, MVMString *str, MVMRegister *rr) {
 void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_obj, MVMRegister *resume_result) {
     LocatedHandler  lh;
     MVMException   *ex;
+
+    /* The current frame will be assigned as the thrower of the exception, so
+     * force it onto the heap before we begin (promoting it later would mean
+     * outer handler search result would be outdated). */
+    MVMROOT(tc, ex_obj, {
+        MVM_frame_force_to_heap(tc, tc->cur_frame);
+    });
 
     if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)ex_obj;
@@ -527,7 +544,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
         panic_unhandled_ex(tc, ex);
 
     if (!ex->body.origin) {
-        ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
+        MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.origin, tc->cur_frame);
         tc->cur_frame->throw_address = *(tc->interp_cur_op);
         tc->cur_frame->keep_caller   = 1;
     }
@@ -569,7 +586,6 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     /* Clear the current active handler. */
     ah = tc->active_handlers;
     tc->active_handlers = ah->next_handler;
-    MVM_frame_dec_ref(tc, ah->frame);
     MVM_free(ah);
 
     /* Unwind to the thrower of the exception; set PC and jit entry label. */
@@ -749,9 +765,15 @@ void MVM_exception_throw_adhoc_free(MVMThreadContext *tc, char **waste, const ch
 MVM_NO_RETURN
 void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const char *messageFormat, va_list args) {
     LocatedHandler lh;
+    MVMException *ex;
+
+    /* The current frame will be assigned as the thrower of the exception, so
+     * force it onto the heap before we begin. */
+    if (tc->cur_frame)
+        MVM_frame_force_to_heap(tc, tc->cur_frame);
 
     /* Create and set up an exception object. */
-    MVMException *ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
+    ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
     MVMROOT(tc, ex, {
         char      *c_message = MVM_malloc(1024);
         int        bytes     = vsnprintf(c_message, 1024, messageFormat, args);
@@ -766,7 +788,7 @@ void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const
 
         MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.message, message);
         if (tc->cur_frame) {
-            ex->body.origin = MVM_frame_inc_ref(tc, tc->cur_frame);
+            ex->body.origin = tc->cur_frame;
             tc->cur_frame->throw_address = *(tc->interp_cur_op);
             tc->cur_frame->keep_caller   = 1;
         }

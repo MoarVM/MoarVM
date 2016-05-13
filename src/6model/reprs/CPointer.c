@@ -146,7 +146,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "CPointer", /* name */
     MVM_REPR_ID_MVMCPointer,
-    0, /* refs_frames */
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };

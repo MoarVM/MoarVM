@@ -101,37 +101,40 @@ typedef enum {
     /* Is an STable. */
     MVM_CF_STABLE = 2,
 
+    /* Is a heap-promoted call frame. */
+    MVM_CF_FRAME = 4,
+
     /* Has already been seen once in GC nursery. */
-    MVM_CF_NURSERY_SEEN = 4,
+    MVM_CF_NURSERY_SEEN = 8,
 
     /* Has been promoted to the old generation. */
-    MVM_CF_SECOND_GEN = 8,
+    MVM_CF_SECOND_GEN = 16,
 
     /* Is shared - that is, more than one thread knows about it. */
-    MVM_CF_SHARED = 16,
+    MVM_CF_SHARED = 32,
 
     /* Has already been added to the gen2 aggregates pointing to nursery
      * objects list. */
-    MVM_CF_IN_GEN2_ROOT_LIST = 32,
+    MVM_CF_IN_GEN2_ROOT_LIST = 64,
 
     /* A full GC run has found this object to be live. */
-    MVM_CF_GEN2_LIVE = 64,
+    MVM_CF_GEN2_LIVE = 128,
 
     /* This object in fromspace is live with a valid forwarder. */
     /* TODO - should be possible to use the same bit for this and GEN2_LIVE. */
-    MVM_CF_FORWARDER_VALID = 128,
+    MVM_CF_FORWARDER_VALID = 256,
 
     /* Have we allocated memory to store a serialization index? */
-    MVM_CF_SERIALZATION_INDEX_ALLOCATED = 256,
+    MVM_CF_SERIALZATION_INDEX_ALLOCATED = 512,
 
     /* Have we arranged a persistent object ID for this object? */
-    MVM_CF_HAS_OBJECT_ID = 512,
+    MVM_CF_HAS_OBJECT_ID = 1024,
 
     /* Have we flagged this object as something we must never repossess? */
     /* Note: if you're hunting for a flag, some day in the future when we
      * have used them all, this one is easy enough to eliminate by having the
      * tiny number of objects marked this way in a remembered set. */
-    MVM_CF_NEVER_REPOSSESS = 1024
+    MVM_CF_NEVER_REPOSSESS = 2048
 } MVMCollectableFlags;
 
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
@@ -617,10 +620,6 @@ struct MVMREPROps {
 
     /* The representation's ID. */
     MVMuint32 ID;
-
-    /* Does this representation reference frames (either MVMStaticFrame or
-     * MVMFrame)? */
-    MVMuint32 refs_frames;
 
     /* Optional API, for representations that allocate additonal memory and
      * want to report its size for debugging purposes. */

@@ -162,6 +162,7 @@ MVMSerializationContext * MVM_sc_get_sc(MVMThreadContext *tc, MVMCompUnit *cu, M
         if (sc == NULL)
             return NULL;
         MVM_ASSIGN_REF(tc, &(cu->common.header), cu->body.scs[dep], sc);
+        scb->claimed = 1;
     }
     return sc;
 }

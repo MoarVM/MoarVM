@@ -54,7 +54,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)st->REPR_data;
     switch (repr_data->ref_kind) {
         case MVM_NATIVEREF_REG_OR_LEX:
-            MVM_gc_worklist_add_frame(tc, worklist, ref->u.reg_or_lex.frame);
+            MVM_gc_worklist_add(tc, worklist, &ref->u.reg_or_lex.frame);
             break;
         case MVM_NATIVEREF_ATTRIBUTE:
             MVM_gc_worklist_add(tc, worklist, &ref->u.attribute.obj);
@@ -69,14 +69,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             MVM_gc_worklist_add(tc, worklist, &ref->u.multidim.indices);
             break;
     }
-}
-
-/* Called by the VM in order to free memory associated with this object. */
-static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMNativeRef *ref = (MVMNativeRef *)obj;
-    MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(obj)->REPR_data;
-    if (repr_data->ref_kind == MVM_NATIVEREF_REG_OR_LEX)
-        MVM_frame_dec_ref(tc, ref->body.u.reg_or_lex.frame);
 }
 
 /* Frees the representation data, if any. */
@@ -205,7 +197,7 @@ static const MVMREPROps this_repr = {
     deserialize_repr_data,
     deserialize_stable_size,
     gc_mark,
-    gc_free,
+    NULL, /* gc_free */
     NULL, /* gc_cleanup */
     NULL, /* gc_mark_repr_data */
     gc_free_repr_data,
@@ -213,7 +205,6 @@ static const MVMREPROps this_repr = {
     spesh, /* spesh */
     "NativeRef", /* name */
     MVM_REPR_ID_NativeRef,
-    1, /* refs_frames */
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };
@@ -237,25 +228,31 @@ void MVM_nativeref_ensure(MVMThreadContext *tc, MVMObject *type, MVMuint16 wantp
 
 /* Creation of native references for registers. */
 static MVMObject * reg_or_lex_ref(MVMThreadContext *tc, MVMObject *type, MVMFrame *f, MVMRegister *r, MVMuint16 reg_type) {
-    MVMNativeRef *ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
-    ref->body.u.reg_or_lex.frame = MVM_frame_inc_ref(tc, f);
+    MVMNativeRef *ref;
+    MVMROOT(tc, f, {
+        ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
+    });
+    MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.reg_or_lex.frame, f);
     ref->body.u.reg_or_lex.var   = r;
     ref->body.u.reg_or_lex.type  = reg_type;
     return (MVMObject *)ref;
 }
-MVMObject * MVM_nativeref_reg_i(MVMThreadContext *tc, MVMFrame *f, MVMRegister *r) {
+MVMObject * MVM_nativeref_reg_i(MVMThreadContext *tc, MVMRegister *r) {
+    MVMFrame *f = MVM_frame_force_to_heap(tc, tc->cur_frame);
     MVMObject *ref_type = MVM_hll_current(tc)->int_lex_ref;
     if (ref_type)
         return reg_or_lex_ref(tc, ref_type, f, r, MVM_reg_int64);
     MVM_exception_throw_adhoc(tc, "No int lexical reference type registered for current HLL");
 }
-MVMObject * MVM_nativeref_reg_n(MVMThreadContext *tc, MVMFrame *f, MVMRegister *r) {
+MVMObject * MVM_nativeref_reg_n(MVMThreadContext *tc, MVMRegister *r) {
+    MVMFrame *f = MVM_frame_force_to_heap(tc, tc->cur_frame);
     MVMObject *ref_type = MVM_hll_current(tc)->num_lex_ref;
     if (ref_type)
         return reg_or_lex_ref(tc, ref_type, f, r, MVM_reg_num64);
     MVM_exception_throw_adhoc(tc, "No num lexical reference type registered for current HLL");
 }
-MVMObject * MVM_nativeref_reg_s(MVMThreadContext *tc, MVMFrame *f, MVMRegister *r) {
+MVMObject * MVM_nativeref_reg_s(MVMThreadContext *tc, MVMRegister *r) {
+    MVMFrame *f = MVM_frame_force_to_heap(tc, tc->cur_frame);
     MVMObject *ref_type = MVM_hll_current(tc)->str_lex_ref;
     if (ref_type)
         return reg_or_lex_ref(tc, ref_type, f, r, MVM_reg_str);
@@ -274,7 +271,9 @@ static MVMFrame * get_lexical_outer(MVMThreadContext *tc, MVMuint16 outers) {
     return f;
 }
 MVMObject * MVM_nativeref_lex_i(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
-    MVMObject *ref_type = MVM_hll_current(tc)->int_lex_ref;
+    MVMObject *ref_type;
+    MVM_frame_force_to_heap(tc, tc->cur_frame);
+    ref_type = MVM_hll_current(tc)->int_lex_ref;
     if (ref_type) {
         MVMFrame  *f = get_lexical_outer(tc, outers);
         MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
@@ -291,7 +290,9 @@ MVMObject * MVM_nativeref_lex_i(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
     MVM_exception_throw_adhoc(tc, "No int lexical reference type registered for current HLL");
 }
 MVMObject * MVM_nativeref_lex_n(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
-    MVMObject *ref_type = MVM_hll_current(tc)->num_lex_ref;
+    MVMObject *ref_type;
+    MVM_frame_force_to_heap(tc, tc->cur_frame);
+    ref_type = MVM_hll_current(tc)->num_lex_ref;
     if (ref_type) {
         MVMFrame  *f = get_lexical_outer(tc, outers);
         MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
@@ -305,7 +306,9 @@ MVMObject * MVM_nativeref_lex_n(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
     MVM_exception_throw_adhoc(tc, "No num lexical reference type registered for current HLL");
 }
 MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
-    MVMObject *ref_type = MVM_hll_current(tc)->str_lex_ref;
+    MVMObject *ref_type;
+    MVM_frame_force_to_heap(tc, tc->cur_frame);
+    ref_type = MVM_hll_current(tc)->str_lex_ref;
     if (ref_type) {
         MVMFrame  *f = get_lexical_outer(tc, outers);
         MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
@@ -348,19 +351,31 @@ static MVMObject * lexref_by_name(MVMThreadContext *tc, MVMObject *type, MVMStri
     }
 }
 MVMObject * MVM_nativeref_lex_name_i(MVMThreadContext *tc, MVMString *name) {
-    MVMObject *ref_type = MVM_hll_current(tc)->int_lex_ref;
+    MVMObject *ref_type;
+    MVMROOT(tc, name, {
+        MVM_frame_force_to_heap(tc, tc->cur_frame);
+    });
+    ref_type = MVM_hll_current(tc)->int_lex_ref;
     if (ref_type)
         return lexref_by_name(tc, ref_type, name, MVM_reg_int64);
     MVM_exception_throw_adhoc(tc, "No int lexical reference type registered for current HLL");
 }
 MVMObject * MVM_nativeref_lex_name_n(MVMThreadContext *tc, MVMString *name) {
-    MVMObject *ref_type = MVM_hll_current(tc)->num_lex_ref;
+    MVMObject *ref_type;
+    MVMROOT(tc, name, {
+        MVM_frame_force_to_heap(tc, tc->cur_frame);
+    });
+    ref_type = MVM_hll_current(tc)->num_lex_ref;
     if (ref_type)
         return lexref_by_name(tc, ref_type, name, MVM_reg_num64);
     MVM_exception_throw_adhoc(tc, "No num lexical reference type registered for current HLL");
 }
 MVMObject * MVM_nativeref_lex_name_s(MVMThreadContext *tc, MVMString *name) {
-    MVMObject *ref_type = MVM_hll_current(tc)->str_lex_ref;
+    MVMObject *ref_type;
+    MVMROOT(tc, name, {
+        MVM_frame_force_to_heap(tc, tc->cur_frame);
+    });
+    ref_type = MVM_hll_current(tc)->str_lex_ref;
     if (ref_type)
         return lexref_by_name(tc, ref_type, name, MVM_reg_str);
     MVM_exception_throw_adhoc(tc, "No str lexical reference type registered for current HLL");
@@ -562,7 +577,8 @@ void MVM_nativeref_write_reg_or_lex_n(MVMThreadContext *tc, MVMObject *ref_obj, 
 }
 void MVM_nativeref_write_reg_or_lex_s(MVMThreadContext *tc, MVMObject *ref_obj, MVMString *value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
-    ref->body.u.reg_or_lex.var->s = value;
+    MVM_ASSIGN_REF(tc, &(ref->body.u.reg_or_lex.frame->header),
+        ref->body.u.reg_or_lex.var->s, value);
 }
 void MVM_nativeref_write_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;

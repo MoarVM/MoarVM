@@ -238,7 +238,6 @@ static const MVMREPROps this_repr = {
     spesh,
     "VMHash", /* name */
     MVM_REPR_ID_MVMHash,
-    0, /* refs_frames */
     unmanaged_size, /* unmanaged_size */
     NULL, /* describe_refs */
 };

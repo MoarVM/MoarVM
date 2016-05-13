@@ -14,17 +14,9 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
     MVMCUnionNameMap *result;
 
     MVMint32 mro_idx = MVM_repr_elems(tc, mro);
-
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&mro);
-
     flat_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&flat_list);
-
     class_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&class_list);
-
     attr_map_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_map_list);
 
     /* Walk through the parents list. */
     while (mro_idx)
@@ -42,11 +34,8 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
             MVMIter * const attr_iter = (MVMIter *)MVM_iter(tc, attributes);
             MVMObject *attr_map = NULL;
 
-            if (MVM_iter_istrue(tc, attr_iter)) {
-                MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_iter);
+            if (MVM_iter_istrue(tc, attr_iter))
                 attr_map = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
-                MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_map);
-            }
 
             while (MVM_iter_istrue(tc, attr_iter)) {
                 MVMObject *current_slot_obj = MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, current_slot);
@@ -70,10 +59,6 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
                 MVM_repr_push_o(tc, flat_list, attr);
             }
 
-            if (attr_map) {
-                MVM_gc_root_temp_pop_n(tc, 2);
-            }
-
             /* Add to class list and map list. */
             MVM_repr_push_o(tc, class_list, current_class);
             MVM_repr_push_o(tc, attr_map_list, attr_map);
@@ -83,8 +68,6 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
                 "CUnion representation does not support multiple inheritance");
         }
     }
-
-    MVM_gc_root_temp_pop_n(tc, 4);
 
     /* We can now form the name map. */
     num_classes = MVM_repr_elems(tc, class_list);
@@ -335,7 +318,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *repr_info) {
     /* Compute allocation strategy. */
     MVMCUnionREPRData *repr_data = MVM_calloc(1, sizeof(MVMCUnionREPRData));
     MVMObject *attr_info = MVM_repr_at_key_o(tc, repr_info, tc->instance->str_consts.attribute);
+    MVM_gc_allocate_gen2_default_set(tc);
     compute_allocation_strategy(tc, attr_info, repr_data);
+    MVM_gc_allocate_gen2_default_clear(tc);
     st->REPR_data = repr_data;
 }
 
@@ -807,7 +792,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "CUnion", /* name */
     MVM_REPR_ID_MVMCUnion,
-    0, /* refs_frames */
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };
