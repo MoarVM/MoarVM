@@ -164,8 +164,9 @@ struct MVMFrame {
      * trigger if the limit is hit. */
     MVMuint8 osr_counter;
 
-    /* The 'entry label' is a sort of indirect return address
-       for the JIT */
+    /* A sequence number to indicate our place in the call stack */
+    MVMint32 sequence_nr;
+    /* The 'entry label' is a sort of indirect return address for the JIT */
     void * jit_entry_label;
 };
 

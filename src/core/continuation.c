@@ -107,6 +107,8 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 
     /* Move back to the frame with the reset in it. */
     tc->cur_frame = jump_frame;
+    tc->current_frame_nr = jump_frame->sequence_nr;
+
     *(tc->interp_cur_op) = tc->cur_frame->return_address;
     *(tc->interp_bytecode_start) = tc->cur_frame->effective_bytecode;
     *(tc->interp_reg_base) = tc->cur_frame->work;
@@ -151,6 +153,8 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
 
     /* Switch to the target frame. */
     tc->cur_frame = cont->body.top;
+    tc->current_frame_nr = cont->body.top->sequence_nr;
+
     *(tc->interp_cur_op) = cont->body.addr;
     *(tc->interp_bytecode_start) = tc->cur_frame->effective_bytecode;
     *(tc->interp_reg_base) = tc->cur_frame->work;

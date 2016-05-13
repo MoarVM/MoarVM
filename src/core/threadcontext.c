@@ -38,6 +38,10 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     /* Initialize random number generator state. */
     MVM_proc_seed(tc, (MVM_platform_now() / 10000) * MVM_proc_getpid(tc));
 
+    /* Initialize frame sequence numbers */
+    tc->next_frame_nr = 0;
+    tc->current_frame_nr = 0;
+
     return tc;
 }
 

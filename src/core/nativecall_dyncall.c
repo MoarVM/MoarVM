@@ -332,6 +332,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         tc->interp_reg_base       = backup_interp_reg_base;
         tc->interp_cu             = backup_interp_cu;
         tc->cur_frame             = backup_cur_frame;
+        tc->current_frame_nr      = backup_cur_frame->sequence_nr;
         tc->thread_entry_frame    = backup_thread_entry_frame;
         memcpy(tc->interp_jump, backup_interp_jump, sizeof(jmp_buf));
         MVM_gc_root_temp_mark_reset(tc, backup_mark);
