@@ -409,17 +409,29 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
-    MVM_serialization_write_int(tc, writer, repr_data->elem_size);
+    MVM_serialization_write_varint(tc, writer, repr_data->elem_size);
     MVM_serialization_write_ref(tc, writer, repr_data->elem_type);
-    MVM_serialization_write_int(tc, writer, repr_data->elem_kind);
+    MVM_serialization_write_varint(tc, writer, repr_data->elem_kind);
 }
 
 /* Deserializes the REPR data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *) MVM_malloc(sizeof(MVMCArrayREPRData));
-    repr_data->elem_size = MVM_serialization_read_int(tc, reader);
+
+    if (reader->root.version >= 19) {
+        repr_data->elem_size = MVM_serialization_read_varint(tc, reader);
+    } else {
+        repr_data->elem_size = MVM_serialization_read_int(tc, reader);
+    }
+
     repr_data->elem_type = MVM_serialization_read_ref(tc, reader);
-    repr_data->elem_kind = MVM_serialization_read_int(tc, reader);
+
+    if (reader->root.version >= 19) {
+        repr_data->elem_kind = MVM_serialization_read_varint(tc, reader);
+    } else {
+        repr_data->elem_kind = MVM_serialization_read_int(tc, reader);
+    }
+
     st->REPR_data = repr_data;
 }
 

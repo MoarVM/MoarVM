@@ -10,7 +10,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 18
+#define CURRENT_VERSION 19
 #define MIN_VERSION     16
 
 /* Various sizes (in bytes). */
@@ -339,13 +339,6 @@ void MVM_serialization_write_cstr(MVMThreadContext *tc, MVMSerializationWriter *
     } else {
         MVM_serialization_write_varint(tc, writer, 0);
     }
-}
-
-/* Writing function for native integers. */
-void MVM_serialization_write_int(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value) {
-    expand_storage_if_needed(tc, writer, 8);
-    write_int64(*(writer->cur_write_buffer), *(writer->cur_write_offset), value);
-    *(writer->cur_write_offset) += 8;
 }
 
 /* Writing function for variable sized integers. Writes out a 64 bit value
@@ -1237,7 +1230,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     writer->cur_write_limit  = &(writer->contexts_data_alloc);
 
     /* Serialize lexicals. */
-    MVM_serialization_write_int(tc, writer, sf->body.num_lexicals);
+    MVM_serialization_write_varint(tc, writer, sf->body.num_lexicals);
     for (i = 0; i < sf->body.num_lexicals; i++) {
         MVM_serialization_write_str(tc, writer, lexnames[i]->key);
         switch (sf->body.lexical_types[i]) {
@@ -1246,7 +1239,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
             case MVM_reg_int32:
                 MVM_exception_throw_adhoc(tc, "unsupported lexical type");
             case MVM_reg_int64:
-                MVM_serialization_write_int(tc, writer, frame->env[i].i64);
+                MVM_serialization_write_varint(tc, writer, frame->env[i].i64);
                 break;
             case MVM_reg_num32:
                 MVM_exception_throw_adhoc(tc, "unsupported lexical type");
@@ -2199,13 +2192,23 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
     reader->cur_read_end         = &(reader->contexts_data_end);
 
     /* Deserialize lexicals. */
-    syms = MVM_serialization_read_int(tc, reader);
+    if (reader->root.version >= 19) {
+        syms = MVM_serialization_read_varint(tc, reader);
+    } else {
+        syms = MVM_serialization_read_int(tc, reader);
+    }
+
     for (i = 0; i < syms; i++) {
         MVMString   *sym = MVM_serialization_read_str(tc, reader);
         MVMRegister *lex = MVM_frame_lexical(tc, f, sym);
         switch (MVM_frame_lexical_primspec(tc, f, sym)) {
             case MVM_STORAGE_SPEC_BP_INT:
-                lex->i64 = MVM_serialization_read_int(tc, reader);
+                if (reader->root.version >= 19) {
+                    lex->i64 = MVM_serialization_read_varint(tc, reader);
+                } else {
+                    lex->i64 = MVM_serialization_read_int(tc, reader);
+                }
+
                 break;
             case MVM_STORAGE_SPEC_BP_NUM:
                 lex->n64 = MVM_serialization_read_num(tc, reader);
@@ -2751,18 +2754,18 @@ void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVM
             sr->cur_read_buffer        = &(sr->root.stables_data);
             sr->cur_read_offset        = &(sr->stables_data_offset);
             sr->cur_read_end           = &(sr->stables_data_end);
-    
+
             /* Flag that we're working on some deserialization (and so will run the
             * loop). */
             sr->working++;
             MVM_gc_allocate_gen2_default_set(tc);
-    
+
             /* Deserialize what we need. */
             MVM_ASSIGN_REF(tc, &(st->header), st->method_cache,
                 MVM_serialization_read_ref(tc, sr));
             if (sr->working == 1)
                 work_loop(tc, sr);
-    
+
             /* Clear up. */
             MVM_gc_allocate_gen2_default_clear(tc);
             sr->working--;

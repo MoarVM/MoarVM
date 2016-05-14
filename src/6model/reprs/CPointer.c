@@ -85,7 +85,14 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMCPointerBody *body = (MVMCPointerBody *)data;
-    MVMint64 value = MVM_serialization_read_int(tc, reader);
+    MVMint64 value;
+
+    if (reader->root.version >= 19) {
+        value = MVM_serialization_read_varint(tc, reader);
+    } else {
+        value = MVM_serialization_read_int(tc, reader);
+    }
+
 #if MVM_PTR_SIZE == 4
     body->ptr = (void *)(MVMuint32)value;
 #else
@@ -96,7 +103,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMCPointerBody *body = (MVMCPointerBody *)data;
-    MVM_serialization_write_int(tc, writer,
+    MVM_serialization_write_varint(tc, writer,
 #if MVM_PTR_SIZE == 4
         (MVMuint64)(MVMuint32)body->ptr
 #else
