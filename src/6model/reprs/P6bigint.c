@@ -195,14 +195,14 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
 
         /* write the "is small" flag */
-        MVM_serialization_write_varint(tc, writer, 0);
+        MVM_serialization_write_int(tc, writer, 0);
         MVM_serialization_write_str(tc, writer, str);
         MVM_free(buf);
     }
     else {
         /* write the "is small" flag */
-        MVM_serialization_write_varint(tc, writer, 1);
-        MVM_serialization_write_varint(tc, writer, body->u.smallint.value);
+        MVM_serialization_write_int(tc, writer, 1);
+        MVM_serialization_write_int(tc, writer, body->u.smallint.value);
     }
 }
 

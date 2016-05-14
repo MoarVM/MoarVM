@@ -118,7 +118,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMP6numREPRData *repr_data = (MVMP6numREPRData *)st->REPR_data;
-    MVM_serialization_write_varint(tc, writer, repr_data->bits);
+    MVM_serialization_write_int(tc, writer, repr_data->bits);
 }
 
 /* Deserializes representation data. */

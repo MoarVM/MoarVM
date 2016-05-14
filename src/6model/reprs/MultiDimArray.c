@@ -292,7 +292,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
 
     /* Write out dimensions. */
     for (i = 0; i < repr_data->num_dimensions; i++)
-        MVM_serialization_write_varint(tc, writer, body->dimensions[i]);
+        MVM_serialization_write_int(tc, writer, body->dimensions[i]);
 
     /* Write out values. */
     flat_elems = flat_elements(repr_data->num_dimensions, body->dimensions);
@@ -305,28 +305,28 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
                 MVM_serialization_write_str(tc, writer, body->slots.s[i]);
                 break;
             case MVM_ARRAY_I64:
-                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.i64[i]);
+                MVM_serialization_write_int(tc, writer, (MVMint64)body->slots.i64[i]);
                 break;
             case MVM_ARRAY_I32:
-                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.i32[i]);
+                MVM_serialization_write_int(tc, writer, (MVMint64)body->slots.i32[i]);
                 break;
             case MVM_ARRAY_I16:
-                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.i16[i]);
+                MVM_serialization_write_int(tc, writer, (MVMint64)body->slots.i16[i]);
                 break;
             case MVM_ARRAY_I8:
-                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.i8[i]);
+                MVM_serialization_write_int(tc, writer, (MVMint64)body->slots.i8[i]);
                 break;
             case MVM_ARRAY_U64:
-                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.u64[i]);
+                MVM_serialization_write_int(tc, writer, (MVMint64)body->slots.u64[i]);
                 break;
             case MVM_ARRAY_U32:
-                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.u32[i]);
+                MVM_serialization_write_int(tc, writer, (MVMint64)body->slots.u32[i]);
                 break;
             case MVM_ARRAY_U16:
-                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.u16[i]);
+                MVM_serialization_write_int(tc, writer, (MVMint64)body->slots.u16[i]);
                 break;
             case MVM_ARRAY_U8:
-                MVM_serialization_write_varint(tc, writer, (MVMint64)body->slots.u8[i]);
+                MVM_serialization_write_int(tc, writer, (MVMint64)body->slots.u8[i]);
                 break;
             case MVM_ARRAY_N64:
                 MVM_serialization_write_num(tc, writer, (MVMnum64)body->slots.n64[i]);
@@ -405,11 +405,11 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
     if (repr_data) {
-        MVM_serialization_write_varint(tc, writer, repr_data->num_dimensions);
+        MVM_serialization_write_int(tc, writer, repr_data->num_dimensions);
         MVM_serialization_write_ref(tc, writer, repr_data->elem_type);
     }
     else {
-        MVM_serialization_write_varint(tc, writer, 0);
+        MVM_serialization_write_int(tc, writer, 0);
     }
 }
 

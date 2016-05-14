@@ -890,58 +890,58 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
         MVM_exception_throw_adhoc(tc,
             "Representation must be composed before it can be serialized");
 
-    MVM_serialization_write_varint(tc, writer, repr_data->num_attributes);
+    MVM_serialization_write_int(tc, writer, repr_data->num_attributes);
 
     for (i = 0; i < repr_data->num_attributes; i++) {
-        MVM_serialization_write_varint(tc, writer, repr_data->flattened_stables[i] != NULL);
+        MVM_serialization_write_int(tc, writer, repr_data->flattened_stables[i] != NULL);
         if (repr_data->flattened_stables[i])
             MVM_serialization_write_stable_ref(tc, writer, repr_data->flattened_stables[i]);
     }
 
-    MVM_serialization_write_varint(tc, writer, repr_data->mi);
+    MVM_serialization_write_int(tc, writer, repr_data->mi);
 
     if (repr_data->auto_viv_values) {
-        MVM_serialization_write_varint(tc, writer, 1);
+        MVM_serialization_write_int(tc, writer, 1);
         for (i = 0; i < repr_data->num_attributes; i++)
             MVM_serialization_write_ref(tc, writer, repr_data->auto_viv_values[i]);
     }
     else {
-        MVM_serialization_write_varint(tc, writer, 0);
+        MVM_serialization_write_int(tc, writer, 0);
     }
 
-    MVM_serialization_write_varint(tc, writer, repr_data->unbox_int_slot);
-    MVM_serialization_write_varint(tc, writer, repr_data->unbox_num_slot);
-    MVM_serialization_write_varint(tc, writer, repr_data->unbox_str_slot);
+    MVM_serialization_write_int(tc, writer, repr_data->unbox_int_slot);
+    MVM_serialization_write_int(tc, writer, repr_data->unbox_num_slot);
+    MVM_serialization_write_int(tc, writer, repr_data->unbox_str_slot);
 
     if (repr_data->unbox_slots) {
-        MVM_serialization_write_varint(tc, writer, 1);
+        MVM_serialization_write_int(tc, writer, 1);
         for (i = 0; i < repr_data->num_attributes; i++) {
-            MVM_serialization_write_varint(tc, writer, repr_data->unbox_slots[i].repr_id);
-            MVM_serialization_write_varint(tc, writer, repr_data->unbox_slots[i].slot);
+            MVM_serialization_write_int(tc, writer, repr_data->unbox_slots[i].repr_id);
+            MVM_serialization_write_int(tc, writer, repr_data->unbox_slots[i].slot);
         }
     }
     else {
-        MVM_serialization_write_varint(tc, writer, 0);
+        MVM_serialization_write_int(tc, writer, 0);
     }
 
     i = 0;
     while (repr_data->name_to_index_mapping[i].class_key)
         i++;
     num_classes = i;
-    MVM_serialization_write_varint(tc, writer, num_classes);
+    MVM_serialization_write_int(tc, writer, num_classes);
     for (i = 0; i < num_classes; i++) {
         const MVMuint32 num_attrs = repr_data->name_to_index_mapping[i].num_attrs;
         MVMuint32 j;
         MVM_serialization_write_ref(tc, writer, repr_data->name_to_index_mapping[i].class_key);
-        MVM_serialization_write_varint(tc, writer, num_attrs);
+        MVM_serialization_write_int(tc, writer, num_attrs);
         for (j = 0; j < num_attrs; j++) {
             MVM_serialization_write_str(tc, writer, repr_data->name_to_index_mapping[i].names[j]);
-            MVM_serialization_write_varint(tc, writer, repr_data->name_to_index_mapping[i].slots[j]);
+            MVM_serialization_write_int(tc, writer, repr_data->name_to_index_mapping[i].slots[j]);
         }
     }
 
-    MVM_serialization_write_varint(tc, writer, repr_data->pos_del_slot);
-    MVM_serialization_write_varint(tc, writer, repr_data->ass_del_slot);
+    MVM_serialization_write_int(tc, writer, repr_data->pos_del_slot);
+    MVM_serialization_write_int(tc, writer, repr_data->ass_del_slot);
 }
 
 /* Deserializes representation data. */

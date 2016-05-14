@@ -167,8 +167,8 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
-    MVM_serialization_write_varint(tc, writer, repr_data->bits);
-    MVM_serialization_write_varint(tc, writer, repr_data->is_unsigned);
+    MVM_serialization_write_int(tc, writer, repr_data->bits);
+    MVM_serialization_write_int(tc, writer, repr_data->is_unsigned);
 }
 
 /* Deserializes representation data. */
@@ -193,7 +193,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 }
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    MVM_serialization_write_varint(tc, writer, get_int(tc, st, NULL, data));
+    MVM_serialization_write_int(tc, writer, get_int(tc, st, NULL, data));
 }
 
 /* Initializes the representation. */

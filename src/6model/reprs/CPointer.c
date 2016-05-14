@@ -103,7 +103,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMCPointerBody *body = (MVMCPointerBody *)data;
-    MVM_serialization_write_varint(tc, writer,
+    MVM_serialization_write_int(tc, writer,
 #if MVM_PTR_SIZE == 4
         (MVMuint64)(MVMuint32)body->ptr
 #else

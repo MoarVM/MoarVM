@@ -77,20 +77,20 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     MVM_serialization_write_ref(tc, writer, body->fates);
 
     /* Write number of states. */
-    MVM_serialization_write_varint(tc, writer, body->num_states);
+    MVM_serialization_write_int(tc, writer, body->num_states);
 
     /* Write state edge list counts. */
     for (i = 0; i < body->num_states; i++)
-        MVM_serialization_write_varint(tc, writer, body->num_state_edges[i]);
+        MVM_serialization_write_int(tc, writer, body->num_state_edges[i]);
 
     /* Write state graph. */
     for (i = 0; i < body->num_states; i++) {
         for (j = 0; j < body->num_state_edges[i]; j++) {
-            MVM_serialization_write_varint(tc, writer, body->states[i][j].act);
-            MVM_serialization_write_varint(tc, writer, body->states[i][j].to);
+            MVM_serialization_write_int(tc, writer, body->states[i][j].act);
+            MVM_serialization_write_int(tc, writer, body->states[i][j].to);
             switch (body->states[i][j].act & 0xff) {
                 case MVM_NFA_EDGE_FATE:
-                    MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.i);
+                    MVM_serialization_write_int(tc, writer, body->states[i][j].arg.i);
                     break;
                 case MVM_NFA_EDGE_CODEPOINT:
                 case MVM_NFA_EDGE_CODEPOINT_LL:
@@ -100,23 +100,23 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
                     MVMGrapheme32 g = body->states[i][j].arg.g;
                     if (g >= 0) {
                         /* Non-synthetic. */
-                        MVM_serialization_write_varint(tc, writer, g);
+                        MVM_serialization_write_int(tc, writer, g);
                     }
                     else {
                         /* Synthetic. Write the number of codepoints negated,
                          * and then each of the codepoints. */
                         MVMNFGSynthetic *si = MVM_nfg_get_synthetic_info(tc, g);
                         MVMint32 k;
-                        MVM_serialization_write_varint(tc, writer, -(si->num_combs + 1));
-                        MVM_serialization_write_varint(tc, writer, si->base);
+                        MVM_serialization_write_int(tc, writer, -(si->num_combs + 1));
+                        MVM_serialization_write_int(tc, writer, si->base);
                         for (k = 0; k < si->num_combs; k++)
-                            MVM_serialization_write_varint(tc, writer, si->combs[k]);
+                            MVM_serialization_write_int(tc, writer, si->combs[k]);
                     }
                     break;
                 }
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
-                    MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.i);
+                    MVM_serialization_write_int(tc, writer, body->states[i][j].arg.i);
                     break;
                 case MVM_NFA_EDGE_CHARLIST:
                 case MVM_NFA_EDGE_CHARLIST_NEG:
@@ -131,8 +131,8 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
                 case MVM_NFA_EDGE_CHARRANGE_NEG:
                 case MVM_NFA_EDGE_CHARRANGE_M:
                 case MVM_NFA_EDGE_CHARRANGE_M_NEG: {
-                    MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.uclc.lc);
-                    MVM_serialization_write_varint(tc, writer, body->states[i][j].arg.uclc.uc);
+                    MVM_serialization_write_int(tc, writer, body->states[i][j].arg.uclc.lc);
+                    MVM_serialization_write_int(tc, writer, body->states[i][j].arg.uclc.uc);
                     break;
                 }
             }
