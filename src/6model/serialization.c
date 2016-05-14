@@ -211,14 +211,6 @@ static void * base64_decode(const char *s, size_t *data_len)
  * Serialization (writing related)
  * ***************************************************************************/
 
-/* Writes an int64 into a buffer. */
-static void write_int64(char *buffer, size_t offset, MVMint64 value) {
-    memcpy(buffer + offset, &value, 8);
-#ifdef MVM_BIGENDIAN
-    switch_endian(buffer + offset, 8);
-#endif
-}
-
 /* Writes an int32 into a buffer. */
 static void write_int32(char *buffer, size_t offset, MVMint32 value) {
     memcpy(buffer + offset, &value, 4);
