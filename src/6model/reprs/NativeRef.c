@@ -43,8 +43,8 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 /* Deserializes REPR data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMNativeRefREPRData *repr_data = MVM_malloc(sizeof(MVMNativeRefREPRData));
-    repr_data->primitive_type = MVM_serialization_read_varint(tc, reader);
-    repr_data->ref_kind       = MVM_serialization_read_varint(tc, reader);
+    repr_data->primitive_type = MVM_serialization_read_int(tc, reader);
+    repr_data->ref_kind       = MVM_serialization_read_int(tc, reader);
     st->REPR_data = repr_data;
 }
 

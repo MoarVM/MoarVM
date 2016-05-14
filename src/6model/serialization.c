@@ -1516,7 +1516,7 @@ MVM_STATIC_INLINE void assert_can_read(MVMThreadContext *tc, MVMSerializationRea
 }
 
 /* Reading function for native integers. */
-MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader *reader) {
+MVMint64 MVM_serialization_read_int64(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint64 result;
     assert_can_read(tc, reader, 8);
     result = read_int64(*(reader->cur_read_buffer), *(reader->cur_read_offset));
@@ -1532,7 +1532,7 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
  * efficient to read. In particular, it doesn't require any looping, and
  * has at most two length overrun checks.  */
 
-MVMint64 MVM_serialization_read_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
+MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint64 result;
     const MVMuint8 *read_at = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
     MVMuint8 *const read_end = (MVMuint8 *) *(reader->cur_read_end);
@@ -1634,7 +1634,7 @@ MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationRea
 
 /* Reading function for null-terminated char array strings */
 char *MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    size_t len = MVM_serialization_read_varint(tc, reader);
+    size_t len = MVM_serialization_read_int(tc, reader);
     char *strbuf = 0;
     if (len > 0) {
         const MVMuint8 *read_at = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
@@ -1699,7 +1699,7 @@ static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *
     MVMint32 elems, i;
 
     /* Read the element count. */
-    elems = MVM_serialization_read_varint(tc, reader);
+    elems = MVM_serialization_read_int(tc, reader);
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++)
@@ -1743,11 +1743,11 @@ static MVMObject * read_array_varint(MVMThreadContext *tc, MVMSerializationReade
     MVMint64 elems, i;
 
     /* Read the element count. */
-    elems = MVM_serialization_read_varint(tc, reader);
+    elems = MVM_serialization_read_int(tc, reader);
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++)
-        MVM_repr_bind_pos_i(tc, result, i, MVM_serialization_read_varint(tc, reader));
+        MVM_repr_bind_pos_i(tc, result, i, MVM_serialization_read_int(tc, reader));
 
     return result;
 }
@@ -1813,7 +1813,7 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
             return tc->instance->VMNull;
         case REFVAR_VM_INT: {
             MVMint64 value;
-            value = MVM_serialization_read_varint(tc, reader);
+            value = MVM_serialization_read_int(tc, reader);
             result = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, value);
             return result;
         }
@@ -2193,9 +2193,9 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
 
     /* Deserialize lexicals. */
     if (reader->root.version >= 19) {
-        syms = MVM_serialization_read_varint(tc, reader);
-    } else {
         syms = MVM_serialization_read_int(tc, reader);
+    } else {
+        syms = MVM_serialization_read_int64(tc, reader);
     }
 
     for (i = 0; i < syms; i++) {
@@ -2204,9 +2204,9 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
         switch (MVM_frame_lexical_primspec(tc, f, sym)) {
             case MVM_STORAGE_SPEC_BP_INT:
                 if (reader->root.version >= 19) {
-                    lex->i64 = MVM_serialization_read_varint(tc, reader);
-                } else {
                     lex->i64 = MVM_serialization_read_int(tc, reader);
+                } else {
+                    lex->i64 = MVM_serialization_read_int64(tc, reader);
                 }
 
                 break;
@@ -2436,7 +2436,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     deserialize_method_cache_lazy(tc, st, reader);
 
     /* Type check cache. */
-    st->type_check_cache_length = MVM_serialization_read_varint(tc, reader);
+    st->type_check_cache_length = MVM_serialization_read_int(tc, reader);
     if (st->type_check_cache_length > 0) {
         st->type_check_cache = (MVMObject **)MVM_malloc(st->type_check_cache_length * sizeof(MVMObject *));
         for (i = 0; i < st->type_check_cache_length; i++)
@@ -2475,13 +2475,13 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         st->invocation_spec = (MVMInvocationSpec *)MVM_calloc(1, sizeof(MVMInvocationSpec));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->class_handle, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
-        st->invocation_spec->hint = MVM_serialization_read_varint(tc, reader);
+        st->invocation_spec->hint = MVM_serialization_read_int(tc, reader);
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->invocation_handler, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_class_handle, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_cache_attr_name, MVM_serialization_read_str(tc, reader));
-        st->invocation_spec->md_cache_hint = MVM_serialization_read_varint(tc, reader);
+        st->invocation_spec->md_cache_hint = MVM_serialization_read_int(tc, reader);
         MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_valid_attr_name, MVM_serialization_read_str(tc, reader));
-        st->invocation_spec->md_valid_hint = MVM_serialization_read_varint(tc, reader);
+        st->invocation_spec->md_valid_hint = MVM_serialization_read_int(tc, reader);
     }
 
     /* HLL owner. */

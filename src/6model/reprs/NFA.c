@@ -149,13 +149,13 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     body->fates = MVM_serialization_read_ref(tc, reader);
 
     /* Read number of states. */
-    body->num_states = MVM_serialization_read_varint(tc, reader);
+    body->num_states = MVM_serialization_read_int(tc, reader);
 
     if (body->num_states > 0) {
         /* Read state edge list counts. */
         body->num_state_edges = MVM_malloc(body->num_states * sizeof(MVMint64));
         for (i = 0; i < body->num_states; i++)
-            body->num_state_edges[i] = MVM_serialization_read_varint(tc, reader);
+            body->num_state_edges[i] = MVM_serialization_read_int(tc, reader);
 
         /* Read state graph. */
         body->states = MVM_malloc(body->num_states * sizeof(MVMNFAStateInfo *));
@@ -164,18 +164,18 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
             if (edges > 0)
                 body->states[i] = MVM_malloc(edges * sizeof(MVMNFAStateInfo));
             for (j = 0; j < edges; j++) {
-                body->states[i][j].act = MVM_serialization_read_varint(tc, reader);
-                body->states[i][j].to = MVM_serialization_read_varint(tc, reader);
+                body->states[i][j].act = MVM_serialization_read_int(tc, reader);
+                body->states[i][j].to = MVM_serialization_read_int(tc, reader);
                 switch (body->states[i][j].act & 0xff) {
                     case MVM_NFA_EDGE_FATE:
-                        body->states[i][j].arg.i = MVM_serialization_read_varint(tc, reader);
+                        body->states[i][j].arg.i = MVM_serialization_read_int(tc, reader);
                         break;
                     case MVM_NFA_EDGE_CODEPOINT:
                     case MVM_NFA_EDGE_CODEPOINT_LL:
                     case MVM_NFA_EDGE_CODEPOINT_NEG:
                     case MVM_NFA_EDGE_CODEPOINT_M:
                     case MVM_NFA_EDGE_CODEPOINT_M_NEG: {
-                        MVMint64 cp_or_synth_count = MVM_serialization_read_varint(tc, reader);
+                        MVMint64 cp_or_synth_count = MVM_serialization_read_int(tc, reader);
                         if (cp_or_synth_count >= 0) {
                             body->states[i][j].arg.g = (MVMGrapheme32)cp_or_synth_count;
                         }
@@ -184,7 +184,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                             MVMCodepoint *codes = MVM_malloc(num_codes * sizeof(MVMCodepoint));
                             MVMint32 k;
                             for (k = 0; k < num_codes; k++)
-                                codes[k] = (MVMCodepoint)MVM_serialization_read_varint(tc, reader);
+                                codes[k] = (MVMCodepoint)MVM_serialization_read_int(tc, reader);
                             body->states[i][j].arg.g = MVM_nfg_codes_to_grapheme(tc, codes, num_codes);
                             MVM_free(codes);
                         }
@@ -192,7 +192,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                     }
                     case MVM_NFA_EDGE_CHARCLASS:
                     case MVM_NFA_EDGE_CHARCLASS_NEG:
-                        body->states[i][j].arg.i = MVM_serialization_read_varint(tc, reader);
+                        body->states[i][j].arg.i = MVM_serialization_read_int(tc, reader);
                         break;
                     case MVM_NFA_EDGE_CHARLIST:
                     case MVM_NFA_EDGE_CHARLIST_NEG:
@@ -207,8 +207,8 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                     case MVM_NFA_EDGE_CHARRANGE_NEG:
                     case MVM_NFA_EDGE_CHARRANGE_M:
                     case MVM_NFA_EDGE_CHARRANGE_M_NEG: {
-                        body->states[i][j].arg.uclc.lc = MVM_serialization_read_varint(tc, reader);
-                        body->states[i][j].arg.uclc.uc = MVM_serialization_read_varint(tc, reader);
+                        body->states[i][j].arg.uclc.lc = MVM_serialization_read_int(tc, reader);
+                        body->states[i][j].arg.uclc.uc = MVM_serialization_read_int(tc, reader);
                         break;
                     }
                 }

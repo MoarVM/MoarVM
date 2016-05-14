@@ -88,9 +88,9 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMint64 value;
 
     if (reader->root.version >= 19) {
-        value = MVM_serialization_read_varint(tc, reader);
-    } else {
         value = MVM_serialization_read_int(tc, reader);
+    } else {
+        value = MVM_serialization_read_int64(tc, reader);
     }
 
 #if MVM_PTR_SIZE == 4
