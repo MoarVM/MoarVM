@@ -417,9 +417,21 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 /* Deserializes the REPR data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *) MVM_malloc(sizeof(MVMCArrayREPRData));
-    repr_data->elem_size = MVM_serialization_read_int(tc, reader);
+
+    if (reader->root.version >= 19) {
+        repr_data->elem_size = MVM_serialization_read_int(tc, reader);
+    } else {
+        repr_data->elem_size = MVM_serialization_read_int64(tc, reader);
+    }
+
     repr_data->elem_type = MVM_serialization_read_ref(tc, reader);
-    repr_data->elem_kind = MVM_serialization_read_int(tc, reader);
+
+    if (reader->root.version >= 19) {
+        repr_data->elem_kind = MVM_serialization_read_int(tc, reader);
+    } else {
+        repr_data->elem_kind = MVM_serialization_read_int64(tc, reader);
+    }
+
     st->REPR_data = repr_data;
 }
 

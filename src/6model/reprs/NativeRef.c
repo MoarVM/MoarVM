@@ -31,20 +31,20 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)st->REPR_data;
     if (repr_data) {
-        MVM_serialization_write_varint(tc, writer, repr_data->primitive_type);
-        MVM_serialization_write_varint(tc, writer, repr_data->ref_kind);
+        MVM_serialization_write_int(tc, writer, repr_data->primitive_type);
+        MVM_serialization_write_int(tc, writer, repr_data->ref_kind);
     }
     else {
-        MVM_serialization_write_varint(tc, writer, 0);
-        MVM_serialization_write_varint(tc, writer, 0);
+        MVM_serialization_write_int(tc, writer, 0);
+        MVM_serialization_write_int(tc, writer, 0);
     }
 }
 
 /* Deserializes REPR data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMNativeRefREPRData *repr_data = MVM_malloc(sizeof(MVMNativeRefREPRData));
-    repr_data->primitive_type = MVM_serialization_read_varint(tc, reader);
-    repr_data->ref_kind       = MVM_serialization_read_varint(tc, reader);
+    repr_data->primitive_type = MVM_serialization_read_int(tc, reader);
+    repr_data->ref_kind       = MVM_serialization_read_int(tc, reader);
     st->REPR_data = repr_data;
 }
 
