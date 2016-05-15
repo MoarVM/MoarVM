@@ -498,9 +498,7 @@ static void write_array_str(MVMThreadContext *tc, MVMSerializationWriter *writer
     MVMint32 i;
 
     /* Write out element count. */
-    expand_storage_if_needed(tc, writer, 4);
-    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), elems);
-    *(writer->cur_write_offset) += 4;
+    MVM_serialization_write_int(tc, writer, elems);
 
     /* Write elements. */
     for (i = 0; i < elems; i++)
@@ -513,9 +511,7 @@ static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *wri
     MVMObject *iter = MVM_iter(tc, hash);
 
     /* Write out element count. */
-    expand_storage_if_needed(tc, writer, 4);
-    write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), elems);
-    *(writer->cur_write_offset) += 4;
+    MVM_serialization_write_int(tc, writer, elems);
 
     /* Write elements, as key,value,key,value etc. */
     while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
@@ -1713,9 +1709,13 @@ static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReade
     MVMint32 elems, i;
 
     /* Read the element count. */
-    assert_can_read(tc, reader, 4);
-    elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-    *(reader->cur_read_offset) += 4;
+    if (reader->root.version >= 19) {
+        elems = MVM_serialization_read_int(tc, reader);
+    } else {
+        assert_can_read(tc, reader, 4);
+        elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 4;
+    }
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++) {
@@ -1730,7 +1730,7 @@ static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReade
 }
 
 /* Reads in an array of integers. */
-static MVMObject * read_array_varint(MVMThreadContext *tc, MVMSerializationReader *reader) {
+static MVMObject * read_array_int(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
     MVMint64 elems, i;
 
@@ -1750,9 +1750,13 @@ static MVMObject * read_array_str(MVMThreadContext *tc, MVMSerializationReader *
     MVMint32 elems, i;
 
     /* Read the element count. */
-    assert_can_read(tc, reader, 4);
-    elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-    *(reader->cur_read_offset) += 4;
+    if (reader->root.version >= 19) {
+        elems = MVM_serialization_read_int(tc, reader);
+    } else {
+        assert_can_read(tc, reader, 4);
+        elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 4;
+    }
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++)
@@ -1828,7 +1832,7 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
 		case REFVAR_VM_ARR_STR:
             return read_array_str(tc, reader);
 		case REFVAR_VM_ARR_INT:
-            return read_array_varint(tc, reader);
+            return read_array_int(tc, reader);
         case REFVAR_VM_HASH_STR_VAR:
             result = read_hash_str_var(tc, reader);
             if (reader->current_object) {
@@ -2306,9 +2310,13 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
         *(reader->cur_read_offset) += discrim_size;
 
         /* Check the elements are as expected. */
-        assert_can_read(tc, reader, 4);
-        elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-        *(reader->cur_read_offset) += 4;
+        if (reader->root.version >= 19) {
+            elems = MVM_serialization_read_int(tc, reader);
+        } else {
+            assert_can_read(tc, reader, 4);
+            elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+            *(reader->cur_read_offset) += 4;
+        }
         valid = 1;
         for (i = 0; i < elems; i++) {
             MVMuint32 packed;
