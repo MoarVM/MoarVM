@@ -434,20 +434,12 @@ void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *w
 static void write_sc_id_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint32 sc_id, MVMint32 idx) {
     if (sc_id <= PACKED_SC_MAX && idx <= PACKED_SC_IDX_MAX) {
         MVMuint32 packed = (sc_id << PACKED_SC_SHIFT) | (idx & PACKED_SC_IDX_MASK);
-
-        expand_storage_if_needed(tc, writer, 4);
-        write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), packed);
-        *(writer->cur_write_offset) += 4;
+        MVM_serialization_write_int(tc, writer, packed);
     } else {
         MVMuint32 packed = PACKED_SC_OVERFLOW << PACKED_SC_SHIFT;
-
-        expand_storage_if_needed(tc, writer, 12);
-        write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), packed);
-        *(writer->cur_write_offset) += 4;
-        write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), sc_id);
-        *(writer->cur_write_offset) += 4;
-        write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset), idx);
-        *(writer->cur_write_offset) += 4;
+        MVM_serialization_write_int(tc, writer, packed);
+        MVM_serialization_write_int(tc, writer, sc_id);
+        MVM_serialization_write_int(tc, writer, idx);
     }
 }
 
@@ -1652,18 +1644,28 @@ MVM_STATIC_INLINE MVMSerializationContext *read_locate_sc_and_index(MVMThreadCon
     MVMint32 sc_id;
     MVMuint32 packed;
 
-    assert_can_read(tc, reader, 4);
-    packed = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-    *(reader->cur_read_offset) += 4;
+    if (reader->root.version >= 19) {
+        packed = MVM_serialization_read_int(tc, reader);
+    } else {
+        assert_can_read(tc, reader, 4);
+        packed = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 4;
+    }
+
     sc_id = packed >> PACKED_SC_SHIFT;
     if (sc_id != PACKED_SC_OVERFLOW) {
         *idx = packed & PACKED_SC_IDX_MASK;
     } else {
-        assert_can_read(tc, reader, 8);
-        sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-        *(reader->cur_read_offset) += 4;
-        *idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-        *(reader->cur_read_offset) += 4;
+        if (reader->root.version >= 19) {
+            sc_id = MVM_serialization_read_int(tc, reader);
+            *idx = MVM_serialization_read_int(tc, reader);
+        } else {
+            assert_can_read(tc, reader, 8);
+            sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+            *(reader->cur_read_offset) += 4;
+            *idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+            *(reader->cur_read_offset) += 4;
+        }
     }
 
     return locate_sc(tc, reader, sc_id);
@@ -1829,9 +1831,9 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
                     reader->current_object);
             }
             return result;
-		case REFVAR_VM_ARR_STR:
+        case REFVAR_VM_ARR_STR:
             return read_array_str(tc, reader);
-		case REFVAR_VM_ARR_INT:
+        case REFVAR_VM_ARR_INT:
             return read_array_int(tc, reader);
         case REFVAR_VM_HASH_STR_VAR:
             result = read_hash_str_var(tc, reader);
@@ -2287,6 +2289,39 @@ static void deserialize_how_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSeriali
     MVM_ASSIGN_REF(tc, &(st->header), st->HOW_sc, sc);
 }
 
+/* calculate needed bytes for int, it is a simple version of MVM_serialization_read_int. */
+static MVMuint8 calculate_int_bytes(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMint64 result;
+    const MVMuint8 *read_at = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
+    MVMuint8 *const read_end = (MVMuint8 *) *(reader->cur_read_end);
+    MVMuint8 first;
+    MVMuint8 need;
+
+    if (read_at >= read_end)
+        fail_deserialize(tc, reader,
+                         "Read past end of serialization data buffer");
+
+    first = *read_at++;
+
+    /* Top bit set means remaining 7 bits are a value between -1 and 126.
+       (That turns out to be the most common 7 bit range that we serialize.)  */
+    if (first & 0x80) {
+        return 1;
+    }
+
+    /* Otherwise next 3 bits indicate how many more bytes follow. */
+    need = first >> 4;
+    if (!need) {
+      return 9;
+    }
+
+    if (read_at + need > read_end)
+        fail_deserialize(tc, reader,
+                         "Read past end of serialization data buffer");
+
+    return need + 1;
+}
+
 /* Stashes what we need to deserialize the method cache lazily later, and then
  * skips over it.
  *
@@ -2334,19 +2369,34 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
             /* Ensure we've a coderef or code object. */
             assert_can_read(tc, reader, discrim_size);
             inner_discrim = read_discrim(tc, reader);
+            *(reader->cur_read_offset) += discrim_size;
             switch (inner_discrim) {
             case REFVAR_OBJECT:
             case REFVAR_STATIC_CODEREF:
             case REFVAR_CLONED_CODEREF:
-                assert_can_read(tc, reader, discrim_size + 4);
-                packed = read_int32(*(reader->cur_read_buffer),
-                                    *(reader->cur_read_offset) + discrim_size);
+                if (reader->root.version >= 19) {
+                    packed = MVM_serialization_read_int(tc, reader);
+                } else {
+                    assert_can_read(tc, reader, 4);
+                    packed = read_int32(*(reader->cur_read_buffer),
+                                        *(reader->cur_read_offset) );
+                }
 
                 if(packed == (PACKED_SC_OVERFLOW << PACKED_SC_SHIFT)) {
-                    assert_can_read(tc, reader, discrim_size + 12);
-                    *(reader->cur_read_offset) += discrim_size + 12;
+                    if (reader->root.version >= 19) {
+                        *(reader->cur_read_offset) += calculate_int_bytes(tc, reader); /* for packed */
+                        *(reader->cur_read_offset) += calculate_int_bytes(tc, reader); /* for sc_id */
+                        *(reader->cur_read_offset) += calculate_int_bytes(tc, reader); /* for idx */
+                    } else {
+                        assert_can_read(tc, reader, 12);
+                        *(reader->cur_read_offset) += 12;
+                    }
                 } else {
-                    *(reader->cur_read_offset) += discrim_size + 4;
+                    if (reader->root.version >= 19) {
+                        *(reader->cur_read_offset) += calculate_int_bytes(tc, reader); /* for packed */
+                    } else {
+                        *(reader->cur_read_offset) += 4;
+                    }
                 }
                 break;
             case REFVAR_NULL:
