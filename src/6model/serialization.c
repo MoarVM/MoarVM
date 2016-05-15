@@ -431,7 +431,7 @@ void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *w
 
 /* Writes the ID, index pair that identifies an entry in a Serialization
    context. */
-static void write_sc_id_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint32 sc_id, MVMint32 idx) {
+static void write_locate_sc_and_index(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint32 sc_id, MVMint32 idx) {
     if (sc_id <= PACKED_SC_MAX && idx <= PACKED_SC_IDX_MAX) {
         MVMuint32 packed = (sc_id << PACKED_SC_SHIFT) | (idx & PACKED_SC_IDX_MASK);
         MVM_serialization_write_int(tc, writer, packed);
@@ -455,7 +455,7 @@ static void write_obj_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, 
     }
     sc_id = get_sc_id(tc, writer, MVM_sc_get_obj_sc(tc, ref));
     idx   = (MVMint32)MVM_sc_find_object_idx(tc, MVM_sc_get_obj_sc(tc, ref), ref);
-    write_sc_id_idx(tc, writer, sc_id, idx);
+    write_locate_sc_and_index(tc, writer, sc_id, idx);
 }
 
 /* Writes an array where each item is a variant reference. */
@@ -518,7 +518,7 @@ static void write_code_ref(MVMThreadContext *tc, MVMSerializationWriter *writer,
     MVMSerializationContext *sc = MVM_sc_get_obj_sc(tc, code);
     MVMint32  sc_id   = get_sc_id(tc, writer, sc);
     MVMint32  idx     = (MVMint32)MVM_sc_find_code_idx(tc, sc, code);
-    write_sc_id_idx(tc, writer, sc_id, idx);
+    write_locate_sc_and_index(tc, writer, sc_id, idx);
 }
 
 /* Given a closure, locate the static code reference it was originally cloned
@@ -742,7 +742,7 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
 void MVM_serialization_write_stable_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st) {
     MVMuint32 sc_id, idx;
     get_stable_ref_info(tc, writer, st, &sc_id, &idx);
-    write_sc_id_idx(tc, writer, sc_id, idx);
+    write_locate_sc_and_index(tc, writer, sc_id, idx);
 }
 
 /* Concatenates the various output segments into a single binary MVMString. */
@@ -877,7 +877,7 @@ static void serialize_how_lazy(MVMThreadContext *tc, MVMSerializationWriter *wri
     }
     else {
         MVMint32 sc_id = get_sc_id(tc, writer, st->HOW_sc);
-        write_sc_id_idx(tc, writer, sc_id, st->HOW_idx);
+        write_locate_sc_and_index(tc, writer, sc_id, st->HOW_idx);
     }
 }
 
@@ -1640,7 +1640,7 @@ char *MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader *
    BEWARE - logic in this function is partly duplicated in the skip calculations
    of deserialize_method_cache_lazy(). See the note before
    MVM_serialization_read_ref(). */
-MVM_STATIC_INLINE MVMSerializationContext *read_locate_sc_and_index(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 *idx) {
+MVM_STATIC_INLINE MVMSerializationContext * read_locate_sc_and_index(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 *idx) {
     MVMint32 sc_id;
     MVMuint32 packed;
 
@@ -2291,7 +2291,6 @@ static void deserialize_how_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSeriali
 
 /* calculate needed bytes for int, it is a simple version of MVM_serialization_read_int. */
 static MVMuint8 calculate_int_bytes(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMint64 result;
     const MVMuint8 *read_at = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
     MVMuint8 *const read_end = (MVMuint8 *) *(reader->cur_read_end);
     MVMuint8 first;
