@@ -812,7 +812,13 @@ MVMObject * collection_to_mvm_objects(MVMThreadContext *tc, MVMHeapSnapshotColle
 
 /* Finishes heap profiling, getting the data. */
 MVMObject * MVM_profile_heap_end(MVMThreadContext *tc) {
-    MVMObject *dataset = collection_to_mvm_objects(tc, tc->instance->heap_snapshots);
+    MVMObject *dataset;
+
+    /* Trigger a GC run, to ensure we get at least one heap snapshot. */
+    MVM_gc_enter_from_allocator(tc);
+
+    /* Process and return the data. */
+    dataset = collection_to_mvm_objects(tc, tc->instance->heap_snapshots);
     destroy_heap_snapshot_collection(tc);
     return dataset;
 }
