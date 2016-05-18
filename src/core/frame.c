@@ -1752,24 +1752,15 @@ MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *cod
     return code;
 }
 
+/* Creates a MVMContent wrapper object around an MVMFrame. */
 MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
-    MVMObject *ctx = (MVMObject *)MVM_load(&f->context_object);
-
-    if (!ctx) {
-        f = MVM_frame_force_to_heap(tc, f);
-        MVMROOT(tc, f, {
-            ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-            MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
-        });
-
-        if (MVM_casptr(&f->context_object, NULL, ctx) != NULL) {
-            ctx = (MVMObject *)MVM_load(&f->context_object);
-        }
-        else {
-            f->keep_caller = 1;
-        }
-    }
-
+    MVMObject *ctx;
+    f = MVM_frame_force_to_heap(tc, f);
+    MVMROOT(tc, f, {
+        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
+        MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
+    });
+    f->keep_caller = 1;
     return ctx;
 }
 

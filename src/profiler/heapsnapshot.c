@@ -448,8 +448,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)frame->static_info, "Static frame");
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)frame->context_object, "Context object");
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)frame->dynlex_cache_name,
                     "Dynamic lexical cache name");
 
