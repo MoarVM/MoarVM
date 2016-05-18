@@ -256,7 +256,8 @@ struct MVMSpeshAnn {
 #define MVM_SPESH_ANN_DEOPT_OSR     9
 
 /* Functions to create/destory the spesh graph. */
-MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint32 cfg_only);
+MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
+    MVMuint32 cfg_only, MVMuint32 insert_object_nulls);
 MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStaticFrame *sf,
     MVMSpeshCandidate *cand, MVMuint32 cfg_only);
 MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search);

@@ -33,7 +33,7 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
 
     /* Do initial generation of the specialization, working out the argument
      * guards and adding logging. */
-    sg = MVM_spesh_graph_create(tc, static_frame, 0);
+    sg = MVM_spesh_graph_create(tc, static_frame, 0, 1);
     if (tc->instance->spesh_log_fh)
         before = MVM_spesh_dump(tc, sg);
     MVM_spesh_args(tc, sg, callsite, args);

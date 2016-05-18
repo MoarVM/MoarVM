@@ -223,17 +223,13 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     }
     work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
     if (work_size) {
-        /* Fill up all object registers with a pointer to our VMNull object */
-        if (spesh_cand && spesh_cand->local_types) {
-            MVMuint32 num_locals = spesh_cand->num_locals;
-            MVMuint16 *local_types = spesh_cand->local_types;
-            MVMuint32 i;
+        if (spesh_cand) {
+            /* Allocate zeroed memory. Spesh makes sure we have VMNull setup in
+             * the places we need it. */
             frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, work_size);
-            for (i = 0; i < num_locals; i++)
-                if (local_types[i] == MVM_reg_obj)
-                    frame->work[i].o = tc->instance->VMNull;
         }
         else {
+            /* Copy frame template with VMNulls in to place. */
             frame->work = MVM_fixed_size_alloc(tc, tc->instance->fsa, work_size);
             memcpy(frame->work, static_frame_body->work_initial,
                 sizeof(MVMRegister) * static_frame_body->num_locals);

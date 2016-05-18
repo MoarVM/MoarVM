@@ -103,7 +103,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
 static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMSpeshCode  *sc;
     MVMStaticFrameInstrumentation *ins;
-    MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, sf, 1);
+    MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, sf, 1, 0);
     instrument_graph(tc, sg);
     sc = MVM_spesh_codegen(tc, sg);
     ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
