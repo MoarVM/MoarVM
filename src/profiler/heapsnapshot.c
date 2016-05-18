@@ -261,7 +261,7 @@ static void set_static_frame_index(MVMThreadContext *tc, MVMHeapSnapshotState *s
 /* Processes the work items, until we've none left. */
 static void process_collectable(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         MVMHeapSnapshotCollectable *col, MVMCollectable *c) {
-    MVMuint32 sc_idx = MVM_get_idx_of_sc(c);
+    MVMuint32 sc_idx = MVM_sc_get_idx_of_sc(c);
     if (sc_idx > 0)
         add_reference_const_cstr(tc, ss, "<SC>",
             get_collectable_idx(tc, ss,

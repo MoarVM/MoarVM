@@ -92,7 +92,7 @@ void MVM_sc_set_description(MVMThreadContext *tc, MVMSerializationContext *sc, M
 MVMint64 MVM_sc_find_object_idx(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *obj) {
     MVMObject **roots;
     MVMint64    i, count;
-    MVMuint32   cached = MVM_get_idx_in_sc(&obj->header);
+    MVMuint32   cached = MVM_sc_get_idx_in_sc(&obj->header);
     if (cached != ~0)
         return cached;
     roots = sc->body->root_objects;
@@ -115,7 +115,7 @@ MVMint64 MVM_sc_find_object_idx_jit(MVMThreadContext *tc, MVMObject *sc, MVMObje
 /* Given an SC, looks up the index of an STable that is in its root set. */
 MVMint64 MVM_sc_find_stable_idx(MVMThreadContext *tc, MVMSerializationContext *sc, MVMSTable *st) {
     MVMuint64 i;
-    MVMuint32 cached = MVM_get_idx_in_sc(&st->header);
+    MVMuint32 cached = MVM_sc_get_idx_in_sc(&st->header);
     if (cached != ~0)
         return cached;
     for (i = 0; i < sc->body->num_stables; i++)
