@@ -10,7 +10,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 19
+#define CURRENT_VERSION 20
 #define MIN_VERSION     16
 
 /* Various sizes (in bytes). */
@@ -83,6 +83,7 @@
 #define STABLE_HAS_CONTAINER_SPEC           0x10
 #define STABLE_HAS_INVOCATION_SPEC          0x20
 #define STABLE_HAS_HLL_OWNER                0x40
+#define STABLE_HAS_HLL_ROLE                 0x80
 
 /* Endian translation (file format is little endian, so on big endian we need
  * to twiddle. */
@@ -1009,6 +1010,9 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
         flags |= STABLE_HAS_INVOCATION_SPEC;
     if (st->hll_owner != NULL)
         flags |= STABLE_HAS_HLL_OWNER;
+    if (st->hll_role != MVM_HLL_ROLE_NONE)
+        flags |= STABLE_HAS_HLL_ROLE;
+
     expand_storage_if_needed(tc, writer, 1);
     *(*(writer->cur_write_buffer) + *(writer->cur_write_offset)) = flags;
     ++*(writer->cur_write_offset);
@@ -1044,6 +1048,12 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     /* HLL owner. */
     if (st->hll_owner)
         MVM_serialization_write_str(tc, writer, st->hll_owner->name);
+
+    /* HLL role */
+    if (st->hll_role != MVM_HLL_ROLE_NONE) {
+        MVM_serialization_write_int(tc, writer, st->hll_role);
+    } else {
+    }
 
     /* If it's a parametric type, save parameterizer. */
     if (st->mode_flags & MVM_PARAMETRIC_TYPE)
@@ -2535,6 +2545,11 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     /* HLL owner. */
     if (flags & STABLE_HAS_HLL_OWNER) {
         st->hll_owner = MVM_hll_get_config_for(tc, MVM_serialization_read_str(tc, reader));
+    }
+
+    /* HLL role. */
+    if (flags & STABLE_HAS_HLL_ROLE) {
+        st->hll_role = MVM_serialization_read_int(tc, reader);
     }
 
     /* If it's a parametric type... */
