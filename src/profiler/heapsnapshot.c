@@ -174,6 +174,8 @@ static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
             idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_STABLE, collectable);
         else if (collectable->flags & MVM_CF_TYPE_OBJECT)
             idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT, collectable);
+        else if (collectable->flags & MVM_CF_FRAME)
+            idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME, collectable);
         else
             idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_OBJECT, collectable);
         saw(tc, ss, collectable, idx);
