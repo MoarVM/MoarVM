@@ -516,9 +516,11 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
 
                 break;
             }
-            case MVM_SNAPSHOT_COL_KIND_INTERGEN_ROOTS:
-                MVM_gc_root_add_gen2s_to_snapshot(tc, ss);
+            case MVM_SNAPSHOT_COL_KIND_INTERGEN_ROOTS: {
+                MVMThreadContext *thread_tc = (MVMThreadContext *)item.target;
+                MVM_gc_root_add_gen2s_to_snapshot(thread_tc, ss);
                 break;
+            }
             default:
                 MVM_panic(1, "Unknown heap snapshot worklist item kind %d", item.kind);
         }
