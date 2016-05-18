@@ -510,6 +510,10 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                             push_workitem(tc, ss,
                                 MVM_SNAPSHOT_COL_KIND_INTERGEN_ROOTS,
                                 cur_thread->body.tc));
+                        add_reference_const_cstr(tc, ss, "Thread Call Stack Roots",
+                            push_workitem(tc, ss,
+                                MVM_SNAPSHOT_COL_KIND_CALLSTACK_ROOTS,
+                                cur_thread->body.tc));
                     }
                     cur_thread = cur_thread->body.next;
                 }
@@ -519,6 +523,21 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
             case MVM_SNAPSHOT_COL_KIND_INTERGEN_ROOTS: {
                 MVMThreadContext *thread_tc = (MVMThreadContext *)item.target;
                 MVM_gc_root_add_gen2s_to_snapshot(thread_tc, ss);
+                break;
+            }
+            case MVM_SNAPSHOT_COL_KIND_CALLSTACK_ROOTS: {
+                MVMThreadContext *thread_tc = (MVMThreadContext *)item.target;
+                if (thread_tc->cur_frame && MVM_FRAME_IS_ON_CALLSTACK(tc, thread_tc->cur_frame)) {
+                    MVMFrame *cur_frame = thread_tc->cur_frame;
+                    MVMint32 idx = 0;
+                    while (cur_frame && MVM_FRAME_IS_ON_CALLSTACK(tc, cur_frame)) {
+                        add_reference_idx(tc, ss, idx,
+                            push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME,
+                                (MVMCollectable *)cur_frame));
+                        idx++;
+                        cur_frame = cur_frame->caller;
+                    }
+                }
                 break;
             }
             default:
