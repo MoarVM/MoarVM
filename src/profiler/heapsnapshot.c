@@ -592,10 +592,8 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
 
     /* We push the ultimate "root of roots" onto the worklist to get things
      * going, then set off on our merry way. */
-    printf("Recording heap snapshot\n");
     push_workitem(tc, &ss, MVM_SNAPSHOT_COL_KIND_ROOT, NULL);
     process_workitems(tc, &ss);
-    printf("Recording completed\n");
 
     /* Clean up temporary state. */
     MVM_free(ss.workitems);
