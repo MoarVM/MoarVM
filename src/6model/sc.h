@@ -76,6 +76,11 @@ MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_obj_sc(MVMThreadContext *
     return MVM_sc_get_collectable_sc(tc, &obj->header);
 }
 
+/* Gets a frame's SC. */
+MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_frame_sc(MVMThreadContext *tc, MVMFrame *f) {
+    return MVM_sc_get_collectable_sc(tc, &f->header);
+}
+
 /* Gets an STables's SC. */
 MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_stable_sc(MVMThreadContext *tc, MVMSTable *st) {
     return MVM_sc_get_collectable_sc(tc, &st->header);
@@ -112,6 +117,11 @@ MVM_STATIC_INLINE void MVM_sc_set_collectable_sc(MVMThreadContext *tc, MVMCollec
 /* Sets an object's SC. */
 MVM_STATIC_INLINE void MVM_sc_set_obj_sc(MVMThreadContext *tc, MVMObject *obj, MVMSerializationContext *sc) {
     MVM_sc_set_collectable_sc(tc, &obj->header, sc);
+}
+
+/* Sets an frame's SC. */
+MVM_STATIC_INLINE void MVM_sc_set_frame_sc(MVMThreadContext *tc, MVMFrame *f, MVMSerializationContext *sc) {
+    MVM_sc_set_collectable_sc(tc, &f->header, sc);
 }
 
 /* Sets an STable's SC. */
