@@ -405,7 +405,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 col.collectable_size = sizeof(MVMFrame);
                 set_static_frame_index(tc, ss, &col, frame->static_info);
 
-                if (frame->caller)
+                if (frame->caller && !MVM_FRAME_IS_ON_CALLSTACK(tc, frame))
                     add_reference_const_cstr(tc, ss, "Caller",
                         get_frame_idx(tc, ss, frame->caller));
                 if (frame->outer)
@@ -482,8 +482,9 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
             case MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS: {
                 MVMThreadContext *thread_tc = (MVMThreadContext *)item.target;
                 MVM_gc_root_add_tc_roots_to_worklist(thread_tc, NULL, ss);
-                add_reference_const_cstr(tc, ss, "Current frame",
-                    get_frame_idx(tc, ss, thread_tc->cur_frame));
+                if (!MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame))
+                    add_reference_const_cstr(tc, ss, "Current frame",
+                        get_frame_idx(tc, ss, thread_tc->cur_frame));
                  break;
             }
             case MVM_SNAPSHOT_COL_KIND_ROOT: {
