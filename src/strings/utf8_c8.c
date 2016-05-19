@@ -247,7 +247,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
 
     orig_bytes = bytes;
     orig_utf8 = utf8;
-    last_accept_utf8 = utf8;
+    last_accept_utf8 = utf8 - 1;
 
     for (; bytes; ++utf8, --bytes) {
         switch(decode_utf8_byte(&state, &codepoint, (MVMuint8)*utf8)) {
@@ -300,7 +300,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
 
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
-void MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
+MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                      const MVMint32 *stopper_chars,
                                      MVMDecodeStreamSeparators *seps) {
     MVMint32 count = 0, total = 0;
@@ -311,15 +311,16 @@ void MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
     MVMint32 last_accept_pos, ready;
+    MVMuint32 reached_stopper;
 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
-        return;
+        return 0;
     last_accept_pos = ds->bytes_head_pos;
 
     /* If we're asked for zero chars, also done. */
     if (stopper_chars && *stopper_chars == 0)
-        return;
+        return 1;
 
     /* Rough starting-size estimate is number of bytes in the head buffer. */
     bufsize = ds->bytes_head->length;
@@ -327,6 +328,7 @@ void MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
+    reached_stopper = 0;
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos   = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
@@ -354,10 +356,14 @@ void MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                     }
                     buffer[count++] = g;
                     total++;
-                    if (stopper_chars && *stopper_chars == total)
+                    if (stopper_chars && *stopper_chars == total) {
+                        reached_stopper = 1;
                         goto done;
-                    if (MVM_string_decode_stream_maybe_sep(tc, seps, g))
+                    }
+                    if (MVM_string_decode_stream_maybe_sep(tc, seps, g)) {
+                        reached_stopper = 1;
                         goto done;
+                    }
                 }
                 break;
             }
@@ -383,10 +389,14 @@ void MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                     MVMGrapheme32 g = MVM_unicode_normalizer_get_grapheme(tc, &(ds->norm));
                     buffer[count++] = g;
                     total++;
-                    if (stopper_chars && *stopper_chars == total)
+                    if (stopper_chars && *stopper_chars == total) {
+                        reached_stopper = 1;
                         goto done;
-                    if (MVM_string_decode_stream_maybe_sep(tc, seps, g))
+                    }
+                    if (MVM_string_decode_stream_maybe_sep(tc, seps, g)) {
+                        reached_stopper = 1;
                         goto done;
+                    }
                 }
 
                 /* Go through invalid bytes, making synthetics. */
@@ -397,8 +407,10 @@ void MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                             last_accept_bytes->bytes[last_accept_pos]);
                         total++;
                         last_accept_pos++;
-                        if (stopper_chars && *stopper_chars == total)
+                        if (stopper_chars && *stopper_chars == total) {
+                            reached_stopper = 1;
                             goto done;
+                        }
                     }
                     else if (last_accept_bytes->next) {
                         /* Progress to next buffer. */
@@ -428,6 +440,8 @@ void MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
         MVM_free(buffer);
     }
     MVM_string_decodestream_discard_to(tc, ds, last_accept_bytes, last_accept_pos);
+
+    return reached_stopper;
 }
 
 /* Encodes the specified string to UTF-8. */

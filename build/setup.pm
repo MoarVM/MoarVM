@@ -125,7 +125,7 @@ our %TC_POSIX = (
     ccshared   => '-fPIC',
     ldshared   => '-shared @ccshared@',
     moarshared => '',
-    ldrpath    => '-Wl,-rpath,@libdir@ -Wl,-rpath,@prefix@/share/perl6/site/lib',
+    ldrpath    => '-Wl,-rpath,/@libdir@ -Wl,-rpath,@prefix@/share/perl6/site/lib',
 
     arflags => 'rcs',
     arout   => '',
@@ -510,7 +510,7 @@ our %SYSTEMS = (
     openbsd     => [ qw( posix bsd   gcc ),   { %OS_OPENBSD} ],
     netbsd      => [ qw( posix bsd   gcc ),   { %OS_NETBSD } ],
     dragonfly   => [ qw( posix bsd   gcc ),   { %OS_DRAGONFLY } ],
-    freebsd     => [ qw( posix bsd   clang ), { %OS_FREEBSD } ],
+    freebsd     => [ qw( posix bsd), $OS_FREEBSD{cc} , { %OS_FREEBSD } ],
     gnukfreebsd => [ qw( posix gnu   gcc ),   { %OS_GNUKFREEBSD } ],
     solaris     => [ qw( posix posix cc ),    { %OS_SOLARIS } ],
     win32       => [ qw( win32 msvc  cl ),    { %OS_WIN32 } ],

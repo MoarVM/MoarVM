@@ -291,7 +291,7 @@ MVMString * MVM_string_utf8_decode_strip_bom(MVMThreadContext *tc, const MVMObje
 
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
-void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
+MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                   const MVMint32 *stopper_chars,
                                   MVMDecodeStreamSeparators *seps) {
     MVMint32 count = 0, total = 0;
@@ -302,15 +302,16 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
     MVMint32 last_accept_pos, ready, at_start;
+    MVMuint32 reached_stopper;
 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
-        return;
+        return 0;
     last_accept_pos = ds->bytes_head_pos;
 
     /* If we're asked for zero chars, also done. */
     if (stopper_chars && *stopper_chars == 0)
-        return;
+        return 1;
 
     /* Rough starting-size estimate is number of bytes in the head buffer. */
     bufsize = ds->bytes_head->length;
@@ -319,6 +320,7 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
     at_start = ds->abs_byte_pos == 0;
+    reached_stopper = 0;
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos   = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
@@ -358,10 +360,14 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                     }
                     buffer[count++] = g;
                     total++;
-                    if (stopper_chars && *stopper_chars == total)
+                    if (stopper_chars && *stopper_chars == total) {
+                        reached_stopper = 1;
                         goto done;
-                    if (MVM_string_decode_stream_maybe_sep(tc, seps, g))
+                    }
+                    if (MVM_string_decode_stream_maybe_sep(tc, seps, g)) {
+                        reached_stopper = 1;
                         goto done;
+                    }
                 }
                 break;
             }
@@ -383,6 +389,8 @@ void MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
         MVM_free(buffer);
     }
     MVM_string_decodestream_discard_to(tc, ds, last_accept_bytes, last_accept_pos);
+
+    return reached_stopper;
 }
 
 /* Encodes the specified string to UTF-8. */

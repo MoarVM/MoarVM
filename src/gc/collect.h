@@ -4,10 +4,10 @@
 #define MVM_NURSERY_SIZE 4194304
 
 /* How many bytes should have been promoted into gen2 before we decide to
- * do a full GC run? The numbers below are used as a base amount plus an
- * extra amount per extra thread we have running. */
-#define MVM_GC_GEN2_THRESHOLD_BASE      (30 * 1024 * 1024)
-#define MVM_GC_GEN2_THRESHOLD_THREAD    (2 * 1024 * 1024)
+ * do a full GC run? This defaults to a percentage of the resident set, with
+ * a minimum to avoid small processes doing a load of gen2 collections. */
+#define MVM_GC_GEN2_THRESHOLD_PERCENT   20
+#define MVM_GC_GEN2_THRESHOLD_MINIMUM   (20 * 1024 * 1024)
 
 /* What things should be processed in this GC run? */
 typedef enum {

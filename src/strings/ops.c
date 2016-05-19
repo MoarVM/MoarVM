@@ -70,10 +70,11 @@ static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in) {
     MVMCodepointIter ci;
     MVMint32 ready;
     MVMString *out;
+    MVMuint32 bufsize = in->body.num_graphs;
 
-    /* Create output buffer; it'll never be longer than the initial estimate
-     * since the most we'll do is collapse two things into one in places. */
-    MVMGrapheme32 *out_buffer = MVM_malloc(in->body.num_graphs * sizeof(MVMGrapheme32));
+    /* Create the output buffer. We used to believe it can't ever be bigger
+     * than the initial estimate, but utf8-c8 showed us otherwise. */
+    MVMGrapheme32 *out_buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
     MVMint64 out_pos = 0;
 
     /* Iterate codepoints and normalizer. */
@@ -83,15 +84,27 @@ static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in) {
         MVMGrapheme32 g;
         ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, MVM_string_ci_get_codepoint(tc, &ci), &g);
         if (ready) {
+            if (out_pos + ready > bufsize) {
+                /* Doubling up the buffer size seems excessive, so just
+                 * add a generous amount of storage */
+                bufsize += ready + 32;
+                out_buffer = MVM_realloc(out_buffer, bufsize * sizeof(MVMGrapheme32));
+            }
             out_buffer[out_pos++] = g;
-            while (--ready > 0)
+            while (--ready > 0) {
                 out_buffer[out_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+            }
         }
     }
     MVM_unicode_normalizer_eof(tc, &norm);
     ready = MVM_unicode_normalizer_available(tc, &norm);
-    while (ready--)
+    if (out_pos + ready > bufsize) {
+        bufsize += ready + 1;
+        out_buffer = MVM_realloc(out_buffer, bufsize * sizeof(MVMGrapheme32));
+    }
+    while (ready--) {
         out_buffer[out_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+    }
     MVM_unicode_normalizer_cleanup(tc, &norm);
 
     /* Build result string. */

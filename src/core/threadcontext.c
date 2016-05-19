@@ -29,11 +29,18 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     /* Set up the second generation allocator. */
     tc->gen2 = MVM_gc_gen2_create(instance);
 
+    /* Allocate an initial call stack region for the thread. */
+    MVM_callstack_region_init(tc);
+
     /* Use default loop for main thread; create a new one for others. */
     tc->loop = instance->main_thread ? uv_loop_new() : uv_default_loop();
 
     /* Initialize random number generator state. */
     MVM_proc_seed(tc, (MVM_platform_now() / 10000) * MVM_proc_getpid(tc));
+
+    /* Initialize frame sequence numbers */
+    tc->next_frame_nr = 0;
+    tc->current_frame_nr = 0;
 
     return tc;
 }
@@ -54,10 +61,14 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     /* Destroy the second generation allocator. */
     MVM_gc_gen2_destroy(tc->instance, tc->gen2);
 
+    /* Destroy all callstack regions. */
+    MVM_callstack_region_destroy_all(tc);
+
     /* Free the thread-specific storage */
     MVM_free(tc->gc_work);
     MVM_free(tc->temproots);
     MVM_free(tc->gen2roots);
+    MVM_free(tc->finalize);
 
     /* Free any memory allocated for NFAs and multi-dim indices. */
     MVM_free(tc->nfa_done);

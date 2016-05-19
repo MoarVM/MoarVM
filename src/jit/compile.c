@@ -158,6 +158,7 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
 }
 
 
+
 #define NYI(x) MVM_oops(tc, #x " NYI")
 
 
@@ -347,7 +348,6 @@ static void MVM_jit_compile_tile(MVMThreadContext *tc, MVMJitCompiler *compiler,
         break;
     case MVM_JIT_TC:
     case MVM_JIT_CU:
-    case MVM_JIT_FRAME:
     case MVM_JIT_LOCAL:
     case MVM_JIT_STACK:
         /* this is weird and needs to be handled better */
@@ -507,5 +507,10 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
 void MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
                         MVMJitCode *code) {
     void *label = tc->cur_frame->jit_entry_label;
+    if (label < (void*)code->func_ptr || (char*)label > (((char*)code->func_ptr) + code->size))
+        MVM_oops(tc, "JIT entry label out of range for code!\n"
+                 "(label %x, func_ptr %x, code size %d, offset %d, frame_nr %d, seq nr %d)",
+                 label, code->func_ptr, code->size, ((char*)label) - ((char*)code->func_ptr),
+                 tc->cur_frame->sequence_nr, code->seq_nr);
     code->func_ptr(tc, cu, label);
 }

@@ -233,7 +233,8 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "ConcBlockingQueue", /* name */
     MVM_REPR_ID_ConcBlockingQueue,
-    0, /* refs_frames */
+    NULL, /* unmanaged_size */
+    NULL, /* describe_refs */
 };
 
 /* Polls a queue for a value, returning NULL if none is available. */

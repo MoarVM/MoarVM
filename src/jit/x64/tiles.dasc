@@ -16,10 +16,8 @@ MVM_JIT_TILE_DECL(load_local) {
 }
 
 MVM_JIT_TILE_DECL(load_frame) {
-    values[0]->type      = MVM_JIT_REG;
-    values[0]->state     = MVM_JIT_VALUE_IMMORTAL;
-    values[0]->reg_cls = MVM_JIT_X64_GPR;
-    values[0]->reg_num = MVM_JIT_X64_R12;
+    MVMint8 dst = values[0]->reg_num;
+    | mov Rq(dst), TC->cur_frame;
 }
 
 MVM_JIT_TILE_DECL(load_cu) {

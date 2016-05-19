@@ -76,16 +76,19 @@ static void start_thread(void *data) {
     /* Enter the interpreter, to run code. */
     MVM_interp_run(tc, thread_initial_invoke, ts);
 
-    /* mark as exited, so the GC will know to clear our stuff. */
+    /* Pop the temp root stack's ts->thread_obj, if it's still there (if we
+     * cleared the temp root stack on exception at some point, it'll already be
+     * gone). */
+    if (tc->num_temproots != 0)
+        MVM_gc_root_temp_pop_n(tc, tc->num_temproots);
+    MVM_free(ts);
+
+    /* Mark as exited, so the GC will know to clear our stuff. */
     tc->thread_obj->body.stage = MVM_thread_stage_exited;
 
-    /* Mark ourselves as dying, so that another thread will take care
+    /* Mark ourselves as blocked, so that another thread will take care
      * of GC-ing our objects and cleaning up our thread context. */
     MVM_gc_mark_thread_blocked(tc);
-
-    /* hopefully pop the ts->thread_obj temp */
-    MVM_gc_root_temp_pop(tc);
-    MVM_free(ts);
 
     /* Exit the thread, now it's completed. */
     MVM_platform_thread_exit(NULL);

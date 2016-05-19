@@ -85,7 +85,14 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMCPointerBody *body = (MVMCPointerBody *)data;
-    MVMint64 value = MVM_serialization_read_int(tc, reader);
+    MVMint64 value;
+
+    if (reader->root.version >= 19) {
+        value = MVM_serialization_read_int(tc, reader);
+    } else {
+        value = MVM_serialization_read_int64(tc, reader);
+    }
+
 #if MVM_PTR_SIZE == 4
     body->ptr = (void *)(MVMuint32)value;
 #else
@@ -146,5 +153,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "CPointer", /* name */
     MVM_REPR_ID_MVMCPointer,
-    0, /* refs_frames */
+    NULL, /* unmanaged_size */
+    NULL, /* describe_refs */
 };

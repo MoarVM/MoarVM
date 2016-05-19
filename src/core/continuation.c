@@ -45,9 +45,14 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 
     /* Hunt the tag on the stack; mark frames as being incorporated into a
      * continuation as we go to avoid a second pass. */
-    MVMFrame           *jump_frame  = tc->cur_frame;
     MVMFrame           *root_frame  = NULL;
     MVMContinuationTag *tag_record  = NULL;
+    MVMFrame            *jump_frame;
+    MVMROOT(tc, tag, {
+    MVMROOT(tc, code, {
+        jump_frame = MVM_frame_force_to_heap(tc, tc->cur_frame);
+    });
+    });
     while (jump_frame) {
         jump_frame->in_continuation = 1;
         tag_record = jump_frame->continuation_tags;
@@ -68,14 +73,20 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 
     /* Create continuation. */
     MVMROOT(tc, code, {
+    MVMROOT(tc, jump_frame, {
+    MVMROOT(tc, root_frame, {
         cont = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContinuation);
-        ((MVMContinuation *)cont)->body.top     = MVM_frame_inc_ref(tc, tc->cur_frame);
+        MVM_ASSIGN_REF(tc, &(cont->header), ((MVMContinuation *)cont)->body.top,
+            tc->cur_frame);
+        MVM_ASSIGN_REF(tc, &(cont->header), ((MVMContinuation *)cont)->body.root,
+            root_frame);
         ((MVMContinuation *)cont)->body.addr    = *tc->interp_cur_op;
         ((MVMContinuation *)cont)->body.res_reg = res_reg;
-        ((MVMContinuation *)cont)->body.root    = MVM_frame_inc_ref(tc, root_frame);
         if (tc->instance->profiling)
             ((MVMContinuation *)cont)->body.prof_cont =
                 MVM_profile_log_continuation_control(tc, root_frame);
+    });
+    });
     });
 
     /* Save and clear any active exception handler(s) added since reset. */
@@ -94,14 +105,10 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
         }
     }
 
-    /* Move back to the frame with the reset in it (which is already on the
-     * call stack, so has a "I'm running" ref count already). Frames from the
-     * current one through to the root are no longer running, so get their
-     * reference count decremented by 1 as a result. */
-    while (tc->cur_frame != jump_frame) {
-        MVM_frame_dec_ref(tc, tc->cur_frame);
-        tc->cur_frame = tc->cur_frame->caller;
-    }
+    /* Move back to the frame with the reset in it. */
+    tc->cur_frame = jump_frame;
+    tc->current_frame_nr = jump_frame->sequence_nr;
+
     *(tc->interp_cur_op) = tc->cur_frame->return_address;
     *(tc->interp_bytecode_start) = tc->cur_frame->effective_bytecode;
     *(tc->interp_reg_base) = tc->cur_frame->work;
@@ -128,27 +135,26 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 
 void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
                              MVMObject *code, MVMRegister *res_reg) {
+    MVMFrame *orig_caller;
+
     /* Switch caller of the root to current invoker. */
-    MVMFrame *orig_caller = cont->body.root->caller;
-    cont->body.root->caller = MVM_frame_inc_ref(tc, tc->cur_frame);
-    MVM_frame_dec_ref(tc, orig_caller);
+    MVMROOT(tc, cont, {
+    MVMROOT(tc, code, {
+        MVM_frame_force_to_heap(tc, tc->cur_frame);
+    });
+    });
+    orig_caller = cont->body.root->caller;
+    MVM_ASSIGN_REF(tc, &(cont->common.header), cont->body.root->caller, tc->cur_frame);
 
     /* Set up current frame to receive result. */
     tc->cur_frame->return_value = res_reg;
     tc->cur_frame->return_type = MVM_RETURN_OBJ;
     tc->cur_frame->return_address = *(tc->interp_cur_op);
 
-    /* Switch to the target frame; bump ref count of all frames we just added
-     * back into the call chain as they are active again. */
+    /* Switch to the target frame. */
     tc->cur_frame = cont->body.top;
-    {
-        MVMFrame *cur  = tc->cur_frame;
-        MVMFrame *stop = cont->body.root->caller;
-        while (cur != stop) {
-            MVM_frame_inc_ref(tc, cur);
-            cur = cur->caller;
-        }
-    }
+    tc->current_frame_nr = cont->body.top->sequence_nr;
+
     *(tc->interp_cur_op) = cont->body.addr;
     *(tc->interp_bytecode_start) = tc->cur_frame->effective_bytecode;
     *(tc->interp_reg_base) = tc->cur_frame->work;
@@ -210,10 +216,6 @@ MVMContinuation * MVM_continuation_clone(MVMThreadContext *tc, MVMContinuation *
         last_clone   = clone;
         cur_to_clone = cur_to_clone->caller;
     }
-
-    /* Increment ref-count of caller of root, since there's now an extra
-     * frame pointing at it. */
-    MVM_frame_inc_ref(tc, cloned_root->caller);
 
     /* Set up the new continuation. */
     result->body.top     = cloned_top;

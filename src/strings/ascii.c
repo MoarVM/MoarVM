@@ -36,7 +36,7 @@ MVMString * MVM_string_ascii_decode_nt(MVMThreadContext *tc, const MVMObject *re
 
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
-void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
+MVMuint32 MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                    const MVMint32 *stopper_chars,
                                    MVMDecodeStreamSeparators *seps) {
     MVMint32              count = 0, total = 0;
@@ -45,15 +45,16 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
     MVMint32 last_accept_pos, last_was_cr;
+    MVMuint32 reached_stopper;
 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
-        return;
+        return 0;
     last_accept_pos = ds->bytes_head_pos;
 
     /* If we're asked for zero chars, also done. */
     if (stopper_chars && *stopper_chars == 0)
-        return;
+        return 1;
 
     /* Take length of head buffer as initial guess. */
     bufsize = ds->bytes_head->length;
@@ -62,6 +63,7 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
     last_was_cr = 0;
+    reached_stopper = 0;
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos   = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
@@ -100,10 +102,14 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
             last_accept_bytes = cur_bytes;
             last_accept_pos = pos;
             total++;
-            if (stopper_chars && *stopper_chars == total)
+            if (stopper_chars && *stopper_chars == total) {
+                reached_stopper = 1;
                 goto done;
-            if (MVM_string_decode_stream_maybe_sep(tc, seps, codepoint))
+            }
+            if (MVM_string_decode_stream_maybe_sep(tc, seps, codepoint)) {
+                reached_stopper = 1;
                 goto done;
+            }
         }
         cur_bytes = cur_bytes->next;
     }
@@ -118,6 +124,8 @@ void MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
         MVM_free(buffer);
     }
     MVM_string_decodestream_discard_to(tc, ds, last_accept_bytes, last_accept_pos);
+
+    return reached_stopper;
 }
 
 /* Encodes the specified substring to ASCII. Anything outside of ASCII range

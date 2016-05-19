@@ -544,6 +544,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             create_facts_with_type(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 g->sf->body.cu->body.hll_config->int_lex_ref);
+            break;
         case MVM_OP_getregref_n:
         case MVM_OP_getlexref_n:
         case MVM_OP_getregref_n32:
@@ -551,38 +552,46 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             create_facts_with_type(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 g->sf->body.cu->body.hll_config->num_lex_ref);
+            break;
         case MVM_OP_getregref_s:
         case MVM_OP_getlexref_s:
             create_facts_with_type(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 g->sf->body.cu->body.hll_config->str_lex_ref);
+            break;
         case MVM_OP_getattrref_i:
         case MVM_OP_getattrsref_i:
             create_facts_with_type(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 g->sf->body.cu->body.hll_config->int_attr_ref);
+            break;
         case MVM_OP_getattrref_n:
         case MVM_OP_getattrsref_n:
             create_facts_with_type(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 g->sf->body.cu->body.hll_config->num_attr_ref);
+            break;
         case MVM_OP_getattrref_s:
         case MVM_OP_getattrsref_s:
             create_facts_with_type(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 g->sf->body.cu->body.hll_config->str_attr_ref);
+            break;
         case MVM_OP_atposref_i:
             create_facts_with_type(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 g->sf->body.cu->body.hll_config->int_pos_ref);
+            break;
         case MVM_OP_atposref_n:
             create_facts_with_type(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 g->sf->body.cu->body.hll_config->num_pos_ref);
+            break;
         case MVM_OP_atposref_s:
             create_facts_with_type(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 g->sf->body.cu->body.hll_config->str_pos_ref);
+            break;
 
         case MVM_OP_const_i64:
         case MVM_OP_const_i32:

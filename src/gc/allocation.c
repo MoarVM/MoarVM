@@ -88,13 +88,19 @@ MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
         obj->header.size  = (MVMuint16)st->size;
         obj->header.owner = tc->thread_id;
         MVM_ASSIGN_REF(tc, &(obj->header), obj->st, st);
-        if ((obj->header.flags & MVM_CF_SECOND_GEN))
-            if (REPR(obj)->refs_frames)
-                MVM_gc_root_gen2_add(tc, (MVMCollectable *)obj);
         if (st->mode_flags & MVM_FINALIZE_TYPE)
             MVM_gc_finalize_add_to_queue(tc, obj);
     });
     return obj;
+}
+
+/* Allocates a new heap frame. */
+MVMFrame * MVM_gc_allocate_frame(MVMThreadContext *tc) {
+    MVMFrame *f = MVM_gc_allocate_zeroed(tc, sizeof(MVMFrame));
+    f->header.flags |= MVM_CF_FRAME;
+    f->header.size   = sizeof(MVMFrame);
+    f->header.owner  = tc->thread_id;
+    return f;
 }
 
 /* Sets allocate for this thread to be from the second generation by

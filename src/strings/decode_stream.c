@@ -83,29 +83,38 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
 
 /* Does a decode run, selected by encoding. Returns non-zero if we actually
  * decoded more chars. */
-static MVMint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *sep_spec) {
+#define RUN_DECODE_NOTHING_DECODED          0
+#define RUN_DECODE_STOPPER_NOT_REACHED      1
+#define RUN_DECODE_STOPPER_REACHED          2
+static MVMuint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *sep_spec) {
     MVMDecodeStreamChars *prev_chars_tail = ds->chars_tail;
+    MVMuint32 reached_stopper;
     switch (ds->encoding) {
     case MVM_encoding_type_utf8:
-        MVM_string_utf8_decodestream(tc, ds, stopper_chars, sep_spec);
+        reached_stopper = MVM_string_utf8_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
     case MVM_encoding_type_ascii:
-        MVM_string_ascii_decodestream(tc, ds, stopper_chars, sep_spec);
+        reached_stopper = MVM_string_ascii_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
     case MVM_encoding_type_latin1:
-        MVM_string_latin1_decodestream(tc, ds, stopper_chars, sep_spec);
+        reached_stopper = MVM_string_latin1_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
     case MVM_encoding_type_windows1252:
-        MVM_string_windows1252_decodestream(tc, ds, stopper_chars, sep_spec);
+        reached_stopper = MVM_string_windows1252_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
     case MVM_encoding_type_utf8_c8:
-        MVM_string_utf8_c8_decodestream(tc, ds, stopper_chars, sep_spec);
+        reached_stopper = MVM_string_utf8_c8_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
     default:
         MVM_exception_throw_adhoc(tc, "Streaming decode NYI for encoding %d",
             (int)ds->encoding);
     }
-    return ds->chars_tail != prev_chars_tail;
+    if (ds->chars_tail == prev_chars_tail)
+        return RUN_DECODE_NOTHING_DECODED;
+    else if (reached_stopper)
+        return RUN_DECODE_STOPPER_REACHED;
+    else
+        return RUN_DECODE_STOPPER_NOT_REACHED;
 }
 
 /* Gets the specified number of characters. If we are not yet able to decode
@@ -201,8 +210,10 @@ MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStr
 }
 
 /* Gets characters up until one of the specified separators is encountered. If
- * we do not encounter it, returns 9. This may mean more input buffers are needed
- * or that we reached the end of the stream. */
+ * we do not encounter it, returns 0. This may mean more input buffers are needed
+ * or that we reached the end of the stream. Note that it assumes the separator
+ * will exist near the end of the buffer, if it occurs at all, due to decode
+ * streams looking for stoppers. */
 static MVMint32 have_separator(MVMThreadContext *tc, MVMDecodeStreamChars *start_chars, MVMint32 start_pos,
                                MVMDecodeStreamSeparators *sep_spec, MVMint32 sep_idx, MVMint32 sep_graph_pos) {
     MVMint32 sep_pos = 1;
@@ -227,6 +238,17 @@ static MVMint32 find_separator(MVMThreadContext *tc, const MVMDecodeStream *ds,
                                MVMDecodeStreamSeparators *sep_spec, MVMint32 *sep_length) {
     MVMint32 sep_loc = 0;
     MVMDecodeStreamChars *cur_chars = ds->chars_head;
+
+    /* First, skip over any buffers we need not consider. */
+    MVMint32 max_sep_chars = MVM_string_decode_stream_sep_max_chars(tc, sep_spec);
+    while (cur_chars && cur_chars->next) {
+        if (cur_chars->next->length < max_sep_chars)
+            break;
+        sep_loc += cur_chars->length;
+        cur_chars = cur_chars->next;
+    }
+
+    /* Now scan for the separator. */
     while (cur_chars) {
         MVMint32 start = cur_chars == ds->chars_head ? ds->chars_head_pos : 0;
         MVMint32 i, j;
@@ -263,9 +285,11 @@ MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecod
      * the separator, so we may need to loop a few times around this. */
     sep_loc = find_separator(tc, ds, sep_spec, &sep_length);
     while (!sep_loc) {
-        if (!run_decode(tc, ds, NULL, sep_spec))
+        MVMuint32 decode_outcome = run_decode(tc, ds, NULL, sep_spec);
+        if (decode_outcome == RUN_DECODE_NOTHING_DECODED)
             break;
-        sep_loc = find_separator(tc, ds, sep_spec, &sep_length);
+        if (decode_outcome == RUN_DECODE_STOPPER_REACHED)
+            sep_loc = find_separator(tc, ds, sep_spec, &sep_length);
     }
     if (sep_loc)
         return take_chars(tc, ds, sep_loc, chomp ? sep_length : 0);
@@ -502,6 +526,16 @@ void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeSt
         while (MVM_string_gi_has_more(tc, &gi))
             sep_spec->sep_graphemes[graph_pos++] = MVM_string_gi_get_grapheme(tc, &gi);
     }
+}
+
+/* Returns the maximum length of any separator, in graphemes. */
+MVMint32 MVM_string_decode_stream_sep_max_chars(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec) {
+    MVMint32 i;
+    MVMint32 max_length = 1;
+    for (i = 0; i < sep_spec->num_seps; i++)
+        if (sep_spec->sep_lengths[i] > max_length)
+            max_length = sep_spec->sep_lengths[i];
+    return max_length;
 }
 
 /* Cleans up memory associated with a stream separator set. */

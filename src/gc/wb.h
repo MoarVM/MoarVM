@@ -13,9 +13,21 @@ MVM_STATIC_INLINE void MVM_gc_write_barrier(MVMThreadContext *tc, MVMCollectable
  * first. Takes the root object, the address within it we're writing to, and
  * the thing we're writing. Note that update_addr is not involved in the
  * write barrier. */
+#if MVM_GC_DEBUG
+#define MVM_ASSIGN_REF(tc, update_root, update_addr, referenced) \
+    { \
+        void *_r = referenced; \
+        if (_r && ((MVMCollectable *)_r)->owner == 0) \
+            MVM_panic(1, "Invalid assignment (maybe of heap frame to stack frame?)"); \
+        MVM_ASSERT_NOT_FROMSPACE(tc, _r); \
+        MVM_gc_write_barrier(tc, update_root, (MVMCollectable *)_r); \
+        update_addr = _r; \
+    }
+#else
 #define MVM_ASSIGN_REF(tc, update_root, update_addr, referenced) \
     { \
         void *_r = referenced; \
         MVM_gc_write_barrier(tc, update_root, (MVMCollectable *)_r); \
         update_addr = _r; \
     }
+#endif

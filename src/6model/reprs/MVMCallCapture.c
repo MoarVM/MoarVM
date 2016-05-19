@@ -61,6 +61,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
                 MVM_gc_worklist_add(tc, worklist, &ctx->args[i].o);
         }
     }
+    else {
+        MVM_gc_worklist_add(tc, worklist, &(body->use_mode_frame));
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -87,10 +90,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
             MVM_free(ctx->body.apc->args);
             MVM_free(ctx->body.apc);
         }
-    }
-    else {
-        if (ctx->body.use_mode_frame)
-            MVM_frame_dec_ref(tc, ctx->body.use_mode_frame);
     }
 }
 
@@ -145,7 +144,8 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "MVMCallCapture", /* name */
     MVM_REPR_ID_MVMCallCapture,
-    1, /* refs_frames */
+    NULL, /* unmanaged_size */
+    NULL, /* describe_refs */
 };
 
 /* This function was only introduced for the benefit of the JIT. */

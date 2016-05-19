@@ -12,7 +12,8 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
 
 /* Grows storage if it's full, zeroing the extension. Assumes it's only being
  * grown for one more item. */
-static void grow_storage(void **store, MVMuint64 *num, MVMuint64 *alloc, size_t size) {
+static void grow_storage(void *store_ptr, MVMuint64 *num, MVMuint64 *alloc, size_t size) {
+    void **store = (void **)store_ptr;
     if (*num == *alloc) {
         *alloc = *alloc ? 2 * *alloc : 32;
         *store = MVM_realloc(*store, *alloc * size);
@@ -173,6 +174,8 @@ static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
             idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_STABLE, collectable);
         else if (collectable->flags & MVM_CF_TYPE_OBJECT)
             idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT, collectable);
+        else if (collectable->flags & MVM_CF_FRAME)
+            idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME, collectable);
         else
             idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_OBJECT, collectable);
         saw(tc, ss, collectable, idx);
@@ -280,11 +283,6 @@ static void process_gc_worklist(MVMThreadContext *tc, MVMHeapSnapshotState *ss, 
             add_reference(tc, ss, ref_kind, ref_index,
                 get_collectable_idx(tc, ss, c));
     }
-    while (f = MVM_gc_worklist_get_frame(tc, ss->gcwl)) {
-        if (f)
-            add_reference(tc, ss, ref_kind, ref_index,
-                get_frame_idx(tc, ss, f));
-    }
 }
 static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         MVMHeapSnapshotCollectable *col, MVMObject *obj) {
@@ -296,30 +294,38 @@ static void process_object(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         /* Use object's gc_mark function to find what it references. */
         /* XXX We'll also add an API for getting better information, e.g.
          * attribute names. */
-        if (REPR(obj)->gc_mark) {
+        if (REPR(obj)->describe_refs)
+            REPR(obj)->describe_refs(tc, ss, STABLE(obj), OBJECT_BODY(obj));
+        else if (REPR(obj)->gc_mark) {
             REPR(obj)->gc_mark(tc, STABLE(obj), OBJECT_BODY(obj), ss->gcwl);
             process_gc_worklist(tc, ss, NULL);
         }
+        if (REPR(obj)->unmanaged_size)
+            col->unmanaged_size += REPR(obj)->unmanaged_size(tc, STABLE(obj),
+                OBJECT_BODY(obj));
     }
 }
 static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
     while (ss->num_workitems > 0) {
         MVMHeapSnapshotWorkItem item = pop_workitem(tc, ss);
-        MVMHeapSnapshotCollectable *col = &(ss->hs->collectables[item.col_idx]);
 
-        col->kind = item.kind;
+        /* We take our own working copy of the collectable info, since the
+         * collectables array can grow and be reallocated. */ 
+        MVMHeapSnapshotCollectable col;
         set_ref_from(tc, ss, item.col_idx);
+        col = ss->hs->collectables[item.col_idx];
+        col.kind = item.kind;
 
         switch (item.kind) {
             case MVM_SNAPSHOT_COL_KIND_OBJECT:
             case MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT:
-                process_object(tc, ss, col, (MVMObject *)item.target);
+                process_object(tc, ss, &col, (MVMObject *)item.target);
                 break;
             case MVM_SNAPSHOT_COL_KIND_STABLE: {
                 MVMuint16 i;
                 MVMSTable *st = (MVMSTable *)item.target;
-                process_collectable(tc, ss, col, (MVMCollectable *)st);
-                set_type_index(tc, ss, col, st);
+                process_collectable(tc, ss, &col, (MVMCollectable *)st);
+                set_type_index(tc, ss, &col, st);
 
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)st->method_cache, "Method cache");
@@ -396,10 +402,10 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
             }
             case MVM_SNAPSHOT_COL_KIND_FRAME: {
                 MVMFrame *frame = (MVMFrame *)item.target;
-                col->collectable_size = sizeof(MVMFrame);
-                set_static_frame_index(tc, ss, col, frame->static_info);
+                col.collectable_size = sizeof(MVMFrame);
+                set_static_frame_index(tc, ss, &col, frame->static_info);
 
-                if (frame->caller)
+                if (frame->caller && !MVM_FRAME_IS_ON_CALLSTACK(tc, frame))
                     add_reference_const_cstr(tc, ss, "Caller",
                         get_frame_idx(tc, ss, frame->caller));
                 if (frame->outer)
@@ -408,6 +414,8 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
 
                 MVM_gc_root_add_frame_registers_to_worklist(tc, ss->gcwl, frame);
                 process_gc_worklist(tc, ss, "Register");
+                if (frame->work)
+                    col.unmanaged_size += frame->allocd_work;
 
                 if (frame->env) {
                     MVMuint16  i, count;
@@ -432,6 +440,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                                     (MVMCollectable *)frame->env[i].o, "Lexical (inlined)");
                         }
                     }
+                    col.unmanaged_size += frame->allocd_env;
                 }
 
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
@@ -454,6 +463,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                     while (tag) {
                         MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                             (MVMCollectable *)tag->tag, "Continuation tag");
+                        col.unmanaged_size += sizeof(MVMContinuationTag);
                         tag = tag->next;
                     }
                 }
@@ -472,8 +482,9 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
             case MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS: {
                 MVMThreadContext *thread_tc = (MVMThreadContext *)item.target;
                 MVM_gc_root_add_tc_roots_to_worklist(thread_tc, NULL, ss);
-                add_reference_const_cstr(tc, ss, "Current frame",
-                    get_frame_idx(tc, ss, thread_tc->cur_frame));
+                if (!MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame))
+                    add_reference_const_cstr(tc, ss, "Current frame",
+                        get_frame_idx(tc, ss, thread_tc->cur_frame));
                  break;
             }
             case MVM_SNAPSHOT_COL_KIND_ROOT: {
@@ -495,15 +506,48 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                             push_workitem(tc, ss,
                                 MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS,
                                 cur_thread->body.tc));
+                        add_reference_const_cstr(tc, ss, "Inter-generational Roots",
+                            push_workitem(tc, ss,
+                                MVM_SNAPSHOT_COL_KIND_INTERGEN_ROOTS,
+                                cur_thread->body.tc));
+                        add_reference_const_cstr(tc, ss, "Thread Call Stack Roots",
+                            push_workitem(tc, ss,
+                                MVM_SNAPSHOT_COL_KIND_CALLSTACK_ROOTS,
+                                cur_thread->body.tc));
                     }
                     cur_thread = cur_thread->body.next;
                 }
 
                 break;
             }
+            case MVM_SNAPSHOT_COL_KIND_INTERGEN_ROOTS: {
+                MVMThreadContext *thread_tc = (MVMThreadContext *)item.target;
+                MVM_gc_root_add_gen2s_to_snapshot(thread_tc, ss);
+                break;
+            }
+            case MVM_SNAPSHOT_COL_KIND_CALLSTACK_ROOTS: {
+                MVMThreadContext *thread_tc = (MVMThreadContext *)item.target;
+                if (thread_tc->cur_frame && MVM_FRAME_IS_ON_CALLSTACK(tc, thread_tc->cur_frame)) {
+                    MVMFrame *cur_frame = thread_tc->cur_frame;
+                    MVMint32 idx = 0;
+                    while (cur_frame && MVM_FRAME_IS_ON_CALLSTACK(tc, cur_frame)) {
+                        add_reference_idx(tc, ss, idx,
+                            push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME,
+                                (MVMCollectable *)cur_frame));
+                        idx++;
+                        cur_frame = cur_frame->caller;
+                    }
+                }
+                break;
+            }
             default:
                 MVM_panic(1, "Unknown heap snapshot worklist item kind %d", item.kind);
         }
+
+        /* Store updated collectable info into array. Note that num_refs was
+         * updated "at a distance". */
+        col.num_refs = ss->hs->collectables[item.col_idx].num_refs;
+        ss->hs->collectables[item.col_idx] = col;
     }
 }
 
@@ -548,10 +592,8 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
 
     /* We push the ultimate "root of roots" onto the worklist to get things
      * going, then set off on our merry way. */
-    printf("Recording heap snapshot\n");
     push_workitem(tc, &ss, MVM_SNAPSHOT_COL_KIND_ROOT, NULL);
     process_workitems(tc, &ss);
-    printf("Recording completed\n");
 
     /* Clean up temporary state. */
     MVM_free(ss.workitems);
@@ -620,7 +662,7 @@ MVMObject * types_str(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
      for (i = 0; i < col->num_types; i++) {
          char tmp[256];
          size_t item_chars = snprintf(tmp, 256,
-            "%"PRId64",%"PRId64";",
+            "%"PRIu64",%"PRIu64";",
             col->types[i].repr_name,
             col->types[i].type_name);
          if (item_chars < 0)
@@ -690,7 +732,7 @@ MVMObject * collectables_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
      for (i = 0; i < s->num_collectables; i++) {
          char tmp[256];
          size_t item_chars = snprintf(tmp, 256,
-            "%"PRId16",%"PRId32",%"PRId16",%"PRId64",%"PRId64",%"PRId32";",
+            "%"PRIu16",%"PRId32",%"PRIu16",%"PRIu64",%"PRIu64",%"PRIu32";",
             s->collectables[i].kind,
             s->collectables[i].type_or_frame_index,
             s->collectables[i].collectable_size,
@@ -789,7 +831,13 @@ MVMObject * collection_to_mvm_objects(MVMThreadContext *tc, MVMHeapSnapshotColle
 
 /* Finishes heap profiling, getting the data. */
 MVMObject * MVM_profile_heap_end(MVMThreadContext *tc) {
-    MVMObject *dataset = collection_to_mvm_objects(tc, tc->instance->heap_snapshots);
+    MVMObject *dataset;
+
+    /* Trigger a GC run, to ensure we get at least one heap snapshot. */
+    MVM_gc_enter_from_allocator(tc);
+
+    /* Process and return the data. */
+    dataset = collection_to_mvm_objects(tc, tc->instance->heap_snapshots);
     destroy_heap_snapshot_collection(tc);
     return dataset;
 }

@@ -17,6 +17,7 @@ typedef struct MVMCallCapture MVMCallCapture;
 typedef struct MVMCallCaptureBody MVMCallCaptureBody;
 typedef struct MVMCallsite MVMCallsite;
 typedef struct MVMCallsiteInterns MVMCallsiteInterns;
+typedef struct MVMCallStackRegion MVMCallStackRegion;
 typedef struct MVMCFunction MVMCFunction;
 typedef struct MVMCFunctionBody MVMCFunctionBody;
 typedef struct MVMCode MVMCode;

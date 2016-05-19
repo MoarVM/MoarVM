@@ -30,7 +30,7 @@ MVM_STATIC_INLINE void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectabl
 
 /* Pop top root from the per-thread temporary roots stack. */
 MVM_STATIC_INLINE void MVM_gc_root_temp_pop(MVMThreadContext *tc) {
-    #if MVM_TEMP_ROOT_DEBUG
+#if MVM_TEMP_ROOT_DEBUG
     if (tc->num_temproots <= 0)
         MVM_panic(1, "Illegal attempt to pop empty temporary root stack");
 #endif
@@ -39,7 +39,7 @@ MVM_STATIC_INLINE void MVM_gc_root_temp_pop(MVMThreadContext *tc) {
 
 /* Pop top n roots from the per-thread temporary roots stack. */
 MVM_STATIC_INLINE void MVM_gc_root_temp_pop_n(MVMThreadContext *tc, MVMuint32 n) {
-    #if MVM_TEMP_ROOT_DEBUG
+#if MVM_TEMP_ROOT_DEBUG
     if (tc->num_temproots < n)
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to pop insufficiently large temporary root stack");
 #endif
@@ -58,6 +58,7 @@ void MVM_gc_root_temp_pop_all(MVMThreadContext *tc);
 void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
 void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c);
 void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist);
+void MVM_gc_root_add_gen2s_to_snapshot(MVMThreadContext *tc, MVMHeapSnapshotState *snapshot);
 void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc);
 void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame);
 void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);

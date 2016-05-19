@@ -114,6 +114,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_coerce_si: return MVM_coerce_s_i;
     case MVM_OP_coerce_sn: return MVM_coerce_s_n;
     case MVM_OP_coerce_In: return MVM_bigint_to_num;
+    case MVM_OP_coerce_nI: return MVM_bigint_from_num;
     case MVM_OP_iterkey_s: return MVM_iterkey_s;
     case MVM_OP_iter: return MVM_iter;
     case MVM_OP_iterval: return MVM_iterval;
@@ -596,6 +597,7 @@ static void before_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         ann = ann->next;
     }
 
+
     if (has_label) {
         jg_append_label(tc, jg, label);
     }
@@ -603,7 +605,7 @@ static void before_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
     }
 
-    if (ins->info->jittivity & MVM_JIT_INFO_THROWISH) {
+    if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
         jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_PRE);
     }
 }
@@ -1571,8 +1573,10 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
             MVM_oops(tc, "JIT: no space in args buffer to store"
                      " temporary result for <%s>", ins->info->name);
         }
+        /* This is now necessary for the invokish control to work correctly */
+        jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_PRE);
         jg_append_call_c(tc, jg, op_to_func(tc, MVM_OP_istrue), 6,
-                          args, MVM_JIT_RV_VOID, -1);
+                         args, MVM_JIT_RV_VOID, -1);
         /* guard the potential invoke */
         jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_INVOKISH);
         /* branch if true (switch is done by coercion) */
@@ -2017,7 +2021,17 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, rv_mode, dst);
         break;
     }
+    case MVM_OP_coerce_nI: {
+        MVMint16 src = ins->operands[1].reg.orig;
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 typ = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = {{ MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                { MVM_JIT_REG_VAL,   { typ } },
+                                { MVM_JIT_REG_VAL_F, { src } }};
 
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
     case MVM_OP_smrt_strify:
     case MVM_OP_smrt_numify: {
         MVMint16 obj = ins->operands[1].reg.orig;
@@ -2657,8 +2671,11 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                 if (extops[i].info == ins->info) {
                     MVMuint16 *fake_regs;
                     if (!extops[i].no_jit && (fake_regs = try_fake_extop_regs(tc, ins))) {
+
                         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  { MVM_JIT_INTERP_TC } },
                                                  { MVM_JIT_LITERAL_PTR, { (MVMint64)fake_regs } }};
+                        if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH)
+                            jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_PRE);
                         jg_append_call_c(tc, jg, extops[i].func, 2, args, MVM_JIT_RV_VOID, -1);
                         if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH)
                             jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_INVOKISH);

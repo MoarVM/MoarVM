@@ -73,6 +73,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/core/compunit@obj@ \
           src/core/bytecode@obj@ \
           src/core/frame@obj@ \
+          src/core/callstack@obj@ \
           src/core/validation@obj@ \
           src/core/bytecodedump@obj@ \
           src/core/threads@obj@ \
@@ -221,6 +222,7 @@ HEADERS = src/moar.h \
           src/core/alloc.h \
           src/core/dynar.h \
           src/core/frame.h \
+          src/core/callstack.h \
           src/core/compunit.h \
           src/core/bytecode.h \
           src/core/ops.h \
@@ -469,9 +471,6 @@ install: all
 	$(CP) src/strings/*.h $(DESTDIR)$(PREFIX)/include/moar/strings
 	$(CP) src/jit/*.h $(DESTDIR)$(PREFIX)/include/moar/jit
 	$(CP) src/instrument/*.h $(DESTDIR)$(PREFIX)/include/moar/instrument
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libuv
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/libtommath
-	$(CP) 3rdparty/libuv/include/*.h $(DESTDIR)$(PREFIX)/include/libuv
 @install@
 
 lib: @moar@

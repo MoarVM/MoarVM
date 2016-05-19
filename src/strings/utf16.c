@@ -34,11 +34,13 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
             low = 0;
             high = 1;
             utf16 += 2;
+            bytes -= 2;
         }
         else if (!memcmp(utf16, BOM_UTF16BE, 2)) {
             low = 1;
             high = 0;
             utf16 += 2;
+            bytes -= 2;
         }
     }
     utf16_end = utf16 + bytes;

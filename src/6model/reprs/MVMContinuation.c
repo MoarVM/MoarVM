@@ -25,12 +25,13 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMContinuationBody *body = (MVMContinuationBody *)data;
-    MVM_gc_worklist_add_frame(tc, worklist, body->top);
-    MVM_gc_worklist_add_frame(tc, worklist, body->root);
+    MVM_gc_worklist_add(tc, worklist, &body->top);
+    MVM_gc_worklist_add(tc, worklist, &body->root);
     if (body->active_handlers) {
         MVMActiveHandler *cur_ah = body->active_handlers;
         while (cur_ah != NULL) {
             MVM_gc_worklist_add(tc, worklist, &cur_ah->ex_obj);
+            MVM_gc_worklist_add(tc, worklist, &cur_ah->frame);
             cur_ah = cur_ah->next_handler;
         }
     }
@@ -44,15 +45,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMContinuation *ctx = (MVMContinuation *)obj;
-    if (ctx->body.top)
-        ctx->body.top = MVM_frame_dec_ref(tc, ctx->body.top);
-    if (ctx->body.root)
-        ctx->body.root = MVM_frame_dec_ref(tc, ctx->body.root);
     if (ctx->body.active_handlers) {
         MVMActiveHandler *cur_ah = ctx->body.active_handlers;
         while (cur_ah != NULL) {
             MVMActiveHandler *next_ah = cur_ah->next_handler;
-            MVM_frame_dec_ref(tc, cur_ah->frame);
             MVM_free(cur_ah);
             cur_ah = next_ah;
         }
@@ -111,5 +107,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "MVMContinuation", /* name */
     MVM_REPR_ID_MVMContinuation,
-    1, /* refs_frames */
+    NULL, /* unmanaged_size */
+    NULL, /* describe_refs */
 };

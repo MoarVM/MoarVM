@@ -407,6 +407,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up GC permanent roots related resources. */
     uv_mutex_destroy(&instance->mutex_permroots);
     MVM_free(instance->permroots);
+    MVM_free(instance->permroot_descriptions);
 
     /* Clean up Hash of HLLConfig. */
     uv_mutex_destroy(&instance->mutex_hllconfigs);
@@ -451,9 +452,6 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->mutex_callsite_interns);
     cleanup_callsite_interns(instance);
 
-    /* Clean up fixed size allocator */
-    MVM_fixed_size_destroy(instance->fsa);
-
     /* Release this interpreter's hold on Unicode database */
     MVM_unicode_release(instance->main_thread);
 
@@ -463,10 +461,18 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
         fclose(instance->spesh_log_fh);
     if (instance->jit_log_fh)
         fclose(instance->jit_log_fh);
+    if (instance->dynvar_log_fh)
+        fclose(instance->dynvar_log_fh);
+
+    /* Clean up cross-thread-write-logging mutex */
+    uv_mutex_destroy(&instance->mutex_cross_thread_write_logging);
 
     /* Clean up NFG. */
     uv_mutex_destroy(&instance->nfg->update_mutex);
     MVM_nfg_destroy(instance->main_thread);
+
+    /* Clean up fixed size allocator */
+    MVM_fixed_size_destroy(instance->fsa);
 
     /* Clean up integer constant and string cache. */
     uv_mutex_destroy(&instance->mutex_int_const_cache);

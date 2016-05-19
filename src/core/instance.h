@@ -251,6 +251,8 @@ struct MVMInstance {
     AO_t gc_ack;
     /* Linked list (via forwarder) of STables to free. */
     MVMSTable *stables_to_free;
+    /* Whether the current GC run is a full collection. */
+    MVMuint32 gc_full_collect;
 
     /* How many bytes of data have we promoted from the nursery to gen2
      * since we last did a full collection? */

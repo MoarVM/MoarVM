@@ -17,27 +17,20 @@ struct MVMGCWorklist {
      * collectables (yes, two levels of indirection, since we need to
      * update addresses in copying/moving algorithms.) */
     MVMCollectable ***list;
-    MVMFrame        **frames_list;
 
     /* The number of items on the worklist. */
     MVMuint32 items;
-    MVMuint32 frames;
 
     /* The number of items the work list is allocated to hold. */
     MVMuint32 alloc;
-    MVMuint32 frames_alloc;
 
     /* Whether we should include gen2 entries. */
     MVMuint8 include_gen2;
 };
 
-/* Turn this on to define a worklist addition that panics if it spots
- * something untoward with an object being added to a worklist. */
-#define MVM_GC_WORKLIST_DEBUG_ADD 0
-
 /* Some macros for doing stuff fast with worklists, defined to look like
  * functions since perhaps they become them in the future if needed. */
-#if MVM_GC_WORKLIST_DEBUG_ADD
+#if MVM_GC_DEBUG
 #define MVM_gc_worklist_add(tc, worklist, item) \
     do { \
         MVMCollectable **item_to_add = (MVMCollectable **)(item);\
@@ -45,7 +38,10 @@ struct MVMGCWorklist {
             if ((*item_to_add)->owner == 0) \
                 MVM_panic(1, "Zeroed owner in item added to GC worklist"); \
             if ((*item_to_add)->flags & MVM_CF_STABLE == 0 && !STABLE(*item_to_add)) \
-                MVM_panic(1, "NULL STable in time added to GC worklist"); \
+                MVM_panic(1, "NULL STable in item added to GC worklist"); \
+            if (*item_to_add >= (MVMCollectable *)tc->nursery_alloc && \
+                    *item_to_add < (MVMCollectable *)tc->nursery_alloc_limit) \
+                MVM_panic(1, "Adding item to past fromspace to GC worklist"); \
         } \
         if (*item_to_add && (worklist->include_gen2 || !((*item_to_add)->flags & MVM_CF_SECOND_GEN))) { \
             if (worklist->items == worklist->alloc) \
@@ -67,33 +63,16 @@ struct MVMGCWorklist {
     } while (0)
 #endif
 
-#define MVM_gc_worklist_add_frame(tc, worklist, frame) \
-    do { \
-        if ((frame) && MVM_load(&(tc)->instance->gc_seq_number) != MVM_load(&(frame)->gc_seq_number)) { \
-            if (worklist->frames == worklist->frames_alloc) \
-                MVM_gc_worklist_add_frame_slow(tc, worklist, (frame)); \
-            else \
-                worklist->frames_list[worklist->frames++] = (frame); \
-        } \
-    } while (0)
-
 #define MVM_gc_worklist_get(tc, worklist) \
     (worklist->items ? \
         worklist->list[--worklist->items] : \
         NULL)
 
-#define MVM_gc_worklist_get_frame(tc, worklist) \
-    (worklist->frames ? \
-        worklist->frames_list[--worklist->frames] : \
-        NULL)
-
 /* Various functions for worklist manipulation. */
 MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_gen2);
 MVM_PUBLIC void MVM_gc_worklist_add_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **item);
-MVM_PUBLIC void MVM_gc_worklist_add_frame_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMint32 items);
 void MVM_gc_worklist_destroy(MVMThreadContext *tc, MVMGCWorklist *worklist);
-void MVM_gc_worklist_mark_frame_roots(MVMThreadContext *tc, MVMGCWorklist *worklist);
 
 /* The number of pointers we assume the list may need to hold initially;
  * it will be resized as needed. */

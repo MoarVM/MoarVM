@@ -184,6 +184,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     if (!body->fully_deserialized)
         return;
     MVM_free(body->handlers);
+    MVM_free(body->work_initial);
     MVM_free(body->static_env);
     MVM_free(body->static_env_flags);
     MVM_free(body->local_types);
@@ -217,6 +218,158 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
+/* Calculates the non-GC-managed memory we hold on to. */
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMStaticFrameBody *body = (MVMStaticFrameBody *)data;
+    MVMuint64 size = 0;
+
+    if (body->fully_deserialized) {
+        MVMuint32 spesh_idx;
+
+        size += sizeof(MVMuint16) * body->num_locals;
+        size += sizeof(MVMuint16) * body->num_lexicals;
+
+        if (body->bytecode != body->orig_bytecode)
+            size += body->bytecode_size;
+
+        size += sizeof(MVMLexicalRegistry *) * body->num_lexicals;
+
+        size += sizeof(MVMLexicalRegistry) * HASH_CNT(hash_handle, body->lexical_names);
+
+        size += sizeof(MVMFrameHandler) * body->num_handlers;
+
+        /* XXX i *think* the annotations are just a pointer into the serialized
+         * blob, so don't actually count it towards the unmanaged size. */
+        /*
+        size += sizeof(MVMuint8) * body->num_annotations
+        */
+        size += body->env_size; /* static_env */
+        size += body->num_lexicals; /* static_env_flags */
+
+        for (spesh_idx = 0; spesh_idx < body->num_spesh_candidates; spesh_idx++) {
+            MVMSpeshCandidate *cand = &body->spesh_candidates[spesh_idx];
+            size += sizeof(MVMSpeshGuard) * cand->num_guards;
+
+            size += cand->bytecode_size;
+
+            size += sizeof(MVMFrameHandler) * cand->num_handlers;
+
+            size += sizeof(MVMCollectable *) * cand->num_spesh_slots;
+
+            size += sizeof(MVMint32) * cand->num_deopts;
+
+            if (cand->sg)
+                /* XXX we ought to descend into the speshgraph, too. */
+                size += sizeof(MVMSpeshGraph);
+
+            size += sizeof(MVMCollectable *) * cand->num_log_slots;
+
+            size += sizeof(MVMSpeshInline) * cand->num_inlines;
+
+            size += sizeof(MVMuint16) * (cand->num_locals + cand->num_lexicals);
+
+            /* XXX probably don't need to measure the bytecode size here,
+             * as it's probably just a pointer to the same bytecode we have in
+             * the static frame anyway. */
+
+            /* Dive into the jit code */
+            if (cand->jitcode) {
+                MVMJitCode *code = cand->jitcode;
+
+                size += sizeof(MVMJitCode);
+
+                size += sizeof(void *) * code->num_labels;
+
+                size += sizeof(MVMJitDeopt) * code->num_deopts;
+                size += sizeof(MVMJitInline) * code->num_inlines;
+                size += sizeof(MVMJitHandler) * code->num_handlers;
+            }
+        }
+
+        if (body->instrumentation) {
+            size += body->instrumentation->uninstrumented_bytecode_size;
+            size += body->instrumentation->instrumented_bytecode_size;
+
+            /* XXX not 100% sure if num_handlers from the body is also the
+             * number of handlers in instrumented version. should be, though. */
+            size += sizeof(MVMFrameHandler) * body->num_handlers * 2;
+        }
+    }
+
+    return size;
+}
+
+static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
+    MVMStaticFrameBody *body = (MVMStaticFrameBody *)data;
+    MVMLexicalRegistry *current, *tmp;
+    unsigned bucket_tmp;
+
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->cu, "Compilation Unit");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->cuuid, "Compilation Unit Unique ID");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->name, "Name");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->outer, "Outer static frame");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->static_code, "Static code object");
+
+    /* If it's not fully deserialized, none of the following can apply. */
+    if (!body->fully_deserialized)
+        return;
+
+    /* lexical names hash keys */
+    HASH_ITER(hash_handle, body->lexical_names, current, tmp, bucket_tmp) {
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+            (MVMCollectable *)current->key, "Lexical name");
+    }
+
+    /* static env */
+    if (body->static_env) {
+        MVMuint16 *type_map = body->lexical_types;
+        MVMuint16  count    = body->num_lexicals;
+        MVMuint16  i;
+        for (i = 0; i < count; i++)
+            if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->static_env[i].o, "Static Environment Entry");
+    }
+
+    /* Spesh slots. */
+    if (body->num_spesh_candidates) {
+        MVMint32 i, j;
+        for (i = 0; i < body->num_spesh_candidates; i++) {
+            for (j = 0; j < body->spesh_candidates[i].num_guards; j++)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->spesh_candidates[i].guards[j].match,
+                    "Spesh guard match");
+            for (j = 0; j < body->spesh_candidates[i].num_spesh_slots; j++)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->spesh_candidates[i].spesh_slots[j],
+                    "Spesh slot entry");
+            if (body->spesh_candidates[i].log_slots)
+                for (j = 0; j < body->spesh_candidates[i].num_log_slots * MVM_SPESH_LOG_RUNS; j++)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->spesh_candidates[i].log_slots[j],
+                    "Spesh log slots");
+            for (j = 0; j < body->spesh_candidates[i].num_inlines; j++)
+                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                    (MVMCollectable *)body->spesh_candidates[i].inlines[j].code,
+                    "Spesh inlined code object");
+            if (body->spesh_candidates[i].sg) {
+                MVMCollectable **c_ptr;
+                MVM_spesh_graph_mark(tc, body->spesh_candidates[i].sg, ss->gcwl);
+                while (c_ptr = MVM_gc_worklist_get(tc, ss->gcwl)) {
+                    MVMCollectable *c = *c_ptr;
+                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, c,
+                        "Object held by spesh graph");
+                }
+            }
+        }
+    }
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMStaticFrame_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -248,5 +401,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "MVMStaticFrame", /* name */
     MVM_REPR_ID_MVMStaticFrame,
-    0, /* refs_frames */
+    unmanaged_size, /* unmanaged_size */
+    describe_refs,
 };

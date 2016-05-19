@@ -82,5 +82,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "Null", /* name */
     MVM_REPR_ID_MVMNull,
-    0, /* refs_frames */
+    NULL, /* unmanaged_size */
+    NULL, /* describe_refs */
 };

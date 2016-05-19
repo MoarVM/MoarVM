@@ -14,17 +14,9 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
     MVMCUnionNameMap *result;
 
     MVMint32 mro_idx = MVM_repr_elems(tc, mro);
-
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&mro);
-
     flat_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&flat_list);
-
     class_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&class_list);
-
     attr_map_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_map_list);
 
     /* Walk through the parents list. */
     while (mro_idx)
@@ -42,11 +34,8 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
             MVMIter * const attr_iter = (MVMIter *)MVM_iter(tc, attributes);
             MVMObject *attr_map = NULL;
 
-            if (MVM_iter_istrue(tc, attr_iter)) {
-                MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_iter);
+            if (MVM_iter_istrue(tc, attr_iter))
                 attr_map = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
-                MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_map);
-            }
 
             while (MVM_iter_istrue(tc, attr_iter)) {
                 MVMObject *current_slot_obj = MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, current_slot);
@@ -70,10 +59,6 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
                 MVM_repr_push_o(tc, flat_list, attr);
             }
 
-            if (attr_map) {
-                MVM_gc_root_temp_pop_n(tc, 2);
-            }
-
             /* Add to class list and map list. */
             MVM_repr_push_o(tc, class_list, current_class);
             MVM_repr_push_o(tc, attr_map_list, attr_map);
@@ -83,8 +68,6 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
                 "CUnion representation does not support multiple inheritance");
         }
     }
-
-    MVM_gc_root_temp_pop_n(tc, 4);
 
     /* We can now form the name map. */
     num_classes = MVM_repr_elems(tc, class_list);
@@ -335,7 +318,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *repr_info) {
     /* Compute allocation strategy. */
     MVMCUnionREPRData *repr_data = MVM_calloc(1, sizeof(MVMCUnionREPRData));
     MVMObject *attr_info = MVM_repr_at_key_o(tc, repr_info, tc->instance->str_consts.attribute);
+    MVM_gc_allocate_gen2_default_set(tc);
     compute_allocation_strategy(tc, attr_info, repr_data);
+    MVM_gc_allocate_gen2_default_clear(tc);
     st->REPR_data = repr_data;
 }
 
@@ -682,15 +667,15 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
     MVMCUnionREPRData *repr_data = (MVMCUnionREPRData *)st->REPR_data;
     MVMint32 i, num_classes, num_slots;
 
-    MVM_serialization_write_varint(tc, writer, repr_data->struct_size);
-    MVM_serialization_write_varint(tc, writer, repr_data->struct_align);
-    MVM_serialization_write_varint(tc, writer, repr_data->num_attributes);
-    MVM_serialization_write_varint(tc, writer, repr_data->num_child_objs);
+    MVM_serialization_write_int(tc, writer, repr_data->struct_size);
+    MVM_serialization_write_int(tc, writer, repr_data->struct_align);
+    MVM_serialization_write_int(tc, writer, repr_data->num_attributes);
+    MVM_serialization_write_int(tc, writer, repr_data->num_child_objs);
     for(i = 0; i < repr_data->num_attributes; i++){
-        MVM_serialization_write_varint(tc, writer, repr_data->attribute_locations[i]);
-        MVM_serialization_write_varint(tc, writer, repr_data->struct_offsets[i]);
+        MVM_serialization_write_int(tc, writer, repr_data->attribute_locations[i]);
+        MVM_serialization_write_int(tc, writer, repr_data->struct_offsets[i]);
 
-        MVM_serialization_write_varint(tc, writer, repr_data->flattened_stables[i] != NULL);
+        MVM_serialization_write_int(tc, writer, repr_data->flattened_stables[i] != NULL);
         if (repr_data->flattened_stables[i])
             MVM_serialization_write_stable_ref(tc, writer, repr_data->flattened_stables[i]);
 
@@ -701,7 +686,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
     while (repr_data->name_to_index_mapping[i].class_key)
         i++;
     num_classes = i;
-    MVM_serialization_write_varint(tc, writer, num_classes);
+    MVM_serialization_write_int(tc, writer, num_classes);
     for(i = 0; i < num_classes; i++){
         MVM_serialization_write_ref(tc, writer, repr_data->name_to_index_mapping[i].class_key);
         MVM_serialization_write_ref(tc, writer, repr_data->name_to_index_mapping[i].name_map);
@@ -711,9 +696,9 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
     while(repr_data->initialize_slots && repr_data->initialize_slots[i] != -1)
         i++;
     num_slots = i;
-    MVM_serialization_write_varint(tc, writer, num_slots);
+    MVM_serialization_write_int(tc, writer, num_slots);
     for(i = 0; i < num_slots; i++){
-        MVM_serialization_write_varint(tc, writer, repr_data->initialize_slots[i]);
+        MVM_serialization_write_int(tc, writer, repr_data->initialize_slots[i]);
     }
 }
 
@@ -722,12 +707,12 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     MVMCUnionREPRData *repr_data = (MVMCUnionREPRData *) MVM_malloc(sizeof(MVMCUnionREPRData));
     MVMint32 i, num_classes, num_slots;
 
-    repr_data->struct_size = MVM_serialization_read_varint(tc, reader);
+    repr_data->struct_size = MVM_serialization_read_int(tc, reader);
     if (reader->root.version >= 17) {
-        repr_data->struct_align = MVM_serialization_read_varint(tc, reader);
+        repr_data->struct_align = MVM_serialization_read_int(tc, reader);
     }
-    repr_data->num_attributes = MVM_serialization_read_varint(tc, reader);
-    repr_data->num_child_objs = MVM_serialization_read_varint(tc, reader);
+    repr_data->num_attributes = MVM_serialization_read_int(tc, reader);
+    repr_data->num_child_objs = MVM_serialization_read_int(tc, reader);
 
     repr_data->attribute_locations = (MVMint32 *)MVM_malloc(sizeof(MVMint32) * repr_data->num_attributes);
     repr_data->struct_offsets      = (MVMint32 *)MVM_malloc(sizeof(MVMint32) * repr_data->num_attributes);
@@ -735,10 +720,10 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->member_types        = (MVMObject **)MVM_malloc(repr_data->num_attributes * sizeof(MVMObject *));
 
     for(i = 0; i < repr_data->num_attributes; i++) {
-        repr_data->attribute_locations[i] = MVM_serialization_read_varint(tc, reader);
-        repr_data->struct_offsets[i] = MVM_serialization_read_varint(tc, reader);
+        repr_data->attribute_locations[i] = MVM_serialization_read_int(tc, reader);
+        repr_data->struct_offsets[i] = MVM_serialization_read_int(tc, reader);
 
-        if(MVM_serialization_read_varint(tc, reader)){
+        if(MVM_serialization_read_int(tc, reader)){
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->flattened_stables[i], MVM_serialization_read_stable_ref(tc, reader));
         }
         else {
@@ -748,7 +733,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         repr_data->member_types[i] = MVM_serialization_read_ref(tc, reader);
     }
 
-    num_classes = MVM_serialization_read_varint(tc, reader);
+    num_classes = MVM_serialization_read_int(tc, reader);
     repr_data->name_to_index_mapping = (MVMCUnionNameMap *)MVM_malloc(sizeof(MVMCUnionNameMap) * (1 + num_classes));
     for(i = 0; i < num_classes; i++){
         repr_data->name_to_index_mapping[i].class_key = MVM_serialization_read_ref(tc, reader);
@@ -757,10 +742,10 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->name_to_index_mapping[i].class_key = NULL;
     repr_data->name_to_index_mapping[i].name_map = NULL;
 
-    num_slots = MVM_serialization_read_varint(tc, reader);
+    num_slots = MVM_serialization_read_int(tc, reader);
     repr_data->initialize_slots = (MVMint32 *)MVM_malloc(sizeof(MVMint32) * (1 + num_slots));
     for(i = 0; i < num_slots; i++){
-        repr_data->initialize_slots[i] = MVM_serialization_read_varint(tc, reader);
+        repr_data->initialize_slots[i] = MVM_serialization_read_int(tc, reader);
     }
     repr_data->initialize_slots[i] = -1;
 
@@ -807,5 +792,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "CUnion", /* name */
     MVM_REPR_ID_MVMCUnion,
-    0, /* refs_frames */
+    NULL, /* unmanaged_size */
+    NULL, /* describe_refs */
 };

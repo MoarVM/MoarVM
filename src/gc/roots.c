@@ -91,6 +91,9 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         if (!current->sc)
             add_collectable(tc, worklist, snapshot, current->handle,
                 "SC weakhash unresolved handle");
+        else if (!current->claimed)
+            add_collectable(tc, worklist, snapshot, current->sc,
+                "SC weakhash unclaimed SC");
     }
 
     HASH_ITER(hash_handle, tc->instance->loaded_compunits, current_lcun, tmp_lcun, bucket_tmp) {
@@ -111,12 +114,18 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     /* Any active exception handlers. */
     MVMActiveHandler *cur_ah = tc->active_handlers;
     while (cur_ah != NULL) {
-        add_collectable(tc, worklist, snapshot, cur_ah->ex_obj, "Active exception object");
+        add_collectable(tc, worklist, snapshot, cur_ah->ex_obj, "Active handler exception object");
+        if (!MVM_FRAME_IS_ON_CALLSTACK(tc, cur_ah->frame))
+            add_collectable(tc, worklist, snapshot, cur_ah->frame, "Active handler frame");
         cur_ah = cur_ah->next_handler;
     }
 
     /* The thread object. */
     add_collectable(tc, worklist, snapshot, tc->thread_obj, "Thread object");
+
+    /* The thread's entry frame. */
+    if (tc->thread_entry_frame && !MVM_FRAME_IS_ON_CALLSTACK(tc, tc->thread_entry_frame))
+        add_collectable(tc, worklist, snapshot, tc->thread_entry_frame, "Thread entry frame");
 
     /* Any exception handler result. */
     add_collectable(tc, worklist, snapshot, tc->last_handler_result, "Last handler result");
@@ -199,7 +208,15 @@ void MVM_gc_root_temp_pop_all(MVMThreadContext *tc) {
     tc->num_temproots = tc->mark_temproots;
 }
 
-/* Adds the set of thread-local temporary roots to a GC worklist. */
+/* Adds the set of thread-local temporary roots to a GC worklist. Note that we
+ * may MVMROOT things that are actually frames on a therad local call stack as
+ * they may be GC-able; check for this and make sure such roots do not get
+ * added to the worklist. (Cheaper to do it here in the event we GC than to
+ * do it on every stack push). */
+static MVMuint32 is_stack_frame(MVMThreadContext *tc, MVMCollectable **c) {
+    MVMCollectable *maybe_frame = *c;
+    return maybe_frame && maybe_frame->flags == 0 && maybe_frame->owner == 0;
+}
 void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMuint32         i, num_roots;
     MVMCollectable ***temproots;
@@ -207,11 +224,13 @@ void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
     temproots = tc->temproots;
     if (worklist) {
         for (i = 0; i < num_roots; i++)
-            MVM_gc_worklist_add(tc, worklist, temproots[i]);
+            if (!is_stack_frame(tc, temproots[i]))
+                MVM_gc_worklist_add(tc, worklist, temproots[i]);
     }
     else {
         for (i = 0; i < num_roots; i++)
-            MVM_profile_heap_add_collectable_rel_idx(tc, snapshot, *(temproots[i]), i);
+            if (!is_stack_frame(tc, temproots[i]))
+                MVM_profile_heap_add_collectable_rel_idx(tc, snapshot, *(temproots[i]), i);
     }
 }
 
@@ -258,7 +277,6 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
     for (i = 0; i < num_roots; i++) {
         /* Count items on worklist before we mark it. */
         MVMuint32 items_before_mark  = worklist->items;
-        MVMuint32 frames_before_mark = worklist->frames;
 
         /* Put things it references into the worklist; since the worklist will
          * be set not to include gen2 things, only nursery things will make it
@@ -266,23 +284,33 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
         assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
         MVM_gc_mark_collectable(tc, worklist, gen2roots[i]);
 
-        /* If we added any nursery objects or frames, or if we are marked as
-         * referencing frames, then we need to stay in this list. */
+        /* If we added any nursery objects, or if we are a frame with ->work
+         * area, keep in this list. */
         if (worklist->items != items_before_mark ||
-                worklist->frames != frames_before_mark ||
-                (!(gen2roots[i]->flags & MVM_CF_STABLE) && REPR(gen2roots[i])->refs_frames)) {
+                (gen2roots[i]->flags & MVM_CF_FRAME && ((MVMFrame *)gen2roots[i])->work)) {
             gen2roots[insert_pos] = gen2roots[i];
             insert_pos++;
         }
 
-        /* Otherwise, clear the "in gen2 root list" flag. */
+        /* Otherwise, clear the "in gen2 root list" flag. Note that another
+         * thread may also clear this flag if it also had the entry in its
+         * inter-gen list, so be careful to clear it, not just toggle. */
         else {
-            gen2roots[i]->flags ^= MVM_CF_IN_GEN2_ROOT_LIST;
+            gen2roots[i]->flags &= ~MVM_CF_IN_GEN2_ROOT_LIST;
         }
     }
 
     /* New number of entries after sliding is the final insert position. */
     tc->num_gen2roots = insert_pos;
+}
+
+/* Adds inter-generational roots to a heap snapshot. */
+void MVM_gc_root_add_gen2s_to_snapshot(MVMThreadContext *tc, MVMHeapSnapshotState *snapshot) {
+    MVMCollectable **gen2roots = tc->gen2roots;
+    MVMuint32        num_roots = tc->num_gen2roots;
+    MVMuint32        i;
+    for (i = 0; i < num_roots; i++)
+        MVM_profile_heap_add_collectable_rel_idx(tc, snapshot, gen2roots[i], i);
 }
 
 /* Visits all of the roots in the gen2 list and removes those that have been
@@ -313,23 +341,14 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
 /* Walks frames and compilation units. Adds the roots it finds into the
  * GC worklist. */
 static void scan_lexicals(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
-void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame) {
-    MVMFrame *cur_frame = start_frame;
-    MVMuint32 cur_seq_number = MVM_load(&tc->instance->gc_seq_number);
-    /* If we already saw the frame this run, skip it. */
-    MVMuint32 orig_seq = MVM_load(&cur_frame->gc_seq_number);
-    if (orig_seq == cur_seq_number)
-        return;
-    if (MVM_cas(&cur_frame->gc_seq_number, orig_seq, cur_seq_number) != orig_seq)
-        return;
+void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *cur_frame) {
+    /* Add caller to worklist if it's heap-allocated. */
+    if (cur_frame->caller && !MVM_FRAME_IS_ON_CALLSTACK(tc, cur_frame->caller))
+        MVM_gc_worklist_add(tc, worklist, &cur_frame->caller);
 
-    /* Add caller and outer to frames work list. */
-    MVM_gc_worklist_add_frame(tc, worklist, cur_frame->caller);
-    MVM_gc_worklist_add_frame(tc, worklist, cur_frame->outer);
-
-    /* add code_ref to work list unless we're the top-level frame. */
-    if (cur_frame->code_ref)
-        MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
+    /* Add outer, code_ref and static info to work list. */
+    MVM_gc_worklist_add(tc, worklist, &cur_frame->outer);
+    MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
     MVM_gc_worklist_add(tc, worklist, &cur_frame->static_info);
 
     /* Add any context object. */

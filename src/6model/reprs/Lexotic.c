@@ -74,6 +74,14 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
+static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
+    MVMLexoticBody *lb = (MVMLexoticBody *)data;
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, (MVMCollectable *)lb->sf,
+        "Static Frame");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, (MVMCollectable *)lb->result,
+        "Result");
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMLexotic_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -105,5 +113,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "Lexotic", /* name */
     MVM_REPR_ID_Lexotic,
-    0, /* refs_frames */
+    NULL, /* unmanaged_size */
+    describe_refs,
 };

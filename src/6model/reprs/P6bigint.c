@@ -195,14 +195,14 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
 
         /* write the "is small" flag */
-        MVM_serialization_write_varint(tc, writer, 0);
+        MVM_serialization_write_int(tc, writer, 0);
         MVM_serialization_write_str(tc, writer, str);
         MVM_free(buf);
     }
     else {
         /* write the "is small" flag */
-        MVM_serialization_write_varint(tc, writer, 1);
-        MVM_serialization_write_varint(tc, writer, body->u.smallint.value);
+        MVM_serialization_write_int(tc, writer, 1);
+        MVM_serialization_write_int(tc, writer, body->u.smallint.value);
     }
 }
 
@@ -215,9 +215,9 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
 
-    if (MVM_serialization_read_varint(tc, reader) == 1) { /* Is it small int? */
+    if (MVM_serialization_read_int(tc, reader) == 1) { /* Is it small int? */
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-        body->u.smallint.value = MVM_serialization_read_varint(tc, reader);
+        body->u.smallint.value = MVM_serialization_read_int(tc, reader);
     } else {  /* big int */
         char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), NULL, 0);
         body->u.bigint = MVM_malloc(sizeof(mp_int));
@@ -225,6 +225,15 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         mp_read_radix(body->u.bigint, buf, 10);
         MVM_free(buf);
     }
+}
+
+/* Calculates the non-GC-managed memory we hold on to. */
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMP6bigintBody *body = (MVMP6bigintBody *)data;
+    if (MVM_BIGINT_IS_BIG(body))
+        return body->u.bigint->alloc;
+    else
+        return 0;
 }
 
 /* Initializes the representation. */
@@ -268,5 +277,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "P6bigint", /* name */
     MVM_REPR_ID_P6bigint,
-    0, /* refs_frames */
+    unmanaged_size, /* unmanaged_size */
+    NULL, /* describe_refs */
 };

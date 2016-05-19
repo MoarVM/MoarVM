@@ -51,8 +51,8 @@ static void die_over_missing_method(MVMThreadContext *tc, MVMObject *obj, MVMStr
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste,
-            "Cannot find method '%s'",
-            c_name);
+            "Cannot find method '%s' on object of type %s",
+            c_name, STABLE(obj)->debug_name);
     }
 }
 static void late_bound_find_method_return(MVMThreadContext *tc, void *sr_data) {
@@ -389,7 +389,7 @@ MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj, M
 
 /* Default invoke function on STables; for non-invokable objects */
 void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
-    MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s)", REPR(invokee)->name);
+    MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s; %s)", REPR(invokee)->name, STABLE(invokee)->debug_name);
 }
 
 /* Clean up STable memory. */
@@ -404,6 +404,7 @@ void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st) {
         st->container_spec->gc_free_data(tc, st);
     MVM_free(st->invocation_spec);
     MVM_free(st->boolification_spec);
+    MVM_free(st->debug_name);
 }
 
 /* Get the next type cache ID for a newly created STable. */

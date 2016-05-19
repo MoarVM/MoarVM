@@ -91,6 +91,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->scs);
     MVM_free(body->scs_to_resolve);
     MVM_free(body->sc_handle_idxs);
+    MVM_free(body->string_heap_fast_table);
     switch (body->deallocate) {
     case MVM_DEALLOCATE_NOOP:
         break;
@@ -126,6 +127,82 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
 }
 
+/* Calculates the non-GC-managed memory we hold on to. */
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMCompUnitBody *body = (MVMCompUnitBody *)data;
+    MVMuint64 size = 0;
+    MVMuint32 index;
+
+    size += sizeof(MVMCallsite *) * body->num_callsites;
+    for (index = 0; index < body->num_callsites; index++) {
+        MVMCallsite *cs = body->callsites[index];
+        if (cs && !cs->is_interned) {
+            size += sizeof(MVMCallsite);
+
+            size += sizeof(MVMCallsiteEntry) * cs->flag_count;
+
+            size += sizeof(MVMString *) * MVM_callsite_num_nameds(tc, cs);
+        }
+    }
+
+    if (body->deallocate == MVM_DEALLOCATE_FREE) {
+        /* XXX do we want to count mmapped data for the bytecode segment, too? */
+        size += body->data_size;
+    }
+
+    size += sizeof(MVMObject *) * body->num_frames;
+
+    size += sizeof(MVMExtOpRecord *) * body->num_extops;
+
+    size += sizeof(MVMString *) * body->num_strings;
+
+    size += body->serialized_size;
+
+    /* since SCs are GC-managed themselves, only the array containing them
+     * is added to the unmanaged size here. */
+    size += body->num_scs * (
+            sizeof(MVMSerializationContext *) +     /* scs */
+            sizeof(MVMSerializationContextBody *) + /* scs_to_resolve */
+            sizeof(MVMint32)                        /* sc_handle_idxs */
+            );
+
+    return size;
+}
+
+static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
+    MVMCompUnitBody     *body      = (MVMCompUnitBody *)data;
+    MVMuint32 i;
+
+    /* Add code refs to the worklists. */
+    for (i = 0; i < body->num_frames; i++)
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+            (MVMCollectable *)body->coderefs[i], "Code refs array entry");
+
+    /* Add extop names to the worklist. */
+    for (i = 0; i < body->num_extops; i++)
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+            (MVMCollectable *)body->extops[i].name, "Ext-op names list entry");
+
+    /* Add strings to the worklists. */
+    for (i = 0; i < body->num_strings; i++)
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+            (MVMCollectable *)body->strings[i], "Strings heap entry");
+
+    /* Add serialization contexts to the worklist. */
+    for (i = 0; i < body->num_scs; i++)
+        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+            (MVMCollectable *)body->scs[i], "Serialization context dependency");
+
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->update_mutex, "Update_mutex");
+
+    /* Add various other referenced strings, etc. */
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->hll_name, "HLL name");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->filename, "Filename");
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMCompUnit_initialize(MVMThreadContext *tc) {
     return &this_repr;
@@ -157,5 +234,6 @@ static const MVMREPROps this_repr = {
     NULL, /* spesh */
     "MVMCompUnit", /* name */
     MVM_REPR_ID_MVMCompUnit,
-    0, /* refs_frames */
+    unmanaged_size,
+    describe_refs,
 };
