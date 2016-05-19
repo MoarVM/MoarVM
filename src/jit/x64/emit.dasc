@@ -1429,7 +1429,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | callp &MVM_6model_find_method_spesh;
         | test RV, RV;
         /* fall out to interpreter */
-        | jnz ->out;
+        | jnz ->exit;
         |2:
         break;
     }
