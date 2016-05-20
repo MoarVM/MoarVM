@@ -1,3 +1,41 @@
+New in 2016.05
+
++ Use MSVC-provided stdint.h and inttypes.h when possible
++ Improved various error messages to include the debug type name
++ Eliminate call frame reference counts, instead using a linear call stack for
+  frames that never become heap-referenced and using the garbage collector to
+  manage those that do
++ Tune number of gen2 sized bins
++ Improve error reporting in P6opaque's compose function
++ Improved GC debugging support to catch more problems
++ Fix a race between serialization context resolution and garbage collection
++ Add a missing MVMROOT in shell/spawn
++ Fix segfault when trying to serialize an uncomposed P6opaque type
++ Update the build system to autodetect system provided libs
++ Add missing rooting, since the instrumentation level barrier may allocate
++ Fix cleanup of temp roots at thread exit
++ Add missing rooting of exception message in `die`
++ Fix CUnion layout computation GC issues
++ Fix data race in clearing of "in inter-gen set" flag
++ Various improvements and fixes to the spesh_graph tool
++ Add missing optimization of decont_s and decont_u ops
++ Eliminate duplicate MVMContext creation code
++ Fix full cleanup crash: the NFG uses the FSA, so have to destroy NFG first
++ Close dynvar log filehandle in instance destroy
++ Clean up cross-thread write logging mutex
++ Free debug names in STables
++ Free the string_heap_fast_table in CompUnit bodies
++ Free permroot descriptions
++ Free thread's finalization queue in tc destruction
++ Add docs about MVMROOT
++ Fix crash when GCing an ended thread
++ Implement loadbytecodebuffer and loadbytecodefh ops
++ Speed up initialization of non-specialized frames
++ Use varints to make serialization of various integers more compact, reducing
+  size of compiled output
++ Ensure we always produce at least one snapshot when heap profiling
++ Remove debug output when taking heap snapshots
+
 New in 2016.04
 
 + Implement heap snapshots support, exposed through the profiling API
