@@ -258,8 +258,6 @@ void MVM_jit_allocate_registers(MVMThreadContext *tc, MVMJitCompiler *compiler, 
                        value->state == MVM_JIT_VALUE_DEAD) {
                 MVM_oops(tc, "Required value is not live");
             }
-            /* Mark value as in-use */
-            MVM_jit_register_use(tc, compiler, value->reg_cls, value->reg_num);
         }
 
         /* allocate input register if necessary */
@@ -310,13 +308,7 @@ void MVM_jit_allocate_registers(MVMThreadContext *tc, MVMJitCompiler *compiler, 
                     MVM_jit_register_assign(tc, compiler, value, MVM_JIT_REGCLS_GPR, reg);
                 }
             }
-            MVM_jit_register_use(tc, compiler, value->reg_cls, value->reg_num);
             break;
-        }
-        for (j = 0; j < tile->num_vals; j++) {
-            if (tile->values[j] != NULL && tile->values[j]->type == MVM_JIT_REG) {
-                MVM_jit_register_release(tc, compiler, tile->values[j]->reg_cls, tile->values[j]->reg_num);
-            }
         }
         /* Expire dead values */
         MVM_jit_expire_values(tc, compiler, i);

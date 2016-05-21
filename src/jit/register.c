@@ -359,14 +359,10 @@ void MVM_jit_expire_values(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMin
     MVMint32 i = 0;
     while (i < alc->active_num) {
         MVMJitExprValue *value = alc->active[i];
-        if (value->last_use <= order_nr &&
-            /* can't expire values held in locked registers */
-            !(value->state == MVM_JIT_VALUE_ALLOCATED &&
-              REGISTER_IS_LOCKED(alc, value->reg_num))) {
+        if (value->last_use <= order_nr) {
             MVM_jit_register_expire(tc, compiler, value);
         } else {
             i++;
         }
     }
 }
-
