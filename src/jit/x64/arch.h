@@ -101,3 +101,8 @@ X64_SSE(MVM_JIT_REGNAME)
     _(XMM3)
 #endif
 
+/* Frame declarations */
+#define MVM_JIT_REG_TC MVM_JIT_X64_R14
+#define MVM_JIT_REG_CU MVM_JIT_X64_R13
+#define MVM_JIT_REG_LOCAL MVM_JIT_X64_RBX
+#define MVM_JIT_REG_STACK MVM_JIT_X64_RSP

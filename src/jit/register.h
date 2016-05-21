@@ -48,7 +48,7 @@ void MVM_jit_register_put(MVMThreadContext *tc, MVMJitCompiler *compiler,
 void MVM_jit_spill_before_call(MVMThreadContext *tc, MVMJitCompiler *compiler);
 void MVM_jit_spill_before_conditional(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                       MVMJitExprTree *tree, MVMint32 node);
-void MVM_jit_expire_values(MVMThreadContext *tc, MVMJitCompiler *compiler);
+void MVM_jit_expire_values(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 order_nr);
 
 void MVM_jit_enter_branch(MVMThreadContext *tc, MVMJitCompiler *compiler);
 void MVM_jit_leave_branch(MVMThreadContext *tc, MVMJitCompiler *compiler);

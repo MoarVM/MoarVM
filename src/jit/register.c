@@ -354,9 +354,8 @@ void MVM_jit_spill_before_conditional(MVMThreadContext *tc, MVMJitCompiler *cl, 
 }
 
 /* Expire values that are no longer useful */
-void MVM_jit_expire_values(MVMThreadContext *tc, MVMJitCompiler *compiler) {
+void MVM_jit_expire_values(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 order_nr) {
     MVMJitRegisterAllocator *alc = compiler->allocator;
-    MVMint32 order_nr = compiler->order_nr;
     MVMint32 i = 0;
     while (i < alc->active_num) {
         MVMJitExprValue *value = alc->active[i];
@@ -364,7 +363,6 @@ void MVM_jit_expire_values(MVMThreadContext *tc, MVMJitCompiler *compiler) {
             /* can't expire values held in locked registers */
             !(value->state == MVM_JIT_VALUE_ALLOCATED &&
               REGISTER_IS_LOCKED(alc, value->reg_num))) {
-            /* MVM_jit_log(tc, "Expiring value %x first created at %d at order nr %d \n", value, value->first_created, compiler->order_nr); */
             MVM_jit_register_expire(tc, compiler, value);
         } else {
             i++;
