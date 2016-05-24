@@ -1052,7 +1052,6 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     /* HLL role */
     if (st->hll_role != MVM_HLL_ROLE_NONE) {
         MVM_serialization_write_int(tc, writer, st->hll_role);
-    } else {
     }
 
     /* If it's a parametric type, save parameterizer. */
