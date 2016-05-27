@@ -122,15 +122,6 @@ MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
     return cc_obj;
 }
 
-MVMCallsite * MVM_args_prepare(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 callsite_idx) {
-    /* Store callsite in the frame so that the GC knows how to mark any arguments.
-     * Note that since none of the arg-setting ops can trigger GC, there's no way
-     * the setup can be interupted, so we don't need to clear the args buffer. */
-    MVMCallsite *cs = cu->body.callsites[callsite_idx];
-    tc->cur_frame->cur_args_callsite = cs;
-    return cs;
-}
-
 static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx);
 
 /* Checks that the passed arguments fall within the expected arity. */

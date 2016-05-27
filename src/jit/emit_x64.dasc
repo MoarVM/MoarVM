@@ -79,6 +79,7 @@
 |.type REGISTER, MVMRegister
 |.type FRAME, MVMFrame
 |.type ARGCTX, MVMArgProcContext
+|.type CALLSITEPTR, MVMCallsite*
 |.type CAPTURE, MVMCallCapture
 |.type CAPTUREBODY, MVMCallCaptureBody
 |.type ARGPROCCONTEXT, MVMArgProcContext
@@ -2274,16 +2275,16 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitGraph *jg,
 void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitGraph *jg, MVMJitInvoke *invoke,
                          dasm_State **Dst) {
     MVMint16 i;
+    MVMuint16 callsite_idx = invoke->callsite_idx;
     MVM_jit_log(tc, "Emit invoke (%d args)\n", invoke->arg_count);
-    /* setup the callsite */
-    | mov ARG1, TC;
-    | mov ARG2, CU;
-    | mov ARG3, invoke->callsite_idx;
-    | callp &MVM_args_prepare;
-    | mov TMP6, RV; // store callsite in tmp6, which we don't use until the end
-    /* Store arguments in the buffer. I use TMP5 as it never conflicts
+    /* Store callsite in tmp6, which we use at the end of invoke */
+    | mov TMP6, CU->body.callsites;
+    | mov TMP6, CALLSITEPTR:TMP6[callsite_idx];
+
+    /* Store callsite in the frame. I use TMP5 as it never conflicts
      * with argument passing (like TMP6, but unlike other TMP regs) */
     | mov TMP5, TC->cur_frame;
+    | mov FRAME:TMP5->cur_args_callsite, TMP6;
 
     /* Setup the frame for returning to our current position */
     if (sizeof(MVMReturnType) == 4) {

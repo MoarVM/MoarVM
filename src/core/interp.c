@@ -797,7 +797,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(prepargs):
-                cur_callsite = MVM_args_prepare(tc, cu, GET_UI16(cur_op, 0));
+                /* Store callsite in the frame so that the GC knows how to mark
+                 * any arguments. Note that since none of the arg-setting ops can
+                 * trigger GC, there's no way the setup can be interupted, so we
+                 * don't need to clear the args buffer before we start. */
+                cur_callsite = cu->body.callsites[GET_UI16(cur_op, 0)];
+                tc->cur_frame->cur_args_callsite = cur_callsite;
                 cur_op += 2;
                 goto NEXT;
             OP(arg_i):
