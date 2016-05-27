@@ -434,8 +434,9 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
         MVM_repr_push_i(tc, comp_sc->body->rep_indexes, new_slot << 1);
         MVM_repr_push_o(tc, comp_sc->body->rep_scs, (MVMObject *)MVM_sc_get_obj_sc(tc, obj));
 
-        /* Update SC of the object, claiming it. */
+        /* Update SC of the object, claiming it, and update index too. */
         MVM_sc_set_obj_sc(tc, obj, comp_sc);
+        MVM_set_idx_in_sc(&(obj->header), new_slot);
     }
 }
 
