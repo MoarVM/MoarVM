@@ -464,5 +464,6 @@ void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st) {
 
         /* Update SC of the STable, claiming it. */
         MVM_sc_set_stable_sc(tc, st, comp_sc);
+        MVM_set_idx_in_sc(&(st->header), new_slot);
     }
 }
