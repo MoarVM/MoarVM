@@ -93,7 +93,7 @@ MVMint64 MVM_sc_find_object_idx(MVMThreadContext *tc, MVMSerializationContext *s
     MVMObject **roots;
     MVMint64    i, count;
     MVMuint32   cached = MVM_get_idx_in_sc(&obj->header);
-    if (cached != ~0)
+    if (cached != ~0 && MVM_sc_get_collectable_sc(tc, &obj->header) == sc)
         return cached;
     roots = sc->body->root_objects;
     count = sc->body->num_objects;
@@ -116,7 +116,7 @@ MVMint64 MVM_sc_find_object_idx_jit(MVMThreadContext *tc, MVMObject *sc, MVMObje
 MVMint64 MVM_sc_find_stable_idx(MVMThreadContext *tc, MVMSerializationContext *sc, MVMSTable *st) {
     MVMuint64 i;
     MVMuint32 cached = MVM_get_idx_in_sc(&st->header);
-    if (cached != ~0)
+    if (cached != ~0 && MVM_sc_get_collectable_sc(tc, &st->header) == sc)
         return cached;
     for (i = 0; i < sc->body->num_stables; i++)
         if (sc->body->root_stables[i] == st)
