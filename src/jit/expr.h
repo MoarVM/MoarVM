@@ -140,14 +140,10 @@ struct MVMJitExprNodeInfo {
     const MVMJitExprOpInfo *op_info;
     /* VM instruction represented by this node */
     MVMSpeshIns    *spesh_ins;
-    /* VM Local value of this node */
-    MVMint16        local_addr;
-
+    /* Size of computed value */
+    MVMint8         size;
     /* internal label for IF/WHEN/ALL/ANY etc, relative to the tree label offset */
-    MVMint32          label;
-
-    /* Result value information (register/memory location, size etc) */
-    MVMJitExprValue value;
+    MVMint32        label;
 };
 
 struct MVMJitExprTree {

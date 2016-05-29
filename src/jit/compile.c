@@ -167,55 +167,81 @@ void MVM_jit_compile_breakpoint(void) {
     fprintf(stderr, "Pause here please\n");
 }
 
+static MVMJitExprValue* node_value(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 node) {
+    MVMJitExprValue **v = compiler->allocator->values_by_node + node;
+    if (*v == NULL) {
+        *v = MVM_spesh_alloc(tc, compiler->graph->sg, sizeof(MVMJitExprValue));
+    }
+    return *v;
+}
 
-
-static void arglist_get_values(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMJitExprValue **values) {
-    MVMint32 i, nchild = tree->nodes[node+1];
+static void arglist_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
+                              MVMint32 arglist, MVMJitExprNode *nodes) {
+    MVMint32 i, nchild = tree->nodes[arglist+1];
     for (i = 0; i < nchild; i++) {
-        MVMint32 carg = tree->nodes[node+2+i];
-        MVMint32 val  = tree->nodes[carg+1];
-        *values++     = &tree->info[val].value;
+        MVMint32 carg = tree->nodes[arglist+2+i];
+        *nodes++      = tree->nodes[carg+1];
     }
 }
 
 
-static void MVM_jit_get_values(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree, MVMJitTile *tile) {
-    MVMint32 node = tile->node;
+
+static void MVM_jit_get_values(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                               MVMJitExprTree *tree, MVMJitTile *tile) {
+    MVMJitExprNode node = tile->node;
+    MVMJitExprNode buffer[16];
     const MVMJitTileTemplate *template = tile->template;
 
-    tile->values[0]       = &tree->info[node].value;
+    tile->values[0]       = node_value(tc, compiler, node);
+    tile->values[0]->size = tree->info[node].size;
     tile->values[0]->type = template->vtype;
+
     switch (tree->nodes[node]) {
     case MVM_JIT_IF:
     {
         MVMint32 left = tree->nodes[node+2], right = tree->nodes[node+3];
         /* assign results of IF to values array */
-        tile->values[1] = &tree->info[left].value;
-        tile->values[2] = &tree->info[right].value;
-        tile->num_vals  = 2;
+        tile->values[1]  = node_value(tc, compiler, left);
+        tile->values[2]  = node_value(tc, compiler, right);
+        tile->num_values = 2;
         break;
     }
     case MVM_JIT_ARGLIST:
     {
-        /* NB, arglist can conceivably use more than 7 values, although it can safely overflow into args, we may want to find a better solution */
-        arglist_get_values(tc, tree, node, tile->values + 1);
-        tile->num_vals = tree->nodes[node+1];
+        /* NB, arglist can conceivably use more than 7 values, although it can
+         * safely overflow into args, we may want to find a better solution */
+        MVMint32 i;
+        tile->num_values = tree->nodes[node+1];
+        arglist_get_nodes(tc, tree, node, buffer);
+        for (i = 0; i < tile->num_values; i++) {
+            tile->values[i+1] = node_value(tc, compiler, buffer[i]);
+        }
         break;
     }
     case MVM_JIT_DO:
     {
         MVMint32 nchild     = tree->nodes[node+1];
         MVMint32 last_child = tree->nodes[node+1+nchild];
-        tile->values[1] = &tree->info[last_child].value;
-        tile->num_vals  = 1;
+        tile->values[1]   = node_value(tc, compiler, last_child);
+        tile->num_values  = 1;
         break;
     }
     default:
     {
-        MVM_jit_tile_get_values(tc, tree, node,
-                                template->path, template->regs,
-                                tile->values + 1, tile->args);
-        tile->num_vals = template->num_vals;
+        MVMint32 i, j, k, num_nodes, value_bitmap;
+        num_nodes        = MVM_jit_tile_get_nodes(tc, tree, tile, buffer);
+        value_bitmap     = tile->template->value_bitmap;
+        tile->num_values = template->num_values;
+        j = 1;
+        k = 0;
+        for (i = 0; i < num_nodes; i++) {
+            if (value_bitmap & 1) {
+                tile->values[j++] = node_value(tc, compiler, buffer[i]);
+            } else {
+                tile->args[k++]   = buffer[i];
+            }
+            value_bitmap >>= 1;
+        }
         break;
     }
     }
@@ -228,13 +254,17 @@ void MVM_jit_allocate_registers(MVMThreadContext *tc, MVMJitCompiler *compiler, 
     MVMJitExprValue *value;
     MVMint32 i, j;
     MVMint8 reg;
+
+    /* allocate a table to look up values by node number */
+    compiler->allocator->values_by_node = MVM_calloc(tree->nodes_num, sizeof(void*));
+
     /* Get value descriptors and calculate live ranges */
     for (tile = list->first; tile != NULL; tile = tile->next) {
         if (tile->template == NULL) /* pseudotiles */
             continue;
-        MVM_jit_get_values(tc, compiler, list->tree, tile);
+        MVM_jit_get_values(tc, compiler, tree, tile);
         tile->values[0]->first_created = tile->order_nr;
-        for (i = 0; i < tile->num_vals; i++) {
+        for (i = 0; i < tile->num_values; i++) {
             tile->values[i+1]->last_use = tile->order_nr;
             tile->values[i+1]->num_use++;
         }
@@ -247,7 +277,7 @@ void MVM_jit_allocate_registers(MVMThreadContext *tc, MVMJitCompiler *compiler, 
             continue;
         i++;
         /* ensure that register values are live */
-        for (j = 1; j < tile->num_vals; j++) {
+        for (j = 1; j < tile->num_values; j++) {
             value = tile->values[j];
             if (value->type != MVM_JIT_REG)
                 continue;
@@ -297,7 +327,7 @@ void MVM_jit_allocate_registers(MVMThreadContext *tc, MVMJitCompiler *compiler, 
         default:
             if (value != NULL && value->type == MVM_JIT_REG) {
                 /* allocate a register for the result */
-                if (tile->num_vals > 0 &&
+                if (tile->num_values > 0 &&
                     tile->values[1]->type == MVM_JIT_REG &&
                     tile->values[1]->state == MVM_JIT_VALUE_ALLOCATED &&
                     tile->values[1]->last_use == i) {
@@ -313,6 +343,7 @@ void MVM_jit_allocate_registers(MVMThreadContext *tc, MVMJitCompiler *compiler, 
         /* Expire dead values */
         MVM_jit_expire_values(tc, compiler, i);
     }
+    MVM_free(compiler->allocator->values_by_node);
 }
 
 

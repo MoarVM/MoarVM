@@ -23,7 +23,7 @@ static MVMint8 free_num[] = { -1 };
 #define UNLOCK_REGISTER(a,n)  ((a)->reg_lock &= ~(1 << (n)))
 
 
-/* NB only implement GPR register allocation now */
+
 void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                      MVMJitRegisterAllocator *alc) {
     /* Store live ranges */
@@ -321,37 +321,6 @@ void MVM_jit_register_put(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprVa
 }
 
 
-/* Spill values prior to emitting a call */
-void MVM_jit_spill_before_call(MVMThreadContext *tc, MVMJitCompiler *cl) {
-    MVMJitRegisterAllocator *alc = cl->allocator;
-    MVMint32 order_nr = cl->order_nr;
-    MVMint32 i;
-    for (i = 0; i < alc->active_num; i++) {
-        MVMJitExprValue *v = alc->active[i];
-        if (v->last_use > order_nr && v->state == MVM_JIT_VALUE_ALLOCATED) {
-            MVM_jit_register_spill(tc, cl, v->reg_cls, v->reg_num);
-        }
-    }
-}
-
-void MVM_jit_spill_before_conditional(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitExprTree *tree, MVMint32 node) {
-    MVMJitRegisterAllocator *alc = cl->allocator;
-    MVMint32 exit_order_nr = tree->info[node].value.first_created;
-    MVMint32 i;
-    for (i = 0; i < alc->active_num; i++) {
-        MVMJitExprValue *value = alc->active[i];
-        if (value->last_use > exit_order_nr) {
-            /* Emit a spill - this inadvertently frees the register */
-            MVM_jit_register_spill(tc, cl, value->reg_cls, value->reg_num);
-            /* So we have to take it again */
-            MVM_jit_register_take(tc, cl, value->reg_cls, value->reg_num);
-            /* Because the value has been assigned before, we should
-             * not reassign it, but update it's state directly */
-            value->state = MVM_JIT_VALUE_ALLOCATED;
-            alc->reg_use[value->reg_num]++;
-        }
-    }
-}
 
 /* Expire values that are no longer useful */
 void MVM_jit_expire_values(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 order_nr) {

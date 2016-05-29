@@ -273,16 +273,16 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     switch (tree->nodes[node]) {
     case MVM_JIT_CONST:
         /* node size is given */
-        node_info->value.size        = args[1];
+        node_info->size        = args[1];
         break;
     case MVM_JIT_COPY:
-        node_info->value.size = tree->info[tree->nodes[first_child]].value.size;
+        node_info->size = tree->info[tree->nodes[first_child]].size;
         break;
     case MVM_JIT_LOAD:
-        node_info->value.size = args[0];
+        node_info->size = args[0];
         break;
     case MVM_JIT_CAST:
-        node_info->value.size = args[0];
+        node_info->size = args[0];
         break;
     case MVM_JIT_ADDR:
     case MVM_JIT_IDX:
@@ -294,7 +294,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_STACK:
     case MVM_JIT_VMNULL:
         /* addresses result in pointers */
-        node_info->value.size = MVM_JIT_PTR_SZ;
+        node_info->size = MVM_JIT_PTR_SZ;
         break;
     case MVM_JIT_ADD:
     case MVM_JIT_SUB:
@@ -306,39 +306,39 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             /* arithmetic nodes use their largest operand */
             MVMint32 left  = tree->nodes[first_child];
             MVMint32 right = tree->nodes[first_child+1];
-            node_info->value.size = MAX(tree->info[left].value.size,
-                                         tree->info[right].value.size);
+            node_info->size = MAX(tree->info[left].size,
+                                         tree->info[right].size);
             break;
         }
     case MVM_JIT_DO:
         /* node size of last child */
         {
             MVMint32 last_child = tree->nodes[first_child + nchild - 1];
-            node_info->value.size = tree->info[last_child].value.size;
+            node_info->size = tree->info[last_child].size;
             break;
         }
     case MVM_JIT_IF:
         {
             MVMint32 left  = tree->nodes[first_child+1];
             MVMint32 right = tree->nodes[first_child+2];
-            node_info->value.size = MAX(tree->info[left].value.size,
-                                         tree->info[right].value.size);
+            node_info->size = MAX(tree->info[left].size,
+                                         tree->info[right].size);
             break;
         }
     case MVM_JIT_CALL:
         if (args[0] == MVM_JIT_VOID)
-            node_info->value.size = 0;
+            node_info->size = 0;
         else if (args[0] == MVM_JIT_INT)
-            node_info->value.size = MVM_JIT_INT_SZ;
+            node_info->size = MVM_JIT_INT_SZ;
         else if (args[0] == MVM_JIT_PTR)
-            node_info->value.size = MVM_JIT_PTR_SZ;
+            node_info->size = MVM_JIT_PTR_SZ;
         else
-            node_info->value.size = MVM_JIT_NUM_SZ;
+            node_info->size = MVM_JIT_NUM_SZ;
         break;
     default:
         /* all other things, branches, labels, when, arglist, carg,
          * comparisons, etc, have no value size */
-        node_info->value.size = 0;
+        node_info->size = 0;
         break;
     }
     /* Insert casts as necessary */
@@ -347,10 +347,10 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             MVMint32 child = tree->nodes[first_child+i];
             if (tree->nodes[child] == MVM_JIT_CONST) {
                 /* CONST nodes can always take over their target size, so they never need to be cast */
-                tree->info[child].value.size = tree->info[node].value.size;
-            } else if (tree->info[child].value.size < node_info->value.size) {
+                tree->info[child].size = tree->info[node].size;
+            } else if (tree->info[child].size < node_info->size) {
                 /* Widening casts need to be handled explicitly, shrinking casts do not */
-                MVMint32 cast = MVM_jit_expr_add_cast(tc, tree, child, node_info->value.size, op_info->cast);
+                MVMint32 cast = MVM_jit_expr_add_cast(tc, tree, child, node_info->size, op_info->cast);
                 /* Because the cast may have grown the backing nodes array, the info array needs to grow as well */
                 MVM_DYNAR_ENSURE_SIZE(tree->info, cast);
                 /* And because analyze_node is called in postorder,

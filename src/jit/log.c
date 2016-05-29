@@ -61,7 +61,7 @@ static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     }
     nargs[j] = 0;
     MVM_jit_log(tc, "%04d%s%s (%s; sz=%d)\n", node, indent, op->name,
-                nargs, info->value.size);
+                nargs, info->size);
 }
 
 static void ascend_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,

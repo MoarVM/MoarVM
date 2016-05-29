@@ -1,12 +1,11 @@
-/* Register allocator based on linear-scan allocation. For this
- * algorithm, we need the live ranges of values, sorted ascending and
- * descending by end point. I want to use this algorithm online, so it
- * seems logical to use a heap */
+
 struct MVMJitRegisterAllocator {
-    /* List of active 'live' ranges */
     MVM_DYNAR_DECL(MVMJitExprValue*, active);
 
-    /* stacks of free registers */
+    /* Values by node */
+    MVMJitExprValue **values_by_node;
+
+    /* Register giveout ring */
     MVMint8 *free_reg;
     MVMuint8 *reg_use;
 
@@ -45,11 +44,5 @@ void MVM_jit_register_expire(MVMThreadContext *tc, MVMJitCompiler *compiler,
 void MVM_jit_register_put(MVMThreadContext *tc, MVMJitCompiler *compiler,
                           MVMJitExprValue *value, MVMint32 reg_cls, MVMint8 reg_num);
 
-void MVM_jit_spill_before_call(MVMThreadContext *tc, MVMJitCompiler *compiler);
-void MVM_jit_spill_before_conditional(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                                      MVMJitExprTree *tree, MVMint32 node);
 void MVM_jit_expire_values(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 order_nr);
-
-void MVM_jit_enter_branch(MVMThreadContext *tc, MVMJitCompiler *compiler);
-void MVM_jit_leave_branch(MVMThreadContext *tc, MVMJitCompiler *compiler);
 

@@ -258,7 +258,7 @@ static void add_pseudotile(MVMThreadContext *tc, struct TileTree *tiles,
     tile = MVM_spesh_alloc(tc, tiles->sg, sizeof(MVMJitTile));
     tile->emit = emit;
     tile->node = node;
-    tile->num_vals = 0;
+    tile->num_values = 0;
     for (i = 0; i < nargs; i++) {
         tile->args[i] = va_arg(arglist, MVMJitExprNode);
     }
@@ -436,26 +436,24 @@ MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tr
 }
 
 #define FIRST_CHILD(t,x) (t->info[x].op_info->nchild < 0 ? x + 2 : x + 1)
-/* Get input for a tile rule, write into values and args */
-void MVM_jit_tile_get_values(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node,
-                             const MVMint8 *path, MVMint32 regs,
-                             MVMJitExprValue **values, MVMJitExprNode *args) {
+
+/* Get the nodes that a tile refers to */
+MVMint32 MVM_jit_tile_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
+                                MVMJitTile *tile, MVMJitExprNode *nodes) {
+    const char *path = tile->template->path;
+    MVMJitExprNode *start = nodes;
     while (*path) {
-        MVMJitExprNode cur_node = node;
+        MVMJitExprNode cur_node = tile->node;
         do {
             MVMint32 first_child = FIRST_CHILD(tree, cur_node) - 1;
             MVMint32 child_nr    = *path++ - '0';
             cur_node = tree->nodes[first_child+child_nr];
         } while (*path != '.');
         /* regs nodes go to values, others to args */
-        if (regs & 1) {
-            *values++ = &tree->info[cur_node].value;
-        } else {
-            *args++ = cur_node;
-        }
-        regs >>= 1;
+        *nodes++ = cur_node;
         path++;
     }
+    return nodes - start;
 }
 
 #undef FIRST_CHILD
