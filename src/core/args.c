@@ -122,17 +122,6 @@ MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
     return cc_obj;
 }
 
-MVMCallsite * MVM_args_prepare(MVMThreadContext *tc, MVMCompUnit *cu, MVMint16 callsite_idx) {
-    /* Look up callsite. */
-    MVMCallsite * cs = cu->body.callsites[callsite_idx];
-    /* Also need to store it in cur_frame to make sure that
-     * the GC knows how to walk the args buffer, and must
-     * clear it in case we trigger GC while setting it up. */
-    tc->cur_frame->cur_args_callsite = cs;
-    memset(tc->cur_frame->args, 0, sizeof(MVMRegister) * cu->body.max_callsite_size);
-    return cs;
-}
-
 static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx);
 
 /* Checks that the passed arguments fall within the expected arity. */
@@ -843,7 +832,7 @@ void MVM_args_setup_thunk(MVMThreadContext *tc, MVMRegister *res_reg, MVMReturnT
     cur_frame->return_value      = res_reg;
     cur_frame->return_type       = return_type;
     cur_frame->return_address    = *(tc->interp_cur_op);
-    cur_frame->cur_args_callsite = callsite; 
+    cur_frame->cur_args_callsite = callsite;
 }
 
 /* Custom bind failure handling. Invokes the HLL's bind failure handler, with

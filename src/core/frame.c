@@ -223,17 +223,13 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     }
     work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
     if (work_size) {
-        /* Fill up all object registers with a pointer to our VMNull object */
-        if (spesh_cand && spesh_cand->local_types) {
-            MVMuint32 num_locals = spesh_cand->num_locals;
-            MVMuint16 *local_types = spesh_cand->local_types;
-            MVMuint32 i;
+        if (spesh_cand) {
+            /* Allocate zeroed memory. Spesh makes sure we have VMNull setup in
+             * the places we need it. */
             frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, work_size);
-            for (i = 0; i < num_locals; i++)
-                if (local_types[i] == MVM_reg_obj)
-                    frame->work[i].o = tc->instance->VMNull;
         }
         else {
+            /* Copy frame template with VMNulls in to place. */
             frame->work = MVM_fixed_size_alloc(tc, tc->instance->fsa, work_size);
             memcpy(frame->work, static_frame_body->work_initial,
                 sizeof(MVMRegister) * static_frame_body->num_locals);
@@ -1762,24 +1758,15 @@ MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *cod
     return code;
 }
 
+/* Creates a MVMContent wrapper object around an MVMFrame. */
 MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
-    MVMObject *ctx = (MVMObject *)MVM_load(&f->context_object);
-
-    if (!ctx) {
-        f = MVM_frame_force_to_heap(tc, f);
-        MVMROOT(tc, f, {
-            ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
-            MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
-        });
-
-        if (MVM_casptr(&f->context_object, NULL, ctx) != NULL) {
-            ctx = (MVMObject *)MVM_load(&f->context_object);
-        }
-        else {
-            f->keep_caller = 1;
-        }
-    }
-
+    MVMObject *ctx;
+    f = MVM_frame_force_to_heap(tc, f);
+    MVMROOT(tc, f, {
+        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
+        MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
+    });
+    f->keep_caller = 1;
     return ctx;
 }
 

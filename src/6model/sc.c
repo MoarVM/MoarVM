@@ -92,8 +92,8 @@ void MVM_sc_set_description(MVMThreadContext *tc, MVMSerializationContext *sc, M
 MVMint64 MVM_sc_find_object_idx(MVMThreadContext *tc, MVMSerializationContext *sc, MVMObject *obj) {
     MVMObject **roots;
     MVMint64    i, count;
-    MVMuint32   cached = MVM_get_idx_in_sc(&obj->header);
-    if (cached != ~0)
+    MVMuint32   cached = MVM_sc_get_idx_in_sc(&obj->header);
+    if (cached != ~0 && MVM_sc_get_collectable_sc(tc, &obj->header) == sc)
         return cached;
     roots = sc->body->root_objects;
     count = sc->body->num_objects;
@@ -115,8 +115,8 @@ MVMint64 MVM_sc_find_object_idx_jit(MVMThreadContext *tc, MVMObject *sc, MVMObje
 /* Given an SC, looks up the index of an STable that is in its root set. */
 MVMint64 MVM_sc_find_stable_idx(MVMThreadContext *tc, MVMSerializationContext *sc, MVMSTable *st) {
     MVMuint64 i;
-    MVMuint32 cached = MVM_get_idx_in_sc(&st->header);
-    if (cached != ~0)
+    MVMuint32 cached = MVM_sc_get_idx_in_sc(&st->header);
+    if (cached != ~0 && MVM_sc_get_collectable_sc(tc, &st->header) == sc)
         return cached;
     for (i = 0; i < sc->body->num_stables; i++)
         if (sc->body->root_stables[i] == st)
@@ -236,6 +236,7 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
         MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_objects[idx], obj);
         sc->body->num_objects = idx + 1;
     }
+    MVM_sc_set_idx_in_sc(&obj->header, idx);
 }
 
 /* Given an SC and an index, fetch the STable stored there. */
@@ -433,8 +434,9 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
         MVM_repr_push_i(tc, comp_sc->body->rep_indexes, new_slot << 1);
         MVM_repr_push_o(tc, comp_sc->body->rep_scs, (MVMObject *)MVM_sc_get_obj_sc(tc, obj));
 
-        /* Update SC of the object, claiming it. */
+        /* Update SC of the object, claiming it, and update index too. */
         MVM_sc_set_obj_sc(tc, obj, comp_sc);
+        MVM_sc_set_idx_in_sc(&(obj->header), new_slot);
     }
 }
 
@@ -462,5 +464,6 @@ void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st) {
 
         /* Update SC of the STable, claiming it. */
         MVM_sc_set_stable_sc(tc, st, comp_sc);
+        MVM_sc_set_idx_in_sc(&(st->header), new_slot);
     }
 }

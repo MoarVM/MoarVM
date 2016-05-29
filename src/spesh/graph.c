@@ -536,6 +536,36 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     MVM_free(ins_to_bb);
 }
 
+/* Inserts nulling of object reigsters. A later stage of the optimizer will
+ * throw out any that are unrequired, leaving only those that cover (rare)
+ * "register read before assigned" cases. (We can thus just start off with
+ * them NULL, since zeroed memory is cheaper than copying a VMNulls in to
+ * place). */
+static MVMint32 is_handler_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 reg) {
+    MVMuint32 num_handlers = g->num_handlers;
+    MVMuint32 i;
+    for (i = 0; i < num_handlers; i++)
+        if (g->handlers[i].action == MVM_EX_ACTION_INVOKE)
+            if (g->handlers[i].block_reg == reg)
+                return 1;
+    return 0;
+}
+static void insert_object_null_instructions(MVMThreadContext *tc, MVMSpeshGraph *g) {
+    MVMSpeshBB *insert_bb = g->entry->linear_next;
+    MVMuint16 *local_types = g->sf->body.local_types;
+    MVMuint16  num_locals = g->sf->body.num_locals;
+    MVMuint16 i;
+    for (i = 0; i < num_locals; i++) {
+        if (local_types[i] == MVM_reg_obj && !is_handler_reg(tc, g, i)) {
+            MVMSpeshIns *null_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+            null_ins->info = MVM_op_get_op(MVM_OP_null);
+            null_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
+            null_ins->operands[0].reg.orig = i;
+            MVM_spesh_manipulate_insert_ins(tc, insert_bb, NULL, null_ins);
+        }
+    }
+}
+
 /* Eliminates any unreachable basic blocks (that is, dead code). Not having
  * to consider them any further simplifies all that follows. */
 static void eliminate_dead(MVMThreadContext *tc, MVMSpeshGraph *g) {
@@ -1080,7 +1110,8 @@ static void ssa(MVMThreadContext *tc, MVMSpeshGraph *g) {
 }
 
 /* Takes a static frame and creates a spesh graph for it. */
-MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint32 cfg_only) {
+MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
+        MVMuint32 cfg_only, MVMuint32 insert_object_nulls) {
     /* Create top-level graph object. */
     MVMSpeshGraph *g = MVM_calloc(1, sizeof(MVMSpeshGraph));
     g->sf            = sf;
@@ -1100,6 +1131,8 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
 
     /* Build the CFG out of the static frame, and transform it to SSA. */
     build_cfg(tc, g, sf, NULL, 0);
+    if (insert_object_nulls)
+        insert_object_null_instructions(tc, g);
     if (!cfg_only) {
         eliminate_dead(tc, g);
         add_predecessors(tc, g);

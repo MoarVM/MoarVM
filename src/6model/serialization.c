@@ -10,7 +10,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 19
+#define CURRENT_VERSION 20
 #define MIN_VERSION     16
 
 /* Various sizes (in bytes). */
@@ -83,6 +83,7 @@
 #define STABLE_HAS_CONTAINER_SPEC           0x10
 #define STABLE_HAS_INVOCATION_SPEC          0x20
 #define STABLE_HAS_HLL_OWNER                0x40
+#define STABLE_HAS_HLL_ROLE                 0x80
 
 /* Endian translation (file format is little endian, so on big endian we need
  * to twiddle. */
@@ -542,26 +543,31 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
 
 /* Takes an outer context that is potentially to be serialized. Checks if it
  * is of interest, and if so sets it up to be serialized. */
-static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ctx) {
-    if (OBJ_IS_NULL(MVM_sc_get_obj_sc(tc, ctx))) {
+static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMFrame *ctx) {
+     if (OBJ_IS_NULL(MVM_sc_get_frame_sc(tc, ctx))) {
         /* Make sure we should chase a level down. */
-        if (OBJ_IS_NULL(closure_to_static_code_ref(tc, ((MVMContext *)ctx)->body.context->code_ref, 0))) {
+        if (OBJ_IS_NULL(closure_to_static_code_ref(tc, ctx->code_ref, 0))) {
             return 0;
         }
         else {
-            MVM_repr_push_o(tc, writer->contexts_list, ctx);
-            MVM_sc_set_obj_sc(tc, ctx, writer->root.sc);
-            return (MVMint32)MVM_repr_elems(tc, writer->contexts_list);
+            if (writer->num_contexts == writer->alloc_contexts) {
+                writer->alloc_contexts += 256;
+                writer->contexts_list = MVM_realloc(writer->contexts_list,
+                    writer->alloc_contexts * sizeof(MVMFrame *));
+            }
+            writer->contexts_list[writer->num_contexts++] = ctx;
+            MVM_sc_set_frame_sc(tc, ctx, writer->root.sc);
+            return (MVMint32)writer->num_contexts;
         }
     }
     else {
         MVMint64 i, c;
-        if (MVM_sc_get_obj_sc(tc, ctx) != writer->root.sc)
+        if (MVM_sc_get_frame_sc(tc, ctx) != writer->root.sc)
             MVM_exception_throw_adhoc(tc,
                 "Serialization Error: reference to context outside of SC");
-        c = MVM_repr_elems(tc, writer->contexts_list);
+        c = writer->num_contexts;
         for (i = 0; i < c; i++)
-            if (MVM_repr_at_pos_o(tc, writer->contexts_list, i) == ctx)
+            if (writer->contexts_list[i] == ctx)
                 return (MVMint32)i + 1;
         MVM_exception_throw_adhoc(tc,
             "Serialization Error: could not locate outer context in current SC");
@@ -575,8 +581,7 @@ static MVMint32 get_serialized_outer_context_idx(MVMThreadContext *tc, MVMSerial
         return 0;
     if (((MVMCode *)closure)->body.outer == NULL)
         return 0;
-    return get_serialized_context_idx(tc, writer, MVM_frame_context_wrapper(tc,
-        ((MVMCode *)closure)->body.outer));
+    return get_serialized_context_idx(tc, writer, ((MVMCode *)closure)->body.outer);
 }
 
 /* Takes a closure that needs to be serialized. Makes an entry in the closures
@@ -1009,6 +1014,9 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
         flags |= STABLE_HAS_INVOCATION_SPEC;
     if (st->hll_owner != NULL)
         flags |= STABLE_HAS_HLL_OWNER;
+    if (st->hll_role != MVM_HLL_ROLE_NONE)
+        flags |= STABLE_HAS_HLL_ROLE;
+
     expand_storage_if_needed(tc, writer, 1);
     *(*(writer->cur_write_buffer) + *(writer->cur_write_offset)) = flags;
     ++*(writer->cur_write_offset);
@@ -1044,6 +1052,11 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     /* HLL owner. */
     if (st->hll_owner)
         MVM_serialization_write_str(tc, writer, st->hll_owner->name);
+
+    /* HLL role */
+    if (st->hll_role != MVM_HLL_ROLE_NONE) {
+        MVM_serialization_write_int(tc, writer, st->hll_role);
+    }
 
     /* If it's a parametric type, save parameterizer. */
     if (st->mode_flags & MVM_PARAMETRIC_TYPE)
@@ -1163,11 +1176,10 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
 
 /* This handles the serialization of a context, which means serializing
  * the stuff in its lexpad. */
-static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ctx) {
+static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMFrame *frame) {
     MVMint32 i, offset, static_sc_id, static_idx;
 
     /* Grab lexpad, which we'll serialize later on. */
-    MVMFrame  *frame     = ((MVMContext *)ctx)->body.context;
     MVMStaticFrame *sf   = frame->static_info;
     MVMLexicalRegistry **lexnames = sf->body.lexical_names_list;
 
@@ -1196,8 +1208,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
      * be serialized. */
     if (frame->outer)
         write_int32(writer->root.contexts_table, offset + 12,
-            get_serialized_context_idx(tc, writer,
-                MVM_frame_context_wrapper(tc, frame->outer)));
+            get_serialized_context_idx(tc, writer, frame->outer));
     else
         write_int32(writer->root.contexts_table, offset + 12, 0);
 
@@ -1236,7 +1247,6 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
                 MVM_exception_throw_adhoc(tc, "unsupported lexical type");
         }
     }
-    MVM_sc_set_obj_sc(tc, ctx, writer->root.sc);
 }
 
 /* Goes through the list of repossessions and serializes them all. */
@@ -1281,7 +1291,7 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
         /* Current work list sizes. */
         MVMuint64 stables_todo  = writer->root.sc->body->num_stables;
         MVMuint64 objects_todo  = writer->root.sc->body->num_objects;
-        MVMuint64 contexts_todo = MVM_repr_elems(tc, writer->contexts_list);
+        MVMuint64 contexts_todo = writer->num_contexts;
 
         /* Reset todo flag - if we do some work we'll go round again as it
          * may have generated more. */
@@ -1304,8 +1314,7 @@ static void serialize(MVMThreadContext *tc, MVMSerializationWriter *writer) {
 
         /* Serialize any contexts on the todo list. */
         while (writer->contexts_list_pos < contexts_todo) {
-            serialize_context(tc, writer, MVM_repr_at_pos_o(tc,
-                writer->contexts_list, writer->contexts_list_pos));
+            serialize_context(tc, writer, writer->contexts_list[writer->contexts_list_pos]);
             writer->contexts_list_pos++;
             work_todo = 1;
         }
@@ -1330,7 +1339,6 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     writer->root.version        = CURRENT_VERSION;
     writer->root.sc             = sc;
     writer->codes_list          = sc->body->root_codes;
-    writer->contexts_list       = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     writer->root.string_heap    = empty_string_heap;
     writer->root.dependent_scs  = MVM_malloc(sizeof(MVMSerializationContext *));
     writer->seen_strings        = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
@@ -1367,6 +1375,7 @@ MVMString * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
     result = concatenate_outputs(tc, writer);
 
     /* Clear up afterwards. */
+    MVM_free(writer->contexts_list);
     MVM_free(writer->root.dependent_scs);
     MVM_free(writer->root.dependencies_table);
     MVM_free(writer->root.stables_table);
@@ -2537,6 +2546,11 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         st->hll_owner = MVM_hll_get_config_for(tc, MVM_serialization_read_str(tc, reader));
     }
 
+    /* HLL role. */
+    if (flags & STABLE_HAS_HLL_ROLE) {
+        st->hll_role = MVM_serialization_read_int(tc, reader);
+    }
+
     /* If it's a parametric type... */
     if (st->mode_flags & MVM_PARAMETRIC_TYPE) {
         /* Create empty lookup table, unless we were beat to it. */
@@ -2869,6 +2883,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         slot = read_int32(table_row, 4);
         MVM_sc_set_object(tc, reader->root.sc, slot, orig_obj);
         MVM_sc_set_obj_sc(tc, orig_obj, reader->root.sc);
+        MVM_sc_set_idx_in_sc(&(orig_obj->header), slot);
 
         /* Clear it up, since we'll re-allocate all the bits inside
          * it on deserialization. */
@@ -2899,6 +2914,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         slot = read_int32(table_row, 4);
         MVM_sc_set_stable(tc, reader->root.sc, slot, orig_st);
         MVM_sc_set_stable_sc(tc, orig_st, reader->root.sc);
+        MVM_sc_set_idx_in_sc(&(orig_st->header), slot);
 
         /* XXX TODO: consider clearing up STable, however we must do it out of
          * this repossess routine, since we may depend on original data to do

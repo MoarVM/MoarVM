@@ -261,7 +261,7 @@ static void set_static_frame_index(MVMThreadContext *tc, MVMHeapSnapshotState *s
 /* Processes the work items, until we've none left. */
 static void process_collectable(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         MVMHeapSnapshotCollectable *col, MVMCollectable *c) {
-    MVMuint32 sc_idx = MVM_get_idx_of_sc(c);
+    MVMuint32 sc_idx = MVM_sc_get_idx_of_sc(c);
     if (sc_idx > 0)
         add_reference_const_cstr(tc, ss, "<SC>",
             get_collectable_idx(tc, ss,
@@ -447,8 +447,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                     (MVMCollectable *)frame->code_ref, "Code reference");
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)frame->static_info, "Static frame");
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)frame->context_object, "Context object");
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)frame->dynlex_cache_name,
                     "Dynamic lexical cache name");

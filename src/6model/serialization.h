@@ -125,9 +125,13 @@ struct MVMSerializationWriter {
     /* Serialization root data. */
     MVMSerializationRoot root;
 
-    /* The code refs and contexts lists we're working through/adding to. */
-    MVMObject  *codes_list;
-    MVMObject  *contexts_list;
+    /* The code refs we're working through/adding to. */
+    MVMObject *codes_list;
+
+    /* Frames that we're to serialize, along with memory management. */
+    MVMFrame **contexts_list;
+    MVMuint32 num_contexts;
+    MVMuint32 alloc_contexts;
 
     /* Current position in the stables, objects and contexts lists. */
     MVMint64 stables_list_pos;
