@@ -563,7 +563,7 @@ getlexouter         w(obj) r(str) :pure :noinline
 getlexrel           w(obj) r(obj) r(str) :pure
 getlexreldyn        w(obj) r(obj) r(str) :pure
 getlexrelcaller     w(obj) r(obj) r(str) :pure
-getlexcaller        w(obj) r(str) :pure
+getlexcaller        w(obj) r(str) :pure :noinline
 bitand_s            w(str) r(str) r(str) :pure
 bitor_s             w(str) r(str) r(str) :pure
 bitxor_s            w(str) r(str) r(str) :pure
