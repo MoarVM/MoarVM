@@ -112,11 +112,13 @@ void MVM_jit_log_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
 
 void MVM_jit_log_tile_list(MVMThreadContext *tc, MVMJitTileList *list) {
     MVMJitTile *tile;
+    MVMint32 i;
     MVM_jit_log(tc, "Start log of JIT tile list\n"
                     "__________________________\n");
-    for (tile = list->first; tile != NULL; tile = tile->next) {
+    for (i = 0; i < list->items_num; i++) {
+        tile = list->items[i];
         if (tile->template) {
-            MVM_jit_log(tc, "normal tile %d %s\n", tile->order_nr, tile->template->expr);
+            MVM_jit_log(tc, "normal tile %d %s\n", i, tile->template->expr);
         } else {
             MVM_jit_log(tc, "pseudo tile (node %d/%s)\n", tile->node,
                         list->tree->info[tile->node].op_info->name);

@@ -17,8 +17,7 @@ struct MVMJitRegisterAllocator {
     MVMint32 reg_lock;
 };
 
-
-void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitRegisterAllocator *allocator);
+void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitRegisterAllocator *allocator, MVMJitTileList *list);
 void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitRegisterAllocator *allocator);
 /* Allocation and release */
 MVMint8 MVM_jit_register_alloc(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 reg_cls);

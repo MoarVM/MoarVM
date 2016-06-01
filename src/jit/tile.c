@@ -19,7 +19,6 @@ struct TileTree {
     MVM_DYNAR_DECL(struct TileState, states);
     MVMSpeshGraph *sg;
     MVMJitTileList *list;
-    MVMint32 order_nr;
 };
 
 /* Postorder collection of tile states (rulesets) */
@@ -240,14 +239,6 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 }
 
 
-MVM_STATIC_INLINE void append_tile(MVMJitTileList *list, MVMJitTile *tile) {
-    if (list->first == NULL)
-        list->first = tile;
-    if (list->last != NULL)
-        list->last->next = tile;
-    list->last = tile;
-}
-
 
 static void add_pseudotile(MVMThreadContext *tc, struct TileTree *tiles,
                            void * emit, MVMint32 node, MVMint32 nargs, ...) {
@@ -264,7 +255,7 @@ static void add_pseudotile(MVMThreadContext *tc, struct TileTree *tiles,
     }
     va_end(arglist);
 
-    append_tile(tiles->list, tile);
+    MVM_DYNAR_PUSH(tiles->list->items, tile);
 }
 
 
@@ -386,17 +377,14 @@ static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     if (template->emit == NULL)
         return;
 
-    /* pre-increment order nr  */
-    tiles->order_nr++;
 
     /* create tile object */
     tile            = MVM_spesh_alloc(tc, tiles->sg, sizeof(MVMJitTile));
     tile->template  = template;
     tile->emit      = template->emit;
     tile->node      = node;
-    tile->order_nr  = tiles->order_nr;
 
-    append_tile(tiles->list, tile);
+    MVM_DYNAR_PUSH(tiles->list->items, tile);
 
 }
 
@@ -424,7 +412,8 @@ MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tr
     tiles.sg            = tree->graph->sg;
     tiles.list          = MVM_spesh_alloc(tc, tiles.sg, sizeof(MVMJitTileList));
     tiles.list->tree    = tree;
-    tiles.order_nr      = 0;
+    MVM_DYNAR_INIT(tiles.list->items, tree->nodes_num / 2);
+
     traverser.preorder  = &select_tiles;
     traverser.inorder   = &build_blocks;
     traverser.postorder = &build_tilelist;

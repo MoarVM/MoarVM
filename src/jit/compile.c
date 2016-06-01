@@ -259,26 +259,26 @@ void MVM_jit_allocate_registers(MVMThreadContext *tc, MVMJitCompiler *compiler, 
     compiler->allocator->values_by_node = MVM_calloc(tree->nodes_num, sizeof(void*));
 
     /* Get value descriptors and calculate live ranges */
-    for (tile = list->first; tile != NULL; tile = tile->next) {
+    for (i = 0; i < list->items_num; i++) {
+        tile = list->items[i];
         if (tile->template == NULL) /* pseudotiles */
             continue;
         MVM_jit_get_values(tc, compiler, tree, tile);
-        tile->values[0]->first_created = tile->order_nr;
-        for (i = 0; i < tile->num_values; i++) {
-            tile->values[i+1]->last_use = tile->order_nr;
-            tile->values[i+1]->num_use++;
+        tile->values[0]->first_created = i;
+        for (j = 0; j < tile->num_values; j++) {
+            tile->values[j+1]->last_use = i;
+            tile->values[j+1]->num_use++;
         }
     }
 
     /* Assign registers */
-    i = 0;
-    for (tile = list->first; tile != NULL; tile = tile->next) {
+    for (i = 0; i < list->items_num; i++) {
+        tile = list->items[i];
         if (tile->template == NULL)
             continue;
-        i++;
         /* ensure that register values are live */
-        for (j = 1; j < tile->num_values; j++) {
-            value = tile->values[j];
+        for (j = 0; j < tile->num_values; j++) {
+            value = tile->values[j+1];
             if (value->type != MVM_JIT_REG)
                 continue;
             if (value->state == MVM_JIT_VALUE_SPILLED) {
@@ -330,7 +330,7 @@ void MVM_jit_allocate_registers(MVMThreadContext *tc, MVMJitCompiler *compiler, 
                 if (tile->num_values > 0 &&
                     tile->values[1]->type == MVM_JIT_REG &&
                     tile->values[1]->state == MVM_JIT_VALUE_ALLOCATED &&
-                    tile->values[1]->last_use == i) {
+                    tile->values[1]->last_use == j) {
                     /* First register expires immediately, therefore we can safely cross-assign */
                     MVM_jit_register_assign(tc, compiler, value, tile->values[1]->reg_cls, tile->values[1]->reg_num);
                 } else {
@@ -371,6 +371,7 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     MVMJitRegisterAllocator allocator;
     MVMJitTileList *list;
     MVMJitTile *tile;
+    MVMint32 i;
     /* First stage, tile the tree */
     list = MVM_jit_tile_expr_tree(tc, tree);
 
@@ -378,7 +379,7 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     MVM_jit_log_tile_list(tc, list);
 
     /* Second stage, allocate registers */
-    MVM_jit_register_allocator_init(tc, compiler, &allocator);
+    MVM_jit_register_allocator_init(tc, compiler, &allocator, list);
     MVM_jit_allocate_registers(tc, compiler, tree, list);
     MVM_jit_register_allocator_deinit(tc, compiler, &allocator);
 
@@ -386,7 +387,8 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     dasm_growpc(compiler, compiler->label_offset + tree->num_labels);
 
     /* Third stage, emit the code */
-    for (tile = list->first; tile != NULL; tile = tile->next) {
+    for (i = 0; i < list->items_num; i++) {
+        tile = list->items[i];
         tile->emit(tc, compiler, tree, tile->node, tile->values, tile->args);
     }
 

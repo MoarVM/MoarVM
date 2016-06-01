@@ -25,7 +25,7 @@ static MVMint8 free_num[] = { -1 };
 
 
 void MVM_jit_register_allocator_init(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                                     MVMJitRegisterAllocator *alc) {
+                                     MVMJitRegisterAllocator *alc, MVMJitTileList *list) {
     /* Store live ranges */
     MVM_DYNAR_INIT(alc->active, NUM_GPR);
     /* Initialize free register buffer */
