@@ -27,12 +27,6 @@ struct MVMP6opaqueNameMap {
     MVMuint32   num_attrs;
 };
 
-/* This is used in boxed type mappings. */
-struct MVMP6opaqueBoxedTypeMap {
-    MVMuint32 repr_id;
-    MVMuint16 slot;
-};
-
 /* The P6opaque REPR data has the slot mapping, allocation size and
  * various other bits of info. It hangs off the REPR_data pointer
  * in the s-table. */
@@ -77,8 +71,9 @@ struct MVMP6opaqueREPRData {
      * to some container type. */
     MVMObject **auto_viv_values;
 
-    /* If we have any other boxings, this maps repr ID to slot. */
-    MVMP6opaqueBoxedTypeMap *unbox_slots;
+    /* If we have any other flattened boxings, this array can be indexed by
+     * REPR ID to find the slot in the object where it is embedded. */
+    MVMuint16 *unbox_slots;
 
     /* A table mapping attribute names to indexes (which can then be looked
      * up in the offset table). Uses a final null entry as a sentinel. */
@@ -112,4 +107,3 @@ MVM_STATIC_INLINE void * MVM_p6opaque_real_data(MVMThreadContext *tc, void *data
     MVMP6opaqueBody *body = (MVMP6opaqueBody *)data;
     return body->replaced ? body->replaced : data;
 }
-
