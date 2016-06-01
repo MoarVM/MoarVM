@@ -1152,7 +1152,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->bytecode          = cand->bytecode;
     g->bytecode_size     = cand->bytecode_size;
     g->handlers          = cand->handlers;
-    g->num_handlers      = sf->body.num_handlers;
+    g->num_handlers      = cand->num_handlers;
     g->num_locals        = cand->num_locals;
     g->num_lexicals      = cand->num_lexicals;
     g->inlines           = cand->inlines;
