@@ -1,6 +1,9 @@
 #define MVMPhiNodeCacheSize             48
 #define MVMPhiNodeCacheSparseBegin      32
 
+/* Facts we may know about a spesh graph, and so its frame, overall. */
+#define MVM_SPESH_FRAME_FACT_SETS_DISPATCHER 1
+
 /* Top level of a spesh graph, representing a particular static frame (and
  * potentially having others inlined into it). */
 struct MVMSpeshGraph {
@@ -96,6 +99,10 @@ struct MVMSpeshGraph {
     MVMuint16          num_temps;
     MVMuint16          alloc_temps;
     MVMSpeshTemporary *temps;
+
+    /* Any frame-level facts that we've observed while building the
+     * graph or analyzing the code in the frame. */
+    MVMuint32 frame_facts;
 
     /* We need to create new MVMOpInfo structs for each number of
      * arguments a PHI node can take. We cache them here, so that we

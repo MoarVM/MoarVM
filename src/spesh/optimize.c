@@ -1048,7 +1048,8 @@ static MVMint32 try_find_spesh_candidate(MVMThreadContext *tc, MVMCode *code, MV
 
 /* Drives optimization of a call. */
 static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                          MVMSpeshIns *ins, MVMint32 callee_idx, MVMSpeshCallInfo *arg_info) {
+                          MVMSpeshIns *ins, MVMint32 callee_idx,
+                          MVMSpeshCallInfo *arg_info, MVMuint32 seen_takedispatcher) {
     /* Ensure we know what we're going to be invoking. */
     MVMSpeshFacts *callee_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[callee_idx]);
     if (callee_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
@@ -1158,6 +1159,8 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
                     target_code, &target_code->body.sf->body.spesh_candidates[spesh_cand]);
                 if (inline_graph) {
+                    MVMuint32 gets_no_dispatcher = seen_takedispatcher &&
+                        !(g->frame_facts & MVM_SPESH_FRAME_FACT_SETS_DISPATCHER);
                     /* Yes, have inline graph, so go ahead and do it. */
                     /*char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.name);
                     char *c_cuid_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.cuuid);
@@ -1169,7 +1172,8 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                     MVM_free(c_cuid_i);
                     MVM_free(c_name_t);
                     MVM_free(c_cuid_t);*/
-                    MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_code);
+                    MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_code,
+                        gets_no_dispatcher);
                 }
                 else {
                     /* Can't inline, so just identify candidate. */
@@ -1393,8 +1397,13 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
         return;
     }
 }
+
+/* Flags for observations we make while walking the graph, that we want to pass
+ * down the dominance tree. */
+#define OPTIMIZE_BB_OBS_SEEN_TAKE_DISPATCHER 1
+
 /* Visits the blocks in dominator tree order, recursively. */
-static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) {
+static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMuint32 obs) {
     MVMSpeshCallInfo arg_info;
     MVMint32 i;
 
@@ -1454,13 +1463,15 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             optimize_smart_coerce(tc, g, bb, ins);
             break;
         case MVM_OP_invoke_v:
-            optimize_call(tc, g, bb, ins, 0, &arg_info);
+            optimize_call(tc, g, bb, ins, 0, &arg_info,
+                obs & OPTIMIZE_BB_OBS_SEEN_TAKE_DISPATCHER);
             break;
         case MVM_OP_invoke_i:
         case MVM_OP_invoke_n:
         case MVM_OP_invoke_s:
         case MVM_OP_invoke_o:
-            optimize_call(tc, g, bb, ins, 1, &arg_info);
+            optimize_call(tc, g, bb, ins, 1, &arg_info,
+                obs & OPTIMIZE_BB_OBS_SEEN_TAKE_DISPATCHER);
             break;
         case MVM_OP_throwcatdyn:
         case MVM_OP_throwcatlex:
@@ -1577,6 +1588,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_hllize:
             optimize_hllize(tc, g, ins);
             break;
+        case MVM_OP_takedispatcher:
+            obs |= OPTIMIZE_BB_OBS_SEEN_TAKE_DISPATCHER;
+            break;
         case MVM_OP_decont:
             optimize_decont(tc, g, bb, ins);
             break;
@@ -1614,7 +1628,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
 
     /* Visit children. */
     for (i = 0; i < bb->num_children; i++)
-        optimize_bb(tc, g, bb->children[i]);
+        optimize_bb(tc, g, bb->children[i], obs);
 }
 
 /* Eliminates any unused instructions. */
@@ -1813,7 +1827,7 @@ static void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) 
 
 /* Drives the overall optimization work taking place on a spesh graph. */
 void MVM_spesh_optimize(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    optimize_bb(tc, g, g->entry);
+    optimize_bb(tc, g, g->entry, 0);
     eliminate_dead_ins(tc, g);
     eliminate_dead_bbs(tc, g);
     eliminate_unused_log_guards(tc, g);

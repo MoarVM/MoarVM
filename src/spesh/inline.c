@@ -134,6 +134,26 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     return NULL;
 }
 
+/* Eliminates an inlinee's takedispatcher instruction, replacing it with a nulling
+ * since we know that's what it will result in. */
+static void eliminate_takedispatcher(MVMThreadContext *tc, MVMSpeshGraph *inlinee) {
+    MVMSpeshBB *cur_bb = inlinee->entry;
+    while (cur_bb) {
+        MVMSpeshIns *cur_ins = cur_bb->first_ins;
+        while (cur_ins) {
+            if (cur_ins->info->opcode == MVM_OP_takedispatcher) {
+                /* Rewrite it into a nulling. */
+                cur_ins->info = MVM_op_get_op(MVM_OP_null);
+
+                /* No need to look any further. */
+                return;
+            }
+            cur_ins = cur_ins->next;
+        }
+        cur_bb = cur_bb->linear_next;
+    }
+}
+
 /* Finds the deopt index of the return. */
 static MVMint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *invoke_ins) {
     MVMSpeshAnn *ann = invoke_ins->annotations;
@@ -853,8 +873,10 @@ static void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inlin
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                       MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
                       MVMSpeshIns *invoke_ins, MVMSpeshGraph *inlinee,
-                      MVMCode *inlinee_code) {
+                      MVMCode *inlinee_code, MVMuint32 gets_no_dispatcher) {
     /* Merge inlinee's graph into the inliner. */
+    if (gets_no_dispatcher)
+        eliminate_takedispatcher(tc, inlinee);
     merge_graph(tc, inliner, inlinee, inlinee_code, invoke_ins);
 
     /* If we're profiling, note it's an inline. */

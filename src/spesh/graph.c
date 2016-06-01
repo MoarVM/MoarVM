@@ -276,6 +276,11 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
         }
 
+        /* The setdispatcher instruction is worth noting, because its absence
+         * opens up takedispatcher removal upon inlining. */
+        if (opcode == MVM_OP_setdispatcher)
+            g->frame_facts |= MVM_SPESH_FRAME_FACT_SETS_DISPATCHER;
+
         /* Invocations, returns, and throws are basic block ends. */
         switch (opcode) {
         case MVM_OP_invoke_v:
