@@ -145,6 +145,12 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
         }
     }
     else {
+        if (mode == MVM_EX_THROW_LEX_CALLER) {
+            f = f->caller;
+            while (f && f->static_info->body.is_thunk)
+                f = f->caller;
+            mode = MVM_EX_THROW_LEX;
+        }
         while (f != NULL) {
             if (search_frame_handlers(tc, f, cat, payload, &lh)) {
                 lh.frame = f;
