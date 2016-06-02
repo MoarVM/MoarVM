@@ -42,6 +42,10 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     tc->next_frame_nr = 0;
     tc->current_frame_nr = 0;
 
+    /* Initialize last_payload, so we can be sure it's never NULL and don't
+     * need to check. */
+    tc->last_payload = instance->VMNull;
+
     return tc;
 }
 

@@ -5020,9 +5020,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(lastexpayload):
-                GET_REG(cur_op, 0).o = tc->last_payload
-                    ? tc->last_payload
-                    : tc->instance->VMNull;
+                GET_REG(cur_op, 0).o = tc->last_payload;
                 cur_op += 2;
                 goto NEXT;
             OP(sp_log):

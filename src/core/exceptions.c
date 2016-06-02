@@ -183,7 +183,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
     case MVM_EX_ACTION_GOTO_WITH_PAYLOAD:
         if (payload)
             tc->last_payload = payload;
-        else if (ex_obj)
+        else if (ex_obj && ((MVMException *)ex_obj)->body.payload)
             tc->last_payload = ((MVMException *)ex_obj)->body.payload;
         else
             tc->last_payload = tc->instance->VMNull;
