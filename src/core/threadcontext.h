@@ -95,6 +95,9 @@ struct MVMThreadContext {
     /* Result object of the last-run exception handler. */
     MVMObject *last_handler_result;
 
+    /* Last payload made available in a payload-goto exception handler. */
+    MVMObject *last_payload;
+
     /* Mutex that must be released if we throw an exception. Used in places
      * like I/O, which grab a mutex but may throw an exception. */
     uv_mutex_t *ex_release_mutex;

@@ -171,8 +171,18 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
  * parameter; if ex_obj is passed, the category is not used). */
 static void unwind_after_handler(MVMThreadContext *tc, void *sr_data);
 static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data);
-static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_obj, MVMuint32 category) {
+static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_obj,
+                        MVMuint32 category, MVMObject *payload) {
     switch (lh.handler->action) {
+    case MVM_EX_ACTION_GOTO_WITH_PAYLOAD:
+        if (payload)
+            tc->last_payload = payload;
+        else if (ex_obj)
+            tc->last_payload = ((MVMException *)ex_obj)->body.payload;
+        else
+            tc->last_payload = tc->instance->VMNull;
+        /* Deliberate fallthrough to unwind below. */
+
     case MVM_EX_ACTION_GOTO:
         if (lh.jit_handler) {
             void **labels = lh.frame->spesh_cand->jitcode->labels;
@@ -194,10 +204,13 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         if (ex_obj == NULL) {
             MVMROOT(tc, cur_frame, {
             MVMROOT(tc, lh.frame, {
+            MVMROOT(tc, payload, {
                 ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
             });
             });
+            });
             ((MVMException *)ex_obj)->body.category = category;
+            MVM_ASSIGN_REF(tc, &(ex_obj->header), ((MVMException *)ex_obj)->body.payload, payload);
         }
 
         /* Find frame to invoke. */
@@ -497,7 +510,7 @@ void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, 
     LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat, NULL);
     if (lh.frame == NULL)
         panic_unhandled_cat(tc, cat);
-    run_handler(tc, lh, NULL, cat);
+    run_handler(tc, lh, NULL, cat, NULL);
 }
 
 void MVM_exception_die(MVMThreadContext *tc, MVMString *str, MVMRegister *rr) {
@@ -549,7 +562,16 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
         tc->cur_frame->keep_caller   = 1;
     }
 
-    run_handler(tc, lh, ex_obj, 0);
+    run_handler(tc, lh, ex_obj, 0, NULL);
+}
+
+/* Throws an exception of the specified category and with the specified payload.
+ * If a goto or payload handler exists, then no exception object will be created. */
+void MVM_exception_throwpayload(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMObject *payload, MVMRegister *resume_result) {
+    LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat, NULL);
+    if (lh.frame == NULL)
+        panic_unhandled_cat(tc, cat);
+    run_handler(tc, lh, NULL, cat, payload);
 }
 
 void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
@@ -561,7 +583,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
         ex = (MVMException *)ex_obj;
     else
         MVM_exception_throw_adhoc(tc, "Can only resume an exception object");
-    
+
     /* Check that everything is in place to do the resumption. */
     if (!ex->body.resume_addr)
         MVM_exception_throw_adhoc(tc, "This exception is not resumable");
@@ -692,7 +714,7 @@ void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMSt
             lh.jit_handler = &(f->spesh_cand->jitcode->handlers[handler_idx]);
         else
             lh.jit_handler = NULL;
-        run_handler(tc, lh, NULL, MVM_EX_CAT_RETURN);
+        run_handler(tc, lh, NULL, MVM_EX_CAT_RETURN, NULL);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Too late to invoke lexotic return");
@@ -822,7 +844,7 @@ void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const
 
     /* Run the handler, which doesn't actually run it but rather sets up the
      * interpreter so that when we return to it, we'll be at the handler. */
-    run_handler(tc, lh, (MVMObject *)ex, MVM_EX_CAT_CATCH);
+    run_handler(tc, lh, (MVMObject *)ex, MVM_EX_CAT_CATCH, NULL);
 
     /* Clear any C stack temporaries that code may have pushed before throwing
      * the exception, and release any needed mutex. */

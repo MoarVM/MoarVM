@@ -5003,6 +5003,28 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(throwpayloadlex): {
+                MVMRegister *rr      = &GET_REG(cur_op, 0);
+                MVMuint32    cat     = (MVMuint32)MVM_BC_get_I64(cur_op, 2);
+                MVMObject   *payload = GET_REG(cur_op, 10).o;
+                cur_op += 12;
+                MVM_exception_throwpayload(tc, MVM_EX_THROW_LEX, cat, payload, rr);
+                goto NEXT;
+            }
+            OP(throwpayloadlexcaller): {
+                MVMRegister *rr      = &GET_REG(cur_op, 0);
+                MVMuint32    cat     = (MVMuint32)MVM_BC_get_I64(cur_op, 2);
+                MVMObject   *payload = GET_REG(cur_op, 10).o;
+                cur_op += 12;
+                MVM_exception_throwpayload(tc, MVM_EX_THROW_LEX_CALLER, cat, payload, rr);
+                goto NEXT;
+            }
+            OP(lastexpayload):
+                GET_REG(cur_op, 0).o = tc->last_payload
+                    ? tc->last_payload
+                    : tc->instance->VMNull;
+                cur_op += 2;
+                goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
@@ -5079,7 +5101,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_spesh_deopt_one(tc);
                 goto NEXT;
             }
-            
+
             OP(sp_guardrwconc): {
                 MVMint32   ok     = 0;
                 MVMObject *check  = GET_REG(cur_op, 0).o;
@@ -5122,8 +5144,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_spesh_deopt_one(tc);
                 goto NEXT;
             }
-            
-            
+
+
             OP(sp_getarg_o):
                 GET_REG(cur_op, 0).o = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].o;
                 cur_op += 4;

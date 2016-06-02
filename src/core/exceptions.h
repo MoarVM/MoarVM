@@ -1,7 +1,7 @@
 /* Exception handler actions. */
-#define MVM_EX_ACTION_GOTO       0
-#define MVM_EX_ACTION_GOTO_OBJ   1
-#define MVM_EX_ACTION_INVOKE     2
+#define MVM_EX_ACTION_GOTO                0
+#define MVM_EX_ACTION_GOTO_WITH_PAYLOAD   1
+#define MVM_EX_ACTION_INVOKE              2
 
 /* Exception categories. */
 #define MVM_EX_CAT_CATCH         1
@@ -24,6 +24,7 @@
 #define MVM_EX_THROW_DYN         0
 #define MVM_EX_THROW_LEX         1
 #define MVM_EX_THROW_LEXOTIC     2
+#define MVM_EX_THROW_LEX_CALLER  3
 
 /* Information associated with an exception handler. */
 struct MVMFrameHandler {
@@ -75,6 +76,7 @@ void MVM_dump_backtrace(MVMThreadContext *tc);
 void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMRegister *resume_result);
 void MVM_exception_die(MVMThreadContext *tc, MVMString *str, MVMRegister *rr);
 void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *exObj, MVMRegister *resume_result);
+void MVM_exception_throwpayload(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMObject *payload, MVMRegister *resume_result);
 void MVM_exception_resume(MVMThreadContext *tc, MVMObject *exObj);
 MVMObject * MVM_exception_newlexotic(MVMThreadContext *tc, MVMuint32 offset);
 MVMObject * MVM_exception_newlexotic_from_jit(MVMThreadContext *tc, MVMint32 label);
