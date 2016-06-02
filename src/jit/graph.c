@@ -1597,6 +1597,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_invokewithcapture:
     case MVM_OP_captureposelems:
     case MVM_OP_capturehasnameds:
+        /* Exception handling */
+    case MVM_OP_lastexpayload:
 
         jgb_append_primitive(tc, jgb, ins);
         break;

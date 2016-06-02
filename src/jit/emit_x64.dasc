@@ -1731,6 +1731,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         | mov qword WORK[dst], RV;
         break;
     }
+    case MVM_OP_lastexpayload: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP3, aword TC->last_payload;
+        | mov aword WORK[dst], TMP3;
+        break;
+    }
     default:
         MVM_panic(1, "Can't JIT opcode <%s>", ins->info->name);
     }
