@@ -25,8 +25,6 @@ struct MVMJitCompiler {
     /* For spilling values that don't fit into the register allocator */
     MVMint32    spill_offset;
     MVMint32    max_spill;
-
-    MVMJitRegisterAllocator *allocator;
 };
 
 /* Declarations for architecture-specific codegen stuff */

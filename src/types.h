@@ -234,7 +234,6 @@ typedef struct MVMJitTileTemplate MVMJitTileTemplate;
 typedef struct MVMJitTile MVMJitTile;
 typedef struct MVMJitTileList MVMJitTileList;
 typedef struct MVMJitValueDescriptor MVMJitValueDescriptor;
-typedef struct MVMJitRegisterAllocator MVMJitRegisterAllocator;
 typedef struct MVMProfileThreadData MVMProfileThreadData;
 typedef struct MVMProfileGC MVMProfileGC;
 typedef struct MVMProfileCallNode MVMProfileCallNode;
