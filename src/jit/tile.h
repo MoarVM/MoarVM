@@ -28,5 +28,3 @@ struct MVMJitTileList {
 };
 
 MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree);
-MVMint32 MVM_jit_tile_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
-                                MVMJitTile *tile, MVMJitExprNode *nodes);

@@ -190,3 +190,5 @@ const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMJitExprNo
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter);
 void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree, MVMJitTreeTraverser *traverser);
 void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree);
+MVMint32 MVM_jit_expr_tree_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
+                                     MVMint32 node, const char *path, MVMJitExprNode *buffer);

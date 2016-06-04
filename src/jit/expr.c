@@ -677,3 +677,24 @@ void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
     MVM_free(traverser->visits);
 }
 
+
+#define FIRST_CHILD(t,x) (t->info[x].op_info->nchild < 0 ? x + 2 : x + 1)
+/* Walk tree to get nodes along a path */
+MVMint32 MVM_jit_expr_tree_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
+                                     MVMint32 node, const char *path,
+                                     MVMJitExprNode *buffer) {
+    MVMJitExprNode *ptr = buffer;
+    while (*path) {
+        MVMJitExprNode cur_node = node;
+        do {
+            MVMint32 first_child = FIRST_CHILD(tree, cur_node) - 1;
+            MVMint32 child_nr    = *path++ - '0';
+            cur_node = tree->nodes[first_child+child_nr];
+        } while (*path != '.');
+        /* regs nodes go to values, others to args */
+        *ptr++ = cur_node;
+        path++;
+    }
+    return ptr - buffer;
+}
+#undef FIRST_CHILD

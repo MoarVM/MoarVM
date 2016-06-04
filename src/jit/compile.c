@@ -229,7 +229,7 @@ static void MVM_jit_get_values(MVMThreadContext *tc, MVMJitCompiler *compiler,
     default:
     {
         MVMint32 i, j, k, num_nodes, value_bitmap;
-        num_nodes        = MVM_jit_tile_get_nodes(tc, tree, tile, buffer);
+        num_nodes        = MVM_jit_expr_tree_get_nodes(tc, tree, node, tile->template->path, buffer);
         value_bitmap     = tile->template->value_bitmap;
         tile->num_values = template->num_values;
         j = 1;

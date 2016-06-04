@@ -424,25 +424,3 @@ MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tr
     return tiles.list;
 }
 
-#define FIRST_CHILD(t,x) (t->info[x].op_info->nchild < 0 ? x + 2 : x + 1)
-
-/* Get the nodes that a tile refers to */
-MVMint32 MVM_jit_tile_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
-                                MVMJitTile *tile, MVMJitExprNode *nodes) {
-    const char *path = tile->template->path;
-    MVMJitExprNode *start = nodes;
-    while (*path) {
-        MVMJitExprNode cur_node = tile->node;
-        do {
-            MVMint32 first_child = FIRST_CHILD(tree, cur_node) - 1;
-            MVMint32 child_nr    = *path++ - '0';
-            cur_node = tree->nodes[first_child+child_nr];
-        } while (*path != '.');
-        /* regs nodes go to values, others to args */
-        *nodes++ = cur_node;
-        path++;
-    }
-    return nodes - start;
-}
-
-#undef FIRST_CHILD
