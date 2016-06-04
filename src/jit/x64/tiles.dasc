@@ -283,13 +283,7 @@ MVM_JIT_TILE_DECL(cast) {
                 | mov eax, Rd(from_reg);
                 | cdqe;
             } else {
-                /* By construction I can now take the rax register, since it is
-                 * not in use by an operand */
-                MVM_jit_register_take(tc, compiler, MVM_JIT_REGCLS_GPR, MVM_JIT_X64_RAX);
-                | mov eax, Rd(from_reg);
-                | cdqe;
-                | mov Rq(to_reg), rax;
-                MVM_jit_register_free(tc, compiler, MVM_JIT_REGCLS_GPR, MVM_JIT_X64_RAX);
+                MVM_oops(tc, "Register pre-coloring NYI");
             }
             break;
         default:
@@ -349,10 +343,7 @@ MVM_JIT_TILE_DECL(add_const) {
     MVMint32 sz  = args[1];
     if (out == in1) {
         if (sz == 8 && !fits_in_32_bit(val)) {
-            MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
-            | mov64 Rq(tmp), val;
-            | add Rq(in1), Rq(tmp);
-            MVM_jit_register_free(tc, compiler, MVM_JIT_X64_GPR, tmp);
+            MVM_oops(tc, "Scratch register NYI");
         } else {
             | add Rq(in1), val;
         }
@@ -442,10 +433,7 @@ MVM_JIT_TILE_DECL(and_const) {
     MVMint32 sz  = args[1];
     if (out == in1) {
         if (sz == 8 && !fits_in_32_bit(val)) {
-            MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
-            | mov64 Rq(tmp), val;
-            | and Rq(in1), Rq(tmp);
-            MVM_jit_register_free(tc, compiler, MVM_JIT_X64_GPR, tmp);
+            MVM_oops(tc, "Scratch register NYI");
         } else {
             | and Rq(in1), val;
         }
@@ -535,10 +523,7 @@ MVM_JIT_TILE_DECL(sub_const) {
     MVMint32 sz  = args[1];
     if (out == in1) {
         if (sz == 8 && !fits_in_32_bit(val)) {
-            MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
-            | mov64 Rq(tmp), val;
-            | sub Rq(in1), Rq(tmp);
-            MVM_jit_register_free(tc, compiler, MVM_JIT_X64_GPR, tmp);
+            MVM_oops(tc, "Scratch register NYI");
         } else {
             | sub Rq(in1), val;
         }
@@ -774,10 +759,7 @@ MVM_JIT_TILE_DECL(call) {
 
 MVM_JIT_TILE_DECL(call_func) {
     MVMint64 ptr = args[0];
-    MVMint8 tmp = MVM_jit_register_alloc(tc, compiler, MVM_JIT_X64_GPR);
-    | mov64 Rq(tmp), ptr;
-    | call Rq(tmp);
-    MVM_jit_register_free(tc, compiler, MVM_JIT_X64_GPR, tmp);
+    MVM_oops(tc, "Scratch register / Data storage NYI");
 }
 
 
