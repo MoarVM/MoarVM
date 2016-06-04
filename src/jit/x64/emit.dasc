@@ -2485,54 +2485,54 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
 
 
 void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location,
-                       MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
+                       MVMJitStorageClass st_cls , MVMint8 st_pos, MVMint32 size) {
     MVMint32 idx = compiler->spill_offset + MVM_JIT_REG_SZ * location;
-    if (reg_cls == MVM_JIT_X64_GPR) {
+    if (st_cls == MVM_JIT_STORAGE_GPR) {
         switch(size) {
         case 1:
-            | mov Rb(reg_num), byte [rbx+idx];
+            | mov Rb(st_pos), byte [rbx+idx];
             break;
         case 2:
-            | mov Rw(reg_num), word [rbx+idx];
+            | mov Rw(st_pos), word [rbx+idx];
             break;
         case 4:
-            | mov Rd(reg_num), dword [rbx+idx];
+            | mov Rd(st_pos), dword [rbx+idx];
             break;
         case 8:
-            MVM_jit_log(tc, "Emit load of offset %d to register %d\n", location, reg_num);
-            | mov Rq(reg_num), qword [rbx+idx];
+            MVM_jit_log(tc, "Emit load of offset %d to register %d\n", location, st_pos);
+            | mov Rq(st_pos), qword [rbx+idx];
             break;
         }
     }
 }
 
 void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location,
-                        MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
+                        MVMJitStorageClass st_cls, MVMint8 reg_pos, MVMint32 size) {
+    /* TODO this calculation belongs in the register allocator */
     MVMint32 idx = compiler->spill_offset + MVM_JIT_REG_SZ * location;
-    if (reg_cls == MVM_JIT_X64_GPR) {
+    if (st_cls == MVM_JIT_STORAGE_GPR) {
         switch (size) {
         case 1:
-            | mov byte [rbx+idx], Rb(reg_num);
+            | mov byte [rbx+idx], Rb(reg_pos);
             break;
         case 2:
-            | mov word [rbx+idx], Rw(reg_num);
+            | mov word [rbx+idx], Rw(reg_pos);
             break;
         case 4:
-            | mov dword [rbx+idx], Rd(reg_num);
+            | mov dword [rbx+idx], Rd(reg_pos);
             break;
         case 8:
-            | mov qword [rbx+idx], Rq(reg_num);
+            | mov qword [rbx+idx], Rq(reg_pos);
             break;
         }
     }
 }
 
 void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 dst_reg_cls,
-                       MVMint8 dst_reg_num, MVMint32 src_reg_cls, MVMint8 src_reg_num) {
+                       MVMint8 dst_position, MVMint32 src_reg_cls, MVMint8 src_position) {
     if (dst_reg_cls == src_reg_cls) {
-        if (dst_reg_cls == MVM_JIT_X64_GPR) {
-            /* copy entire register! */
-            | mov Rq(dst_reg_num), Rq(src_reg_num);
+        if (dst_reg_cls == MVM_JIT_STORAGE_GPR) {
+            | mov Rq(dst_position), Rq(src_position);
         } else {
             MVM_oops(tc, "numeric regs nyi");
         }
@@ -2541,20 +2541,20 @@ void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 
     }
 }
 
-void MVM_jit_emit_stack_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 pos,
+void MVM_jit_emit_stack_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 stack_pos,
                             MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
     switch (size) {
     case 1:
-        | mov byte [rsp+pos], Rb(reg_num);
+        | mov byte [rsp+stack_pos], Rb(reg_num);
         break;
     case 2:
-        | mov word [rsp+pos], Rw(reg_num);
+        | mov word [rsp+stack_pos], Rw(reg_num);
         break;
     case 4:
-        | mov dword [rsp+pos], Rd(reg_num);
+        | mov dword [rsp+stack_pos], Rd(reg_num);
         break;
     case 8:
-        | mov qword [rsp+pos], Rq(reg_num);
+        | mov qword [rsp+stack_pos], Rq(reg_num);
         break;
     }
 }

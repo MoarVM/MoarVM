@@ -56,8 +56,10 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
                           MVMJitControl *ctrl);
 
 
-void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location, MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size);
-void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location, MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size);
+void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location,
+                       MVMJitStorageClass st_cls, MVMint8 st_pos, MVMint32 size);
+void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location,
+                        MVMJitStorageClass st_cls, MVMint8 st_pos, MVMint32 size);
 void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 dst_reg_cls,
                        MVMint8 dst_reg_num, MVMint32 src_reg_cls, MVMint8 src_reg_num);
 void MVM_jit_emit_stack_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 stack_pos,

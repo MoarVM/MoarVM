@@ -171,19 +171,19 @@ void MVM_jit_compile_breakpoint(void) {
 
 /* pseudotile emit functions */
 void MVM_jit_compile_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree,
-                            MVMint32 node, MVMJitExprValue **value, MVMJitExprNode *args) {
+                            MVMint32 node, MVMJitValueDescriptor **value, MVMJitExprNode *args) {
     MVM_jit_emit_branch(tc, compiler, args[0] + compiler->label_offset);
 }
 
 void MVM_jit_compile_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                         MVMJitExprTree *tree, MVMint32 node,
-                                        MVMJitExprValue **values, MVMJitExprNode *args) {
+                                        MVMJitValueDescriptor **values, MVMJitExprNode *args) {
     MVM_jit_emit_conditional_branch(tc, compiler, args[0], args[1] + compiler->label_offset);
 }
 
 void MVM_jit_compile_label(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitExprTree *tree, MVMint32 node,
-                           MVMJitExprValue **values, MVMJitExprNode *args) {
+                           MVMJitValueDescriptor **values, MVMJitExprNode *args) {
     MVM_jit_emit_label(tc, compiler, tree->graph, args[0] + compiler->label_offset);
 }
 

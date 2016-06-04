@@ -2,57 +2,49 @@
 
 
 MVM_JIT_TILE_DECL(load_stack) {
-    values[0]->type      = MVM_JIT_REG;
-    values[0]->state     = MVM_JIT_VALUE_IMMORTAL;
-    values[0]->reg_cls = MVM_JIT_X64_GPR;
-    values[0]->reg_num = MVM_JIT_X64_RSP;
+    values[0]->st_cls = MVM_JIT_STORAGE_NVR;
+    values[0]->st_pos = MVM_JIT_X64_RSP;
 }
 
 MVM_JIT_TILE_DECL(load_local) {
-    values[0]->type      = MVM_JIT_REG;
-    values[0]->state     = MVM_JIT_VALUE_IMMORTAL;
-    values[0]->reg_cls = MVM_JIT_X64_GPR;
-    values[0]->reg_num = MVM_JIT_X64_RBX;
+    values[0]->st_cls = MVM_JIT_STORAGE_NVR;
+    values[0]->st_pos = MVM_JIT_X64_RBX;
 }
 
 MVM_JIT_TILE_DECL(load_frame) {
-    MVMint8 dst = values[0]->reg_num;
+    MVMint8 dst = values[0]->st_pos;
     | mov Rq(dst), TC->cur_frame;
 }
 
 MVM_JIT_TILE_DECL(load_cu) {
-    values[0]->type      = MVM_JIT_REG;
-    values[0]->state     = MVM_JIT_VALUE_IMMORTAL;
-    values[0]->reg_cls = MVM_JIT_X64_GPR;
-    values[0]->reg_num = MVM_JIT_X64_R13;
+    values[0]->st_cls = MVM_JIT_STORAGE_NVR;
+    values[0]->st_pos = MVM_JIT_X64_R13;
 }
 
 MVM_JIT_TILE_DECL(load_tc) {
-    values[0]->type      = MVM_JIT_REG;
-    values[0]->state     = MVM_JIT_VALUE_IMMORTAL;
-    values[0]->reg_cls = MVM_JIT_X64_GPR;
-    values[0]->reg_num = MVM_JIT_X64_R14;
+    values[0]->st_cls = MVM_JIT_STORAGE_NVR;
+    values[0]->st_pos  = MVM_JIT_X64_R14;
 }
 
 MVM_JIT_TILE_DECL(load_vmnull) {
-    MVMint8 reg = values[0]->reg_num;
+    MVMint8 reg = values[0]->st_pos;
     | get_vmnull Rq(reg);
 }
 
 
 
 MVM_JIT_TILE_DECL(addr) {
-    MVMint8 out  = values[0]->reg_num;
-    MVMint8 base = values[1]->reg_num;
+    MVMint8 out  = values[0]->st_pos;
+    MVMint8 base = values[1]->st_pos;
     MVMint32 ofs = args[0];
     | lea Rq(out), [Rq(base)+ofs];
 }
 
 
 MVM_JIT_TILE_DECL(idx) {
-    MVMint8 out  = values[0]->reg_num;
-    MVMint8 base = values[1]->reg_num;
-    MVMint8 idx  = values[2]->reg_num;
+    MVMint8 out  = values[0]->st_pos;
+    MVMint8 base = values[1]->st_pos;
+    MVMint8 idx  = values[2]->st_pos;
     MVMint8 scl  = args[0];
     if (scl == 8) {
         | lea Rq(out), [Rq(base)+Rq(idx)*8];
@@ -63,7 +55,7 @@ MVM_JIT_TILE_DECL(idx) {
 
 
 MVM_JIT_TILE_DECL(const_reg) {
-    MVMint8 out = values[0]->reg_num;
+    MVMint8 out = values[0]->st_pos;
     MVMint64 val  = args[0];
     MVMint32 size = args[1];
     if (size == 8 && !fits_in_32_bit(val)) {
@@ -82,8 +74,8 @@ MVM_JIT_TILE_DECL(const_reg) {
 
 
 MVM_JIT_TILE_DECL(load_reg) {
-    MVMint8 out  = values[0]->reg_num;
-    MVMint8 base = values[1]->reg_num;
+    MVMint8 out  = values[0]->st_pos;
+    MVMint8 base = values[1]->st_pos;
     MVMint32 size = args[0];
     switch (size) {
     case 1:
@@ -104,8 +96,8 @@ MVM_JIT_TILE_DECL(load_reg) {
 }
 
 MVM_JIT_TILE_DECL(load_addr) {
-    MVMint8 out  = values[0]->reg_num;
-    MVMint8 base = values[1]->reg_num;
+    MVMint8 out  = values[0]->st_pos;
+    MVMint8 base = values[1]->st_pos;
     MVMint32 ofs  = args[0];
     MVMint32 size = args[1];
     switch (args[1]) {
@@ -127,9 +119,9 @@ MVM_JIT_TILE_DECL(load_addr) {
 }
 
 MVM_JIT_TILE_DECL(load_idx) {
-    MVMint8 out  = values[0]->reg_num;
-    MVMint8 base = values[1]->reg_num;
-    MVMint8 idx  = values[2]->reg_num;
+    MVMint8 out  = values[0]->st_pos;
+    MVMint8 base = values[1]->st_pos;
+    MVMint8 idx  = values[2]->st_pos;
     MVMint8 scl  = args[0];
     MVMint32 size = args[1];
     if (scl != 8) {
@@ -155,8 +147,8 @@ MVM_JIT_TILE_DECL(load_idx) {
 
 
 MVM_JIT_TILE_DECL(store) {
-    MVMint8 base  = values[1]->reg_num;
-    MVMint8 value = values[2]->reg_num;
+    MVMint8 base  = values[1]->st_pos;
+    MVMint8 value = values[2]->st_pos;
     MVMint32 size = args[0];
     switch (size) {
     case 1:
@@ -177,8 +169,8 @@ MVM_JIT_TILE_DECL(store) {
 }
 
 MVM_JIT_TILE_DECL(store_addr) {
-    MVMint8 base  = values[1]->reg_num;
-    MVMint8 value = values[2]->reg_num;
+    MVMint8 base  = values[1]->st_pos;
+    MVMint8 value = values[2]->st_pos;
     MVMint32 ofs  = args[0];
     MVMint32 size = args[1];
     switch (size) {
@@ -200,10 +192,10 @@ MVM_JIT_TILE_DECL(store_addr) {
 }
 
 MVM_JIT_TILE_DECL(store_idx) {
-    MVMint8 base = values[1]->reg_num;
-    MVMint8 idx  = values[2]->reg_num;
+    MVMint8 base = values[1]->st_pos;
+    MVMint8 idx  = values[2]->st_pos;
     MVMint8 scl  = args[0];
-    MVMint8 value = values[3]->reg_num;
+    MVMint8 value = values[3]->st_pos;
     if (scl != 8)
         MVM_oops(tc, "Scale %d NYI\n", scl);
     switch (args[1]) {
@@ -237,8 +229,8 @@ MVM_JIT_TILE_DECL(cast) {
     MVMint32 to_size   = args[0];
     MVMint32 is_signed = args[1];
     MVMint32 from_size = values[1]->size;
-    MVMint8  to_reg    = values[0]->reg_num;
-    MVMint8  from_reg  = values[1]->reg_num;
+    MVMint8  to_reg    = values[0]->st_pos;
+    MVMint8  from_reg  = values[1]->st_pos;
 
     /* possible combinations: 1 -> 2, 4, 8; 2 -> 4, 8; 4 -> 8
      * Hence we can combine from_size | (to_size << 3) to get
@@ -325,9 +317,9 @@ MVM_JIT_TILE_DECL(cast_load_addr) {
 
 
 MVM_JIT_TILE_DECL(add_reg) {
-    MVMint8 out = values[0]->reg_num;
-    MVMint8 in1  = values[1]->reg_num;
-    MVMint8 in2  = values[2]->reg_num;
+    MVMint8 out = values[0]->st_pos;
+    MVMint8 in1  = values[1]->st_pos;
+    MVMint8 in2  = values[2]->st_pos;
     if (out == in2) {
         | add Rq(out), Rq(in2);
     } else {
@@ -337,8 +329,8 @@ MVM_JIT_TILE_DECL(add_reg) {
 }
 
 MVM_JIT_TILE_DECL(add_const) {
-    MVMint8 out = values[0]->reg_num;
-    MVMint8 in1  = values[1]->reg_num;
+    MVMint8 out = values[0]->st_pos;
+    MVMint8 in1  = values[1]->st_pos;
     MVMint64 val = args[0];
     MVMint32 sz  = args[1];
     if (out == in1) {
@@ -359,9 +351,9 @@ MVM_JIT_TILE_DECL(add_const) {
 }
 
 MVM_JIT_TILE_DECL(add_load_addr) {
-    MVMint8 out   = values[0]->reg_num;
-    MVMint8 in1   = values[1]->reg_num;
-    MVMint8 base  = values[2]->reg_num;
+    MVMint8 out   = values[0]->st_pos;
+    MVMint8 in1   = values[1]->st_pos;
+    MVMint8 base  = values[2]->st_pos;
     MVMint32 ofs  = args[0];
     MVMint32 size = args[1];
     if (in1 != out) {
@@ -386,10 +378,10 @@ MVM_JIT_TILE_DECL(add_load_addr) {
 }
 
 MVM_JIT_TILE_DECL(add_load_idx) {
-    MVMint8 out  = values[0]->reg_num;
-    MVMint8 in1  = values[1]->reg_num;
-    MVMint8 base = values[2]->reg_num;
-    MVMint8 idx  = values[3]->reg_num;
+    MVMint8 out  = values[0]->st_pos;
+    MVMint8 in1  = values[1]->st_pos;
+    MVMint8 base = values[2]->st_pos;
+    MVMint8 idx  = values[3]->st_pos;
     MVMint32 scl  = args[0];
     MVMint32 size = args[1];
 
@@ -415,9 +407,9 @@ MVM_JIT_TILE_DECL(add_load_idx) {
 
 
 MVM_JIT_TILE_DECL(and_reg) {
-    MVMint8 out = values[0]->reg_num;
-    MVMint8 in1  = values[1]->reg_num;
-    MVMint8 in2  = values[2]->reg_num;
+    MVMint8 out = values[0]->st_pos;
+    MVMint8 in1  = values[1]->st_pos;
+    MVMint8 in2  = values[2]->st_pos;
     if (out == in2) {
         | and Rq(out), Rq(in2);
     } else {
@@ -427,8 +419,8 @@ MVM_JIT_TILE_DECL(and_reg) {
 }
 
 MVM_JIT_TILE_DECL(and_const) {
-    MVMint8 out = values[0]->reg_num;
-    MVMint8 in1  = values[1]->reg_num;
+    MVMint8 out = values[0]->st_pos;
+    MVMint8 in1  = values[1]->st_pos;
     MVMint64 val = args[0];
     MVMint32 sz  = args[1];
     if (out == in1) {
@@ -449,9 +441,9 @@ MVM_JIT_TILE_DECL(and_const) {
 }
 
 MVM_JIT_TILE_DECL(and_load_addr) {
-    MVMint8 out   = values[0]->reg_num;
-    MVMint8 in1   = values[1]->reg_num;
-    MVMint8 base  = values[2]->reg_num;
+    MVMint8 out   = values[0]->st_pos;
+    MVMint8 in1   = values[1]->st_pos;
+    MVMint8 base  = values[2]->st_pos;
     MVMint32 ofs  = args[0];
     MVMint32 size = args[1];
     if (in1 != out) {
@@ -476,10 +468,10 @@ MVM_JIT_TILE_DECL(and_load_addr) {
 }
 
 MVM_JIT_TILE_DECL(and_load_idx) {
-    MVMint8 out  = values[0]->reg_num;
-    MVMint8 in1  = values[1]->reg_num;
-    MVMint8 base = values[2]->reg_num;
-    MVMint8 idx  = values[3]->reg_num;
+    MVMint8 out  = values[0]->st_pos;
+    MVMint8 in1  = values[1]->st_pos;
+    MVMint8 base = values[2]->st_pos;
+    MVMint8 idx  = values[3]->st_pos;
     MVMint32 scl  = args[0];
     MVMint32 size = args[1];
 
@@ -505,9 +497,9 @@ MVM_JIT_TILE_DECL(and_load_idx) {
 
 
 MVM_JIT_TILE_DECL(sub_reg) {
-    MVMint8 out = values[0]->reg_num;
-    MVMint8 in1  = values[1]->reg_num;
-    MVMint8 in2  = values[2]->reg_num;
+    MVMint8 out = values[0]->st_pos;
+    MVMint8 in1  = values[1]->st_pos;
+    MVMint8 in2  = values[2]->st_pos;
     if (out == in2) {
         | sub Rq(out), Rq(in2);
     } else {
@@ -517,8 +509,8 @@ MVM_JIT_TILE_DECL(sub_reg) {
 }
 
 MVM_JIT_TILE_DECL(sub_const) {
-    MVMint8 out = values[0]->reg_num;
-    MVMint8 in1  = values[1]->reg_num;
+    MVMint8 out = values[0]->st_pos;
+    MVMint8 in1  = values[1]->st_pos;
     MVMint64 val = args[0];
     MVMint32 sz  = args[1];
     if (out == in1) {
@@ -539,9 +531,9 @@ MVM_JIT_TILE_DECL(sub_const) {
 }
 
 MVM_JIT_TILE_DECL(sub_load_addr) {
-    MVMint8 out   = values[0]->reg_num;
-    MVMint8 in1   = values[1]->reg_num;
-    MVMint8 base  = values[2]->reg_num;
+    MVMint8 out   = values[0]->st_pos;
+    MVMint8 in1   = values[1]->st_pos;
+    MVMint8 base  = values[2]->st_pos;
     MVMint32 ofs  = args[0];
     MVMint32 size = args[1];
     if (in1 != out) {
@@ -566,10 +558,10 @@ MVM_JIT_TILE_DECL(sub_load_addr) {
 }
 
 MVM_JIT_TILE_DECL(sub_load_idx) {
-    MVMint8 out  = values[0]->reg_num;
-    MVMint8 in1  = values[1]->reg_num;
-    MVMint8 base = values[2]->reg_num;
-    MVMint8 idx  = values[3]->reg_num;
+    MVMint8 out  = values[0]->st_pos;
+    MVMint8 in1  = values[1]->st_pos;
+    MVMint8 base = values[2]->st_pos;
+    MVMint8 idx  = values[3]->st_pos;
     MVMint32 scl  = args[0];
     MVMint32 size = args[1];
 
@@ -595,13 +587,13 @@ MVM_JIT_TILE_DECL(sub_load_idx) {
 
 
 MVM_JIT_TILE_DECL(nz) {
-    MVMint8 reg = values[1]->reg_num;
+    MVMint8 reg = values[1]->st_pos;
     | test Rq(reg), Rq(reg);
 }
 
 
 MVM_JIT_TILE_DECL(nz_addr) {
-    MVMint8 base  = values[1]->reg_num;
+    MVMint8 base  = values[1]->st_pos;
     MVMint32 ofs  = args[0];
     MVMint32 size = args[1];
     switch (size) {
@@ -624,8 +616,8 @@ MVM_JIT_TILE_DECL(nz_addr) {
 
 
 MVM_JIT_TILE_DECL(nz_idx) {
-    MVMint8 base = values[1]->reg_num;
-    MVMint8 idx  = values[2]->reg_num;
+    MVMint8 base = values[1]->st_pos;
+    MVMint8 idx  = values[2]->st_pos;
     MVMint32 scl = args[0];
     MVMint32 size = args[1];
     if (scl != 8)
@@ -649,8 +641,8 @@ MVM_JIT_TILE_DECL(nz_idx) {
 }
 
 MVM_JIT_TILE_DECL(nz_and) {
-    MVMint8 rega = values[1]->reg_num;
-    MVMint8 regb = values[2]->reg_num;
+    MVMint8 rega = values[1]->st_pos;
+    MVMint8 regb = values[2]->st_pos;
     switch(values[1]->size) {
     case 1:
         | test Rb(regb), Rb(rega);
@@ -668,7 +660,7 @@ MVM_JIT_TILE_DECL(nz_and) {
 }
 
 MVM_JIT_TILE_DECL(zr) {
-    MVMint8 reg = values[1]->reg_num;
+    MVMint8 reg = values[1]->st_pos;
     switch (values[1]->size) {
     case 1:
         | test Rb(reg), Rb(reg);
@@ -687,8 +679,8 @@ MVM_JIT_TILE_DECL(zr) {
 }
 
 MVM_JIT_TILE_DECL(cmp) {
-    MVMint8 regl = values[1]->reg_num;
-    MVMint8 regr = values[2]->reg_num;
+    MVMint8 regl = values[1]->st_pos;
+    MVMint8 regr = values[2]->st_pos;
     switch (values[0]->size) {
     case 1:
         | cmp Rb(regl), Rb(regr);
@@ -736,7 +728,7 @@ MVM_JIT_TILE_DECL(do_void) {
 
 
 MVM_JIT_TILE_DECL(label) {
-    MVMint8 reg = values[0]->reg_num;
+    MVMint8 reg = values[0]->st_pos;
     MVMint32 label = args[0];
     | lea Rq(reg), [=>label];
 }
@@ -753,7 +745,7 @@ MVM_JIT_TILE_DECL(branch_label) {
 
 
 MVM_JIT_TILE_DECL(call) {
-    MVMint8 reg = values[1]->reg_num;
+    MVMint8 reg = values[1]->st_pos;
     | call Rq(reg);
 }
 
@@ -764,7 +756,7 @@ MVM_JIT_TILE_DECL(call_func) {
 
 
 MVM_JIT_TILE_DECL(call_addr) {
-    MVMint8  reg = values[1]->reg_num;
+    MVMint8  reg = values[1]->st_pos;
     MVMint32 ofs = args[0];
     | call qword [Rq(reg)+ofs];
 }

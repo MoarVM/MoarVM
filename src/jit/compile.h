@@ -37,10 +37,10 @@ void MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
 /* Peseudotile compile functions */
 void MVM_jit_compile_label(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitExprTree *tree, MVMint32 node,
-                           MVMJitExprValue **values, MVMJitExprNode *args);
+                           MVMJitValueDescriptor **values, MVMJitExprNode *args);
 void MVM_jit_compile_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
                             MVMJitExprTree *tree, MVMint32 node,
-                            MVMJitExprValue **values, MVMJitExprNode *args);
+                            MVMJitValueDescriptor **values, MVMJitExprNode *args);
 void MVM_jit_compile_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                         MVMJitExprTree *tree, MVMint32 node,
-                                        MVMJitExprValue **values, MVMJitExprNode *args);
+                                        MVMJitValueDescriptor **values, MVMJitExprNode *args);

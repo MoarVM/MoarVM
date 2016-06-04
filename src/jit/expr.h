@@ -106,34 +106,6 @@ struct MVMJitExprOpInfo {
     MVMint8         cast;
 };
 
-struct MVMJitExprValue {
-    /* used to signal register allocator, tiles don't look at this */
-    MVMJitExprVtype type;
-    enum {
-        MVM_JIT_VALUE_EMPTY,
-        MVM_JIT_VALUE_ALLOCATED,
-        MVM_JIT_VALUE_SPILLED,
-        MVM_JIT_VALUE_DEAD,
-        MVM_JIT_VALUE_IMMORTAL
-    } state;
-
-    /* register allocated to this value */
-    MVMint8 reg_cls;
-    MVMint8 reg_num;
-
-    /* Spill location if any */
-    MVMint16 spill_location;
-
-    /* size of this value */
-    MVMint8  size;
-
-    /* Use information for register allcoator */
-    MVMint32 first_created;
-    MVMint32 last_created;
-    MVMint32 last_use;
-    MVMint32 num_use;
-};
-
 /* Tree node information for easy access and use during compilation (a
    symbol table entry of sorts) */
 struct MVMJitExprNodeInfo {
