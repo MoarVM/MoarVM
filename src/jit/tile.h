@@ -1,6 +1,5 @@
 struct MVMJitTileTemplate {
-    void (*emit)(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree,
-                 MVMint32 node, MVMJitValueDescriptor **values, MVMJitExprNode *args);
+    void (*emit)(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMJitExprTree *tree);
     const MVMint8 *path;
     const char    *expr;
     MVMint32  left_sym;
@@ -13,8 +12,7 @@ struct MVMJitTileTemplate {
 
 struct MVMJitTile {
     const MVMJitTileTemplate *template;
-    void (*emit)(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree,
-                 MVMint32 node, MVMJitValueDescriptor **values, MVMJitExprNode *args);
+    void (*emit)(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMJitExprTree *tree);
     MVMint32 node;
     MVMint32 num_values;
     /* buffers for the args of this (pseudo) tile */
@@ -25,6 +23,7 @@ struct MVMJitTile {
 struct MVMJitTileList {
     MVMJitExprTree *tree;
     MVM_DYNAR_DECL(MVMJitTile*, items);
+    /* TODO implement structures to mark basic blocks */
 };
 
 MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree);

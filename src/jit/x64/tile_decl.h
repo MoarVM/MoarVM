@@ -1,5 +1,5 @@
 #define MVM_JIT_TILE_DECL(name) \
-    void MVM_jit_tile_ ## name (MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree, MVMint32 node, MVMJitValueDescriptor **values, MVMJitExprNode *args)
+    void MVM_jit_tile_ ## name (MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMJitExprTree *tree)
 MVM_JIT_TILE_DECL(load_stack);
 MVM_JIT_TILE_DECL(load_local);
 MVM_JIT_TILE_DECL(load_lbl);

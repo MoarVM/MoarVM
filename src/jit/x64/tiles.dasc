@@ -2,50 +2,50 @@
 
 
 MVM_JIT_TILE_DECL(load_stack) {
-    values[0]->st_cls = MVM_JIT_STORAGE_NVR;
-    values[0]->st_pos = MVM_JIT_X64_RSP;
+    tile->values[0]->st_cls = MVM_JIT_STORAGE_NVR;
+    tile->values[0]->st_pos = MVM_JIT_X64_RSP;
 }
 
 MVM_JIT_TILE_DECL(load_local) {
-    values[0]->st_cls = MVM_JIT_STORAGE_NVR;
-    values[0]->st_pos = MVM_JIT_X64_RBX;
+    tile->values[0]->st_cls = MVM_JIT_STORAGE_NVR;
+    tile->values[0]->st_pos = MVM_JIT_X64_RBX;
 }
 
 MVM_JIT_TILE_DECL(load_frame) {
-    MVMint8 dst = values[0]->st_pos;
+    MVMint8 dst = tile->values[0]->st_pos;
     | mov Rq(dst), TC->cur_frame;
 }
 
 MVM_JIT_TILE_DECL(load_cu) {
-    values[0]->st_cls = MVM_JIT_STORAGE_NVR;
-    values[0]->st_pos = MVM_JIT_X64_R13;
+    tile->values[0]->st_cls = MVM_JIT_STORAGE_NVR;
+    tile->values[0]->st_pos = MVM_JIT_X64_R13;
 }
 
 MVM_JIT_TILE_DECL(load_tc) {
-    values[0]->st_cls = MVM_JIT_STORAGE_NVR;
-    values[0]->st_pos  = MVM_JIT_X64_R14;
+    tile->values[0]->st_cls = MVM_JIT_STORAGE_NVR;
+    tile->values[0]->st_pos  = MVM_JIT_X64_R14;
 }
 
 MVM_JIT_TILE_DECL(load_vmnull) {
-    MVMint8 reg = values[0]->st_pos;
+    MVMint8 reg = tile->values[0]->st_pos;
     | get_vmnull Rq(reg);
 }
 
 
 
 MVM_JIT_TILE_DECL(addr) {
-    MVMint8 out  = values[0]->st_pos;
-    MVMint8 base = values[1]->st_pos;
-    MVMint32 ofs = args[0];
+    MVMint8 out  = tile->values[0]->st_pos;
+    MVMint8 base = tile->values[1]->st_pos;
+    MVMint32 ofs = tile->args[0];
     | lea Rq(out), [Rq(base)+ofs];
 }
 
 
 MVM_JIT_TILE_DECL(idx) {
-    MVMint8 out  = values[0]->st_pos;
-    MVMint8 base = values[1]->st_pos;
-    MVMint8 idx  = values[2]->st_pos;
-    MVMint8 scl  = args[0];
+    MVMint8 out  = tile->values[0]->st_pos;
+    MVMint8 base = tile->values[1]->st_pos;
+    MVMint8 idx  = tile->values[2]->st_pos;
+    MVMint8 scl  = tile->args[0];
     if (scl == 8) {
         | lea Rq(out), [Rq(base)+Rq(idx)*8];
     } else {
@@ -55,9 +55,9 @@ MVM_JIT_TILE_DECL(idx) {
 
 
 MVM_JIT_TILE_DECL(const_reg) {
-    MVMint8 out = values[0]->st_pos;
-    MVMint64 val  = args[0];
-    MVMint32 size = args[1];
+    MVMint8 out = tile->values[0]->st_pos;
+    MVMint64 val  = tile->args[0];
+    MVMint32 size = tile->args[1];
     if (size == 8 && !fits_in_32_bit(val)) {
         | mov64 Rq(out), val;
     } else {
@@ -74,9 +74,9 @@ MVM_JIT_TILE_DECL(const_reg) {
 
 
 MVM_JIT_TILE_DECL(load_reg) {
-    MVMint8 out  = values[0]->st_pos;
-    MVMint8 base = values[1]->st_pos;
-    MVMint32 size = args[0];
+    MVMint8 out  = tile->values[0]->st_pos;
+    MVMint8 base = tile->values[1]->st_pos;
+    MVMint32 size = tile->args[0];
     switch (size) {
     case 1:
         | mov Rb(out), [Rq(base)];
@@ -91,16 +91,16 @@ MVM_JIT_TILE_DECL(load_reg) {
         | mov Rq(out), [Rq(base)];
         break;
     default:
-        MVM_oops(tc, "Unsupported load size: %d\n", args[0]);
+        MVM_oops(tc, "Unsupported load size: %d\n", tile->args[0]);
     }
 }
 
 MVM_JIT_TILE_DECL(load_addr) {
-    MVMint8 out  = values[0]->st_pos;
-    MVMint8 base = values[1]->st_pos;
-    MVMint32 ofs  = args[0];
-    MVMint32 size = args[1];
-    switch (args[1]) {
+    MVMint8 out  = tile->values[0]->st_pos;
+    MVMint8 base = tile->values[1]->st_pos;
+    MVMint32 ofs  = tile->args[0];
+    MVMint32 size = tile->args[1];
+    switch (tile->args[1]) {
     case 1:
         | mov Rb(out), byte [Rq(base)+ofs];
         break;
@@ -114,16 +114,16 @@ MVM_JIT_TILE_DECL(load_addr) {
         | mov Rq(out), qword [Rq(base)+ofs];
         break;
     default:
-        MVM_oops(tc, "Unsupported load size: %ld\n", args[1]);
+        MVM_oops(tc, "Unsupported load size: %ld\n", tile->args[1]);
     }
 }
 
 MVM_JIT_TILE_DECL(load_idx) {
-    MVMint8 out  = values[0]->st_pos;
-    MVMint8 base = values[1]->st_pos;
-    MVMint8 idx  = values[2]->st_pos;
-    MVMint8 scl  = args[0];
-    MVMint32 size = args[1];
+    MVMint8 out  = tile->values[0]->st_pos;
+    MVMint8 base = tile->values[1]->st_pos;
+    MVMint8 idx  = tile->values[2]->st_pos;
+    MVMint8 scl  = tile->args[0];
+    MVMint32 size = tile->args[1];
     if (scl != 8) {
         MVM_oops(tc, "Unsupported scale size: %d\n", scl);
     }
@@ -147,9 +147,9 @@ MVM_JIT_TILE_DECL(load_idx) {
 
 
 MVM_JIT_TILE_DECL(store) {
-    MVMint8 base  = values[1]->st_pos;
-    MVMint8 value = values[2]->st_pos;
-    MVMint32 size = args[0];
+    MVMint8 base  = tile->values[1]->st_pos;
+    MVMint8 value = tile->values[2]->st_pos;
+    MVMint32 size = tile->args[0];
     switch (size) {
     case 1:
         | mov byte [Rq(base)], Rb(value);
@@ -169,10 +169,10 @@ MVM_JIT_TILE_DECL(store) {
 }
 
 MVM_JIT_TILE_DECL(store_addr) {
-    MVMint8 base  = values[1]->st_pos;
-    MVMint8 value = values[2]->st_pos;
-    MVMint32 ofs  = args[0];
-    MVMint32 size = args[1];
+    MVMint8 base  = tile->values[1]->st_pos;
+    MVMint8 value = tile->values[2]->st_pos;
+    MVMint32 ofs  = tile->args[0];
+    MVMint32 size = tile->args[1];
     switch (size) {
     case 1:
         | mov byte [Rq(base)+ofs], Rb(value);
@@ -192,13 +192,13 @@ MVM_JIT_TILE_DECL(store_addr) {
 }
 
 MVM_JIT_TILE_DECL(store_idx) {
-    MVMint8 base = values[1]->st_pos;
-    MVMint8 idx  = values[2]->st_pos;
-    MVMint8 scl  = args[0];
-    MVMint8 value = values[3]->st_pos;
+    MVMint8 base = tile->values[1]->st_pos;
+    MVMint8 idx  = tile->values[2]->st_pos;
+    MVMint8 scl  = tile->args[0];
+    MVMint8 value = tile->values[3]->st_pos;
     if (scl != 8)
         MVM_oops(tc, "Scale %d NYI\n", scl);
-    switch (args[1]) {
+    switch (tile->args[1]) {
     case 1:
         | mov byte [Rq(base)+Rq(idx)*8], Rb(value);
         break;
@@ -212,7 +212,7 @@ MVM_JIT_TILE_DECL(store_idx) {
         | mov qword [Rq(base)+Rq(idx)*8], Rq(value);
         break;
     default:
-        MVM_oops(tc, "Unsupported store size: %d\n", args[1]);
+        MVM_oops(tc, "Unsupported store size: %d\n", tile->args[1]);
     }
 
 }
@@ -226,11 +226,11 @@ MVM_JIT_TILE_DECL(copy) {
 
 
 MVM_JIT_TILE_DECL(cast) {
-    MVMint32 to_size   = args[0];
-    MVMint32 is_signed = args[1];
-    MVMint32 from_size = values[1]->size;
-    MVMint8  to_reg    = values[0]->st_pos;
-    MVMint8  from_reg  = values[1]->st_pos;
+    MVMint32 to_size   = tile->args[0];
+    MVMint32 is_signed = tile->args[1];
+    MVMint32 from_size = tile->values[1]->size;
+    MVMint8  to_reg    = tile->values[0]->st_pos;
+    MVMint8  from_reg  = tile->values[1]->st_pos;
 
     /* possible combinations: 1 -> 2, 4, 8; 2 -> 4, 8; 4 -> 8
      * Hence we can combine from_size | (to_size << 3) to get
@@ -317,9 +317,9 @@ MVM_JIT_TILE_DECL(cast_load_addr) {
 
 
 MVM_JIT_TILE_DECL(add_reg) {
-    MVMint8 out = values[0]->st_pos;
-    MVMint8 in1  = values[1]->st_pos;
-    MVMint8 in2  = values[2]->st_pos;
+    MVMint8 out = tile->values[0]->st_pos;
+    MVMint8 in1  = tile->values[1]->st_pos;
+    MVMint8 in2  = tile->values[2]->st_pos;
     if (out == in2) {
         | add Rq(out), Rq(in2);
     } else {
@@ -329,10 +329,10 @@ MVM_JIT_TILE_DECL(add_reg) {
 }
 
 MVM_JIT_TILE_DECL(add_const) {
-    MVMint8 out = values[0]->st_pos;
-    MVMint8 in1  = values[1]->st_pos;
-    MVMint64 val = args[0];
-    MVMint32 sz  = args[1];
+    MVMint8 out = tile->values[0]->st_pos;
+    MVMint8 in1  = tile->values[1]->st_pos;
+    MVMint64 val = tile->args[0];
+    MVMint32 sz  = tile->args[1];
     if (out == in1) {
         if (sz == 8 && !fits_in_32_bit(val)) {
             MVM_oops(tc, "Scratch register NYI");
@@ -351,11 +351,11 @@ MVM_JIT_TILE_DECL(add_const) {
 }
 
 MVM_JIT_TILE_DECL(add_load_addr) {
-    MVMint8 out   = values[0]->st_pos;
-    MVMint8 in1   = values[1]->st_pos;
-    MVMint8 base  = values[2]->st_pos;
-    MVMint32 ofs  = args[0];
-    MVMint32 size = args[1];
+    MVMint8 out   = tile->values[0]->st_pos;
+    MVMint8 in1   = tile->values[1]->st_pos;
+    MVMint8 base  = tile->values[2]->st_pos;
+    MVMint32 ofs  = tile->args[0];
+    MVMint32 size = tile->args[1];
     if (in1 != out) {
         | mov Rq(out), Rq(in1);
     }
@@ -378,12 +378,12 @@ MVM_JIT_TILE_DECL(add_load_addr) {
 }
 
 MVM_JIT_TILE_DECL(add_load_idx) {
-    MVMint8 out  = values[0]->st_pos;
-    MVMint8 in1  = values[1]->st_pos;
-    MVMint8 base = values[2]->st_pos;
-    MVMint8 idx  = values[3]->st_pos;
-    MVMint32 scl  = args[0];
-    MVMint32 size = args[1];
+    MVMint8 out  = tile->values[0]->st_pos;
+    MVMint8 in1  = tile->values[1]->st_pos;
+    MVMint8 base = tile->values[2]->st_pos;
+    MVMint8 idx  = tile->values[3]->st_pos;
+    MVMint32 scl  = tile->args[0];
+    MVMint32 size = tile->args[1];
 
     if (scl != 8)
         MVM_oops(tc, "IDX Scale %d NYI\n", scl);
@@ -407,9 +407,9 @@ MVM_JIT_TILE_DECL(add_load_idx) {
 
 
 MVM_JIT_TILE_DECL(and_reg) {
-    MVMint8 out = values[0]->st_pos;
-    MVMint8 in1  = values[1]->st_pos;
-    MVMint8 in2  = values[2]->st_pos;
+    MVMint8 out = tile->values[0]->st_pos;
+    MVMint8 in1  = tile->values[1]->st_pos;
+    MVMint8 in2  = tile->values[2]->st_pos;
     if (out == in2) {
         | and Rq(out), Rq(in2);
     } else {
@@ -419,10 +419,10 @@ MVM_JIT_TILE_DECL(and_reg) {
 }
 
 MVM_JIT_TILE_DECL(and_const) {
-    MVMint8 out = values[0]->st_pos;
-    MVMint8 in1  = values[1]->st_pos;
-    MVMint64 val = args[0];
-    MVMint32 sz  = args[1];
+    MVMint8 out = tile->values[0]->st_pos;
+    MVMint8 in1  = tile->values[1]->st_pos;
+    MVMint64 val = tile->args[0];
+    MVMint32 sz  = tile->args[1];
     if (out == in1) {
         if (sz == 8 && !fits_in_32_bit(val)) {
             MVM_oops(tc, "Scratch register NYI");
@@ -441,11 +441,11 @@ MVM_JIT_TILE_DECL(and_const) {
 }
 
 MVM_JIT_TILE_DECL(and_load_addr) {
-    MVMint8 out   = values[0]->st_pos;
-    MVMint8 in1   = values[1]->st_pos;
-    MVMint8 base  = values[2]->st_pos;
-    MVMint32 ofs  = args[0];
-    MVMint32 size = args[1];
+    MVMint8 out   = tile->values[0]->st_pos;
+    MVMint8 in1   = tile->values[1]->st_pos;
+    MVMint8 base  = tile->values[2]->st_pos;
+    MVMint32 ofs  = tile->args[0];
+    MVMint32 size = tile->args[1];
     if (in1 != out) {
         | mov Rq(out), Rq(in1);
     }
@@ -468,12 +468,12 @@ MVM_JIT_TILE_DECL(and_load_addr) {
 }
 
 MVM_JIT_TILE_DECL(and_load_idx) {
-    MVMint8 out  = values[0]->st_pos;
-    MVMint8 in1  = values[1]->st_pos;
-    MVMint8 base = values[2]->st_pos;
-    MVMint8 idx  = values[3]->st_pos;
-    MVMint32 scl  = args[0];
-    MVMint32 size = args[1];
+    MVMint8 out  = tile->values[0]->st_pos;
+    MVMint8 in1  = tile->values[1]->st_pos;
+    MVMint8 base = tile->values[2]->st_pos;
+    MVMint8 idx  = tile->values[3]->st_pos;
+    MVMint32 scl  = tile->args[0];
+    MVMint32 size = tile->args[1];
 
     if (scl != 8)
         MVM_oops(tc, "IDX Scale %d NYI\n", scl);
@@ -497,9 +497,9 @@ MVM_JIT_TILE_DECL(and_load_idx) {
 
 
 MVM_JIT_TILE_DECL(sub_reg) {
-    MVMint8 out = values[0]->st_pos;
-    MVMint8 in1  = values[1]->st_pos;
-    MVMint8 in2  = values[2]->st_pos;
+    MVMint8 out = tile->values[0]->st_pos;
+    MVMint8 in1  = tile->values[1]->st_pos;
+    MVMint8 in2  = tile->values[2]->st_pos;
     if (out == in2) {
         | sub Rq(out), Rq(in2);
     } else {
@@ -509,10 +509,10 @@ MVM_JIT_TILE_DECL(sub_reg) {
 }
 
 MVM_JIT_TILE_DECL(sub_const) {
-    MVMint8 out = values[0]->st_pos;
-    MVMint8 in1  = values[1]->st_pos;
-    MVMint64 val = args[0];
-    MVMint32 sz  = args[1];
+    MVMint8 out = tile->values[0]->st_pos;
+    MVMint8 in1  = tile->values[1]->st_pos;
+    MVMint64 val = tile->args[0];
+    MVMint32 sz  = tile->args[1];
     if (out == in1) {
         if (sz == 8 && !fits_in_32_bit(val)) {
             MVM_oops(tc, "Scratch register NYI");
@@ -531,11 +531,11 @@ MVM_JIT_TILE_DECL(sub_const) {
 }
 
 MVM_JIT_TILE_DECL(sub_load_addr) {
-    MVMint8 out   = values[0]->st_pos;
-    MVMint8 in1   = values[1]->st_pos;
-    MVMint8 base  = values[2]->st_pos;
-    MVMint32 ofs  = args[0];
-    MVMint32 size = args[1];
+    MVMint8 out   = tile->values[0]->st_pos;
+    MVMint8 in1   = tile->values[1]->st_pos;
+    MVMint8 base  = tile->values[2]->st_pos;
+    MVMint32 ofs  = tile->args[0];
+    MVMint32 size = tile->args[1];
     if (in1 != out) {
         | mov Rq(out), Rq(in1);
     }
@@ -558,12 +558,12 @@ MVM_JIT_TILE_DECL(sub_load_addr) {
 }
 
 MVM_JIT_TILE_DECL(sub_load_idx) {
-    MVMint8 out  = values[0]->st_pos;
-    MVMint8 in1  = values[1]->st_pos;
-    MVMint8 base = values[2]->st_pos;
-    MVMint8 idx  = values[3]->st_pos;
-    MVMint32 scl  = args[0];
-    MVMint32 size = args[1];
+    MVMint8 out  = tile->values[0]->st_pos;
+    MVMint8 in1  = tile->values[1]->st_pos;
+    MVMint8 base = tile->values[2]->st_pos;
+    MVMint8 idx  = tile->values[3]->st_pos;
+    MVMint32 scl  = tile->args[0];
+    MVMint32 size = tile->args[1];
 
     if (scl != 8)
         MVM_oops(tc, "IDX Scale %d NYI\n", scl);
@@ -587,15 +587,15 @@ MVM_JIT_TILE_DECL(sub_load_idx) {
 
 
 MVM_JIT_TILE_DECL(nz) {
-    MVMint8 reg = values[1]->st_pos;
+    MVMint8 reg = tile->values[1]->st_pos;
     | test Rq(reg), Rq(reg);
 }
 
 
 MVM_JIT_TILE_DECL(nz_addr) {
-    MVMint8 base  = values[1]->st_pos;
-    MVMint32 ofs  = args[0];
-    MVMint32 size = args[1];
+    MVMint8 base  = tile->values[1]->st_pos;
+    MVMint32 ofs  = tile->args[0];
+    MVMint32 size = tile->args[1];
     switch (size) {
     case 1:
         | cmp byte [Rq(base)+ofs], 0;
@@ -616,10 +616,10 @@ MVM_JIT_TILE_DECL(nz_addr) {
 
 
 MVM_JIT_TILE_DECL(nz_idx) {
-    MVMint8 base = values[1]->st_pos;
-    MVMint8 idx  = values[2]->st_pos;
-    MVMint32 scl = args[0];
-    MVMint32 size = args[1];
+    MVMint8 base = tile->values[1]->st_pos;
+    MVMint8 idx  = tile->values[2]->st_pos;
+    MVMint32 scl = tile->args[0];
+    MVMint32 size = tile->args[1];
     if (scl != 8)
         MVM_oops(tc, "Scale %d NYI\n", scl);
     switch(size) {
@@ -636,14 +636,14 @@ MVM_JIT_TILE_DECL(nz_idx) {
         | cmp qword [Rq(base)+Rq(idx)*8], 0;
         break;
     default:
-        MVM_oops(tc, "Unsupported size %d for load\n", values[1]->size);
+        MVM_oops(tc, "Unsupported size %d for load\n", tile->values[1]->size);
     }
 }
 
 MVM_JIT_TILE_DECL(nz_and) {
-    MVMint8 rega = values[1]->st_pos;
-    MVMint8 regb = values[2]->st_pos;
-    switch(values[1]->size) {
+    MVMint8 rega = tile->values[1]->st_pos;
+    MVMint8 regb = tile->values[2]->st_pos;
+    switch(tile->values[1]->size) {
     case 1:
         | test Rb(regb), Rb(rega);
         break;
@@ -660,8 +660,8 @@ MVM_JIT_TILE_DECL(nz_and) {
 }
 
 MVM_JIT_TILE_DECL(zr) {
-    MVMint8 reg = values[1]->st_pos;
-    switch (values[1]->size) {
+    MVMint8 reg = tile->values[1]->st_pos;
+    switch (tile->values[1]->size) {
     case 1:
         | test Rb(reg), Rb(reg);
         break;
@@ -679,9 +679,9 @@ MVM_JIT_TILE_DECL(zr) {
 }
 
 MVM_JIT_TILE_DECL(cmp) {
-    MVMint8 regl = values[1]->st_pos;
-    MVMint8 regr = values[2]->st_pos;
-    switch (values[0]->size) {
+    MVMint8 regl = tile->values[1]->st_pos;
+    MVMint8 regr = tile->values[2]->st_pos;
+    switch (tile->values[0]->size) {
     case 1:
         | cmp Rb(regl), Rb(regr);
         break;
@@ -728,13 +728,13 @@ MVM_JIT_TILE_DECL(do_void) {
 
 
 MVM_JIT_TILE_DECL(label) {
-    MVMint8 reg = values[0]->st_pos;
-    MVMint32 label = args[0];
+    MVMint8 reg = tile->values[0]->st_pos;
+    MVMint32 label = tile->args[0];
     | lea Rq(reg), [=>label];
 }
 
 MVM_JIT_TILE_DECL(branch_label) {
-    MVMint32 label = args[0];
+    MVMint32 label = tile->args[0];
     if (label >= 0) {
         | jmp =>(label);
     } else {
@@ -745,18 +745,18 @@ MVM_JIT_TILE_DECL(branch_label) {
 
 
 MVM_JIT_TILE_DECL(call) {
-    MVMint8 reg = values[1]->st_pos;
+    MVMint8 reg = tile->values[1]->st_pos;
     | call Rq(reg);
 }
 
 MVM_JIT_TILE_DECL(call_func) {
-    MVMint64 ptr = args[0];
+    MVMint64 ptr = tile->args[0];
     MVM_oops(tc, "Scratch register / Data storage NYI");
 }
 
 
 MVM_JIT_TILE_DECL(call_addr) {
-    MVMint8  reg = values[1]->st_pos;
-    MVMint32 ofs = args[0];
+    MVMint8  reg = tile->values[1]->st_pos;
+    MVMint32 ofs = tile->args[0];
     | call qword [Rq(reg)+ofs];
 }
