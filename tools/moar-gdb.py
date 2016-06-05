@@ -801,5 +801,8 @@ def register_commands(objfile):
 
 # We have to introduce our classes to gdb so that they can be used
 if __name__ == "__main__":
-    register_printers(gdb.current_objfile())
-    register_commands(gdb.current_objfile())
+    the_objfile = gdb.current_objfile()
+    if the_objfile  == None:
+        the_objfile = gdb.lookup_objfile("libmoar.so")
+    register_printers(the_objfile)
+    register_commands(the_objfile)
