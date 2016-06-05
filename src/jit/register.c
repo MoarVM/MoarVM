@@ -32,8 +32,8 @@ struct RegisterAllocator {
     MVMJitCompiler *compiler;
 
     /* Register giveout ring */
-    MVMint8 *free_reg;
-    MVMuint8 *reg_use;
+    MVMint8 free_reg[NUM_GPR];
+    MVMuint8 reg_use[MVM_JIT_MAX_GPR];
 
     MVMint32 reg_give, reg_take;
 
@@ -49,10 +49,8 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, struct RegisterAlloca
     /* Store live ranges */
     MVM_DYNAR_INIT(allocator->active, NUM_GPR);
     /* Initialize free register buffer */
-    allocator->free_reg = MVM_malloc(sizeof(free_gpr));
     memcpy(allocator->free_reg, free_gpr, NUM_GPR);
-
-    allocator->reg_use   = MVM_calloc(16, sizeof(MVMint8));
+    memset(allocator->reg_use, 0, sizeof(allocator->reg_use));
 
     allocator->reg_give  = 0;
     allocator->reg_take  = 0;
@@ -67,8 +65,6 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, struct RegisterAlloca
 
 void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, struct RegisterAllocator *allocator) {
     MVM_free(allocator->active);
-    MVM_free(allocator->free_reg);
-    MVM_free(allocator->reg_use);
     MVM_free(allocator->values_by_node);
 }
 
