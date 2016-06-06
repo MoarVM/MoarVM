@@ -125,7 +125,7 @@ our %TC_POSIX = (
     ccshared   => '-fPIC',
     ldshared   => '-shared @ccshared@',
     moarshared => '',
-    ldrpath    => '-Wl,-rpath,/@libdir@ -Wl,-rpath,@prefix@/share/perl6/site/lib',
+    ldrpath    => '-Wl,-rpath,"/@libdir@" -Wl,-rpath,"@prefix@/share/perl6/site/lib"',
 
     arflags => 'rcs',
     arout   => '',
