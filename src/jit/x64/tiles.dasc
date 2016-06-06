@@ -2,13 +2,9 @@
 
 
 MVM_JIT_TILE_DECL(load_stack) {
-    tile->values[0]->st_cls = MVM_JIT_STORAGE_NVR;
-    tile->values[0]->st_pos = MVM_JIT_X64_RSP;
 }
 
 MVM_JIT_TILE_DECL(load_local) {
-    tile->values[0]->st_cls = MVM_JIT_STORAGE_NVR;
-    tile->values[0]->st_pos = MVM_JIT_X64_RBX;
 }
 
 MVM_JIT_TILE_DECL(load_frame) {
@@ -17,13 +13,9 @@ MVM_JIT_TILE_DECL(load_frame) {
 }
 
 MVM_JIT_TILE_DECL(load_cu) {
-    tile->values[0]->st_cls = MVM_JIT_STORAGE_NVR;
-    tile->values[0]->st_pos = MVM_JIT_X64_R13;
 }
 
 MVM_JIT_TILE_DECL(load_tc) {
-    tile->values[0]->st_cls = MVM_JIT_STORAGE_NVR;
-    tile->values[0]->st_pos  = MVM_JIT_X64_R14;
 }
 
 MVM_JIT_TILE_DECL(load_vmnull) {
@@ -64,13 +56,6 @@ MVM_JIT_TILE_DECL(const_reg) {
         | mov Rq(out), val;
     }
 }
-
-
-
-/* Tree access macro's */
-#define XS(x)      tree->nodes[x]
-#define XS2(x,y)   XS(XS(x)+y)
-#define XS3(x,y,z) XS(XS2(x,y)+z)
 
 
 MVM_JIT_TILE_DECL(load_reg) {
@@ -681,7 +666,7 @@ MVM_JIT_TILE_DECL(zr) {
 MVM_JIT_TILE_DECL(cmp) {
     MVMint8 regl = tile->values[1]->st_pos;
     MVMint8 regr = tile->values[2]->st_pos;
-    switch (tile->values[0]->size) {
+    switch (tile->values[1]->size) {
     case 1:
         | cmp Rb(regl), Rb(regr);
         break;
