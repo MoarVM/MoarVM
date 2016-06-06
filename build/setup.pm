@@ -495,7 +495,7 @@ our %OS_DARWIN = (
 
     ccshared   => '',
     ldshared   => '-dynamiclib',
-    moarshared => '-install_name @prefix@/lib/libmoar.dylib',
+    moarshared => '-install_name "@prefix@/lib/libmoar.dylib"',
     sharedlib  => 'libmoar.dylib',
 
     -thirdparty => {
