@@ -49,6 +49,12 @@ struct MVMFrameHandler {
     /* Register containing a label in case we have a labeled loop. We need to
      * be able to check for its identity when handling e.g. `next LABEL`. */
     MVMuint16 label_reg;
+
+    /* Is this handler actually a clone of a caller's handler performed during
+     * inlining of something, and is that something not lexically enclosed in
+     * the thing it was inlined into? If yes,this flag will be set. We need to
+     * ignore such handlers when searching for matching lexical handlers only. */
+    MVMuint16 inlined_and_not_lexical;
 };
 
 /* An active (currently executing) exception handler. */

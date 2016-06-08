@@ -649,6 +649,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
                 sf->body.handlers[j].label_reg = read_int16(pos, 0);
                 pos += 2;
             }
+            sf->body.handlers[j].inlined_and_not_lexical = 0;
         }
     }
 

@@ -86,8 +86,8 @@ static MVMint32 handler_can_handle(MVMFrame *f, MVMFrameHandler *fh, MVMint32 ca
  * match what we're looking for. Returns 1 to it if so; if not,
  * returns 0. */
 static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
-                                      MVMuint32 cat, MVMObject *payload,
-                                      LocatedHandler *lh) {
+                                      MVMuint8 mode, MVMuint32 cat,
+                                      MVMObject *payload, LocatedHandler *lh) {
     MVMuint32  i;
     if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
         MVMJitHandler    *jhs = f->spesh_cand->jitcode->handlers;
@@ -96,6 +96,8 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
         void         **labels = f->spesh_cand->jitcode->labels;
         void       *cur_label = f->jit_entry_label;
         for (i = 0; i < num_handlers; i++) {
+            if (mode == MVM_EX_THROW_LEX && fhs[i].inlined_and_not_lexical)
+                continue;
             if (!handler_can_handle(f, &fhs[i], cat, payload))
                 continue;
             if (cur_label >= labels[jhs[i].start_label] &&
@@ -117,6 +119,8 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
             pc = (MVMuint32)(f->return_address - f->effective_bytecode);
         for (i = 0; i < num_handlers; i++) {
             MVMFrameHandler  *fh = &f->effective_handlers[i];
+            if (mode == MVM_EX_THROW_LEX && fh->inlined_and_not_lexical)
+                continue;
             if (!handler_can_handle(f, fh, cat, payload))
                 continue;
             if (pc >= fh->start_offset && pc <= fh->end_offset && !in_handler_stack(tc, fh, f)) {
@@ -152,7 +156,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
             mode = MVM_EX_THROW_LEX;
         }
         while (f != NULL) {
-            if (search_frame_handlers(tc, f, cat, payload, &lh)) {
+            if (search_frame_handlers(tc, f, mode, cat, payload, &lh)) {
                 lh.frame = f;
                 return lh;
             }

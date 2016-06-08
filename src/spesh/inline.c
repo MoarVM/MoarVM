@@ -444,6 +444,8 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         for (i = inliner->num_handlers; i < total_handlers; i++) {
             inliner->handlers[i].block_reg += inliner->num_locals;
             inliner->handlers[i].label_reg += inliner->num_locals;
+            if (inliner->sf != inlinee->sf->body.outer)
+                inliner->handlers[i].inlined_and_not_lexical = 1;
         }
     }
 
