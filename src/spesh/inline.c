@@ -285,6 +285,12 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 }
             }
 
+            /* Since inlining eliminates the caller/callee distinction, we
+             * need skip going up a caller when resolving exceptions in a
+             * caller-relative way. */
+            if (ins->info->opcode == MVM_OP_throwpayloadlexcaller)
+                ins->info = MVM_op_get_op(MVM_OP_throwpayloadlex);
+
             ins = ins->next;
         }
         bb->idx += inliner->num_bbs - 1; /* -1 as we won't include entry */
