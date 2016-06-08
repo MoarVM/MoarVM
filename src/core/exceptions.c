@@ -140,38 +140,42 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     lh.frame = NULL;
     lh.handler = NULL;
     lh.jit_handler = NULL;
-    if (mode == MVM_EX_THROW_LEXOTIC) {
-        while (f != NULL) {
-            lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat, payload);
-            if (lh.frame != NULL)
-                return lh;
-            f = f->caller;
-        }
-    }
-    else {
-        if (mode == MVM_EX_THROW_LEX_CALLER) {
+    switch (mode) {
+        case MVM_EX_THROW_LEX_CALLER:
             f = f->caller;
             while (f && f->static_info->body.is_thunk)
                 f = f->caller;
-            mode = MVM_EX_THROW_LEX;
-        }
-        while (f != NULL) {
-            if (search_frame_handlers(tc, f, mode, cat, payload, &lh)) {
-                lh.frame = f;
-                return lh;
+            /* And now we've gone down a caller, it's just lexical... */
+        case MVM_EX_THROW_LEX:
+            while (f != NULL) {
+                if (search_frame_handlers(tc, f, mode, cat, payload, &lh)) {
+                    if (in_caller_chain(tc, f))
+                        lh.frame = f;
+                    return lh;
+                }
+                f = f->outer;
             }
-            if (mode == MVM_EX_THROW_DYN) {
+            return lh;
+        case MVM_EX_THROW_DYN:
+            while (f != NULL) {
+                if (search_frame_handlers(tc, f, mode, cat, payload, &lh)) {
+                    lh.frame = f;
+                    return lh;
+                }
                 f = f->caller;
             }
-            else {
-                MVMFrame *f_maybe = f->outer;
-                while (f_maybe != NULL && !in_caller_chain(tc, f_maybe))
-                    f_maybe = f_maybe->outer;
-                f = f_maybe;
+            return lh;
+        case MVM_EX_THROW_LEXOTIC:
+            while (f != NULL) {
+                lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat, payload);
+                if (lh.frame != NULL)
+                    return lh;
+                f = f->caller;
             }
-        }
+            return lh;
+        default:
+            MVM_panic(1, "Unhandled exception throw mode %d", (int)mode);
     }
-    return lh;
 }
 
 /* Runs an exception handler (which really means updating interpreter state
