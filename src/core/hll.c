@@ -49,6 +49,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->finalize_handler, "HLL finalize_handler");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->bind_error, "HLL bind_error");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->method_not_found_error, "HLL method_not_found_error");
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->lexical_handler_not_found_error, "HLL lexical_handler_not_found_error");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->int_lex_ref, "HLL int_lex_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_lex_ref, "HLL num_lex_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->str_lex_ref, "HLL str_lex_ref");
@@ -113,6 +114,7 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key(tc, config_hash, "finalize_handler", finalize_handler, config);
             check_config_key(tc, config_hash, "bind_error", bind_error, config);
             check_config_key(tc, config_hash, "method_not_found_error", method_not_found_error, config);
+            check_config_key(tc, config_hash, "lexical_handler_not_found_error", lexical_handler_not_found_error, config);
             check_config_key_reftype(tc, config_hash, "int_lex_ref", int_lex_ref,
                 config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_REG_OR_LEX);
             check_config_key_reftype(tc, config_hash, "num_lex_ref", num_lex_ref,

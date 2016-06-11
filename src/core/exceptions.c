@@ -70,6 +70,7 @@ typedef struct {
     MVMFrame        *frame;
     MVMFrameHandler *handler;
     MVMJitHandler   *jit_handler;
+    MVMint32         handler_out_of_dynamic_scope;
 } LocatedHandler;
 
 static MVMint32 handler_can_handle(MVMFrame *f, MVMFrameHandler *fh, MVMint32 cat, MVMObject *payload) {
@@ -140,6 +141,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     lh.frame = NULL;
     lh.handler = NULL;
     lh.jit_handler = NULL;
+    lh.handler_out_of_dynamic_scope = 0;
     switch (mode) {
         case MVM_EX_THROW_LEX_CALLER:
             f = f->caller;
@@ -151,6 +153,8 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
                 if (search_frame_handlers(tc, f, mode, cat, payload, &lh)) {
                     if (in_caller_chain(tc, f))
                         lh.frame = f;
+                    else
+                        lh.handler_out_of_dynamic_scope = 1;
                     return lh;
                 }
                 f = f->outer;
@@ -515,6 +519,24 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
         exit(1);
 }
 
+/* Checks if we're throwing lexically, and - if yes - if the current HLL has
+ * a handler for unlocated lexical handlers. */
+static MVMint32 use_lexical_handler_hll_error(MVMThreadContext *tc, MVMuint8 mode) {
+    return (mode == MVM_EX_THROW_LEX || mode == MVM_EX_THROW_LEX_CALLER) &&
+        !MVM_is_null(tc, MVM_hll_current(tc)->lexical_handler_not_found_error);
+}
+
+/* Invokes the HLL's handler for unresolved lexical throws. */
+static void invoke_lexical_handler_hll_erorr(MVMThreadContext *tc, MVMint64 cat, LocatedHandler lh) {
+    MVMObject *handler = MVM_hll_current(tc)->lexical_handler_not_found_error;
+    MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INT_INT);
+    handler = MVM_frame_find_invokee(tc, handler, NULL);
+    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, callsite);
+    tc->cur_frame->args[0].i64 = cat;
+    tc->cur_frame->args[1].i64 = lh.handler_out_of_dynamic_scope;
+    STABLE(handler)->invoke(tc, handler, callsite, tc->cur_frame->args);
+}
+
 /* Throws an exception by category, searching for a handler according to
  * the specified mode. If the handler resumes, the resumption result will
  * be put into resume_result. Leaves the interpreter in a state where it
@@ -522,8 +544,13 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
  * it will panic and exit with a backtrace. */
 void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMRegister *resume_result) {
     LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat, NULL);
-    if (lh.frame == NULL)
+    if (lh.frame == NULL) {
+        if (use_lexical_handler_hll_error(tc, mode)) {
+            invoke_lexical_handler_hll_erorr(tc, cat, lh);
+            return;
+        }
         panic_unhandled_cat(tc, cat);
+    }
     run_handler(tc, lh, NULL, cat, NULL);
 }
 
@@ -567,8 +594,13 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
         ex->body.jit_resume_label = tc->cur_frame->jit_entry_label;
     }
     lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category, ex->body.payload);
-    if (lh.frame == NULL)
+    if (lh.frame == NULL) {
+        if (use_lexical_handler_hll_error(tc, mode)) {
+            invoke_lexical_handler_hll_erorr(tc, ex->body.category, lh);
+            return;
+        }
         panic_unhandled_ex(tc, ex);
+    }
 
     if (!ex->body.origin) {
         MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.origin, tc->cur_frame);
@@ -583,8 +615,13 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
  * If a goto or payload handler exists, then no exception object will be created. */
 void MVM_exception_throwpayload(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMObject *payload, MVMRegister *resume_result) {
     LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat, NULL);
-    if (lh.frame == NULL)
+    if (lh.frame == NULL) {
+        if (use_lexical_handler_hll_error(tc, mode)) {
+            invoke_lexical_handler_hll_erorr(tc, cat, lh);
+            return;
+        }
         panic_unhandled_cat(tc, cat);
+    }
     run_handler(tc, lh, NULL, cat, payload);
 }
 
