@@ -150,7 +150,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
             /* And now we've gone down a caller, it's just lexical... */
         case MVM_EX_THROW_LEX:
             while (f != NULL) {
-                if (search_frame_handlers(tc, f, mode, cat, payload, &lh)) {
+                if (search_frame_handlers(tc, f, MVM_EX_THROW_LEX, cat, payload, &lh)) {
                     if (in_caller_chain(tc, f))
                         lh.frame = f;
                     else
