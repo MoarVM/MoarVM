@@ -128,6 +128,9 @@ MVMuint32 MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
     return reached_stopper;
 }
 
+/* concatenating with "" ensures that only literal strings are accepted as argument. */
+#define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
+
 /* Encodes the specified substring to ASCII. Anything outside of ASCII range
  * will become replaced with the supplied replacement, or an exception will be
  * thrown if there isn't one. The result string is NULL terminated, but the
@@ -174,6 +177,19 @@ char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
             }
             if (ord >= 0 && ord <= 127) {
                 result[i] = (MVMuint8)ord;
+                i++;
+            }
+            else if (ord > 0 && MVM_unicode_codepoint_has_property_value(tc, ord, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY,
+                MVM_unicode_cname_to_property_value_code(tc, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Nd")))) {
+                /* As of Unicode 6.0.0, we know that Nd category numerals are within
+                 * the range 0..9
+                 */
+
+                /* the string returned for NUMERIC_VALUE contains a floating point
+                 * value, so atoi will stop on the . in the string. This is fine
+                 * though, since we'd have to truncate the float regardless.
+                 */
+                result[i] = (MVMuint8)atoi(MVM_unicode_codepoint_get_property_cstr(tc, ord, MVM_UNICODE_PROPERTY_NUMERIC_VALUE)) + '0';
                 i++;
             }
             else if (replacement) {
