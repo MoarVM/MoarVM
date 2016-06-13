@@ -20,10 +20,13 @@ static MVMint8 free_num[] = { -1 };
 #define REGISTER_IS_LOCKED(a, n) ((a)->reg_lock &  (1 << (n)))
 #define LOCK_REGISTER(a, n)   ((a)->reg_lock |=  (1 << (n)))
 #define UNLOCK_REGISTER(a,n)  ((a)->reg_lock &= ~(1 << (n)))
-
+/* it appears MAX is already defined in libtommath */
 #ifndef MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 #endif
+
+
+
 
 /* Live range of nodes */
 struct LiveRange {
@@ -33,12 +36,21 @@ struct LiveRange {
     MVMint32 buf_idx;
 };
 
+/* Local structure for now, may be promoted to its own file in the future */
+struct InsertTile {
+    MVMint32    position;
+    MVMJitTile *tile;
+};
+
 
 struct RegisterAllocator {
     /* Live range of nodes */
     struct LiveRange *live_ranges;
     /* Nodes refered to by tiles */
     MVM_DYNAR_DECL(MVMJitExprNode, tile_nodes);
+
+    /* Tiles inserted while allocating */
+    MVM_DYNAR_DECL(struct InsertTile, tile_inserts);
 
     /* Lookup tables */
     MVMJitValueDescriptor **values_by_node;
@@ -55,12 +67,16 @@ struct RegisterAllocator {
 };
 
 
+
 void MVM_jit_register_allocator_init(MVMThreadContext *tc, struct RegisterAllocator *allocator,
                                      MVMJitCompiler *compiler, MVMJitTileList *list) {
     /* Store live ranges */
-    MVM_DYNAR_INIT(allocator->tile_nodes, NUM_GPR);
+    MVM_DYNAR_INIT(allocator->tile_nodes, list->items_num * 4);
 
-    /* Initialize usable register ring */
+    /* And inserted tiles */
+    MVM_DYNAR_INIT(allocator->tile_inserts, 8);
+
+    /* Initialize free register ring */
     memcpy(allocator->free_reg, free_gpr, NUM_GPR);
     allocator->reg_give  = 0;
     allocator->reg_take  = 0;
@@ -79,10 +95,56 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, struct RegisterAlloca
 void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, struct RegisterAllocator *allocator) {
     MVM_free(allocator->values_by_node);
     MVM_free(allocator->live_ranges);
+    MVM_free(allocator->tile_inserts);
     MVM_free(allocator->tile_nodes);
 }
 
+
 #define NYI(x) MVM_oops(tc, #x " NYI");
+
+static void insert_tile_after(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitTile *tile, MVMint32 position) {
+    struct InsertTile i = { position, tile };
+    MVM_DYNAR_PUSH(allocator->tile_inserts, i);
+}
+
+static int cmp_tile_insert(const void *p1, const void *p2) {
+    return ((struct InsertTile*)p1)->position - ((struct InsertTile*)p2)->position;
+}
+
+static void edit_tilelist(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitTileList *list) {
+    MVMJitTile **worklist;
+    MVMint32 i, j, k;
+    if (allocator->tile_inserts_num == 0)
+        return;
+    /* sort inserted tiles in ascending order */
+    qsort(allocator->tile_inserts, allocator->tile_inserts_num,
+          sizeof(struct InsertTile), cmp_tile_insert);
+
+    /* create a new array for the tiles */
+    worklist = MVM_malloc((list->items_num + allocator->tile_inserts_num) * sizeof(MVMJitTile*));
+
+    i = 0;
+    j = 0;
+    k = 0;
+
+    while (i < list->items_num) {
+        while (j < allocator->tile_inserts_num &&
+               allocator->tile_inserts[j].position < i) {
+            worklist[k++] = allocator->tile_inserts[j++].tile;
+        }
+        worklist[k++] = list->items[i++];
+    }
+    /* insert all tiles after the last one, if any */
+    while (j < allocator->tile_inserts_num) {
+        worklist[k++] = allocator->tile_inserts[j++].tile;
+    }
+
+    /* swap old and new list */
+    MVM_free(list->items);
+    list->items = worklist;
+    list->items_num = k;
+    list->items_alloc = k;
+}
 
 
 static MVMint8 alloc_register(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitStorageClass reg_cls) {
@@ -297,5 +359,7 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
         }
         expire_values(tc, &allocator, i);
     }
+    /* Insert tiles into the list */
+    edit_tilelist(tc, &allocator, list);
     MVM_jit_register_allocator_deinit(tc, &allocator);
 }
