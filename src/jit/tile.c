@@ -238,15 +238,13 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     /* (Currently) we never insert into the tile list here */
 }
 
-
-
-static void add_pseudotile(MVMThreadContext *tc, struct TileTree *tiles,
-                           void * emit, MVMint32 node, MVMint32 nargs, ...) {
+MVMJitTile* MVM_jit_tile_make(MVMThreadContext *tc, MVMSpeshGraph *sg,
+                              void *emit, MVMint32 node, MVMint32 nargs, ...) {
     MVMJitTile *tile;
     MVMint32 i;
     va_list arglist;
     va_start(arglist, nargs);
-    tile = MVM_spesh_alloc(tc, tiles->sg, sizeof(MVMJitTile));
+    tile = MVM_spesh_alloc(tc, sg, sizeof(MVMJitTile));
     tile->emit = emit;
     tile->node = node;
     tile->num_values = 0;
@@ -254,9 +252,10 @@ static void add_pseudotile(MVMThreadContext *tc, struct TileTree *tiles,
         tile->args[i] = va_arg(arglist, MVMJitExprNode);
     }
     va_end(arglist);
-
-    MVM_DYNAR_PUSH(tiles->list->items, tile);
+    return tile;
 }
+
+
 
 
 /* Logical negation of MVMJitExprOp flags */
@@ -301,18 +300,19 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             } else if (flag == MVM_JIT_ANY) {
                 /* If ANY hasn't short-circuited into the left
                    block, jump to the right block */
-                add_pseudotile(tc, tiles, MVM_jit_compile_branch, node, 1, label_value);
+                MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_branch, node, 1, label_value));;
                 /* Compile label for the left block entry */
-                add_pseudotile(tc, tiles, MVM_jit_compile_label, test, 1,
-                               tree->info[test].label);
+
+                MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_label, test, 1,
+                                                                     tree->info[test].label));
             } else {
                 /* Other tests require a conditional branch */
-                add_pseudotile(tc, tiles, MVM_jit_compile_conditional_branch, node,
-                               2, negate_flag(tc, flag), label_value);
+                MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_conditional_branch, node,
+                                                                     2, negate_flag(tc, flag), label_value));;
             }
         } else {
             /* after child of WHEN, insert the label */
-            add_pseudotile(tc, tiles, MVM_jit_compile_label, node, 1, label_value);
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_label, node, 1, label_value));
         }
         break;
     }
@@ -326,13 +326,13 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         } else if (flag == MVM_JIT_ANY) {
             /* If ANY reached it's end, that means it's false. So branch out */
             MVMint32 any_label = tree->info[test].label;
-            add_pseudotile(tc, tiles, MVM_jit_compile_branch, node, 1, label);
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_branch, node, 1, label));
             /* And if ANY short-circuits we should continue the evaluation of ALL */
-            add_pseudotile(tc, tiles, MVM_jit_compile_label, node, 1, any_label);
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_label, node, 1, any_label));
         } else {
             /* Flag should be negated (ALL = short-circiut unless condition)) */
-            add_pseudotile(tc, tiles, MVM_jit_compile_conditional_branch, node, 2,
-                           negate_flag(tc, flag), label);
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_conditional_branch, node, 2,
+                                                                 negate_flag(tc, flag), label));
         }
         break;
     }
@@ -346,15 +346,15 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                succesful, and short-circuit behaviour implies we
                should branch out */
             MVMint32 all_label = tree->info[test].label;
-            add_pseudotile(tc, tiles, MVM_jit_compile_branch, node, 1, label);
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_branch, node, 1, label));
             /* If not succesful, testing should continue */
-            add_pseudotile(tc, tiles, MVM_jit_compile_label, node, 1, all_label);
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_label, node, 1, all_label));
         } else if (flag == MVM_JIT_ANY) {
             /* Nothing to do here, since nested ANY already
                short-circuits to our label */
         } else {
             /* Normal evaluation (ANY = short-circuit if condition) */
-            add_pseudotile(tc, tiles, MVM_jit_compile_conditional_branch, node, 2, flag, label);
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_conditional_branch, node, 2, flag, label));
         }
         break;
     }

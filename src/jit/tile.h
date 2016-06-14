@@ -26,4 +26,6 @@ struct MVMJitTileList {
     /* TODO implement structures to mark basic blocks */
 };
 
+MVMJitTile     * MVM_jit_tile_make(MVMThreadContext *tc, MVMSpeshGraph *sg, void *emit,
+                                   MVMint32 node, MVMint32 nargs, ...);
 MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree);
