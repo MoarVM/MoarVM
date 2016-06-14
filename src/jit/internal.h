@@ -21,10 +21,9 @@ struct MVMJitCompiler {
     MVMint32    label_offset;
     MVMint32    label_max;
 
-    MVMint32    order_nr;
     /* For spilling values that don't fit into the register allocator */
-    MVMint32    spill_offset;
-    MVMint32    max_spill;
+    MVMint32    spill_bottom;
+    MVMint32    spill_top;
 };
 
 /* Declarations for architecture-specific codegen stuff */

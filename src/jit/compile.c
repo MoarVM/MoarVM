@@ -27,8 +27,8 @@ void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitGraph
     /* space for dynamic labels */
     dasm_growpc(cl, jg->num_labels);
     /* Offset in temporary array in which we can spill */
-    cl->spill_offset = (jg->sg->num_locals + jg->sg->sf->body.cu->body.max_callsite_size) * MVM_JIT_REG_SZ;
-    cl->max_spill    = 2*MVM_JIT_PTR_SZ;
+    cl->spill_bottom = (jg->sg->num_locals + jg->sg->sf->body.cu->body.max_callsite_size) * MVM_JIT_REG_SZ;
+    cl->spill_top    = cl->spill_bottom;
 
 }
 
@@ -120,7 +120,7 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     code->size       = codesize;
     code->bytecode   = (MVMuint8*)MAGIC_BYTECODE;
     code->sf         = jg->sg->sf;
-    code->spill_size = cl->max_spill;
+    code->spill_size = cl->spill_top - cl->spill_bottom;
 
     /* Get the basic block labels */
     code->num_labels = jg->num_labels;
@@ -181,6 +181,13 @@ void MVM_jit_compile_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *co
 void MVM_jit_compile_label(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitTile *tile, MVMJitExprTree *tree) {
     MVM_jit_emit_label(tc, compiler, tree->graph, tile->args[0] + compiler->label_offset);
+}
+
+void MVM_jit_compile_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                           MVMJitTile *tile, MVMJitExprTree *tree) {
+    MVM_jit_emit_spill(tc, compiler, tile->args[0],
+                       tile->values[0]->st_cls, tile->values[0]->st_pos,
+                       sizeof(MVMRegister));
 }
 
 

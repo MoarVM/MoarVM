@@ -64,6 +64,8 @@ struct RegisterAllocator {
 
     /* Last use of each register */
     MVMint32 last_use[MVM_JIT_MAX_GPR];
+
+    MVMint32 spill_top;
 };
 
 
@@ -107,6 +109,11 @@ static void insert_tile_after(MVMThreadContext *tc, struct RegisterAllocator *al
     MVM_DYNAR_PUSH(allocator->tile_inserts, i);
 }
 
+static void insert_tile_before(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitTile *tile, MVMint32 position) {
+    struct InsertTile i = { position - 1, tile };
+    MVM_DYNAR_PUSH(allocator->tile_inserts, i);
+}
+
 static int cmp_tile_insert(const void *p1, const void *p2) {
     return ((struct InsertTile*)p1)->position - ((struct InsertTile*)p2)->position;
 }
@@ -147,24 +154,6 @@ static void edit_tilelist(MVMThreadContext *tc, struct RegisterAllocator *alloca
 }
 
 
-static MVMint8 alloc_register(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitStorageClass reg_cls) {
-    MVMint8 reg_num;
-    if (reg_cls == MVM_JIT_STORAGE_FPR) {
-        NYI(numeric_regs);
-    } else {
-        if (NEXT_REG(allocator->reg_take) == allocator->reg_give) {
-            /* Out of registers, spill something */
-            NYI(spill_something);
-        }
-        /* Use a circular handout scheme for the 'fair use' of registers */
-        reg_num       = allocator->free_reg[allocator->reg_take];
-        /* mark it for debugging purposes */
-        allocator->free_reg[allocator->reg_take] = 0xff;
-        allocator->reg_take = NEXT_REG(allocator->reg_take);
-    }
-    /* MVM_jit_log(tc, "Allocated register %d at order nr %d\n", reg_num, cl->order_nr); */
-    return reg_num;
-}
 
 /* Freeing a register makes it available again */
 static void free_register(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitStorageClass reg_cls, MVMint8 reg_num) {
@@ -211,8 +200,67 @@ static void expire_values(MVMThreadContext *tc, struct RegisterAllocator *alloca
             free_register(tc, allocator, MVM_JIT_STORAGE_GPR, reg_num);
         }
     }
-
 }
+
+static void spill_value(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitValueDescriptor *value, MVMint32 order_nr) {
+    MVMJitTile *tile;
+    MVMint32 spill_pos = allocator->spill_top;
+    allocator->spill_top += sizeof(MVMRegister);
+    tile = MVM_jit_tile_make(tc, allocator->compiler->graph->sg, MVM_jit_compile_store, value->node, 1, spill_pos);
+    tile->values[0] = value;
+    insert_tile_after(tc, allocator, tile, value->range_start);
+    assign_value(tc, allocator, value->node, MVM_JIT_STORAGE_LOCAL, spill_pos);
+    value->range_end = order_nr;
+}
+
+static void spill_register(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMint32 order_nr) {
+    MVMJitValueDescriptor *value, *head;
+    MVMint8 spill_reg = free_gpr[0];
+    MVMint32 i, node, first_created;
+
+    for (i = 1; i < NUM_GPR; i++) {
+        if (allocator->last_use[free_gpr[i]] > allocator->last_use[spill_reg]) {
+            spill_reg = free_gpr[i];
+        }
+    }
+
+    for (head = allocator->values_by_register[spill_reg];
+         head != NULL; head = head->next_by_position) {
+        for (value = allocator->values_by_node[head->node];
+             value != NULL; value = value->next_by_node) {
+            if (value->st_cls == MVM_JIT_STORAGE_LOCAL ||
+                value->st_cls == MVM_JIT_STORAGE_NVR)
+                goto have_spilled;
+        }
+        /* No nonvolatile value descriptor for this node, hence */
+        spill_value(tc, allocator, head, order_nr);
+    have_spilled:
+        continue;
+    }
+    /* all the necessary spills have been inserted, so now we can */
+    free_register(tc, allocator, MVM_JIT_STORAGE_GPR, spill_reg);
+}
+
+static MVMint8 alloc_register(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitStorageClass reg_cls, MVMint32 order_nr) {
+    MVMint8 reg_num;
+    if (reg_cls == MVM_JIT_STORAGE_FPR) {
+        NYI(numeric_regs);
+    } else {
+        if (NEXT_REG(allocator->reg_take) == allocator->reg_give) {
+            /* Out of registers, spill something */
+            spill_register(tc, allocator, order_nr);
+        }
+        /* Use a circular handout scheme for the 'fair use' of registers */
+        reg_num       = allocator->free_reg[allocator->reg_take];
+        /* mark it for debugging purposes */
+        allocator->free_reg[allocator->reg_take] = 0xff;
+        allocator->reg_take = NEXT_REG(allocator->reg_take);
+    }
+    /* MVM_jit_log(tc, "Allocated register %d at order nr %d\n", reg_num, cl->order_nr); */
+    return reg_num;
+}
+
+
 
 /* Get nodes and arguments refered to by a tile */
 static void get_tile_nodes(MVMThreadContext *tc, struct RegisterAllocator *allocator,
@@ -347,7 +395,7 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
                     /* First register expires immediately, therefore we can safely cross-assign */
                     assign_value(tc, &allocator, tile->node, tile->values[1]->st_cls, tile->values[1]->st_pos);
                 } else {
-                    reg = alloc_register(tc, &allocator, MVM_JIT_STORAGE_GPR);
+                    reg = alloc_register(tc, &allocator, MVM_JIT_STORAGE_GPR, i);
                     assign_value(tc, &allocator, tile->node, MVM_JIT_STORAGE_GPR, reg);
                 }
             }

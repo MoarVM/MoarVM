@@ -2484,9 +2484,8 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
 }
 
 
-void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location,
+void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 idx,
                        MVMJitStorageClass st_cls , MVMint8 st_pos, MVMint32 size) {
-    MVMint32 idx = compiler->spill_offset + MVM_JIT_REG_SZ * location;
     if (st_cls == MVM_JIT_STORAGE_GPR) {
         switch(size) {
         case 1:
@@ -2499,17 +2498,14 @@ void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 
             | mov Rd(st_pos), dword [rbx+idx];
             break;
         case 8:
-            MVM_jit_log(tc, "Emit load of offset %d to register %d\n", location, st_pos);
             | mov Rq(st_pos), qword [rbx+idx];
             break;
         }
     }
 }
 
-void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 location,
+void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 idx,
                         MVMJitStorageClass st_cls, MVMint8 reg_pos, MVMint32 size) {
-    /* TODO this calculation belongs in the register allocator */
-    MVMint32 idx = compiler->spill_offset + MVM_JIT_REG_SZ * location;
     if (st_cls == MVM_JIT_STORAGE_GPR) {
         switch (size) {
         case 1:
