@@ -1,3 +1,5 @@
+#define MVM_SHORT_STRING_CACHE_SIZE 256
+
 /* The various "bootstrap" types, based straight off of some core
  * representations. They are used during the 6model bootstrap. */
 struct MVMBootTypes {
@@ -105,6 +107,10 @@ struct MVMObjectId {
 
     /* Hash handle. */
     UT_hash_handle hash_handle;
+};
+
+struct MVMShortStringCache {
+    MVMObject *string[MVM_SHORT_STRING_CACHE_SIZE];
 };
 
 /* Represents a MoarVM instance. */
@@ -283,6 +289,10 @@ struct MVMInstance {
      * so that it lines up properly. */
     MVMIntConstCache    *int_const_cache;
     uv_mutex_t mutex_int_const_cache;
+
+    /* For one-codepoint strings, there's a tremendous amount of overhead,
+     * but they are surprisingly common, so we have a little cache of 'em. */
+    MVMShortStringCache *short_string_cache;
 
     /* Atomically-incremented counter of newly invoked frames, used for
      * lexotic caching. */

@@ -289,6 +289,33 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
     if (start_pos == 0 && end_pos == agraphs)
         return a;
 
+    if (start_pos == end_pos - 1) {
+        MVMGrapheme32 the_grapheme;
+        MVMGraphemeIter gi;
+        MVMint32 i;
+
+        MVM_string_gi_init(tc, &gi, a);
+        MVM_string_gi_move_to(tc, &gi, start_pos);
+
+        the_grapheme = MVM_string_gi_get_grapheme(tc, &gi);
+
+        if (the_grapheme > -128 && the_grapheme < -128 + MVM_SHORT_STRING_CACHE_SIZE) {
+            if (tc->instance->short_string_cache->string[the_grapheme + 128]) {
+                return tc->instance->short_string_cache->string[the_grapheme + 128];
+            } else {
+                MVMROOT(tc, a, {
+                    result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+                    result->body.num_graphs = 1;
+                    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+                    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32));
+                    result->body.storage.blob_32[0] = the_grapheme;
+                });
+                tc->instance->short_string_cache->string[the_grapheme + 128] = result;
+                return result;
+            }
+        }
+    }
+
     /* Construct a result; how we efficiently do so will vary based on the
      * input string. */
     MVMROOT(tc, a, {
@@ -1776,6 +1803,20 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMCodepoint cp) {
         g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
     }
     MVM_unicode_normalizer_cleanup(tc, &norm);
+
+    if (g > -128 && g < -128 + MVM_SHORT_STRING_CACHE_SIZE) {
+        if (tc->instance->short_string_cache->string[g + 128]) {
+            return tc->instance->short_string_cache->string[g + 128];
+        } else {
+            s = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
+            s->body.storage_type       = MVM_STRING_GRAPHEME_32;
+            s->body.storage.blob_32    = MVM_malloc(sizeof(MVMGrapheme32));
+            s->body.storage.blob_32[0] = g;
+            s->body.num_graphs         = 1;
+            tc->instance->short_string_cache->string[g + 128] = s;
+            return s;
+        }
+    }
 
     s = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
     s->body.storage_type       = MVM_STRING_GRAPHEME_32;

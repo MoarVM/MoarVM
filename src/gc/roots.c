@@ -84,6 +84,12 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         add_collectable(tc, worklist, snapshot, int_to_str_cache[i],
             "Integer to string cache entry");
 
+    for (i = 0; i < MVM_SHORT_STRING_CACHE_SIZE; i++) {
+        if (tc->instance->short_string_cache->string[i])
+            add_collectable(tc, worklist, snapshot, tc->instance->short_string_cache->string[i],
+                "Short String Cache entry");
+    }
+
     /* okay, so this makes the weak hash slightly less weak.. for certain
      * keys of it anyway... */
     HASH_ITER(hash_handle, tc->instance->sc_weakhash, current, tmp, bucket_tmp) {

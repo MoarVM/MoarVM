@@ -251,6 +251,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->nfg = calloc(1, sizeof(MVMNFGState));
     init_mutex(instance->nfg->update_mutex, "NFG update mutex");
 
+    /* Set up the short string cache */
+    instance->short_string_cache = calloc(1, sizeof(MVMShortStringCache));
+
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
 
