@@ -105,7 +105,7 @@ typedef struct MVMCUnionNameMap MVMCUnionNameMap;
 typedef struct MVMCUnionREPRData MVMCUnionREPRData;
 typedef struct MVMMultiCache MVMMultiCache;
 typedef struct MVMMultiCacheBody MVMMultiCacheBody;
-typedef struct MVMMultiArityCache MVMMultiArityCache;
+typedef struct MVMMultiCacheNode MVMMultiCacheNode;
 typedef struct MVMMultiDimArray MVMMultiDimArray;
 typedef struct MVMMultiDimArrayBody MVMMultiDimArrayBody;
 typedef struct MVMMultiDimArrayREPRData MVMMultiDimArrayREPRData;
