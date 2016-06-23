@@ -379,22 +379,43 @@ MVMString * MVM_string_decodestream_get_until_sep_eof(MVMThreadContext *tc, MVMD
 /* Decodes all the buffers, producing a string containing all the decoded
  * characters. */
 MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStream *ds) {
-    MVMString *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    result->body.storage_type = MVM_STRING_GRAPHEME_32;
+    MVMString *result;
 
     /* Decode anything remaining and flush normalization buffer. */
     reached_eof(tc, ds);
 
     /* If there's no codepoint buffer, then return the empty string. */
     if (!ds->chars_head) {
+        result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        result->body.storage_type = MVM_STRING_GRAPHEME_32;
         result->body.storage.blob_32 = NULL;
         result->body.num_graphs      = 0;
     }
 
     /* If there's exactly one resulting codepoint buffer and we swallowed none
-     * of it, just use it. */
+     * of it, either just use it (or use a cached one-codepoint-string). */
     else if (ds->chars_head == ds->chars_tail && ds->chars_head_pos == 0) {
+        if (ds->chars_head->length == 1) {
+            MVMGrapheme32 g = ds->chars_head->chars[0];
+            if (g > -128 && g < -128 + MVM_SHORT_STRING_CACHE_SIZE) {
+                if (tc->instance->short_string_cache->string[g + 128]) {
+                    return tc->instance->short_string_cache->string[g + 128];
+                } else {
+                    result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+                    result->body.storage_type = MVM_STRING_GRAPHEME_32;
+                    result->body.storage.blob_32 = malloc(sizeof(MVMGrapheme32));
+                    result->body.storage.blob_32[0] = g;
+                    result->body.num_graphs = 1;
+
+                    tc->instance->short_string_cache->string[g + 128] = result;
+                    return result;
+                }
+            }
+        }
+
         /* Set up result string. */
+        result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        result->body.storage_type = MVM_STRING_GRAPHEME_32;
         result->body.storage.blob_32 = ds->chars_head->chars;
         result->body.num_graphs      = ds->chars_head->length;
 
