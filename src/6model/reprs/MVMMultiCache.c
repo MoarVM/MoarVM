@@ -40,7 +40,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVM_fixed_size_free(tc, tc->instance->fsa,
             mc->body.num_results * sizeof(MVMObject *),
             mc->body.results);
-    MVM_free(mc->body.results);
 }
 
 static const MVMStorageSpec storage_spec = {
