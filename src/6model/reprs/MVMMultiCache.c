@@ -343,8 +343,9 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
     new_head[tweak_node].match = -(cache->num_results - 1);
 
     /* Update the rest. */
-    MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
-        cache->cache_memory_size, cache->node_hash_head);
+    if (cache->node_hash_head)
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+            cache->cache_memory_size, cache->node_hash_head);
     cache->node_hash_head = new_head;
     cache->cache_memory_size = new_size;
 
