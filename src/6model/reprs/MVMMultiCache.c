@@ -456,6 +456,8 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
 /* Do a multi cache lookup based upon spesh arg facts. */
 MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_obj, MVMSpeshCallInfo *arg_info) {
     MVMMultiCacheBody *cache;
+    MVMMultiCacheNode *tree;
+    MVMint32 cur_node;
 
     /* Bail if callsite not interned. */
     if (!arg_info->cs->is_interned)
@@ -468,46 +470,78 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
     if (!cache->node_hash_head)
         return NULL;
 
-    /* Create arg tuple. */
-    //for (i = 0; i < num_args; i++) {
-    //    MVMuint8 arg_type = arg_info->cs->arg_flags[i] & MVM_CALLSITE_ARG_MASK;
-    //    if (arg_type == MVM_CALLSITE_ARG_OBJ) {
-    //        MVMSpeshFacts *facts = arg_info->arg_facts[i];
-    //        if (facts) {
-    //            /* Must know type. */
-    //            if (!(facts->flags & MVM_SPESH_FACT_KNOWN_TYPE))
-    //                return NULL;
+    /* Use hashed callsite to find the node to start with. */
+    cur_node = hash_callsite(tc, arg_info->cs);
 
-    //            /* Must know if it's concrete or not. */
-    //            if (!(facts->flags & (MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_TYPEOBJ)))
-    //                return NULL;
+    /* Walk tree until we match callsite. */
+    tree = cache->node_hash_head;
+    do {
+        if (tree[cur_node].action.cs == arg_info->cs) {
+            cur_node = tree[cur_node].match;
+            break;
+        }
+        cur_node = tree[cur_node].no_match;
+    } while (cur_node > 0);
 
-    //            /* If it's a container, must know what's inside it. Otherwise,
-    //             * we're already good on type info. */
-    //            if ((facts->flags & MVM_SPESH_FACT_CONCRETE) && STABLE(facts->type)->container_spec) {
-    //                /* Again, need to know type and concreteness. */
-    //                if (!(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE))
-    //                    return NULL;
-    //                if (!(facts->flags & (MVM_SPESH_FACT_DECONT_CONCRETE | MVM_SPESH_FACT_DECONT_TYPEOBJ)))
-    //                    return NULL;
-    //                arg_tup[i] = STABLE(facts->decont_type)->type_cache_id |
-    //                    ((facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) ? 1 : 0);
-    //                if (facts->flags & MVM_SPESH_FACT_RW_CONT)
-    //                    arg_tup[i] |= 2;
-    //            }
-    //            else {
-    //                arg_tup[i] = STABLE(facts->type)->type_cache_id |
-    //                    ((facts->flags & MVM_SPESH_FACT_CONCRETE) ? 1 : 0);
-    //            }
-    //        }
-    //        else {
-    //            return NULL;
-    //        }
-    //    }
-    //    else {
-    //        arg_tup[i] = (arg_type << 2) | 1;
-    //    }
-    //}
+    /* Now walk until we match argument type/concreteness/rw. */
+    while (cur_node > 0) {
+        MVMuint64      arg_match = tree[cur_node].action.arg_match;
+        MVMuint64      arg_idx   = arg_match & MVM_MULTICACHE_ARG_IDX_FILTER;
+        MVMuint64      type_id   = arg_match & MVM_MULTICACHE_TYPE_ID_FILTER;
+        MVMSpeshFacts *facts     = arg_info->arg_facts[arg_idx];
+        if (facts) {
+            /* Figure out type, concreteness, and rw-ness from facts. */
+            MVMSTable *known_type_st;
+            MVMuint32  is_conc;
+            MVMuint32  is_rw;
 
-    return NULL;
+            /* Must know type. */
+            if (!(facts->flags & MVM_SPESH_FACT_KNOWN_TYPE))
+                return NULL;
+
+            /* Must know if it's concrete or not. */
+            if (!(facts->flags & (MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_TYPEOBJ)))
+                return NULL;
+
+            /* If it's a container, must know what's inside it. Otherwise,
+             * we're already good on type info. */
+            if ((facts->flags & MVM_SPESH_FACT_CONCRETE) && STABLE(facts->type)->container_spec) {
+                /* Again, need to know type and concreteness. */
+                if (!(facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE))
+                    return NULL;
+                if (!(facts->flags & (MVM_SPESH_FACT_DECONT_CONCRETE | MVM_SPESH_FACT_DECONT_TYPEOBJ)))
+                    return NULL;
+                known_type_st = STABLE(facts->decont_type);
+                is_conc = (facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) ? 1 : 0;
+                is_rw = (facts->flags & MVM_SPESH_FACT_RW_CONT) ? 1 : 0;
+            }
+            else {
+                known_type_st = STABLE(facts->type);
+                is_conc = (facts->flags & MVM_SPESH_FACT_CONCRETE) ? 1 : 0;
+                is_rw = 0;
+            }
+
+            /* Now check if what we have matches what we need. */
+            if (known_type_st->type_cache_id == type_id) {
+                MVMuint32 need_concrete = (arg_match & MVM_MULTICACHE_ARG_CONC_FILTER) ? 1 : 0;
+                if (is_conc == need_concrete) {
+                    MVMuint32 need_rw = (arg_match & MVM_MULTICACHE_ARG_RW_FILTER) ? 1 : 0;
+                    if (need_rw == is_rw) {
+                        cur_node = tree[cur_node].match;
+                        continue;
+                    }
+                }
+            }
+            cur_node = tree[cur_node].no_match;
+        }
+        else {
+            /* No facts about this argument available from analysis, so
+             * can't resolve the dispatch. */
+            return NULL;
+        }
+    }
+
+    /* Negate result and index into results (the first result is always NULL
+     * to save flow control around "no match"). */
+    return cache->results[-cur_node];
 }
