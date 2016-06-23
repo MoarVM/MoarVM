@@ -135,7 +135,7 @@ static MVMint32 missing_chars(MVMThreadContext *tc, const MVMDecodeStream *ds, M
     return got >= wanted ? 0 : wanted - got;
 }
 static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 chars, MVMint32 exclude) {
-    MVMString *result;
+    MVMString *result = 0;
     MVMint32   found = 0;
     MVMint32   result_found = 0;
 
@@ -143,13 +143,53 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
     if (result_chars < 0)
         MVM_exception_throw_adhoc(tc, "DecodeStream take_chars: chars - exclude < 0 should never happen");
 
-    result                       = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    result->body.storage.blob_32 = MVM_malloc(result_chars * sizeof(MVMGrapheme32));
-    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    result->body.num_graphs      = result_chars;
     while (found < chars) {
         MVMDecodeStreamChars *cur_chars = ds->chars_head;
         MVMint32 available = cur_chars->length - ds->chars_head_pos;
+        if (available >= 1 && result_chars == 1) {
+            MVMGrapheme32 g = cur_chars->chars[ds->chars_head_pos];
+            if (g > -128 && g < -128 + MVM_SHORT_STRING_CACHE_SIZE) {
+                if (tc->instance->short_string_cache->string[g + 128]) {
+                    result = tc->instance->short_string_cache->string[g + 128];
+                } else {
+                    result                       = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+                    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32));
+                    result->body.storage.blob_32[0] = g;
+                    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+                    result->body.num_graphs      = 1;
+                    tc->instance->short_string_cache->string[g + 128] = result;
+                }
+
+                if (result) {
+                    result_found += 1;
+                    /* Make sure we advance the decodestream properly */
+                    if (available <= chars - found) {
+                        MVMDecodeStreamChars *next_chars = cur_chars->next;
+                        ds->chars_head = next_chars;
+                        ds->chars_head_pos = 0;
+                        MVM_free(cur_chars->chars);
+                        MVM_free(cur_chars);
+                        if (ds->chars_head == NULL)
+                            ds->chars_tail = NULL;
+                    } else {
+                        MVMint32 take = chars - found;
+                        MVMint32 to_copy = result_chars - result_found;
+                        result_found += to_copy;
+                        found += take;
+                        ds->chars_head_pos += take;
+                    }
+                    return result;
+                }
+            }
+            /* Cache miss, so we'll have to allocate the string for the rest
+             * of the code - but only once! */
+        }
+        if (!result) {
+            result                       = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+            result->body.storage.blob_32 = MVM_malloc(result_chars * sizeof(MVMGrapheme32));
+            result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+            result->body.num_graphs      = result_chars;
+        }
         if (available <= chars - found) {
             /* We need all that's left in this buffer and likely
              * more. */
