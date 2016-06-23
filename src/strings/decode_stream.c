@@ -369,6 +369,10 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
         /* Calculate length. */
         MVMint32 length = 0, pos = 0;
         MVMDecodeStreamChars *cur_chars = ds->chars_head;
+
+        result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        result->body.storage_type = MVM_STRING_GRAPHEME_32;
+
         while (cur_chars) {
             if (cur_chars == ds->chars_head)
                 length += cur_chars->length - ds->chars_head_pos;
