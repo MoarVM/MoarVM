@@ -110,7 +110,7 @@ struct MVMObjectId {
 };
 
 struct MVMShortStringCache {
-    MVMObject *string[MVM_SHORT_STRING_CACHE_SIZE];
+    MVMString *string[MVM_SHORT_STRING_CACHE_SIZE];
 };
 
 /* Represents a MoarVM instance. */
