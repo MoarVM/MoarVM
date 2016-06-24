@@ -322,7 +322,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
         new_results = MVM_fixed_size_alloc(tc, tc->instance->fsa,
             (cache->num_results + 1) * sizeof(MVMObject *));
         memcpy(new_results, cache->results, cache->num_results * sizeof(MVMObject *));
-        new_results[cache->num_results] = result;
+        MVM_ASSIGN_REF(tc, &(cache_obj->header), new_results[cache->num_results], result);
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
             cache->num_results * sizeof(MVMObject *), cache->results);
         cache->results = new_results;
@@ -332,7 +332,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
         new_results = MVM_fixed_size_alloc(tc, tc->instance->fsa,
             2 * sizeof(MVMObject *));
         new_results[0] = NULL; /* Sentinel */
-        new_results[1] = result;
+        MVM_ASSIGN_REF(tc, &(cache_obj->header), new_results[1], result);
         cache->results = new_results;
         cache->num_results = 2;
     }
