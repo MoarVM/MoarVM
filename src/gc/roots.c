@@ -111,7 +111,7 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     MVMNativeCallbackCacheHead *current_cbceh, *tmp_cbceh;
     unsigned bucket_tmp;
 
-    /* Any active exception handlers. */
+    /* Any active exception handlers and payload. */
     MVMActiveHandler *cur_ah = tc->active_handlers;
     while (cur_ah != NULL) {
         add_collectable(tc, worklist, snapshot, cur_ah->ex_obj, "Active handler exception object");
@@ -119,6 +119,8 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
             add_collectable(tc, worklist, snapshot, cur_ah->frame, "Active handler frame");
         cur_ah = cur_ah->next_handler;
     }
+    add_collectable(tc, worklist, snapshot, tc->last_payload,
+        "Last exception payload");
 
     /* The thread object. */
     add_collectable(tc, worklist, snapshot, tc->thread_obj, "Thread object");

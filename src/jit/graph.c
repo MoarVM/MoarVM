@@ -1532,6 +1532,8 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_invokewithcapture:
     case MVM_OP_captureposelems:
     case MVM_OP_capturehasnameds:
+        /* Exception handling */
+    case MVM_OP_lastexpayload:
         jg_append_primitive(tc, jg, ins);
         break;
         /* branches */

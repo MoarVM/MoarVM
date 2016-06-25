@@ -132,8 +132,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
 
-    /* Fix up main thread's usecapture. */
+    /* Fix up main thread's usecapture and last_payload. */
     instance->main_thread->cur_usecapture = MVM_repr_alloc_init(instance->main_thread, instance->CallCapture);
+    instance->main_thread->last_payload = instance->VMNull;
 
     /* Initialize event loop thread starting mutex. */
     init_mutex(instance->mutex_event_loop_start, "event loop thread start");

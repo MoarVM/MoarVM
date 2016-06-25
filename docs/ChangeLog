@@ -1,3 +1,28 @@
+New in 2016.06
+
++ Serialize the HLL role field of STables
++ Avoid VMNull setup memcpy/loop in specialized frame initialization
++ Stop caching MVMContext on a frame
++ Use frames directly when serializing closures, rather than having to create
+  an MVMContext wrapper for every one
++ Write SC index when deserializing, repossessing, and preparing to serialize,
+  saving a huge amount of linear scanning
++ Only used cached SC index if SC itself matches
++ Remove an unrequired memset to clear the args buffer
++ Inline args preparation into interpreter, and JIT it directly instead of
+  making a call to a tiny function
++ Mark getlexcaller as :noinline
++ Don't lose handlers during multi-level inlines
++ Eliminate loop in P6opaque's get_boxed_ref function, decreasing cost
++ Implement payload throw/handler support
++ Implement callerlex throwing mode
++ Make moar-gdb.py source-able, instead of only autoloadable
++ Fix inlining causing wrong lexical handler lookup
++ Make build in dir containing space work
++ Allow HLL handler for unhandled lexical exception
++ Add debug_name to "cannot iterate X with Y REPR" message
++ Give "this is not a X iterator" more info, too
+
 New in 2016.05
 
 + Use MSVC-provided stdint.h and inttypes.h when possible

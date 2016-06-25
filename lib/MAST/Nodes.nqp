@@ -619,9 +619,9 @@ class MAST::Annotated is MAST::Node {
 
 # Handler constants.
 module HandlerAction {
-    our $unwind_and_goto      := 0;
-    our $unwind_and_goto_obj  := 1;
-    our $invoke_and_we'll_see := 2;
+    our $unwind_and_goto              := 0;
+    our $unwind_and_goto_with_payload := 1;
+    our $invoke_and_we'll_see         := 2;
 }
 
 # Category constants.
@@ -672,7 +672,7 @@ class MAST::HandlerScope is MAST::Node {
             }
         }
         elsif $action != $HandlerAction::unwind_and_goto &&
-              $action != $HandlerAction::unwind_and_goto_obj {
+              $action != $HandlerAction::unwind_and_goto_with_payload {
             nqp::die("Unknown handler action");
         }
         if $category_mask +& $HandlerCategory::labeled {

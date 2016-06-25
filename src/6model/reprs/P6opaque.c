@@ -6,6 +6,7 @@
 
 #define P6OMAX(x, y) ((y) > (x) ? (y) : (x))
 #define REFVAR_VM_HASH_STR_VAR 10
+#define MVM_P6OPAQUE_NO_UNBOX_SLOT 0xFFFF
 
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
@@ -544,13 +545,9 @@ static void * get_boxed_ref(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     data = MVM_p6opaque_real_data(tc, data);
     if (repr_data->unbox_slots) {
-        int i;
-        for (i = 0; i < repr_data->num_attributes; i++) {
-            if (repr_data->unbox_slots[i].repr_id == repr_id)
-                return (char *)data + repr_data->attribute_offsets[repr_data->unbox_slots[i].slot];
-            else if (repr_data->unbox_slots[i].repr_id == 0)
-                break;
-        }
+        MVMuint16 offset = repr_data->unbox_slots[repr_id];
+        if (offset != MVM_P6OPAQUE_NO_UNBOX_SLOT)
+            return (char *)data + repr_data->attribute_offsets[offset];
     }
 
     MVM_exception_throw_adhoc(tc,
@@ -590,10 +587,17 @@ static void mk_storage_spec(MVMThreadContext *tc, MVMP6opaqueREPRData * repr_dat
 }
 
 /* Compose the representation. */
+static MVMuint16 * allocate_unbox_slots() {
+    MVMuint16 *slots = MVM_malloc(MVM_REPR_MAX_COUNT * sizeof(MVMuint16));
+    MVMuint16 i;
+    for (i = 0; i < MVM_REPR_MAX_COUNT; i++)
+        slots[i] = MVM_P6OPAQUE_NO_UNBOX_SLOT;
+    return slots;
+}
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMint64   mro_pos, mro_count, num_parents, total_attrs, num_attrs,
                cur_slot, cur_type, cur_alloc_addr, cur_obj_attr,
-               cur_init_slot, cur_mark_slot, cur_cleanup_slot, cur_unbox_slot,
+               cur_init_slot, cur_mark_slot, cur_cleanup_slot,
                unboxed_type, i;
     MVMObject *info;
 
@@ -673,7 +677,6 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     cur_init_slot    = 0;
     cur_mark_slot    = 0;
     cur_cleanup_slot = 0;
-    cur_unbox_slot   = 0;
     while (mro_pos--) {
         /* Get info for the class at the current position. */
         MVMObject *class_info = MVM_repr_at_pos_o(tc, info, mro_pos);
@@ -776,10 +779,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
                         /* Also list in the by-repr unbox list. */
                         if (repr_data->unbox_slots == NULL)
-                            repr_data->unbox_slots = (MVMP6opaqueBoxedTypeMap *)MVM_calloc(total_attrs, sizeof(MVMP6opaqueBoxedTypeMap));
-                        repr_data->unbox_slots[cur_unbox_slot].repr_id = REPR(type)->ID;
-                        repr_data->unbox_slots[cur_unbox_slot].slot = cur_slot;
-                        cur_unbox_slot++;
+                            repr_data->unbox_slots = allocate_unbox_slots();
+                        repr_data->unbox_slots[REPR(type)->ID] = cur_slot;
                     }
                 }
             }
@@ -914,10 +915,18 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
     MVM_serialization_write_int(tc, writer, repr_data->unbox_str_slot);
 
     if (repr_data->unbox_slots) {
+        MVMuint32 num_written = 0;
         MVM_serialization_write_int(tc, writer, 1);
-        for (i = 0; i < repr_data->num_attributes; i++) {
-            MVM_serialization_write_int(tc, writer, repr_data->unbox_slots[i].repr_id);
-            MVM_serialization_write_int(tc, writer, repr_data->unbox_slots[i].slot);
+        for (i = 0; i < MVM_REPR_MAX_COUNT; i++) {
+            if (repr_data->unbox_slots[i] != MVM_P6OPAQUE_NO_UNBOX_SLOT) {
+                MVM_serialization_write_int(tc, writer, i);
+                MVM_serialization_write_int(tc, writer, repr_data->unbox_slots[i]);
+                num_written++;
+            }
+        }
+        for (i = num_written; i < repr_data->num_attributes; i++) {
+            MVM_serialization_write_int(tc, writer, 0);
+            MVM_serialization_write_int(tc, writer, 0);
         }
     }
     else {
@@ -977,10 +986,12 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->unbox_str_slot = MVM_serialization_read_int(tc, reader);
 
     if (MVM_serialization_read_int(tc, reader)) {
-        repr_data->unbox_slots = (MVMP6opaqueBoxedTypeMap *)MVM_malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMP6opaqueBoxedTypeMap));
+        repr_data->unbox_slots = allocate_unbox_slots();
         for (i = 0; i < repr_data->num_attributes; i++) {
-            repr_data->unbox_slots[i].repr_id = MVM_serialization_read_int(tc, reader);
-            repr_data->unbox_slots[i].slot = MVM_serialization_read_int(tc, reader);
+            MVMuint16 repr_id = MVM_serialization_read_int(tc, reader);
+            MVMuint16 slot = MVM_serialization_read_int(tc, reader);
+            if (repr_id)
+                repr_data->unbox_slots[repr_id] = slot;
         }
     } else {
         repr_data->unbox_slots = NULL;

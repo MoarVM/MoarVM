@@ -563,7 +563,7 @@ getlexouter         w(obj) r(str) :pure :noinline
 getlexrel           w(obj) r(obj) r(str) :pure
 getlexreldyn        w(obj) r(obj) r(str) :pure
 getlexrelcaller     w(obj) r(obj) r(str) :pure
-getlexcaller        w(obj) r(str) :pure
+getlexcaller        w(obj) r(str) :pure :noinline
 bitand_s            w(str) r(str) r(str) :pure
 bitor_s             w(str) r(str) r(str) :pure
 bitxor_s            w(str) r(str) r(str) :pure
@@ -780,6 +780,9 @@ lstat_time          w(num64) r(str) r(int64)
 setdebugtypename    r(obj) r(str)
 loadbytecodebuffer  r(obj)
 loadbytecodefh      r(obj) r(str)
+throwpayloadlex     w(obj) int64 r(obj) :noinline
+throwpayloadlexcaller w(obj) int64 r(obj)
+lastexpayload       w(obj) :noinline
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

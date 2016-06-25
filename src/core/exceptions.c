@@ -70,6 +70,7 @@ typedef struct {
     MVMFrame        *frame;
     MVMFrameHandler *handler;
     MVMJitHandler   *jit_handler;
+    MVMint32         handler_out_of_dynamic_scope;
 } LocatedHandler;
 
 static MVMint32 handler_can_handle(MVMFrame *f, MVMFrameHandler *fh, MVMint32 cat, MVMObject *payload) {
@@ -86,8 +87,8 @@ static MVMint32 handler_can_handle(MVMFrame *f, MVMFrameHandler *fh, MVMint32 ca
  * match what we're looking for. Returns 1 to it if so; if not,
  * returns 0. */
 static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
-                                      MVMuint32 cat, MVMObject *payload,
-                                      LocatedHandler *lh) {
+                                      MVMuint8 mode, MVMuint32 cat,
+                                      MVMObject *payload, LocatedHandler *lh) {
     MVMuint32  i;
     if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
         MVMJitHandler    *jhs = f->spesh_cand->jitcode->handlers;
@@ -96,6 +97,8 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
         void         **labels = f->spesh_cand->jitcode->labels;
         void       *cur_label = f->jit_entry_label;
         for (i = 0; i < num_handlers; i++) {
+            if (mode == MVM_EX_THROW_LEX && fhs[i].inlined_and_not_lexical)
+                continue;
             if (!handler_can_handle(f, &fhs[i], cat, payload))
                 continue;
             if (cur_label >= labels[jhs[i].start_label] &&
@@ -117,6 +120,8 @@ static MVMint32 search_frame_handlers(MVMThreadContext *tc, MVMFrame *f,
             pc = (MVMuint32)(f->return_address - f->effective_bytecode);
         for (i = 0; i < num_handlers; i++) {
             MVMFrameHandler  *fh = &f->effective_handlers[i];
+            if (mode == MVM_EX_THROW_LEX && fh->inlined_and_not_lexical)
+                continue;
             if (!handler_can_handle(f, fh, cat, payload))
                 continue;
             if (pc >= fh->start_offset && pc <= fh->end_offset && !in_handler_stack(tc, fh, f)) {
@@ -136,32 +141,45 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
     lh.frame = NULL;
     lh.handler = NULL;
     lh.jit_handler = NULL;
-    if (mode == MVM_EX_THROW_LEXOTIC) {
-        while (f != NULL) {
-            lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat, payload);
-            if (lh.frame != NULL)
-                return lh;
+    lh.handler_out_of_dynamic_scope = 0;
+    switch (mode) {
+        case MVM_EX_THROW_LEX_CALLER:
             f = f->caller;
-        }
-    }
-    else {
-        while (f != NULL) {
-            if (search_frame_handlers(tc, f, cat, payload, &lh)) {
-                lh.frame = f;
-                return lh;
+            while (f && f->static_info->body.is_thunk)
+                f = f->caller;
+            /* And now we've gone down a caller, it's just lexical... */
+        case MVM_EX_THROW_LEX:
+            while (f != NULL) {
+                if (search_frame_handlers(tc, f, MVM_EX_THROW_LEX, cat, payload, &lh)) {
+                    if (in_caller_chain(tc, f))
+                        lh.frame = f;
+                    else
+                        lh.handler_out_of_dynamic_scope = 1;
+                    return lh;
+                }
+                f = f->outer;
             }
-            if (mode == MVM_EX_THROW_DYN) {
+            return lh;
+        case MVM_EX_THROW_DYN:
+            while (f != NULL) {
+                if (search_frame_handlers(tc, f, mode, cat, payload, &lh)) {
+                    lh.frame = f;
+                    return lh;
+                }
                 f = f->caller;
             }
-            else {
-                MVMFrame *f_maybe = f->outer;
-                while (f_maybe != NULL && !in_caller_chain(tc, f_maybe))
-                    f_maybe = f_maybe->outer;
-                f = f_maybe;
+            return lh;
+        case MVM_EX_THROW_LEXOTIC:
+            while (f != NULL) {
+                lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat, payload);
+                if (lh.frame != NULL)
+                    return lh;
+                f = f->caller;
             }
-        }
+            return lh;
+        default:
+            MVM_panic(1, "Unhandled exception throw mode %d", (int)mode);
     }
-    return lh;
 }
 
 /* Runs an exception handler (which really means updating interpreter state
@@ -171,8 +189,18 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
  * parameter; if ex_obj is passed, the category is not used). */
 static void unwind_after_handler(MVMThreadContext *tc, void *sr_data);
 static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data);
-static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_obj, MVMuint32 category) {
+static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_obj,
+                        MVMuint32 category, MVMObject *payload) {
     switch (lh.handler->action) {
+    case MVM_EX_ACTION_GOTO_WITH_PAYLOAD:
+        if (payload)
+            tc->last_payload = payload;
+        else if (ex_obj && ((MVMException *)ex_obj)->body.payload)
+            tc->last_payload = ((MVMException *)ex_obj)->body.payload;
+        else
+            tc->last_payload = tc->instance->VMNull;
+        /* Deliberate fallthrough to unwind below. */
+
     case MVM_EX_ACTION_GOTO:
         if (lh.jit_handler) {
             void **labels = lh.frame->spesh_cand->jitcode->labels;
@@ -194,10 +222,13 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         if (ex_obj == NULL) {
             MVMROOT(tc, cur_frame, {
             MVMROOT(tc, lh.frame, {
+            MVMROOT(tc, payload, {
                 ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
             });
             });
+            });
             ((MVMException *)ex_obj)->body.category = category;
+            MVM_ASSIGN_REF(tc, &(ex_obj->header), ((MVMException *)ex_obj)->body.payload, payload);
         }
 
         /* Find frame to invoke. */
@@ -488,6 +519,24 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
         exit(1);
 }
 
+/* Checks if we're throwing lexically, and - if yes - if the current HLL has
+ * a handler for unlocated lexical handlers. */
+static MVMint32 use_lexical_handler_hll_error(MVMThreadContext *tc, MVMuint8 mode) {
+    return (mode == MVM_EX_THROW_LEX || mode == MVM_EX_THROW_LEX_CALLER) &&
+        !MVM_is_null(tc, MVM_hll_current(tc)->lexical_handler_not_found_error);
+}
+
+/* Invokes the HLL's handler for unresolved lexical throws. */
+static void invoke_lexical_handler_hll_erorr(MVMThreadContext *tc, MVMint64 cat, LocatedHandler lh) {
+    MVMObject *handler = MVM_hll_current(tc)->lexical_handler_not_found_error;
+    MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INT_INT);
+    handler = MVM_frame_find_invokee(tc, handler, NULL);
+    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, callsite);
+    tc->cur_frame->args[0].i64 = cat;
+    tc->cur_frame->args[1].i64 = lh.handler_out_of_dynamic_scope;
+    STABLE(handler)->invoke(tc, handler, callsite, tc->cur_frame->args);
+}
+
 /* Throws an exception by category, searching for a handler according to
  * the specified mode. If the handler resumes, the resumption result will
  * be put into resume_result. Leaves the interpreter in a state where it
@@ -495,9 +544,14 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
  * it will panic and exit with a backtrace. */
 void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMRegister *resume_result) {
     LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat, NULL);
-    if (lh.frame == NULL)
+    if (lh.frame == NULL) {
+        if (use_lexical_handler_hll_error(tc, mode)) {
+            invoke_lexical_handler_hll_erorr(tc, cat, lh);
+            return;
+        }
         panic_unhandled_cat(tc, cat);
-    run_handler(tc, lh, NULL, cat);
+    }
+    run_handler(tc, lh, NULL, cat, NULL);
 }
 
 void MVM_exception_die(MVMThreadContext *tc, MVMString *str, MVMRegister *rr) {
@@ -540,8 +594,13 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
         ex->body.jit_resume_label = tc->cur_frame->jit_entry_label;
     }
     lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category, ex->body.payload);
-    if (lh.frame == NULL)
+    if (lh.frame == NULL) {
+        if (use_lexical_handler_hll_error(tc, mode)) {
+            invoke_lexical_handler_hll_erorr(tc, ex->body.category, lh);
+            return;
+        }
         panic_unhandled_ex(tc, ex);
+    }
 
     if (!ex->body.origin) {
         MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.origin, tc->cur_frame);
@@ -549,7 +608,21 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
         tc->cur_frame->keep_caller   = 1;
     }
 
-    run_handler(tc, lh, ex_obj, 0);
+    run_handler(tc, lh, ex_obj, 0, NULL);
+}
+
+/* Throws an exception of the specified category and with the specified payload.
+ * If a goto or payload handler exists, then no exception object will be created. */
+void MVM_exception_throwpayload(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, MVMObject *payload, MVMRegister *resume_result) {
+    LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat, NULL);
+    if (lh.frame == NULL) {
+        if (use_lexical_handler_hll_error(tc, mode)) {
+            invoke_lexical_handler_hll_erorr(tc, cat, lh);
+            return;
+        }
+        panic_unhandled_cat(tc, cat);
+    }
+    run_handler(tc, lh, NULL, cat, payload);
 }
 
 void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
@@ -561,7 +634,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
         ex = (MVMException *)ex_obj;
     else
         MVM_exception_throw_adhoc(tc, "Can only resume an exception object");
-    
+
     /* Check that everything is in place to do the resumption. */
     if (!ex->body.resume_addr)
         MVM_exception_throw_adhoc(tc, "This exception is not resumable");
@@ -692,7 +765,7 @@ void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMSt
             lh.jit_handler = &(f->spesh_cand->jitcode->handlers[handler_idx]);
         else
             lh.jit_handler = NULL;
-        run_handler(tc, lh, NULL, MVM_EX_CAT_RETURN);
+        run_handler(tc, lh, NULL, MVM_EX_CAT_RETURN, NULL);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Too late to invoke lexotic return");
@@ -824,7 +897,7 @@ void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const
 
     /* Run the handler, which doesn't actually run it but rather sets up the
      * interpreter so that when we return to it, we'll be at the handler. */
-    run_handler(tc, lh, (MVMObject *)ex, MVM_EX_CAT_CATCH);
+    run_handler(tc, lh, (MVMObject *)ex, MVM_EX_CAT_CATCH, NULL);
 
     /* Clear any C stack temporaries that code may have pushed before throwing
      * the exception, and release any needed mutex. */

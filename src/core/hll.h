@@ -41,6 +41,7 @@ struct MVMHLLConfig {
     /* Language's handler for various errors, if needed. */
     MVMObject *bind_error;
     MVMObject *method_not_found_error;
+    MVMObject *lexical_handler_not_found_error;
 
     /* Native reference types. */
     MVMObject *int_lex_ref;

@@ -430,47 +430,47 @@ DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
 all: moar@exe@ pkgconfig/moar.pc
 
 install: all
-	$(MKPATH) $(DESTDIR)$(BINDIR)
-	$(CP) moar@exe@ $(DESTDIR)$(BINDIR)
-	$(CHMOD) 755 $(DESTDIR)$(BINDIR)/moar@exe@
-	$(MKPATH) $(DESTDIR)$(LIBDIR)
-	$(CP) @moar@ @impinst@ $(DESTDIR)$(LIBDIR)
-	$(MKPATH) $(DESTDIR)$(MASTDIR)
-	$(CP) lib/MAST/Nodes.nqp $(DESTDIR)$(MASTDIR)
-	$(CP) lib/MAST/Ops.nqp $(DESTDIR)$(MASTDIR)
-	$(MKPATH) $(DESTDIR)$(PKGCONFIGDIR)
-	$(CP) pkgconfig/moar.pc $(DESTDIR)$(PKGCONFIGDIR)
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar
-	$(CP) src/gen/config.h $(DESTDIR)$(PREFIX)/include/moar
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/6model/reprs
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/core
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/gc
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/gen
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/io
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/mast
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/math
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/platform
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/profiler
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/spesh
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/strings
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/jit
-	$(MKPATH) $(DESTDIR)$(PREFIX)/include/moar/instrument
-	$(CP) 3rdparty/*.h $(DESTDIR)$(PREFIX)/include/moar
-	$(CP) src/*.h $(DESTDIR)$(PREFIX)/include/moar
-	$(CP) src/6model/*.h $(DESTDIR)$(PREFIX)/include/moar/6model
-	$(CP) src/6model/reprs/*.h $(DESTDIR)$(PREFIX)/include/moar/6model/reprs
-	$(CP) src/core/*.h $(DESTDIR)$(PREFIX)/include/moar/core
-	$(CP) src/gc/*.h $(DESTDIR)$(PREFIX)/include/moar/gc
-	$(CP) src/gen/*.h $(DESTDIR)$(PREFIX)/include/moar/gen
-	$(CP) src/io/*.h $(DESTDIR)$(PREFIX)/include/moar/io
-	$(CP) src/mast/*.h $(DESTDIR)$(PREFIX)/include/moar/mast
-	$(CP) src/math/*.h $(DESTDIR)$(PREFIX)/include/moar/math
-	$(CP) src/platform/*.h $(DESTDIR)$(PREFIX)/include/moar/platform
-	$(CP) src/profiler/*.h $(DESTDIR)$(PREFIX)/include/moar/profiler
-	$(CP) src/spesh/*.h $(DESTDIR)$(PREFIX)/include/moar/spesh
-	$(CP) src/strings/*.h $(DESTDIR)$(PREFIX)/include/moar/strings
-	$(CP) src/jit/*.h $(DESTDIR)$(PREFIX)/include/moar/jit
-	$(CP) src/instrument/*.h $(DESTDIR)$(PREFIX)/include/moar/instrument
+	$(MKPATH) "$(DESTDIR)$(BINDIR)"
+	$(CP) moar@exe@ "$(DESTDIR)$(BINDIR)"
+	$(CHMOD) 755 "$(DESTDIR)$(BINDIR)/moar@exe@"
+	$(MKPATH) "$(DESTDIR)$(LIBDIR)"
+	$(CP) @moar@ @impinst@ "$(DESTDIR)$(LIBDIR)"
+	$(MKPATH) "$(DESTDIR)$(MASTDIR)"
+	$(CP) lib/MAST/Nodes.nqp "$(DESTDIR)$(MASTDIR)"
+	$(CP) lib/MAST/Ops.nqp "$(DESTDIR)$(MASTDIR)"
+	$(MKPATH) "$(DESTDIR)$(PKGCONFIGDIR)"
+	$(CP) pkgconfig/moar.pc "$(DESTDIR)$(PKGCONFIGDIR)"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar"
+	$(CP) src/gen/config.h "$(DESTDIR)$(PREFIX)/include/moar"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/6model/reprs"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/core"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/gc"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/gen"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/io"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/mast"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/math"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/platform"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/profiler"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/spesh"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/strings"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/jit"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/instrument"
+	$(CP) 3rdparty/*.h "$(DESTDIR)$(PREFIX)/include/moar"
+	$(CP) src/*.h "$(DESTDIR)$(PREFIX)/include/moar"
+	$(CP) src/6model/*.h "$(DESTDIR)$(PREFIX)/include/moar/6model"
+	$(CP) src/6model/reprs/*.h "$(DESTDIR)$(PREFIX)/include/moar/6model/reprs"
+	$(CP) src/core/*.h "$(DESTDIR)$(PREFIX)/include/moar/core"
+	$(CP) src/gc/*.h "$(DESTDIR)$(PREFIX)/include/moar/gc"
+	$(CP) src/gen/*.h "$(DESTDIR)$(PREFIX)/include/moar/gen"
+	$(CP) src/io/*.h "$(DESTDIR)$(PREFIX)/include/moar/io"
+	$(CP) src/mast/*.h "$(DESTDIR)$(PREFIX)/include/moar/mast"
+	$(CP) src/math/*.h "$(DESTDIR)$(PREFIX)/include/moar/math"
+	$(CP) src/platform/*.h "$(DESTDIR)$(PREFIX)/include/moar/platform"
+	$(CP) src/profiler/*.h "$(DESTDIR)$(PREFIX)/include/moar/profiler"
+	$(CP) src/spesh/*.h "$(DESTDIR)$(PREFIX)/include/moar/spesh"
+	$(CP) src/strings/*.h "$(DESTDIR)$(PREFIX)/include/moar/strings"
+	$(CP) src/jit/*.h "$(DESTDIR)$(PREFIX)/include/moar/jit"
+	$(CP) src/instrument/*.h "$(DESTDIR)$(PREFIX)/include/moar/instrument"
 @install@
 
 lib: @moar@

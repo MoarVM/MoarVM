@@ -55,6 +55,9 @@ typedef enum {
 
     /* Callsite OBJ, STR */
     MVM_CALLSITE_ID_OBJ_STR,
+
+    /* Callsite INT, INT */
+    MVM_CALLSITE_ID_INT_INT,
 } MVMCommonCallsiteID;
 
 /* A callsite entry is just one of the above flags. */

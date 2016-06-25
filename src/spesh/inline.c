@@ -285,6 +285,12 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 }
             }
 
+            /* Since inlining eliminates the caller/callee distinction, we
+             * need skip going up a caller when resolving exceptions in a
+             * caller-relative way. */
+            if (ins->info->opcode == MVM_OP_throwpayloadlexcaller)
+                ins->info = MVM_op_get_op(MVM_OP_throwpayloadlex);
+
             ins = ins->next;
         }
         bb->idx += inliner->num_bbs - 1; /* -1 as we won't include entry */
@@ -438,6 +444,8 @@ static void merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         for (i = inliner->num_handlers; i < total_handlers; i++) {
             inliner->handlers[i].block_reg += inliner->num_locals;
             inliner->handlers[i].label_reg += inliner->num_locals;
+            if (inliner->sf != inlinee->sf->body.outer)
+                inliner->handlers[i].inlined_and_not_lexical = 1;
         }
     }
 
