@@ -190,13 +190,19 @@ void MVM_jit_compile_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
                        sizeof(MVMRegister));
 }
 
+void MVM_jit_compile_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                          MVMJitTile *tile, MVMJitExprTree *tree) {
+    MVM_jit_emit_load(tc, compiler, tile->args[0],
+                      tile->values[0]->st_cls, tile->values[0]->st_pos,
+                      sizeof(MVMRegister));
+}
 
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {
     MVMJitTileList *list;
     MVMJitTile *tile;
     MVMint32 i;
     /* First stage, tile the tree */
-    list = MVM_jit_tile_expr_tree(tc, tree);
+    list = MVM_jit_tile_expr_tree(tc, compiler, tree);
 
     /* Log the tile list for debugging purposes */
     MVM_jit_log_tile_list(tc, list);

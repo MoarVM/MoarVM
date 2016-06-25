@@ -1,6 +1,7 @@
 #include "moar.h"
-#include "dasm_proto.h"
+#include "internal.h"
 #include <math.h>
+
 #if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
 #include "x64/tile_decl.h"
 #include "x64/tile_tables.h"
@@ -17,7 +18,7 @@ struct TileState {
 
 struct TileTree {
     MVM_DYNAR_DECL(struct TileState, states);
-    MVMSpeshGraph *sg;
+    MVMJitCompiler *compiler;
     MVMJitTileList *list;
 };
 
@@ -238,13 +239,13 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     /* (Currently) we never insert into the tile list here */
 }
 
-MVMJitTile* MVM_jit_tile_make(MVMThreadContext *tc, MVMSpeshGraph *sg,
+MVMJitTile* MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler,
                               void *emit, MVMint32 node, MVMint32 nargs, ...) {
     MVMJitTile *tile;
     MVMint32 i;
     va_list arglist;
     va_start(arglist, nargs);
-    tile = MVM_spesh_alloc(tc, sg, sizeof(MVMJitTile));
+    tile = MVM_spesh_alloc(tc, compiler->graph->sg, sizeof(MVMJitTile));
     tile->emit = emit;
     tile->node = node;
     tile->num_values = 0;
@@ -300,19 +301,18 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             } else if (flag == MVM_JIT_ANY) {
                 /* If ANY hasn't short-circuited into the left
                    block, jump to the right block */
-                MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_branch, node, 1, label_value));;
+                MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_branch, node, 1, label_value));;
                 /* Compile label for the left block entry */
-
-                MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_label, test, 1,
+                MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label, test, 1,
                                                                      tree->info[test].label));
             } else {
                 /* Other tests require a conditional branch */
-                MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_conditional_branch, node,
+                MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_conditional_branch, node,
                                                                      2, negate_flag(tc, flag), label_value));;
             }
         } else {
             /* after child of WHEN, insert the label */
-            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_label, node, 1, label_value));
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label, node, 1, label_value));
         }
         break;
     }
@@ -326,12 +326,12 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         } else if (flag == MVM_JIT_ANY) {
             /* If ANY reached it's end, that means it's false. So branch out */
             MVMint32 any_label = tree->info[test].label;
-            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_branch, node, 1, label));
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_branch, node, 1, label));
             /* And if ANY short-circuits we should continue the evaluation of ALL */
-            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_label, node, 1, any_label));
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label, node, 1, any_label));
         } else {
             /* Flag should be negated (ALL = short-circiut unless condition)) */
-            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_conditional_branch, node, 2,
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_conditional_branch, node, 2,
                                                                  negate_flag(tc, flag), label));
         }
         break;
@@ -346,15 +346,15 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                succesful, and short-circuit behaviour implies we
                should branch out */
             MVMint32 all_label = tree->info[test].label;
-            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_branch, node, 1, label));
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_branch, node, 1, label));
             /* If not succesful, testing should continue */
-            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_label, node, 1, all_label));
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label, node, 1, all_label));
         } else if (flag == MVM_JIT_ANY) {
             /* Nothing to do here, since nested ANY already
                short-circuits to our label */
         } else {
             /* Normal evaluation (ANY = short-circuit if condition) */
-            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->sg, MVM_jit_compile_conditional_branch, node, 2, flag, label));
+            MVM_DYNAR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_conditional_branch, node, 2, flag, label));
         }
         break;
     }
@@ -379,7 +379,7 @@ static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 
 
     /* create tile object */
-    tile            = MVM_spesh_alloc(tc, tiles->sg, sizeof(MVMJitTile));
+    tile            = MVM_spesh_alloc(tc, tiles->compiler->graph->sg, sizeof(MVMJitTile));
     tile->template  = template;
     tile->emit      = template->emit;
     tile->node      = node;
@@ -389,7 +389,7 @@ static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 }
 
 
-MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
+MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
     MVMint32 i;
     struct TileTree tiles;
@@ -409,8 +409,8 @@ MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tr
     }
 
     /* Create serial list of actual tiles which represent the final low-level code */
-    tiles.sg            = tree->graph->sg;
-    tiles.list          = MVM_spesh_alloc(tc, tiles.sg, sizeof(MVMJitTileList));
+    tiles.compiler      = compiler;
+    tiles.list          = MVM_spesh_alloc(tc, tiles.compiler->graph->sg, sizeof(MVMJitTileList));
     tiles.list->tree    = tree;
     MVM_DYNAR_INIT(tiles.list->items, tree->nodes_num / 2);
 
@@ -423,4 +423,3 @@ MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tr
     MVM_free(tiles.states);
     return tiles.list;
 }
-

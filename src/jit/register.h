@@ -6,8 +6,7 @@ typedef enum {
     MVM_JIT_STORAGE_NVR   /* non-volatile register */
 }  MVMJitStorageClass;
 
-struct MVMJitValueDescriptor {
-    MVMJitTile *created_by;
+struct MVMJitValue {
     MVMint32 node;
 
     MVMJitStorageClass st_cls;
@@ -16,8 +15,8 @@ struct MVMJitValueDescriptor {
 
     MVMint32 range_start, range_end;
 
-    MVMJitValueDescriptor *next_by_node;
-    MVMJitValueDescriptor *next_by_position;
+    MVMJitValue *next_by_node;
+    MVMJitValue *next_by_position;
 };
 
 

@@ -16,7 +16,7 @@
 struct MVMJitCompiler {
     dasm_State *dasm_handle;
     void      **dasm_globals;
-    MVMJitGraph *graph;
+    MVMJitGraph   *graph;
 
     MVMint32    label_offset;
     MVMint32    label_max;

@@ -43,3 +43,5 @@ void MVM_jit_compile_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *co
                                         MVMJitTile *tile, MVMJitExprTree *tree);
 void MVM_jit_compile_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitTile *tile, MVMJitExprTree *tree);
+void MVM_jit_compile_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                          MVMJitTile *tile, MVMJitExprTree *tree);

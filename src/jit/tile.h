@@ -16,7 +16,7 @@ struct MVMJitTile {
     MVMint32 node;
     MVMint32 num_values;
     /* buffers for the args of this (pseudo) tile */
-    MVMJitValueDescriptor *values[8];
+    MVMJitValue *values[8];
     MVMJitExprNode args[8];
 };
 
@@ -26,6 +26,6 @@ struct MVMJitTileList {
     /* TODO implement structures to mark basic blocks */
 };
 
-MVMJitTile     * MVM_jit_tile_make(MVMThreadContext *tc, MVMSpeshGraph *sg, void *emit,
-                                   MVMint32 node, MVMint32 nargs, ...);
-MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree);
+MVMJitTile     * MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                                   void *emit, MVMint32 node, MVMint32 nargs, ...);
+MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree);
