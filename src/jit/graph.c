@@ -301,6 +301,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
 
     case MVM_OP_eof_fh: return MVM_io_eof;
     case MVM_OP_readline_fh: case MVM_OP_readlinechomp_fh: return MVM_io_readline;
+    case MVM_OP_read_fhs: return MVM_io_read_string;
 
     case MVM_OP_elems: return MVM_repr_elems;
     case MVM_OP_flattenropes: return MVM_string_flatten;
@@ -2139,6 +2140,16 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { fho } },
                                  { MVM_JIT_LITERAL, { op == MVM_OP_readlinechomp_fh ? 1 : 0 } } };
+        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_read_fhs: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 fho = ins->operands[1].reg.orig;
+        MVMint16 cnt = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { fho } },
+                                 { MVM_JIT_REG_VAL, { cnt } } };
         jgb_append_call_c(tc, jgb, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
