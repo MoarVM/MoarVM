@@ -104,8 +104,10 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVM_exception_throw_adhoc(tc,
-        "MVMContext representation does not support elems");
+    MVMContextBody *body  = (MVMContextBody *)data;
+    MVMFrame       *frame = body->context;
+    MVMLexicalRegistry *lexical_names = frame->static_info->body.lexical_names;
+    return (MVMuint64) HASH_CNT(hash_handle, lexical_names);
 }
 
 static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
