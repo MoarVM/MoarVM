@@ -5631,10 +5631,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(DEPRECATED_13):
                 MVM_exception_throw_adhoc(tc, "The continuationclone op was removed in MoarVM 2017.01.");
             OP(coverage_log): {
-                MVMString *filename = cu->body.strings[GET_UI32(cur_op, 0)];
+                MVMString *filename = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
                 MVMuint32 lineno    = GET_UI32(cur_op, 4);
                 MVMuint32 cacheidx  = GET_UI32(cur_op, 8);
-                MVMObject *cache    = (char *)MVM_BC_get_I64(cur_op, 12);
+                char      *cache    = (char *)MVM_BC_get_I64(cur_op, 12);
                 MVM_line_coverage_report(tc, filename, lineno, cacheidx, cache);
                 cur_op += 20;
                 goto NEXT;
