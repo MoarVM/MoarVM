@@ -1,4 +1,5 @@
 #include "moar.h"
+#include <unistd.h>
 
 static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *bb = g->entry->linear_next;
@@ -114,11 +115,15 @@ void MVM_line_coverage_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
 void MVM_line_coverage_report(MVMThreadContext *tc, MVMString *filename, MVMuint32 line_number, MVMuint16 cache_slot, char *cache) {
     if (cache[cache_slot] == 0) {
         char *encoded_filename;
+        char composed_line[256];
+        size_t length;
 
         cache[cache_slot] = 1;
 
         encoded_filename = MVM_string_utf8_encode_C_string(tc, filename);
-        fprintf(tc->instance->coverage_log_fh, "HIT  %s  %d\n", encoded_filename, line_number);
+        if ((length = snprintf(composed_line, 255, "HIT  %s  %d\n", encoded_filename, line_number)) > 0) {
+            write(fileno(tc->instance->coverage_log_fh), composed_line, length);
+        }
         MVM_free(encoded_filename);
     }
 }
