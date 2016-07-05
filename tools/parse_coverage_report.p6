@@ -64,7 +64,7 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
     my $uncovered;
     my $ignored;
 
-    my $curfile = 0;
+    my $curfile = 1;
     my $current_source = $source;
 
     my @lines;
@@ -72,18 +72,8 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
     my %stats;
 
     for $source.IO.lines.kv -> $num, $text {
-        my $class = %covered-lines{$num + 1} ?? "c" !! "u";
-        if $class eq "u" && %existing_lines && not %existing_lines{$num + 1}:exists {
-            $class = "i";
-            $ignored++;
-        } elsif $class eq "u" {
-            $uncovered++;
-        } elsif $class eq "c" {
-            $covered++;
-        }
-        @lines.push: "<li class=\"$class\">$text.subst("<", "&lt;", :g)"; # skip the </li> because yay html!
-
         if $curfile < @file_ranges && @file_ranges[$curfile][0] == $num {
+            $current_source = @file_ranges[$curfile-1][2];
             my $path = "coverage/{$current_source.subst("/", "_", :g)}.coverage.html";
             my $outfile = $path.IO.open(:w);
             $outfile.say(make_html($source));
@@ -105,8 +95,17 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
 
             @lines = ();
             $curfile++;
-            $current_source = @file_ranges[$curfile][2];
         }
+        my $class = %covered-lines{$num + 1} ?? "c" !! "u";
+        if $class eq "u" && %existing_lines && not %existing_lines{$num + 1}:exists {
+            $class = "i";
+            $ignored++;
+        } elsif $class eq "u" {
+            $uncovered++;
+        } elsif $class eq "c" {
+            $covered++;
+        }
+        @lines.push: "<li class=\"$class\">$text.subst("<", "&lt;", :g)"; # skip the </li> because yay html!
     }
 
     sub make_html($sourcefile) {
