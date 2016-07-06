@@ -175,7 +175,7 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
         $outfile.say: qq:to/TMPL/;
                 </tbody>
             </table>
-            <script type="text/javascript" src="tablesort.min.js"></script>
+            <script type="text/javascript" src="tablesort.js"></script>
             <script type="text/javascript" src="tablesort.number.js"></script>
             <script>
                 new Tablesort(document.getElementById("coverage"));
@@ -186,7 +186,7 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
         $outfile.close;
     }
 
-    spurt 'coverage/tablesort.min.js', $*tablesort;
+    spurt 'coverage/tablesort.js', $*tablesort;
     spurt 'coverage/tablesort.number.js', $*tablesort-number;
 }
 
@@ -225,7 +225,262 @@ my $*tablesort = q:to/TABLESORT/;
  * tablesort v4.0.1 (2016-03-30)
  * http://tristen.ca/tablesort/demo/
  * Copyright (c) 2016 ; Licensed MIT
-*/!function(){function a(b,c){if(!(this instanceof a))return new a(b,c);if(!b||"TABLE"!==b.tagName)throw new Error("Element must be a table");this.init(b,c||{})}var b=[],c=function(a){var b;return window.CustomEvent&&"function"==typeof window.CustomEvent?b=new CustomEvent(a):(b=document.createEvent("CustomEvent"),b.initCustomEvent(a,!1,!1,void 0)),b},d=function(a){return a.getAttribute("data-sort")||a.textContent||a.innerText||""},e=function(a,b){return a=a.toLowerCase(),b=b.toLowerCase(),a===b?0:b>a?1:-1},f=function(a,b){return function(c,d){var e=a(c.td,d.td);return 0===e?b?d.index-c.index:c.index-d.index:e}};a.extend=function(a,c,d){if("function"!=typeof c||"function"!=typeof d)throw new Error("Pattern and sort must be a function");b.push({name:a,pattern:c,sort:d})},a.prototype={init:function(a,b){var c,d,e,f,g=this;if(g.table=a,g.thead=!1,g.options=b,a.rows&&a.rows.length>0&&(a.tHead&&a.tHead.rows.length>0?(c=a.tHead.rows[a.tHead.rows.length-1],g.thead=!0):c=a.rows[0]),c){var h=function(){g.current&&g.current!==this&&(g.current.classList.remove("sort-up"),g.current.classList.remove("sort-down")),g.current=this,g.sortTable(this)};for(e=0;e<c.cells.length;e++)f=c.cells[e],f.classList.contains("no-sort")||(f.classList.add("sort-header"),f.tabindex=0,f.addEventListener("click",h,!1),f.classList.contains("sort-default")&&(d=f));d&&(g.current=d,g.sortTable(d))}},sortTable:function(a,g){var h,i=this,j=a.cellIndex,k=e,l="",m=[],n=i.thead?0:1,o=a.getAttribute("data-sort-method"),p=a.getAttribute("data-sort-order");if(i.table.dispatchEvent(c("beforeSort")),g?h=a.classList.contains("sort-up")?"sort-up":"sort-down":(h=a.classList.contains("sort-up")?"sort-down":a.classList.contains("sort-down")?"sort-up":"asc"===p?"sort-down":"desc"===p?"sort-up":i.options.descending?"sort-up":"sort-down",a.classList.remove("sort-down"===h?"sort-up":"sort-down"),a.classList.add(h)),!(i.table.rows.length<2)){if(!o){for(;m.length<3&&n<i.table.tBodies[0].rows.length;)l=d(i.table.tBodies[0].rows[n].cells[j]),l=l.trim(),l.length>0&&m.push(l),n++;if(!m)return}for(n=0;n<b.length;n++)if(l=b[n],o){if(l.name===o){k=l.sort;break}}else if(m.every(l.pattern)){k=l.sort;break}for(i.col=j,n=0;n<i.table.tBodies.length;n++){var q,r=[],s={},t=0,u=0;if(!(i.table.tBodies[n].rows.length<2)){for(q=0;q<i.table.tBodies[n].rows.length;q++)l=i.table.tBodies[n].rows[q],l.classList.contains("no-sort")?s[t]=l:r.push({tr:l,td:d(l.cells[i.col]),index:t}),t++;for("sort-down"===h?(r.sort(f(k,!0)),r.reverse()):r.sort(f(k,!1)),q=0;t>q;q++)s[q]?(l=s[q],u++):l=r[q-u].tr,i.table.tBodies[n].appendChild(l)}}i.table.dispatchEvent(c("afterSort"))}},refresh:function(){void 0!==this.current&&this.sortTable(this.current,!0)}},"undefined"!=typeof module&&module.exports?module.exports=a:window.Tablesort=a}();
+*/!
+;(function() {
+  function Tablesort(el, options) {
+    if (!(this instanceof Tablesort)) return new Tablesort(el, options);
+
+    if (!el || el.tagName !== 'TABLE') {
+      throw new Error('Element must be a table');
+    }
+    this.init(el, options || {});
+  }
+
+  var sortOptions = [];
+
+  var createEvent = function(name) {
+    var evt;
+
+    if (!window.CustomEvent || typeof window.CustomEvent !== 'function') {
+      evt = document.createEvent('CustomEvent');
+      evt.initCustomEvent(name, false, false, undefined);
+    } else {
+      evt = new CustomEvent(name);
+    }
+
+    return evt;
+  };
+
+  var getInnerText = function(el) {
+    return el.getAttribute('data-sort') || el.textContent || el.innerText || '';
+  };
+
+  // Default sort method if no better sort method is found
+  var caseInsensitiveSort = function(a, b) {
+    a = a.toLowerCase();
+    b = b.toLowerCase();
+
+    if (a === b) return 0;
+    if (a < b) return 1;
+
+    return -1;
+  };
+
+  // Stable sort function
+  // If two elements are equal under the original sort function,
+  // then there relative order is reversed
+  var stabilize = function(sort, antiStabilize) {
+    return function(a, b) {
+      var unstableResult = sort(a.td, b.td);
+
+      if (unstableResult === 0) {
+        if (antiStabilize) return b.index - a.index;
+        return a.index - b.index;
+      }
+
+      return unstableResult;
+    };
+  };
+
+  Tablesort.extend = function(name, pattern, sort) {
+    if (typeof pattern !== 'function' || typeof sort !== 'function') {
+      throw new Error('Pattern and sort must be a function');
+    }
+
+    sortOptions.push({
+      name: name,
+      pattern: pattern,
+      sort: sort
+    });
+  };
+
+  Tablesort.prototype = {
+
+    init: function(el, options) {
+      var that = this,
+          firstRow,
+          defaultSort,
+          i,
+          cell;
+
+      that.table = el;
+      that.thead = false;
+      that.options = options;
+
+      if (el.rows && el.rows.length > 0) {
+        if (el.tHead && el.tHead.rows.length > 0) {
+          firstRow = el.tHead.rows[el.tHead.rows.length - 1];
+          that.thead = true;
+        } else {
+          firstRow = el.rows[0];
+        }
+      }
+
+      if (!firstRow) return;
+
+      var onClick = function() {
+        if (that.current && that.current !== this) {
+          that.current.classList.remove('sort-up');
+          that.current.classList.remove('sort-down');
+        }
+
+        that.current = this;
+        that.sortTable(this);
+      };
+
+      // Assume first row is the header and attach a click handler to each.
+      for (i = 0; i < firstRow.cells.length; i++) {
+        cell = firstRow.cells[i];
+        if (!cell.classList.contains('no-sort')) {
+          cell.classList.add('sort-header');
+          cell.tabindex = 0;
+          cell.addEventListener('click', onClick, false);
+
+          if (cell.classList.contains('sort-default')) {
+            defaultSort = cell;
+          }
+        }
+      }
+
+      if (defaultSort) {
+        that.current = defaultSort;
+        that.sortTable(defaultSort);
+      }
+    },
+
+    sortTable: function(header, update) {
+      var that = this,
+          column = header.cellIndex,
+          sortFunction = caseInsensitiveSort,
+          item = '',
+          items = [],
+          i = that.thead ? 0 : 1,
+          sortDir,
+          sortMethod = header.getAttribute('data-sort-method'),
+          sortOrder = header.getAttribute('data-sort-order');
+
+      that.table.dispatchEvent(createEvent('beforeSort'));
+
+      // If updating an existing sort `sortDir` should remain unchanged.
+      if (update) {
+        sortDir = header.classList.contains('sort-up') ? 'sort-up' : 'sort-down';
+      } else {
+        if (header.classList.contains('sort-up')) {
+          sortDir = 'sort-down';
+        } else if (header.classList.contains('sort-down')) {
+          sortDir = 'sort-up';
+        } else if (sortOrder === 'asc') {
+          sortDir = 'sort-down';
+        } else if (sortOrder === 'desc') {
+          sortDir = 'sort-up';
+        } else {
+          sortDir = that.options.descending ? 'sort-up' : 'sort-down';
+        }
+
+        header.classList.remove(sortDir === 'sort-down' ? 'sort-up' : 'sort-down');
+        header.classList.add(sortDir);
+      }
+
+      if (that.table.rows.length < 2) return;
+
+      // If we force a sort method, it is not necessary to check rows
+      if (!sortMethod) {
+        while (items.length < 3 && i < that.table.tBodies[0].rows.length) {
+          item = getInnerText(that.table.tBodies[0].rows[i].cells[column]);
+          item = item.trim();
+
+          if (item.length > 0) {
+            items.push(item);
+          }
+
+          i++;
+        }
+
+        if (!items) return;
+      }
+
+      for (i = 0; i < sortOptions.length; i++) {
+        item = sortOptions[i];
+
+        if (sortMethod) {
+          if (item.name === sortMethod) {
+            sortFunction = item.sort;
+            break;
+          }
+        } else if (items.every(item.pattern)) {
+          sortFunction = item.sort;
+          break;
+        }
+      }
+
+      that.col = column;
+
+      for (i = 0; i < that.table.tBodies.length; i++) {
+        var newRows = [],
+            noSorts = {},
+            j,
+            totalRows = 0,
+            noSortsSoFar = 0;
+
+        if (that.table.tBodies[i].rows.length < 2) continue;
+
+        for (j = 0; j < that.table.tBodies[i].rows.length; j++) {
+          item = that.table.tBodies[i].rows[j];
+          if (item.classList.contains('no-sort')) {
+            // keep no-sorts in separate list to be able to insert
+            // them back at their original position later
+            noSorts[totalRows] = item;
+          } else {
+            // Save the index for stable sorting
+            newRows.push({
+              tr: item,
+              td: getInnerText(item.cells[that.col]),
+              index: totalRows
+            });
+          }
+          totalRows++;
+        }
+        // Before we append should we reverse the new array or not?
+        // If we reverse, the sort needs to be `anti-stable` so that
+        // the double negatives cancel out
+        if (sortDir === 'sort-down') {
+          newRows.sort(stabilize(sortFunction, true));
+          newRows.reverse();
+        } else {
+          newRows.sort(stabilize(sortFunction, false));
+        }
+
+        // append rows that already exist rather than creating new ones
+        for (j = 0; j < totalRows; j++) {
+          if (noSorts[j]) {
+            // We have a no-sort row for this position, insert it here.
+            item = noSorts[j];
+            noSortsSoFar++;
+          } else {
+            item = newRows[j - noSortsSoFar].tr;
+          }
+
+          // appendChild(x) moves x if already present somewhere else in the DOM
+          that.table.tBodies[i].appendChild(item);
+        }
+      }
+
+      that.table.dispatchEvent(createEvent('afterSort'));
+    },
+
+    refresh: function() {
+      if (this.current !== undefined) {
+        this.sortTable(this.current, true);
+      }
+    }
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Tablesort;
+  } else {
+    window.Tablesort = Tablesort;
+  }
+})();
 TABLESORT
 
 my $*tablesort-number = q:to/TABLESORT-NUMBER/;
