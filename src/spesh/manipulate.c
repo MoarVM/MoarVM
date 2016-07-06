@@ -210,7 +210,7 @@ void MVM_spesh_manipulate_release_temp_reg(MVMThreadContext *tc, MVMSpeshGraph *
 }
 
 
-MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshBB *new_bb = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB));
     MVMSpeshBB *linear_next = bb->linear_next;
 
