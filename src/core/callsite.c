@@ -50,6 +50,9 @@ static MVMCallsiteEntry obj_str_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                             MVM_CALLSITE_ARG_STR };
 static MVMCallsite    obj_str_callsite = { obj_str_flags, 2, 2, 2, 0, 0, 0 };
 
+static MVMCallsiteEntry int_int_arg_flags[] = { MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_INT };
+static MVMCallsite     int_int_arg_callsite = { int_int_arg_flags, 2, 2, 2, 0, 0, 0, 0 };
+
 MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id) {
     switch (id) {
         case MVM_CALLSITE_ID_NULL_ARGS:
@@ -70,6 +73,8 @@ MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonC
             return &obj_num_callsite;
         case MVM_CALLSITE_ID_OBJ_STR:
             return &obj_str_callsite;
+        case MVM_CALLSITE_ID_INT_INT:
+            return &int_int_arg_callsite;
         default:
             MVM_exception_throw_adhoc(tc, "get_common_callsite: id %d unknown", id);
     }
