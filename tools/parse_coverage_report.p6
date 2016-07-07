@@ -144,7 +144,8 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
         TMPL
 
         $outfile.say: q:to/TMPL/;
-            <table id="coverage">
+            <table id="coverage" class="sort">
+
                 <thead>
                     <tr>
                         <th>Filename</th>
@@ -156,6 +157,7 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
                         <th>Line number in source file</th>
                     </tr>
                 </thead>
+
                 <tbody>
         TMPL
 
@@ -229,7 +231,7 @@ my $*tablesort = q:to/TABLESORT/;
  * http://tristen.ca/tablesort/demo/
  * Copyright (c) 2016 ; Licensed MIT
 */!
-;(function() {
+(function() {
   function Tablesort(el, options) {
     if (!(this instanceof Tablesort)) return new Tablesort(el, options);
 
