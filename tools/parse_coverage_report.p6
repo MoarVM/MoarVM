@@ -88,6 +88,7 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
             %stats{$current_source}<percentage> = 100 * $covered / ($covered + $uncovered);
             %stats{$current_source}<total>      = $covered + $uncovered + $ignored;
             %stats{$current_source}<path>       = $path.subst("coverage/", "");
+            %stats{$current_source}<source_pos> = @file_ranges[$curfile-1][0]+1;
 
             $covered = 0;
             $uncovered = 0;
@@ -152,6 +153,7 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
                         <th>Uncovered</th>
                         <th>Ignored</th>
                         <th>Total</th>
+                        <th>Line number in source file</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -168,6 +170,7 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
                         <td> $v<uncovered> </td>
                         <td> $v<ignored> </td>
                         <td> $v<total> </td>
+                        <td> $v<source_pos> </td>
                     </tr>
             TMPL
         }
