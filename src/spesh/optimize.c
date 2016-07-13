@@ -1234,9 +1234,6 @@ static void optimize_prof_allocated(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
         /* This check should always succeed, but just in case ... */
         if (logee_facts->writer)
             MVM_spesh_manipulate_delete_ins(tc, g, bb, logee_facts->writer);
-        fprintf(stderr, "removing a prof_allocated op.\n");
-    } else {
-        fprintf(stderr, "this prof_allocated has a usage of %d\n", logee_facts->usages);
     }
 }
 
