@@ -1,3 +1,16 @@
+New in 2016.07
+
++ Implement a new multi-dispatch cache, structured as a tree, able to
+  hold more entries more memory-compactly, and able to cache dispatches
+  involving named parameters
++ JIT read_fhs op
++ Implement elems REPR function for MVMContext
++ Implement a BB-splitting manipulation function in the optimizer
++ Fix sha1 op to work with null bytes
++ Fix bad interaction between profiling and dead allocation elimination;
+  the presence of allocation logging would prevent the optimization, leading
+  to misleading profiler output results
+
 New in 2016.06
 
 + Serialize the HLL role field of STables
