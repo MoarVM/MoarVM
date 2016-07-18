@@ -296,7 +296,7 @@ static MVMint32 try_get_slot(MVMThreadContext *tc, MVMCStructREPRData *repr_data
         while (cur_map_entry->class_key != NULL) {
             if (cur_map_entry->class_key == class_key) {
                 MVMObject *slot_obj = MVM_repr_at_key_o(tc, cur_map_entry->name_map, name);
-                if (IS_CONCRETE(slot_obj))
+                if (slot_obj && IS_CONCRETE(slot_obj))
                     return MVM_repr_get_int(tc, slot_obj);
                 break;
             }
