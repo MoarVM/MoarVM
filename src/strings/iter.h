@@ -93,8 +93,10 @@ MVM_STATIC_INLINE void MVM_string_gi_move_to(MVMThreadContext *tc, MVMGraphemeIt
                 remaining_reps = gi->repetitions;
             gi->repetitions -= remaining_reps;
             remaining       -= remaining_reps * rep_graphs;
-            if (gi->repetitions)
+            if (gi->repetitions) {
                 gi->pos = gi->start;
+                gi->repetitions--; /* Next read will be reading *this* repetition. */
+            }
         }
         else {
             MVM_exception_throw_adhoc(tc, "Iteration past end of grapheme iterator");
