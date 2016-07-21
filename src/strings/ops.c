@@ -562,7 +562,7 @@ MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 off
 
     agraphs = MVM_string_graphs(tc, s);
     if (offset < 0 || offset >= agraphs)
-	return -1;
+        return -1;
 
     g = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
 
@@ -575,24 +575,24 @@ MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVM
     MVMNormalizer norm;
     MVMint32 ready;
 
-    MVM_string_check_arg(tc, s, "grapheme_at");
+    MVM_string_check_arg(tc, s, "ord_basechar_at");
 
     agraphs = MVM_string_graphs(tc, s);
     if (offset < 0 || offset >= agraphs)
-	return -1;  /* fixes RT #126771 */
+        return -1;  /* fixes RT #126771 */
 
     g = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
 
     if (g < 0) {
-	MVMNFGSynthetic *si = MVM_nfg_get_synthetic_info(tc, g);
-	g = si->base;
+        MVMNFGSynthetic *si = MVM_nfg_get_synthetic_info(tc, g);
+        g = si->base;
     }
     else {
-	MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
-	ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, g, &g);
-	MVM_unicode_normalizer_eof(tc, &norm);
-	if (!ready)
-	    g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
+        ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, g, &g);
+        MVM_unicode_normalizer_eof(tc, &norm);
+        if (!ready)
+            g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
     }
 
     return g;
