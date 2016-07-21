@@ -113,7 +113,9 @@ MVMint64 MVM_semaphore_tryacquire(MVMThreadContext *tc, MVMSemaphore *sem) {
 }
 
 void MVM_semaphore_acquire(MVMThreadContext *tc, MVMSemaphore *sem) {
+    MVM_gc_mark_thread_blocked(tc);
     uv_sem_wait(&sem->body.sem);
+    MVM_gc_mark_thread_unblocked(tc);
 }
 
 void MVM_semaphore_release(MVMThreadContext *tc, MVMSemaphore *sem) {
