@@ -683,7 +683,7 @@ static void set_dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "Array type of %"PRId64" dimensions cannot be intialized with %"PRId64" dimensions",
+            "Array type of %"PRId64" dimensions cannot be initialized with %"PRId64" dimensions",
             repr_data->num_dimensions, num_dimensions);
     }
 }
