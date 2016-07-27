@@ -1,6 +1,6 @@
 /* Representation used for VM thread handles. */
 struct MVMSemaphoreBody {
-    uv_sem_t sem;
+    uv_sem_t *sem;
 };
 struct MVMSemaphore {
     MVMObject common;
