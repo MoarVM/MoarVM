@@ -24,7 +24,6 @@ static void add_work(MVMThreadContext *tc, MVMThreadContext *stolen) {
  * the run, and are not counted. Returns the count of threads that should be
  * added to the finished countdown. */
 static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_signal) {
-
     /* Loop here since we may not succeed first time (e.g. the status of the
      * thread may change between the two ways we try to twiddle it). */
     while (1) {
@@ -254,7 +253,8 @@ void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
         if (MVM_load(&tc->gc_status) == MVMGCStatus_INTERRUPT)
             MVM_gc_enter_from_interrupt(tc);
         else
-            MVM_panic(MVM_exitcode_gcorch, "Invalid GC status observed; aborting");
+            MVM_panic(MVM_exitcode_gcorch,
+                "Invalid GC status observed while blocking thread; aborting");
     }
 }
 
