@@ -265,4 +265,6 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
     new_bb->first_ins = ins;
     ins->prev->next = NULL;
     ins->prev = NULL;
+
+    return new_bb;
 }
