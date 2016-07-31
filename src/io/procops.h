@@ -10,6 +10,7 @@
 #define MVM_PIPE_INHERIT_ERR   64
 #define MVM_PIPE_IGNORE_ERR   128
 #define MVM_PIPE_CAPTURE_ERR  256
+#define MVM_PIPE_MERGED_OUT_ERR 512
 
 MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc);
 MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MVMObject *env,
