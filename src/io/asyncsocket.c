@@ -715,11 +715,12 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
     li->work_idx   = MVM_repr_elems(tc, tc->instance->event_loop_active);
     MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
 
-    /* Create and initialize socket and connection. */
+    /* Create and initialize socket and connection, and start listening. */
     li->socket        = MVM_malloc(sizeof(uv_tcp_t));
     li->socket->data  = data;
     if ((r = uv_tcp_init(loop, li->socket)) < 0 ||
-        (r = uv_tcp_bind(li->socket, li->dest, 0)) < 0) {
+        (r = uv_tcp_bind(li->socket, li->dest, 0)) < 0 ||
+        (r = uv_listen((uv_stream_t *)li->socket, li->backlog, on_connection))) {
         /* Error; need to notify. */
         MVMROOT(tc, async_task, {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
@@ -739,9 +740,6 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
         li->socket = NULL;
         return;
     }
-
-    /* Start listening. */
-    uv_listen((uv_stream_t *)li->socket, li->backlog, on_connection);
 }
 
 /* Stops listening. */
