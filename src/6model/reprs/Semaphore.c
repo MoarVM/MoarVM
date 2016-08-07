@@ -26,15 +26,22 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
     MVMSemaphoreBody *body = (MVMSemaphoreBody *)data;
     int r;
-    if ((r = uv_sem_init(&body->sem, (MVMuint32) value)) < 0)
+    body->sem = MVM_malloc(sizeof(uv_sem_t));
+    if ((r = uv_sem_init(body->sem, (MVMuint32) value)) < 0) {
+        MVM_free(body->sem);
+        body->sem = NULL;
         MVM_exception_throw_adhoc(tc, "Failed to initialize Semaphore: %s",
             uv_strerror(r));
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMSemaphore *sem = (MVMSemaphore *)obj;
-    uv_sem_destroy(&sem->body.sem);
+    if (sem->body.sem) {
+        uv_sem_destroy(sem->body.sem);
+        MVM_free(sem->body.sem);
+    }
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -108,14 +115,18 @@ static const MVMREPROps this_repr = {
 };
 
 MVMint64 MVM_semaphore_tryacquire(MVMThreadContext *tc, MVMSemaphore *sem) {
-    int r = uv_sem_trywait(&sem->body.sem);
+    int r = uv_sem_trywait(sem->body.sem);
     return !r;
 }
 
 void MVM_semaphore_acquire(MVMThreadContext *tc, MVMSemaphore *sem) {
-    uv_sem_wait(&sem->body.sem);
+    MVMROOT(tc, sem, {
+        MVM_gc_mark_thread_blocked(tc);
+        uv_sem_wait(sem->body.sem);
+        MVM_gc_mark_thread_unblocked(tc);
+    });
 }
 
 void MVM_semaphore_release(MVMThreadContext *tc, MVMSemaphore *sem) {
-    uv_sem_post(&sem->body.sem);
+    uv_sem_post(sem->body.sem);
 }

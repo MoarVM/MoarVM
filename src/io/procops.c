@@ -206,7 +206,8 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
 
     setup_process_stdio(tc, in,  process, &process_stdio[0], 0, flags,      "shell");
     setup_process_stdio(tc, out, process, &process_stdio[1], 1, flags >> 3, "shell");
-    setup_process_stdio(tc, err, process, &process_stdio[2], 2, flags >> 6, "shell");
+    if (!(flags & MVM_PIPE_MERGED_OUT_ERR))
+        setup_process_stdio(tc, err, process, &process_stdio[2], 2, flags >> 6, "shell");
 
     process_options.stdio       = process_stdio;
     process_options.file        = _cmd;
@@ -214,7 +215,11 @@ MVMint64 MVM_proc_shell(MVMThreadContext *tc, MVMString *cmd, MVMString *cwd, MV
     process_options.cwd         = _cwd;
     process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS | UV_PROCESS_WINDOWS_HIDE;
     process_options.env         = _env;
-    process_options.stdio_count = 3;
+    if (flags & MVM_PIPE_MERGED_OUT_ERR) {
+        process_options.stdio_count = 2;
+    }
+    else
+        process_options.stdio_count = 3;
     process_options.exit_cb     = spawn_on_exit;
     if (flags & (MVM_PIPE_CAPTURE_IN | MVM_PIPE_CAPTURE_OUT | MVM_PIPE_CAPTURE_ERR)) {
         process_still_running = 1;
@@ -283,7 +288,8 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
 
     setup_process_stdio(tc, in,  process, &process_stdio[0], 0, flags,      "spawn");
     setup_process_stdio(tc, out, process, &process_stdio[1], 1, flags >> 3, "spawn");
-    setup_process_stdio(tc, err, process, &process_stdio[2], 2, flags >> 6, "spawn");
+    if (!(flags & MVM_PIPE_MERGED_OUT_ERR))
+        setup_process_stdio(tc, err, process, &process_stdio[2], 2, flags >> 6, "spawn");
 
     process_options.stdio       = process_stdio;
     process_options.file        = arg_size ? args[0] : NULL;
@@ -291,7 +297,11 @@ MVMint64 MVM_proc_spawn(MVMThreadContext *tc, MVMObject *argv, MVMString *cwd, M
     process_options.cwd         = _cwd;
     process_options.flags       = UV_PROCESS_WINDOWS_HIDE;
     process_options.env         = _env;
-    process_options.stdio_count = 3;
+    if (flags & MVM_PIPE_MERGED_OUT_ERR) {
+        process_options.stdio_count = 2;
+    }
+    else
+        process_options.stdio_count = 3;
     process_options.exit_cb     = spawn_on_exit;
     if (flags & (MVM_PIPE_CAPTURE_IN | MVM_PIPE_CAPTURE_OUT | MVM_PIPE_CAPTURE_ERR)) {
         process->data = MVM_calloc(1, sizeof(MVMint64));

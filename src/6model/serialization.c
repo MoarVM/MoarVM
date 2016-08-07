@@ -3088,17 +3088,18 @@ Computes the SHA-1 hash of string.
 
 */
 MVMString * MVM_sha1(MVMThreadContext *tc, MVMString *str) {
-    /* Grab the string as a C string. */
-    char *cstr = MVM_string_utf8_encode_C_string(tc, str);
+    /* Grab the string as UTF8 bytes. */
+    MVMuint64 output_size;
+    char *utf8_string = MVM_string_utf8_encode(tc, str, &output_size, 0);
 
     /* Compute its SHA-1 and encode it. */
     SHA1Context      context;
     char          output[80];
     SHA1Init(&context);
-    SHA1Update(&context, (unsigned char*)cstr, strlen(cstr));
+    SHA1Update(&context, (unsigned char*) utf8_string, (size_t) output_size);
     SHA1Final(&context, output);
 
     /* Free the C-MVMString and put result into a new MVMString. */
-    MVM_free(cstr);
+    MVM_free(utf8_string);
     return MVM_string_ascii_decode(tc, tc->instance->VMString, output, 40);
 }

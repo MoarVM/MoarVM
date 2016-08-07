@@ -1223,6 +1223,20 @@ static void optimize_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
     }
 }
 
+/* If something is only kept alive because we log its allocation, kick out
+ * the allocation logging and let the op that creates it die.
+ */
+static void optimize_prof_allocated(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *logee_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+    if (logee_facts->usages == 1) {
+        logee_facts->usages = 0;
+        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+        /* This check should always succeed, but just in case ... */
+        if (logee_facts->writer)
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, logee_facts->writer);
+    }
+}
+
 /* Tries to optimize a throwcat instruction. Note that within a given frame
  * (we don't consider inlines here) the throwcat instructions all have the
  * same semantics. */
@@ -1725,6 +1739,8 @@ static void second_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
 
                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->prev);
             }
+        } else if (ins->info->opcode == MVM_OP_prof_allocated) {
+            optimize_prof_allocated(tc, g, bb, ins);
         }
 
         ins = ins->next;

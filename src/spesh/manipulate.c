@@ -208,3 +208,63 @@ void MVM_spesh_manipulate_release_temp_reg(MVMThreadContext *tc, MVMSpeshGraph *
     }
     MVM_oops(tc, "Spesh: releasing non-existing temp");
 }
+
+
+MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshBB *new_bb = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB));
+    MVMSpeshBB *linear_next = bb->linear_next;
+
+    /* Step one: insert the new BB into the linear order */
+    bb->linear_next = new_bb;
+    new_bb->linear_next = linear_next;
+
+    /* Step two: update all idx fields. */
+    new_bb->idx = bb->idx + 1;
+    {
+        MVMSpeshBB *ptr = linear_next;
+        while (ptr != NULL) {
+            ptr->idx += 1;
+            ptr = ptr->linear_next;
+        }
+    }
+
+    /* Step three: fix up the dominator tree */
+    new_bb->children = bb->children;
+    new_bb->num_children = bb->num_children;
+
+    /* We expect the user of this API to fill whatever BB the code
+     * will additionally branch into into the children list, as well.
+     * Hopefully, setting num_children to 2 makes the code crash in case
+     * that step has been forgotten. */
+    bb->children = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *) * 2);
+    bb->num_children = 2;
+    bb->children[0] = new_bb;
+    bb->children[1] = 0;
+
+    /* Step three: fix up succs and preds */
+    new_bb->pred = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
+    new_bb->num_pred = 1;
+    new_bb->pred[0] = bb;
+
+    new_bb->succ = bb->succ;
+
+    /* We assume the reason for the split is to add a new succ in the middle
+     * which is why we allocate two slots instead of 1 */
+    bb->succ = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *) * 2);
+    bb->num_succ = 2;
+    bb->succ[0] = new_bb;
+    bb->succ[1] = 0;
+
+    new_bb->initial_pc = bb->initial_pc;
+
+    new_bb->num_df = 0;
+
+    /* Last step: Transfer over the instructions after the split point */
+    new_bb->last_ins = bb->last_ins;
+    bb->last_ins = ins->prev;
+    new_bb->first_ins = ins;
+    ins->prev->next = NULL;
+    ins->prev = NULL;
+
+    return new_bb;
+}

@@ -132,10 +132,12 @@ void MVM_conditionvariable_wait(MVMThreadContext *tc, MVMConditionVariable *cv) 
     MVM_store(&rm->body.holder_id, 0);
     MVM_store(&rm->body.lock_count, 0);
 
+    MVMROOT(tc, cv, {
     MVMROOT(tc, rm, {
         MVM_gc_mark_thread_blocked(tc);
         uv_cond_wait(cv->body.condvar, rm->body.mutex);
         MVM_gc_mark_thread_unblocked(tc);
+    });
     });
 
     MVM_store(&rm->body.holder_id, tc->thread_id);
