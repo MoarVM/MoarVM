@@ -1,0 +1,101 @@
+#+STARTUP: showeverything
+* Register allocator plan
+
+Currently, multiple live ranges can inhabit the same location (due to
+copies, IF resolution, etc). This is problematic, and results from the
+fact that we only allow a single definition per live range. This
+significantly complicates handling stores and loads.
+
+The better approach is to allow multiple definitions per live range,
+which makes it stand for the entire life of a single variable. These
+definitions can be found by using the disjoint-set algorithm,
+combining values via PHI (or in our case, COPY/DO/IF nodes). This
+makes sense as (preferably) all these values use the same register.
+
+** TODO Find live ranges
+
+I think we can do this in a single pass, or maybe two passes
+
+- to implmeent disjoint-set we build a union-find array
+  - each thing is initially in it's own set
+  - the key of the set is the number of the node it refers to
+  - at phis/copies, we pick the set with the lowest key / largest
+    definition set (whichever we know easier)
+- definitions and uses are the indexes of tiles that define or use the
+  values
+- we use a second pass to find all definitions and uses (maybe keep
+  counts of these)
+  - if we do it in the first pass, the uses/definitions are going to
+    refer to possibly-merged sets, so we have to resolve those during
+    the later passes; it's easier to do so earlier,
+  - if we count the number of uses and definitions in the first pass
+    we can simply store them in a single buffer in the second pass
+- to split a live range (at a given point), we must
+  - split both uses and definitions
+  - if these placed in ascending order in a single buffer, we can
+    split that buffer without copying (in most cases)
+  - the exception is if a single conditional branch of a definition is
+    split off, since it may be 'inbetween' the buffer, but we can fix
+    that by shuffling (in principle)
+  - point all the uses in the split live range to the new live range
+
+
+
+#+BEGIN_SRC c
+void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, RegisterAllocator *alc) {
+    /* implementation */
+}
+#+END_SRC
+** TODO Implement linear scan
+
+The basic idea of linear scan is:
+- iterate over live ranges in order of first definition
+  - if any of the current live range is dead, remove it from the
+    current live set (so that their register becomes free for the new
+    live set)
+  - assign them to current live set
+  - if the live range has a prefered register
+    - if this prefered register is taken
+      - then we have a conflict (resolve by spilling/splitting)
+      - else assign the prefered register to that live range
+
+- assign registers in a second pass
+
+  - reuse the register assignment ring buffer
+  - we've already dealt with prefered-register conflicts in the
+    earlier step, so we can always assign the prefered register
+  - if the prefered register is already taken, then we can take
+    another register and swap it with its' current holder, which is
+    guaranteed to be possible.
+
+The current live set can be implemented as a heap of integers pointing
+to the live range array.
+
+Maybe we should have the prefered-register thing per use/defintiion,
+but that becomes very complicated fast.
+
+*** TODO Implement spilling
+
+Spilling is implemented by inserting stores (if not present) after
+every definition and loads before every use. Many operations actually
+have stores appended (I haven't optimized them away, yet), so it may
+never be necessary to insert the spill code. But we still need to
+insert loads.
+
+A byproduct of this method is that we must leave a number of registers
+free to load spilled values; two should be sufficient for x86-64.
+
+*** TODO Implement splitting
+
+One might split a live range in two, for example, if a set of uses
+preceeds the point where the range would need to be spilled; the value
+may reside in the register before the spill and reside in storage
+afterwards.
+
+** TODO Remove cruft from previous attempts
+
+- we don't need MVMJitValue anymore (yay, no more value types)
+- instead we can assign register addresses directly to tiles (8 bits
+  is sufficient)
+- we don't need double-linked lists either, because live ranges now
+  contain their own set
