@@ -783,6 +783,7 @@ loadbytecodefh      r(obj) r(str)
 throwpayloadlex     w(obj) int64 r(obj) :noinline
 throwpayloadlexcaller w(obj) int64 r(obj)
 lastexpayload       w(obj) :noinline
+cancelnotify        r(obj) r(obj) r(obj)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

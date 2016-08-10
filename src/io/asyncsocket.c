@@ -743,9 +743,16 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
 }
 
 /* Stops listening. */
+static void on_listen_cancelled(uv_handle_t *handle) {
+    ListenInfo       *li = (ListenInfo *)handle->data;
+    MVMThreadContext *tc = li->tc;
+    MVM_io_eventloop_send_cancellation_notification(tc,
+        (MVMAsyncTask *)MVM_repr_at_pos_o(tc, tc->instance->event_loop_active,
+            li->work_idx));
+}
 static void listen_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     ListenInfo *li = (ListenInfo *)data;
-    uv_close((uv_handle_t *)li->socket, NULL);
+    uv_close((uv_handle_t *)li->socket, on_listen_cancelled);
 }
 
 /* Frees info for a listen task. */

@@ -1119,7 +1119,7 @@ void MVM_proc_kill_async(MVMThreadContext *tc, MVMObject *handle_obj, MVMint64 s
             /* It's fine; send the kill by cancelling the task. */
             MVMIOAsyncProcessData *data = (MVMIOAsyncProcessData *)handle->body.data;
             data->signal = signal;
-            MVM_io_eventloop_cancel_work(tc, data->async_task);
+            MVM_io_eventloop_cancel_work(tc, data->async_task, NULL, NULL);
             return;
         }
     }

@@ -31,6 +31,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMAsyncTaskBody *task = (MVMAsyncTaskBody *)data;
     MVM_gc_worklist_add(tc, worklist, &task->queue);
     MVM_gc_worklist_add(tc, worklist, &task->schedulee);
+    MVM_gc_worklist_add(tc, worklist, &task->cancel_notify_queue);
+    MVM_gc_worklist_add(tc, worklist, &task->cancel_notify_schedulee);
     if (task->ops && task->ops->gc_mark)
         task->ops->gc_mark(tc, task->data, worklist);
 }

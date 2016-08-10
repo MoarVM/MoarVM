@@ -11,6 +11,12 @@ struct MVMAsyncTaskBody {
 
     /* Data stored by operation type. */
     void *data;
+
+    /* The queue to schedule a cancellation notification on, if any. */
+    MVMObject *cancel_notify_queue;
+
+    /* The cancellation notification handler, if any. */
+    MVMObject *cancel_notify_schedulee;
 };
 struct MVMAsyncTask {
     MVMObject common;
