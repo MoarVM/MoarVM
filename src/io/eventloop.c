@@ -11,34 +11,26 @@
  */
 
 /* Sets up an async task to be done on the loop. */
-static MVMint64 setup_work(MVMThreadContext *tc) {
+static void setup_work(MVMThreadContext *tc) {
     MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_todo_queue;
-    MVMint64 setup = 0;
     MVMObject *task_obj;
 
     while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
         MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
         task->body.ops->setup(tc, tc->loop, task_obj, task->body.data);
-        setup = 1;
     }
-
-    return setup;
 }
 
 /* Performs an async cancellation on the loop. */
-static MVMint64 cancel_work(MVMThreadContext *tc) {
+static void cancel_work(MVMThreadContext *tc) {
     MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_cancel_queue;
-    MVMint64 cancelled = 0;
     MVMObject *task_obj;
 
     while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
         MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
         if (task->body.ops->cancel)
             task->body.ops->cancel(tc, tc->loop, task_obj, task->body.data);
-        cancelled = 1;
     }
-
-    return cancelled;
 }
 
 /* Fired whenever we were signalled that there is a new task or a new
