@@ -410,7 +410,10 @@ MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *co
     tiles.compiler      = compiler;
     tiles.list          = MVM_spesh_alloc(tc, tiles.compiler->graph->sg, sizeof(MVMJitTileList));
     tiles.list->tree    = tree;
+
     MVM_VECTOR_INIT(tiles.list->items, tree->nodes_num / 2);
+    MVM_VECTOR_INIT(tiles.list->inserts, 0);
+
 
     traverser.preorder  = &select_tiles;
     traverser.inorder   = &build_blocks;
@@ -420,4 +423,63 @@ MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *co
 
     MVM_free(tiles.states);
     return tiles.list;
+}
+
+
+static int cmp_tile_insert(const void *p1, const void *p2) {
+    const struct MVMJitTileInsert *a = p1, *b = p2;
+    return a->position == b->position ?
+        a->order - b->order :
+        a->position - b->position;
+}
+
+
+void MVM_jit_tile_list_insert(MVMThreadContext *tc, MVMJitTileList *list, MVMJitTile *tile, MVMint32 position, MVMint32 order) {
+    struct MVMJitTileInsert i = { position, order, tile };
+    MVM_VECTOR_PUSH(list->inserts, i);
+}
+
+void MVM_jit_tile_list_edit(MVMThreadContext *tc, MVMJitTileList *list) {
+    MVMJitTile **worklist;
+    MVMint32 i, j, k;
+    if (list->inserts_num == 0)
+        return;
+
+    /* sort inserted tiles in ascending order */
+    qsort(list->inserts, list->inserts_num,
+          sizeof(struct MVMJitTileInsert), cmp_tile_insert);
+
+    /* create a new array for the tiles */
+    worklist = MVM_malloc((list->items_num + list->inserts_num) * sizeof(MVMJitTile*));
+
+    i = 0; /* items */
+    j = 0; /* inserts */
+    k = 0; /* output */
+
+    while (i < list->items_num) {
+        while (j < list->inserts_num &&
+               list->inserts[j].position < i) {
+            worklist[k++] = list->inserts[j++].tile;
+        }
+        worklist[k++] = list->items[i++];
+    }
+    /* insert all tiles after the last one, if any */
+    while (j < list->inserts_num) {
+        worklist[k++] = list->inserts[j++].tile;
+    }
+
+    /* swap old and new list */
+    MVM_free(list->items);
+    list->items = worklist;
+    list->items_num = k;
+    list->items_alloc = k;
+
+    /* Cleanup edits buffer */
+    MVM_free(list->inserts);
+    MVM_VECTOR_INIT(list->inserts, 0);
+}
+
+void MVM_jit_tile_list_destroy(MVMThreadContext *tc, MVMJitTileList *list) {
+    MVM_free(list->items);
+    MVM_free(list->inserts);
 }

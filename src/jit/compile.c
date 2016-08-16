@@ -218,8 +218,8 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
         tile = list->items[i];
         tile->emit(tc, compiler, tile, tree);
     }
-    /* Tile list items are kept in a malloc'ed vector */
-    MVM_free(list->items);
+    /* Cleanup tile lits */
+    MVM_jit_tile_list_destroy(tc, list);
 
     /* Make sure no other tree reuses the same labels */
     compiler->label_offset += tree->num_labels;

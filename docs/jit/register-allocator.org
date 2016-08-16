@@ -12,6 +12,20 @@ definitions can be found by using the disjoint-set algorithm,
 combining values via PHI (or in our case, COPY/DO/IF nodes). This
 makes sense as (preferably) all these values use the same register.
 
+
+
+** TODO Remove cruft from previous attempts
+
+- we don't need MVMJitValue anymore (yay, no more value types)
+- instead we can assign register addresses directly to tiles (8 bits
+  is sufficient)
+- we don't need double-linked lists either, because live ranges now
+  contain their own set
+- tile editor code moves to tile.c
+  - keep it abstract?
+  - internalize into list? (why not?)
+
+
 ** TODO Find live ranges
 
 I think we can do this in a single pass, or maybe two passes
@@ -21,8 +35,9 @@ I think we can do this in a single pass, or maybe two passes
   - the key of the set is the number of the node it refers to
   - at phis/copies, we pick the set with the lowest key / largest
     definition set (whichever we know easier)
-- definitions and uses are the indexes of tiles that define or use the
-  values
+- definitions and uses are tile-list indexes
+- we still need a tile-to-live-range map
+  - we can just run get_nodes() again and again...
 - we use a second pass to find all definitions and uses (maybe keep
   counts of these)
   - if we do it in the first pass, the uses/definitions are going to
@@ -42,8 +57,25 @@ I think we can do this in a single pass, or maybe two passes
 
 
 #+BEGIN_SRC c
-void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, RegisterAllocator *alc) {
-    /* implementation */
+typedef struct {
+    MVMint32 key;
+    MVMint32 num_defs, num_uses;
+    MVMint32 live_range_idx;
+} UnionFind;
+
+typedef struct {
+    MVMint32 num_defs;
+    MVMint32 *defs;
+    MVMint32 num_uses;
+    MVMint32 *uses;
+
+    MVMint32 spilled_to; // possibly-changing location of value
+
+    MVMJitStorageClass reg_cls;
+    MVMint32 reg_num;
+} LiveRange;
+
+static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, RegisterAllocator *alc) {
 }
 #+END_SRC
 ** TODO Implement linear scan
@@ -83,7 +115,7 @@ never be necessary to insert the spill code. But we still need to
 insert loads.
 
 A byproduct of this method is that we must leave a number of registers
-free to load spilled values; two should be sufficient for x86-64.
+free to load spilled values; three is sufficient for x86-64.
 
 *** TODO Implement splitting
 
@@ -92,10 +124,4 @@ preceeds the point where the range would need to be spilled; the value
 may reside in the register before the spill and reside in storage
 afterwards.
 
-** TODO Remove cruft from previous attempts
-
-- we don't need MVMJitValue anymore (yay, no more value types)
-- instead we can assign register addresses directly to tiles (8 bits
-  is sufficient)
-- we don't need double-linked lists either, because live ranges now
-  contain their own set
+** TODO register assignment

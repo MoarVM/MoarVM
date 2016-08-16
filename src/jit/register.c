@@ -49,12 +49,6 @@ struct LiveRange {
     MVMint32 buf_idx;
 };
 
-/* Local structure for now, may be promoted to its own file in the future */
-struct InsertTile {
-    MVMint32    position;
-    MVMJitTile *tile;
-};
-
 
 struct RegisterAllocator {
     /* Live range of nodes */
@@ -62,14 +56,12 @@ struct RegisterAllocator {
     /* Nodes refered to by tiles */
     MVM_VECTOR_DECL(MVMJitExprNode, tile_nodes);
 
-    /* Tiles inserted while allocating */
-    MVM_VECTOR_DECL(struct InsertTile, tile_inserts);
-
     /* Lookup tables */
     MVMJitValue **values_by_node;
     MVMJitValue  *values_by_register[MVM_JIT_MAX_GPR];
 
     MVMJitCompiler *compiler;
+    MVMJitTileList *tile_list;
 
     /* Register giveout ring */
     MVMint8 free_reg[NUM_GPR];
@@ -88,9 +80,6 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, struct RegisterAlloca
     /* Store live ranges */
     MVM_VECTOR_INIT(allocator->tile_nodes, list->items_num * 4);
 
-    /* And inserted tiles */
-    MVM_VECTOR_INIT(allocator->tile_inserts, 8);
-
     /* Initialize free register ring */
     memcpy(allocator->free_reg, free_gpr, NUM_GPR);
     allocator->reg_give  = 0;
@@ -105,12 +94,12 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, struct RegisterAlloca
     allocator->live_ranges    = MVM_calloc(list->tree->nodes_num, sizeof(struct LiveRange));
 
     allocator->compiler       = compiler;
+    allocator->tile_list      = list;
 }
 
 void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, struct RegisterAllocator *allocator) {
     MVM_free(allocator->values_by_node);
     MVM_free(allocator->live_ranges);
-    MVM_free(allocator->tile_inserts);
     MVM_free(allocator->tile_nodes);
 }
 
@@ -175,59 +164,7 @@ static void expire_registers(MVMThreadContext *tc, struct RegisterAllocator *all
 
 
 
-
-/** PART TWO: Editing the tile list (i.e, inserting code) */
-static void insert_tile_after(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitTile *tile, MVMint32 position) {
-    struct InsertTile i = { position, tile };
-    MVM_VECTOR_PUSH(allocator->tile_inserts, i);
-}
-
-static void insert_tile_before(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitTile *tile, MVMint32 position) {
-    struct InsertTile i = { position - 1, tile };
-    MVM_VECTOR_PUSH(allocator->tile_inserts, i);
-}
-
-static int cmp_tile_insert(const void *p1, const void *p2) {
-    return ((struct InsertTile*)p1)->position - ((struct InsertTile*)p2)->position;
-}
-
-static void edit_tilelist(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitTileList *list) {
-    MVMJitTile **worklist;
-    MVMint32 i, j, k;
-    if (allocator->tile_inserts_num == 0)
-        return;
-    /* sort inserted tiles in ascending order */
-    qsort(allocator->tile_inserts, allocator->tile_inserts_num,
-          sizeof(struct InsertTile), cmp_tile_insert);
-
-    /* create a new array for the tiles */
-    worklist = MVM_malloc((list->items_num + allocator->tile_inserts_num) * sizeof(MVMJitTile*));
-
-    i = 0;
-    j = 0;
-    k = 0;
-
-    while (i < list->items_num) {
-        while (j < allocator->tile_inserts_num &&
-               allocator->tile_inserts[j].position < i) {
-            worklist[k++] = allocator->tile_inserts[j++].tile;
-        }
-        worklist[k++] = list->items[i++];
-    }
-    /* insert all tiles after the last one, if any */
-    while (j < allocator->tile_inserts_num) {
-        worklist[k++] = allocator->tile_inserts[j++].tile;
-    }
-
-    /* swap old and new list */
-    MVM_free(list->items);
-    list->items = worklist;
-    list->items_num = k;
-    list->items_alloc = k;
-}
-
-
-/** PART THREE: Management of value descriptors */
+/** PART TWO: Management of value descriptors */
 static MVMJitValue* value_create(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMint32 node) {
     MVMJitValue *value = MVM_spesh_alloc(tc, allocator->compiler->graph->sg, sizeof(MVMJitValue));
     value->node = node;
@@ -256,6 +193,7 @@ static void value_assign_range(MVMThreadContext *tc, struct RegisterAllocator *a
     }
 }
 
+
 static void spill_value(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitValue *value, MVMint32 order_nr) {
     MVMJitTile *tile;
     MVMJitValue *spilled;
@@ -266,7 +204,8 @@ static void spill_value(MVMThreadContext *tc, struct RegisterAllocator *allocato
     /* create and insert tile for a store */
     tile = MVM_jit_tile_make(tc, allocator->compiler, MVM_jit_compile_store, value->node, 1, spill_pos);
     tile->values[0] = value;
-    insert_tile_after(tc, allocator, tile, value->range_start);
+    /* spills prior to any loads */
+    MVM_jit_tile_list_insert(tc, allocator->tile_list, tile, value->range_start, -1);
 
     /* create a value and assign it to the newly spilled location */
     spilled = value_create(tc, allocator, value->node);
@@ -281,7 +220,8 @@ static MVMJitValue * load_value(MVMThreadContext *tc, struct RegisterAllocator *
                                 MVMJitValue *spilled, MVMint16 gpr_pos, MVMint32 order_nr) {
     MVMJitValue *live;
     MVMJitTile *tile = MVM_jit_tile_make(tc, allocator->compiler, MVM_jit_compile_load, spilled->node, 1, spilled->st_pos);
-    insert_tile_before(tc, allocator, tile, order_nr);
+    /* insert load after any  spills */
+    MVM_jit_tile_list_insert(tc, allocator->tile_list, tile, order_nr, 1);
 
     live = value_create(tc, allocator, spilled->node);
     value_assign_storage(tc, allocator, live, MVM_JIT_STORAGE_GPR, gpr_pos);
@@ -513,6 +453,6 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
         expire_registers(tc, &allocator, i);
     }
     /* Insert tiles into the list */
-    edit_tilelist(tc, &allocator, list);
+    MVM_jit_tile_list_edit(tc, list);
     MVM_jit_register_allocator_deinit(tc, &allocator);
 }
