@@ -29,7 +29,7 @@ static MVMint32 MVM_jit_expr_add_regaddr(MVMThreadContext *tc, MVMJitExprTree *t
     MVMint32 num  = tree->nodes_num;
     MVMJitExprNode template[] = { MVM_JIT_LOCAL,
                                   MVM_JIT_ADDR, num, reg * MVM_JIT_REG_SZ };
-    MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num + 1;
 }
 
@@ -38,12 +38,12 @@ static MVMint32 MVM_jit_expr_add_lexaddr(MVMThreadContext *tc, MVMJitExprTree *t
     MVMint32 i;
     MVMint32 num = tree->nodes_num;
     /* (frame) as the root */
-    MVM_DYNAR_PUSH(tree->nodes, MVM_JIT_FRAME);
+    MVM_VECTOR_PUSH(tree->nodes, MVM_JIT_FRAME);
     for (i = 0; i < outers; i++) {
         /* (load (addr $val (&offsetof MVMFrame outer)) (&sizeof MVMFrame*)) */
         MVMJitExprNode template[] = { MVM_JIT_ADDR, num, offsetof(MVMFrame, outer),
                                       MVM_JIT_LOAD, tree->nodes_num, sizeof(MVMFrame*) };
-        MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+        MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
         num = tree->nodes_num - 3;
     }
     /* (addr (load (addr $frame (&offsetof MVMFrame env)) ptr_sz) ptr_sz*idx) */
@@ -53,7 +53,7 @@ static MVMint32 MVM_jit_expr_add_lexaddr(MVMThreadContext *tc, MVMJitExprTree *t
             MVM_JIT_LOAD, tree->nodes_num, MVM_JIT_PTR_SZ, /* (load $addr ptr_sz) */
             MVM_JIT_ADDR, tree->nodes_num + 3, idx * MVM_JIT_REG_SZ /* (addr $frame_env idx*reg_sz) */
         };
-        MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+        MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
         num = tree->nodes_num - 3;
     }
     return num;
@@ -64,7 +64,7 @@ static MVMint32 MVM_jit_expr_add_load(MVMThreadContext *tc, MVMJitExprTree *tree
                                       MVMint32 addr) {
     MVMint32 num        = tree->nodes_num;
     MVMJitExprNode template[] = { MVM_JIT_LOAD, addr, MVM_JIT_REG_SZ };
-    MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
 }
 
@@ -73,7 +73,7 @@ static MVMint32 MVM_jit_expr_add_store(MVMThreadContext *tc, MVMJitExprTree *tre
                                        MVMint32 addr, MVMint32 val, MVMint32 sz) {
     MVMint32 num = tree->nodes_num;
     MVMJitExprNode template[] = { MVM_JIT_STORE, addr, val, sz };
-    MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
 }
 
@@ -81,7 +81,7 @@ static MVMint32 MVM_jit_expr_add_store(MVMThreadContext *tc, MVMJitExprTree *tre
 static MVMint32 MVM_jit_expr_add_cast(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMint32 size, MVMint32 cast) {
     MVMint32 num = tree->nodes_num;
     MVMJitExprNode template[] = { MVM_JIT_CAST, node, size, cast };
-    MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
 }
 
@@ -137,7 +137,7 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
     default:
         MVM_oops(tc, "Can't add constant for operand type %d\n", (info & MVM_operand_type_mask) >> 3);
     }
-    MVM_DYNAR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
 }
 
@@ -229,7 +229,7 @@ MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree,
                                      const MVMJitExprTemplate *template, MVMint32 *operands) {
     MVMint32 i, num;
     num = tree->nodes_num;
-    MVM_DYNAR_ENSURE_SPACE(tree->nodes, template->len);
+    MVM_VECTOR_ENSURE_SPACE(tree->nodes, template->len);
     /* Loop over string until the end */
     for (i = 0; template->info[i]; i++) {
         switch (template->info[i]) {
@@ -243,7 +243,7 @@ MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree,
             break;
         case 'r':
             /* add a root */
-            MVM_DYNAR_PUSH(tree->roots, num+i);
+            MVM_VECTOR_PUSH(tree->roots, num+i);
             /* fall through */
         default:
             /* copy from template to nodes */
@@ -352,11 +352,11 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 /* Widening casts need to be handled explicitly, shrinking casts do not */
                 MVMint32 cast = MVM_jit_expr_add_cast(tc, tree, child, node_info->size, op_info->cast);
                 /* Because the cast may have grown the backing nodes array, the info array needs to grow as well */
-                MVM_DYNAR_ENSURE_SIZE(tree->info, cast);
+                MVM_VECTOR_ENSURE_SIZE(tree->info, cast);
                 /* And because analyze_node is called in postorder,
                    the newly added cast node would be neglected by the
                    traverser. So we traverse it explicitly.. */
-                MVM_DYNAR_ENSURE_SIZE(traverser->visits, cast);
+                MVM_VECTOR_ENSURE_SIZE(traverser->visits, cast);
                 traverser->visits[cast] = 1;
                 analyze_node(tc, traverser, tree, cast);
                 /* Finally we replace the child with its cast */
@@ -505,7 +505,7 @@ static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 void MVM_jit_expr_tree_analyze(MVMThreadContext *tc, MVMJitExprTree *tree) {
     /* analyse the tree, calculate usage and destination information */
     MVMJitTreeTraverser traverser;
-    MVM_DYNAR_INIT(tree->info, tree->nodes_num);
+    MVM_VECTOR_INIT(tree->info, tree->nodes_num);
     traverser.policy    = MVM_JIT_TRAVERSER_ONCE;
     traverser.data      = NULL;
     traverser.preorder  = &assign_labels;
@@ -529,8 +529,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         return NULL;
     /* Make the tree */
     tree = MVM_malloc(sizeof(MVMJitExprTree));
-    MVM_DYNAR_INIT(tree->nodes, 32);
-    MVM_DYNAR_INIT(tree->roots, 8);
+    MVM_VECTOR_INIT(tree->nodes, 32);
+    MVM_VECTOR_INIT(tree->roots, 8);
     tree->graph      = jg;
     tree->info       = NULL;
     tree->num_labels = 0;
@@ -605,7 +605,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         }
         /* TODO implement post-instruction annotation handling (e.g. throwish, invokish) */
         /* Add root to tree to ensure source evaluation order */
-        MVM_DYNAR_PUSH(tree->roots, root);
+        MVM_VECTOR_PUSH(tree->roots, root);
     }
 
  done:
@@ -669,7 +669,7 @@ static void walk_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
 void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
                                 MVMJitTreeTraverser *traverser) {
     MVMint32 i;
-    MVM_DYNAR_INIT(traverser->visits, tree->nodes_num);
+    MVM_VECTOR_INIT(traverser->visits, tree->nodes_num);
     for (i = 0; i < tree->roots_num; i++) {
         /* TODO deal with nodes with multiple entries */
         walk_tree(tc, tree, traverser, tree->roots[i]);

@@ -22,7 +22,7 @@ struct MVMJitTile {
 
 struct MVMJitTileList {
     MVMJitExprTree *tree;
-    MVM_DYNAR_DECL(MVMJitTile*, items);
+    MVM_VECTOR_DECL(MVMJitTile*, items);
     /* TODO implement structures to mark basic blocks */
 };
 

@@ -34,7 +34,7 @@ MVMint32 MVM_jit_label_before_ins(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpes
         }
     }
     /* Add and return new instruction label */
-    MVM_DYNAR_PUSH(jg->ins_labels, ins);
+    MVM_VECTOR_PUSH(jg->ins_labels, ins);
     return jg->ins_labels_num - 1 + jg->ins_label_ofs;
 }
 

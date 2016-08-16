@@ -60,10 +60,10 @@ struct RegisterAllocator {
     /* Live range of nodes */
     struct LiveRange *live_ranges;
     /* Nodes refered to by tiles */
-    MVM_DYNAR_DECL(MVMJitExprNode, tile_nodes);
+    MVM_VECTOR_DECL(MVMJitExprNode, tile_nodes);
 
     /* Tiles inserted while allocating */
-    MVM_DYNAR_DECL(struct InsertTile, tile_inserts);
+    MVM_VECTOR_DECL(struct InsertTile, tile_inserts);
 
     /* Lookup tables */
     MVMJitValue **values_by_node;
@@ -86,10 +86,10 @@ struct RegisterAllocator {
 void MVM_jit_register_allocator_init(MVMThreadContext *tc, struct RegisterAllocator *allocator,
                                      MVMJitCompiler *compiler, MVMJitTileList *list) {
     /* Store live ranges */
-    MVM_DYNAR_INIT(allocator->tile_nodes, list->items_num * 4);
+    MVM_VECTOR_INIT(allocator->tile_nodes, list->items_num * 4);
 
     /* And inserted tiles */
-    MVM_DYNAR_INIT(allocator->tile_inserts, 8);
+    MVM_VECTOR_INIT(allocator->tile_inserts, 8);
 
     /* Initialize free register ring */
     memcpy(allocator->free_reg, free_gpr, NUM_GPR);
@@ -179,12 +179,12 @@ static void expire_registers(MVMThreadContext *tc, struct RegisterAllocator *all
 /** PART TWO: Editing the tile list (i.e, inserting code) */
 static void insert_tile_after(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitTile *tile, MVMint32 position) {
     struct InsertTile i = { position, tile };
-    MVM_DYNAR_PUSH(allocator->tile_inserts, i);
+    MVM_VECTOR_PUSH(allocator->tile_inserts, i);
 }
 
 static void insert_tile_before(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMJitTile *tile, MVMint32 position) {
     struct InsertTile i = { position - 1, tile };
-    MVM_DYNAR_PUSH(allocator->tile_inserts, i);
+    MVM_VECTOR_PUSH(allocator->tile_inserts, i);
 }
 
 static int cmp_tile_insert(const void *p1, const void *p2) {
@@ -379,7 +379,7 @@ static void get_tile_nodes(MVMThreadContext *tc, struct RegisterAllocator *alloc
     }
     }
     /* copy to tile-node buffer */
-    MVM_DYNAR_APPEND(allocator->tile_nodes, buffer, tile->num_values);
+    MVM_VECTOR_APPEND(allocator->tile_nodes, buffer, tile->num_values);
 }
 
 #define VALUE_LIVE_AT(v,i) ((v)->range_start < (i) && (v)->range_end >= (i))

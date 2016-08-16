@@ -120,9 +120,9 @@ struct MVMJitExprNodeInfo {
 
 struct MVMJitExprTree {
     MVMJitGraph *graph;
-    MVM_DYNAR_DECL(MVMJitExprNode, nodes);
-    MVM_DYNAR_DECL(MVMint32, roots);
-    MVM_DYNAR_DECL(MVMJitExprNodeInfo, info);
+    MVM_VECTOR_DECL(MVMJitExprNode, nodes);
+    MVM_VECTOR_DECL(MVMint32, roots);
+    MVM_VECTOR_DECL(MVMJitExprNodeInfo, info);
 
     MVMint32 label_ofs;
     MVMint32 num_labels;
@@ -149,7 +149,7 @@ struct MVMJitTreeTraverser {
                       MVMJitExprTree *tree, MVMint32 node);
     void       *data;
 
-    MVM_DYNAR_DECL(MVMint32, visits);
+    MVM_VECTOR_DECL(MVMint32, visits);
     enum {
         MVM_JIT_TRAVERSER_REPEAT,
         MVM_JIT_TRAVERSER_ONCE
