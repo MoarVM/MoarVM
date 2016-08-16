@@ -50,7 +50,7 @@ MVMint32 MVM_jit_label_for_obj(MVMThreadContext *tc, MVMJitGraph *jg, void *obj)
         }
     }
     /* Add and return new instruction label */
-    MVM_DYNAR_PUSH(jg->obj_labels, obj);
+    MVM_VECTOR_PUSH(jg->obj_labels, obj);
     return jg->obj_labels_num - 1 + jg->obj_label_ofs;
 }
 

@@ -12,11 +12,11 @@ struct MVMJitGraph {
 
 
     /* All labeled things */
-    MVM_DYNAR_DECL(void*, obj_labels);
-    MVM_DYNAR_DECL(MVMJitDeopt, deopts);
-    MVM_DYNAR_DECL(MVMJitHandler, handlers);
-    MVM_DYNAR_DECL(MVMJitInline, inlines);
-    MVM_DYNAR_DECL(MVMJitNode*, label_nodes);
+    MVM_VECTOR_DECL(void*, obj_labels);
+    MVM_VECTOR_DECL(MVMJitDeopt, deopts);
+    MVM_VECTOR_DECL(MVMJitHandler, handlers);
+    MVM_VECTOR_DECL(MVMJitInline, inlines);
+    MVM_VECTOR_DECL(MVMJitNode*, label_nodes);
 };
 
 struct MVMJitDeopt {

@@ -44,7 +44,7 @@ static void add_deopt_idx(MVMThreadContext *tc, MVMJitGraph *jg, MVMint32 label_
     MVMJitDeopt deopt;
     deopt.label = label_name;
     deopt.idx   = deopt_idx;
-    MVM_DYNAR_PUSH(jg->deopts, deopt);
+    MVM_VECTOR_PUSH(jg->deopts, deopt);
 }
 
 
@@ -77,7 +77,7 @@ static void jg_append_branch(MVMThreadContext *tc, MVMJitGraph *jg,
 static void jg_append_label(MVMThreadContext *tc, MVMJitGraph *jg, MVMint32 name) {
     MVMJitNode *node;
     /* does this label already exist? */
-    MVM_DYNAR_ENSURE_SIZE(jg->label_nodes, name);
+    MVM_VECTOR_ENSURE_SIZE(jg->label_nodes, name);
     if (jg->label_nodes[name] != NULL)
         return;
 
@@ -3059,15 +3059,16 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
 
     /* Total (expected) number of labels. May grow if there are more than 4
      * deopt labels (OSR deopt labels or deopt_all labels). */
-    MVM_DYNAR_INIT(graph->obj_labels, 16);
+    MVM_VECTOR_INIT(graph->obj_labels, 16);
+
     /* Deoptimization labels */
-    MVM_DYNAR_INIT(graph->deopts, 8);
+    MVM_VECTOR_INIT(graph->deopts, 8);
     /* Nodes for each label, used to ensure labels aren't added twice */
-    MVM_DYNAR_INIT(graph->label_nodes, 16 + sg->num_bbs);
+    MVM_VECTOR_INIT(graph->label_nodes, 16 + sg->num_bbs);
 
     /* JIT handlers are indexed by spesh graph handler index */
     if (sg->num_handlers > 0) {
-        MVM_DYNAR_INIT(graph->handlers, sg->num_handlers);
+        MVM_VECTOR_INIT(graph->handlers, sg->num_handlers);
         graph->handlers_num = sg->num_handlers;
     } else {
         graph->handlers     = NULL;
@@ -3076,7 +3077,7 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
 
     /* JIT inlines are indexed by spesh graph inline index */
     if (sg->num_inlines > 0) {
-        MVM_DYNAR_INIT(graph->inlines, sg->num_inlines);
+        MVM_VECTOR_INIT(graph->inlines, sg->num_inlines);
         graph->inlines_num = sg->num_inlines;
     } else {
         graph->inlines     = NULL;
