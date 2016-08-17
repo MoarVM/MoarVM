@@ -18,8 +18,8 @@ static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 to_orig
 
 /* Called when one set of facts depend on another, allowing any log guard
  * that is to thank to be marked used as needed later on. */
-static void depend(MVMThreadContext *tc, MVMSpeshGraph *g,
-                   MVMSpeshFacts *target, MVMSpeshFacts *source) {
+void MVM_spesh_facts_depend(MVMThreadContext *tc, MVMSpeshGraph *g,
+                            MVMSpeshFacts *target, MVMSpeshFacts *source) {
     if (source->flags & MVM_SPESH_FACT_FROM_LOG_GUARD) {
         target->flags     |= MVM_SPESH_FACT_FROM_LOG_GUARD;
         target->log_guard  = source->log_guard;
@@ -36,7 +36,7 @@ static void create_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 obj_o
     if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
         obj_facts->type   = type_facts->type;
         obj_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
-        depend(tc, g, obj_facts, type_facts);
+        MVM_spesh_facts_depend(tc, g, obj_facts, type_facts);
     }
 
     /* We know it's a concrete object. */
@@ -123,7 +123,7 @@ static void decont_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 out_o
     if (in_flags & (MVM_SPESH_FACT_KNOWN_DECONT_TYPE |
                     MVM_SPESH_FACT_DECONT_CONCRETE |
                     MVM_SPESH_FACT_DECONT_TYPEOBJ))
-        depend(tc, g, out_facts, in_facts);
+        MVM_spesh_facts_depend(tc, g, out_facts, in_facts);
 }
 
 /* Looks up a wval and adds information based on it. */
