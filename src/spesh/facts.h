@@ -52,3 +52,4 @@ struct MVMSpeshFacts {
 void MVM_spesh_facts_discover(MVMThreadContext *tc, MVMSpeshGraph *g);
 void MVM_spesh_facts_depend(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMSpeshFacts *target, MVMSpeshFacts *source);
+MVMint32 MVM_spesh_facts_decont_blocked_by_alias(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins);
