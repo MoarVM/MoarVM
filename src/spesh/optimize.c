@@ -228,6 +228,8 @@ static void optimize_isconcrete(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
         ins->operands[1].lit_i16    = result_facts->value.i;
 
         MVM_spesh_use_facts(tc, g, obj_facts);
+        MVM_spesh_facts_depend(tc, g, result_facts, obj_facts);
+
         obj_facts->usages--;
     }
 }
@@ -598,6 +600,8 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     }
     else {
         MVMSpeshFacts *res_facts;
+        int set_facts = 0;
+
         if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type) {
             MVMSTable *stable = STABLE(obj_facts->type);
             MVMContainerSpec const *contspec = stable->container_spec;
@@ -612,11 +616,18 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
         if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_DECONT_TYPE) {
             res_facts->type   = obj_facts->decont_type;
             res_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+            set_facts = 1;
         }
-        if (obj_facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE)
+        if (obj_facts->flags & MVM_SPESH_FACT_DECONT_CONCRETE) {
             res_facts->flags |= MVM_SPESH_FACT_CONCRETE;
-        else if (obj_facts->flags & MVM_SPESH_FACT_DECONT_TYPEOBJ)
+            set_facts = 1;
+        }
+        else if (obj_facts->flags & MVM_SPESH_FACT_DECONT_TYPEOBJ) {
             res_facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+            set_facts = 1;
+        }
+        if (set_facts)
+            MVM_spesh_facts_depend(tc, g, res_facts, obj_facts);
     }
 }
 
