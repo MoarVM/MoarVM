@@ -17,8 +17,8 @@ makes sense as (preferably) all these values use the same register.
 ** TODO Remove cruft from previous attempts
 
 - we don't need MVMJitValue anymore (yay, no more value types)
-- instead we can assign register addresses directly to tiles (8 bits
-  is sufficient)
+  - instead we can assign register addresses directly to tiles (8 bits
+    is sufficient)
 - we don't need double-linked lists either, because live ranges now
   contain their own set
 - tile editor code moves to tile.c
@@ -54,30 +54,81 @@ I think we can do this in a single pass, or maybe two passes
     that by shuffling (in principle)
   - point all the uses in the split live range to the new live range
 
+*** TODO Represent value yielding efficiently
+
+We currently rely on inspecting the template to see if the thing
+yields a value. However, yielding a value is specific to a tile not
+its template.
+
+This is also related to the issue of specifying register preferences.
+We want to specify that a certain tile takes certain input registers
+and yields an output register. And I think we can do this with a
+bitmap, so let's design that.
+
+Suppose we allow 4 register inputs (currently 8, but this is only
+relevant for ARGLIST, which can be dealt with specifically in some
+other context).
+
+And suppose we allow for 32 different register locations to be
+specified (5 bits per register).  That gives us 4 bits + 20 bits = 24
+bits....  We can be 'richer' and allow 6 bits per register * 4 + 4
+bits is still just 28 bits. If we allow 8 registers - no reason to,
+but let's suppose so, then 48 + 8 = 54 bits necessary, i.e., fits in a
+single 64 bit quadword. But I think 32 bits are quite sufficient.
+
+Note that the 6 bits is sufficient to specify register class (on
+x86-64) as well as register specification.
+
+Using the convention that the zeroth register is the output register
+is an output register, we can use the remaining 4 bits to specify
+whether the registers are actually used and/or whether we require a
+scratch register. For example [[http://x86.renejeschke.de/html/file_module_x86_id_137.html][idiv]]:
 
 
-#+BEGIN_SRC c
-typedef struct {
-    MVMint32 key;
-    MVMint32 num_defs, num_uses;
-    MVMint32 live_range_idx;
-} UnionFind;
 
-typedef struct {
-    MVMint32 num_defs;
-    MVMint32 *defs;
-    MVMint32 num_uses;
-    MVMint32 *uses;
+#+BEGIN_EXAMPLE
 
-    MVMint32 spilled_to; // possibly-changing location of value
 
-    MVMJitStorageClass reg_cls;
-    MVMint32 reg_num;
-} LiveRange;
+  0b1110 # use registers 0-2
+  0b1110 # specify registers 0-2
+  0b000000 # register 0 = rax (0)
+  0b000000 # register 1 = rax (0)
+  0b000001 # register 2 = rcx (1)
+  0b000000 # regsiter 3 = unused
 
-static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, RegisterAllocator *alc) {
-}
-#+END_SRC
+#+END_EXAMPLE
+
+or jmp (register variant or memory-by-register variant):
+
+#+BEGIN_EXAMPLE
+
+0b0100 # use register 1
+0b0000 # nothing specific
+0b000000 # (x 4)
+
+#+END_EXAMPLE
+
+or pop (which reads from rsp but writes to any register):
+
+#+BEGIN_EXAMPLE
+0b1100 # rsp is implicit (and can't be allocated), but for the sake of example
+0b0100 # specify only the read register
+0b00000 # can be anything
+0b00100 # rsp, iirc, is register 4, rbp is register 5
+#+END_EXAMPLE
+
+The 'yields value' is now simply 'is the highest significant bit
+set'. Or lowest... depending on where we place it. And 'do we need a
+scratch register' is just 'is register 4 set'.v
+
+The idea is to specify these requirements using macro composition.
+
+
+If this is ever insufficient, we can move to a larger representation;
+complexity of tiles is inversely correlated with complexity of
+register requirements (CISC vs RISC), so I'm nto too worried.
+
+
 ** TODO Implement linear scan
 
 The basic idea of linear scan is:
@@ -101,7 +152,9 @@ The basic idea of linear scan is:
     guaranteed to be possible.
 
 The current live set can be implemented as a heap of integers pointing
-to the live range array.
+to the live range array. This may be preferable to the current
+insertion-sorted array because spilling is rare and this pessimizes
+the expire-register case.....
 
 Maybe we should have the prefered-register thing per use/defintiion,
 but that becomes very complicated fast.
