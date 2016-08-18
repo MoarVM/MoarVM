@@ -394,6 +394,9 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
         }
     }
+
+    o[l] = '\0';
+
     for (k = 0; k < cu->body.num_frames; k++) {
         for (j = 0; j < get_frame(tc, cu, k)->body.num_lexicals; j++) {
             MVM_free(frame_lexicals[k][j]);
