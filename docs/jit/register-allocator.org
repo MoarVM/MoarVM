@@ -88,7 +88,6 @@ scratch register. For example [[http://x86.renejeschke.de/html/file_module_x86_i
 
 #+BEGIN_EXAMPLE
 
-
   0b1110 # use registers 0-2
   0b1110 # specify registers 0-2
   0b000000 # register 0 = rax (0)
@@ -122,7 +121,6 @@ set'. Or lowest... depending on where we place it. And 'do we need a
 scratch register' is just 'is register 4 set'.v
 
 The idea is to specify these requirements using macro composition.
-
 
 If this is ever insufficient, we can move to a larger representation;
 complexity of tiles is inversely correlated with complexity of
@@ -168,7 +166,9 @@ never be necessary to insert the spill code. But we still need to
 insert loads.
 
 A byproduct of this method is that we must leave a number of registers
-free to load spilled values; three is sufficient for x86-64.
+free to load spilled values; three is sufficient for x86-64. (OR we
+generate new live ranges for the just-loaded values, which
+automatically does the right thing as well.)
 
 *** TODO Implement splitting
 
@@ -177,4 +177,41 @@ preceeds the point where the range would need to be spilled; the value
 may reside in the register before the spill and reside in storage
 afterwards.
 
+*** TODO Precoloring
+
+Comes down to:
+- maintaining a table of last-register-used to register-preferences
+- assigning a prefered register to certain live ranges
+  - if a conflict is present for a single live range, split it (and
+    insert a copy between)
+  - if a conflict is present between multiple live ranges, spill (one
+    of) them
+
+- an output register is fundamentally different from an input register:
+  - output single-live-range conflict (multiple definitions different prefered output):
+    - pick one, split off the other, insert a copy between them
+  - input single-live-range conflict (different prefered register for output/input)
+    - split off output range from input range; copy to output range
+      (if not spilled)
+
+  - multiple live-range register conflict
+
+    - first-defined output register /must/ be spilled in order to make room for second registe
+
+      - exception: lifetime holes
+
+    - output-input conflict
+
+      - output-register must be copied off /or/ spilled
+
+
+
 ** TODO register assignment
+
+This should not be a problem, it's just a final loop that assigns
+registers according to some scheme. The only 'tricky' bit is to make
+sure that prefered registers can actually be assigned. And the way to
+do that is to maintain a table of register to live range, and to
+/swap/ prefered registers which have been accidentally assigned to
+other live ranges. This is *always possible* since splitting and
+spilling has made sure of it.
