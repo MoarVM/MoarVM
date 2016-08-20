@@ -1,3 +1,20 @@
+New in 2016.08
+
++ Don't crash in P6opaque on NULL name_to_index_mapping
++ Fix off-by-one in grapheme iterator
++ Block/unblock thread for GC on semaphore wait
++ Mark blocked around some more lock acquisitions
++ Fix various cases of out-dated pointer reads on concurrency control constructs
++ Hold uv_sem_t at a level of indirection, so it won't move in memory
++ Add a flag for PIPE_MERGED_OUT_ERR; fix stdio setup for merge
++ Fix EOF detection when reading files from /proc and similar
++ Fix lost socket listen errors
++ Implement async cancellation completion notifications
++ Add some missing fact dependencies in spesh, fixing some wrong guard eliminations
++ Avoid use of possibly-invalidated decont facts in spesh
++ Remove keep_caller from MVMFrame
++ Correctly NULL-terminate the buffer in MVM_vm_dump_file
+
 New in 2016.07
 
 + Implement a new multi-dispatch cache, structured as a tree, able to
