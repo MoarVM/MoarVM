@@ -47,6 +47,7 @@ typedef struct {
     MVMCallsite      *cur_call;
     MVMuint16         cur_arg;
     MVMint32          acceptable_max_arity;
+    MVMint16          checkarity_seen;
     MVMCallsiteEntry  expected_named_arg;
     MVMuint16         remaining_args;
     MVMuint16         remaining_positionals;
@@ -400,6 +401,7 @@ static void validate_operands(Validator *val) {
 
             validate_literal_operand(val, operands[1]);
             val->acceptable_max_arity = GET_UI16(val->cur_op, -2);
+            val->checkarity_seen = 1;
 
             break;
         }
@@ -408,6 +410,11 @@ static void validate_operands(Validator *val) {
             int i;
 
             if (val->cur_mark[1] == 'p') {
+                /* First of all, bail out if no checkarity was seen yet. */
+                if (!val->checkarity_seen) {
+                    fail(val, MSG(val, "param op without checkarity op seen."));
+                }
+
                 /* For the p-marked ops, which is a subset of param_* ops,
                  * we check the second argument against the value checkarity
                  * checked against. */
@@ -654,6 +661,9 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->cur_instr = 0;
     val->cur_call  = NULL;
     val->cur_arg   = 0;
+
+    val->acceptable_max_arity  = 0;
+    val->checkarity_seen       = 0;
 
     val->expected_named_arg    = 0;
     val->remaining_positionals = 0;
