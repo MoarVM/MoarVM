@@ -429,7 +429,8 @@ static void validate_operands(Validator *val) {
                         }
                     }
                 }
-            } else {
+            }
+            else {
                 for (i = 0; i < val->cur_info->num_operands; i++)
                     validate_operand(val, val->cur_info->operands[i]);
             }
