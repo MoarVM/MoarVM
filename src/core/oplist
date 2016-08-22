@@ -178,14 +178,14 @@ invoke_n         -a w(num64) r(obj) :deoptallpoint
 invoke_s         -a w(str) r(obj) :deoptallpoint
 invoke_o         -a w(obj) r(obj) :deoptallpoint :deoptonepoint
 checkarity          int16 int16
-param_rp_i          w(int64) int16 :pure :noinline
-param_rp_n          w(num64) int16 :pure :noinline
-param_rp_s          w(str) int16 :pure :noinline
-param_rp_o          w(obj) int16 :pure :noinline
-param_op_i          w(int64) int16 ins :pure :noinline
-param_op_n          w(num64) int16 ins :pure :noinline
-param_op_s          w(str) int16 ins :pure :noinline
-param_op_o          w(obj) int16 ins :pure :noinline
+param_rp_i       .p w(int64) int16 :pure :noinline
+param_rp_n       .p w(num64) int16 :pure :noinline
+param_rp_s       .p w(str) int16 :pure :noinline
+param_rp_o       .p w(obj) int16 :pure :noinline
+param_op_i       .p w(int64) int16 ins :pure :noinline
+param_op_n       .p w(num64) int16 ins :pure :noinline
+param_op_s       .p w(str) int16 ins :pure :noinline
+param_op_o       .p w(obj) int16 ins :pure :noinline
 param_rn_i          w(int64) str :noinline
 param_rn_n          w(num64) str :noinline
 param_rn_s          w(str) str :noinline
@@ -194,7 +194,7 @@ param_on_i          w(int64) str ins :noinline
 param_on_n          w(num64) str ins :noinline
 param_on_s          w(str) str ins :noinline
 param_on_o          w(obj) str ins :noinline
-param_sp            w(obj) int16 :pure :noinline
+param_sp         .p w(obj) int16 :pure :noinline
 param_sn            w(obj) :noinline
 getcode             w(obj) coderef :pure
 caller              w(obj) r(int64) :pure :noinline
