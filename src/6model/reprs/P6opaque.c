@@ -1060,6 +1060,10 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             if (cur_st->REPR->gc_cleanup)
                 repr_data->gc_cleanup_slots[cur_gc_cleanup_slot++] = i;
 
+            if (spec->align == 0) {
+                MVM_exception_throw_adhoc(tc, "Serialization error: Storage Spec of P6opaque must not have align set to 0.");
+            }
+
             if (cur_offset % spec->align) {
                 cur_offset += spec->align - cur_offset % spec->align;
             }
