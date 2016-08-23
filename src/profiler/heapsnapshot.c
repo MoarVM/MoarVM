@@ -659,7 +659,7 @@ MVMObject * types_str(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
      MVMuint64 i;
      for (i = 0; i < col->num_types; i++) {
          char tmp[256];
-         size_t item_chars = snprintf(tmp, 256,
+         int item_chars = snprintf(tmp, 256,
             "%"PRIu64",%"PRIu64";",
             col->types[i].repr_name,
             col->types[i].type_name);
@@ -693,7 +693,7 @@ MVMObject * static_frames_str(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
      MVMuint64 i;
      for (i = 0; i < col->num_static_frames; i++) {
          char tmp[256];
-         size_t item_chars = snprintf(tmp, 256,
+         int item_chars = snprintf(tmp, 256,
             "%"PRId64",%"PRId64",%"PRId64",%"PRId64";",
             col->static_frames[i].name,
             col->static_frames[i].cuid,
@@ -729,7 +729,7 @@ MVMObject * collectables_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
      MVMuint64 i;
      for (i = 0; i < s->num_collectables; i++) {
          char tmp[256];
-         size_t item_chars = snprintf(tmp, 256,
+         int item_chars = snprintf(tmp, 256,
             "%"PRIu16",%"PRId32",%"PRIu16",%"PRIu64",%"PRIu64",%"PRIu32";",
             s->collectables[i].kind,
             s->collectables[i].type_or_frame_index,
@@ -767,7 +767,7 @@ MVMObject * references_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
     MVMuint64 i;
     for (i = 0; i < s->num_references; i++) {
         char tmp[128];
-        size_t item_chars = snprintf(tmp, 128, "%lu,%lu,%lu;",
+        int item_chars = snprintf(tmp, 128, "%lu,%lu,%lu;",
             s->references[i].description & ((1 << MVM_SNAPSHOT_REF_KIND_BITS) - 1),
             s->references[i].description >> MVM_SNAPSHOT_REF_KIND_BITS,
             s->references[i].collectable_index);
