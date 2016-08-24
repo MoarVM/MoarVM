@@ -479,7 +479,7 @@ MVMint64 MVM_string_decodestream_tell_bytes(MVMThreadContext *tc, const MVMDecod
 
 /* Checks if the decode stream is empty. */
 MVMint32 MVM_string_decodestream_is_empty(MVMThreadContext *tc, MVMDecodeStream *ds) {
-    return !(ds->bytes_head || ds->chars_head || MVM_unicode_normalizer_available(tc, &(ds->norm)));
+    return !ds->bytes_head && !ds->chars_head && MVM_unicode_normalizer_empty(tc, &(ds->norm));
 }
 
 /* Destroys a decoding stream, freeing all associated memory (including the
