@@ -5028,6 +5028,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
+            OP(decoderconfigure):
+            OP(decodersetlineseps):
+            OP(decoderaddbytes):
+            OP(decodertakechars):
+            OP(decodertakeallchars):
+            OP(decodertakeline):
+            OP(decoderbytesavailable):
+            OP(decodertakebytes):
+            OP(decoderempty):
+                MVM_exception_throw_adhoc(tc, "decoder ops NYI");
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

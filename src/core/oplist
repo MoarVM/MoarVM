@@ -784,6 +784,15 @@ throwpayloadlex     w(obj) int64 r(obj) :noinline
 throwpayloadlexcaller w(obj) int64 r(obj)
 lastexpayload       w(obj) :noinline
 cancelnotify        r(obj) r(obj) r(obj)
+decoderconfigure    r(obj) r(str) r(obj)
+decodersetlineseps  r(obj) r(obj)
+decoderaddbytes     r(obj) r(obj)
+decodertakechars    w(str) r(obj) r(int64)
+decodertakeallchars w(str) r(obj)
+decodertakeline     w(str) r(obj) r(int64) r(int64)
+decoderbytesavailable w(int64) r(obj) :pure
+decodertakebytes    w(obj) r(obj) r(obj) r(int64)
+decoderempty        w(int64) r(obj) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

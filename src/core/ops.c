@@ -1641,7 +1641,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_rn_i,
         "param_rn_i",
-        ".p",
+        "  ",
         2,
         0,
         0,
@@ -1652,7 +1652,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_rn_n,
         "param_rn_n",
-        ".p",
+        "  ",
         2,
         0,
         0,
@@ -1663,7 +1663,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_rn_s,
         "param_rn_s",
-        ".p",
+        "  ",
         2,
         0,
         0,
@@ -1674,7 +1674,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_rn_o,
         "param_rn_o",
-        ".p",
+        "  ",
         2,
         0,
         0,
@@ -1685,7 +1685,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_on_i,
         "param_on_i",
-        ".p",
+        "  ",
         3,
         0,
         0,
@@ -1696,7 +1696,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_on_n,
         "param_on_n",
-        ".p",
+        "  ",
         3,
         0,
         0,
@@ -1707,7 +1707,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_on_s,
         "param_on_s",
-        ".p",
+        "  ",
         3,
         0,
         0,
@@ -1718,7 +1718,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_on_o,
         "param_on_o",
-        ".p",
+        "  ",
         3,
         0,
         0,
@@ -1740,7 +1740,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_sn,
         "param_sn",
-        ".p",
+        "  ",
         1,
         0,
         0,
@@ -8189,6 +8189,105 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
+        MVM_OP_decoderconfigure,
+        "decoderconfigure",
+        "  ",
+        3,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_decodersetlineseps,
+        "decodersetlineseps",
+        "  ",
+        2,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_decoderaddbytes,
+        "decoderaddbytes",
+        "  ",
+        2,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_decodertakechars,
+        "decodertakechars",
+        "  ",
+        3,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_decodertakeallchars,
+        "decodertakeallchars",
+        "  ",
+        2,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_decodertakeline,
+        "decodertakeline",
+        "  ",
+        4,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_decoderbytesavailable,
+        "decoderbytesavailable",
+        "  ",
+        2,
+        1,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
+        MVM_OP_decodertakebytes,
+        "decodertakebytes",
+        "  ",
+        4,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+    },
+    {
+        MVM_OP_decoderempty,
+        "decoderempty",
+        "  ",
+        2,
+        1,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_sp_log,
         "sp_log",
         ".s",
@@ -8846,7 +8945,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 805;
+static const unsigned short MVM_op_counts = 814;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
