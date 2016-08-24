@@ -166,6 +166,11 @@ MVMString * MVM_decoder_take_all_chars(MVMThreadContext *tc, MVMDecoder *decoder
     return MVM_string_decodestream_get_all(tc, get_ds(tc, decoder));
 }
 
+/* Takes all available chars from the decoder. */
+MVMString * MVM_decoder_take_available_chars(MVMThreadContext *tc, MVMDecoder *decoder) {
+    return MVM_string_decodestream_get_available(tc, get_ds(tc, decoder));
+}
+
 /* Returns true if the decoder is empty. */
 MVMint64 MVM_decoder_empty(MVMThreadContext *tc, MVMDecoder *decoder) {
     return MVM_string_decodestream_is_empty(tc, get_ds(tc, decoder));

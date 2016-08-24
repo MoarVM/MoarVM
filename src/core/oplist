@@ -789,6 +789,7 @@ decodersetlineseps  r(obj) r(obj)
 decoderaddbytes     r(obj) r(obj)
 decodertakechars    w(str) r(obj) r(int64)
 decodertakeallchars w(str) r(obj)
+decodertakeavailablechars w(str) r(obj)
 decodertakeline     w(str) r(obj) r(int64) r(int64)
 decoderbytesavailable w(int64) r(obj) :pure
 decodertakebytes    w(obj) r(obj) r(obj) r(int64)

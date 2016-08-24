@@ -17,4 +17,5 @@ void MVM_decoder_configure(MVMThreadContext *tc, MVMDecoder *decoder,
 MVMint64 MVM_decoder_empty(MVMThreadContext *tc, MVMDecoder *decoder);
 void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject *blob);
 MVMString * MVM_decoder_take_all_chars(MVMThreadContext *tc, MVMDecoder *decoder);
+MVMString * MVM_decoder_take_available_chars(MVMThreadContext *tc, MVMDecoder *decoder);
 MVMString * MVM_decoder_take_chars(MVMThreadContext *tc, MVMDecoder *decoder, MVMint64 chars);

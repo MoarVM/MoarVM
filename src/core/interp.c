@@ -5060,6 +5060,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(decodertakeavailablechars): {
+                MVMObject *decoder = GET_REG(cur_op, 2).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decodertakeavailablechars");
+                GET_REG(cur_op, 0).s = MVM_decoder_take_available_chars(tc, (MVMDecoder *)decoder);
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(decodertakeline):
             OP(decoderbytesavailable):
             OP(decodertakebytes):
