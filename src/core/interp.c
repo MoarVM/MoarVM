@@ -5028,16 +5028,49 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
-            OP(decoderconfigure):
+            OP(decoderconfigure): {
+                MVMObject *decoder = GET_REG(cur_op, 0).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decoderconfigure");
+                MVM_decoder_configure(tc, (MVMDecoder *)decoder,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(decodersetlineseps):
-            OP(decoderaddbytes):
-            OP(decodertakechars):
-            OP(decodertakeallchars):
+                MVM_exception_throw_adhoc(tc, "decoder ops NYI");
+            OP(decoderaddbytes): {
+                MVMObject *decoder = GET_REG(cur_op, 0).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decoderaddbytes");
+                MVM_decoder_add_bytes(tc, (MVMDecoder *)decoder, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(decodertakechars): {
+                MVMObject *decoder = GET_REG(cur_op, 2).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decodertakechars");
+                GET_REG(cur_op, 0).s = MVM_decoder_take_chars(tc, (MVMDecoder *)decoder,
+                    GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(decodertakeallchars): {
+                MVMObject *decoder = GET_REG(cur_op, 2).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decodertakeallchars");
+                GET_REG(cur_op, 0).s = MVM_decoder_take_all_chars(tc, (MVMDecoder *)decoder);
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(decodertakeline):
             OP(decoderbytesavailable):
             OP(decodertakebytes):
-            OP(decoderempty):
                 MVM_exception_throw_adhoc(tc, "decoder ops NYI");
+            OP(decoderempty): {
+                MVMObject *decoder = GET_REG(cur_op, 2).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decoderempty");
+                GET_REG(cur_op, 0).i64 = MVM_decoder_empty(tc, (MVMDecoder *)decoder);
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
