@@ -83,9 +83,10 @@ bits, or one byte, per register. We can then scale linearly up to the
 number of bits required.
 
 #+BEGIN_SRC c
-#define MVM_JIT_REGISTER_ENCODE(use,req,nr) ((use) | ((req) << 1) | ((nr) << 2))
+#define MVM_JIT_REGISTER_ENCODE(req,nr) (1 | ((req) << 1) | ((nr) << 2))
 #define MVM_JIT_REGISTER_SPEC(a,b,c,d) ((a &0xff) | ((b &0xff) << 8) | ((c & 0xff) << 16) | ((d & 0xff) << 24))
 #define MVM_JIT_REGISTER_FETCH(spec,n) ((spec >> (8*n))&0xff)
+#define MVM_JIT_REGISTER_NONE 0
 
 #define MVM_JIT_REGISTER_IS_USED(desc) (desc & 1)
 #define MVM_JIT_REGISTER_HAS_REQUIREMENT(desc) ((desc & 2) >> 1)
