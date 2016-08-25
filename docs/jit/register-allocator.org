@@ -21,7 +21,7 @@ makes sense as (preferably) all these values use the same register.
     is sufficient)
 - we don't need double-linked lists either, because live ranges now
   contain their own set
-- tile editor code moves to tile.c
+** DONE tile editor code moves to tile.c
   - keep it abstract?
   - internalize into list? (why not?)
 
@@ -38,6 +38,7 @@ I think we can do this in a single pass, or maybe two passes
 - definitions and uses are tile-list indexes
 - we still need a tile-to-live-range map
   - we can just run get_nodes() again and again...
+  - nope, we really can't; we need to insert and maintain 'synthetic' live nodes
 - we use a second pass to find all definitions and uses (maybe keep
   counts of these)
   - if we do it in the first pass, the uses/definitions are going to
@@ -54,7 +55,7 @@ I think we can do this in a single pass, or maybe two passes
     that by shuffling (in principle)
   - point all the uses in the split live range to the new live range
 
-*** TODO Represent value yielding efficiently
+*** TODO Represent register requirements intelligently
 
 We currently rely on inspecting the template to see if the thing
 yields a value. However, yielding a value is specific to a tile not
@@ -77,55 +78,43 @@ but let's suppose so, then 48 + 8 = 54 bits necessary, i.e., fits in a
 single 64 bit quadword. But I think 32 bits are quite sufficient.
 
 Note that the 6 bits is sufficient to specify register class (on
-x86-64) as well as register specification.
+x86-64) as well as register specification. This gives us a total of 8
+bits, or one byte, per register. We can then scale linearly up to the
+number of bits required.
 
-Using the convention that the zeroth register is the output register
-is an output register, we can use the remaining 4 bits to specify
-whether the registers are actually used and/or whether we require a
-scratch register. For example [[http://x86.renejeschke.de/html/file_module_x86_id_137.html][idiv]]:
+#+BEGIN_SRC c
+#define MVM_JIT_REGISTER_ENCODE(use,req,nr) ((use) | ((req) << 1) | ((nr) << 2))
+#define MVM_JIT_REGISTER_SPEC(a,b,c,d) ((a &0xff) | ((b &0xff) << 8) | ((c & 0xff) << 16) | ((d & 0xff) << 24))
+#define MVM_JIT_REGISTER_FETCH(spec,n) ((spec >> (8*n))&0xff)
 
+#define MVM_JIT_REGISTER_IS_USED(desc) (desc & 1)
+#define MVM_JIT_REGISTER_HAS_REQUIREMENT(desc) ((desc & 2) >> 1)
+#define MVM_JIT_REGISTER_REQUIREMENT(desc) ((desc & 0xfc) >> 2)
 
+/* we could also do */
+ostruct registerspec {
+    int used : 1;
+    int has_requirement : 1;
+    int required_register : 6;
+};
+/* but this is 4 bytes wide */
+#+END_SRC
 
-#+BEGIN_EXAMPLE
+So the second question is how are we going to encode this in the tile
+texts? My initial guess was to add an extra list; but we already
+specify which things are registers in the tile itself, and we can just
+add it as an attribute.
 
-  0b1110 # use registers 0-2
-  0b1110 # specify registers 0-2
-  0b000000 # register 0 = rax (0)
-  0b000000 # register 1 = rax (0)
-  0b000001 # register 2 = rcx (1)
-  0b000000 # regsiter 3 = unused
-
-#+END_EXAMPLE
-
-or jmp (register variant or memory-by-register variant):
-
-#+BEGIN_EXAMPLE
-
-0b0100 # use register 1
-0b0000 # nothing specific
-0b000000 # (x 4)
-
-#+END_EXAMPLE
-
-or pop (which reads from rsp but writes to any register):
+So we can get (for instance):
 
 #+BEGIN_EXAMPLE
-0b1100 # rsp is implicit (and can't be allocated), but for the sake of example
-0b0100 # specify only the read register
-0b00000 # can be anything
-0b00100 # rsp, iirc, is register 4, rbp is register 5
+(tile: div (div reg:rax reg:rcx) reg:rax)
+(tile: mod (mod reg:rax reg:rcx) reg:rcx)
 #+END_EXAMPLE
 
-The 'yields value' is now simply 'is the highest significant bit
-set'. Or lowest... depending on where we place it. And 'do we need a
-scratch register' is just 'is register 4 set'.v
-
-The idea is to specify these requirements using macro composition.
-
-If this is ever insufficient, we can move to a larger representation;
-complexity of tiles is inversely correlated with complexity of
-register requirements (CISC vs RISC), so I'm nto too worried.
-
+Fortunately, we have two-operand mul these days, so it needs no
+specific treatment, although full-precision (i.e. two-registers
+rax:rdx pair) can't be done.
 
 ** TODO Implement linear scan
 
@@ -139,6 +128,11 @@ The basic idea of linear scan is:
     - if this prefered register is taken
       - then we have a conflict (resolve by spilling/splitting)
       - else assign the prefered register to that live range
+
+NB; Even though we have created the list of live ranges in sorted
+order, we'll want to use it as a binary heap, because we can cheaply
+maintain the heap property - it is already initialized that way -
+while inserting new live ranges (for loading spilled values).
 
 - assign registers in a second pass
 
@@ -176,6 +170,13 @@ One might split a live range in two, for example, if a set of uses
 preceeds the point where the range would need to be spilled; the value
 may reside in the register before the spill and reside in storage
 afterwards.
+
+So in fact, splitting implies:
+- taking all definitions/uses within some range
+- creating a new live range for range splitted of, inserting it in the
+  live range heap (hence a heap!)
+- and spill the necessary registers.
+
 
 *** TODO Precoloring
 
