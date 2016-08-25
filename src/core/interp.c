@@ -4136,7 +4136,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 12;
                 goto NEXT;
             OP(cancel):
-                MVM_io_eventloop_cancel_work(tc, GET_REG(cur_op, 0).o);
+                MVM_io_eventloop_cancel_work(tc, GET_REG(cur_op, 0).o, NULL, NULL);
                 cur_op += 2;
                 goto NEXT;
             OP(signal):
@@ -5022,6 +5022,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(lastexpayload):
                 GET_REG(cur_op, 0).o = tc->last_payload;
                 cur_op += 2;
+                goto NEXT;
+            OP(cancelnotify):
+                MVM_io_eventloop_cancel_work(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
                 goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {

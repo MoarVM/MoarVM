@@ -2521,8 +2521,11 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Container spec. */
     if (flags & STABLE_HAS_CONTAINER_SPEC) {
-        const MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc,
-            MVM_serialization_read_str(tc, reader));
+        MVMString *name = MVM_serialization_read_str(tc, reader);
+        const MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc, name);
+        if (!cc)
+            fail_deserialize(tc, reader, "Could not look up the container config for '%s'",
+                MVM_string_ascii_encode(tc, name, NULL, 0));
         cc->set_container_spec(tc, st);
         st->container_spec->deserialize(tc, st, reader);
     }

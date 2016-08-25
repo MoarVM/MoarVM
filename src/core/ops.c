@@ -1553,7 +1553,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_rp_i,
         "param_rp_i",
-        "  ",
+        ".p",
         2,
         1,
         0,
@@ -1564,7 +1564,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_rp_n,
         "param_rp_n",
-        "  ",
+        ".p",
         2,
         1,
         0,
@@ -1575,7 +1575,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_rp_s,
         "param_rp_s",
-        "  ",
+        ".p",
         2,
         1,
         0,
@@ -1586,7 +1586,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_rp_o,
         "param_rp_o",
-        "  ",
+        ".p",
         2,
         1,
         0,
@@ -1597,7 +1597,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_op_i,
         "param_op_i",
-        "  ",
+        ".p",
         3,
         1,
         0,
@@ -1608,7 +1608,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_op_n,
         "param_op_n",
-        "  ",
+        ".p",
         3,
         1,
         0,
@@ -1619,7 +1619,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_op_s,
         "param_op_s",
-        "  ",
+        ".p",
         3,
         1,
         0,
@@ -1630,7 +1630,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_op_o,
         "param_op_o",
-        "  ",
+        ".p",
         3,
         1,
         0,
@@ -1641,7 +1641,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_rn_i,
         "param_rn_i",
-        "  ",
+        ".p",
         2,
         0,
         0,
@@ -1652,7 +1652,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_rn_n,
         "param_rn_n",
-        "  ",
+        ".p",
         2,
         0,
         0,
@@ -1663,7 +1663,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_rn_s,
         "param_rn_s",
-        "  ",
+        ".p",
         2,
         0,
         0,
@@ -1674,7 +1674,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_rn_o,
         "param_rn_o",
-        "  ",
+        ".p",
         2,
         0,
         0,
@@ -1685,7 +1685,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_on_i,
         "param_on_i",
-        "  ",
+        ".p",
         3,
         0,
         0,
@@ -1696,7 +1696,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_on_n,
         "param_on_n",
-        "  ",
+        ".p",
         3,
         0,
         0,
@@ -1707,7 +1707,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_on_s,
         "param_on_s",
-        "  ",
+        ".p",
         3,
         0,
         0,
@@ -1718,7 +1718,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_on_o,
         "param_on_o",
-        "  ",
+        ".p",
         3,
         0,
         0,
@@ -1729,7 +1729,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_sp,
         "param_sp",
-        "  ",
+        ".p",
         2,
         1,
         0,
@@ -1740,7 +1740,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_param_sn,
         "param_sn",
-        "  ",
+        ".p",
         1,
         0,
         0,
@@ -8178,6 +8178,17 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
+        MVM_OP_cancelnotify,
+        "cancelnotify",
+        "  ",
+        3,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_sp_log,
         "sp_log",
         ".s",
@@ -8835,7 +8846,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 804;
+static const unsigned short MVM_op_counts = 805;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

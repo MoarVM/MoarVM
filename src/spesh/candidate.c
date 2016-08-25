@@ -4,9 +4,18 @@
  * lexicals. */
 static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
                                      MVMSpeshCandidate *c) {
-    c->work_size = (c->num_locals + sf->body.cu->body.max_callsite_size + (c->jitcode ? c->jitcode->spill_size : 0))
-        * sizeof(MVMRegister);
+    MVMuint32 max_callsite_size, jit_spill_size;
+    MVMint32 i;
 
+    max_callsite_size = sf->body.cu->body.max_callsite_size;
+    jit_spill_size = (c->jitcode ? c->jitcode->spill_size: 0);
+    for (i = 0; i < c->num_inlines; i++) {
+        MVMuint32 cs = c->inlines[i].code->body.sf->body.cu->body.max_callsite_size;
+        if (cs > max_callsite_size)
+            max_callsite_size = cs;
+    }
+
+    c->work_size = (c->num_locals + max_callsite_size + jit_spill_size) * sizeof(MVMRegister);
     c->env_size = c->num_lexicals * sizeof(MVMRegister);
 }
 

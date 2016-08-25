@@ -808,14 +808,6 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
         /* Signal to the GC to ignore ->work */
         returner->tc = NULL;
-
-        /* Unless we need to keep the caller chain in place, clear it up. */
-        if (caller) {
-            if (!returner->keep_caller)
-                returner->caller = NULL;
-            else if (unwind)
-                caller->keep_caller = 1;
-        }
     }
 
     /* If it's a call stack frame, remove it from the stack. */
@@ -1766,7 +1758,6 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
         ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
         MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
     });
-    f->keep_caller = 1;
     return ctx;
 }
 

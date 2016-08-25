@@ -11,34 +11,26 @@
  */
 
 /* Sets up an async task to be done on the loop. */
-static MVMint64 setup_work(MVMThreadContext *tc) {
+static void setup_work(MVMThreadContext *tc) {
     MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_todo_queue;
-    MVMint64 setup = 0;
     MVMObject *task_obj;
 
     while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
         MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
         task->body.ops->setup(tc, tc->loop, task_obj, task->body.data);
-        setup = 1;
     }
-
-    return setup;
 }
 
 /* Performs an async cancellation on the loop. */
-static MVMint64 cancel_work(MVMThreadContext *tc) {
+static void cancel_work(MVMThreadContext *tc) {
     MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_cancel_queue;
-    MVMint64 cancelled = 0;
     MVMObject *task_obj;
 
     while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
         MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
         if (task->body.ops->cancel)
             task->body.ops->cancel(tc, tc->loop, task_obj, task->body.data);
-        cancelled = 1;
     }
-
-    return cancelled;
 }
 
 /* Fired whenever we were signalled that there is a new task or a new
@@ -132,8 +124,16 @@ void MVM_io_eventloop_queue_work(MVMThreadContext *tc, MVMObject *work) {
 }
 
 /* Cancels a piece of async work. */
-void MVM_io_eventloop_cancel_work(MVMThreadContext *tc, MVMObject *task_obj) {
+void MVM_io_eventloop_cancel_work(MVMThreadContext *tc, MVMObject *task_obj,
+        MVMObject *notify_queue, MVMObject *notify_schedulee) {
     if (REPR(task_obj)->ID == MVM_REPR_ID_MVMAsyncTask) {
+        if (notify_queue && notify_schedulee) {
+            MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
+            MVM_ASSIGN_REF(tc, &(task_obj->header), task->body.cancel_notify_queue,
+                notify_queue);
+            MVM_ASSIGN_REF(tc, &(task_obj->header), task->body.cancel_notify_schedulee,
+                notify_schedulee);
+        }
         MVMROOT(tc, task_obj, {
             get_or_vivify_loop(tc);
             MVM_repr_push_o(tc, tc->instance->event_loop_cancel_queue, task_obj);
@@ -143,4 +143,12 @@ void MVM_io_eventloop_cancel_work(MVMThreadContext *tc, MVMObject *task_obj) {
     else {
         MVM_exception_throw_adhoc(tc, "Can only cancel an AsyncTask handle");
     }
+}
+
+/* Sends a task cancellation notification if requested for the specified task. */
+void MVM_io_eventloop_send_cancellation_notification(MVMThreadContext *tc, MVMAsyncTask *task) {
+    MVMObject *notify_queue = task->body.cancel_notify_queue;
+    MVMObject *notify_schedulee = task->body.cancel_notify_schedulee;
+    if (notify_queue && notify_schedulee)
+        MVM_repr_push_o(tc, notify_queue, notify_schedulee);
 }

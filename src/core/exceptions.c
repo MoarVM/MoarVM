@@ -605,7 +605,6 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     if (!ex->body.origin) {
         MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.origin, tc->cur_frame);
         tc->cur_frame->throw_address = *(tc->interp_cur_op);
-        tc->cur_frame->keep_caller   = 1;
     }
 
     run_handler(tc, lh, ex_obj, 0, NULL);
@@ -865,7 +864,6 @@ void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const
         if (tc->cur_frame) {
             ex->body.origin = tc->cur_frame;
             tc->cur_frame->throw_address = *(tc->interp_cur_op);
-            tc->cur_frame->keep_caller   = 1;
         }
         else {
             ex->body.origin = NULL;

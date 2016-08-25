@@ -46,6 +46,8 @@ typedef struct {
     MVMuint32         cur_instr;
     MVMCallsite      *cur_call;
     MVMuint16         cur_arg;
+    MVMint32          acceptable_max_arity;
+    MVMint16          checkarity_seen;
     MVMCallsiteEntry  expected_named_arg;
     MVMuint16         remaining_args;
     MVMuint16         remaining_positionals;
@@ -392,12 +394,46 @@ static void validate_operands(Validator *val) {
 
             break;
         }
+        case MVM_OP_checkarity: {
+            MVMint64 count;
+
+            validate_literal_operand(val, operands[0]);
+
+            validate_literal_operand(val, operands[1]);
+            val->acceptable_max_arity = GET_UI16(val->cur_op, -2);
+            val->checkarity_seen = 1;
+
+            break;
+        }
 
         default: {
             int i;
 
-            for (i = 0; i < val->cur_info->num_operands; i++)
-                validate_operand(val, val->cur_info->operands[i]);
+            if (val->cur_mark[1] == 'p') {
+                /* First of all, bail out if no checkarity was seen yet. */
+                if (!val->checkarity_seen) {
+                    fail(val, MSG(val, "param op without checkarity op seen."));
+                }
+
+                /* For the p-marked ops, which is a subset of param_* ops,
+                 * we check the second argument against the value checkarity
+                 * checked against. */
+                for (i = 0; i < val->cur_info->num_operands; i++) {
+                    validate_operand(val, val->cur_info->operands[i]);
+
+                    /* This is the argument we want to check */
+                    if (i == 1) {
+                        MVMint16 value = GET_UI16(val->cur_op, -2);
+                        if (value > val->acceptable_max_arity) {
+                            fail(val, MSG(val, "tried to take arg number %d after checkarity with %d"), value, val->acceptable_max_arity);
+                        }
+                    }
+                }
+            }
+            else {
+                for (i = 0; i < val->cur_info->num_operands; i++)
+                    validate_operand(val, val->cur_info->operands[i]);
+            }
         }
     }
 }
@@ -626,6 +662,9 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->cur_instr = 0;
     val->cur_call  = NULL;
     val->cur_arg   = 0;
+
+    val->acceptable_max_arity  = 0;
+    val->checkarity_seen       = 0;
 
     val->expected_named_arg    = 0;
     val->remaining_positionals = 0;
