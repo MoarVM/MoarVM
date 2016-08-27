@@ -243,6 +243,7 @@ static void set_static_frame_index(MVMThreadContext *tc, MVMHeapSnapshotState *s
         s = &(ss->col->static_frames[i]);
         if (s->name == name_idx && s->cuid == cuid_idx && s->line == line && s->file == file_idx) {
             col->type_or_frame_index = i;
+            MVM_free(ann);
             return;
         }
     }
