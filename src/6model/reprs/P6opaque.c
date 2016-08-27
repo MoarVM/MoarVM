@@ -1101,12 +1101,14 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 /* Serializes the object's body. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-    MVMuint16 num_attributes = repr_data->num_attributes;
+    MVMuint16 num_attributes;
     MVMuint16 i;
 
     if (!repr_data)
         MVM_exception_throw_adhoc(tc,
             "Representation must be composed before it can be serialized");
+
+    num_attributes = repr_data->num_attributes;
 
     data = MVM_p6opaque_real_data(tc, data);
 
