@@ -48,6 +48,10 @@ matrix:
   - os: osx
     env: MVM_OPTIONS="--has-libffi"           CC="gcc"
   - os: osx
+    env: MVM_OPTIONS="--no-jit"               CC="gcc"
+  - os: osx
+    env: MVM_OPTIONS=""                       CC="gcc"
+  - os: osx
     env: MVM_OPTIONS="--has-libffi --no-jit"  CC="clang"
   - os: osx
     env: MVM_OPTIONS="--has-libffi"           CC="clang"
