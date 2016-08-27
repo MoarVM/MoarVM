@@ -1447,6 +1447,7 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
         case MVM_OP_prepargs:
             arg_info.cs = g->sf->body.cu->body.callsites[ins->operands[0].callsite_idx];
             arg_info.prepargs_ins = ins;
+            arg_info.prepargs_bb  = bb;
             break;
         case MVM_OP_arg_i:
         case MVM_OP_arg_n:
