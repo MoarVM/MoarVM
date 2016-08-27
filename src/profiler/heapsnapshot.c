@@ -237,8 +237,6 @@ static void set_static_frame_index(MVMThreadContext *tc, MVMHeapSnapshotState *s
         ? get_vm_string_index(tc, ss, MVM_cu_string(tc, cu, ann->filename_string_heap_index))
         : get_vm_string_index(tc, ss, cu->body.filename);
 
-    MVM_free(ann);
-
     MVMuint64 i;
     MVMHeapSnapshotStaticFrame *s;
     for (i = 0; i < ss->col->num_static_frames; i++) {
@@ -248,6 +246,8 @@ static void set_static_frame_index(MVMThreadContext *tc, MVMHeapSnapshotState *s
             return;
         }
     }
+
+    MVM_free(ann);
 
     grow_storage(&(ss->col->static_frames), &(ss->col->num_static_frames),
         &(ss->col->alloc_static_frames), sizeof(MVMHeapSnapshotStaticFrame));
