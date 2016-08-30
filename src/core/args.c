@@ -396,7 +396,7 @@ void MVM_args_assert_nameds_used(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                     ctx->args[ctx->num_pos + 2 * i].s);
                 char *waste[] = { c_param, NULL };
                 MVM_exception_throw_adhoc_free(tc, waste,
-                    "Unexpected named parameter '%s' passed",
+                    "Unexpected named argument '%s' passed",
                     c_param);
             }
     }
