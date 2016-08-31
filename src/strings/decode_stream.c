@@ -434,6 +434,19 @@ MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, const MVMDecod
     return 0;
 }
 
+/* Gets the number of bytes available. */
+MVMint64 MVM_string_decodestream_bytes_available(MVMThreadContext *tc, const MVMDecodeStream *ds) {
+    MVMDecodeStreamBytes *cur_bytes = ds->bytes_head;
+    MVMint32 available = 0;
+    while (cur_bytes) {
+        available += cur_bytes == ds->bytes_head
+            ? cur_bytes->length - ds->bytes_head_pos
+            : cur_bytes->length;
+        cur_bytes = cur_bytes->next;
+    }
+    return available;
+}
+
 /* Copies up to the requested number of bytes into the supplied buffer, and
  * returns the number of bytes we actually copied. Takes from from the start
  * of the stream. */

@@ -80,6 +80,7 @@ MVMString * MVM_string_decodestream_get_until_sep_eof(MVMThreadContext *tc, MVMD
 MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStream *ds);
 MVMString * MVM_string_decodestream_get_available(MVMThreadContext *tc, MVMDecodeStream *ds);
 MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, const MVMDecodeStream *ds, MVMint32 bytes);
+MVMint64 MVM_string_decodestream_bytes_available(MVMThreadContext *tc, const MVMDecodeStream *ds);
 MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStream *ds, char **buf, MVMint32 bytes);
 MVMint64 MVM_string_decodestream_tell_bytes(MVMThreadContext *tc, const MVMDecodeStream *ds);
 MVMint32 MVM_string_decodestream_is_empty(MVMThreadContext *tc, MVMDecodeStream *ds);

@@ -215,3 +215,36 @@ MVMString * MVM_decoder_take_line(MVMThreadContext *tc, MVMDecoder *decoder,
 MVMint64 MVM_decoder_empty(MVMThreadContext *tc, MVMDecoder *decoder) {
     return MVM_string_decodestream_is_empty(tc, get_ds(tc, decoder));
 }
+
+/* Gets the number of (undecoded) bytes available in the decoder. */
+MVMint64 MVM_decoder_bytes_available(MVMThreadContext *tc, MVMDecoder *decoder) {
+    return MVM_string_decodestream_bytes_available(tc, get_ds(tc, decoder));
+}
+
+/* Takes bytes from the decode stream and places them into a buffer. */
+MVMObject * MVM_decoder_take_bytes(MVMThreadContext *tc, MVMDecoder *decoder,
+                                   MVMObject *buf_type, MVMint64 bytes) {
+    MVMDecodeStream *ds = get_ds(tc, decoder);
+    char *buf;
+    MVMint64 read;
+    MVMObject *result;
+
+    /* Ensure the target is in the correct form. */
+    if (REPR(buf_type)->ID != MVM_REPR_ID_MVMArray)
+        MVM_exception_throw_adhoc(tc, "decodertakebytes requires a native array type");
+    if (((MVMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type != MVM_ARRAY_U8
+            && ((MVMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type != MVM_ARRAY_I8)
+        MVM_exception_throw_adhoc(tc, "decodertakebytes requires a native array type of uint8 or int8");
+    if (bytes < 1 || bytes > 99999999)
+        MVM_exception_throw_adhoc(tc,
+            "Out of range: attempted to read %"PRId64" bytes from decoder",
+            bytes);
+
+    result = MVM_repr_alloc_init(tc, buf_type);
+    read = MVM_string_decodestream_bytes_to_buf(tc, ds, &buf, bytes);
+    ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
+    ((MVMArray *)result)->body.start    = 0;
+    ((MVMArray *)result)->body.ssize    = read;
+    ((MVMArray *)result)->body.elems    = read;
+    return result;
+}

@@ -23,3 +23,6 @@ MVMString * MVM_decoder_take_available_chars(MVMThreadContext *tc, MVMDecoder *d
 MVMString * MVM_decoder_take_chars(MVMThreadContext *tc, MVMDecoder *decoder, MVMint64 chars);
 MVMString * MVM_decoder_take_line(MVMThreadContext *tc, MVMDecoder *decoder,
                                   MVMint64 chomp, MVMint64 incomplete_ok);
+MVMint64 MVM_decoder_bytes_available(MVMThreadContext *tc, MVMDecoder *decoder);
+MVMObject * MVM_decoder_take_bytes(MVMThreadContext *tc, MVMDecoder *decoder,
+                                   MVMObject *buf_type, MVMint64 bytes);
