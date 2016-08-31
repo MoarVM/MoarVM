@@ -104,6 +104,8 @@ void MVM_decoder_configure(MVMThreadContext *tc, MVMDecoder *decoder,
     if (!decoder->body.ds) {
         MVMuint8 encid = MVM_string_find_encoding(tc, encoding);
         decoder->body.ds = MVM_string_decodestream_create(tc, encid, 0, 0);
+        decoder->body.sep_spec = MVM_malloc(sizeof(MVMDecodeStreamSeparators));
+        MVM_string_decode_stream_sep_default(tc, decoder->body.sep_spec);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Decoder already configured");
@@ -116,6 +118,11 @@ static MVMDecodeStream * get_ds(MVMThreadContext *tc, MVMDecoder *decoder) {
     if (!ds)
         MVM_exception_throw_adhoc(tc, "Docder not yet configured");
     return ds;
+}
+
+/* Gets the separators specification for the decoder. */
+MVM_STATIC_INLINE MVMDecodeStreamSeparators * get_sep_spec(MVMThreadContext *tc, MVMDecoder *decoder) {
+    return decoder->body.sep_spec;
 }
 
 /* Adds bytes to the deocde stream. */
@@ -169,6 +176,16 @@ MVMString * MVM_decoder_take_all_chars(MVMThreadContext *tc, MVMDecoder *decoder
 /* Takes all available chars from the decoder. */
 MVMString * MVM_decoder_take_available_chars(MVMThreadContext *tc, MVMDecoder *decoder) {
     return MVM_string_decodestream_get_available(tc, get_ds(tc, decoder));
+}
+
+/* Takes a line from the decoder. */
+MVMString * MVM_decoder_take_line(MVMThreadContext *tc, MVMDecoder *decoder,
+                                  MVMint64 chomp, MVMint64 incomplete_ok) {
+    MVMDecodeStream *ds = get_ds(tc, decoder);
+    MVMDecodeStreamSeparators *sep_spec = get_sep_spec(tc, decoder);
+    return incomplete_ok
+        ? MVM_string_decodestream_get_until_sep_eof(tc, ds, sep_spec, (MVMint32)chomp)
+        : MVM_string_decodestream_get_until_sep(tc, ds, sep_spec, (MVMint32)chomp);
 }
 
 /* Returns true if the decoder is empty. */

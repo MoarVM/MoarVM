@@ -1,6 +1,7 @@
 /* Representation used for a VM-provided decoder. */
 struct MVMDecoderBody {
     MVMDecodeStream *ds;
+    MVMDecodeStreamSeparators *sep_spec;
 };
 struct MVMDecoder {
     MVMObject common;
@@ -19,3 +20,5 @@ void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject 
 MVMString * MVM_decoder_take_all_chars(MVMThreadContext *tc, MVMDecoder *decoder);
 MVMString * MVM_decoder_take_available_chars(MVMThreadContext *tc, MVMDecoder *decoder);
 MVMString * MVM_decoder_take_chars(MVMThreadContext *tc, MVMDecoder *decoder, MVMint64 chars);
+MVMString * MVM_decoder_take_line(MVMThreadContext *tc, MVMDecoder *decoder,
+                                  MVMint64 chomp, MVMint64 incomplete_ok);

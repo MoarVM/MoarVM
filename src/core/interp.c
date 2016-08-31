@@ -5067,7 +5067,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(decodertakeline):
+            OP(decodertakeline): {
+                MVMObject *decoder = GET_REG(cur_op, 2).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decodertakeline");
+                GET_REG(cur_op, 0).s = MVM_decoder_take_line(tc, (MVMDecoder *)decoder,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            }
             OP(decoderbytesavailable):
             OP(decodertakebytes):
                 MVM_exception_throw_adhoc(tc, "decoder ops NYI");
