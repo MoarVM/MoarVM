@@ -125,6 +125,29 @@ MVM_STATIC_INLINE MVMDecodeStreamSeparators * get_sep_spec(MVMThreadContext *tc,
     return decoder->body.sep_spec;
 }
 
+/* Sets the separators to be used by this decode stream. */
+void MVM_decoder_set_separators(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject *seps) {
+    MVMint32 is_str_array = REPR(seps)->pos_funcs.get_elem_storage_spec(tc,
+        STABLE(seps)).boxed_primitive == MVM_STORAGE_SPEC_BP_STR;
+    get_ds(tc, decoder); /* Ensure we're sufficiently initialized. */
+    if (is_str_array) {
+        MVMString **c_seps;
+        MVMuint64 i;
+        MVMuint64 num_seps = MVM_repr_elems(tc, seps);
+        if (num_seps > 0xFFFFFF)
+            MVM_exception_throw_adhoc(tc, "Too many line separators");
+        c_seps = MVM_malloc((num_seps ? num_seps : 1) * sizeof(MVMString *));
+        for (i = 0; i < num_seps; i++)
+            c_seps[i] = MVM_repr_at_pos_s(tc, seps, i);
+        MVM_string_decode_stream_sep_from_strings(tc, get_sep_spec(tc, decoder),
+            c_seps, num_seps);
+        MVM_free(c_seps);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Set separators requires a native string array");
+    }
+}
+
 /* Adds bytes to the deocde stream. */
 void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject *buffer) {
     MVMDecodeStream *ds = get_ds(tc, decoder);

@@ -15,6 +15,7 @@ const MVMREPROps * MVMDecoder_initialize(MVMThreadContext *tc);
 void MVM_decoder_ensure_decoder(MVMThreadContext *tc, MVMObject *decoder, const char *op);
 void MVM_decoder_configure(MVMThreadContext *tc, MVMDecoder *decoder,
                            MVMString *encoding, MVMObject *config);
+void MVM_decoder_set_separators(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject *sep_strings);
 MVMint64 MVM_decoder_empty(MVMThreadContext *tc, MVMDecoder *decoder);
 void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject *blob);
 MVMString * MVM_decoder_take_all_chars(MVMThreadContext *tc, MVMDecoder *decoder);
