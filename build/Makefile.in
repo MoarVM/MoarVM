@@ -161,6 +161,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/reprs/CPPStruct@obj@ \
           src/6model/reprs/NativeRef@obj@ \
           src/6model/reprs/MultiDimArray@obj@ \
+          src/6model/reprs/Decoder@obj@ \
           src/6model/6model@obj@ \
           src/6model/bootstrap@obj@ \
           src/6model/sc@obj@ \
@@ -305,6 +306,7 @@ HEADERS = src/moar.h \
           src/6model/reprs/CPPStruct.h \
           src/6model/reprs/NativeRef.h \
           src/6model/reprs/MultiDimArray.h \
+          src/6model/reprs/Decoder.h \
           src/6model/sc.h \
           src/mast/compiler.h \
           src/mast/driver.h \

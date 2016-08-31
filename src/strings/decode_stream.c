@@ -336,14 +336,11 @@ MVMString * MVM_string_decodestream_get_until_sep_eof(MVMThreadContext *tc, MVMD
     return MVM_string_decodestream_get_all(tc, ds);
 }
 
-/* Decodes all the buffers, producing a string containing all the decoded
- * characters. */
-MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStream *ds) {
+/* Produces a string consisting of the characters available now in all decdoed
+ * buffers. */
+static MVMString * get_all_in_buffer(MVMThreadContext *tc, MVMDecodeStream *ds) {
     MVMString *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
     result->body.storage_type = MVM_STRING_GRAPHEME_32;
-
-    /* Decode anything remaining and flush normalization buffer. */
-    reached_eof(tc, ds);
 
     /* If there's no codepoint buffer, then return the empty string. */
     if (!ds->chars_head) {
@@ -406,6 +403,22 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
     return result;
 }
 
+/* Decodes all the buffers, signals EOF to flush any normalization buffers, and
+ * returns a string of all decoded chars. */
+MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStream *ds) {
+    reached_eof(tc, ds);
+    return get_all_in_buffer(tc, ds);
+}
+
+/* Decodes all the buffers we have, and returns a string of all decoded chars.
+ * There may still be more to read after this, due to incomplete multi-byte
+ * or multi-codepoint sequences that are not yet completely processed. */
+MVMString * MVM_string_decodestream_get_available(MVMThreadContext *tc, MVMDecodeStream *ds) {
+    if (ds->bytes_head)
+        run_decode(tc, ds, NULL, NULL);
+    return get_all_in_buffer(tc, ds);
+}
+
 /* Checks if we have the number of bytes requested. */
 MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, const MVMDecodeStream *ds, MVMint32 bytes) {
     MVMDecodeStreamBytes *cur_bytes = ds->bytes_head;
@@ -419,6 +432,19 @@ MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, const MVMDecod
         cur_bytes = cur_bytes->next;
     }
     return 0;
+}
+
+/* Gets the number of bytes available. */
+MVMint64 MVM_string_decodestream_bytes_available(MVMThreadContext *tc, const MVMDecodeStream *ds) {
+    MVMDecodeStreamBytes *cur_bytes = ds->bytes_head;
+    MVMint32 available = 0;
+    while (cur_bytes) {
+        available += cur_bytes == ds->bytes_head
+            ? cur_bytes->length - ds->bytes_head_pos
+            : cur_bytes->length;
+        cur_bytes = cur_bytes->next;
+    }
+    return available;
 }
 
 /* Copies up to the requested number of bytes into the supplied buffer, and
@@ -466,7 +492,7 @@ MVMint64 MVM_string_decodestream_tell_bytes(MVMThreadContext *tc, const MVMDecod
 
 /* Checks if the decode stream is empty. */
 MVMint32 MVM_string_decodestream_is_empty(MVMThreadContext *tc, MVMDecodeStream *ds) {
-    return !(ds->bytes_head || ds->chars_head || MVM_unicode_normalizer_available(tc, &(ds->norm)));
+    return !ds->bytes_head && !ds->chars_head && MVM_unicode_normalizer_empty(tc, &(ds->norm));
 }
 
 /* Destroys a decoding stream, freeing all associated memory (including the

@@ -5028,6 +5028,80 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
+            OP(decoderconfigure): {
+                MVMObject *decoder = GET_REG(cur_op, 0).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decoderconfigure");
+                MVM_decoder_configure(tc, (MVMDecoder *)decoder,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(decodersetlineseps): {
+                MVMObject *decoder = GET_REG(cur_op, 0).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decoderaddbytes");
+                MVM_decoder_set_separators(tc, (MVMDecoder *)decoder, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(decoderaddbytes): {
+                MVMObject *decoder = GET_REG(cur_op, 0).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decoderaddbytes");
+                MVM_decoder_add_bytes(tc, (MVMDecoder *)decoder, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(decodertakechars): {
+                MVMObject *decoder = GET_REG(cur_op, 2).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decodertakechars");
+                GET_REG(cur_op, 0).s = MVM_decoder_take_chars(tc, (MVMDecoder *)decoder,
+                    GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(decodertakeallchars): {
+                MVMObject *decoder = GET_REG(cur_op, 2).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decodertakeallchars");
+                GET_REG(cur_op, 0).s = MVM_decoder_take_all_chars(tc, (MVMDecoder *)decoder);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(decodertakeavailablechars): {
+                MVMObject *decoder = GET_REG(cur_op, 2).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decodertakeavailablechars");
+                GET_REG(cur_op, 0).s = MVM_decoder_take_available_chars(tc, (MVMDecoder *)decoder);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(decodertakeline): {
+                MVMObject *decoder = GET_REG(cur_op, 2).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decodertakeline");
+                GET_REG(cur_op, 0).s = MVM_decoder_take_line(tc, (MVMDecoder *)decoder,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(decoderbytesavailable): {
+                MVMObject *decoder = GET_REG(cur_op, 2).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decoderbytesavailable");
+                GET_REG(cur_op, 0).i64 = MVM_decoder_bytes_available(tc, (MVMDecoder *)decoder);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(decodertakebytes): {
+                MVMObject *decoder = GET_REG(cur_op, 2).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decodertakebytes");
+                GET_REG(cur_op, 0).o = MVM_decoder_take_bytes(tc, (MVMDecoder *)decoder,
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(decoderempty): {
+                MVMObject *decoder = GET_REG(cur_op, 2).o;
+                MVM_decoder_ensure_decoder(tc, decoder, "decoderempty");
+                GET_REG(cur_op, 0).i64 = MVM_decoder_empty(tc, (MVMDecoder *)decoder);
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
