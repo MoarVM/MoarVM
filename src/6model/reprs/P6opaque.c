@@ -408,8 +408,11 @@ static MVMint64 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, vo
         MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using bind_attribute_boxed");
 
     data = MVM_p6opaque_real_data(tc, data);
+    /* This can stay commented out until we actually pass something other than NO_HINT
     slot = hint >= 0 && hint < repr_data->num_attributes && !(repr_data->mi) ? hint :
         try_get_slot(tc, repr_data, class_handle, name);
+    */
+    slot = try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0)
         return NULL != get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
     else
