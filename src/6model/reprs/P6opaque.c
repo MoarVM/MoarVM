@@ -229,7 +229,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using get_attribute");
 
     /* Try the slot allocation first. */
-    slot = hint >= 0 && !(repr_data->mi) ? hint :
+    slot = hint >= 0 && hint < repr_data->num_attributes && !(repr_data->mi) ? hint :
         try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
         MVMSTable *attr_st = repr_data->flattened_stables[slot];
@@ -341,7 +341,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using bind_attribute_boxed");
 
     /* Try the slot allocation first. */
-    slot = hint >= 0 && !(repr_data->mi) ? hint :
+    slot = hint >= 0 && hint < repr_data->num_attributes && !(repr_data->mi) ? hint :
         try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
         MVMSTable *attr_st = repr_data->flattened_stables[slot];
