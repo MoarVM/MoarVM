@@ -375,6 +375,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
         MVMString *sym, MVMString *conv, MVMObject *arg_info, MVMObject *ret_info) {
     char *lib_name = MVM_string_utf8_c8_encode_C_string(tc, lib);
     char *sym_name = MVM_string_utf8_c8_encode_C_string(tc, sym);
+    MVMint8  keep_sym_name = 0;
     MVMint16 i;
 
     MVMObject *entry_point_o = (MVMObject *)MVM_repr_at_key_o(tc, ret_info,
@@ -397,6 +398,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     if (entry_point_o) {
         body->entry_point = MVM_nativecall_unmarshal_cpointer(tc, entry_point_o);
         body->sym_name    = sym_name;
+        keep_sym_name     = 1;
     }
 
     if (!body->entry_point) {
@@ -407,6 +409,11 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
                 sym_name, lib_name);
         }
         body->sym_name = sym_name;
+        keep_sym_name     = 1;
+    }
+
+    if (keep_sym_name == 0) {
+        MVM_free(sym_name);
     }
 
     /* Set calling convention, if any. */

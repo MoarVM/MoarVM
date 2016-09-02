@@ -75,7 +75,7 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     MVMHashEntry *entry;
     size_t klen;
     extract_key(tc, &kdata, &klen, key);
-    HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
+    HASH_FIND_CACHE(hash_handle, body->hash_head, kdata, klen, ((MVMString *)key)->body.cached_hash_code, entry);
     if (kind == MVM_reg_obj)
         result->o = entry != NULL ? entry->value : tc->instance->VMNull;
     else
@@ -92,7 +92,7 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     extract_key(tc, &kdata, &klen, key);
 
     /* first check whether we can must update the old entry. */
-    HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
+    HASH_FIND_CACHE(hash_handle, body->hash_head, kdata, klen, ((MVMString *)key)->body.cached_hash_code, entry);
     if (!entry) {
         entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
             sizeof(MVMHashEntry));
@@ -122,7 +122,7 @@ static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     size_t klen;
     extract_key(tc, &kdata, &klen, key);
 
-    HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
+    HASH_FIND_CACHE(hash_handle, body->hash_head, kdata, klen, ((MVMString *)key)->body.cached_hash_code, entry);
     return entry != NULL;
 }
 
@@ -133,7 +133,7 @@ static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     void *kdata;
     extract_key(tc, &kdata, &klen, key);
 
-    HASH_FIND(hash_handle, body->hash_head, kdata, klen, old_entry);
+    HASH_FIND_CACHE(hash_handle, body->hash_head, kdata, klen, ((MVMString *)key)->body.cached_hash_code, old_entry);
     if (old_entry) {
         HASH_DELETE(hash_handle, body->hash_head, old_entry);
         MVM_fixed_size_free(tc, tc->instance->fsa,

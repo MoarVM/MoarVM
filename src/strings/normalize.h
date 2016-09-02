@@ -127,6 +127,11 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_available(MVMThreadContext *tc
     return n->buffer_norm_end - n->buffer_start;
 }
 
+/* Get the number of codepoints/graphemes ready to fetch. */
+MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_empty(MVMThreadContext *tc, MVMNormalizer *n) {
+    return n->buffer_end == n->buffer_start;
+}
+
 /* Indicate that we've reached the end of the input stream. Any codepoints
  * left to normalize now can be. */
 void MVM_unicode_normalizer_eof(MVMThreadContext *tc, MVMNormalizer *n);

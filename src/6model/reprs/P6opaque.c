@@ -229,7 +229,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using get_attribute");
 
     /* Try the slot allocation first. */
-    slot = hint >= 0 && !(repr_data->mi) ? hint :
+    slot = hint >= 0 && hint < repr_data->num_attributes && !(repr_data->mi) ? hint :
         try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
         MVMSTable *attr_st = repr_data->flattened_stables[slot];
@@ -341,7 +341,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using bind_attribute_boxed");
 
     /* Try the slot allocation first. */
-    slot = hint >= 0 && !(repr_data->mi) ? hint :
+    slot = hint >= 0 && hint < repr_data->num_attributes && !(repr_data->mi) ? hint :
         try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
         MVMSTable *attr_st = repr_data->flattened_stables[slot];
@@ -402,8 +402,17 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 /* Checks if an attribute has been initialized. */
 static MVMint64 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-    MVMint64 slot = try_get_slot(tc, repr_data, class_handle, name);
+    MVMint64 slot;
+
+    if (!repr_data)
+        MVM_exception_throw_adhoc(tc, "P6opaque: must compose before using bind_attribute_boxed");
+
     data = MVM_p6opaque_real_data(tc, data);
+    /* This can stay commented out until we actually pass something other than NO_HINT
+    slot = hint >= 0 && hint < repr_data->num_attributes && !(repr_data->mi) ? hint :
+        try_get_slot(tc, repr_data, class_handle, name);
+    */
+    slot = try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0)
         return NULL != get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
     else
@@ -1101,12 +1110,14 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 /* Serializes the object's body. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-    MVMuint16 num_attributes = repr_data->num_attributes;
+    MVMuint16 num_attributes;
     MVMuint16 i;
 
     if (!repr_data)
         MVM_exception_throw_adhoc(tc,
             "Representation must be composed before it can be serialized");
+
+    num_attributes = repr_data->num_attributes;
 
     data = MVM_p6opaque_real_data(tc, data);
 

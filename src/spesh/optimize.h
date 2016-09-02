@@ -8,6 +8,7 @@ struct MVMSpeshCallInfo {
     MVMint8        arg_is_const[MAX_ARGS_FOR_OPT];
     MVMSpeshFacts *arg_facts[MAX_ARGS_FOR_OPT];
     MVMSpeshIns   *prepargs_ins;
+    MVMSpeshBB    *prepargs_bb;
     MVMSpeshIns   *arg_ins[MAX_ARGS_FOR_OPT];
 };
 

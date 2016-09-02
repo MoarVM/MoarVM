@@ -1623,7 +1623,7 @@ MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationRea
 
 /* Reading function for null-terminated char array strings */
 char *MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    size_t len = MVM_serialization_read_int(tc, reader);
+    MVMint64 len = MVM_serialization_read_int(tc, reader);
     char *strbuf = 0;
     if (len > 0) {
         const MVMuint8 *read_at = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
