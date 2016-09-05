@@ -22,7 +22,7 @@ typedef struct {
     UnionFind *value_sets;
     /* single buffer for uses, definitions */
     MVMint32 *use_defs_buf;
-    /* values produced ordered by first definition */
+    /* values produced (heap ordered by first-definition, can be modified during traversal) */
     MVM_VECTOR_DECL(LiveRange, values);
 
     /* values 'currently' live, an ordered stack.
@@ -51,32 +51,46 @@ UnionFind * value_set_find(UnionFind *sets, MVMint32 key) {
     return sets + key;
 }
 
-void value_set_union(UnionFind *sets, MVMint32 a, MVMint32 b) {
+
+MVMint32 value_set_union(UnionFind *sets, MVMint32 a, MVMint32 b) {
     if (sets[a].num_defs < sets[b].num_defs) {
         MVMint32 t = a; a = b; b = t;
     }
     sets[b].key = a; /* point b to a */
     sets[a].num_defs += sets[b].num_defs;
     sets[a].num_uses += sets[b].num_uses;
+    return a;
 }
 
 static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, RegisterAllocator *alc) {
     MVMint32 i, j, k;
     MVMint32 num_use = 0, num_def = 0, num_live_range = 0;
+    MVMint32 tile_nodes[16];
     MVMint32 *use_buf, *def_buf;
 
     for (i = 0; i < list->items_num; i++) {
         MVMJitTile *tile = list->items[i];
         MVMint32 node = list->tree[tile->node];
-        if (node == MVM_JIT_COPY || node == MVM_JIT_IF ||
-            (node == MVM_JIT_DO && tile->template->vtype == MVM_JIT_REG)) { /* assuming template is defined, needs some better thoughts... */
-            value_set_union(i, ref_node[i]); /* or something like that... IF requires two value_unions */
-            num_live_range--; /* in case of IF only we actually destroy a live range */
-        } else if (tile->vtype == MVM_JIT_REG) { /* yields value! needs to be shorter, really */
+        /* Each of the following counts as either a copy or as a PHI (in case of
+         * IF), and thus these are not actual definitions */
+        if (node == MVM_JIT_COPY) {
+            MVMint32 ref        = list->tree[tile->node + 1];
+            alc->sets[node].key = ref; /* point directly to actual definition */
+        } else if (node == MVM_JIT_DO && TILE_YIELDS_VALUE(tile)) {
+            MVMint32 nchild     = list->tree[tile->node + 1];
+            MVMint32 ref        = list->tree[tile->node + nchild];
+            alc->sets[node].key = ref;
+        } else if (node == MVM_JIT_IF) {
+            MVMint32 left_cond   = list->tree[tile->node + 2];
+            MVMint32 right_cond  = list->tree[tile->node + 3];
+            alc->sets[node].key  = value_set_union(alc->sets, left_cond, right_cont);
+            num_live_range--;      /* the union of the left and right side
+                                    * reduces the number of live ranges */
+        } else if (TILE_YIELDS_VALUE(tile)) {
             /* define this value */
-            alc->sets[node].num_defs = 1;
-            alc->sets[node].num_uses = 0;
-            alc->sets[node].key = node;
+            alc->sets[node].num_defs   = 1;
+            alc->sets[node].num_uses   = 0;
+            alc->sets[node].key        = node;
             alc->sets[node].live_range = -1;
 
             /* count totals so we can correctly allocate the buffers */
@@ -84,12 +98,19 @@ static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, Re
             num_use += tile->num_values;
             num_live_range++;
         }
-        /* TODO figure out where I store the tile nodes (or, if at all) */
-        for (j = 0; j < tile->num_values; j++) {
-            used_node = tile_nodes[j];
-            /* account its use */
-            value_set_find(alc->sets, used_tile)->num_uses++;
+        if (tile->template) {
+            /* read the tile */
+            MVM_jit_expr_tree_get_nodes(tc, list->tree, tile->node, tile->template->path, tile_nodes);
+            for (j = 0; j < tile->num_values; j++) {
+                if ((tile->template->value_bitmap & (1 << j)) == 0)
+                    continue; /* is a constant parameter to the tile, not a reference */
+                used_node = tile_nodes[j];
+                /* account its use */
+                value_set_find(alc->sets, used_tile)->num_uses++;
+            }
         }
+        /* I don't think we have inserted things before that actually refer to
+         * tiles, just various jumps to implement IF/WHEN/ANY/ALL handling */
     }
     /* initialize buffers */
     alc->values = MVM_malloc(sizeof(LiveRange)*num_live_range);
