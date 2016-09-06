@@ -99,7 +99,15 @@ static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64
 /* Get curernt position in the file. */
 static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    return data->ds ? MVM_string_decodestream_tell_bytes(tc, data->ds) : 0;
+    MVMint64 r;
+
+    if (data->ds)
+        return MVM_string_decodestream_tell_bytes(tc, data->ds);
+
+    if ((r = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
+        MVM_exception_throw_adhoc(tc, "Failed to tell in filehandle: %d", errno);
+
+    return r;
 }
 
 /* Set the line separator. */
