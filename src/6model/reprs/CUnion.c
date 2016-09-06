@@ -109,7 +109,6 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
         MVMint32 num_attrs        = MVM_repr_elems(tc, flat_list);
         MVMint32 info_alloc       = num_attrs == 0 ? 1 : num_attrs;
         MVMint32 cur_obj_attr     = 0;
-        MVMint32 cur_str_attr     = 0;
         MVMint32 cur_init_slot    = 0;
         MVMint32 i;
 

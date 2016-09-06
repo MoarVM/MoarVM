@@ -345,7 +345,6 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
     MVMMultiDimArrayBody     *body      = (MVMMultiDimArrayBody *)data;
     MVMint64 i, flat_elems;
-    size_t size;
 
     /* Read in dimensions. */
     for (i = 0; i < repr_data->num_dimensions; i++)

@@ -153,7 +153,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
                        have_callsite, matched_args, unmatched_arg,
                        tweak_node, insert_node;
     size_t             new_size;
-    MVMMultiCacheNode *new_head, *old_head;
+    MVMMultiCacheNode *new_head;
     MVMObject        **new_results;
 
     /* Allocate a cache if needed. */
