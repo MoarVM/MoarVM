@@ -272,7 +272,7 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
 }
 
 static MVMint32 is_full_collection(MVMThreadContext *tc) {
-    MVMuint64 percent_growth, threshold;
+    MVMuint64 percent_growth;
     size_t rss, promoted;
 
     /* If it's below the absolute minimum, quickly return. */
