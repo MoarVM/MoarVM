@@ -395,8 +395,6 @@ static void validate_operands(Validator *val) {
             break;
         }
         case MVM_OP_checkarity: {
-            MVMint64 count;
-
             validate_literal_operand(val, operands[0]);
 
             validate_literal_operand(val, operands[1]);

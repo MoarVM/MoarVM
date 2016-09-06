@@ -231,14 +231,11 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
     MVMint32 count = 0;
     MVMCodepoint codepoint;
-    MVMint32 line_ending = 0;
     MVMint32 state = 0;
     MVMint32 bufsize = bytes;
     MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * bufsize);
     size_t orig_bytes;
     const char *orig_utf8, *last_accept_utf8;
-    MVMint32 line;
-    MVMint32 col;
     MVMint32 ready;
 
     /* Need to normalize to NFG as we decode. */

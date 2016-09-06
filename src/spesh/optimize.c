@@ -247,7 +247,9 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
         ins->operands[1].lit_i16 = st->size;
         ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
     } else {
+        /*
         MVMSpeshFacts *target_facts;
+        */
 
         /* XXX This currently still causes problems. */
         return;

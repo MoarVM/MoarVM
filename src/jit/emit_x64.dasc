@@ -1407,7 +1407,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 obj = ins->operands[1].reg.orig;
         MVMint32 str_idx = ins->operands[2].lit_str_idx;
         MVMuint16 ss_idx = ins->operands[3].lit_i16;
-        MVMStaticFrame *sf = jg->sg->sf;
         | get_spesh_slot TMP1, ss_idx;
         | mov TMP2, WORK[obj];
         | mov TMP2, OBJECT:TMP2->st;

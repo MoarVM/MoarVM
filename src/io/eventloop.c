@@ -45,9 +45,6 @@ static void async_handler(uv_async_t *handle) {
 /* Enters the event loop. */
 static void enter_loop(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     uv_async_t   *async;
-    uv_prepare_t  prep;
-    uv_check_t    check;
-    int           r;
 
     /* Set up async handler so we can be woken up when there's new tasks. */
     async = MVM_malloc(sizeof(uv_async_t));
