@@ -584,7 +584,7 @@ void MVM_profile_heap_add_collectable_rel_idx(MVMThreadContext *tc,
 static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapSnapshot *hs) {
     MVMuint64 perm_root_synth;
 
-    /* Iinitialize state for taking a snapshot. */
+    /* Initialize state for taking a snapshot. */
     MVMHeapSnapshotState ss;
     memset(&ss, 0, sizeof(MVMHeapSnapshotState));
     ss.col = col;
