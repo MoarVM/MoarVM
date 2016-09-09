@@ -92,11 +92,7 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     if (MVM_BIGINT_IS_BIG(body)) {
         mp_int *i = body->u.bigint;
         if (MP_NEG == SIGN(i)) {
-            MVMint64 ret;
-            mp_neg(i, i);
-            ret = mp_get_int64(tc, i);
-            mp_neg(i, i);
-            return -ret;
+            return -mp_get_int64(tc, i);
         }
         else {
             return mp_get_int64(tc, i);
