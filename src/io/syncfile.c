@@ -492,6 +492,18 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         MVM_exception_throw_adhoc_free(tc, waste, "Failed to open file %s: %s", fname, uv_strerror(req.result));
     }
 
+    /* Check that we didn't open a directory by accident. If stat fails, just move on. */
+    if (uv_fs_fstat(tc->loop, &req, fd, NULL) == 0 && (req.statbuf.st_mode & S_IFMT) == S_IFDIR) {
+        char *waste[] = { fname, NULL };
+
+        if (uv_fs_close(tc->loop, &req, data->fd, NULL) < 0) {
+            MVM_exception_throw_adhoc_free(tc, waste, "Tried to open directory %s, which we failed to close: %s",
+                fname, uv_strerror(req.result));
+        }
+
+        MVM_exception_throw_adhoc_free(tc, waste, "Tried to open directory %s", fname);
+    }
+
     /* Set up handle. */
     data->fd          = fd;
     data->filename    = fname;
