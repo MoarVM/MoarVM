@@ -470,27 +470,31 @@ static int resolve_open_mode(int *flag, const char *cp) {
 
 /* Opens a file, returning a synchronous file handle. */
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode) {
-    char          * const fname  = MVM_string_utf8_c8_encode_C_string(tc, filename);
-    char          * const fmode  = MVM_string_utf8_encode_C_string(tc, mode);
-    MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    MVMIOFileData * const data   = MVM_calloc(1, sizeof(MVMIOFileData));
+    char * const fname = MVM_string_utf8_c8_encode_C_string(tc, filename);
     uv_fs_t req;
     uv_file fd;
+    int flag;
 
     /* Resolve mode description to flags. */
-    int flag;
-    if (!resolve_open_mode(&flag, fmode)) {
-        char *waste[] = { fmode, NULL };
-        MVM_free(fname);
-        MVM_exception_throw_adhoc_free(tc, waste, "Invalid open mode: %s", fmode);
+    {
+        char * const fmode  = MVM_string_utf8_encode_C_string(tc, mode);
+
+        if (!resolve_open_mode(&flag, fmode)) {
+            char *waste[] = { fname, fmode, NULL };
+            MVM_exception_throw_adhoc_free(tc, waste, "Invalid open mode for file %s: %s", fname, fmode);
+        }
+        MVM_free(fmode);
     }
-    MVM_free(fmode);
 
     /* Try to open the file. */
     if ((fd = uv_fs_open(tc->loop, &req, (const char *)fname, flag, DEFAULT_MODE, NULL)) < 0) {
         char *waste[] = { fname, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "Failed to open file %s: %s", fname, uv_strerror(req.result));
+        const char *err = uv_strerror(req.result);
+
+        uv_fs_req_cleanup(&req);
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to open file %s: %s", fname, err);
     }
+    uv_fs_req_cleanup(&req);
 
     /*  Check that we didn't open a directory by accident.
         If fstat fails, just move on: Most of the documented error cases should
@@ -500,23 +504,35 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     if (uv_fs_fstat(tc->loop, &req, fd, NULL) == 0 && (req.statbuf.st_mode & S_IFMT) == S_IFDIR) {
         char *waste[] = { fname, NULL };
 
-        if (uv_fs_close(tc->loop, &req, data->fd, NULL) < 0) {
+        uv_fs_req_cleanup(&req);
+
+        if (uv_fs_close(tc->loop, &req, fd, NULL) < 0) {
+            const char *err = uv_strerror(req.result);
+
+            uv_fs_req_cleanup(&req);
             MVM_exception_throw_adhoc_free(tc, waste, "Tried to open directory %s, which we failed to close: %s",
-                fname, uv_strerror(req.result));
+                fname, err);
         }
+        uv_fs_req_cleanup(&req);
 
         MVM_exception_throw_adhoc_free(tc, waste, "Tried to open directory %s", fname);
     }
+    uv_fs_req_cleanup(&req);
 
     /* Set up handle. */
-    data->fd          = fd;
-    data->filename    = fname;
-    data->encoding    = MVM_encoding_type_utf8;
-    MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
-    result->body.ops  = &op_table;
-    result->body.data = data;
+    {
+        MVMIOFileData * const data   = MVM_calloc(1, sizeof(MVMIOFileData));
+        MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
 
-    return (MVMObject *)result;
+        data->fd          = fd;
+        data->filename    = fname;
+        data->encoding    = MVM_encoding_type_utf8;
+        MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
+        result->body.ops  = &op_table;
+        result->body.data = data;
+
+        return (MVMObject *)result;
+    }
 }
 
 /* Opens a file, returning a synchronous file handle. */
