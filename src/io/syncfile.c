@@ -492,7 +492,11 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         MVM_exception_throw_adhoc_free(tc, waste, "Failed to open file %s: %s", fname, uv_strerror(req.result));
     }
 
-    /* Check that we didn't open a directory by accident. If stat fails, just move on. */
+    /*  Check that we didn't open a directory by accident.
+        If fstat fails, just move on: Most of the documented error cases should
+        already have triggered when opening the file, and we can't do anything
+        about the others; a failure also does not necessarily imply that the
+        file descriptor cannot be used for reading/writing. */
     if (uv_fs_fstat(tc->loop, &req, fd, NULL) == 0 && (req.statbuf.st_mode & S_IFMT) == S_IFDIR) {
         char *waste[] = { fname, NULL };
 
