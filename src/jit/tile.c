@@ -258,8 +258,7 @@ MVMJitTile* MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler,
 
 
 
-
-/* Logical negation of MVMJitExprOp flags */
+/* Logical negation of MVMJitExprOp flags. */
 static enum MVMJitExprOp negate_flag(MVMThreadContext *tc, enum MVMJitExprOp op) {
     switch(op) {
     case MVM_JIT_LT:
@@ -290,29 +289,36 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     switch (tree->nodes[node]) {
     case MVM_JIT_WHEN:
     {
-        MVMint32 label_value = tree->info[node].label;
+        MVMint32 when_label = tree->info[node].label;
         if (i == 0) {
             MVMint32 test  = tree->nodes[node+1];
             MVMint32 flag  = tree->nodes[test];
             /* First child is the test */
             if (flag == MVM_JIT_ALL) {
-                /* Do nothing, shortcircuit of ALL has skipped the
-                   left block if necessary */
+                /* Do nothing, shortcircuit of ALL has skipped the conditional
+                   block if necessary */
             } else if (flag == MVM_JIT_ANY) {
-                /* If ANY hasn't short-circuited into the left
-                   block, jump to the right block */
-                MVM_VECTOR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_branch, node, 1, label_value));;
+                /* If ANY hasn't short-circuited into the conditional block,
+                   jump after it */
+                MVMint32 any_label = tree->info[test].label;
+                MVMJitTile *branch = MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_branch,
+                                                       node, 1, when_label);
+                MVMJitTile *label  = MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label,
+                                                       node, 1, any_label);
+                MVM_VECTOR_PUSH(tiles->list->items, branch);
                 /* Compile label for the left block entry */
-                MVM_VECTOR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label, test, 1,
-                                                                     tree->info[test].label));
+                MVM_VECTOR_PUSH(tiles->list->items, label);
             } else {
                 /* Other tests require a conditional branch */
-                MVM_VECTOR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_conditional_branch, node,
-                                                                     2, negate_flag(tc, flag), label_value));;
+                MVMJitTile *branch = MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_conditional_branch,
+                                                       node, 2, negate_flag(tc, flag), when_label);
+                MVM_VECTOR_PUSH(tiles->list->items, branch);
             }
         } else {
             /* after child of WHEN, insert the label */
-            MVM_VECTOR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label, node, 1, label_value));
+            MVMJitTile *label = MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label,
+                                                  node, 1, when_label);
+            MVM_VECTOR_PUSH(tiles->list->items, label);
         }
         break;
     }
@@ -320,19 +326,23 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     {
         MVMint32 test = tree->nodes[node+2+i];
         MVMint32 flag = tree->nodes[test];
-        MVMint32 label = tree->info[node].label;
+        MVMint32 all_label = tree->info[node].label;
         if (flag == MVM_JIT_ALL) {
             /* Nested ALL short-circuits identically */
         } else if (flag == MVM_JIT_ANY) {
             /* If ANY reached it's end, that means it's false. So branch out */
             MVMint32 any_label = tree->info[test].label;
-            MVM_VECTOR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_branch, node, 1, label));
+            MVMJitTile *branch = MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_branch, node, 1, all_label);
+            MVMJitTile *label  = MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label, node, 1, any_label);
+            MVM_VECTOR_PUSH(tiles->list->items, branch);
             /* And if ANY short-circuits we should continue the evaluation of ALL */
-            MVM_VECTOR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label, node, 1, any_label));
+            MVM_VECTOR_PUSH(tiles->list->items, label);
         } else {
             /* Flag should be negated (ALL = short-circiut unless condition)) */
-            MVM_VECTOR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_conditional_branch, node, 2,
-                                                                 negate_flag(tc, flag), label));
+            MVMJitTile *branch = MVM_jit_tile_make(tc, tiles->compiler,
+                                                   MVM_jit_compile_conditional_branch, node, 2,
+                                                   negate_flag(tc, flag), all_label);
+            MVM_VECTOR_PUSH(tiles->list->items, branch);
         }
         break;
     }
@@ -340,23 +350,72 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     {
         MVMint32 test  = tree->nodes[node+2+i];
         MVMint32 flag  = tree->nodes[test];
-        MVMint32 label = tree->info[node].label;
+        MVMint32 any_label = tree->info[node].label;
         if (flag == MVM_JIT_ALL) {
-            /* If ALL reached the end, it must have been
-               succesful, and short-circuit behaviour implies we
-               should branch out */
+            /* If ALL reached the end, it must have been succesful, and ANY's
+               short-circuit behaviour implies we should branch out */
             MVMint32 all_label = tree->info[test].label;
-            MVM_VECTOR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_branch, node, 1, label));
-            /* If not succesful, testing should continue */
-            MVM_VECTOR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label, node, 1, all_label));
+            MVMJitTile *branch = MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_branch,
+                                                   node, 1, any_label);
+            MVMJitTile *label  = MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label,
+                                                   node, 1, all_label);
+            MVM_VECTOR_PUSH(tiles->list->items, branch);
+            /* If not succesful, testing should continue (thus ALL must branch into our ANY) */
+            MVM_VECTOR_PUSH(tiles->list->items, label);
         } else if (flag == MVM_JIT_ANY) {
-            /* Nothing to do here, since nested ANY already
-               short-circuits to our label */
+            /* Nothing to do here, since nested ANY already short-circuits to
+               our label */
         } else {
             /* Normal evaluation (ANY = short-circuit if condition) */
-            MVM_VECTOR_PUSH(tiles->list->items, MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_conditional_branch, node, 2, flag, label));
+            MVMJitTile *branch = MVM_jit_tile_make(tc, tiles->compiler,
+                                                   MVM_jit_compile_conditional_branch,
+                                                   node, 2, flag, any_label);
+            MVM_VECTOR_PUSH(tiles->list->items, branch);
         }
         break;
+    }
+    case MVM_JIT_EITHER:
+    case MVM_JIT_IF:
+    {
+        MVMint32 left_label = tree->info[node].label;
+        MVMint32 right_label = left_label + 1;
+        if (i == 0) {
+            /* after flag child */
+            MVMint32 test = tree->nodes[node+1];
+            MVMint32 flag = tree->nodes[test];
+            if (flag == MVM_JIT_ALL) {
+                /* If we reach this code then ALL was true, hence we should
+                 * enter the left block, and do nothing */
+            } else if (flag == MVM_JIT_ANY) {
+                /* We need the branch to the right block and the label for ANY
+                 * to jump to enter the left block */
+                MVMint32 any_label = tree->info[test].label;
+                MVMJitTile *branch = MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_branch,
+                                                       node, 1, left_label);
+                MVMJitTile *label  = MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label,
+                                                       node, 1, any_label);
+                MVM_VECTOR_PUSH(tiles->list->items, branch);
+                MVM_VECTOR_PUSH(tiles->list->items, label);
+            } else {
+                MVMJitTile *branch = MVM_jit_tile_make(tc, tiles->compiler,
+                                                       MVM_jit_compile_conditional_branch,
+                                                       node, 2, negate_flag(tc, flag), left_label);
+                MVM_VECTOR_PUSH(tiles->list->items, branch);
+            }
+        } else if (i == 1) {
+            /* between left and right conditional block */
+            MVMJitTile *branch = MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_branch,
+                                                   node, 1, right_label);
+            MVMJitTile *label  = MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label,
+                                                   node, 1, left_label);
+            MVM_VECTOR_PUSH(tiles->list->items, branch);
+            MVM_VECTOR_PUSH(tiles->list->items, label);
+        } else {
+            /* after 'right' conditional block */
+            MVMJitTile *branch = MVM_jit_tile_make(tc, tiles->compiler, MVM_jit_compile_label,
+                                                   node, 1, right_label);
+            MVM_VECTOR_PUSH(tiles->list->items, branch);
+        }
     }
     default:
         break;

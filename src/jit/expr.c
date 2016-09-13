@@ -379,11 +379,11 @@ static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
        * right block
        * label 2
 
-       The 'short-circuiting' cases of IF ALL and IF ANY require
-       special treatment. IF ALL simply repeats the test+negated
-       branch for each of the ALL's children. IF ANY on the other hand
-       must short circuit not into the default but into the
-       conditional block. So IF ANY must be implemented as:
+       The 'short-circuiting' cases of IF ALL and IF ANY require special
+       treatment. IF ALL simply repeats the test+negated branch for each of the
+       ALL's children. IF ANY on the other hand must short circuit not into the
+       default (right) but into the (left) conditional block. So IF ANY must be
+       implemented as:
 
        (* test
         * conditional jump to label 3) - repeated n times
@@ -443,8 +443,6 @@ static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             } else if (tree->nodes[test] == MVM_JIT_ALL) {
                 /* ALL takes over the label of its parent */
                 tree->info[test].label = tree->info[node].label;
-            } else {
-
             }
         }
         break;
@@ -461,8 +459,6 @@ static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             } else if (tree->nodes[test] == MVM_JIT_ALL) {
                 /* assign 'label 1' to the ALL */
                 tree->info[test].label = tree->info[node].label;
-            } else {
-                /* regular case, no work necessary now */
             }
         }
         break;

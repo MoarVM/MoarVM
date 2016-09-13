@@ -14,6 +14,37 @@ makes sense as (preferably) all these values use the same register.
 
 
 
+** DONE Implement IF/EITHER handling
+
+I am seeing an issue with the node of synthetic tiles. The register
+allocator observes this node to see what kind of step it has to take
+on e.g. IF nodes.  But we copy these node values into their synthetic
+tiles, which has no real value so far as I can see....  
+
+Copying the node into the tile will cause issues currently because
+we cannot distinguish between the postorder 'resolution' `IF` tile and
+the synthetic inorder `IF` tiles, except that the latter has a pointer to
+a template and the former does not.
+
+** TODO Get rid of template pointers in the tile object
+
+This is a far-too-brittle construction that artificially distinguishes
+between 'real' tiles and pseudotiles, and there is no reason to have them,
+except that (in some places) we rely on the difference. An unintended
+consequence is that it is complex to add pseudotiles that refer to
+live ranges (like loads and spills) with reference to the live ranges
+they affect, because (currently) these live ranges are refered to by
+tree node extraction, and pseudotiles don't do that. It is,
+altogether, brittle.
+
+The suggested solution is to move tree extraction to an earlier tiling
+step (postorder, so the tree can't change underneath from tile
+conflict resolution) and to use the existing args buffer for this
+purpose. We can then separate live ranges from args using compaction.
+
+A further requirement is a correct way to distinguish between
+postorder and inorder tiles.
+
 ** TODO Remove cruft from previous attempts
 
 - we don't need MVMJitValue anymore (yay, no more value types)
