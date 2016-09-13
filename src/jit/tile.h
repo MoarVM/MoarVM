@@ -1,6 +1,6 @@
 struct MVMJitTileTemplate {
     void (*emit)(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMJitExprTree *tree);
-    const MVMint8 *path;
+    const char    *path;
     const char    *expr;
     MVMint32  left_sym;
     MVMint32 right_sym;
