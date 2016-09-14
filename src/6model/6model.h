@@ -234,7 +234,7 @@ struct MVMBoolificationSpec {
 /* Constant for incrementing the type cache ID for new STables. This leaves
  * the lowest bits free for caches to attach flags (of note, the multi
  * dispatch cache). */
-#define MVM_TYPE_CACHE_ID_INCR 128
+#define MVM_TYPE_CACHE_ID_INCR 256
 
 /* S-table, representing a meta-object/representation pairing. Note that the
  * items are grouped in hope that it will pack decently and do decently in
