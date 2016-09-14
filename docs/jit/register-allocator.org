@@ -26,7 +26,17 @@ we cannot distinguish between the postorder 'resolution' `IF` tile and
 the synthetic inorder `IF` tiles, except that the latter has a pointer to
 a template and the former does not.
 
-** TODO Get rid of template pointers in the tile object
+
+
+** TODO Remove cruft from previous attempts
+
+- we don't need MVMJitValue anymore (yay, no more value types)
+  - instead we can assign register addresses directly to tiles (8 bits
+    is sufficient)
+- we don't need double-linked lists either, because live ranges now
+  contain their own set
+
+*** TODO Get rid of template pointers in the tile object
 
 This is a far-too-brittle construction that artificially distinguishes
 between 'real' tiles and pseudotiles, and there is no reason to have them,
@@ -43,18 +53,71 @@ conflict resolution) and to use the existing args buffer for this
 purpose. We can then separate live ranges from args using compaction.
 
 A further requirement is a correct way to distinguish between
-postorder and inorder tiles.
+postorder and inorder tiles. We can do that by removing information
+(pointing to a synthetic node, or using a sentinel value) but it might
+be preferable to add information (signifiying the position in the tree
+the tile represents).
 
-** TODO Remove cruft from previous attempts
+So the rephrase, currently the template is used by the register allocator to signify:
+- value result type
+- extract refered-to nodes
+  - in ARGLIST/DO/IF cases, this is directly read from the tree
+    but these are exceptions
+- 
 
-- we don't need MVMJitValue anymore (yay, no more value types)
-  - instead we can assign register addresses directly to tiles (8 bits
-    is sufficient)
-- we don't need double-linked lists either, because live ranges now
-  contain their own set
-** DONE tile editor code moves to tile.c
-  - keep it abstract?
-  - internalize into list? (why not?)
+Whereas the node is used to signify:
+- special data (the TC/CU/STACK/FRAME/VMNULL family)
+- data flow (DO/IF)
+- clobbering of registers (CALL)
+
+
+
+
+#+BEGIN_SRC c
+
+#+END_SRC
+
+*** TODO Work on operation nodes
+
+Specifically:
+- FRAME/VMNULL are not atomic ops, but instead specific load
+  sequences, and it'd be preferable for reasons of efficiency
+  to treat them that way
+- I'd like to have a DIE node which is equivalent to a CALL node, but
+  which does not return (relevant for the purposes of register
+  allocation)
+- Similarily, signed and unsigned cast have, in the case of 4-to-8
+  byte conversions, different register requirements, and should be
+  separated for that reason alone
+  - It may actually make some sense to have an architecture-specific
+    'specialization' phase operating on the tree... 
+
+*** TODO Implement optimistic 'store' insertion
+
+Currently our inserting of stores is pessimistic, i.e. stores are
+always inserted where they would be expected from the MoarVM bytecode.
+But this is not necessary if the stored value is overwritten within
+the same basic block. We can work on eliminating that, but I had
+assumed that it'd be easy to get the last-use-per-value via spesh, and
+it isn't. What we can do is:
+
+- maintain a table of the last-definition per MoarVM register (hey, we
+  do that now)
+- insert stores where necessary, which is:
+  - find all nodes that have recent definitions
+    - insert a 'store-to-moar-register' instruction (MVM_jit_expr_add_store)
+    - swap the 'root' pointing to the definition node with the store
+      node (this may require a scan through the table)
+- figure out when it is necessary
+  - before throwing (or 'throwish)
+  - before jumping to another basic block
+  - ....
+- store the spesh instruction tagged to the tree, so that we can find
+  out where it should be stored if it isn't
+
+*** DONE tile editor code moves to tile.c
+   - keep it abstract?
+   - internalize into list? (why not?)
 
 
 ** TODO Find live ranges
@@ -86,7 +149,7 @@ I think we can do this in a single pass, or maybe two passes
     that by shuffling (in principle)
   - point all the uses in the split live range to the new live range
 
-*** TODO Represent register requirements intelligently
+*** DONE Represent register requirements intelligently
 
 We currently rely on inspecting the template to see if the thing
 yields a value. However, yielding a value is specific to a tile not
@@ -148,6 +211,30 @@ Fortunately, we have two-operand mul these days, so it needs no
 specific treatment, although full-precision (i.e. two-registers
 rax:rdx pair) can't be done.
 
+*** TODO Find out if a particular live range has already been stored (or if it has a fixed storage location)
+
+#+BEGIN_SRC c
+/* Return -1 if not a local store, 0 <= i <= frame->work_size if it is */
+MVMint32 is_local_store(MVMJitExprTree *tree, MVMint32 node) {
+    if (tree->nodes[node] != MVM_JIT_STORE)
+        return -1;
+    node = tree->nodes[node + 1];
+    if (tree->nodes[node] != MVM_JIT_ADDR)
+        return -1;
+    if (tree->nodes[tree->nodes[node + 1]] != MVM_JIT_LOCAL)
+        return -1;
+    return tree->nodes[node+2];
+}
+
+MVMint32 has_local_location(MVMJitExprTree *tree, MVMint32 node) {
+    MVMSpeshIns *ins = tree->info[node].spesh_ins;
+    if (ins == NULL || ins->op_info->num_operands == 0 ||
+        (ins->info->operands[0] & MVM_operand_rw_mask) != MVM_operand_write_reg)
+        return -1;
+    return ins->op_info->operands[0].reg.orig;
+}
+#+END_SRC
+
 ** TODO Implement linear scan
 
 The basic idea of linear scan is:
@@ -167,7 +254,6 @@ maintain the heap property - it is already initialized that way -
 while inserting new live ranges (for loading spilled values).
 
 - assign registers in a second pass
-
   - reuse the register assignment ring buffer
   - we've already dealt with prefered-register conflicts in the
     earlier step, so we can always assign the prefered register
