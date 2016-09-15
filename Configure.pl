@@ -9,6 +9,7 @@ use Getopt::Long;
 use Pod::Usage;
 use File::Spec;
 
+use lib '.';
 use build::setup;
 use build::auto;
 use build::probe;

@@ -74,7 +74,6 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                 if (callee) {
                     /* Tweak the callee's caller to the uninlined frame, not
                      * the frame holding the inlinings. */
-                    MVMFrame *orig_caller = callee->caller;
                     MVM_ASSIGN_REF(tc, &(callee->header), callee->caller, uf);
 
                     /* Copy over the return location. */

@@ -103,9 +103,9 @@ static const MVMREPROps this_repr = {
 };
 
 /* Filters for various parts of action.arg_match. */
-#define MVM_MULTICACHE_ARG_IDX_FILTER  (MVM_INTERN_ARITY_LIMIT - 1)
-#define MVM_MULTICACHE_ARG_CONC_FILTER 0x08
-#define MVM_MULTICACHE_ARG_RW_FILTER   0x10
+#define MVM_MULTICACHE_ARG_IDX_FILTER  (2 * MVM_INTERN_ARITY_LIMIT - 1)
+#define MVM_MULTICACHE_ARG_CONC_FILTER 0x10
+#define MVM_MULTICACHE_ARG_RW_FILTER   0x20
 #define MVM_MULTICACHE_TYPE_ID_FILTER  (0xFFFFFFFFFFFFFFFFULL ^ (MVM_TYPE_CACHE_ID_INCR - 1))
 
 /* Debug support dumps the tree after each addition. */
@@ -153,7 +153,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
                        have_callsite, matched_args, unmatched_arg,
                        tweak_node, insert_node;
     size_t             new_size;
-    MVMMultiCacheNode *new_head, *old_head;
+    MVMMultiCacheNode *new_head;
     MVMObject        **new_results;
 
     /* Allocate a cache if needed. */

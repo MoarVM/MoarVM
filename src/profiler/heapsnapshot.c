@@ -273,7 +273,6 @@ static void process_collectable(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
 }
 static void process_gc_worklist(MVMThreadContext *tc, MVMHeapSnapshotState *ss, char *desc) {
     MVMCollectable **c_ptr;
-    MVMFrame *f;
     MVMuint16 ref_kind = desc
         ? MVM_SNAPSHOT_REF_KIND_STRING
         : MVM_SNAPSHOT_REF_KIND_UNKNOWN;
@@ -582,9 +581,7 @@ void MVM_profile_heap_add_collectable_rel_idx(MVMThreadContext *tc,
 
 /* Drives the overall process of recording a snapshot of the heap. */
 static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapSnapshot *hs) {
-    MVMuint64 perm_root_synth;
-
-    /* Iinitialize state for taking a snapshot. */
+    /* Initialize state for taking a snapshot. */
     MVMHeapSnapshotState ss;
     memset(&ss, 0, sizeof(MVMHeapSnapshotState));
     ss.col = col;

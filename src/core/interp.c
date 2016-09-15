@@ -3165,7 +3165,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(ctxouter): {
-                MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx;
+                MVMObject *this_ctx = GET_REG(cur_op, 2).o;
                 MVMFrame *frame;
                 if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
                     MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
@@ -4099,7 +4099,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(ctxouterskipthunks): {
-                MVMObject *this_ctx = GET_REG(cur_op, 2).o, *ctx;
+                MVMObject *this_ctx = GET_REG(cur_op, 2).o;
                 MVMFrame *frame;
                 if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
                     MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");

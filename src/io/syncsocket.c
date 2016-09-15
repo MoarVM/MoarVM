@@ -192,7 +192,9 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
             MVM_exception_throw_adhoc(tc, "Tried to accept() on a socket from outside its originating thread");
         }
         uv_ref((uv_handle_t *)data->ss.handle);
+        MVM_gc_mark_thread_blocked(tc);
         uv_run(tc->loop, UV_RUN_DEFAULT);
+        MVM_gc_mark_thread_unblocked(tc);
     }
 
     /* Check the accept worked out. */

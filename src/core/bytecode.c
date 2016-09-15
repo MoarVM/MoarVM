@@ -288,6 +288,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         if (scb && scb->sc) {
             cu_body->scs_to_resolve[i] = NULL;
             MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->scs[i], scb->sc);
+            scb->claimed = 1;
         }
         else {
             if (!scb) {

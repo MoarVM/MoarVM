@@ -58,9 +58,10 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     /* We run once again (non-blocking) to eventually close filehandles. */
     uv_run(tc->loop, UV_RUN_NOWAIT);
 
-    /* Free the nursery. */
+    /* Free the nursery and finalization queue. */
     MVM_free(tc->nursery_fromspace);
     MVM_free(tc->nursery_tospace);
+    MVM_free(tc->finalizing);
 
     /* Destroy the second generation allocator. */
     MVM_gc_gen2_destroy(tc->instance, tc->gen2);

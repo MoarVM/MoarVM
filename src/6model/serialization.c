@@ -2474,7 +2474,6 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Calculate location of STable's table row. */
     char *st_table_row = reader->root.stables_table + i * STABLES_TABLE_ENTRY_SIZE;
-    MVMString *hll_name;
     MVMuint8 flags;
     MVMuint8 mode;
 
