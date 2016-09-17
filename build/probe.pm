@@ -90,7 +90,9 @@ EOT
 
     print ::dots('    probing whether your compiler thinks that it is gcc');
     compile($config, 'try')
-        or die "Can't compile simple gcc probe, so something is badly wrong (if on linux, maybe you need something like 'sudo apt-get install build-essential')";
+        or die "Can't compile simple gcc probe, so something is badly wrong ("
+            . "if on linux, maybe you need something like 'sudo apt-get install build-essential'; "
+            . "if on macOS, maybe you need to install XCode and accept the XCode EULA)";
     my $gcc = !system './try';
     print $gcc ? "YES\n": "NO\n";
 
