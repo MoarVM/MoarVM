@@ -77,7 +77,9 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
             my $path = "coverage/{$current_source.subst("/", "_", :g)}.coverage.html";
             my $outfile = $path.IO.open(:w);
             $outfile.say(make_html($source));
-            $outfile.say(@lines.join("\n"));
+            # skip first two lines of the code, since those are not found in
+            # individual source files
+            $outfile.say(@lines[2..*].join("\n"));
             $outfile.say(finish_html);
             $outfile.close;
 
@@ -106,7 +108,8 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
         } elsif $class eq "c" {
             $covered++;
         }
-        @lines.push: qq[<li class="$class">$text.subst("<", "&lt;", :g)]; # skip the </li> because yay html!
+        @lines.push: qq[<li class="$class" id="L{@lines-1}">] ~
+            qq[$text.subst("<", "&lt;", :g)]; # skip the </li> because yay html!
     }
 
     sub make_html($sourcefile) {
@@ -118,6 +121,7 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
                 li.u \{ background: #fcc }
                 li.i \{ background: #ccc }
                 li:before \{  background: #ccc; }
+                li:target \{ outline: 2px solid #33f; }
             </style>
             <body>
                 <ol style="font-family: monospace">
