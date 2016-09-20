@@ -67,7 +67,7 @@ static FILE *fopen_perhaps_with_pid(char *path, const char *mode) {
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
     char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable, *spesh_osr_disable;
-    char *jit_log, *jit_expr_enable, *jit_disable, *jit_bytecode_dir, *jit_last_frame, *jit_last_bb;
+    char *jit_log, *jit_expr_disable, *jit_disable, *jit_bytecode_dir, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
 
@@ -211,9 +211,11 @@ MVMInstance * MVM_vm_create_instance(void) {
     jit_disable = getenv("MVM_JIT_DISABLE");
     if (!jit_disable || strlen(jit_disable) == 0)
         instance->jit_enabled = 1;
-    jit_expr_enable = getenv("MVM_JIT_EXPR_ENABLE");
-    if (jit_expr_enable && atoi(jit_expr_enable) > 0)
+
+    jit_expr_disable = getenv("MVM_JIT_EXPR_DISABLE");
+    if (!jit_expr_disable || strlen(jit_expr_disable) == 0)
         instance->jit_expr_enabled = 1;
+
 
     jit_log = getenv("MVM_JIT_LOG");
     if (jit_log && strlen(jit_log))
