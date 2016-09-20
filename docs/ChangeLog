@@ -1,3 +1,32 @@
+New in 2016.09
+
++ Do not crash when the container configuration can't be read
++ Correctly calculate the work_size when inlining between compilation units
++ Validate indices of param_ ops and require checkarity before param_*
++ Fix tautological comprison; snprintf returns an int, not a size_t
++ Fix tell for files that haven't been read from
++ Don't allow zero alignment in P6opaque storage spec
++ Index check lexicals when reading static flags
++ Add Decoder REPR and a number of ops that provide access to VM-backed
+  streaming decoding
++ Don't segfault when serializing an uncomposed p6opaque
++ Don't read_int into a size_t which is unsigned
++ Never leak sym_name from nativecall_build
++ Fix a couple of potential leaks in heap snapshots
++ Kick arg_ and argconst_ ops from the correct basic block when inlining
++ Use HASH_FIND_CACHE instead of HASH_FIND in MVMHash
++ Correct wording of named arguments error
++ Bounds check for hints in get_attribute and bind_attribute
++ Use hints for is_attribute_initialized, and null-check repr_data
++ Clean up various unused variables
++ Mark thread GC blocked while accepting a socket to prevent deadlocks
++ Configure.pl now has an explicit use lib "."
++ Fix missing finalization queue cleanup at thread exit
++ Mark SC used in bytecode loading as claimed to avoid keeping them around
+  for too long
++ Fix an error in multi caching of named arguments that could cause lookups
+  to fail and the cache to keep growing
+
 New in 2016.08
 
 + Don't crash in P6opaque on NULL name_to_index_mapping
