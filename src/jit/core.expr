@@ -27,22 +27,31 @@
 (template: inc_i (add (load $0 int_sz) (const 1 int_sz)))
 (template: dec_i (sub (load $0 int_sz) (const 1 int_sz)))
 
-(macro: ^parg (,a) (idx (^getf (frame) MVMFrame params.args) ,a reg_sz))
+(macro: ^frame () (^getf (tc) MVMThreadContext cur_frame))
+
+(macro: ^parg (,a) (idx (^getf (^frame) MVMFrame params.args) ,a reg_sz))
 (template: sp_getarg_o (load (^parg $1) ptr_sz))
 (template: sp_getarg_s (load (^parg $1) ptr_sz))
 (template: sp_getarg_i (load (^parg $1) int_sz))
 (template: sp_getarg_n (load (^parg $1) int_sz))
 
-(macro: ^params () (addr (frame) (&offsetof MVMFrame params)) )
-(macro: ^caller () (addr (frame) (&offsetof MVMFrame caller)) )
+(macro: ^params () (addr (^frame) (&offsetof MVMFrame params)))
+(macro: ^caller () (addr (^frame) (&offsetof MVMFrame caller)))
+
 # get spesh slot address
 (macro: ^spesh_slot (,a)
-   (idx (^getf (frame) MVMFrame effective_spesh_slots) ,a ptr_sz))
+   (idx (^getf (^frame) MVMFrame effective_spesh_slots) ,a ptr_sz))
 
 (template: sp_getspeshslot (load (^spesh_slot $1) ptr_sz))
 
 (template: null_s (const 0 ptr_sz))
-(template: null (vmnull))
+
+(macro: ^vmnull ()
+    (^getf
+          (^getf (tc) MVMThreadContext instance)
+          MVMInstance VMNull))
+
+(template: null (^vmnull))
 
 (macro: ^stable (,a) (^getf ,a MVMObject st))
 
@@ -62,7 +71,7 @@
 
 
 (template: curcode
-    (^getf (frame) MVMFrame code_ref))
+    (^getf (^frame) MVMFrame code_ref))
 
 
 # Relatively harmless branches, I think
@@ -81,7 +90,7 @@
 
 (template: ifnonnull
     (when (all 2
-              (nz $0) (ne $0 (vmnull)))
+              (nz $0) (ne $0 (^vmnull)))
         (branch (label $1))))
 
 (template: goto (branch (label $0)))

@@ -81,10 +81,8 @@ typedef enum { /* value type */
     /* interpreter special variables */ \
     _(TC, 0, 0, REG, NO_CAST), \
     _(CU, 0, 0, REG, NO_CAST), \
-    _(FRAME, 0, 0, REG, NO_CAST), \
     _(LOCAL, 0, 0, REG, NO_CAST), \
     _(STACK, 0, 0, REG, NO_CAST), \
-    _(VMNULL, 0, 0, REG, NO_CAST), \
     /* End of list marker */ \
     _(MAX_NODES, 0, 0, VOID, NO_CAST), \
 

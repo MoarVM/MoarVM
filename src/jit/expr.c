@@ -33,12 +33,20 @@ static MVMint32 MVM_jit_expr_add_regaddr(MVMThreadContext *tc, MVMJitExprTree *t
     return num + 1;
 }
 
+static MVMint32 MVM_jit_expr_add_loadframe(MVMThreadContext *tc, MVMJitExprTree *tree) {
+    MVMint32 num = tree->nodes_num;
+    MVMJitExprNode template[] = { MVM_JIT_TC,
+                                  MVM_JIT_ADDR, num, offsetof(MVMThreadContext, cur_frame),
+                                  MVM_JIT_LOAD, num + 1, sizeof(MVMFrame*) };
+    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+    return num + 4;
+}
+
 static MVMint32 MVM_jit_expr_add_lexaddr(MVMThreadContext *tc, MVMJitExprTree *tree,
                                          MVMuint16 outers, MVMuint16 idx) {
     MVMint32 i;
-    MVMint32 num = tree->nodes_num;
     /* (frame) as the root */
-    MVM_VECTOR_PUSH(tree->nodes, MVM_JIT_FRAME);
+    MVMint32 num = MVM_jit_expr_add_loadframe(tc, tree);
     for (i = 0; i < outers; i++) {
         /* (load (addr $val (&offsetof MVMFrame outer)) (&sizeof MVMFrame*)) */
         MVMJitExprNode template[] = { MVM_JIT_ADDR, num, offsetof(MVMFrame, outer),
@@ -289,10 +297,8 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_LABEL:
     case MVM_JIT_TC:
     case MVM_JIT_CU:
-    case MVM_JIT_FRAME:
     case MVM_JIT_LOCAL:
     case MVM_JIT_STACK:
-    case MVM_JIT_VMNULL:
         /* addresses result in pointers */
         node_info->size = MVM_JIT_PTR_SZ;
         break;

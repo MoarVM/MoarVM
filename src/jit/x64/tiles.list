@@ -1,8 +1,5 @@
 # Terminals: reg, mem, flag, void, expr, lab
 #
-# This file contains the grammar of the tiles. I'm still
-# pondering how to include the C-and-dasm code
-
 
 #
 # Virtual Machine Values 
@@ -11,8 +8,6 @@
 (tile: load_local  (local) reg 1)
 (tile: load_cu     (cu) reg 1)
 (tile: load_tc     (tc) reg 1)
-(tile: load_frame  (frame) reg 1)
-(tile: load_vmnull (vmnull) reg 3)
 #
 # MEMORY TRAFFIC
 #

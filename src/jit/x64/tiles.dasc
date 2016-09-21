@@ -7,22 +7,11 @@ MVM_JIT_TILE_DECL(load_stack) {
 MVM_JIT_TILE_DECL(load_local) {
 }
 
-MVM_JIT_TILE_DECL(load_frame) {
-    MVMint8 dst = tile->values[0]->st_pos;
-    | mov Rq(dst), TC->cur_frame;
-}
-
 MVM_JIT_TILE_DECL(load_cu) {
 }
 
 MVM_JIT_TILE_DECL(load_tc) {
 }
-
-MVM_JIT_TILE_DECL(load_vmnull) {
-    MVMint8 reg = tile->values[0]->st_pos;
-    | get_vmnull Rq(reg);
-}
-
 
 
 MVM_JIT_TILE_DECL(addr) {
