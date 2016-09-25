@@ -147,7 +147,7 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
             </head>
         TMPL
 
-        $outfile.say: q:to/TMPL/;
+        $outfile.say: qq:to/TMPL/;
             <p>Generated on {DateTime.now}</p>
             <table id="coverage" class="sort">
 
