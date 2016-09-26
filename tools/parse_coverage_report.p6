@@ -10,6 +10,7 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
             note "analyzing annotations file";
             my %existing_lines;
             for $annotations.IO.lines {
+                next unless $_.starts-with: '     annotation: ';
                 if /^ \s+ 'annotation: ' <-[:]>+ ':' (\d+) $/ {
                     %existing_lines<<$0>> = True;
                 }
