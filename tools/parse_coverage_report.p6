@@ -115,7 +115,7 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
 
     sub make_html($sourcefile) {
         qq:to/TMPL/;
-            <html><head><title>coverage report for $source </title></head>
+            <html><head><meta charset="utf-8"><title>coverage report for $source </title></head>
             <style>
                 li   \{ white-space: pre }
                 li.c \{ background: #cfc }
