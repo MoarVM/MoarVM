@@ -127,10 +127,13 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
 
         /* Get number of attributes and set up various counters. */
         MVMint32 num_attrs        = MVM_repr_elems(tc, flat_list);
-        MVMint32 info_alloc       = num_attrs == 0 ? 1 : num_attrs;
+        MVMint32 info_alloc       = num_attrs;
         MVMint32 cur_obj_attr     = 0;
         MVMint32 cur_init_slot    = 0;
         MVMint32 i;
+
+        if (info_alloc == 0)
+            MVM_exception_throw_adhoc(tc, "Class has repr CStruct but no fields");
 
         /* Allocate location/offset arrays and GC mark info arrays. */
         repr_data->num_attributes      = num_attrs;
