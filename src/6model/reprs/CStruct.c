@@ -133,7 +133,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
         MVMint32 i;
 
         if (info_alloc == 0)
-            MVM_exception_throw_adhoc(tc, "Class has repr CStruct but no fields");
+            MVM_exception_throw_adhoc(tc, "Class %s has no attributes, which is illegal with the CStruct representation.", st->debug_name);
 
         /* Allocate location/offset arrays and GC mark info arrays. */
         repr_data->num_attributes      = num_attrs;
