@@ -1,3 +1,5 @@
+#include "moar.h"
+
 typedef struct {
     MVMint32 key;
     MVMint32 num_defs, num_uses;
@@ -22,7 +24,9 @@ typedef struct {
     UnionFind *value_sets;
     /* single buffer for uses, definitions */
     MVMint32 *use_defs_buf;
-    /* values produced (heap ordered by first-definition, can be modified during traversal) */
+
+    /* values produced (heap ordered by first-definition, can be modified during
+     * traversal) */
     MVM_VECTOR_DECL(LiveRange, values);
 
     /* values 'currently' live, an ordered stack.
@@ -30,7 +34,7 @@ typedef struct {
      * - how many are in there, anyway?
      * - when is the first value due to expire (beyond its last use)
      * - what is the best value currently live to spill */
-    MVMint32 live_set_top;
+    MVMint32  live_set_top;
     LiveRange *live_set[MAX_LIVE];
     /* which live-set inhabits a constant register */
     MVMint32 prefered_register[NUM_GPR];
@@ -112,7 +116,7 @@ static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, Re
         /* I don't think we have inserted things before that actually refer to
          * tiles, just various jumps to implement IF/WHEN/ANY/ALL handling */
     }
-    /* initialize buffers */
+    /* Initialize buffers. NB: need to increase the size of this */
     alc->values = MVM_malloc(sizeof(LiveRange)*num_live_range);
     alc->use_defs_buf = MVM_malloc(sizeof(MVMint32) * (num_defs + num_uses));
 
@@ -128,8 +132,7 @@ static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, Re
      * to represent register preferences! */
     for (i = 0; i < list->items_num; i++) {
         MVMJitTile * tile;
-        /* TODO figure out a cleanish way to implement yields_value() */
-        if (yields_value(tile)) {
+        if (TILE_YIELDS_VALUE(tile)) {
             UnionFind *value_set = value_set_find(alc->sets, tile->node);
             LiveRange *value_range;
             if (value_set->live_range < 0) {
@@ -195,10 +198,35 @@ static void live_set_add(MVMThreadContext *tc, RegisterAllocator *alc, LiveRange
     alc->live_set[alc->live_set_top++] = value;
 }
 
-static void live_set_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 position) {
-    /* Use linear scan basic heuristic of last-used value... which is easy and good enough */
+static void live_set_spill(MVMThreadContext *tc, MVMJitTileList *list, RegisterAllocator *alc, MVMint32 position) {
+    /* Naive implementation of spill:
+     * Remove the value from the set;
+     * after each definition, insert a store.
+     * before each use, insert a load
+     * create live ranges for each of the pair of definitions and uses */
     LiveRange *to_spill = alc->values[--alc->values_top];
-    /* TODO push on spill stack? decide if we want to split? */
+    MVMint32 i;
+    /* get a storage location probably wants to just get the top slot, but it
+     * could (in theory) reuse 'natural' storage location.  One of the
+     * challenges with that is that we may have more than one of those, because
+     * we unfiy the COPY nodes (which are the implementation of MVM_OP_set).
+     * This remains not a problem as long as we don't start optimistically
+     * removing stores (which we should) */
+    MVMint32 storage_location = get_storage_location_for_range(tc, alc, to_spill);
+    for (i = 0; i < to_spill->num_defs; i++) {
+        MVMint32 seq_nr = to_spill->defs[i];
+        /* Create a new live range with a new live range key, which lives just  */
+        LiveRange *new_range  = create_new_live_range(tc, alc, seq_nr, seq_nr);
+        MVMJitTile *store = MVM_jit_tile_make(tc, MVM_jit_compile_store, 1, 1, new_range->key, storage_location);
+        MVM_jit_tile_list_insert(tc, list, store, seq_nr, 1);  /* insert just after */
+    }
+    for (i = 0; i < to_spill->num_uses; i++) {
+        MVMint32 seq_nr = to_spill->uses[i];
+        /* insert a load of this particular value */
+        LiveRange *new_range = create_new_live_range(tc, alc, seq_nr, seq_nr); /* always a good idea to use a mysterious function */
+        MVMJitTile *load = MVM_jit_tile_make(tc, MVM_jit_compile_load, 1, 1, new_range->key, storage_location);
+        MVM_jit_tile_list_insert(tc, list, store, seq_nr, -1); /* insert just before */
+    }
 }
 
 static void live_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 position) {
@@ -213,33 +241,41 @@ static void live_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMint
 
     /* shift off the first x values from the live set. */
     if (x > 0) {
-        memmove(alc->live_set, alc->live_set + x, (alc->live_set_top -= x));
+        alc->live_set_top -= x;
+        memmove(alc->live_set, alc->live_set + x, alc->live_set_top);
     }
 }
+/* NB we could conceivably have a range split, which complicates the buffer-splitting logic */
+static void live_range_split(MVMThreadContext *tc, MVMJitTileList *list, RegisterAllocator *alc,
+                             LiveRange *to_split, MVMint32 position, LiveRange *out) {
+    MVMint32 i, j;
+    MVMint32 to_split_key = value_set_find(tc, alc->sets, to_split->key)->key;
 
-static void live_range_split(MVMThreadContext *tc, RegisterAllocator *alc, LiveRange *to_spill, MVMint32 position, LiveRange *out) {
-    MVMint32 i;
-    for (i = 0; i < to_spill->num_defs; i++) {
-        if (to_spill->defs[i] >= position) {
+    for (i = 0; i < to_split->num_defs; i++) {
+        if (to_split->defs[i] >= position) {
             /* cut in two pieces */
-            out->defs = to_spill->defs + i;
-            out->num_defs = to_spill->num_defs - i;
-            to_spill->num_defs = i;
+            out->defs = to_split->defs + i;
+            out->num_defs = to_split->num_defs - i;
+            to_split->num_defs = i;
             break;
         }
     }
+    for (i = 0; i < to_split->num_uses; i++) {
+        if (to_split->uses[i] >= position) {
+            out->uses = to_split->uses + i;
+            out->num_uses = to_split->num_uses - i;
+            to_split->num_uses = i;
+            break;
+        }
+    }
+    /* Update references to the new live range key */
     for (i = 0; i < to_spill->num_uses; i++) {
-        if (to_spill->uses[i] >= position) {
-            out->uses = to_spill->uses + i;
-            out->num_uses = to_spill->num_uses - i;
-            to_spill->num_uses = i;
-            break;
+        MVMJitTile *tile = list->items[to_spill->uses[i]];
+        for (j = 1; j < tile->num_values; j++) {
+            if (value_set_find(tc, alc, tile->values[j])->key == to_split_key) {
+                tile->values[j] = out->key;
+            }
         }
-    }
-    for (i = 0; i < out->num_uses; i++) {
-        /* TODO update use to the new live range..., but that means we
-           need to maintain a mapping from tile values -> live range
-           anyway... */
     }
 }
 
