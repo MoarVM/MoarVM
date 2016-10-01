@@ -107,7 +107,7 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
 /* This works out an allocation strategy for the object. It takes care of
  * "inlining" storage of attributes that are natively typed, as well as
  * noting unbox targets. */
-static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_info, MVMCStructREPRData *repr_data) {
+static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_info, MVMCStructREPRData *repr_data, MVMSTable *st) {
     /* Compute index mapping table and get flat list of attributes. */
     MVMObject *flat_list = index_mapping_and_flat_list(tc, repr_info, repr_data);
 
@@ -127,10 +127,13 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
 
         /* Get number of attributes and set up various counters. */
         MVMint32 num_attrs        = MVM_repr_elems(tc, flat_list);
-        MVMint32 info_alloc       = num_attrs == 0 ? 1 : num_attrs;
+        MVMint32 info_alloc       = num_attrs;
         MVMint32 cur_obj_attr     = 0;
         MVMint32 cur_init_slot    = 0;
         MVMint32 i;
+
+        if (info_alloc == 0)
+            MVM_exception_throw_adhoc(tc, "Class %s has no attributes, which is illegal with the CStruct representation.", st->debug_name);
 
         /* Allocate location/offset arrays and GC mark info arrays. */
         repr_data->num_attributes      = num_attrs;
@@ -325,7 +328,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *repr_info) {
     /* Compute allocation strategy. */
     MVMCStructREPRData *repr_data = MVM_calloc(1, sizeof(MVMCStructREPRData));
     MVMObject *attr_info = MVM_repr_at_key_o(tc, repr_info, tc->instance->str_consts.attribute);
-    compute_allocation_strategy(tc, attr_info, repr_data);
+    compute_allocation_strategy(tc, attr_info, repr_data, st);
     st->REPR_data = repr_data;
 }
 
