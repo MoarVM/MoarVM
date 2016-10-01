@@ -240,12 +240,8 @@ else {
 }
 
 if ($args{'has-libtommath'}) {
+    $defaults{-thirdparty}->{tom} = undef;
     unshift @{$config{usrlibs}}, 'tommath';
-
-    # only this objects are needed to build, if moar is linked together with
-    #  the libtommath library from the system
-    $defaults{-thirdparty}->{tom}->{objects} =
-        '3rdparty/libtommath/bn_mp_get_long.o 3rdparty/libtommath/bn_mp_set_long.o';
 }
 else {
     $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
