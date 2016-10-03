@@ -817,7 +817,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             if (MVM_repr_exists_key(tc, attr_info, str_pos_del)) {
                 if (repr_data->pos_del_slot != -1)
                     MVM_exception_throw_adhoc(tc,
-                        "Duplicate positional delegate attributes: %d and %d", repr_data->pos_del_slot, cur_slot);
+                        "Duplicate positional delegate attributes: %d and "PRId64, repr_data->pos_del_slot, cur_slot);
                 if (unboxed_type == MVM_STORAGE_SPEC_BP_NONE)
                     repr_data->pos_del_slot = cur_slot;
                 else
@@ -827,7 +827,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             if (MVM_repr_exists_key(tc, attr_info, str_ass_del)) {
                 if (repr_data->ass_del_slot != -1)
                     MVM_exception_throw_adhoc(tc,
-                        "Duplicate associative delegate attributes: %d and %d", repr_data->pos_del_slot, cur_slot);
+                        "Duplicate associative delegate attributes: %d and "PRId64, repr_data->pos_del_slot, cur_slot);
                 if (unboxed_type == MVM_STORAGE_SPEC_BP_NONE)
                     repr_data->ass_del_slot = cur_slot;
                 else
