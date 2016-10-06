@@ -573,10 +573,12 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         MVMROOT(tc, args, {
         MVMROOT(tc, res_type, {
             switch (ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
-                case MVM_NATIVECALL_ARG_VOID:
-                    ffi_call(&cif, entry_point, values[body->num_args], values);
+                case MVM_NATIVECALL_ARG_VOID: {
+                    void *ret;
+                    ffi_call(&cif, entry_point, &ret, values);
                     result = res_type;
                     break;
+                }
                 case MVM_NATIVECALL_ARG_CHAR: {
                     signed char ret;
                     ffi_call(&cif, entry_point, &ret, values);
