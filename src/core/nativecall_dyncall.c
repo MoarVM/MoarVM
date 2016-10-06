@@ -423,7 +423,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     MVMRegister r; \
     if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) { \
         if (MVM_6model_container_is ## cont_X(tc, value)) { \
-            dc_type *rw = (dc_type *)MVM_malloc(sizeof(dc_type *)); \
+            dc_type *rw = (dc_type *)MVM_malloc(sizeof(dc_type)); \
             MVM_6model_container_de ## cont_X(tc, value, &r); \
             *rw = (dc_type)r. reg_slot ; \
             if (!free_rws) \
