@@ -281,7 +281,7 @@ static MVMint32 is_full_collection(MVMThreadContext *tc) {
         return 0;
 
     /* Otherwise, consider percentage of resident set size. */
-    if (uv_resident_set_memory(&rss) < 0)
+    if (uv_resident_set_memory(&rss) < 0 || rss == 0)
         rss = 50 * 1024 * 1024;
     percent_growth = (100 * promoted) / rss;
     return percent_growth >= MVM_GC_GEN2_THRESHOLD_PERCENT;
