@@ -2889,8 +2889,11 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
 
         /* Clear it up, since we'll re-allocate all the bits inside
          * it on deserialization. */
-        if (REPR(orig_obj)->gc_free)
+        if (REPR(orig_obj)->gc_free) {
             REPR(orig_obj)->gc_free(tc, orig_obj);
+            /* Ensure the object is clean in case the deserialization never happens */
+            memset(OBJECT_BODY(orig_obj), 0, orig_obj->header.size - sizeof(MVMObject));
+        }
 
         /* The object's STable may have changed as a result of the
          * repossession (perhaps due to mixing in to it), so put the
