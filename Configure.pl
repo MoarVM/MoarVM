@@ -378,7 +378,7 @@ else {
 
 if ($args{'jit'}) {
     if ($config{ptr_size} != 8) {
-        say "JIT isn't supported on platforms with $config{ptr_size} bit pointers.";
+        say "JIT isn't supported on platforms with $config{ptr_size} byte pointers.";
     } elsif ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
         $config{jit} = '$(JIT_POSIX_X64)';
     } elsif ($Config{archname} =~ /^MSWin32-x64/) {
