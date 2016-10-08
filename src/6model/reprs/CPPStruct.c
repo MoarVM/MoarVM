@@ -1,6 +1,14 @@
 #include "moar.h"
 #include "math.h"
 
+#ifndef MIN
+   #define MIN(x,y) ((x)<(y)?(x):(y))
+#endif
+
+#ifndef MAX
+   #define MAX(x,y) ((x)>(y)?(x):(y))
+#endif
+
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
@@ -104,6 +112,10 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
     return flat_list;
 }
 
+static MVMint32 round_up_to_multi(MVMint32 i, MVMint32 m) {
+    return (MVMint32)((i + m - 1) / m) * m;
+}
+
 /* This works out an allocation strategy for the object. It takes care of
  * "inlining" storage of attributes that are natively typed, as well as
  * noting unbox targets. */
@@ -120,10 +132,8 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
     /* Otherwise, we need to compute the allocation strategy.  */
     else {
         /* We track the size of the struct, which is what we'll want offsets into. */
-        MVMint32 cur_size = 0;
-        /* The structure itself will be the multiple of its biggest element in size.
-         * So we keep track of that biggest element. */
-        MVMint32 multiple_of = 1;
+        MVMint32 cur_size    = 0;
+        MVMint32 struct_size = 0;
 
         /* Get number of attributes and set up various counters. */
         MVMint32 num_attrs        = MVM_repr_elems(tc, flat_list);
@@ -263,15 +273,12 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
             repr_data->struct_offsets[i] = cur_size;
             cur_size += bits / 8;
 
-            if (align > multiple_of)
-                multiple_of = align;
+            struct_size = round_up_to_multi(struct_size, align) + bits/8;
         }
 
         /* Finally, put computed allocation size in place; it's body size plus
          * header size. Also number of markables and sentinels. */
-        if (multiple_of > sizeof(void *))
-            multiple_of = sizeof(void *);
-        repr_data->struct_size = ceil((double)cur_size / (double)multiple_of) * multiple_of;
+        repr_data->struct_size = round_up_to_multi(struct_size, repr_data->struct_align);
         if (repr_data->initialize_slots)
             repr_data->initialize_slots[cur_init_slot] = -1;
     }
