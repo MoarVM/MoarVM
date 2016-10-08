@@ -328,6 +328,21 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64
         ssize = (n + 0x1000) & ~0xfff;
     }
 
+    /* Provide a proper error message in case we go over
+     * what a 64bit uint can store */
+
+    if (ssize > MAX_INT / repr_data->elem_size) {
+        if (body->ssize == MAX_INT / repr_data->elem_size) {
+            /* We already clipped at the max and really can't
+             * grow any further no matter what. */
+            MVM_exception_throw_adhoc(tc,
+                    "MVMArray: Can't resize to a number bigger than 64bits: %d * %d bytes.",
+                        ssize, repr_data->elem_size);
+        } else {
+            ssize = MAX_INT / repr_data->elem_size;
+        }
+    }
+
     /* now allocate the new slot buffer */
     slots = (slots)
             ? MVM_realloc(slots, ssize * repr_data->elem_size)
