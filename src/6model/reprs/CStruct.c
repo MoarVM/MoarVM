@@ -1,14 +1,6 @@
 #include "moar.h"
 #include <math.h>
 
-#ifndef MIN
-   #define MIN(x,y) ((x)<(y)?(x):(y))
-#endif
-
-#ifndef MAX
-   #define MAX(x,y) ((x)>(y)?(x):(y))
-#endif
-
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
