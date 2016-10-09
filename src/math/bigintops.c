@@ -83,13 +83,13 @@ static void from_num(MVMnum64 d, mp_int *a) {
     lower = rest / d_digit;
     lowest = fmod(rest,d_digit );
     if (upper >= 1) {
-        mp_set_long(a, (unsigned long) upper);
+        MVM_bigint_mp_set_uint64(a, (MVMuint64) upper);
         mp_mul_2d(a, DIGIT_BIT , a);
         DIGIT(a, 0) = (mp_digit) lower;
         mp_mul_2d(a, DIGIT_BIT , a);
     } else {
         if (lower >= 1) {
-            mp_set_long(a, (unsigned long) lower);
+            MVM_bigint_mp_set_uint64(a, (MVMuint64) lower);
             mp_mul_2d(a, DIGIT_BIT , a);
             a->used = 2;
         } else {
