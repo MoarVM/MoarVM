@@ -388,6 +388,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_atposref_i: return MVM_nativeref_pos_i;
     case MVM_OP_atposref_n: return MVM_nativeref_pos_n;
     case MVM_OP_atposref_s: return MVM_nativeref_pos_s;
+    case MVM_OP_indexingoptimized: return MVM_string_indexing_optimized;
     case MVM_OP_sp_boolify_iter: return MVM_iter_istrue;
     case MVM_OP_prof_allocated: return MVM_profile_log_allocated;
     case MVM_OP_prof_exit: return MVM_profile_log_exit;
@@ -2207,7 +2208,8 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
     case MVM_OP_escape:
     case MVM_OP_uc:
     case MVM_OP_lc:
-    case MVM_OP_tc: {
+    case MVM_OP_tc:
+    case MVM_OP_indexingoptimized: {
         MVMint16 dst    = ins->operands[0].reg.orig;
         MVMint16 string = ins->operands[1].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
