@@ -1244,6 +1244,34 @@ void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
     }
 }
 
+/* If the string is made up of strands, then produces a flattend string
+ * representing the exact same graphemes but without strands. Otherwise,
+ * returns the input string. Intended for strings that will be indexed
+ * into heavily (when evaluating regexes, for example). */
+MVMString * MVM_string_indexing_optimized(MVMThreadContext *tc, MVMString *s) {
+    MVM_string_check_arg(tc, s, "indexingoptimized");
+    if (s->body.storage_type == MVM_STRING_STRAND) {
+        MVMGrapheme32   *flat = MVM_malloc(MVM_string_graphs(tc, s) * sizeof(MVMGrapheme32));
+        MVMStringStrand *orig = s->body.storage.strands;
+        MVMuint32        i    = 0;
+        MVMString       *res;
+
+        MVMGraphemeIter  gi;
+        MVM_string_gi_init(tc, &gi, s);
+        while (MVM_string_gi_has_more(tc, &gi))
+            flat[i++] = MVM_string_gi_get_grapheme(tc, &gi);
+
+        res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        res->body.storage_type    = MVM_STRING_GRAPHEME_32;
+        res->body.storage.blob_32 = flat;
+        res->body.num_graphs      = MVM_string_graphs(tc, s);
+        return res;
+    }
+    else {
+        return s;
+    }
+}
+
 /* Escapes a string, replacing various chars like \n with \\n. Can no doubt be
  * further optimized. */
 MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
