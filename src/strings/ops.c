@@ -593,6 +593,8 @@ MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVM
         MVM_unicode_normalizer_eof(tc, &norm);
         if (!ready)
             g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+
+        MVM_unicode_normalizer_cleanup(tc, &norm);
     }
 
     return g;
