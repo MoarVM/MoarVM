@@ -2628,8 +2628,8 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
         if (REPR(obj)->deserialize)
             REPR(obj)->deserialize(tc, STABLE(obj), obj, OBJECT_BODY(obj), reader);
         else
-            fail_deserialize(tc, reader, "Missing deserialize REPR function for %s",
-                REPR(obj)->name);
+            fail_deserialize(tc, reader, "Missing deserialize REPR function for %s (%s)",
+                REPR(obj)->name, STABLE(obj)->debug_name);
         reader->current_object = NULL;
     }
 }
