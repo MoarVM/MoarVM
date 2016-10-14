@@ -103,8 +103,9 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
 #else
 
     if (mkdir_p(tc, pathname, mode) == -1 && errno != EEXIST) {
+        int mkdir_error = errno;
         MVM_free(pathname);
-        MVM_exception_throw_adhoc(tc, "Failed to mkdir: %d", errno);
+        MVM_exception_throw_adhoc(tc, "Failed to mkdir: %d", mkdir_error);
     }
 
     MVM_free(pathname);
@@ -148,8 +149,9 @@ void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {
     char * const dirstring = MVM_string_utf8_c8_encode_C_string(tc, dir);
 
     if (uv_chdir((const char *)dirstring) != 0) {
+        int chdir_error = errno;
         MVM_free(dirstring);
-        MVM_exception_throw_adhoc(tc, "chdir failed: %s", uv_strerror(errno));
+        MVM_exception_throw_adhoc(tc, "chdir failed: %s", uv_strerror(chdir_error));
     }
 
     MVM_free(dirstring);
@@ -257,10 +259,11 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
 #else
     char * const dir_name = MVM_string_utf8_c8_encode_C_string(tc, dirname);
     DIR * const dir_handle = opendir(dir_name);
+    int opendir_error = errno;
     MVM_free(dir_name);
 
     if (!dir_handle)
-        MVM_exception_throw_adhoc(tc, "Failed to open dir: %d", errno);
+        MVM_exception_throw_adhoc(tc, "Failed to open dir: %d", opendir_error);
 
     data->dir_handle = dir_handle;
 #endif
