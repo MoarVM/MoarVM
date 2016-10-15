@@ -155,6 +155,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
     size_t             new_size;
     MVMMultiCacheNode *new_head;
     MVMObject        **new_results;
+    int                unlock_necessary = 0;
 
     /* Allocate a cache if needed. */
     if (MVM_is_null(tc, cache_obj) || !IS_CONCRETE(cache_obj) || REPR(cache_obj)->ID != MVM_REPR_ID_MVMMultiCache) {
@@ -211,6 +212,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
      * making this entry. */
     if (MVM_instance_have_user_threads(tc)) {
         uv_mutex_lock(&(tc->instance->mutex_multi_cache_add));
+        unlock_necessary = 1;
         if (MVM_multi_cache_find(tc, cache_obj, capture))
             goto DONE;
     }
@@ -363,7 +365,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
 
     /* Release lock if needed. */
   DONE:
-    if (MVM_instance_have_user_threads(tc))
+    if (unlock_necessary)
         uv_mutex_unlock(&(tc->instance->mutex_multi_cache_add));
 
     /* Hand back the created/updated cache. */
