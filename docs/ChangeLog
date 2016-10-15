@@ -1,3 +1,37 @@
+New in 2016.10
+
++ Fix build without libtommath source
++ Make MVM_file_open_fh() throw if the file we opened was a directory
++ Fix bug and memory leaks in MVM_file_open_fh()
++ Add error message for likely MacOS build failure
++ Don't set inheriting process on inherited pipe, fixing a segfault
++ Update to the Unicode 9 database
++ Die on CStruct without any fields
++ Constant-fold unipropcode and unipvalcode
++ Use PRId64 instead of %d for 64 bit int format string args
++ "Cannot unbox type object" error gets debugname and native type info
++ Fix uninitialized arg_names of an MVMCallsite
++ Handle C++ constructors on libffi
++ Fix CUnion get_attribute treating inlined attrs as pointers
++ Fix 32 bit issue with rw args in NativeCall callbacks
++ Use better throw-away type for void nativecalls
++ Gracefully handle a 0 RSS reported by the Linux kernel
++ Fix "Invalid free()" in empty repossessed arrays
++ Make sure we mean "signed char" when we say "char"
++ Fix calculating structure sizes for arm64 and others
++ Disable JIT on x32, since it has a different calling convention
++ Fix pointer size unit in configure message
++ Use set_uint64 in from_num, otherwise we overflow on x32
++ Rewrite mkdir_p api, no function changes
++ Improve nativecall attribute error messages
++ Include debug_name in crossthreadwritelog and serialization errors
++ Deprecate async string I/O ops
++ Deprecate flattenropes op
++ Implement indexingoptimized op (replaces flattenropes, but is not in-place)
++ Fix memory leadk in ord_basechar_at
++ Ensure errno is grabbed before MVM_free is called
++ Make extra sure unlock only happens if lock happened
+
 New in 2016.09
 
 + Do not crash when the container configuration can't be read
