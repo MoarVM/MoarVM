@@ -661,7 +661,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             if (((act == MVM_NFA_EDGE_CODEPOINT_M)     && (ga == gb))
                              || ((act == MVM_NFA_EDGE_CODEPOINT_M_NEG) && (ga != gb)))
                                 nextst[numnext++] = to;
-
+                            MVM_unicode_normalizer_cleanup(tc, &norm);
                             continue;
                         }
                         case MVM_NFA_EDGE_CODEPOINT_IM:
@@ -677,6 +677,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             MVM_unicode_normalizer_eof(tc, &norm);
                             if (!ready)
                                 uc_arg = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+                            MVM_unicode_normalizer_cleanup(tc, &norm);
 
                             MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFD);
                             ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, lc_arg, &lc_arg);
@@ -687,6 +688,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             if (((act == MVM_NFA_EDGE_CODEPOINT_IM)     && (ord == lc_arg || ord == uc_arg))
                              || ((act == MVM_NFA_EDGE_CODEPOINT_IM_NEG) && (ord != lc_arg && ord != uc_arg)))
                                 nextst[numnext++] = to;
+                            MVM_unicode_normalizer_cleanup(tc, &norm);
                             continue;
                         }
                         case MVM_NFA_EDGE_CHARRANGE_M: {
