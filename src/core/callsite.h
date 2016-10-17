@@ -93,6 +93,8 @@ struct MVMCallsite {
         MVMuint8 is_interned : 1;
         /* Whether we are allowed to free the arg_names pointer */
         MVMuint8 owns_nameds : 1;
+        /* Whether we are allowed to free the arg_flags pointer */
+        MVMuint8 owns_flags : 1;
     } props;
 
     /* Cached version of this callsite with an extra invocant arg. */

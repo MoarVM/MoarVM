@@ -93,7 +93,7 @@ int MVM_callsite_is_common(MVMCallsite *cs) {
 }
 
 void MVM_callsite_destroy(MVMCallsite *cs) {
-    if (cs->flag_count) {
+    if (cs->flag_count && cs->props.owns_flags) {
         MVM_free(cs->arg_flags);
     }
 
@@ -114,6 +114,8 @@ MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
     if (cs->flag_count) {
         copy->arg_flags =  MVM_malloc(cs->flag_count);
         memcpy(copy->arg_flags, cs->arg_flags, cs->flag_count);
+    } else {
+        copy->arg_flags = NULL;
     }
 
     if (cs->arg_names) {
@@ -138,8 +140,9 @@ MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
     copy->num_pos = cs->num_pos;
     copy->props.has_flattening = cs->props.has_flattening;
     copy->props.is_interned = cs->props.is_interned;
-    /* We've copied the nameds to our own buffer, so reset this flag */
+    /* We've copied the nameds and flags to our own buffer, so set these flags */
     copy->props.owns_nameds = 1;
+    copy->props.owns_flags  = 1;
 
     return copy;
 }
