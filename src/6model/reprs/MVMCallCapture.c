@@ -57,6 +57,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
                 MVM_gc_worklist_add(tc, worklist, &ctx->args[i].s);
                 i++;
             }
+            if (flag >= ctx->callsite->flag_count) {
+                MVM_panic(1, "oh, oops, accessing past flag buffer\n");
+            }
             if (flag_map[flag] & MVM_CALLSITE_ARG_STR || flag_map[flag] & MVM_CALLSITE_ARG_OBJ)
                 MVM_gc_worklist_add(tc, worklist, &ctx->args[i].o);
         }
