@@ -797,7 +797,8 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         callsites[i]->arg_count            = positionals + nameds_slots;
         callsites[i]->props.has_flattening = has_flattening;
         callsites[i]->props.is_interned    = 0;
-        callsites[i]->props.owns_nameds    = 0;
+        callsites[i]->props.owns_nameds    = 1;
+        callsites[i]->props.owns_flags     = 1;
         callsites[i]->with_invocant        = NULL;
 
         if (nameds_non_flattening) {
