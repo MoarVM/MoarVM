@@ -139,7 +139,7 @@ MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
     copy->props.has_flattening = cs->props.has_flattening;
     copy->props.is_interned = cs->props.is_interned;
     /* We've copied the nameds to our own buffer, so reset this flag */
-    copy->props.owns_nameds = 0;
+    copy->props.owns_nameds = 1;
 
     return copy;
 }
