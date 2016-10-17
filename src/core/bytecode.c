@@ -795,7 +795,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
 
         if (rs->version >= 3 && nameds_non_flattening) {
             ensure_can_read(tc, cu, rs, pos, nameds_non_flattening * 4);
-            callsites[i]->arg_names = MVM_malloc(nameds_non_flattening * sizeof(MVMString));
+            callsites[i]->arg_names = MVM_malloc(nameds_non_flattening * sizeof(MVMString*));
             for (j = 0; j < nameds_non_flattening; j++) {
                 callsites[i]->arg_names[j] = get_heap_string(tc, cu, rs, pos, 0);
                 pos += 4;
