@@ -48,7 +48,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMCallCaptureBody *body = (MVMCallCaptureBody *)data;
     if (body->mode == MVM_CALL_CAPTURE_MODE_SAVE) {
         MVMArgProcContext *ctx = body->apc;
-        MVMuint8  *flag_map = ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags;
+        MVMuint8  *flag_map = ctx->arg_flags ? ctx->arg_flags : MVM_CALLSITE_FLAGS(ctx->callsite);
         MVMuint16  count = ctx->arg_count;
         MVMuint16  i, flag;
         for (i = 0, flag = 0; i < count; i++, flag++) {
@@ -70,11 +70,15 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCallCapture *ctx = (MVMCallCapture *)obj;
     if (ctx->body.apc && ctx->body.effective_callsite != ctx->body.apc->callsite) {
-        MVM_free(ctx->body.effective_callsite->arg_flags);
+        if (ctx->body.effective_callsite->props.owns_flags)
+            if (!MVM_CALLSITE_FLAGS_IS_SMALL(ctx->body.effective_callsite))
+                MVM_free(ctx->body.effective_callsite->arg_flags.arr);
         MVM_free(ctx->body.effective_callsite);
     }
     else if (ctx->body.owns_callsite) {
-        MVM_free(ctx->body.effective_callsite->arg_flags);
+        if (ctx->body.effective_callsite->props.owns_flags)
+            if (!MVM_CALLSITE_FLAGS_IS_SMALL(ctx->body.effective_callsite))
+                MVM_free(ctx->body.effective_callsite->arg_flags.arr);
         MVM_free(ctx->body.effective_callsite);
     }
     if (ctx->body.mode == MVM_CALL_CAPTURE_MODE_SAVE) {
@@ -155,7 +159,7 @@ MVMint64 MVM_capture_pos_primspec(MVMThreadContext *tc, MVMObject *obj, MVMint64
         if (i >= 0 && i < cc->body.apc->num_pos) {
             MVMCallsiteEntry *arg_flags = cc->body.apc->arg_flags
                 ? cc->body.apc->arg_flags
-                : cc->body.apc->callsite->arg_flags;
+                : MVM_CALLSITE_FLAGS(cc->body.apc->callsite);
             switch (arg_flags[i] & MVM_CALLSITE_ARG_MASK) {
                 case MVM_CALLSITE_ARG_INT:
                     return MVM_STORAGE_SPEC_BP_INT;

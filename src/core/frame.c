@@ -1669,13 +1669,15 @@ static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, 
                 MVMCallsite *new   = MVM_calloc(1, sizeof(MVMCallsite));
                 MVMint32     fsize = orig->flag_count;
                 new->flag_count    = fsize + 1;
-                new->arg_flags     = MVM_malloc(new->flag_count * sizeof(MVMCallsiteEntry));
-                new->arg_flags[0]  = MVM_CALLSITE_ARG_OBJ;
-                memcpy(new->arg_flags + 1, orig->arg_flags, fsize);
+                if (!MVM_CALLSITE_FLAGS_IS_SMALL(new))
+                    new->arg_flags.arr = MVM_malloc(new->flag_count * sizeof(MVMCallsiteEntry));
+                MVM_CALLSITE_FLAGS(new)[0]  = MVM_CALLSITE_ARG_OBJ;
+                memcpy(MVM_CALLSITE_FLAGS(new) + 1, MVM_CALLSITE_FLAGS(orig), fsize);
                 new->arg_count            = orig->arg_count + 1;
                 new->num_pos              = orig->num_pos + 1;
                 new->props.has_flattening = orig->props.has_flattening;
                 new->props.is_interned    = 0;
+                new->props.owns_flags     = 1;
                 new->with_invocant        = NULL;
                 *tweak_cs = orig->with_invocant = new;
             }

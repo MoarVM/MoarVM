@@ -87,7 +87,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         a("    num_pos: %d\n", callsite->num_pos);
         a("    arg_count: %u\n", arg_count);
         for (j = 0, i = 0; j < arg_count; j++) {
-            MVMCallsiteEntry csitee = callsite->arg_flags[i++];
+            MVMCallsiteEntry csitee = MVM_CALLSITE_FLAGS(callsite)[i++];
             a("    Arg %u :", i);
             if (csitee & MVM_CALLSITE_ARG_NAMED) {
                 if (callsite->arg_names) {

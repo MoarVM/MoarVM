@@ -134,7 +134,8 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         /* We'll also build up a MoarVM callsite as we go. */
         cs                       = MVM_calloc(1, sizeof(MVMCallsite));
         cs->flag_count           = num_info - 1;
-        cs->arg_flags            = MVM_malloc(num_info * sizeof(MVMCallsiteEntry));
+        if (!MVM_CALLSITE_FLAGS_IS_SMALL(cs))
+            cs->arg_flags.arr    = MVM_malloc(num_info * sizeof(MVMCallsiteEntry));
         cs->arg_count            = num_info - 1;
         cs->num_pos              = num_info - 1;
         cs->props.has_flattening = 0;
@@ -158,7 +159,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
                 case MVM_NATIVECALL_ARG_INT:
                 case MVM_NATIVECALL_ARG_LONG:
                 case MVM_NATIVECALL_ARG_LONGLONG:
-                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                    MVM_CALLSITE_FLAGS(cs)[i - 1] = MVM_CALLSITE_ARG_INT;
                     break;
                 case MVM_NATIVECALL_ARG_UCHAR:
                 case MVM_NATIVECALL_ARG_USHORT:
@@ -166,14 +167,14 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
                 case MVM_NATIVECALL_ARG_ULONG:
                 case MVM_NATIVECALL_ARG_ULONGLONG:
                     /* TODO: should probably be UINT, when we can support that. */
-                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                    MVM_CALLSITE_FLAGS(cs)[i - 1] = MVM_CALLSITE_ARG_INT;
                     break;
                 case MVM_NATIVECALL_ARG_FLOAT:
                 case MVM_NATIVECALL_ARG_DOUBLE:
-                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_NUM;
+                    MVM_CALLSITE_FLAGS(cs)[i - 1] = MVM_CALLSITE_ARG_NUM;
                     break;
                 default:
-                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_OBJ;
+                    MVM_CALLSITE_FLAGS(cs)[i - 1] = MVM_CALLSITE_ARG_OBJ;
                     break;
             }
         }

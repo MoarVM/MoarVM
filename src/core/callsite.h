@@ -63,6 +63,8 @@ typedef enum {
 /* A callsite entry is just one of the above flags. */
 typedef MVMuint8 MVMCallsiteEntry;
 
+#define MVM_CALLSITE_SMALL_ARRAY_ITEMS (sizeof(MVMCallsiteEntry *) / sizeof(MVMCallsiteEntry))
+
 /* A callsite is an argument count, a bunch of flags, and names of named
  * arguments (excluding any flattening ones). Note that it does not contain
  * the argument values; this is the *statically known* things about the
@@ -70,7 +72,10 @@ typedef MVMuint8 MVMCallsiteEntry;
  * memory buffer. */
 struct MVMCallsite {
     /* The set of flags. */
-    MVMCallsiteEntry *arg_flags;
+    union {
+        MVMCallsiteEntry *arr;
+        MVMCallsiteEntry small[MVM_CALLSITE_SMALL_ARRAY_ITEMS];
+    } arg_flags;
 
     /* The number of arg flags. */
     MVMuint16 flag_count;
@@ -137,12 +142,19 @@ MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs);
 /* Callsite interning function. */
 MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
 
+#define MVM_CALLSITE_FLAGS_IS_SMALL(cs) (cs->flag_count <= MVM_CALLSITE_SMALL_ARRAY_ITEMS)
+
+#define MVM_CALLSITE_FLAGS(cs) (MVM_CALLSITE_FLAGS_IS_SMALL(cs) ? cs->arg_flags.small : cs->arg_flags.arr)
+
+MVM_PUBLIC void MVM_callsite_copy_flags(MVMThreadContext *tc, MVMCallsite *target, const MVMCallsite *source);
+
 /* Count the number of nameds (excluding flattening). */
 MVM_STATIC_INLINE MVMuint16 MVM_callsite_num_nameds(MVMThreadContext *tc, const MVMCallsite *cs) {
     MVMuint16 i = cs->num_pos;
     MVMuint16 nameds = 0;
+    MVMCallsiteEntry const *flags = MVM_CALLSITE_FLAGS(cs);
     while (i < cs->flag_count) {
-        if (!(cs->arg_flags[i] & MVM_CALLSITE_ARG_FLAT_NAMED))
+        if (!(flags[i] & MVM_CALLSITE_ARG_FLAT_NAMED))
             nameds++;
         i++;
     }

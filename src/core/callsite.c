@@ -5,7 +5,7 @@ static MVMint32 callsites_equal(MVMThreadContext *tc, MVMCallsite *cs1, MVMCalls
                                 MVMint32 num_flags, MVMint32 num_nameds) {
     MVMint32 i;
 
-    if (num_flags && memcmp(cs1->arg_flags, cs2->arg_flags, num_flags))
+    if (num_flags && memcmp(MVM_CALLSITE_FLAGS(cs1), MVM_CALLSITE_FLAGS(cs2), num_flags))
         return 0;
 
     for (i = 0; i < num_nameds; i++)
@@ -94,7 +94,7 @@ int MVM_callsite_is_common(MVMCallsite *cs) {
 
 void MVM_callsite_destroy(MVMCallsite *cs) {
     if (cs->flag_count && cs->props.owns_flags) {
-        MVM_free(cs->arg_flags);
+        MVM_free(cs->arg_flags.arr);
     }
 
     if (cs->props.owns_nameds && cs->arg_names) {
@@ -108,15 +108,23 @@ void MVM_callsite_destroy(MVMCallsite *cs) {
     MVM_free(cs);
 }
 
+void MVM_callsite_copy_flags(MVMThreadContext *tc, MVMCallsite *target, const MVMCallsite *source) {
+    target->flag_count = source->flag_count;
+
+    if (target->flag_count) {
+        if (MVM_CALLSITE_FLAGS_IS_SMALL(source))
+            target->arg_flags.arr =  MVM_malloc(source->flag_count);
+
+        memcpy(MVM_CALLSITE_FLAGS(target), MVM_CALLSITE_FLAGS(source), source->flag_count);
+    } else {
+        target->arg_flags.arr = NULL;
+    }
+}
+
 MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
     MVMCallsite *copy = MVM_malloc(sizeof(MVMCallsite));
 
-    if (cs->flag_count) {
-        copy->arg_flags =  MVM_malloc(cs->flag_count);
-        memcpy(copy->arg_flags, cs->arg_flags, cs->flag_count);
-    } else {
-        copy->arg_flags = NULL;
-    }
+    MVM_callsite_copy_flags(tc, copy, cs);
 
     if (cs->arg_names) {
         MVMint32 num_named = MVM_callsite_num_nameds(tc, cs);
@@ -135,7 +143,6 @@ MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
         copy->with_invocant = NULL;
     }
 
-    copy->flag_count = cs->flag_count;
     copy->arg_count = cs->arg_count;
     copy->num_pos = cs->num_pos;
     copy->props.has_flattening = cs->props.has_flattening;
@@ -194,8 +201,8 @@ MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_p
         if (callsites_equal(tc, interns->by_arity[num_flags][i], cs, num_flags, num_nameds)) {
             /* Got a match! Free the one we were passed and replace it with
              * the interned one. */
-            if (num_flags)
-                MVM_free(cs->arg_flags);
+            if (num_flags && cs->props.owns_flags)
+                MVM_free(cs->arg_flags.arr);
             MVM_free(cs->arg_names);
             MVM_free(cs);
             *cs_ptr = interns->by_arity[num_flags][i];

@@ -513,7 +513,7 @@ static void validate_arg(Validator *val) {
             fail (val, MSG(val, "argument index %" PRIu16
                     " not in range 0..%" PRIu32), index, count - 1);
 
-        flags = val->cur_call->arg_flags[index];
+        flags = MVM_CALLSITE_FLAGS(val->cur_call)[index];
 
         switch (flags & ~MVM_CALLSITE_ARG_MASK) {
             case 0: /* positionals */

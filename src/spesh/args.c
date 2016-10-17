@@ -277,7 +277,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
          * types match or it's a box/unbox. */
         MVMint32 i;
         for (i = 0; i < cs->num_pos; i++) {
-            MVMCallsiteEntry arg_flag = cs->arg_flags[i];
+            MVMCallsiteEntry arg_flag = MVM_CALLSITE_FLAGS(cs)[i];
             if (!pos_ins[i])
                 goto cleanup;
             switch (pos_ins[i]->info->opcode) {
@@ -339,7 +339,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
         if (cs->arg_count)
             g->arg_guards = MVM_malloc(2 * cs->arg_count * sizeof(MVMSpeshGuard));
         for (i = 0; i < cs->num_pos; i++) {
-            MVMCallsiteEntry arg_flag = cs->arg_flags[i];
+            MVMCallsiteEntry arg_flag = MVM_CALLSITE_FLAGS(cs)[i];
             switch (pos_ins[i]->info->opcode) {
             case MVM_OP_param_rp_i:
             case MVM_OP_param_op_i:
@@ -448,10 +448,10 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs, MVM
             MVMint32   found_idx     = -1;
             MVMint32   j;
             for (j = 0; j < cs_flags; j++) {
-                if (cs->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
+                if (MVM_CALLSITE_FLAGS(cs)[j] & MVM_CALLSITE_ARG_NAMED) {
                     if (MVM_string_equal(tc, arg_name, cs->arg_names[cur_named])) {
                         /* Found it. */
-                        found_flag = cs->arg_flags[j];
+                        found_flag = MVM_CALLSITE_FLAGS(cs)[j];
                         found_idx  = cur_idx;
                         break;
                     }

@@ -65,15 +65,19 @@ MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ct
     }
     else {
         fsize = ctx->callsite->flag_count;
-        src_flags = ctx->callsite->arg_flags;
-    }
-
-    if (fsize) {
-        flags = MVM_malloc(fsize);
-        memcpy(flags, src_flags, fsize);
+        src_flags = MVM_CALLSITE_FLAGS(ctx->callsite);
     }
     res->flag_count = fsize;
-    res->arg_flags = flags;
+
+    if (fsize) {
+        if (MVM_CALLSITE_FLAGS_IS_SMALL(res))
+            flags = MVM_malloc(fsize);
+        else
+            flags = NULL;
+
+        memcpy(flags, src_flags, fsize);
+    }
+    res->arg_flags.arr = flags;
     res->arg_count = ctx->arg_count;
     res->num_pos   = ctx->num_pos;
     return res;
@@ -149,7 +153,7 @@ void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16
 #define find_pos_arg(ctx, pos, result) do { \
     if (pos < ctx->num_pos) { \
         result.arg   = ctx->args[pos]; \
-        result.flags = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[pos]; \
+        result.flags = (ctx->arg_flags ? ctx->arg_flags : MVM_CALLSITE_FLAGS(ctx->callsite))[pos]; \
         result.exists = 1; \
     } \
     else { \
@@ -286,7 +290,7 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
                 autobox(tc, tc->cur_frame, result.arg.s, str_box_type, 1, set_str, result.arg.o); \
                 break; \
             default: \
-                MVM_exception_throw_adhoc(tc, "invalid type flag"); \
+                MVM_exception_throw_adhoc(tc, "invalid type flag: %d", result.flags & MVM_CALLSITE_ARG_MASK); \
         } \
     } \
 } while (0)
@@ -336,7 +340,7 @@ MVMArgInfo MVM_args_get_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, M
                 MVM_exception_throw_adhoc_free(tc, waste, "Named argument '%s' already used", c_name); \
             } \
             result.arg    = ctx->args[arg_pos + 1]; \
-            result.flags  = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos]; \
+            result.flags  = (ctx->arg_flags ? ctx->arg_flags : MVM_CALLSITE_FLAGS(ctx->callsite))[flag_pos]; \
             result.exists = 1; \
             ctx->named_used[(arg_pos - ctx->num_pos)/2] = 1; \
             break; \
@@ -641,7 +645,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
             MVM_exception_throw_adhoc(tc, "slurpy hash needs concrete key");
         }
         arg_info.arg    = ctx->args[arg_pos + 1];
-        arg_info.flags  = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos];
+        arg_info.flags  = (ctx->arg_flags ? ctx->arg_flags : MVM_CALLSITE_FLAGS(ctx->callsite))[flag_pos];
         arg_info.exists = 1;
 
         if (arg_info.flags & MVM_CALLSITE_ARG_FLAT) {
@@ -708,7 +712,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     for ( ; arg_pos < ctx->num_pos; arg_pos++) {
 
         arg_info.arg    = ctx->args[arg_pos];
-        arg_info.flags  = ctx->callsite->arg_flags[arg_pos];
+        arg_info.flags  = MVM_CALLSITE_FLAGS(ctx->callsite)[arg_pos];
         arg_info.exists = 1;
 
         /* Skip it if it's not flattening or is null. The bytecode loader
@@ -770,8 +774,8 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     arg_pos = ctx->arg_count;
     while (flag_pos > ctx->num_pos) {
         flag_pos--;
-        if (ctx->callsite->arg_flags[flag_pos] & MVM_CALLSITE_ARG_FLAT_NAMED) {
-            arg_info.flags = ctx->callsite->arg_flags[flag_pos];
+        if (MVM_CALLSITE_FLAGS(ctx->callsite)[flag_pos] & MVM_CALLSITE_ARG_FLAT_NAMED) {
+            arg_info.flags = MVM_CALLSITE_FLAGS(ctx->callsite)[flag_pos];
             arg_pos--;
             arg_info.arg = ctx->args[arg_pos];
 
@@ -812,7 +816,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 
                 (new_args + new_arg_pos++)->s = (ctx->args + arg_pos)->s;
                 *(new_args + new_arg_pos++) = *(ctx->args + arg_pos + 1);
-                new_arg_flags[new_flag_pos++] = ctx->callsite->arg_flags[flag_pos];
+                new_arg_flags[new_flag_pos++] = MVM_CALLSITE_FLAGS(ctx->callsite)[flag_pos];
             }
         }
     }

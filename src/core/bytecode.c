@@ -759,15 +759,19 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         /* Allocate space for the callsite. */
         callsites[i] = MVM_malloc(sizeof(MVMCallsite));
         callsites[i]->flag_count = elems;
-        if (elems)
-            callsites[i]->arg_flags = MVM_malloc(sizeof(MVMCallsiteEntry) * elems);
-        else
-            callsites[i]->arg_flags = NULL;
+        if (MVM_CALLSITE_FLAGS_IS_SMALL(callsites[i])) {
+            callsites[i]->arg_flags.arr = NULL;
+        } else if (elems) {
+            callsites[i]->arg_flags.arr = MVM_malloc(sizeof(MVMCallsiteEntry) * elems);
+        } else {
+            callsites[i]->arg_flags.arr = NULL;
+        }
 
         /* Ensure we can read in a callsite of this size, and do so. */
         ensure_can_read(tc, cu, rs, pos, elems);
-        for (j = 0; j < elems; j++)
-            callsites[i]->arg_flags[j] = read_int8(pos, j);
+        for (j = 0; j < elems; j++) {
+            MVM_CALLSITE_FLAGS(callsites[i])[j] = read_int8(pos, j);
+        }
         pos += elems;
 
         /* Add alignment. */
@@ -776,21 +780,21 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         /* Count positional arguments, and validate that all positionals come
          * before all nameds (flattening named counts as named). */
         for (j = 0; j < elems; j++) {
-            if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT) {
-                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ))
+            if (MVM_CALLSITE_FLAGS(callsites[i])[j] & MVM_CALLSITE_ARG_FLAT) {
+                if (!(MVM_CALLSITE_FLAGS(callsites[i])[j] & MVM_CALLSITE_ARG_OBJ))
                     MVM_exception_throw_adhoc(tc, "Flattened positional args must be objects");
                 if (nameds_slots)
                     MVM_exception_throw_adhoc(tc, "Flattened positional args must appear before named args");
                 has_flattening = 1;
                 positionals++;
             }
-            else if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT_NAMED) {
-                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ))
+            else if (MVM_CALLSITE_FLAGS(callsites[i])[j] & MVM_CALLSITE_ARG_FLAT_NAMED) {
+                if (!(MVM_CALLSITE_FLAGS(callsites[i])[j] & MVM_CALLSITE_ARG_OBJ))
                     MVM_exception_throw_adhoc(tc, "Flattened named args must be objects");
                 has_flattening = 1;
                 nameds_slots++;
             }
-            else if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
+            else if (MVM_CALLSITE_FLAGS(callsites[i])[j] & MVM_CALLSITE_ARG_NAMED) {
                 nameds_slots += 2;
                 nameds_non_flattening++;
             }
@@ -806,7 +810,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         callsites[i]->props.has_flattening = has_flattening;
         callsites[i]->props.is_interned    = 0;
         callsites[i]->props.owns_nameds    = 1;
-        callsites[i]->props.owns_flags     = 1;
+        callsites[i]->props.owns_flags     = !MVM_CALLSITE_FLAGS_IS_SMALL(callsites[i]);
         callsites[i]->with_invocant        = NULL;
 
         if (nameds_non_flattening) {
@@ -861,23 +865,23 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
                 MVM_free(old_buffer);
             }
 
-            if (callsites[i]->flag_count) {
+            if (!MVM_CALLSITE_FLAGS_IS_SMALL(callsites[i])) {
                 MVMCallsiteEntry *old_flags;
                 if (flag_idx + callsites[i]->flag_count >= flags_alloced) {
                     flags_alloced *= 2;
                     flags_buffer = MVM_realloc(flags_buffer, sizeof(MVMCallsiteEntry) * flags_alloced);
                 }
 
-                old_flags = callsites[i]->arg_flags;
+                old_flags = callsites[i]->arg_flags.arr;
 
-                callsites[i]->arg_flags = (MVMCallsiteEntry *)(&flags_buffer[flag_idx]);
+                callsites[i]->arg_flags.arr = (MVMCallsiteEntry *)(&flags_buffer[flag_idx]);
                 flag_idx += callsites[i]->flag_count;
 
                 for (j = 0; j < callsites[i]->flag_count; j++) {
-                    callsites[i]->arg_flags[j] = old_flags[j];
+                    callsites[i]->arg_flags.arr[j] = old_flags[j];
                 }
 
-                callsites[i]->arg_flags = (MVMCallsiteEntry *)( (uintptr_t)callsites[i]->arg_flags - (uintptr_t)flags_buffer );
+                callsites[i]->arg_flags.arr = (MVMCallsiteEntry *)( (uintptr_t)callsites[i]->arg_flags.arr - (uintptr_t)flags_buffer );
 
                 /* Now the buffer isn't needed any more, as we only had to really
                  * have it in case the callsite would end up inlined. */
@@ -911,9 +915,8 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
 
             callsites[i]->props.owns_nameds = 0;
 
-            if (callsites[i]->flag_count) {
-                callsites[i]->arg_flags = (MVMCallsiteEntry *)((uintptr_t)(callsites[i]->arg_flags) + (uintptr_t)flags_buffer);
-            }
+            if (!MVM_CALLSITE_FLAGS_IS_SMALL(callsites[i]))
+                callsites[i]->arg_flags.arr = (MVMCallsiteEntry *)((uintptr_t)(callsites[i]->arg_flags.arr) + (uintptr_t)flags_buffer);
 
             callsites[i]->props.owns_flags = 0;
         }

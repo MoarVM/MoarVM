@@ -456,7 +456,7 @@ static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
     if (g->cs->num_pos)
         append(ds, "Positional flags: ");
     for (i = 0; i < g->cs->num_pos; i++) {
-        MVMCallsiteEntry arg_flag = g->cs->arg_flags[i];
+        MVMCallsiteEntry arg_flag = MVM_CALLSITE_FLAGS(g->cs)[i];
 
         if (i)
             append(ds, ", ");

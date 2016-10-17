@@ -181,9 +181,9 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
     /* Calculate matcher flags for all the object arguments. */
     num_obj_args = 0;
     for (i = 0, flag = 0; flag < cs->flag_count; i++, flag++) {
-        if (cs->arg_flags[flag] & MVM_CALLSITE_ARG_NAMED)
+        if (MVM_CALLSITE_FLAGS(cs)[flag] & MVM_CALLSITE_ARG_NAMED)
             i++;
-        if ((cs->arg_flags[flag] & MVM_CALLSITE_ARG_MASK) == MVM_CALLSITE_ARG_OBJ) {
+        if ((MVM_CALLSITE_FLAGS(cs)[flag] & MVM_CALLSITE_ARG_MASK) == MVM_CALLSITE_ARG_OBJ) {
             MVMRegister  arg   = apc->args[i];
             MVMSTable   *st    = STABLE(arg.o);
             MVMuint32    is_rw = 0;
