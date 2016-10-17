@@ -94,6 +94,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->string_heap_fast_table);
     if (body->nameds_buffer)
         MVM_free(body->nameds_buffer);
+    if (body->flags_buffer)
+        MVM_free(body->flags_buffer);
     switch (body->deallocate) {
     case MVM_DEALLOCATE_NOOP:
         break;
