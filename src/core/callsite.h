@@ -77,7 +77,8 @@ struct MVMCallsite {
         MVMCallsiteEntry *arr;
     } arg_flags;
 
-    /* The number of arg flags. */
+    /* The number of arg flags.
+     * Also signals if we use arg_flags.small or .arr */
     MVMuint16 flag_count;
 
     /* The total argument count (including 2 for each named arg). */
