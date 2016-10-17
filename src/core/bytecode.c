@@ -899,8 +899,13 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     if (named_idx > nameds_alloced) {
         nameds_buffer = MVM_realloc(nameds_buffer, sizeof(MVMString *) * (named_idx + 1));
     }
-    if (flag_idx > flags_alloced) {
-        flags_buffer = MVM_realloc(flags_buffer, sizeof(MVMCallsiteEntry) * (flag_idx + 1));
+    if (flag_idx > 0) {
+        if (flag_idx > flags_alloced) {
+            flags_buffer = MVM_realloc(flags_buffer, sizeof(MVMCallsiteEntry) * (flag_idx + 1));
+        }
+    } else {
+        MVM_free(flags_buffer);
+        flags_buffer = NULL;
     }
 
     /* Finally, now that the address of nameds_buffer and flags_buffer
@@ -923,6 +928,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     }
 
     cu_body->nameds_buffer = nameds_buffer;
+    cu_body->flags_buffer = flags_buffer;
 
     /* Add one on to the maximum, to allow space for unshifting an extra
      * arg in the "supply invoked code object" case. */
