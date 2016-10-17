@@ -870,9 +870,9 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
             for (i = 0; i < rs->expected_callsites; i++) {
                 if (!callsites[i]->props.is_interned) {
                     if ((uintptr_t)callsites[i]->arg_names == 1) {
-                        callsites[i]->arg_names = &nameds_buffer;
+                        callsites[i]->arg_names = nameds_buffer;
                     } else if (callsites[i]->arg_names) {
-                        callsites[i]->arg_names = (uintptr_t)(callsites[i]->arg_names) + (uintptr_t)nameds_buffer;
+                        callsites[i]->arg_names = (MVMString **)((uintptr_t)(callsites[i]->arg_names) + (uintptr_t)nameds_buffer);
                     }
                 }
             }
