@@ -805,13 +805,13 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
                 positionals++;
             }
         }
-        callsites[i]->num_pos              = positionals;
-        callsites[i]->arg_count            = positionals + nameds_slots;
-        callsites[i]->props.has_flattening = has_flattening;
-        callsites[i]->props.is_interned    = 0;
-        callsites[i]->props.owns_nameds    = 1;
-        callsites[i]->props.owns_flags     = !MVM_CALLSITE_FLAGS_IS_SMALL(callsites[i]);
-        callsites[i]->with_invocant        = NULL;
+        callsites[i]->num_pos        = positionals;
+        callsites[i]->arg_count      = positionals + nameds_slots;
+        callsites[i]->has_flattening = has_flattening;
+        callsites[i]->is_interned    = 0;
+        callsites[i]->owns_nameds    = 1;
+        callsites[i]->owns_flags     = !MVM_CALLSITE_FLAGS_IS_SMALL(callsites[i]);
+        callsites[i]->with_invocant  = NULL;
 
         if (nameds_non_flattening) {
             ensure_can_read(tc, cu, rs, pos, nameds_non_flattening * 4);
@@ -835,7 +835,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
          * will store this one, provided it meets the interning rules. */
         MVM_callsite_try_intern(tc, &(callsites[i]));
 
-        if (!callsites[i]->props.is_interned) {
+        if (!callsites[i]->is_interned) {
             if (nameds_non_flattening) {
                 MVMString **old_buffer;
                 if (named_idx + nameds_non_flattening >= nameds_alloced) {
@@ -906,19 +906,19 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     /* Finally, now that the address of nameds_buffer and flags_buffer
      * is fixed, we fix up all pointers for all callsites */
     for (i = 0; i < rs->expected_callsites; i++) {
-        if (!callsites[i]->props.is_interned) {
+        if (!callsites[i]->is_interned) {
             if ((uintptr_t)callsites[i]->arg_names == 1) {
                 callsites[i]->arg_names = nameds_buffer;
             } else if (callsites[i]->arg_names) {
                 callsites[i]->arg_names = (MVMString **)((uintptr_t)(callsites[i]->arg_names) + (uintptr_t)nameds_buffer);
             }
 
-            callsites[i]->props.owns_nameds = 0;
+            callsites[i]->owns_nameds = 0;
 
             if (!MVM_CALLSITE_FLAGS_IS_SMALL(callsites[i]))
                 callsites[i]->arg_flags.arr = (MVMCallsiteEntry *)((uintptr_t)(callsites[i]->arg_flags.arr) + (uintptr_t)flags_buffer);
 
-            callsites[i]->props.owns_flags = 0;
+            callsites[i]->owns_flags = 0;
         }
     }
 

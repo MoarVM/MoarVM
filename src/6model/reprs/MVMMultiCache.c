@@ -171,7 +171,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
     if (REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) {
         cs         = ((MVMCallCapture *)capture)->body.effective_callsite;
         apc        = ((MVMCallCapture *)capture)->body.apc;
-        if (!cs->props.is_interned)
+        if (!cs->is_interned)
             return cache_obj;
     }
     else {
@@ -392,7 +392,7 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
     MVMint32 cur_node;
 
     /* Bail if callsite not interned. */
-    if (!cs->props.is_interned)
+    if (!cs->is_interned)
         return NULL;
 
     /* If no cache, no result. */
@@ -460,7 +460,7 @@ MVMObject * MVM_multi_cache_find_spesh(MVMThreadContext *tc, MVMObject *cache_ob
     MVMint32 cur_node;
 
     /* Bail if callsite not interned. */
-    if (!arg_info->cs->props.is_interned)
+    if (!arg_info->cs->is_interned)
         return NULL;
 
     /* If no cache, no result. */

@@ -73,13 +73,13 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCallCapture *ctx = (MVMCallCapture *)obj;
     if (ctx->body.apc && ctx->body.effective_callsite != ctx->body.apc->callsite) {
-        if (ctx->body.effective_callsite->props.owns_flags)
+        if (ctx->body.effective_callsite->owns_flags)
             if (!MVM_CALLSITE_FLAGS_IS_SMALL(ctx->body.effective_callsite))
                 MVM_free(ctx->body.effective_callsite->arg_flags.arr);
         MVM_free(ctx->body.effective_callsite);
     }
     else if (ctx->body.owns_callsite) {
-        if (ctx->body.effective_callsite->props.owns_flags)
+        if (ctx->body.effective_callsite->owns_flags)
             if (!MVM_CALLSITE_FLAGS_IS_SMALL(ctx->body.effective_callsite))
                 MVM_free(ctx->body.effective_callsite->arg_flags.arr);
         MVM_free(ctx->body.effective_callsite);

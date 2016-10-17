@@ -77,7 +77,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     for (i = 0; i < body->num_callsites; i++) {
         MVMCallsite *cs = body->callsites[i];
 
-        if (cs->props.is_interned) {
+        if (cs->is_interned) {
             continue;
         }
 
@@ -140,7 +140,7 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
     size += sizeof(MVMCallsite *) * body->num_callsites;
     for (index = 0; index < body->num_callsites; index++) {
         MVMCallsite *cs = body->callsites[index];
-        if (cs && !cs->props.is_interned) {
+        if (cs && !cs->is_interned) {
             size += sizeof(MVMCallsite);
 
             size += sizeof(MVMCallsiteEntry) * cs->flag_count;

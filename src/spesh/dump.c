@@ -232,8 +232,8 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             appendf(ds, "callsite(%p, %d arg, %d pos, %s, %s)",
                                     callsite,
                                     callsite->arg_count, callsite->num_pos,
-                                    callsite->props.has_flattening ? "flattening" : "nonflattening",
-                                    callsite->props.is_interned ? "interned" : "noninterned");
+                                    callsite->has_flattening ? "flattening" : "nonflattening",
+                                    callsite->is_interned ? "interned" : "noninterned");
                             break;
 
                         }
