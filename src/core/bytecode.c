@@ -512,18 +512,14 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         /* Read number of handlers. */
         static_frame_body->num_handlers = read_int32(pos, 34);
 
-        /* Read exit handler flag (version 2 and higher). */
-        if (rs->version >= 2) {
-            MVMint16 flags = read_int16(pos, 38);
-            static_frame_body->has_exit_handler = flags & FRAME_FLAG_EXIT_HANDLER;
-            static_frame_body->is_thunk         = flags & FRAME_FLAG_IS_THUNK;
-        }
+        /* Read exit handler flag since version 2 */
+        MVMint16 flags = read_int16(pos, 38);
+        static_frame_body->has_exit_handler = flags & FRAME_FLAG_EXIT_HANDLER;
+        static_frame_body->is_thunk         = flags & FRAME_FLAG_IS_THUNK;
 
-        /* Read code object SC indexes (version 4 and higher). */
-        if (rs->version >= 4) {
-            static_frame_body->code_obj_sc_dep_idx = read_int32(pos, 42);
-            static_frame_body->code_obj_sc_idx     = read_int32(pos, 46);
-        }
+        /* Read code object SC indexes since version 4 */
+        static_frame_body->code_obj_sc_dep_idx = read_int32(pos, 42);
+        static_frame_body->code_obj_sc_idx     = read_int32(pos, 46);
 
         /* Associate frame with compilation unit. */
         MVM_ASSIGN_REF(tc, &(static_frame->common.header), static_frame_body->cu, cu);
@@ -802,7 +798,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         callsites[i]->props.owns_nameds    = 0;
         callsites[i]->with_invocant        = NULL;
 
-        if (rs->version >= 3 && nameds_non_flattening) {
+        if (nameds_non_flattening) {
             ensure_can_read(tc, cu, rs, pos, nameds_non_flattening * 4);
             callsites[i]->arg_names = MVM_malloc(nameds_non_flattening * sizeof(MVMString*));
             for (j = 0; j < nameds_non_flattening; j++) {
@@ -824,7 +820,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
          * will store this one, provided it meets the interning rules. */
         MVM_callsite_try_intern(tc, &(callsites[i]));
 
-        if (rs->version >= 3 && nameds_non_flattening && !callsites[i]->props.is_interned) {
+        if (nameds_non_flattening && !callsites[i]->props.is_interned) {
             MVMString **old_buffer;
             if (named_idx + nameds_non_flattening >= nameds_alloced) {
                 nameds_alloced *= 2;
@@ -854,26 +850,24 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         }
     }
 
-    if (rs->version >= 3) {
-        /* If there aren't any named args in this compunit, elide the buffer */
-        if (named_idx == 0) {
-            MVM_free(nameds_buffer);
-            nameds_buffer = NULL;
-        } else {
-            /* Make the buffer fit better. */
-            if (named_idx > nameds_alloced) {
-                nameds_buffer = MVM_realloc(nameds_buffer, sizeof(MVMString *) * (named_idx + 1));
-            }
+    /* If there aren't any named args in this compunit, elide the buffer */
+    if (named_idx == 0) {
+        MVM_free(nameds_buffer);
+        nameds_buffer = NULL;
+    } else {
+        /* Make the buffer fit better. */
+        if (named_idx > nameds_alloced) {
+            nameds_buffer = MVM_realloc(nameds_buffer, sizeof(MVMString *) * (named_idx + 1));
+        }
 
-            /* Finally, now that the address of nameds_buffer is fixed, we fix up
-             * all pointers for all callsites */
-            for (i = 0; i < rs->expected_callsites; i++) {
-                if (!callsites[i]->props.is_interned) {
-                    if ((uintptr_t)callsites[i]->arg_names == 1) {
-                        callsites[i]->arg_names = nameds_buffer;
-                    } else if (callsites[i]->arg_names) {
-                        callsites[i]->arg_names = (MVMString **)((uintptr_t)(callsites[i]->arg_names) + (uintptr_t)nameds_buffer);
-                    }
+        /* Finally, now that the address of nameds_buffer is fixed, we fix up
+         * all pointers for all callsites */
+        for (i = 0; i < rs->expected_callsites; i++) {
+            if (!callsites[i]->props.is_interned) {
+                if ((uintptr_t)callsites[i]->arg_names == 1) {
+                    callsites[i]->arg_names = nameds_buffer;
+                } else if (callsites[i]->arg_names) {
+                    callsites[i]->arg_names = (MVMString **)((uintptr_t)(callsites[i]->arg_names) + (uintptr_t)nameds_buffer);
                 }
             }
         }
