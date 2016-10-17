@@ -73,8 +73,8 @@ typedef MVMuint8 MVMCallsiteEntry;
 struct MVMCallsite {
     /* The set of flags. */
     union {
-        MVMCallsiteEntry *arr;
         MVMCallsiteEntry small[MVM_CALLSITE_SMALL_ARRAY_ITEMS];
+        MVMCallsiteEntry *arr;
     } arg_flags;
 
     /* The number of arg flags. */
