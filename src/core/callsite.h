@@ -91,6 +91,8 @@ struct MVMCallsite {
          * Note that spesh currently assumes is_interned == 1 implies has_flattening == 0
          * */
         MVMuint8 is_interned : 1;
+        /* Whether we are allowed to free the arg_names pointer */
+        MVMuint8 owns_nameds : 1;
     } props;
 
     /* Cached version of this callsite with an extra invocant arg. */

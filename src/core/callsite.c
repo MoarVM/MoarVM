@@ -138,6 +138,8 @@ MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
     copy->num_pos = cs->num_pos;
     copy->props.has_flattening = cs->props.has_flattening;
     copy->props.is_interned = cs->props.is_interned;
+    /* We've copied the nameds to our own buffer, so reset this flag */
+    copy->props.owns_nameds = 0;
 
     return copy;
 }

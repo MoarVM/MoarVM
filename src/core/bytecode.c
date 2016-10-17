@@ -723,11 +723,19 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     MVMuint8     *pos;
     MVMuint32     i, j, elems;
     MVMCompUnitBody *cu_body = &cu->body;
+    MVMString **nameds_buffer;
+    MVMuint32   nameds_alloced;
+    MVMuint32   named_idx = 0;
 
     /* Allocate space for callsites. */
     if (rs->expected_callsites == 0)
         return NULL;
     callsites = MVM_malloc(sizeof(MVMCallsite *) * rs->expected_callsites);
+
+    /* Very conservative first guess for the string buffer.
+     * We grow this if necessary, then trim it to the final size at the end. */
+    nameds_buffer = MVM_malloc(sizeof(MVMString *) * (rs->expected_callsites * 8 + 1));
+    nameds_alloced = rs->expected_callsites * 8;
 
     /* Load callsites. */
     pos = rs->callsite_seg;
@@ -815,7 +823,63 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
          * associated and replace it with the interned one. Otherwise it
          * will store this one, provided it meets the interning rules. */
         MVM_callsite_try_intern(tc, &(callsites[i]));
+
+        if (rs->version >= 3 && nameds_non_flattening && !callsites[i]->props.is_interned) {
+            MVMString **old_buffer;
+            if (named_idx + nameds_non_flattening >= nameds_alloced) {
+                nameds_alloced *= 2;
+                nameds_buffer = MVM_realloc(nameds_buffer, sizeof(MVMString *) * nameds_alloced);
+            }
+
+            old_buffer = callsites[i]->arg_names;
+
+            /* Set this to a temporarily valid pointer to assign strings */
+            callsites[i]->arg_names = &nameds_buffer[named_idx];
+            named_idx += nameds_non_flattening;
+
+            for (j = 0; j < nameds_non_flattening; j++) {
+                callsites[i]->arg_names[j] = old_buffer[j];
+            }
+
+            /* Reset the address of arg_names so we can fix it up to the final
+             * buffer later. */
+            callsites[i]->arg_names = (MVMString **)( (uintptr_t)callsites[i]->arg_names - (uintptr_t)nameds_buffer );
+            if ((uintptr_t)callsites[i]->arg_names == 0) {
+                callsites[i]->arg_names = (MVMString **)((uintptr_t)1);
+            }
+
+            /* Now the buffer isn't needed any more, as we only had to really
+             * have it in case the callsite would end up inlined. */
+            MVM_free(old_buffer);
+        }
     }
+
+    if (rs->version >= 3) {
+        /* If there aren't any named args in this compunit, elide the buffer */
+        if (named_idx == 0) {
+            MVM_free(nameds_buffer);
+            nameds_buffer = NULL;
+        } else {
+            /* Make the buffer fit better. */
+            if (named_idx > nameds_alloced) {
+                nameds_buffer = MVM_realloc(nameds_buffer, sizeof(MVMString *) * (named_idx + 1));
+            }
+
+            /* Finally, now that the address of nameds_buffer is fixed, we fix up
+             * all pointers for all callsites */
+            for (i = 0; i < rs->expected_callsites; i++) {
+                if (!callsites[i]->props.is_interned) {
+                    if ((uintptr_t)callsites[i]->arg_names == 1) {
+                        callsites[i]->arg_names = &nameds_buffer;
+                    } else if (callsites[i]->arg_names) {
+                        callsites[i]->arg_names = (uintptr_t)(callsites[i]->arg_names) + (uintptr_t)nameds_buffer;
+                    }
+                }
+            }
+        }
+    }
+
+    cu_body->nameds_buffer = nameds_buffer;
 
     /* Add one on to the maximum, to allow space for unshifting an extra
      * arg in the "supply invoked code object" case. */

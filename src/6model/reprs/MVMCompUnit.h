@@ -54,6 +54,10 @@ struct MVMCompUnitBody {
     MVMStaticFrame  *load_frame;
     MVMStaticFrame  *deserialize_frame;
 
+    /* A little buffer where our callsites put their named argument
+     * strings */
+    MVMString   **nameds_buffer;
+
     /* The callsites in the compilation unit. */
     MVMCallsite **callsites;
     MVMuint32     num_callsites;
