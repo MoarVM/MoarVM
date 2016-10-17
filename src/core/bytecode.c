@@ -721,9 +721,14 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     MVMuint8     *pos;
     MVMuint32     i, j, elems;
     MVMCompUnitBody *cu_body = &cu->body;
+
     MVMString **nameds_buffer;
     MVMuint32   nameds_alloced;
     MVMuint32   named_idx = 0;
+
+    MVMCallsiteEntry *flags_buffer;
+    MVMuint32   flags_alloced;
+    MVMuint32   flag_idx = 0;
 
     /* Allocate space for callsites. */
     if (rs->expected_callsites == 0)
@@ -734,6 +739,9 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
      * We grow this if necessary, then trim it to the final size at the end. */
     nameds_buffer = MVM_malloc(sizeof(MVMString *) * (rs->expected_callsites * 8 + 1));
     nameds_alloced = rs->expected_callsites * 8;
+
+    flags_buffer = MVM_malloc(sizeof(MVMCallsiteEntry) * (rs->expected_callsites * 8 + 1));
+    flags_alloced = rs->expected_callsites * 8;
 
     /* Load callsites. */
     pos = rs->callsite_seg;
@@ -752,7 +760,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         callsites[i] = MVM_malloc(sizeof(MVMCallsite));
         callsites[i]->flag_count = elems;
         if (elems)
-            callsites[i]->arg_flags = MVM_malloc(elems);
+            callsites[i]->arg_flags = MVM_malloc(sizeof(MVMCallsiteEntry) * elems);
         else
             callsites[i]->arg_flags = NULL;
 
@@ -823,33 +831,58 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
          * will store this one, provided it meets the interning rules. */
         MVM_callsite_try_intern(tc, &(callsites[i]));
 
-        if (nameds_non_flattening && !callsites[i]->props.is_interned) {
-            MVMString **old_buffer;
-            if (named_idx + nameds_non_flattening >= nameds_alloced) {
-                nameds_alloced *= 2;
-                nameds_buffer = MVM_realloc(nameds_buffer, sizeof(MVMString *) * nameds_alloced);
+        if (!callsites[i]->props.is_interned) {
+            if (nameds_non_flattening) {
+                MVMString **old_buffer;
+                if (named_idx + nameds_non_flattening >= nameds_alloced) {
+                    nameds_alloced *= 2;
+                    nameds_buffer = MVM_realloc(nameds_buffer, sizeof(MVMString *) * nameds_alloced);
+                }
+
+                old_buffer = callsites[i]->arg_names;
+
+                /* Set this to a temporarily valid pointer to assign strings */
+                callsites[i]->arg_names = &nameds_buffer[named_idx];
+                named_idx += nameds_non_flattening;
+
+                for (j = 0; j < nameds_non_flattening; j++) {
+                    callsites[i]->arg_names[j] = old_buffer[j];
+                }
+
+                /* Reset the address of arg_names so we can fix it up to the final
+                 * buffer later. */
+                callsites[i]->arg_names = (MVMString **)( (uintptr_t)callsites[i]->arg_names - (uintptr_t)nameds_buffer );
+                if ((uintptr_t)callsites[i]->arg_names == 0) {
+                    callsites[i]->arg_names = (MVMString **)((uintptr_t)1);
+                }
+
+                /* Now the buffer isn't needed any more, as we only had to really
+                 * have it in case the callsite would end up inlined. */
+                MVM_free(old_buffer);
             }
 
-            old_buffer = callsites[i]->arg_names;
+            if (callsites[i]->flag_count) {
+                MVMCallsiteEntry *old_flags;
+                if (flag_idx + callsites[i]->flag_count >= flags_alloced) {
+                    flags_alloced *= 2;
+                    flags_buffer = MVM_realloc(flags_buffer, sizeof(MVMCallsiteEntry) * flags_alloced);
+                }
 
-            /* Set this to a temporarily valid pointer to assign strings */
-            callsites[i]->arg_names = &nameds_buffer[named_idx];
-            named_idx += nameds_non_flattening;
+                old_flags = callsites[i]->arg_flags;
 
-            for (j = 0; j < nameds_non_flattening; j++) {
-                callsites[i]->arg_names[j] = old_buffer[j];
+                callsites[i]->arg_flags = (MVMCallsiteEntry *)(&flags_buffer[flag_idx]);
+                flag_idx += callsites[i]->flag_count;
+
+                for (j = 0; j < callsites[i]->flag_count; j++) {
+                    callsites[i]->arg_flags[j] = old_flags[j];
+                }
+
+                callsites[i]->arg_flags = (MVMCallsiteEntry *)( (uintptr_t)callsites[i]->arg_flags - (uintptr_t)flags_buffer );
+
+                /* Now the buffer isn't needed any more, as we only had to really
+                 * have it in case the callsite would end up inlined. */
+                MVM_free(old_flags);
             }
-
-            /* Reset the address of arg_names so we can fix it up to the final
-             * buffer later. */
-            callsites[i]->arg_names = (MVMString **)( (uintptr_t)callsites[i]->arg_names - (uintptr_t)nameds_buffer );
-            if ((uintptr_t)callsites[i]->arg_names == 0) {
-                callsites[i]->arg_names = (MVMString **)((uintptr_t)1);
-            }
-
-            /* Now the buffer isn't needed any more, as we only had to really
-             * have it in case the callsite would end up inlined. */
-            MVM_free(old_buffer);
         }
     }
 
@@ -857,22 +890,32 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     if (named_idx == 0) {
         MVM_free(nameds_buffer);
         nameds_buffer = NULL;
-    } else {
-        /* Make the buffer fit better. */
-        if (named_idx > nameds_alloced) {
-            nameds_buffer = MVM_realloc(nameds_buffer, sizeof(MVMString *) * (named_idx + 1));
-        }
+    }
+    /* Make the buffer fit better. */
+    if (named_idx > nameds_alloced) {
+        nameds_buffer = MVM_realloc(nameds_buffer, sizeof(MVMString *) * (named_idx + 1));
+    }
+    if (flag_idx > flags_alloced) {
+        flags_buffer = MVM_realloc(flags_buffer, sizeof(MVMCallsiteEntry) * (flag_idx + 1));
+    }
 
-        /* Finally, now that the address of nameds_buffer is fixed, we fix up
-         * all pointers for all callsites */
-        for (i = 0; i < rs->expected_callsites; i++) {
-            if (!callsites[i]->props.is_interned) {
-                if ((uintptr_t)callsites[i]->arg_names == 1) {
-                    callsites[i]->arg_names = nameds_buffer;
-                } else if (callsites[i]->arg_names) {
-                    callsites[i]->arg_names = (MVMString **)((uintptr_t)(callsites[i]->arg_names) + (uintptr_t)nameds_buffer);
-                }
+    /* Finally, now that the address of nameds_buffer and flags_buffer
+     * is fixed, we fix up all pointers for all callsites */
+    for (i = 0; i < rs->expected_callsites; i++) {
+        if (!callsites[i]->props.is_interned) {
+            if ((uintptr_t)callsites[i]->arg_names == 1) {
+                callsites[i]->arg_names = nameds_buffer;
+            } else if (callsites[i]->arg_names) {
+                callsites[i]->arg_names = (MVMString **)((uintptr_t)(callsites[i]->arg_names) + (uintptr_t)nameds_buffer);
             }
+
+            callsites[i]->props.owns_nameds = 0;
+
+            if (callsites[i]->flag_count) {
+                callsites[i]->arg_flags = (MVMCallsiteEntry *)((uintptr_t)(callsites[i]->arg_flags) + (uintptr_t)flags_buffer);
+            }
+
+            callsites[i]->props.owns_flags = 0;
         }
     }
 
