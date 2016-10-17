@@ -82,12 +82,16 @@ struct MVMCallsite {
      * excluding named positionals. */
     MVMuint16 num_pos;
 
-    /* Whether it has any flattening args. */
-    MVMuint8 has_flattening;
-
-    /* Whether it has been interned (which means it is suitable for using in
-     * specialization). */
-    MVMuint8 is_interned;
+    struct {
+        /* Whether it has any flattening args. */
+        MVMuint8 has_flattening : 1;
+        /* Whether it has been interned (which means it is suitable for using
+         * in specialization).
+         *
+         * Note that spesh currently assumes is_interned == 1 implies has_flattening == 0
+         * */
+        MVMuint8 is_interned : 1;
+    } props;
 
     /* Cached version of this callsite with an extra invocant arg. */
     MVMCallsite *with_invocant;

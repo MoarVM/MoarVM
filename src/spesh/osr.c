@@ -43,7 +43,7 @@ void MVM_spesh_osr(MVMThreadContext *tc) {
     /* Ensure that we are in a position to specialize. */
     if (!tc->cur_frame->caller)
         return;
-    if (!tc->cur_frame->params.callsite->is_interned)
+    if (!tc->cur_frame->params.callsite->props.is_interned)
         return;
     if (tc->cur_frame->static_info->body.num_spesh_candidates == MVM_SPESH_LIMIT)
         return;

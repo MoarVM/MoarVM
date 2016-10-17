@@ -97,7 +97,7 @@ void MVM_callsite_destroy(MVMCallsite *cs) {
         MVM_free(cs->arg_flags);
     }
 
-    if (cs->arg_names) {
+    if (cs->props.owns_nameds && cs->arg_names) {
         MVM_free(cs->arg_names);
     }
 
@@ -136,8 +136,8 @@ MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
     copy->flag_count = cs->flag_count;
     copy->arg_count = cs->arg_count;
     copy->num_pos = cs->num_pos;
-    copy->has_flattening = cs->has_flattening;
-    copy->is_interned = cs->is_interned;
+    copy->props.has_flattening = cs->props.has_flattening;
+    copy->props.is_interned = cs->props.is_interned;
 
     return copy;
 }
@@ -169,7 +169,7 @@ MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_p
     MVMint32 i, found;
 
     /* Can't intern anything with flattening. */
-    if (cs->has_flattening)
+    if (cs->props.has_flattening)
         return;
 
     /* Also can't intern past the max arity. */
@@ -210,7 +210,7 @@ MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_p
                 interns->by_arity[num_flags] = MVM_malloc(sizeof(MVMCallsite *) * 8);
         }
         interns->by_arity[num_flags][interns->num_by_arity[num_flags]++] = cs;
-        cs->is_interned = 1;
+        cs->props.is_interned = 1;
     }
 
     /* Finally, release mutex. */

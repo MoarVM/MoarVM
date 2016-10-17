@@ -417,7 +417,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             found_spesh                  = 1;
         }
     }
-    if (!found_spesh && ++static_frame->body.invocations >= static_frame->body.spesh_threshold && callsite->is_interned) {
+    if (!found_spesh && ++static_frame->body.invocations >= static_frame->body.spesh_threshold && callsite->props.is_interned) {
         /* Look for specialized bytecode. */
         MVMint32 num_spesh = static_frame->body.num_spesh_candidates;
         MVMSpeshCandidate *chosen_cand = NULL;
@@ -1672,11 +1672,11 @@ static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, 
                 new->arg_flags     = MVM_malloc(new->flag_count * sizeof(MVMCallsiteEntry));
                 new->arg_flags[0]  = MVM_CALLSITE_ARG_OBJ;
                 memcpy(new->arg_flags + 1, orig->arg_flags, fsize);
-                new->arg_count      = orig->arg_count + 1;
-                new->num_pos        = orig->num_pos + 1;
-                new->has_flattening = orig->has_flattening;
-                new->is_interned    = 0;
-                new->with_invocant  = NULL;
+                new->arg_count            = orig->arg_count + 1;
+                new->num_pos              = orig->num_pos + 1;
+                new->props.has_flattening = orig->props.has_flattening;
+                new->props.is_interned    = 0;
+                new->with_invocant        = NULL;
                 *tweak_cs = orig->with_invocant = new;
             }
             memmove(tc->cur_frame->args + 1, tc->cur_frame->args,

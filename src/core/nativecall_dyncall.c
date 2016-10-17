@@ -132,14 +132,14 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         signature[num_info - 1] = ')';
 
         /* We'll also build up a MoarVM callsite as we go. */
-        cs                 = MVM_calloc(1, sizeof(MVMCallsite));
-        cs->flag_count     = num_info - 1;
-        cs->arg_flags      = MVM_malloc(num_info * sizeof(MVMCallsiteEntry));
-        cs->arg_count      = num_info - 1;
-        cs->num_pos        = num_info - 1;
-        cs->has_flattening = 0;
-        cs->is_interned    = 0;
-        cs->with_invocant  = NULL;
+        cs                       = MVM_calloc(1, sizeof(MVMCallsite));
+        cs->flag_count           = num_info - 1;
+        cs->arg_flags            = MVM_malloc(num_info * sizeof(MVMCallsiteEntry));
+        cs->arg_count            = num_info - 1;
+        cs->num_pos              = num_info - 1;
+        cs->props.has_flattening = 0;
+        cs->props.is_interned    = 0;
+        cs->with_invocant        = NULL;
 
         typehash = MVM_repr_at_pos_o(tc, sig_info, 0);
         callback_data->types[0] = MVM_repr_at_key_o(tc, typehash,

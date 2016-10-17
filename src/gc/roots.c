@@ -413,7 +413,7 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
 
     /* Scan arguments in case there was a flattening. Don't need to if
      * there wasn't a flattening because orig args is a subset of locals. */
-    if (frame->params.arg_flags && frame->params.callsite->has_flattening) {
+    if (frame->params.arg_flags && frame->params.callsite->props.has_flattening) {
         MVMArgProcContext *ctx = &frame->params;
         flag_map = ctx->arg_flags;
         count = ctx->arg_count;

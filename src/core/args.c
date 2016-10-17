@@ -698,7 +698,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     MVMCallsiteEntry *new_arg_flags;
     MVMRegister *new_args;
 
-    if (!ctx->callsite->has_flattening) return;
+    if (!ctx->callsite->props.has_flattening) return;
 
     new_arg_flags = MVM_malloc(new_arg_flags_size * sizeof(MVMCallsiteEntry));
     new_args = MVM_malloc(new_args_size * sizeof(MVMRegister));

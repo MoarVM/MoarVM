@@ -787,11 +787,12 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
                 positionals++;
             }
         }
-        callsites[i]->num_pos        = positionals;
-        callsites[i]->arg_count      = positionals + nameds_slots;
-        callsites[i]->has_flattening = has_flattening;
-        callsites[i]->is_interned    = 0;
-        callsites[i]->with_invocant  = NULL;
+        callsites[i]->num_pos              = positionals;
+        callsites[i]->arg_count            = positionals + nameds_slots;
+        callsites[i]->props.has_flattening = has_flattening;
+        callsites[i]->props.is_interned    = 0;
+        callsites[i]->props.owns_nameds    = 0;
+        callsites[i]->with_invocant        = NULL;
 
         if (rs->version >= 3 && nameds_non_flattening) {
             ensure_can_read(tc, cu, rs, pos, nameds_non_flattening * 4);
