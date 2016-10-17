@@ -513,9 +513,11 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         static_frame_body->num_handlers = read_int32(pos, 34);
 
         /* Read exit handler flag since version 2 */
-        MVMint16 flags = read_int16(pos, 38);
-        static_frame_body->has_exit_handler = flags & FRAME_FLAG_EXIT_HANDLER;
-        static_frame_body->is_thunk         = flags & FRAME_FLAG_IS_THUNK;
+        {
+            MVMint16 flags = read_int16(pos, 38);
+            static_frame_body->has_exit_handler = flags & FRAME_FLAG_EXIT_HANDLER;
+            static_frame_body->is_thunk         = flags & FRAME_FLAG_IS_THUNK;
+        }
 
         /* Read code object SC indexes since version 4 */
         static_frame_body->code_obj_sc_dep_idx = read_int32(pos, 42);
