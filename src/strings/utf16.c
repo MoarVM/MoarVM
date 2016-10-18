@@ -109,6 +109,7 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
     MVMuint8 *repl_bytes = NULL;
     MVMuint64 repl_length = 0;
     MVMint32 alloc_size;
+    MVMuint64 scratch_space = 0;
 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
@@ -171,8 +172,9 @@ char * MVM_string_utf16_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
         }
     }
     result_pos[0] = 0;
-    if (output_size)
-        *output_size = (char *)result_pos - (char *)result;
+    if (!output_size)
+        output_size = &scratch_space;
+    *output_size = (char *)result_pos - (char *)result;
     result = MVM_realloc(result, *output_size);
     MVM_free(repl_bytes);
     return (char *)result;
