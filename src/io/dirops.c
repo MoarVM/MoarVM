@@ -31,29 +31,29 @@ static char * UnicodeToUTF8(const wchar_t *str)
 }
 
 static int mkdir_p(MVMThreadContext *tc, wchar_t *pathname, MVMint64 mode) {
+    wchar_t *p = pathname, ch;
 #else
 static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
+    char *p = pathname, ch;
+    uv_fs_t req;
 #endif
     int created = 0;
-    char *p = pathname, ch;
-    struct stat st;
-    uv_fs_t req;
 
     for (;; ++p)
         if (!*p || IS_SLASH(*p)) {
             ch = *p;
             *p  = '\0';
-            if (uv_fs_stat(tc->loop, &req, pathname, NULL) <= 0) {
 #ifdef _WIN32
-                if (CreateDirectoryW(pathname, NULL)) {
-                    created = 1;
-                }
+            if (CreateDirectoryW(pathname, NULL)) {
+                created = 1;
+            }
 #else
+            if (uv_fs_stat(tc->loop, &req, pathname, NULL) <= 0) {
                 if (mkdir(pathname, mode) != -1) {
                     created = 1;
                 }
-#endif
             }
+#endif
             if (!(*p = ch)) break;
         }
 
