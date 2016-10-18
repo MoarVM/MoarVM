@@ -42,6 +42,8 @@ typedef struct MVMExceptionBody MVMExceptionBody;
 typedef struct MVMExtOpRecord MVMExtOpRecord;
 typedef struct MVMExtOpRegistry MVMExtOpRegistry;
 typedef struct MVMExtRegistry MVMExtRegistry;
+typedef struct MVMRegionAlloc MVMRegionAlloc;
+typedef struct MVMRegionBlock MVMRegionBlock;
 typedef struct MVMFixedSizeAlloc MVMFixedSizeAlloc;
 typedef struct MVMFixedSizeAllocFreeListEntry MVMFixedSizeAllocFreeListEntry;
 typedef struct MVMFixedSizeAllocSafepointFreeListEntry MVMFixedSizeAllocSafepointFreeListEntry;
