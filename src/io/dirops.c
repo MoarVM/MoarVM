@@ -92,7 +92,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
         wcscat(wpathname, abs_dirname);
     }
 
-    if (!mkdir_p(tc, wpathname, mode)) {
+    if (mkdir_p(tc, wpathname, mode) == -1) {
         DWORD error = GetLastError();
         if (error != ERROR_ALREADY_EXISTS) {
             MVM_free(wpathname);
