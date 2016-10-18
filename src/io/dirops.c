@@ -5,8 +5,10 @@
 
 #ifdef _WIN32
 #  define IS_SLASH(c)     ((c) == L'\\' || (c) == L'/')
+#  define IS_NOT_SLASH(c) ((c) != L'\\' && (c) != L'/')
 #else
 #  define IS_SLASH(c)     ((c) == '/')
+#  define IS_NOT_SLASH(c) ((c) != '/')
 #endif
 
 #ifdef _WIN32
@@ -30,36 +32,62 @@ static char * UnicodeToUTF8(const wchar_t *str)
      return result;
 }
 
-static int mkdir_p(MVMThreadContext *tc, wchar_t *pathname, MVMint64 mode) {
+static int mkdir_p(wchar_t *pathname, MVMint64 mode) {
+    size_t len = wcslen(pathname);
 #else
-static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
-#endif
-    int created = 0;
-    char *p = pathname, ch;
-    struct stat st;
-    uv_fs_t req;
+static int mkdir_p(char *pathname, MVMint64 mode) {
+    size_t len = strlen(pathname);
 
-    for (;; ++p)
-        if (!*p || IS_SLASH(*p)) {
-            ch = *p;
-            *p  = '\0';
-            if (uv_fs_stat(tc->loop, &req, pathname, NULL) <= 0) {
+#endif
+    ssize_t r;
+    char tmp;
+
+    /* '/' always exists. */
+    if (len == 0)
+        return 0;
+
+    while (len > 0 && IS_SLASH(pathname[len - 1]))
+        len--;
+
+    tmp = pathname[len];
+    pathname[len] = '\0';
 #ifdef _WIN32
-                if (CreateDirectoryW(pathname, NULL)) {
-                    created = 1;
-                }
+    r = CreateDirectoryW(pathname, NULL);
+
+    if (!r && GetLastError() == ERROR_PATH_NOT_FOUND)
 #else
-                if (mkdir(pathname, mode) != -1) {
-                    created = 1;
-                }
+    r = mkdir(pathname, mode);
+
+    if (r == -1 && errno == ENOENT)
 #endif
-            }
-            if (!(*p = ch)) break;
+    {
+        ssize_t _len = len - 1;
+        char _tmp;
+
+        while (_len >= 0 && IS_NOT_SLASH(pathname[_len]))
+            _len--;
+
+        _tmp = pathname[_len];
+        pathname[_len] = '\0';
+
+        r = mkdir_p(pathname, mode);
+
+        pathname[_len] = _tmp;
+
+#ifdef _WIN32
+        if(r) {
+            r = CreateDirectoryW(pathname, NULL);
         }
+#else
+        if(r == 0) {
+            r = mkdir(pathname, mode);
+        }
+#endif
+    }
 
-    if (!created) return -1;
+    pathname[len] = tmp;
 
-    return 0;
+    return r;
 }
 
 /* Create a directory recursively. */
@@ -92,7 +120,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
         wcscat(wpathname, abs_dirname);
     }
 
-    if (!mkdir_p(tc, wpathname, mode)) {
+    if (!mkdir_p(wpathname, mode)) {
         DWORD error = GetLastError();
         if (error != ERROR_ALREADY_EXISTS) {
             MVM_free(wpathname);
@@ -102,10 +130,9 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
     MVM_free(wpathname);
 #else
 
-    if (mkdir_p(tc, pathname, mode) == -1 && errno != EEXIST) {
-        int mkdir_error = errno;
+    if (mkdir_p(pathname, mode) == -1 && errno != EEXIST) {
         MVM_free(pathname);
-        MVM_exception_throw_adhoc(tc, "Failed to mkdir: %d", mkdir_error);
+        MVM_exception_throw_adhoc(tc, "Failed to mkdir: %d", errno);
     }
 
     MVM_free(pathname);
@@ -149,9 +176,8 @@ void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {
     char * const dirstring = MVM_string_utf8_c8_encode_C_string(tc, dir);
 
     if (uv_chdir((const char *)dirstring) != 0) {
-        int chdir_error = errno;
         MVM_free(dirstring);
-        MVM_exception_throw_adhoc(tc, "chdir failed: %s", uv_strerror(chdir_error));
+        MVM_exception_throw_adhoc(tc, "chdir failed: %s", uv_strerror(errno));
     }
 
     MVM_free(dirstring);
@@ -259,11 +285,10 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
 #else
     char * const dir_name = MVM_string_utf8_c8_encode_C_string(tc, dirname);
     DIR * const dir_handle = opendir(dir_name);
-    int opendir_error = errno;
     MVM_free(dir_name);
 
     if (!dir_handle)
-        MVM_exception_throw_adhoc(tc, "Failed to open dir: %d", opendir_error);
+        MVM_exception_throw_adhoc(tc, "Failed to open dir: %d", errno);
 
     data->dir_handle = dir_handle;
 #endif
