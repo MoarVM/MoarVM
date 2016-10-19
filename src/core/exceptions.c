@@ -394,18 +394,18 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
                                             offset > 0 ? offset - 1 : 0);
         MVMint32              fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
         char            *line_number = MVM_malloc(16);
+        MVMString      *filename_str;
         snprintf(line_number, 16, "%d", annot ? annot->line_number : 1);
 
         /* annotations hash will contain "file" and "line" */
         annotations = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
 
         /* file */
-        if (fshi >= 0 && fshi < cur_frame->static_info->body.cu->body.num_strings)
-            value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
-                MVM_cu_string(tc, cur_frame->static_info->body.cu, fshi));
-        else
-            value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
-                cur_frame->static_info->body.cu->body.filename);
+        filename_str = fshi >= 0 && fshi < cur_frame->static_info->body.cu->body.num_strings
+             ? MVM_cu_string(tc, cur_frame->static_info->body.cu, fshi)
+             : cur_frame->static_info->body.cu->body.filename;
+        value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
+            filename_str ? filename_str : tc->instance->str_consts.empty);
         MVM_repr_bind_key_o(tc, annotations, k_file, value);
 
         /* line */
