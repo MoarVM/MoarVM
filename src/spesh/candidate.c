@@ -37,6 +37,10 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     char *after = 0;
     MVMSpeshGraph *sg;
 
+    /* If we've reached our specialization limit, don't continue. */
+    if (++tc->instance->spesh_produced > tc->instance->spesh_limit)
+        return NULL;
+
     /* If we're profiling, log we're starting spesh work. */
     if (tc->instance->profiling)
         MVM_profiler_log_spesh_start(tc);

@@ -66,7 +66,8 @@ static FILE *fopen_perhaps_with_pid(char *path, const char *mode) {
 /* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
-    char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable, *spesh_osr_disable;
+    char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable,
+         *spesh_osr_disable, *spesh_limit;
     char *jit_log, *jit_disable, *jit_bytecode_dir;
     char *dynvar_log;
     int init_stat;
@@ -206,6 +207,12 @@ MVMInstance * MVM_vm_create_instance(void) {
     if (spesh_nodelay && strlen(spesh_nodelay)) {
         instance->spesh_nodelay = 1;
     }
+
+    /* Should we limit the number of specialized frames produced? (This is
+     * mostly useful for building spesh bug bisect tools.) */
+    spesh_limit = getenv("MVM_SPESH_LIMIT");
+    if (spesh_limit && strlen(spesh_limit))
+        instance->spesh_limit = atoi(spesh_limit);
 
     /* JIT environment/logging setup. */
     jit_disable = getenv("MVM_JIT_DISABLE");

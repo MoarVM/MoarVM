@@ -189,6 +189,11 @@ struct MVMInstance {
     MVMint8 spesh_osr_enabled;
     MVMint8 spesh_nodelay;
 
+    /* Number of specializations produced, and limit on number of
+     * specializations (zero if no limit). */
+    MVMint32 spesh_produced;
+    MVMint32 spesh_limit;
+
     /* Flag for if NFA debugging is enabled. */
     MVMint8 nfa_debug_enabled;
 
