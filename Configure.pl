@@ -35,7 +35,7 @@ GetOptions(\%args, qw(
     static has-libtommath has-libatomic_ops
     has-dyncall has-libffi pkgconfig=s
     build=s host=s big-endian jit! enable-jit lua=s has-dynasm
-    prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan),
+    prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan valgrind),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 }
 ) or die "See --help for further information\n";
@@ -82,6 +82,7 @@ $args{'has-libatomic_ops'} //= 0;
 $args{'has-dynasm'}        //= 0;
 $args{'asan'}              //= 0;
 $args{'ubsan'}             //= 0;
+$args{'valgrind'}          //= 0;
 
 # jit is default
 $args{'jit'}               //= 1;
@@ -318,6 +319,7 @@ push @cflags, $config{ccshared}     unless $args{static};
 push @cflags, '-fno-omit-frame-pointer' if $args{asan} or $args{ubsan};
 push @cflags, '-fsanitize=address' if $args{asan};
 push @cflags, '-fsanitize=undefined' if $args{ubsan};
+push @cflags, '-DMVM_VALGRIND_SUPPORT' if $args{valgrind};
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
 $config{cflags} = join ' ', @cflags;
@@ -852,6 +854,10 @@ A full list of options is displayed if you set C<ASAN_OPTIONS> to C<help=1>.
 =item --ubsan
 
 Build with Undefined Behaviour sanitizer support.
+
+=item --valgrind
+
+Include Valgrind Client Requests for moarvm's own memory allocators.
 
 =item --ld <ld>
 
