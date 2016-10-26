@@ -128,48 +128,51 @@ static const MVMREPROps this_repr = {
 
 MVM_PUBLIC MVMObject * MVM_code_location(MVMThreadContext *tc, MVMObject *code) {
     MVMObject *BOOTHash = tc->instance->boot_types.BOOTHash;
-    MVMCodeBody *body = &((MVMCode*)code)->body;
+    MVMObject *result = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
+    MVMString *file;
+    MVMint32   line;
+    MVMObject *filename_boxed;
+    MVMObject *linenumber_boxed;
+    MVMString *filename_key, *linenumber_key;
 
+    MVM_code_location_out(tc, code, &file, &line);
+
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&file);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
+
+    filename_key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "file");
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&filename_key);
+
+    linenumber_key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "line");
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&linenumber_key);
+
+    filename_boxed = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, file);
+    MVM_repr_bind_key_o(tc, result, filename_key, filename_boxed);
+
+    linenumber_boxed = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, line);
+    MVM_repr_bind_key_o(tc, result, linenumber_key, linenumber_boxed);
+
+    MVM_gc_root_temp_pop_n(tc, 4);
+
+    return result;
+}
+
+void MVM_code_location_out(MVMThreadContext *tc, MVMObject *code,
+                           MVMString **file_out, MVMint32 *line_out) {
     if (REPR(code)->ID != MVM_REPR_ID_MVMCode) {
         MVM_exception_throw_adhoc(tc, "getcodelocation needs an object of MVMCode REPR, got %s instead", REPR(code)->name);
     } else {
-        MVMObject * result = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
+        MVMCodeBody          *body = &((MVMCode*)code)->body;
         MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &body->sf->body, 0);
         MVMCompUnit            *cu = body->sf->body.cu;
         MVMint32           str_idx = ann ? ann->filename_string_heap_index : 0;
-        MVMint32           line_nr = ann ? ann->line_number : 1;
-        MVMString        *filename;
 
-        MVMObject   *filename_boxed;
-        MVMObject *linenumber_boxed;
-        MVMString *filename_key, *linenumber_key;
-
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
-
-        filename_key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "file");
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&filename_key);
-
-        linenumber_key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "line");
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&linenumber_key);
-
+        *line_out = ann ? ann->line_number : 1;
         if (ann && str_idx < cu->body.num_strings) {
-            filename = MVM_cu_string(tc, cu, str_idx);
+            *file_out = MVM_cu_string(tc, cu, str_idx);
         } else {
-            filename = cu->body.filename;
+            *file_out = cu->body.filename;
         }
         MVM_free(ann);
-
-        filename_boxed = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, filename);
-
-        MVM_repr_bind_key_o(tc, result, filename_key, filename_boxed);
-
-        linenumber_boxed = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, line_nr);
-        MVM_repr_bind_key_o(tc, result, linenumber_key, linenumber_boxed);
-
-        MVM_gc_root_temp_pop_n(tc, 3);
-
-        return result;
     }
-
-    return NULL;
 }
