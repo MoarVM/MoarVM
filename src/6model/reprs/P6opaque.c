@@ -182,24 +182,26 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
 
     if (repr_data->name_to_index_mapping) {
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
+        MVMuint32 name_index_mapping_size = 0;
         while (cur_map_entry->class_key != NULL) {
-            MVM_free(cur_map_entry->names);
-            MVM_free(cur_map_entry->slots);
+            name_index_mapping_size += P6OMAX(cur_map_entry->num_attrs, 1);
             cur_map_entry++;
         }
+        MVM_fixed_size_free(tc, tc->instance->fsa, name_index_mapping_size * sizeof(MVMString *), repr_data->name_to_index_mapping[0].names);
+        MVM_fixed_size_free(tc, tc->instance->fsa, name_index_mapping_size * sizeof(MVMuint16), repr_data->name_to_index_mapping[0].slots);
         MVM_free(repr_data->name_to_index_mapping);
     }
 
-    MVM_free(repr_data->attribute_offsets);
-    MVM_free(repr_data->flattened_stables);
+    MVM_fixed_size_free(tc, tc->instance->fsa, P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMuint16) * 2, repr_data->attribute_offsets);
+
+    MVM_fixed_size_free(tc, tc->instance->fsa, (repr_data->num_attributes + 1) * sizeof(MVMint16) * 3, repr_data->initialize_slots);
+
+    if (repr_data->flattened_stables)
+        MVM_fixed_size_free(tc, tc->instance->fsa, P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMSTable *), repr_data->flattened_stables);
     MVM_free(repr_data->auto_viv_values);
     MVM_free(repr_data->unbox_slots);
-    MVM_free(repr_data->gc_obj_mark_offsets);
-    MVM_free(repr_data->initialize_slots);
-    MVM_free(repr_data->gc_mark_slots);
-    MVM_free(repr_data->gc_cleanup_slots);
 
-    MVM_free(st->REPR_data);
+    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMP6opaqueREPRData), st->REPR_data);
 }
 
 /* Helper for complaining about attribute access errors. */
@@ -595,6 +597,31 @@ static void mk_storage_spec(MVMThreadContext *tc, MVMP6opaqueREPRData * repr_dat
         spec->can_box += MVM_STORAGE_SPEC_CAN_BOX_STR;
 }
 
+static void compact_name_to_index_mapping(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_data, MVMuint32 num_classes, MVMuint32 name_index_mapping_size) {
+    MVMuint32 i;
+
+    /* Make it all nice and compact */
+    MVMString **packed_mapping_names = MVM_fixed_size_alloc(tc, tc->instance->fsa, name_index_mapping_size * sizeof(MVMString *));
+    MVMuint16  *packed_mapping_slots = MVM_fixed_size_alloc(tc, tc->instance->fsa, name_index_mapping_size * sizeof(MVMuint16));
+
+    MVMuint16 alloc_offset = 0;
+
+    for (i = 0; i < num_classes; i++) {
+        MVMint32 num_attrs = repr_data->name_to_index_mapping[i].num_attrs;
+
+        memcpy(packed_mapping_names + alloc_offset, repr_data->name_to_index_mapping[i].names, num_attrs * sizeof(MVMString *));
+        memcpy(packed_mapping_slots + alloc_offset, repr_data->name_to_index_mapping[i].slots, num_attrs * sizeof(MVMuint16));
+
+        MVM_free(repr_data->name_to_index_mapping[i].names);
+        MVM_free(repr_data->name_to_index_mapping[i].slots);
+
+        repr_data->name_to_index_mapping[i].names = packed_mapping_names + alloc_offset;
+        repr_data->name_to_index_mapping[i].slots = packed_mapping_slots + alloc_offset;
+
+        alloc_offset += P6OMAX(num_attrs, 1);
+    }
+}
+
 /* Compose the representation. */
 static MVMuint16 * allocate_unbox_slots() {
     MVMuint16 *slots = MVM_malloc(MVM_REPR_MAX_COUNT * sizeof(MVMuint16));
@@ -608,6 +635,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                cur_slot, cur_type, cur_alloc_addr, cur_obj_attr,
                cur_init_slot, cur_mark_slot, cur_cleanup_slot,
                unboxed_type, i;
+    MVMuint32  name_index_mapping_size;
     MVMObject *info;
 
     MVMStringConsts       str_consts = tc->instance->str_consts;
@@ -620,8 +648,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMString * const str_box_target = str_consts.box_target;
 
     /* Allocate the representation data. */
-    MVMP6opaqueREPRData *repr_data = MVM_malloc(sizeof(MVMP6opaqueREPRData));
-    memset(repr_data, 0, sizeof(MVMP6opaqueREPRData));
+    MVMP6opaqueREPRData *repr_data = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMP6opaqueREPRData));
 
     /* Find attribute information. */
     info = MVM_repr_at_key_o(tc, info_hash, str_attribute);
@@ -657,17 +684,19 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     /* Fill out and allocate other things we now can. */
     repr_data->num_attributes = total_attrs;
     if (total_attrs) {
-        repr_data->attribute_offsets   = MVM_malloc(total_attrs * sizeof(MVMuint16));
-        repr_data->flattened_stables   = MVM_malloc(total_attrs * sizeof(MVMSTable *));
+        repr_data->attribute_offsets   = MVM_malloc(P6OMAX(total_attrs, 1) * sizeof(MVMuint16) * 2);
+        repr_data->flattened_stables   = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMSTable *));
         repr_data->auto_viv_values     = MVM_malloc(total_attrs * sizeof(MVMObject *));
-        repr_data->gc_obj_mark_offsets = MVM_malloc(total_attrs * sizeof(MVMuint16));
-        memset(repr_data->flattened_stables, 0, total_attrs * sizeof(MVMSTable *));
+
+        repr_data->gc_obj_mark_offsets = repr_data->attribute_offsets + total_attrs;
         memset(repr_data->auto_viv_values, 0, total_attrs * sizeof(MVMObject *));
     }
     repr_data->name_to_index_mapping = MVM_malloc((mro_count + 1) * sizeof(MVMP6opaqueNameMap));
-    repr_data->initialize_slots      = MVM_malloc((total_attrs + 1) * sizeof(MVMuint16));
-    repr_data->gc_mark_slots         = MVM_malloc((total_attrs + 1) * sizeof(MVMuint16));
-    repr_data->gc_cleanup_slots      = MVM_malloc((total_attrs + 1) * sizeof(MVMuint16));
+    repr_data->initialize_slots      = MVM_malloc((total_attrs + 1) * sizeof(MVMuint16) * 3);
+
+    repr_data->gc_mark_slots         = repr_data->initialize_slots + (total_attrs + 1);
+    repr_data->gc_cleanup_slots      = repr_data->initialize_slots + (total_attrs + 1) * 2;
+
     memset(repr_data->name_to_index_mapping, 0, (mro_count + 1) * sizeof(MVMP6opaqueNameMap));
 
     /* -1 indicates no unboxing or delegate possible for a type. */
@@ -701,6 +730,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         if (num_attrs) {
             name_map->names = MVM_malloc(num_attrs * sizeof(MVMString *));
             name_map->slots = MVM_malloc(num_attrs * sizeof(MVMuint16));
+            name_index_mapping_size += P6OMAX(num_attrs, 1);
         }
 
         /* Go over the attributes. */
@@ -846,6 +876,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         cur_type++;
     }
 
+    /* Compact the names and slots of the name index map into one big buffer */
+    compact_name_to_index_mapping(tc, repr_data, cur_type, name_index_mapping_size);
+
     /* Add allocated amount for body to have total object size. */
     st->size = sizeof(MVMP6opaque) + (cur_alloc_addr - sizeof(MVMP6opaqueBody));
 
@@ -966,12 +999,16 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMuint16 i, j, num_classes, cur_offset;
     MVMint16 cur_initialize_slot, cur_gc_mark_slot, cur_gc_cleanup_slot;
+    MVMuint32 name_index_mapping_size;
 
-    MVMP6opaqueREPRData *repr_data = MVM_malloc(sizeof(MVMP6opaqueREPRData));
+    MVMP6opaqueREPRData *repr_data = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMP6opaqueREPRData));
 
     repr_data->num_attributes = (MVMuint16)MVM_serialization_read_int(tc, reader);
 
-    repr_data->flattened_stables = (MVMSTable **)MVM_malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMSTable *));
+    /*fprintf(stderr, "deserializing repr data for %s\n", st->debug_name);*/
+
+    repr_data->flattened_stables = MVM_fixed_size_alloc(tc, tc->instance->fsa, P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMSTable *));
+    /*fprintf(stderr, "flattened stables is %d bytes big\n", P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMSTable *));*/
     for (i = 0; i < repr_data->num_attributes; i++)
         if (MVM_serialization_read_int(tc, reader)) {
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->flattened_stables[i], MVM_serialization_read_stable_ref(tc, reader));
@@ -1015,6 +1052,9 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             MVM_serialization_read_ref(tc, reader));
 
         num_attrs = MVM_serialization_read_int(tc, reader);
+
+        name_index_mapping_size += P6OMAX(num_attrs, 1);
+
         repr_data->name_to_index_mapping[i].names = (MVMString **)MVM_malloc(P6OMAX(num_attrs, 1) * sizeof(MVMString *));
         repr_data->name_to_index_mapping[i].slots = (MVMuint16 *)MVM_malloc(P6OMAX(num_attrs, 1) * sizeof(MVMuint16));
         for (j = 0; j < num_attrs; j++) {
@@ -1027,6 +1067,9 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         repr_data->name_to_index_mapping[i].num_attrs = num_attrs;
     }
 
+    /* Compact names and slots into one long buffer */
+    compact_name_to_index_mapping(tc, repr_data, num_classes, name_index_mapping_size);
+
     /* set the last one to be NULL */
     repr_data->name_to_index_mapping[i].class_key = NULL;
 
@@ -1035,11 +1078,13 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 
     /* Re-calculate the remaining info, which is platform specific or
      * derived information. */
-    repr_data->attribute_offsets   = (MVMuint16 *)MVM_malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
-    repr_data->gc_obj_mark_offsets = (MVMuint16 *)MVM_malloc(P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMuint16));
-    repr_data->initialize_slots    = (MVMint16 *)MVM_malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
-    repr_data->gc_mark_slots       = (MVMint16 *)MVM_malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
-    repr_data->gc_cleanup_slots    = (MVMint16 *)MVM_malloc((repr_data->num_attributes + 1) * sizeof(MVMint16));
+    repr_data->attribute_offsets   = (MVMuint16 *)MVM_fixed_size_alloc(tc, tc->instance->fsa, P6OMAX(repr_data->num_attributes, 1) * sizeof(MVMuint16) * 2);
+    repr_data->gc_obj_mark_offsets = repr_data->attribute_offsets + P6OMAX(repr_data->num_attributes, 1);
+
+    repr_data->initialize_slots    = (MVMint16 *)MVM_fixed_size_alloc(tc, tc->instance->fsa, (repr_data->num_attributes + 1) * sizeof(MVMint16) * 3);
+    repr_data->gc_mark_slots       = repr_data->initialize_slots + (repr_data->num_attributes + 1);
+    repr_data->gc_cleanup_slots    = repr_data->initialize_slots + (repr_data->num_attributes + 1) * 2;
+
     repr_data->gc_obj_mark_offsets_count = 0;
     cur_offset          = sizeof(MVMP6opaqueBody);
     cur_initialize_slot = 0;
