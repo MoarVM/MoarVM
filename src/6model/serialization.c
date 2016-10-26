@@ -530,12 +530,18 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
 
     if (scr == NULL || MVM_sc_get_obj_sc(tc, scr) == NULL) {
         if (fatal) {
-            char *c_name = MVM_string_utf8_encode_C_string(tc,
-                    (((MVMCode *)closure)->body.sf)->body.name);
-            char *waste[] = { c_name, NULL };
-            MVM_exception_throw_adhoc_free(tc, waste,
-                "Serialization Error: missing static code ref for closure '%s'",
-                c_name);
+            MVMString *file;
+            MVMint32 line;
+            MVM_code_location_out(tc, closure, &file, &line);
+            {
+                char *c_name = MVM_string_utf8_encode_C_string(tc,
+                        (((MVMCode *)closure)->body.sf)->body.name);
+                char *c_file = MVM_string_utf8_encode_C_string(tc, file);
+                char *waste[] = { c_name, c_file, NULL };
+                MVM_exception_throw_adhoc_free(tc, waste,
+                    "Serialization Error: missing static code ref for closure '%s' (%s:%d)",
+                    c_name, c_file, line);
+            }
         }
         return NULL;
     }
