@@ -386,12 +386,55 @@ static void cleanup_callsite_interns(MVMInstance *instance) {
     MVM_free(instance->callsite_interns);
 }
 
+static void fixedsize_stats(MVMInstance *instance) {
+    MVMFixedSizeAlloc *alloc = instance->fsa;
+    MVMint32 bin = 0;
+
+    for (bin = 0; bin < MVM_FSA_BINS; bin++) {
+        MVMFixedSizeAllocSizeClass *class = &alloc->size_classes[bin];
+        MVMuint8 *free_per_page = calloc(class->num_pages, 1);
+        MVMFixedSizeAllocFreeListEntry *fle = class->free_list;
+        MVMint32 class_pagesize = MVM_FSA_PAGE_ITEMS * ((bin + 1) << MVM_FSA_BIN_BITS);
+        MVMint32 class_elemsize = ((bin + 1) << MVM_FSA_BIN_BITS);
+        MVMint32 freelist_entries = 0;
+        MVMint32 page;
+
+        while (fle) {
+            for (page = 0; page < class->num_pages; page++) {
+                if ((intptr_t)fle > class->pages[page] && (intptr_t)fle < class->pages[page] + class_pagesize) {
+                    free_per_page[page]++;
+                    break;
+                }
+            }
+
+            freelist_entries++;
+            fle = fle->next;
+        }
+
+        fprintf(stderr, "bin %d; element size: %d\n", bin, class_elemsize);
+        for (page = 0; page < class->num_pages; page++) {
+            fprintf(stderr, "%02x ", free_per_page[page]);
+            if (page % 20 == 0 && page != 0)
+                fprintf(stderr, "\n");
+        }
+
+        fprintf(stderr, "\n");
+
+        fprintf(stderr, "%d elems free at end (%d bytes)\n", (class->alloc_limit - class->alloc_pos) / class_elemsize, class->alloc_limit - class->alloc_pos);
+        fprintf(stderr, "%d entries in freelist\n", freelist_entries);
+
+        fprintf(stderr, "\n");
+    }
+}
+
 /* Destroys a VM instance. This must be called only from the main thread. It
  * should clear up all resources and free all memory; in practice, it falls
  * short of this goal at the moment. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Join any foreground threads. */
     MVM_thread_join_foreground(instance->main_thread);
+
+    fixedsize_stats(instance);
 
     /* Run the GC global destruction phase. After this,
      * no 6model object pointers should be accessed. */
@@ -468,6 +511,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up NFG. */
     uv_mutex_destroy(&instance->nfg->update_mutex);
     MVM_nfg_destroy(instance->main_thread);
+
+    fixedsize_stats(instance);
 
     /* Clean up fixed size allocator */
     MVM_fixed_size_destroy(instance->fsa);
