@@ -44,6 +44,7 @@
 #define REFVAR_VM_HASH_STR_VAR      10
 #define REFVAR_STATIC_CODEREF       11
 #define REFVAR_CLONED_CODEREF       12
+#define REFVAR_SC_REF               13
 
 /* For the packed format, for "small" values of si and idx */
 #define OBJECTS_TABLE_ENTRY_SC_MASK     0x7FF
@@ -693,6 +694,9 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
             discrim = REFVAR_CLONED_CODEREF;
         }
     }
+    else if (REPR(ref)->ID == MVM_REPR_ID_SCRef && IS_CONCRETE(ref)) {
+        discrim = REFVAR_SC_REF;
+    }
     else {
         discrim = REFVAR_OBJECT;
     }
@@ -736,6 +740,11 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
         case REFVAR_CLONED_CODEREF:
             write_code_ref(tc, writer, ref);
             break;
+        case REFVAR_SC_REF: {
+            MVMString *handle = MVM_sc_get_handle(tc, (MVMSerializationContext *)ref);
+            MVM_serialization_write_str(tc, writer, handle);
+            break;
+        }
         default:
             MVM_exception_throw_adhoc(tc,
                 "Serialization Error: Unimplemented discriminator %d in MVM_serialization_read_ref",
@@ -1855,6 +1864,9 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
         case REFVAR_STATIC_CODEREF:
         case REFVAR_CLONED_CODEREF:
             return read_code_ref(tc, reader);
+        case REFVAR_SC_REF:
+            return (MVMObject *)MVM_sc_find_by_handle(tc,
+                MVM_serialization_read_str(tc, reader));
         default:
             fail_deserialize(tc, reader,
                 "Serialization Error: Unimplemented case of read_ref");
