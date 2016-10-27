@@ -580,15 +580,15 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CHAR: {
-                    signed char ret;
+                    ffi_arg ret;
                     ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                    result = MVM_nativecall_make_int(tc, res_type, (signed char)ret);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_SHORT: {
-                    signed short ret;
+                    ffi_arg ret;
                     ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                    result = MVM_nativecall_make_int(tc, res_type, (signed short)ret);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_INT: {
@@ -670,15 +670,15 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 case MVM_NATIVECALL_ARG_UCHAR: {
-                    unsigned char ret;
+                    ffi_arg ret;
                     ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                    result = MVM_nativecall_make_int(tc, res_type, (unsigned char)ret);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_USHORT: {
-                    unsigned short ret;
+                    ffi_arg ret;
                     ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                    result = MVM_nativecall_make_int(tc, res_type, (unsigned short)ret);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_UINT: {
