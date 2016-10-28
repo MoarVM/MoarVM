@@ -320,6 +320,7 @@ push @cflags, '-fno-omit-frame-pointer' if $args{asan} or $args{ubsan};
 push @cflags, '-fsanitize=address' if $args{asan};
 push @cflags, '-fsanitize=undefined' if $args{ubsan};
 push @cflags, '-DMVM_VALGRIND_SUPPORT' if $args{valgrind};
+push @cflags, '-DWORDS_BIGENDIAN' if $config{be}; # 3rdparty/sha1 needs it and it isnt set on mips;
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
 $config{cflags} = join ' ', @cflags;
