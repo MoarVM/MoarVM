@@ -263,6 +263,9 @@ if ($args{'has-libffi'}) {
     $config{nativecall_backend} = 'libffi';
     unshift @{$config{usrlibs}}, 'ffi';
     push @{$config{defs}}, 'HAVE_LIBFFI';
+    $defaults{-thirdparty}->{dc}  = undef;
+    $defaults{-thirdparty}->{dcb} = undef;
+    $defaults{-thirdparty}->{dl}  = undef;
     if ($config{pkgconfig_works}) {
         my $result = `$config{pkgconfig} --cflags libffi`;
         if ( $? == 0 ) {
