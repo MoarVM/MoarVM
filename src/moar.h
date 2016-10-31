@@ -202,6 +202,12 @@ MVM_PUBLIC void MVM_vm_set_exec_name(MVMInstance *instance, const char *exec_nam
 MVM_PUBLIC void MVM_vm_set_prog_name(MVMInstance *instance, const char *prog_name);
 MVM_PUBLIC void MVM_vm_set_lib_path(MVMInstance *instance, int count, const char **lib_path);
 
+#if defined(__s390__)
+AO_t AO_fetch_compare_and_swap_emulation(volatile AO_t *addr, AO_t old_val, AO_t new_val);
+# define AO_fetch_compare_and_swap_full(addr, old, newval) \
+    AO_fetch_compare_and_swap_emulation(addr, old, newval)
+#endif
+
 /* Returns original. Use only on AO_t-sized values (including pointers). */
 #define MVM_incr(addr) AO_fetch_and_add1_full((volatile AO_t *)(addr))
 #define MVM_decr(addr) AO_fetch_and_sub1_full((volatile AO_t *)(addr))
