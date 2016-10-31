@@ -778,6 +778,7 @@ void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMSt
 MVM_NO_RETURN
 void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) {
     va_list args;
+    fprintf(stderr, "MoarVM panic: ");
     va_start(args, messageFormat);
     vfprintf(stderr, messageFormat, args);
     va_end(args);
