@@ -258,6 +258,7 @@ HEADERS = src/moar.h \
           src/gc/wb.h \
           src/gc/objectid.h \
           src/gc/finalize.h \
+          src/gc/debug.h \
           src/6model/reprs.h \
           src/6model/reprconv.h \
           src/6model/bootstrap.h \
