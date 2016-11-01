@@ -144,9 +144,11 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
     MVM_ASSIGN_REF(tc, &(root->header), add->value, value.o);
 
     MVMROOT(tc, root, {
+    MVMROOT(tc, add->value, {
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&cbq->locks->tail_lock);
         MVM_gc_mark_thread_unblocked(tc);
+    });
     });
     data = OBJECT_BODY(root);
     cbq = (MVMConcBlockingQueueBody *)data;
