@@ -211,10 +211,14 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     CallbackInvokeData cid;
     MVMint32 num_roots, i;
     MVMRegister res;
+    MVMRegister *args;
+
+    /* Unblock GC, so this thread can do work. */
+    MVMThreadContext *tc = data->tc;
+    MVM_gc_mark_thread_unblocked(tc);
 
     /* Build a callsite and arguments buffer. */
-    MVMThreadContext *tc = data->tc;
-    MVMRegister *args = MVM_malloc(data->num_types * sizeof(MVMRegister));
+    args = MVM_malloc(data->num_types * sizeof(MVMRegister));
     num_roots = 0;
     for (i = 1; i < data->num_types; i++) {
         MVMObject *type     = data->types[i];
@@ -415,6 +419,9 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     MVM_gc_root_temp_pop_n(tc, num_roots);
     MVM_free(args);
 
+    /* Re-block GC, so other threads will be able to collect. */
+    MVM_gc_mark_thread_blocked(tc);
+
     /* Indicate what we're producing as a result. */
     return get_signature_char(data->typeinfos[0]);
 }
@@ -575,89 +582,147 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         }
     }
 
-    if (result) {
-        /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */
-        dcCallVoid(vm, body->entry_point);
-    }
-    else {
-        /* Call and process return values. */
-        MVMROOT(tc, args, {
-        MVMROOT(tc, res_type, {
+    MVMROOT(tc, args, {
+    MVMROOT(tc, res_type, {
+        MVM_gc_mark_thread_blocked(tc);
+        if (result) {
+            /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */
+            dcCallVoid(vm, body->entry_point);
+            MVM_gc_mark_thread_unblocked(tc);
+        }
+        else {
+            /* Call and process return values. */
             switch (ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
                 case MVM_NATIVECALL_ARG_VOID:
                     dcCallVoid(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
                     result = res_type;
                     break;
-                case MVM_NATIVECALL_ARG_CHAR:
-                    result = MVM_nativecall_make_int(tc, res_type, (signed char)dcCallChar(vm, entry_point));
+                case MVM_NATIVECALL_ARG_CHAR: {
+                    MVMint64 native_result = (signed char)dcCallChar(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_int(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_SHORT:
-                    result = MVM_nativecall_make_int(tc, res_type, dcCallShort(vm, entry_point));
+                }
+                case MVM_NATIVECALL_ARG_SHORT: {
+                    MVMint64 native_result = dcCallShort(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_int(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_INT:
-                    result = MVM_nativecall_make_int(tc, res_type, dcCallInt(vm, entry_point));
+                }
+                case MVM_NATIVECALL_ARG_INT: {
+                    MVMint64 native_result = dcCallInt(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_int(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_LONG:
-                    result = MVM_nativecall_make_int(tc, res_type, dcCallLong(vm, entry_point));
+                }
+                case MVM_NATIVECALL_ARG_LONG: {
+                    MVMint64 native_result = dcCallLong(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_int(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_LONGLONG:
-                    result = MVM_nativecall_make_int(tc, res_type, dcCallLongLong(vm, entry_point));
+                }
+                case MVM_NATIVECALL_ARG_LONGLONG: {
+                    MVMint64 native_result = dcCallLongLong(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_int(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_FLOAT:
-                    result = MVM_nativecall_make_num(tc, res_type, dcCallFloat(vm, entry_point));
+                }
+                case MVM_NATIVECALL_ARG_FLOAT: {
+                    MVMnum64 native_result = dcCallFloat(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_num(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_DOUBLE:
-                    result = MVM_nativecall_make_num(tc, res_type, dcCallDouble(vm, entry_point));
+                }
+                case MVM_NATIVECALL_ARG_DOUBLE: {
+                    MVMnum64 native_result = dcCallDouble(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_num(tc, res_type, native_result);
                     break;
+                }
                 case MVM_NATIVECALL_ARG_ASCIISTR:
                 case MVM_NATIVECALL_ARG_UTF8STR:
-                case MVM_NATIVECALL_ARG_UTF16STR:
+                case MVM_NATIVECALL_ARG_UTF16STR: {
+                    char *native_result = (char *)dcCallPointer(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_str(tc, res_type, body->ret_type,
-                        (char *)dcCallPointer(vm, entry_point));
+                        native_result);
                     break;
-                case MVM_NATIVECALL_ARG_CSTRUCT:
-                    result = MVM_nativecall_make_cstruct(tc, res_type, dcCallPointer(vm, body->entry_point));
+                }
+                case MVM_NATIVECALL_ARG_CSTRUCT: {
+                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_cstruct(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_CPPSTRUCT:
-                    result = MVM_nativecall_make_cppstruct(tc, res_type, dcCallPointer(vm, body->entry_point));
+                }
+                case MVM_NATIVECALL_ARG_CPPSTRUCT: {
+                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_cppstruct(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_CPOINTER:
-                    result = MVM_nativecall_make_cpointer(tc, res_type, dcCallPointer(vm, body->entry_point));
+                }
+                case MVM_NATIVECALL_ARG_CPOINTER: {
+                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_cpointer(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_CARRAY:
-                    result = MVM_nativecall_make_carray(tc, res_type, dcCallPointer(vm, body->entry_point));
+                }
+                case MVM_NATIVECALL_ARG_CARRAY: {
+                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_carray(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_CUNION:
-                    result = MVM_nativecall_make_cunion(tc, res_type, dcCallPointer(vm, body->entry_point));
+                }
+                case MVM_NATIVECALL_ARG_CUNION: {
+                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_cunion(tc, res_type, native_result);
                     break;
+                }
                 case MVM_NATIVECALL_ARG_CALLBACK:
                     /* TODO: A callback -return- value means that we have a C method
                     * that needs to be wrapped similarly to a is native(...) Perl 6
                     * sub. */
                     dcCallPointer(vm, body->entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
                     result = res_type;
                     break;
-                case MVM_NATIVECALL_ARG_UCHAR:
-                    result = MVM_nativecall_make_uint(tc, res_type, (DCuchar)dcCallChar(vm, entry_point));
+                case MVM_NATIVECALL_ARG_UCHAR: {
+                    MVMuint64 native_result = (DCuchar)dcCallChar(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_uint(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_USHORT:
-                    result = MVM_nativecall_make_uint(tc, res_type, (DCushort)dcCallShort(vm, entry_point));
+                }
+                case MVM_NATIVECALL_ARG_USHORT: {
+                    MVMuint64 native_result = (DCushort)dcCallShort(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_uint(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_UINT:
-                    result = MVM_nativecall_make_uint(tc, res_type, (DCuint)dcCallInt(vm, entry_point));
+                }
+                case MVM_NATIVECALL_ARG_UINT: {
+                    MVMuint64 native_result = (DCuint)dcCallInt(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_uint(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_ULONG:
-                    result = MVM_nativecall_make_uint(tc, res_type, (DCulong)dcCallLong(vm, entry_point));
+                }
+                case MVM_NATIVECALL_ARG_ULONG: {
+                    MVMuint64 native_result = (DCulong)dcCallLong(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_uint(tc, res_type, native_result);
                     break;
-                case MVM_NATIVECALL_ARG_ULONGLONG:
-                    result = MVM_nativecall_make_uint(tc, res_type, (DCulonglong)dcCallLongLong(vm, entry_point));
+                }
+                case MVM_NATIVECALL_ARG_ULONGLONG: {
+                    MVMuint64 native_result = (DCulonglong)dcCallLongLong(vm, entry_point);
+                    MVM_gc_mark_thread_unblocked(tc);
+                    result = MVM_nativecall_make_uint(tc, res_type, native_result);
                     break;
+                }
                 default:
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall return type");
             }
-        });
-        });
-    }
+        }
+    });
+    });
 
     num_rws = 0;
     for (i = 0; i < num_args; i++) {
