@@ -79,9 +79,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->main_thread = MVM_tc_create(instance);
     instance->main_thread->thread_id = 1;
 
-    /* No user threads when we start, and next thread to be created gets ID 2
-     * (the main thread got ID 1). */
-    instance->num_user_threads    = 0;
+    /* Next thread to be created gets ID 2 (the main thread got ID 1). */
     MVM_store(&instance->next_user_thread_id, 2);
 
     /* Set up the permanent roots storage. */

@@ -495,12 +495,6 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
 void MVM_gc_global_destruction(MVMThreadContext *tc) {
     char *nursery_tmp;
 
-    /* Must wait until we're the only thread... */
-    while (tc->instance->num_user_threads) {
-        GC_SYNC_POINT(tc);
-        MVM_platform_thread_yield();
-    }
-
     /* Fake a nursery collection run by swapping the semi-
      * space nurseries. */
     nursery_tmp = tc->nursery_fromspace;

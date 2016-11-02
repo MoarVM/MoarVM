@@ -115,9 +115,6 @@ struct MVMInstance {
     /* The ID to allocate the next-created thread. */
     AO_t next_user_thread_id;
 
-    /* The number of active user threads. */
-    MVMuint16 num_user_threads;
-
     /* The event loop thread, a mutex to avoid start-races, a concurrent
      * queue of tasks that need to be processed by the event loop thread
      * and an array of active tasks, for the purpose of keeping them GC
