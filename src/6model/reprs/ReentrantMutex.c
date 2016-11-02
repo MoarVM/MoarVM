@@ -41,7 +41,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     /* The ThreadContext has already been destroyed by the GC. */
     MVMReentrantMutex *rm = (MVMReentrantMutex *)obj;
     if (rm->body.lock_count)
-        MVM_panic(1, "Tried to garbage-collected a locked mutex");
+        MVM_panic(1, "Tried to garbage-collect a locked mutex");
     uv_mutex_destroy(rm->body.mutex);
     MVM_free(rm->body.mutex);
 }
