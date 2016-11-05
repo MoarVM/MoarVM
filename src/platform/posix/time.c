@@ -4,6 +4,11 @@
 #include <errno.h>
 #include <sys/time.h>
 
+#ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+
 #define E9 1000000000
 #define E9F 1000000000.0f
 
