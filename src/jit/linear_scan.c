@@ -12,7 +12,7 @@ typedef struct {
     MVMint32 num_uses;
     MVMint32 *uses;
 
-    MVMint32 spilled_to; /* possibly-changing location of value in memory */
+    MVMint32 spilled_to; /* location of value in memory */
     /* unchanging location of value in register (otherwise we need
        more live ranges, or something...) */
     MVMJitStorageClass reg_cls;
@@ -25,28 +25,28 @@ typedef struct {
     /* single buffer for uses, definitions */
     MVMint32 *use_defs_buf;
 
-    /* values produced (heap ordered by first-definition, can be modified during
-     * traversal) */
+    /* All values ever defined by the register allcoator */
     MVM_VECTOR_DECL(LiveRange, values);
 
-    /* values 'currently' live, an ordered stack.
-     * we run three queries on this data structure:
-     * - how many are in there, anyway?
-     * - when is the first value due to expire (beyond its last use)
-     * - what is the best value currently live to spill */
-    MVMint32  live_set_top;
-    LiveRange *live_set[MAX_LIVE];
+    /* 'Currently' active values */
+    MVMint32 active_top;
+    MVMint32 active[MAX_ACTIVE];
+
     /* which live-set inhabits a constant register */
     MVMint32 prefered_register[NUM_GPR];
+
+    /* Values still left to do (heap) */
+    MVM_VECTOR_DECL(MVMint32, worklist);
+    /* Retired values (to be assigned registers) (heap) */
+    MVM_VECTOR_DECL(MVMint32, retired);
 
     /* Register handout ring */
     MVMint8 reg_buf[NUM_GPR];
     MVMint32 reg_give, reg_take;
 
     MVMint32 spill_top;
-
-
 } RegisterAllocator;
+
 
 UnionFind * value_set_find(UnionFind *sets, MVMint32 key) {
     while (sets[key].key != key) {
@@ -66,8 +66,85 @@ MVMint32 value_set_union(UnionFind *sets, MVMint32 a, MVMint32 b) {
     return a;
 }
 
+MVMint32 live_range_init(RegisterAllocator *alc, MVMint32 *defs, MVMint32 *uses) {
+    LiveRange *range;
+    MVMint32 idx = alc->values_top++;
+    MVM_VECTOR_ENSURE_SIZE(alc->values, idx);
+    range = &alc->values[idx];
+    range->defs = defs;
+    range->uses = uses;
+    range->num_defs = 0;
+    range->num_uses = 0;
+    return idx;
+}
+
+/* quick accessors for common checks */
+static inline MVMint32 first_def(LiveRange *range) {
+    return range->defs[0];
+}
+
+static inline MVMint32 last_use(LiveRange *v) {
+    return (v->uses[v->num_uses-1]);
+}
+
+
+/* Functions to maintain a heap of references to the live ranges */
+void live_range_heap_down(LiveRange *values, MVMint32 *heap, MVMint32 top, MVMint32 item) {
+    while (item < top) {
+        MVMint32 left = item * 2 + 1;
+        MVMint32 right = left + 1;
+        MVMint32 swap;
+        if (right < top) {
+            swap = first_def(&values[heap[left]]) < first_def(&values[heap[right]]) ? left : right;
+        } else if (left < top) {
+            swap = left;
+        } else {
+            break;
+        }
+        if (first_def(&values[heap[swap]]) < first_def(&values[heap[item]])) {
+            MVMint32 temp = heap[swap];
+            heap[swap] = heap[item];
+            heap[item] = temp;
+            item = swap;
+        } else {
+            break;
+        }
+    }
+}
+
+void live_range_heap_up(LiveRange *values, MVMint32 *heap, MVMint32 item) {
+    while (item > 0) {
+        MVMint32 parent = (item-1)/2;
+        if (first_def(&values[heap[parent]]) < first_def(&values[heap[item]])) {
+            MVMint32 temp = heap[parent];
+            heap[parent] = heap[item];
+            heap[item]   = temp;
+            item = parent;
+        } else {
+            break;
+        }
+    }
+}
+
+MVMint32 live_range_heap_pop(LiveRange *values, MVMint32 *heap, MMVint32 *top) {
+    MVMint32 v = heap[0];
+    MVMint32 t = --(*top);
+    /* pop by swap and heap-down */
+    heap[0]    = heap[t];
+    live_range_heap_down(values, heap, t, 0);
+    return v;
+}
+
+void live_range_heapify(LiveRange *values, MVMint32 *heap, MVMint32 top) {
+    MVMint32 i = top, mid = top/2;
+    while (i-- > mid) {
+        live_range_heap_up(values, heap, i);
+    }
+}
+
+
 static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, RegisterAllocator *alc) {
-    MVMint32 i, j, k;
+    MVMint32 i, j;
     MVMint32 num_use = 0, num_def = 0, num_live_range = 0;
     MVMint32 tile_nodes[16];
     MVMint32 *use_buf, *def_buf;
@@ -102,13 +179,14 @@ static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, Re
             num_use += tile->num_values;
             num_live_range++;
         }
+        /* NB - need to kill this bit! */
         if (tile->template) {
             /* read the tile */
             MVM_jit_expr_tree_get_nodes(tc, list->tree, tile->node, tile->template->path, tile_nodes);
             for (j = 0; j < tile->num_values; j++) {
                 if ((tile->template->value_bitmap & (1 << j)) == 0)
                     continue; /* is a constant parameter to the tile, not a reference */
-                used_node = tile_nodes[j];
+                used_node = tile->nodes[j];
                 /* account its use */
                 value_set_find(alc->sets, used_tile)->num_uses++;
             }
@@ -116,8 +194,12 @@ static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, Re
         /* I don't think we have inserted things before that actually refer to
          * tiles, just various jumps to implement IF/WHEN/ANY/ALL handling */
     }
-    /* Initialize buffers. NB: need to increase the size of this */
-    alc->values = MVM_malloc(sizeof(LiveRange)*num_live_range);
+
+    /* Initialize buffers. Live range buffer can grow, uses-and-definitions
+     * buffer never needs to, because any split can just reuse the buffers */
+    MVM_VECTOR_INIT(alc->values, num_live_range);
+    MVM_VECTOR_INIT(alc->worklist, num_live_range);
+    MVM_VECTOR_INIT(alc->retired, num_live_range);
     alc->use_defs_buf = MVM_malloc(sizeof(MVMint32) * (num_defs + num_uses));
 
     /* split buf in two */
@@ -126,10 +208,10 @@ static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, Re
 
     /* live range allocation cursor */
     k = 0;
-    /* second pass, translate the found sets and used nodes to live
-     * ranges.  because we iterate in ascending order over tiles, uses
-     * and defs are automatically ordered too. TODO: figure out a way
-     * to represent register preferences! */
+    /* second pass, translate the found sets and used nodes to live ranges.
+     * because we iterate in ascending order over tiles, uses and defs are
+     * automatically ordered too. TODO: figure out a way to represent register
+     * preferences! */
     for (i = 0; i < list->items_num; i++) {
         MVMJitTile * tile;
         if (TILE_YIELDS_VALUE(tile)) {
@@ -137,162 +219,114 @@ static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, Re
             LiveRange *value_range;
             if (value_set->live_range < 0) {
                 /* first definition, allocate the live range for this block */
-                value_set->live_range = k++;
-                value_range = alc->values[value_set->live_range];
-                value_range->defs = def_buf;
-                value_range->uses = use_buf;
+                value_set->live_range = live_range_init(alc, def_buf, use_buf);
                 /* bump pointers */
                 def_buf += value_set->num_defs;
                 use_buf += value_set->num_uses;
-                /* set cursor/counts */
-                value_range->num_defs = 0;
-                value_range->num_uses = 0;
-            } else {
-                value_range = alc->values[value_set->live_range];
+                /* add to the work list (which is automatically in first-definition order) */
+                MVM_VECTOR_PUSH(alc->worklist, value_set->live_range);
             }
+            value_range = alc->values[value_set->live_range];
             /* add definition */
             value_range->defs[value_range->num_defs++] = i;
         }
         /* Add uses */
         for (j = 0; j < tile->num_values; j++) {
-            UnionFind *use_set = value_set_find(alc->sets, tile_nodes[j]);
+            /* NB - this is a good place to translate between nodes and live range idxs */
+            UnionFind *use_set = value_set_find(alc->sets, tile->nodes[j]);
             LiveRange *use_range = alc->values[use_set->live_range];
             use_range[use_range->num_uses++] = i;
         }
-        /* We kind of do need to maintain a tile->live range mapping,
-           if only to point to inserted tiles.... OR we handle that
-           differently by making a SPILLS array, which may actually be
-           more cleverer, and saves us from maintaining two more
-           buffers (at the cost of having to read the tile nodes again
-           and again) */
     }
 }
 
-static inline MVMint32 last_use(LiveRange *v) {
-    return (v->uses[v->num_uses-1]);
-}
-
-static void live_set_add(MVMThreadContext *tc, RegisterAllocator *alc, LiveRange *value) {
-    /* the original linear-scan heuristic for spilling is to take the
-       * last value in the set to expire, freeeing up the largest
-       * extent of code... that is a reasonably good heuristic, albeit
-       * not essential to the concept of linear scan. It makes sense
-       * to keep the stack ordered at all times (simplest by use of
-       * insertion sort). Although insertion sort is O(n^2), n is
-       * never large in this case (32 for RISC architectures, maybe,
-       * if we ever support them; 7 for x86-64. So the time spent on
-       * insertion sort is always small and bounded by a constant,
-       * hence O(1). Yes, algorithmics works this way :-) */
+/* The code below needs some thinking... */
+static void active_set_add(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 a) {
+    /* the original linear-scan heuristic for spilling is to take the last value
+     * in the set to expire, freeeing up the largest extent of code... that is a
+     * reasonably good heuristic, albeit not essential to the concept of linear
+     * scan. It makes sense to keep the stack ordered at all times (simplest by
+     * use of insertion sort). Although insertion sort is O(n^2), n is never
+     * large in this case (32 for RISC architectures, maybe, if we ever support
+     * them; 7 for x86-64. So the time spent on insertion sort is always small
+     * and bounded by a constant, hence O(1). Yes, algorithmics works this way
+     * :-) */
     MVMint32 i;
     for (i = 0; i < alc->live_set_top; i++) {
-        LiveRange *b = alc->live_set[i];
-        if (last_use(b) > last_use(value)) {
-            /* insert before b */
-            memmove(alc->live_set + i + 1, alc->live_set + i, sizeof(LiveRange*)*(live_set_top - i));
-            alc->live_set[i] = value;
-            alc->live_set_top++;
+        MVMint32 b = alc->active[i];
+        if (last_use(&alc->values[b]) > last_use(&alc->values[a])) {
+            /* insert a before b */
+            memmove(alc->active + i + 1, alc->active + i, sizeof(MVMint32)*(alc->active_top - i));
+            alc->active[i] = b;
+            alc->active_top++;
             return;
         }
     }
     /* append at the end */
-    alc->live_set[alc->live_set_top++] = value;
+    alc->active[alc->active_top++] = value;
 }
 
-static void live_set_spill(MVMThreadContext *tc, MVMJitTileList *list, RegisterAllocator *alc, MVMint32 position) {
-    /* Naive implementation of spill:
-     * Remove the value from the set;
-     * after each definition, insert a store.
-     * before each use, insert a load
-     * create live ranges for each of the pair of definitions and uses */
-    LiveRange *to_spill = alc->values[--alc->values_top];
-    MVMint32 i;
-    /* get a storage location probably wants to just get the top slot, but it
-     * could (in theory) reuse 'natural' storage location.  One of the
-     * challenges with that is that we may have more than one of those, because
-     * we unfiy the COPY nodes (which are the implementation of MVM_OP_set).
-     * This remains not a problem as long as we don't start optimistically
-     * removing stores (which we should) */
-    MVMint32 storage_location = get_storage_location_for_range(tc, alc, to_spill);
-    for (i = 0; i < to_spill->num_defs; i++) {
-        MVMint32 seq_nr = to_spill->defs[i];
-        /* Create a new live range with a new live range key, which lives just  */
-        LiveRange *new_range  = create_new_live_range(tc, alc, seq_nr, seq_nr);
-        MVMJitTile *store = MVM_jit_tile_make(tc, MVM_jit_compile_store, 1, 1, new_range->key, storage_location);
-        MVM_jit_tile_list_insert(tc, list, store, seq_nr, 1);  /* insert just after */
-    }
-    for (i = 0; i < to_spill->num_uses; i++) {
-        MVMint32 seq_nr = to_spill->uses[i];
-        /* insert a load of this particular value */
-        LiveRange *new_range = create_new_live_range(tc, alc, seq_nr, seq_nr); /* always a good idea to use a mysterious function */
-        MVMJitTile *load = MVM_jit_tile_make(tc, MVM_jit_compile_load, 1, 1, new_range->key, storage_location);
-        MVM_jit_tile_list_insert(tc, list, store, seq_nr, -1); /* insert just before */
-    }
-}
-
-static void live_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 position) {
-
+static void active_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 position) {
     MVMint32 i;
     for (i = 0; i < alc->live_set_top; i++) {
-        if (last_use(alc->live_set[i]) < first_def(value)) {
+        MVMint32 v = alc->active[i];
+        if (last_use(&alc->values[v]) > position) {
             break;
         }
-        /* TODO remove register preferences from the table */
+        /* retire this live range */
+        MVM_VECTOR_PUSH(alc->retired, v);
     }
 
     /* shift off the first x values from the live set. */
-    if (x > 0) {
-        alc->live_set_top -= x;
-        memmove(alc->live_set, alc->live_set + x, alc->live_set_top);
-    }
-}
-/* NB we could conceivably have a range split, which complicates the buffer-splitting logic */
-static void live_range_split(MVMThreadContext *tc, MVMJitTileList *list, RegisterAllocator *alc,
-                             LiveRange *to_split, MVMint32 position, LiveRange *out) {
-    MVMint32 i, j;
-    MVMint32 to_split_key = value_set_find(tc, alc->sets, to_split->key)->key;
-
-    for (i = 0; i < to_split->num_defs; i++) {
-        if (to_split->defs[i] >= position) {
-            /* cut in two pieces */
-            out->defs = to_split->defs + i;
-            out->num_defs = to_split->num_defs - i;
-            to_split->num_defs = i;
-            break;
-        }
-    }
-    for (i = 0; i < to_split->num_uses; i++) {
-        if (to_split->uses[i] >= position) {
-            out->uses = to_split->uses + i;
-            out->num_uses = to_split->num_uses - i;
-            to_split->num_uses = i;
-            break;
-        }
-    }
-    /* Update references to the new live range key */
-    for (i = 0; i < to_spill->num_uses; i++) {
-        MVMJitTile *tile = list->items[to_spill->uses[i]];
-        for (j = 1; j < tile->num_values; j++) {
-            if (value_set_find(tc, alc, tile->values[j])->key == to_split_key) {
-                tile->values[j] = out->key;
-            }
-        }
+    if (i > 0) {
+        alc->active_top -= i;
+        memmove(alc->active, alc->active + i, alc->active_top * sizeof(MVMint32));
     }
 }
 
-static inline MVMint32 first_def(LiveRange *v) {
-    return (v->defs[0]);
+
+static void spill_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 position) {
+    /* Spilling involves the following:
+       - choosing a live range from the active set to spill
+       - finding a place where to spill it
+       - choosing whether to split this live range in a pre-spill and post-spill part
+          - potentially spill only part of it
+       - for each definition (in the spilled range),
+          - make a new live range that
+          - reuses the use and def pointer for the definition
+          - insert a store just after the defintion
+          - and if it lies in the future, put it on worklist, if it lies in the past, put it on the retired list
+          - and update the definition to point to the newly created live range
+       - for each use (in the spilled range)
+          - make a new live range that reuses the use and def pointer for the use
+          - insert a load just before the use
+          - if it lies in the future, put it on the worklist, if it lies in the past, put it on the retired list
+          - update the using tile to point to the newly created live range
+       - remove it from the active set
+    */
+}
+
+static void split_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 from, MVMint32 to) {
 }
 
 static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
     MVMint32 i, j;
-    for (i = 0; i < alc->values_num; i++) {
-        LiveRange *value = alc->values[i];
-        /* find old values we can expire */
-        live_set_expire(tc, alc, first_def(value));
-        /* add to live set */
-        if (alc->values_top == MAX_LIVE) {
-            live_set_spill(tc, alc, first_def(value));
+    while (alc->worklist_top > 0) {
+        MVMint32 v = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_top);
+        MVMint32 pos = first_def(&alc->values[v]);
+        active_set_expire(tc, alc, pos);
+        if (alc->active_top >= MAX_ACTIVE) {
+            spill_live_range(tc, alc, list, pos);
         }
-        live_set_add(tc, alc, value);
+        active_set_add(tc, alc, v);
+    }
+    /* flush active live ranges */
+    for (i = 0; i < alc->active_top; i++) {
+        MVM_VECTOR_PUSH(alc->retired, alc->active[i]);
+    }
+    live_range_heapify(tc, alc->retired, alc->retired_top);
+    while (alc->retired_top > 0) {
+        MVMint32 v = live_range_heap_pop(alc->values, &alc->retired, alc->retired_top);
+        /* assign registers, wants some thinking on tile structure as well */
     }
 }
