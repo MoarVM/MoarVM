@@ -2831,6 +2831,8 @@ void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVM
         MVMSerializationReader *sr = sc->body->sr;
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
         if (st->method_cache_sc) {
+            MVMObject *cache;
+
             /* Set reader's position. */
             sr->stables_data_offset    = st->method_cache_offset;
             sr->cur_read_buffer        = &(sr->root.stables_data);
@@ -2843,10 +2845,10 @@ void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVM
             MVM_gc_allocate_gen2_default_set(tc);
 
             /* Deserialize what we need. */
-            MVM_ASSIGN_REF(tc, &(st->header), st->method_cache,
-                MVM_serialization_read_ref(tc, sr));
+            cache = MVM_serialization_read_ref(tc, sr);
             if (sr->working == 1)
                 work_loop(tc, sr);
+            MVM_ASSIGN_REF(tc, &(st->header), st->method_cache, cache);
 
             /* Clear up. */
             MVM_gc_allocate_gen2_default_clear(tc);
