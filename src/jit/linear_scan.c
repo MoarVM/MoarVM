@@ -41,7 +41,7 @@ typedef struct {
     MVM_VECTOR_DECL(MVMint32, retired);
 
     /* Register handout ring */
-    MVMint8 reg_buf[NUM_GPR];
+    MVMint8  reg_ring[NUM_GPR];
     MVMint32 reg_give, reg_take;
 
     MVMint32 spill_top;
@@ -133,6 +133,13 @@ MVMint32 live_range_heap_pop(LiveRange *values, MVMint32 *heap, MMVint32 *top) {
     heap[0]    = heap[t];
     live_range_heap_down(values, heap, t, 0);
     return v;
+}
+
+void live_range_heap_push(LiveRange *values, MVMint32 *heap, MVMint32 *top, MVMint32 v) {
+    /* NB, caller should use MVM_ENSURE_SPACE prior to calling */
+    MVMint32 t = (*top)++;
+    heap[t] = v;
+    live_range_heap_up(values, heap, t);
 }
 
 void live_range_heapify(LiveRange *values, MVMint32 *heap, MVMint32 top) {
@@ -266,6 +273,7 @@ static void active_set_add(MVMThreadContext *tc, RegisterAllocator *alc, MVMint3
     alc->active[alc->active_top++] = value;
 }
 
+/* Take live ranges from active_set whose last use was after position and append them to the retired list */
 static void active_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 position) {
     MVMint32 i;
     for (i = 0; i < alc->live_set_top; i++) {
@@ -273,12 +281,11 @@ static void active_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
         if (last_use(&alc->values[v]) > position) {
             break;
         }
-        /* retire this live range */
-        MVM_VECTOR_PUSH(alc->retired, v);
     }
 
     /* shift off the first x values from the live set. */
     if (i > 0) {
+        MVM_VECTOR_APPEND(alc->retired, alc->active, i);
         alc->active_top -= i;
         memmove(alc->active, alc->active + i, alc->active_top * sizeof(MVMint32));
     }
@@ -309,6 +316,36 @@ static void spill_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMJi
 static void split_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 from, MVMint32 to) {
 }
 
+/* register assignment logic */
+#define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
+#define NEXT_IN_RING(a,x) (((x)+1)%ARRAY_SIZE(a))
+MVMint8 get_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls) {
+    /* ignore storage class for now */
+    MVMint8 reg_num;
+    if (NEXT_IN_RING(alc->reg_ring, alc->reg_take) == alc->reg_give) {
+        MVM_oops(tc, "Linear scan has run out of registers (this should never happen)");
+    }
+    reg_num       = alc->reg_ring[alc->reg_take];
+    alc->reg_ring[alc->reg_take] = -1; /* mark used */
+    alc->reg_take = NEXT_IN_RING(alc->reg_ring, alc->reg_take);
+    return reg;
+}
+
+void free_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls, MVMint8 reg_num) {
+    if (alc->reg_give == alc->reg_take) {
+        MVM_oops(tc, "Trying to release more registers than fit into the ring");
+    }
+    alc->reg_ring[alc->reg_give] = reg_num;
+    alc->reg_give = NEXT_IN_RING(alc->reg_ring, alc->reg_give);
+}
+/* not sure if this is sufficiently general-purpose and unconfusing */
+#define MVM_VECTOR_ASSIGN(a,b) do {             \
+        a = b;                                  \
+        a ## _top = b ## _top;                  \
+        a ## _alloc = b ## _alloc;              \
+    } while (0);
+
+
 static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
     MVMint32 i, j;
     while (alc->worklist_top > 0) {
@@ -324,9 +361,19 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
     for (i = 0; i < alc->active_top; i++) {
         MVM_VECTOR_PUSH(alc->retired, alc->active[i]);
     }
+    /* ensure that retired is a proper heap */
     live_range_heapify(tc, alc->retired, alc->retired_top);
-    while (alc->retired_top > 0) {
-        MVMint32 v = live_range_heap_pop(alc->values, &alc->retired, alc->retired_top);
+    {
+        /* swap lists, so that the retired becomes the worklist */
+        MVM_VECTOR_DECL(MVMint32, tmp);
+        MVM_VECTOR_ASSIGN(tmp, alc->retired);
+        MVM_VECTOR_ASSIGN(alc->retired, alc->worklist);
+        MVM_VECTOR_ASSIGN(alc->worklist, tmp);
+    }
+    /* hang on, this seems redundant (and it is!) */
+    while (alc->worklist_top > 0) {
+        MVMint32 v = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_top);
         /* assign registers, wants some thinking on tile structure as well */
+        MVMint32 pos = first_def(&alc->values[v]);
     }
 }
