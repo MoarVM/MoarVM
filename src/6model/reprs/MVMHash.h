@@ -25,16 +25,9 @@ struct MVMHash {
 /* Function for REPR setup. */
 const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
-#define MVM_HASH_ACTION(tc, hash, name, entry, action, member, size) \
-    action(hash_handle, hash, \
-        name->body.storage.blob_32, MVM_string_graphs(tc, name) * sizeof(size), entry); \
-
 #define MVM_HASH_ACTION_CACHE(tc, hash, name, entry, action, member, size) \
     action(hash_handle, hash, name->body.storage.blob_32, \
         MVM_string_graphs(tc, name) * sizeof(size), name->body.cached_hash_code, entry); \
-
-#define MVM_HASH_ACTION_SELECT(tc, hash, name, entry, action) \
-    MVM_HASH_ACTION(tc, hash, name, entry, action, storage.blob_32, MVMGrapheme32)
 
 #define MVM_HASH_ACTION_SELECT_CACHE(tc, hash, name, entry, action) \
     MVM_HASH_ACTION_CACHE(tc, hash, name, entry, action, storage.blob_32, MVMGrapheme32) \
