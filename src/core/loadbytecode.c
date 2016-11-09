@@ -61,7 +61,6 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     /* See if we already loaded this. */
     uv_mutex_lock(&tc->instance->mutex_loaded_compunits);
     MVM_tc_set_ex_release_mutex(tc, &tc->instance->mutex_loaded_compunits);
-    MVM_string_flatten(tc, filename);
     MVM_HASH_GET(tc, tc->instance->loaded_compunits, filename, loaded_name);
     if (loaded_name) {
         /* already loaded */
@@ -93,8 +92,6 @@ void MVM_load_bytecode_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *
 
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle)
         MVM_exception_throw_adhoc(tc, "loadbytecodefh requires an object with REPR MVMOSHandle");
-
-    MVM_string_flatten(tc, filename);
 
     MVMROOT(tc, filename, {
         MVMuint64 pos = MVM_io_tell(tc, oshandle);

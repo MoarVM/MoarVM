@@ -17,7 +17,6 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
 
     uv_mutex_lock(&tc->instance->mutex_ext_registry);
 
-    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, tc->instance->ext_registry, name, entry);
 
     /* Extension already loaded. */
@@ -60,7 +59,6 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
 
     uv_mutex_lock(&tc->instance->mutex_extop_registry);
 
-    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, tc->instance->extop_registry, name, entry);
 
     /* Op already registered, so just verify its signature. */
@@ -186,7 +184,6 @@ const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
 
     uv_mutex_lock(&tc->instance->mutex_extop_registry);
 
-    MVM_string_flatten(tc, record->name);
     MVM_HASH_GET(tc, tc->instance->extop_registry, record->name, entry);
 
     if (!entry) {

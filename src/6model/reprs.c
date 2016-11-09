@@ -153,7 +153,6 @@ static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMStrin
 
     /* Enter into registry. */
     tc->instance->repr_list[repr->ID] = entry;
-    MVM_string_flatten(tc, name);
     MVM_HASH_BIND(tc, tc->instance->repr_hash, name, entry);
 }
 
@@ -164,7 +163,6 @@ int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr) {
     uv_mutex_lock(&tc->instance->mutex_repr_registry);
 
     name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, repr->name);
-    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, tc->instance->repr_hash, name, entry);
     if (entry) {
         uv_mutex_unlock(&tc->instance->mutex_repr_registry);
@@ -247,7 +245,6 @@ static MVMReprRegistry * find_repr_by_name(MVMThreadContext *tc,
         MVMString *name) {
     MVMReprRegistry *entry;
 
-    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, tc->instance->repr_hash, name, entry)
 
     if (entry == NULL) {

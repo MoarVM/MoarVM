@@ -322,7 +322,6 @@ MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
 }
 static MVMObject * lexref_by_name(MVMThreadContext *tc, MVMObject *type, MVMString *name, MVMuint16 kind) {
     MVMFrame *cur_frame = tc->cur_frame;
-    MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
         if (lexical_names) {

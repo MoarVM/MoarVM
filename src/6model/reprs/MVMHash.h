@@ -31,9 +31,11 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
         key->body.cached_hash_code, value); \
 
 #define MVM_HASH_BIND(tc, hash, key, value) \
+    MVM_string_flatten(tc, key); \
     MVM_HASH_ACTION_CACHE(tc, hash, key, value, HASH_ADD_KEYPTR_CACHE)
 
 #define MVM_HASH_GET(tc, hash, key, value) \
+    MVM_string_flatten(tc, key); \
     MVM_HASH_ACTION_CACHE(tc, hash, key, value, HASH_FIND_CACHE)
 
 #define MVM_HASH_EXTRACT_KEY(tc, kdata, klen, key, error) \

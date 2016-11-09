@@ -378,7 +378,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVMuint8 found = 0;
                     if (!sf->body.fully_deserialized)
                         MVM_bytecode_finish_frame(tc, sf->body.cu, sf, 0);
-                    MVM_string_flatten(tc, name);
                     if (sf->body.lexical_names) {
                         MVMLexicalRegistry *entry;
                         MVM_HASH_GET(tc, sf->body.lexical_names, name, entry);

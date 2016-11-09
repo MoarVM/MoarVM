@@ -82,7 +82,6 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
     /* Try to locate existing cached callback info. */
     callback = MVM_frame_find_invokee(tc, callback, NULL);
     cuid     = ((MVMCode *)callback)->body.sf->body.cuuid;
-    MVM_string_flatten(tc, cuid);
     MVM_HASH_GET(tc, tc->native_callback_cache, cuid, callback_data_head);
 
     if (!callback_data_head) {

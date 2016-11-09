@@ -5,8 +5,6 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
     char *cpath;
     DLLib *lib;
 
-    MVM_string_flatten(tc, name);
-
     uv_mutex_lock(&tc->instance->mutex_dll_registry);
 
     MVM_HASH_GET(tc, tc->instance->dll_registry, name, entry);
@@ -56,7 +54,6 @@ int MVM_dll_free(MVMThreadContext *tc, MVMString *name) {
 
     uv_mutex_lock(&tc->instance->mutex_dll_registry);
 
-    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, tc->instance->dll_registry, name, entry);
 
     if (!entry) {
@@ -92,7 +89,6 @@ MVMObject * MVM_dll_find_symbol(MVMThreadContext *tc, MVMString *lib,
 
     uv_mutex_lock(&tc->instance->mutex_dll_registry);
 
-    MVM_string_flatten(tc, lib);
     MVM_HASH_GET(tc, tc->instance->dll_registry, lib, entry);
 
     if (!entry) {

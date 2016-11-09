@@ -1128,15 +1128,12 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
  * if it does not exist. Incorrect type always throws. */
 MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
     MVMFrame *cur_frame = tc->cur_frame;
-    MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
         if (lexical_names) {
             /* Indexes were formerly stored off-by-one to avoid semi-predicate issue. */
             MVMLexicalRegistry *entry;
-
             MVM_HASH_GET(tc, lexical_names, name, entry)
-
             if (entry) {
                 if (cur_frame->static_info->body.lexical_types[entry->value] == type) {
                     MVMRegister *result = &cur_frame->env[entry->value];
@@ -1168,7 +1165,6 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
  * chain. */
 MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister *value) {
     MVMFrame *cur_frame = tc->cur_frame;
-    MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
         if (lexical_names) {
@@ -1220,15 +1216,12 @@ MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString
 /* Looks up the address of the lexical with the specified name, starting with
  * the specified frame. Only works if it's an object lexical.  */
 MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
-    MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
         if (lexical_names) {
             /* Indexes were formerly stored off-by-one to avoid semi-predicate issue. */
             MVMLexicalRegistry *entry;
-
             MVM_HASH_GET(tc, lexical_names, name, entry)
-
             if (entry) {
                 if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj) {
                     MVMRegister *result = &cur_frame->env[entry->value];
@@ -1253,7 +1246,6 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
 /* Looks up the address of the lexical with the specified name, starting with
  * the specified frame. It checks all outer frames of the caller frame chain.  */
 MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame) {
-    MVM_string_flatten(tc, name);
     while (cur_caller_frame != NULL) {
         MVMFrame *cur_frame = cur_caller_frame;
         while (cur_frame != NULL) {
@@ -1261,9 +1253,7 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
             if (lexical_names) {
                 /* Indexes were formerly stored off-by-one to avoid semi-predicate issue. */
                 MVMLexicalRegistry *entry;
-
                 MVM_HASH_GET(tc, lexical_names, name, entry)
-
                 if (entry) {
                     if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj) {
                         MVMRegister *result = &cur_frame->env[entry->value];
@@ -1336,7 +1326,6 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
         last_time = tc->instance->dynvar_log_lasttime;
     }
 
-    MVM_string_flatten(tc, name);
     while (cur_frame != NULL) {
         MVMLexicalRegistry *lexical_names;
         MVMSpeshCandidate  *cand     = cur_frame->spesh_cand;
@@ -1579,7 +1568,6 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
     MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
     if (lexical_names) {
         MVMLexicalRegistry *entry;
-        MVM_string_flatten(tc, name);
         MVM_HASH_GET(tc, lexical_names, name, entry)
         if (entry)
             return &f->env[entry->value];
@@ -1598,7 +1586,6 @@ MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFrame *f, MVMSt
     MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
     if (lexical_names) {
         MVMLexicalRegistry *entry;
-        MVM_string_flatten(tc, name);
         MVM_HASH_GET(tc, lexical_names, name, entry)
         if (entry && f->static_info->body.lexical_types[entry->value] == type) {
             MVMRegister *result = &f->env[entry->value];
@@ -1615,7 +1602,6 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
     MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
     if (lexical_names) {
         MVMLexicalRegistry *entry;
-        MVM_string_flatten(tc, name);
         MVM_HASH_GET(tc, lexical_names, name, entry)
         if (entry) {
             switch (f->static_info->body.lexical_types[entry->value]) {
