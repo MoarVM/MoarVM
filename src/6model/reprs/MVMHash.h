@@ -25,15 +25,16 @@ struct MVMHash {
 /* Function for REPR setup. */
 const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
-#define MVM_HASH_ACTION_CACHE(tc, hash, name, entry, action) \
-    action(hash_handle, hash, name->body.storage.blob_32, \
-        MVM_string_graphs(tc, name) * sizeof(MVMGrapheme32), name->body.cached_hash_code, entry); \
+#define MVM_HASH_ACTION_CACHE(tc, hash, key, value, action) \
+    action(hash_handle, hash, key->body.storage.blob_32, \
+        MVM_string_graphs(tc, key) * sizeof(MVMGrapheme32), \
+        key->body.cached_hash_code, value); \
 
-#define MVM_HASH_BIND(tc, hash, name, entry) \
-    MVM_HASH_ACTION_CACHE(tc, hash, name, entry, HASH_ADD_KEYPTR_CACHE)
+#define MVM_HASH_BIND(tc, hash, key, value) \
+    MVM_HASH_ACTION_CACHE(tc, hash, key, value, HASH_ADD_KEYPTR_CACHE)
 
-#define MVM_HASH_GET(tc, hash, name, entry) \
-    MVM_HASH_ACTION_CACHE(tc, hash, name, entry, HASH_FIND_CACHE)
+#define MVM_HASH_GET(tc, hash, key, value) \
+    MVM_HASH_ACTION_CACHE(tc, hash, key, value, HASH_FIND_CACHE)
 
 #define MVM_HASH_EXTRACT_KEY(tc, kdata, klen, key, error) \
 if (!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString && IS_CONCRETE(key)) { \
