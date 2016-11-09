@@ -26,27 +26,27 @@ struct MVMHash {
 const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
 #define MVM_HASH_ACTION_CACHE(tc, hash, key, value, action) \
-    action(hash_handle, hash, key->body.storage.blob_32, \
+    action(hash_handle, hash, (key)->body.storage.blob_32, \
         MVM_string_graphs(tc, key) * sizeof(MVMGrapheme32), \
-        key->body.cached_hash_code, value); \
+        (key)->body.cached_hash_code, value); \
 
 #define MVM_HASH_BIND(tc, hash, key, value) \
-    MVM_string_flatten(tc, key); \
-    MVM_HASH_ACTION_CACHE(tc, hash, key, value, HASH_ADD_KEYPTR_CACHE)
+    do { \
+        MVM_string_flatten(tc, key); \
+        MVM_HASH_ACTION_CACHE(tc, hash, key, value, HASH_ADD_KEYPTR_CACHE); \
+    } while (0);
 
 #define MVM_HASH_GET(tc, hash, key, value) \
-    MVM_string_flatten(tc, key); \
-    MVM_HASH_ACTION_CACHE(tc, hash, key, value, HASH_FIND_CACHE)
-
-#define MVM_HASH_EXTRACT_KEY(tc, kdata, klen, key, error) \
-if (!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString && IS_CONCRETE(key)) { \
-    MVM_string_flatten(tc, (MVMString *)key); \
-    *kdata = ((MVMString *)key)->body.storage.blob_32; \
-    *klen  = ((MVMString *)key)->body.num_graphs * sizeof(MVMGrapheme32); \
-} \
-else { \
-    MVM_exception_throw_adhoc(tc, error); \
-}
+    do { \
+        if (!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString \
+                && IS_CONCRETE(key)) { \
+            MVM_string_flatten(tc, key); \
+            MVM_HASH_ACTION_CACHE(tc, hash, key, value, HASH_FIND_CACHE); \
+        } \
+        else { \
+            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings"); \
+        } \
+    } while (0);
 
 #define MVM_HASH_DESTROY(hash_handle, hashentry_type, head_node) do { \
     hashentry_type *current, *tmp; \

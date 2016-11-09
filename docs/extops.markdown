@@ -1,4 +1,4 @@
-### Extensions and Extension Ops [proposed/tentative]
+## Extensions and Extension Ops [proposed/tentative]
 
 #### The MoarVM Opcodes Overview
 
@@ -180,8 +180,7 @@ void MVM_bytecode_extop_install(MVMThreadContext *tc, MVMObject *library,
     void *kdata;
     size_t klen;
 
-    MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, opname, "bad String");
-    HASH_FIND(hash_handle, tc->instance->customops_hash, kdata, klen, customop);
+    MVM_HASH_GET(tc, tc->instance->customops_hash, opname, customop);
     if (customop)
         MVM_panic(tc, "already installed custom op by this name");
 

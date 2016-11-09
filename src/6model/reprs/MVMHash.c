@@ -3,6 +3,12 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
+MVM_STATIC_INLINE MVMString * get_string_key(MVMThreadContext *tc, MVMObject *key) {
+    if (REPR(key)->ID != MVM_REPR_ID_MVMString || !IS_CONCRETE(key))
+        MVM_exception_throw_adhoc(tc, "MVMHash representation requires MVMString keys");
+    return (MVMString *)key;
+}
+
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
@@ -17,10 +23,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
-MVM_STATIC_INLINE void extract_key(MVMThreadContext *tc, void **kdata, size_t *klen, MVMObject *key) {
-    MVM_HASH_EXTRACT_KEY(tc, kdata, klen, key, "MVMHash representation requires defined MVMString keys")
-}
-
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMHashBody *src_body  = (MVMHashBody *)src;
@@ -30,15 +32,11 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
     /* NOTE: if we really wanted to, we could avoid rehashing... */
     HASH_ITER(hash_handle, src_body->hash_head, current, tmp, bucket_tmp) {
-        size_t klen;
-        void *kdata;
         MVMHashEntry *new_entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
             sizeof(MVMHashEntry));
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
-        extract_key(tc, &kdata, &klen, new_entry->key);
-
-        HASH_ADD_KEYPTR(hash_handle, dest_body->hash_head, kdata, klen, new_entry);
+        MVM_HASH_BIND(tc, dest_body->hash_head, (MVMString *)new_entry->key, new_entry);
     }
 }
 
@@ -69,13 +67,11 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), tmp);
 }
 
-static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister *result, MVMuint16 kind) {
+static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind) {
     MVMHashBody *body = (MVMHashBody *)data;
-    void *kdata;
     MVMHashEntry *entry;
-    size_t klen;
-    extract_key(tc, &kdata, &klen, key);
-    HASH_FIND_CACHE(hash_handle, body->hash_head, kdata, klen, ((MVMString *)key)->body.cached_hash_code, entry);
+    MVMString *key = get_string_key(tc, key_obj);
+    MVM_HASH_GET(tc, body->hash_head, key, entry);
     if (kind == MVM_reg_obj)
         result->o = entry != NULL ? entry->value : tc->instance->VMNull;
     else
@@ -83,30 +79,26 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             "MVMHash representation does not support native type storage");
 }
 
-static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister value, MVMuint16 kind) {
+static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {
     MVMHashBody *body = (MVMHashBody *)data;
-    void *kdata;
     MVMHashEntry *entry;
-    size_t klen;
 
-    extract_key(tc, &kdata, &klen, key);
+    MVMString *key = get_string_key(tc, key_obj);
+    if (kind != MVM_reg_obj)
+        MVM_exception_throw_adhoc(tc,
+            "MVMHash representation does not support native type storage");
 
     /* first check whether we can must update the old entry. */
-    HASH_FIND_CACHE(hash_handle, body->hash_head, kdata, klen, ((MVMString *)key)->body.cached_hash_code, entry);
+    MVM_HASH_GET(tc, body->hash_head, key, entry);
     if (!entry) {
         entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
             sizeof(MVMHashEntry));
-        HASH_ADD_KEYPTR(hash_handle, body->hash_head, kdata, klen, entry);
-    }
-    else
-        entry->hash_handle.key = (void *)kdata;
-    MVM_ASSIGN_REF(tc, &(root->header), entry->key, key);
-    if (kind == MVM_reg_obj) {
+        MVM_ASSIGN_REF(tc, &(root->header), entry->key, key_obj);
         MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
+        MVM_HASH_BIND(tc, body->hash_head, key, entry);
     }
     else {
-        MVM_exception_throw_adhoc(tc,
-            "MVMHash representation does not support native type storage");
+        MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
     }
 }
 
@@ -115,25 +107,19 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     return HASH_CNT(hash_handle, body->hash_head);
 }
 
-static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj) {
     MVMHashBody *body = (MVMHashBody *)data;
-    void *kdata;
+    MVMString *key = get_string_key(tc, key_obj);
     MVMHashEntry *entry;
-    size_t klen;
-    extract_key(tc, &kdata, &klen, key);
-
-    HASH_FIND_CACHE(hash_handle, body->hash_head, kdata, klen, ((MVMString *)key)->body.cached_hash_code, entry);
+    MVM_HASH_GET(tc, body->hash_head, key, entry);
     return entry != NULL;
 }
 
-static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
+static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj) {
     MVMHashBody *body = (MVMHashBody *)data;
+    MVMString *key = get_string_key(tc, key_obj);
     MVMHashEntry *old_entry;
-    size_t klen;
-    void *kdata;
-    extract_key(tc, &kdata, &klen, key);
-
-    HASH_FIND_CACHE(hash_handle, body->hash_head, kdata, klen, ((MVMString *)key)->body.cached_hash_code, old_entry);
+    MVM_HASH_GET(tc, body->hash_head, key, old_entry);
     if (old_entry) {
         HASH_DELETE(hash_handle, body->hash_head, old_entry);
         MVM_fixed_size_free(tc, tc->instance->fsa,
