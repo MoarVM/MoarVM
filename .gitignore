@@ -1,6 +1,7 @@
 # Editor backups
 *~
 *.bak
+*.swp
 # Emacs specfic in-use files
 \#*\#
 .#*
