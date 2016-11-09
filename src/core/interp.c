@@ -1087,7 +1087,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 2).s);
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "bindexmessage needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "bindexmessage needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 }
                 cur_op += 4;
                 goto NEXT;
@@ -1099,7 +1099,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 2).o);
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "bindexpayload needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "bindexpayload needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 }
                 cur_op += 4;
                 goto NEXT;
@@ -1109,7 +1109,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     ((MVMException *)ex)->body.category = GET_REG(cur_op, 2).i64;
                 else
-                    MVM_exception_throw_adhoc(tc, "bindexcategory needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "bindexcategory needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -1118,7 +1118,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     GET_REG(cur_op, 0).s = ((MVMException *)ex)->body.message;
                 else
-                    MVM_exception_throw_adhoc(tc, "getexmessage needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "getexmessage needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -1127,7 +1127,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     GET_REG(cur_op, 0).o = ((MVMException *)ex)->body.payload;
                 else
-                    MVM_exception_throw_adhoc(tc, "getexpayload needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "getexpayload needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 if (!GET_REG(cur_op, 0).o)
                     GET_REG(cur_op, 0).o = tc->instance->VMNull;
                 cur_op += 4;
@@ -1138,7 +1138,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     GET_REG(cur_op, 0).i64 = ((MVMException *)ex)->body.category;
                 else
-                    MVM_exception_throw_adhoc(tc, "getexcategory needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "getexcategory needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3847,7 +3847,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     ((MVMException *)ex)->body.return_after_unwind = 1;
                 else
-                    MVM_exception_throw_adhoc(tc, "exreturnafterunwind needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "exreturnafterunwind needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 cur_op += 2;
                 goto NEXT;
             }
