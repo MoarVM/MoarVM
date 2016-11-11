@@ -46,7 +46,7 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
     MVM_HASH_ACTION_SELECT_CACHE(tc, hash, name, entry, HASH_FIND_CACHE)
 
 #define MVM_HASH_EXTRACT_KEY(tc, kdata, klen, key, error) \
-if (REPR(key)->ID == MVM_REPR_ID_MVMString && IS_CONCRETE(key)) { \
+if (!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString && IS_CONCRETE(key)) { \
     MVM_string_flatten(tc, (MVMString *)key); \
     *kdata = ((MVMString *)key)->body.storage.blob_32; \
     *klen  = ((MVMString *)key)->body.num_graphs * sizeof(MVMGrapheme32); \
