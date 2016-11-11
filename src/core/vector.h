@@ -44,3 +44,9 @@
         memcpy(x + x ## _num, ar, _l * sizeof(x[0])); \
         x ## _num += _l; \
     } while(0)
+
+#define MVM_VECTOR_SHIFT(x, len) do { \
+        size_t _l = (len); \
+        memmove((x), (x) + _l, ((x ## _top) - _l) * sizeof(x[0])); \
+        x ## _top -= _l; \
+    } while (0);
