@@ -163,6 +163,7 @@ typedef struct {
     wchar_t *dir_name;
     HANDLE   dir_handle;
 #else
+    char    *dir_name;
     DIR     *dir_handle;
 #endif
     MVMuint8 encoding;
@@ -178,9 +179,9 @@ static void set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIODirIter *data = (MVMIODirIter *)d;
     if (data) {
-#ifdef _WIN32
         if (data->dir_name)
             MVM_free(data->dir_name);
+#ifdef _WIN32
         if (data->dir_handle)
             FindClose(data->dir_handle);
 #else
@@ -260,11 +261,11 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     char * const dir_name = MVM_string_utf8_c8_encode_C_string(tc, dirname);
     DIR * const dir_handle = opendir(dir_name);
     int opendir_error = errno;
-    MVM_free(dir_name);
 
     if (!dir_handle)
         MVM_exception_throw_adhoc(tc, "Failed to open dir: %d", opendir_error);
 
+    data->dir_name   = dir_name;
     data->dir_handle = dir_handle;
 #endif
 
@@ -318,16 +319,25 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
         return tc->instance->str_consts.empty;
     }
 #else
-    struct dirent entry;
+#  if defined(sun) || defined(__sun)
+    /* dirent on Solaris is too small to actually keep directory entries. */
+    long NAME_MAX        = pathconf(data->dir_name, _PC_NAME_MAX);
+    struct dirent *entry = MVM_malloc(offsetof(struct dirent, d_name) + NAME_MAX + 1);
+#  else
+    struct dirent *entry = MVM_malloc(sizeof(struct dirent));
+#  endif
+
     struct dirent *result;
     int ret;
 
-    ret = readdir_r(data->dir_handle, &entry, &result);
+    ret = readdir_r(data->dir_handle, entry, &result);
 
     if (ret == 0) {
-        if (result == NULL)
-            return tc->instance->str_consts.empty;
-        return MVM_string_decode(tc, tc->instance->VMString, entry.d_name, strlen(entry.d_name), data->encoding);
+        MVMString *ret = (result == NULL)
+                       ? tc->instance->str_consts.empty
+                       : MVM_string_decode(tc, tc->instance->VMString, entry->d_name, strlen(entry->d_name), data->encoding);
+        MVM_free(entry);
+        return ret;
     }
 
     MVM_exception_throw_adhoc(tc, "Failed to read dirhandle: %d", errno);
