@@ -270,10 +270,19 @@ if ($args{'has-libffi'}) {
         my $result = `$config{pkgconfig} --cflags libffi`;
         if ( $? == 0 ) {
             $result =~ s/\n/ /g;
-            $config{cincludes} .= ' ' . "$result";
+            $config{cincludes} .= " $result";
             print("Adding extra include for libffi: $result\n");
         } else {
             print("Error occured when running $config{pkgconfig} --cflags libffi.\n");
+        }
+    } elsif ($^O eq 'solaris') {
+        my ($first) = map { m,(.+)/ffi\.h$, && "/$1"  } grep { m,/ffi\.h$, } `pkg contents libffi`;
+        if ($first) {
+            $config{cincludes} .= " -I$first";
+            print("Adding extra include for libffi: $first\n");
+        }
+        else {
+            print("Unable to find ffi.h. Please install libffi by doing: 'sudo pkg install libffi'\n");
         }
     }
 }
