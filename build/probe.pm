@@ -41,7 +41,7 @@ sub _to_probe_dir {
         or die "Can't chir $probe_dir: $!";
     return $restore;
 }
-    
+
 sub compile {
     my ($config, $leaf, $defines, $files) = @_;
     my $restore = _to_probe_dir();
@@ -73,6 +73,59 @@ sub _spew {
         or die "Can't close $filename: $!";
 }
 
+sub compiler_usability {
+    my ($config) = @_;
+    my $restore  = _to_probe_dir();
+    my $leaf     = 'try';
+    my $file     = "$leaf.c";
+
+    _spew('try.c', <<'EOT');
+#include <stdlib.h>
+
+int main(int argc, char **argv) {
+     return EXIT_SUCCESS;
+}
+EOT
+
+    print ::dots('    trying to compile a simple C program');
+
+    my ($can_compile, $can_link, $command_errored, $error_message);
+    (my $obj = $file) =~ s/\.c/$config->{obj}/;
+    my $command = "$config->{cc} $config->{ccout}$obj $config->{ccswitch} $file 2>&1";
+    my $output  = `$command` || $!;
+    if ($? >> 8 == 0) {
+        $can_compile = 1;
+    }
+    else {
+        $command_errored = $command;
+        $error_message   = $output;
+    }
+
+    if ($can_compile) {
+        $command = "$config->{ld} $config->{ldout}$leaf $obj $config->{ldlibs} 2>&1";
+        $output  = `$command` || $!;
+        if ($? >> 8 == 0) {
+            $can_link = 1;
+        }
+        else {
+            $command_errored = $command;
+            $error_message   = $output;
+        }
+    }
+
+    if (!$can_compile || !$can_link) {
+        die "ERROR\n\n" .
+            "    Can't " . ($can_compile ? 'link' : 'compile') . " simple C program.\n" .
+            "    Failing command: $command_errored\n" .
+            "    Error: $error_message\n\n" .
+            "Cannot continue after this error.\n" .
+            "On linux, maybe you need something like 'sudo apt-get install build-essential'.\n" .
+            "On macOS, maybe you need to install XCode and accept the XCode EULA.\n";
+    }
+
+    print "YES\n";
+}
+
 sub static_inline_native {
     my ($config) = @_;
     my $restore = _to_probe_dir();
@@ -90,9 +143,7 @@ EOT
 
     print ::dots('    probing whether your compiler thinks that it is gcc');
     compile($config, 'try')
-        or die "Can't compile simple gcc probe, so something is badly wrong ("
-            . "if on linux, maybe you need something like 'sudo apt-get install build-essential'; "
-            . "if on macOS, maybe you need to install XCode and accept the XCode EULA)";
+        or die "Can't compile simple gcc probe, so something is badly wrong";
     my $gcc = !system './try';
     print $gcc ? "YES\n": "NO\n";
 
