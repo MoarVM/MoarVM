@@ -141,7 +141,6 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
     MVM_REPR_DEFAULT_DIMENSIONS, \
     MVM_REPR_DEFAULT_SET_DIMENSIONS, \
     MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC \
-    MVM_REPR_DEFAULT_SET_STRIDES \
 }
 
 /* Default associative functions for a REPR that lacks them. */
@@ -196,7 +195,6 @@ void MVM_REPR_DEFAULT_BIND_POS_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVM
 void MVM_REPR_DEFAULT_DIMENSIONS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions);
 void MVM_REPR_DEFAULT_SET_DIMENSIONS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *dimensions);
 MVMStorageSpec MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC(MVMThreadContext *tc, MVMSTable *st);
-void MVM_REPR_DEFAULT_SET_STRIDES(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *strides);
 
 /* Default associative indexing REPR function for a REPR that lacks it. */
 void MVM_REPR_DEFAULT_SPLICE(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *target_array, MVMint64 offset, MVMuint64 elems);

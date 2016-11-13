@@ -13,7 +13,7 @@ static MVMint64 flat_elements(MVMint64 num_dimensions, MVMint64 *dimensions) {
 }
 
 /* Computes the flat size from representation data. */
-static size_t flat_size(MVMMultiDimArrayREPRData *repr_data, MVMint64 *dimensions) {
+static size_t flat_size(MVMMultiDimArrayViewREPRData *repr_data, MVMint64 *dimensions) {
     return repr_data->elem_size * flat_elements(repr_data->num_dimensions, dimensions);
 }
 
@@ -58,7 +58,9 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
     MVMMultiDimArrayViewREPRData *repr_data = (MVMMultiDimArrayViewREPRData *)st->REPR_data;
     if (repr_data) {
         MVMObject *obj = MVM_gc_allocate_object(tc, st);
-        ((MVMMultiDimArray *)obj)->body.dimensions = MVM_fixed_size_alloc_zeroed(tc,
+        ((MVMMultiDimArrayView *)obj)->body.dimensions = MVM_fixed_size_alloc_zeroed(tc,
+            tc->instance->fsa, repr_data->num_dimensions * sizeof(MVMint64));
+        ((MVMMultiDimArrayView *)obj)->body.strides = MVM_fixed_size_alloc_zeroed(tc,
             tc->instance->fsa, repr_data->num_dimensions * sizeof(MVMint64));
         return obj;
     }
@@ -104,7 +106,7 @@ static void spec_to_repr_data(MVMThreadContext *tc, MVMMultiDimArrayViewREPRData
                         break;
                     default:
                         MVM_exception_throw_adhoc(tc,
-                            "MVMMultiDimArray: Unsupported uint size");
+                            "MVMMultiDimArrayView: Unsupported uint size");
                 }
             }
             else {
@@ -139,7 +141,7 @@ static void spec_to_repr_data(MVMThreadContext *tc, MVMMultiDimArrayViewREPRData
                         break;
                     default:
                         MVM_exception_throw_adhoc(tc,
-                            "MVMMultiDimArray: Unsupported int size");
+                            "MVMMultiDimArrayView: Unsupported int size");
                 }
             }
             break;
@@ -155,7 +157,7 @@ static void spec_to_repr_data(MVMThreadContext *tc, MVMMultiDimArrayViewREPRData
                     break;
                 default:
                     MVM_exception_throw_adhoc(tc,
-                        "MVMMultiDimArray: Unsupported num size");
+                        "MVMMultiDimArrayView: Unsupported num size");
             }
             break;
         case MVM_STORAGE_SPEC_BP_STR:
@@ -180,13 +182,13 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *repr_info) {
             dimensions = MVM_repr_get_int(tc, dims);
             if (dimensions < 1)
                 MVM_exception_throw_adhoc(tc,
-                    "MultiDimArray REPR must be composed with at least 1 dimension");
-            repr_data = MVM_calloc(1, sizeof(MVMMultiDimArrayREPRData));
+                    "MultiDimArrayView REPR must be composed with at least 1 dimension");
+            repr_data = MVM_calloc(1, sizeof(MVMMultiDimArrayViewREPRData));
             repr_data->num_dimensions = dimensions;
         }
         else {
             MVM_exception_throw_adhoc(tc,
-                "MultiDimArray REPR must be composed with a number of dimensions");
+                "MultiDimArrayView REPR must be composed with a number of dimensions");
         }
         if (!MVM_is_null(tc, type)) {
             const MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
@@ -201,15 +203,15 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *repr_info) {
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "MultiDimArray REPR must be composed with array information");
+            "MultiDimArrayView REPR must be composed with array information");
     }
 }
 
 /* Copies to the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMMultiDimArrayViewREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
-    MVMMultiDimArrayViewBody     *src_body  = (MVMMultiDimArrayBody *)src;
-    MVMMultiDimArrayViewBody     *dest_body = (MVMMultiDimArrayBody *)dest;
+    MVMMultiDimArrayViewREPRData *repr_data = (MVMMultiDimArrayViewREPRData *)st->REPR_data;
+    MVMMultiDimArrayViewBody     *src_body  = (MVMMultiDimArrayViewBody *)src;
+    MVMMultiDimArrayViewBody     *dest_body = (MVMMultiDimArrayViewBody *)dest;
     if (src_body->target) {
         size_t dim_size  = repr_data->num_dimensions * sizeof(MVMint64);
         size_t data_size = flat_size(repr_data, src_body->dimensions);
@@ -224,7 +226,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
-    MVMMultiDimArrayBody *body = (MVMMultiDimArrayBody *)data;
+    MVMMultiDimArrayViewBody *body = (MVMMultiDimArrayViewBody *)data;
     if (body->target) {
         MVM_gc_worklist_add(tc, worklist, body->target);
     }
@@ -232,20 +234,19 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-	MVMMultiDimArray *arr = (MVMMultiDimArray *)obj;
-    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)STABLE(obj)->REPR_data;
-    if (arr->body.slots.any)
-        MVM_fixed_size_free(tc, tc->instance->fsa,
-            flat_size(repr_data, arr->body.dimensions),
-            arr->body.slots.any);
+	MVMMultiDimArrayView *arr = (MVMMultiDimArrayView *)obj;
+    MVMMultiDimArrayViewREPRData *repr_data = (MVMMultiDimArrayViewREPRData *)STABLE(obj)->REPR_data;
     MVM_fixed_size_free(tc, tc->instance->fsa,
         repr_data->num_dimensions * sizeof(MVMint64),
         arr->body.dimensions);
+    MVM_fixed_size_free(tc, tc->instance->fsa,
+        repr_data->num_dimensions * sizeof(MVMint64),
+        arr->body.strides);
 }
 
 /* Marks the representation data in an STable.*/
 static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
-    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
+    MVMMultiDimArrayViewREPRData *repr_data = (MVMMultiDimArrayViewREPRData *)st->REPR_data;
     if (repr_data == NULL)
         return;
     MVM_gc_worklist_add(tc, worklist, &repr_data->elem_type);
@@ -309,7 +310,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
 /* Serializes the REPR data. */
 static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
-    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
+    MVMMultiDimArrayViewREPRData *repr_data = (MVMMultiDimArrayViewREPRData *)st->REPR_data;
     if (repr_data) {
         MVM_serialization_write_int(tc, writer, repr_data->num_dimensions);
         MVM_serialization_write_ref(tc, writer, repr_data->elem_type);
@@ -371,89 +372,89 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 }
 
 static void at_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister *value, MVMuint16 kind) {
-    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
+    MVMMultiDimArrayViewREPRData *repr_data = (MVMMultiDimArrayViewREPRData *)st->REPR_data;
     if (num_indices == repr_data->num_dimensions) {
         MVMMultiDimArrayViewBody *body = (MVMMultiDimArrayViewBody *)data;
         size_t flat_index = indices_to_flat_index(tc, repr_data->num_dimensions, body->dimensions, body->strides, indices, body->initial_position);
-        MVMMultiDimArrayBody *targetbody = ((MVMMultiDimArray*)body->target)->body;
+        MVMMultiDimArrayBody *targetbody = &((MVMMultiDimArray*)body->target)->body;
         switch (repr_data->slot_type) {
             case MVM_ARRAY_OBJ:
                 if (kind == MVM_reg_obj) {
-                    MVMObject *found = targetbody.slots.o[flat_index];
+                    MVMObject *found = targetbody->slots.o[flat_index];
                     value->o = found ? found : tc->instance->VMNull;
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected object register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: atpos expected object register");
                 }
                 break;
             case MVM_ARRAY_STR:
                 if (kind == MVM_reg_str)
                     value->s = targetbody->slots.s[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected string register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: atpos expected string register");
                 break;
             case MVM_ARRAY_I64:
                 if (kind == MVM_reg_int64)
                     value->i64 = (MVMint64)targetbody->slots.i64[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: atpos expected int register");
                 break;
             case MVM_ARRAY_I32:
                 if (kind == MVM_reg_int64)
                     value->i64 = (MVMint64)targetbody->slots.i32[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: atpos expected int register");
                 break;
             case MVM_ARRAY_I16:
                 if (kind == MVM_reg_int64)
                     value->i64 = (MVMint64)targetbody->slots.i16[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: atpos expected int register");
                 break;
             case MVM_ARRAY_I8:
                 if (kind == MVM_reg_int64)
                     value->i64 = (MVMint64)targetbody->slots.i8[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: atpos expected int register");
                 break;
             case MVM_ARRAY_N64:
                 if (kind == MVM_reg_num64)
                     value->n64 = (MVMnum64)targetbody->slots.n64[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected num register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: atpos expected num register");
                 break;
             case MVM_ARRAY_N32:
                 if (kind == MVM_reg_num64)
                     value->n64 = (MVMnum64)targetbody->slots.n32[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected num register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: atpos expected num register");
                 break;
             case MVM_ARRAY_U64:
                 if (kind == MVM_reg_int64)
                     value->i64 = (MVMint64)targetbody->slots.u64[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: atpos expected int register");
                 break;
             case MVM_ARRAY_U32:
                 if (kind == MVM_reg_int64)
                     value->i64 = (MVMint64)targetbody->slots.u32[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: atpos expected int register");
                 break;
             case MVM_ARRAY_U16:
                 if (kind == MVM_reg_int64)
                     value->i64 = (MVMint64)targetbody->slots.u16[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: atpos expected int register");
                 break;
             case MVM_ARRAY_U8:
                 if (kind == MVM_reg_int64)
                     value->i64 = (MVMint64)targetbody->slots.u8[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: atpos expected int register");
                 break;
             default:
-                MVM_exception_throw_adhoc(tc, "MultiDimArray: Unhandled slot type");
+                MVM_exception_throw_adhoc(tc, "MultiDimArrayView: Unhandled slot type");
         }
     }
     else {
@@ -466,89 +467,89 @@ static void at_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
 static void bind_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister value, MVMuint16 kind) {
     MVMMultiDimArrayViewREPRData *repr_data = (MVMMultiDimArrayViewREPRData *)st->REPR_data;
     if (num_indices == repr_data->num_dimensions) {
-        MVMMultiDimArrayBody *body = (MVMMultiDimArrayViewBody *)data;
+        MVMMultiDimArrayViewBody *body = (MVMMultiDimArrayViewBody *)data;
         size_t flat_index = indices_to_flat_index(tc, repr_data->num_dimensions, body->dimensions, body->strides, indices, body->initial_position);
-        MVMMultiDimArrayBody *targetheader = ((MVMMultiDimArray*)body->target)->common.header;
-        MVMMultiDimArrayBody *targetbody = ((MVMMultiDimArray*)body->target)->body;
+        MVMCollectable *targetheader = &((MVMMultiDimArray*)body->target)->common.header;
+        MVMMultiDimArrayBody *targetbody = &((MVMMultiDimArray*)body->target)->body;
         switch (repr_data->slot_type) {
             case MVM_ARRAY_OBJ:
                 if (kind == MVM_reg_obj) {
-                    MVM_ASSIGN_REF(tc, &targetheader, targetbody->slots.o[flat_index], value.o);
+                    MVM_ASSIGN_REF(tc, targetheader, targetbody->slots.o[flat_index], value.o);
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected object register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: bindpos expected object register");
                 }
                 break;
             case MVM_ARRAY_STR:
                 if (kind == MVM_reg_str) {
-                    MVM_ASSIGN_REF(tc, &targetheader, body->slots.s[flat_index], value.s);
+                    MVM_ASSIGN_REF(tc, targetheader, targetbody->slots.s[flat_index], value.s);
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected string register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: bindpos expected string register");
                 }
                 break;
             case MVM_ARRAY_I64:
                 if (kind == MVM_reg_int64)
-                    body->slots.i64[flat_index] = value.i64;
+                    targetbody->slots.i64[flat_index] = value.i64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: bindpos expected int register");
                 break;
             case MVM_ARRAY_I32:
                 if (kind == MVM_reg_int64)
-                    body->slots.i32[flat_index] = (MVMint32)value.i64;
+                    targetbody->slots.i32[flat_index] = (MVMint32)value.i64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: bindpos expected int register");
                 break;
             case MVM_ARRAY_I16:
                 if (kind == MVM_reg_int64)
-                    body->slots.i16[flat_index] = (MVMint16)value.i64;
+                    targetbody->slots.i16[flat_index] = (MVMint16)value.i64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: bindpos expected int register");
                 break;
             case MVM_ARRAY_I8:
                 if (kind == MVM_reg_int64)
-                    body->slots.i8[flat_index] = (MVMint8)value.i64;
+                    targetbody->slots.i8[flat_index] = (MVMint8)value.i64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: bindpos expected int register");
                 break;
             case MVM_ARRAY_N64:
                 if (kind == MVM_reg_num64)
-                    body->slots.n64[flat_index] = value.n64;
+                    targetbody->slots.n64[flat_index] = value.n64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected num register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: bindpos expected num register");
                 break;
             case MVM_ARRAY_N32:
                 if (kind == MVM_reg_num64)
-                    body->slots.n32[flat_index] = (MVMnum32)value.n64;
+                    targetbody->slots.n32[flat_index] = (MVMnum32)value.n64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected num register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: bindpos expected num register");
                 break;
             case MVM_ARRAY_U64:
                 if (kind == MVM_reg_int64)
-                    body->slots.u64[flat_index] = value.i64;
+                    targetbody->slots.u64[flat_index] = value.i64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: bindpos expected int register");
                 break;
             case MVM_ARRAY_U32:
                 if (kind == MVM_reg_int64)
-                    body->slots.u32[flat_index] = (MVMuint32)value.i64;
+                    targetbody->slots.u32[flat_index] = (MVMuint32)value.i64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: bindpos expected int register");
                 break;
             case MVM_ARRAY_U16:
                 if (kind == MVM_reg_int64)
-                    body->slots.u16[flat_index] = (MVMuint16)value.i64;
+                    targetbody->slots.u16[flat_index] = (MVMuint16)value.i64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: bindpos expected int register");
                 break;
             case MVM_ARRAY_U8:
                 if (kind == MVM_reg_int64)
-                    body->slots.u8[flat_index] = (MVMuint8)value.i64;
+                    targetbody->slots.u8[flat_index] = (MVMuint8)value.i64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArrayView: bindpos expected int register");
                 break;
             default:
-                MVM_exception_throw_adhoc(tc, "MultiDimArray: Unhandled slot type");
+                MVM_exception_throw_adhoc(tc, "MultiDimArrayView: Unhandled slot type");
         }
     }
     else {
@@ -561,7 +562,7 @@ static void bind_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *ro
 static void dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions) {
     MVMMultiDimArrayViewREPRData *repr_data = (MVMMultiDimArrayViewREPRData *)st->REPR_data;
     if (repr_data) {
-        MVMMultiDimArrayBody *body = (MVMMultiDimArrayBody *)data;
+        MVMMultiDimArrayViewBody *body = (MVMMultiDimArrayViewBody *)data;
         *num_dimensions = repr_data->num_dimensions;
         *dimensions = body->dimensions;
     }
@@ -574,7 +575,7 @@ static void dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static void set_dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *dimensions) {
     MVMMultiDimArrayViewREPRData *repr_data = (MVMMultiDimArrayViewREPRData *)st->REPR_data;
     if (num_dimensions == repr_data->num_dimensions) {
-        MVMMultiDimArrayBody *body = (MVMMultiDimArrayBody *)data;
+        MVMMultiDimArrayViewBody *body = (MVMMultiDimArrayViewBody *)data;
         size_t size = flat_size(repr_data, dimensions);
         /* TODO check if the amount of elements fits the target's flat elements */
     }
@@ -652,8 +653,17 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
 }
 
 /* Initializes the representation. */
-const MVMREPROps * MVMMultiDimArray_initialize(MVMThreadContext *tc) {
+const MVMREPROps * MVMMultiDimArrayView_initialize(MVMThreadContext *tc) {
     return &this_repr;
+}
+
+
+void MVM_view_set_strides(MVMThreadContext *tc, MVMObject *target, MVMObject *strides) {
+    
+}
+
+MVMObject * MVM_view_get_strides(MVMThreadContext *tc, MVMObject *target) {
+
 }
 
 static const MVMREPROps this_repr = {
@@ -676,8 +686,7 @@ static const MVMREPROps this_repr = {
         bind_pos_multidim,
         dimensions,
         set_dimensions,
-        get_elem_storage_spec,
-        set_strides
+        get_elem_storage_spec
     },
     MVM_REPR_DEFAULT_ASS_FUNCS,
     elems,
@@ -695,8 +704,8 @@ static const MVMREPROps this_repr = {
     gc_free_repr_data,
     compose,
     NULL, /* spesh */
-    "MultiDimArray", /* name */
-    MVM_REPR_ID_MultiDimArray,
+    "MultiDimArrayView", /* name */
+    MVM_REPR_ID_MultiDimArrayView,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };

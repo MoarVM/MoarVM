@@ -161,6 +161,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/reprs/CPPStruct@obj@ \
           src/6model/reprs/NativeRef@obj@ \
           src/6model/reprs/MultiDimArray@obj@ \
+          src/6model/reprs/MultiDimArrayView@obj@ \
           src/6model/reprs/Decoder@obj@ \
           src/6model/6model@obj@ \
           src/6model/bootstrap@obj@ \

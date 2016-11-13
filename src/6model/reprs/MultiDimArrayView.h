@@ -42,5 +42,8 @@ struct MVMMultiDimArrayViewREPRData {
     MVMObject *elem_type;
 };
 
-/* Initializes the MultiDimArray REPR. */
+/* Initializes the MultiDimArrayView REPR. */
 const MVMREPROps * MVMMultiDimArrayView_initialize(MVMThreadContext *tc);
+
+void MVM_view_set_strides(MVMThreadContext *tc, MVMObject *target, MVMObject *strides);
+MVMObject * MVM_view_get_strides(MVMThreadContext *tc, MVMObject *target);
