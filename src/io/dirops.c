@@ -319,24 +319,15 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
         return tc->instance->str_consts.empty;
     }
 #else
-#  if defined(sun) || defined(__sun)
-    /* dirent on Solaris is too small to actually keep directory entries. */
-    long NAME_MAX        = pathconf(data->dir_name, _PC_NAME_MAX);
-    struct dirent *entry = MVM_malloc(offsetof(struct dirent, d_name) + NAME_MAX + 1);
-#  else
-    struct dirent *entry = MVM_malloc(sizeof(struct dirent));
-#  endif
 
-    struct dirent *result;
-    int ret;
+    struct dirent *entry;
 
-    ret = readdir_r(data->dir_handle, entry, &result);
+    entry = readdir(data->dir_handle);
 
-    if (ret == 0) {
-        MVMString *ret = (result == NULL)
+    if (errno  == 0) {
+        MVMString *ret = (entry == NULL )
                        ? tc->instance->str_consts.empty
                        : MVM_string_decode(tc, tc->instance->VMString, entry->d_name, strlen(entry->d_name), data->encoding);
-        MVM_free(entry);
         return ret;
     }
 
