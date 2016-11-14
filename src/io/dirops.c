@@ -321,11 +321,12 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
 #else
 
     struct dirent *entry;
+    errno = 0; /* must reset errno so we won't check old errno */
 
     entry = readdir(data->dir_handle);
 
-    if (errno  == 0) {
-        MVMString *ret = (entry == NULL )
+    if (errno == 0) {
+        MVMString *ret = (entry == NULL)
                        ? tc->instance->str_consts.empty
                        : MVM_string_decode(tc, tc->instance->VMString, entry->d_name, strlen(entry->d_name), data->encoding);
         return ret;
