@@ -330,7 +330,7 @@ static void split_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMin
 
 /* register assignment logic */
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
-#define NEXT_IN_RING(a,x) (((x)+1)%ARRAY_SIZE(a))
+#define NEXT_IN_RING(a,x) (((x)+1) % ARRAY_SIZE(a))
 MVMint8 get_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls) {
     /* ignore storage class for now */
     MVMint8 reg_num;
@@ -355,8 +355,23 @@ void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileLis
                      MVMint32 lv, MVMJitStorageClass reg_cls,  MVMint8 reg_num) {
     /* What to do here:
      * - update tiles using this live range to refer to this register
-     * - update allocator to mark this register as used by this live range
-     * - update
+     * - update allocator to mark this register as used by this live range */
+    LiveRange *range = alc->values + lv;
+    int i;
+    range->reg_cls   = reg_cls;
+    range->reg_num   = reg_num;
+
+    for (i = 0; i < range->num_defs; i++) {
+        ValueRef * ref   = range->defs + i;
+        MVMJitTile *tile = list->items[ref->tile_idx];
+        tile->values[ref->value_idx] = reg_num;
+    }
+
+    for (i = 0; i < range->num_uses; i++) {
+        ValueRef *ref    = range->uses + i;
+        MVMJitTile *tile = list->istems[ref->tile_idx];
+        tile->values[ref->value_idx] = reg_num;
+    }
 }
 
 /* not sure if this is sufficiently general-purpose and unconfusing */
@@ -384,6 +399,4 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
     /* flush active live ranges */
     MVM_VECTOR_APPEND(live_range->retired, alc->active, alc->active_top);
     alc->active_top = 0;
-    /* retired holds all our live ranges that have actually been used.... but we
-     * have no purpose iterating over it anymore */
 }
