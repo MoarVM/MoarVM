@@ -116,7 +116,7 @@ AH_TEMPLATE([AO_USE_PTHREAD_DEFS],
         [Emulate atomic operations via slow and async-signal-unsafe \
          pthread locking])
 AH_TEMPLATE([AO_ASM_X64_AVAILABLE],
-        [Inline assembly avalable (only VC/x86_64)])
+        [Inline assembly available (only VC/x86_64)])
 AH_TEMPLATE([AO_ASSUME_VISTA],
         [Assume Windows Server 2003, Vista or later target (only VC/x86)])
 AH_TEMPLATE([AO_ASSUME_WINDOWS98],
