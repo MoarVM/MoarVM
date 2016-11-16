@@ -1,4 +1,14 @@
 
+== [7.4.4] (unset) ==
+
+* Eliminate 'variable set but not used' Cppcheck warnings in test_stack.
+* Fix makefile preventing AO_pause undefined in libatomic_ops_gpl.
+* Fix missing casts to match printf format specifier in test_atomic.
+* Fix missing output folder on making auto-generated test files (Automake).
+* Minor fix of code alignment in mips AO_compare_and_swap.
+* Restore contribution info in ChangeLog for authors not listed in git log.
+
+
 == [7.4.2] 2014-05-02 ==
 
 * Fix a typo in doc/README.txt (remove redundant "an" article).
@@ -137,6 +147,11 @@
 * Show extra compiler warnings (GCC only).
 * Turn off AO primitives inlining if AO_NO_INLINE defined.
 * Use __builtin_expect in CAS failure loop condition checks (GCC only).
+
+
+== [7.2g] (unset) ==
+
+* Remove inclusion of acquire_release_volatile.h on MIPS.
 
 
 == [7.2f] 2014-05-02 ==
