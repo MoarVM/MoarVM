@@ -19,6 +19,7 @@ Also, includes 7.4.4 changes.
 * Fix makefile preventing AO_pause undefined in libatomic_ops_gpl.
 * Fix missing casts to match printf format specifier in test_atomic.
 * Fix missing output folder on making auto-generated test files (Automake).
+* Fix typo in configure.ac (in description of AO_ASM_X64_AVAILABLE).
 * Minor fix of code alignment in mips AO_compare_and_swap.
 * Remove TODO file.
 * Restore contribution info in ChangeLog for authors not listed in git log.
@@ -170,7 +171,9 @@ Also, includes 7.2 changes.
 
 == [7.2g] (unset) ==
 
+* Regenerate configure files using official libtool release (v2.4.2).
 * Remove inclusion of acquire_release_volatile.h on MIPS.
+* Remove obsolete information from README about C++0x standard future.
 
 
 == [7.2f] 2014-05-02 ==
