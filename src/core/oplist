@@ -273,8 +273,7 @@ ordat               w(int64) r(str) r(int64) :pure
 rindexfrom          w(int64) r(str) r(str) r(int64) :pure
 escape              w(str) r(str) :pure
 flip                w(str) r(str) :pure
-# flattenropes will be DEPRECATED! (Use non-inplace indexingoptimized op)
-flattenropes        r(str)
+DEPRECATED_1        r(str)
 iscclass            w(int64) r(int64) r(str) r(int64) :pure
 findcclass          w(int64) r(int64) r(str) r(int64) r(int64) :pure
 findnotcclass       w(int64) r(int64) r(str) r(int64) r(int64) :pure

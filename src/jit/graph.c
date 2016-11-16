@@ -304,7 +304,6 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_read_fhs: return MVM_io_read_string;
 
     case MVM_OP_elems: return MVM_repr_elems;
-    case MVM_OP_flattenropes: return MVM_string_flatten;
     case MVM_OP_concat_s: return MVM_string_concatenate;
     case MVM_OP_repeat_s: return MVM_string_repeat;
     case MVM_OP_flip: return MVM_string_flip;
@@ -1888,13 +1887,6 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
          * in emit.dasc */
         if (op != MVM_OP_cmp_s)
             jgb_append_primitive(tc, jgb, ins);
-        break;
-    }
-    case MVM_OP_flattenropes: {
-        MVMint32 target = ins->operands[0].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_VAL, { target } } };
-        jgb_append_call_c(tc, jgb, op_to_func(tc, op), 2, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_hllize: {

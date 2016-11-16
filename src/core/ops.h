@@ -236,7 +236,7 @@
 #define MVM_OP_rindexfrom 232
 #define MVM_OP_escape 233
 #define MVM_OP_flip 234
-#define MVM_OP_flattenropes 235
+#define MVM_OP_DEPRECATED_1 235
 #define MVM_OP_iscclass 236
 #define MVM_OP_findcclass 237
 #define MVM_OP_findnotcclass 238

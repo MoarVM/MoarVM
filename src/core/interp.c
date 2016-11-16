@@ -1596,10 +1596,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
-            OP(flattenropes):
-                MVM_string_flatten(tc, GET_REG(cur_op, 0).s);
-                cur_op += 2;
-                goto NEXT;
+            OP(DEPRECATED_1):
+                MVM_exception_throw_adhoc(tc, "The flattenropes op was removed in MoarVM 2016.11.");
             OP(iscclass):
                 GET_REG(cur_op, 0).i64 = MVM_string_is_cclass(tc,
                     GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s,
