@@ -1814,3 +1814,77 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMCodepoint cp) {
     s->body.num_graphs         = 1;
     return s;
 }
+
+/* Takes a string and computes a hash code for it, storing it in the hash code
+ * cache field of the string. Hashing code is derived from the Jenkins hash
+ * implementation in uthash.h. */
+typedef union {
+    MVMint32 graphs[3];
+    unsigned char bytes[12];
+} MVMJenHashGraphemeView;
+void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
+    /* The hash algorithm works in bytes. Since we can represent strings in a
+     * number of ways, and we want consistent hashing, then we'll read the
+     * strings using the grapheme iterator in groups of 3, using 32-bit ints
+     * for the graphemes no matter what the string really holds them as. Then
+     * we'll use the bytes view of that in the hashing function. */
+    MVMJenHashGraphemeView hash_block;
+    MVMGraphemeIter gi;
+    MVMuint32 graphs_remaining = MVM_string_graphs(tc, s);
+
+    /* Initialize hash state. */
+    MVMuint32 hashv = 0xfeedbeef;
+    MVMuint32 _hj_i, _hj_j;
+    _hj_i = _hj_j = 0x9e3779b9;
+
+    /* Work through the string 3 graphemes at a time. */
+    MVM_string_gi_init(tc, &gi, s);
+    while (graphs_remaining >= 3) {
+        hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
+        hash_block.graphs[1] = MVM_string_gi_get_grapheme(tc, &gi);
+        hash_block.graphs[2] = MVM_string_gi_get_grapheme(tc, &gi);
+        _hj_i += (hash_block.bytes[0] + ( (unsigned)hash_block.bytes[1] << 8 )
+            + ( (unsigned)hash_block.bytes[2] << 16 )
+            + ( (unsigned)hash_block.bytes[3] << 24 ) );
+        _hj_j +=    (hash_block.bytes[4] + ( (unsigned)hash_block.bytes[5] << 8 )
+            + ( (unsigned)hash_block.bytes[6] << 16 )
+            + ( (unsigned)hash_block.bytes[7] << 24 ) );
+        hashv += (hash_block.bytes[8] + ( (unsigned)hash_block.bytes[9] << 8 )
+            + ( (unsigned)hash_block.bytes[10] << 16 )
+            + ( (unsigned)hash_block.bytes[11] << 24 ) );
+
+        HASH_JEN_MIX(_hj_i, _hj_j, hashv);
+
+        graphs_remaining -= 3;
+    }
+
+    /* Mix in key length (in bytes, not graphemes). */
+    hashv += MVM_string_graphs(tc, s) * sizeof(MVMGrapheme32);
+
+    /* Now handle trailing graphemes (must be 2, 1, or 0). */
+    switch (graphs_remaining) {
+        case 2:
+            hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
+            hash_block.graphs[1] = MVM_string_gi_get_grapheme(tc, &gi);
+            break;
+        case 1:
+            hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
+            break;
+    }
+    switch (graphs_remaining * 4) {
+        case 8:
+            _hj_j += ( (unsigned)hash_block.bytes[7] << 24 ) +
+                     ( (unsigned)hash_block.bytes[6] << 16 ) +
+                     ( (unsigned)hash_block.bytes[5] << 8 ) +
+                     hash_block.bytes[4];
+        case 4:
+            _hj_i += ( (unsigned)hash_block.bytes[3] << 24 ) +
+                     ( (unsigned)hash_block.bytes[2] << 16 ) +
+                     ( (unsigned)hash_block.bytes[1] << 8 ) +
+                     hash_block.bytes[0];
+    }
+    HASH_JEN_MIX(_hj_i, _hj_j, hashv);
+
+    /* Store computed hash value. */
+    s->body.cached_hash_code = hashv;
+}

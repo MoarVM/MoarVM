@@ -121,7 +121,7 @@ do {                                                                            
          _hf_bkt = ((_hf_hashv) & (((head)->hh.tbl->num_buckets) - 1));             \
      }                                                                              \
      else {                                                                         \
-         HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt);  \
+         HASH_FCN_VM_STR(tc, key, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt); \
          (key)->body.cached_hash_code = _hf_hashv;                                  \
      }                                                                              \
      HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],       \
@@ -181,7 +181,7 @@ do {                                                                            
      _ha_bkt = ((cached_hash) & (((head)->hh.tbl->num_buckets) - 1));            \
  }                                                                               \
  else {                                                                          \
-     HASH_FCN(keyptr,keylen_in, (head)->hh.tbl->num_buckets,                     \
+     HASH_FCN_VM_STR(tc, key_in, (head)->hh.tbl->num_buckets,                    \
              (add)->hh.hashv, _ha_bkt);                                          \
      (key_in)->body.cached_hash_code = (add)->hh.hashv;                          \
  }                                                                               \
@@ -283,6 +283,7 @@ do {                                                                            
 
 /* Use Jenkin's hash as the hash function. */
 #define HASH_FCN HASH_JEN
+#define HASH_FCN_VM_STR HASH_JEN_VM_STR
 
 #define HASH_JEN_MIX(a,b,c)                                                      \
 do {                                                                             \
@@ -303,7 +304,7 @@ do {                                                                            
   unsigned char *_hj_key=(unsigned char*)(key);                                  \
   hashv = 0xfeedbeef;                                                            \
   _hj_i = _hj_j = 0x9e3779b9;                                                    \
-  _hj_k = (unsigned)(keylen);                                                      \
+  _hj_k = (unsigned)(keylen);                                                    \
   while (_hj_k >= 12) {                                                          \
     _hj_i +=    (_hj_key[0] + ( (unsigned)_hj_key[1] << 8 )                      \
         + ( (unsigned)_hj_key[2] << 16 )                                         \
@@ -335,6 +336,13 @@ do {                                                                            
      case 1:  _hj_i += _hj_key[0];                                               \
   }                                                                              \
   HASH_JEN_MIX(_hj_i, _hj_j, hashv);                                             \
+  bkt = hashv & (num_bkts-1);                                                    \
+} while(0)
+
+#define HASH_JEN_VM_STR(tc,key,num_bkts,hashv,bkt)                               \
+do {                                                                             \
+  MVM_string_compute_hash_code(tc, key);                                         \
+  hashv = (key)->body.cached_hash_code;                                          \
   bkt = hashv & (num_bkts-1);                                                    \
 } while(0)
 

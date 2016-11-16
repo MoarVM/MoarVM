@@ -92,3 +92,4 @@ MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString
 MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset, MVMint64 count);
 MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name);
 MVMString * MVM_string_chr(MVMThreadContext *tc, MVMCodepoint cp);
+void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s);
