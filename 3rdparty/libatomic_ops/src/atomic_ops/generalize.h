@@ -188,10 +188,10 @@
 #endif
 
 #if defined(AO_HAVE_nop_acquire)
-# error AO_nop_acquire is useless: dont define.
+# error AO_nop_acquire is useless: do not define.
 #endif
 #if defined(AO_HAVE_nop_release)
-# error AO_nop_release is useless: dont define.
+# error AO_nop_release is useless: do not define.
 #endif
 
 #if defined(AO_HAVE_nop_full) && !defined(AO_HAVE_nop_read)

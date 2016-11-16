@@ -240,7 +240,7 @@ AO_t *AO_stack_pop_acquire(AO_stack_t *list)
 
 /* Needed for future IA64 processors.  No current clients? */
 
-#error Untested!  Probably doesnt work.
+# error Untested!  Probably does not work.
 
 /* We have a wide CAS, but only does an AO_t-wide comparison.   */
 /* We can't use the Treiber optimization, since we only check   */
