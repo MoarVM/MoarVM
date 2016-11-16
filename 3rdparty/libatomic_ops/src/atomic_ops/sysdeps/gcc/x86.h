@@ -128,6 +128,60 @@ AO_short_fetch_and_add_full (volatile unsigned short *p, unsigned short incr)
   /* with AO_nop_full ("mfence" instruction).                           */
 #endif /* !AO_PREFER_GENERALIZED */
 
+AO_INLINE void
+AO_char_and_full (volatile unsigned char *p, unsigned char value)
+{
+  __asm__ __volatile__ ("lock; andb %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+}
+#define AO_HAVE_char_and_full
+
+AO_INLINE void
+AO_char_or_full (volatile unsigned char *p, unsigned char value)
+{
+  __asm__ __volatile__ ("lock; orb %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+}
+#define AO_HAVE_char_or_full
+
+AO_INLINE void
+AO_char_xor_full (volatile unsigned char *p, unsigned char value)
+{
+  __asm__ __volatile__ ("lock; xorb %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+}
+#define AO_HAVE_char_xor_full
+
+AO_INLINE void
+AO_short_and_full (volatile unsigned short *p, unsigned short value)
+{
+  __asm__ __volatile__ ("lock; andw %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+}
+#define AO_HAVE_short_and_full
+
+AO_INLINE void
+AO_short_or_full (volatile unsigned short *p, unsigned short value)
+{
+  __asm__ __volatile__ ("lock; orw %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+}
+#define AO_HAVE_short_or_full
+
+AO_INLINE void
+AO_short_xor_full (volatile unsigned short *p, unsigned short value)
+{
+  __asm__ __volatile__ ("lock; xorw %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+}
+#define AO_HAVE_short_xor_full
+
 AO_INLINE AO_TS_VAL_t
 AO_test_and_set_full(volatile AO_TS_t *addr)
 {
@@ -329,6 +383,33 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
     return result;
   }
 # define AO_HAVE_int_fetch_and_add_full
+
+  AO_INLINE void
+  AO_int_and_full (volatile unsigned int *p, unsigned int value)
+  {
+    __asm__ __volatile__ ("lock; andl %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+  }
+# define AO_HAVE_int_and_full
+
+  AO_INLINE void
+  AO_int_or_full (volatile unsigned int *p, unsigned int value)
+  {
+    __asm__ __volatile__ ("lock; orl %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+  }
+# define AO_HAVE_int_or_full
+
+  AO_INLINE void
+  AO_int_xor_full (volatile unsigned int *p, unsigned int value)
+  {
+    __asm__ __volatile__ ("lock; xorl %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+  }
+# define AO_HAVE_int_xor_full
 
   /* The Intel and AMD Architecture Programmer Manuals state roughly    */
   /* the following:                                                     */
