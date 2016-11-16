@@ -238,8 +238,8 @@ static const unsigned char msbs[16] = {
 static unsigned msb(size_t s)
 {
   unsigned result = 0;
-  unsigned v;
   if ((s & 0xff) != s) {
+    unsigned v;
     /* The following is a tricky code ought to be equivalent to         */
     /* "(v = s >> 32) != 0" but suppresses warnings on 32-bit arch's.   */
     if (sizeof(size_t) > 4 && (v = s >> (sizeof(size_t) > 4 ? 32 : 0)) != 0)
