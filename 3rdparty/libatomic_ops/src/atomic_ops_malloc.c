@@ -84,7 +84,7 @@ static volatile AO_t initial_heap_ptr = (AO_t)AO_initial_heap;
 # define GC_MMAP_FLAGS MAP_PRIVATE
 #endif
 
-#ifdef USE_MMAP_ANON
+#if defined(USE_MMAP_ANON) && !defined(CPPCHECK)
 # ifdef MAP_ANONYMOUS
 #   define OPT_MAP_ANON MAP_ANONYMOUS
 # else
@@ -138,7 +138,7 @@ static char *get_mmaped(size_t sz)
 #ifndef SIZE_MAX
 # include <limits.h>
 #endif
-#ifdef SIZE_MAX
+#if defined(SIZE_MAX) && !defined(CPPCHECK)
 # define AO_SIZE_MAX SIZE_MAX
 #else
 # define AO_SIZE_MAX (~(size_t)0)
