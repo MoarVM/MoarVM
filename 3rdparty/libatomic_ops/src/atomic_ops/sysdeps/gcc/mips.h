@@ -65,12 +65,12 @@ AO_INLINE void
 AO_nop_full(void)
 {
   __asm__ __volatile__(
-      "       .set push           \n"
+      "       .set push\n"
       AO_MIPS_SET_ISA
-      "       .set noreorder      \n"
-      "       .set nomacro        \n"
-      "       sync                \n"
-      "       .set pop              "
+      "       .set noreorder\n"
+      "       .set nomacro\n"
+      "       sync\n"
+      "       .set pop"
       : : : "memory");
 }
 #define AO_HAVE_nop_full
@@ -93,7 +93,7 @@ AO_fetch_and_add(volatile AO_t *addr, AO_t incr)
       AO_MIPS_SC("%1, %2")
       "       beqz %1, 1b\n"
       "       nop\n"
-      "       .set pop "
+      "       .set pop"
       : "=&r" (result), "=&r" (temp), "+m" (*addr)
       : "Ir" (incr)
       : "memory");
@@ -118,7 +118,7 @@ AO_test_and_set(volatile AO_TS_t *addr)
       AO_MIPS_SC("%1, %2")
       "       beqz %1, 1b\n"
       "       nop\n"
-      "       .set pop "
+      "       .set pop"
       : "=&r" (oldval), "=&r" (temp), "+m" (*addr)
       : "r" (1)
       : "memory");
@@ -137,19 +137,19 @@ AO_test_and_set(volatile AO_TS_t *addr)
     register int temp;
 
     __asm__ __volatile__(
-        "       .set push           \n"
+        "       .set push\n"
         AO_MIPS_SET_ISA
-        "       .set noreorder      \n"
-        "       .set nomacro        \n"
+        "       .set noreorder\n"
+        "       .set nomacro\n"
         "1: "
         AO_MIPS_LL("%0, %1")
-        "       bne     %0, %4, 2f  \n"
-        "       move   %0, %3      \n"
+        "       bne     %0, %4, 2f\n"
+        "       move    %0, %3\n"
         AO_MIPS_SC("%0, %1")
-        "       .set pop            \n"
-        "       beqz    %0, 1b      \n"
-        "       li      %2, 1       \n"
-        "2:                           "
+        "       .set pop\n"
+        "       beqz    %0, 1b\n"
+        "       li      %2, 1\n"
+        "2:"
         : "=&r" (temp), "+m" (*addr), "+r" (was_equal)
         : "r" (new_val), "r" (old)
         : "memory");
