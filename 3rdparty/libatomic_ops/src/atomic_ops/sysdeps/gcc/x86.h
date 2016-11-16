@@ -292,7 +292,8 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
 #endif /* AO_DISABLE_GCC_ATOMICS */
 
 #if (defined(AO_PREFER_BUILTIN_ATOMICS) || !defined(__clang__) \
-     || defined(__x86_64__)) && defined(AO_GCC_ATOMIC_TEST_AND_SET)
+     || defined(__x86_64__) || defined(__APPLE_CC__) || defined(__CYGWIN__)) \
+    && defined(AO_GCC_ATOMIC_TEST_AND_SET)
 
   /* As of clang-3.8 i686 (NDK r11c), it requires -latomic for all the  */
   /* double-wide operations.  For now, we fall back to the              */
