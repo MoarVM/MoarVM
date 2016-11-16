@@ -1,5 +1,7 @@
 # The atomic_ops library (libatomic_ops)
 
+IN NEW CODE, PLEASE USE C11 OR C++14 STANDARD ATOMICS INSTEAD OF THIS PACKAGE.
+
 This is version 7.5.0 of libatomic_ops.
 
 You might find a more recent version
