@@ -707,7 +707,7 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
 
 # if defined(__clang__) && !defined(AO_ARM_HAVE_LDREX)
     /* As of clang-3.8, it cannot compile __atomic_and/or/xor_fetch     */
-    /* library calls yet for pre ARMv7.                                 */
+    /* library calls yet for pre ARMv6.                                 */
 #   define AO_SKIPATOMIC_ANY_and_ANY
 #   define AO_SKIPATOMIC_ANY_or_ANY
 #   define AO_SKIPATOMIC_ANY_xor_ANY
