@@ -207,4 +207,10 @@
 
 #endif /* !AO_PREFER_BUILTIN_ATOMICS */
 
+#if defined(__clang__)
+  /* As of clang-3.6/arm64, __GCC_HAVE_SYNC_COMPARE_AND_SWAP_n are missing. */
+# define AO_GCC_FORCE_HAVE_CAS
+# define AO_GCC_HAVE_double_SYNC_CAS
+#endif
+
 #include "generic.h"

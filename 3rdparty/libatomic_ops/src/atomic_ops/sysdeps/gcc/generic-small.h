@@ -47,27 +47,29 @@ AO_char_store_release(volatile unsigned/**/char *addr, unsigned/**/char value)
 }
 #define AO_HAVE_char_store_release
 
-AO_INLINE unsigned/**/char
-AO_char_fetch_compare_and_swap(volatile unsigned/**/char *addr,
-                                unsigned/**/char old_val, unsigned/**/char new_val)
-{
-  return __sync_val_compare_and_swap(addr, old_val, new_val
-                                     /* empty protection list */);
-}
-#define AO_HAVE_char_fetch_compare_and_swap
-
-/* TODO: Add CAS _acquire/release/full primitives. */
-
-#ifndef AO_GENERALIZE_ASM_BOOL_CAS
-  AO_INLINE int
-  AO_char_compare_and_swap(volatile unsigned/**/char *addr,
-                            unsigned/**/char old_val, unsigned/**/char new_val)
+#ifdef AO_GCC_HAVE_char_SYNC_CAS
+  AO_INLINE unsigned/**/char
+  AO_char_fetch_compare_and_swap(volatile unsigned/**/char *addr,
+                                  unsigned/**/char old_val, unsigned/**/char new_val)
   {
-    return __sync_bool_compare_and_swap(addr, old_val, new_val
-                                        /* empty protection list */);
+    return __sync_val_compare_and_swap(addr, old_val, new_val
+                                       /* empty protection list */);
   }
-# define AO_HAVE_char_compare_and_swap
-#endif /* !AO_GENERALIZE_ASM_BOOL_CAS */
+# define AO_HAVE_char_fetch_compare_and_swap
+
+  /* TODO: Add CAS _acquire/release/full primitives.    */
+
+# ifndef AO_GENERALIZE_ASM_BOOL_CAS
+    AO_INLINE int
+    AO_char_compare_and_swap(volatile unsigned/**/char *addr,
+                              unsigned/**/char old_val, unsigned/**/char new_val)
+    {
+      return __sync_bool_compare_and_swap(addr, old_val, new_val
+                                          /* empty protection list */);
+    }
+#   define AO_HAVE_char_compare_and_swap
+# endif /* !AO_GENERALIZE_ASM_BOOL_CAS */
+#endif /* AO_GCC_HAVE_char_SYNC_CAS */
 /*
  * Copyright (c) 1991-1994 by Xerox Corporation.  All rights reserved.
  * Copyright (c) 1996-1999 by Silicon Graphics.  All rights reserved.
@@ -117,27 +119,29 @@ AO_short_store_release(volatile unsigned/**/short *addr, unsigned/**/short value
 }
 #define AO_HAVE_short_store_release
 
-AO_INLINE unsigned/**/short
-AO_short_fetch_compare_and_swap(volatile unsigned/**/short *addr,
-                                unsigned/**/short old_val, unsigned/**/short new_val)
-{
-  return __sync_val_compare_and_swap(addr, old_val, new_val
-                                     /* empty protection list */);
-}
-#define AO_HAVE_short_fetch_compare_and_swap
-
-/* TODO: Add CAS _acquire/release/full primitives. */
-
-#ifndef AO_GENERALIZE_ASM_BOOL_CAS
-  AO_INLINE int
-  AO_short_compare_and_swap(volatile unsigned/**/short *addr,
-                            unsigned/**/short old_val, unsigned/**/short new_val)
+#ifdef AO_GCC_HAVE_short_SYNC_CAS
+  AO_INLINE unsigned/**/short
+  AO_short_fetch_compare_and_swap(volatile unsigned/**/short *addr,
+                                  unsigned/**/short old_val, unsigned/**/short new_val)
   {
-    return __sync_bool_compare_and_swap(addr, old_val, new_val
-                                        /* empty protection list */);
+    return __sync_val_compare_and_swap(addr, old_val, new_val
+                                       /* empty protection list */);
   }
-# define AO_HAVE_short_compare_and_swap
-#endif /* !AO_GENERALIZE_ASM_BOOL_CAS */
+# define AO_HAVE_short_fetch_compare_and_swap
+
+  /* TODO: Add CAS _acquire/release/full primitives.    */
+
+# ifndef AO_GENERALIZE_ASM_BOOL_CAS
+    AO_INLINE int
+    AO_short_compare_and_swap(volatile unsigned/**/short *addr,
+                              unsigned/**/short old_val, unsigned/**/short new_val)
+    {
+      return __sync_bool_compare_and_swap(addr, old_val, new_val
+                                          /* empty protection list */);
+    }
+#   define AO_HAVE_short_compare_and_swap
+# endif /* !AO_GENERALIZE_ASM_BOOL_CAS */
+#endif /* AO_GCC_HAVE_short_SYNC_CAS */
 /*
  * Copyright (c) 1991-1994 by Xerox Corporation.  All rights reserved.
  * Copyright (c) 1996-1999 by Silicon Graphics.  All rights reserved.
@@ -187,27 +191,29 @@ AO_int_store_release(volatile unsigned *addr, unsigned value)
 }
 #define AO_HAVE_int_store_release
 
-AO_INLINE unsigned
-AO_int_fetch_compare_and_swap(volatile unsigned *addr,
-                                unsigned old_val, unsigned new_val)
-{
-  return __sync_val_compare_and_swap(addr, old_val, new_val
-                                     /* empty protection list */);
-}
-#define AO_HAVE_int_fetch_compare_and_swap
-
-/* TODO: Add CAS _acquire/release/full primitives. */
-
-#ifndef AO_GENERALIZE_ASM_BOOL_CAS
-  AO_INLINE int
-  AO_int_compare_and_swap(volatile unsigned *addr,
-                            unsigned old_val, unsigned new_val)
+#ifdef AO_GCC_HAVE_int_SYNC_CAS
+  AO_INLINE unsigned
+  AO_int_fetch_compare_and_swap(volatile unsigned *addr,
+                                  unsigned old_val, unsigned new_val)
   {
-    return __sync_bool_compare_and_swap(addr, old_val, new_val
-                                        /* empty protection list */);
+    return __sync_val_compare_and_swap(addr, old_val, new_val
+                                       /* empty protection list */);
   }
-# define AO_HAVE_int_compare_and_swap
-#endif /* !AO_GENERALIZE_ASM_BOOL_CAS */
+# define AO_HAVE_int_fetch_compare_and_swap
+
+  /* TODO: Add CAS _acquire/release/full primitives.    */
+
+# ifndef AO_GENERALIZE_ASM_BOOL_CAS
+    AO_INLINE int
+    AO_int_compare_and_swap(volatile unsigned *addr,
+                              unsigned old_val, unsigned new_val)
+    {
+      return __sync_bool_compare_and_swap(addr, old_val, new_val
+                                          /* empty protection list */);
+    }
+#   define AO_HAVE_int_compare_and_swap
+# endif /* !AO_GENERALIZE_ASM_BOOL_CAS */
+#endif /* AO_GCC_HAVE_int_SYNC_CAS */
 /*
  * Copyright (c) 1991-1994 by Xerox Corporation.  All rights reserved.
  * Copyright (c) 1996-1999 by Silicon Graphics.  All rights reserved.
@@ -257,24 +263,26 @@ AO_store_release(volatile AO_t *addr, AO_t value)
 }
 #define AO_HAVE_store_release
 
-AO_INLINE AO_t
-AO_fetch_compare_and_swap(volatile AO_t *addr,
-                                AO_t old_val, AO_t new_val)
-{
-  return __sync_val_compare_and_swap(addr, old_val, new_val
-                                     /* empty protection list */);
-}
-#define AO_HAVE_fetch_compare_and_swap
-
-/* TODO: Add CAS _acquire/release/full primitives. */
-
-#ifndef AO_GENERALIZE_ASM_BOOL_CAS
-  AO_INLINE int
-  AO_compare_and_swap(volatile AO_t *addr,
-                            AO_t old_val, AO_t new_val)
+#ifdef AO_GCC_HAVE_SYNC_CAS
+  AO_INLINE AO_t
+  AO_fetch_compare_and_swap(volatile AO_t *addr,
+                                  AO_t old_val, AO_t new_val)
   {
-    return __sync_bool_compare_and_swap(addr, old_val, new_val
-                                        /* empty protection list */);
+    return __sync_val_compare_and_swap(addr, old_val, new_val
+                                       /* empty protection list */);
   }
-# define AO_HAVE_compare_and_swap
-#endif /* !AO_GENERALIZE_ASM_BOOL_CAS */
+# define AO_HAVE_fetch_compare_and_swap
+
+  /* TODO: Add CAS _acquire/release/full primitives.    */
+
+# ifndef AO_GENERALIZE_ASM_BOOL_CAS
+    AO_INLINE int
+    AO_compare_and_swap(volatile AO_t *addr,
+                              AO_t old_val, AO_t new_val)
+    {
+      return __sync_bool_compare_and_swap(addr, old_val, new_val
+                                          /* empty protection list */);
+    }
+#   define AO_HAVE_compare_and_swap
+# endif /* !AO_GENERALIZE_ASM_BOOL_CAS */
+#endif /* AO_GCC_HAVE_SYNC_CAS */

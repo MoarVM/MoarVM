@@ -19,6 +19,29 @@
 /* For the details, see GNU Manual, chapter 6.52 (Built-in functions    */
 /* for memory model aware atomic operations).                           */
 
+#if defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1) \
+    || defined(AO_GCC_FORCE_HAVE_CAS)
+# define AO_GCC_HAVE_char_SYNC_CAS
+#endif
+
+#if (__SIZEOF_SHORT__ == 2 && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2)) \
+    || defined(AO_GCC_FORCE_HAVE_CAS)
+# define AO_GCC_HAVE_short_SYNC_CAS
+#endif
+
+#if (__SIZEOF_INT__ == 4 && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4)) \
+    || (__SIZEOF_INT__ == 8 && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)) \
+    || defined(AO_GCC_FORCE_HAVE_CAS)
+# define AO_GCC_HAVE_int_SYNC_CAS
+#endif
+
+#if (__SIZEOF_SIZE_T__ == 4 && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4)) \
+    || (__SIZEOF_SIZE_T__ == 8 \
+        && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)) \
+    || defined(AO_GCC_FORCE_HAVE_CAS)
+# define AO_GCC_HAVE_SYNC_CAS
+#endif
+
 #ifdef AO_UNIPROCESSOR
   /* If only a single processor (core) is used, AO_UNIPROCESSOR could   */
   /* be defined by the client to avoid unnecessary memory barrier.      */
@@ -134,6 +157,15 @@
 #   define AO_HAVE_double_store_release
 # endif
 
+# if (__SIZEOF_SIZE_T__ == 4 && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)) \
+      || (__SIZEOF_SIZE_T__ == 8 /* half of AO_double_t */ \
+          && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16))
+#   define AO_GCC_HAVE_double_SYNC_CAS
+# endif
+
+#endif /* AO_HAVE_DOUBLE_PTR_STORAGE */
+
+#ifdef AO_GCC_HAVE_double_SYNC_CAS
 # ifndef AO_HAVE_double_compare_and_swap
     AO_INLINE int
     AO_double_compare_and_swap(volatile AO_double_t *addr,
@@ -150,4 +182,4 @@
 # endif
 
   /* TODO: Add double CAS _acquire/release/full primitives. */
-#endif /* AO_HAVE_DOUBLE_PTR_STORAGE */
+#endif /* AO_GCC_HAVE_double_SYNC_CAS */

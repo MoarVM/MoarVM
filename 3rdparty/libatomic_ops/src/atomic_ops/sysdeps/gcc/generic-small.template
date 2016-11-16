@@ -47,24 +47,26 @@ AO_XSIZE_store_release(volatile XCTYPE *addr, XCTYPE value)
 }
 #define AO_HAVE_XSIZE_store_release
 
-AO_INLINE XCTYPE
-AO_XSIZE_fetch_compare_and_swap(volatile XCTYPE *addr,
-                                XCTYPE old_val, XCTYPE new_val)
-{
-  return __sync_val_compare_and_swap(addr, old_val, new_val
-                                     /* empty protection list */);
-}
-#define AO_HAVE_XSIZE_fetch_compare_and_swap
-
-/* TODO: Add CAS _acquire/release/full primitives. */
-
-#ifndef AO_GENERALIZE_ASM_BOOL_CAS
-  AO_INLINE int
-  AO_XSIZE_compare_and_swap(volatile XCTYPE *addr,
-                            XCTYPE old_val, XCTYPE new_val)
+#ifdef AO_GCC_HAVE_XSIZE_SYNC_CAS
+  AO_INLINE XCTYPE
+  AO_XSIZE_fetch_compare_and_swap(volatile XCTYPE *addr,
+                                  XCTYPE old_val, XCTYPE new_val)
   {
-    return __sync_bool_compare_and_swap(addr, old_val, new_val
-                                        /* empty protection list */);
+    return __sync_val_compare_and_swap(addr, old_val, new_val
+                                       /* empty protection list */);
   }
-# define AO_HAVE_XSIZE_compare_and_swap
-#endif /* !AO_GENERALIZE_ASM_BOOL_CAS */
+# define AO_HAVE_XSIZE_fetch_compare_and_swap
+
+  /* TODO: Add CAS _acquire/release/full primitives.    */
+
+# ifndef AO_GENERALIZE_ASM_BOOL_CAS
+    AO_INLINE int
+    AO_XSIZE_compare_and_swap(volatile XCTYPE *addr,
+                              XCTYPE old_val, XCTYPE new_val)
+    {
+      return __sync_bool_compare_and_swap(addr, old_val, new_val
+                                          /* empty protection list */);
+    }
+#   define AO_HAVE_XSIZE_compare_and_swap
+# endif /* !AO_GENERALIZE_ASM_BOOL_CAS */
+#endif /* AO_GCC_HAVE_XSIZE_SYNC_CAS */
