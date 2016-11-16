@@ -4,7 +4,7 @@
 static const MVMREPROps this_repr;
 
 MVM_STATIC_INLINE MVMString * get_string_key(MVMThreadContext *tc, MVMObject *key) {
-    if (REPR(key)->ID != MVM_REPR_ID_MVMString || !IS_CONCRETE(key))
+    if (!key || REPR(key)->ID != MVM_REPR_ID_MVMString || !IS_CONCRETE(key))
         MVM_exception_throw_adhoc(tc, "MVMHash representation requires MVMString keys");
     return (MVMString *)key;
 }

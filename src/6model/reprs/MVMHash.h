@@ -21,7 +21,15 @@ struct MVMHash {
 const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
 #define MVM_HASH_BIND(tc, hash, key, value) \
-    HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, hash, key, value);
+    do { \
+        if (!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString \
+                && IS_CONCRETE(key)) { \
+            HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, hash, key, value); \
+        } \
+        else { \
+            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings"); \
+        } \
+    } while (0);
 
 #define MVM_HASH_GET(tc, hash, key, value) \
     do { \
