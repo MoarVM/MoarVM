@@ -175,11 +175,13 @@ Also, includes 7.2e changes.
 Also, includes 7.2 changes.
 
 
-== [7.2g] (unset) ==
+== [7.2g] 2016-05-23 ==
 
+* Add disclaimer to README to favor C11/C++14 atomics over libatomic_ops use.
 * Regenerate configure files using official libtool release (v2.4.2).
 * Remove inclusion of acquire_release_volatile.h on MIPS.
 * Remove obsolete information from README about C++0x standard future.
+* Update links due to project site transition.
 
 
 == [7.2f] 2014-05-02 ==
