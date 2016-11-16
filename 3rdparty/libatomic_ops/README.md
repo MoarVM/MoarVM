@@ -1,6 +1,6 @@
 # The atomic_ops library (libatomic_ops)
 
-This is version 7.4.0 of libatomic_ops.
+This is version 7.5.0 of libatomic_ops.
 
 You might find a more recent version
 [here](http://www.hpl.hp.com/personal/Hans_Boehm/gc), or
