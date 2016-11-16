@@ -25,6 +25,7 @@
 * Always use 'mfence' for nop_full if target CPU supports SSE2 (gcc/x86).
 * Better document configure THREADDLLIBS variable.
 * Cast away volatile on dereference in CAS-based generalization primitives.
+* Convert README to Markdown format.
 * Define AO_NO_PTHREADS in configure if no pthreads (Win32 and VxWorks).
 * Define AO_int_X operations for ARM and avr32.
 * Define double-wide ordered loads/stores for x86.
@@ -75,6 +76,7 @@
 * Optimize AO_spin manually to minimize compiler influence on its duration.
 * Parameterize list_atomic template with XSIZE (tests).
 * Perform only few list reversals in test_malloc if AO based on pthreads.
+* Put autogen.sh to 'dist' package (Automake).
 * Remote duplicate definition of test_and_set_acquire in generalize.h.
 * Remove X_aligned_atomic_load_store headers and template.
 * Remove duplicate AO_spin and AO_pause definition in atomic_ops_stack.
@@ -130,7 +132,7 @@
 * Use __builtin_expect in CAS failure loop condition checks (GCC only).
 
 
-== [7.2e] (candidate) ==
+== [7.2e] 2013-11-10 ==
 
 * Fix (remove) invalid include of read_ordered.h for ARM.
 * Fix AM_CONFIG_HEADER in configure for autoconf-2.69-1.
