@@ -25,9 +25,7 @@
 
 #if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9) \
      || __clang_major__ > 3 \
-     || (__clang_major__ == 3 && __clang_minor__ >= 5) \
-     || (defined(AO_PREFER_BUILTIN_ATOMICS) \
-         && __GNUC__ == 4 && __GNUC_MINOR__ >= 2)) \
+     || (__clang_major__ == 3 && __clang_minor__ >= 5)) \
     && !defined(AO_DISABLE_GCC_ATOMICS)
   /* Probably, it could be enabled even for earlier gcc/clang versions. */
 
