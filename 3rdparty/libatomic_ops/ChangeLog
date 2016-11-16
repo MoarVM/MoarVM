@@ -2,11 +2,17 @@
 == [7.5.0] (development) ==
 
 * Add initial nios2 architecture support.
+* Avoid atomic_compare_exchange_n if no __GCC_HAVE_SYNC_COMPARE_AND_SWAP_n.
+* Define AO_TS_SET as __GCC_ATOMIC_TEST_AND_SET_TRUEVAL if applicable.
+* Eliminate redundant lwsync 2nd call in CAS_full on fail (gcc/PowerPC).
+* Implement CAS_acquire/release/full using __atomic_compare_exchange_n (gcc).
 * Initial ibmc/powerpc (xlc) support.
 * New configure option (--enable-werror) to treat warnings as compiler errors.
+* New macro AO_PREFER_BUILTIN_ATOMICS to rely on C11 atomics fully (AArch64).
 * Relax shareability domain for dmb st in AO_nop_write (ARM/AArch64).
 * Support NaCl/arm.
 * Support n32 ABI for mips64.
+* Use GCC atomic intrinsics for x86, x64, ARM, MIPS (gcc 4.9+, clang 3.5+).
 * Use LLD and SCD instructions on mips64.
 Also, includes 7.4.4 changes.
 
