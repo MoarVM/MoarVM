@@ -26,16 +26,12 @@ struct MVMHash {
 const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
 #define MVM_HASH_BIND(tc, hash, key, value) \
-    do { \
-        MVM_string_flatten(tc, key); \
-        HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, hash, key, value); \
-    } while (0);
+    HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, hash, key, value);
 
 #define MVM_HASH_GET(tc, hash, key, value) \
     do { \
         if (!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString \
                 && IS_CONCRETE(key)) { \
-            MVM_string_flatten(tc, key); \
             HASH_FIND_VM_STR(tc, hash_handle, hash, key, value); \
         } \
         else { \
