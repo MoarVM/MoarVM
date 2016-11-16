@@ -738,7 +738,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
     MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
         tc->instance->event_loop_active, si->work_idx);
     MVM_repr_push_o(tc, arr, callback);
-    if (nread > 0) {
+    if (nread >= 0) {
         MVMROOT(tc, t, {
         MVMROOT(tc, arr, {
             /* Push the sequence number. */
