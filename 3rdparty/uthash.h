@@ -120,7 +120,6 @@ do {                                                                            
      }                                                                              \
      else {                                                                         \
          HASH_FCN_VM_STR(tc, key, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt); \
-         (key)->body.cached_hash_code = _hf_hashv;                                  \
      }                                                                              \
      HASH_FIND_IN_BKT_VM_STR(tc, (head)->hh.tbl, hh,                                \
          (head)->hh.tbl->buckets[ _hf_bkt ], key, out);                             \
@@ -178,7 +177,6 @@ do {                                                                            
  else {                                                                          \
      HASH_FCN_VM_STR(tc, key_in, (head)->hh.tbl->num_buckets,                    \
              (add)->hh.hashv, _ha_bkt);                                          \
-     (key_in)->body.cached_hash_code = (add)->hh.hashv;                          \
  }                                                                               \
  HASH_ADD_TO_BKT((head)->hh.tbl->buckets[_ha_bkt],&(add)->hh);                   \
  HASH_FSCK(hh,head);                                                             \
