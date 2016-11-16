@@ -11,9 +11,6 @@
  * modified is included with the above copyright notice.
  */
 
-#define AO_GCC_ATOMIC_TEST_AND_SET
-#include "../test_and_set_t_is_ao_t.h"
-
 #include "generic.h"
 
 #define AO_T_IS_INT

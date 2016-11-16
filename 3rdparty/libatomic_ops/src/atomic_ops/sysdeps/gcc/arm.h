@@ -25,8 +25,6 @@
 # define AO_GCC_ATOMIC_TEST_AND_SET
 #endif
 
-#include "../test_and_set_t_is_ao_t.h" /* Probably suboptimal */
-
 #ifdef __native_client__
   /* Mask instruction should immediately precede access instruction.    */
 # define AO_MASK_PTR(reg) "       bical " reg ", " reg ", #0xc0000000\n"
@@ -280,6 +278,8 @@
 #endif /* AO_ARM_HAVE_LDREX */
 
 #ifndef AO_GCC_ATOMIC_TEST_AND_SET
+
+# include "../test_and_set_t_is_ao_t.h" /* Probably suboptimal  */
 
 #ifdef AO_ARM_HAVE_LDREX
 

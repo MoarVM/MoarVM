@@ -19,6 +19,9 @@
 /* For the details, see GNU Manual, chapter 6.52 (Built-in functions    */
 /* for memory model aware atomic operations).                           */
 
+#define AO_GCC_ATOMIC_TEST_AND_SET
+#include "../test_and_set_t_is_char.h"
+
 #if defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1) \
     || defined(AO_GCC_FORCE_HAVE_CAS)
 # define AO_GCC_HAVE_char_SYNC_CAS

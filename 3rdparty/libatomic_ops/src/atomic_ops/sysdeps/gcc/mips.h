@@ -35,9 +35,6 @@
     && !defined(AO_DISABLE_GCC_ATOMICS)
   /* Probably, it could be enabled even for earlier gcc/clang versions. */
 
-# define AO_GCC_ATOMIC_TEST_AND_SET
-# include "../test_and_set_t_is_ao_t.h"
-
   /* As of clang-3.6/mips[64], __GCC_HAVE_SYNC_COMPARE_AND_SWAP_n missing. */
 # if defined(__clang__)
 #   define AO_GCC_FORCE_HAVE_CAS
