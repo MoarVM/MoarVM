@@ -25,7 +25,21 @@
 #if ((defined(__x86_64__) && defined(AO_GCC_ATOMIC_TEST_AND_SET)) \
      || defined(__aarch64__)) && !defined(__ILP32__)
   /* x86-64: __m128 is not applicable to atomic intrinsics.     */
-  typedef unsigned __int128 double_ptr_storage;
+# if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7) \
+     || __clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 6)
+#   pragma GCC diagnostic push
+    /* Suppress warning about __int128 type.      */
+#   if defined(__clang__)
+#     pragma GCC diagnostic ignored "-Wpedantic"
+#   else
+      /* GCC before ~4.8 does not accept "-Wpedanic" quietly.     */
+#     pragma GCC diagnostic ignored "-pedantic"
+#   endif
+    typedef unsigned __int128 double_ptr_storage;
+#   pragma GCC diagnostic pop
+# else /* pragma diagnostic is not supported */
+    typedef unsigned __int128 double_ptr_storage;
+# endif
 #elif ((defined(__x86_64__) && __GNUC__ >= 4) || defined(_WIN64)) \
       && !defined(__ILP32__)
   /* x86-64 (except for x32): __m128 serves as a placeholder which also */
