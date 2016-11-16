@@ -1,22 +1,41 @@
 
 == [7.5.0] (development) ==
 
+* Add *_and/or/xor* and *_[fetch_]compare_and_swap* tests to test_atomic.
+* Add asm-based and/or/xor implementation for char/short/int (gcc/x86).
+* Add configure '--disable-atomic-intrinsics' option.
+* Add dd_acquire_read case to test_atomic.
 * Add initial nios2 architecture support.
 * Avoid atomic_compare_exchange_n if no __GCC_HAVE_SYNC_COMPARE_AND_SWAP_n.
+* Avoid extra nop_full in stack_pop_acquire if atomic intrinsics used (x86).
 * Basic support of TILE-Gx and TILEPro CPUs.
+* Code refactoring of int-wide primitives in gcc/x86.h.
 * Define AO_TS_SET as __GCC_ATOMIC_TEST_AND_SET_TRUEVAL if applicable.
+* Eliminate 'ISO C90 does not support long long' compiler pedantic warning.
+* Eliminate 'scope of variable can be reduced' cppcheck warnings.
 * Eliminate redundant lwsync 2nd call in CAS_full on fail (gcc/PowerPC).
+* Fix 'variable new value is never used' cppcheck style warning.
+* Fix missing double_compare_and_swap_dd_acquire_read.
+* Fix reporting about missing and/or/xor_dd_acquire_read (test_atomic).
+* Fix store-load ordering in AO_stack_pop_explicit_aux_acquire (PowerPC).
+* Hide AO_locks symbol.
 * Implement CAS_acquire/release/full using __atomic_compare_exchange_n (gcc).
 * Initial ibmc/powerpc (xlc) support.
 * New configure option (--enable-werror) to treat warnings as compiler errors.
 * New macro AO_PREFER_BUILTIN_ATOMICS to rely on C11 atomics fully (AArch64).
 * Refine documentation about _full memory ordering suffix.
+* Refine README how to build the library source from the repository.
 * Relax shareability domain for dmb st in AO_nop_write (ARM/AArch64).
+* Remove spaces at EOLn in asm code.
 * Support NaCl/arm.
-* Support n32 ABI for mips64.
+* Suppress 'ISO C does not support __int128 type' GCC/Clang pedantic warning.
 * Use GCC atomic intrinsics for x86, x64, ARM, MIPS (gcc 4.9+, clang 3.5+).
-* Use LLD and SCD instructions on mips64.
-Also, includes 7.4.4 changes.
+* Workaround '#error' cppcheck error messages.
+* Workaround 'condition always true', 'unused stored value' cppcheck warnings.
+* Workaround 'function is never used' cppcheck style warnings.
+* Workaround 'overflow in pointer subtraction' cppcheck warning.
+* Workaround 'value of macro is unknown' cppcheck information messages.
+Also, includes 7.4.6 changes.
 
 
 == [7.4.6] (unset) ==
