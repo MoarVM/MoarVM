@@ -277,7 +277,7 @@
 
 == [7.0] 2007-06-28 ==
 
-* Add 64-bit version of AO_load_acquire for PowerPC.
+* Add 64-bit version of AO_load_acquire for PowerPC (by Luca Barbato).
 * Add support of x86 and x86_64 for MS VC.
 * Do not assume that "mfence" is always present (x86.h).
 * Fix ARM AO_test_and_set_full.
@@ -307,18 +307,22 @@
 
 == [1.0] 2005-03-21 ==
 
-* Fix various bugs.
 * Add atomic_ops primitives for different sized data.
 * Add compare_double_and_swap_double and compare_and_swap_double.
+* Add gcc/cris.h (originally comes from Hans-Peter Nilsson).
+* Add gcc/m68k.h (contributed by Tony Mantler).
+* Add gcc/powerpc.h (with help of Maged Michael, Doug Lea, Roger Hoover).
 * Add initial support for atomic_ops for VC++/Windows/X86 and HP/UX.
 * Add minimal support for the Sun SPARC compiler.
 * Add support for platforms that require out-of-line assembly code.
 * Add support of int-wide operations on platforms with int-sized pointers.
 * Added libatomic_ops_gpl library with support for lock-free stack and malloc.
-* Attempt to support PowerPC.
 * Change atomic_ops include file structure.
 * Change most platforms to use byte-wide test-and-set locations.
+* Define AO_CLEAR, __ldcw[_align] macros in gcc/hppa.h (by Carlos O'Donell).
+* Fix various bugs.
 * Install under "atomic_ops" instead of "ao".
 * Remove compiler_barrier workaround for gcc 3.4+.
 * Renamed various types to end in _t.
+* Replace AO_HAVE_NOP_FULL with AO_HAVE_nop_full (by Ranko Zivojnovic).
 * Use autoconf, automake.
