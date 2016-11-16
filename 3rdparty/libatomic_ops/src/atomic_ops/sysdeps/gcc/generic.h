@@ -172,14 +172,52 @@
                                AO_double_t old_val, AO_double_t new_val)
     {
       return (int)__atomic_compare_exchange_n(&addr->AO_whole,
-                                  &old_val.AO_whole /* p_expected */,
-                                  new_val.AO_whole /* desired */,
-                                  0 /* is_weak: false */,
-                                  __ATOMIC_RELAXED /* success */,
-                                  __ATOMIC_RELAXED /* failure */);
+                                &old_val.AO_whole /* p_expected */,
+                                new_val.AO_whole /* desired */,
+                                0 /* is_weak: false */,
+                                __ATOMIC_RELAXED /* success */,
+                                __ATOMIC_RELAXED /* failure */);
     }
 #   define AO_HAVE_double_compare_and_swap
 # endif
 
-  /* TODO: Add double CAS _acquire/release/full primitives. */
+# ifndef AO_HAVE_double_compare_and_swap_acquire
+    AO_INLINE int
+    AO_double_compare_and_swap_acquire(volatile AO_double_t *addr,
+                                       AO_double_t old_val,
+                                       AO_double_t new_val)
+    {
+      return (int)__atomic_compare_exchange_n(&addr->AO_whole,
+                                &old_val.AO_whole, new_val.AO_whole, 0,
+                                __ATOMIC_ACQUIRE, __ATOMIC_ACQUIRE);
+    }
+#   define AO_HAVE_double_compare_and_swap_acquire
+# endif
+
+# ifndef AO_HAVE_double_compare_and_swap_release
+    AO_INLINE int
+    AO_double_compare_and_swap_release(volatile AO_double_t *addr,
+                                       AO_double_t old_val,
+                                       AO_double_t new_val)
+    {
+      return (int)__atomic_compare_exchange_n(&addr->AO_whole,
+                                &old_val.AO_whole, new_val.AO_whole, 0,
+                                __ATOMIC_RELEASE,
+                                __ATOMIC_RELAXED /* failure */);
+    }
+#   define AO_HAVE_double_compare_and_swap_release
+# endif
+
+# ifndef AO_HAVE_double_compare_and_swap_full
+    AO_INLINE int
+    AO_double_compare_and_swap_full(volatile AO_double_t *addr,
+                                    AO_double_t old_val, AO_double_t new_val)
+    {
+      return (int)__atomic_compare_exchange_n(&addr->AO_whole,
+                                &old_val.AO_whole, new_val.AO_whole, 0,
+                                __ATOMIC_ACQ_REL,
+                                __ATOMIC_ACQUIRE /* failure */);
+    }
+#   define AO_HAVE_double_compare_and_swap_full
+# endif
 #endif /* AO_GCC_HAVE_double_SYNC_CAS */
