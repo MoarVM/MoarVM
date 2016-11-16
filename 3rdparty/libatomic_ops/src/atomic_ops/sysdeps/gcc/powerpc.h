@@ -76,6 +76,16 @@ AO_lwsync(void)
 # define AO_T_IS_INT
 #endif
 
+#ifdef _AIX
+  /* Labels are not supported on AIX.                   */
+  /* ppc64 has same size of instructions as 32-bit one. */
+# define AO_PPC_L(label) /* empty */
+# define AO_PPC_BR_A(labelBF, addr) addr
+#else
+# define AO_PPC_L(label) label ": "
+# define AO_PPC_BR_A(labelBF, addr) labelBF
+#endif
+
 /* We explicitly specify load_acquire, since it is important, and can   */
 /* be implemented relatively cheaply.  It could be implemented          */
 /* with an ordinary load followed by a lwsync.  But the general wisdom  */
@@ -90,8 +100,8 @@ AO_load_acquire(const volatile AO_t *addr)
   __asm__ __volatile__ (
     AO_PPC_LD "%U1%X1 %0,%1\n"
     "cmpw %0,%0\n"
-    "bne- 1f\n"
-    "1: isync\n"
+    "bne- " AO_PPC_BR_A("1f", "$+4") "\n"
+    AO_PPC_L("1") "isync\n"
     : "=r" (result)
     : "m"(*addr) : "memory", AO_PPC_LOAD_CLOBBER);
   return result;
@@ -119,12 +129,15 @@ AO_test_and_set(volatile AO_TS_t *addr) {
   AO_t temp = 1; /* locked value */
 
   __asm__ __volatile__(
-               "1: " AO_PPC_LxARX " %0,0,%1\n"  /* load and reserve     */
+               AO_PPC_L("1") AO_PPC_LxARX " %0,0,%1\n"
+                                                /* load and reserve     */
                AO_PPC_CMPx "i %0, 0\n"          /* if load is           */
-               "bne 2f\n"           /* non-zero, return already set     */
+               "bne " AO_PPC_BR_A("2f", "$+12") "\n"
+                                    /* non-zero, return already set     */
                AO_PPC_STxCXd " %2,0,%1\n"   /* else store conditional   */
-               "bne- 1b\n"          /* retry if lost reservation        */
-               "2:\n"               /* oldval is zero if we set         */
+               "bne- " AO_PPC_BR_A("1b", "$-16") "\n"
+                                    /* retry if lost reservation        */
+               AO_PPC_L("2") "\n"   /* oldval is zero if we set         */
               : "=&r"(oldval)
               : "r"(addr), "r"(temp)
               : "memory", "cr0");
@@ -167,13 +180,14 @@ AO_test_and_set_full(volatile AO_TS_t *addr) {
     int result = 0;
 
     __asm__ __volatile__(
-        "1: " AO_PPC_LxARX " %0,0,%2\n" /* load and reserve     */
+        AO_PPC_L("1") AO_PPC_LxARX " %0,0,%2\n" /* load and reserve */
         AO_PPC_CMPx " %0, %4\n" /* if load is not equal to      */
-        "bne 2f\n"              /*   old, fail                  */
+        "bne " AO_PPC_BR_A("2f", "$+16") "\n"   /*   old, fail  */
         AO_PPC_STxCXd " %3,0,%2\n"  /* else store conditional   */
-        "bne- 1b\n"             /* retry if lost reservation    */
+        "bne- " AO_PPC_BR_A("1b", "$-16") "\n"
+                                /* retry if lost reservation    */
         "li %1,1\n"             /* result = 1;                  */
-        "2:\n"
+        AO_PPC_L("2") "\n"
         : "=&r"(oldval), "=&r"(result)
         : "r"(addr), "r"(new_val), "r"(old), "1"(result)
         : "memory", "cr0");
@@ -218,12 +232,13 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
   AO_t fetched_val;
 
   __asm__ __volatile__(
-      "1: " AO_PPC_LxARX " %0,0,%1\n"   /* load and reserve     */
+      AO_PPC_L("1") AO_PPC_LxARX " %0,0,%1\n" /* load and reserve */
       AO_PPC_CMPx " %0, %3\n"   /* if load is not equal to      */
-      "bne 2f\n"                /*   old_val, fail              */
+      "bne " AO_PPC_BR_A("2f", "$+12") "\n" /*   old_val, fail  */
       AO_PPC_STxCXd " %2,0,%1\n"    /* else store conditional   */
-      "bne- 1b\n"               /* retry if lost reservation    */
-      "2:\n"
+      "bne- " AO_PPC_BR_A("1b", "$-16") "\n"
+                                /* retry if lost reservation    */
+      AO_PPC_L("2") "\n"
       : "=&r"(fetched_val)
       : "r"(addr), "r"(new_val), "r"(old_val)
       : "memory", "cr0");
@@ -270,10 +285,11 @@ AO_fetch_and_add(volatile AO_t *addr, AO_t incr) {
   AO_t newval;
 
   __asm__ __volatile__(
-               "1: " AO_PPC_LxARX " %0,0,%2\n"  /* load and reserve     */
+               AO_PPC_L("1") AO_PPC_LxARX " %0,0,%2\n" /* load and reserve */
                "add %1,%0,%3\n"                 /* increment            */
                AO_PPC_STxCXd " %1,0,%2\n"       /* store conditional    */
-               "bne- 1b\n"          /* retry if lost reservation        */
+               "bne- " AO_PPC_BR_A("1b", "$-12") "\n"
+                                    /* retry if lost reservation        */
               : "=&r"(oldval), "=&r"(newval)
               : "r"(addr), "r"(incr)
               : "memory", "cr0");
@@ -309,7 +325,9 @@ AO_fetch_and_add_full(volatile AO_t *addr, AO_t incr) {
 
 /* TODO: Implement double-wide operations if available. */
 
+#undef AO_PPC_BR_A
 #undef AO_PPC_CMPx
+#undef AO_PPC_L
 #undef AO_PPC_LD
 #undef AO_PPC_LOAD_CLOBBER
 #undef AO_PPC_LxARX
