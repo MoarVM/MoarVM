@@ -23,10 +23,17 @@
 /*
  * These are common definitions for architectures on which test_and_set
  * operates on pointer-sized quantities, the "clear" value contains
- * all zeroes, and the "set" value contains only one lowest bit set.
- * This can be used if test_and_set is synthesized from compare_and_swap.
+ * all zeroes, and the "set" value contains only one lowest bit set typically.
  */
-typedef enum {AO_TS_clear = 0, AO_TS_set = 1} AO_TS_val;
+
+#if defined(AO_GCC_ATOMIC_TEST_AND_SET) && !defined(AO_PREFER_GENERALIZED) \
+    && defined(__GCC_ATOMIC_TEST_AND_SET_TRUEVAL)
+# define AO_TS_SET_TRUEVAL __GCC_ATOMIC_TEST_AND_SET_TRUEVAL
+#else
+# define AO_TS_SET_TRUEVAL 1
+#endif
+
+typedef enum { AO_TS_clear = 0, AO_TS_set = AO_TS_SET_TRUEVAL } AO_TS_val;
 #define AO_TS_VAL_t AO_TS_val
 #define AO_TS_CLEAR AO_TS_clear
 #define AO_TS_SET AO_TS_set

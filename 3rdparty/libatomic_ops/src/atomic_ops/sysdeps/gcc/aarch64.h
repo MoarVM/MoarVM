@@ -15,6 +15,7 @@
  *
  */
 
+#define AO_GCC_ATOMIC_TEST_AND_SET
 #include "../test_and_set_t_is_ao_t.h"
 
 #include "../standard_ao_double_t.h"
