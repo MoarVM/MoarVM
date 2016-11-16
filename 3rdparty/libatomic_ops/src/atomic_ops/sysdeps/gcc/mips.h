@@ -190,3 +190,8 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old, AO_t new_val)
 /* CAS primitives with acquire, release and full semantics are  */
 /* generated automatically (and AO_int_... primitives are       */
 /* defined properly after the first generalization pass).       */
+
+#undef AO_MIPS_LL
+#undef AO_MIPS_LL_1
+#undef AO_MIPS_SC
+#undef AO_MIPS_SET_ISA

@@ -45,3 +45,5 @@ typedef enum {
 #define AO_TS_t unsigned char
 
 #define AO_CHAR_TS_T 1
+
+#undef AO_TS_SET_TRUEVAL

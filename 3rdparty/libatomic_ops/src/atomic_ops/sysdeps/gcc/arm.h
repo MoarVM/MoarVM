@@ -719,3 +719,9 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
 # include "generic.h"
 
 #endif /* AO_GCC_ATOMIC_TEST_AND_SET */
+
+#undef AO_BR_ALIGN
+#undef AO_MASK_PTR
+#undef AO_THUMB_GO_ARM
+#undef AO_THUMB_RESTORE_MODE
+#undef AO_THUMB_SWITCH_CLOBBERS
