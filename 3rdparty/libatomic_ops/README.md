@@ -3,8 +3,8 @@
 This is version 7.5.0 of libatomic_ops.
 
 You might find a more recent version
-[here](http://www.hpl.hp.com/personal/Hans_Boehm/gc), or
-[here](http://www.hpl.hp.com/research/linux/atomic_ops/).
+[here](http://www.hboehm.info/gc/), or
+[here](https://github.com/ivmai/libatomic_ops).
 
 
 ## Overview
@@ -26,7 +26,7 @@ allow you to write code:
 For details and licensing restrictions see the files in the "doc"
 subdirectory.
 
-Please address bug reports [here](mailto:gc@linux.hpl.hp.com).
+Please address bug reports to [mailing list](mailto:bdwgc@lists.opendylan.org).
 
 
 ## Installation and Usage
