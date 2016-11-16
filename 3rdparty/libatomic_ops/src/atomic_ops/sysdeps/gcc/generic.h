@@ -19,8 +19,6 @@
 /* For the details, see GNU Manual, chapter 6.52 (Built-in functions    */
 /* for memory model aware atomic operations).                           */
 
-/* TODO: Include this file for other targets if gcc 4.7+ */
-
 #ifdef AO_UNIPROCESSOR
   /* If only a single processor (core) is used, AO_UNIPROCESSOR could   */
   /* be defined by the client to avoid unnecessary memory barrier.      */
@@ -93,7 +91,7 @@
 
 #ifdef AO_HAVE_DOUBLE_PTR_STORAGE
 
-# ifndef AO_HAVE_double_load
+# if !defined(AO_HAVE_double_load) && !defined(AO_SKIPATOMIC_double_load)
     AO_INLINE AO_double_t
     AO_double_load(const volatile AO_double_t *addr)
     {
@@ -105,7 +103,8 @@
 #   define AO_HAVE_double_load
 # endif
 
-# ifndef AO_HAVE_double_load_acquire
+# if !defined(AO_HAVE_double_load_acquire) \
+     && !defined(AO_SKIPATOMIC_double_load_acquire)
     AO_INLINE AO_double_t
     AO_double_load_acquire(const volatile AO_double_t *addr)
     {
