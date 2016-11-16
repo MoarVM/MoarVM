@@ -17,6 +17,15 @@
 
 #include "../test_and_set_t_is_ao_t.h" /* Probably suboptimal */
 
+#ifdef __native_client__
+  /* Mask instruction should immediately precede access instruction.    */
+# define AO_MASK_PTR(reg) "       bical " reg ", " reg ", #0xc0000000\n"
+# define AO_BR_ALIGN "       .align 4\n"
+#else
+# define AO_MASK_PTR(reg) /* empty */
+# define AO_BR_ALIGN /* empty */
+#endif
+
 #if defined(__thumb__) && !defined(__thumb2__)
   /* Thumb One mode does not have ARM "mcr", "swp" and some load/store  */
   /* instructions, so we temporarily switch to ARM mode and go back     */
@@ -26,11 +35,13 @@
            "       bx      r3\n" \
            "      .align\n" \
            "      .arm\n" \
+           AO_BR_ALIGN \
            "4:\n"
 # define AO_THUMB_RESTORE_MODE \
            "       adr     r3, 5f + 1\n" \
            "       bx      r3\n" \
            "       .thumb\n" \
+           AO_BR_ALIGN \
            "5:\n"
 # define AO_THUMB_SWITCH_CLOBBERS "r3",
 #else
@@ -179,7 +190,10 @@
 
       __asm__ __volatile__("@AO_store\n"
         AO_THUMB_GO_ARM
-        "1:     ldrex %0, [%2]\n"
+        AO_BR_ALIGN
+        "1: " AO_MASK_PTR("%2")
+        "       ldrex %0, [%2]\n"
+        AO_MASK_PTR("%2")
         "       strex %0, %3, [%2]\n"
         "       teq %0, #0\n"
         "       bne 1b\n"
@@ -198,7 +212,10 @@
 
         __asm__ __volatile__("@AO_char_store\n"
           AO_THUMB_GO_ARM
-          "1:     ldrexb %0, [%2]\n"
+          AO_BR_ALIGN
+          "1: " AO_MASK_PTR("%2")
+          "       ldrexb %0, [%2]\n"
+          AO_MASK_PTR("%2")
           "       strexb %0, %3, [%2]\n"
           "       teq    %0, #0\n"
           "       bne 1b\n"
@@ -216,7 +233,10 @@
 
         __asm__ __volatile__("@AO_short_store\n"
           AO_THUMB_GO_ARM
-          "1:     ldrexh %0, [%2]\n"
+          AO_BR_ALIGN
+          "1: " AO_MASK_PTR("%2")
+          "       ldrexh %0, [%2]\n"
+          AO_MASK_PTR("%2")
           "       strexh %0, %3, [%2]\n"
           "       teq    %0, #0\n"
           "       bne 1b\n"
@@ -264,7 +284,10 @@
 
     __asm__ __volatile__("@AO_test_and_set\n"
       AO_THUMB_GO_ARM
-      "1:     ldrex   %0, [%3]\n"
+      AO_BR_ALIGN
+      "1: " AO_MASK_PTR("%3")
+      "       ldrex   %0, [%3]\n"
+      AO_MASK_PTR("%3")
       "       strex   %1, %4, [%3]\n"
       "       teq     %1, #0\n"
       "       bne     1b\n"
@@ -285,8 +308,11 @@ AO_fetch_and_add(volatile AO_t *p, AO_t incr)
 
   __asm__ __volatile__("@AO_fetch_and_add\n"
     AO_THUMB_GO_ARM
-    "1:     ldrex   %0, [%5]\n"         /* get original         */
+    AO_BR_ALIGN
+    "1: " AO_MASK_PTR("%5")
+    "       ldrex   %0, [%5]\n"         /* get original         */
     "       add     %2, %0, %4\n"       /* sum up in incr       */
+    AO_MASK_PTR("%5")
     "       strex   %1, %2, [%5]\n"     /* store them           */
     "       teq     %1, #0\n"
     "       bne     1b\n"
@@ -306,8 +332,11 @@ AO_fetch_and_add1(volatile AO_t *p)
 
   __asm__ __volatile__("@AO_fetch_and_add1\n"
     AO_THUMB_GO_ARM
-    "1:     ldrex   %0, [%4]\n"         /* get original */
+    AO_BR_ALIGN
+    "1: " AO_MASK_PTR("%4")
+    "       ldrex   %0, [%4]\n"         /* get original */
     "       add     %1, %0, #1\n"       /* increment */
+    AO_MASK_PTR("%4")
     "       strex   %2, %1, [%4]\n"     /* store them */
     "       teq     %2, #0\n"
     "       bne     1b\n"
@@ -327,8 +356,11 @@ AO_fetch_and_sub1(volatile AO_t *p)
 
   __asm__ __volatile__("@AO_fetch_and_sub1\n"
     AO_THUMB_GO_ARM
-    "1:     ldrex   %0, [%4]\n"         /* get original */
+    AO_BR_ALIGN
+    "1: " AO_MASK_PTR("%4")
+    "       ldrex   %0, [%4]\n"         /* get original */
     "       sub     %1, %0, #1\n"       /* decrement */
+    AO_MASK_PTR("%4")
     "       strex   %2, %1, [%4]\n"     /* store them */
     "       teq     %2, #0\n"
     "       bne     1b\n"
@@ -347,8 +379,11 @@ AO_and(volatile AO_t *p, AO_t value)
 
   __asm__ __volatile__("@AO_and\n"
     AO_THUMB_GO_ARM
-    "1:     ldrex   %0, [%4]\n"
+    AO_BR_ALIGN
+    "1: " AO_MASK_PTR("%4")
+    "       ldrex   %0, [%4]\n"
     "       and     %1, %0, %3\n"
+    AO_MASK_PTR("%4")
     "       strex   %0, %1, [%4]\n"
     "       teq     %0, #0\n"
     "       bne     1b\n"
@@ -366,8 +401,11 @@ AO_or(volatile AO_t *p, AO_t value)
 
   __asm__ __volatile__("@AO_or\n"
     AO_THUMB_GO_ARM
-    "1:     ldrex   %0, [%4]\n"
+    AO_BR_ALIGN
+    "1: " AO_MASK_PTR("%4")
+    "       ldrex   %0, [%4]\n"
     "       orr     %1, %0, %3\n"
+    AO_MASK_PTR("%4")
     "       strex   %0, %1, [%4]\n"
     "       teq     %0, #0\n"
     "       bne     1b\n"
@@ -385,8 +423,11 @@ AO_xor(volatile AO_t *p, AO_t value)
 
   __asm__ __volatile__("@AO_xor\n"
     AO_THUMB_GO_ARM
-    "1:     ldrex   %0, [%4]\n"
+    AO_BR_ALIGN
+    "1: " AO_MASK_PTR("%4")
+    "       ldrex   %0, [%4]\n"
     "       eor     %1, %0, %3\n"
+    AO_MASK_PTR("%4")
     "       strex   %0, %1, [%4]\n"
     "       teq     %0, #0\n"
     "       bne     1b\n"
@@ -407,8 +448,11 @@ AO_xor(volatile AO_t *p, AO_t value)
 
     __asm__ __volatile__("@AO_char_fetch_and_add\n"
       AO_THUMB_GO_ARM
-      "1:     ldrexb  %0, [%5]\n"
+      AO_BR_ALIGN
+      "1: " AO_MASK_PTR("%5")
+      "       ldrexb  %0, [%5]\n"
       "       add     %2, %0, %4\n"
+      AO_MASK_PTR("%5")
       "       strexb  %1, %2, [%5]\n"
       "       teq     %1, #0\n"
       "       bne     1b\n"
@@ -428,8 +472,11 @@ AO_xor(volatile AO_t *p, AO_t value)
 
     __asm__ __volatile__("@AO_short_fetch_and_add\n"
       AO_THUMB_GO_ARM
-      "1:     ldrexh  %0, [%5]\n"
+      AO_BR_ALIGN
+      "1: " AO_MASK_PTR("%5")
+      "       ldrexh  %0, [%5]\n"
       "       add     %2, %0, %4\n"
+      AO_MASK_PTR("%5")
       "       strexh  %1, %2, [%5]\n"
       "       teq     %1, #0\n"
       "       bne     1b\n"
@@ -451,9 +498,12 @@ AO_xor(volatile AO_t *p, AO_t value)
 
     __asm__ __volatile__("@AO_compare_and_swap\n"
       AO_THUMB_GO_ARM
+      AO_BR_ALIGN
       "1:     mov     %0, #2\n"         /* store a flag */
+      AO_MASK_PTR("%3")
       "       ldrex   %1, [%3]\n"       /* get original */
       "       teq     %1, %4\n"         /* see if match */
+      AO_MASK_PTR("%3")
 #     ifdef __thumb2__
         /* TODO: Eliminate warning: it blocks containing wide Thumb */
         /* instructions are deprecated in ARMv8.                    */
@@ -479,9 +529,12 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
 
   __asm__ __volatile__("@AO_fetch_compare_and_swap\n"
     AO_THUMB_GO_ARM
+    AO_BR_ALIGN
     "1:     mov     %0, #2\n"           /* store a flag */
+    AO_MASK_PTR("%3")
     "       ldrex   %1, [%3]\n"         /* get original */
     "       teq     %1, %4\n"           /* see if match */
+    AO_MASK_PTR("%3")
 #   ifdef __thumb2__
       "       it      eq\n"
 #   endif
@@ -512,6 +565,7 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
 
     /* AO_THUMB_GO_ARM is empty. */
     __asm__ __volatile__("@AO_double_load\n"
+      AO_MASK_PTR("%1")
       "       ldrexd  %0, %H0, [%1]"
       : "=&r" (result.AO_whole)
       : "r" (addr)
@@ -529,7 +583,9 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
     do {
       /* AO_THUMB_GO_ARM is empty. */
       __asm__ __volatile__("@AO_double_store\n"
+        AO_MASK_PTR("%3")
         "       ldrexd  %0, %H0, [%3]\n"
+        AO_MASK_PTR("%3")
         "       strexd  %1, %4, %H4, [%3]"
         : "=&r" (old_val.AO_whole), "=&r" (status), "+m" (*addr)
         : "r" (addr), "r" (new_val.AO_whole)
@@ -548,6 +604,7 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
     do {
       /* AO_THUMB_GO_ARM is empty. */
       __asm__ __volatile__("@AO_double_compare_and_swap\n"
+        AO_MASK_PTR("%1")
         "       ldrexd  %0, %H0, [%1]\n" /* get original to r1 & r2 */
         : "=&r"(tmp)
         : "r"(addr)
@@ -555,6 +612,7 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
       if (tmp != old_val.AO_whole)
         break;
       __asm__ __volatile__(
+        AO_MASK_PTR("%2")
         "       strexd  %0, %3, %H3, [%2]\n" /* store new one if matched */
         : "=&r"(result), "+m"(*addr)
         : "r" (addr), "r" (new_val.AO_whole)
@@ -595,6 +653,7 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
 
     __asm__ __volatile__("@AO_test_and_set_full\n"
       AO_THUMB_GO_ARM
+      AO_MASK_PTR("%3")
       "       swp %0, %2, [%3]\n"
                 /* Ignore GCC "SWP is deprecated for this architecture" */
                 /* warning here (for ARMv6+).                           */
