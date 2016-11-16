@@ -1,4 +1,10 @@
 
+== [7.5.0] (development) ==
+
+* Relax shareability domain for dmb st in AO_nop_write (ARM/AArch64).
+* Use LLD and SCD instructions on mips64.
+
+
 == [7.4.4] (unset) ==
 
 * Eliminate 'variable set but not used' Cppcheck warnings in test_stack.
