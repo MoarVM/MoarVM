@@ -709,3 +709,19 @@
   }
 # define AO_HAVE_double_compare_and_swap_full
 #endif
+
+#ifndef AO_HAVE_double_compare_and_swap_dd_acquire_read
+  /* Duplicated from generalize-small because double CAS might be       */
+  /* defined after the include.                                         */
+# ifdef AO_NO_DD_ORDERING
+#   if defined(AO_HAVE_double_compare_and_swap_acquire_read)
+#     define AO_double_compare_and_swap_dd_acquire_read(addr, old, new_val) \
+                AO_double_compare_and_swap_acquire_read(addr, old, new_val)
+#     define AO_HAVE_double_compare_and_swap_dd_acquire_read
+#   endif
+# elif defined(AO_HAVE_double_compare_and_swap)
+#   define AO_double_compare_and_swap_dd_acquire_read(addr, old, new_val) \
+                AO_double_compare_and_swap(addr, old, new_val)
+#   define AO_HAVE_double_compare_and_swap_dd_acquire_read
+# endif /* !AO_NO_DD_ORDERING */
+#endif
