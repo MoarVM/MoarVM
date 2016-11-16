@@ -40,6 +40,8 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
             "DLL name");
         MVM_HASH_BIND(tc, tc->instance->dll_registry, name, entry);
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
+            "DLL name hash key");
     }
 
     entry->lib = lib;

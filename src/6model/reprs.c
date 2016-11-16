@@ -148,12 +148,14 @@ static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMStrin
     entry->name = name;
     entry->repr = repr;
 
-    /* Name should become a permanent GC root. */
-    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name, "REPR name");
-
     /* Enter into registry. */
     tc->instance->repr_list[repr->ID] = entry;
     MVM_HASH_BIND(tc, tc->instance->repr_hash, name, entry);
+
+    /* Name and hash key should become a permanent GC root. */
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name, "REPR name");
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
+        "REPR registry hash key");
 }
 
 int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr) {

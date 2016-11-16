@@ -88,6 +88,8 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
      * keys of it anyway... */
     HASH_ITER(hash_handle, tc->instance->sc_weakhash, current, tmp, bucket_tmp) {
         /* mark the string handle pointer iff it hasn't yet been resolved */
+        add_collectable(tc, worklist, snapshot, current->hash_handle.key,
+            "SC weakhash hash key");
         if (!current->sc)
             add_collectable(tc, worklist, snapshot, current->handle,
                 "SC weakhash unresolved handle");
@@ -97,6 +99,8 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     }
 
     HASH_ITER(hash_handle, tc->instance->loaded_compunits, current_lcun, tmp_lcun, bucket_tmp) {
+        add_collectable(tc, worklist, snapshot, current_lcun->hash_handle.key,
+            "Loaded compilation unit hash key");
         add_collectable(tc, worklist, snapshot, current_lcun->filename,
             "Loaded compilation unit filename");
     }
@@ -157,6 +161,8 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     HASH_ITER(hash_handle, tc->native_callback_cache, current_cbceh, tmp_cbceh, bucket_tmp) {
         MVMint32 i;
         MVMNativeCallback *entry = current_cbceh->head;
+        add_collectable(tc, worklist, snapshot, current_cbceh->hash_handle.key,
+            "Native callback cache key");
         while (entry) {
             for (i = 0; i < entry->num_types; i++)
                 add_collectable(tc, worklist, snapshot, entry->types[i],

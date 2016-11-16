@@ -114,8 +114,6 @@ do {                                                                            
   out=NULL;                                                                         \
   if (head) {                                                                       \
      unsigned cached_hash = (key)->body.cached_hash_code;                           \
-     void *keyptr = (key)->body.storage.blob_32;                                    \
-     size_t keylen = MVM_string_graphs(tc, key) * sizeof(MVMGrapheme32);            \
      if (cached_hash) {                                                             \
          _hf_hashv = cached_hash;                                                   \
          _hf_bkt = ((_hf_hashv) & (((head)->hh.tbl->num_buckets) - 1));             \
@@ -124,8 +122,8 @@ do {                                                                            
          HASH_FCN_VM_STR(tc, key, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt); \
          (key)->body.cached_hash_code = _hf_hashv;                                  \
      }                                                                              \
-     HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],       \
-                      keyptr,keylen,out);                                           \
+     HASH_FIND_IN_BKT_VM_STR(tc, (head)->hh.tbl, hh,                                \
+         (head)->hh.tbl->buckets[ _hf_bkt ], key, out);                             \
   }                                                                                 \
 } while (0)
 
@@ -166,10 +164,7 @@ do {                                                                            
 do {                                                                             \
  unsigned _ha_bkt;                                                               \
  unsigned cached_hash = (key_in)->body.cached_hash_code;                         \
- void *keyptr = (key_in)->body.storage.blob_32;                                  \
- size_t keylen_in = MVM_string_graphs(tc, key_in) * sizeof(MVMGrapheme32);       \
- (add)->hh.key = (char*)keyptr;                                                  \
- (add)->hh.keylen = (unsigned)keylen_in;                                         \
+ (add)->hh.key = (key_in);                                                       \
  if (!(head)) {                                                                  \
     head = (add);                                                                \
     HASH_MAKE_TABLE(hh,head);                                                    \
@@ -363,6 +358,21 @@ do {                                                                            
  }                                                                               \
 } while(0)
 
+/* iterate over items in a known bucket to find desired item */
+#define HASH_FIND_IN_BKT_VM_STR(tc,tbl,hh,head,key_in,out)                       \
+do {                                                                             \
+ if (head.hh_head) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,head.hh_head));          \
+ else out=NULL;                                                                  \
+ while (out) {                                                                   \
+    if (MVM_string_equal(tc, (key_in), (MVMString *)((out)->hh.key)))            \
+        break;                                                                   \
+    if ((out)->hh.hh_next)                                                       \
+        DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,(out)->hh.hh_next));                \
+    else                                                                         \
+        out = NULL;                                                              \
+ }                                                                               \
+} while(0)
+
 /* add an item to a bucket  */
 #define HASH_ADD_TO_BKT(head,addhh)                                              \
 do {                                                                             \
@@ -527,7 +537,9 @@ typedef struct UT_hash_handle {
    struct UT_hash_table *tbl;
    struct UT_hash_handle *hh_prev;   /* previous hh in bucket order    */
    struct UT_hash_handle *hh_next;   /* next hh in bucket order        */
-   void *key;                        /* ptr to enclosing struct's key  */
+   void *key;                        /* ptr to enclosing struct's key (char * for
+                                      * low-level hashes, MVMString * for high level
+                                      * hashes) */
    unsigned keylen;                  /* enclosing struct's key len     */
    unsigned hashv;                   /* result of hash-fcn(key)        */
 } UT_hash_handle;

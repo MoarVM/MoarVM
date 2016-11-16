@@ -48,6 +48,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
     HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
         MVM_gc_worklist_add(tc, worklist, &current->key);
+        MVM_gc_worklist_add(tc, worklist, &current->hash_handle.key);
         MVM_gc_worklist_add(tc, worklist, &current->value);
     }
 }

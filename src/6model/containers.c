@@ -403,6 +403,8 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
             "Container configuration name");
         MVM_HASH_BIND(tc, tc->instance->container_registry, name, entry);
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
+            "Container configuration hash key");
     }
 
     uv_mutex_unlock(&tc->instance->mutex_container_registry);
