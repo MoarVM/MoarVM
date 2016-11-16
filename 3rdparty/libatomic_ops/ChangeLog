@@ -1,4 +1,10 @@
 
+== [7.4.2] 2014-05-02 ==
+
+* Fix a typo in doc/README.txt (remove redundant "an" article).
+* Update emails/links due to project site transition.
+
+
 == [7.4.0] 2013-11-17 ==
 
 * Add and/or/xor entries to list_atomic (tests).
@@ -131,6 +137,12 @@
 * Show extra compiler warnings (GCC only).
 * Turn off AO primitives inlining if AO_NO_INLINE defined.
 * Use __builtin_expect in CAS failure loop condition checks (GCC only).
+
+
+== [7.2f] 2014-05-02 ==
+
+* Fix a typo in doc/README.txt (remove redundant "an" article).
+* Regenerate configure files by new automake (v1.14.1), libtool (v2.4.2.418).
 
 
 == [7.2e] 2013-11-10 ==
