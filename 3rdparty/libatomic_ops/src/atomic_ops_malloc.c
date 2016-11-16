@@ -135,9 +135,19 @@ static char *get_mmaped(size_t sz)
   return result;
 }
 
+#ifndef SIZE_MAX
+# include <limits.h>
+#endif
+#ifdef SIZE_MAX
+# define AO_SIZE_MAX SIZE_MAX
+#else
+# define AO_SIZE_MAX (~(size_t)0)
+#endif
+
 /* Saturated addition of size_t values.  Used to avoid value wrap       */
 /* around on overflow.  The arguments should have no side effects.      */
-#define SIZET_SAT_ADD(a, b) ((a) < ~(size_t)(b) ? (a) + (b) : ~(size_t)0)
+#define SIZET_SAT_ADD(a, b) \
+                ((a) < AO_SIZE_MAX - (b) ? (a) + (b) : AO_SIZE_MAX)
 
 /* Allocate an object of size (incl. header) of size > CHUNK_SIZE.      */
 /* sz includes space for an AO_t-sized header.                          */
