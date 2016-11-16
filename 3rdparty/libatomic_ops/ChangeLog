@@ -19,6 +19,17 @@
 Also, includes 7.4.4 changes.
 
 
+== [7.4.6] (unset) ==
+
+* Eliminate 'cast to long from void*' compiler warning in test_atomic.
+* Fix (delete) comment for AO_and_full (x86).
+* Fix missing printed value names (test_stack).
+* Refine README about library downloading.
+* Support n32 ABI for mips64.
+* Use LLD and SCD instructions on mips64.
+Also, includes 7.2h changes.
+
+
 == [7.4.4] 2016-05-24 ==
 
 * Eliminate 'signed-to-unsigned value extension' compiler warning in malloc.
@@ -175,6 +186,17 @@ Also, includes 7.2e changes.
 * Turn off AO primitives inlining if AO_NO_INLINE defined.
 * Use __builtin_expect in CAS failure loop condition checks (GCC only).
 Also, includes 7.2 changes.
+
+
+== [7.2h] (unset) ==
+
+* Add 'clean' target to Makefile.msft.
+* Enable Makefile.msft for Win64.
+* Exclude 'check' from nmake all (Makefile.msft).
+* Fix (improve) AO_REQUIRE_CAS description in README.
+* Fix assertions style in test_atomic_include.
+* Fix size value wrap around in AO_malloc_large.
+* Fix typos in 'error' pragma messages.
 
 
 == [7.2g] 2016-05-23 ==
