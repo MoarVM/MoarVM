@@ -91,6 +91,14 @@ if test "$enable_assertions" != yes; then
   AC_DEFINE([NDEBUG], 1, [Define to disable assertion checking.])
 fi
 
+AC_ARG_ENABLE(atomic-intrinsics,
+        [AC_HELP_STRING([--disable-atomic-intrinsics],
+                        [Do not use C11 atomic intrinsics])])
+if test "$enable_atomic_intrinsics" = no; then
+  AC_DEFINE([AO_DISABLE_GCC_ATOMICS], 1,
+            [Define to avoid C11 atomic intrinsics even if available.])
+fi
+
 AC_SUBST(PICFLAG)
 AC_SUBST(DEFS)
 
@@ -142,8 +150,6 @@ AH_TEMPLATE([AO_USE_SYNC_CAS_BUILTIN],
 AH_TEMPLATE([AO_WEAK_DOUBLE_CAS_EMULATION],
         [Emulate double-width CAS via pthread locking in case of no hardware \
          support (only gcc/x86_64, the emulation is unsafe)])
-AH_TEMPLATE([AO_DISABLE_GCC_ATOMICS],
-        [Do not use C11 atomic intrinsics even if available])
 AH_TEMPLATE([AO_PREFER_BUILTIN_ATOMICS],
         [Prefer C11 atomic intrinsics over assembly-based implementation \
         even in case of inefficient implementation (do not use assembly for \
