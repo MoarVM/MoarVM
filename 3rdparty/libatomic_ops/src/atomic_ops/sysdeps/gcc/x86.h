@@ -293,11 +293,15 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
 
 #if (defined(AO_PREFER_BUILTIN_ATOMICS) || !defined(__clang__) \
      || defined(__x86_64__) || defined(__APPLE_CC__) || defined(__CYGWIN__)) \
-    && defined(AO_GCC_ATOMIC_TEST_AND_SET)
+    && defined(AO_GCC_ATOMIC_TEST_AND_SET) \
+    && !(defined(__APPLE_CC__) && defined(__x86_64__) && !defined(__ILP32__) \
+         && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16))
 
   /* As of clang-3.8 i686 (NDK r11c), it requires -latomic for all the  */
   /* double-wide operations.  For now, we fall back to the              */
   /* non-intrinsic implementation if clang/x86.                         */
+  /* As of Apple clang-600 (based on LLVM 3.5svn), it has some bug in   */
+  /* double-wide CAS implementation for x64 target.                     */
   /* TODO: Refine for newer clang releases. */
 
 # if defined(__ILP32__) || !defined(__x86_64__) /* 32-bit AO_t */ \
@@ -435,6 +439,8 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
   /* enough machines and tool chains around on which cmpxchg16b         */
   /* doesn't work.  And the emulation is unsafe by our usual rules.     */
   /* However both are clearly useful in certain cases.                  */
+
+# define AO_SKIPATOMIC_double_compare_and_swap_ANY
 
   AO_INLINE int
   AO_compare_double_and_swap_double_full(volatile AO_double_t *addr,
