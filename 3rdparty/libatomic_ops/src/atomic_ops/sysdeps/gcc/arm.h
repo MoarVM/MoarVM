@@ -15,6 +15,16 @@
  *
  */
 
+#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8) \
+     || __clang_major__ > 3 \
+     || (__clang_major__ == 3 && __clang_minor__ >= 5) \
+     || (defined(AO_PREFER_BUILTIN_ATOMICS) \
+         && __GNUC__ == 4 && __GNUC_MINOR__ >= 2)) \
+    && !defined(AO_DISABLE_GCC_ATOMICS)
+  /* Probably, it could be enabled even for earlier gcc/clang versions. */
+# define AO_GCC_ATOMIC_TEST_AND_SET
+#endif
+
 #include "../test_and_set_t_is_ao_t.h" /* Probably suboptimal */
 
 #ifdef __native_client__
@@ -95,6 +105,28 @@
                 /* Also, SWP is obsoleted for ARMv8+.                   */
 #endif /* !__thumb2__ */
 
+#if !defined(AO_UNIPROCESSOR) && defined(AO_ARM_HAVE_DMB) \
+    && !defined(AO_PREFER_BUILTIN_ATOMICS)
+  AO_INLINE void
+  AO_nop_write(void)
+  {
+    /* AO_THUMB_GO_ARM is empty. */
+    /* This will target the system domain and thus be overly            */
+    /* conservative as the CPUs will occupy the inner shareable domain. */
+    /* The plain variant (dmb st) is theoretically slower, and should   */
+    /* not be needed.  That said, with limited experimentation, a CPU   */
+    /* implementation for which it actually matters has not been found  */
+    /* yet, though they should already exist.                           */
+    /* Anyway, note that the "st" and "ishst" barriers are actually     */
+    /* quite weak and, as the libatomic_ops documentation states,       */
+    /* usually not what you really want.                                */
+    __asm__ __volatile__("dmb ishst" : : : "memory");
+  }
+# define AO_HAVE_nop_write
+#endif /* AO_ARM_HAVE_DMB */
+
+#ifndef AO_GCC_ATOMIC_TEST_AND_SET
+
 #ifdef AO_UNIPROCESSOR
   /* If only a single processor (core) is used, AO_UNIPROCESSOR could   */
   /* be defined by the client to avoid unnecessary memory barrier.      */
@@ -117,23 +149,6 @@
     __asm__ __volatile__("dmb" : : : "memory");
   }
 # define AO_HAVE_nop_full
-
-  AO_INLINE void
-  AO_nop_write(void)
-  {
-    /* AO_THUMB_GO_ARM is empty. */
-    /* This will target the system domain and thus be overly            */
-    /* conservative as the CPUs will occupy the inner shareable domain. */
-    /* The plain variant (dmb st) is theoretically slower, and should   */
-    /* not be needed.  That said, with limited experimentation, a CPU   */
-    /* implementation for which it actually matters has not been found  */
-    /* yet, though they should already exist.                           */
-    /* Anyway, note that the "st" and "ishst" barriers are actually     */
-    /* quite weak and, as the libatomic_ops documentation states,       */
-    /* usually not what you really want.                                */
-    __asm__ __volatile__("dmb ishst" : : : "memory");
-  }
-# define AO_HAVE_nop_write
 
 #elif defined(AO_ARM_HAVE_LDREX)
   /* ARMv6 is the first architecture providing support for a simple     */
@@ -159,14 +174,9 @@
   /* AO_nop_full() is emulated using AO_test_and_set_full().    */
 #endif /* !AO_UNIPROCESSOR && !AO_ARM_HAVE_LDREX */
 
-#ifdef AO_ARM_HAVE_LDREX
+#endif /* !AO_GCC_ATOMIC_TEST_AND_SET */
 
-  /* AO_t/char/short/int load is simple reading.                */
-  /* Unaligned accesses are not guaranteed to be atomic.        */
-# define AO_ACCESS_CHECK_ALIGNED
-# define AO_ACCESS_short_CHECK_ALIGNED
-# define AO_ACCESS_int_CHECK_ALIGNED
-# include "../all_atomic_only_load.h"
+#ifdef AO_ARM_HAVE_LDREX
 
   /* "ARM Architecture Reference Manual" (chapter A3.5.3) says that the */
   /* single-copy atomic processor accesses are all byte accesses, all   */
@@ -184,6 +194,18 @@
   /* arch/arm/kernel/entry-header.S of Linux.  Nonetheless, there is    */
   /* a doubt this was properly implemented in some ancient OS releases. */
 # ifdef AO_BROKEN_TASKSWITCH_CLREX
+
+#   define AO_SKIPATOMIC_store
+#   define AO_SKIPATOMIC_store_release
+#   define AO_SKIPATOMIC_char_store
+#   define AO_SKIPATOMIC_char_store_release
+#   define AO_SKIPATOMIC_short_store
+#   define AO_SKIPATOMIC_short_store_release
+#   define AO_SKIPATOMIC_int_store
+#   define AO_SKIPATOMIC_int_store_release
+
+#   ifndef AO_PREFER_BUILTIN_ATOMICS
+
     AO_INLINE void AO_store(volatile AO_t *addr, AO_t value)
     {
       int flag;
@@ -248,10 +270,25 @@
 #     define AO_HAVE_short_store
 #   endif /* AO_ARM_HAVE_LDREXBH */
 
-# else
+#   endif /* !AO_PREFER_BUILTIN_ATOMICS */
+
+# elif !defined(AO_GCC_ATOMIC_TEST_AND_SET)
 #   include "../loadstore/atomic_store.h"
     /* AO_int_store is defined in ao_t_is_int.h.    */
 # endif /* !AO_BROKEN_TASKSWITCH_CLREX */
+
+#endif /* AO_ARM_HAVE_LDREX */
+
+#ifndef AO_GCC_ATOMIC_TEST_AND_SET
+
+#ifdef AO_ARM_HAVE_LDREX
+
+  /* AO_t/char/short/int load is simple reading.                */
+  /* Unaligned accesses are not guaranteed to be atomic.        */
+# define AO_ACCESS_CHECK_ALIGNED
+# define AO_ACCESS_short_CHECK_ALIGNED
+# define AO_ACCESS_int_CHECK_ALIGNED
+# include "../all_atomic_only_load.h"
 
 # ifndef AO_HAVE_char_store
 #   include "../loadstore/char_atomic_store.h"
@@ -665,5 +702,14 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
   }
 # define AO_HAVE_test_and_set_full
 #endif /* !AO_HAVE_test_and_set[_full] && AO_ARM_HAVE_SWP */
+
+#else /* AO_GCC_ATOMIC_TEST_AND_SET */
+
+# ifdef AO_ARM_HAVE_LDREXD
+#   include "../standard_ao_double_t.h"
+# endif
+# include "generic.h"
+
+#endif /* AO_GCC_ATOMIC_TEST_AND_SET */
 
 #define AO_T_IS_INT

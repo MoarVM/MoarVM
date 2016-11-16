@@ -33,19 +33,23 @@ AO_char_load_acquire(const volatile unsigned/**/char *addr)
 /* char_load_read is defined using load and nop_read.                  */
 /* char_store_full definition is omitted similar to load_full reason.  */
 
-AO_INLINE void
-AO_char_store(volatile unsigned/**/char *addr, unsigned/**/char value)
-{
-  __atomic_store_n(addr, value, __ATOMIC_RELAXED);
-}
-#define AO_HAVE_char_store
+#ifndef AO_SKIPATOMIC_char_store
+  AO_INLINE void
+  AO_char_store(volatile unsigned/**/char *addr, unsigned/**/char value)
+  {
+    __atomic_store_n(addr, value, __ATOMIC_RELAXED);
+  }
+# define AO_HAVE_char_store
+#endif
 
-AO_INLINE void
-AO_char_store_release(volatile unsigned/**/char *addr, unsigned/**/char value)
-{
-  __atomic_store_n(addr, value, __ATOMIC_RELEASE);
-}
-#define AO_HAVE_char_store_release
+#ifndef AO_SKIPATOMIC_char_store_release
+  AO_INLINE void
+  AO_char_store_release(volatile unsigned/**/char *addr, unsigned/**/char value)
+  {
+    __atomic_store_n(addr, value, __ATOMIC_RELEASE);
+  }
+# define AO_HAVE_char_store_release
+#endif
 
 #ifdef AO_GCC_HAVE_char_SYNC_CAS
 
@@ -172,19 +176,23 @@ AO_short_load_acquire(const volatile unsigned/**/short *addr)
 /* short_load_read is defined using load and nop_read.                  */
 /* short_store_full definition is omitted similar to load_full reason.  */
 
-AO_INLINE void
-AO_short_store(volatile unsigned/**/short *addr, unsigned/**/short value)
-{
-  __atomic_store_n(addr, value, __ATOMIC_RELAXED);
-}
-#define AO_HAVE_short_store
+#ifndef AO_SKIPATOMIC_short_store
+  AO_INLINE void
+  AO_short_store(volatile unsigned/**/short *addr, unsigned/**/short value)
+  {
+    __atomic_store_n(addr, value, __ATOMIC_RELAXED);
+  }
+# define AO_HAVE_short_store
+#endif
 
-AO_INLINE void
-AO_short_store_release(volatile unsigned/**/short *addr, unsigned/**/short value)
-{
-  __atomic_store_n(addr, value, __ATOMIC_RELEASE);
-}
-#define AO_HAVE_short_store_release
+#ifndef AO_SKIPATOMIC_short_store_release
+  AO_INLINE void
+  AO_short_store_release(volatile unsigned/**/short *addr, unsigned/**/short value)
+  {
+    __atomic_store_n(addr, value, __ATOMIC_RELEASE);
+  }
+# define AO_HAVE_short_store_release
+#endif
 
 #ifdef AO_GCC_HAVE_short_SYNC_CAS
 
@@ -311,19 +319,23 @@ AO_int_load_acquire(const volatile unsigned *addr)
 /* int_load_read is defined using load and nop_read.                  */
 /* int_store_full definition is omitted similar to load_full reason.  */
 
-AO_INLINE void
-AO_int_store(volatile unsigned *addr, unsigned value)
-{
-  __atomic_store_n(addr, value, __ATOMIC_RELAXED);
-}
-#define AO_HAVE_int_store
+#ifndef AO_SKIPATOMIC_int_store
+  AO_INLINE void
+  AO_int_store(volatile unsigned *addr, unsigned value)
+  {
+    __atomic_store_n(addr, value, __ATOMIC_RELAXED);
+  }
+# define AO_HAVE_int_store
+#endif
 
-AO_INLINE void
-AO_int_store_release(volatile unsigned *addr, unsigned value)
-{
-  __atomic_store_n(addr, value, __ATOMIC_RELEASE);
-}
-#define AO_HAVE_int_store_release
+#ifndef AO_SKIPATOMIC_int_store_release
+  AO_INLINE void
+  AO_int_store_release(volatile unsigned *addr, unsigned value)
+  {
+    __atomic_store_n(addr, value, __ATOMIC_RELEASE);
+  }
+# define AO_HAVE_int_store_release
+#endif
 
 #ifdef AO_GCC_HAVE_int_SYNC_CAS
 
@@ -450,19 +462,23 @@ AO_load_acquire(const volatile AO_t *addr)
 /* load_read is defined using load and nop_read.                  */
 /* store_full definition is omitted similar to load_full reason.  */
 
-AO_INLINE void
-AO_store(volatile AO_t *addr, AO_t value)
-{
-  __atomic_store_n(addr, value, __ATOMIC_RELAXED);
-}
-#define AO_HAVE_store
+#ifndef AO_SKIPATOMIC_store
+  AO_INLINE void
+  AO_store(volatile AO_t *addr, AO_t value)
+  {
+    __atomic_store_n(addr, value, __ATOMIC_RELAXED);
+  }
+# define AO_HAVE_store
+#endif
 
-AO_INLINE void
-AO_store_release(volatile AO_t *addr, AO_t value)
-{
-  __atomic_store_n(addr, value, __ATOMIC_RELEASE);
-}
-#define AO_HAVE_store_release
+#ifndef AO_SKIPATOMIC_store_release
+  AO_INLINE void
+  AO_store_release(volatile AO_t *addr, AO_t value)
+  {
+    __atomic_store_n(addr, value, __ATOMIC_RELEASE);
+  }
+# define AO_HAVE_store_release
+#endif
 
 #ifdef AO_GCC_HAVE_SYNC_CAS
 

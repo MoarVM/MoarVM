@@ -33,19 +33,23 @@ AO_XSIZE_load_acquire(const volatile XCTYPE *addr)
 /* XSIZE_load_read is defined using load and nop_read.                  */
 /* XSIZE_store_full definition is omitted similar to load_full reason.  */
 
-AO_INLINE void
-AO_XSIZE_store(volatile XCTYPE *addr, XCTYPE value)
-{
-  __atomic_store_n(addr, value, __ATOMIC_RELAXED);
-}
-#define AO_HAVE_XSIZE_store
+#ifndef AO_SKIPATOMIC_XSIZE_store
+  AO_INLINE void
+  AO_XSIZE_store(volatile XCTYPE *addr, XCTYPE value)
+  {
+    __atomic_store_n(addr, value, __ATOMIC_RELAXED);
+  }
+# define AO_HAVE_XSIZE_store
+#endif
 
-AO_INLINE void
-AO_XSIZE_store_release(volatile XCTYPE *addr, XCTYPE value)
-{
-  __atomic_store_n(addr, value, __ATOMIC_RELEASE);
-}
-#define AO_HAVE_XSIZE_store_release
+#ifndef AO_SKIPATOMIC_XSIZE_store_release
+  AO_INLINE void
+  AO_XSIZE_store_release(volatile XCTYPE *addr, XCTYPE value)
+  {
+    __atomic_store_n(addr, value, __ATOMIC_RELEASE);
+  }
+# define AO_HAVE_XSIZE_store_release
+#endif
 
 #ifdef AO_GCC_HAVE_XSIZE_SYNC_CAS
 
