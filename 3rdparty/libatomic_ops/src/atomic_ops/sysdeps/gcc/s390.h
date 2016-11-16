@@ -71,7 +71,7 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr,
       "     cs %0,%2,%1\n"
 #   else
       "     csg %0,%2,%1\n"
-# endif
+#   endif
     : "+d" (old), "=Q" (*addr)
     : "d" (new_val), "m" (*addr)
     : "cc", "memory");
