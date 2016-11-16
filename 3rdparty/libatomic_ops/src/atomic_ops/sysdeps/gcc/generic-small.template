@@ -29,9 +29,20 @@ AO_XSIZE_load_acquire(const volatile XCTYPE *addr)
 }
 #define AO_HAVE_XSIZE_load_acquire
 
-/* XSIZE_load_full is generalized using load and nop_full, so that      */
 /* XSIZE_load_read is defined using load and nop_read.                  */
+/* TODO: Map it to ACQUIRE.  We should be strengthening the read and    */
+/* write stuff to the more general acquire/release versions.  It almost */
+/* never makes a difference and is much less error-prone.               */
+
+/* XSIZE_load_full is generalized using load and nop_full.              */
+/* TODO: Map it to SEQ_CST and clarify the documentation.               */
+
+/* TODO: Map load_dd_acquire_read to ACQUIRE.  Ideally it should be     */
+/* mapped to CONSUME, but the latter is currently broken.               */
+
 /* XSIZE_store_full definition is omitted similar to load_full reason.  */
+
+/* TODO: Map store_write to RELEASE.    */
 
 #ifndef AO_SKIPATOMIC_XSIZE_store
   AO_INLINE void

@@ -29,9 +29,20 @@ AO_char_load_acquire(const volatile unsigned/**/char *addr)
 }
 #define AO_HAVE_char_load_acquire
 
-/* char_load_full is generalized using load and nop_full, so that      */
 /* char_load_read is defined using load and nop_read.                  */
+/* TODO: Map it to ACQUIRE.  We should be strengthening the read and    */
+/* write stuff to the more general acquire/release versions.  It almost */
+/* never makes a difference and is much less error-prone.               */
+
+/* char_load_full is generalized using load and nop_full.              */
+/* TODO: Map it to SEQ_CST and clarify the documentation.               */
+
+/* TODO: Map load_dd_acquire_read to ACQUIRE.  Ideally it should be     */
+/* mapped to CONSUME, but the latter is currently broken.               */
+
 /* char_store_full definition is omitted similar to load_full reason.  */
+
+/* TODO: Map store_write to RELEASE.    */
 
 #ifndef AO_SKIPATOMIC_char_store
   AO_INLINE void
@@ -172,9 +183,20 @@ AO_short_load_acquire(const volatile unsigned/**/short *addr)
 }
 #define AO_HAVE_short_load_acquire
 
-/* short_load_full is generalized using load and nop_full, so that      */
 /* short_load_read is defined using load and nop_read.                  */
+/* TODO: Map it to ACQUIRE.  We should be strengthening the read and    */
+/* write stuff to the more general acquire/release versions.  It almost */
+/* never makes a difference and is much less error-prone.               */
+
+/* short_load_full is generalized using load and nop_full.              */
+/* TODO: Map it to SEQ_CST and clarify the documentation.               */
+
+/* TODO: Map load_dd_acquire_read to ACQUIRE.  Ideally it should be     */
+/* mapped to CONSUME, but the latter is currently broken.               */
+
 /* short_store_full definition is omitted similar to load_full reason.  */
+
+/* TODO: Map store_write to RELEASE.    */
 
 #ifndef AO_SKIPATOMIC_short_store
   AO_INLINE void
@@ -315,9 +337,20 @@ AO_int_load_acquire(const volatile unsigned *addr)
 }
 #define AO_HAVE_int_load_acquire
 
-/* int_load_full is generalized using load and nop_full, so that      */
 /* int_load_read is defined using load and nop_read.                  */
+/* TODO: Map it to ACQUIRE.  We should be strengthening the read and    */
+/* write stuff to the more general acquire/release versions.  It almost */
+/* never makes a difference and is much less error-prone.               */
+
+/* int_load_full is generalized using load and nop_full.              */
+/* TODO: Map it to SEQ_CST and clarify the documentation.               */
+
+/* TODO: Map load_dd_acquire_read to ACQUIRE.  Ideally it should be     */
+/* mapped to CONSUME, but the latter is currently broken.               */
+
 /* int_store_full definition is omitted similar to load_full reason.  */
+
+/* TODO: Map store_write to RELEASE.    */
 
 #ifndef AO_SKIPATOMIC_int_store
   AO_INLINE void
@@ -458,9 +491,20 @@ AO_load_acquire(const volatile AO_t *addr)
 }
 #define AO_HAVE_load_acquire
 
-/* load_full is generalized using load and nop_full, so that      */
 /* load_read is defined using load and nop_read.                  */
+/* TODO: Map it to ACQUIRE.  We should be strengthening the read and    */
+/* write stuff to the more general acquire/release versions.  It almost */
+/* never makes a difference and is much less error-prone.               */
+
+/* load_full is generalized using load and nop_full.              */
+/* TODO: Map it to SEQ_CST and clarify the documentation.               */
+
+/* TODO: Map load_dd_acquire_read to ACQUIRE.  Ideally it should be     */
+/* mapped to CONSUME, but the latter is currently broken.               */
+
 /* store_full definition is omitted similar to load_full reason.  */
+
+/* TODO: Map store_write to RELEASE.    */
 
 #ifndef AO_SKIPATOMIC_store
   AO_INLINE void
