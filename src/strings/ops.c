@@ -1210,42 +1210,6 @@ MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMS
     return MVM_unicode_codepoint_has_property_value(tc, cp, property_code, property_value_code);
 }
 
-/* Normalizes a string to a flat MVMGrapheme32 buffer, for the benefit of
- * hashing. Would rather not have to do this eventually. */
-void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
-    MVM_string_check_arg(tc, s, "flatten");
-    switch (s->body.storage_type) {
-    case MVM_STRING_GRAPHEME_32:
-        return;
-    case MVM_STRING_GRAPHEME_ASCII:
-    case MVM_STRING_GRAPHEME_8: {
-        MVMuint32      length = MVM_string_graphs(tc, s);
-        MVMGrapheme32 *flat   = MVM_malloc(length * sizeof(MVMGrapheme32));
-        MVMGrapheme8  *orig   = s->body.storage.blob_8;
-        MVMuint32 i;
-        for (i = 0; i < length; i++)
-            flat[i] = orig[i];
-        s->body.storage.blob_32 = flat;
-        s->body.storage_type    = MVM_STRING_GRAPHEME_32;
-        MVM_free(orig);
-        break;
-    }
-    case MVM_STRING_STRAND: {
-        MVMGrapheme32   *flat = MVM_malloc(MVM_string_graphs(tc, s) * sizeof(MVMGrapheme32));
-        MVMStringStrand *orig = s->body.storage.strands;
-        MVMuint32        i    = 0;
-        MVMGraphemeIter gi;
-        MVM_string_gi_init(tc, &gi, s);
-        while (MVM_string_gi_has_more(tc, &gi))
-            flat[i++] = MVM_string_gi_get_grapheme(tc, &gi);
-        s->body.storage.blob_32 = flat;
-        s->body.storage_type    = MVM_STRING_GRAPHEME_32;
-        MVM_free(orig);
-        break;
-    }
-    }
-}
-
 /* If the string is made up of strands, then produces a flattend string
  * representing the exact same graphemes but without strands. Otherwise,
  * returns the input string. Intended for strings that will be indexed

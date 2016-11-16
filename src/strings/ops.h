@@ -78,7 +78,6 @@ const char * MVM_unicode_codepoint_get_property_cstr(MVMThreadContext *tc, MVMGr
 MVMint64 MVM_unicode_codepoint_get_property_int(MVMThreadContext *tc, MVMGrapheme32 grapheme, MVMint64 property_code);
 MVMint64 MVM_unicode_codepoint_get_property_bool(MVMThreadContext *tc, MVMGrapheme32 grapheme, MVMint64 property_code);
 MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 grapheme);
-void MVM_string_flatten(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_indexing_optimized(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s);
