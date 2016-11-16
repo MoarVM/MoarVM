@@ -24,7 +24,7 @@
 /* Data dependence does not imply read ordering.  */
 #define AO_NO_DD_ORDERING
 
-#ifdef __mips64
+#if defined(_ABI64) && (_MIPS_SIM == _ABI64)
 # define AO_MIPS_SET_ISA    "       .set mips3\n"
 # define AO_MIPS_LL_1(args) "       lld " args "\n"
 # define AO_MIPS_SC(args)   "       scd " args "\n"
