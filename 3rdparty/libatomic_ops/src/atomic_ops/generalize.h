@@ -187,10 +187,11 @@
 # define AO_HAVE_nop_full
 #endif
 
-#if defined(AO_HAVE_nop_acquire)
+#if defined(AO_HAVE_nop_acquire) && !defined(CPPCHECK)
 # error AO_nop_acquire is useless: do not define.
 #endif
-#if defined(AO_HAVE_nop_release)
+
+#if defined(AO_HAVE_nop_release) && !defined(CPPCHECK)
 # error AO_nop_release is useless: do not define.
 #endif
 

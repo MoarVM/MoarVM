@@ -371,8 +371,8 @@
     && !defined(AO_HAVE_fetch_compare_and_swap_acquire)
 # if defined(AO_CAN_EMUL_CAS)
 #   include "atomic_ops/sysdeps/emul_cas.h"
-# else
-#  error Cannot implement AO_compare_and_swap_full on this architecture.
+# elif !defined(CPPCHECK)
+#   error Cannot implement AO_compare_and_swap_full on this architecture.
 # endif
 #endif /* AO_REQUIRE_CAS && !AO_HAVE_compare_and_swap ... */
 
