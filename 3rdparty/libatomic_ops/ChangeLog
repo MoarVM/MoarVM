@@ -21,10 +21,12 @@ Also, includes 7.4.4 changes.
 
 == [7.4.6] (unset) ==
 
+* Code refactoring of gcc/powerpc.h to avoid code duplication.
 * Eliminate 'cast to long from void*' compiler warning in test_atomic.
 * Fix (delete) comment for AO_and_full (x86).
 * Fix missing printed value names (test_stack).
 * Refine README about library downloading.
+* Support AIX/ppc (gcc).
 * Support n32 ABI for mips64.
 * Use LLD and SCD instructions on mips64.
 Also, includes 7.2h changes.
