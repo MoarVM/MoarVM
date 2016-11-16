@@ -24,7 +24,14 @@
 # error This file should not be included directly.
 #endif
 
+/* The policy regarding version numbers: development code has odd       */
+/* "minor" number (and "micro" part is 0); when development is finished */
+/* and a release is prepared, "minor" number is incremented (keeping    */
+/* "micro" number still zero), whenever a defect is fixed a new release */
+/* is prepared incrementing "micro" part to odd value (the most stable  */
+/* release has the biggest "micro" number).                             */
+
 /* The version here should match that in configure.ac and README.       */
 #define AO_VERSION_MAJOR 7
-#define AO_VERSION_MINOR 3
-#define AO_VERSION_ALPHA 3 /* 7.3alpha3 */
+#define AO_VERSION_MINOR 4
+#define AO_VERSION_MICRO 0 /* 7.4.0 */

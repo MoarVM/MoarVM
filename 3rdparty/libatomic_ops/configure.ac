@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT([libatomic_ops],[7.3alpha3],gc@linux.hpl.hp.com)
+AC_INIT([libatomic_ops],[7.4.0],gc@linux.hpl.hp.com)
 
 AC_PREREQ(2.61)
 AC_CANONICAL_TARGET([])

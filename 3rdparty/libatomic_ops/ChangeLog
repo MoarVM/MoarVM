@@ -1,5 +1,5 @@
 
-== [7.3alpha4] (development) ==
+== [7.4.0] 2013-11-17 ==
 
 * Add and/or/xor entries to list_atomic (tests).
 * Add char/short/int/AO_double_t and dd_acquire cases to list_atomic (tests).
@@ -25,6 +25,7 @@
 * Always use 'mfence' for nop_full if target CPU supports SSE2 (gcc/x86).
 * Better document configure THREADDLLIBS variable.
 * Cast away volatile on dereference in CAS-based generalization primitives.
+* Change policy regarding version numbers ("micro" part instead of "alpha").
 * Convert README to Markdown format.
 * Define AO_NO_PTHREADS in configure if no pthreads (Win32 and VxWorks).
 * Define AO_int_X operations for ARM and avr32.
