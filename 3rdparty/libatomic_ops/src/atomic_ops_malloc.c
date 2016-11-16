@@ -84,8 +84,8 @@ static volatile AO_t initial_heap_ptr = (AO_t)AO_initial_heap;
 # define GC_MMAP_FLAGS MAP_PRIVATE
 #endif
 
-#if defined(USE_MMAP_ANON) && !defined(CPPCHECK)
-# ifdef MAP_ANONYMOUS
+#ifdef USE_MMAP_ANON
+# if defined(MAP_ANONYMOUS) && !defined(CPPCHECK)
 #   define OPT_MAP_ANON MAP_ANONYMOUS
 # else
 #   define OPT_MAP_ANON MAP_ANON
