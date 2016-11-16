@@ -4,9 +4,15 @@ IN NEW CODE, PLEASE USE C11 OR C++14 STANDARD ATOMICS INSTEAD OF THIS PACKAGE.
 
 This is version 7.5.0 of libatomic_ops.
 
-You might find a more recent version
-[here](http://www.hboehm.info/gc/), or
-[here](https://github.com/ivmai/libatomic_ops).
+
+## Download
+
+You might find a more recent/stable version on the
+[Download](https://github.com/ivmai/libatomic_ops/wiki/Download) page, or
+[BDWGC site](http://www.hboehm.info/gc/).
+
+Also, the latest bug fixes and new features are available in the
+[development repository](https://github.com/ivmai/libatomic_ops).
 
 
 ## Overview
