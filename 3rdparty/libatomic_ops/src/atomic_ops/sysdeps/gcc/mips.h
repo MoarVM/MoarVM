@@ -20,10 +20,6 @@
 /* Data dependence does not imply read ordering.  */
 #define AO_NO_DD_ORDERING
 
-#if !defined(_ABI64) || _MIPS_SIM != _ABI64
-# define AO_T_IS_INT
-#endif
-
 /* #include "../standard_ao_double_t.h" */
 /* TODO: Implement double-wide operations if available. */
 
@@ -47,7 +43,8 @@
 # include "../test_and_set_t_is_ao_t.h"
 # include "../all_aligned_atomic_load_store.h"
 
-# ifdef AO_T_IS_INT
+# if !defined(_ABI64) || _MIPS_SIM != _ABI64
+#   define AO_T_IS_INT
 #   define AO_MIPS_SET_ISA    "       .set mips2\n"
 #   define AO_MIPS_LL_1(args) "       ll " args "\n"
 #   define AO_MIPS_SC(args)   "       sc " args "\n"

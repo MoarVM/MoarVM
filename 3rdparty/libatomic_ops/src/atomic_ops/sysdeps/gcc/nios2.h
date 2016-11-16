@@ -12,5 +12,3 @@
  */
 
 #include "generic.h"
-
-#define AO_T_IS_INT

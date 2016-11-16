@@ -703,6 +703,8 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
 # define AO_HAVE_test_and_set_full
 #endif /* !AO_HAVE_test_and_set[_full] && AO_ARM_HAVE_SWP */
 
+#define AO_T_IS_INT
+
 #else /* AO_GCC_ATOMIC_TEST_AND_SET */
 
 # if defined(__clang__) && !defined(AO_ARM_HAVE_LDREX)
@@ -719,5 +721,3 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
 # include "generic.h"
 
 #endif /* AO_GCC_ATOMIC_TEST_AND_SET */
-
-#define AO_T_IS_INT
