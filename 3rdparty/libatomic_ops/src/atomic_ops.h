@@ -363,12 +363,12 @@
 # define AO_CAN_EMUL_CAS
 #endif
 
-#if defined(AO_REQUIRE_CAS) && !defined(AO_HAVE_compare_and_swap) \
+#if (defined(AO_REQUIRE_CAS) && !defined(AO_HAVE_compare_and_swap) \
     && !defined(AO_HAVE_fetch_compare_and_swap) \
     && !defined(AO_HAVE_compare_and_swap_full) \
     && !defined(AO_HAVE_fetch_compare_and_swap_full) \
     && !defined(AO_HAVE_compare_and_swap_acquire) \
-    && !defined(AO_HAVE_fetch_compare_and_swap_acquire)
+    && !defined(AO_HAVE_fetch_compare_and_swap_acquire)) || defined(CPPCHECK)
 # if defined(AO_CAN_EMUL_CAS)
 #   include "atomic_ops/sysdeps/emul_cas.h"
 # elif !defined(CPPCHECK)
