@@ -25,9 +25,9 @@ by synthesis).  This is an attempt to replace various existing files with
 similar goals, since they usually do not handle differences in memory
 barrier styles with sufficient generality.
 
-If this is included after defining AO_REQUIRE_CAS, then the package
-will make an attempt to emulate compare-and-swap in a way that (at least
-on Linux) should still be async-signal-safe.  As a result, most other
+If this is included after defining AO_REQUIRE_CAS, then the package makes
+an attempt to emulate AO_compare_and_swap* (single-width) in a way that (at
+least on Linux) should still be async-signal-safe.  As a result, most other
 atomic operations will then be defined using the compare-and-swap
 emulation.  This emulation is slow, since it needs to disable signals.
 And it needs to block in case of contention.  If you care about performance
