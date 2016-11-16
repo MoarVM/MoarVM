@@ -160,9 +160,11 @@
 #   define AO_HAVE_double_store_release
 # endif
 
-# if (__SIZEOF_SIZE_T__ == 4 && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)) \
+# if ((__SIZEOF_SIZE_T__ == 4 \
+       && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)) \
       || (__SIZEOF_SIZE_T__ == 8 /* half of AO_double_t */ \
-          && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16))
+          && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16))) \
+     && !defined(AO_SKIPATOMIC_double_compare_and_swap_ANY)
 #   define AO_GCC_HAVE_double_SYNC_CAS
 # endif
 

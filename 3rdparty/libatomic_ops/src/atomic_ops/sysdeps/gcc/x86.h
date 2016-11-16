@@ -16,6 +16,15 @@
  * Some of the machine specific code was borrowed from our GC distribution.
  */
 
+#if (((__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)) \
+      && !defined(__INTEL_COMPILER)) /* TODO: test and enable icc */ \
+     || __clang_major__ > 3 \
+     || (__clang_major__ == 3 && __clang_minor__ >= 4)) \
+    && !defined(AO_DISABLE_GCC_ATOMICS)
+# define AO_GCC_ATOMIC_TEST_AND_SET
+
+#else /* AO_DISABLE_GCC_ATOMICS */
+
 /* The following really assume we have a 486 or better.  Unfortunately  */
 /* gcc doesn't define a suitable feature test macro based on command    */
 /* line options.                                                        */
@@ -174,7 +183,31 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
 }
 #define AO_HAVE_fetch_compare_and_swap_full
 
-#if !defined(__x86_64__) && !defined(AO_USE_SYNC_CAS_BUILTIN)
+  /* Real X86 implementations, except for some old 32-bit WinChips,     */
+  /* appear to enforce ordering between memory operations, EXCEPT that  */
+  /* a later read can pass earlier writes, presumably due to the        */
+  /* visible presence of store buffers.                                 */
+  /* We ignore both the WinChips and the fact that the official specs   */
+  /* seem to be much weaker (and arguably too weak to be usable).       */
+# include "../ordered_except_wr.h"
+
+#endif /* AO_DISABLE_GCC_ATOMICS */
+
+#if (defined(AO_PREFER_BUILTIN_ATOMICS) || !defined(__clang__) \
+     || defined(__x86_64__)) && defined(AO_GCC_ATOMIC_TEST_AND_SET)
+
+  /* As of clang-3.8 i686 (NDK r11c), it requires -latomic for all the  */
+  /* double-wide operations.  For now, we fall back to the              */
+  /* non-intrinsic implementation if clang/x86.                         */
+  /* TODO: Refine for newer clang releases. */
+
+# if defined(__ILP32__) || !defined(__x86_64__) /* 32-bit AO_t */ \
+     || defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16) /* 64-bit AO_t */
+#   include "../standard_ao_double_t.h"
+# endif
+
+#elif !defined(__x86_64__) && (!defined(AO_USE_SYNC_CAS_BUILTIN) \
+                               || defined(AO_GCC_ATOMIC_TEST_AND_SET))
 # include "../standard_ao_double_t.h"
 
   /* Reading or writing a quadword aligned on a 64-bit boundary is      */
@@ -182,6 +215,18 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
   /* Chapter 8.1.1 of Volume 3A Part 1 of Intel processor manuals.      */
 # define AO_ACCESS_double_CHECK_ALIGNED
 # include "../loadstore/double_atomic_load_store.h"
+
+# ifdef AO_GCC_ATOMIC_TEST_AND_SET
+    /* Double-wide loads and stores are ordered.        */
+#   define AO_double_load_acquire(addr) AO_double_load_read(addr)
+#   define AO_HAVE_double_load_acquire
+
+#   define AO_double_store_release(addr, val) \
+                                (AO_nop_write(), AO_double_store(addr, val))
+#   define AO_HAVE_double_store_release
+
+#   define AO_SKIPATOMIC_double_compare_and_swap_ANY
+# endif /* AO_GCC_ATOMIC_TEST_AND_SET */
 
   /* Returns nonzero if the comparison succeeded.       */
   /* Really requires at least a Pentium.                */
@@ -298,9 +343,8 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
   /* Thus, currently, the only way to implement lock-free double_load   */
   /* and double_store on x86_64 is to use CMPXCHG16B (if available).    */
 
-/* TODO: Test some gcc macro to detect presence of cmpxchg16b. */
-
-# ifdef AO_CMPXCHG16B_AVAILABLE
+# if defined(AO_CMPXCHG16B_AVAILABLE) \
+     || defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16)
 #   include "../standard_ao_double_t.h"
 
     /* NEC LE-IT: older AMD Opterons are missing this instruction.      */
@@ -351,10 +395,6 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
 
 #endif /* x86_64 && !ILP32 */
 
-/* Real X86 implementations, except for some old 32-bit WinChips,       */
-/* appear to enforce ordering between memory operations, EXCEPT that    */
-/* a later read can pass earlier writes, presumably due to the visible  */
-/* presence of store buffers.                                           */
-/* We ignore both the WinChips and the fact that the official specs     */
-/* seem to be much weaker (and arguably too weak to be usable).         */
-#include "../ordered_except_wr.h"
+#ifdef AO_GCC_ATOMIC_TEST_AND_SET
+# include "generic.h"
+#endif
