@@ -180,7 +180,7 @@ _dd_acquire_read: Ordered with respect to later reads that are data
                dependencies force the hardware to execute the code
                serially.)
 
-We assume that if a store is data-dependent on an a previous load, then
+We assume that if a store is data-dependent on a previous load, then
 the two are always implicitly ordered.
 
 It is possible to test whether AO_<op><barrier> is available on the
