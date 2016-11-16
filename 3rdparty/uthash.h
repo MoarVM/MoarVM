@@ -21,6 +21,12 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/* NOTE: While this started out as a stock uthash.h, by now it has
+ * undergone numerous changes to more closely integrate it with MoarVM
+ * strings, remove things MoarVM doesn't need, and not remember the
+ * insertion order (resulting in changes to iteration code - and a
+ * memory saving). */
+
 #ifndef UTHASH_H
 #define UTHASH_H
 
@@ -102,21 +108,24 @@ do {                                                                            
   }                                                                              \
 } while (0)
 
-#define HASH_FIND_CACHE(hh,head,keyptr,keylen,cache,out)                            \
+#define HASH_FIND_VM_STR(tc,hh,head,key,out)                                        \
 do {                                                                                \
   unsigned _hf_bkt,_hf_hashv;                                                       \
   out=NULL;                                                                         \
   if (head) {                                                                       \
-     if (cache) {                                                                   \
-         _hf_hashv = cache;                                                         \
+     unsigned cached_hash = (key)->body.cached_hash_code;                           \
+     void *keyptr = (key)->body.storage.blob_32;                                    \
+     size_t keylen = MVM_string_graphs(tc, key) * sizeof(MVMGrapheme32);            \
+     if (cached_hash) {                                                             \
+         _hf_hashv = cached_hash;                                                   \
          _hf_bkt = ((_hf_hashv) & (((head)->hh.tbl->num_buckets) - 1));             \
      }                                                                              \
      else {                                                                         \
          HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt);  \
-         (cache) = _hf_hashv;                                                       \
+         (key)->body.cached_hash_code = _hf_hashv;                                  \
      }                                                                              \
-     HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],     \
-                      keyptr,keylen,out);                                         \
+     HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],       \
+                      keyptr,keylen,out);                                           \
   }                                                                                 \
 } while (0)
 
@@ -153,9 +162,12 @@ do {                                                                            
  HASH_FSCK(hh,head);                                                             \
 } while(0)
 
-#define HASH_ADD_KEYPTR_CACHE(hh,head,keyptr,keylen_in,cache,add)                \
+#define HASH_ADD_KEYPTR_VM_STR(tc,hh,head,key_in,add)                            \
 do {                                                                             \
  unsigned _ha_bkt;                                                               \
+ unsigned cached_hash = (key_in)->body.cached_hash_code;                         \
+ void *keyptr = (key_in)->body.storage.blob_32;                                  \
+ size_t keylen_in = MVM_string_graphs(tc, key_in) * sizeof(MVMGrapheme32);       \
  (add)->hh.key = (char*)keyptr;                                                  \
  (add)->hh.keylen = (unsigned)keylen_in;                                         \
  if (!(head)) {                                                                  \
@@ -164,14 +176,14 @@ do {                                                                            
  }                                                                               \
  (head)->hh.tbl->num_items++;                                                    \
  (add)->hh.tbl = (head)->hh.tbl;                                                 \
- if (cache) {                                                                    \
-     (add)->hh.hashv = (cache);                                                  \
-     _ha_bkt = ((cache) & (((head)->hh.tbl->num_buckets) - 1));                  \
+ if (cached_hash) {                                                              \
+     (add)->hh.hashv = cached_hash;                                              \
+     _ha_bkt = ((cached_hash) & (((head)->hh.tbl->num_buckets) - 1));            \
  }                                                                               \
  else {                                                                          \
      HASH_FCN(keyptr,keylen_in, (head)->hh.tbl->num_buckets,                     \
              (add)->hh.hashv, _ha_bkt);                                          \
-     (cache) = (add)->hh.hashv;                                                  \
+     (key_in)->body.cached_hash_code = (add)->hh.hashv;                          \
  }                                                                               \
  HASH_ADD_TO_BKT((head)->hh.tbl->buckets[_ha_bkt],&(add)->hh);                   \
  HASH_FSCK(hh,head);                                                             \

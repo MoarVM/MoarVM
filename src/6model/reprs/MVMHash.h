@@ -25,15 +25,10 @@ struct MVMHash {
 /* Function for REPR setup. */
 const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
-#define MVM_HASH_ACTION_CACHE(tc, hash, key, value, action) \
-    action(hash_handle, hash, (key)->body.storage.blob_32, \
-        MVM_string_graphs(tc, key) * sizeof(MVMGrapheme32), \
-        (key)->body.cached_hash_code, value); \
-
 #define MVM_HASH_BIND(tc, hash, key, value) \
     do { \
         MVM_string_flatten(tc, key); \
-        MVM_HASH_ACTION_CACHE(tc, hash, key, value, HASH_ADD_KEYPTR_CACHE); \
+        HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, hash, key, value); \
     } while (0);
 
 #define MVM_HASH_GET(tc, hash, key, value) \
@@ -41,7 +36,7 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
         if (!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString \
                 && IS_CONCRETE(key)) { \
             MVM_string_flatten(tc, key); \
-            MVM_HASH_ACTION_CACHE(tc, hash, key, value, HASH_FIND_CACHE); \
+            HASH_FIND_VM_STR(tc, hash_handle, hash, key, value); \
         } \
         else { \
             MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings"); \
