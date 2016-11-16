@@ -135,6 +135,10 @@ static char *get_mmaped(size_t sz)
   return result;
 }
 
+/* Saturated addition of size_t values.  Used to avoid value wrap       */
+/* around on overflow.  The arguments should have no side effects.      */
+#define SIZET_SAT_ADD(a, b) ((a) < ~(size_t)(b) ? (a) + (b) : ~(size_t)0)
+
 /* Allocate an object of size (incl. header) of size > CHUNK_SIZE.      */
 /* sz includes space for an AO_t-sized header.                          */
 static char *
@@ -142,9 +146,8 @@ AO_malloc_large(size_t sz)
 {
  char * result;
  /* The header will force us to waste ALIGNMENT bytes, incl. header.    */
-   sz += ALIGNMENT;
- /* Round to multiple of CHUNK_SIZE.    */
-   sz = (sz + CHUNK_SIZE - 1) & ~(CHUNK_SIZE - 1);
+ /* Round to multiple of CHUNK_SIZE.                                    */
+ sz = SIZET_SAT_ADD(sz, ALIGNMENT + CHUNK_SIZE - 1) & ~(CHUNK_SIZE - 1);
  result = get_mmaped(sz);
  if (result == 0) return 0;
  result += ALIGNMENT;
