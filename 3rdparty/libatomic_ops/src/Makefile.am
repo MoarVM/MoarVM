@@ -79,6 +79,7 @@ nobase_private_HEADERS = atomic_ops/ao_version.h \
           atomic_ops/sysdeps/gcc/s390.h \
           atomic_ops/sysdeps/gcc/sh.h \
           atomic_ops/sysdeps/gcc/sparc.h \
+          atomic_ops/sysdeps/gcc/tile.h \
           atomic_ops/sysdeps/gcc/x86.h \
         \
           atomic_ops/sysdeps/hpc/hppa.h \

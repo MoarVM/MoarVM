@@ -294,6 +294,9 @@
 # if defined(__hexagon__)
 #   include "atomic_ops/sysdeps/gcc/hexagon.h"
 # endif
+# if defined(__tile__)
+#   include "atomic_ops/sysdeps/gcc/tile.h"
+# endif
 #endif /* __GNUC__ && !AO_USE_PTHREAD_DEFS */
 
 #if (defined(__IBMC__) || defined(__IBMCPP__)) && !defined(__GNUC__) \
