@@ -111,7 +111,16 @@
   AO_nop_write(void)
   {
     /* AO_THUMB_GO_ARM is empty. */
-    __asm__ __volatile__("dmb st" : : : "memory");
+    /* This will target the system domain and thus be overly            */
+    /* conservative as the CPUs will occupy the inner shareable domain. */
+    /* The plain variant (dmb st) is theoretically slower, and should   */
+    /* not be needed.  That said, with limited experimentation, a CPU   */
+    /* implementation for which it actually matters has not been found  */
+    /* yet, though they should already exist.                           */
+    /* Anyway, note that the "st" and "ishst" barriers are actually     */
+    /* quite weak and, as the libatomic_ops documentation states,       */
+    /* usually not what you really want.                                */
+    __asm__ __volatile__("dmb ishst" : : : "memory");
   }
 # define AO_HAVE_nop_write
 

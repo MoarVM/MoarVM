@@ -23,7 +23,8 @@
   AO_INLINE void
   AO_nop_write(void)
   {
-    __asm__ __volatile__("dmb st" : : : "memory");
+    /* TODO: Use C++11 primitive. */
+    __asm__ __volatile__("dmb ishst" : : : "memory");
   }
 # define AO_HAVE_nop_write
 #endif
