@@ -1,0 +1,18 @@
+language: c
+
+os:
+  - linux
+  - osx
+
+compiler:
+  - clang
+  - gcc
+
+sudo: false
+
+install:
+  - ./autogen.sh
+  - ./configure --enable-werror
+
+script:
+  - make -j check
