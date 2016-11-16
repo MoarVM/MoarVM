@@ -250,9 +250,10 @@ AO_t *AO_stack_pop_acquire(AO_stack_t *list)
 void AO_stack_push_release(AO_stack_t *list, AO_t *element)
 {
     AO_t version;
-    AO_t next_ptr;
 
     do {
+      AO_t next_ptr;
+
       /* Again version must be loaded first, for different reason.      */
       version = AO_load_acquire(&(list -> version));
       next_ptr = AO_load(&(list -> ptr));
