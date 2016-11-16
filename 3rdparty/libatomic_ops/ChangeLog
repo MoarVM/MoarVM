@@ -7,18 +7,21 @@
 
 == [7.4.4] (unset) ==
 
+* Eliminate 'signed-to-unsigned value extension' compiler warning in malloc.
 * Eliminate 'variable set but not used' Cppcheck warnings in test_stack.
 * Fix makefile preventing AO_pause undefined in libatomic_ops_gpl.
 * Fix missing casts to match printf format specifier in test_atomic.
 * Fix missing output folder on making auto-generated test files (Automake).
 * Minor fix of code alignment in mips AO_compare_and_swap.
 * Restore contribution info in ChangeLog for authors not listed in git log.
+Also, includes 7.2g changes.
 
 
 == [7.4.2] 2014-05-02 ==
 
 * Fix a typo in doc/README.txt (remove redundant "an" article).
 * Update emails/links due to project site transition.
+Also, includes 7.2f changes.
 
 
 == [7.4.0] 2013-11-17 ==
@@ -121,6 +124,7 @@
 * Use __atomic GCC built-in to implement generic double-wide CAS.
 * Use built-in __sync CAS for double-CAS if AO_USE_SYNC_CAS_BUILTIN for x86.
 * Workaround GCC 4.4.3 warning reported for 'val' of list_atomic.c (tests).
+Also, includes 7.2e changes.
 
 
 == [7.3alpha2] 2012-05-11 ==
@@ -153,6 +157,7 @@
 * Show extra compiler warnings (GCC only).
 * Turn off AO primitives inlining if AO_NO_INLINE defined.
 * Use __builtin_expect in CAS failure loop condition checks (GCC only).
+Also, includes 7.2 changes.
 
 
 == [7.2g] (unset) ==
