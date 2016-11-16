@@ -330,7 +330,7 @@ MVMString * MVM_iterkey_s(MVMThreadContext *tc, MVMIter *iterator) {
         MVM_exception_throw_adhoc(tc, "This is not a hash iterator, it's a %s (%s)", REPR(iterator)->name, STABLE(iterator)->debug_name);
     if (!iterator->body.hash_state.curr)
         MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
-    return (MVMString *)iterator->body.hash_state.curr->key;
+    return MVM_HASH_KEY(iterator->body.hash_state.curr);
 }
 
 MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {

@@ -27,9 +27,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     /* NOTE: if we really wanted to, we could avoid rehashing... */
     HASH_ITER(hash_handle, src_body->hash_head, current, tmp, bucket_tmp) {
         MVMHashEntry *new_entry = MVM_malloc(sizeof(MVMHashEntry));
-        MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
-        MVM_HASH_BIND(tc, dest_body->hash_head, (MVMString *)new_entry->key, new_entry);
+        MVM_HASH_BIND(tc, dest_body->hash_head, MVM_HASH_KEY(current), new_entry);
     }
 }
 
@@ -41,7 +40,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
     HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
         MVM_gc_worklist_add(tc, worklist, &current->hash_handle.key);
-        MVM_gc_worklist_add(tc, worklist, &current->key);
         MVM_gc_worklist_add(tc, worklist, &current->value);
     }
 }
@@ -76,9 +74,9 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         MVM_HASH_GET(tc, body->hash_head, name, entry);
         if (!entry) {
             entry = MVM_malloc(sizeof(MVMHashEntry));
-            MVM_ASSIGN_REF(tc, &(root->header), entry->key, (MVMObject *)name);
             MVM_ASSIGN_REF(tc, &(root->header), entry->value, value_reg.o);
             MVM_HASH_BIND(tc, body->hash_head, name, entry);
+            MVM_gc_write_barrier(tc, &(root->header), &(name->common.header));
         }
         else {
             MVM_ASSIGN_REF(tc, &(root->header), entry->value, value_reg.o);

@@ -1,21 +1,16 @@
 /* Representation used by VM-level hashes. */
 
 struct MVMHashEntry {
-    /* key object (must be MVMString REPR) */
-    MVMObject *key;
-
     /* value object */
     MVMObject *value;
 
-    /* the uthash hash handle inline struct. */
+    /* the uthash hash handle inline struct, including the key. */
     UT_hash_handle hash_handle;
 };
 
 struct MVMHashBody {
-
     /* uthash updates this pointer directly. */
     MVMHashEntry *hash_head;
-
 };
 struct MVMHash {
     MVMObject common;
@@ -38,6 +33,8 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
             MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings"); \
         } \
     } while (0);
+
+#define MVM_HASH_KEY(entry) ((MVMString *)(entry)->hash_handle.key)
 
 #define MVM_HASH_DESTROY(hash_handle, hashentry_type, head_node) do { \
     hashentry_type *current, *tmp; \

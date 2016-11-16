@@ -34,9 +34,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     HASH_ITER(hash_handle, src_body->hash_head, current, tmp, bucket_tmp) {
         MVMHashEntry *new_entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
             sizeof(MVMHashEntry));
-        MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
+        MVMString *key = MVM_HASH_KEY(current);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
-        MVM_HASH_BIND(tc, dest_body->hash_head, (MVMString *)new_entry->key, new_entry);
+        MVM_HASH_BIND(tc, dest_body->hash_head, key, new_entry);
+        MVM_gc_write_barrier(tc, &(dest_root->header), &(key->common.header));
     }
 }
 
@@ -47,7 +48,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     unsigned bucket_tmp;
 
     HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
-        MVM_gc_worklist_add(tc, worklist, &current->key);
         MVM_gc_worklist_add(tc, worklist, &current->hash_handle.key);
         MVM_gc_worklist_add(tc, worklist, &current->value);
     }
@@ -94,9 +94,9 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     if (!entry) {
         entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
             sizeof(MVMHashEntry));
-        MVM_ASSIGN_REF(tc, &(root->header), entry->key, key_obj);
         MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
         MVM_HASH_BIND(tc, body->hash_head, key, entry);
+        MVM_gc_write_barrier(tc, &(root->header), &(key->common.header));
     }
     else {
         MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
