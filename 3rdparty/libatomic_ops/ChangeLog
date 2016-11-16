@@ -1,8 +1,14 @@
 
 == [7.5.0] (development) ==
 
+* Add initial nios2 architecture support.
+* Initial ibmc/powerpc (xlc) support.
+* New configure option (--enable-werror) to treat warnings as compiler errors.
 * Relax shareability domain for dmb st in AO_nop_write (ARM/AArch64).
+* Support NaCl/arm.
+* Support n32 ABI for mips64.
 * Use LLD and SCD instructions on mips64.
+Also, includes 7.4.4 changes.
 
 
 == [7.4.4] (unset) ==
