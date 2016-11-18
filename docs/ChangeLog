@@ -41,6 +41,7 @@ New in 2016.11
 + Remove the deprecated flattenropes op
 + Remove now-unused MVM_string_flatten function
 + Don't treat an nread of 0 in libuv read callbacks as an error
++ Bump to latest libatomic_ops
 
 New in 2016.10
 
