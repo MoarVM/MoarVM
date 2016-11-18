@@ -177,6 +177,8 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     MVMint32 line_ending = 0;
     MVMint32 state = 0;
     MVMint32 bufsize = bytes;
+    MVMGrapheme32 lowest_graph  =  0x7fffffff;
+    MVMGrapheme32 highest_graph = -0x7fffffff;
     MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * bufsize);
     size_t orig_bytes;
     const char *orig_utf8;
@@ -203,8 +205,14 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
                     ));
                 }
                 buffer[count++] = g;
-                while (--ready > 0)
-                    buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+                lowest_graph = g < lowest_graph ? g : lowest_graph;
+                highest_graph = g > highest_graph ? g : highest_graph;
+                while (--ready > 0) {
+                    g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+                    lowest_graph = g < lowest_graph ? g : lowest_graph;
+                    highest_graph = g > highest_graph ? g : highest_graph;
+                    buffer[count++] = g;
+                }
             }
             break;
         }
@@ -257,19 +265,41 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
         if (count + ready >= bufsize) {
             buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (count + ready));
         }
-        while (ready--)
-            buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        while (ready--) {
+            MVMGrapheme32 g;
+            g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+            lowest_graph = g < lowest_graph ? g : lowest_graph;
+            highest_graph = g > highest_graph ? g : highest_graph;
+            buffer[count++] = g;
+        }
     }
     MVM_unicode_normalizer_cleanup(tc, &norm);
 
-    /* just keep the same buffer as the MVMString's buffer.  Later
-     * we can add heuristics to resize it if we have enough free
-     * memory */
-    if (bufsize - count > 4) {
-        buffer = MVM_realloc(buffer, count * sizeof(MVMGrapheme32));
+    /* If we're lucky, we can fit our string in 8 bits per grapheme.
+     * That happens when our lowest value is bigger than -129 and our
+     * highest value is lower than 128. */
+    if (lowest_graph >= -128 && highest_graph < 128) {
+        MVMGrapheme8 *new_buffer = MVM_malloc(sizeof(MVMGrapheme8) * count);
+        for (ready = 0; ready < count; ready++) {
+            new_buffer[ready] = buffer[ready];
+        }
+        MVM_free(buffer);
+        result->body.storage.blob_8  = new_buffer;
+        result->body.storage_type    = MVM_STRING_GRAPHEME_8;
+    } else {
+        /* just keep the same buffer as the MVMString's buffer.  Later
+         * we can add heuristics to resize it if we have enough free
+         * memory */
+        if (bufsize - count > 4) {
+            buffer = MVM_realloc(buffer, count * sizeof(MVMGrapheme32));
+        }
+        result->body.storage.blob_32 = buffer;
+        result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+        fprintf(stderr, "boo!!!    graphemes between % 4d and % 4d.\n", lowest_graph, highest_graph);
+        for (ready = 0; ready < orig_bytes; ready++)
+            fputc(orig_utf8[ready], stderr);
+        fprintf(stderr, "\n");
     }
-    result->body.storage.blob_32 = buffer;
-    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
     result->body.num_graphs      = count;
 
     return result;
