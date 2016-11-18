@@ -91,7 +91,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 
     if (body->deallocate != MVM_DEALLOCATE_NOOP) {
         for (i = 0; i < body->num_strings; i++) {
-            if (body->strings[i]->body.foreign_memory) {
+            if (body->strings[i] && body->strings[i]->body.foreign_memory) {
                 MVMStringBody *sbody = &body->strings[i]->body;
                 void *old_buffer;
 
