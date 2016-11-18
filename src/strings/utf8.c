@@ -295,10 +295,6 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
         }
         result->body.storage.blob_32 = buffer;
         result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-        fprintf(stderr, "boo!!!    graphemes between % 4d and % 4d.\n", lowest_graph, highest_graph);
-        for (ready = 0; ready < orig_bytes; ready++)
-            fputc(orig_utf8[ready], stderr);
-        fprintf(stderr, "\n");
     }
     result->body.num_graphs      = count;
 
