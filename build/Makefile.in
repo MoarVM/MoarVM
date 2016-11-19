@@ -11,6 +11,7 @@ CP     = $(PERL) -MExtUtils::Command -e cp
 MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 CHMOD  = $(PERL) -MExtUtils::Command -e chmod
 RM_RF  = $(PERL) -MExtUtils::Command -e rm_rf
+RM_F   = $(PERL) -MExtUtils::Command -e rm_f
 DYNASM = $(LUA) @dynasmlua@
 
 
@@ -422,6 +423,7 @@ install: all
 	$(CP) moar@exe@ "$(DESTDIR)$(BINDIR)"
 	$(CHMOD) 755 "$(DESTDIR)$(BINDIR)/moar@exe@"
 	$(MKPATH) "$(DESTDIR)$(LIBDIR)"
+	$(RM_F) "$(DESTDIR)$(LIBDIR)/@moar@"
 	$(CP) @moar@ @impinst@ "$(DESTDIR)$(LIBDIR)"
 	$(MKPATH) "$(DESTDIR)$(MASTDIR)"
 	$(CP) lib/MAST/Nodes.nqp "$(DESTDIR)$(MASTDIR)"
