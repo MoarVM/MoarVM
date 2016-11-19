@@ -267,15 +267,26 @@ if ($args{'has-libffi'}) {
     $defaults{-thirdparty}->{dcb} = undef;
     $defaults{-thirdparty}->{dl}  = undef;
     if ($config{pkgconfig_works}) {
-        my $result = `$config{pkgconfig} --cflags libffi`;
+        my $result_cflags = `$config{pkgconfig} --cflags libffi`;
         if ( $? == 0 ) {
-            $result =~ s/\n/ /g;
-            $config{cincludes} .= " $result";
-            print("Adding extra include for libffi: $result\n");
-        } else {
+            $result_cflags =~ s/\n/ /g;
+            $config{cincludes} .= " $result_cflags";
+            print("Adding extra include for libffi: $result_cflags\n");
+        }
+        else {
             print("Error occured when running $config{pkgconfig} --cflags libffi.\n");
         }
-    } elsif ($^O eq 'solaris') {
+        my $result_libs = `$config{pkgconfig} --libs libffi`;
+        if ( $? == 0 ) {
+            $result_libs =~ s/\n/ /g;
+            $config{ldusr} .= " $result_libs";
+            print("Adding extra libs for libffi: $result_libs\n");
+        }
+        else {
+            print("Error occured when running $config{pkgconfig} --libs libffi.\n");
+        }
+    }
+    elsif ($^O eq 'solaris') {
         my ($first) = map { m,(.+)/ffi\.h$, && "/$1"  } grep { m,/ffi\.h$, } `pkg contents libffi`;
         if ($first) {
             $config{cincludes} .= " -I$first";
