@@ -266,7 +266,8 @@
 #   include "atomic_ops/sysdeps/gcc/nios2.h"
 # endif /* __nios2__ */
 # if defined(__powerpc__) || defined(__ppc__) || defined(__PPC__) \
-     || defined(__powerpc64__) || defined(__ppc64__)
+     || defined(__powerpc64__) || defined(__ppc64__) \
+     || defined(_ARCH_PPC)
 #   include "atomic_ops/sysdeps/gcc/powerpc.h"
 # endif /* __powerpc__ */
 # if defined(__aarch64__)
