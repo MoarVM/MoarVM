@@ -409,6 +409,19 @@ our %OS_POSIX = (
     platform => '$(PLATFORM_POSIX)',
 );
 
+our %OS_AIX = (
+    %OS_POSIX,
+
+    defs        => [ qw( _ALL_SOURCE _XOPEN_SOURCE=500 _LINUX_SOURCE_COMPAT ) ],
+    syslibs     => [ @{$OS_POSIX{syslibs}}, qw( rt dl perfstat ) ],
+    ldmiscflags => '-Wl,-brtl',
+    ldrpath     => '-L"/@libdir@" -L"@prefix@/share/perl6/site/lib"',
+
+    -thirdparty => {
+        uv => { %TP_UVDUMMY, objects => '$(UV_AIX)' },
+    },
+);
+
 our %OS_LINUX = (
     %OS_POSIX,
 
@@ -505,6 +518,7 @@ our %OS_DARWIN = (
 our %SYSTEMS = (
     posix       => [ qw( posix posix cc ),    { %OS_POSIX } ],
     linux       => [ qw( posix gnu   gcc ),   { %OS_LINUX } ],
+    aix         => [ qw( posix gnu   gcc ),   { %OS_AIX } ],
     darwin      => [ qw( posix gnu   clang ), { %OS_DARWIN } ],
     openbsd     => [ qw( posix bsd   gcc ),   { %OS_OPENBSD} ],
     netbsd      => [ qw( posix bsd   gcc ),   { %OS_NETBSD } ],

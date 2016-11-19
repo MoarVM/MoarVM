@@ -408,6 +408,9 @@ UV_DARWIN = 3rdparty/libuv/src/unix/darwin@obj@ \
 UV_SOLARIS = 3rdparty/libuv/src/unix/sunos@obj@ \
             $(UV_UNIX)
 
+UV_AIX = 3rdparty/libuv/src/unix/aix@obj@ \
+         $(UV_UNIX)
+
 UV_OBJECTS = @uvobjects@
 
 TOM_OBJECTS = @tomobjects@
