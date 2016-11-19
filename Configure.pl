@@ -49,7 +49,7 @@ pod2usage(1) if $args{help};
 
 print "Welcome to MoarVM!\n\n";
 
-$config{prefix} = File::Spec->rel2abs($args{prefix} // 'install');
+$config{prefix} = File::Spec->rel2abs(defined_or $args{prefix}, 'install');
 # don't install to cwd, as this would clash with lib/MAST/*.nqp
 if (-e 'README.markdown' && -e "$config{prefix}/README.markdown"
  && -s 'README.markdown' == -s "$config{prefix}/README.markdown") {
