@@ -22,6 +22,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMStringBody *src_body     = (MVMStringBody *)src;
     MVMStringBody *dest_body    = (MVMStringBody *)dest;
     dest_body->storage_type     = src_body->storage_type;
+    dest_body->foreign_memory   = 0;
     dest_body->num_strands      = src_body->num_strands;
     dest_body->num_graphs       = src_body->num_graphs;
     dest_body->cached_hash_code = src_body->cached_hash_code;
@@ -65,7 +66,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMString *str = (MVMString *)obj;
-    MVM_free(str->body.storage.any);
+    if (!str->body.foreign_memory)
+        MVM_free(str->body.storage.any);
     str->body.num_graphs = str->body.num_strands = 0;
 }
 
@@ -91,6 +93,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 /* Calculates the non-GC-managed memory we hold on to. */
 static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMStringBody *body = (MVMStringBody *)data;
+    if (body->foreign_memory)
+        return 0;
     switch (body->storage_type) {
         case MVM_STRING_GRAPHEME_32:
             return sizeof(MVMGrapheme32) * body->num_graphs;

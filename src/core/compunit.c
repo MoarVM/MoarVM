@@ -223,9 +223,26 @@ MVMString * MVM_cu_obtain_string(MVMThreadContext *tc, MVMCompUnit *cu, MVMuint3
         if (cur_pos + bytes < limit) {
             MVMString *s;
             MVM_gc_allocate_gen2_default_set(tc);
-            s = decode_utf8
-                ? MVM_string_utf8_decode(tc, tc->instance->VMString, (char *)cur_pos, bytes)
-                : MVM_string_latin1_decode(tc, tc->instance->VMString, (char *)cur_pos, bytes);
+            if (decode_utf8)
+                s = MVM_string_utf8_decode(tc, tc->instance->VMString, (char *)cur_pos, bytes);
+            else {
+                s = MVM_string_latin1_decode(tc, tc->instance->VMString, (char *)cur_pos, bytes);
+                if (s->body.storage_type == MVM_STRING_GRAPHEME_8) {
+                    MVMint8 okay_to_share = 1;
+                    MVMGrapheme32 crlf = MVM_nfg_crlf_grapheme(tc);
+                    MVMStringIndex i;
+                    for (i = 0; i < s->body.num_graphs && okay_to_share; i++) {
+                        if (s->body.storage.blob_8[i] == crlf)
+                            okay_to_share = 0;
+                    }
+
+                    if (okay_to_share) {
+                        MVM_free(s->body.storage.blob_8);
+                        s->body.storage.blob_8 = (char *)cur_pos;
+                        s->body.foreign_memory = 1;
+                    }
+                }
+            }
             MVM_ASSIGN_REF(tc, &(cu->common.header), cu->body.strings[idx], s);
             MVM_gc_allocate_gen2_default_clear(tc);
             return s;
