@@ -459,19 +459,19 @@ MVMObject * MVM_nativeref_multidim_i(MVMThreadContext *tc, MVMObject *obj, MVMOb
     MVMObject *ref_type = MVM_hll_current(tc)->int_multidim_ref;
     if (ref_type)
         return md_posref(tc, ref_type, obj, indices);
-    MVM_exception_throw_adhoc(tc, "No int positional reference type registered for current HLL");
+    MVM_exception_throw_adhoc(tc, "No int multidim positional reference type registered for current HLL");
 }
 MVMObject * MVM_nativeref_multidim_n(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices) {
     MVMObject *ref_type = MVM_hll_current(tc)->num_multidim_ref;
     if (ref_type)
         return md_posref(tc, ref_type, obj, indices);
-    MVM_exception_throw_adhoc(tc, "No num positional reference type registered for current HLL");
+    MVM_exception_throw_adhoc(tc, "No num multidim positional reference type registered for current HLL");
 }
 MVMObject * MVM_nativeref_multidim_s(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices) {
     MVMObject *ref_type = MVM_hll_current(tc)->str_multidim_ref;
     if (ref_type)
         return md_posref(tc, ref_type, obj, indices);
-    MVM_exception_throw_adhoc(tc, "No str positional reference type registered for current HLL");
+    MVM_exception_throw_adhoc(tc, "No str multidim positional reference type registered for current HLL");
 }
 
 /* Reference read functions. These do no checks that the reference is of the
