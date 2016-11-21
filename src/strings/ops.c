@@ -38,12 +38,28 @@ static void copy_strands(MVMThreadContext *tc, const MVMString *from, MVMuint16 
         num_strands * sizeof(MVMStringStrand));
 }
 
+/* If a string is currently using 32bit storage, turn it into using
+ * 8 bit storage. Doesn't do any checks at all. */
+static void turn_32bit_into_8bit_unchecked(MVMThreadContext *tc, MVMString *str) {
+    MVMGrapheme32 *old_buf = str->body.storage.blob_32;
+    MVMStringIndex i;
+    str->body.storage_type = MVM_STRING_GRAPHEME_8;
+    str->body.storage.blob_8 = MVM_malloc(str->body.num_graphs * sizeof(MVMGrapheme8));
+
+    for (i = 0; i < str->body.num_graphs; i++) {
+        str->body.storage.blob_8[i] = old_buf[i];
+    }
+
+    MVM_free(old_buf);
+}
+
 /* Collapses a bunch of strands into a single blob string. */
 static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     MVMString       *result;
     MVMStringIndex   i;
     MVMuint32        ographs;
     MVMGraphemeIter  gi;
+    MVMint8          can_use_8bit = 1;
 
     MVMROOT(tc, orig, {
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
@@ -54,8 +70,15 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     result->body.storage.blob_32 = MVM_malloc(ographs * sizeof(MVMGrapheme32));
 
     MVM_string_gi_init(tc, &gi, orig);
-    for (i = 0; i < ographs; i++)
-        result->body.storage.blob_32[i] = MVM_string_gi_get_grapheme(tc, &gi);
+    for (i = 0; i < ographs; i++) {
+        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+        if (g < -127 || g > 127)
+            can_use_8bit = 0;
+        result->body.storage.blob_32[i] = g;
+    }
+
+    if (can_use_8bit)
+        turn_32bit_into_8bit_unchecked(tc, result);
 
     return result;
 }
@@ -320,12 +343,19 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
             /* Produce a new blob string, collapsing the strands. */
             MVMGraphemeIter gi;
             MVMint32 i;
+            MVMint8  can_fit_into_8 = 1;
             result->body.storage_type    = MVM_STRING_GRAPHEME_32;
             result->body.storage.blob_32 = MVM_malloc(result->body.num_graphs * sizeof(MVMGrapheme32));
             MVM_string_gi_init(tc, &gi, a);
             MVM_string_gi_move_to(tc, &gi, start_pos);
-            for (i = 0; i < result->body.num_graphs; i++)
-                result->body.storage.blob_32[i] = MVM_string_gi_get_grapheme(tc, &gi);
+            for (i = 0; i < result->body.num_graphs; i++) {
+                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+                if (g < -128 || g >= 128)
+                    can_fit_into_8 = 0;
+                result->body.storage.blob_32[i] = g;
+            }
+            if (can_fit_into_8)
+                turn_32bit_into_8bit_unchecked(tc, result);
         }
     });
 
@@ -1221,16 +1251,25 @@ MVMString * MVM_string_indexing_optimized(MVMThreadContext *tc, MVMString *s) {
         MVMStringStrand *orig = s->body.storage.strands;
         MVMuint32        i    = 0;
         MVMString       *res;
+        MVMint8          can_fit_into_8bit = 1;
 
         MVMGraphemeIter  gi;
         MVM_string_gi_init(tc, &gi, s);
-        while (MVM_string_gi_has_more(tc, &gi))
-            flat[i++] = MVM_string_gi_get_grapheme(tc, &gi);
+        while (MVM_string_gi_has_more(tc, &gi)) {
+            MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+            if (g < -128 || g >= 128)
+                can_fit_into_8bit = 0;
+            flat[i++] = g;
+        }
 
         res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         res->body.storage_type    = MVM_STRING_GRAPHEME_32;
         res->body.storage.blob_32 = flat;
         res->body.num_graphs      = MVM_string_graphs(tc, s);
+
+        if (can_fit_into_8bit)
+            turn_32bit_into_8bit_unchecked(tc, res);
+
         return res;
     }
     else {
@@ -1246,7 +1285,8 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
     MVMStringIndex  bpos    = 0;
     MVMStringIndex  sgraphs, balloc;
     MVMGrapheme32  *buffer;
-    MVMGrapheme32 crlf;
+    MVMGrapheme32   crlf;
+    MVMint8         can_fit_into_8bit = 1;
 
     MVM_string_check_arg(tc, s, "escape");
 
@@ -1293,6 +1333,8 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
                 balloc += 32;
                 buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * balloc);
             }
+            if (graph < -128 || graph >= 128)
+                can_fit_into_8bit = 0;
             buffer[bpos++] = graph;
         }
     }
@@ -1301,6 +1343,9 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
     res->body.storage_type    = MVM_STRING_GRAPHEME_32;
     res->body.storage.blob_32 = buffer;
     res->body.num_graphs      = bpos;
+
+    if (can_fit_into_8bit)
+        turn_32bit_into_8bit_unchecked(tc, res);
 
     STRAND_CHECK(tc, res);
     return res;
@@ -1311,21 +1356,38 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
     MVMString      *res     = NULL;
     MVMStringIndex  spos    = 0;
     MVMStringIndex  sgraphs;
-    MVMGrapheme32  *rbuffer;
     MVMStringIndex  rpos;
 
     MVM_string_check_arg(tc, s, "flip");
-
     sgraphs = MVM_string_graphs(tc, s);
-    rbuffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
     rpos    = sgraphs;
 
-    for (; spos < sgraphs; spos++)
-        rbuffer[--rpos] = MVM_string_get_grapheme_at_nocheck(tc, s, spos);
+    if (s->body.storage_type == MVM_STRING_GRAPHEME_8) {
+        MVMGrapheme8   *rbuffer;
+        rbuffer = MVM_malloc(sizeof(MVMGrapheme8) * sgraphs);
 
-    res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    res->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    res->body.storage.blob_32 = rbuffer;
+        for (; spos < sgraphs; spos++)
+            rbuffer[--rpos] = s->body.storage.blob_8[spos];
+
+        res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        res->body.storage_type    = MVM_STRING_GRAPHEME_8;
+        res->body.storage.blob_8  = rbuffer;
+    } else {
+        MVMGrapheme32  *rbuffer;
+        rbuffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
+
+        if (s->body.storage_type == MVM_STRING_GRAPHEME_32)
+            for (; spos < sgraphs; spos++)
+                rbuffer[--rpos] = s->body.storage.blob_32[spos];
+        else
+            for (; spos < sgraphs; spos++)
+                rbuffer[--rpos] = MVM_string_get_grapheme_at_nocheck(tc, s, spos);
+
+        res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        res->body.storage_type    = MVM_STRING_GRAPHEME_32;
+        res->body.storage.blob_32 = rbuffer;
+    }
+
     res->body.num_graphs      = sgraphs;
 
     STRAND_CHECK(tc, res);
@@ -1772,9 +1834,15 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMCodepoint cp) {
     MVM_unicode_normalizer_cleanup(tc, &norm);
 
     s = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
-    s->body.storage_type       = MVM_STRING_GRAPHEME_32;
-    s->body.storage.blob_32    = MVM_malloc(sizeof(MVMGrapheme32));
-    s->body.storage.blob_32[0] = g;
+    if (g >= -128 && g < 128) {
+        s->body.storage_type       = MVM_STRING_GRAPHEME_8;
+        s->body.storage.blob_8     = MVM_malloc(sizeof(MVMGrapheme8));
+        s->body.storage.blob_8[0]  = g;
+    } else {
+        s->body.storage_type       = MVM_STRING_GRAPHEME_32;
+        s->body.storage.blob_32    = MVM_malloc(sizeof(MVMGrapheme32));
+        s->body.storage.blob_32[0] = g;
+    }
     s->body.num_graphs         = 1;
     return s;
 }
