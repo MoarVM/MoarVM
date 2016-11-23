@@ -1030,6 +1030,34 @@ void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
     MVM_ASSIGN_REF(tc, &(code->header), code_obj->body.outer, captured);
 }
 
+/* This is used for situations in Perl 6 like:
+ * supply {
+ *     my $x = something();
+ *     whenever $supply {
+ *         QUIT { $x.foo() }
+ *     }
+ * }
+ * Here, the QUIT may be called without an invocation of the whenever ever
+ * having taken place. At the point we closure-clone the whenever block, we
+ * will capture_inner the QUIT phaser. This creates a fake outer for the
+ * QUIT, but makes *its* outer point to the nearest instance of the relevant
+ * static frame on the call stack, so that the QUIT will disocver the correct
+ * $x.
+ */
+void MVM_frame_capture_inner(MVMThreadContext *tc, MVMObject *code) {
+    MVMCode *code_obj = (MVMCode *)code;
+    MVMFrame *outer;
+    MVMROOT(tc, code, {
+        MVMStaticFrame *sf_outer = code_obj->body.sf->body.outer;
+        outer = create_context_only(tc, sf_outer, (MVMObject *)sf_outer->body.static_code, 1);
+        MVMROOT(tc, outer, {
+            MVMFrame *outer_outer = autoclose(tc, sf_outer->body.outer);
+            MVM_ASSIGN_REF(tc, &(outer->header), outer->outer, outer_outer);
+        });
+    });
+    MVM_ASSIGN_REF(tc, &(code->header), code_obj->body.outer, outer);
+}
+
 /* Given the specified code object, copies it and returns a copy which
  * captures a closure over the current scope. */
 MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
