@@ -4,7 +4,7 @@ typedef struct MVMActiveHandler MVMActiveHandler;
 typedef struct MVMArgInfo MVMArgInfo;
 typedef struct MVMArgProcContext MVMArgProcContext;
 typedef struct MVMArray MVMArray;
-typedef struct MVMArrayBody MVMArrayBody;
+typedef union  MVMArrayBody MVMArrayBody;
 typedef struct MVMArrayREPRData MVMArrayREPRData;
 typedef struct MVMAsyncTask MVMAsyncTask;
 typedef struct MVMAsyncTaskBody MVMAsyncTaskBody;

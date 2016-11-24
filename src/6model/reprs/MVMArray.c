@@ -33,17 +33,22 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMArrayBody     *dest_body = (MVMArrayBody *)dest;
     dest_body->elems = src_body->elems;
     dest_body->ssize = src_body->elems;
-    dest_body->start = 0;
-    if (dest_body->elems > 0) {
-        size_t  mem_size     = dest_body->ssize * repr_data->elem_size;
-        size_t  start_pos    = src_body->start * repr_data->elem_size;
-        char   *copy_start   = ((char *)src_body->slots.any) + start_pos;
-        dest_body->slots.any = MVM_malloc(mem_size);
-        memcpy(dest_body->slots.any, copy_start, mem_size);
-    }
-    else {
-        dest_body->slots.any = NULL;
-    }
+    if (MVMARRAY_IN_SITU(src_body, repr_data)) {
+        size_t  mem_size     = dest_body->regular.elems * repr_data->elem_size;
+        char   *copy_start   = ((char *)&(src_body->in_situ.slots.i8));
+        memcpy(dest_body->in_situ.slots.i8, copy_start, mem_size);
+    } else {
+        dest_body->regular.start = 0;
+        if (dest_body->regular.elems > 0) {
+            size_t  mem_size     = dest_body->regular.ssize * repr_data->elem_size;
+            size_t  start_pos    = src_body->regular.start * repr_data->elem_size;
+            char   *copy_start   = ((char *)src_body->regular.slots.any) + start_pos;
+            dest_body->regular.slots.any = MVM_malloc(mem_size);
+            memcpy(dest_body->regular.slots.any, copy_start, mem_size);
+        }
+        else {
+            dest_body->regular.slots.any = NULL;
+        }
 }
 
 /* Adds held objects to the GC worklist. */
@@ -55,8 +60,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMuint64         i         = 0;
     switch (repr_data->slot_type) {
         case MVM_ARRAY_OBJ: {
-            MVMObject **slots = body->slots.o;
-            slots += start;
+            MVMObject **slots = MVMARRAY_SLOTS(body, repr_data, o);
             while (i < elems) {
                 MVM_gc_worklist_add(tc, worklist, &slots[i]);
                 i++;
@@ -64,8 +68,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             break;
         }
         case MVM_ARRAY_STR: {
-            MVMString **slots = body->slots.s;
-            slots += start;
+            MVMString **slots = MVMARRAY_SLOTS(body, repr_data, s);
             while (i < elems) {
                 MVM_gc_worklist_add(tc, worklist, &slots[i]);
                 i++;
@@ -77,8 +80,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMArray *arr = (MVMArray *)obj;
-    MVM_free(arr->body.slots.any);
+    if (!MVMARRAYO_IN_SITU(obj))
+        MVM_free(arr->body.slots.any);
 }
 
 /* Marks the representation data in an STable.*/

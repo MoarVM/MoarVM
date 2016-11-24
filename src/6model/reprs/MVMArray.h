@@ -1,31 +1,52 @@
 /* Representation used by VM-level arrays. Adopted from QRPA work by
  * Patrick Michaud. */
-struct MVMArrayBody {
-    /* number of elements (from user's point of view) */
-    MVMuint64   elems;
+union MVMArrayBody {
+    struct {
+        /* number of elements (from user's point of view) */
+        MVMuint64   elems;
 
-    /* slot index of first element */
-    MVMuint64   start;
+        union {
+            MVMObject  *o[3];
+            MVMString  *s[3];
+            MVMint64   i64[3];
+            MVMint32   i32[6];
+            MVMint16   i16[12];
+            MVMint8    i8[24];
+            MVMnum64   n64[3];
+            MVMnum32   n32[6];
+            MVMuint64  u64[3];
+            MVMuint32  u32[6];
+            MVMuint16  u16[12];
+            MVMuint8   u8[24];
+        } slots;
+    } in_situ;
 
-    /* size of slots array */
-    MVMuint64   ssize;
+    struct {
+        MVMuint64   elems;
 
-    /* slot array; union of various types of storage we may have. */
-    union {
-        MVMObject **o;
-        MVMString **s;
-        MVMint64   *i64;
-        MVMint32   *i32;
-        MVMint16   *i16;
-        MVMint8    *i8;
-        MVMnum64   *n64;
-        MVMnum32   *n32;
-        MVMuint64  *u64;
-        MVMuint32  *u32;
-        MVMuint16  *u16;
-        MVMuint8   *u8;
-        void       *any;
-    } slots;
+        /* slot index of first element */
+        MVMuint64   start;
+
+        /* size of slots array */
+        MVMuint64   ssize;
+
+        /* slot array; union of various types of storage we may have. */
+        union {
+            MVMObject **o;
+            MVMString **s;
+            MVMint64   *i64;
+            MVMint32   *i32;
+            MVMint16   *i16;
+            MVMint8    *i8;
+            MVMnum64   *n64;
+            MVMnum32   *n32;
+            MVMuint64  *u64;
+            MVMuint32  *u32;
+            MVMuint16  *u16;
+            MVMuint8   *u8;
+            void       *any;
+        } slots;
+    } regular;
 };
 struct MVMArray {
     MVMObject common;
@@ -66,3 +87,9 @@ struct MVMArrayREPRData {
     /* Type object for the element type. */
     MVMObject *elem_type;
 };
+
+#define MVMARRAY_IN_SITU(BODY, REPRDATA) ((BODY)->in_situ.elems * (REPRDATA)->elem_size <= 192 && (BODY)->in_situ.elems > 0)
+#define MVMARRAYO_IN_SITU(OBJECT) (MVMARRAY_IN_SITU(&(((MVMArray *)OBJECT)->body), (MVMArrayREPRData *)(STABLE(OBJECT)->REPR_data)))
+
+#define MVMARRAY_SLOTS(BODY, REPRDATA, KIND) (MVMARRAY_IN_SITU((BODY), (REPRDATA)) ? &((BODY)->in_situ.slots.KIND) : ((BODY)->regular.slots.KIND + (BODY)->regular.start))
+#define MVMARRAYO_SLOTS(OBJECT, KIND) (MVMARRAY_SLOTS(&(((MVMArray *)OBJECT)->body), (MVMArrayREPRData *)(STABLE(OBJECT)->REPR_data), KIND))

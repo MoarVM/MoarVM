@@ -44,9 +44,9 @@ void MVM_load_bytecode_buffer(MVMThreadContext *tc, MVMObject *buf) {
         MVM_exception_throw_adhoc(tc, "loadbytecodebuffer requires a native int8 or uint8 array to read from");
 
     /* MVMCompUnit expects the data to be non-GC managed as it usually comes straight from a file */
-    data_size = ((MVMArray *)buf)->body.elems;
+    data_size = ((MVMArray *)buf)->body.regular.elems;
     data_start = MVM_malloc(data_size);
-    memcpy(data_start, (MVMuint8 *)(((MVMArray *)buf)->body.slots.i8 + ((MVMArray *)buf)->body.start), data_size);
+    memcpy(data_start, MVMARRAYO_SLOTS(buf, u8), data_size);
 
     cu = MVM_cu_from_bytes(tc, data_start, data_size);
     run_comp_unit(tc, cu);
