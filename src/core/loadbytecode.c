@@ -62,25 +62,32 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     uv_mutex_lock(&tc->instance->mutex_loaded_compunits);
     MVM_tc_set_ex_release_mutex(tc, &tc->instance->mutex_loaded_compunits);
     MVM_HASH_GET(tc, tc->instance->loaded_compunits, filename, loaded_name);
-    if (loaded_name) {
+    if (loaded_name && !loaded_name->still_to_set_up) {
         /* already loaded */
         goto LEAVE;
     }
 
     /* Otherwise, load from disk. */
     MVMROOT(tc, filename, {
-        char *c_filename = MVM_string_utf8_c8_encode_C_string(tc, filename);
-        /* XXX any exception from MVM_cu_map_from_file needs to be handled
-         *     and c_filename needs to be freed */
-        cu = MVM_cu_map_from_file(tc, c_filename);
-        MVM_free(c_filename);
-        cu->body.filename = filename;
+        if (!loaded_name) {
+            char *c_filename = MVM_string_utf8_c8_encode_C_string(tc, filename);
+            /* XXX any exception from MVM_cu_map_from_file needs to be handled
+             *     and c_filename needs to be freed */
+            cu = MVM_cu_map_from_file(tc, c_filename);
+            MVM_free(c_filename);
+            cu->body.filename = filename;
+        } else {
+            cu = loaded_name->still_to_set_up;
+            loaded_name->still_to_set_up = NULL;
+        }
 
         run_comp_unit(tc, cu);
 
-        loaded_name = MVM_calloc(1, sizeof(MVMLoadedCompUnitName));
-        loaded_name->filename = filename;
-        MVM_HASH_BIND(tc, tc->instance->loaded_compunits, filename, loaded_name);
+        if (!loaded_name) {
+            loaded_name = MVM_calloc(1, sizeof(MVMLoadedCompUnitName));
+            loaded_name->filename = filename;
+            MVM_HASH_BIND(tc, tc->instance->loaded_compunits, filename, loaded_name);
+        }
     });
 
 LEAVE:

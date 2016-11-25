@@ -141,6 +141,11 @@ struct MVMLoadedCompUnitName {
     /* Loaded filename. */
     MVMString *filename;
 
+    /* If the compunit still needs to be initialized (i.e. its deserialize
+     * and load frames still need to be run before it can be used), this
+     * will be non-NULL. */
+    MVMCompUnit *still_to_set_up;
+
     /* Inline handle to the loaded filenames hash (in MVMInstance). */
     UT_hash_handle hash_handle;
 };

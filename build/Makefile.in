@@ -66,6 +66,7 @@ JIT_STUB = src/jit/stub@obj@
 
 
 MAIN_OBJECTS = src/main@obj@
+CONCATMAIN_OBJECTS = src/concatenatedmain@obj@
 
 OBJECTS = src/core/callsite@obj@ \
           src/core/args@obj@ \
@@ -419,7 +420,7 @@ THIRDPARTY = @thirdpartylibs@
 
 .SUFFIXES: .c @obj@ .i @asm@
 
-all: moar@exe@ pkgconfig/moar.pc
+all: moar@exe@ concatmoar@exe@ pkgconfig/moar.pc
 
 install: all
 	$(MKPATH) "$(DESTDIR)$(BINDIR)"
@@ -485,6 +486,10 @@ moar@exe@: $(MAIN_OBJECTS) @moar@
 	$(MSG) linking $@
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) $(MAIN_LIBS)
 
+concatmoar@exe@: $(CONCATMAIN_OBJECTS) @moar@
+	$(MSG) linking $@
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(CONCATMAIN_OBJECTS) $(MAIN_LIBS)
+
 @moarlib@: $(OBJECTS) $(THIRDPARTY)
 	$(MSG) linking $@
 	$(CMD)$(AR) $(ARFLAGS) @arout@$@ $(OBJECTS) $(NOOUT)
@@ -527,6 +532,10 @@ switch no-tracing no-cgoto:
 
 
 src/main@obj@: src/main.c
+	$(MSG) compiling $@
+	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @mainflags@ $(CINCLUDES) @ccout@$@ $*.c
+
+src/concatentatedmain@obj@: src/concatenatedmain.c
 	$(MSG) compiling $@
 	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @mainflags@ $(CINCLUDES) @ccout@$@ $*.c
 

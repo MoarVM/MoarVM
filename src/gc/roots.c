@@ -103,6 +103,8 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
             "Loaded compilation unit hash key");
         add_collectable(tc, worklist, snapshot, current_lcun->filename,
             "Loaded compilation unit filename");
+        add_collectable(tc, worklist, snapshot, current_lcun->still_to_set_up,
+            "Loaded compilation unit object for initial setup");
     }
 
     add_collectable(tc, worklist, snapshot, tc->instance->cached_backend_config,
