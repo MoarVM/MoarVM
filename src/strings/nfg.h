@@ -1,5 +1,5 @@
 /* State kept around for implementing Normal Form Grapheme. The design is such
- * that we can always do lookups without needing to acquire a look. When we
+ * that we can always do lookups without needing to acquire a lock. When we
  * do additions of new synthetics, we must acquire the lock before doing so,
  * and be sure to validate nothing changed. We also must do sufficient copying
  * to ensure that we never break another thread doing a read. Memory to be
