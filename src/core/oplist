@@ -782,8 +782,8 @@ lstat_time          w(num64) r(str) r(int64)
 setdebugtypename    r(obj) r(str)
 loadbytecodebuffer  r(obj)
 loadbytecodefh      r(obj) r(str)
-throwpayloadlex     w(obj) int64 r(obj) :noinline
-throwpayloadlexcaller w(obj) int64 r(obj)
+throwpayloadlex     w(obj) int64 r(obj) :noinline :throwish
+throwpayloadlexcaller w(obj) int64 r(obj) :throwish
 lastexpayload       w(obj) :noinline
 cancelnotify        r(obj) r(obj) r(obj)
 decoderconfigure    r(obj) r(str) r(obj)
