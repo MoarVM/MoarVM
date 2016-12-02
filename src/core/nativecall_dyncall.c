@@ -212,9 +212,13 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     MVMRegister res;
     MVMRegister *args;
 
-    /* Unblock GC, so this thread can do work. */
+    /* Unblock GC if needed, so this thread can do work. */
     MVMThreadContext *tc = data->tc;
-    MVM_gc_mark_thread_unblocked(tc);
+    AO_t gc_status = MVM_load(&(tc->gc_status));
+    MVMint32 was_blocked = gc_status == MVMGCStatus_UNABLE ||
+                           gc_status == MVMGCStatus_STOLEN;
+    if (was_blocked)
+        MVM_gc_mark_thread_unblocked(tc);
 
     /* Build a callsite and arguments buffer. */
     args = MVM_malloc(data->num_types * sizeof(MVMRegister));
@@ -419,7 +423,8 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     MVM_free(args);
 
     /* Re-block GC, so other threads will be able to collect. */
-    MVM_gc_mark_thread_blocked(tc);
+    if (was_blocked)
+        MVM_gc_mark_thread_blocked(tc);
 
     /* Indicate what we're producing as a result. */
     return get_signature_char(data->typeinfos[0]);
