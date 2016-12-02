@@ -271,6 +271,20 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
     }
 }
 
+/* Checks if a thread has marked itself as blocked. Considers that the GC may
+ * have stolen its work and marked it as such also. So what this really
+ * answers is, "did this thread mark itself blocked, and since then not mark
+ * itself unblocked", which is useful if you need to conditionally unblock
+ * or re-block. If the status changes from blocked to stolen or stolen to
+ * blocked between checking this and calling unblock, it's safe anyway since
+ * these cases are handled in MVM_gc_mark_thread_unblocked. Note that this
+ * relies on a thread itself only ever calling block/unblock. */
+MVMint32 MVM_gc_is_thread_blocked(MVMThreadContext *tc) {
+    AO_t gc_status = MVM_load(&(tc->gc_status));
+    return gc_status == MVMGCStatus_UNABLE ||
+           gc_status == MVMGCStatus_STOLEN;
+}
+
 static MVMint32 is_full_collection(MVMThreadContext *tc) {
     MVMuint64 percent_growth;
     size_t rss, promoted;
