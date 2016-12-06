@@ -27,6 +27,7 @@ void MVM_jit_log_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
             char *frame_cuuid        = MVM_string_utf8_encode_C_string(tc, code->sf->body.cuuid);
             /* I'd like to add linenumber and filename information, but it's really a lot of work at this point */
             fprintf(tc->instance->jit_bytecode_map, "%s\t%s\t%s\n", filename, frame_name, frame_cuuid);
+            fflush(tc->instance->jit_bytecode_map);
             MVM_free(frame_name);
             MVM_free(frame_cuuid);
         }

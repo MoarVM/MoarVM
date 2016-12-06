@@ -1,56 +1,71 @@
 #!/usr/bin/env perl
+use strict;
+use warnings;
 use FindBin;
 use Getopt::Long;
 use File::Temp 'tempdir';
 use File::Spec;
 use File::Copy;
-use strict;
+
 
 my $interpreter = 'perl6';
 my $test;
+my $command;
+my $verbose;
 my @libs;
 
 
 GetOptions(
     'test=s' => \$test,
     'interpreter=s' => \$interpreter,
-    'lib=s' => \@libs
-    );
+    'lib=s' => \@libs,
+    'command=s' => \$command,
+    'verbose' => \$verbose,
+);
 
-unless (defined($test)) {
-    $test = pop @ARGV;
-}
-
-if (!defined($test) || ! -f $test) {
-    print "Pass a test file argument";
-    exit 1;
-}
-
-# add lib for standard module layout
-unless (@libs) {
-    my ($v, $d, $n) = File::Spec->splitpath($test);
-    my @dirs = File::Spec->splitdir($d);
-    if ($dirs[-2] eq 't') {
-        $dirs[-2] = 'lib';
-        my $lib = File::Spec->catpath($v, File::Spec->catdir(@dirs));
-        push @libs, $lib if -d $lib;
+my @command;
+if (defined $command) {
+    # TODO: this wants some better evaluation strategy rather than
+    # removing " blindly
+    @command = map s/"//rg, split / /, $command;
+} else {
+    unless (defined($test)) {
+        $test = pop @ARGV;
     }
+
+    unless (defined $command || defined($test) && -f $test) {
+        print STDERR "Pass a test file argument";
+        exit 1;
+    }
+
+    # add lib for standard module layout
+    unless (@libs) {
+        my ($v, $d, $n) = File::Spec->splitpath($test);
+        my @dirs = File::Spec->splitdir($d);
+        if ($dirs[-2] eq 't') {
+            $dirs[-2] = 'lib';
+            my $lib = File::Spec->catpath($v, File::Spec->catdir(@dirs));
+            push @libs, $lib if -d $lib;
+        }
+    }
+
+    @command = ('prove', '-e', $interpreter, (@libs ? '-I' : ''), @libs, $test);
 }
 
 my $bytecode_dir = tempdir();
 $ENV{'MVM_JIT_BYTECODE_DIR'} = $bytecode_dir;
-my @command = ('prove', '-e', $interpreter, (@libs ? '-I' : ''), @libs, $test);
 
 # clone stdout, stderr
 open my $stdout, '>&', STDOUT;
 open my $stderr, '>&', STDERR;
 
 # silence prove
-close STDOUT;
-close STDERR;
-open STDOUT, '>', '/dev/null';
-open STDERR, '>', '/dev/null';
-
+unless ($verbose) {
+    close STDOUT;
+    close STDERR;
+    open STDOUT, '>', '/dev/null';
+    open STDERR, '>', '/dev/null';
+}
 # do initial run
 my $code = system @command;
 if ($code == 0) {
@@ -75,7 +90,7 @@ while (($max - $min) > 1) {
     $mid = int(($max + $min) / 2);
     $ENV{'MVM_JIT_EXPR_LAST_FRAME'} = $mid;
     print $stdout "Testing up to $mid frames....";
-    my $code = system @command;
+    $code = system @command;
     if ($code == 0) {
         # ok
         print $stdout "OK\n";
@@ -94,7 +109,7 @@ print $stdout $frame_file, $frame_map{$frame_file}, "\n";
 
 # exponential probing of breaking basic block
 $ENV{'MVM_JIT_EXPR_LAST_FRAME'} = $max;
-my $code = 0;
+$code = 0;
 $min = 1;
 do {
     $ENV{'MVM_JIT_EXPR_LAST_BB'} = $min;
@@ -136,17 +151,20 @@ system @command;
 copy($frame_file, 'working-frame.bin');
 
 # disassemble and make comparable
-close STDOUT;
-open STDOUT, '>', "broken-frame.asm";
-system qw(objdump -b binary -D -m i386 -M x86-64,intel broken-frame.bin);
-close STDOUT;
+{
+    no warnings 'qw';
+    close STDOUT;
+    open STDOUT, '>', "broken-frame.asm";
+    system qw(objdump -b binary -D -m i386 -M x86-64,intel broken-frame.bin) or die "Could not run objdump";
+    close STDOUT;
 
-open STDOUT, '>', "working-frame.asm";
-system qw(objdump -b binary -D -m i386 -M x86-64,intel working-frame.bin);
-close STDOUT;
+    open STDOUT, '>', "working-frame.asm";
+    system qw(objdump -b binary -D -m i386 -M x86-64,intel working-frame.bin);
+    close STDOUT;
 
-my $script = "$FindBin::Bin/jit-comparify-asm.pl";
-open STDOUT, '>', '/dev/null';
+    my $script = "$FindBin::Bin/jit-comparify-asm.pl";
+    open STDOUT, '>', '/dev/null';
 
-system $^X, '-i', $script, "broken-frame.asm";
-system $^X, '-i', $script, "working-frame.asm";
+    system $^X, '-i', $script, "broken-frame.asm";
+    system $^X, '-i', $script, "working-frame.asm";
+}
