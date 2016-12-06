@@ -1720,8 +1720,8 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_LITERAL, { category } },
                                  { MVM_JIT_REG_VAL, { payload } },
                                  { MVM_JIT_REG_ADDR, { regi } }};
-        jgb_append_call_c(tc, jgb, op_to_func(tc, op),
-                          5, args, MVM_JIT_RV_VOID, -1);
+        jg_append_call_c(tc, jg, op_to_func(tc, op),
+                         5, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_resume: {
