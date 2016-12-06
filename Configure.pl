@@ -370,15 +370,19 @@ if ($args{'jit'}) {
     if ($config{ptr_size} != 8) {
         say "JIT isn't supported on platforms with $config{ptr_size} byte pointers.";
     } elsif ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
-        $config{jit} = '$(JIT_POSIX_X64)';
+        $config{jit_obj}      = '$(JIT_POSIX_X64)';
+        $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
+        $config{jit_platform} = 'MVM_JIT_PLATFORM_POSIX';
     } elsif ($Config{archname} =~ /^MSWin32-x64/) {
-        $config{jit} = '$(JIT_WIN32_X64)';
+        $config{jit_obj}      = '$(JIT_WIN32_X64)';
+        $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
+        $config{jit_platform} = 'MVM_JIT_PLATFORM_WIN32';
     } else {
         say "JIT isn't supported on $Config{archname} yet.";
     }
 }
 # fallback
-$config{jit} //= '$(JIT_STUB)';
+$config{jit_obj} //= '$(JIT_STUB)';
 
 if ($config{cc} eq 'cl') {
     $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/msinttypes\n"
