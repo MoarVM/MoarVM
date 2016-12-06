@@ -348,7 +348,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         case MVM_NATIVECALL_ARG_VOID:
             break;
         case MVM_NATIVECALL_ARG_CHAR:
-            cb_result->c = MVM_nativecall_unmarshal_char(data->tc, res.o);
+            cb_result->c = (signed char)MVM_nativecall_unmarshal_char(data->tc, res.o);
             break;
         case MVM_NATIVECALL_ARG_SHORT:
             cb_result->s = MVM_nativecall_unmarshal_short(data->tc, res.o);
@@ -423,7 +423,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     MVMRegister r; \
     if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) { \
         if (MVM_6model_container_is ## cont_X(tc, value)) { \
-            dc_type *rw = (dc_type *)MVM_malloc(sizeof(dc_type *)); \
+            dc_type *rw = (dc_type *)MVM_malloc(sizeof(dc_type)); \
             MVM_6model_container_de ## cont_X(tc, value, &r); \
             *rw = (dc_type)r. reg_slot ; \
             if (!free_rws) \
@@ -589,7 +589,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     result = res_type;
                     break;
                 case MVM_NATIVECALL_ARG_CHAR:
-                    result = MVM_nativecall_make_int(tc, res_type, dcCallChar(vm, entry_point));
+                    result = MVM_nativecall_make_int(tc, res_type, (signed char)dcCallChar(vm, entry_point));
                     break;
                 case MVM_NATIVECALL_ARG_SHORT:
                     result = MVM_nativecall_make_int(tc, res_type, dcCallShort(vm, entry_point));

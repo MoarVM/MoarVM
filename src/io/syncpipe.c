@@ -56,7 +56,6 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
 static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio,
         uv_process_t *process) {
     MVMIOSyncPipeData *data = (MVMIOSyncPipeData *)h->body.data;
-    data->process           = process;
     stdio->flags            = UV_INHERIT_STREAM;
     stdio->data.stream      = data->ss.handle;
 }

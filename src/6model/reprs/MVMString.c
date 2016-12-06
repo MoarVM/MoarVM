@@ -40,10 +40,12 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
                 memcpy(dest_body->storage.blob_8, src_body->storage.blob_8,
                     dest_body->num_graphs);
             }
+            break;
         case MVM_STRING_STRAND:
             dest_body->storage.strands = MVM_malloc(dest_body->num_strands * sizeof(MVMStringStrand));
             memcpy(dest_body->storage.strands, src_body->storage.strands,
                 dest_body->num_strands * sizeof(MVMStringStrand));
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "Internal string corruption");
     }

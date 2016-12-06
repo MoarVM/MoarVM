@@ -1627,6 +1627,11 @@ sub tweak_nfg_qc {
             $point->{'NFG_QC'} = 0;
         }
 
+        # Zero Width Joiner
+        elsif ($code == 0x200D) {
+            $point->{'NFG_QC'} = 0;
+        }
+
         # Grapheme_Extend
         elsif ($point->{'Grapheme_Extend'}) {
             $point->{'NFG_QC'} = 0;

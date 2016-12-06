@@ -2039,7 +2039,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(unbox_i): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot unbox a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot unbox a type object (%s) to an int.", STABLE(obj)->debug_name);
                 GET_REG(cur_op, 0).i64 = REPR(obj)->box_funcs.get_int(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj));
                 cur_op += 4;
@@ -2048,7 +2048,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(unbox_n): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot unbox a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot unbox a type object (%s) to a num.", STABLE(obj)->debug_name);
                 GET_REG(cur_op, 0).n64 = REPR(obj)->box_funcs.get_num(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj));
                 cur_op += 4;
@@ -2057,7 +2057,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(unbox_s): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot unbox a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot unbox a type object (%s) to a str.", STABLE(obj)->debug_name);
                 GET_REG(cur_op, 0).s = REPR(obj)->box_funcs.get_str(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj));
                 cur_op += 4;
@@ -5102,6 +5102,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(indexingoptimized):
+                GET_REG(cur_op, 0).s = MVM_string_indexing_optimized(tc, GET_REG(cur_op, 2).s);
+                cur_op += 4;
+                goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

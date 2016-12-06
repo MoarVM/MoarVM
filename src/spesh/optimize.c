@@ -1235,6 +1235,31 @@ static void optimize_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
     }
 }
 
+static void optimize_uniprop_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *arg1_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+    if (arg1_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        if (ins->info->opcode == MVM_OP_unipropcode) {
+            result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+            result_facts->value.i = (MVMint64)MVM_unicode_name_to_property_code(tc, arg1_facts->value.s);
+            ins->info = MVM_op_get_op(MVM_OP_const_i64);
+            ins->operands[1].lit_i64 = result_facts->value.i;
+            arg1_facts->usages--;
+        } else if (ins->info->opcode == MVM_OP_unipvalcode) {
+            MVMSpeshFacts *arg2_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
+
+            if (arg2_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                result_facts->value.i = (MVMint64)MVM_unicode_name_to_property_value_code(tc, arg1_facts->value.i, arg2_facts->value.s);
+                ins->info = MVM_op_get_op(MVM_OP_const_i64);
+                ins->operands[1].lit_i64 = result_facts->value.i;
+                arg1_facts->usages--;
+                arg2_facts->usages--;
+            }
+        }
+}
+}
+
 /* If something is only kept alive because we log its allocation, kick out
  * the allocation logging and let the op that creates it die.
  */
@@ -1523,6 +1548,10 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             break;
         case MVM_OP_objprimspec:
             optimize_objprimspec(tc, g, ins);
+            break;
+        case MVM_OP_unipropcode:
+        case MVM_OP_unipvalcode:
+            optimize_uniprop_ops(tc, g, bb, ins);
             break;
         case MVM_OP_unshift_i:
         case MVM_OP_unshift_n:

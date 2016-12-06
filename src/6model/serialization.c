@@ -1170,7 +1170,7 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
             REPR(obj)->serialize(tc, STABLE(obj), OBJECT_BODY(obj), writer);
         else
             MVM_exception_throw_adhoc(tc,
-                "Missing serialize REPR function for REPR %s", REPR(obj)->name);
+                "Missing serialize REPR function for REPR %s (%s)", REPR(obj)->name, STABLE(obj)->debug_name);
     }
 }
 
@@ -2628,8 +2628,8 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
         if (REPR(obj)->deserialize)
             REPR(obj)->deserialize(tc, STABLE(obj), obj, OBJECT_BODY(obj), reader);
         else
-            fail_deserialize(tc, reader, "Missing deserialize REPR function for %s",
-                REPR(obj)->name);
+            fail_deserialize(tc, reader, "Missing deserialize REPR function for %s (%s)",
+                REPR(obj)->name, STABLE(obj)->debug_name);
         reader->current_object = NULL;
     }
 }
@@ -2889,8 +2889,11 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
 
         /* Clear it up, since we'll re-allocate all the bits inside
          * it on deserialization. */
-        if (REPR(orig_obj)->gc_free)
+        if (REPR(orig_obj)->gc_free) {
             REPR(orig_obj)->gc_free(tc, orig_obj);
+            /* Ensure the object is clean in case the deserialization never happens */
+            memset(OBJECT_BODY(orig_obj), 0, orig_obj->header.size - sizeof(MVMObject));
+        }
 
         /* The object's STable may have changed as a result of the
          * repossession (perhaps due to mixing in to it), so put the

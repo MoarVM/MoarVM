@@ -64,7 +64,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         }
         else {
             MVM_exception_throw_adhoc(tc,
-                "CArray may only contain native integers and numbers, strings, C Structs or C Pointers");
+                "CArray representation only handles attributes of type:\n"
+                "  (u)int8, (u)int16, (u)int32, (u)int64, (u)long, (u)longlong, num16, num32, (s)size_t, bool, Str\n"
+                "  and types with representation: CArray, CPointer, CStruct, CPPStruct and CUnion");
         }
     }
     else {

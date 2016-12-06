@@ -83,13 +83,13 @@ static void from_num(MVMnum64 d, mp_int *a) {
     lower = rest / d_digit;
     lowest = fmod(rest,d_digit );
     if (upper >= 1) {
-        mp_set_long(a, (unsigned long) upper);
+        MVM_bigint_mp_set_uint64(a, (MVMuint64) upper);
         mp_mul_2d(a, DIGIT_BIT , a);
         DIGIT(a, 0) = (mp_digit) lower;
         mp_mul_2d(a, DIGIT_BIT , a);
     } else {
         if (lower >= 1) {
-            mp_set_long(a, (unsigned long) lower);
+            MVM_bigint_mp_set_uint64(a, (MVMuint64) lower);
             mp_mul_2d(a, DIGIT_BIT , a);
             a->used = 2;
         } else {
@@ -893,8 +893,18 @@ void MVM_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     mp_int *rnd = MVM_malloc(sizeof(mp_int));
     mp_int *max = force_bigint(bb, tmp);
 
+    /* Workaround tommath issue #56 */
+    mp_int workaround;
+    mp_init (&workaround);
+    mp_rand(&workaround, USED(max) + 1);
+    mp_mul_2d(&workaround, 29, &workaround);
+
     mp_init(rnd);
     mp_rand(rnd, USED(max) + 1);
+
+    mp_xor(rnd, &workaround, rnd);
+    mp_clear(&workaround);
+
     mp_mod(rnd, max, rnd);
     store_bigint_result(ba, rnd);
     clear_temp_bigints(tmp, 1);

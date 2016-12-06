@@ -532,8 +532,8 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
     if (is_regional_indicator(a) && is_regional_indicator(b))
         return 0;
 
-    /* Don't break before extenders. */
-    if (is_grapheme_extend(tc, b))
+    /* Don't break before extenders or ZERO WIDTH JOINER. */
+    if (b == 0x200D || is_grapheme_extend(tc, b))
         return 0;
 
     /* Don't break before spacing marks. (In the Unicode version at the time
