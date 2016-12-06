@@ -394,18 +394,18 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
                                             offset > 0 ? offset - 1 : 0);
         MVMint32              fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
         char            *line_number = MVM_malloc(16);
+        MVMString      *filename_str;
         snprintf(line_number, 16, "%d", annot ? annot->line_number : 1);
 
         /* annotations hash will contain "file" and "line" */
         annotations = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
 
         /* file */
-        if (fshi >= 0 && fshi < cur_frame->static_info->body.cu->body.num_strings)
-            value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
-                MVM_cu_string(tc, cur_frame->static_info->body.cu, fshi));
-        else
-            value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
-                cur_frame->static_info->body.cu->body.filename);
+        filename_str = fshi >= 0 && fshi < cur_frame->static_info->body.cu->body.num_strings
+             ? MVM_cu_string(tc, cur_frame->static_info->body.cu, fshi)
+             : cur_frame->static_info->body.cu->body.filename;
+        value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
+            filename_str ? filename_str : tc->instance->str_consts.empty);
         MVM_repr_bind_key_o(tc, annotations, k_file, value);
 
         /* line */
@@ -527,7 +527,7 @@ static MVMint32 use_lexical_handler_hll_error(MVMThreadContext *tc, MVMuint8 mod
 }
 
 /* Invokes the HLL's handler for unresolved lexical throws. */
-static void invoke_lexical_handler_hll_erorr(MVMThreadContext *tc, MVMint64 cat, LocatedHandler lh) {
+static void invoke_lexical_handler_hll_error(MVMThreadContext *tc, MVMint64 cat, LocatedHandler lh) {
     MVMObject *handler = MVM_hll_current(tc)->lexical_handler_not_found_error;
     MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INT_INT);
     handler = MVM_frame_find_invokee(tc, handler, NULL);
@@ -546,7 +546,7 @@ void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, 
     LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat, NULL);
     if (lh.frame == NULL) {
         if (use_lexical_handler_hll_error(tc, mode)) {
-            invoke_lexical_handler_hll_erorr(tc, cat, lh);
+            invoke_lexical_handler_hll_error(tc, cat, lh);
             return;
         }
         panic_unhandled_cat(tc, cat);
@@ -596,7 +596,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category, ex->body.payload);
     if (lh.frame == NULL) {
         if (use_lexical_handler_hll_error(tc, mode)) {
-            invoke_lexical_handler_hll_erorr(tc, ex->body.category, lh);
+            invoke_lexical_handler_hll_error(tc, ex->body.category, lh);
             return;
         }
         panic_unhandled_ex(tc, ex);
@@ -616,7 +616,7 @@ void MVM_exception_throwpayload(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 c
     LocatedHandler lh = search_for_handler_from(tc, tc->cur_frame, mode, cat, NULL);
     if (lh.frame == NULL) {
         if (use_lexical_handler_hll_error(tc, mode)) {
-            invoke_lexical_handler_hll_erorr(tc, cat, lh);
+            invoke_lexical_handler_hll_error(tc, cat, lh);
             return;
         }
         panic_unhandled_cat(tc, cat);
@@ -778,6 +778,7 @@ void MVM_exception_gotolexotic(MVMThreadContext *tc, MVMint32 handler_idx, MVMSt
 MVM_NO_RETURN
 void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) {
     va_list args;
+    fprintf(stderr, "MoarVM panic: ");
     va_start(args, messageFormat);
     vfprintf(stderr, messageFormat, args);
     va_end(args);

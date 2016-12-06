@@ -21,6 +21,12 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/* NOTE: While this started out as a stock uthash.h, by now it has
+ * undergone numerous changes to more closely integrate it with MoarVM
+ * strings, remove things MoarVM doesn't need, and not remember the
+ * insertion order (resulting in changes to iteration code - and a
+ * memory saving). */
+
 #ifndef UTHASH_H
 #define UTHASH_H
 
@@ -102,21 +108,21 @@ do {                                                                            
   }                                                                              \
 } while (0)
 
-#define HASH_FIND_CACHE(hh,head,keyptr,keylen,cache,out)                            \
+#define HASH_FIND_VM_STR(tc,hh,head,key,out)                                        \
 do {                                                                                \
   unsigned _hf_bkt,_hf_hashv;                                                       \
   out=NULL;                                                                         \
   if (head) {                                                                       \
-     if (cache) {                                                                   \
-         _hf_hashv = cache;                                                         \
+     unsigned cached_hash = (key)->body.cached_hash_code;                           \
+     if (cached_hash) {                                                             \
+         _hf_hashv = cached_hash;                                                   \
          _hf_bkt = ((_hf_hashv) & (((head)->hh.tbl->num_buckets) - 1));             \
      }                                                                              \
      else {                                                                         \
-         HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt);  \
-         (cache) = _hf_hashv;                                                       \
+         HASH_FCN_VM_STR(tc, key, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt); \
      }                                                                              \
-     HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],     \
-                      keyptr,keylen,out);                                         \
+     HASH_FIND_IN_BKT_VM_STR(tc, (head)->hh.tbl, hh,                                \
+         (head)->hh.tbl->buckets[ _hf_bkt ], key, out);                             \
   }                                                                                 \
 } while (0)
 
@@ -153,25 +159,24 @@ do {                                                                            
  HASH_FSCK(hh,head);                                                             \
 } while(0)
 
-#define HASH_ADD_KEYPTR_CACHE(hh,head,keyptr,keylen_in,cache,add)                \
+#define HASH_ADD_KEYPTR_VM_STR(tc,hh,head,key_in,add)                            \
 do {                                                                             \
  unsigned _ha_bkt;                                                               \
- (add)->hh.key = (char*)keyptr;                                                  \
- (add)->hh.keylen = (unsigned)keylen_in;                                         \
+ unsigned cached_hash = (key_in)->body.cached_hash_code;                         \
+ (add)->hh.key = (key_in);                                                       \
  if (!(head)) {                                                                  \
     head = (add);                                                                \
     HASH_MAKE_TABLE(hh,head);                                                    \
  }                                                                               \
  (head)->hh.tbl->num_items++;                                                    \
  (add)->hh.tbl = (head)->hh.tbl;                                                 \
- if (cache) {                                                                    \
-     (add)->hh.hashv = (cache);                                                  \
-     _ha_bkt = ((cache) & (((head)->hh.tbl->num_buckets) - 1));                  \
+ if (cached_hash) {                                                              \
+     (add)->hh.hashv = cached_hash;                                              \
+     _ha_bkt = ((cached_hash) & (((head)->hh.tbl->num_buckets) - 1));            \
  }                                                                               \
  else {                                                                          \
-     HASH_FCN(keyptr,keylen_in, (head)->hh.tbl->num_buckets,                     \
+     HASH_FCN_VM_STR(tc, key_in, (head)->hh.tbl->num_buckets,                    \
              (add)->hh.hashv, _ha_bkt);                                          \
-     (cache) = (add)->hh.hashv;                                                  \
  }                                                                               \
  HASH_ADD_TO_BKT((head)->hh.tbl->buckets[_ha_bkt],&(add)->hh);                   \
  HASH_FSCK(hh,head);                                                             \
@@ -271,6 +276,7 @@ do {                                                                            
 
 /* Use Jenkin's hash as the hash function. */
 #define HASH_FCN HASH_JEN
+#define HASH_FCN_VM_STR HASH_JEN_VM_STR
 
 #define HASH_JEN_MIX(a,b,c)                                                      \
 do {                                                                             \
@@ -291,7 +297,7 @@ do {                                                                            
   unsigned char *_hj_key=(unsigned char*)(key);                                  \
   hashv = 0xfeedbeef;                                                            \
   _hj_i = _hj_j = 0x9e3779b9;                                                    \
-  _hj_k = (unsigned)(keylen);                                                      \
+  _hj_k = (unsigned)(keylen);                                                    \
   while (_hj_k >= 12) {                                                          \
     _hj_i +=    (_hj_key[0] + ( (unsigned)_hj_key[1] << 8 )                      \
         + ( (unsigned)_hj_key[2] << 16 )                                         \
@@ -326,6 +332,13 @@ do {                                                                            
   bkt = hashv & (num_bkts-1);                                                    \
 } while(0)
 
+#define HASH_JEN_VM_STR(tc,key,num_bkts,hashv,bkt)                               \
+do {                                                                             \
+  MVM_string_compute_hash_code(tc, key);                                         \
+  hashv = (key)->body.cached_hash_code;                                          \
+  bkt = hashv & (num_bkts-1);                                                    \
+} while(0)
+
 /* key comparison function; return 0 if keys equal */
 #define HASH_KEYCMP(a,b,len) memcmp(a,b,len)
 
@@ -340,6 +353,21 @@ do {                                                                            
     }                                                                            \
     if ((out)->hh.hh_next) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,(out)->hh.hh_next)); \
     else out = NULL;                                                             \
+ }                                                                               \
+} while(0)
+
+/* iterate over items in a known bucket to find desired item */
+#define HASH_FIND_IN_BKT_VM_STR(tc,tbl,hh,head,key_in,out)                       \
+do {                                                                             \
+ if (head.hh_head) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,head.hh_head));          \
+ else out=NULL;                                                                  \
+ while (out) {                                                                   \
+    if (MVM_string_equal(tc, (key_in), (MVMString *)((out)->hh.key)))            \
+        break;                                                                   \
+    if ((out)->hh.hh_next)                                                       \
+        DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,(out)->hh.hh_next));                \
+    else                                                                         \
+        out = NULL;                                                              \
  }                                                                               \
 } while(0)
 
@@ -507,7 +535,9 @@ typedef struct UT_hash_handle {
    struct UT_hash_table *tbl;
    struct UT_hash_handle *hh_prev;   /* previous hh in bucket order    */
    struct UT_hash_handle *hh_next;   /* next hh in bucket order        */
-   void *key;                        /* ptr to enclosing struct's key  */
+   void *key;                        /* ptr to enclosing struct's key (char * for
+                                      * low-level hashes, MVMString * for high level
+                                      * hashes) */
    unsigned keylen;                  /* enclosing struct's key len     */
    unsigned hashv;                   /* result of hash-fcn(key)        */
 } UT_hash_handle;

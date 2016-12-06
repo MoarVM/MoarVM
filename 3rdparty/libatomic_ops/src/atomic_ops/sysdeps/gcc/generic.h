@@ -19,7 +19,31 @@
 /* For the details, see GNU Manual, chapter 6.52 (Built-in functions    */
 /* for memory model aware atomic operations).                           */
 
-/* TODO: Include this file for other targets if gcc 4.7+ */
+#define AO_GCC_ATOMIC_TEST_AND_SET
+#include "../test_and_set_t_is_char.h"
+
+#if defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1) \
+    || defined(AO_GCC_FORCE_HAVE_CAS)
+# define AO_GCC_HAVE_char_SYNC_CAS
+#endif
+
+#if (__SIZEOF_SHORT__ == 2 && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2)) \
+    || defined(AO_GCC_FORCE_HAVE_CAS)
+# define AO_GCC_HAVE_short_SYNC_CAS
+#endif
+
+#if (__SIZEOF_INT__ == 4 && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4)) \
+    || (__SIZEOF_INT__ == 8 && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)) \
+    || defined(AO_GCC_FORCE_HAVE_CAS)
+# define AO_GCC_HAVE_int_SYNC_CAS
+#endif
+
+#if (__SIZEOF_SIZE_T__ == 4 && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4)) \
+    || (__SIZEOF_SIZE_T__ == 8 \
+        && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)) \
+    || defined(AO_GCC_FORCE_HAVE_CAS)
+# define AO_GCC_HAVE_SYNC_CAS
+#endif
 
 #ifdef AO_UNIPROCESSOR
   /* If only a single processor (core) is used, AO_UNIPROCESSOR could   */
@@ -93,7 +117,7 @@
 
 #ifdef AO_HAVE_DOUBLE_PTR_STORAGE
 
-# ifndef AO_HAVE_double_load
+# if !defined(AO_HAVE_double_load) && !defined(AO_SKIPATOMIC_double_load)
     AO_INLINE AO_double_t
     AO_double_load(const volatile AO_double_t *addr)
     {
@@ -105,7 +129,8 @@
 #   define AO_HAVE_double_load
 # endif
 
-# ifndef AO_HAVE_double_load_acquire
+# if !defined(AO_HAVE_double_load_acquire) \
+     && !defined(AO_SKIPATOMIC_double_load_acquire)
     AO_INLINE AO_double_t
     AO_double_load_acquire(const volatile AO_double_t *addr)
     {
@@ -135,20 +160,69 @@
 #   define AO_HAVE_double_store_release
 # endif
 
+# if ((__SIZEOF_SIZE_T__ == 4 \
+       && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)) \
+      || (__SIZEOF_SIZE_T__ == 8 /* half of AO_double_t */ \
+          && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16))) \
+     && !defined(AO_SKIPATOMIC_double_compare_and_swap_ANY)
+#   define AO_GCC_HAVE_double_SYNC_CAS
+# endif
+
+#endif /* AO_HAVE_DOUBLE_PTR_STORAGE */
+
+#ifdef AO_GCC_HAVE_double_SYNC_CAS
 # ifndef AO_HAVE_double_compare_and_swap
     AO_INLINE int
     AO_double_compare_and_swap(volatile AO_double_t *addr,
                                AO_double_t old_val, AO_double_t new_val)
     {
       return (int)__atomic_compare_exchange_n(&addr->AO_whole,
-                                  &old_val.AO_whole /* p_expected */,
-                                  new_val.AO_whole /* desired */,
-                                  0 /* is_weak: false */,
-                                  __ATOMIC_RELAXED /* success */,
-                                  __ATOMIC_RELAXED /* failure */);
+                                &old_val.AO_whole /* p_expected */,
+                                new_val.AO_whole /* desired */,
+                                0 /* is_weak: false */,
+                                __ATOMIC_RELAXED /* success */,
+                                __ATOMIC_RELAXED /* failure */);
     }
 #   define AO_HAVE_double_compare_and_swap
 # endif
 
-  /* TODO: Add double CAS _acquire/release/full primitives. */
-#endif /* AO_HAVE_DOUBLE_PTR_STORAGE */
+# ifndef AO_HAVE_double_compare_and_swap_acquire
+    AO_INLINE int
+    AO_double_compare_and_swap_acquire(volatile AO_double_t *addr,
+                                       AO_double_t old_val,
+                                       AO_double_t new_val)
+    {
+      return (int)__atomic_compare_exchange_n(&addr->AO_whole,
+                                &old_val.AO_whole, new_val.AO_whole, 0,
+                                __ATOMIC_ACQUIRE, __ATOMIC_ACQUIRE);
+    }
+#   define AO_HAVE_double_compare_and_swap_acquire
+# endif
+
+# ifndef AO_HAVE_double_compare_and_swap_release
+    AO_INLINE int
+    AO_double_compare_and_swap_release(volatile AO_double_t *addr,
+                                       AO_double_t old_val,
+                                       AO_double_t new_val)
+    {
+      return (int)__atomic_compare_exchange_n(&addr->AO_whole,
+                                &old_val.AO_whole, new_val.AO_whole, 0,
+                                __ATOMIC_RELEASE,
+                                __ATOMIC_RELAXED /* failure */);
+    }
+#   define AO_HAVE_double_compare_and_swap_release
+# endif
+
+# ifndef AO_HAVE_double_compare_and_swap_full
+    AO_INLINE int
+    AO_double_compare_and_swap_full(volatile AO_double_t *addr,
+                                    AO_double_t old_val, AO_double_t new_val)
+    {
+      return (int)__atomic_compare_exchange_n(&addr->AO_whole,
+                                &old_val.AO_whole, new_val.AO_whole, 0,
+                                __ATOMIC_ACQ_REL,
+                                __ATOMIC_ACQUIRE /* failure */);
+    }
+#   define AO_HAVE_double_compare_and_swap_full
+# endif
+#endif /* AO_GCC_HAVE_double_SYNC_CAS */

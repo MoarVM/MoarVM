@@ -40,7 +40,6 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             "Lexical with name '%s' does not exist in this frame",
                 c_name);
     }
-    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, lexical_names, name, entry);
     if (!entry) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -76,7 +75,6 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
                 c_name);
     }
 
-    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, lexical_names, name, entry);
     if (!entry) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -117,7 +115,6 @@ static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     MVMString *name = (MVMString *)key;
     if (!lexical_names)
         return 0;
-    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, lexical_names, name, entry);
     return entry ? 1 : 0;
 }

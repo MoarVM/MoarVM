@@ -349,12 +349,14 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         case MVM_reg_obj: {
             MVMObject *value = value_reg.o;
             if (attr_st) {
-                if (attr_st == STABLE(value))
+                MVMSTable *value_st = STABLE(value);
+                if (attr_st == value_st)
                     st->REPR->copy_to(tc, attr_st, OBJECT_BODY(value), root,
                         (char *)data + repr_data->attribute_offsets[slot]);
                 else
                     MVM_exception_throw_adhoc(tc,
-                        "P6opaque: representation mismatch when storing value to attribute");
+                        "P6opaque: representation mismatch when storing value (of type %s) to attribute (of type %s)",
+                        value_st->debug_name, attr_st->debug_name);
             }
             else {
                 set_obj_at_offset(tc, root, data, repr_data->attribute_offsets[slot], value);

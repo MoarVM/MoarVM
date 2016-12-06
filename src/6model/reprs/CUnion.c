@@ -217,7 +217,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                 else {
                     MVM_exception_throw_adhoc(tc,
                         "CUnion representation only handles attributes of type:\n"
-                        "  (u)int8, (u)int16, (u)int32, (u)int64, (u)long, (u)longlong, num16, num32, (s)size_t, bool, Str\n"
+                        "  (u)int8, (u)int16, (u)int32, (u)int64, (u)long, (u)longlong, num32, num64, (s)size_t, bool, Str\n"
                         "  and types with representation: CArray, CPointer, CStruct, CPPStruct and CUnion");
                 }
             }

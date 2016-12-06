@@ -82,7 +82,6 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
     /* Try to locate existing cached callback info. */
     callback = MVM_frame_find_invokee(tc, callback, NULL);
     cuid     = ((MVMCode *)callback)->body.sf->body.cuuid;
-    MVM_string_flatten(tc, cuid);
     MVM_HASH_GET(tc, tc->native_callback_cache, cuid, callback_data_head);
 
     if (!callback_data_head) {
@@ -208,12 +207,18 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     CallbackInvokeData cid;
     MVMint32 num_roots, i;
     MVMRegister res;
+    MVMRegister *args;
     MVMNativeCallback *data = (MVMNativeCallback *)cb_data;
     void           **values = MVM_malloc(sizeof(void *) * (data->cs->arg_count ? data->cs->arg_count : 1));
 
-    /* Build a callsite and arguments buffer. */
+    /* Unblock GC if needed, so this thread can do work. */
     MVMThreadContext *tc = data->tc;
-    MVMRegister    *args = MVM_malloc(data->num_types * sizeof(MVMRegister));
+    MVMint32 was_blocked = MVM_gc_is_thread_blocked(tc);
+    if (was_blocked)
+        MVM_gc_mark_thread_unblocked(tc);
+
+    /* Build a callsite and arguments buffer. */
+    args = MVM_malloc(data->num_types * sizeof(MVMRegister));
     num_roots = 0;
     for (i = 1; i < data->num_types; i++) {
         MVMObject *type     = data->types[i];
@@ -408,6 +413,10 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     MVM_gc_root_temp_pop_n(tc, num_roots);
     MVM_free(args);
     MVM_free(cif);
+
+    /* Re-block GC if needed, so other threads will be able to collect. */
+    if (was_blocked)
+        MVM_gc_mark_thread_blocked(tc);
 }
 
 #define handle_arg(what, cont_X, dc_type, reg_slot, unmarshal_fun) do { \
@@ -433,6 +442,21 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
         else { \
             *(dc_type *)values[i] = unmarshal_fun(tc, value); \
         } \
+    } \
+} while (0)
+
+#define handle_ret(tc, c_type, ffi_type, make_fun) do { \
+    if (sizeof(c_type) < sizeof(ffi_type)) { \
+        ffi_type ret; \
+        ffi_call(&cif, entry_point, &ret, values); \
+        MVM_gc_mark_thread_unblocked(tc); \
+        result = make_fun(tc, res_type, (c_type)ret); \
+    } \
+    else { \
+        c_type ret; \
+        ffi_call(&cif, entry_point, &ret, values); \
+        MVM_gc_mark_thread_unblocked(tc); \
+        result = make_fun(tc, res_type, ret); \
     } \
 } while (0)
 
@@ -563,61 +587,51 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     }
 
 
-    if (result) {
-        /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */
-        void *ret; // We are not going to use it, but we need to pass it to libffi.
-        ffi_call(&cif, entry_point, &ret, values);
-    }
-    else {
-        /* Process return values. */
-        MVMROOT(tc, args, {
-        MVMROOT(tc, res_type, {
+    MVMROOT(tc, args, {
+    MVMROOT(tc, res_type, {
+        MVM_gc_mark_thread_blocked(tc);
+        if (result) {
+            /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */
+            void *ret; // We are not going to use it, but we need to pass it to libffi.
+            ffi_call(&cif, entry_point, &ret, values);
+            MVM_gc_mark_thread_unblocked(tc);
+        }
+        else {
+            /* Process return values. */
             switch (ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
                 case MVM_NATIVECALL_ARG_VOID: {
                     void *ret;
                     ffi_call(&cif, entry_point, &ret, values);
+                    MVM_gc_mark_thread_unblocked(tc);
                     result = res_type;
                     break;
                 }
-                case MVM_NATIVECALL_ARG_CHAR: {
-                    signed char ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_CHAR:
+                    handle_ret(tc, signed char, ffi_sarg, MVM_nativecall_make_int);
                     break;
-                }
-                case MVM_NATIVECALL_ARG_SHORT: {
-                    signed short ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_SHORT:
+                    handle_ret(tc, signed short, ffi_sarg, MVM_nativecall_make_int);
                     break;
-                }
-                case MVM_NATIVECALL_ARG_INT: {
-                    signed int ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_INT:
+                    handle_ret(tc, signed int, ffi_sarg, MVM_nativecall_make_int);
                     break;
-                }
-                case MVM_NATIVECALL_ARG_LONG: {
-                    signed long ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_LONG:
+                    handle_ret(tc, signed long, ffi_sarg, MVM_nativecall_make_int);
                     break;
-                }
-                case MVM_NATIVECALL_ARG_LONGLONG: {
-                    signed long long ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_LONGLONG:
+                    handle_ret(tc, signed long long, ffi_sarg, MVM_nativecall_make_int);
                     break;
-                }
                 case MVM_NATIVECALL_ARG_FLOAT: {
                     float ret;
                     ffi_call(&cif, entry_point, &ret, values);
+                    MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_num(tc, res_type, ret);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_DOUBLE: {
                     double ret;
                     ffi_call(&cif, entry_point, &ret, values);
+                    MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_num(tc, res_type, ret);
                     break;
                 }
@@ -626,85 +640,57 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 case MVM_NATIVECALL_ARG_UTF16STR: {
                     char *ret;
                     ffi_call(&cif, entry_point, &ret, values);
+                    MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_str(tc, res_type, body->ret_type, ret);
                     break;
                 }
-                case MVM_NATIVECALL_ARG_CSTRUCT: {
-                    void *ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_cstruct(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_CSTRUCT:
+                    handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_cstruct);
                     break;
-                }
-                case MVM_NATIVECALL_ARG_CPPSTRUCT: {
-                    void *ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_cppstruct(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_CPPSTRUCT:
+                    handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_cppstruct);
                     break;
-                }
-                case MVM_NATIVECALL_ARG_CPOINTER: {
-                    void *ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_cpointer(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_CPOINTER:
+                    handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_cpointer);
                     break;
-                }
-                case MVM_NATIVECALL_ARG_CARRAY: {
-                    void *ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_carray(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_CARRAY:
+                    handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_carray);
                     break;
-                }
-                case MVM_NATIVECALL_ARG_CUNION: {
-                    void *ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_cunion(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_CUNION:
+                    handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_cunion);
                     break;
-                }
                 case MVM_NATIVECALL_ARG_CALLBACK: {
                     /* TODO: A callback -return- value means that we have a C method
                     * that needs to be wrapped similarly to a is native(...) Perl 6
                     * sub. */
                     void *ret;
                     ffi_call(&cif, entry_point, &ret, values);
+                    MVM_gc_mark_thread_unblocked(tc);
                     /* XXX do something with the function pointer: ret */
                     result = res_type;
                     break;
                 }
-                case MVM_NATIVECALL_ARG_UCHAR: {
-                    unsigned char ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_UCHAR:
+                    handle_ret(tc, unsigned char, ffi_arg, MVM_nativecall_make_int);
                     break;
-                }
-                case MVM_NATIVECALL_ARG_USHORT: {
-                    unsigned short ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_USHORT:
+                    handle_ret(tc, unsigned short, ffi_arg, MVM_nativecall_make_int);
                     break;
-                }
-                case MVM_NATIVECALL_ARG_UINT: {
-                    unsigned int ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_UINT:
+                    handle_ret(tc, unsigned int, ffi_arg, MVM_nativecall_make_int);
                     break;
-                }
-                case MVM_NATIVECALL_ARG_ULONG: {
-                    unsigned long ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_ULONG:
+                    handle_ret(tc, unsigned long, ffi_arg, MVM_nativecall_make_int);
                     break;
-                }
-                case MVM_NATIVECALL_ARG_ULONGLONG: {
-                    unsigned long long ret;
-                    ffi_call(&cif, entry_point, &ret, values);
-                    result = MVM_nativecall_make_int(tc, res_type, ret);
+                case MVM_NATIVECALL_ARG_ULONGLONG:
+                    handle_ret(tc, unsigned long long, ffi_arg, MVM_nativecall_make_int);
                     break;
-                }
                 default:
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled libffi return type");
             }
-        });
-        });
-    }
+        }
+    });
+    });
 
     for (i = 0; i < num_args; i++) {
         MVMObject *value = MVM_repr_at_pos_o(tc, args, i);

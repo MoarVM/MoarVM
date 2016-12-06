@@ -148,13 +148,14 @@ static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMStrin
     entry->name = name;
     entry->repr = repr;
 
-    /* Name should become a permanent GC root. */
-    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name, "REPR name");
-
     /* Enter into registry. */
     tc->instance->repr_list[repr->ID] = entry;
-    MVM_string_flatten(tc, name);
     MVM_HASH_BIND(tc, tc->instance->repr_hash, name, entry);
+
+    /* Name and hash key should become a permanent GC root. */
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name, "REPR name");
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
+        "REPR registry hash key");
 }
 
 int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr) {
@@ -164,7 +165,6 @@ int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr) {
     uv_mutex_lock(&tc->instance->mutex_repr_registry);
 
     name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, repr->name);
-    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, tc->instance->repr_hash, name, entry);
     if (entry) {
         uv_mutex_unlock(&tc->instance->mutex_repr_registry);
@@ -247,7 +247,6 @@ static MVMReprRegistry * find_repr_by_name(MVMThreadContext *tc,
         MVMString *name) {
     MVMReprRegistry *entry;
 
-    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, tc->instance->repr_hash, name, entry)
 
     if (entry == NULL) {

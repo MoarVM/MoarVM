@@ -1,6 +1,5 @@
 #!perl
 
-use 5.010;
 use strict;
 use warnings;
 
@@ -13,6 +12,11 @@ use lib '.';
 use build::setup;
 use build::auto;
 use build::probe;
+
+# This allows us to run on ancient perls.
+sub defined_or($$) {
+    defined $_[0] ? $_[0] : $_[1]
+}
 
 my $NAME    = 'moar';
 my $GENLIST = 'build/gen.list';
@@ -35,7 +39,8 @@ GetOptions(\%args, qw(
     static has-libtommath has-libatomic_ops
     has-dyncall has-libffi pkgconfig=s
     build=s host=s big-endian jit! enable-jit
-    prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan),
+    prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan valgrind),
+
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 }
 ) or die "See --help for further information\n";
@@ -45,7 +50,7 @@ pod2usage(1) if $args{help};
 
 print "Welcome to MoarVM!\n\n";
 
-$config{prefix} = File::Spec->rel2abs($args{prefix} // 'install');
+$config{prefix} = File::Spec->rel2abs(defined_or $args{prefix}, 'install');
 # don't install to cwd, as this would clash with lib/MAST/*.nqp
 if (-e 'README.markdown' && -e "$config{prefix}/README.markdown"
  && -s 'README.markdown' == -s "$config{prefix}/README.markdown") {
@@ -71,26 +76,22 @@ if (-d '.git') {
 # fiddle with flags
 $args{optimize}     = 3 if not defined $args{optimize} or $args{optimize} eq "";
 $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
-$args{instrument} //= 0;
-$args{static}     //= 0;
 
-$args{'big-endian'}        //= 0;
-$args{'has-libtommath'}    //= 0;
-$args{'has-sha'}           //= 0;
-$args{'has-libuv'}         //= 0;
-$args{'has-libatomic_ops'} //= 0;
-$args{'asan'}              //= 0;
-$args{'ubsan'}             //= 0;
+for (qw(instrument static big-endian has-libtommath has-sha has-libuv
+        has-libatomic_ops asan ubsan valgrind)) {
+    $args{$_} = 0 unless defined $args{$_};
+}
+
 
 # jit is default
-$args{'jit'}               //= 1;
+$args{jit} = 1 unless defined $args{jit};
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
     setup_cross($args{build}, $args{host});
 }
 else {
-    setup_native($args{os} // $^O);
+    setup_native(defined_or $args{os}, $^O);
 }
 
 $config{name}   = $NAME;
@@ -98,7 +99,8 @@ $config{perl}   = $^X;
 $config{config} = join ' ', map { / / ? "\"$_\"" : $_ } @args;
 $config{osname} = $^O;
 $config{osvers} = $Config{osvers};
-$config{pkgconfig} = $args{pkgconfig} // '/usr/bin/pkg-config';
+$config{pkgconfig} = defined_or $args{pkgconfig}, '/usr/bin/pkg-config';
+
 
 
 # set options that take priority over all others
@@ -107,7 +109,7 @@ my @keys = qw( ar cc ld make );
 
 for (keys %defaults) {
     next if /^-/;
-    $config{$_} //= $defaults{$_};
+    $config{$_} = $defaults{$_} unless defined $config{$_};
 }
 
 my $VERSION = '0.0-0';
@@ -128,25 +130,25 @@ $config{versionminor} = $VERSION =~ /^\d+\.(\d+)/ ? $1 : 0;
 $config{versionpatch} = $VERSION =~ /^\d+\.\d+\-(\d+)/ ? $1 : 0;
 
 # misc defaults
-$config{exe}       //= '';
-$config{defs}      //= [];
-$config{syslibs}   //= [];
-$config{usrlibs}   //= [];
-$config{platform}  //= '';
-$config{crossconf} //= '';
-$config{dllimport} //= '';
-$config{dllexport} //= '';
-$config{dlllocal}  //= '';
-$config{translate_newline_output} //= 0;
+$config{exe}                      = '' unless defined $config{exe};
+$config{defs}                     = [] unless defined $config{defs};
+$config{syslibs}                  = [] unless defined $config{syslibs};
+$config{usrlibs}                  = [] unless defined $config{usrlibs};
+$config{platform}                 = '' unless defined $config{platform};
+$config{crossconf}                = '' unless defined $config{crossconf};
+$config{dllimport}                = '' unless defined $config{dllimport};
+$config{dllexport}                = '' unless defined $config{dllexport};
+$config{dlllocal}                 = '' unless defined $config{dlllocal};
+$config{translate_newline_output} = 0  unless defined $config{translate_newline_output};
 
 # assume the compiler can be used as linker frontend
-$config{ld}           //= $config{cc};
-$config{ldout}        //= $config{ccout};
-$config{ldsys}        //= $config{ldusr};
-$config{ldmiscflags}  //= $config{ccmiscflags};
-$config{ldoptiflags}  //= $config{ccoptiflags};
-$config{lddebugflags} //= $config{ccdebugflags};
-$config{ldinstflags}  //= $config{ccinstflags};
+$config{ld}           = $config{cc} unless defined $config{ld};
+$config{ldout}        = $config{ccout} unless defined $config{ldout};
+$config{ldsys}        = $config{ldusr} unless defined $config{ldsys};
+$config{ldmiscflags}  = $config{ccmiscflags} unless defined $config{ldmiscflags};
+$config{ldoptiflags}  = $config{ccoptiflags} unless defined $config{ldoptiflags};
+$config{lddebugflags} = $config{ccdebugflags} unless defined $config{lddebugflags};
+$config{ldinstflags}  = $config{ccinstflags} unless defined $config{ldinstflags};
 
 if ($args{'has-sha'}) {
     $config{shaincludedir} = '/usr/include/sha';
@@ -177,8 +179,8 @@ if (-e "$config{pkgconfig}") {
 }
 
 # conditionally set include dirs and install rules
-$config{cincludes} //= '';
-$config{install}   //= '';
+$config{cincludes} = '' unless defined $config{cincludes};
+$config{install}   = '' unless defined $config{install};
 if ($args{'has-libuv'}) {
     $defaults{-thirdparty}->{uv} = undef;
     unshift @{$config{usrlibs}}, 'uv';
@@ -252,14 +254,37 @@ if ($args{'has-libffi'}) {
     $config{nativecall_backend} = 'libffi';
     unshift @{$config{usrlibs}}, 'ffi';
     push @{$config{defs}}, 'HAVE_LIBFFI';
+    $defaults{-thirdparty}->{dc}  = undef;
+    $defaults{-thirdparty}->{dcb} = undef;
+    $defaults{-thirdparty}->{dl}  = undef;
     if ($config{pkgconfig_works}) {
-        my $result = `$config{pkgconfig} --cflags libffi`;
+        my $result_cflags = `$config{pkgconfig} --cflags libffi`;
         if ( $? == 0 ) {
-            $result =~ s/\n/ /g;
-            $config{cincludes} .= ' ' . "$result";
-            print("Adding extra include for libffi: $result\n");
-        } else {
+            $result_cflags =~ s/\n/ /g;
+            $config{cincludes} .= " $result_cflags";
+            print("Adding extra include for libffi: $result_cflags\n");
+        }
+        else {
             print("Error occured when running $config{pkgconfig} --cflags libffi.\n");
+        }
+        my $result_libs = `$config{pkgconfig} --libs libffi`;
+        if ( $? == 0 ) {
+            $result_libs =~ s/\n/ /g;
+            $config{ldusr} .= " $result_libs";
+            print("Adding extra libs for libffi: $result_libs\n");
+        }
+        else {
+            print("Error occured when running $config{pkgconfig} --libs libffi.\n");
+        }
+    }
+    elsif ($^O eq 'solaris') {
+        my ($first) = map { m,(.+)/ffi\.h$, && "/$1"  } grep { m,/ffi\.h$, } `pkg contents libffi`;
+        if ($first) {
+            $config{cincludes} .= " -I$first";
+            print("Adding extra include for libffi: $first\n");
+        }
+        else {
+            print("Unable to find ffi.h. Please install libffi by doing: 'sudo pkg install libffi'\n");
         }
     }
 }
@@ -290,10 +315,10 @@ $config{ldlibs} = ' -lubsan ' . $config{ldlibs} if $args{ubsan};
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
-$config{ccoptiflags}  = sprintf $config{ccoptiflags},  $args{optimize} // 1 if $config{ccoptiflags}  =~ /%s/;
-$config{ccdebugflags} = sprintf $config{ccdebugflags}, $args{debug}    // 3 if $config{ccdebugflags} =~ /%s/;
-$config{ldoptiflags}  = sprintf $config{ldoptiflags},  $args{optimize} // 1 if $config{ldoptiflags}  =~ /%s/;
-$config{lddebugflags} = sprintf $config{lddebugflags}, $args{debug}    // 3 if $config{lddebugflags} =~ /%s/;
+$config{ccoptiflags}  = sprintf $config{ccoptiflags},  defined_or $args{optimize}, 1 if $config{ccoptiflags}  =~ /%s/;
+$config{ccdebugflags} = sprintf $config{ccdebugflags}, defined_or $args{debug},    3 if $config{ccdebugflags} =~ /%s/;
+$config{ldoptiflags}  = sprintf $config{ldoptiflags},  defined_or $args{optimize}, 1 if $config{ldoptiflags}  =~ /%s/;
+$config{lddebugflags} = sprintf $config{lddebugflags}, defined_or $args{debug},    3 if $config{lddebugflags} =~ /%s/;
 
 
 # generate CFLAGS
@@ -308,6 +333,8 @@ push @cflags, $config{ccshared}     unless $args{static};
 push @cflags, '-fno-omit-frame-pointer' if $args{asan} or $args{ubsan};
 push @cflags, '-fsanitize=address' if $args{asan};
 push @cflags, '-fsanitize=undefined' if $args{ubsan};
+push @cflags, '-DMVM_VALGRIND_SUPPORT' if $args{valgrind};
+push @cflags, '-DWORDS_BIGENDIAN' if $config{be}; # 3rdparty/sha1 needs it and it isnt set on mips;
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
 $config{cflags} = join ' ', @cflags;
@@ -333,7 +360,7 @@ unless ($args{static}) {
     $config{moar}      = '@moardll@';
     $config{impinst}   = $config{sharedlib},
     $config{mainlibs}  = '@lddir@. ' .
-        sprintf($config{ldimp} // $config{ldusr}, $NAME);
+        sprintf(defined_or($config{ldimp}, $config{ldusr}), $NAME);
 }
 else {
     $config{objflags}  = '';
@@ -355,12 +382,14 @@ print "OK\n";
 
 if ($config{crossconf}) {
     build::auto::detect_cross(\%config, \%defaults);
+    build::probe::compiler_usability(\%config, \%defaults);
     build::probe::static_inline_cross(\%config, \%defaults);
     build::probe::unaligned_access_cross(\%config, \%defaults);
     build::probe::ptr_size_cross(\%config, \%defaults);
 }
 else {
     build::auto::detect_native(\%config, \%defaults);
+    build::probe::compiler_usability(\%config, \%defaults);
     build::probe::static_inline_native(\%config, \%defaults);
     build::probe::unaligned_access(\%config, \%defaults);
     build::probe::ptr_size_native(\%config, \%defaults);
@@ -368,7 +397,7 @@ else {
 
 if ($args{'jit'}) {
     if ($config{ptr_size} != 8) {
-        say "JIT isn't supported on platforms with $config{ptr_size} byte pointers.";
+        print "JIT isn't supported on platforms with $config{ptr_size} byte pointers.\n";
     } elsif ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
         $config{jit_obj}      = '$(JIT_POSIX_X64)';
         $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
@@ -378,11 +407,13 @@ if ($args{'jit'}) {
         $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
         $config{jit_platform} = 'MVM_JIT_PLATFORM_WIN32';
     } else {
-        say "JIT isn't supported on $Config{archname} yet.";
+        print "JIT isn't supported on $Config{archname} yet.\n";
     }
 }
 # fallback
-$config{jit_obj} //= '$(JIT_STUB)';
+
+$config{jit_obj} = '$(JIT_STUB)' unless defined $config{jit_obj};
+
 
 if ($config{cc} eq 'cl') {
     $config{install}   .= "\t\$(MKPATH) \$(DESTDIR)\$(PREFIX)/include/msinttypes\n"
@@ -435,14 +466,14 @@ for (sort keys %$thirdparty) {
 
      # dummy build - nothing to do
     if (exists $current->{dummy}) {
-        $clean //= sprintf '$(RM) %s', $lib;
+        $clean = sprintf '$(RM) %s', $lib unless defined $clean;
     }
 
     # use explicit object list
     elsif (exists $current->{objects}) {
         $objects = $current->{objects};
-        $rule  //= sprintf '$(AR) $(ARFLAGS) @arout@$@ @%sobjects@', $_;
-        $clean //= sprintf '$(RM) @%slib@ @%sobjects@', $_, $_;
+        $rule    = sprintf '$(AR) $(ARFLAGS) @arout@$@ @%sobjects@', $_  unless defined $rule;
+        $clean   = sprintf '$(RM) @%slib@ @%sobjects@', $_, $_ unless defined $clean;
     }
 
     # find *.c files and build objects for those
@@ -451,8 +482,8 @@ for (sort keys %$thirdparty) {
         my $globs   = join ' ', map { $_ . '/*@obj@' } @{ $current->{src} };
 
         $objects = join ' ', map { s/\.c$/\@obj\@/; $_ } @sources;
-        $rule  //= sprintf '$(AR) $(ARFLAGS) @arout@$@ %s', $globs;
-        $clean //= sprintf '$(RM) %s %s', $lib, $globs;
+        $rule    = sprintf '$(AR) $(ARFLAGS) @arout@$@ %s', $globs unless defined $rule;
+        $clean   = sprintf '$(RM) %s %s', $lib, $globs unless defined $clean;
     }
 
     # use an explicit rule (which has already been set)
@@ -464,7 +495,7 @@ for (sort keys %$thirdparty) {
         print dots('    continuing anyway');
     }
 
-    @config{@keys} = ($lib, $objects // '', $rule // '@:', $clean // '@:');
+    @config{@keys} = ($lib, defined_or($objects, ''), defined_or($rule, '@:'), defined_or($clean, '@:'));
 
     push @thirdpartylibs, $config{"${_}lib"};
 }
@@ -639,10 +670,10 @@ sub setup_cross {
 # sets C<%defaults> from C<@_>
 sub set_defaults {
     # getting the correct 3rdparty information is somewhat tricky
-    my $thirdparty = $defaults{-thirdparty} // \%::THIRDPARTY;
+    my $thirdparty = defined_or $defaults{-thirdparty}, \%::THIRDPARTY;
     @defaults{ keys %$_ } = values %$_ for @_;
     $defaults{-thirdparty} = {
-        %$thirdparty, map{ %{ $_->{-thirdparty} // {} } } @_
+        %$thirdparty, map{ %{ defined_or $_->{-thirdparty}, {} } } @_
     };
 }
 
@@ -737,7 +768,7 @@ sub write_backend_config {
             # should not be there
         }
         else {
-            $v //= '';
+            $v   = '' unless defined $v;
             $v   =~ s/"/\\"/g;
             $v   =~ s/\n/\\\n/g;
             $config{backendconfig} .= qq/        add_entry(tc, config, "$k", "$v");\n/;
@@ -845,6 +876,10 @@ A full list of options is displayed if you set C<ASAN_OPTIONS> to C<help=1>.
 =item --ubsan
 
 Build with Undefined Behaviour sanitizer support.
+
+=item --valgrind
+
+Include Valgrind Client Requests for moarvm's own memory allocators.
 
 =item --ld <ld>
 

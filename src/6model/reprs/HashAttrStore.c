@@ -17,10 +17,6 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
-static void extract_key(MVMThreadContext *tc, void **kdata, size_t *klen, MVMObject *key) {
-    MVM_HASH_EXTRACT_KEY(tc, kdata, klen, key, "HashAttrStore representation requires MVMString keys")
-}
-
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMHashAttrStoreBody *src_body  = (MVMHashAttrStoreBody *)src;
@@ -30,14 +26,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
     /* NOTE: if we really wanted to, we could avoid rehashing... */
     HASH_ITER(hash_handle, src_body->hash_head, current, tmp, bucket_tmp) {
-        size_t klen;
-        void *kdata;
         MVMHashEntry *new_entry = MVM_malloc(sizeof(MVMHashEntry));
-        MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
-        extract_key(tc, &kdata, &klen, new_entry->key);
-
-        HASH_ADD_KEYPTR(hash_handle, dest_body->hash_head, kdata, klen, new_entry);
+        MVM_HASH_BIND(tc, dest_body->hash_head, MVM_HASH_KEY(current), new_entry);
     }
 }
 
@@ -48,7 +39,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     unsigned bucket_tmp;
 
     HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
-        MVM_gc_worklist_add(tc, worklist, &current->key);
+        MVM_gc_worklist_add(tc, worklist, &current->hash_handle.key);
         MVM_gc_worklist_add(tc, worklist, &current->value);
     }
 }
@@ -63,12 +54,9 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
         MVMRegister *result_reg, MVMuint16 kind) {
     MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
-    void *kdata;
-    MVMHashEntry *entry;
-    size_t klen;
     if (kind == MVM_reg_obj) {
-        extract_key(tc, &kdata, &klen, (MVMObject *)name);
-        HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
+        MVMHashEntry *entry;
+        MVM_HASH_GET(tc, body->hash_head, name, entry);
         result_reg->o = entry != NULL ? entry->value : tc->instance->VMNull;
     }
     else {
@@ -81,22 +69,18 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
         MVMRegister value_reg, MVMuint16 kind) {
     MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
-    void *kdata;
-    MVMHashEntry *entry;
-    size_t klen;
     if (kind == MVM_reg_obj) {
-        extract_key(tc, &kdata, &klen, (MVMObject *)name);
-
-        /* first check whether we must update the old entry. */
-        HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
+        MVMHashEntry *entry;
+        MVM_HASH_GET(tc, body->hash_head, name, entry);
         if (!entry) {
             entry = MVM_malloc(sizeof(MVMHashEntry));
-            HASH_ADD_KEYPTR(hash_handle, body->hash_head, kdata, klen, entry);
+            MVM_ASSIGN_REF(tc, &(root->header), entry->value, value_reg.o);
+            MVM_HASH_BIND(tc, body->hash_head, name, entry);
+            MVM_gc_write_barrier(tc, &(root->header), &(name->common.header));
         }
-        else
-            entry->hash_handle.key = (void *)kdata;
-        MVM_ASSIGN_REF(tc, &(root->header), entry->key, (MVMObject *)name);
-        MVM_ASSIGN_REF(tc, &(root->header), entry->value, value_reg.o);
+        else {
+            MVM_ASSIGN_REF(tc, &(root->header), entry->value, value_reg.o);
+        }
     }
     else {
         MVM_exception_throw_adhoc(tc,
@@ -106,12 +90,8 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 
 static MVMint64 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
     MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
-    void *kdata;
     MVMHashEntry *entry;
-    size_t klen;
-
-    extract_key(tc, &kdata, &klen, (MVMObject *)name);
-    HASH_FIND(hash_handle, body->hash_head, kdata, klen, entry);
+    MVM_HASH_GET(tc, body->hash_head, name, entry);
     return entry != NULL;
 }
 

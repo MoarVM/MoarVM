@@ -4,6 +4,10 @@ use Data::Dumper;
 use Carp qw(cluck);
 $Data::Dumper::Maxdepth = 1;
 # Make C versions of the Unicode tables.
+
+# Before running, download zip files from http://www.unicode.org/Public/zipped/
+# and extract them in UNIDATA
+
 my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
 my @name_lines;

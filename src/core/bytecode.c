@@ -283,7 +283,6 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
 
         /* See if we can resolve it. */
         uv_mutex_lock(&tc->instance->mutex_sc_weakhash);
-        MVM_string_flatten(tc, handle);
         MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
         if (scb && scb->sc) {
             cu_body->scs_to_resolve[i] = NULL;
@@ -626,7 +625,6 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
             entry->value = j;
 
             sf->body.lexical_types[j] = read_int16(pos, 6 * j);
-            MVM_string_flatten(tc, name);
             MVM_HASH_BIND(tc, sf->body.lexical_names, name, entry)
         }
         pos += 6 * sf->body.num_lexicals;

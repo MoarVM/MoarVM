@@ -1,5 +1,7 @@
 #include "moar.h"
 
+#include "memdebug.h"
+
 /* The fixed size allocator provides a thread-safe mechanism for getting and
  * releasing fixed-size chunks of memory. Requests larger blocks from the
  * operating system, and then allocates out of them. Can certainly be further
@@ -19,6 +21,7 @@ typedef struct {
 /* Creates the allocator data structure with bins. */
 MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
     int init_stat;
+    int bin_no;
     MVMFixedSizeAlloc *al = MVM_malloc(sizeof(MVMFixedSizeAlloc));
     al->size_classes = MVM_calloc(MVM_FSA_BINS, sizeof(MVMFixedSizeAllocSizeClass));
     if ((init_stat = uv_mutex_init(&(al->complex_alloc_mutex))) < 0)
@@ -26,6 +29,15 @@ MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
             uv_strerror(init_stat));
     al->freelist_spin = 0;
     al->free_at_next_safepoint_overflows = NULL;
+
+    /* All other places where we use valgrind macros are very likely
+     * thrown out by dead code elimination. Not 100% sure about this,
+     * so we ifdef it out. */
+#ifdef MVM_VALGRIND_SUPPORT
+    for (bin_no = 0; bin_no < MVM_FSA_BINS; bin_no++)
+        VALGRIND_CREATE_MEMPOOL(&al->size_classes[bin_no], MVM_FSA_REDZONE_BYTES, 0);
+#endif
+
     return al;
 }
 
@@ -36,12 +48,15 @@ void MVM_fixed_size_destroy(MVMFixedSizeAlloc *al) {
         int page_no;
         int num_pages = al->size_classes[bin_no].num_pages;
 
+        VALGRIND_DESTROY_MEMPOOL(&al->size_classes[bin_no]);
+
         for (page_no = 0; page_no < num_pages; page_no++) {
             MVM_free(al->size_classes[bin_no].pages[page_no]);
         }
         MVM_free(al->size_classes[bin_no].pages);
     }
     uv_mutex_destroy(&(al->complex_alloc_mutex));
+
     MVM_free(al->size_classes);
     MVM_free(al);
 }
@@ -59,7 +74,7 @@ static MVMuint32 bin_for(size_t bytes) {
 /* Sets up a size class bin in the second generation. */
 static void setup_bin(MVMFixedSizeAlloc *al, MVMuint32 bin) {
     /* Work out page size we want. */
-    MVMuint32 page_size = MVM_FSA_PAGE_ITEMS * ((bin + 1) << MVM_FSA_BIN_BITS);
+    MVMuint32 page_size = MVM_FSA_PAGE_ITEMS * ((bin + 1) << MVM_FSA_BIN_BITS) + MVM_FSA_REDZONE_BYTES * 2 * MVM_FSA_PAGE_ITEMS;
 
     /* We'll just allocate a single page to start off with. */
     al->size_classes[bin].num_pages = 1;
@@ -74,7 +89,7 @@ static void setup_bin(MVMFixedSizeAlloc *al, MVMuint32 bin) {
 /* Adds a new page to a size class bin. */
 static void add_page(MVMFixedSizeAlloc *al, MVMuint32 bin) {
     /* Work out page size. */
-    MVMuint32 page_size = MVM_FSA_PAGE_ITEMS * ((bin + 1) << MVM_FSA_BIN_BITS);
+    MVMuint32 page_size = MVM_FSA_PAGE_ITEMS * ((bin + 1) << MVM_FSA_BIN_BITS) + MVM_FSA_REDZONE_BYTES * 2 * MVM_FSA_PAGE_ITEMS;
 
     /* Add the extra page. */
     MVMuint32 cur_page = al->size_classes[bin].num_pages;
@@ -105,12 +120,15 @@ static void * alloc_slow_path(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVMui
         setup_bin(al, bin);
 
     /* If we're at the page limit, add a new page. */
-    if (al->size_classes[bin].alloc_pos == al->size_classes[bin].alloc_limit)
+    if (al->size_classes[bin].alloc_pos == al->size_classes[bin].alloc_limit) {
         add_page(al, bin);
+    }
 
     /* Now we can allocate. */
-    result = (void *)al->size_classes[bin].alloc_pos;
-    al->size_classes[bin].alloc_pos += (bin + 1) << MVM_FSA_BIN_BITS;
+    result = (void *)(al->size_classes[bin].alloc_pos + MVM_FSA_REDZONE_BYTES);
+    al->size_classes[bin].alloc_pos += ((bin + 1) << MVM_FSA_BIN_BITS) + 2 * MVM_FSA_REDZONE_BYTES;
+
+    VALGRIND_MEMPOOL_ALLOC(&al->size_classes[bin], result, (bin + 1) << MVM_FSA_BIN_BITS);
 
     /* Unlock if we locked. */
     if (lock)
@@ -153,8 +171,11 @@ void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t 
             if (fle)
                 bin_ptr->free_list = fle->next;
         }
-        if (fle)
+        if (fle) {
+            VALGRIND_MEMPOOL_ALLOC(&al->size_classes[bin], ((void *)fle), (bin + 1) << MVM_FSA_BIN_BITS);
+
             return (void *)fle;
+        }
 
         /* Failed to take from free list; slow path with the lock. */
         return alloc_slow_path(tc, al, bin);
@@ -179,6 +200,10 @@ static void add_to_bin_freelist(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVM
     MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
     MVMFixedSizeAllocFreeListEntry *to_add  = (MVMFixedSizeAllocFreeListEntry *)to_free;
     MVMFixedSizeAllocFreeListEntry *orig;
+
+    VALGRIND_MEMPOOL_FREE(bin_ptr, to_add);
+    VALGRIND_MAKE_MEM_DEFINED(to_add, sizeof(MVMFixedSizeAllocFreeListEntry));
+
     if (MVM_instance_have_user_threads(tc)) {
         /* Multi-threaded; race to add it. */
         do {
@@ -257,6 +282,10 @@ void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *a
             /* Single-threaded, so no global safepoint issues to care for; put
              * it on the free list right away. */
             MVMFixedSizeAllocFreeListEntry *to_add = (MVMFixedSizeAllocFreeListEntry *)to_free;
+
+            VALGRIND_MEMPOOL_FREE(bin_ptr, to_add);
+            VALGRIND_MAKE_MEM_DEFINED(to_add, sizeof(MVMFixedSizeAllocFreeListEntry));
+
             to_add->next       = bin_ptr->free_list;
             bin_ptr->free_list = to_add;
         }

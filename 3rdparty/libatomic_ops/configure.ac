@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT([libatomic_ops],[7.3alpha3],gc@linux.hpl.hp.com)
+AC_INIT([libatomic_ops],[7.5.0],bdwgc@lists.opendylan.org)
 
 AC_PREREQ(2.61)
 AC_CANONICAL_TARGET([])
@@ -55,6 +55,12 @@ if test "$GCC" = yes; then
   AC_MSG_RESULT($ac_cv_cc_wextra)
   AS_IF([test "$ac_cv_cc_wextra" = yes], [WEXTRA="-Wextra"], [WEXTRA="-W"])
   CFLAGS="-Wall $WEXTRA $CFLAGS"
+
+  AC_ARG_ENABLE(werror, [AC_HELP_STRING([--enable-werror],
+                            [Pass -Werror to the C compiler])])
+  if test "$enable_werror" = yes; then
+    CFLAGS="-Werror $CFLAGS"
+  fi
 else
   case "$host" in
     *-*-hpux*)
@@ -85,6 +91,14 @@ if test "$enable_assertions" != yes; then
   AC_DEFINE([NDEBUG], 1, [Define to disable assertion checking.])
 fi
 
+AC_ARG_ENABLE(atomic-intrinsics,
+        [AC_HELP_STRING([--disable-atomic-intrinsics],
+                        [Do not use C11 atomic intrinsics])])
+if test "$enable_atomic_intrinsics" = no; then
+  AC_DEFINE([AO_DISABLE_GCC_ATOMICS], 1,
+            [Define to avoid C11 atomic intrinsics even if available.])
+fi
+
 AC_SUBST(PICFLAG)
 AC_SUBST(DEFS)
 
@@ -110,7 +124,7 @@ AH_TEMPLATE([AO_USE_PTHREAD_DEFS],
         [Emulate atomic operations via slow and async-signal-unsafe \
          pthread locking])
 AH_TEMPLATE([AO_ASM_X64_AVAILABLE],
-        [Inline assembly avalable (only VC/x86_64)])
+        [Inline assembly available (only VC/x86_64)])
 AH_TEMPLATE([AO_ASSUME_VISTA],
         [Assume Windows Server 2003, Vista or later target (only VC/x86)])
 AH_TEMPLATE([AO_ASSUME_WINDOWS98],
@@ -136,6 +150,10 @@ AH_TEMPLATE([AO_USE_SYNC_CAS_BUILTIN],
 AH_TEMPLATE([AO_WEAK_DOUBLE_CAS_EMULATION],
         [Emulate double-width CAS via pthread locking in case of no hardware \
          support (only gcc/x86_64, the emulation is unsafe)])
+AH_TEMPLATE([AO_PREFER_BUILTIN_ATOMICS],
+        [Prefer C11 atomic intrinsics over assembly-based implementation \
+        even in case of inefficient implementation (do not use assembly for \
+        any atomic_ops primitive if C11/GCC atomic intrinsics available)])
 
 AC_DEFINE(_REENTRANT, 1, [Required define if using POSIX threads.])
 

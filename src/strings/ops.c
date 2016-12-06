@@ -38,12 +38,28 @@ static void copy_strands(MVMThreadContext *tc, const MVMString *from, MVMuint16 
         num_strands * sizeof(MVMStringStrand));
 }
 
+/* If a string is currently using 32bit storage, turn it into using
+ * 8 bit storage. Doesn't do any checks at all. */
+static void turn_32bit_into_8bit_unchecked(MVMThreadContext *tc, MVMString *str) {
+    MVMGrapheme32 *old_buf = str->body.storage.blob_32;
+    MVMStringIndex i;
+    str->body.storage_type = MVM_STRING_GRAPHEME_8;
+    str->body.storage.blob_8 = MVM_malloc(str->body.num_graphs * sizeof(MVMGrapheme8));
+
+    for (i = 0; i < str->body.num_graphs; i++) {
+        str->body.storage.blob_8[i] = old_buf[i];
+    }
+
+    MVM_free(old_buf);
+}
+
 /* Collapses a bunch of strands into a single blob string. */
 static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     MVMString       *result;
     MVMStringIndex   i;
     MVMuint32        ographs;
     MVMGraphemeIter  gi;
+    MVMint8          can_use_8bit = 1;
 
     MVMROOT(tc, orig, {
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
@@ -54,8 +70,15 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     result->body.storage.blob_32 = MVM_malloc(ographs * sizeof(MVMGrapheme32));
 
     MVM_string_gi_init(tc, &gi, orig);
-    for (i = 0; i < ographs; i++)
-        result->body.storage.blob_32[i] = MVM_string_gi_get_grapheme(tc, &gi);
+    for (i = 0; i < ographs; i++) {
+        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+        if (g < -127 || g > 127)
+            can_use_8bit = 0;
+        result->body.storage.blob_32[i] = g;
+    }
+
+    if (can_use_8bit)
+        turn_32bit_into_8bit_unchecked(tc, result);
 
     return result;
 }
@@ -320,12 +343,19 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
             /* Produce a new blob string, collapsing the strands. */
             MVMGraphemeIter gi;
             MVMint32 i;
+            MVMint8  can_fit_into_8 = 1;
             result->body.storage_type    = MVM_STRING_GRAPHEME_32;
             result->body.storage.blob_32 = MVM_malloc(result->body.num_graphs * sizeof(MVMGrapheme32));
             MVM_string_gi_init(tc, &gi, a);
             MVM_string_gi_move_to(tc, &gi, start_pos);
-            for (i = 0; i < result->body.num_graphs; i++)
-                result->body.storage.blob_32[i] = MVM_string_gi_get_grapheme(tc, &gi);
+            for (i = 0; i < result->body.num_graphs; i++) {
+                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+                if (g < -128 || g >= 128)
+                    can_fit_into_8 = 0;
+                result->body.storage.blob_32[i] = g;
+            }
+            if (can_fit_into_8)
+                turn_32bit_into_8bit_unchecked(tc, result);
         }
     });
 
@@ -1210,42 +1240,6 @@ MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMS
     return MVM_unicode_codepoint_has_property_value(tc, cp, property_code, property_value_code);
 }
 
-/* Normalizes a string to a flat MVMGrapheme32 buffer, for the benefit of
- * hashing. Would rather not have to do this eventually. */
-void MVM_string_flatten(MVMThreadContext *tc, MVMString *s) {
-    MVM_string_check_arg(tc, s, "flatten");
-    switch (s->body.storage_type) {
-    case MVM_STRING_GRAPHEME_32:
-        return;
-    case MVM_STRING_GRAPHEME_ASCII:
-    case MVM_STRING_GRAPHEME_8: {
-        MVMuint32      length = MVM_string_graphs(tc, s);
-        MVMGrapheme32 *flat   = MVM_malloc(length * sizeof(MVMGrapheme32));
-        MVMGrapheme8  *orig   = s->body.storage.blob_8;
-        MVMuint32 i;
-        for (i = 0; i < length; i++)
-            flat[i] = orig[i];
-        s->body.storage.blob_32 = flat;
-        s->body.storage_type    = MVM_STRING_GRAPHEME_32;
-        MVM_free(orig);
-        break;
-    }
-    case MVM_STRING_STRAND: {
-        MVMGrapheme32   *flat = MVM_malloc(MVM_string_graphs(tc, s) * sizeof(MVMGrapheme32));
-        MVMStringStrand *orig = s->body.storage.strands;
-        MVMuint32        i    = 0;
-        MVMGraphemeIter gi;
-        MVM_string_gi_init(tc, &gi, s);
-        while (MVM_string_gi_has_more(tc, &gi))
-            flat[i++] = MVM_string_gi_get_grapheme(tc, &gi);
-        s->body.storage.blob_32 = flat;
-        s->body.storage_type    = MVM_STRING_GRAPHEME_32;
-        MVM_free(orig);
-        break;
-    }
-    }
-}
-
 /* If the string is made up of strands, then produces a flattend string
  * representing the exact same graphemes but without strands. Otherwise,
  * returns the input string. Intended for strings that will be indexed
@@ -1257,16 +1251,25 @@ MVMString * MVM_string_indexing_optimized(MVMThreadContext *tc, MVMString *s) {
         MVMStringStrand *orig = s->body.storage.strands;
         MVMuint32        i    = 0;
         MVMString       *res;
+        MVMint8          can_fit_into_8bit = 1;
 
         MVMGraphemeIter  gi;
         MVM_string_gi_init(tc, &gi, s);
-        while (MVM_string_gi_has_more(tc, &gi))
-            flat[i++] = MVM_string_gi_get_grapheme(tc, &gi);
+        while (MVM_string_gi_has_more(tc, &gi)) {
+            MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+            if (g < -128 || g >= 128)
+                can_fit_into_8bit = 0;
+            flat[i++] = g;
+        }
 
         res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         res->body.storage_type    = MVM_STRING_GRAPHEME_32;
         res->body.storage.blob_32 = flat;
         res->body.num_graphs      = MVM_string_graphs(tc, s);
+
+        if (can_fit_into_8bit)
+            turn_32bit_into_8bit_unchecked(tc, res);
+
         return res;
     }
     else {
@@ -1282,7 +1285,8 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
     MVMStringIndex  bpos    = 0;
     MVMStringIndex  sgraphs, balloc;
     MVMGrapheme32  *buffer;
-    MVMGrapheme32 crlf;
+    MVMGrapheme32   crlf;
+    MVMint8         can_fit_into_8bit = 1;
 
     MVM_string_check_arg(tc, s, "escape");
 
@@ -1329,6 +1333,8 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
                 balloc += 32;
                 buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * balloc);
             }
+            if (graph < -128 || graph >= 128)
+                can_fit_into_8bit = 0;
             buffer[bpos++] = graph;
         }
     }
@@ -1337,6 +1343,9 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
     res->body.storage_type    = MVM_STRING_GRAPHEME_32;
     res->body.storage.blob_32 = buffer;
     res->body.num_graphs      = bpos;
+
+    if (can_fit_into_8bit)
+        turn_32bit_into_8bit_unchecked(tc, res);
 
     STRAND_CHECK(tc, res);
     return res;
@@ -1347,21 +1356,38 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
     MVMString      *res     = NULL;
     MVMStringIndex  spos    = 0;
     MVMStringIndex  sgraphs;
-    MVMGrapheme32  *rbuffer;
     MVMStringIndex  rpos;
 
     MVM_string_check_arg(tc, s, "flip");
-
     sgraphs = MVM_string_graphs(tc, s);
-    rbuffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
     rpos    = sgraphs;
 
-    for (; spos < sgraphs; spos++)
-        rbuffer[--rpos] = MVM_string_get_grapheme_at_nocheck(tc, s, spos);
+    if (s->body.storage_type == MVM_STRING_GRAPHEME_8) {
+        MVMGrapheme8   *rbuffer;
+        rbuffer = MVM_malloc(sizeof(MVMGrapheme8) * sgraphs);
 
-    res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    res->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    res->body.storage.blob_32 = rbuffer;
+        for (; spos < sgraphs; spos++)
+            rbuffer[--rpos] = s->body.storage.blob_8[spos];
+
+        res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        res->body.storage_type    = MVM_STRING_GRAPHEME_8;
+        res->body.storage.blob_8  = rbuffer;
+    } else {
+        MVMGrapheme32  *rbuffer;
+        rbuffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
+
+        if (s->body.storage_type == MVM_STRING_GRAPHEME_32)
+            for (; spos < sgraphs; spos++)
+                rbuffer[--rpos] = s->body.storage.blob_32[spos];
+        else
+            for (; spos < sgraphs; spos++)
+                rbuffer[--rpos] = MVM_string_get_grapheme_at_nocheck(tc, s, spos);
+
+        res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        res->body.storage_type    = MVM_STRING_GRAPHEME_32;
+        res->body.storage.blob_32 = rbuffer;
+    }
+
     res->body.num_graphs      = sgraphs;
 
     STRAND_CHECK(tc, res);
@@ -1808,9 +1834,89 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMCodepoint cp) {
     MVM_unicode_normalizer_cleanup(tc, &norm);
 
     s = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
-    s->body.storage_type       = MVM_STRING_GRAPHEME_32;
-    s->body.storage.blob_32    = MVM_malloc(sizeof(MVMGrapheme32));
-    s->body.storage.blob_32[0] = g;
+    if (g >= -128 && g < 128) {
+        s->body.storage_type       = MVM_STRING_GRAPHEME_8;
+        s->body.storage.blob_8     = MVM_malloc(sizeof(MVMGrapheme8));
+        s->body.storage.blob_8[0]  = g;
+    } else {
+        s->body.storage_type       = MVM_STRING_GRAPHEME_32;
+        s->body.storage.blob_32    = MVM_malloc(sizeof(MVMGrapheme32));
+        s->body.storage.blob_32[0] = g;
+    }
     s->body.num_graphs         = 1;
     return s;
+}
+
+/* Takes a string and computes a hash code for it, storing it in the hash code
+ * cache field of the string. Hashing code is derived from the Jenkins hash
+ * implementation in uthash.h. */
+typedef union {
+    MVMint32 graphs[3];
+    unsigned char bytes[12];
+} MVMJenHashGraphemeView;
+void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
+    /* The hash algorithm works in bytes. Since we can represent strings in a
+     * number of ways, and we want consistent hashing, then we'll read the
+     * strings using the grapheme iterator in groups of 3, using 32-bit ints
+     * for the graphemes no matter what the string really holds them as. Then
+     * we'll use the bytes view of that in the hashing function. */
+    MVMJenHashGraphemeView hash_block;
+    MVMGraphemeIter gi;
+    MVMuint32 graphs_remaining = MVM_string_graphs(tc, s);
+
+    /* Initialize hash state. */
+    MVMuint32 hashv = 0xfeedbeef;
+    MVMuint32 _hj_i, _hj_j;
+    _hj_i = _hj_j = 0x9e3779b9;
+
+    /* Work through the string 3 graphemes at a time. */
+    MVM_string_gi_init(tc, &gi, s);
+    while (graphs_remaining >= 3) {
+        hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
+        hash_block.graphs[1] = MVM_string_gi_get_grapheme(tc, &gi);
+        hash_block.graphs[2] = MVM_string_gi_get_grapheme(tc, &gi);
+        _hj_i += (hash_block.bytes[0] + ( (unsigned)hash_block.bytes[1] << 8 )
+            + ( (unsigned)hash_block.bytes[2] << 16 )
+            + ( (unsigned)hash_block.bytes[3] << 24 ) );
+        _hj_j +=    (hash_block.bytes[4] + ( (unsigned)hash_block.bytes[5] << 8 )
+            + ( (unsigned)hash_block.bytes[6] << 16 )
+            + ( (unsigned)hash_block.bytes[7] << 24 ) );
+        hashv += (hash_block.bytes[8] + ( (unsigned)hash_block.bytes[9] << 8 )
+            + ( (unsigned)hash_block.bytes[10] << 16 )
+            + ( (unsigned)hash_block.bytes[11] << 24 ) );
+
+        HASH_JEN_MIX(_hj_i, _hj_j, hashv);
+
+        graphs_remaining -= 3;
+    }
+
+    /* Mix in key length (in bytes, not graphemes). */
+    hashv += MVM_string_graphs(tc, s) * sizeof(MVMGrapheme32);
+
+    /* Now handle trailing graphemes (must be 2, 1, or 0). */
+    switch (graphs_remaining) {
+        case 2:
+            hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
+            hash_block.graphs[1] = MVM_string_gi_get_grapheme(tc, &gi);
+            break;
+        case 1:
+            hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
+            break;
+    }
+    switch (graphs_remaining * 4) {
+        case 8:
+            _hj_j += ( (unsigned)hash_block.bytes[7] << 24 ) +
+                     ( (unsigned)hash_block.bytes[6] << 16 ) +
+                     ( (unsigned)hash_block.bytes[5] << 8 ) +
+                     hash_block.bytes[4];
+        case 4:
+            _hj_i += ( (unsigned)hash_block.bytes[3] << 24 ) +
+                     ( (unsigned)hash_block.bytes[2] << 16 ) +
+                     ( (unsigned)hash_block.bytes[1] << 8 ) +
+                     hash_block.bytes[0];
+    }
+    HASH_JEN_MIX(_hj_i, _hj_j, hashv);
+
+    /* Store computed hash value. */
+    s->body.cached_hash_code = hashv;
 }

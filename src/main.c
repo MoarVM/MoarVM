@@ -57,6 +57,7 @@ The following environment variables are respected:\n\
     MVM_SPESH_NODELAY           Run dynamic optimization even for cold frames\n\
     MVM_SPESH_INLINE_DISABLE    Disables inlining\n\
     MVM_SPESH_OSR_DISABLE       Disables on-stack replacement\n\
+    MVM_SPESH_LIMIT             Limit the maximum number of specializations\n\
     MVM_JIT_DISABLE             Disables JITting to machine code\n\
     MVM_JIT_EXPR_DISABLE        Disable advanced 'expression' JIT\n\
     MVM_SPESH_LOG               Specifies a dynamic optimizer log file\n\

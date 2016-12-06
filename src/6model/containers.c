@@ -390,15 +390,11 @@ static const MVMContainerConfigurer NativeRefContainerConfigurer = {
 /* Adds a container configurer to the registry. */
 void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
         const MVMContainerConfigurer *configurer) {
-    void *kdata;
     MVMContainerRegistry *entry;
-    size_t klen;
-
-    MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "add container config needs concrete string");
 
     uv_mutex_lock(&tc->instance->mutex_container_registry);
 
-    HASH_FIND(hash_handle, tc->instance->container_registry, kdata, klen, entry);
+    MVM_HASH_GET(tc, tc->instance->container_registry, name, entry);
 
     if (!entry) {
         entry = MVM_malloc(sizeof(MVMContainerRegistry));
@@ -406,22 +402,18 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
         entry->configurer  = configurer;
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
             "Container configuration name");
+        MVM_HASH_BIND(tc, tc->instance->container_registry, name, entry);
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
+            "Container configuration hash key");
     }
-
-    HASH_ADD_KEYPTR(hash_handle, tc->instance->container_registry, kdata, klen, entry);
 
     uv_mutex_unlock(&tc->instance->mutex_container_registry);
 }
 
 /* Gets a container configurer from the registry. */
 const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name) {
-    void *kdata;
     MVMContainerRegistry *entry;
-    size_t klen;
-
-    MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "get container config needs concrete string");
-
-    HASH_FIND(hash_handle, tc->instance->container_registry, kdata, klen, entry);
+    MVM_HASH_GET(tc, tc->instance->container_registry, name, entry);
     return entry != NULL ? entry->configurer : NULL;
 }
 

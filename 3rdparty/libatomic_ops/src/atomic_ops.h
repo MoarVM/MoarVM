@@ -203,7 +203,7 @@
 #   include <machine/sys/inline.h>
 #   define AO_compiler_barrier() _Asm_sched_fence()
 # else
-    /* FIXME - We dont know how to do this.  This is a guess.   */
+    /* FIXME - We do not know how to do this.  This is a guess. */
     /* And probably a bad one.                                  */
     static volatile int AO_barrier_dummy;
 #   define AO_compiler_barrier() (void)(AO_barrier_dummy = AO_barrier_dummy)
@@ -262,8 +262,12 @@
 # if defined(__m68k__)
 #   include "atomic_ops/sysdeps/gcc/m68k.h"
 # endif /* __m68k__ */
+# if defined(__nios2__)
+#   include "atomic_ops/sysdeps/gcc/nios2.h"
+# endif /* __nios2__ */
 # if defined(__powerpc__) || defined(__ppc__) || defined(__PPC__) \
-     || defined(__powerpc64__) || defined(__ppc64__)
+     || defined(__powerpc64__) || defined(__ppc64__) \
+     || defined(_ARCH_PPC)
 #   include "atomic_ops/sysdeps/gcc/powerpc.h"
 # endif /* __powerpc__ */
 # if defined(__aarch64__)
@@ -290,6 +294,9 @@
 # endif
 # if defined(__hexagon__)
 #   include "atomic_ops/sysdeps/gcc/hexagon.h"
+# endif
+# if defined(__tile__)
+#   include "atomic_ops/sysdeps/gcc/tile.h"
 # endif
 #endif /* __GNUC__ && !AO_USE_PTHREAD_DEFS */
 
@@ -357,16 +364,16 @@
 # define AO_CAN_EMUL_CAS
 #endif
 
-#if defined(AO_REQUIRE_CAS) && !defined(AO_HAVE_compare_and_swap) \
+#if (defined(AO_REQUIRE_CAS) && !defined(AO_HAVE_compare_and_swap) \
     && !defined(AO_HAVE_fetch_compare_and_swap) \
     && !defined(AO_HAVE_compare_and_swap_full) \
     && !defined(AO_HAVE_fetch_compare_and_swap_full) \
     && !defined(AO_HAVE_compare_and_swap_acquire) \
-    && !defined(AO_HAVE_fetch_compare_and_swap_acquire)
+    && !defined(AO_HAVE_fetch_compare_and_swap_acquire)) || defined(CPPCHECK)
 # if defined(AO_CAN_EMUL_CAS)
 #   include "atomic_ops/sysdeps/emul_cas.h"
-# else
-#  error Cannot implement AO_compare_and_swap_full on this architecture.
+# elif !defined(CPPCHECK)
+#   error Cannot implement AO_compare_and_swap_full on this architecture.
 # endif
 #endif /* AO_REQUIRE_CAS && !AO_HAVE_compare_and_swap ... */
 

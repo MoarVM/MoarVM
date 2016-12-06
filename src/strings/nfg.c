@@ -130,7 +130,7 @@ static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *
     /* Free any existing node at next safe point, return the new one. */
     if (current)
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
-            sizeof(MVMNGFTrieNodeEntry), current);
+            sizeof(MVMNFGTrieNode), current);
     return new_node;
 }
 static void add_synthetic_to_trie(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes, MVMGrapheme32 synthetic) {

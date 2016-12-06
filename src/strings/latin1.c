@@ -7,19 +7,38 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, const MVMObject *resu
                                      char *latin1_c, size_t bytes) {
     MVMuint8  *latin1 = (MVMuint8 *)latin1_c;
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
-    size_t i, result_graphs;
+    size_t i, k, result_graphs;
 
-    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMint32) * bytes);
+    MVMuint8 writing_32bit = 0;
+
+    result->body.storage_type   = MVM_STRING_GRAPHEME_8;
+    result->body.storage.blob_8 = MVM_malloc(sizeof(MVMint8) * bytes);
 
     result_graphs = 0;
     for (i = 0; i < bytes; i++) {
         if (latin1[i] == '\r' && i + 1 < bytes && latin1[i + 1] == '\n') {
-            result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
+            if (writing_32bit)
+                result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
+            else
+                result->body.storage.blob_8[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
             i++;
         }
         else {
-            result->body.storage.blob_32[result_graphs++] = latin1[i];
+            if (latin1[i] > 127 && !writing_32bit) {
+                MVMGrapheme8 *old_storage = result->body.storage.blob_8;
+
+                result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
+                result->body.storage_type = MVM_STRING_GRAPHEME_32;
+                writing_32bit = 1;
+
+                for (k = 0; k < i; k++)
+                    result->body.storage.blob_32[k] = old_storage[k];
+                MVM_free(old_storage);
+            }
+            if (writing_32bit)
+                result->body.storage.blob_32[result_graphs++] = latin1[i];
+            else
+                result->body.storage.blob_8[result_graphs++] = latin1[i];
         }
     }
     result->body.num_graphs = result_graphs;

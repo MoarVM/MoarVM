@@ -103,8 +103,8 @@ AO_test_and_set_full(volatile AO_TS_t *addr)
 }
 #define AO_HAVE_test_and_set_full
 
-#ifdef _WIN64
-#  error wrong architecture
+#if defined(_WIN64) && !defined(CPPCHECK)
+# error wrong architecture
 #endif
 
 #ifdef AO_ASSUME_VISTA

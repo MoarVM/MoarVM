@@ -16,6 +16,15 @@
  * Some of the machine specific code was borrowed from our GC distribution.
  */
 
+#if (((__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)) \
+      && !defined(__INTEL_COMPILER)) /* TODO: test and enable icc */ \
+     || __clang_major__ > 3 \
+     || (__clang_major__ == 3 && __clang_minor__ >= 4)) \
+    && !defined(AO_DISABLE_GCC_ATOMICS)
+# define AO_GCC_ATOMIC_TEST_AND_SET
+
+#else /* AO_DISABLE_GCC_ATOMICS */
+
 /* The following really assume we have a 486 or better.  Unfortunately  */
 /* gcc doesn't define a suitable feature test macro based on command    */
 /* line options.                                                        */
@@ -87,7 +96,6 @@ AO_short_fetch_and_add_full (volatile unsigned short *p, unsigned short incr)
 #define AO_HAVE_short_fetch_and_add_full
 
 #ifndef AO_PREFER_GENERALIZED
-  /* Really only works for 486 and later */
   AO_INLINE void
   AO_and_full (volatile AO_t *p, AO_t value)
   {
@@ -119,6 +127,60 @@ AO_short_fetch_and_add_full (volatile unsigned short *p, unsigned short incr)
   /* could be generalized efficiently as an ordinary store accomplished */
   /* with AO_nop_full ("mfence" instruction).                           */
 #endif /* !AO_PREFER_GENERALIZED */
+
+AO_INLINE void
+AO_char_and_full (volatile unsigned char *p, unsigned char value)
+{
+  __asm__ __volatile__ ("lock; andb %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+}
+#define AO_HAVE_char_and_full
+
+AO_INLINE void
+AO_char_or_full (volatile unsigned char *p, unsigned char value)
+{
+  __asm__ __volatile__ ("lock; orb %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+}
+#define AO_HAVE_char_or_full
+
+AO_INLINE void
+AO_char_xor_full (volatile unsigned char *p, unsigned char value)
+{
+  __asm__ __volatile__ ("lock; xorb %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+}
+#define AO_HAVE_char_xor_full
+
+AO_INLINE void
+AO_short_and_full (volatile unsigned short *p, unsigned short value)
+{
+  __asm__ __volatile__ ("lock; andw %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+}
+#define AO_HAVE_short_and_full
+
+AO_INLINE void
+AO_short_or_full (volatile unsigned short *p, unsigned short value)
+{
+  __asm__ __volatile__ ("lock; orw %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+}
+#define AO_HAVE_short_or_full
+
+AO_INLINE void
+AO_short_xor_full (volatile unsigned short *p, unsigned short value)
+{
+  __asm__ __volatile__ ("lock; xorw %1, %0" :
+                        "=m" (*p) : "r" (value), "m" (*p)
+                        : "memory");
+}
+#define AO_HAVE_short_xor_full
 
 AO_INLINE AO_TS_VAL_t
 AO_test_and_set_full(volatile AO_TS_t *addr)
@@ -174,7 +236,81 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
 }
 #define AO_HAVE_fetch_compare_and_swap_full
 
-#if !defined(__x86_64__) && !defined(AO_USE_SYNC_CAS_BUILTIN)
+# if defined(__x86_64__) && !defined(__ILP32__)
+    AO_INLINE unsigned int
+    AO_int_fetch_and_add_full (volatile unsigned int *p, unsigned int incr)
+    {
+      unsigned int result;
+
+      __asm__ __volatile__ ("lock; xaddl %0, %1"
+                            : "=r" (result), "=m" (*p)
+                            : "0" (incr), "m" (*p)
+                            : "memory");
+      return result;
+    }
+#   define AO_HAVE_int_fetch_and_add_full
+
+    AO_INLINE void
+    AO_int_and_full (volatile unsigned int *p, unsigned int value)
+    {
+      __asm__ __volatile__ ("lock; andl %1, %0"
+                            : "=m" (*p) : "r" (value), "m" (*p)
+                            : "memory");
+    }
+#   define AO_HAVE_int_and_full
+
+    AO_INLINE void
+    AO_int_or_full (volatile unsigned int *p, unsigned int value)
+    {
+      __asm__ __volatile__ ("lock; orl %1, %0"
+                            : "=m" (*p) : "r" (value), "m" (*p)
+                            : "memory");
+    }
+#   define AO_HAVE_int_or_full
+
+    AO_INLINE void
+    AO_int_xor_full (volatile unsigned int *p, unsigned int value)
+    {
+      __asm__ __volatile__ ("lock; xorl %1, %0"
+                            : "=m" (*p) : "r" (value), "m" (*p)
+                            : "memory");
+    }
+#   define AO_HAVE_int_xor_full
+
+# else
+#   define AO_T_IS_INT
+# endif /* !x86_64 || ILP32 */
+
+  /* Real X86 implementations, except for some old 32-bit WinChips,     */
+  /* appear to enforce ordering between memory operations, EXCEPT that  */
+  /* a later read can pass earlier writes, presumably due to the        */
+  /* visible presence of store buffers.                                 */
+  /* We ignore both the WinChips and the fact that the official specs   */
+  /* seem to be much weaker (and arguably too weak to be usable).       */
+# include "../ordered_except_wr.h"
+
+#endif /* AO_DISABLE_GCC_ATOMICS */
+
+#if (defined(AO_PREFER_BUILTIN_ATOMICS) || !defined(__clang__) \
+     || defined(__x86_64__) || defined(__APPLE_CC__) || defined(__CYGWIN__)) \
+    && defined(AO_GCC_ATOMIC_TEST_AND_SET) \
+    && !(defined(__APPLE_CC__) && defined(__x86_64__) && !defined(__ILP32__) \
+         && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16))
+
+  /* As of clang-3.8 i686 (NDK r11c), it requires -latomic for all the  */
+  /* double-wide operations.  For now, we fall back to the              */
+  /* non-intrinsic implementation if clang/x86.                         */
+  /* As of Apple clang-600 (based on LLVM 3.5svn), it has some bug in   */
+  /* double-wide CAS implementation for x64 target.                     */
+  /* TODO: Refine for newer clang releases. */
+
+# if defined(__ILP32__) || !defined(__x86_64__) /* 32-bit AO_t */ \
+     || defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16) /* 64-bit AO_t */
+#   include "../standard_ao_double_t.h"
+# endif
+
+#elif !defined(__x86_64__) && (!defined(AO_USE_SYNC_CAS_BUILTIN) \
+                               || defined(AO_GCC_ATOMIC_TEST_AND_SET))
 # include "../standard_ao_double_t.h"
 
   /* Reading or writing a quadword aligned on a 64-bit boundary is      */
@@ -182,6 +318,18 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
   /* Chapter 8.1.1 of Volume 3A Part 1 of Intel processor manuals.      */
 # define AO_ACCESS_double_CHECK_ALIGNED
 # include "../loadstore/double_atomic_load_store.h"
+
+# ifdef AO_GCC_ATOMIC_TEST_AND_SET
+    /* Double-wide loads and stores are ordered.        */
+#   define AO_double_load_acquire(addr) AO_double_load_read(addr)
+#   define AO_HAVE_double_load_acquire
+
+#   define AO_double_store_release(addr, val) \
+                                (AO_nop_write(), AO_double_store(addr, val))
+#   define AO_HAVE_double_store_release
+
+#   define AO_SKIPATOMIC_double_compare_and_swap_ANY
+# endif /* AO_GCC_ATOMIC_TEST_AND_SET */
 
   /* Returns nonzero if the comparison succeeded.       */
   /* Really requires at least a Pentium.                */
@@ -245,8 +393,6 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
   }
 # define AO_HAVE_compare_double_and_swap_double_full
 
-# define AO_T_IS_INT
-
 #elif defined(__ILP32__) || !defined(__x86_64__)
 # include "../standard_ao_double_t.h"
 
@@ -269,22 +415,9 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
   }
 # define AO_HAVE_double_compare_and_swap_full
 
-# define AO_T_IS_INT
-
-#else /* 64-bit */
-
-  AO_INLINE unsigned int
-  AO_int_fetch_and_add_full (volatile unsigned int *p, unsigned int incr)
-  {
-    unsigned int result;
-
-    __asm__ __volatile__ ("lock; xaddl %0, %1"
-                        : "=r" (result), "=m" (*p)
-                        : "0" (incr), "m" (*p)
-                        : "memory");
-    return result;
-  }
-# define AO_HAVE_int_fetch_and_add_full
+#elif defined(AO_CMPXCHG16B_AVAILABLE) \
+      || defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16)
+# include "../standard_ao_double_t.h"
 
   /* The Intel and AMD Architecture Programmer Manuals state roughly    */
   /* the following:                                                     */
@@ -298,63 +431,55 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
   /* Thus, currently, the only way to implement lock-free double_load   */
   /* and double_store on x86_64 is to use CMPXCHG16B (if available).    */
 
-/* TODO: Test some gcc macro to detect presence of cmpxchg16b. */
+  /* NEC LE-IT: older AMD Opterons are missing this instruction.        */
+  /* On these machines SIGILL will be thrown.                           */
+  /* Define AO_WEAK_DOUBLE_CAS_EMULATION to have an emulated (lock      */
+  /* based) version available.                                          */
+  /* HB: Changed this to not define either by default.  There are       */
+  /* enough machines and tool chains around on which cmpxchg16b         */
+  /* doesn't work.  And the emulation is unsafe by our usual rules.     */
+  /* However both are clearly useful in certain cases.                  */
 
-# ifdef AO_CMPXCHG16B_AVAILABLE
-#   include "../standard_ao_double_t.h"
+# define AO_SKIPATOMIC_double_compare_and_swap_ANY
 
-    /* NEC LE-IT: older AMD Opterons are missing this instruction.      */
-    /* On these machines SIGILL will be thrown.                         */
-    /* Define AO_WEAK_DOUBLE_CAS_EMULATION to have an emulated (lock    */
-    /* based) version available.                                        */
-    /* HB: Changed this to not define either by default.  There are     */
-    /* enough machines and tool chains around on which cmpxchg16b       */
-    /* doesn't work.  And the emulation is unsafe by our usual rules.   */
-    /* However both are clearly useful in certain cases.                */
-    AO_INLINE int
-    AO_compare_double_and_swap_double_full(volatile AO_double_t *addr,
-                                           AO_t old_val1, AO_t old_val2,
-                                           AO_t new_val1, AO_t new_val2)
-    {
-      char result;
-      __asm__ __volatile__("lock; cmpxchg16b %0; setz %1"
+  AO_INLINE int
+  AO_compare_double_and_swap_double_full(volatile AO_double_t *addr,
+                                         AO_t old_val1, AO_t old_val2,
+                                         AO_t new_val1, AO_t new_val2)
+  {
+    char result;
+    __asm__ __volatile__("lock; cmpxchg16b %0; setz %1"
                         : "=m"(*addr), "=a"(result)
                         : "m"(*addr), "d" (old_val2), "a" (old_val1),
                           "c" (new_val2), "b" (new_val1)
                         : "memory");
-      return (int) result;
-    }
-#   define AO_HAVE_compare_double_and_swap_double_full
+    return (int) result;
+  }
+# define AO_HAVE_compare_double_and_swap_double_full
 
-# elif defined(AO_WEAK_DOUBLE_CAS_EMULATION)
-#   include "../standard_ao_double_t.h"
+#elif defined(AO_WEAK_DOUBLE_CAS_EMULATION)
+# include "../standard_ao_double_t.h"
 
-    /* This one provides spinlock based emulation of CAS implemented in */
-    /* atomic_ops.c.  We probably do not want to do this here, since it */
-    /* is not atomic with respect to other kinds of updates of *addr.   */
-    /* On the other hand, this may be a useful facility on occasion.    */
-    int AO_compare_double_and_swap_double_emulation(
-                                                volatile AO_double_t *addr,
-                                                AO_t old_val1, AO_t old_val2,
-                                                AO_t new_val1, AO_t new_val2);
+  /* This one provides spinlock based emulation of CAS implemented in   */
+  /* atomic_ops.c.  We probably do not want to do this here, since it   */
+  /* is not atomic with respect to other kinds of updates of *addr.     */
+  /* On the other hand, this may be a useful facility on occasion.      */
+  int AO_compare_double_and_swap_double_emulation(
+                                        volatile AO_double_t *addr,
+                                        AO_t old_val1, AO_t old_val2,
+                                        AO_t new_val1, AO_t new_val2);
 
-    AO_INLINE int
-    AO_compare_double_and_swap_double_full(volatile AO_double_t *addr,
-                                           AO_t old_val1, AO_t old_val2,
-                                           AO_t new_val1, AO_t new_val2)
-    {
-      return AO_compare_double_and_swap_double_emulation(addr,
+  AO_INLINE int
+  AO_compare_double_and_swap_double_full(volatile AO_double_t *addr,
+                                         AO_t old_val1, AO_t old_val2,
+                                         AO_t new_val1, AO_t new_val2)
+  {
+    return AO_compare_double_and_swap_double_emulation(addr,
                                 old_val1, old_val2, new_val1, new_val2);
-    }
-#   define AO_HAVE_compare_double_and_swap_double_full
-# endif /* AO_WEAK_DOUBLE_CAS_EMULATION && !AO_CMPXCHG16B_AVAILABLE */
+  }
+# define AO_HAVE_compare_double_and_swap_double_full
+#endif /* x86_64 && !ILP32 && CAS_EMULATION && !AO_CMPXCHG16B_AVAILABLE */
 
-#endif /* x86_64 && !ILP32 */
-
-/* Real X86 implementations, except for some old 32-bit WinChips,       */
-/* appear to enforce ordering between memory operations, EXCEPT that    */
-/* a later read can pass earlier writes, presumably due to the visible  */
-/* presence of store buffers.                                           */
-/* We ignore both the WinChips and the fact that the official specs     */
-/* seem to be much weaker (and arguably too weak to be usable).         */
-#include "../ordered_except_wr.h"
+#ifdef AO_GCC_ATOMIC_TEST_AND_SET
+# include "generic.h"
+#endif

@@ -66,7 +66,9 @@ static FILE *fopen_perhaps_with_pid(char *path, const char *mode) {
 /* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
-    char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable, *spesh_osr_disable;
+
+    char *spesh_log, *spesh_nodelay, *spesh_disable, *spesh_inline_disable,
+         *spesh_osr_disable, *spesh_limit;
     char *jit_log, *jit_expr_disable, *jit_disable, *jit_bytecode_dir, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
@@ -78,9 +80,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->main_thread = MVM_tc_create(instance);
     instance->main_thread->thread_id = 1;
 
-    /* No user threads when we start, and next thread to be created gets ID 2
-     * (the main thread got ID 1). */
-    instance->num_user_threads    = 0;
+    /* Next thread to be created gets ID 2 (the main thread got ID 1). */
     MVM_store(&instance->next_user_thread_id, 2);
 
     /* Set up the permanent roots storage. */
@@ -206,6 +206,12 @@ MVMInstance * MVM_vm_create_instance(void) {
     if (spesh_nodelay && strlen(spesh_nodelay)) {
         instance->spesh_nodelay = 1;
     }
+
+    /* Should we limit the number of specialized frames produced? (This is
+     * mostly useful for building spesh bug bisect tools.) */
+    spesh_limit = getenv("MVM_SPESH_LIMIT");
+    if (spesh_limit && strlen(spesh_limit))
+        instance->spesh_limit = atoi(spesh_limit);
 
     /* JIT environment/logging setup. */
     jit_disable = getenv("MVM_JIT_DISABLE");

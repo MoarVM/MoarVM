@@ -1482,7 +1482,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov TMP1, TC->active_handlers;
         | test TMP1, TMP1;
         | jz >1;
-        | mov TMP1, [TMP1];
         | mov TMP1, MVMACTIVEHANDLERS:TMP1->ex_obj;
         | mov WORK[dst], TMP1;
         | jmp >2;

@@ -18,3 +18,5 @@ struct MVMCode {
 const MVMREPROps * MVMCode_initialize(MVMThreadContext *tc);
 
 MVM_PUBLIC MVMObject * MVM_code_location(MVMThreadContext *tc, MVMObject *code);
+void MVM_code_location_out(MVMThreadContext *tc, MVMObject *code,
+                           MVMString **file_out, MVMint32 *line_out);

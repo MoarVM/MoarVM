@@ -10,7 +10,7 @@ CP     = $(PERL) -MExtUtils::Command -e cp
 MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 CHMOD  = $(PERL) -MExtUtils::Command -e chmod
 RM_RF  = $(PERL) -MExtUtils::Command -e rm_rf
-
+RM_F   = $(PERL) -MExtUtils::Command -e rm_f
 
 
 CONFIG    = @config@
@@ -99,6 +99,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/gc/wb@obj@ \
           src/gc/objectid@obj@ \
           src/gc/finalize@obj@ \
+          src/gc/debug@obj@ \
           src/io/io@obj@ \
           src/io/eventloop@obj@ \
           src/io/syncfile@obj@ \
@@ -263,6 +264,7 @@ HEADERS = src/moar.h \
           src/gc/wb.h \
           src/gc/objectid.h \
           src/gc/finalize.h \
+          src/gc/debug.h \
           src/6model/reprs.h \
           src/6model/reprconv.h \
           src/6model/bootstrap.h \
@@ -416,6 +418,9 @@ UV_DARWIN = 3rdparty/libuv/src/unix/darwin@obj@ \
 UV_SOLARIS = 3rdparty/libuv/src/unix/sunos@obj@ \
             $(UV_UNIX)
 
+UV_AIX = 3rdparty/libuv/src/unix/aix@obj@ \
+         $(UV_UNIX)
+
 UV_OBJECTS = @uvobjects@
 
 TOM_OBJECTS = @tomobjects@
@@ -436,6 +441,7 @@ install: all
 	$(CP) moar@exe@ "$(DESTDIR)$(BINDIR)"
 	$(CHMOD) 755 "$(DESTDIR)$(BINDIR)/moar@exe@"
 	$(MKPATH) "$(DESTDIR)$(LIBDIR)"
+	$(RM_F) "$(DESTDIR)$(LIBDIR)/@moar@"
 	$(CP) @moar@ @impinst@ "$(DESTDIR)$(LIBDIR)"
 	$(MKPATH) "$(DESTDIR)$(MASTDIR)"
 	$(CP) lib/MAST/Nodes.nqp "$(DESTDIR)$(MASTDIR)"

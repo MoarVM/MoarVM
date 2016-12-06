@@ -31,29 +31,29 @@ static char * UnicodeToUTF8(const wchar_t *str)
 }
 
 static int mkdir_p(MVMThreadContext *tc, wchar_t *pathname, MVMint64 mode) {
+    wchar_t *p = pathname, ch;
 #else
 static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
+    char *p = pathname, ch;
+    uv_fs_t req;
 #endif
     int created = 0;
-    char *p = pathname, ch;
-    struct stat st;
-    uv_fs_t req;
 
     for (;; ++p)
         if (!*p || IS_SLASH(*p)) {
             ch = *p;
             *p  = '\0';
-            if (uv_fs_stat(tc->loop, &req, pathname, NULL) <= 0) {
 #ifdef _WIN32
-                if (CreateDirectoryW(pathname, NULL)) {
-                    created = 1;
-                }
+            if (CreateDirectoryW(pathname, NULL)) {
+                created = 1;
+            }
 #else
+            if (uv_fs_stat(tc->loop, &req, pathname, NULL) <= 0) {
                 if (mkdir(pathname, mode) != -1) {
                     created = 1;
                 }
-#endif
             }
+#endif
             if (!(*p = ch)) break;
         }
 
@@ -92,7 +92,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
         wcscat(wpathname, abs_dirname);
     }
 
-    if (!mkdir_p(tc, wpathname, mode)) {
+    if (mkdir_p(tc, wpathname, mode) == -1) {
         DWORD error = GetLastError();
         if (error != ERROR_ALREADY_EXISTS) {
             MVM_free(wpathname);
@@ -181,6 +181,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 #ifdef _WIN32
         if (data->dir_name)
             MVM_free(data->dir_name);
+
         if (data->dir_handle)
             FindClose(data->dir_handle);
 #else
@@ -318,16 +319,17 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
         return tc->instance->str_consts.empty;
     }
 #else
-    struct dirent entry;
-    struct dirent *result;
-    int ret;
 
-    ret = readdir_r(data->dir_handle, &entry, &result);
+    struct dirent *entry;
+    errno = 0; /* must reset errno so we won't check old errno */
 
-    if (ret == 0) {
-        if (result == NULL)
-            return tc->instance->str_consts.empty;
-        return MVM_string_decode(tc, tc->instance->VMString, entry.d_name, strlen(entry.d_name), data->encoding);
+    entry = readdir(data->dir_handle);
+
+    if (errno == 0) {
+        MVMString *ret = (entry == NULL)
+                       ? tc->instance->str_consts.empty
+                       : MVM_string_decode(tc, tc->instance->VMString, entry->d_name, strlen(entry->d_name), data->encoding);
+        return ret;
     }
 
     MVM_exception_throw_adhoc(tc, "Failed to read dirhandle: %d", errno);

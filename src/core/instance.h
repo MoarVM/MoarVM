@@ -115,9 +115,6 @@ struct MVMInstance {
     /* The ID to allocate the next-created thread. */
     AO_t next_user_thread_id;
 
-    /* The number of active user threads. */
-    MVMuint16 num_user_threads;
-
     /* The event loop thread, a mutex to avoid start-races, a concurrent
      * queue of tasks that need to be processed by the event loop thread
      * and an array of active tasks, for the purpose of keeping them GC
@@ -188,6 +185,11 @@ struct MVMInstance {
     MVMint8 spesh_inline_enabled;
     MVMint8 spesh_osr_enabled;
     MVMint8 spesh_nodelay;
+
+    /* Number of specializations produced, and limit on number of
+     * specializations (zero if no limit). */
+    MVMint32 spesh_produced;
+    MVMint32 spesh_limit;
 
     /* Flag for if NFA debugging is enabled. */
     MVMint8 nfa_debug_enabled;

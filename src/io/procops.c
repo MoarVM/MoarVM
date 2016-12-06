@@ -734,11 +734,14 @@ static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) 
 static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, SpawnInfo *si,
                        MVMObject *callback, MVMDecodeStream *ds, MVMuint32 seq_number) {
     MVMThreadContext *tc  = si->tc;
-    MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, si->work_idx);
+    MVMObject *arr;
+    MVMAsyncTask *t;
+    MVMROOT(tc, callback, {
+        arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+        t = (MVMAsyncTask *)MVM_repr_at_pos_o(tc, tc->instance->event_loop_active, si->work_idx);
+    });
     MVM_repr_push_o(tc, arr, callback);
-    if (nread > 0) {
+    if (nread >= 0) {
         MVMROOT(tc, t, {
         MVMROOT(tc, arr, {
             /* Push the sequence number. */

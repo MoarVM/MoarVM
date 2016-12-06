@@ -44,6 +44,7 @@
 #define REFVAR_VM_HASH_STR_VAR      10
 #define REFVAR_STATIC_CODEREF       11
 #define REFVAR_CLONED_CODEREF       12
+#define REFVAR_SC_REF               13
 
 /* For the packed format, for "small" values of si and idx */
 #define OBJECTS_TABLE_ENTRY_SC_MASK     0x7FF
@@ -529,12 +530,18 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
 
     if (scr == NULL || MVM_sc_get_obj_sc(tc, scr) == NULL) {
         if (fatal) {
-            char *c_name = MVM_string_utf8_encode_C_string(tc,
-                    (((MVMCode *)closure)->body.sf)->body.name);
-            char *waste[] = { c_name, NULL };
-            MVM_exception_throw_adhoc_free(tc, waste,
-                "Serialization Error: missing static code ref for closure '%s'",
-                c_name);
+            MVMString *file;
+            MVMint32 line;
+            MVM_code_location_out(tc, closure, &file, &line);
+            {
+                char *c_name = MVM_string_utf8_encode_C_string(tc,
+                        (((MVMCode *)closure)->body.sf)->body.name);
+                char *c_file = MVM_string_utf8_encode_C_string(tc, file);
+                char *waste[] = { c_name, c_file, NULL };
+                MVM_exception_throw_adhoc_free(tc, waste,
+                    "Serialization Error: missing static code ref for closure '%s' (%s:%d)",
+                    c_name, c_file, line);
+            }
         }
         return NULL;
     }
@@ -693,6 +700,9 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
             discrim = REFVAR_CLONED_CODEREF;
         }
     }
+    else if (REPR(ref)->ID == MVM_REPR_ID_SCRef && IS_CONCRETE(ref)) {
+        discrim = REFVAR_SC_REF;
+    }
     else {
         discrim = REFVAR_OBJECT;
     }
@@ -736,6 +746,11 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
         case REFVAR_CLONED_CODEREF:
             write_code_ref(tc, writer, ref);
             break;
+        case REFVAR_SC_REF: {
+            MVMString *handle = MVM_sc_get_handle(tc, (MVMSerializationContext *)ref);
+            MVM_serialization_write_str(tc, writer, handle);
+            break;
+        }
         default:
             MVM_exception_throw_adhoc(tc,
                 "Serialization Error: Unimplemented discriminator %d in MVM_serialization_read_ref",
@@ -1855,6 +1870,9 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
         case REFVAR_STATIC_CODEREF:
         case REFVAR_CLONED_CODEREF:
             return read_code_ref(tc, reader);
+        case REFVAR_SC_REF:
+            return (MVMObject *)MVM_sc_find_by_handle(tc,
+                MVM_serialization_read_str(tc, reader));
         default:
             fail_deserialize(tc, reader,
                 "Serialization Error: Unimplemented case of read_ref");
@@ -2813,6 +2831,8 @@ void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVM
         MVMSerializationReader *sr = sc->body->sr;
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
         if (st->method_cache_sc) {
+            MVMObject *cache;
+
             /* Set reader's position. */
             sr->stables_data_offset    = st->method_cache_offset;
             sr->cur_read_buffer        = &(sr->root.stables_data);
@@ -2825,10 +2845,10 @@ void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVM
             MVM_gc_allocate_gen2_default_set(tc);
 
             /* Deserialize what we need. */
-            MVM_ASSIGN_REF(tc, &(st->header), st->method_cache,
-                MVM_serialization_read_ref(tc, sr));
+            cache = MVM_serialization_read_ref(tc, sr);
             if (sr->working == 1)
                 work_loop(tc, sr);
+            MVM_ASSIGN_REF(tc, &(st->header), st->method_cache, cache);
 
             /* Clear up. */
             MVM_gc_allocate_gen2_default_clear(tc);

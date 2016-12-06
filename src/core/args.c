@@ -781,7 +781,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                 unsigned bucket_tmp;
 
                 HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
-                    MVMString *arg_name = (MVMString *)current->key;
+                    MVMString *arg_name = MVM_HASH_KEY(current);
                     if (!seen_name(tc, arg_name, new_args, new_num_pos, new_arg_pos)) {
                         if (new_arg_pos + 1 >= new_args_size) {
                             new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));

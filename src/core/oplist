@@ -273,8 +273,7 @@ ordat               w(int64) r(str) r(int64) :pure
 rindexfrom          w(int64) r(str) r(str) r(int64) :pure
 escape              w(str) r(str) :pure
 flip                w(str) r(str) :pure
-# flattenropes will be DEPRECATED! (Use non-inplace indexingoptimized op)
-flattenropes        r(str)
+DEPRECATED_1        r(str)
 iscclass            w(int64) r(int64) r(str) r(int64) :pure
 findcclass          w(int64) r(int64) r(str) r(int64) r(int64) :pure
 findnotcclass       w(int64) r(int64) r(str) r(int64) r(int64) :pure
@@ -783,8 +782,8 @@ lstat_time          w(num64) r(str) r(int64)
 setdebugtypename    r(obj) r(str)
 loadbytecodebuffer  r(obj)
 loadbytecodefh      r(obj) r(str)
-throwpayloadlex     w(obj) int64 r(obj) :noinline
-throwpayloadlexcaller w(obj) int64 r(obj)
+throwpayloadlex     w(obj) int64 r(obj) :noinline :throwish
+throwpayloadlexcaller w(obj) int64 r(obj) :throwish
 lastexpayload       w(obj) :noinline
 cancelnotify        r(obj) r(obj) r(obj)
 decoderconfigure    r(obj) r(str) r(obj)
@@ -798,6 +797,7 @@ decoderbytesavailable w(int64) r(obj) :pure
 decodertakebytes    w(obj) r(obj) r(obj) r(int64)
 decoderempty        w(int64) r(obj) :pure
 indexingoptimized   w(str) r(str) :pure
+captureinnerlex     r(obj) :noinline
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

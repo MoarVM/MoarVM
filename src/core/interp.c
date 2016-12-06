@@ -378,7 +378,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVMuint8 found = 0;
                     if (!sf->body.fully_deserialized)
                         MVM_bytecode_finish_frame(tc, sf->body.cu, sf, 0);
-                    MVM_string_flatten(tc, name);
                     if (sf->body.lexical_names) {
                         MVMLexicalRegistry *entry;
                         MVM_HASH_GET(tc, sf->body.lexical_names, name, entry);
@@ -1087,7 +1086,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 2).s);
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "bindexmessage needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "bindexmessage needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 }
                 cur_op += 4;
                 goto NEXT;
@@ -1099,7 +1098,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         GET_REG(cur_op, 2).o);
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "bindexpayload needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "bindexpayload needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 }
                 cur_op += 4;
                 goto NEXT;
@@ -1109,7 +1108,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     ((MVMException *)ex)->body.category = GET_REG(cur_op, 2).i64;
                 else
-                    MVM_exception_throw_adhoc(tc, "bindexcategory needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "bindexcategory needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -1118,7 +1117,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     GET_REG(cur_op, 0).s = ((MVMException *)ex)->body.message;
                 else
-                    MVM_exception_throw_adhoc(tc, "getexmessage needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "getexmessage needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -1127,7 +1126,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     GET_REG(cur_op, 0).o = ((MVMException *)ex)->body.payload;
                 else
-                    MVM_exception_throw_adhoc(tc, "getexpayload needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "getexpayload needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 if (!GET_REG(cur_op, 0).o)
                     GET_REG(cur_op, 0).o = tc->instance->VMNull;
                 cur_op += 4;
@@ -1138,7 +1137,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     GET_REG(cur_op, 0).i64 = ((MVMException *)ex)->body.category;
                 else
-                    MVM_exception_throw_adhoc(tc, "getexcategory needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "getexcategory needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -1597,10 +1596,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
-            OP(flattenropes):
-                MVM_string_flatten(tc, GET_REG(cur_op, 0).s);
-                cur_op += 2;
-                goto NEXT;
+            OP(DEPRECATED_1):
+                MVM_exception_throw_adhoc(tc, "The flattenropes op was removed in MoarVM 2016.11.");
             OP(iscclass):
                 GET_REG(cur_op, 0).i64 = MVM_string_is_cclass(tc,
                     GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).s,
@@ -1828,7 +1825,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattr_i): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 4)),
@@ -1840,7 +1837,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattr_n): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 4)),
@@ -1852,7 +1849,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattr_s): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 4)),
@@ -1864,7 +1861,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattr_o): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 4)),
@@ -1876,7 +1873,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattrs_i): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
@@ -1888,7 +1885,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattrs_n): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
@@ -1900,7 +1897,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattrs_s): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
@@ -1912,7 +1909,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattrs_o): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
@@ -1924,7 +1921,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattr_i): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)),
@@ -1935,7 +1932,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattr_n): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)),
@@ -1946,7 +1943,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattr_s): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)),
@@ -1957,7 +1954,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattr_o): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)),
@@ -1968,7 +1965,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattrs_i): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
@@ -1979,7 +1976,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattrs_n): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
@@ -1990,7 +1987,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattrs_s): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
@@ -2001,7 +1998,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattrs_o): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", STABLE(obj)->debug_name);
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
@@ -2012,7 +2009,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(attrinited): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a type object");
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", STABLE(obj)->debug_name);
                 GET_REG(cur_op, 0).i64 = REPR(obj)->attr_funcs.is_attribute_initialized(tc,
                     STABLE(obj), OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s, MVM_NO_HINT);
@@ -3847,7 +3844,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
                     ((MVMException *)ex)->body.return_after_unwind = 1;
                 else
-                    MVM_exception_throw_adhoc(tc, "exreturnafterunwind needs a VMException");
+                    MVM_exception_throw_adhoc(tc, "exreturnafterunwind needs a VMException, got %s (%s)", REPR(ex)->name, STABLE(ex)->debug_name);
                 cur_op += 2;
                 goto NEXT;
             }
@@ -5105,6 +5102,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(indexingoptimized):
                 GET_REG(cur_op, 0).s = MVM_string_indexing_optimized(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
+                goto NEXT;
+            OP(captureinnerlex):
+                MVM_frame_capture_inner(tc, GET_REG(cur_op, 0).o);
+                cur_op += 2;
                 goto NEXT;
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {

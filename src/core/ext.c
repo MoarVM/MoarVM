@@ -17,7 +17,6 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
 
     uv_mutex_lock(&tc->instance->mutex_ext_registry);
 
-    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, tc->instance->ext_registry, name, entry);
 
     /* Extension already loaded. */
@@ -41,6 +40,8 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
         "Extension name");
     MVM_HASH_BIND(tc, tc->instance->ext_registry, name, entry);
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
+        "Extension name hash key");
 
     uv_mutex_unlock(&tc->instance->mutex_ext_registry);
 
@@ -60,7 +61,6 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
 
     uv_mutex_lock(&tc->instance->mutex_extop_registry);
 
-    MVM_string_flatten(tc, name);
     MVM_HASH_GET(tc, tc->instance->extop_registry, name, entry);
 
     /* Op already registered, so just verify its signature. */
@@ -170,6 +170,8 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
         "Extension op name");
     MVM_HASH_BIND(tc, tc->instance->extop_registry, name, entry);
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
+        "Extension op name hash key");
 
     uv_mutex_unlock(&tc->instance->mutex_extop_registry);
 
@@ -186,7 +188,6 @@ const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
 
     uv_mutex_lock(&tc->instance->mutex_extop_registry);
 
-    MVM_string_flatten(tc, record->name);
     MVM_HASH_GET(tc, tc->instance->extop_registry, record->name, entry);
 
     if (!entry) {

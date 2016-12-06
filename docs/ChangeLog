@@ -1,3 +1,48 @@
+New in 2016.11
+
++ Workaround tommath issue #56 which affects random bigint numbers > 32 bits
++ Fix memory leaks in nqp_nfa_run
++ Fix a sizeof arg that allocated a much-too-big buffer for callsite arg names
++ Add missing breaks in MVMString's copy_to
++ Prevent null deref when calling MVM_string_utf16_encode
++ Corrections to mkdir on Windows
++ Introduce MVM_SPESH_LIMIT, which limits how many specializations will be
+  performed; this is useful for debugging which specialized block is to blame
+  for a bug
++ Make sure we never box a NULL filename when creating backtraces
++ Fix the nativecall attribute error messages
++ Remove (non-existent) num16 from error message
++ Make the fixed size allocator provide useful information to Valgrind
++ Implement serialization of SCRef
++ Include file/line of unserializable closure, to aid debugging
++ Add type info when failing to bind an attribute
++ Use ffi_arg type for libffi nativecall return types
++ Handle libffi return type more correctly
++ Work around missing libatomic_ops prototype on s390x
++ Panic when trying to GC a locked mutex
++ Make VM panic output state that a panic occurred
++ Fix JIT code generation bug in nqp::exception
++ Add missing rooting of value pushed to concurrent queue
++ Add src/gc/debug.h dependency to Makefile
++ Mark a thread GC-blocked while it is in native code
++ Have "Cannot * a type object" also outputs the type's debug name
++ Don't reveal partially deserialized method cache
++ Give a bunch of exception ops REPR and debug name output
++ Prevent segfault when null string used as hash key
++ Request POSIX.1.c compliance on solaris
++ Change to use readdir insteal of readdir_r
++ Use GCC on solaris by default
++ give diagnostic output when compiling fails
++ Handle current Solaris compiler not understanding -mt
++ Fixed readdir so it won't check old errno
++ Work around clock_gettime issue on OSX
++ Refactor hashes to no longer need to flatten ropes in string keys
++ Save 8 (64-bit) or 4 (32-bit) bytes per entry in the MVMHash REPR
++ Remove the deprecated flattenropes op
++ Remove now-unused MVM_string_flatten function
++ Don't treat an nread of 0 in libuv read callbacks as an error
++ Bump to latest libatomic_ops
+
 New in 2016.10
 
 + Fix build without libtommath source

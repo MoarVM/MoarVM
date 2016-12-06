@@ -5,12 +5,11 @@
 ##  Copyright © 2014 Daniel Dehennin <daniel.dehennin@baby-gnu.org>
 ##
 ##
-use 5.010;
 use strict;
 use warnings;
 
 use File::Basename;
-use File::Path qw{make_path};
+use File::Path qw{mkpath};
 
 my @args = @ARGV;
 die "Missing target filename argument" if @args < 1;
@@ -47,7 +46,7 @@ $cflags = '' if ${includedir} eq "/usr/include";
 
 my $dirname = dirname $args[0];
 if ( ! -d $dirname ) {
-    make_path($dirname);
+    mkpath($dirname);
 }
 
 open my $pcfile, '>', "$args[0]"

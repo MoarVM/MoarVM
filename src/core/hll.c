@@ -1,18 +1,16 @@
 #include "moar.h"
 
 MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
-    void *kdata;
     MVMHLLConfig *entry;
-    size_t klen;
-
-    MVM_HASH_EXTRACT_KEY(tc, &kdata, &klen, name, "get hll config needs concrete string");
 
     uv_mutex_lock(&tc->instance->mutex_hllconfigs);
 
-    if (tc->instance->hll_compilee_depth)
-        HASH_FIND(hash_handle, tc->instance->compilee_hll_configs, kdata, klen, entry);
-    else
-        HASH_FIND(hash_handle, tc->instance->compiler_hll_configs, kdata, klen, entry);
+    if (tc->instance->hll_compilee_depth) {
+        MVM_HASH_GET(tc, tc->instance->compilee_hll_configs, name, entry);
+    }
+    else {
+        MVM_HASH_GET(tc, tc->instance->compiler_hll_configs, name, entry);
+    }
 
     if (!entry) {
         entry = MVM_calloc(sizeof(MVMHLLConfig), 1);
@@ -27,10 +25,12 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         entry->foreign_type_int = tc->instance->boot_types.BOOTInt;
         entry->foreign_type_num = tc->instance->boot_types.BOOTNum;
         entry->foreign_type_str = tc->instance->boot_types.BOOTStr;
-        if (tc->instance->hll_compilee_depth)
-            HASH_ADD_KEYPTR(hash_handle, tc->instance->compilee_hll_configs, kdata, klen, entry);
-        else
-            HASH_ADD_KEYPTR(hash_handle, tc->instance->compiler_hll_configs, kdata, klen, entry);
+        if (tc->instance->hll_compilee_depth) {
+            MVM_HASH_BIND(tc, tc->instance->compilee_hll_configs, name, entry);
+        }
+        else {
+            MVM_HASH_BIND(tc, tc->instance->compiler_hll_configs, name, entry);
+        }
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->int_box_type, "HLL int_box_type");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_box_type, "HLL num_box_type");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->str_box_type, "HLL str_box_type");
@@ -63,6 +63,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_multidim_ref, "HLL num_multidim_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->str_multidim_ref, "HLL str_multidim_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name, "HLL name");
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key, "HLL hash key");
     }
 
     uv_mutex_unlock(&tc->instance->mutex_hllconfigs);
