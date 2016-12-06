@@ -6,6 +6,9 @@ typedef struct {
     MVMint32 live_range_idx;
 } UnionFind;
 
+
+/* In an interesting way, this is equivalent to a pointer to the 'values' memory
+ * area, and it is just as large anyway! */
 typedef struct {
     MVMint32 tile_idx;
     MVMint32 value_idx;
@@ -17,6 +20,11 @@ typedef struct {
     ValueRef *defs;
     MVMint32 num_uses;
     ValueRef *uses;
+
+    /* We can have at most two synthetic tiles, one attached to the first
+     * definition and one to the last use... we could also point directly into
+     * the values array of the tile, but it is not directly necessary */
+    MVMJitTile *synthetic[2];
 
     MVMJitStorageClass reg_cls;
     MVMint32 reg_num;
@@ -372,6 +380,15 @@ void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileLis
         MVMJitTile *tile = list->istems[ref->tile_idx];
         tile->values[ref->value_idx] = reg_num;
     }
+
+    /* Not sure if we need to store the position of synthetic tiles for the
+     * purposes of first_def/last_use */
+    for (i = 0; i < 2; i++) {
+        MVMJitTile *tile = range->synthetic[i];
+        if (tile != NULL) {
+            tile->values[i] = reg_num;
+        }
+    }
 }
 
 /* not sure if this is sufficiently general-purpose and unconfusing */
@@ -388,7 +405,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
         MVMint32 v = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_top);
         MVMint32 pos = first_def(&alc->values[v]);
         MVMint8 reg;
-        /* asign registers in first loop */
+        /* assign registers in loop */
         active_set_expire(tc, alc, pos);
         while ((reg = get_register(tc, alc, MVM_JIT_STORAGE_CLASS_GPR)) < 0) {
             spill_register(tc, alc, list, pos);
@@ -397,6 +414,5 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
         active_set_add(tc, alc, v);
     }
     /* flush active live ranges */
-    MVM_VECTOR_APPEND(live_range->retired, alc->active, alc->active_top);
-    alc->active_top = 0;
+    active_set_expire(tc, alc, list->items_num + 1);
 }
