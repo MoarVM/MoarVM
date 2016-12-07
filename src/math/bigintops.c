@@ -623,35 +623,37 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
     mp_int *base        = force_bigint(ba, tmp);
     mp_int *exponent    = force_bigint(bb, tmp);
     mp_digit exponent_d = 0;
-    int cmp             = SIGN(exponent) == MP_NEG ? MP_LT : MP_GT;
 
     if (mp_iszero(exponent) || (MP_EQ == mp_cmp_d(base, 1))) {
         r = MVM_repr_box_int(tc, int_type, 1);
     }
-    else if (cmp == MP_GT) {
-        mp_int *ic = MVM_malloc(sizeof(mp_int));
-        mp_init(ic);
+    else if (SIGN(exponent) == MP_ZPOS) {
         exponent_d = mp_get_int(exponent);
         if ((MP_GT == mp_cmp_d(exponent, exponent_d))) {
-            cmp = SIGN(base) == MP_NEG ? MP_LT : MP_GT;
-            if (mp_iszero(base) || (MP_EQ == mp_cmp_d(base, 1))) {
-                mp_copy(base, ic);
+            if (mp_iszero(base)) {
+                r = MVM_repr_box_int(tc, int_type, 0);
+            }
+            else if (mp_get_int(base) == 1) {
+                r = MVM_repr_box_int(tc, int_type, MP_ZPOS == SIGN(base) || mp_iseven(exponent) ? 1 : -1);
             }
             else {
-                MVMnum64 ZERO = 0.0;
-                if (MP_GT == cmp) {
-                    mp_set_int(ic, (MVMnum64)1.0 / ZERO);
+                MVMnum64 inf;
+                if (MP_ZPOS == SIGN(base) || mp_iseven(exponent)) {
+                    inf = MVM_num_posinf(tc);
                 }
                 else {
-                    mp_set_int(ic, (MVMnum64)(-1.0) / ZERO);
+                    inf = MVM_num_neginf(tc);
                 }
+                r = MVM_repr_box_num(tc, num_type, inf);
             }
         }
         else {
+            mp_int *ic = MVM_malloc(sizeof(mp_int));
+            mp_init(ic);
             mp_expt_d(base, exponent_d, ic);
+            r = MVM_repr_alloc_init(tc, int_type);
+            store_bigint_result(get_bigint_body(tc, r), ic);
         }
-        r = MVM_repr_alloc_init(tc, int_type);
-        store_bigint_result(get_bigint_body(tc, r), ic);
     }
     else {
         MVMnum64 f_base = mp_get_double(base);
