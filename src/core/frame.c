@@ -1,5 +1,8 @@
 #include "moar.h"
 
+/* This allows the dynlex cache to be disabled when bug hunting, if needed. */
+#define MVM_DYNLEX_CACHE_ENABLED 1
+
 /* Computes the initial work area for a frame or a specialization of a frame. */
 MVMRegister * MVM_frame_initial_work(MVMThreadContext *tc, MVMuint16 *local_types,
                                      MVMuint16 num_locals) {
@@ -1308,6 +1311,7 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MV
 /* Looks up the address of the lexical with the specified name and the
  * specified type. Returns null if it does not exist. */
 static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to, MVMString *name, MVMRegister *reg, MVMuint16 type, MVMuint32 fcost, MVMuint32 icost) {
+#if MVM_DYNLEX_CACHE_ENABLED
     MVMint32 next = 0;
     MVMint32 frames = 0;
     MVMuint32 desperation = 0;
@@ -1334,6 +1338,7 @@ static void try_cache_dynlex(MVMThreadContext *tc, MVMFrame *from, MVMFrame *to,
         }
         from = from->caller;
     }
+#endif
 }
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify, MVMFrame **found_frame) {
     FILE *dlog = tc->instance->dynvar_log_fh;
