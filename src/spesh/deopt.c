@@ -6,6 +6,13 @@
 
 #define MVM_LOG_DEOPTS 0
 
+/* Unlinlining can invalidate what the dynlex cache points to, so we'll
+ * clear it in various caches. */
+MVM_STATIC_INLINE void clear_dynlex_cache(MVMThreadContext *tc, MVMFrame *f) {
+    f->dynlex_cache_name = NULL;
+    f->dynlex_cache_reg = NULL;
+}
+
 /* If we have to deopt inside of a frame containing inlines, and we're in
  * an inlined frame at the point we hit deopt, we need to undo the inlining
  * by switching all levels of inlined frame out for a bunch of frames that
@@ -208,6 +215,7 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
 #endif
+    clear_dynlex_cache(tc, f);
     if (f->effective_bytecode != f->static_info->body.bytecode) {
         MVMint32 deopt_offset = *(tc->interp_cur_op) - f->effective_bytecode;
         MVMint32 deopt_target = find_deopt_target(tc, f, deopt_offset);
@@ -226,6 +234,7 @@ void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMint32 deopt_offset,
     MVMFrame *f = tc->cur_frame;
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_one(tc);
+    clear_dynlex_cache(tc, f);
     if (f->effective_bytecode != f->static_info->body.bytecode) {
         deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
     } else {
@@ -246,6 +255,7 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_all(tc);
     while (f) {
+        clear_dynlex_cache(tc, f);
         if (f->effective_bytecode != f->static_info->body.bytecode && f->spesh_log_idx < 0) {
             /* Found one. Is it JITted code? */
             if (f->spesh_cand->jitcode && f->jit_entry_label) {
