@@ -280,6 +280,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     if (lexical_types[idx] == MVM_reg_obj)
                         GET_REG(cur_op, 0).o = MVM_frame_vivify_lexical(tc, f, idx);
                 }
+#ifdef MVM_GC_DEBUG
+                {
+                    MVMuint16 idx = GET_UI16(cur_op, 2);
+                    MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
+                        ? f->spesh_cand->lexical_types
+                        : f->static_info->body.lexical_types;
+                    if (lexical_types[idx] == MVM_reg_obj)
+                        MVM_ASSERT_NOT_FROMSPACE(tc, GET_REG(cur_op, 0).o);
+                }
+#endif
                 cur_op += 6;
                 goto NEXT;
             }
@@ -296,6 +306,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     outers--;
                 }
                 if (kind == MVM_reg_obj || kind == MVM_reg_str) {
+#if MVM_GC_DEGUG
+                    MVM_ASSERT_NOT_FROMSPACE(tc, GET_REG(cur_op, 4).o);
+#endif
                     MVM_ASSIGN_REF(tc, &(f->header), GET_LEX(cur_op, 0, f).o,
                         GET_REG(cur_op, 4).o);
                 }
@@ -357,10 +370,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getdynlex): {
                 GET_REG(cur_op, 0).o = MVM_frame_getdynlex(tc, GET_REG(cur_op, 2).s,
                         tc->cur_frame->caller);
+#ifdef MVM_GC_DEBUG
+                MVM_ASSERT_NOT_FROMSPACE(tc, GET_REG(cur_op, 0).o);
+#endif
                 cur_op += 4;
                 goto NEXT;
             }
             OP(binddynlex): {
+#ifdef MVM_GC_DEBUG
+                MVM_ASSERT_NOT_FROMSPACE(tc, GET_REG(cur_op, 2).o);
+#endif
                 MVM_frame_binddynlex(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).o,
                         tc->cur_frame->caller);
                 cur_op += 4;
