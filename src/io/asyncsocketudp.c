@@ -29,6 +29,11 @@ static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) 
     buf->len    = size;
 }
 
+/* Callback used to simply free memory on close. */
+static void free_on_close_cb(uv_handle_t *handle) {
+    MVM_free(handle);
+}
+
 /* Read handler. */
 static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const struct sockaddr *addr, unsigned flags) {
     ReadInfo         *ri  = (ReadInfo *)handle->data;
@@ -463,16 +468,13 @@ static MVMAsyncTask * write_bytes_to(MVMThreadContext *tc, MVMOSHandle *h, MVMOb
 }
 
 /* Does an asynchronous close (since it must run on the event loop). */
-static void close_cb(uv_handle_t *handle) {
-    MVM_free(handle);
-}
 static void close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     uv_handle_t *handle = (uv_handle_t *)data;
 
     if (uv_is_closing(handle))
         MVM_exception_throw_adhoc(tc, "cannot close a closed socket");
 
-    uv_close(handle, close_cb);
+    uv_close(handle, free_on_close_cb);
 }
 
 /* Operations table for async close task. */
@@ -581,7 +583,7 @@ static void setup_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
             });
             });
             MVM_repr_push_o(tc, t->body.queue, arr);
-            MVM_free(udp_handle);
+            uv_close((uv_handle_t *)udp_handle, free_on_close_cb);
         });
     }
 }
