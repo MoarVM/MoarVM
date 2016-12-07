@@ -6,7 +6,7 @@
 
 #define MVM_LOG_DEOPTS 0
 
-/* Unlinlining can invalidate what the dynlex cache points to, so we'll
+/* Uninlining can invalidate what the dynlex cache points to, so we'll
  * clear it in various caches. */
 MVM_STATIC_INLINE void clear_dynlex_cache(MVMThreadContext *tc, MVMFrame *f) {
     f->dynlex_cache_name = NULL;
