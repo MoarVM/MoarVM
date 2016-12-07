@@ -1,8 +1,5 @@
 #include "moar.h"
 
-/* Number of bytes we accept per read. */
-#define CHUNK_SIZE 65536
-
 /* Data that we keep for an asynchronous socket handle. */
 typedef struct {
     /* The libuv handle to the socket. */
