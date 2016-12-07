@@ -1,4 +1,8 @@
-/* Turn this flag on to enable various bits of GC debugging sanity checks. */
+/* This flag enables/disables various bits of GC debugging sanity checks:
+ * 0 = No checking
+ * 1 = Checks on reference assignments and other relatively cheap cases
+ * 2 = Checks on every object register access (slow)
+ */
 #define MVM_GC_DEBUG 0
 
 #define MVM_ASSERT_NOT_FROMSPACE(tc, c) do { \

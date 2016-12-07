@@ -3,7 +3,20 @@
 #include "platform/time.h"
 
 /* Macros for getting things from the bytecode stream. */
+#if MVM_GC_DEBUG == 2
+MVM_STATIC_INLINE MVMuint16 check_reg(MVMThreadContext *tc, MVMRegister *reg_base, MVMuint16 idx) {
+    MVMFrame *f = tc->cur_frame;
+    MVMuint16 kind = f->spesh_cand && f->spesh_cand->local_types
+        ? f->spesh_cand->local_types[idx]
+        : f->static_info->body.local_types[idx];
+    if (kind == MVM_reg_obj || kind == MVM_reg_str)
+        MVM_ASSERT_NOT_FROMSPACE(tc, reg_base[idx].o);
+    return idx;
+}
+#define GET_REG(pc, idx)    reg_base[check_reg(tc, reg_base, *((MVMuint16 *)(pc + idx)))]
+#else
 #define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
+#endif
 #define GET_LEX(pc, idx, f) f->env[*((MVMuint16 *)(pc + idx))]
 #define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
 #define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
