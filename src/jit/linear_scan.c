@@ -24,6 +24,7 @@ typedef struct {
     /* We can have at most two synthetic tiles, one attached to the first
      * definition and one to the last use... we could also point directly into
      * the values array of the tile, but it is not directly necessary */
+    MVMint32    synth_pos[2];
     MVMJitTile *synthetic[2];
 
     MVMJitStorageClass reg_cls;
@@ -82,11 +83,15 @@ MVMint32 value_set_union(UnionFind *sets, MVMint32 a, MVMint32 b) {
 
 /* quick accessors for common checks */
 static inline MVMint32 first_def(LiveRange *range) {
-    return range->defs[0];
+    MVMint32 a = range->defs == NULL         ? INT32_MAX : range->defs[0];
+    MVMint32 b = range->synthetic[0] == NULL ? INT32_MAX : range->synth_pos[0];
+    return MIN(a,b);
 }
 
 static inline MVMint32 last_use(LiveRange *v) {
-    return (v->uses[v->num_uses-1]);
+    MVMint32 a = range->uses == NULL         ? -1 : range->uses[range->num_use-1];
+    MVMint32 b = range->synthetic[1] == NULL ? -1 : range->synth_pos[1];
+    return MAX(a,b);
 }
 
 /* create a new live range object and return a reference */
@@ -99,6 +104,8 @@ MVMint32 live_range_init(RegisterAllocator *alc, ValueRef *defs, ValueRef *uses)
     range->uses = uses;
     range->num_defs = 0;
     range->num_uses = 0;
+    range->synthetic[0] = NULL;
+    range->synthetic[1] = NULL:
     return idx;
 }
 
