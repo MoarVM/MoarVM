@@ -566,6 +566,17 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         /* Check annotations that require handling before the expression  */
         for (ann = ins->annotations; ann != NULL; ann = ann->next) {
             switch (ann->type) {
+            case MVM_SPESH_ANN_FH_START:
+            case MVM_SPESH_ANN_FH_END:
+            case MVM_SPESH_ANN_FH_GOTO:
+                /* start or end of a frame handler, means that we have to insert
+                 * a label here and a label-setter */
+                if (tree->nodes_num > 0) {
+                    /* with the exception of GOTO, we can probably do this more
+                     * cleverly, but for now it is simpler not to */
+                    goto done;
+                }
+                break;
             case MVM_SPESH_ANN_DEOPT_OSR:
                 /* If we have a deopt annotation in the middle of the tree, it
                  * breaks the expression because the interpreter is allowed to
@@ -576,6 +587,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
                 if (tree->nodes_num > 0) {
                     goto done;
                 }
+                break;
             default:
                 break;
             }
