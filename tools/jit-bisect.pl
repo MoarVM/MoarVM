@@ -12,6 +12,7 @@ my $interpreter = 'perl6';
 my $test;
 my $command;
 my $verbose;
+my $objdump;
 my @libs;
 
 
@@ -21,6 +22,7 @@ GetOptions(
     'lib=s' => \@libs,
     'command=s' => \$command,
     'verbose' => \$verbose,
+    'objdump=s' => \$objdump,
 );
 
 my @command;
@@ -51,6 +53,9 @@ if (defined $command) {
 
     @command = ('prove', '-e', $interpreter, (@libs ? '-I' : ''), @libs, $test);
 }
+
+
+$objdump = ($^O =~ m/darwin/ ? 'gobjdump' : 'objdump') unless defined $objdump;
 
 my $bytecode_dir = tempdir();
 $ENV{'MVM_JIT_BYTECODE_DIR'} = $bytecode_dir;
@@ -153,13 +158,16 @@ copy($frame_file, 'working-frame.bin');
 # disassemble and make comparable
 {
     no warnings 'qw';
+
     close STDOUT;
     open STDOUT, '>', "broken-frame.asm";
-    system qw(objdump -b binary -D -m i386 -M x86-64,intel broken-frame.bin) or die "Could not run objdump";
+    system($objdump, qw(-b binary -D -m i386 -M x86-64,intel broken-frame.bin)) == 0
+        or die "Error running $objdump";
     close STDOUT;
 
     open STDOUT, '>', "working-frame.asm";
-    system qw(objdump -b binary -D -m i386 -M x86-64,intel working-frame.bin);
+    system($objdump qw(-b binary -D -m i386 -M x86-64,intel working-frame.bin)) == 0
+        or die "Error running $objdump";
     close STDOUT;
 
     my $script = "$FindBin::Bin/jit-comparify-asm.pl";
