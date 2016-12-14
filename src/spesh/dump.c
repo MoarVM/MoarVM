@@ -272,6 +272,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                 MVMint16 dep = cur_ins->operands[1].lit_i16;
                 MVMint64 idx;
                 MVMCollectable *result;
+                MVMSerializationContext *sc;
                 char *debug_name = NULL;
                 const char *repr_name = NULL;
                 if (cur_ins->info->opcode == MVM_OP_wval) {
@@ -279,18 +280,24 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                 } else {
                     idx = cur_ins->operands[2].lit_i64;
                 }
-                result = (MVMCollectable *)MVM_sc_get_sc_object(tc, g->sf->body.cu, dep, idx);
-                if (result->flags & MVM_CF_STABLE) {
-                    debug_name = ((MVMSTable *)result)->debug_name;
-                    repr_name  = ((MVMSTable *)result)->REPR->name;
+                sc = MVM_sc_get_sc(tc, g->sf->body.cu, dep);
+                if (sc)
+                    result = (MVMCollectable *)MVM_sc_try_get_object(tc, sc, idx);
+                if (result) {
+                    if (result->flags & MVM_CF_STABLE) {
+                        debug_name = ((MVMSTable *)result)->debug_name;
+                        repr_name  = ((MVMSTable *)result)->REPR->name;
+                    } else {
+                        debug_name = STABLE(result)->debug_name;
+                        repr_name  = REPR(result)->name;
+                    }
+                    if (debug_name) {
+                        appendf(ds, " (%s: %s)", repr_name, debug_name);
+                    } else {
+                        appendf(ds, " (%s: ?)", repr_name);
+                    }
                 } else {
-                    debug_name = STABLE(result)->debug_name;
-                    repr_name  = REPR(result)->name;
-                }
-                if (debug_name) {
-                    appendf(ds, " (%s: %s)", repr_name, debug_name);
-                } else {
-                    appendf(ds, " (%s: ?)", repr_name);
+                    appendf(ds, " (not deserialized)");
                 }
             }
         }

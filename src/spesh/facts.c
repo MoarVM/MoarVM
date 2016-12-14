@@ -174,7 +174,7 @@ static void wval_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt_ori
     if (dep < cu->body.num_scs) {
         MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
         if (sc)
-            object_facts(tc, g, tgt_orig, tgt_i, MVM_sc_get_object(tc, sc, idx));
+            object_facts(tc, g, tgt_orig, tgt_i, MVM_sc_try_get_object(tc, sc, idx));
     }
 }
 
