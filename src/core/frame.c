@@ -1120,17 +1120,20 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
     }
     flag  = flags ? flags[effective_idx] : -1;
     if (flag != -1 && static_env[effective_idx].o == NULL) {
-        MVMStaticFrameBody *static_frame_body = &(f->static_info->body);
         MVMint32 scid, objid;
         if (MVM_bytecode_find_static_lexical_scref(tc, effective_sf->body.cu,
                 effective_sf, effective_idx, &scid, &objid)) {
             MVMSerializationContext *sc = MVM_sc_get_sc(tc, effective_sf->body.cu, scid);
+            MVMObject *resolved;
             if (sc == NULL)
                 MVM_exception_throw_adhoc(tc,
                     "SC not yet resolved; lookup failed");
+            MVMROOT(tc, f, {
+                resolved = MVM_sc_get_object(tc, sc, objid);
+            });
             MVM_ASSIGN_REF(tc, &(f->static_info->common.header),
-                static_frame_body->static_env[effective_idx].o,
-                MVM_sc_get_object(tc, sc, objid));
+                f->static_info->body.static_env[effective_idx].o,
+                resolved);
         }
     }
     if (flag == 0) {
