@@ -41,7 +41,8 @@ static void add_guards_and_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint3
 
     /* If we know it's a container, might be able to look inside it to
      * further optimize. */
-    if (is_cont && STABLE(type)->container_spec->fetch_never_invokes) {
+    if (is_cont && STABLE(type)->container_spec->fetch_never_invokes &&
+            REPR(type)->ID != MVM_REPR_ID_NativeRef) {
         /* See if it's an rw container. */
         MVMint32 is_rw = STABLE(type)->container_spec->can_store(tc, arg);
 
