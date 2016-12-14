@@ -5,6 +5,7 @@
  */
 #define MVM_GC_DEBUG 0
 
+#if MVM_GC_DEBUG
 #define MVM_ASSERT_NOT_FROMSPACE(tc, c) do { \
     MVMThread *cur_thread = tc->instance->threads; \
     while (cur_thread) { \
@@ -16,3 +17,6 @@
         cur_thread = cur_thread->body.next; \
     } \
 } while (0)
+#else
+#define MVM_ASSERT_NOT_FROMSPACE
+#endif
