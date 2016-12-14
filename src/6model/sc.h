@@ -64,7 +64,6 @@ MVM_STATIC_INLINE void MVM_sc_set_idx_in_sc(MVMCollectable *col, MVMuint32 i) {
 /* Gets a collectable's SC. */
 MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_collectable_sc(MVMThreadContext *tc, MVMCollectable *col) {
     MVMuint32 sc_idx;
-    assert(!(col->flags & MVM_CF_GEN2_LIVE));
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
     sc_idx = MVM_sc_get_idx_of_sc(col);
     assert(sc_idx != ~0);
@@ -88,7 +87,6 @@ MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_stable_sc(MVMThreadContex
 
 /* Sets a collectable's SC. */
 MVM_STATIC_INLINE void MVM_sc_set_collectable_sc(MVMThreadContext *tc, MVMCollectable *col, MVMSerializationContext *sc) {
-    assert(!(col->flags & MVM_CF_GEN2_LIVE));
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
     if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
@@ -160,7 +158,6 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj);
 void MVM_sc_wb_hit_st(MVMThreadContext *tc, MVMSTable *st);
 
 MVM_STATIC_INLINE void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj) {
-    assert(!(obj->header.flags & MVM_CF_GEN2_LIVE));
     assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
     assert(MVM_sc_get_idx_of_sc(&obj->header) != ~0);
     if (MVM_sc_get_idx_of_sc(&obj->header) > 0)
@@ -168,7 +165,6 @@ MVM_STATIC_INLINE void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj) {
 }
 
 MVM_STATIC_INLINE void MVM_SC_WB_ST(MVMThreadContext *tc, MVMSTable *st) {
-    assert(!(st->header.flags & MVM_CF_GEN2_LIVE));
     assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));
     assert(MVM_sc_get_idx_of_sc(&st->header) != ~0);
     if (MVM_sc_get_idx_of_sc(&st->header) > 0)
