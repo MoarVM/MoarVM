@@ -15,10 +15,12 @@ static void setup_work(MVMThreadContext *tc) {
     MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_todo_queue;
     MVMObject *task_obj;
 
-    while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
-        MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
-        task->body.ops->setup(tc, tc->loop, task_obj, task->body.data);
-    }
+    MVMROOT(tc, queue, {
+        while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
+            MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
+            task->body.ops->setup(tc, tc->loop, task_obj, task->body.data);
+        }
+    });
 }
 
 /* Performs an async cancellation on the loop. */
@@ -26,11 +28,13 @@ static void cancel_work(MVMThreadContext *tc) {
     MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_cancel_queue;
     MVMObject *task_obj;
 
-    while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
-        MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
-        if (task->body.ops->cancel)
-            task->body.ops->cancel(tc, tc->loop, task_obj, task->body.data);
-    }
+    MVMROOT(tc, queue, {
+        while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
+            MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
+            if (task->body.ops->cancel)
+                task->body.ops->cancel(tc, tc->loop, task_obj, task->body.data);
+        }
+    });
 }
 
 /* Fired whenever we were signalled that there is a new task or a new
