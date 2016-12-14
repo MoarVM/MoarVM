@@ -207,7 +207,7 @@ MVMObject * MVM_sc_get_sc_object(MVMThreadContext *tc, MVMCompUnit *cu,
 MVMObject * MVM_sc_try_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     MVMObject **roots = sc->body->root_objects;
     MVMint64    count = sc->body->num_objects;
-    if (idx > 0 && idx < count)
+    if (idx > 0 && idx < count && !sc_working(sc))
         return roots[idx];
     else
         return NULL;
