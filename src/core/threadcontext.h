@@ -215,6 +215,12 @@ struct MVMThreadContext {
      * in the call stack */
     MVMint32 current_frame_nr;
     MVMint32 next_frame_nr;
+
+#if MVM_GC_DEBUG
+    /* Whether we are currently in the specializer. Used to catch GC runs that
+     * take place at times they never should. */
+    MVMint32 in_spesh;
+#endif
 };
 
 MVMThreadContext * MVM_tc_create(MVMInstance *instance);
