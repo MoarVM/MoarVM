@@ -2151,7 +2151,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 REPR(obj)->pos_funcs.push(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_int64);
-                MVM_SC_WB_OBJ(tc, obj);
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2159,7 +2159,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 REPR(obj)->pos_funcs.push(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_num64);
-                MVM_SC_WB_OBJ(tc, obj);
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2167,7 +2167,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 REPR(obj)->pos_funcs.push(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_str);
-                MVM_SC_WB_OBJ(tc, obj);
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2175,7 +2175,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 REPR(obj)->pos_funcs.push(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_obj);
-                MVM_SC_WB_OBJ(tc, obj);
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
                 cur_op += 4;
                 goto NEXT;
             }
