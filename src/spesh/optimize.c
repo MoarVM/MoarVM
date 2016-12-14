@@ -103,7 +103,7 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
     if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
         /* Try to resolve. */
         MVMString *name = MVM_spesh_get_string(tc, g, ins->operands[2]);
-        MVMObject *meth = MVM_6model_find_method_cache_only(tc, obj_facts->type, name);
+        MVMObject *meth = MVM_spesh_try_find_method(tc, obj_facts->type, name);
         if (!MVM_is_null(tc, meth)) {
             /* Could compile-time resolve the method. Add it in a spesh slot. */
             MVMint16 ss = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)meth);
@@ -197,9 +197,8 @@ static void optimize_is_reprid(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshI
 static void optimize_gethow(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     MVMObject       *how_obj = NULL;
-    if (obj_facts->flags & (MVM_SPESH_FACT_KNOWN_TYPE)) {
-        how_obj = MVM_6model_get_how(tc, STABLE(obj_facts->type));
-    }
+    if (obj_facts->flags & (MVM_SPESH_FACT_KNOWN_TYPE))
+        how_obj = MVM_spesh_try_get_how(tc, obj_facts->type);
     /* There may be other valid ways to get the facts (known value?) */
     if (how_obj) {
         MVMSpeshFacts *how_facts;
@@ -687,7 +686,7 @@ static void optimize_can_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     if (MVM_is_null(tc, obj_facts->type))
         can_result = 0; /* VMNull can't have any methods. */
     else
-        can_result = MVM_6model_can_method_cache_only(tc, obj_facts->type, method_name);
+        can_result = MVM_spesh_try_can_method(tc, obj_facts->type, method_name);
 
     if (can_result == -1) {
         return;
@@ -767,7 +766,7 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 
             return;
         }
-        can_result = MVM_6model_can_method_cache_only(tc, facts->type,
+        can_result = MVM_spesh_try_can_method(tc, facts->type,
                 is_strify ? tc->instance->str_consts.Str : tc->instance->str_consts.Num);
 
         if (can_result == -1) {
