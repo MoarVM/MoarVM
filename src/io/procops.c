@@ -529,7 +529,9 @@ static MVMAsyncTask * write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMObject 
     task->body.data = wi;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return task;
 }
@@ -571,7 +573,9 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
     task->body.data = wi;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return task;
 }
@@ -1108,7 +1112,9 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
     });
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, handle, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return (MVMObject *)handle;
 }

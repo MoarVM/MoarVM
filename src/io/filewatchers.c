@@ -118,7 +118,9 @@ MVMObject * MVM_io_file_watch(MVMThreadContext *tc, MVMObject *queue,
     task->body.data  = watch_info;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return (MVMObject *)task;
 }

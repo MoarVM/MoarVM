@@ -195,7 +195,9 @@ static MVMAsyncTask * read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
     task->body.data = ri;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return task;
 }
@@ -240,7 +242,9 @@ static MVMAsyncTask * read_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
     task->body.data = ri;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return task;
 }
@@ -414,7 +418,9 @@ static MVMAsyncTask * write_str_to(MVMThreadContext *tc, MVMOSHandle *h, MVMObje
     task->body.data = wi;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return task;
 }
@@ -462,7 +468,9 @@ static MVMAsyncTask * write_bytes_to(MVMThreadContext *tc, MVMOSHandle *h, MVMOb
     task->body.data = wi;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return task;
 }
@@ -642,7 +650,9 @@ MVMObject * MVM_io_socket_udp_async(MVMThreadContext *tc, MVMObject *queue,
     task->body.data = ssi;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return (MVMObject *)task;
 }

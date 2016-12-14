@@ -192,7 +192,9 @@ static MVMAsyncTask * read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
     task->body.data = ri;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return task;
 }
@@ -237,7 +239,9 @@ static MVMAsyncTask * read_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
     task->body.data = ri;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return task;
 }
@@ -400,7 +404,9 @@ static MVMAsyncTask * write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMObject 
     task->body.data = wi;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return task;
 }
@@ -442,7 +448,9 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
     task->body.data = wi;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return task;
 }
@@ -646,7 +654,9 @@ MVMObject * MVM_io_socket_connect_async(MVMThreadContext *tc, MVMObject *queue,
     task->body.data = ci;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return (MVMObject *)task;
 }
@@ -805,7 +815,9 @@ MVMObject * MVM_io_socket_listen_async(MVMThreadContext *tc, MVMObject *queue,
     task->body.data = li;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return (MVMObject *)task;
 }
