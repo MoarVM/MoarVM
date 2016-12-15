@@ -1070,7 +1070,9 @@ void MVM_frame_capture_inner(MVMThreadContext *tc, MVMObject *code) {
         MVMStaticFrame *sf_outer = code_obj->body.sf->body.outer;
         outer = create_context_only(tc, sf_outer, (MVMObject *)sf_outer->body.static_code, 1);
         MVMROOT(tc, outer, {
-            MVMFrame *outer_outer = autoclose(tc, sf_outer->body.outer);
+            MVMFrame *outer_outer;
+            sf_outer = code_obj->body.sf->body.outer; /* get the new sf_outer again since it misses MVMROOT */
+            outer_outer = autoclose(tc, sf_outer->body.outer);
             MVM_ASSIGN_REF(tc, &(outer->header), outer->outer, outer_outer);
         });
     });

@@ -146,8 +146,14 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
 
 MVMint32 MVM_6model_find_method_spesh(MVMThreadContext *tc, MVMObject *obj, MVMString *name,
                                       MVMint32 ss_idx, MVMRegister *res) {
+    MVMObject *meth;
+
     /* Missed mono-morph; try cache-only lookup. */
-    MVMObject *meth = MVM_6model_find_method_cache_only(tc, obj, name);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&obj);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&name);
+    meth = MVM_6model_find_method_cache_only(tc, obj, name);
+    MVM_gc_root_temp_pop_n(tc, 2);
+
     if (!MVM_is_null(tc, meth)) {
         /* Got it; cache. Must be careful due to threads
          * reading, races, etc. */
