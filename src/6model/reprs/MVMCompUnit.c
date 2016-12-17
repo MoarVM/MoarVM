@@ -84,30 +84,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVM_callsite_destroy(cs);
     }
 
-    /* We might have some strings in the string heap that have been using
-     * the memory from our mmapped data. When that gets freed, we'll be in
-     * trouble, so we give all strings we've created their own memory buffers
-     * for their data. */
-
-    if (body->deallocate != MVM_DEALLOCATE_NOOP) {
-        for (i = 0; i < body->num_strings; i++) {
-            if (body->strings[i]->body.foreign_memory) {
-                MVMStringBody *sbody = &body->strings[i]->body;
-                void *old_buffer;
-
-                old_buffer = sbody->storage.any;
-
-                if (sbody->storage_type == MVM_STRING_GRAPHEME_32) {
-                    sbody->storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * sbody->num_graphs);
-                    memcpy(sbody->storage.blob_32, old_buffer, sizeof(MVMGrapheme32) * sbody->num_graphs);
-                } else {
-                    sbody->storage.blob_8 = MVM_malloc(sizeof(MVMGrapheme8) * sbody->num_graphs);
-                    memcpy(sbody->storage.blob_8, old_buffer, sizeof(MVMGrapheme8) * sbody->num_graphs);
-                }
-            }
-        }
-    }
-
     MVM_free(body->coderefs);
     MVM_free(body->callsites);
     MVM_free(body->extops);
