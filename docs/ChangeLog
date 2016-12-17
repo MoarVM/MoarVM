@@ -19,10 +19,10 @@ New in 2016.12
 + Fix native callback and GC interaction when embedded
 + Add GC block management functions to the public API
 + Mark throwpayload* as :throwish in oplist
-+ Optimize the check for negative bignums.
-+ Remove useless mp_neg calls.
++ Optimize the check for negative bignums
++ Remove useless mp_neg calls
 + Fix premature free of UV socket handles
-+ Fix premature handle free in async UDP sockets.
++ Fix premature handle free in async UDP sockets
 + Add a "check every register access" GC debug mode
 + Provide a #define to disable dynlex caching
 + Provide a #define for deopt logging
