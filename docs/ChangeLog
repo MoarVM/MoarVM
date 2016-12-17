@@ -1,3 +1,47 @@
+New in 2016.12
+
++ Decode Latin-1 and UTF-8 strings to 8-bit width when possible
++ Teach a few string functions to compress results into 8-bit storage
++ Fix for AIX's INFINITY not being a constant
++ Unlink libmoar before (re)installing it
++ Add configuration for AIX
++ Support Perl older than 5.10 for Configure.pl
++ Use "pkgconfig --libs libffi" additionally to --cflags
++ Fix powerpc detection on AIX (gcc)
++ Make multidim error messages say they are multidim
++ Add comment about where to find UNIDATA
++ Implement captureinnerlex op, for fixing QUIT/LAST phaser scoping in Perl 6
++ Fix mis-sized free in the NFG trie that only showed up in 32-bit
++ Add GC debug helper to "find" a pointer in nurseries/gen2 bins
++ Make ASSERT_NOT_FROMSPACE check fromspaces of all threads
++ Fix missing MVMROOT around an allocation
++ Fix typo in nfg.h comment
++ Fix native callback and GC interaction when embedded
++ Add GC block management functions to the public API
++ Mark throwpayload* as :throwish in oplist
++ Optimize the check for negative bignums.
++ Remove useless mp_neg calls.
++ Fix premature free of UV socket handles
++ Fix premature handle free in async UDP sockets.
++ Add a "check every register access" GC debug mode
++ Provide a #define to disable dynlex caching
++ Provide a #define for deopt logging
++ Invalidate dynlex caches during deopt
++ Fix pow_I when it takes an exponent larger than 2**32
++ Only do MVM_ASSERT_NOT_FROMSPACE in GC debug mode
++ Add a fromspace assertion in finalize
++ Avoid a number of spesh GC invariant violations
++ Panic if we try to GC when speshing/JITing
++ Ensure we don't leak partially deserialized objects
++ Fix unrooted frame around SC object lookup
++ Remove some GC debug code
++ Avoid reading nativerefs in spesh, since it can cause boxing and thus GC
++ Cope with push being used on concurrent queues
++ MVMROOT around putting work on concurrent queue
++ MVMROOT eventloop queue when polling it
++ Do MVM_ASSIGN_REF after block/unblock in concurrent queue
++ Fix more unrooted frame around SC object lookup
+
 New in 2016.11
 
 + Workaround tommath issue #56 which affects random bigint numbers > 32 bits
