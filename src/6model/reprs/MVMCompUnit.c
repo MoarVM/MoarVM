@@ -97,13 +97,21 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 
                 old_buffer = sbody->storage.any;
 
+                /* We don't have to handle other types of storage here, because
+                 * we're in kahoots with the code that creates these strings. */
                 if (sbody->storage_type == MVM_STRING_GRAPHEME_32) {
                     sbody->storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * sbody->num_graphs);
                     memcpy(sbody->storage.blob_32, old_buffer, sizeof(MVMGrapheme32) * sbody->num_graphs);
-                } else {
+                } else if (sbody->storage_type == MVM_STRING_GRAPHEME_8) {
                     sbody->storage.blob_8 = MVM_malloc(sizeof(MVMGrapheme8) * sbody->num_graphs);
                     memcpy(sbody->storage.blob_8, old_buffer, sizeof(MVMGrapheme8) * sbody->num_graphs);
+                } else {
+                    MVM_panic(1, "Unexpected storage type in a compunit's string: index %d, type %d\n", i, sbody->storage_type);
                 }
+
+                /* Don't forget to flip the "foreign memory" bit, since our
+                 * memory is now owned by the string. */
+                sbody->foreign_memory = 0;
             }
         }
     }
