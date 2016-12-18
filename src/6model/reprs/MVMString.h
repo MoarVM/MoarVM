@@ -44,7 +44,9 @@ struct MVMStringBody {
         MVMStringStrand  *strands;
         void             *any;
     } storage;
-    MVMuint16 storage_type;
+    MVMuint16 storage_type : 15;
+    /* Are we forbidden from freeing the storage pointer? */
+    MVMint8   foreign_memory : 1;
     MVMuint16 num_strands;
     MVMuint32 num_graphs;
     MVMint32  cached_hash_code;
