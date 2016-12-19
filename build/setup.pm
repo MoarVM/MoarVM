@@ -125,7 +125,7 @@ our %TC_POSIX = (
     ccshared   => '-fPIC',
     ldshared   => '-shared @ccshared@',
     moarshared => '',
-    ldrpath    => '-Wl,-rpath,"/@libdir@" -Wl,-rpath,"@prefix@/share/perl6/site/lib"',
+    ldrpath    => '-Wl,-rpath,"/@libdir@"',
 
     arflags => 'rcs',
     arout   => '',
@@ -415,7 +415,7 @@ our %OS_AIX = (
     defs        => [ qw( _ALL_SOURCE _XOPEN_SOURCE=500 _LINUX_SOURCE_COMPAT ) ],
     syslibs     => [ @{$OS_POSIX{syslibs}}, qw( rt dl perfstat ) ],
     ldmiscflags => '-Wl,-brtl',
-    ldrpath     => '-L"/@libdir@" -L"@prefix@/share/perl6/site/lib"',
+    ldrpath     => '-L"/@libdir@"',
 
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_AIX)' },
