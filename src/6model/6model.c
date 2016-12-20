@@ -279,10 +279,10 @@ static void do_accepts_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObjec
 
     MVMROOT(tc, obj, {
         MVMROOT(tc, type, {
+            HOW = MVM_6model_get_how(tc, STABLE(type));
             MVMROOT(tc, HOW, {
-                HOW = MVM_6model_get_how(tc, STABLE(type));
-                    meth = MVM_6model_find_method_cache_only(tc, HOW,
-                        tc->instance->str_consts.accepts_type);
+                meth = MVM_6model_find_method_cache_only(tc, HOW,
+                    tc->instance->str_consts.accepts_type);
             });
         });
     });
