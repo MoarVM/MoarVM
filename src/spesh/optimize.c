@@ -3,6 +3,9 @@
 /* This is where the main optimization work on a spesh graph takes place,
  * using facts discovered during analysis. */
 
+/* Writes to stderr about each inline that we perform. */
+#define MVM_LOG_INLINES 0
+
 /* Obtains facts for an operand, just directly accessing them without
  * inferring any kind of usage. */
 static MVMSpeshFacts * get_facts_direct(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand o) {
@@ -1170,7 +1173,8 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                     target_code, &target_code->body.sf->body.spesh_candidates[spesh_cand]);
                 if (inline_graph) {
                     /* Yes, have inline graph, so go ahead and do it. */
-                    /*char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.name);
+#if MVM_LOG_INLINES
+                    char *c_name_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.name);
                     char *c_cuid_i = MVM_string_utf8_encode_C_string(tc, target_code->body.sf->body.cuuid);
                     char *c_name_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.name);
                     char *c_cuid_t = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
@@ -1179,7 +1183,8 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                     MVM_free(c_name_i);
                     MVM_free(c_cuid_i);
                     MVM_free(c_name_t);
-                    MVM_free(c_cuid_t);*/
+                    MVM_free(c_cuid_t);
+#endif
                     MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_code);
                 }
                 else {
