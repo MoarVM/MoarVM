@@ -17,7 +17,19 @@ MVM_STATIC_INLINE MVMuint16 check_reg(MVMThreadContext *tc, MVMRegister *reg_bas
 #else
 #define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
 #endif
+#if MVM_GC_DEBUG == 2
+MVM_STATIC_INLINE MVMuint16 check_lex(MVMThreadContext *tc, MVMFrame *f, MVMuint16 idx) {
+    MVMuint16 kind = f->spesh_cand && f->spesh_cand->lexical_types
+        ? f->spesh_cand->lexical_types[idx]
+        : f->static_info->body.lexical_types[idx];
+    if (kind == MVM_reg_obj || kind == MVM_reg_str)
+        MVM_ASSERT_NOT_FROMSPACE(tc, f->env[idx].o);
+    return idx;
+}
+#define GET_LEX(pc, idx, f) f->env[check_lex(tc, f, *((MVMuint16 *)(pc + idx)))]
+#else
 #define GET_LEX(pc, idx, f) f->env[*((MVMuint16 *)(pc + idx))]
+#endif
 #define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
 #define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
 #define GET_I32(pc, idx)    *((MVMint32 *)(pc + idx))
