@@ -91,19 +91,19 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
 
     /* First try to find it in the cache. If we find it, we have a result.
      * If we don't find it, but the cache is authoritative, then error. */
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&obj);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&name);
+    MVMROOT(tc, obj, {
+        MVMROOT(tc, name, {
+            cache = get_method_cache(tc, STABLE(obj));
+        });
+    });
 
-    cache = get_method_cache(tc, STABLE(obj));
     if (cache && IS_CONCRETE(cache)) {
         MVMObject *meth = MVM_repr_at_key_o(tc, cache, name);
         if (!MVM_is_null(tc, meth)) {
-            MVM_gc_root_temp_pop_n(tc, 2);
             res->o = meth;
             return;
         }
         if (STABLE(obj)->mode_flags & MVM_METHOD_CACHE_AUTHORITATIVE) {
-            MVM_gc_root_temp_pop_n(tc, 2);
             die_over_missing_method(tc, obj, name);
             return;
         }
@@ -111,11 +111,15 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
 
     /* Otherwise, need to call the find_method method. We make the assumption
      * that the invocant's meta-object's type is composed. */
-    HOW = MVM_6model_get_how(tc, STABLE(obj));
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&HOW);
-    find_method = MVM_6model_find_method_cache_only(tc, HOW,
-        tc->instance->str_consts.find_method);
-    MVM_gc_root_temp_pop_n(tc, 3);
+    MVMROOT(tc, obj, {
+        MVMROOT(tc, name, {
+            HOW = MVM_6model_get_how(tc, STABLE(obj));
+            MVMROOT(tc, HOW, {
+                 find_method = MVM_6model_find_method_cache_only(tc, HOW,
+                      tc->instance->str_consts.find_method);
+            });
+        });
+    });
 
     if (MVM_is_null(tc, find_method)) {
         char *c_name  = MVM_string_utf8_encode_C_string(tc, name);
