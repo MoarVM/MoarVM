@@ -414,13 +414,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (spesh_cand >= 0 && spesh_cand < static_frame->body.num_spesh_candidates) {
         MVMSpeshCandidate *chosen_cand = &static_frame->body.spesh_candidates[spesh_cand];
         if (!chosen_cand->sg) {
-            MVMROOT(tc, static_frame, {
-            MVMROOT(tc, code_ref, {
-            MVMROOT(tc, outer, {
-                frame = allocate_frame(tc, static_frame, chosen_cand);
-            });
-            });
-            });
+            frame = allocate_frame(tc, static_frame, chosen_cand);
             frame->effective_bytecode    = chosen_cand->bytecode;
             frame->effective_handlers    = chosen_cand->handlers;
             frame->effective_spesh_slots = chosen_cand->spesh_slots;
@@ -520,13 +514,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                 if (!chosen_cand->osr_logging && cur_idx < MVM_SPESH_LOG_RUNS) {
                     if (MVM_cas(&(chosen_cand->log_enter_idx), cur_idx, cur_idx + 1) == cur_idx) {
                         /* We get to log. */
-                        MVMROOT(tc, static_frame, {
-                        MVMROOT(tc, code_ref, {
-                        MVMROOT(tc, outer, {
-                            frame = allocate_frame(tc, static_frame, chosen_cand);
-                        });
-                        });
-                        });
+                        frame = allocate_frame(tc, static_frame, chosen_cand);
                         frame->effective_bytecode    = chosen_cand->bytecode;
                         frame->effective_handlers    = chosen_cand->handlers;
                         frame->effective_spesh_slots = chosen_cand->spesh_slots;
@@ -539,13 +527,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             }
             else {
                 /* In the post-specialize phase; can safely used the code. */
-                MVMROOT(tc, static_frame, {
-                MVMROOT(tc, code_ref, {
-                MVMROOT(tc, outer, {
-                    frame = allocate_frame(tc, static_frame, chosen_cand);
-                });
-                });
-                });
+                frame = allocate_frame(tc, static_frame, chosen_cand);
                 if (chosen_cand->jitcode) {
                     frame->effective_bytecode = chosen_cand->jitcode->bytecode;
                     frame->jit_entry_label    = chosen_cand->jitcode->labels[0];
@@ -562,13 +544,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         }
     }
     if (!found_spesh) {
-        MVMROOT(tc, static_frame, {
-        MVMROOT(tc, code_ref, {
-        MVMROOT(tc, outer, {
-            frame = allocate_frame(tc, static_frame, NULL);
-        });
-        });
-        });
+        frame = allocate_frame(tc, static_frame, NULL);
         frame->effective_bytecode = static_frame->body.bytecode;
         frame->effective_handlers = static_frame->body.handlers;
     }
