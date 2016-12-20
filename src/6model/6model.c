@@ -153,10 +153,12 @@ MVMint32 MVM_6model_find_method_spesh(MVMThreadContext *tc, MVMObject *obj, MVMS
     MVMObject *meth;
 
     /* Missed mono-morph; try cache-only lookup. */
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&obj);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&name);
-    meth = MVM_6model_find_method_cache_only(tc, obj, name);
-    MVM_gc_root_temp_pop_n(tc, 2);
+
+    MVMROOT(tc, obj, {
+        MVMROOT(tc, name, {
+            meth = MVM_6model_find_method_cache_only(tc, obj, name);
+        });
+    });
 
     if (!MVM_is_null(tc, meth)) {
         /* Got it; cache. Must be careful due to threads
@@ -203,10 +205,12 @@ MVMint64 MVM_6model_can_method_cache_only(MVMThreadContext *tc, MVMObject *obj, 
     }
 
     /* Consider the method cache. */
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&obj);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&name);
-    cache = get_method_cache(tc, STABLE(obj));
-    MVM_gc_root_temp_pop_n(tc, 2);
+
+    MVMROOT(tc, obj, {
+        MVMROOT(tc, name, {
+            cache = get_method_cache(tc, STABLE(obj));
+        });
+    });
 
     if (cache && IS_CONCRETE(cache)) {
         MVMObject *meth = MVM_repr_at_key_o(tc, cache, name);
@@ -226,24 +230,29 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
 
     MVMint64 can_cached;
 
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&obj);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&name);
-
-    can_cached = MVM_6model_can_method_cache_only(tc, obj, name);
+    MVMROOT(tc, obj, {
+        MVMROOT(tc, name, {
+            can_cached = MVM_6model_can_method_cache_only(tc, obj, name);
+        });
+    });
 
     if (can_cached == 0 || can_cached == 1) {
-        MVM_gc_root_temp_pop_n(tc, 2);
         res->i64 = can_cached;
         return;
     }
 
     /* If no method in cache and the cache is not authoritative, need to make
      * a late-bound call to find_method. */
-    HOW = MVM_6model_get_how(tc, STABLE(obj));
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&HOW);
-    find_method = MVM_6model_find_method_cache_only(tc, HOW,
-        tc->instance->str_consts.find_method);
-    MVM_gc_root_temp_pop_n(tc, 3);
+    MVMROOT(tc, obj, {
+        MVMROOT(tc, name, {
+            HOW = MVM_6model_get_how(tc, STABLE(obj));
+            MVMROOT(tc, HOW, {
+                find_method = MVM_6model_find_method_cache_only(tc, HOW,
+                     tc->instance->str_consts.find_method);
+            });
+       });
+    });
+
     if (MVM_is_null(tc, find_method)) {
         /* This'll count as a "no"... */
         res->i64 = 0;
@@ -268,14 +277,15 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
 static void do_accepts_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res) {
     MVMObject *HOW, *meth;
 
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&obj);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&type);
-
-    HOW = MVM_6model_get_how(tc, STABLE(type));
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&HOW);
-    meth = MVM_6model_find_method_cache_only(tc, HOW,
-        tc->instance->str_consts.accepts_type);
-    MVM_gc_root_temp_pop_n(tc, 3);
+    MVMROOT(tc, obj, {
+        MVMROOT(tc, type, {
+            MVMROOT(tc, HOW, {
+                HOW = MVM_6model_get_how(tc, STABLE(type));
+                    meth = MVM_6model_find_method_cache_only(tc, HOW,
+                        tc->instance->str_consts.accepts_type);
+            });
+        });
+    });
 
     if (!MVM_is_null(tc, meth)) {
         /* Set up the call, using the result register as the target. */
