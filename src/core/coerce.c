@@ -218,8 +218,11 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
     }
 
     /* Check if there is a Str method. */
-    strmeth = MVM_6model_find_method_cache_only(tc, obj,
-        tc->instance->str_consts.Str);
+    MVMROOT(tc, obj, {
+        strmeth = MVM_6model_find_method_cache_only(tc, obj,
+            tc->instance->str_consts.Str);
+    });
+
     if (!MVM_is_null(tc, strmeth)) {
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
@@ -281,8 +284,11 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
     }
 
     /* Check if there is a Num method. */
-    nummeth = MVM_6model_find_method_cache_only(tc, obj,
-        tc->instance->str_consts.Num);
+    MVMROOT(tc, obj, {
+        nummeth = MVM_6model_find_method_cache_only(tc, obj,
+            tc->instance->str_consts.Num);
+    });
+
     if (!MVM_is_null(tc, nummeth)) {
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
