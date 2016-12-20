@@ -364,15 +364,16 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
      * checking, unless it's an accepts check. */
     if (!cache || (mode & MVM_TYPE_CHECK_CACHE_THEN_METHOD)) {
         MVMObject *HOW, *meth;
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&obj);
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&type);
 
-
-        HOW = MVM_6model_get_how(tc, st);
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&HOW);
-        meth = MVM_6model_find_method_cache_only(tc, HOW,
-            tc->instance->str_consts.type_check);
-        MVM_gc_root_temp_pop_n(tc, 3);
+        MVMROOT(tc, obj, {
+             MVMROOT(tc, type, {
+                 HOW = MVM_6model_get_how(tc, st);
+                 MVMROOT(tc, HOW, {
+                     meth = MVM_6model_find_method_cache_only(tc, HOW,
+                         tc->instance->str_consts.type_check);
+                 });
+             });
+        });
         if (!MVM_is_null(tc, meth)) {
             /* Set up the call, using the result register as the target. */
             MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
