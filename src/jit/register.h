@@ -35,7 +35,7 @@ typedef enum {
 #define MVM_JIT_REGISTER_REQUIRE(nr) (3 | ((nr) << 2))
 #define MVM_JIT_REGISTER_ENCODE(spec,n) ((spec) << (8*(n)))
 
-#define MVM_JIT_REGISTER_FETCH(spec,n) ((spec >> (8*n))&0xff)
+#define MVM_JIT_REGISTER_FETCH(spec,n) (((spec) >> (8*(n)))&0xff)
 #define MVM_JIT_REGISTER_IS_USED(desc) ((desc) & 1)
 #define MVM_JIT_REGISTER_HAS_REQUIREMENT(desc) ((desc) & 2) >> 1)
 #define MVM_JIT_REGISTER_REQUIREMENT(desc) (((desc) & 0xfc) >> 2)

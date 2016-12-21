@@ -442,7 +442,7 @@ static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     tile->emit      = template->emit;
     tile->node      = node;
     tile->register_spec = template->register_spec;
-
+    /* fprintf(stderr, "%s %08x\n", template->expr, template->register_spec); */
     MVM_VECTOR_PUSH(tiles->list->items, tile);
 }
 

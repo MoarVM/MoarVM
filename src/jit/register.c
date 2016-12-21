@@ -268,7 +268,6 @@ static void get_tile_nodes(MVMThreadContext *tc, struct RegisterAllocator *alloc
                            MVMJitTile *tile, MVMJitExprTree *tree) {
     MVMJitExprNode node = tile->node;
     MVMJitExprNode buffer[16];
-    const MVMJitTileTemplate *template = tile->template;
 
     /* Assign tile arguments and compute the refering nodes */
     switch (tree->nodes[node]) {
@@ -303,7 +302,7 @@ static void get_tile_nodes(MVMThreadContext *tc, struct RegisterAllocator *alloc
         MVMint32 i, j, k, num_nodes, value_bitmap;
         num_nodes        = MVM_jit_expr_tree_get_nodes(tc, tree, node, tile->template->path, buffer);
         value_bitmap     = tile->template->value_bitmap;
-        tile->num_values = template->num_values;
+        tile->num_values = tile->template->num_values;
         j = 0;
         k = 0;
         /* splice out args from node refs */
@@ -337,7 +336,7 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     for (i = 0; i < list->items_num; i++) {
         MVMint32 buf_idx = allocator.tile_nodes_num;
         MVMJitTile *tile = list->items[i];
-        if (tile->template == NULL) /* pseudotiles */
+        if (!tile->template)
             continue;
         allocator.live_ranges[tile->node].range_start = i;
         allocator.live_ranges[tile->node].range_end   = i;
@@ -355,16 +354,14 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
         MVMJitTile *tile = list->items[i];
         MVMint32 buf_idx = allocator.live_ranges[tile->node].buf_idx;
         MVMJitValue *value;
-        if (tile->template == NULL)
-            continue;
         /* TODO; ensure that register values are live */
         for (j = 0; j < tile->num_values; j++) {
             MVMint32 ref_node = allocator.tile_nodes[buf_idx + j];
             MVMint32 tile_nr = allocator.live_ranges[ref_node].range_start;
             MVMJitValue *live, *spill = NULL;
             /* skip pseudotiles and non-register yielding tiles */
-            if (list->items[tile_nr]->template == NULL ||
-                list->items[tile_nr]->template->vtype != MVM_JIT_REG)
+            /* fprintf(stderr, "%s %08x %d %x\n", tile->template->expr, tile->register_spec, j, MVM_JIT_REGISTER_FETCH(tile->register_spec, j+1)); */
+            if (!MVM_JIT_REGISTER_IS_USED(MVM_JIT_REGISTER_FETCH(tile->register_spec, j+1)))
                 continue;
 
             for (live = allocator.values_by_node[ref_node];
@@ -425,7 +422,7 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
                                  MVM_JIT_STORAGE_NVR, MVM_JIT_REG_STACK);
             break;
         default:
-            if (tile->template->vtype == MVM_JIT_REG) {
+            if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
                 /* allocate a register for the result */
                 if (tile->num_values > 0 &&
                     tile->values[1]->st_cls == MVM_JIT_STORAGE_GPR &&
