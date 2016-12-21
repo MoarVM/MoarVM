@@ -34,10 +34,8 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             MVMROOT(tc, f, {
             MVMROOT(tc, callee, {
             MVMROOT(tc, last_uninlined, {
-            MVMROOT(tc, ucode, {
             MVMROOT(tc, usf, {
                 uf = MVM_frame_create_for_deopt(tc, usf, ucode);
-            });
             });
             });
             });
