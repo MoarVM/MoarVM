@@ -1,8 +1,9 @@
 #include "moar.h"
 
 /* UTF-8 Clean-8 is an encoder/decoder that primarily works as the UTF-8 one.
- * However, upon encountering a non-decodable character, it uses an NFG
- * synthetic to keep track of the original bytes involved. This means that
+ * However, upon encountering a byte sequence that will either not decode as
+ * valid UTF-8, or that would not round-trip due to normalization, it will use
+ * NFG synthetics to keep track of the original bytes involved. This means that
  * encoding back to UTF-8 Clean-8 will be able to recreate the bytes as they
  * originally existed. The synthetics contain 4 codepoints:
  *
@@ -15,10 +16,7 @@
  * come out as something like `?xFF`.
  *
  * UTF-8 Clean-8 is used in places where MoarVM receives strings from the
- * operating system or passes strings to the operating system. This means that
- * code receiving strings from, say, reading a directory, and then opening the
- * files, will work out even if the fileanmes are unencodable in UTF-8. Same
- * goes for taking a file name and concatenating `.bak` on to it, for example.
+ * environment, command line arguments, and file system queries.
  */
 
 /* The below section has an MIT-style license, included here.
