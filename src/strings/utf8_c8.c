@@ -364,13 +364,18 @@ static void process_bad_bytes(MVMThreadContext *tc, DecodeState *state) {
  * a result of the specified type. The type must have the MVMString REPR. */
 MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *result_type,
                                       const char *utf8, size_t bytes) {
+    DecodeState state;
+
     /* Local state for decode loop. */
     int expected_continuations = 0;
+
+    /* Don't do anything if empty. */
+    if (bytes == 0)
+        return tc->instance->str_consts.empty;
 
     /* Decoding state, in a struct to easily pass to utility routines.
      * Result buffer is a maximum estimate to avoid realloc; we can shrink
      * it at the end. */
-    DecodeState state;
     state.utf8 = (MVMuint8 *)utf8;
     state.cur_byte = 0;
     state.unaccepted_start = 0;
