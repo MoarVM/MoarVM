@@ -194,18 +194,6 @@ static void ensure_buffer(MVMGrapheme32 **buffer, MVMint32 *bufsize, MVMint32 ne
         ));
 }
 
-static void flush_normalizer(MVMThreadContext *tc, MVMNormalizer *norm, MVMGrapheme32 **buffer,
-                             MVMint32 *bufsize, MVMint32 *count) {
-    MVMint32 ready;
-    MVM_unicode_normalizer_eof(tc, norm);
-    ready = MVM_unicode_normalizer_available(tc, norm);
-    if (ready) {
-        ensure_buffer(buffer, bufsize, *count + ready);
-        while (ready--)
-            (*buffer)[(*count)++] = MVM_unicode_normalizer_get_grapheme(tc, norm);
-    }
-}
-
 static const MVMuint8 hex_chars[] = { '0', '1', '2', '3', '4', '5', '6', '7',
                                       '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 static MVMGrapheme32 synthetic_for(MVMThreadContext *tc, MVMuint8 invalid) {
@@ -223,74 +211,132 @@ static MVMGrapheme32 synthetic_for(MVMThreadContext *tc, MVMuint8 invalid) {
     }
 }
 
+/* What the UTF-C8 decode process is expecting. */
+typedef enum {
+    EXPECT_START = 0,
+    EXPECT_CONTINUATION = 1
+} Expecting;
+
+/* Decode state for the UTF8-C8 decoder. */
+typedef struct {
+    /* The UTF-8 we're decoding. */
+    const MVMuint8 *utf8;
+
+    /* The index of the current byte we're decoding. */
+    size_t cur_byte;
+
+    /* The index of the first unaccepted byte. */
+    size_t unaccepted_start;
+
+    /* What kind of byte we're expecting next. */
+    Expecting expecting;
+
+    /* The current codepoint we're decoding. */
+    MVMCodepoint cur_codepoint;
+
+    /* The result buffer we're decoding into. */
+    MVMGrapheme32 *result;
+
+    /* The current position in the result buffer. */
+    size_t result_pos;
+} DecodeState;
+
+/* Called when decoding has reached an acceptable codepoint. */
+static void process_ok_codepoint(MVMThreadContext *tc, DecodeState *state) {
+    /* XXX Normalization needs to get involved here also. */
+    state->result[state->result_pos++] = state->cur_codepoint;
+    state->unaccepted_start = state->cur_byte + 1;
+}
+
+/* Called when a bad byte has been encountered. */
+static void process_bad_bytes(MVMThreadContext *tc, DecodeState *state) {
+    size_t i;
+    for (i = state->unaccepted_start; i <= state->cur_byte; i++)
+        state->result[state->result_pos++] = synthetic_for(tc, state->utf8[i]);
+    state->unaccepted_start = state->cur_byte + 1;
+}
+
 /* Decodes the specified number of bytes of utf8 into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */
-MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *result_type, const char *utf8, size_t bytes) {
-    MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
-    MVMint32 count = 0;
-    MVMCodepoint codepoint;
-    MVMint32 state = 0;
-    MVMint32 bufsize = bytes;
-    MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * bufsize);
-    size_t orig_bytes;
-    const char *orig_utf8, *last_accept_utf8;
-    MVMint32 ready;
+MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *result_type,
+                                      const char *utf8, size_t bytes) {
+    /* Local state for decode loop. */
+    int expected_continuations = 0;
 
-    /* Need to normalize to NFG as we decode. */
-    MVMNormalizer norm;
-    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+    /* Decoding state, in a struct to easily pass to utility routines.
+     * Result buffer is a maximum estimate to avoid realloc; we can shrink
+     * it at the end. */
+    DecodeState state;
+    state.utf8 = (MVMuint8 *)utf8;
+    state.cur_byte = 0;
+    state.unaccepted_start = 0;
+    state.expecting = EXPECT_START;
+    state.cur_codepoint = 0;
+    state.result = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
+    state.result_pos = 0;
 
-    orig_bytes = bytes;
-    orig_utf8 = utf8;
-    last_accept_utf8 = utf8 - 1;
-
-    for (; bytes; ++utf8, --bytes) {
-        switch(decode_utf8_byte(&state, &codepoint, (MVMuint8)*utf8)) {
-        case UTF8_ACCEPT: { /* got a codepoint */
-            MVMGrapheme32 g;
-            ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, codepoint, &g);
-            if (ready) {
-                ensure_buffer(&buffer, &bufsize, count + ready);
-                buffer[count++] = g;
-                while (--ready > 0)
-                    buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
-            }
-            last_accept_utf8 = utf8;
-            break;
+    while (state.cur_byte < bytes) {
+        MVMuint8 decode_byte = utf8[state.cur_byte];
+        switch (state.expecting) {
+            case EXPECT_START:
+                if ((decode_byte & 0b10000000) == 0) {
+                    /* Single byte sequence. */
+                    state.cur_codepoint = decode_byte;
+                    process_ok_codepoint(tc, &state);
+                }
+                else if ((decode_byte & 0b11100000) == 0b11000000) {
+                    state.cur_codepoint = decode_byte & 0b00011111;
+                    state.expecting = EXPECT_CONTINUATION;
+                    expected_continuations = 1;
+                }
+                else if ((decode_byte & 0b11110000) == 0b11100000) {
+                    state.cur_codepoint = decode_byte & 0b00001111;
+                    state.expecting = EXPECT_CONTINUATION;
+                    expected_continuations = 2;
+                }
+                else if ((decode_byte & 0b11111000) == 0b11110000) {
+                    state.cur_codepoint = decode_byte & 0b00000111;
+                    state.expecting = EXPECT_CONTINUATION;
+                    expected_continuations = 3;
+                }
+                else {
+                    /* Invalid byte sequence. */
+                    process_bad_bytes(tc, &state);
+                }
+                break;
+            case EXPECT_CONTINUATION:
+                if ((decode_byte & 0b11000000) == 0b10000000) {
+                    state.cur_codepoint = (state.cur_codepoint << 6)
+                                          | (decode_byte & 0b00111111);
+                    expected_continuations--;
+                    if (expected_continuations == 0) {
+                        process_ok_codepoint(tc, &state);
+                        state.expecting = EXPECT_START;
+                    }
+                }
+                else {
+                    /* Invalid byte sequence. */
+                    process_bad_bytes(tc, &state);
+                    state.expecting = EXPECT_START;
+                }
+                break;
         }
-        case UTF8_REJECT:
-            flush_normalizer(tc, &norm, &buffer, &bufsize, &count);
-            do {
-                ensure_buffer(&buffer, &bufsize, count + 1);
-                buffer[count++] = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8 + 1));
-            } while (++last_accept_utf8 != utf8);
-            state = UTF8_ACCEPT;
-            break;
-        }
-    }
-    if (state != UTF8_ACCEPT) {
-        flush_normalizer(tc, &norm, &buffer, &bufsize, &count);
-        do {
-            ensure_buffer(&buffer, &bufsize, count + 1);
-            buffer[count++] = synthetic_for(tc, *((MVMuint8 *)last_accept_utf8 + 1));
-        } while (++last_accept_utf8 != utf8);
+        state.cur_byte++;
     }
 
-    /* Get any final graphemes from the normalizer, and clean it up. */
-    flush_normalizer(tc, &norm, &buffer, &bufsize, &count);
-    MVM_unicode_normalizer_cleanup(tc, &norm);
-
-    /* just keep the same buffer as the MVMString's buffer.  Later
-     * we can add heuristics to resize it if we have enough free
-     * memory */
-    if (bufsize - count > 4) {
-        buffer = MVM_realloc(buffer, count * sizeof(MVMGrapheme32));
+    /* Handle anything dangling off the end. */
+    if (state.expecting == EXPECT_CONTINUATION) {
+        state.cur_byte--; /* So we don't read 1 past the end. */
+        process_bad_bytes(tc, &state);
     }
-    result->body.storage.blob_32 = buffer;
-    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    result->body.num_graphs      = count;
 
-    return result;
+    {
+        MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
+        result->body.storage.blob_32 = state.result;
+        result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+        result->body.num_graphs      = state.result_pos;
+        return result;
+    }
 }
 
 /* Decodes using a decodestream. Decodes as far as it can with the input
