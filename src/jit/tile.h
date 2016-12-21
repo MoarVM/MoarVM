@@ -8,6 +8,7 @@ struct MVMJitTileTemplate {
     MVMint32  num_values;
     MVMint32  value_bitmap;
     MVMJitExprVtype vtype;
+    MVMuint32  register_spec;
 };
 
 struct MVMJitTile {
@@ -18,6 +19,7 @@ struct MVMJitTile {
     /* buffers for the args of this (pseudo) tile */
     MVMJitValue *values[8];
     MVMJitExprNode args[8];
+    MVMuint32 register_spec;
 };
 
 

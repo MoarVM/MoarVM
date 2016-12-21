@@ -36,19 +36,37 @@ sub avg {
 
 package rule {
     my $pseudosym = 0;
+    sub register_spec {
+        my ($symbol) = @_;
+        if ($symbol =~ m/^reg/) {
+            # could return 'require(x)', but NYI
+            return 'any';
+        } else {
+            return 'none';
+        }
+    }
+
     sub add {
         my ($name, $tree, $sym, $cost) = @_;
         my $ctx = {
             # lookup path for values
             path => [],
-            regs => 0,
+            # specifications of registers
+            spec => [],
+            # bitmap of referenced symbols (vs raw values)
+            refs => 0,
+            # number of arguments and refs
             num  => 0,
         };
+
+        push @{$ctx->{'spec'}}, register_spec($sym);
+
         my @rules = decompose($ctx, $tree, $sym, $cost);
         my $head = $rules[$#rules];
         $head->{name} = $name;
         $head->{path} = join('', @{$ctx->{path}});
-        $head->{regs} = $ctx->{regs};
+        $head->{spec} = $ctx->{spec};
+        $head->{refs} = $ctx->{refs};
         $head->{text} = sexpr::encode($tree);
         return @rules;
     }
@@ -89,8 +107,9 @@ package rule {
                     # value symbol
                     push @{$ctx->{path}}, @trace, $i, '.';
                     # this is a value symbol, so add it to the bitmap
-                    $ctx->{regs}  += (1 << $ctx->{num});
+                    $ctx->{refs}  += (1 << $ctx->{num});
                     $ctx->{num}++;
+                    push @{$ctx->{spec}}, register_spec($item);
                 } # else head
                 push @$list, $item;
             }
@@ -194,7 +213,6 @@ sub generate_table {
     # (indices into rules).
 
     my ($rules, $rulesets) = @_;
-
 
     my (%candidates, %trans);
     # map symbols to rulesets, rule set names to ruleset numbers
@@ -432,21 +450,36 @@ for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
     my ($head, $sym1, $sym2) = @{$rule->{pat}};
     my $sn1  = defined $sym1 ? $symnum{$sym1} : -1;
     my $sn2  = defined $sym2 ? $symnum{$sym2} : -1;
-    my ($func, $path, $text, $regs, $nval, $vtyp);
+    my ($func, $path, $text, $refs, $nval, $vtyp, $spec);
     if (exists $rule->{name}) {
         $func = $VARNAME . $rule->{name};
         $path = sprintf('"%s"', $rule->{path});
         $text = sprintf('"%s"', $rule->{text});
-        $regs = $rule->{regs};
-        $nval = bits($regs);
-        $vtyp =  $PREFIX . uc $rule->{sym};
+        $refs = $rule->{refs};
+        $nval = bits($refs);
+        $vtyp =  $PREFIX . uc $rule->{sym}; # yeah, this is going to go
+        $spec = join('|', map sprintf('MVM_JIT_REGISTER_ENCODE(MVM_JIT_REGISTER_%s,%d)',
+                                      uc $rule->{spec}[$_], $_), 0..$#{$rule->{spec}});
     } else {
         $func = $path = $text = "NULL";
-        $regs = 0;
+        $refs = 0;
         $nval = 0;
         $vtyp = -1;
+        $spec = 0;
     }
-    print $output "    { $func, $path, $text, $sn1, $sn2, $nval, $regs, $vtyp },\n";
+    print $output qq(
+    {
+        $func,
+        $path,
+        $text,
+        $sn1,
+        $sn2,
+        $nval,
+        $refs,
+        $vtyp,
+        $spec
+    },);
+
 }
 print $output "};\n\n";
 

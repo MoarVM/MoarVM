@@ -63,19 +63,92 @@ So the rephrase, currently the template is used by the register allocator to sig
 - extract refered-to nodes
   - in ARGLIST/DO/IF cases, this is directly read from the tree
     but these are exceptions
-- 
+
 
 Whereas the node is used to signify:
 - special data (the TC/CU/STACK/FRAME/VMNULL family)
 - data flow (DO/IF)
 - clobbering of registers (CALL)
 
+**** DONE Represent register requirements intelligently
 
+ We currently rely on inspecting the template to see if the thing
+ yields a value. However, yielding a value is specific to a tile not
+ its template.
 
+ This is also related to the issue of specifying register preferences.
+ We want to specify that a certain tile takes certain input registers
+ and yields an output register. And I think we can do this with a
+ bitmap, so let's design that.
 
-#+BEGIN_SRC c
+ Suppose we allow 4 register inputs (currently 8, but this is only
+ relevant for ARGLIST, which can be dealt with specifically in some
+ other context).
 
-#+END_SRC
+ And suppose we allow for 32 different register locations to be
+ specified (5 bits per register).  That gives us 4 bits + 20 bits = 24
+ bits....  We can be 'richer' and allow 6 bits per register * 4 + 4
+ bits is still just 28 bits. If we allow 8 registers - no reason to,
+ but let's suppose so, then 48 + 8 = 54 bits necessary, i.e., fits in a
+ single 64 bit quadword. But I think 32 bits are quite sufficient.
+
+ Note that the 6 bits is sufficient to specify register class (on
+ x86-64) as well as register specification. This gives us a total of 8
+ bits, or one byte, per register. We can then scale linearly up to the
+ number of bits required.
+
+ #+BEGIN_SRC c
+ #define MVM_JIT_REGISTER_ENCODE(req,nr) (1 | ((req) << 1) | ((nr) << 2))
+ #define MVM_JIT_REGISTER_SPEC(a,b,c,d) ((a &0xff) | ((b &0xff) << 8) | ((c & 0xff) << 16) | ((d & 0xff) << 24))
+ #define MVM_JIT_REGISTER_FETCH(spec,n) ((spec >> (8*n))&0xff)
+ #define MVM_JIT_REGISTER_NONE 0
+ #define MVM_JIT_REGISER_ANY   1
+ #define MVM_JIT_REGISTER_IS_USED(desc) (desc & 1)
+ #define MVM_JIT_REGISTER_HAS_REQUIREMENT(desc) ((desc & 2) >> 1)
+ #define MVM_JIT_REGISTER_REQUIREMENT(desc) ((desc & 0xfc) >> 2)
+
+ /* we could also do */
+ ostruct registerspec {
+     int used : 1;
+     int has_requirement : 1;
+     int required_register : 6;
+ };
+ /* but this is 4 bytes wide */
+ #+END_SRC
+
+ So the second question is how are we going to encode this in the tile
+ texts? My initial guess was to add an extra list; but we already
+ specify which things are registers in the tile itself, and we can just
+ add it as an attribute.
+
+ So we can get (for instance):
+
+ #+BEGIN_EXAMPLE
+ (tile: div (div reg:rax reg:rcx) reg:rax)
+ (tile: mod (mod reg:rax reg:rcx) reg:rcx)
+ #+END_EXAMPLE
+
+ Fortunately, we have two-operand mul these days, so it needs no
+ specific treatment, although full-precision (i.e. two-registers
+ rax:rdx pair) can't be done.
+
+**** TODO Use the register spec for finding values
+
+This needs to be implemented in both the old (register.c) allocator
+and the new (linear_scan.c) allocator.
+
+**** TODO Move tree path resolution to tiling
+
+Needs adding a refs buffer to the tile. I think that synthetic tile
+construction still doesn't need it (yet), because we now reference
+from live range to tile, not the other way arround.
+An optimizer may change that, though.
+
+**** TODO Remove MVMJitValue as a global type
+
+The 'old' register allocator will still need it so we'll rename it to
+ValueList and make it local; tile->values will be MVMint8[4], which is
+quite sufficient for all possible registers.
 
 *** TODO Work on operation nodes
 
@@ -149,67 +222,6 @@ I think we can do this in a single pass, or maybe two passes
     that by shuffling (in principle)
   - point all the uses in the split live range to the new live range
 
-*** DONE Represent register requirements intelligently
-
-We currently rely on inspecting the template to see if the thing
-yields a value. However, yielding a value is specific to a tile not
-its template.
-
-This is also related to the issue of specifying register preferences.
-We want to specify that a certain tile takes certain input registers
-and yields an output register. And I think we can do this with a
-bitmap, so let's design that.
-
-Suppose we allow 4 register inputs (currently 8, but this is only
-relevant for ARGLIST, which can be dealt with specifically in some
-other context).
-
-And suppose we allow for 32 different register locations to be
-specified (5 bits per register).  That gives us 4 bits + 20 bits = 24
-bits....  We can be 'richer' and allow 6 bits per register * 4 + 4
-bits is still just 28 bits. If we allow 8 registers - no reason to,
-but let's suppose so, then 48 + 8 = 54 bits necessary, i.e., fits in a
-single 64 bit quadword. But I think 32 bits are quite sufficient.
-
-Note that the 6 bits is sufficient to specify register class (on
-x86-64) as well as register specification. This gives us a total of 8
-bits, or one byte, per register. We can then scale linearly up to the
-number of bits required.
-
-#+BEGIN_SRC c
-#define MVM_JIT_REGISTER_ENCODE(req,nr) (1 | ((req) << 1) | ((nr) << 2))
-#define MVM_JIT_REGISTER_SPEC(a,b,c,d) ((a &0xff) | ((b &0xff) << 8) | ((c & 0xff) << 16) | ((d & 0xff) << 24))
-#define MVM_JIT_REGISTER_FETCH(spec,n) ((spec >> (8*n))&0xff)
-#define MVM_JIT_REGISTER_NONE 0
-
-#define MVM_JIT_REGISTER_IS_USED(desc) (desc & 1)
-#define MVM_JIT_REGISTER_HAS_REQUIREMENT(desc) ((desc & 2) >> 1)
-#define MVM_JIT_REGISTER_REQUIREMENT(desc) ((desc & 0xfc) >> 2)
-
-/* we could also do */
-ostruct registerspec {
-    int used : 1;
-    int has_requirement : 1;
-    int required_register : 6;
-};
-/* but this is 4 bytes wide */
-#+END_SRC
-
-So the second question is how are we going to encode this in the tile
-texts? My initial guess was to add an extra list; but we already
-specify which things are registers in the tile itself, and we can just
-add it as an attribute.
-
-So we can get (for instance):
-
-#+BEGIN_EXAMPLE
-(tile: div (div reg:rax reg:rcx) reg:rax)
-(tile: mod (mod reg:rax reg:rcx) reg:rcx)
-#+END_EXAMPLE
-
-Fortunately, we have two-operand mul these days, so it needs no
-specific treatment, although full-precision (i.e. two-registers
-rax:rdx pair) can't be done.
 
 *** TODO Find out if a particular live range has already been stored (or if it has a fixed storage location)
 
