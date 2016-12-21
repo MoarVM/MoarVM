@@ -14,42 +14,10 @@
 #define GET_UI32(pc, idx)   *((MVMuint32 *)((pc) + (idx)))
 #define GET_N32(pc, idx)    *((MVMnum32 *)((pc) + (idx)))
 
-/* Allocate a piece of memory from the spesh graph's buffer. Deallocated when
- * the spesh graph is. */
+/* Allocate a piece of memory from the spesh graph's region
+ * allocator. Deallocated when the spesh graph is. */
 void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
-    char *result = NULL;
-
-#if !defined(MVM_CAN_UNALIGNED_INT64) || !defined(MVM_CAN_UNALIGNED_NUM64)
-    /* Round up size to next multiple of 8, to ensure alignment. */
-    bytes = (bytes + 7) & ~7;
-#endif
-
-    if (g->mem_block) {
-        MVMSpeshMemBlock *block = g->mem_block;
-        if (block->alloc + bytes < block->limit) {
-            result = block->alloc;
-            block->alloc += bytes;
-        }
-    }
-    if (!result) {
-        /* No block, or block was full. Add another. */
-        MVMSpeshMemBlock *block = MVM_malloc(sizeof(MVMSpeshMemBlock));
-        size_t buffer_size = g->mem_block
-            ? MVM_SPESH_MEMBLOCK_SIZE
-            : MVM_SPESH_FIRST_MEMBLOCK_SIZE;
-        if (buffer_size < bytes)
-            buffer_size = bytes;
-        block->buffer = MVM_calloc(buffer_size, 1);
-        block->alloc  = block->buffer;
-        block->limit  = block->buffer + buffer_size;
-        block->prev   = g->mem_block;
-        g->mem_block  = block;
-
-        /* Now allocate out of it. */
-        result = block->alloc;
-        block->alloc += bytes;
-    }
-    return result;
+    return MVM_region_alloc(tc, &g->region_alloc, bytes);
 }
 
 /* Looks up op info; doesn't sanity check, since we should be working on code
@@ -1216,14 +1184,7 @@ void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist 
 /* Destroys a spesh graph, deallocating all its associated memory. */
 void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Free all of the allocated node memory. */
-    MVMSpeshMemBlock *cur_block = g->mem_block;
-    while (cur_block) {
-        MVMSpeshMemBlock *prev = cur_block->prev;
-        MVM_free(cur_block->buffer);
-        MVM_free(cur_block);
-        cur_block = prev;
-    }
-
+    MVM_region_destroy(tc, &g->region_alloc);
     /* Free handlers array, if different from the static frame. */
     if (!g->cand && g->handlers != g->sf->body.handlers)
         MVM_free(g->handlers);
