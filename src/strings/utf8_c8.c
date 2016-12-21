@@ -275,12 +275,11 @@ static int append_grapheme(MVMThreadContext *tc, DecodeState *state, MVMGrapheme
             MVMint32 i;
             for (i = 0; i < synth->num_combs; i++) {
                 size_t orig_idx = state->orig_codes_unnormalized + i + 1;
-                if (orig_idx >= state->orig_codes_pos) {
+                if (orig_idx >= state->orig_codes_pos ||
+                        state->orig_codes[orig_idx] != synth->combs[i]) {
                     mismatch = 1;
                     break;
                 }
-                if (state->orig_codes[orig_idx] != synth->combs[i])
-                    mismatch = 1;
             }
         }
         else {
