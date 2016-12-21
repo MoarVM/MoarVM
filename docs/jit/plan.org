@@ -132,12 +132,12 @@ Whereas the node is used to signify:
  specific treatment, although full-precision (i.e. two-registers
  rax:rdx pair) can't be done.
 
-**** TODO Use the register spec for finding values
+**** DONE Use the register spec for finding values
 
 This needs to be implemented in both the old (register.c) allocator
 and the new (linear_scan.c) allocator.
 
-**** TODO Move tree path resolution to tiling
+**** DONE Move tree path resolution to tiling
 
 Needs adding a refs buffer to the tile. I think that synthetic tile
 construction still doesn't need it (yet), because we now reference

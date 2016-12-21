@@ -248,7 +248,7 @@ MVMJitTile* MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler,
     tile = MVM_spesh_alloc(tc, compiler->graph->sg, sizeof(MVMJitTile));
     tile->emit = emit;
     tile->node = node;
-    tile->num_values = 0;
+    tile->num_refs = 0;
     for (i = 0; i < nargs; i++) {
         tile->args[i] = va_arg(arglist, MVMJitExprNode);
     }
@@ -425,27 +425,77 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 
 static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                            MVMJitExprTree *tree, MVMint32 node) {
-
-
     struct TreeTiler *tiler = traverser->data;
     const MVMJitTileTemplate *template = tiler->states[node].template;
     MVMJitTile *tile;
-    MVMint32 i, num_values;
 
     /* only need to add actual code-emitting tiles */
     if (template->emit == NULL)
         return;
 
-    /* create tile object */
-    tile            = MVM_spesh_alloc(tc, tiler->compiler->graph->sg, sizeof(MVMJitTile));
-    tile->template  = template;
-    tile->emit      = template->emit;
-    tile->node      = node;
-    tile->register_spec = template->register_spec;
+    tile = MVM_jit_tile_make_from_template(tc, tiler->compiler, template, tree, node);
     /* fprintf(stderr, "%s %08x\n", template->expr, template->register_spec); */
     MVM_VECTOR_PUSH(tiler->list->items, tile);
 }
 
+/* Create a tile from a template */
+MVMJitTile * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                                             const MVMJitTileTemplate *template,
+                                             MVMJitExprTree *tree, MVMint32 node) {
+    MVMJitTile *tile;
+    tile = MVM_spesh_alloc(tc, compiler->graph->sg, sizeof(MVMJitTile));
+    tile->emit          = template->emit;
+    tile->register_spec = template->register_spec;
+    tile->node          = node;
+    tile->op            = tree->nodes[node];
+
+    /* Assign tile arguments and compute the refering nodes */
+    switch (tile->op) {
+    case MVM_JIT_IF:
+    {
+        tile->refs[0] = tree->nodes[node+2];
+        tile->refs[1] = tree->nodes[node+3];
+        tile->num_refs = 2;
+        break;
+    }
+    case MVM_JIT_ARGLIST:
+    {
+        /* because arglist needs special-casing and because it will use more
+         * than 8 (never mind 4) values, it won't fit into refs, so we're not
+         * reading them here */
+        tile->num_refs = tree->nodes[node+1];
+        break;
+    }
+    case MVM_JIT_DO:
+    {
+        MVMint32 nchild  = tree->nodes[node+1];
+        tile->refs[0]    = tree->nodes[node+1+nchild];
+        tile->num_refs = 1;
+        break;
+    }
+    default:
+    {
+        MVMint32 i, j, k, num_nodes, value_bitmap;
+        MVMJitExprNode buffer[8];
+        num_nodes        = MVM_jit_expr_tree_get_nodes(tc, tree, node, template->path, buffer);
+        value_bitmap     = template->value_bitmap;
+        tile->num_refs   = template->num_refs;
+        j = 0;
+        k = 0;
+        /* splice out args from node refs */
+        for (i = 0; i < num_nodes; i++) {
+            if (value_bitmap & 1) {
+                tile->refs[j++] = buffer[i];
+            } else {
+                tile->args[k++] = buffer[i];
+            }
+            value_bitmap >>= 1;
+        }
+        break;
+    }
+    }
+    return tile;
+}
 
 MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;

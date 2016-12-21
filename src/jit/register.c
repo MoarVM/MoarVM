@@ -45,16 +45,12 @@ static MVMint8 free_num[] = { -1 };
 struct LiveRange {
     MVMint32 range_start, range_end;
     MVMint32 num_use;
-    /* Index into the buffer */
-    MVMint32 buf_idx;
 };
 
 
 struct RegisterAllocator {
     /* Live range of nodes */
     struct LiveRange *live_ranges;
-    /* Nodes refered to by tiles */
-    MVM_VECTOR_DECL(MVMJitExprNode, tile_nodes);
 
     /* Lookup tables */
     MVMJitValue **values_by_node;
@@ -77,8 +73,6 @@ struct RegisterAllocator {
 
 void MVM_jit_register_allocator_init(MVMThreadContext *tc, struct RegisterAllocator *allocator,
                                      MVMJitCompiler *compiler, MVMJitTileList *list) {
-    /* Store live ranges */
-    MVM_VECTOR_INIT(allocator->tile_nodes, list->items_num * 4);
 
     /* Initialize free register ring */
     memcpy(allocator->free_reg, free_gpr, NUM_GPR);
@@ -91,6 +85,8 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, struct RegisterAlloca
     /* create lookup tables */
     allocator->values_by_node = MVM_calloc(list->tree->nodes_num, sizeof(void*));
     memset(allocator->values_by_register, 0, sizeof(allocator->values_by_register));
+
+    /* Store live ranges */
     allocator->live_ranges    = MVM_calloc(list->tree->nodes_num, sizeof(struct LiveRange));
 
     allocator->compiler       = compiler;
@@ -100,7 +96,6 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, struct RegisterAlloca
 void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, struct RegisterAllocator *allocator) {
     MVM_free(allocator->values_by_node);
     MVM_free(allocator->live_ranges);
-    MVM_free(allocator->tile_nodes);
 }
 
 
@@ -263,63 +258,6 @@ static void spill_register(MVMThreadContext *tc, struct RegisterAllocator *alloc
 
 /* PART FOUR: Linear scan register allocation */
 
-/* Get nodes and arguments refered to by a tile (the 'scan' part of linear scan) */
-static void get_tile_nodes(MVMThreadContext *tc, struct RegisterAllocator *allocator,
-                           MVMJitTile *tile, MVMJitExprTree *tree) {
-    MVMJitExprNode node = tile->node;
-    MVMJitExprNode buffer[16];
-
-    /* Assign tile arguments and compute the refering nodes */
-    switch (tree->nodes[node]) {
-    case MVM_JIT_IF:
-    {
-        buffer[0] = tree->nodes[node+2];
-        buffer[1] = tree->nodes[node+3];
-        tile->num_values = 2;
-        break;
-    }
-    case MVM_JIT_ARGLIST:
-    {
-        /* NB, arglist can conceivably use more than 7 values, although it can
-         * safely overflow into args, we may want to find a better solution */
-        MVMint32 i;
-        tile->num_values = tree->nodes[node+1];
-        for (i = 0; i < tile->num_values; i++) {
-            MVMint32 carg = tree->nodes[node+2+i];
-            buffer[i]     = tree->nodes[carg+1];
-        }
-        break;
-    }
-    case MVM_JIT_DO:
-    {
-        MVMint32 nchild  = tree->nodes[node+1];
-        buffer[0]        = tree->nodes[node+1+nchild];
-        tile->num_values = 1;
-        break;
-    }
-    default:
-    {
-        MVMint32 i, j, k, num_nodes, value_bitmap;
-        num_nodes        = MVM_jit_expr_tree_get_nodes(tc, tree, node, tile->template->path, buffer);
-        value_bitmap     = tile->template->value_bitmap;
-        tile->num_values = tile->template->num_values;
-        j = 0;
-        k = 0;
-        /* splice out args from node refs */
-        for (i = 0; i < num_nodes; i++) {
-            if (value_bitmap & 1) {
-                buffer[j++]     = buffer[i];
-            } else {
-                tile->args[k++] = buffer[i];
-            }
-            value_bitmap >>= 1;
-        }
-        break;
-    }
-    }
-    /* copy to tile-node buffer */
-    MVM_VECTOR_APPEND(allocator->tile_nodes, buffer, tile->num_values);
-}
 
 #define VALUE_LIVE_AT(v,i) ((v)->range_start < (i) && (v)->range_end >= (i))
 
@@ -334,16 +272,11 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
 
     /* Compute live ranges for each node */
     for (i = 0; i < list->items_num; i++) {
-        MVMint32 buf_idx = allocator.tile_nodes_num;
         MVMJitTile *tile = list->items[i];
-        if (!tile->template)
-            continue;
         allocator.live_ranges[tile->node].range_start = i;
         allocator.live_ranges[tile->node].range_end   = i;
-        allocator.live_ranges[tile->node].buf_idx     = buf_idx;
-        get_tile_nodes(tc, &allocator, tile, tree);
-        for (j = 0; j < tile->num_values; j++) {
-            MVMint32 ref_node = allocator.tile_nodes[buf_idx + j];
+        for (j = 0; j < tile->num_refs; j++) {
+            MVMint32 ref_node = tile->refs[j];
             allocator.live_ranges[ref_node].range_end = i;
             allocator.live_ranges[ref_node].num_use++;
         }
@@ -352,12 +285,11 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     /* Assign registers */
     for (i = 0; i < list->items_num; i++) {
         MVMJitTile *tile = list->items[i];
-        MVMint32 buf_idx = allocator.live_ranges[tile->node].buf_idx;
         MVMJitValue *value;
         /* TODO; ensure that register values are live */
-        for (j = 0; j < tile->num_values; j++) {
-            MVMint32 ref_node = allocator.tile_nodes[buf_idx + j];
-            MVMint32 tile_nr = allocator.live_ranges[ref_node].range_start;
+        for (j = 0; j < tile->num_refs; j++) {
+            MVMint32 ref_node = tile->refs[j];
+            MVMint32 tile_nr  = allocator.live_ranges[ref_node].range_start;
             MVMJitValue *live, *spill = NULL;
             /* skip pseudotiles and non-register yielding tiles */
             /* fprintf(stderr, "%s %08x %d %x\n", tile->template->expr, tile->register_spec, j, MVM_JIT_REGISTER_FETCH(tile->register_spec, j+1)); */
@@ -393,8 +325,7 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
         case MVM_JIT_COPY:
         {
             /* use same register as input  */
-            MVMint32 ref_node = allocator.tile_nodes[buf_idx];
-            MVMJitValue *ref_value = allocator.values_by_node[ref_node];
+            MVMJitValue *ref_value = allocator.values_by_node[tile->refs[0]];
             value_assign_storage(tc, &allocator, value_create(tc, &allocator, tile->node),
                                  ref_value->st_cls, ref_value->st_pos);
             break;
@@ -424,7 +355,7 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
         default:
             if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
                 /* allocate a register for the result */
-                if (tile->num_values > 0 &&
+                if (tile->num_refs > 0 &&
                     tile->values[1]->st_cls == MVM_JIT_STORAGE_GPR &&
                     tile->values[1]->range_end == i) {
                     /* First register expires immediately, therefore we can safely cross-assign */

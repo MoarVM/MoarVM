@@ -450,21 +450,19 @@ for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
     my ($head, $sym1, $sym2) = @{$rule->{pat}};
     my $sn1  = defined $sym1 ? $symnum{$sym1} : -1;
     my $sn2  = defined $sym2 ? $symnum{$sym2} : -1;
-    my ($func, $path, $text, $refs, $nval, $vtyp, $spec);
+    my ($func, $path, $text, $refs, $nval, $spec);
     if (exists $rule->{name}) {
         $func = $VARNAME . $rule->{name};
         $path = sprintf('"%s"', $rule->{path});
         $text = sprintf('"%s"', $rule->{text});
         $refs = $rule->{refs};
         $nval = bits($refs);
-        $vtyp =  $PREFIX . uc $rule->{sym}; # yeah, this is going to go
         $spec = join('|', map sprintf('MVM_JIT_REGISTER_ENCODE(MVM_JIT_REGISTER_%s,%d)',
                                       uc $rule->{spec}[$_], $_), 0..$#{$rule->{spec}});
     } else {
         $func = $path = $text = "NULL";
         $refs = 0;
         $nval = 0;
-        $vtyp = -1;
         $spec = 0;
     }
     print $output qq(
@@ -476,7 +474,6 @@ for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
         $sn2,
         $nval,
         $refs,
-        $vtyp,
         $spec
     },);
 

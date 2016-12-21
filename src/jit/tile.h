@@ -3,22 +3,23 @@ struct MVMJitTileTemplate {
     const char    *path;
     const char    *expr;
     MVMint32  left_sym;
-    MVMint32 right_sym;
+    MVMint32  right_sym;
 
-    MVMint32  num_values;
+    MVMint32  num_refs;
     MVMint32  value_bitmap;
-    MVMJitExprVtype vtype;
-    MVMuint32  register_spec;
+    MVMuint32 register_spec;
 };
 
 struct MVMJitTile {
-    const MVMJitTileTemplate *template;
     void (*emit)(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMJitExprTree *tree);
     MVMint32 node;
-    MVMint32 num_values;
-    /* buffers for the args of this (pseudo) tile */
+    MVMint32 op;
+
+    MVMint32 num_refs;
+    MVMint32       refs[4];
+    MVMJitExprNode args[4];
     MVMJitValue *values[8];
-    MVMJitExprNode args[8];
+
     MVMuint32 register_spec;
 };
 
@@ -43,6 +44,9 @@ struct MVMJitTileList {
 
 MVMJitTile     * MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                    void *emit, MVMint32 node, MVMint32 nargs, ...);
+MVMJitTile     * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                                                 const MVMJitTileTemplate *template,
+                                                 MVMJitExprTree *tree, MVMint32 node);
 MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree);
 
 
