@@ -239,18 +239,122 @@ typedef struct {
 
     /* The current position in the result buffer. */
     size_t result_pos;
+
+    /* Buffer of original codepoints, to ensure we will not spit out any
+     * synthetics into the result that will re-order on round-trip. */
+    MVMCodepoint *orig_codes;
+
+    /* Position we're at in inserting into orig_codes. */
+    size_t orig_codes_pos;
+
+    /* First orig_codes index that did not yet go through the normalizer. */
+    size_t orig_codes_unnormalized;
+
+    /* The normalizer we're using to make synthetics that will not cause an
+     * order change on output. */
+    MVMNormalizer norm;
 } DecodeState;
+
+/* Appends a single grapheme to the buffer if it will not cause a mismatch
+ * with the original codepoints upon encoding back to UTF-8. Returns non-zero
+ * in this case. Otherwise, appends synthetics for the bytes the original code
+ * points were encoded as. Since we can end up with index mis-matches, we just
+ * spit out codepoints to catch the normalizer up to everything in the orig
+ * codes buffer. */
+static int append_grapheme(MVMThreadContext *tc, DecodeState *state, MVMGrapheme32 g) {
+    if (g == state->orig_codes[state->orig_codes_unnormalized]) {
+        /* Easy case: exact match. */
+        state->result[state->result_pos++] = g;
+        state->orig_codes_unnormalized++;
+        return 1;
+    }
+    else if (g < 0) {
+        MVMNFGSynthetic *synth = MVM_nfg_get_synthetic_info(tc, g);
+        int mismatch = 0;
+        if (synth->base == state->orig_codes[state->orig_codes_unnormalized]) {
+            MVMint32 i;
+            for (i = 0; i < synth->num_combs; i++) {
+                size_t orig_idx = state->orig_codes_unnormalized + i + 1;
+                if (orig_idx >= state->orig_codes_pos) {
+                    mismatch = 1;
+                    break;
+                }
+                if (state->orig_codes[orig_idx] != synth->combs[i])
+                    mismatch = 1;
+            }
+        }
+        else {
+            mismatch = 1;
+        }
+        if (!mismatch) {
+            state->result[state->result_pos++] = g;
+            state->orig_codes_unnormalized += 1 + synth->num_combs;
+            return 1;
+        }
+    }
+
+    /* If we get here, then normalization would trash the original bytes. */
+    {
+        /* Spit out synthetics to keep the bytes as is. */
+        size_t i, j;
+        for (i = state->orig_codes_unnormalized; i < state->orig_codes_pos; i++) {
+            MVMCodepoint to_encode = state->orig_codes[i];
+            MVMuint8 encoded[4];
+            MVMint32 bytes = utf8_encode(encoded, to_encode);
+            for (j = 0; j < bytes; j++)
+                state->result[state->result_pos++] = synthetic_for(tc, encoded[j]);
+        }
+
+        /* Consider all codes pushed now normalized. */
+        state->orig_codes_unnormalized = state->orig_codes_pos;
+
+        /* Put a clean normalizer in place. */
+        MVM_unicode_normalizer_cleanup(tc, &(state->norm));
+        MVM_unicode_normalizer_init(tc, &(state->norm), MVM_NORMALIZE_NFG);
+        return 0;
+    }
+}
 
 /* Called when decoding has reached an acceptable codepoint. */
 static void process_ok_codepoint(MVMThreadContext *tc, DecodeState *state) {
-    /* XXX Normalization needs to get involved here also. */
-    state->result[state->result_pos++] = state->cur_codepoint;
+    MVMint32 ready;
+    MVMGrapheme32 g;
+
+    /* Consider the byte range accepted. */
     state->unaccepted_start = state->cur_byte + 1;
+
+    /* Insert into original codepoints list and hand it to the normalizer. */
+    state->orig_codes[state->orig_codes_pos++] = state->cur_codepoint;
+    ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc,
+            &(state->norm), state->cur_codepoint, &g);
+
+    /* If the normalizer produced some output... */
+    if (ready) {
+        if (append_grapheme(tc, state, g)) {
+            while (--ready > 0) {
+                g = MVM_unicode_normalizer_get_grapheme(tc, &(state->norm));
+                if (!append_grapheme(tc, state, g))
+                    break;
+            }
+        }
+    }
 }
 
-/* Called when a bad byte has been encountered. */
+/* Called when a bad byte has been encountered, or at the end of output. */
 static void process_bad_bytes(MVMThreadContext *tc, DecodeState *state) {
     size_t i;
+    MVMint32 ready;
+
+    /* Flush normalization buffer and take from that. */
+    MVM_unicode_normalizer_eof(tc, &(state->norm));
+    ready = MVM_unicode_normalizer_available(tc, &(state->norm));
+    while (ready-- > 0) {
+        MVMGrapheme32 g = MVM_unicode_normalizer_get_grapheme(tc, &(state->norm));
+        if (!append_grapheme(tc, state, g))
+            break;
+    }
+
+    /* Now add in synthetics for bad bytes. */
     for (i = state->unaccepted_start; i <= state->cur_byte; i++)
         state->result[state->result_pos++] = synthetic_for(tc, state->utf8[i]);
     state->unaccepted_start = state->cur_byte + 1;
@@ -274,6 +378,10 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
     state.cur_codepoint = 0;
     state.result = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
     state.result_pos = 0;
+    state.orig_codes = MVM_malloc(sizeof(MVMCodepoint) * bytes);
+    state.orig_codes_pos = 0;
+    state.orig_codes_unnormalized = 0;
+    MVM_unicode_normalizer_init(tc, &(state.norm), MVM_NORMALIZE_NFG);
 
     while (state.cur_byte < bytes) {
         MVMuint8 decode_byte = utf8[state.cur_byte];
@@ -325,10 +433,11 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
     }
 
     /* Handle anything dangling off the end. */
-    if (state.expecting == EXPECT_CONTINUATION) {
-        state.cur_byte--; /* So we don't read 1 past the end. */
-        process_bad_bytes(tc, &state);
-    }
+    state.cur_byte--; /* So we don't read 1 past the end. */
+    process_bad_bytes(tc, &state);
+
+    MVM_free(state.orig_codes);
+    MVM_unicode_normalizer_cleanup(tc, &(state.norm));
 
     {
         MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
