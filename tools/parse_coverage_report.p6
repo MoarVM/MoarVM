@@ -85,10 +85,11 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
             %stats{$current_source}<covered>    = $covered;
             %stats{$current_source}<uncovered>  = $uncovered;
             %stats{$current_source}<ignored>    = $ignored;
-            %stats{$current_source}<percentage> = 100 * $covered / ($covered + $uncovered);
             %stats{$current_source}<total>      = $covered + $uncovered + $ignored;
             %stats{$current_source}<path>       = $path.subst("coverage/", "");
             %stats{$current_source}<source_pos> = @file_ranges[$curfile-1][0]+1;
+            %stats{$current_source}<percentage> = $_ == 0 ?? 0 !! 100 * $covered / $_
+                given $covered + $uncovered;
 
             $covered = 0;
             $uncovered = 0;
