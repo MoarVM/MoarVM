@@ -15,17 +15,17 @@ MVM_JIT_TILE_DECL(load_tc) {
 
 
 MVM_JIT_TILE_DECL(addr) {
-    MVMint8 out  = tile->values[0]->st_pos;
-    MVMint8 base = tile->values[1]->st_pos;
+    MVMint8 out  = tile->values[0];
+    MVMint8 base = tile->values[1];
     MVMint32 ofs = tile->args[0];
     | lea Rq(out), [Rq(base)+ofs];
 }
 
 
 MVM_JIT_TILE_DECL(idx) {
-    MVMint8 out  = tile->values[0]->st_pos;
-    MVMint8 base = tile->values[1]->st_pos;
-    MVMint8 idx  = tile->values[2]->st_pos;
+    MVMint8 out  = tile->values[0];
+    MVMint8 base = tile->values[1];
+    MVMint8 idx  = tile->values[2];
     MVMint8 scl  = tile->args[0];
     if (scl == 8) {
         | lea Rq(out), [Rq(base)+Rq(idx)*8];
@@ -36,7 +36,7 @@ MVM_JIT_TILE_DECL(idx) {
 
 
 MVM_JIT_TILE_DECL(const_reg) {
-    MVMint8 out = tile->values[0]->st_pos;
+    MVMint8 out = tile->values[0];
     MVMint64 val  = tile->args[0];
     MVMint32 size = tile->args[1];
     if (size == 8 && !fits_in_32_bit(val)) {
@@ -48,8 +48,8 @@ MVM_JIT_TILE_DECL(const_reg) {
 
 
 MVM_JIT_TILE_DECL(load_reg) {
-    MVMint8 out  = tile->values[0]->st_pos;
-    MVMint8 base = tile->values[1]->st_pos;
+    MVMint8 out  = tile->values[0];
+    MVMint8 base = tile->values[1];
     MVMint32 size = tile->args[0];
     switch (size) {
     case 1:
@@ -70,8 +70,8 @@ MVM_JIT_TILE_DECL(load_reg) {
 }
 
 MVM_JIT_TILE_DECL(load_addr) {
-    MVMint8 out  = tile->values[0]->st_pos;
-    MVMint8 base = tile->values[1]->st_pos;
+    MVMint8 out  = tile->values[0];
+    MVMint8 base = tile->values[1];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
     switch (tile->args[1]) {
@@ -93,9 +93,9 @@ MVM_JIT_TILE_DECL(load_addr) {
 }
 
 MVM_JIT_TILE_DECL(load_idx) {
-    MVMint8 out  = tile->values[0]->st_pos;
-    MVMint8 base = tile->values[1]->st_pos;
-    MVMint8 idx  = tile->values[2]->st_pos;
+    MVMint8 out  = tile->values[0];
+    MVMint8 base = tile->values[1];
+    MVMint8 idx  = tile->values[2];
     MVMint8 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
     if (scl != 8) {
@@ -121,8 +121,8 @@ MVM_JIT_TILE_DECL(load_idx) {
 
 
 MVM_JIT_TILE_DECL(store) {
-    MVMint8 base  = tile->values[1]->st_pos;
-    MVMint8 value = tile->values[2]->st_pos;
+    MVMint8 base  = tile->values[1];
+    MVMint8 value = tile->values[2];
     MVMint32 size = tile->args[0];
     switch (size) {
     case 1:
@@ -143,8 +143,8 @@ MVM_JIT_TILE_DECL(store) {
 }
 
 MVM_JIT_TILE_DECL(store_addr) {
-    MVMint8 base  = tile->values[1]->st_pos;
-    MVMint8 value = tile->values[2]->st_pos;
+    MVMint8 base  = tile->values[1];
+    MVMint8 value = tile->values[2];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
     switch (size) {
@@ -166,10 +166,10 @@ MVM_JIT_TILE_DECL(store_addr) {
 }
 
 MVM_JIT_TILE_DECL(store_idx) {
-    MVMint8 base = tile->values[1]->st_pos;
-    MVMint8 idx  = tile->values[2]->st_pos;
+    MVMint8 base = tile->values[1];
+    MVMint8 idx  = tile->values[2];
     MVMint8 scl  = tile->args[0];
-    MVMint8 value = tile->values[3]->st_pos;
+    MVMint8 value = tile->values[3];
     if (scl != 8)
         MVM_oops(tc, "Scale %d NYI\n", scl);
     switch (tile->args[1]) {
@@ -204,8 +204,8 @@ MVM_JIT_TILE_DECL(cast) {
     MVMint32 from_size = tile->args[1];
     MVMint32 is_signed = tile->args[2];
 
-    MVMint8  to_reg    = tile->values[0]->st_pos;
-    MVMint8  from_reg  = tile->values[1]->st_pos;
+    MVMint8  to_reg    = tile->values[0];
+    MVMint8  from_reg  = tile->values[1];
 
     /* possible combinations: 1 -> 2, 4, 8; 2 -> 4, 8; 4 -> 8
      * Hence we can combine from_size | (to_size << 3) to get
@@ -292,9 +292,9 @@ MVM_JIT_TILE_DECL(cast_load_addr) {
 
 
 MVM_JIT_TILE_DECL(add_reg) {
-    MVMint8 out = tile->values[0]->st_pos;
-    MVMint8 in1  = tile->values[1]->st_pos;
-    MVMint8 in2  = tile->values[2]->st_pos;
+    MVMint8 out = tile->values[0];
+    MVMint8 in1  = tile->values[1];
+    MVMint8 in2  = tile->values[2];
     if (out == in2) {
         | add Rq(out), Rq(in2);
     } else {
@@ -304,8 +304,8 @@ MVM_JIT_TILE_DECL(add_reg) {
 }
 
 MVM_JIT_TILE_DECL(add_const) {
-    MVMint8 out = tile->values[0]->st_pos;
-    MVMint8 in1  = tile->values[1]->st_pos;
+    MVMint8 out = tile->values[0];
+    MVMint8 in1  = tile->values[1];
     MVMint64 val = tile->args[0];
     MVMint32 sz  = tile->args[1];
     if (out == in1) {
@@ -326,9 +326,9 @@ MVM_JIT_TILE_DECL(add_const) {
 }
 
 MVM_JIT_TILE_DECL(add_load_addr) {
-    MVMint8 out   = tile->values[0]->st_pos;
-    MVMint8 in1   = tile->values[1]->st_pos;
-    MVMint8 base  = tile->values[2]->st_pos;
+    MVMint8 out   = tile->values[0];
+    MVMint8 in1   = tile->values[1];
+    MVMint8 base  = tile->values[2];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
     if (in1 != out) {
@@ -353,10 +353,10 @@ MVM_JIT_TILE_DECL(add_load_addr) {
 }
 
 MVM_JIT_TILE_DECL(add_load_idx) {
-    MVMint8 out  = tile->values[0]->st_pos;
-    MVMint8 in1  = tile->values[1]->st_pos;
-    MVMint8 base = tile->values[2]->st_pos;
-    MVMint8 idx  = tile->values[3]->st_pos;
+    MVMint8 out  = tile->values[0];
+    MVMint8 in1  = tile->values[1];
+    MVMint8 base = tile->values[2];
+    MVMint8 idx  = tile->values[3];
     MVMint32 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
 
@@ -382,9 +382,9 @@ MVM_JIT_TILE_DECL(add_load_idx) {
 
 
 MVM_JIT_TILE_DECL(and_reg) {
-    MVMint8 out = tile->values[0]->st_pos;
-    MVMint8 in1  = tile->values[1]->st_pos;
-    MVMint8 in2  = tile->values[2]->st_pos;
+    MVMint8 out = tile->values[0];
+    MVMint8 in1  = tile->values[1];
+    MVMint8 in2  = tile->values[2];
     if (out == in2) {
         | and Rq(out), Rq(in2);
     } else {
@@ -394,8 +394,8 @@ MVM_JIT_TILE_DECL(and_reg) {
 }
 
 MVM_JIT_TILE_DECL(and_const) {
-    MVMint8 out = tile->values[0]->st_pos;
-    MVMint8 in1  = tile->values[1]->st_pos;
+    MVMint8 out = tile->values[0];
+    MVMint8 in1  = tile->values[1];
     MVMint64 val = tile->args[0];
     MVMint32 sz  = tile->args[1];
     if (out == in1) {
@@ -416,9 +416,9 @@ MVM_JIT_TILE_DECL(and_const) {
 }
 
 MVM_JIT_TILE_DECL(and_load_addr) {
-    MVMint8 out   = tile->values[0]->st_pos;
-    MVMint8 in1   = tile->values[1]->st_pos;
-    MVMint8 base  = tile->values[2]->st_pos;
+    MVMint8 out   = tile->values[0];
+    MVMint8 in1   = tile->values[1];
+    MVMint8 base  = tile->values[2];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
     if (in1 != out) {
@@ -443,10 +443,10 @@ MVM_JIT_TILE_DECL(and_load_addr) {
 }
 
 MVM_JIT_TILE_DECL(and_load_idx) {
-    MVMint8 out  = tile->values[0]->st_pos;
-    MVMint8 in1  = tile->values[1]->st_pos;
-    MVMint8 base = tile->values[2]->st_pos;
-    MVMint8 idx  = tile->values[3]->st_pos;
+    MVMint8 out  = tile->values[0];
+    MVMint8 in1  = tile->values[1];
+    MVMint8 base = tile->values[2];
+    MVMint8 idx  = tile->values[3];
     MVMint32 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
 
@@ -472,9 +472,9 @@ MVM_JIT_TILE_DECL(and_load_idx) {
 
 
 MVM_JIT_TILE_DECL(sub_reg) {
-    MVMint8 out = tile->values[0]->st_pos;
-    MVMint8 in1  = tile->values[1]->st_pos;
-    MVMint8 in2  = tile->values[2]->st_pos;
+    MVMint8 out = tile->values[0];
+    MVMint8 in1  = tile->values[1];
+    MVMint8 in2  = tile->values[2];
     if (out == in2) {
         | sub Rq(out), Rq(in2);
     } else {
@@ -484,8 +484,8 @@ MVM_JIT_TILE_DECL(sub_reg) {
 }
 
 MVM_JIT_TILE_DECL(sub_const) {
-    MVMint8 out = tile->values[0]->st_pos;
-    MVMint8 in1  = tile->values[1]->st_pos;
+    MVMint8 out = tile->values[0];
+    MVMint8 in1  = tile->values[1];
     MVMint64 val = tile->args[0];
     MVMint32 sz  = tile->args[1];
     if (out == in1) {
@@ -506,9 +506,9 @@ MVM_JIT_TILE_DECL(sub_const) {
 }
 
 MVM_JIT_TILE_DECL(sub_load_addr) {
-    MVMint8 out   = tile->values[0]->st_pos;
-    MVMint8 in1   = tile->values[1]->st_pos;
-    MVMint8 base  = tile->values[2]->st_pos;
+    MVMint8 out   = tile->values[0];
+    MVMint8 in1   = tile->values[1];
+    MVMint8 base  = tile->values[2];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
     if (in1 != out) {
@@ -533,10 +533,10 @@ MVM_JIT_TILE_DECL(sub_load_addr) {
 }
 
 MVM_JIT_TILE_DECL(sub_load_idx) {
-    MVMint8 out  = tile->values[0]->st_pos;
-    MVMint8 in1  = tile->values[1]->st_pos;
-    MVMint8 base = tile->values[2]->st_pos;
-    MVMint8 idx  = tile->values[3]->st_pos;
+    MVMint8 out  = tile->values[0];
+    MVMint8 in1  = tile->values[1];
+    MVMint8 base = tile->values[2];
+    MVMint8 idx  = tile->values[3];
     MVMint32 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
 
@@ -562,13 +562,13 @@ MVM_JIT_TILE_DECL(sub_load_idx) {
 
 
 MVM_JIT_TILE_DECL(nz) {
-    MVMint8 reg = tile->values[1]->st_pos;
+    MVMint8 reg = tile->values[1];
     | test Rq(reg), Rq(reg);
 }
 
 
 MVM_JIT_TILE_DECL(nz_addr) {
-    MVMint8 base  = tile->values[1]->st_pos;
+    MVMint8 base  = tile->values[1];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
     switch (size) {
@@ -591,8 +591,8 @@ MVM_JIT_TILE_DECL(nz_addr) {
 
 
 MVM_JIT_TILE_DECL(nz_idx) {
-    MVMint8 base = tile->values[1]->st_pos;
-    MVMint8 idx  = tile->values[2]->st_pos;
+    MVMint8 base = tile->values[1];
+    MVMint8 idx  = tile->values[2];
     MVMint32 scl = tile->args[0];
     MVMint32 size = tile->args[1];
     if (scl != 8)
@@ -616,8 +616,8 @@ MVM_JIT_TILE_DECL(nz_idx) {
 }
 
 MVM_JIT_TILE_DECL(nz_and) {
-    MVMint8 rega = tile->values[1]->st_pos;
-    MVMint8 regb = tile->values[2]->st_pos;
+    MVMint8 rega = tile->values[1];
+    MVMint8 regb = tile->values[2];
     switch(tile->size) {
     case 1:
         | test Rb(regb), Rb(rega);
@@ -635,7 +635,7 @@ MVM_JIT_TILE_DECL(nz_and) {
 }
 
 MVM_JIT_TILE_DECL(zr) {
-    MVMint8 reg = tile->values[1]->st_pos;
+    MVMint8 reg = tile->values[1];
     switch (tile->size) {
     case 1:
         | test Rb(reg), Rb(reg);
@@ -654,8 +654,8 @@ MVM_JIT_TILE_DECL(zr) {
 }
 
 MVM_JIT_TILE_DECL(cmp) {
-    MVMint8 regl = tile->values[1]->st_pos;
-    MVMint8 regr = tile->values[2]->st_pos;
+    MVMint8 regl = tile->values[1];
+    MVMint8 regr = tile->values[2];
     switch (tile->size) {
     case 1:
         | cmp Rb(regl), Rb(regr);
@@ -703,7 +703,7 @@ MVM_JIT_TILE_DECL(do_void) {
 
 
 MVM_JIT_TILE_DECL(label) {
-    MVMint8 reg = tile->values[0]->st_pos;
+    MVMint8 reg = tile->values[0];
     MVMint32 label = tile->args[0];
     | lea Rq(reg), [=>label];
 }
@@ -720,7 +720,7 @@ MVM_JIT_TILE_DECL(branch_label) {
 
 
 MVM_JIT_TILE_DECL(call) {
-    MVMint8 reg = tile->values[1]->st_pos;
+    MVMint8 reg = tile->values[1];
     | call Rq(reg);
 }
 
@@ -731,7 +731,7 @@ MVM_JIT_TILE_DECL(call_func) {
 
 
 MVM_JIT_TILE_DECL(call_addr) {
-    MVMint8  reg = tile->values[1]->st_pos;
+    MVMint8  reg = tile->values[1];
     MVMint32 ofs = tile->args[0];
     | call qword [Rq(reg)+ofs];
 }

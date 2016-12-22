@@ -41,18 +41,6 @@ typedef enum {
 #define MVM_JIT_REGISTER_REQUIREMENT(desc) (((desc) & 0xfc) >> 2)
 
 
-struct MVMJitValue {
-    MVMint32 node;
-
-    MVMJitStorageClass st_cls;
-    MVMint16 st_pos;
-    MVMint8  size;
-
-    MVMint32 range_start, range_end;
-
-    MVMJitValue *next_by_node;
-    MVMJitValue *next_by_position;
-};
 
 
 void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTileList *list);

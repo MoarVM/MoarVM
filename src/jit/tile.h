@@ -18,7 +18,7 @@ struct MVMJitTile {
     MVMint32 num_refs;
     MVMint32       refs[4];
     MVMJitExprNode args[4];
-    MVMJitValue *values[8];
+    MVMint8      values[4];
 
     MVMuint32 register_spec;
     MVMint8   size;

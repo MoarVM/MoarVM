@@ -186,14 +186,14 @@ void MVM_jit_compile_label(MVMThreadContext *tc, MVMJitCompiler *compiler,
 void MVM_jit_compile_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitTile *tile, MVMJitExprTree *tree) {
     MVM_jit_emit_spill(tc, compiler, tile->args[0],
-                       tile->values[0]->st_cls, tile->values[0]->st_pos,
+                       MVM_JIT_STORAGE_GPR, tile->values[0],
                        sizeof(MVMRegister));
 }
 
 void MVM_jit_compile_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
                           MVMJitTile *tile, MVMJitExprTree *tree) {
     MVM_jit_emit_load(tc, compiler, tile->args[0],
-                      tile->values[0]->st_cls, tile->values[0]->st_pos,
+                      MVM_JIT_STORAGE_GPR, tile->values[0],
                       sizeof(MVMRegister));
 }
 
