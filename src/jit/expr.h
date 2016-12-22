@@ -41,7 +41,7 @@ typedef enum { /* value type */
     _(IDX, 2, 1, REG, UNSIGNED),   \
     _(COPY, 1, 0, REG, NO_CAST),   \
     /* type conversion */ \
-    _(CAST, 1, 2, REG, NO_CAST),   \
+    _(CAST, 1, 3, REG, NO_CAST),   \
     /* integer comparison */ \
     _(LT, 2, 0, FLAG, SIGNED),     \
     _(LE, 2, 0, FLAG, SIGNED),     \

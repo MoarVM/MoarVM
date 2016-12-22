@@ -86,9 +86,9 @@ static MVMint32 MVM_jit_expr_add_store(MVMThreadContext *tc, MVMJitExprTree *tre
 }
 
 
-static MVMint32 MVM_jit_expr_add_cast(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMint32 size, MVMint32 cast) {
+static MVMint32 MVM_jit_expr_add_cast(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMint32 to_size, MVMint32 from_size, MVMint32 is_signed) {
     MVMint32 num = tree->nodes_num;
-    MVMJitExprNode template[] = { MVM_JIT_CAST, node, size, cast };
+    MVMJitExprNode template[] = { MVM_JIT_CAST, node, to_size, from_size, is_signed };
     MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
 }
@@ -356,7 +356,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 tree->info[child].size = tree->info[node].size;
             } else if (tree->info[child].size < node_info->size) {
                 /* Widening casts need to be handled explicitly, shrinking casts do not */
-                MVMint32 cast = MVM_jit_expr_add_cast(tc, tree, child, node_info->size, op_info->cast);
+                MVMint32 cast = MVM_jit_expr_add_cast(tc, tree, child, node_info->size, tree->info[child].size, op_info->cast);
                 /* Because the cast may have grown the backing nodes array, the info array needs to grow as well */
                 MVM_VECTOR_ENSURE_SIZE(tree->info, cast);
                 /* And because analyze_node is called in postorder,

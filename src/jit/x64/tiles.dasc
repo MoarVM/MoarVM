@@ -201,8 +201,9 @@ MVM_JIT_TILE_DECL(copy) {
 
 MVM_JIT_TILE_DECL(cast) {
     MVMint32 to_size   = tile->args[0];
-    MVMint32 is_signed = tile->args[1];
-    MVMint32 from_size = tile->values[1]->size;
+    MVMint32 from_size = tile->args[1];
+    MVMint32 is_signed = tile->args[2];
+
     MVMint8  to_reg    = tile->values[0]->st_pos;
     MVMint8  from_reg  = tile->values[1]->st_pos;
 
