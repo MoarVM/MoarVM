@@ -302,18 +302,26 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         /* addresses result in pointers */
         node_info->size = MVM_JIT_PTR_SZ;
         break;
+        /* binary operations */
     case MVM_JIT_ADD:
     case MVM_JIT_SUB:
     case MVM_JIT_AND:
     case MVM_JIT_OR:
     case MVM_JIT_XOR:
     case MVM_JIT_NOT:
+        /* comparisons */
+    case MVM_JIT_NE:
+    case MVM_JIT_LT:
+    case MVM_JIT_LE:
+    case MVM_JIT_EQ:
+    case MVM_JIT_GE:
+    case MVM_JIT_GT:
         {
             /* arithmetic nodes use their largest operand */
             MVMint32 left  = tree->nodes[first_child];
             MVMint32 right = tree->nodes[first_child+1];
             node_info->size = MAX(tree->info[left].size,
-                                         tree->info[right].size);
+                                  tree->info[right].size);
             break;
         }
     case MVM_JIT_DO:
@@ -340,6 +348,10 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             node_info->size = MVM_JIT_PTR_SZ;
         else
             node_info->size = MVM_JIT_NUM_SZ;
+        break;
+    case MVM_JIT_NZ:
+    case MVM_JIT_ZR:
+        node_info->size = tree->info[tree->nodes[first_child]].size;
         break;
     default:
         /* all other things, branches, labels, when, arglist, carg,

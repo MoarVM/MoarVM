@@ -611,14 +611,14 @@ MVM_JIT_TILE_DECL(nz_idx) {
         | cmp qword [Rq(base)+Rq(idx)*8], 0;
         break;
     default:
-        MVM_oops(tc, "Unsupported size %d for load\n", tile->values[1]->size);
+        MVM_oops(tc, "Unsupported size %d for load\n", tile->size);
     }
 }
 
 MVM_JIT_TILE_DECL(nz_and) {
     MVMint8 rega = tile->values[1]->st_pos;
     MVMint8 regb = tile->values[2]->st_pos;
-    switch(tile->values[1]->size) {
+    switch(tile->size) {
     case 1:
         | test Rb(regb), Rb(rega);
         break;
@@ -636,7 +636,7 @@ MVM_JIT_TILE_DECL(nz_and) {
 
 MVM_JIT_TILE_DECL(zr) {
     MVMint8 reg = tile->values[1]->st_pos;
-    switch (tile->values[1]->size) {
+    switch (tile->size) {
     case 1:
         | test Rb(reg), Rb(reg);
         break;
@@ -656,7 +656,7 @@ MVM_JIT_TILE_DECL(zr) {
 MVM_JIT_TILE_DECL(cmp) {
     MVMint8 regl = tile->values[1]->st_pos;
     MVMint8 regr = tile->values[2]->st_pos;
-    switch (tile->values[1]->size) {
+    switch (tile->size) {
     case 1:
         | cmp Rb(regl), Rb(regr);
         break;

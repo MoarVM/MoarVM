@@ -21,6 +21,7 @@ struct MVMJitTile {
     MVMJitValue *values[8];
 
     MVMuint32 register_spec;
+    MVMint8   size;
 };
 
 

@@ -448,6 +448,7 @@ MVMJitTile * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompile
     tile->register_spec = template->register_spec;
     tile->node          = node;
     tile->op            = tree->nodes[node];
+    tile->size          = tree->info[node].size;
 
     /* Assign tile arguments and compute the refering nodes */
     switch (tile->op) {
