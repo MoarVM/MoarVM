@@ -36,7 +36,7 @@ a template and the former does not.
 - we don't need double-linked lists either, because live ranges now
   contain their own set
 
-*** TODO Get rid of template pointers in the tile object
+*** DONE Get rid of template pointers in the tile object
 
 This is a far-too-brittle construction that artificially distinguishes
 between 'real' tiles and pseudotiles, and there is no reason to have them,
@@ -151,7 +151,7 @@ ValueList and make it local; tile->values will be MVMint8[4], which is
 quite sufficient for all possible registers except for arglist, but
 that needs special-casing anyway.
 
-**** TODO Legitimise 'defintiion' tiles
+**** DONE Legitimise 'defintiion' tiles
 
 Nodes such as TC, CU, etc. operate by defining the register which
 holds the value. So I'd like to define them as:
@@ -203,6 +203,15 @@ X64_GPR(MVM_JIT_REG)
 int i = MVM_JIT_REQUIRE(RSP);
 #+END_SRC
 
+**** TODO Use register requirements on definition tiles
+
+- reading of register requirements from tile
+- look up table to detect that certain registers are non-volatile (callee-saved)
+
+*** DONE tile editor code moves to tile.c
+   - keep it abstract?
+   - internalize into list? (why not?)
+
 *** TODO Work on operation nodes
 
 Specifically:
@@ -240,10 +249,6 @@ it isn't. What we can do is:
   - ....
 - store the spesh instruction tagged to the tree, so that we can find
   out where it should be stored if it isn't
-
-*** DONE tile editor code moves to tile.c
-   - keep it abstract?
-   - internalize into list? (why not?)
 
 
 ** DONE Find live ranges
