@@ -56,3 +56,5 @@ void MVM_jit_tile_list_edit(MVMThreadContext *tc, MVMJitTileList *list);
 void MVM_jit_tile_list_destroy(MVMThreadContext *tc, MVMJitTileList *list);
 
 #define MVM_JIT_TILE_YIELDS_VALUE(t) ((t)->register_spec & 1)
+#define MVM_JIT_TILE_DECL(name) \
+    void MVM_jit_tile_ ## name (MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMJitExprTree *tree)

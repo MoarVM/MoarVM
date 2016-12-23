@@ -362,7 +362,11 @@ my $parser = sexpr->parser($input);
 while (my $tree = $parser->read) {
     my $keyword = shift @$tree;
     if ($keyword eq 'tile:') {
+        # (tile: name pattern symbol cost)
         push @rules, rule::add(@$tree);
+    } elsif ($keyword eq 'define:') {
+        # (define: pattern symbol)
+        push @rules, rule::add(undef, @$tree, 0);
     }
 }
 close $input;
@@ -452,7 +456,7 @@ for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
     my $sn2  = defined $sym2 ? $symnum{$sym2} : -1;
     my ($func, $path, $text, $refs, $nval, $spec);
     if (exists $rule->{name}) {
-        $func = $VARNAME . $rule->{name};
+        $func = defined $rule->{name} ? $VARNAME . $rule->{name} : "NULL";
         $path = sprintf('"%s"', $rule->{path});
         $text = sprintf('"%s"', $rule->{text});
         $refs = $rule->{refs};

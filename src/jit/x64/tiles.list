@@ -4,10 +4,10 @@
 #
 # Virtual Machine Values 
 #
-(tile: load_stack  (stack) reg 1)
-(tile: load_local  (local) reg 1)
-(tile: load_cu     (cu) reg 1)
-(tile: load_tc     (tc) reg 1)
+(define: (stack) reg)
+(define: (local) reg)
+(define: (cu)    reg)
+(define: (tc)    reg)
 #
 # MEMORY TRAFFIC
 #

@@ -1,18 +1,8 @@
-#define MVM_JIT_TILE_DECL(name) \
-    void MVM_jit_tile_ ## name (MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMJitExprTree *tree)
-MVM_JIT_TILE_DECL(load_stack);
-MVM_JIT_TILE_DECL(load_local);
-MVM_JIT_TILE_DECL(load_lbl);
-MVM_JIT_TILE_DECL(load_cu);
-MVM_JIT_TILE_DECL(load_tc);
-MVM_JIT_TILE_DECL(load_frame);
-MVM_JIT_TILE_DECL(load_vmnull);
-
-
 MVM_JIT_TILE_DECL(addr);
 MVM_JIT_TILE_DECL(idx);
 MVM_JIT_TILE_DECL(const_reg);
 
+MVM_JIT_TILE_DECL(load_lbl);
 MVM_JIT_TILE_DECL(load_reg);
 MVM_JIT_TILE_DECL(load_addr);
 MVM_JIT_TILE_DECL(load_idx);

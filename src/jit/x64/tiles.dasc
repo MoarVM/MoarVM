@@ -1,17 +1,6 @@
 #include "tile_decl.h"
 
 
-MVM_JIT_TILE_DECL(load_stack) {
-}
-
-MVM_JIT_TILE_DECL(load_local) {
-}
-
-MVM_JIT_TILE_DECL(load_cu) {
-}
-
-MVM_JIT_TILE_DECL(load_tc) {
-}
 
 
 MVM_JIT_TILE_DECL(addr) {
@@ -65,7 +54,7 @@ MVM_JIT_TILE_DECL(load_reg) {
         | mov Rq(out), [Rq(base)];
         break;
     default:
-        MVM_oops(tc, "Unsupported load size: %d\n", tile->args[0]);
+        MVM_oops(tc, "Unsupported load size: %d\n", size);
     }
 }
 
@@ -88,7 +77,7 @@ MVM_JIT_TILE_DECL(load_addr) {
         | mov Rq(out), qword [Rq(base)+ofs];
         break;
     default:
-        MVM_oops(tc, "Unsupported load size: %ld\n", tile->args[1]);
+        MVM_oops(tc, "Unsupported load size: %d\n", size);
     }
 }
 
@@ -169,10 +158,11 @@ MVM_JIT_TILE_DECL(store_idx) {
     MVMint8 base = tile->values[1];
     MVMint8 idx  = tile->values[2];
     MVMint8 scl  = tile->args[0];
+    MVMint32 size = tile->args[1];
     MVMint8 value = tile->values[3];
     if (scl != 8)
         MVM_oops(tc, "Scale %d NYI\n", scl);
-    switch (tile->args[1]) {
+    switch (size) {
     case 1:
         | mov byte [Rq(base)+Rq(idx)*8], Rb(value);
         break;
@@ -186,7 +176,7 @@ MVM_JIT_TILE_DECL(store_idx) {
         | mov qword [Rq(base)+Rq(idx)*8], Rq(value);
         break;
     default:
-        MVM_oops(tc, "Unsupported store size: %d\n", tile->args[1]);
+        MVM_oops(tc, "Unsupported store size: %d\n", size);
     }
 
 }

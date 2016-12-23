@@ -429,8 +429,8 @@ static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     const MVMJitTileTemplate *template = tiler->states[node].template;
     MVMJitTile *tile;
 
-    /* only need to add actual code-emitting tiles */
-    if (template->emit == NULL)
+    /* only need to add 'real' tiles; emit may be null for a definition */
+    if (template->expr == NULL)
         return;
 
     tile = MVM_jit_tile_make_from_template(tc, tiler->compiler, template, tree, node);

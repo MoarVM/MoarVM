@@ -211,7 +211,7 @@ static void spill_value(MVMThreadContext *tc, struct RegisterAllocator *allocato
 
     /* create and insert tile for a store */
     tile = MVM_jit_tile_make(tc, allocator->compiler, MVM_jit_compile_store, value->node, 1, spill_pos);
-    tile->values[0] = value;
+    tile->values[0] = value->st_pos;
     /* spills prior to any loads */
     MVM_jit_tile_list_insert(tc, allocator->tile_list, tile, value->range_start, -1);
 
@@ -235,7 +235,7 @@ static struct ValueList * load_value(MVMThreadContext *tc, struct RegisterAlloca
     value_assign_storage(tc, allocator, live, MVM_JIT_STORAGE_GPR, gpr_pos);
     value_assign_range(tc, allocator, live, order_nr, spilled->range_end);
 
-    tile->values[0] = live;
+    tile->values[0] = live->st_pos;
     return live;
 }
 
@@ -299,7 +299,6 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     for (i = 0; i < list->items_num; i++) {
         MVMJitTile *tile = list->items[i];
         struct ValueList *values[4];
-        /* TODO; ensure that register values are live */
         for (j = 0; j < tile->num_refs; j++) {
             MVMint32 ref_node = tile->refs[j];
             MVMint32 tile_nr  = allocator.live_ranges[ref_node].range_start;
@@ -333,7 +332,7 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
 
         /* allocate input register if necessary */
 
-        switch(tree->nodes[tile->node]) {
+        switch(tile->op) {
         case MVM_JIT_COPY:
         {
             /* use same register as input  */

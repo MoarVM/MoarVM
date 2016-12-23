@@ -213,7 +213,10 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     /* Third stage, emit the code */
     for (i = 0; i < list->items_num; i++) {
         tile = list->items[i];
-        tile->emit(tc, compiler, tile, tree);
+        /* definition tiles etc. have NULL emit rules */
+        if (tile->emit != NULL) {
+            tile->emit(tc, compiler, tile, tree);
+        }
     }
     /* Cleanup tile lits */
     MVM_jit_tile_list_destroy(tc, list);
