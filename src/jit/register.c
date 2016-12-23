@@ -16,10 +16,10 @@
 
 #if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
 static MVMint8 free_gpr[] = {
-    X64_FREE_GPR(MVM_JIT_REGNAME)
+    X64_FREE_GPR(MVM_JIT_REG)
 };
 static MVMint8 free_num[] = {
-    X64_SSE(MVM_JIT_REGNAME)
+    X64_SSE(MVM_JIT_REG)
 };
 #else
 static MVMint8 free_gpr[] = { -1 };

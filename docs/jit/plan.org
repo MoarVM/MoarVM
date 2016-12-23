@@ -144,7 +144,7 @@ construction still doesn't need it (yet), because we now reference
 from live range to tile, not the other way arround.
 An optimizer may change that, though.
 
-**** TODO Remove MVMJitValue as a global type
+**** DONE Remove MVMJitValue as a global type
 
 The 'old' register allocator will still need it so we'll rename it to
 ValueList and make it local; tile->values will be MVMint8[4], which is

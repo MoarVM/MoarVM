@@ -29,10 +29,14 @@ typedef enum {
  * tile has any register output simply by (spec & 1).
  */
 
+#define MVM_JIT_REG_MK2(arch,name) arch ## _ ## name
+#define MVM_JIT_REG_MK1(arch,name) MVM_JIT_REG_MK2(arch,name)
+#define MVM_JIT_REG(name) MVM_JIT_REG_MK1(MVM_JIT_ARCH,name)
+
 
 #define MVM_JIT_REGISTER_NONE 0
 #define MVM_JIT_REGISTER_ANY  1
-#define MVM_JIT_REGISTER_REQUIRE(nr) (3 | ((nr) << 2))
+#define MVM_JIT_REGISTER_REQUIRE(name) (3 | ((MVM_JIT_REG(name)) << 2))
 #define MVM_JIT_REGISTER_ENCODE(spec,n) ((spec) << (8*(n)))
 
 #define MVM_JIT_REGISTER_FETCH(spec,n) (((spec) >> (8*(n)))&0xff)

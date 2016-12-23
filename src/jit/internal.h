@@ -1,11 +1,6 @@
 /* Internal header for the MoarVM JIT compiler. Probably best not to use it
  * outside the JIT */
 
-#define MVM_JIT_ARCH_STUB      0
-#define MVM_JIT_ARCH_X64       1
-#define MVM_JIT_PLATFORM_POSIX 1
-#define MVM_JIT_PLATFORM_WIN32 2
-
 /* Override dynasm state definitions, so that we can use our own compiler
  * with register allocation structures etc. */
 #define Dst_DECL MVMJitCompiler *compiler

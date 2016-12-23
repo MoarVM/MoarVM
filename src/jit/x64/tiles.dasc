@@ -239,14 +239,14 @@ MVM_JIT_TILE_DECL(cast) {
             /* movsx is apparantly not defined for double-to-quadword conversions,
              * which forces us to use the rax register like it's 1978. It might be easier
              * to bithack the sign-extension manually, but I'm not sure how.. */
-            if (from_reg == MVM_JIT_X64_RAX) {
+            if (from_reg == MVM_JIT_ARCH_X64_RAX) {
                 | cdqe;
-                if (to_reg != MVM_JIT_X64_RAX) {
+                if (to_reg != MVM_JIT_ARCH_X64_RAX) {
                     | mov Rq(to_reg), rax;
                     /* restore the eax as it was, clearing the upper bytes */
                     | mov eax, Rd(to_reg);
                 }
-            } else if (to_reg == MVM_JIT_X64_RAX) {
+            } else if (to_reg == MVM_JIT_ARCH_X64_RAX) {
                 | mov eax, Rd(from_reg);
                 | cdqe;
             } else {
