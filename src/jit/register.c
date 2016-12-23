@@ -299,6 +299,8 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     for (i = 0; i < list->items_num; i++) {
         MVMJitTile *tile = list->items[i];
         struct ValueList *values[4];
+        memset(values, 0, sizeof(values));
+
         for (j = 0; j < tile->num_refs; j++) {
             MVMint32 ref_node = tile->refs[j];
             MVMint32 tile_nr  = allocator.live_ranges[ref_node].range_start;
