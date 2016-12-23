@@ -1,8 +1,6 @@
 #include "tile_decl.h"
 
 
-
-
 MVM_JIT_TILE_DECL(addr) {
     MVMint8 out  = tile->values[0];
     MVMint8 base = tile->values[1];
@@ -178,14 +176,6 @@ MVM_JIT_TILE_DECL(store_idx) {
     default:
         MVM_oops(tc, "Unsupported store size: %d\n", size);
     }
-
-}
-
-MVM_JIT_TILE_DECL(copy) {
-    /* NB - Void implementation.
-     *
-     * It seems reasonable that all  void implementations should go to
-     * compile.c since they are architecture-independent? */
 }
 
 
@@ -662,33 +652,6 @@ MVM_JIT_TILE_DECL(cmp) {
     }
 }
 
-
-/* Placeholder tiles. Not very good to implement as postorder
-   expressions. (NB my next plan is to create a linear array of tiles
-   with pseudotiles in place of the tree traversal in compilation.) */
-MVM_JIT_TILE_DECL(all) {
-    /* not implemented as a tile */
-}
-
-MVM_JIT_TILE_DECL(if) {
-    /*  */
-}
-
-MVM_JIT_TILE_DECL(either) {
-    /* NYI */
-}
-
-MVM_JIT_TILE_DECL(when) {
-    /* not implemented as a tile */
-}
-
-MVM_JIT_TILE_DECL(do_reg) {
-    /* not really a tile */
-}
-
-MVM_JIT_TILE_DECL(do_void) {
-    /* not really a tile */
-}
 
 
 

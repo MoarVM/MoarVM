@@ -38,13 +38,6 @@ MVM_JIT_TILE_DECL(nz_and);
 MVM_JIT_TILE_DECL(zr);
 
 MVM_JIT_TILE_DECL(flagval);
-MVM_JIT_TILE_DECL(copy);
-MVM_JIT_TILE_DECL(all);
-MVM_JIT_TILE_DECL(if);
-MVM_JIT_TILE_DECL(either);
-MVM_JIT_TILE_DECL(do_reg);
-MVM_JIT_TILE_DECL(do_void);
-MVM_JIT_TILE_DECL(when);
 
 MVM_JIT_TILE_DECL(label);
 MVM_JIT_TILE_DECL(branch_label);
