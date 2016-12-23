@@ -39,11 +39,16 @@ package rule {
     sub register_spec {
         my ($symbol) = @_;
         if ($symbol =~ m/^reg/) {
-            # could return 'require(x)', but NYI
+            return "require($1)" if ($symbol =~ m/:(\w+)$/);
             return 'any';
         } else {
             return 'none';
         }
+    }
+
+    sub symbol_name {
+        # remove annotation from symbol
+        return $_[0] =~ s/:\w+$//r;
     }
 
     sub add {
@@ -111,10 +116,10 @@ package rule {
                     $ctx->{num}++;
                     push @{$ctx->{spec}}, register_spec($item);
                 } # else head
-                push @$list, $item;
+                push @$list, symbol_name($item);
             }
         }
-        push @rules, rule->new($list, $sym, $cost);
+        push @rules, rule->new($list, symbol_name($sym), $cost);
         return @rules;
     }
 
@@ -448,7 +453,7 @@ for (my $i = 0; $i < @symbols; $i++) {
 }
 
 
-print $output "static const MVMJitTileTemplate ${VARNAME}rules[] = {\n";
+print $output "static const MVMJitTileTemplate ${VARNAME}templates[] = {\n";
 for (my $rule_nr = 0; $rule_nr < @rules; $rule_nr++) {
     my $rule = $rules[$rule_nr];
     my ($head, $sym1, $sym2) = @{$rule->{pat}};

@@ -2,7 +2,7 @@ package sexpr;
 use strict;
 
 # declare keyword syntax regex
-my $keyword = qr/^[&\$^,]?[\w\.\[\]_\*]+[!:]?/;
+my $keyword = qr/^[&\$^,]?[\w\.\[\]_:\*]+[!]?/;
 
 sub parser {
     my ($class, $input) = @_;

@@ -4,10 +4,10 @@
 #
 # Virtual Machine Values 
 #
-(define: (stack) reg)
-(define: (local) reg)
-(define: (cu)    reg)
-(define: (tc)    reg)
+(define: (stack) reg:rsp)
+(define: (local) reg:rbx)
+(define: (cu)    reg:r13)
+(define: (tc)    reg:r14)
 
 #
 # CONTROL STATEMENTS

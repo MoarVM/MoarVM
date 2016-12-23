@@ -123,10 +123,10 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
                             MVMJitTreeTraverser *traverser,
                             MVMJitExprNode node, MVMint32 rule_nr) {
-    const MVMJitTileTemplate *template = &MVM_jit_tile_rules[rule_nr];
+    const MVMJitTileTemplate *template = &MVM_jit_tile_templates[rule_nr];
     struct TreeTiler *tiler = traverser->data;
 
-    if (rule_nr > (sizeof(MVM_jit_tile_rules)/sizeof(MVM_jit_tile_rules[0])))
+    if (rule_nr > (sizeof(MVM_jit_tile_templates)/sizeof(MVM_jit_tile_templates[0])))
         MVM_oops(tc, "Attempt to assign invalid tile rule %d\n", rule_nr);
 
     if (tiler->states[node].template == NULL || tiler->states[node].template == template ||
