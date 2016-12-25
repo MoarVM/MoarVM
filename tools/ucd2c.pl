@@ -72,6 +72,7 @@ sub main {
     enumerated_property('LineBreak', 'Line_Break', { BK => 0 }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
     enumerated_property('EastAsianWidth', 'East_Asian_Width', { N => 0 }, 1, 1);
+    enumerated_property('IndicPositionalCategory', 'Indic_Positional_Category', { NA => 0 }, 1, 1);
     CaseFolding();
     SpecialCasing();
     enumerated_property('DerivedAge',
