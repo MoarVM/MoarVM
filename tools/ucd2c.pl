@@ -9,6 +9,7 @@ $Data::Dumper::Maxdepth = 1;
 # and extract them in UNIDATA
 # put a folder named emoji inside of the UNIDATA folder with http://www.unicode.org/Public/emoji/4.0/
 # files.
+# Download the Unicode v1.1.5 and and name the file UnicodeData-1.txt
 
 my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
@@ -73,6 +74,8 @@ sub main {
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
     enumerated_property('EastAsianWidth', 'East_Asian_Width', { N => 0 }, 1, 1);
     enumerated_property('IndicPositionalCategory', 'Indic_Positional_Category', { NA => 0 }, 1, 1);
+    enumerated_property('Jamo', 'Jamo_Short_Name', { '' => 0 }, 1, 1);
+    enumerated_property('UnicodeData-1', 'Unicode_1_Name', { '' => 0 }, 1, 1);
     CaseFolding();
     SpecialCasing();
     enumerated_property('DerivedAge',
@@ -96,7 +99,6 @@ sub main {
         'Numeric_Type', { None => 0 }, 1, 1);
     enumerated_property('HangulSyllableType',
         'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1, 1);
-    Jamo();
     NameAliases();
     NamedSequences();
     binary_props('PropList');
@@ -278,7 +280,7 @@ sub enumerated_property {
             ? $value_index->(\@vals)
             : $vals[$value_index];
         if ( %options ) {
-            if ( %options{'codepoint'} // 0 ) {
+            if ( $options{'codepoint'} // 0 ) {
                 $value = chr hex $value;
             }
         }
@@ -843,8 +845,11 @@ static struct UnicodeBlock unicode_blocks[] = {
             my $alias_name = lc($block_name);
             my $block_len  = length $block_name;
             my $alias_len  = length $alias_name;
-            if ($block_len && $alias_len) {
+            if ($block_len && $alias_len > 3) {
                 push @blocks, "    { 0x$from, 0x$to, \"$block_name\", $block_len, \"$alias_name\", $alias_len }";
+            }
+            else {
+                print "WHATHTAHTAHAT";
             }
         }
     });
@@ -1544,7 +1549,7 @@ sub DerivedNormalizationProps {
         NFG_QC => 1,
     };
     my $trinary_values = { 'N' => 0, 'Y' => 1, 'M' => 2 };
-    register_enumerated_property($_, { enum => $trinary_values, bit_width => 2, 'keys' => ['N','Y','M'] }) for (keys %$trinary);
+    register_enumerated_property($_, { enum => $trinary_values, bit_width => 2, 'keys' => ['No','Yes','Maybe'] }) for (keys %$trinary);
     each_line('DerivedNormalizationProps', sub { $_ = shift;
         my ($range, $property_name, $value) = split /\s*[;#]\s*/;
         if (exists $binary->{$property_name}) {
@@ -1578,13 +1583,6 @@ sub DerivedNormalizationProps {
                 $point->{'NFG_QC'} = $value;
             });
         }
-    });
-}
-
-sub Jamo {
-    each_line('Jamo', sub { $_ = shift;
-        my ($code_str, $name) = split /\s*[;#]\s*/;
-        $points_by_hex->{$code_str}->{Jamo_Short_Name} = $name;
     });
 }
 
