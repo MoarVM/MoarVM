@@ -7,6 +7,8 @@ $Data::Dumper::Maxdepth = 1;
 
 # Before running, download zip files from http://www.unicode.org/Public/zipped/
 # and extract them in UNIDATA
+# put a folder named emoji inside of the UNIDATA folder with http://www.unicode.org/Public/emoji/4.0/
+# files.
 
 my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
@@ -64,7 +66,8 @@ sub main {
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 0, 3);
     enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { '' => 0 }, 1, 1, 'codepoint' => 1);
     enumerated_property('BidiBrackets', 'Bidi_Paired_Bracket', { '' => 0 }, 1, 1, 'codepoint' => 1);
-    enumerated_property('BidiBrackets', 'Bidi_Paired_Bracket_Type', { '' => 0 }, 1, 2);
+    enumerated_property('BidiBrackets', 'Bidi_Paired_Bracket_Type', { 'n' => 0 }, 1, 2);
+    enumerated_property('IndicSyllabicCategory', 'Indic_Syllabic_Category', { 'Other' => 0 }, 1, 1);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
     CaseFolding();
@@ -72,6 +75,7 @@ sub main {
     enumerated_property('DerivedAge',
         'Age', { Unassigned => 0 }, 1, 1);
     binary_props('DerivedCoreProperties');
+    binary_props('emoji/emoji-data');
     DerivedNormalizationProps();
     enumerated_property('extracted/DerivedNumericValues',
         'Numeric_Value', { NaN => 0 }, 1, 1);
