@@ -62,7 +62,8 @@ sub main {
     binary_props('extracted/DerivedBinaryProperties');
     enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 0, 3);
-    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { '' => 0 }, 1, 1);
+    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { '' => 0 }, 1, 1, 'codepoint' => 1);
+    enumerated_property('BidiBrackets', 'Bidi_Paired_Bracket', { '' => 0 }, 1, 1, 'codepoint' => 1);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
     CaseFolding();
@@ -257,9 +258,11 @@ sub derived_property {
     $base->{bit_width} = least_int_ge_lg2($j);
     register_enumerated_property($pname, $base);
 }
-
+# $fname = filename
+# $pname = canonical full property name
+# $base  = default value if property not set
 sub enumerated_property {
-    my ($fname, $pname, $base, $j, $value_index) = @_;
+    my ($fname, $pname, $base, $j, $value_index, %options) = @_;
     $base = { enum => $base };
     each_line($fname, sub { $_ = shift;
         my @vals = split /\s*[#;]\s*/;
@@ -267,6 +270,11 @@ sub enumerated_property {
         my $value = ref $value_index
             ? $value_index->(\@vals)
             : $vals[$value_index];
+        if ( %options ) {
+            if ( %options{'codepoint'} // 0 ) {
+                $value = chr hex $value;
+            }
+        }
         my $index = $base->{enum}->{$value};
         # haven't seen this property value before
         # add it, and give it an index.
@@ -456,7 +464,7 @@ sub emit_extent_fate {
 sub add_extent($$) {
     my ($extents, $extent) = @_;
     if ($DEBUG) {
-        $LOG .= "\n" . join '', 
+        $LOG .= "\n" . join '',
             grep /code|fate|name|bitfield/,
             sort split /^/m, "EXTENT " . Dumper($extent);
     }
@@ -799,7 +807,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
 ";  # or should we try to stringify numeric value?
 
     $hout .= "} MVM_unicode_property_codes;";
- 
+
     $db_sections->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
     $h_sections->{property_code_definitions} = $hout;
 }
