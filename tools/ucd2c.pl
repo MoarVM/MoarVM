@@ -69,6 +69,7 @@ sub main {
     enumerated_property('BidiBrackets', 'Bidi_Paired_Bracket_Type', { 'n' => 0 }, 1, 2);
     enumerated_property('IndicSyllabicCategory', 'Indic_Syllabic_Category', { 'Other' => 0 }, 1, 1);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
+    enumerated_property('LineBreak', 'Line_Break', { BK => 0 }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
     CaseFolding();
     SpecialCasing();
@@ -94,7 +95,6 @@ sub main {
     enumerated_property('HangulSyllableType',
         'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1, 1);
     Jamo();
-    LineBreak();
     NameAliases();
     NamedSequences();
     binary_props('PropList');
@@ -1584,29 +1584,6 @@ sub Jamo {
         my ($code_str, $name) = split /\s*[;#]\s*/;
         $points_by_hex->{$code_str}->{Jamo_Short_Name} = $name;
     });
-}
-
-sub LineBreak {
-    my $enum = {};
-    my $base = { enum => $enum };
-    my $j = 0;
-    $enum->{$_} = $j++ for ("BK", "CR", "LF", "CM", "SG", "GL",
-        "CB", "SP", "ZW", "NL", "WJ", "JL", "JV", "JT", "H2", "H3");
-    each_line('LineBreak', sub { $_ = shift;
-        my ($range, $name) = split /\s*[;#]\s*/;
-        return unless exists $enum->{$name}; # only normative
-        apply_to_range($range, sub {
-            my $point = shift;
-            $point->{Line_Break} = $enum->{$name};
-        });
-    });
-    my @keys = ();
-    for my $key (keys %{$base->{enum}}) {
-        $keys[$base->{enum}->{$key}] = $key;
-    }
-    $base->{keys} = \@keys;
-    $base->{bit_width} = int(log($j)/log(2) - 0.00001) + 1;
-    register_enumerated_property('Line_Break', $base);
 }
 
 sub NameAliases {
