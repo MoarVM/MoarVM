@@ -21,18 +21,18 @@ static MVMint8 free_gpr[] = {
 static MVMint8 free_num[] = {
     X64_SSE(MVM_JIT_REG)
 };
+static MVMint8 non_volatile_gpr[] = {
+    X64_NVR(MVM_JIT_REG)
+};
 #else
 static MVMint8 free_gpr[] = { -1 };
 static MVMint8 free_num[] = { -1 };
+static MVMint8 non_volatile_gpr[] = { -1 };
 #endif
 
 #define NUM_GPR sizeof(free_gpr)
 #define NEXT_REG(x) (((x)+1)%NUM_GPR)
 
-/* UNUSED - Register lock bitmap macros */
-#define REGISTER_IS_LOCKED(a, n) ((a)->reg_lock &  (1 << (n)))
-#define LOCK_REGISTER(a, n)   ((a)->reg_lock |=  (1 << (n)))
-#define UNLOCK_REGISTER(a,n)  ((a)->reg_lock &= ~(1 << (n)))
 /* it appears MAX is already defined in libtommath */
 #ifndef MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
@@ -84,32 +84,6 @@ struct RegisterAllocator {
 
 
 
-void MVM_jit_register_allocator_init(MVMThreadContext *tc, struct RegisterAllocator *allocator,
-                                     MVMJitCompiler *compiler, MVMJitTileList *list) {
-
-    /* Initialize free register ring */
-    memcpy(allocator->free_reg, free_gpr, NUM_GPR);
-    allocator->reg_give  = 0;
-    allocator->reg_take  = 0;
-
-    /* last use table */
-    memset(allocator->last_use, -1, sizeof(allocator->last_use));
-
-    /* create lookup tables */
-    allocator->values_by_node = MVM_calloc(list->tree->nodes_num, sizeof(void*));
-    memset(allocator->values_by_register, 0, sizeof(allocator->values_by_register));
-
-    /* Store live ranges */
-    allocator->live_ranges    = MVM_calloc(list->tree->nodes_num, sizeof(struct LiveRange));
-
-    allocator->compiler       = compiler;
-    allocator->tile_list      = list;
-}
-
-void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, struct RegisterAllocator *allocator) {
-    MVM_free(allocator->values_by_node);
-    MVM_free(allocator->live_ranges);
-}
 
 
 #define NYI(x) MVM_oops(tc, #x " NYI");
@@ -176,8 +150,10 @@ static void expire_registers(MVMThreadContext *tc, struct RegisterAllocator *all
 static struct ValueList* value_create(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMint32 node) {
     struct ValueList *value = MVM_spesh_alloc(tc, allocator->compiler->graph->sg, sizeof(struct ValueList));
     value->node = node;
-    value->next_by_node = allocator->values_by_node[node];
-    allocator->values_by_node[node] = value;
+    if (node >= 0) {
+        value->next_by_node = allocator->values_by_node[node];
+        allocator->values_by_node[node] = value;
+    }
     return value;
 }
 
@@ -185,7 +161,7 @@ static void value_assign_storage(MVMThreadContext *tc, struct RegisterAllocator 
     value->st_cls = st_cls;
     value->st_pos = st_pos;
 
-    if (st_cls == MVM_JIT_STORAGE_GPR) {
+    if (st_cls == MVM_JIT_STORAGE_GPR || st_cls == MVM_JIT_STORAGE_NVR) {
         value->next_by_position     = allocator->values_by_register[st_pos];
         allocator->values_by_register[st_pos] = value;
     }
@@ -196,9 +172,8 @@ static void value_assign_range(MVMThreadContext *tc, struct RegisterAllocator *a
     value->range_start  = range_start;
     value->range_end    = range_end;
 
-    if (value->st_cls == MVM_JIT_STORAGE_GPR) {
-        allocator->last_use[value->st_pos] = MAX(allocator->last_use[value->st_pos], range_end);
-    }
+    allocator->last_use[value->st_pos] = MAX(allocator->last_use[value->st_pos], range_end);
+
 }
 
 
@@ -271,6 +246,40 @@ static void spill_register(MVMThreadContext *tc, struct RegisterAllocator *alloc
 
 /* PART FOUR: Linear scan register allocation */
 
+void MVM_jit_register_allocator_init(MVMThreadContext *tc, struct RegisterAllocator *allocator,
+                                     MVMJitCompiler *compiler, MVMJitTileList *list) {
+    MVMint32 i;
+    /* Initialize free register ring */
+    memcpy(allocator->free_reg, free_gpr, NUM_GPR);
+    allocator->reg_give  = 0;
+    allocator->reg_take  = 0;
+
+    /* last use table */
+    memset(allocator->last_use, -1, sizeof(allocator->last_use));
+
+    /* create lookup tables */
+    allocator->values_by_node = MVM_calloc(list->tree->nodes_num, sizeof(void*));
+    memset(allocator->values_by_register, 0, sizeof(allocator->values_by_register));
+    /* mark non-volatile registers as such */
+    for (i = 0; i < sizeof(non_volatile_gpr); i++) {
+        struct ValueList *value = value_create(tc, allocator, -1);
+        value_assign_storage(tc, allocator, value, MVM_JIT_STORAGE_NVR, non_volatile_gpr[i]);
+        value_assign_range(tc, allocator, value, 0, list->items_num+1);
+    }
+
+    /* Store live ranges */
+    allocator->live_ranges    = MVM_calloc(list->tree->nodes_num, sizeof(struct LiveRange));
+
+    allocator->compiler       = compiler;
+    allocator->tile_list      = list;
+}
+
+void MVM_jit_register_allocator_deinit(MVMThreadContext *tc, struct RegisterAllocator *allocator) {
+    MVM_free(allocator->values_by_node);
+    MVM_free(allocator->live_ranges);
+}
+
+
 
 #define VALUE_LIVE_AT(v,i) ((v)->range_start < (i) && (v)->range_end >= (i))
 
@@ -311,8 +320,10 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
 
             for (live = allocator.values_by_node[ref_node];
                  live != NULL; live = live->next_by_node) {
-                if (!VALUE_LIVE_AT(live, i))
+                if (!VALUE_LIVE_AT(live, i)) {
+                    fprintf(stderr, "Value not live while in the node list\n");
                     continue;
+                }
                 if (live->st_cls == MVM_JIT_STORAGE_NVR || live->st_cls == MVM_JIT_STORAGE_GPR)
                     break;
                 if (live->st_cls == MVM_JIT_STORAGE_LOCAL && spill == NULL)
@@ -343,32 +354,24 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
                                  ref_value->st_cls, ref_value->st_pos);
             break;
         }
-        case MVM_JIT_TC:
-            /* TODO, this isn't really portable, we should have register
-             * attributes assigned to the tile itself */
-            value_assign_storage(tc, &allocator,
-                                 value_create(tc, &allocator, tile->node),
-                                 MVM_JIT_STORAGE_NVR, MVM_JIT_REG_TC);
-            break;
-        case MVM_JIT_CU:
-            value_assign_storage(tc, &allocator,
-                                 value_create(tc, &allocator, tile->node),
-                                 MVM_JIT_STORAGE_NVR, MVM_JIT_REG_CU);
-            break;
-        case MVM_JIT_LOCAL:
-            value_assign_storage(tc, &allocator,
-                                 value_create(tc, &allocator, tile->node),
-                                 MVM_JIT_STORAGE_NVR, MVM_JIT_REG_LOCAL);
-            break;
-        case MVM_JIT_STACK:
-            value_assign_storage(tc, &allocator,
-                                 value_create(tc, &allocator, tile->node),
-                                 MVM_JIT_STORAGE_NVR, MVM_JIT_REG_STACK);
-            break;
         default:
             if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
                 /* allocate a register for the result */
-                if (tile->num_refs > 0 &&
+                MVMint32 register_spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, 0);
+
+                if (MVM_JIT_REGISTER_HAS_REQUIREMENT(register_spec)) {
+                    MVMint8 required_register = MVM_JIT_REGISTER_REQUIREMENT(register_spec);
+                    struct ValueList *value   = allocator.values_by_register[required_register];
+                    if (value == NULL) {
+                        value_assign_storage(tc, &allocator,
+                                             value_create(tc, &allocator, tile->node),
+                                             MVM_JIT_STORAGE_GPR, required_register);
+                    } else if (value->st_cls == MVM_JIT_STORAGE_NVR) {
+                        allocator.values_by_node[tile->node] = value;
+                    } else {
+                        NYI(register_requirement_resolution);
+                    }
+                } else if (tile->num_refs > 0 &&
                     values[1]->st_cls == MVM_JIT_STORAGE_GPR &&
                     values[1]->range_end == i) {
                     /* First register expires immediately, therefore we can safely cross-assign */
@@ -385,7 +388,7 @@ void MVM_jit_register_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, M
             break;
         }
         values[0] = allocator.values_by_node[tile->node];
-        if (values[0] != NULL) {
+        if (values[0] != NULL && values[0]->st_cls != MVM_JIT_STORAGE_NVR) {
             values[0]->size = tree->info[tile->node].size;
             value_assign_range(tc, &allocator, values[0],
                                allocator.live_ranges[tile->node].range_start,

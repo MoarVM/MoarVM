@@ -52,8 +52,30 @@ X64_SSE(MVM_JIT_REG)
     _(R10), \
     _(R11)
 
-/* GPR used for arguments */
+/* define set of non-volatile regsiters */
+#if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_WIN32
+#define X64_NVR(_) \
+    _(RBX), \
+    _(RBP), \
+    _(RSP), \
+    _(RSI), \
+    _(RDI), \
+    _(R12), \
+    _(R13), \
+    _(R14), \
+    _(R15)
+#else
+#define X64_NVR(_) \
+    _(RBX), \
+    _(RBP), \
+    _(RSP), \
+    _(R12), \
+    _(R13), \
+    _(R14), \
+    _(R15)
+#endif
 
+/* GPR used for arguments */
 #define X64_ARG_GPR(_) \
     _(RDI), \
     _(RSI), \
