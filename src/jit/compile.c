@@ -205,7 +205,7 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
     list = MVM_jit_tile_expr_tree(tc, compiler, tree);
 
     /* Second stage, allocate registers */
-    MVM_jit_register_allocate(tc, compiler, list);
+    MVM_jit_linear_scan_allocate(tc, compiler, list);
 
     /* Allocate sufficient space for the internal labels */
     dasm_growpc(compiler, compiler->label_offset + tree->num_labels);

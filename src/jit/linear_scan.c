@@ -192,6 +192,7 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
     ValueRef *use_buf, *def_buf;
     MVMJitExprTree *tree = list->tree;
 
+    alc->sets = MVM_calloc(tree->nodes_num, sizeof(UnionFind));
     for (i = 0; i < list->items_num; i++) {
         MVMJitTile *tile = list->items[i];
         MVMint32    node = tile->node;
@@ -219,10 +220,9 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
 
             /* count totals so we can correctly allocate the buffers */
             num_def++;
-            num_use += tile->num_refs;
             num_live_range++;
         }
-
+        num_use += tile->num_refs;
         for (j = 0; j < tile->num_refs; j++) {
             /* account its use */
             value_set_find(alc->sets, tile->refs[j])->num_uses++;
@@ -248,14 +248,16 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
      * automatically ordered too. TODO: figure out a way to represent register
      * preferences! */
     for (i = 0; i < list->items_num; i++) {
-        MVMJitTile * tile;
+        MVMJitTile * tile = list->items[i];
         if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
             UnionFind *value_set = value_set_find(alc->sets, tile->node);
             MVMint8  register_spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, 0);
             LiveRange *value_range;
+
             if (value_set->live_range_idx < 0) {
                 /* first definition, allocate the live range for this block */
                 value_set->live_range_idx = live_range_init(alc, def_buf, use_buf);
+
                 /* bump pointers */
                 def_buf += value_set->num_defs;
                 use_buf += value_set->num_uses;
@@ -455,13 +457,15 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
 
 void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTileList *list) {
     RegisterAllocator alc;
-    MVMint32 i;
+    MVMint32 i, j;
     /* initialize allocator */
-    alc.sets = MVM_calloc(list->items_num, sizeof(UnionFind));
+
     alc.is_nvr = 0;
     for (i = 0; i < sizeof(non_volatile_registers); i++) {
         alc.is_nvr |= (1 << non_volatile_registers[i]);
     }
+
+    alc.reg_give = alc.reg_take = 0;
     memcpy(alc.reg_ring, available_registers,
            sizeof(available_registers));
 
