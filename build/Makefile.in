@@ -189,6 +189,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/jit/expr@obj@ \
           src/jit/tile@obj@ \
           src/jit/register@obj@ \
+          src/jit/linear_scan@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/utf8@obj@ \

@@ -1,8 +1,18 @@
 #include "moar.h"
 #include "internal.h"
 
+
+static MVMint8 available_registers[] = {
+    X64_FREE_GPR(MVM_JIT_REG)
+};
+
+static MVMint8 non_volatile_registers[] = {
+    X64_NVR(MVM_JIT_REG)
+};
+
 #define MAX_ACTIVE 9
 #define NUM_GPR   16
+#define NYI(x) MVM_oops(tc, #x  "not yet implemented")
 
 typedef struct {
     MVMint32 key;
@@ -31,6 +41,7 @@ typedef struct {
     MVMint32    synth_pos[2];
     MVMJitTile *synthetic[2];
 
+    MVMint8 register_spec;
     MVMJitStorageClass reg_cls;
     MVMint32 reg_num;
     MVMint32 spilled_to; /* location of value in memory, if any */
@@ -50,17 +61,15 @@ typedef struct {
     MVMint32 active_top;
     MVMint32 active[MAX_ACTIVE];
 
-    /* which live-set inhabits a constant register */
-    MVMint32 prefered_register[NUM_GPR];
-
     /* Values still left to do (heap) */
     MVM_VECTOR_DECL(MVMint32, worklist);
     /* Retired values (to be assigned registers) (heap) */
     MVM_VECTOR_DECL(MVMint32, retired);
 
     /* Register handout ring */
-    MVMint8  reg_ring[MAX_ACTIVE];
-    MVMint32 reg_give, reg_take;
+    MVMint8   reg_ring[MAX_ACTIVE];
+    MVMint32  reg_give, reg_take;
+    MVMuint32 is_nvr;
 
     MVMint32 spill_top;
 } RegisterAllocator;
@@ -177,7 +186,7 @@ void live_range_heapify(LiveRange *values, MVMint32 *heap, MVMint32 top) {
 }
 
 
-static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, RegisterAllocator *alc) {
+static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
     MVMint32 i, j;
     MVMint32 num_use = 0, num_def = 0, num_live_range = 0;
     ValueRef *use_buf, *def_buf;
@@ -242,6 +251,7 @@ static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, Re
         MVMJitTile * tile;
         if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
             UnionFind *value_set = value_set_find(alc->sets, tile->node);
+            MVMint8  register_spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, 0);
             LiveRange *value_range;
             if (value_set->live_range_idx < 0) {
                 /* first definition, allocate the live range for this block */
@@ -258,13 +268,23 @@ static void determine_live_ranges(MVMThreadContext *tc, MVMJitTileList *list, Re
                 ValueRef def = { i, 0 };
                 value_range->defs[value_range->num_defs++] = def;
             }
+            if (MVM_JIT_REGISTER_HAS_REQUIREMENT(register_spec)) {
+                /* TODO - this may require resolving conflicting register specifications */
+                value_range->register_spec = register_spec;
+            }
         }
         /* Add uses (shouldn't this start from one?) */
         for (j = 0; j < tile->num_refs; j++) {
             UnionFind *use_set   = value_set_find(alc->sets, tile->refs[j]);
             LiveRange *use_range = &alc->values[use_set->live_range_idx];
-            ValueRef use = { i, j };
+            MVMint8 register_spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, j+1);
+            ValueRef use = { i, j + 1 };
             use_range->uses[use_range->num_uses++] = use;
+            if (MVM_JIT_REGISTER_HAS_REQUIREMENT(register_spec)) {
+                /* TODO - this may require resolving conflicting register
+                 * specifications */
+                NYI(use_register_spec);
+            }
         }
     }
 }
@@ -343,16 +363,16 @@ static void split_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMin
 
 /* register assignment logic */
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
-#define NEXT_IN_RING(a,x) (((x)+1) % ARRAY_SIZE(a))
+#define NEXT_IN_RING(a,x) (((x)+1) == ARRAY_SIZE(a) ? 0 : ((x)+1))
 MVMint8 get_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls) {
     /* ignore storage class for now */
     MVMint8 reg_num;
-    if (NEXT_IN_RING(alc->reg_ring, alc->reg_take) == alc->reg_give) {
-        MVM_oops(tc, "Linear scan has run out of registers (this should never happen)");
-    }
     reg_num       = alc->reg_ring[alc->reg_take];
-    alc->reg_ring[alc->reg_take] = -1; /* mark used */
-    alc->reg_take = NEXT_IN_RING(alc->reg_ring, alc->reg_take);
+    if (reg_num >= 0) {
+        /* not empty */
+        alc->reg_ring[alc->reg_take] = -1; /* mark used */
+        alc->reg_take = NEXT_IN_RING(alc->reg_ring, alc->reg_take);
+    }
     return reg_num;
 }
 
@@ -412,12 +432,49 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
         MVMint8 reg;
         /* assign registers in loop */
         active_set_expire(tc, alc, pos);
-        while ((reg = get_register(tc, alc, MVM_JIT_STORAGE_GPR)) < 0) {
-            spill_register(tc, alc, list, pos);
+        if (MVM_JIT_REGISTER_HAS_REQUIREMENT(alc->values[v].register_spec)) {
+            reg = MVM_JIT_REGISTER_REQUIREMENT(alc->values[v].register_spec);
+            if (alc->is_nvr & (1 << reg)) {
+                assign_register(tc, alc, list, v, MVM_JIT_STORAGE_NVR, reg);
+            } else {
+                /* TODO; might require swapping / spilling */
+                NYI(general_purpose_register_spec);
+            }
+        } else {
+            while ((reg = get_register(tc, alc, MVM_JIT_STORAGE_GPR)) < 0) {
+                spill_register(tc, alc, list, pos);
+            }
+            assign_register(tc, alc, list, v, MVM_JIT_STORAGE_GPR, reg);
+            active_set_add(tc, alc, v);
         }
-        assign_register(tc, alc, list, v, MVM_JIT_STORAGE_GPR, reg);
-        active_set_add(tc, alc, v);
     }
     /* flush active live ranges */
     active_set_expire(tc, alc, list->items_num + 1);
+}
+
+
+void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTileList *list) {
+    RegisterAllocator alc;
+    MVMint32 i;
+    /* initialize allocator */
+    alc.sets = MVM_calloc(list->items_num, sizeof(UnionFind));
+    alc.is_nvr = 0;
+    for (i = 0; i < sizeof(non_volatile_registers); i++) {
+        alc.is_nvr |= (1 << non_volatile_registers[i]);
+    }
+    memcpy(alc.reg_ring, available_registers,
+           sizeof(available_registers));
+
+    /* run algorithm */
+    determine_live_ranges(tc, &alc, list);
+    linear_scan(tc, &alc, list);
+
+    /* deinitialize allocator */
+    MVM_free(alc.sets);
+    MVM_free(alc.use_defs_buf);
+    MVM_free(alc.worklist);
+    MVM_free(alc.retired);
+    /* make edits effective */
+    MVM_jit_tile_list_edit(tc, list);
+
 }
