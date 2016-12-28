@@ -7,6 +7,9 @@ $Data::Dumper::Maxdepth = 1;
 
 # Before running, download zip files from http://www.unicode.org/Public/zipped/
 # and extract them in UNIDATA
+# put a folder named emoji inside of the UNIDATA folder with http://www.unicode.org/Public/emoji/4.0/
+# files.
+# Download the Unicode v1.1.5 and and name the file UnicodeData-1.txt
 
 my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
@@ -62,14 +65,23 @@ sub main {
     binary_props('extracted/DerivedBinaryProperties');
     enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 0, 3);
-    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { '' => 0 }, 1, 1);
+    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { '' => 0 }, 1, 1, 'codepoint' => 1);
+    enumerated_property('BidiBrackets', 'Bidi_Paired_Bracket', { '' => 0 }, 1, 1, 'codepoint' => 1);
+    enumerated_property('BidiBrackets', 'Bidi_Paired_Bracket_Type', { 'n' => 0 }, 1, 2);
+    enumerated_property('IndicSyllabicCategory', 'Indic_Syllabic_Category', { 'Other' => 0 }, 1, 1);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
+    enumerated_property('LineBreak', 'Line_Break', { BK => 0 }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
+    enumerated_property('EastAsianWidth', 'East_Asian_Width', { N => 0 }, 1, 1);
+    enumerated_property('IndicPositionalCategory', 'Indic_Positional_Category', { NA => 0 }, 1, 1);
+    enumerated_property('Jamo', 'Jamo_Short_Name', { '' => 0 }, 1, 1);
+    enumerated_property('UnicodeData-1', 'Unicode_1_Name', { '' => 0 }, 1, 1);
     CaseFolding();
     SpecialCasing();
     enumerated_property('DerivedAge',
         'Age', { Unassigned => 0 }, 1, 1);
     binary_props('DerivedCoreProperties');
+    binary_props('emoji/emoji-data');
     DerivedNormalizationProps();
     enumerated_property('extracted/DerivedNumericValues',
         'Numeric_Value', { NaN => 0 }, 1, 1);
@@ -87,8 +99,6 @@ sub main {
         'Numeric_Type', { None => 0 }, 1, 1);
     enumerated_property('HangulSyllableType',
         'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1, 1);
-    Jamo();
-    LineBreak();
     NameAliases();
     NamedSequences();
     binary_props('PropList');
@@ -257,9 +267,11 @@ sub derived_property {
     $base->{bit_width} = least_int_ge_lg2($j);
     register_enumerated_property($pname, $base);
 }
-
+# $fname = filename
+# $pname = canonical full property name
+# $base  = default value if property not set
 sub enumerated_property {
-    my ($fname, $pname, $base, $j, $value_index) = @_;
+    my ($fname, $pname, $base, $j, $value_index, %options) = @_;
     $base = { enum => $base };
     each_line($fname, sub { $_ = shift;
         my @vals = split /\s*[#;]\s*/;
@@ -267,6 +279,11 @@ sub enumerated_property {
         my $value = ref $value_index
             ? $value_index->(\@vals)
             : $vals[$value_index];
+        if ( %options ) {
+            if ( $options{'codepoint'} // 0 ) {
+                $value = chr hex $value;
+            }
+        }
         my $index = $base->{enum}->{$value};
         # haven't seen this property value before
         # add it, and give it an index.
@@ -456,7 +473,7 @@ sub emit_extent_fate {
 sub add_extent($$) {
     my ($extents, $extent) = @_;
     if ($DEBUG) {
-        $LOG .= "\n" . join '', 
+        $LOG .= "\n" . join '',
             grep /code|fate|name|bitfield/,
             sort split /^/m, "EXTENT " . Dumper($extent);
     }
@@ -799,7 +816,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
 ";  # or should we try to stringify numeric value?
 
     $hout .= "} MVM_unicode_property_codes;";
- 
+
     $db_sections->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
     $h_sections->{property_code_definitions} = $hout;
 }
@@ -828,8 +845,11 @@ static struct UnicodeBlock unicode_blocks[] = {
             my $alias_name = lc($block_name);
             my $block_len  = length $block_name;
             my $alias_len  = length $alias_name;
-            if ($block_len && $alias_len) {
+            if ($block_len && $alias_len > 3) {
                 push @blocks, "    { 0x$from, 0x$to, \"$block_name\", $block_len, \"$alias_name\", $alias_len }";
+            }
+            else {
+                print "WHATHTAHTAHAT";
             }
         }
     });
@@ -1529,7 +1549,7 @@ sub DerivedNormalizationProps {
         NFG_QC => 1,
     };
     my $trinary_values = { 'N' => 0, 'Y' => 1, 'M' => 2 };
-    register_enumerated_property($_, { enum => $trinary_values, bit_width => 2, 'keys' => ['N','Y','M'] }) for (keys %$trinary);
+    register_enumerated_property($_, { enum => $trinary_values, bit_width => 2, 'keys' => ['No','Yes','Maybe'] }) for (keys %$trinary);
     each_line('DerivedNormalizationProps', sub { $_ = shift;
         my ($range, $property_name, $value) = split /\s*[;#]\s*/;
         if (exists $binary->{$property_name}) {
@@ -1564,36 +1584,6 @@ sub DerivedNormalizationProps {
             });
         }
     });
-}
-
-sub Jamo {
-    each_line('Jamo', sub { $_ = shift;
-        my ($code_str, $name) = split /\s*[;#]\s*/;
-        $points_by_hex->{$code_str}->{Jamo_Short_Name} = $name;
-    });
-}
-
-sub LineBreak {
-    my $enum = {};
-    my $base = { enum => $enum };
-    my $j = 0;
-    $enum->{$_} = $j++ for ("BK", "CR", "LF", "CM", "SG", "GL",
-        "CB", "SP", "ZW", "NL", "WJ", "JL", "JV", "JT", "H2", "H3");
-    each_line('LineBreak', sub { $_ = shift;
-        my ($range, $name) = split /\s*[;#]\s*/;
-        return unless exists $enum->{$name}; # only normative
-        apply_to_range($range, sub {
-            my $point = shift;
-            $point->{Line_Break} = $enum->{$name};
-        });
-    });
-    my @keys = ();
-    for my $key (keys %{$base->{enum}}) {
-        $keys[$base->{enum}->{$key}] = $key;
-    }
-    $base->{keys} = \@keys;
-    $base->{bit_width} = int(log($j)/log(2) - 0.00001) + 1;
-    register_enumerated_property('Line_Break', $base);
 }
 
 sub NameAliases {
