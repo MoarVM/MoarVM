@@ -1,3 +1,46 @@
+/* Compares two strings, returning -1, 0 or 1 to indicate less than,
+ * equal or greater than. */
+MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    MVMStringIndex alen, blen, i, scanlen;
+    // Interation variables
+    MVMGrapheme32 ai;
+    MVMGrapheme32 bi;
+    MVMint32 ai_cp;
+    MVMint32 bi_cp;
+    // Colation order numbers
+    MVMint32 ai_coll_val;
+    MVMint32 bi_coll_val;
+    MVM_string_check_arg(tc, a, "compare");
+    MVM_string_check_arg(tc, b, "compare");
+    /* Simple cases when one or both are zero length. */
+    alen = MVM_string_graphs(tc, a);
+    blen = MVM_string_graphs(tc, b);
+    if (alen == 0)
+        return blen == 0 ? 0 : -1;
+    if (blen == 0)
+        return 1;
+
+    /* Otherwise, need to scan them. */
+    scanlen = alen > blen ? blen : alen;
+    for (i = 0; i < scanlen; i++) {
+        ai = MVM_string_get_grapheme_at_nocheck(tc, a, i);
+        bi = MVM_string_get_grapheme_at_nocheck(tc, b, i);
+        if (ai != bi)
+            ai_coll_val = MVM_unicode_codepoint_get_property_int(tc, ai, MVM_UNICODE_PROPERTY_MVM_SIMPLE_COLLATION);
+            bi_coll_val = MVM_unicode_codepoint_get_property_int(tc, bi, MVM_UNICODE_PROPERTY_MVM_SIMPLE_COLLATION);
+
+            if (ai_coll_val <= 0 || bi_coll_val <= 0) {
+                return ai < bi ? -1 : 1;
+            }
+
+            return ai_coll_val < bi_coll_val ? -1 : 1;
+    }
+
+    /* All shared chars equal, so go on length. */
+    return alen < blen ? -1 :
+           alen > blen ?  1 :
+                          0 ;
+}
 
 /* Looks up a codepoint by name. Lazily constructs a hash. */
 MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
