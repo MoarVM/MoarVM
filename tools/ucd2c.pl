@@ -456,7 +456,7 @@ sub emit_extent_fate {
 sub add_extent($$) {
     my ($extents, $extent) = @_;
     if ($DEBUG) {
-        $LOG .= "\n" . join '',
+        $LOG .= "\n" . join '', 
             grep /code|fate|name|bitfield/,
             sort split /^/m, "EXTENT " . Dumper($extent);
     }
@@ -799,7 +799,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
 ";  # or should we try to stringify numeric value?
 
     $hout .= "} MVM_unicode_property_codes;";
-
+ 
     $db_sections->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
     $h_sections->{property_code_definitions} = $hout;
 }
@@ -1367,13 +1367,10 @@ sub UnicodeData {
 
         my $code = hex $code_str;
         my $plane_num = $code >> 16;
-        if ($name eq '<control>' ) {
-            $name = sprintf '<control-%.4x>', $code;
+        if ($name eq '<control>' || $name eq '') {
+            $name = $u1name;
         }
         my $point = {
-            # Unicode_1_Name is not used yet. We should make sure it ends up
-            # in some data structure
-            Unicode_1_Name => $u1name,
             code_str => $code_str,
             name => $name,
             gencat_name => $gencat,
