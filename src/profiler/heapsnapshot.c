@@ -279,7 +279,8 @@ static void process_gc_worklist(MVMThreadContext *tc, MVMHeapSnapshotState *ss, 
     MVMuint16 ref_index = desc
         ? get_string_index(tc, ss, desc, STR_MODE_CONST)
         : 0;
-    while (c_ptr = MVM_gc_worklist_get(tc, ss->gcwl)) {
+    c_ptr = MVM_gc_worklist_get(tc, ss->gcwl);
+    while (c_ptr) {
         MVMCollectable *c = *c_ptr;
         if (c)
             add_reference(tc, ss, ref_kind, ref_index,
