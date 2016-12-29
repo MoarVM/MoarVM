@@ -26,8 +26,8 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
         ai = MVM_string_get_grapheme_at_nocheck(tc, a, i);
         bi = MVM_string_get_grapheme_at_nocheck(tc, b, i);
         if (ai != bi)
-            ai_coll_val = MVM_unicode_codepoint_get_property_int(tc, ai, MVM_UNICODE_PROPERTY_MVM_SIMPLE_COLLATION);
-            bi_coll_val = MVM_unicode_codepoint_get_property_int(tc, bi, MVM_UNICODE_PROPERTY_MVM_SIMPLE_COLLATION);
+            ai_coll_val = MVM_unicode_codepoint_get_property_int(tc, ai, MVM_UNICODE_PROPERTY_MVM_COLLATION_PRIMARY);
+            bi_coll_val = MVM_unicode_codepoint_get_property_int(tc, bi, MVM_UNICODE_PROPERTY_MVM_COLLATION_PRIMARY);
 
             if (ai_coll_val <= 0 || bi_coll_val <= 0) {
                 return ai < bi ? -1 : 1;

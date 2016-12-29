@@ -1,7 +1,7 @@
 use v5.14;
 use warnings; use strict;
 use Data::Dumper;
-use Carp qw(cluck);
+use Carp qw(cluck croak);
 $Data::Dumper::Maxdepth = 1;
 # Make C versions of the Unicode tables.
 
@@ -46,6 +46,8 @@ my %is_subtype = (
     }
 );
 my $gc_alias_checkers = [];
+
+sub trim { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s };
 
 sub progress($);
 sub main {
@@ -1583,39 +1585,74 @@ sub collation {
     my $name_primary = 'MVM_COLLATION_PRIMARY';
     my $name_secondary = 'MVM_COLLATION_SECONDARY';
     my $name_tertiary = 'MVM_COLLATION_TERTIARY';
-
-    each_line('UCA/allkeys', sub { my $line = shift;
+    # Record the highest value we see so we can save some bits in the bitfield
+    my $primary_max = 0;
+    my $secondary_max = 0;
+    my $ternary_max = 0;
+    each_line('UCA/allkeys', sub { $_ = shift;
+        my $line = $_;
+        #say $line;
         my ($code, $weight1, $weight2, $weight3, $temp);
-        if ($line =~ s/ ^ \@implicitweights \s+ /xms ) {
-            say $line;
-            (undef, $code, $weight1) = split / (?: [;\[\]]|\s )+ /xms, $line;
-            $weight1 = hex $weight1;
+        if ($line =~ s/ ^ \@implicitweights \s+ //xms ) {
+            say "IMPLICIT WEIGHTS";
+            ($code, $weight1) = split / (?: [;\[\]]|\s )+ /xms, $line;
+            $weight1 = hex $weight1 or croak;
+            $code or croak;
         }
         elsif ( $line =~ /^\s*[#@]/ or $line =~ /^\s*$/ ) {
+            $line = '';
             return;
         }
         else {
-            #($code, $temp) = split($line, /[\s\]\[;]+/);
+            #say "LINE HERE: $line";
+            ($code, $temp) = split /[;#]+/, $line;
+            $code = trim $code;
+            my @codes = split / /, $code;
+            if ( scalar @codes > 1 ) {
+                return; # we don't yet support collation for multiple codepoints
+            }
+            #say Dumper(@split);
+            #exit;
             # We capture the `.` or `*` before each weight. Currently we do
             # not use this information, but it may be of use later.
-            $temp =~ m/ (.) (\p{AHex}+) (.) (\p{AHex}+) (.) (\p{AHex}+) /xms;
-            $weight1 = hex $2;
-            $weight2 = hex $4;
-            $weight3 = hex $6;
+            if ( $temp =~ m/ (?: \[ (.) (\p{AHex}+) (.) (\p{AHex}+) (.) (\p{AHex}+) \] )+ /xms ) {
+                $weight1 = hex $2;
+                $weight2 = hex $4;
+                $weight3 = hex $6;
+            }
+            else {
+                die "\$line:[$line]\n\$code:[$code] \$temp:[$temp]";
+            }
         }
+        die if !defined $code;
         #1D4FF ; [.1EE3.0020.0005] # MATHEMATICAL BOLD SCRIPT SMALL V
         apply_to_range($code, sub {
             my $point = shift;
-            $point->{$name_primary}   = $weight1 if $weight1;
-            $point->{$name_secondary} = $weight2 if $weight2;
-            $point->{$name_tertiary}  = $weight3 if $weight3;
+            if ($weight1) {
+                $point->{$name_primary} = $weight1;
+                $primary_max = $weight1 if $weight1 > $primary_max;
+            }
+            if ( $weight2 ) {
+                $point->{$name_secondary} = $weight2;
+                $secondary_max = $weight2 if $weight2 > $secondary_max;
+            }
+            if ( $weight3 ) {
+                $point->{$name_tertiary}  = $weight3;
+                $ternary_max = $weight3 if $weight3 > $ternary_max;
+            }
 
-            print " C:[$code] 1:[$weight1] 2:[$weight2] 3:[$weight3]";
+            #print " C:U+[$code] ";
+            #print "1:[$weight1] " if $weight1;
+            #print "2:[$weight2] " if $weight2;
+            #print "3:[$weight3] " if $weight3;
         });
-      });
-    register_int_property($name_secondary, 0xFFFF);
-    register_int_property($name_secondary, 0xFFFF);
-    register_int_property($name_secondary, 0xFFFF);
+    });
+    say "Primary max: $primary_max";
+    say "secondary max: $secondary_max";
+    say "ternary_max: $ternary_max";
+    register_int_property($name_primary, $primary_max);
+    register_int_property($name_secondary, $secondary_max);
+    register_int_property($name_tertiary, $ternary_max);
 }
 
 sub LineBreak {
