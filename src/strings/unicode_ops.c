@@ -5,8 +5,6 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     // Interation variables
     MVMGrapheme32 ai;
     MVMGrapheme32 bi;
-    MVMint32 ai_cp;
-    MVMint32 bi_cp;
     // Colation order numbers
     MVMint32 ai_coll_val;
     MVMint32 bi_coll_val;
@@ -25,15 +23,27 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     for (i = 0; i < scanlen; i++) {
         ai = MVM_string_get_grapheme_at_nocheck(tc, a, i);
         bi = MVM_string_get_grapheme_at_nocheck(tc, b, i);
-        if (ai != bi)
-            ai_coll_val = MVM_unicode_codepoint_get_property_int(tc, ai, MVM_UNICODE_PROPERTY_MVM_COLLATION_PRIMARY);
-            bi_coll_val = MVM_unicode_codepoint_get_property_int(tc, bi, MVM_UNICODE_PROPERTY_MVM_COLLATION_PRIMARY);
-
-            if (ai_coll_val <= 0 || bi_coll_val <= 0) {
+        /* If they are the same grapheme */
+        if (ai != bi) {
+            /* only try and get a property if the value is zero or more */
+            if ( ai >= 0 || bi >= 0 ) {
+                /* Get the primary collation value for the grapheme */
+                ai_coll_val = MVM_unicode_codepoint_get_property_int(tc, ai, MVM_UNICODE_PROPERTY_MVM_COLLATION_PRIMARY);
+                bi_coll_val = MVM_unicode_codepoint_get_property_int(tc, bi, MVM_UNICODE_PROPERTY_MVM_COLLATION_PRIMARY);
+                /* If both collation have positive values sort this way */
+                if ( (ai_coll_val > 0 && bi_coll_val > 0) && (ai_coll_val != bi_coll_val) ) {
+                    return ai_coll_val < bi_coll_val ? -1 : 1;
+                }
+                /* If we don't find a collation value, or they have the same value
+                   we should compare by codepoint */
+                else {
+                    return ai < bi ? -1 : 1;
+                }
+            }
+            else {
                 return ai < bi ? -1 : 1;
             }
-
-            return ai_coll_val < bi_coll_val ? -1 : 1;
+        }
     }
 
     /* All shared chars equal, so go on length. */
