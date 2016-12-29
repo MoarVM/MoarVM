@@ -1,4 +1,5 @@
 #include "moar.h"
+
 #define MVM_DEBUG_STRANDS 0
 
 #if MVM_DEBUG_STRANDS
@@ -1393,6 +1394,36 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
     return res;
 }
 
+/* Compares two strings, returning -1, 0 or 1 to indicate less than,
+ * equal or greater than. */
+MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+    MVMStringIndex alen, blen, i, scanlen;
+
+    MVM_string_check_arg(tc, a, "compare");
+    MVM_string_check_arg(tc, b, "compare");
+
+    /* Simple cases when one or both are zero length. */
+    alen = MVM_string_graphs(tc, a);
+    blen = MVM_string_graphs(tc, b);
+    if (alen == 0)
+        return blen == 0 ? 0 : -1;
+    if (blen == 0)
+        return 1;
+
+    /* Otherwise, need to scan them. */
+    scanlen = alen > blen ? blen : alen;
+    for (i = 0; i < scanlen; i++) {
+        MVMGrapheme32 ai = MVM_string_get_grapheme_at_nocheck(tc, a, i);
+        MVMGrapheme32 bi = MVM_string_get_grapheme_at_nocheck(tc, b, i);
+        if (ai != bi)
+            return ai < bi ? -1 : 1;
+    }
+
+    /* All shared chars equal, so go on length. */
+    return alen < blen ? -1 :
+           alen > blen ?  1 :
+                          0 ;
+}
 
 /* Takes two strings and AND's their characters. */
 MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) {

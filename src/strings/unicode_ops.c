@@ -1,6 +1,6 @@
 /* Compares two strings, returning -1, 0 or 1 to indicate less than,
- * equal or greater than. */
-MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+ * equal or greater than based on Unicode Collation Algorithm */
+MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMStringIndex alen, blen, i, scanlen;
     // Interation variables
     MVMGrapheme32 ai;
