@@ -1,6 +1,7 @@
 #include "moar.h"
 #include <math.h>
 #include "platform/time.h"
+#include "strings/unicode_ops.h"
 
 /* Macros for getting things from the bytecode stream. */
 #if MVM_GC_DEBUG == 2
@@ -1460,6 +1461,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_string_compare(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                 cur_op += 6;
+                goto NEXT;
+            OP(unicmp_s):
+                GET_REG(cur_op, 0).i64 = MVM_unicode_string_compare(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
+                cur_op += 12;
                 goto NEXT;
             OP(eqat_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_equal_at(tc,
