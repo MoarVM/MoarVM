@@ -5,8 +5,11 @@ use Carp qw(cluck croak);
 $Data::Dumper::Maxdepth = 1;
 # Make C versions of the Unicode tables.
 
-# Before running, download zip files from http://www.unicode.org/Public/zipped/
-# and extract them in UNIDATA
+# Before running, downloading UNIDATA.zip from http://www.unicode.org/Public/zipped/
+# and extract them into UNIDATA in the root of this repository.
+
+# Download allkeys.txt from http://www.unicode.org/Public/UCA/latest/
+# and place into a folder named UCA under the UNIDATA directory.
 
 my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
@@ -1588,7 +1591,9 @@ sub collation {
     # Record the highest value we see so we can save some bits in the bitfield
     my $primary_max = 0;
     my $secondary_max = 0;
-    my $ternary_max = 0;
+    my $tertiary_max = 0;
+    ## Sample line from allkeys.txt
+    #1D4FF ; [.1EE3.0020.0005] # MATHEMATICAL BOLD SCRIPT SMALL V
     each_line('UCA/allkeys', sub { $_ = shift;
         my $line = $_;
         #say $line;
@@ -1604,17 +1609,15 @@ sub collation {
             return;
         }
         else {
-            #say "LINE HERE: $line";
             ($code, $temp) = split /[;#]+/, $line;
             $code = trim $code;
             my @codes = split / /, $code;
             if ( scalar @codes > 1 ) {
                 return; # we don't yet support collation for multiple codepoints
             }
-            #say Dumper(@split);
-            #exit;
             # We capture the `.` or `*` before each weight. Currently we do
-            # not use this information, but it may be of use later.
+            # not use this information, but it may be of use later (we currently
+            # don't put their values into the data structure.
             if ( $temp =~ m/ (?: \[ (.) (\p{AHex}+) (.) (\p{AHex}+) (.) (\p{AHex}+) \] )+ /xms ) {
                 $weight1 = hex $2;
                 $weight2 = hex $4;
@@ -1625,7 +1628,6 @@ sub collation {
             }
         }
         die if !defined $code;
-        #1D4FF ; [.1EE3.0020.0005] # MATHEMATICAL BOLD SCRIPT SMALL V
         apply_to_range($code, sub {
             my $point = shift;
             if ($weight1) {
@@ -1638,21 +1640,21 @@ sub collation {
             }
             if ( $weight3 ) {
                 $point->{$name_tertiary}  = $weight3;
-                $ternary_max = $weight3 if $weight3 > $ternary_max;
+                $tertiary_max = $weight3 if $weight3 > $tertiary_max;
             }
 
-            #print " C:U+[$code] ";
-            #print "1:[$weight1] " if $weight1;
-            #print "2:[$weight2] " if $weight2;
-            #print "3:[$weight3] " if $weight3;
         });
     });
-    say "Primary max: $primary_max";
-    say "secondary max: $secondary_max";
-    say "ternary_max: $ternary_max";
+    for ( $primary_max, $secondary_max, $tertiary_max ) {
+        if ( $_ < 1 ) {
+            die "Oh no! One of the highest collation numbers I saw is less than 0. Something is wrong" ~
+              "Primary max: $primary_maxy secondary max: $secondary_max tertiary_max: $tertiary_max";
+        }
+    }
+
     register_int_property($name_primary, $primary_max);
     register_int_property($name_secondary, $secondary_max);
-    register_int_property($name_tertiary, $ternary_max);
+    register_int_property($name_tertiary, $tertiary_max);
 }
 
 sub LineBreak {
