@@ -222,10 +222,14 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
             num_def++;
             num_live_range++;
         }
-        num_use += tile->num_refs;
+
         for (j = 0; j < tile->num_refs; j++) {
             /* account its use */
-            value_set_find(alc->sets, tile->refs[j])->num_uses++;
+            MVMint8 register_spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, j+1);
+            if (MVM_JIT_REGISTER_IS_USED(register_spec)) {
+                value_set_find(alc->sets, tile->refs[j])->num_uses++;
+                num_use++;
+            }
         }
 
         /* I don't think we have inserted things before that actually refer to
@@ -280,8 +284,10 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
             UnionFind *use_set   = value_set_find(alc->sets, tile->refs[j]);
             LiveRange *use_range = &alc->values[use_set->live_range_idx];
             MVMint8 register_spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, j+1);
-            ValueRef use = { i, j + 1 };
-            use_range->uses[use_range->num_uses++] = use;
+            if (MVM_JIT_REGISTER_IS_USED(register_spec)) {
+                ValueRef use = { i, j + 1 };
+                use_range->uses[use_range->num_uses++] = use;
+            }
             if (MVM_JIT_REGISTER_HAS_REQUIREMENT(register_spec)) {
                 /* TODO - this may require resolving conflicting register
                  * specifications */
@@ -457,13 +463,18 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
 
 void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTileList *list) {
     RegisterAllocator alc;
-    MVMint32 i, j;
+    MVMint32 i;
     /* initialize allocator */
-
+    DO_FOO();
     alc.is_nvr = 0;
     for (i = 0; i < sizeof(non_volatile_registers); i++) {
         alc.is_nvr |= (1 << non_volatile_registers[i]);
     }
+
+    alc.active_top = 0;
+    memset(alc.active, -1, sizeof(alc.active));
+
+    alc.spill_top = 0;
 
     alc.reg_give = alc.reg_take = 0;
     memcpy(alc.reg_ring, available_registers,

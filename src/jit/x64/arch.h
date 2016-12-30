@@ -27,7 +27,7 @@
     _(XMM6), \
     _(XMM7)
 
-
+/* declare enums */
 
 enum {
 X64_GPR(MVM_JIT_REG)
@@ -53,27 +53,16 @@ X64_SSE(MVM_JIT_REG)
     _(R11)
 
 /* define set of non-volatile regsiters */
-#if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_WIN32
+
+
 #define X64_NVR(_) \
     _(RBX), \
-    _(RBP), \
     _(RSP), \
-    _(RSI), \
-    _(RDI), \
+    _(RBP), \
     _(R12), \
     _(R13), \
     _(R14), \
     _(R15)
-#else
-#define X64_NVR(_) \
-    _(RBX), \
-    _(RBP), \
-    _(RSP), \
-    _(R12), \
-    _(R13), \
-    _(R14), \
-    _(R15)
-#endif
 
 /* GPR used for arguments */
 #define X64_ARG_GPR(_) \
@@ -89,7 +78,6 @@ X64_SSE(MVM_JIT_REG)
 #define X64_ARG_SSE(_) \
     X64_SSE(_)
 
-
 #else
 
 /* Microsoft why you give us so few registers :-( */
@@ -101,6 +89,16 @@ X64_SSE(MVM_JIT_REG)
     _(R9), \
     _(R10), \
     _(R11)
+#define X64_NVR(_) \
+    _(RBX), \
+    _(RSP), \
+    _(RBP), \
+    _(RSI), \
+    _(RDI), \
+    _(R12), \
+    _(R13), \
+    _(R14), \
+    _(R15)
 #define X64_ARG_GPR(_) \
     _(RCX), \
     _(RDX), \
