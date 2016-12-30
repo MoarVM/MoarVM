@@ -798,6 +798,7 @@ decodertakebytes    w(obj) r(obj) r(obj) r(int64)
 decoderempty        w(int64) r(obj) :pure
 indexingoptimized   w(str) r(str) :pure
 captureinnerlex     r(obj) :noinline
+unicmp_s            w(int64) r(str) r(str) r(int64) r(int64) r(int64) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

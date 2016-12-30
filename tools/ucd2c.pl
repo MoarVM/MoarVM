@@ -1,12 +1,15 @@
 use v5.14;
 use warnings; use strict;
 use Data::Dumper;
-use Carp qw(cluck);
+use Carp qw(cluck croak);
 $Data::Dumper::Maxdepth = 1;
 # Make C versions of the Unicode tables.
 
-# Before running, download zip files from http://www.unicode.org/Public/zipped/
-# and extract them in UNIDATA
+# Before running, downloading UNIDATA.zip from http://www.unicode.org/Public/zipped/
+# and extract them into UNIDATA in the root of this repository.
+
+# Download allkeys.txt from http://www.unicode.org/Public/UCA/latest/
+# and place into a folder named UCA under the UNIDATA directory.
 
 my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
@@ -47,6 +50,8 @@ my %is_subtype = (
 );
 my $gc_alias_checkers = [];
 
+sub trim { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s };
+
 sub progress($);
 sub main {
     $db_sections->{'AAA_header'} = header();
@@ -58,6 +63,7 @@ sub main {
         derived_property('CombiningClass',
             'Canonical_Combining_Class', { Not_Reordered => 0 }, 1)
     );
+    collation();
     goto skip_most if $skip_most_mode;
     binary_props('extracted/DerivedBinaryProperties');
     enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
@@ -186,6 +192,9 @@ sub apply_to_range {
     # be applied to all/any in between.
     my $range = shift;
     chomp($range);
+    if ( !defined $range ) {
+        cluck "Did not get any range in apply_to_range";
+    }
     my $fn = shift;
     my ($first, $last) = split '\\.\\.', $range;
     $first ||= $range;
@@ -1572,6 +1581,81 @@ sub Jamo {
         $points_by_hex->{$code_str}->{Jamo_Short_Name} = $name;
     });
 }
+sub collation {
+    my $enum = {};
+    my $base = { enum => $enum };
+    my $j = 0;
+    my $name_primary = 'MVM_COLLATION_PRIMARY';
+    my $name_secondary = 'MVM_COLLATION_SECONDARY';
+    my $name_tertiary = 'MVM_COLLATION_TERTIARY';
+    # Record the highest value we see so we can save some bits in the bitfield
+    my $primary_max = 0;
+    my $secondary_max = 0;
+    my $tertiary_max = 0;
+    ## Sample line from allkeys.txt
+    #1D4FF ; [.1EE3.0020.0005] # MATHEMATICAL BOLD SCRIPT SMALL V
+    each_line('UCA/allkeys', sub { $_ = shift;
+        my $line = $_;
+        #say $line;
+        my ($code, $weight1, $weight2, $weight3, $temp);
+        if ($line =~ s/ ^ \@implicitweights \s+ //xms ) {
+            say "IMPLICIT WEIGHTS";
+            ($code, $weight1) = split / (?: [;\[\]]|\s )+ /xms, $line;
+            $weight1 = hex $weight1 or croak;
+            $code or croak;
+        }
+        elsif ( $line =~ /^\s*[#@]/ or $line =~ /^\s*$/ ) {
+            $line = '';
+            return;
+        }
+        else {
+            ($code, $temp) = split /[;#]+/, $line;
+            $code = trim $code;
+            my @codes = split / /, $code;
+            if ( scalar @codes > 1 ) {
+                return; # we don't yet support collation for multiple codepoints
+            }
+            # We capture the `.` or `*` before each weight. Currently we do
+            # not use this information, but it may be of use later (we currently
+            # don't put their values into the data structure.
+            if ( $temp =~ m/ (?: \[ (.) (\p{AHex}+) (.) (\p{AHex}+) (.) (\p{AHex}+) \] )+ /xms ) {
+                $weight1 = hex $2;
+                $weight2 = hex $4;
+                $weight3 = hex $6;
+            }
+            else {
+                die "\$line:[$line]\n\$code:[$code] \$temp:[$temp]";
+            }
+        }
+        die if !defined $code;
+        apply_to_range($code, sub {
+            my $point = shift;
+            if ($weight1) {
+                $point->{$name_primary} = $weight1;
+                $primary_max = $weight1 if $weight1 > $primary_max;
+            }
+            if ( $weight2 ) {
+                $point->{$name_secondary} = $weight2;
+                $secondary_max = $weight2 if $weight2 > $secondary_max;
+            }
+            if ( $weight3 ) {
+                $point->{$name_tertiary}  = $weight3;
+                $tertiary_max = $weight3 if $weight3 > $tertiary_max;
+            }
+
+        });
+    });
+    for ( $primary_max, $secondary_max, $tertiary_max ) {
+        if ( $_ < 1 ) {
+            die "Oh no! One of the highest collation numbers I saw is less than 0. Something is wrong" ~
+              "Primary max: $primary_maxy secondary max: $secondary_max tertiary_max: $tertiary_max";
+        }
+    }
+
+    register_int_property($name_primary, $primary_max);
+    register_int_property($name_secondary, $secondary_max);
+    register_int_property($name_tertiary, $tertiary_max);
+}
 
 sub LineBreak {
     my $enum = {};
@@ -1654,6 +1738,16 @@ sub register_binary_property {
         property_index => $property_index++,
         name => $name,
         bit_width => 1
+    } unless exists $binary_properties->{$name};
+}
+
+sub register_int_property {
+    my ( $name, $elems ) = @_;
+    # add to binary_properties for now
+    $all_properties->{$name} = $binary_properties->{$name} = {
+        property_index => $property_index++,
+        name => $name,
+        bit_width => least_int_ge_lg2($elems)
     } unless exists $binary_properties->{$name};
 }
 
