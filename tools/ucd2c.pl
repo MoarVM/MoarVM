@@ -465,7 +465,7 @@ sub emit_extent_fate {
 sub add_extent($$) {
     my ($extents, $extent) = @_;
     if ($DEBUG) {
-        $LOG .= "\n" . join '', 
+        $LOG .= "\n" . join '',
             grep /code|fate|name|bitfield/,
             sort split /^/m, "EXTENT " . Dumper($extent);
     }
@@ -808,7 +808,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
 ";  # or should we try to stringify numeric value?
 
     $hout .= "} MVM_unicode_property_codes;";
- 
+
     $db_sections->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
     $h_sections->{property_code_definitions} = $hout;
 }
@@ -1647,8 +1647,8 @@ sub collation {
     });
     for ( $primary_max, $secondary_max, $tertiary_max ) {
         if ( $_ < 1 ) {
-            die "Oh no! One of the highest collation numbers I saw is less than 0. Something is wrong" ~
-              "Primary max: $primary_maxy secondary max: $secondary_max tertiary_max: $tertiary_max";
+            die "Oh no! One of the highest collation numbers I saw is less than 0. Something is wrong" .
+              "Primary max: $primary_max secondary max: $secondary_max tertiary_max: $tertiary_max";
         }
     }
 
@@ -1661,11 +1661,15 @@ sub LineBreak {
     my $enum = {};
     my $base = { enum => $enum };
     my $j = 0;
-    $enum->{$_} = $j++ for ("BK", "CR", "LF", "CM", "SG", "GL",
-        "CB", "SP", "ZW", "NL", "WJ", "JL", "JV", "JT", "H2", "H3");
+    $enum->{$_} = $j++ for ("BK", "CM", "CR", "GL", "LF", "NL", "SP",
+        "WJ", "ZW", "ZWJ", "AI", "AL", "B2", "BA", "BB", "CB", "CJ", "CL", "CP", "EB",
+        "EM", "EX", "H2", "H3", "HL", "HY", "ID", "IN", "IS", "JL",
+        "JT", "JV", "NS", "NU", "OP", "PO", "PR", "QU", "RI", "SA",
+        "SG", "SY", "XX"
+        );
     each_line('LineBreak', sub { $_ = shift;
         my ($range, $name) = split /\s*[;#]\s*/;
-        return unless exists $enum->{$name}; # only normative
+        die "Can't find Line_Break property $name in the enum" unless exists $enum->{$name}; # only normative
         apply_to_range($range, sub {
             my $point = shift;
             $point->{Line_Break} = $enum->{$name};
@@ -1676,7 +1680,7 @@ sub LineBreak {
         $keys[$base->{enum}->{$key}] = $key;
     }
     $base->{keys} = \@keys;
-    $base->{bit_width} = int(log($j)/log(2) - 0.00001) + 1;
+    $base->{bit_width} = least_int_ge_lg2($j);
     register_enumerated_property('Line_Break', $base);
 }
 
