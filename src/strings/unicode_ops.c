@@ -2,10 +2,10 @@
  * equal or greater than based on Unicode Collation Algorithm */
 MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMStringIndex alen, blen, i, scanlen;
-    // Interation variables
+    // Iteration variables
     MVMGrapheme32 ai;
     MVMGrapheme32 bi;
-    // Colation order numbers
+    // Collation order numbers
     MVMint32 ai_coll_val;
     MVMint32 bi_coll_val;
     MVM_string_check_arg(tc, a, "compare");
