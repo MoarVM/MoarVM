@@ -64,11 +64,12 @@ sub main {
             'Canonical_Combining_Class', { Not_Reordered => 0 }, 1)
     );
     collation();
+    BidiMirroring();
     goto skip_most if $skip_most_mode;
     binary_props('extracted/DerivedBinaryProperties');
+    binary_props('emoji/emoji-data');
     enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 0, 3);
-    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { '' => 0 }, 1, 1);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
     CaseFolding();
@@ -1581,6 +1582,24 @@ sub Jamo {
         $points_by_hex->{$code_str}->{Jamo_Short_Name} = $name;
     });
 }
+sub BidiMirroring {
+    #my ( $file, $propname ) = @_;
+    my $file = 'BidiMirroring';
+    my $propname = 'Bidi_Mirroring_Glyph';
+    my $max_size = 0;
+    each_line('BidiMirroring', sub { $_ = shift;
+        my $line = $_;
+        my ($range, $int) = split /\s*[;#]\s*/, $line;
+        $int = hex $int or die;
+        $max_size = $int if $max_size < $int;
+        apply_to_range($range, sub {
+            my $point = shift;
+            $point->{$propname} = $int;
+        });
+    });
+
+    register_int_property($propname, $max_size);
+}
 sub collation {
     my $enum = {};
     my $base = { enum => $enum };
@@ -1656,7 +1675,6 @@ sub collation {
     register_int_property($name_secondary, $secondary_max);
     register_int_property($name_tertiary, $tertiary_max);
 }
-
 sub LineBreak {
     my $enum = {};
     my $base = { enum => $enum };
