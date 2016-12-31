@@ -101,7 +101,7 @@ sub main {
     binary_props('PropList');
     enumerated_property('Scripts', 'Script', { Unknown => 0 }, 1, 1);
     # XXX StandardizedVariants.txt # no clue what this is
-    break_property('Grapheme', 'Grapheme_Cluster_Break');
+    grapheme_cluster_break('Grapheme', 'Grapheme_Cluster_Break');
     break_property('Sentence', 'Sentence_Break');
   skip_most:
     break_property('Word', 'Word_Break');
@@ -242,6 +242,24 @@ sub break_property {
     my ($fname, $pname) = @_;
     enumerated_property("auxiliary/${fname}BreakProperty",
         $pname, { Other => 0 }, 1, 1);
+}
+sub grapheme_cluster_break {
+    my ($fname, $pname) = @_;
+    enumerated_property("auxiliary/${fname}BreakProperty",
+        $pname, {
+            # Should not be set to Other for this one
+            Other => 0,
+            # Make sure we specify the values of Prepend and Extend
+            # We need these consistent since they are used in MoarVM code
+            #Prepend => 1,
+            #Extend => 2,
+            #E_Base => 3,
+            #E_Base_GAZ => 4,
+            #ZWJ        => 5,
+            #E_Modifier => 6,
+            #Glue_After_Zwj => 7
+
+        }, 1, 1);
 }
 
 sub derived_property {
@@ -698,6 +716,7 @@ sub emit_property_value_lookup {
     my $allocated = shift;
     my $enumtables = "\n\n";
     my $hout = "typedef enum {\n";
+    say Dumper($prop_names);
     my $out = "
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
@@ -1583,7 +1602,6 @@ sub Jamo {
     });
 }
 sub BidiMirroring {
-    #my ( $file, $propname ) = @_;
     my $file = 'BidiMirroring';
     my $propname = 'Bidi_Mirroring_Glyph';
     my $max_size = 0;
@@ -1749,6 +1767,18 @@ sub tweak_nfg_qc {
 
         # SpacingMark, and a couple of specials
         elsif ($point->{'gencat_name'} eq 'Mc' || $code == 0x0E33 || $code == 0x0EB3) {
+            $point->{'NFG_QC'} = 0;
+        }
+        # For now set all Emoji to NFG_QC 0
+        # Eventually we will only want to set the ones that are NOT specified
+        # as ZWJ sequences
+        elsif ($point->{'Emoji'} ) {
+            $point->{'NFG_QC'} = 0;
+        }
+        elsif ($point->{'Grapheme_Cluster_Break'}) {
+            $point->{'NFG_QC'} = 0;
+        }
+        elsif ($point->{'Prepended_Concatenation_Mark'}) {
             $point->{'NFG_QC'} = 0;
         }
     }

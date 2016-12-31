@@ -1,4 +1,13 @@
 #include "moar.h"
+#define MVM_UNICODE_PROPERTY_GCB_OTHER          0
+#define MVM_UNICODE_PROPERTY_GCB_PREPEND        1
+#define MVM_UNICODE_PROPERTY_GCB_EXTEND         5
+#define MVM_UNICODE_PROPERTY_GCB_REGIONAL_INDICATOR 6
+#define MVM_UNICODE_PROPERTY_GCB_E_MODIFIER     14
+#define MVM_UNICODE_PROPERTY_GCB_E_BASE         13
+#define MVM_UNICODE_PROPERTY_GCB_E_BASE_GAZ     17
+#define MVM_UNICODE_PROPERTY_GCB_ZWJ            15
+#define MVM_UNICODE_PROPERTY_GCB_GLUE_AFTER_ZWJ 16
 
 /* Maps outside-world normalization form codes to our internal set, validating
  * that we got something valid. */
@@ -491,6 +500,11 @@ static MVMint32 is_grapheme_extend(MVMThreadContext *tc, MVMCodepoint cp) {
     return MVM_unicode_codepoint_get_property_int(tc, cp,
         MVM_UNICODE_PROPERTY_GRAPHEME_EXTEND);
 }
+static MVMint32 is_grapheme_prepend(MVMThreadContext *tc, MVMCodepoint cp) {
+    return MVM_unicode_codepoint_get_property_int(tc, cp,
+        MVM_UNICODE_PROPERTY_PREPENDED_CONCATENATION_MARK);
+}
+
 static MVMint32 is_spacing_mark(MVMThreadContext *tc, MVMCodepoint cp) {
     const char *genprop = MVM_unicode_codepoint_get_property_cstr(tc, cp,
         MVM_UNICODE_PROPERTY_GENERAL_CATEGORY);
@@ -507,6 +521,8 @@ static MVMint32 is_spacing_mark(MVMThreadContext *tc, MVMCodepoint cp) {
     }
 }
 static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b) {
+    int GCB_a = MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
+    int GCB_b = MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
     /* Don't break between \r and \n, but otherwise break around \r. */
     if (a == 0x0D && b == 0x0A)
         return 0;
@@ -528,18 +544,47 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
             return !(strcmp(hst_b, "T") == 0);
     }
 
-    /* Don't break between regional indicators. */
-    if (is_regional_indicator(a) && is_regional_indicator(b))
-        return 0;
+    switch (GCB_a) {
+        case MVM_UNICODE_PROPERTY_GCB_REGIONAL_INDICATOR:
+            if ( GCB_b == MVM_UNICODE_PROPERTY_GCB_REGIONAL_INDICATOR )
+                return 0;
+            break;
+        /* Don't break after Prepend Grapheme_Cluster_Break=Prepend
+         * for some reason this isn't working */
 
-    /* Don't break before extenders or ZERO WIDTH JOINER. */
-    if (b == 0x200D || is_grapheme_extend(tc, b))
-        return 0;
+        case MVM_UNICODE_PROPERTY_GCB_PREPEND:
+            return 0;
+        /* Don't break after ZWJ */
+        case MVM_UNICODE_PROPERTY_GCB_ZWJ:
+            if ( GCB_b == MVM_UNICODE_PROPERTY_GCB_E_BASE_GAZ )
+                return 0;
+            if ( GCB_b == MVM_UNICODE_PROPERTY_GCB_GLUE_AFTER_ZWJ )
+                return 0;
+            break;
+
+    }
+    switch (GCB_b) {
+        /* Don't break before extending chars */
+        case MVM_UNICODE_PROPERTY_GCB_EXTEND:
+            return 0;
+        /* Don't break before ZWJ */
+        case MVM_UNICODE_PROPERTY_GCB_ZWJ:
+            return 0;
+        case MVM_UNICODE_PROPERTY_GCB_E_MODIFIER:
+            switch (GCB_a) {
+                case MVM_UNICODE_PROPERTY_GCB_E_BASE_GAZ:
+                    return 0;
+                case MVM_UNICODE_PROPERTY_GCB_E_BASE:
+                    return 0;
+            }
+            break;
+
+    }
 
     /* Don't break before spacing marks. (In the Unicode version at the time
      * of implementing, there were no Prepend characters, so we don't worry
      * about that rule for now). */
-    if (is_spacing_mark(tc, b))
+    if (is_spacing_mark(tc, b) || is_grapheme_prepend(tc, a) == 1)
         return 0;
 
     /* Otherwise break. */
