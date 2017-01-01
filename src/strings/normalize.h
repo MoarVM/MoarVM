@@ -3,7 +3,7 @@
  *  - The second bit tells us whether to do canonical normalization
  *  - The third bit tells us to go a step further and create synthetic codes
  *    for graphemes.
- */ 
+ */
 typedef enum {
     MVM_NORMALIZE_NFD   = 0,
     MVM_NORMALIZE_NFKD  = 1,
@@ -75,9 +75,10 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
      * far in normalized form without having to consider them into the
      * normalization process. The exception is if we're computing NFG, and
      * we got \r, which can form a grapheme in the case of \r\n. */
-    if (in < 0x20 || (in >= 0x7F && in <= 0x9F) || in == 0xAD)
-        if (!(MVM_NORMALIZE_GRAPHEME(n->form) && in == 0x0D))
+    if (in < 0x20 || (in >= 0x7F && in <= 0x9F) || in == 0xAD )
+        if (!(MVM_NORMALIZE_GRAPHEME(n->form) && in == 0x0D)) {
             return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
+        }
 
     /* Fast-paths apply when the codepoint to consider is too low to have any
      * interesting properties in the target normalization form. */
@@ -106,7 +107,6 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
             }
         }
     }
-
     /* Fall back to slow path. */
     return MVM_unicode_normalizer_process_codepoint_full(tc, n, in, out);
 }

@@ -247,17 +247,8 @@ sub grapheme_cluster_break {
     my ($fname, $pname) = @_;
     enumerated_property("auxiliary/${fname}BreakProperty",
         $pname, {
-            # Should not be set to Other for this one
+            # Should not be set to Other for this one ?
             Other => 0,
-            # Make sure we specify the values of Prepend and Extend
-            # We need these consistent since they are used in MoarVM code
-            #Prepend => 1,
-            #Extend => 2,
-            #E_Base => 3,
-            #E_Base_GAZ => 4,
-            #ZWJ        => 5,
-            #E_Modifier => 6,
-            #Glue_After_Zwj => 7
 
         }, 1, 1);
 }
@@ -716,7 +707,6 @@ sub emit_property_value_lookup {
     my $allocated = shift;
     my $enumtables = "\n\n";
     my $hout = "typedef enum {\n";
-    say Dumper($prop_names);
     my $out = "
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;

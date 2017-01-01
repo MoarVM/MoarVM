@@ -356,7 +356,7 @@ static MVMint32 is_control_beyond_latin1(MVMThreadContext *tc, MVMCodepoint in) 
         }
         if (genprop[0] == 'C') {
             /* Control, Surrogate, and Format are controls. */
-            if (genprop[1] == 'c' || genprop[1] == 's' || genprop[1] == 'f') {
+            if (genprop[1] == 'c' || genprop[1] == 's') {
                 return 1;
             }
 
@@ -623,11 +623,12 @@ static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint3
  * compute the normalization. */
 MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out) {
     MVMint64 qc_in, ccc_in;
-
+    int is_prepend = is_grapheme_prepend(tc, in);
     /* If it's a control character (outside of the range we checked in the
      * fast path) then it's a normalization terminator. */
-    if (in > 0xFF && is_control_beyond_latin1(tc, in))
+    if (in > 0xFF && is_control_beyond_latin1(tc, in) && !is_prepend) {
         return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
+    }
 
     /* Do a quickcheck on the codepoint we got in and get its CCC. */
     qc_in  = passes_quickcheck(tc, n, in);
@@ -668,7 +669,7 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
          * buffer, if any. We need to do this since it may have passed
          * quickcheck, but having seen some character that does pass then we
          * must make sure we decomposed the prior passing one too. */
-        if (MVM_NORMALIZE_COMPOSE(n->form) && n->buffer_end != n->buffer_norm_end) {
+        if (MVM_NORMALIZE_COMPOSE(n->form) && n->buffer_end != n->buffer_norm_end && !is_prepend) {
             MVMCodepoint decomp = n->buffer[n->buffer_end - 1];
             n->buffer_end--;
             decomp_codepoint_to_buffer(tc, n, decomp);
