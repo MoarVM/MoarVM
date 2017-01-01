@@ -186,6 +186,62 @@ void live_range_heapify(LiveRange *values, MVMint32 *heap, MVMint32 top) {
 }
 
 
+/* register assignment logic */
+#define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
+#define NEXT_IN_RING(a,x) (((x)+1) == ARRAY_SIZE(a) ? 0 : ((x)+1))
+MVMint8 get_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls) {
+    /* ignore storage class for now */
+    MVMint8 reg_num;
+    reg_num       = alc->reg_ring[alc->reg_take];
+    if (reg_num >= 0) {
+        /* not empty */
+        alc->reg_ring[alc->reg_take] = -1; /* mark used */
+        alc->reg_take = NEXT_IN_RING(alc->reg_ring, alc->reg_take);
+    }
+    return reg_num;
+}
+
+void free_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls, MVMint8 reg_num) {
+    if (alc->reg_give == alc->reg_take) {
+        MVM_oops(tc, "Trying to release more registers than fit into the ring");
+    }
+    alc->reg_ring[alc->reg_give] = reg_num;
+    alc->reg_give = NEXT_IN_RING(alc->reg_ring, alc->reg_give);
+}
+
+void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
+                     MVMint32 lv, MVMJitStorageClass reg_cls,  MVMint8 reg_num) {
+    /* What to do here:
+     * - update tiles using this live range to refer to this register
+     * - update allocator to mark this register as used by this live range */
+    LiveRange *range = alc->values + lv;
+    int i;
+    range->reg_cls   = reg_cls;
+    range->reg_num   = reg_num;
+
+    for (i = 0; i < range->num_defs; i++) {
+        ValueRef * ref   = range->defs + i;
+        MVMJitTile *tile = list->items[ref->tile_idx];
+        tile->values[ref->value_idx] = reg_num;
+    }
+
+    for (i = 0; i < range->num_uses; i++) {
+        ValueRef *ref    = range->uses + i;
+        MVMJitTile *tile = list->items[ref->tile_idx];
+        tile->values[ref->value_idx] = reg_num;
+    }
+
+    /* Not sure if we need to store the position of synthetic tiles for the
+     * purposes of first_def/last_use */
+    for (i = 0; i < 2; i++) {
+        MVMJitTile *tile = range->synthetic[i];
+        if (tile != NULL) {
+            tile->values[i] = reg_num;
+        }
+    }
+}
+
+
 static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
     MVMint32 i, j;
     MVMint32 num_use = 0, num_def = 0, num_live_range = 0;
@@ -323,13 +379,18 @@ static void active_set_add(MVMThreadContext *tc, RegisterAllocator *alc, MVMint3
     alc->active[alc->active_top++] = a;
 }
 
+
+
 /* Take live ranges from active_set whose last use was after position and append them to the retired list */
 static void active_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 position) {
     MVMint32 i;
     for (i = 0; i < alc->active_top; i++) {
         MVMint32 v = alc->active[i];
+        MVMint8 reg_num = alc->values[v].reg_num;
         if (last_use(&alc->values[v]) > position) {
             break;
+        } else {
+            free_register(tc, alc, MVM_JIT_STORAGE_GPR, reg_num);
         }
     }
 
@@ -369,60 +430,6 @@ static void spill_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMin
 static void split_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 which, MVMint32 from, MVMint32 to) {
 }
 
-/* register assignment logic */
-#define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
-#define NEXT_IN_RING(a,x) (((x)+1) == ARRAY_SIZE(a) ? 0 : ((x)+1))
-MVMint8 get_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls) {
-    /* ignore storage class for now */
-    MVMint8 reg_num;
-    reg_num       = alc->reg_ring[alc->reg_take];
-    if (reg_num >= 0) {
-        /* not empty */
-        alc->reg_ring[alc->reg_take] = -1; /* mark used */
-        alc->reg_take = NEXT_IN_RING(alc->reg_ring, alc->reg_take);
-    }
-    return reg_num;
-}
-
-void free_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitStorageClass reg_cls, MVMint8 reg_num) {
-    if (alc->reg_give == alc->reg_take) {
-        MVM_oops(tc, "Trying to release more registers than fit into the ring");
-    }
-    alc->reg_ring[alc->reg_give] = reg_num;
-    alc->reg_give = NEXT_IN_RING(alc->reg_ring, alc->reg_give);
-}
-
-void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
-                     MVMint32 lv, MVMJitStorageClass reg_cls,  MVMint8 reg_num) {
-    /* What to do here:
-     * - update tiles using this live range to refer to this register
-     * - update allocator to mark this register as used by this live range */
-    LiveRange *range = alc->values + lv;
-    int i;
-    range->reg_cls   = reg_cls;
-    range->reg_num   = reg_num;
-
-    for (i = 0; i < range->num_defs; i++) {
-        ValueRef * ref   = range->defs + i;
-        MVMJitTile *tile = list->items[ref->tile_idx];
-        tile->values[ref->value_idx] = reg_num;
-    }
-
-    for (i = 0; i < range->num_uses; i++) {
-        ValueRef *ref    = range->uses + i;
-        MVMJitTile *tile = list->items[ref->tile_idx];
-        tile->values[ref->value_idx] = reg_num;
-    }
-
-    /* Not sure if we need to store the position of synthetic tiles for the
-     * purposes of first_def/last_use */
-    for (i = 0; i < 2; i++) {
-        MVMJitTile *tile = range->synthetic[i];
-        if (tile != NULL) {
-            tile->values[i] = reg_num;
-        }
-    }
-}
 
 /* not sure if this is sufficiently general-purpose and unconfusing */
 #define MVM_VECTOR_ASSIGN(a,b) do {             \
@@ -465,7 +472,7 @@ void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler
     RegisterAllocator alc;
     MVMint32 i;
     /* initialize allocator */
-    DO_FOO();
+
     alc.is_nvr = 0;
     for (i = 0; i < sizeof(non_volatile_registers); i++) {
         alc.is_nvr |= (1 << non_volatile_registers[i]);
