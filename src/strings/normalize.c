@@ -1,13 +1,14 @@
 #include "moar.h"
-#define MVM_UNICODE_PROPERTY_GCB_OTHER          0
-#define MVM_UNICODE_PROPERTY_GCB_PREPEND        1
-#define MVM_UNICODE_PROPERTY_GCB_EXTEND         5
+#define MVM_UNICODE_PROPERTY_GCB_OTHER              0
+#define MVM_UNICODE_PROPERTY_GCB_PREPEND            1
+#define MVM_UNICODE_PROPERTY_GCB_EXTEND             5
 #define MVM_UNICODE_PROPERTY_GCB_REGIONAL_INDICATOR 6
-#define MVM_UNICODE_PROPERTY_GCB_E_MODIFIER     14
-#define MVM_UNICODE_PROPERTY_GCB_E_BASE         13
-#define MVM_UNICODE_PROPERTY_GCB_E_BASE_GAZ     17
-#define MVM_UNICODE_PROPERTY_GCB_ZWJ            15
-#define MVM_UNICODE_PROPERTY_GCB_GLUE_AFTER_ZWJ 16
+#define MVM_UNICODE_PROPERTY_GCB_SPACINGMARK        7
+#define MVM_UNICODE_PROPERTY_GCB_E_MODIFIER        14
+#define MVM_UNICODE_PROPERTY_GCB_E_BASE            13
+#define MVM_UNICODE_PROPERTY_GCB_E_BASE_GAZ        17
+#define MVM_UNICODE_PROPERTY_GCB_ZWJ               15
+#define MVM_UNICODE_PROPERTY_GCB_GLUE_AFTER_ZWJ    16
 
 /* Maps outside-world normalization form codes to our internal set, validating
  * that we got something valid. */
@@ -350,21 +351,24 @@ static MVMint32 is_control_beyond_latin1(MVMThreadContext *tc, MVMCodepoint in) 
         /* Consider general property. */
         const char *genprop = MVM_unicode_codepoint_get_property_cstr(tc, in,
             MVM_UNICODE_PROPERTY_GENERAL_CATEGORY);
-        if (genprop[0] == 'Z') {
-            /* Line_Separator and Paragraph_Separator are controls. */
-            return genprop[1] == 'l' || genprop[1] == 'p';
-        }
-        if (genprop[0] == 'C') {
-            /* Control, Surrogate, and Format are controls. */
-            if (genprop[1] == 'c' || genprop[1] == 's') {
-                return 1;
-            }
-
-            /* Unassigned is, but only for Default_Ignorable_Code_Point. */
-            if (genprop[1] == 'n') {
-                return MVM_unicode_codepoint_get_property_int(tc, in,
-                    MVM_UNICODE_PROPERTY_DEFAULT_IGNORABLE_CODE_POINT) != 0;
-            }
+        switch (genprop[0]) {
+            case 'Z':
+                /* Line_Separator and Paragraph_Separator are controls. */
+                return genprop[1] == 'l' || genprop[1] == 'p';
+            case 'C':
+                /* Control, Surrogate are controls. */
+                if (genprop[1] == 'c' || genprop[1] == 's') {
+                    return 1;
+                }
+                if (genprop[1] == 'f' ) {
+                    /* Format can have special properties (not control) */
+                    return 0;
+                }
+                /* Unassigned is, but only for Default_Ignorable_Code_Point. */
+                if (genprop[1] == 'n') {
+                    return MVM_unicode_codepoint_get_property_int(tc, in,
+                        MVM_UNICODE_PROPERTY_DEFAULT_IGNORABLE_CODE_POINT) != 0;
+                }
         }
     }
     return 0;
@@ -549,12 +553,10 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
             if ( GCB_b == MVM_UNICODE_PROPERTY_GCB_REGIONAL_INDICATOR )
                 return 0;
             break;
-        /* Don't break after Prepend Grapheme_Cluster_Break=Prepend
-         * for some reason this isn't working */
-
+        // Don't break after Prepend Grapheme_Cluster_Break=Prepend
         case MVM_UNICODE_PROPERTY_GCB_PREPEND:
             return 0;
-        /* Don't break after ZWJ */
+        // Don't break after ZWJ for E_Base_GAZ or Glue_After_ZWJ
         case MVM_UNICODE_PROPERTY_GCB_ZWJ:
             if ( GCB_b == MVM_UNICODE_PROPERTY_GCB_E_BASE_GAZ )
                 return 0;
@@ -564,10 +566,10 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
 
     }
     switch (GCB_b) {
-        /* Don't break before extending chars */
+        // Don't break before extending chars
         case MVM_UNICODE_PROPERTY_GCB_EXTEND:
             return 0;
-        /* Don't break before ZWJ */
+        // Don't break before ZWJ
         case MVM_UNICODE_PROPERTY_GCB_ZWJ:
             return 0;
         case MVM_UNICODE_PROPERTY_GCB_E_MODIFIER:
@@ -578,14 +580,10 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
                     return 0;
             }
             break;
-
+        /* Don't break before spacing marks. */
+        case MVM_UNICODE_PROPERTY_GCB_SPACINGMARK:
+            return 0;
     }
-
-    /* Don't break before spacing marks. (In the Unicode version at the time
-     * of implementing, there were no Prepend characters, so we don't worry
-     * about that rule for now). */
-    if (is_spacing_mark(tc, b) || is_grapheme_prepend(tc, a) == 1)
-        return 0;
 
     /* Otherwise break. */
     return 1;
