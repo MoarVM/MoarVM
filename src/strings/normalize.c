@@ -553,10 +553,15 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
             if ( GCB_b == MVM_UNICODE_PROPERTY_GCB_REGIONAL_INDICATOR )
                 return 0;
             break;
-        // Don't break after Prepend Grapheme_Cluster_Break=Prepend
+        /* Don't break after Prepend Grapheme_Cluster_Break=Prepend */
         case MVM_UNICODE_PROPERTY_GCB_PREPEND:
+            // If it's a control character remember to break
+            if (is_control_beyond_latin1(tc, b )) {
+                return 1;
+            }
+            // Otherwise don't break
             return 0;
-        // Don't break after ZWJ for E_Base_GAZ or Glue_After_ZWJ
+        /* Don't break after ZWJ for E_Base_GAZ or Glue_After_ZWJ */
         case MVM_UNICODE_PROPERTY_GCB_ZWJ:
             if ( GCB_b == MVM_UNICODE_PROPERTY_GCB_E_BASE_GAZ )
                 return 0;
@@ -564,12 +569,13 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
                 return 0;
             break;
 
+
     }
     switch (GCB_b) {
-        // Don't break before extending chars
+        /* Don't break before extending chars */
         case MVM_UNICODE_PROPERTY_GCB_EXTEND:
             return 0;
-        // Don't break before ZWJ
+        /* Don't break before ZWJ */
         case MVM_UNICODE_PROPERTY_GCB_ZWJ:
             return 0;
         case MVM_UNICODE_PROPERTY_GCB_E_MODIFIER:
@@ -578,6 +584,11 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
                     return 0;
                 case MVM_UNICODE_PROPERTY_GCB_E_BASE:
                     return 0;
+                /* Don't break
+                 * when in Emoji Sequences
+                 * we don't save state so can't support this now
+                 *case MVM_UNICODE_PROPERTY_GCB_EXTEND:
+                 *    return 0; */
             }
             break;
         /* Don't break before spacing marks. */
