@@ -1,15 +1,20 @@
 #include "moar.h"
 #include "internal.h"
 
+#define __COMMA__ ,
 static MVMint8 available_gpr[] = {
     MVM_JIT_ARCH_AVAILABLE_GPR(MVM_JIT_REG)
 };
 static MVMint8 available_num[] = {
     MVM_JIT_ARCH_NUM(MVM_JIT_REG)
 };
-static MVMint8 non_volatile_gpr[] = {
-    MVM_JIT_ARCH_NONVOLATILE_GPR(MVM_JIT_REG)
-};
+/* bitmap, so make it '|' to combine the shifted register numbers */
+#undef __COMMA__
+#define __COMMA__ |
+#define SHIFT(x) (1 << (MVM_JIT_REG(x)))
+static const MVMint64 NVR_GPR_BITMAP = MVM_JIT_ARCH_NONVOLATILE_GPR(SHIFT);
+#undef __COMMA__
+
 
 #define MAX_ACTIVE sizeof(available_gpr)
 #define NYI(x) MVM_oops(tc, #x  "not yet implemented")
@@ -69,7 +74,6 @@ typedef struct {
     /* Register handout ring */
     MVMint8   reg_ring[MAX_ACTIVE];
     MVMint32  reg_give, reg_take;
-    MVMuint32 is_nvr;
 
     MVMint32 spill_top;
 } RegisterAllocator;
@@ -449,7 +453,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
         active_set_expire(tc, alc, pos);
         if (MVM_JIT_REGISTER_HAS_REQUIREMENT(alc->values[v].register_spec)) {
             reg = MVM_JIT_REGISTER_REQUIREMENT(alc->values[v].register_spec);
-            if (alc->is_nvr & (1 << reg)) {
+            if (NVR_GPR_BITMAP & (1 << reg)) {
                 assign_register(tc, alc, list, v, MVM_JIT_STORAGE_NVR, reg);
             } else {
                 /* TODO; might require swapping / spilling */
@@ -472,11 +476,6 @@ void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler
     RegisterAllocator alc;
     MVMint32 i;
     /* initialize allocator */
-
-    alc.is_nvr = 0;
-    for (i = 0; i < sizeof(non_volatile_gpr); i++) {
-        alc.is_nvr |= (1 << non_volatile_gpr[i]);
-    }
 
     alc.active_top = 0;
     memset(alc.active, -1, sizeof(alc.active));

@@ -79,9 +79,14 @@ void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint3
 #undef MVM_JIT_PLATFORM_POSIX
 #undef MVM_JIT_PLATFORM_WIN32
 
+/* declare comma (register name separater) to be literal ',', which makes the
+ * enum declaration work */
+#define __COMMA__ ,
 enum {
     MVM_JIT_ARCH_GPR(MVM_JIT_REG)
 };
 enum {
     MVM_JIT_ARCH_NUM(MVM_JIT_REG)
 };
+/* it's a ridiculous, dangerous macro and it shouldn't escape */
+#undef __COMMA__

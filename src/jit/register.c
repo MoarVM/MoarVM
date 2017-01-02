@@ -15,6 +15,8 @@
  */
 
 
+/* array, hence __COMMA__ must be ',' */
+#define __COMMA__ ,
 static MVMint8 free_gpr[] = {
     MVM_JIT_ARCH_AVAILABLE_GPR(MVM_JIT_REG)
 };
@@ -24,6 +26,8 @@ static MVMint8 free_num[] = {
 static MVMint8 non_volatile_gpr[] = {
     MVM_JIT_ARCH_NONVOLATILE_GPR(MVM_JIT_REG)
 };
+/* don't let the __COMMA__ out */
+#undef __COMMA__
 
 #define NUM_AVAILABLE sizeof(free_gpr)
 #define NEXT_REG(x) (((x)+1)%NUM_AVAILABLE)
