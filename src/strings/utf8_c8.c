@@ -253,6 +253,10 @@ typedef struct {
     /* The normalizer we're using to make synthetics that will not cause an
      * order change on output. */
     MVMNormalizer norm;
+
+    /* Bad bytes from an earlier buffer, for the sake of streaming decode. */
+    MVMuint8 prev_bad_bytes[4];
+    MVMint32 num_prev_bad_bytes;
 } DecodeState;
 
 /* Appends a single grapheme to the buffer if it will not cause a mismatch
@@ -337,6 +341,10 @@ static void process_ok_codepoint(MVMThreadContext *tc, DecodeState *state) {
             }
         }
     }
+
+    /* We've no longer any bad bytes to care about from earlier buffers;
+     * they ended up making an acceptable codepoint. */
+    state->num_prev_bad_bytes = 0;
 }
 
 /* Called when a bad byte has been encountered, or at the end of output. */
@@ -354,6 +362,9 @@ static void process_bad_bytes(MVMThreadContext *tc, DecodeState *state) {
     }
 
     /* Now add in synthetics for bad bytes. */
+    for (i = 0; i < state->num_prev_bad_bytes; i++)
+        state->result[state->result_pos++] = synthetic_for(tc, state->prev_bad_bytes[i]);
+    state->num_prev_bad_bytes = 0;
     for (i = state->unaccepted_start; i <= state->cur_byte; i++)
         state->result[state->result_pos++] = synthetic_for(tc, state->utf8[i]);
     state->unaccepted_start = state->cur_byte + 1;
@@ -385,6 +396,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
     state.orig_codes = MVM_malloc(sizeof(MVMCodepoint) * bytes);
     state.orig_codes_pos = 0;
     state.orig_codes_unnormalized = 0;
+    state.num_prev_bad_bytes = 0;
     MVM_unicode_normalizer_init(tc, &(state.norm), MVM_NORMALIZE_NFG);
 
     while (state.cur_byte < bytes) {
@@ -456,16 +468,16 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
                                      const MVMint32 *stopper_chars,
-                                     MVMDecodeStreamSeparators *seps) {
-    MVMint32 count = 0, total = 0;
-    MVMint32 state = 0;
-    MVMCodepoint codepoint = 0;
-    MVMint32 bufsize;
-    MVMGrapheme32 *buffer;
+                                     MVMDecodeStreamSeparators *seps,
+                                     MVMint32 eof) {
+    /* Local state for decode loop. */
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
-    MVMint32 last_accept_pos, ready;
-    MVMuint32 reached_stopper;
+    MVMint32 last_accept_pos = ds->bytes_head_pos;
+    DecodeState state;
+    int expected_continuations = 0;
+    MVMuint32 reached_stopper = 0;
+    MVMint32 result_graphs = 0;
 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
@@ -476,124 +488,161 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
     if (stopper_chars && *stopper_chars == 0)
         return 1;
 
-    /* Rough starting-size estimate is number of bytes in the head buffer. */
-    bufsize = ds->bytes_head->length;
-    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
+    /* Otherwise set up decode state, stealing normalizer of the decode
+     * stream and re-instating any past orig_codes. */
+    state.expecting = EXPECT_START;
+    state.cur_codepoint = 0;
+    state.num_prev_bad_bytes = 0;
+    memcpy(&(state.norm), &(ds->norm), sizeof(MVMNormalizer));
+    if (ds->decoder_state) {
+        MVMCodepoint *saved = (MVMCodepoint *)ds->decoder_state;
+        state.orig_codes = MVM_malloc(
+            sizeof(MVMCodepoint) * (saved[0] + ds->bytes_head->length)
+        );
+        state.orig_codes_pos = saved[0];
+        state.orig_codes_unnormalized = 0;
+        memcpy(state.orig_codes, saved + 1, saved[0] * sizeof(MVMCodepoint));
+        MVM_free(ds->decoder_state);
+        ds->decoder_state = NULL;
+    }
+    else {
+        state.orig_codes = NULL;
+        state.orig_codes_pos = 0;
+        state.orig_codes_unnormalized = 0;
+    }
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
     reached_stopper = 0;
-    while (cur_bytes) {
+    while (cur_bytes && !reached_stopper) {
+        /* Set up decode state for this buffer. */
+        MVMint32 bytes = ds->bytes_head->length;
+        state.result = MVM_malloc(bytes * sizeof(MVMGrapheme32));
+        state.orig_codes = MVM_realloc(state.orig_codes,
+            sizeof(MVMCodepoint) * (state.orig_codes_pos + bytes));
+        state.result_pos = 0;
+        state.utf8 = cur_bytes->bytes;
+        state.cur_byte = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
+        state.unaccepted_start = state.cur_byte;
+
         /* Process this buffer. */
-        MVMint32  pos   = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
-        char     *bytes = cur_bytes->bytes;
-        while (pos < cur_bytes->length) {
-            switch(decode_utf8_byte(&state, &codepoint, bytes[pos++])) {
-            case UTF8_ACCEPT: {
-                MVMint32 first = 1;
-                MVMGrapheme32 g;
-                last_accept_bytes = cur_bytes;
-                last_accept_pos = pos;
-                ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &(ds->norm), codepoint, &g);
-                while (ready--) {
-                    if (first)
-                        first = 0;
-                    else
-                        g = MVM_unicode_normalizer_get_grapheme(tc, &(ds->norm));
-                    if (count == bufsize) {
-                        /* Valid character, but we filled the buffer. Attach this
-                        * one to the buffers linked list, and continue with a new
-                        * one. */
-                        MVM_string_decodestream_add_chars(tc, ds, buffer, bufsize);
-                        buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
-                        count = 0;
+        while (state.cur_byte < bytes) {
+            /* Process a byte. */
+            MVMuint8 decode_byte = state.utf8[state.cur_byte];
+            MVMint32 maybe_new_graph = 0;
+            switch (state.expecting) {
+                case EXPECT_START:
+                    if ((decode_byte & 0b10000000) == 0) {
+                        /* Single byte sequence. */
+                        state.cur_codepoint = decode_byte;
+                        process_ok_codepoint(tc, &state);
+                        maybe_new_graph = 1;
                     }
-                    buffer[count++] = g;
-                    total++;
-                    if (stopper_chars && *stopper_chars == total) {
-                        reached_stopper = 1;
-                        goto done;
+                    else if ((decode_byte & 0b11100000) == 0b11000000) {
+                        state.cur_codepoint = decode_byte & 0b00011111;
+                        state.expecting = EXPECT_CONTINUATION;
+                        expected_continuations = 1;
                     }
-                    if (MVM_string_decode_stream_maybe_sep(tc, seps, g)) {
-                        reached_stopper = 1;
-                        goto done;
+                    else if ((decode_byte & 0b11110000) == 0b11100000) {
+                        state.cur_codepoint = decode_byte & 0b00001111;
+                        state.expecting = EXPECT_CONTINUATION;
+                        expected_continuations = 2;
                     }
-                }
-                break;
-            }
-            case UTF8_REJECT: {
-                /* First, flush anything in the normalizer. */
-                MVMint32 ready;
-                MVM_unicode_normalizer_eof(tc, &(ds->norm));
-                ready = MVM_unicode_normalizer_available(tc, &(ds->norm));
-                /* Get a new result buffer, if we'd overflow existing. We
-                 * should never be able to get an invalid sequence longer
-                 * than 4 bytes. */
-                if (count + ready + 4 >= bufsize) {
-                    MVM_string_decodestream_add_chars(tc, ds, buffer, count);
-                    if (ready + 4 > bufsize)
-                        bufsize = ready + 4;
-                    buffer = MVM_malloc(bufsize * sizeof(MVMGrapheme32));
-                    count = 0;
-                }
-
-                /* Add chars from the normalizer; look out for any of them
-                 * being the separator. */
-                while (ready--) {
-                    MVMGrapheme32 g = MVM_unicode_normalizer_get_grapheme(tc, &(ds->norm));
-                    buffer[count++] = g;
-                    total++;
-                    if (stopper_chars && *stopper_chars == total) {
-                        reached_stopper = 1;
-                        goto done;
+                    else if ((decode_byte & 0b11111000) == 0b11110000) {
+                        state.cur_codepoint = decode_byte & 0b00000111;
+                        state.expecting = EXPECT_CONTINUATION;
+                        expected_continuations = 3;
                     }
-                    if (MVM_string_decode_stream_maybe_sep(tc, seps, g)) {
-                        reached_stopper = 1;
-                        goto done;
+                    else {
+                        /* Invalid byte sequence. */
+                        process_bad_bytes(tc, &state);
+                        maybe_new_graph = 1;
                     }
-                }
-
-                /* Go through invalid bytes, making synthetics. */
-                do {
-                    if (last_accept_pos < last_accept_bytes->length) {
-                        /* Still some in the last accepted byte buffer. */
-                        buffer[count++] = synthetic_for(tc,
-                            last_accept_bytes->bytes[last_accept_pos]);
-                        total++;
-                        last_accept_pos++;
-                        if (stopper_chars && *stopper_chars == total) {
-                            reached_stopper = 1;
-                            goto done;
+                    break;
+                case EXPECT_CONTINUATION:
+                    if ((decode_byte & 0b11000000) == 0b10000000) {
+                        state.cur_codepoint = (state.cur_codepoint << 6)
+                                              | (decode_byte & 0b00111111);
+                        expected_continuations--;
+                        if (expected_continuations == 0) {
+                            process_ok_codepoint(tc, &state);
+                            maybe_new_graph = 1;
+                            state.expecting = EXPECT_START;
                         }
                     }
-                    else if (last_accept_bytes->next) {
-                        /* Progress to next buffer. */
-                        last_accept_bytes = last_accept_bytes->next;
-                        last_accept_pos = -1;
+                    else {
+                        /* Invalid byte sequence. */
+                        process_bad_bytes(tc, &state);
+                        maybe_new_graph = 1;
+                        state.expecting = EXPECT_START;
+                    }
+                    break;
+            }
+            state.cur_byte++;
+
+            /* See if we've reached a stopper. */
+            if (maybe_new_graph && state.result_pos > 0) {
+                if (stopper_chars) {
+                    if (result_graphs + state.result_pos >= *stopper_chars) {
+                        reached_stopper = 1;
+                        break;
                     }
                 }
-                while (last_accept_bytes != cur_bytes && last_accept_pos != pos - 1);
-
-                /* Accept the invalid bytes. */
-                state = UTF8_ACCEPT;
-
-                break;
-            }
+                if (MVM_string_decode_stream_maybe_sep(tc, seps,
+                            state.result[state.result_pos - 1])) {
+                    reached_stopper = 1;
+                    break;
+                }
             }
         }
+
+        /* If we're at EOF and this is the last buffer, force out last bytes. */
+        if (eof && !reached_stopper && !cur_bytes->next) {
+            state.cur_byte--; /* So we don't read 1 past the end. */
+            process_bad_bytes(tc, &state);
+        }
+
+        /* Attach what we successfully parsed as a result buffer, and trim away
+         * what we chewed through. */
+        if (state.result_pos)
+            MVM_string_decodestream_add_chars(tc, ds, state.result, state.result_pos);
+        else
+            MVM_free(state.result);
+        result_graphs += state.result_pos;
+
+        /* Update our accepted position. */
+        if (state.unaccepted_start > 0) {
+            last_accept_bytes = cur_bytes;
+            last_accept_pos = state.unaccepted_start;
+        }
+
+        /* If there were bytes we didn't accept, hold on to them in case we
+         * need to emit them as bad bytes. */
+        if (state.unaccepted_start != state.cur_byte && cur_bytes->next) {
+            int i;
+            for (i = state.unaccepted_start; i < state.cur_byte; i++)
+                state.prev_bad_bytes[state.num_prev_bad_bytes++] = state.utf8[i];
+        }
+
         cur_bytes = cur_bytes->next;
     }
-  done:
 
-    /* Attach what we successfully parsed as a result buffer, and trim away
-     * what we chewed through. */
-    if (count) {
-        MVM_string_decodestream_add_chars(tc, ds, buffer, count);
-    }
-    else {
-        MVM_free(buffer);
-    }
+    /* Eat the bytes we decoded. */
     MVM_string_decodestream_discard_to(tc, ds, last_accept_bytes, last_accept_pos);
+
+    /* Persist current normalizer. */
+    memcpy(&(ds->norm), &(state.norm), sizeof(MVMNormalizer));
+
+    /* Stash away any leftover codepoints we'll need to examine. */
+    if (state.orig_codes_pos && state.orig_codes_pos != state.orig_codes_unnormalized) {
+        size_t diff = state.orig_codes_pos - state.orig_codes_unnormalized;
+        MVMCodepoint *saved = MVM_malloc(sizeof(MVMCodepoint) * (1 + diff));
+        saved[0] = diff;
+        memcpy(saved + 1, state.orig_codes + state.orig_codes_unnormalized,
+            diff * sizeof(MVMCodepoint));
+        ds->decoder_state = saved;
+    }
+    MVM_free(state.orig_codes);
 
     return reached_stopper;
 }

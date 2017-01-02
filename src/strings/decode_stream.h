@@ -22,6 +22,10 @@ struct MVMDecodeStream {
 
     /* Normalizer. */
     MVMNormalizer norm;
+
+    /* Optional place for the decoder to keep any extra state it needs between
+     * decode calls. Will be freed when the decode stream is destroyed. */
+    void *decoder_state;
 };
 
 /* A single bunch of bytes added to a decode stream, with a link to the next
