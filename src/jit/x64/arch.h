@@ -1,4 +1,4 @@
-#define X64_GPR(_) \
+#define MVM_JIT_ARCH_GPR(_) \
     _(RAX), \
     _(RCX), \
     _(RDX), \
@@ -17,7 +17,7 @@
     _(R15)
 
 
-#define X64_SSE(_) \
+#define MVM_JIT_ARCH_NUM(_) \
     _(XMM0), \
     _(XMM1), \
     _(XMM2), \
@@ -27,21 +27,11 @@
     _(XMM6), \
     _(XMM7)
 
-/* declare enums */
-
-enum {
-X64_GPR(MVM_JIT_REG)
-};
-
-enum {
-X64_SSE(MVM_JIT_REG)
-};
-
 
 #if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_POSIX
 /* Define the GPR set usable for general calculations */
 
-#define X64_FREE_GPR(_) \
+#define MVM_JIT_ARCH_AVAILABLE_GPR(_) \
     _(RAX), \
     _(RCX), \
     _(RDX), \
@@ -55,7 +45,7 @@ X64_SSE(MVM_JIT_REG)
 /* define set of non-volatile regsiters */
 
 
-#define X64_NVR(_) \
+#define MVM_JIT_ARCH_NONVOLATILE_GPR(_) \
     _(RBX), \
     _(RSP), \
     _(RBP), \
@@ -65,7 +55,7 @@ X64_SSE(MVM_JIT_REG)
     _(R15)
 
 /* GPR used for arguments */
-#define X64_ARG_GPR(_) \
+#define MVM_JIT_ARCH_ARG_GPR(_) \
     _(RDI), \
     _(RSI), \
     _(RDX), \
@@ -75,13 +65,13 @@ X64_SSE(MVM_JIT_REG)
 
 /* SSE used for arguments */
 
-#define X64_ARG_SSE(_) \
-    X64_SSE(_)
+#define MVM_JIT_ARCH_ARG_NUM(_) \
+    MVM_JIT_ARCH_NUM(_)
 
 #else
 
 /* Microsoft why you give us so few registers :-( */
-#define X64_FREE_GPR(_) \
+#define MVM_JIT_ARCH_AVAILABLE_GPR(_) \
     _(RAX), \
     _(RCX), \
     _(RDX), \
@@ -89,7 +79,7 @@ X64_SSE(MVM_JIT_REG)
     _(R9), \
     _(R10), \
     _(R11)
-#define X64_NVR(_) \
+#define MVM_JIT_ARCH_NONVOLATILE_GPR(_) \
     _(RBX), \
     _(RSP), \
     _(RBP), \
@@ -99,12 +89,12 @@ X64_SSE(MVM_JIT_REG)
     _(R13), \
     _(R14), \
     _(R15)
-#define X64_ARG_GPR(_) \
+#define MVM_JIT_ARCH_ARG_GPR(_) \
     _(RCX), \
     _(RDX), \
     _(R8), \
     _(R9)
-#define X64_ARG_SSE(_) \
+#define MVM_JIT_ARCH_ARG_NUM(_) \
     _(XMM0), \
     _(XMM1), \
     _(XMM2), \
@@ -112,4 +102,4 @@ X64_SSE(MVM_JIT_REG)
 #endif
 
 /* Frame declarations */
-#define MVM_JIT_MAX_GPR 16
+#define MVM_JIT_ARCH_NUM_GPR 16

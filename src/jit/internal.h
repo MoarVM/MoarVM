@@ -68,12 +68,20 @@ void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint3
 #define MVM_JIT_ARCH_H "jit/x64/arch.h"
 #endif
 
-#undef MVM_JIT_ARCH_X64
 /* Depends on values of MVM_JIT_PLATFORM, so need to be defined, but uses the
  * MVM_JIT_ARCH names literally, so these need to be undefined. */
 #ifdef MVM_JIT_ARCH_H
 #include MVM_JIT_ARCH_H
 #endif
 
+
+#undef MVM_JIT_ARCH_X64
 #undef MVM_JIT_PLATFORM_POSIX
 #undef MVM_JIT_PLATFORM_WIN32
+
+enum {
+    MVM_JIT_ARCH_GPR(MVM_JIT_REG)
+};
+enum {
+    MVM_JIT_ARCH_NUM(MVM_JIT_REG)
+};

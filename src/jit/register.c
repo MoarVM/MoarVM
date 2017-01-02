@@ -14,24 +14,19 @@
  * - linear scan register allocation
  */
 
-#if MVM_JIT_ARCH == MVM_JIT_ARCH_X64
+
 static MVMint8 free_gpr[] = {
-    X64_FREE_GPR(MVM_JIT_REG)
+    MVM_JIT_ARCH_AVAILABLE_GPR(MVM_JIT_REG)
 };
 static MVMint8 free_num[] = {
-    X64_SSE(MVM_JIT_REG)
+    MVM_JIT_ARCH_NUM(MVM_JIT_REG)
 };
 static MVMint8 non_volatile_gpr[] = {
-    X64_NVR(MVM_JIT_REG)
+    MVM_JIT_ARCH_NONVOLATILE_GPR(MVM_JIT_REG)
 };
-#else
-static MVMint8 free_gpr[] = { -1 };
-static MVMint8 free_num[] = { -1 };
-static MVMint8 non_volatile_gpr[] = { -1 };
-#endif
 
-#define NUM_GPR sizeof(free_gpr)
-#define NEXT_REG(x) (((x)+1)%NUM_GPR)
+#define NUM_AVAILABLE sizeof(free_gpr)
+#define NEXT_REG(x) (((x)+1)%NUM_AVAILABLE)
 
 /* it appears MAX is already defined in libtommath */
 #ifndef MAX
@@ -67,17 +62,17 @@ struct RegisterAllocator {
 
     /* Lookup tables */
     struct ValueList **values_by_node;
-    struct ValueList  *values_by_register[MVM_JIT_MAX_GPR];
+    struct ValueList  *values_by_register[MVM_JIT_ARCH_NUM_GPR];
 
     MVMJitCompiler *compiler;
     MVMJitTileList *tile_list;
 
     /* Register giveout ring */
-    MVMint8 free_reg[NUM_GPR];
+    MVMint8 free_reg[NUM_AVAILABLE];
     MVMint32 reg_give, reg_take;
 
     /* Last use of each register */
-    MVMint32 last_use[MVM_JIT_MAX_GPR];
+    MVMint32 last_use[MVM_JIT_ARCH_NUM_AVAILABLE];
 
     MVMint32 spill_top;
 };
@@ -135,7 +130,7 @@ static void free_register(MVMThreadContext *tc, struct RegisterAllocator *alloca
 
 static void expire_registers(MVMThreadContext *tc, struct RegisterAllocator *allocator, MVMint32 order_nr) {
     MVMint32 i;
-    for (i = 0; i < NUM_GPR; i++) {
+    for (i = 0; i < NUM_AVAILABLE; i++) {
         MVMint8 reg_num = free_gpr[i];
         if (allocator->last_use[reg_num] == order_nr) {
             free_register(tc, allocator, MVM_JIT_STORAGE_GPR, reg_num);
@@ -220,7 +215,7 @@ static void spill_register(MVMThreadContext *tc, struct RegisterAllocator *alloc
     MVMint8 spill_reg = free_gpr[0];
     MVMint32 i, node, first_created;
 
-    for (i = 1; i < NUM_GPR; i++) {
+    for (i = 1; i < NUM_AVAILABLE; i++) {
         if (allocator->last_use[free_gpr[i]] > allocator->last_use[spill_reg]) {
             spill_reg = free_gpr[i];
         }
@@ -250,7 +245,7 @@ void MVM_jit_register_allocator_init(MVMThreadContext *tc, struct RegisterAlloca
                                      MVMJitCompiler *compiler, MVMJitTileList *list) {
     MVMint32 i;
     /* Initialize free register ring */
-    memcpy(allocator->free_reg, free_gpr, NUM_GPR);
+    memcpy(allocator->free_reg, free_gpr, NUM_AVAILABLE);
     allocator->reg_give  = 0;
     allocator->reg_take  = 0;
 

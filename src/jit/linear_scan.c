@@ -1,17 +1,18 @@
 #include "moar.h"
 #include "internal.h"
 
-
-static MVMint8 available_registers[] = {
-    X64_FREE_GPR(MVM_JIT_REG)
+static MVMint8 free_gpr[] = {
+    MVM_JIT_ARCH_AVAILABLE_GPR(MVM_JIT_REG)
+};
+static MVMint8 free_num[] = {
+    MVM_JIT_ARCH_NUM(MVM_JIT_REG)
+};
+static MVMint8 non_volatile_gpr[] = {
+    MVM_JIT_ARCH_NONVOLATILE_GPR(MVM_JIT_REG)
 };
 
-static MVMint8 non_volatile_registers[] = {
-    X64_NVR(MVM_JIT_REG)
-};
-
-#define MAX_ACTIVE 9
-#define NUM_GPR   16
+#define MAX_ACTIVE sizeof(free_gpr)
+#define NUM_GPR    MVM_JIT_ARCN_NUM_GPR
 #define NYI(x) MVM_oops(tc, #x  "not yet implemented")
 
 typedef struct {
@@ -474,8 +475,8 @@ void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler
     /* initialize allocator */
 
     alc.is_nvr = 0;
-    for (i = 0; i < sizeof(non_volatile_registers); i++) {
-        alc.is_nvr |= (1 << non_volatile_registers[i]);
+    for (i = 0; i < sizeof(non_volatile_gpr); i++) {
+        alc.is_nvr |= (1 << non_volatile_gpr[i]);
     }
 
     alc.active_top = 0;
