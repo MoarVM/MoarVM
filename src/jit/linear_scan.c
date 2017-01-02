@@ -1,18 +1,17 @@
 #include "moar.h"
 #include "internal.h"
 
-static MVMint8 free_gpr[] = {
+static MVMint8 available_gpr[] = {
     MVM_JIT_ARCH_AVAILABLE_GPR(MVM_JIT_REG)
 };
-static MVMint8 free_num[] = {
+static MVMint8 available_num[] = {
     MVM_JIT_ARCH_NUM(MVM_JIT_REG)
 };
 static MVMint8 non_volatile_gpr[] = {
     MVM_JIT_ARCH_NONVOLATILE_GPR(MVM_JIT_REG)
 };
 
-#define MAX_ACTIVE sizeof(free_gpr)
-#define NUM_GPR    MVM_JIT_ARCN_NUM_GPR
+#define MAX_ACTIVE sizeof(available_gpr)
 #define NYI(x) MVM_oops(tc, #x  "not yet implemented")
 
 typedef struct {
@@ -485,8 +484,8 @@ void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler
     alc.spill_top = 0;
 
     alc.reg_give = alc.reg_take = 0;
-    memcpy(alc.reg_ring, available_registers,
-           sizeof(available_registers));
+    memcpy(alc.reg_ring, available_gpr,
+           sizeof(available_gpr));
 
     /* run algorithm */
     determine_live_ranges(tc, &alc, list);

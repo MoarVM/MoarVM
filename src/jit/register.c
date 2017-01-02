@@ -72,7 +72,7 @@ struct RegisterAllocator {
     MVMint32 reg_give, reg_take;
 
     /* Last use of each register */
-    MVMint32 last_use[MVM_JIT_ARCH_NUM_AVAILABLE];
+    MVMint32 last_use[MVM_JIT_ARCH_NUM_GPR];
 
     MVMint32 spill_top;
 };

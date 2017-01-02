@@ -339,6 +339,32 @@ the expire-register case.....
 Maybe we should have the prefered-register thing per use/defintiion,
 but that becomes very complicated fast.
 
+*** TODO Use linked list for use/definition storage
+
+The number of definition/use references is strictly limited to
+4*num_tiles, because each tile can only define one value and use at
+most 3 values, except for ARGLIST tiles, but they need special
+handling (which isn't really a problem; we can count these
+separately, if necessary during tiling). This means we can allocate
+all nodes in a single step (even without spesh allocation).
+
+*** TODO Make non-volatile-register bitmap a constant
+
+The trick is to replace the literal comma ',' with a COMMA macro in
+src/jit/x64/arch.h, and then to define COMMA as '|' locally. We can
+then declare a bitmap as:
+
+#+BEGIN_SRC C
+#define SHIFT(x) (1 << (x))
+#undef COMMA
+#define COMMA |
+static const MVMint64 NVR_BITMAP = MVM_JIT_ARCH_NONVOLATILE_GPR(SHIFT);
+#undef COMMA
+#define COMMA ,
+#+END_SRC
+
+I know, right. Subject for a blog post at the very least.
+
 *** TODO Implement spilling
 
 Spilling is implemented by inserting stores (if not present) after
