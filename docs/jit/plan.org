@@ -348,7 +348,53 @@ handling (which isn't really a problem; we can count these
 separately, if necessary during tiling). This means we can allocate
 all nodes in a single step (even without spesh allocation).
 
-*** TODO Make non-volatile-register bitmap a constant
+Further, it is no longer really necessary to distinguish between uses
+and definitions explicitly, since I can do it implicitly by the
+0-value-is-definition convention.
+
+I don't think I can roll in the synthetic tiles in the linked list
+structure since I still need an explicit number to identify their
+position.
+
+So we then have:
+
+#+BEGIN_SRC C
+typedef struct {
+    MVMint32 key;
+    MVMint32 idx;
+} UnionFind;
+
+typedef struct ValueRef ValueRef;
+struct ValueRef {
+    MVMint32 tile_idx;
+    MVMint32 value_idx;
+    ValueRef *next;
+};
+
+typedef struct {
+    ValueRef *first, *last;
+
+    MVMint32     synth_pos[2];
+    MVMJitTile* synth_tile[2];
+
+    /* sufficient for now */
+    MVMint8 register_spec;
+    MVMint8 register_num;
+} LiveRange;
+
+static inline MVMint32 first_ref(LiveRange *r) {
+    MVMint32 a = r->synth_tile[0] != NULL ? r->synth_pos[0]    : INT32_MAX;
+    MVMint32 b = r->first         != NULL ? r->first->tile_idx : INT32_MAX;
+    return MIN(a,b);
+}
+
+static inline MVMint32 last_ref(LiveRange *r) {
+    MVMint32 a = r->synth_tile[1] != NULL ? r->synth_pos[1]    : INT32_MAX;
+    MVMint32 b = r->last          != NULL ? r->last->tile_idx : INT32_MAX;
+}
+#+END_SRC
+
+*** DONE Make non-volatile-register bitmap a constant
 
 The trick is to replace the literal comma ',' with a COMMA macro in
 src/jit/x64/arch.h, and then to define COMMA as '|' locally. We can
