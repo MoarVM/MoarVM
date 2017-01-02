@@ -3,7 +3,7 @@
  *  - The second bit tells us whether to do canonical normalization
  *  - The third bit tells us to go a step further and create synthetic codes
  *    for graphemes.
- */ 
+ */
 typedef enum {
     MVM_NORMALIZE_NFD   = 0,
     MVM_NORMALIZE_NFKD  = 1,
@@ -106,7 +106,6 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
             }
         }
     }
-
     /* Fall back to slow path. */
     return MVM_unicode_normalizer_process_codepoint_full(tc, n, in, out);
 }

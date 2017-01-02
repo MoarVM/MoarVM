@@ -1,5 +1,4 @@
 #include "moar.h"
-
 /* Maps outside-world normalization form codes to our internal set, validating
  * that we got something valid. */
 MVMNormalization MVN_unicode_normalizer_form(MVMThreadContext *tc, MVMint64 form_in) {
@@ -341,21 +340,24 @@ static MVMint32 is_control_beyond_latin1(MVMThreadContext *tc, MVMCodepoint in) 
         /* Consider general property. */
         const char *genprop = MVM_unicode_codepoint_get_property_cstr(tc, in,
             MVM_UNICODE_PROPERTY_GENERAL_CATEGORY);
-        if (genprop[0] == 'Z') {
-            /* Line_Separator and Paragraph_Separator are controls. */
-            return genprop[1] == 'l' || genprop[1] == 'p';
-        }
-        if (genprop[0] == 'C') {
-            /* Control, Surrogate, and Format are controls. */
-            if (genprop[1] == 'c' || genprop[1] == 's' || genprop[1] == 'f') {
-                return 1;
-            }
-
-            /* Unassigned is, but only for Default_Ignorable_Code_Point. */
-            if (genprop[1] == 'n') {
-                return MVM_unicode_codepoint_get_property_int(tc, in,
-                    MVM_UNICODE_PROPERTY_DEFAULT_IGNORABLE_CODE_POINT) != 0;
-            }
+        switch (genprop[0]) {
+            case 'Z':
+                /* Line_Separator and Paragraph_Separator are controls. */
+                return genprop[1] == 'l' || genprop[1] == 'p';
+            case 'C':
+                /* Control, Surrogate are controls. */
+                if (genprop[1] == 'c' || genprop[1] == 's') {
+                    return 1;
+                }
+                if (genprop[1] == 'f' ) {
+                    /* Format can have special properties (not control) */
+                    return 0;
+                }
+                /* Unassigned is, but only for Default_Ignorable_Code_Point. */
+                if (genprop[1] == 'n') {
+                    return MVM_unicode_codepoint_get_property_int(tc, in,
+                        MVM_UNICODE_PROPERTY_DEFAULT_IGNORABLE_CODE_POINT) != 0;
+                }
         }
     }
     return 0;
@@ -491,6 +493,11 @@ static MVMint32 is_grapheme_extend(MVMThreadContext *tc, MVMCodepoint cp) {
     return MVM_unicode_codepoint_get_property_int(tc, cp,
         MVM_UNICODE_PROPERTY_GRAPHEME_EXTEND);
 }
+static MVMint32 is_grapheme_prepend(MVMThreadContext *tc, MVMCodepoint cp) {
+    return MVM_unicode_codepoint_get_property_int(tc, cp,
+        MVM_UNICODE_PROPERTY_PREPENDED_CONCATENATION_MARK);
+}
+
 static MVMint32 is_spacing_mark(MVMThreadContext *tc, MVMCodepoint cp) {
     const char *genprop = MVM_unicode_codepoint_get_property_cstr(tc, cp,
         MVM_UNICODE_PROPERTY_GENERAL_CATEGORY);
@@ -507,6 +514,8 @@ static MVMint32 is_spacing_mark(MVMThreadContext *tc, MVMCodepoint cp) {
     }
 }
 static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b) {
+    int GCB_a = MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
+    int GCB_b = MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
     /* Don't break between \r and \n, but otherwise break around \r. */
     if (a == 0x0D && b == 0x0A)
         return 0;
@@ -528,19 +537,53 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
             return !(strcmp(hst_b, "T") == 0);
     }
 
-    /* Don't break between regional indicators. */
-    if (is_regional_indicator(a) && is_regional_indicator(b))
-        return 0;
+    switch (GCB_a) {
+        case MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR:
+            if ( GCB_b == MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR )
+                return 0;
+            break;
+        /* Don't break after Prepend Grapheme_Cluster_Break=Prepend */
+        case MVM_UNICODE_PVALUE_GCB_PREPEND:
+            // If it's a control character remember to break
+            if (is_control_beyond_latin1(tc, b )) {
+                return 1;
+            }
+            // Otherwise don't break
+            return 0;
+        /* Don't break after ZWJ for E_Base_GAZ or Glue_After_ZWJ */
+        case MVM_UNICODE_PVALUE_GCB_ZWJ:
+            if ( GCB_b == MVM_UNICODE_PVALUE_GCB_E_BASE_GAZ )
+                return 0;
+            if ( GCB_b == MVM_UNICODE_PVALUE_GCB_ZWJ )
+                return 0;
+            break;
 
-    /* Don't break before extenders or ZERO WIDTH JOINER. */
-    if (b == 0x200D || is_grapheme_extend(tc, b))
-        return 0;
 
-    /* Don't break before spacing marks. (In the Unicode version at the time
-     * of implementing, there were no Prepend characters, so we don't worry
-     * about that rule for now). */
-    if (is_spacing_mark(tc, b))
-        return 0;
+    }
+    switch (GCB_b) {
+        /* Don't break before extending chars */
+        case MVM_UNICODE_PVALUE_GCB_EXTEND:
+            return 0;
+        /* Don't break before ZWJ */
+        case MVM_UNICODE_PVALUE_GCB_ZWJ:
+            return 0;
+        case MVM_UNICODE_PVALUE_GCB_E_MODIFIER:
+            switch (GCB_a) {
+                case MVM_UNICODE_PVALUE_GCB_E_BASE_GAZ:
+                    return 0;
+                case MVM_UNICODE_PVALUE_GCB_E_BASE:
+                    return 0;
+                /* Don't break
+                 * when in Emoji Sequences
+                 * we don't save state so can't support this now
+                 *case MVM_UNICODE_PVALUE_GCB_EXTEND:
+                 *    return 0; */
+            }
+            break;
+        /* Don't break before spacing marks. */
+        case MVM_UNICODE_PVALUE_GCB_SPACINGMARK:
+            return 0;
+    }
 
     /* Otherwise break. */
     return 1;
@@ -578,11 +621,12 @@ static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint3
  * compute the normalization. */
 MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVMNormalizer *n, MVMCodepoint in, MVMCodepoint *out) {
     MVMint64 qc_in, ccc_in;
-
+    int is_prepend = is_grapheme_prepend(tc, in);
     /* If it's a control character (outside of the range we checked in the
      * fast path) then it's a normalization terminator. */
-    if (in > 0xFF && is_control_beyond_latin1(tc, in))
+    if (in > 0xFF && is_control_beyond_latin1(tc, in) && !is_prepend) {
         return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
+    }
 
     /* Do a quickcheck on the codepoint we got in and get its CCC. */
     qc_in  = passes_quickcheck(tc, n, in);
@@ -623,7 +667,7 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
          * buffer, if any. We need to do this since it may have passed
          * quickcheck, but having seen some character that does pass then we
          * must make sure we decomposed the prior passing one too. */
-        if (MVM_NORMALIZE_COMPOSE(n->form) && n->buffer_end != n->buffer_norm_end) {
+        if (MVM_NORMALIZE_COMPOSE(n->form) && n->buffer_end != n->buffer_norm_end && !is_prepend) {
             MVMCodepoint decomp = n->buffer[n->buffer_end - 1];
             n->buffer_end--;
             decomp_codepoint_to_buffer(tc, n, decomp);

@@ -64,11 +64,12 @@ sub main {
             'Canonical_Combining_Class', { Not_Reordered => 0 }, 1)
     );
     collation();
+    BidiMirroring();
     goto skip_most if $skip_most_mode;
     binary_props('extracted/DerivedBinaryProperties');
+    binary_props('emoji/emoji-data');
     enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 0, 3);
-    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { '' => 0 }, 1, 1);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
     CaseFolding();
@@ -100,7 +101,7 @@ sub main {
     binary_props('PropList');
     enumerated_property('Scripts', 'Script', { Unknown => 0 }, 1, 1);
     # XXX StandardizedVariants.txt # no clue what this is
-    break_property('Grapheme', 'Grapheme_Cluster_Break');
+    grapheme_cluster_break('Grapheme', 'Grapheme_Cluster_Break');
     break_property('Sentence', 'Sentence_Break');
   skip_most:
     break_property('Word', 'Word_Break');
@@ -241,6 +242,15 @@ sub break_property {
     my ($fname, $pname) = @_;
     enumerated_property("auxiliary/${fname}BreakProperty",
         $pname, { Other => 0 }, 1, 1);
+}
+sub grapheme_cluster_break {
+    my ($fname, $pname) = @_;
+    enumerated_property("auxiliary/${fname}BreakProperty",
+        $pname, {
+            # Should not be set to Other for this one ?
+            Other => 0,
+
+        }, 1, 1);
 }
 
 sub derived_property {
@@ -465,7 +475,7 @@ sub emit_extent_fate {
 sub add_extent($$) {
     my ($extents, $extent) = @_;
     if ($DEBUG) {
-        $LOG .= "\n" . join '', 
+        $LOG .= "\n" . join '',
             grep /code|fate|name|bitfield/,
             sort split /^/m, "EXTENT " . Dumper($extent);
     }
@@ -808,7 +818,21 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
 ";  # or should we try to stringify numeric value?
 
     $hout .= "} MVM_unicode_property_codes;";
- 
+
+    # Grapheme_Cluster_Break Values
+    my $GCB_h;
+    $GCB_h .= "\n\n/* Values of Grapheme_Cluster_Break Property */\n";
+    my %seen;
+    foreach my $key (sort keys % {$enumerated_properties->{'Grapheme_Cluster_Break'}->{'enum'} }  ) {
+        next if $seen{$key};
+        my $value = $enumerated_properties->{'Grapheme_Cluster_Break'}->{'enum'}->{$key};
+        $key = 'MVM_UNICODE_PVALUE_GCB_' . uc $key;
+        $key =~ tr/\./_/;
+        $GCB_h .= "#define $key $value\n";
+        $seen{$key} = 1;
+    }
+    $hout .= $GCB_h;
+
     $db_sections->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
     $h_sections->{property_code_definitions} = $hout;
 }
@@ -878,7 +902,6 @@ MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 
 
     return in_block;
 }";
-
     $db_sections->{block_lookup} = $out;
     $h_sections->{block_lookup} = $hout;
 }
@@ -1581,6 +1604,23 @@ sub Jamo {
         $points_by_hex->{$code_str}->{Jamo_Short_Name} = $name;
     });
 }
+sub BidiMirroring {
+    my $file = 'BidiMirroring';
+    my $propname = 'Bidi_Mirroring_Glyph';
+    my $max_size = 0;
+    each_line('BidiMirroring', sub { $_ = shift;
+        my $line = $_;
+        my ($range, $int) = split /\s*[;#]\s*/, $line;
+        $int = hex $int or die;
+        $max_size = $int if $max_size < $int;
+        apply_to_range($range, sub {
+            my $point = shift;
+            $point->{$propname} = $int;
+        });
+    });
+
+    register_int_property($propname, $max_size);
+}
 sub collation {
     my $enum = {};
     my $base = { enum => $enum };
@@ -1647,8 +1687,8 @@ sub collation {
     });
     for ( $primary_max, $secondary_max, $tertiary_max ) {
         if ( $_ < 1 ) {
-            die "Oh no! One of the highest collation numbers I saw is less than 0. Something is wrong" ~
-              "Primary max: $primary_maxy secondary max: $secondary_max tertiary_max: $tertiary_max";
+            die "Oh no! One of the highest collation numbers I saw is less than 0. Something is wrong" .
+              "Primary max: $primary_max secondary max: $secondary_max tertiary_max: $tertiary_max";
         }
     }
 
@@ -1656,16 +1696,19 @@ sub collation {
     register_int_property($name_secondary, $secondary_max);
     register_int_property($name_tertiary, $tertiary_max);
 }
-
 sub LineBreak {
     my $enum = {};
     my $base = { enum => $enum };
     my $j = 0;
-    $enum->{$_} = $j++ for ("BK", "CR", "LF", "CM", "SG", "GL",
-        "CB", "SP", "ZW", "NL", "WJ", "JL", "JV", "JT", "H2", "H3");
+    $enum->{$_} = $j++ for ("BK", "CM", "CR", "GL", "LF", "NL", "SP",
+        "WJ", "ZW", "ZWJ", "AI", "AL", "B2", "BA", "BB", "CB", "CJ", "CL", "CP", "EB",
+        "EM", "EX", "H2", "H3", "HL", "HY", "ID", "IN", "IS", "JL",
+        "JT", "JV", "NS", "NU", "OP", "PO", "PR", "QU", "RI", "SA",
+        "SG", "SY", "XX"
+        );
     each_line('LineBreak', sub { $_ = shift;
         my ($range, $name) = split /\s*[;#]\s*/;
-        return unless exists $enum->{$name}; # only normative
+        die "Can't find Line_Break property $name in the enum" unless exists $enum->{$name}; # only normative
         apply_to_range($range, sub {
             my $point = shift;
             $point->{Line_Break} = $enum->{$name};
@@ -1676,7 +1719,7 @@ sub LineBreak {
         $keys[$base->{enum}->{$key}] = $key;
     }
     $base->{keys} = \@keys;
-    $base->{bit_width} = int(log($j)/log(2) - 0.00001) + 1;
+    $base->{bit_width} = least_int_ge_lg2($j);
     register_enumerated_property('Line_Break', $base);
 }
 
@@ -1727,6 +1770,18 @@ sub tweak_nfg_qc {
 
         # SpacingMark, and a couple of specials
         elsif ($point->{'gencat_name'} eq 'Mc' || $code == 0x0E33 || $code == 0x0EB3) {
+            $point->{'NFG_QC'} = 0;
+        }
+        # For now set all Emoji to NFG_QC 0
+        # Eventually we will only want to set the ones that are NOT specified
+        # as ZWJ sequences
+        elsif ($point->{'Emoji'} ) {
+            $point->{'NFG_QC'} = 0;
+        }
+        elsif ($point->{'Grapheme_Cluster_Break'}) {
+            $point->{'NFG_QC'} = 0;
+        }
+        elsif ($point->{'Prepended_Concatenation_Mark'}) {
             $point->{'NFG_QC'} = 0;
         }
     }
