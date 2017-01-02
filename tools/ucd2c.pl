@@ -819,6 +819,20 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
 
     $hout .= "} MVM_unicode_property_codes;";
 
+    # Grapheme_Cluster_Break Values
+    my $GCB_h;
+    $GCB_h .= "\n\n/* Values of Grapheme_Cluster_Break Property */\n";
+    my %seen;
+    foreach my $key (sort keys % {$enumerated_properties->{'Grapheme_Cluster_Break'}->{'enum'} }  ) {
+        next if $seen{$key};
+        my $value = $enumerated_properties->{'Grapheme_Cluster_Break'}->{'enum'}->{$key};
+        $key = 'MVM_UNICODE_PVALUE_GCB_' . uc $key;
+        $key =~ tr/\./_/;
+        $GCB_h .= "#define $key $value\n";
+        $seen{$key} = 1;
+    }
+    $hout .= $GCB_h;
+
     $db_sections->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
     $h_sections->{property_code_definitions} = $hout;
 }
@@ -888,7 +902,6 @@ MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 
 
     return in_block;
 }";
-
     $db_sections->{block_lookup} = $out;
     $h_sections->{block_lookup} = $hout;
 }

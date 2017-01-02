@@ -1,15 +1,4 @@
 #include "moar.h"
-#define MVM_UNICODE_PROPERTY_GCB_OTHER              0
-#define MVM_UNICODE_PROPERTY_GCB_PREPEND            1
-#define MVM_UNICODE_PROPERTY_GCB_EXTEND             5
-#define MVM_UNICODE_PROPERTY_GCB_REGIONAL_INDICATOR 6
-#define MVM_UNICODE_PROPERTY_GCB_SPACINGMARK        7
-#define MVM_UNICODE_PROPERTY_GCB_E_MODIFIER        14
-#define MVM_UNICODE_PROPERTY_GCB_E_BASE            13
-#define MVM_UNICODE_PROPERTY_GCB_E_BASE_GAZ        17
-#define MVM_UNICODE_PROPERTY_GCB_ZWJ               15
-#define MVM_UNICODE_PROPERTY_GCB_GLUE_AFTER_ZWJ    16
-
 /* Maps outside-world normalization form codes to our internal set, validating
  * that we got something valid. */
 MVMNormalization MVN_unicode_normalizer_form(MVMThreadContext *tc, MVMint64 form_in) {
@@ -549,12 +538,12 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
     }
 
     switch (GCB_a) {
-        case MVM_UNICODE_PROPERTY_GCB_REGIONAL_INDICATOR:
-            if ( GCB_b == MVM_UNICODE_PROPERTY_GCB_REGIONAL_INDICATOR )
+        case MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR:
+            if ( GCB_b == MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR )
                 return 0;
             break;
         /* Don't break after Prepend Grapheme_Cluster_Break=Prepend */
-        case MVM_UNICODE_PROPERTY_GCB_PREPEND:
+        case MVM_UNICODE_PVALUE_GCB_PREPEND:
             // If it's a control character remember to break
             if (is_control_beyond_latin1(tc, b )) {
                 return 1;
@@ -562,10 +551,10 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
             // Otherwise don't break
             return 0;
         /* Don't break after ZWJ for E_Base_GAZ or Glue_After_ZWJ */
-        case MVM_UNICODE_PROPERTY_GCB_ZWJ:
-            if ( GCB_b == MVM_UNICODE_PROPERTY_GCB_E_BASE_GAZ )
+        case MVM_UNICODE_PVALUE_GCB_ZWJ:
+            if ( GCB_b == MVM_UNICODE_PVALUE_GCB_E_BASE_GAZ )
                 return 0;
-            if ( GCB_b == MVM_UNICODE_PROPERTY_GCB_GLUE_AFTER_ZWJ )
+            if ( GCB_b == MVM_UNICODE_PVALUE_GCB_ZWJ )
                 return 0;
             break;
 
@@ -573,26 +562,26 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
     }
     switch (GCB_b) {
         /* Don't break before extending chars */
-        case MVM_UNICODE_PROPERTY_GCB_EXTEND:
+        case MVM_UNICODE_PVALUE_GCB_EXTEND:
             return 0;
         /* Don't break before ZWJ */
-        case MVM_UNICODE_PROPERTY_GCB_ZWJ:
+        case MVM_UNICODE_PVALUE_GCB_ZWJ:
             return 0;
-        case MVM_UNICODE_PROPERTY_GCB_E_MODIFIER:
+        case MVM_UNICODE_PVALUE_GCB_E_MODIFIER:
             switch (GCB_a) {
-                case MVM_UNICODE_PROPERTY_GCB_E_BASE_GAZ:
+                case MVM_UNICODE_PVALUE_GCB_E_BASE_GAZ:
                     return 0;
-                case MVM_UNICODE_PROPERTY_GCB_E_BASE:
+                case MVM_UNICODE_PVALUE_GCB_E_BASE:
                     return 0;
                 /* Don't break
                  * when in Emoji Sequences
                  * we don't save state so can't support this now
-                 *case MVM_UNICODE_PROPERTY_GCB_EXTEND:
+                 *case MVM_UNICODE_PVALUE_GCB_EXTEND:
                  *    return 0; */
             }
             break;
         /* Don't break before spacing marks. */
-        case MVM_UNICODE_PROPERTY_GCB_SPACINGMARK:
+        case MVM_UNICODE_PVALUE_GCB_SPACINGMARK:
             return 0;
     }
 
