@@ -2845,13 +2845,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(setdispatcher):
                 tc->cur_dispatcher = GET_REG(cur_op, 0).o;
+                tc->cur_dispatcher_for = NULL;
                 cur_op += 2;
                 goto NEXT;
-            OP(takedispatcher):
-                GET_REG(cur_op, 0).o = tc->cur_dispatcher ? tc->cur_dispatcher : tc->instance->VMNull;
-                tc->cur_dispatcher = NULL;
+            OP(takedispatcher): {
+                MVMObject *disp = tc->cur_dispatcher;
+                MVMObject *disp_for = tc->cur_dispatcher_for;
+                MVMObject *cur_code = tc->cur_frame->code_ref;
+                if (disp && (!disp_for || disp_for == cur_code)) {
+                    GET_REG(cur_op, 0).o = disp;
+                    tc->cur_dispatcher = NULL;
+                }
+                else {
+                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
+                }
                 cur_op += 2;
                 goto NEXT;
+            }
             OP(assign): {
                 MVMObject *cont  = GET_REG(cur_op, 0).o;
                 MVMObject *obj = GET_REG(cur_op, 2).o;
@@ -5141,6 +5151,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_frame_capture_inner(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
+            OP(setdispatcherfor): {
+                MVMObject *disp_for = GET_REG(cur_op, 2).o;
+                tc->cur_dispatcher = GET_REG(cur_op, 0).o;
+                tc->cur_dispatcher_for = REPR(disp_for)->ID == MVM_REPR_ID_MVMCode
+                    ? disp_for
+                    : MVM_frame_find_invokee(tc, disp_for, NULL);
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
