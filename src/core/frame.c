@@ -859,21 +859,25 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
         if (tc->cur_frame == tc->thread_entry_frame)
             MVM_exception_throw_adhoc(tc, "Thread entry point frame cannot have an exit handler");
 
-        switch (caller->return_type) {
-            case MVM_RETURN_OBJ:
-                result = caller->return_value->o;
-                break;
-            case MVM_RETURN_INT:
-                result = MVM_repr_box_int(tc, hll->int_box_type, caller->return_value->i64);
-                break;
-            case MVM_RETURN_NUM:
-                result = MVM_repr_box_num(tc, hll->num_box_type, caller->return_value->n64);
-                break;
-            case MVM_RETURN_STR:
-                result = MVM_repr_box_str(tc, hll->str_box_type, caller->return_value->s);
-                break;
-            default:
-                result = NULL;
+        if (caller->return_type == MVM_RETURN_OBJ) {
+            result = caller->return_value->o;
+        }
+        else {
+            MVMROOT(tc, cur_frame, {
+                switch (caller->return_type) {
+                    case MVM_RETURN_INT:
+                        result = MVM_repr_box_int(tc, hll->int_box_type, caller->return_value->i64);
+                        break;
+                    case MVM_RETURN_NUM:
+                        result = MVM_repr_box_num(tc, hll->num_box_type, caller->return_value->n64);
+                        break;
+                    case MVM_RETURN_STR:
+                        result = MVM_repr_box_str(tc, hll->str_box_type, caller->return_value->s);
+                        break;
+                    default:
+                        result = NULL;
+                }
+            });
         }
 
         handler = MVM_frame_find_invokee(tc, hll->exit_handler, NULL);
