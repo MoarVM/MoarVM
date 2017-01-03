@@ -1,11 +1,32 @@
-/* Compares two strings, returning -1, 0 or 1 to indicate less than,
- * equal or greater than based on Unicode Collation Algorithm */
-MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+/* Compares two strings, based on Unicode Collation Algorithm
+ *    0   The strings are identical, includes codepoints
+ * -1/1   We used the primary collation values to decide the result
+ * -2/2   We used the secondary, meaning the primary weights were equal
+ * -3/3   We used the tetriary, meaning the primary and also the secondary
+          weights (if we used that option, which is the default) were equal.
+ *   -4/4 We used codepoints to decide because primary, secondary and/or tetriary
+          were equal (depending on if secondary and tetriary were requested).
+          If the codepoints are all the same, we will decide based on length.
+ * -10/10 The collation algorithm was not able to be applied and so they
+          were compared based on codepoints. If codepoints were equal they were
+          compared by length. */
+MVMint32 MVM_unicode_collation_primary (MVMThreadContext *tc, MVMint32 codepoint) {
+     return MVM_unicode_codepoint_get_property_int(tc, codepoint, MVM_UNICODE_PROPERTY_MVM_COLLATION_PRIMARY);
+}
+MVMint32 MVM_unicode_collation_secondary (MVMThreadContext *tc, MVMint32 codepoint) {
+     return MVM_unicode_codepoint_get_property_int(tc, codepoint, MVM_UNICODE_PROPERTY_MVM_COLLATION_SECONDARY);
+}
+MVMint32 MVM_unicode_collation_tertiary (MVMThreadContext *tc, MVMint32 codepoint) {
+     return MVM_unicode_codepoint_get_property_int(tc, codepoint, MVM_UNICODE_PROPERTY_MVM_COLLATION_TERTIARY);
+}
+MVMint64 MVM_unicode_string_compare
+        (MVMThreadContext *tc, MVMString *a, MVMString *b,
+         MVMint32 collation_mode, MVMint32 lang_mode, MVMint32 country_mode) {
     MVMStringIndex alen, blen, i, scanlen;
-    // Iteration variables
+    /* Iteration variables */
     MVMGrapheme32 ai;
     MVMGrapheme32 bi;
-    // Collation order numbers
+    /* Collation order numbers */
     MVMint32 ai_coll_val;
     MVMint32 bi_coll_val;
     MVM_string_check_arg(tc, a, "compare");
@@ -25,23 +46,53 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
         bi = MVM_string_get_grapheme_at_nocheck(tc, b, i);
         /* If they are the same grapheme */
         if (ai != bi) {
-            /* only try and get a property if the value is zero or more */
+            /* only try and get a property if the value it is isn't a synthetic
+             * grapheme. we should change from get_grapheme to something to get the
+             * NFC form */
             if ( ai >= 0 || bi >= 0 ) {
                 /* Get the primary collation value for the grapheme */
-                ai_coll_val = MVM_unicode_codepoint_get_property_int(tc, ai, MVM_UNICODE_PROPERTY_MVM_COLLATION_PRIMARY);
-                bi_coll_val = MVM_unicode_codepoint_get_property_int(tc, bi, MVM_UNICODE_PROPERTY_MVM_COLLATION_PRIMARY);
-                /* If both collation have positive values sort this way */
-                if ( (ai_coll_val > 0 && bi_coll_val > 0) && (ai_coll_val != bi_coll_val) ) {
+                ai_coll_val = MVM_unicode_collation_primary(tc, ai);
+                bi_coll_val = MVM_unicode_collation_primary(tc, bi);
+                /* If we don't find a collation value,
+                   we should compare by codepoint */
+                /* Eventually we should try and catch codepoints that don't
+                   have a collation value. We would then need to decompose it and
+                   apply weighting based on their decomposed values. */
+                if (ai_coll_val == 0 || bi_coll_val == 0) {
+                    /* return -10 or 10 to indicate we didn't use the collation
+                       algorithm */
+                    return ai < bi ? -10 :
+                           ai > bi ?  10 :
+                                       0 ;
+                }
+
+                /* If both have primary collation values ( they are not 0 ) */
+                if ( (ai_coll_val != 0 && bi_coll_val != 0) && (ai_coll_val != bi_coll_val) ) {
                     return ai_coll_val < bi_coll_val ? -1 : 1;
                 }
-                /* If we don't find a collation value, or they have the same value
-                   we should compare by codepoint */
-                else {
-                    return ai < bi ? -1 : 1;
+                /* If both have the same primary collation values */
+                ai_coll_val += MVM_unicode_collation_secondary(tc, ai);
+                bi_coll_val += MVM_unicode_collation_secondary(tc, bi);
+                if ( (ai_coll_val != 0 && bi_coll_val != 0) && (ai_coll_val != bi_coll_val) ) {
+                    return ai_coll_val < bi_coll_val ? -2 : 2;
                 }
+                /* If both have the same tertiary collation values */
+                ai_coll_val = MVM_unicode_collation_tertiary(tc, ai);
+                bi_coll_val = MVM_unicode_collation_tertiary(tc, bi);
+                if ( (ai_coll_val != 0 && bi_coll_val != 0) && (ai_coll_val != bi_coll_val) ) {
+                    return ai_coll_val < bi_coll_val ? -3 : 3;
+                }
+                /* All the collation values were equal. Check codepoints */
+                return ai < bi ? -4 :
+                       ai > bi ?  4 :
+                                  0 ;
+
             }
+            /* For now, if it's a synthetic codepoint just compare by codepoint. */
             else {
-                return ai < bi ? -1 : 1;
+                return ai < bi ? -10 :
+                       ai > bi ?  10 :
+                                   1 ;
             }
         }
     }

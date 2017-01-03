@@ -1628,21 +1628,24 @@ sub collation {
     my $name_primary = 'MVM_COLLATION_PRIMARY';
     my $name_secondary = 'MVM_COLLATION_SECONDARY';
     my $name_tertiary = 'MVM_COLLATION_TERTIARY';
+    my $implicit = 0;
     # Record the highest value we see so we can save some bits in the bitfield
     my $primary_max = 0;
     my $secondary_max = 0;
     my $tertiary_max = 0;
     ## Sample line from allkeys.txt
     #1D4FF ; [.1EE3.0020.0005] # MATHEMATICAL BOLD SCRIPT SMALL V
+    my $line_no = 0;
     each_line('UCA/allkeys', sub { $_ = shift;
         my $line = $_;
-        #say $line;
+        $line_no++;
         my ($code, $weight1, $weight2, $weight3, $temp);
         if ($line =~ s/ ^ \@implicitweights \s+ //xms ) {
             say "IMPLICIT WEIGHTS";
             ($code, $weight1) = split / (?: [;\[\]]|\s )+ /xms, $line;
             $weight1 = hex $weight1 or croak;
             $code or croak;
+            $implicit = 1;
         }
         elsif ( $line =~ /^\s*[#@]/ or $line =~ /^\s*$/ ) {
             $line = '';
@@ -1658,31 +1661,42 @@ sub collation {
             # We capture the `.` or `*` before each weight. Currently we do
             # not use this information, but it may be of use later (we currently
             # don't put their values into the data structure.
-            if ( $temp =~ m/ (?: \[ (.) (\p{AHex}+) (.) (\p{AHex}+) (.) (\p{AHex}+) \] )+ /xms ) {
-                $weight1 = hex $2;
-                $weight2 = hex $4;
-                $weight3 = hex $6;
-            }
-            else {
-                die "\$line:[$line]\n\$code:[$code] \$temp:[$temp]";
-            }
-        }
-        die if !defined $code;
-        apply_to_range($code, sub {
-            my $point = shift;
-            if ($weight1) {
-                $point->{$name_primary} = $weight1;
-                $primary_max = $weight1 if $weight1 > $primary_max;
-            }
-            if ( $weight2 ) {
-                $point->{$name_secondary} = $weight2;
-                $secondary_max = $weight2 if $weight2 > $secondary_max;
-            }
-            if ( $weight3 ) {
-                $point->{$name_tertiary}  = $weight3;
-                $tertiary_max = $weight3 if $weight3 > $tertiary_max;
+
+            # When multiple tables are specified for a character, it is because those
+            # are the composite values for the decomposed character. Since we compare
+            # in NFC form not NFD, let's add these together.
+
+            while ( $temp =~ / (:? \[ ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) \] ) /xmsg ) {
+                $weight1 += hex $3;
+                $weight2 += hex $5;
+                $weight3 += hex $7;
             }
 
+        }
+        if ( !defined $code or !defined $weight1 or !defined $weight2 or !defined $weight3 ) {
+            unless ( $implicit and defined $weight1 ) {
+                die "Line no $line_no: line:[$line] weight1:[$weight1] weight2:[$weight2] weight3:[$weight3]";
+            }
+        }
+        apply_to_range($code, sub {
+            my $point = shift;
+            # Add one to the value so we can distinguish between specified values
+            # of zero for collation weight and null values.
+            $point->{$name_primary} = 1;
+            if ($weight1) {
+                $point->{$name_primary} += $weight1 if $weight1;
+                $primary_max = $weight1 if $weight1 > $primary_max;
+            }
+            $point->{$name_secondary} = 1;
+            if ($weight2) {
+                $point->{$name_secondary} += $weight2;
+                $secondary_max = $weight2 if $weight2 > $secondary_max;
+            }
+            $point->{$name_tertiary}  = 1;
+            if ($weight3) {
+                $point->{$name_tertiary} += $weight3  if $weight3 ;
+                $tertiary_max = $weight3 if $weight3 > $tertiary_max;
+            }
         });
     });
     for ( $primary_max, $secondary_max, $tertiary_max ) {
