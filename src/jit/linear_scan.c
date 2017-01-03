@@ -13,6 +13,7 @@ static MVMint8 available_num[] = {
 #define __COMMA__ |
 #define SHIFT(x) (1 << (MVM_JIT_REG(x)))
 static const MVMint64 NVR_GPR_BITMAP = MVM_JIT_ARCH_NONVOLATILE_GPR(SHIFT);
+#undef SHIFT
 #undef __COMMA__
 
 
@@ -21,24 +22,24 @@ static const MVMint64 NVR_GPR_BITMAP = MVM_JIT_ARCH_NONVOLATILE_GPR(SHIFT);
 
 typedef struct {
     MVMint32 key;
-    MVMint32 num_defs, num_uses;
-    MVMint32 live_range_idx;
+    MVMint32 idx;
 } UnionFind;
 
 
-/* In an interesting way, this is equivalent to a pointer to the 'values' memory
- * area, and it is just as large anyway! */
-typedef struct {
-    MVMint32 tile_idx;
-    MVMint32 value_idx;
-} ValueRef;
+typedef struct ValueRef ValueRef;
+struct ValueRef {
+    MVMint32  tile_idx;
+    MVMint32  value_idx;
+    ValueRef *next;
+};
 
+static inline MVMint32 is_def(ValueRef *v) {
+    return (v->value_idx == 0);
+}
 
 typedef struct {
-    MVMint32 num_defs;
-    ValueRef *defs;
-    MVMint32 num_uses;
-    ValueRef *uses;
+    /* double-ended queue of value refs */
+    ValueRef *first, *last;
 
     /* We can have at most two synthetic tiles, one attached to the first
      * definition and one to the last use... we could also point directly into
@@ -46,18 +47,33 @@ typedef struct {
     MVMint32    synth_pos[2];
     MVMJitTile *synthetic[2];
 
-    MVMint8 register_spec;
+    MVMint8            register_spec;
     MVMJitStorageClass reg_cls;
-    MVMint32 reg_num;
-    MVMint32 spilled_to; /* location of value in memory, if any */
+    MVMint32           reg_num;
 } LiveRange;
+
+/* quick accessors for common checks */
+static inline MVMint32 first_ref(LiveRange *r) {
+    MVMint32 a = r->first == NULL        ? INT32_MAX : r->first->tile_idx;
+    MVMint32 b = r->synthetic[0] == NULL ? INT32_MAX : r->synth_pos[0];
+    return MIN(a,b);
+}
+
+static inline MVMint32 last_ref(LiveRange *r) {
+    MVMint32 a = r->last == NULL         ? -1 : r->last->tile_idx;
+    MVMint32 b = r->synthetic[1] == NULL ? -1 : r->synth_pos[1];
+    return MAX(a,b);
+}
+
 
 
 typedef struct {
     /* Sets of values */
     UnionFind *sets;
+
     /* single buffer for uses, definitions */
-    ValueRef *use_defs_buf;
+    ValueRef *refs;
+    MVMint32  refs_num;
 
     /* All values ever defined by the register allcoator */
     MVM_VECTOR_DECL(LiveRange, values);
@@ -87,43 +103,78 @@ UnionFind * value_set_find(UnionFind *sets, MVMint32 key) {
 }
 
 
-MVMint32 value_set_union(UnionFind *sets, MVMint32 a, MVMint32 b) {
-    if (sets[a].num_defs < sets[b].num_defs) {
+MVMint32 value_set_union(UnionFind *sets, LiveRange *values, MVMint32 a, MVMint32 b) {
+    LiveRange *ra = values + sets[a].idx, *rb = values + sets[b].idx;
+    ValueRef *head, *tail;
+    if (first_ref(rb) < first_ref(ra)) {
         MVMint32 t = a; a = b; b = t;
     }
     sets[b].key = a; /* point b to a */
-    sets[a].num_defs += sets[b].num_defs;
-    sets[a].num_uses += sets[b].num_uses;
+    /* merge value ref sets */
+    if (first_ref(ra) <= first_ref(rb)) {
+        head = ra->first;
+        ra->first = ra->first->next;
+    } else {
+        head = rb->first;
+        rb->first = rb->first->next;
+    }
+    tail = head;
+    while (ra->first != NULL && rb->first != NULL) {
+        if (ra->first->tile_idx <= rb->first->tile_idx) {
+            tail->next  = ra->first;
+            ra->first   = ra->first->next;
+        } else {
+            tail->next  = rb->first;
+            rb->first   = rb->first->next;
+        }
+    }
+    while (ra->first != NULL) {
+        tail->next = ra->first;
+        ra->first  = ra->first->next;
+    }
+    while (rb->first != NULL) {
+        tail->next  = rb->first;
+        rb->first   = rb->first->next;
+    }
+    values[sets[a].idx].first = head;
+    values[sets[a].idx].last  = tail;
     return a;
 }
 
 
-/* quick accessors for common checks */
-static inline MVMint32 first_def(LiveRange *v) {
-    MVMint32 a = v->defs == NULL         ? INT32_MAX : v->defs[0].tile_idx;
-    MVMint32 b = v->synthetic[0] == NULL ? INT32_MAX : v->synth_pos[0];
-    return MIN(a,b);
-}
-
-static inline MVMint32 last_use(LiveRange *v) {
-    MVMint32 a = v->uses == NULL         ? -1 : v->uses[v->num_uses-1].tile_idx;
-    MVMint32 b = v->synthetic[1] == NULL ? -1 : v->synth_pos[1];
-    return MAX(a,b);
-}
-
 /* create a new live range object and return a reference */
-MVMint32 live_range_init(RegisterAllocator *alc, ValueRef *defs, ValueRef *uses) {
+MVMint32 live_range_init(RegisterAllocator *alc) {
     LiveRange *range;
     MVMint32 idx = alc->values_num++;
     MVM_VECTOR_ENSURE_SIZE(alc->values, idx);
     range = &alc->values[idx];
-    range->defs = defs;
-    range->uses = uses;
-    range->num_defs = 0;
-    range->num_uses = 0;
+    range->first        = NULL;
+    range->last         = NULL;
     range->synthetic[0] = NULL;
     range->synthetic[1] = NULL;
     return idx;
+}
+
+/* append ref to end of queue */
+static void live_range_add_ref(RegisterAllocator *alc, LiveRange *range, MVMint32 tile_idx, MVMint32 value_idx) {
+    ValueRef *ref = alc->refs + alc->refs_num++;
+    ref->tile_idx  = tile_idx;
+    ref->value_idx = value_idx;
+
+    if (range->first == NULL) {
+        range->first = ref;
+    }
+    if (range->last != NULL) {
+        range->last->next = ref;
+    }
+    range->last = ref;
+    ref->next   = NULL;
+}
+
+static inline MVMint32 live_range_is_empty(LiveRange *range) {
+    return (range->first == NULL &&
+            range->synthetic[0] == NULL &&
+            range->synthetic[1] == NULL);
 }
 
 static inline void heap_swap(MVMint32 *heap, MVMint32 a, MVMint32 b) {
@@ -139,13 +190,13 @@ void live_range_heap_down(LiveRange *values, MVMint32 *heap, MVMint32 top, MVMin
         MVMint32 right = left + 1;
         MVMint32 swap;
         if (right < top) {
-            swap = first_def(&values[heap[left]]) < first_def(&values[heap[right]]) ? left : right;
+            swap = first_ref(&values[heap[left]]) < first_ref(&values[heap[right]]) ? left : right;
         } else if (left < top) {
             swap = left;
         } else {
             break;
         }
-        if (first_def(&values[heap[swap]]) < first_def(&values[heap[item]])) {
+        if (first_ref(&values[heap[swap]]) < first_ref(&values[heap[item]])) {
             heap_swap(heap, swap, item);
             item       = swap;
         } else {
@@ -157,7 +208,7 @@ void live_range_heap_down(LiveRange *values, MVMint32 *heap, MVMint32 top, MVMin
 void live_range_heap_up(LiveRange *values, MVMint32 *heap, MVMint32 item) {
     while (item > 0) {
         MVMint32 parent = (item-1)/2;
-        if (first_def(&values[heap[parent]]) < first_def(&values[heap[item]])) {
+        if (first_ref(&values[heap[parent]]) < first_ref(&values[heap[item]])) {
             heap_swap(heap, item, parent);
             item = parent;
         } else {
@@ -219,24 +270,16 @@ void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileLis
      * - update tiles using this live range to refer to this register
      * - update allocator to mark this register as used by this live range */
     LiveRange *range = alc->values + lv;
-    int i;
+    ValueRef *ref;
+    MVMint32 i;
+
     range->reg_cls   = reg_cls;
     range->reg_num   = reg_num;
-
-    for (i = 0; i < range->num_defs; i++) {
-        ValueRef * ref   = range->defs + i;
+    for (ref = range->first; ref != NULL; ref = ref->next) {
         MVMJitTile *tile = list->items[ref->tile_idx];
         tile->values[ref->value_idx] = reg_num;
     }
 
-    for (i = 0; i < range->num_uses; i++) {
-        ValueRef *ref    = range->uses + i;
-        MVMJitTile *tile = list->items[ref->tile_idx];
-        tile->values[ref->value_idx] = reg_num;
-    }
-
-    /* Not sure if we need to store the position of synthetic tiles for the
-     * purposes of first_def/last_use */
     for (i = 0; i < 2; i++) {
         MVMJitTile *tile = range->synthetic[i];
         if (tile != NULL) {
@@ -247,17 +290,21 @@ void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileLis
 
 
 static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
-    MVMint32 i, j;
-    MVMint32 num_use = 0, num_def = 0, num_live_range = 0;
-    ValueRef *use_buf, *def_buf;
     MVMJitExprTree *tree = list->tree;
+    MVMint32 i, j;
 
     alc->sets = MVM_calloc(tree->nodes_num, sizeof(UnionFind));
+    /* TODO: add count for ARGLIST refs, which can be > 3 per 'tile' */
+    alc->refs = MVM_calloc(list->items_num * 4, sizeof(ValueRef));
+
+    MVM_VECTOR_INIT(alc->values,   list->items_num);
+    MVM_VECTOR_INIT(alc->worklist, list->items_num);
+
     for (i = 0; i < list->items_num; i++) {
         MVMJitTile *tile = list->items[i];
         MVMint32    node = tile->node;
-        /* Each of the following counts as either a copy or as a PHI (in case of
-         * IF), and thus these are not actual definitions */
+        /* Each of the following counts as either an alias or as a PHI (in case
+         * of IF), and thus these are not actual definitions */
         if (tile->op == MVM_JIT_COPY) {
             MVMint32 ref        = tree->nodes[tile->node + 1];
             alc->sets[node].key = ref; /* point directly to actual definition */
@@ -268,90 +315,34 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
         } else if (tile->op == MVM_JIT_IF) {
             MVMint32 left_cond   = tree->nodes[tile->node + 2];
             MVMint32 right_cond  = tree->nodes[tile->node + 3];
-            alc->sets[node].key  = value_set_union(alc->sets, left_cond, right_cond);
-            num_live_range--;      /* the union of the left and right side
-                                    * reduces the number of live ranges */
-        } else if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
-            /* define this value */
-            alc->sets[node].num_defs       = 1;
-            alc->sets[node].num_uses       = 0;
-            alc->sets[node].key            = node;
-            alc->sets[node].live_range_idx = -1;
-
-            /* count totals so we can correctly allocate the buffers */
-            num_def++;
-            num_live_range++;
-        }
-
-        for (j = 0; j < tile->num_refs; j++) {
-            /* account its use */
-            MVMint8 register_spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, j+1);
-            if (MVM_JIT_REGISTER_IS_USED(register_spec)) {
-                value_set_find(alc->sets, tile->refs[j])->num_uses++;
-                num_use++;
+            /* NB; this may cause a conflict, in which case we can resolve it by
+             * creating a new live range or inserting a copy */
+            alc->sets[node].key  = value_set_union(alc->sets, alc->values, left_cond, right_cond);
+        } else {
+            /* create a live range if necessary */
+            if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
+                MVMint8 register_spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, 0);
+                MVMint32 idx          = live_range_init(alc);
+                alc->sets[node].key   = node;
+                alc->sets[node].idx   = idx;
+                live_range_add_ref(alc, alc->values + idx, i, 0);
+                if (MVM_JIT_REGISTER_HAS_REQUIREMENT(register_spec)) {
+                    alc->values[idx].register_spec = register_spec;
+                }
             }
-        }
 
-        /* I don't think we have inserted things before that actually refer to
-         * tiles, just various jumps to implement IF/WHEN/ANY/ALL handling */
-    }
-
-    /* Initialize buffers. Live range buffer can grow, uses-and-definitions
-     * buffer never needs to, because any split can just reuse the buffers */
-    MVM_VECTOR_INIT(alc->values,   num_live_range);
-    MVM_VECTOR_INIT(alc->worklist, num_live_range);
-    MVM_VECTOR_INIT(alc->retired,  num_live_range);
-    alc->use_defs_buf = MVM_calloc(num_def + num_use, sizeof(ValueRef));
-
-    /* split buf in two */
-    use_buf = alc->use_defs_buf;
-    def_buf = alc->use_defs_buf + num_use;
-
-    /* second pass, translate the found sets and used nodes to live ranges.
-     * because we iterate in ascending order over tiles, uses and defs are
-     * automatically ordered too. TODO: figure out a way to represent register
-     * preferences! */
-    for (i = 0; i < list->items_num; i++) {
-        MVMJitTile * tile = list->items[i];
-        if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
-            UnionFind *value_set = value_set_find(alc->sets, tile->node);
-            MVMint8  register_spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, 0);
-            LiveRange *value_range;
-
-            if (value_set->live_range_idx < 0) {
-                /* first definition, allocate the live range for this block */
-                value_set->live_range_idx = live_range_init(alc, def_buf, use_buf);
-
-                /* bump pointers */
-                def_buf += value_set->num_defs;
-                use_buf += value_set->num_uses;
-                /* add to the work list (which is automatically in first-definition order) */
-                MVM_VECTOR_PUSH(alc->worklist, value_set->live_range_idx);
-            }
-            value_range = &alc->values[value_set->live_range_idx];
-            /* add definition */
-            {
-                ValueRef def = { i, 0 };
-                value_range->defs[value_range->num_defs++] = def;
-            }
-            if (MVM_JIT_REGISTER_HAS_REQUIREMENT(register_spec)) {
-                /* TODO - this may require resolving conflicting register specifications */
-                value_range->register_spec = register_spec;
-            }
-        }
-        /* Add uses (shouldn't this start from one?) */
-        for (j = 0; j < tile->num_refs; j++) {
-            UnionFind *use_set   = value_set_find(alc->sets, tile->refs[j]);
-            LiveRange *use_range = &alc->values[use_set->live_range_idx];
-            MVMint8 register_spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, j+1);
-            if (MVM_JIT_REGISTER_IS_USED(register_spec)) {
-                ValueRef use = { i, j + 1 };
-                use_range->uses[use_range->num_uses++] = use;
-            }
-            if (MVM_JIT_REGISTER_HAS_REQUIREMENT(register_spec)) {
-                /* TODO - this may require resolving conflicting register
-                 * specifications */
-                NYI(use_register_spec);
+            /* account for uses */
+            for (j = 0; j < tile->num_refs; j++) {
+                MVMint8  register_spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, j+1);
+                if (MVM_JIT_REGISTER_HAS_REQUIREMENT(register_spec)) {
+                    /* TODO - this may require resolving conflicting register
+                     * specifications */
+                    NYI(use_register_spec);
+                }
+                if (MVM_JIT_REGISTER_IS_USED(register_spec)) {
+                    MVMint32 idx = value_set_find(alc->sets, tile->refs[j])->idx;
+                    live_range_add_ref(alc, alc->values + idx, i, j + 1);
+                }
             }
         }
     }
@@ -371,7 +362,7 @@ static void active_set_add(MVMThreadContext *tc, RegisterAllocator *alc, MVMint3
     MVMint32 i;
     for (i = 0; i < alc->active_top; i++) {
         MVMint32 b = alc->active[i];
-        if (last_use(&alc->values[b]) > last_use(&alc->values[a])) {
+        if (last_ref(&alc->values[b]) > last_ref(&alc->values[a])) {
             /* insert a before b */
             memmove(alc->active + i + 1, alc->active + i, sizeof(MVMint32)*(alc->active_top - i));
             alc->active[i] = b;
@@ -391,7 +382,7 @@ static void active_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
     for (i = 0; i < alc->active_top; i++) {
         MVMint32 v = alc->active[i];
         MVMint8 reg_num = alc->values[v].reg_num;
-        if (last_use(&alc->values[v]) > position) {
+        if (last_ref(&alc->values[v]) > position) {
             break;
         } else {
             free_register(tc, alc, MVM_JIT_STORAGE_GPR, reg_num);
@@ -446,9 +437,12 @@ static void split_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMin
 static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
     MVMint32 i, j;
     while (alc->worklist_num > 0) {
-        MVMint32 v = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num);
-        MVMint32 pos = first_def(&alc->values[v]);
+        MVMint32 v   = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num);
+        MVMint32 pos = first_ref(alc->values + v);
         MVMint8 reg;
+        /* NB: should i wrap this in a separate loop to remove these? */
+        if (live_range_is_empty(alc->values + v))
+            continue;
         /* assign registers in loop */
         active_set_expire(tc, alc, pos);
         if (MVM_JIT_REGISTER_HAS_REQUIREMENT(alc->values[v].register_spec)) {
@@ -474,17 +468,16 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
 
 void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTileList *list) {
     RegisterAllocator alc;
-    MVMint32 i;
     /* initialize allocator */
 
     alc.active_top = 0;
     memset(alc.active, -1, sizeof(alc.active));
 
-    alc.spill_top = 0;
-
     alc.reg_give = alc.reg_take = 0;
     memcpy(alc.reg_ring, available_gpr,
            sizeof(available_gpr));
+
+    alc.spill_top = 0;
 
     /* run algorithm */
     determine_live_ranges(tc, &alc, list);
@@ -492,9 +485,10 @@ void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler
 
     /* deinitialize allocator */
     MVM_free(alc.sets);
-    MVM_free(alc.use_defs_buf);
+    MVM_free(alc.refs);
     MVM_free(alc.worklist);
     MVM_free(alc.retired);
+
     /* make edits effective */
     MVM_jit_tile_list_edit(tc, list);
 
