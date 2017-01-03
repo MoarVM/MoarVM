@@ -832,6 +832,21 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
         $seen{$key} = 1;
     }
     $hout .= $GCB_h;
+    my $DT_h;
+    $DT_h .= "\n\n/* Values of MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE */\n";
+    my %seen2;
+    foreach my $key (sort keys % {$enumerated_properties->{'Decomposition_Type'}->{'enum'} }  ) {
+        next if $seen2{$key};
+        say $key;
+        my $value = $enumerated_properties->{'Decomposition_Type'}->{'enum'}->{$key};
+        say Dumper($value);
+        $key = 'MVM_UNICODE_PVALUE_DT_' . uc $key;
+        $key =~ tr/\./_/;
+        $DT_h .= "#define $key $value\n";
+        $seen2{$key} = 1;
+    }
+    $hout .= $DT_h;
+
 
     $db_sections->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
     $h_sections->{property_code_definitions} = $hout;
