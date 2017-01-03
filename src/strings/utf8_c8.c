@@ -346,17 +346,17 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
                     state.cur_codepoint = decode_byte;
                     process_ok_codepoint(tc, &state);
                 }
-                else if ((decode_byte & 0b11100000) == 0b11000000) {
+                else if ((decode_byte & 0b11100000) == 0b11000000 && (decode_byte & 0b11111)) {
                     state.cur_codepoint = decode_byte & 0b00011111;
                     state.expecting = EXPECT_CONTINUATION;
                     expected_continuations = 1;
                 }
-                else if ((decode_byte & 0b11110000) == 0b11100000) {
+                else if ((decode_byte & 0b11110000) == 0b11100000 && (decode_byte & 0b1111)) {
                     state.cur_codepoint = decode_byte & 0b00001111;
                     state.expecting = EXPECT_CONTINUATION;
                     expected_continuations = 2;
                 }
-                else if ((decode_byte & 0b11111000) == 0b11110000) {
+                else if ((decode_byte & 0b11111000) == 0b11110000 && (decode_byte & 0b111)) {
                     state.cur_codepoint = decode_byte & 0b00000111;
                     state.expecting = EXPECT_CONTINUATION;
                     expected_continuations = 3;
@@ -367,7 +367,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
                 }
                 break;
             case EXPECT_CONTINUATION:
-                if ((decode_byte & 0b11000000) == 0b10000000) {
+                if ((decode_byte & 0b11000000) == 0b10000000 && (decode_byte & 0b111111)) {
                     state.cur_codepoint = (state.cur_codepoint << 6)
                                           | (decode_byte & 0b00111111);
                     expected_continuations--;
@@ -476,17 +476,17 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
                         process_ok_codepoint(tc, &state);
                         maybe_new_graph = 1;
                     }
-                    else if ((decode_byte & 0b11100000) == 0b11000000) {
+                    else if ((decode_byte & 0b11100000) == 0b11000000 && (decode_byte & 0b11111)) {
                         state.cur_codepoint = decode_byte & 0b00011111;
                         state.expecting = EXPECT_CONTINUATION;
                         expected_continuations = 1;
                     }
-                    else if ((decode_byte & 0b11110000) == 0b11100000) {
+                    else if ((decode_byte & 0b11110000) == 0b11100000 && (decode_byte & 0b1111)) {
                         state.cur_codepoint = decode_byte & 0b00001111;
                         state.expecting = EXPECT_CONTINUATION;
                         expected_continuations = 2;
                     }
-                    else if ((decode_byte & 0b11111000) == 0b11110000) {
+                    else if ((decode_byte & 0b11111000) == 0b11110000 && (decode_byte & 0b111)) {
                         state.cur_codepoint = decode_byte & 0b00000111;
                         state.expecting = EXPECT_CONTINUATION;
                         expected_continuations = 3;
@@ -498,7 +498,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
                     }
                     break;
                 case EXPECT_CONTINUATION:
-                    if ((decode_byte & 0b11000000) == 0b10000000) {
+                    if ((decode_byte & 0b11000000) == 0b10000000 && (decode_byte & 0b111111)) {
                         state.cur_codepoint = (state.cur_codepoint << 6)
                                               | (decode_byte & 0b00111111);
                         expected_continuations--;
