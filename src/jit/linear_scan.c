@@ -52,18 +52,6 @@ typedef struct {
     MVMint32           reg_num;
 } LiveRange;
 
-/* quick accessors for common checks */
-static inline MVMint32 first_ref(LiveRange *r) {
-    MVMint32 a = r->first == NULL        ? INT32_MAX : r->first->tile_idx;
-    MVMint32 b = r->synthetic[0] == NULL ? INT32_MAX : r->synth_pos[0];
-    return MIN(a,b);
-}
-
-static inline MVMint32 last_ref(LiveRange *r) {
-    MVMint32 a = r->last == NULL         ? -1 : r->last->tile_idx;
-    MVMint32 b = r->synthetic[1] == NULL ? -1 : r->synth_pos[1];
-    return MAX(a,b);
-}
 
 
 
@@ -95,69 +83,43 @@ typedef struct {
 } RegisterAllocator;
 
 
-UnionFind * value_set_find(UnionFind *sets, MVMint32 key) {
-    while (sets[key].key != key) {
-        key = sets[key].key;
-    }
-    return sets + key;
+
+/* quick accessors for common checks */
+static inline MVMint32 first_ref(LiveRange *r) {
+    MVMint32 a = r->first == NULL        ? INT32_MAX : r->first->tile_idx;
+    MVMint32 b = r->synthetic[0] == NULL ? INT32_MAX : r->synth_pos[0];
+    return MIN(a,b);
 }
 
-
-MVMint32 value_set_union(UnionFind *sets, LiveRange *values, MVMint32 a, MVMint32 b) {
-    LiveRange *ra = values + sets[a].idx, *rb = values + sets[b].idx;
-    ValueRef *head, *tail;
-    if (first_ref(rb) < first_ref(ra)) {
-        MVMint32 t = a; a = b; b = t;
-    }
-    sets[b].key = a; /* point b to a */
-    /* merge value ref sets */
-    if (first_ref(ra) <= first_ref(rb)) {
-        head = ra->first;
-        ra->first = ra->first->next;
-    } else {
-        head = rb->first;
-        rb->first = rb->first->next;
-    }
-    tail = head;
-    while (ra->first != NULL && rb->first != NULL) {
-        if (ra->first->tile_idx <= rb->first->tile_idx) {
-            tail->next  = ra->first;
-            ra->first   = ra->first->next;
-        } else {
-            tail->next  = rb->first;
-            rb->first   = rb->first->next;
-        }
-    }
-    while (ra->first != NULL) {
-        tail->next = ra->first;
-        ra->first  = ra->first->next;
-    }
-    while (rb->first != NULL) {
-        tail->next  = rb->first;
-        rb->first   = rb->first->next;
-    }
-    values[sets[a].idx].first = head;
-    values[sets[a].idx].last  = tail;
-    return a;
+static inline MVMint32 last_ref(LiveRange *r) {
+    MVMint32 a = r->last == NULL         ? -1 : r->last->tile_idx;
+    MVMint32 b = r->synthetic[1] == NULL ? -1 : r->synth_pos[1];
+    return MAX(a,b);
 }
 
+static inline MVMint32 is_definition(ValueRef *v) {
+    return (v->tile_idx == 0);
+}
 
-/* create a new live range object and return a reference */
+/* allocate a new live range value by pointer-bumping */
 MVMint32 live_range_init(RegisterAllocator *alc) {
     LiveRange *range;
     MVMint32 idx = alc->values_num++;
     MVM_VECTOR_ENSURE_SIZE(alc->values, idx);
-    range = &alc->values[idx];
-    range->first        = NULL;
-    range->last         = NULL;
-    range->synthetic[0] = NULL;
-    range->synthetic[1] = NULL;
     return idx;
 }
+
+static inline MVMint32 live_range_is_empty(LiveRange *range) {
+    return (range->first == NULL &&
+            range->synthetic[0] == NULL &&
+            range->synthetic[1] == NULL);
+}
+
 
 /* append ref to end of queue */
 static void live_range_add_ref(RegisterAllocator *alc, LiveRange *range, MVMint32 tile_idx, MVMint32 value_idx) {
     ValueRef *ref = alc->refs + alc->refs_num++;
+
     ref->tile_idx  = tile_idx;
     ref->value_idx = value_idx;
 
@@ -171,11 +133,79 @@ static void live_range_add_ref(RegisterAllocator *alc, LiveRange *range, MVMint3
     ref->next   = NULL;
 }
 
-static inline MVMint32 live_range_is_empty(LiveRange *range) {
-    return (range->first == NULL &&
-            range->synthetic[0] == NULL &&
-            range->synthetic[1] == NULL);
+/* merge value ref sets */
+static void live_range_merge(LiveRange *a, LiveRange *b) {
+    ValueRef *head = NULL, *tail = NULL;
+    MVMint32 i;
+    if (first_ref(a) <= first_ref(b)) {
+        head = a->first;
+        a->first = a->first->next;
+    } else {
+        head = b->first;
+        b->first = b->first->next;
+    }
+    tail = head;
+    while (a->first != NULL && b->first != NULL) {
+        if (a->first->tile_idx <= b->first->tile_idx) {
+            tail->next  = a->first;
+            a->first    = a->first->next;
+        } else {
+            tail->next  = b->first;
+            b->first    = b->first->next;
+        }
+        tail = tail->next;
+    }
+    while (a->first != NULL) {
+        tail->next = a->first;
+        a->first   = a->first->next;
+        tail       = tail->next;
+    }
+    while (b->first != NULL) {
+        tail->next  = b->first;
+        b->first    = b->first->next;
+        tail        = tail->next;
+    }
+
+    a->first = head;
+    a->last  = tail;
+
+    for (i = 0; i < 2; i++) {
+        if (b->synthetic[i] == NULL) {
+            continue;
+        }
+        if (a->synthetic[i] != NULL) {
+            MVM_panic(1, "Can't merge the same synthetic!");
+        }
+        a->synthetic[i] = b->synthetic[i];
+        a->synth_pos[i] = b->synth_pos[i];
+    }
 }
+
+
+
+UnionFind * value_set_find(UnionFind *sets, MVMint32 key) {
+    while (sets[key].key != key) {
+        key = sets[key].key;
+    }
+    return sets + key;
+}
+
+MVMint32 value_set_union(UnionFind *sets, LiveRange *values, MVMint32 a, MVMint32 b) {
+
+    /* dereference the sets to their roots */
+    a = value_set_find(sets, a)->key;
+    b = value_set_find(sets, b)->key;
+
+    if (first_ref(values + sets[b].idx) < first_ref(values + sets[a].idx)) {
+        /* ensure we're picking the first one to start so that we maintain the
+         * heap order */
+        MVMint32 t = a; a = b; b = t;
+    }
+    sets[b].key = a; /* point b to a */
+    live_range_merge(values + sets[a].idx, values + sets[b].idx);
+    return a;
+}
+
 
 static inline void heap_swap(MVMint32 *heap, MVMint32 a, MVMint32 b) {
     MVMint32 t = heap[a];
@@ -296,6 +326,7 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
     alc->sets = MVM_calloc(tree->nodes_num, sizeof(UnionFind));
     /* TODO: add count for ARGLIST refs, which can be > 3 per 'tile' */
     alc->refs = MVM_calloc(list->items_num * 4, sizeof(ValueRef));
+    alc->refs_num = 0;
 
     MVM_VECTOR_INIT(alc->values,   list->items_num);
     MVM_VECTOR_INIT(alc->worklist, list->items_num);
@@ -329,8 +360,8 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
                 if (MVM_JIT_REGISTER_HAS_REQUIREMENT(register_spec)) {
                     alc->values[idx].register_spec = register_spec;
                 }
+                MVM_VECTOR_PUSH(alc->worklist, idx);
             }
-
             /* account for uses */
             for (j = 0; j < tile->num_refs; j++) {
                 MVMint8  register_spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, j+1);
@@ -346,6 +377,7 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
             }
         }
     }
+
 }
 
 /* The code below needs some thinking... */
@@ -365,7 +397,7 @@ static void active_set_add(MVMThreadContext *tc, RegisterAllocator *alc, MVMint3
         if (last_ref(&alc->values[b]) > last_ref(&alc->values[a])) {
             /* insert a before b */
             memmove(alc->active + i + 1, alc->active + i, sizeof(MVMint32)*(alc->active_top - i));
-            alc->active[i] = b;
+            alc->active[i] = a;
             alc->active_top++;
             return;
         }
@@ -435,14 +467,16 @@ static void split_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMin
 
 
 static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
-    MVMint32 i, j;
+    MVM_VECTOR_INIT(alc->retired, alc->worklist_num);
     while (alc->worklist_num > 0) {
         MVMint32 v   = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num);
         MVMint32 pos = first_ref(alc->values + v);
         MVMint8 reg;
-        /* NB: should i wrap this in a separate loop to remove these? */
+
+        /* NB: Should I have a compaction step to remove these? */
         if (live_range_is_empty(alc->values + v))
             continue;
+
         /* assign registers in loop */
         active_set_expire(tc, alc, pos);
         if (MVM_JIT_REGISTER_HAS_REQUIREMENT(alc->values[v].register_spec)) {

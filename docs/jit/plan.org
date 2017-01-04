@@ -203,10 +203,11 @@ X64_GPR(MVM_JIT_REG)
 int i = MVM_JIT_REQUIRE(RSP);
 #+END_SRC
 
-**** TODO Use register requirements on definition tiles
+**** DONE Use register requirements on definition tiles
 
 - reading of register requirements from tile
 - look up table to detect that certain registers are non-volatile (callee-saved)
+- in single-pass allocator, predefine non-volatile register value references
 
 *** DONE tile editor code moves to tile.c
    - keep it abstract?
@@ -305,7 +306,7 @@ MVMint32 has_local_location(MVMJitExprTree *tree, MVMint32 node) {
 }
 #+END_SRC
 
-** TODO Implement linear scan
+** DONE Implement linear scan
 
 The basic idea of linear scan is:
 - iterate over live ranges in order of first definition
@@ -339,7 +340,7 @@ the expire-register case.....
 Maybe we should have the prefered-register thing per use/defintiion,
 but that becomes very complicated fast.
 
-*** TODO Use linked list for use/definition storage
+*** DONE Use linked list for use/definition storage
 
 The number of definition/use references is strictly limited to
 4*num_tiles, because each tile can only define one value and use at
@@ -466,7 +467,7 @@ Comes down to:
       - output-register must be copied off /or/ spilled
 
 
-** TODO register assignment
+** DONE register assignment
 
 Register assignment should be inline with the register allocation
 step, because otherwise we simply have to iterate twice in the same
