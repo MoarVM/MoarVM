@@ -282,8 +282,6 @@ static void decomp_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, M
      * anything except Canonical). */
     MVMint16 cp_DT = MVM_unicode_codepoint_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE);
     MVMint64 decompose = 1;
-    //if (!cp_DT)
-    //    decompose = 0;
     if (cp_DT == MVM_UNICODE_PVALUE_DT_NONE)
         decompose = 0;
     else if (!MVM_NORMALIZE_COMPAT_DECOMP(n->form) && cp_DT != MVM_UNICODE_PVALUE_DT_CANONICAL )
