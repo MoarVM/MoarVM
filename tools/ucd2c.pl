@@ -706,7 +706,7 @@ sub emit_bitfield {
 sub emit_property_value_lookup {
     my $allocated = shift;
     my $enumtables = "\n\n";
-    my $hout = "typedef enum {\n";
+    our $hout = "typedef enum {\n";
     my $out = "
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
@@ -819,34 +819,24 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
 
     $hout .= "} MVM_unicode_property_codes;";
 
-    # Grapheme_Cluster_Break Values
-    my $GCB_h;
-    $GCB_h .= "\n\n/* Values of Grapheme_Cluster_Break Property */\n";
-    my %seen;
-    foreach my $key (sort keys % {$enumerated_properties->{'Grapheme_Cluster_Break'}->{'enum'} }  ) {
-        next if $seen{$key};
-        my $value = $enumerated_properties->{'Grapheme_Cluster_Break'}->{'enum'}->{$key};
-        $key = 'MVM_UNICODE_PVALUE_GCB_' . uc $key;
-        $key =~ tr/\./_/;
-        $GCB_h .= "#define $key $value\n";
-        $seen{$key} = 1;
+    sub gen_pvalue_defines {
+        my ( $property_name_mvm, $property_name, $short_pval_name ) = @_;
+        my $GCB_h;
+        $GCB_h .= "\n\n/* $property_name_mvm */\n";
+        my %seen;
+        foreach my $key (sort keys % {$enumerated_properties->{$property_name}->{'enum'} }  ) {
+            next if $seen{$key};
+            my $value = $enumerated_properties->{$property_name}->{'enum'}->{$key};
+            $key = 'MVM_UNICODE_PVALUE_' . $short_pval_name . '_' . uc $key;
+            $key =~ tr/\./_/;
+            $GCB_h .= "#define $key $value\n";
+            $seen{$key} = 1;
+        }
+        $hout .= $GCB_h;
     }
-    $hout .= $GCB_h;
-    my $DT_h;
-    $DT_h .= "\n\n/* Values of MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE */\n";
-    my %seen2;
-    foreach my $key (sort keys % {$enumerated_properties->{'Decomposition_Type'}->{'enum'} }  ) {
-        next if $seen2{$key};
-        say $key;
-        my $value = $enumerated_properties->{'Decomposition_Type'}->{'enum'}->{$key};
-        say Dumper($value);
-        $key = 'MVM_UNICODE_PVALUE_DT_' . uc $key;
-        $key =~ tr/\./_/;
-        $DT_h .= "#define $key $value\n";
-        $seen2{$key} = 1;
-    }
-    $hout .= $DT_h;
-
+    gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK', 'Grapheme_Cluster_Break', 'GCB');
+    gen_pvalue_defines('MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE', 'Decomposition_Type', 'DT');
+    gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS', 'Canonical_Combining_Class', 'CCC');
 
     $db_sections->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
     $h_sections->{property_code_definitions} = $hout;
