@@ -319,6 +319,13 @@ static MVMint64 passes_quickcheck(MVMThreadContext *tc, const MVMNormalizer *n, 
     return pval && pval[0] == 'Y';
 }
 
+MVM_STATIC_INLINE MVMint32 fast_atoi( const char * dec_str ) {
+    MVMint32 value = 0;
+    while( *dec_str ) {
+        value = value*10 + (*dec_str++ - '0');
+    }
+    return value;
+}
 /* Gets the canonical combining class for a codepoint. */
 static MVMint64 ccc(MVMThreadContext *tc, MVMCodepoint cp) {
     if (cp < MVM_NORMALIZE_FIRST_NONZERO_CCC) {
@@ -326,7 +333,7 @@ static MVMint64 ccc(MVMThreadContext *tc, MVMCodepoint cp) {
     }
     else {
         const char *ccc_str = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
-        return !ccc_str || strlen(ccc_str) > 3 ? 0 : atoi(ccc_str);
+        return !ccc_str || strlen(ccc_str) > 3 ? 0 : fast_atoi(ccc_str);
     }
 }
 
