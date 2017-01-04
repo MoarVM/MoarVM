@@ -183,7 +183,7 @@ static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
     return idx;
 }
 
-/* Gets the index of a frame, either returning an existing inde if we've seen
+/* Gets the index of a frame, either returning an existing index if we've seen
  * it before or adding it if not. */
 static MVMuint64 get_frame_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         MVMFrame *frame) {
