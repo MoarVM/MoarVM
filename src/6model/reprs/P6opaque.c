@@ -611,6 +611,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                cur_init_slot, cur_mark_slot, cur_cleanup_slot,
                unboxed_type, i;
     MVMObject *info;
+    MVMP6opaqueREPRData *repr_data;
 
     MVMStringConsts       str_consts = tc->instance->str_consts;
     MVMString        * const str_avc = str_consts.auto_viv_container;
@@ -621,8 +622,12 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMString  * const str_attribute = str_consts.attribute;
     MVMString * const str_box_target = str_consts.box_target;
 
+    /* Check not already composed. */
+    if (st->REPR_data)
+        MVM_exception_throw_adhoc(tc, "Type %s is already composed", st->debug_name);
+
     /* Allocate the representation data. */
-    MVMP6opaqueREPRData *repr_data = MVM_malloc(sizeof(MVMP6opaqueREPRData));
+    repr_data = MVM_malloc(sizeof(MVMP6opaqueREPRData));
     memset(repr_data, 0, sizeof(MVMP6opaqueREPRData));
 
     /* Find attribute information. */

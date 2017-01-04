@@ -185,7 +185,7 @@ static void store_int64_result(MVMP6bigintBody *body, MVMint64 result) {
 static void store_bigint_result(MVMP6bigintBody *body, mp_int *i) {
     if (can_be_smallint(i)) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-        body->u.smallint.value = SIGN(i) ? -DIGIT(i, 0) : DIGIT(i, 0);
+        body->u.smallint.value = SIGN(i) == MP_NEG ? -DIGIT(i, 0) : DIGIT(i, 0);
         mp_clear(i);
         MVM_free(i);
     }
@@ -542,14 +542,14 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
 
     bc = get_bigint_body(tc, result);
 
+    // we only care about MP_LT or !MP_LT, so we give MP_GT even for 0.
     if (MVM_BIGINT_IS_BIG(ba)) {
-        cmp_a = mp_cmp_d(ba->u.bigint, 0);
+        cmp_a = !mp_iszero(ba->u.bigint) && SIGN(ba->u.bigint) == MP_NEG ? MP_LT : MP_GT;
     } else {
-        // we only care about MP_LT or !MP_LT, so we give MP_GT even for 0.
         cmp_a = ba->u.smallint.value < 0 ? MP_LT : MP_GT;
     }
     if (MVM_BIGINT_IS_BIG(bb)) {
-        cmp_b = mp_cmp_d(bb->u.bigint, 0);
+        cmp_b = !mp_iszero(bb->u.bigint) && SIGN(bb->u.bigint) == MP_NEG ? MP_LT : MP_GT;
     } else {
         cmp_b = bb->u.smallint.value < 0 ? MP_LT : MP_GT;
     }
@@ -623,35 +623,37 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
     mp_int *base        = force_bigint(ba, tmp);
     mp_int *exponent    = force_bigint(bb, tmp);
     mp_digit exponent_d = 0;
-    int cmp             = mp_cmp_d(exponent, 0);
 
-    if ((cmp == MP_EQ) || (MP_EQ == mp_cmp_d(base, 1))) {
+    if (mp_iszero(exponent) || (MP_EQ == mp_cmp_d(base, 1))) {
         r = MVM_repr_box_int(tc, int_type, 1);
     }
-    else if (cmp == MP_GT) {
-        mp_int *ic = MVM_malloc(sizeof(mp_int));
-        mp_init(ic);
+    else if (SIGN(exponent) == MP_ZPOS) {
         exponent_d = mp_get_int(exponent);
         if ((MP_GT == mp_cmp_d(exponent, exponent_d))) {
-            cmp = mp_cmp_d(base, 0);
-            if ((MP_EQ == cmp) || (MP_EQ == mp_cmp_d(base, 1))) {
-                mp_copy(base, ic);
+            if (mp_iszero(base)) {
+                r = MVM_repr_box_int(tc, int_type, 0);
+            }
+            else if (mp_get_int(base) == 1) {
+                r = MVM_repr_box_int(tc, int_type, MP_ZPOS == SIGN(base) || mp_iseven(exponent) ? 1 : -1);
             }
             else {
-                MVMnum64 ZERO = 0.0;
-                if (MP_GT == cmp) {
-                    mp_set_int(ic, (MVMnum64)1.0 / ZERO);
+                MVMnum64 inf;
+                if (MP_ZPOS == SIGN(base) || mp_iseven(exponent)) {
+                    inf = MVM_num_posinf(tc);
                 }
                 else {
-                    mp_set_int(ic, (MVMnum64)(-1.0) / ZERO);
+                    inf = MVM_num_neginf(tc);
                 }
+                r = MVM_repr_box_num(tc, num_type, inf);
             }
         }
         else {
+            mp_int *ic = MVM_malloc(sizeof(mp_int));
+            mp_init(ic);
             mp_expt_d(base, exponent_d, ic);
+            r = MVM_repr_alloc_init(tc, int_type);
+            store_bigint_result(get_bigint_body(tc, r), ic);
         }
-        r = MVM_repr_alloc_init(tc, int_type);
-        store_bigint_result(get_bigint_body(tc, r), ic);
     }
     else {
         MVMnum64 f_base = mp_get_double(base);
@@ -777,7 +779,7 @@ void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf) {
     mp_read_radix(i, buf, 10);
     if (can_be_smallint(i)) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-        body->u.smallint.value = SIGN(i) ? -DIGIT(i, 0) : DIGIT(i, 0);
+        body->u.smallint.value = SIGN(i) == MP_NEG ? -DIGIT(i, 0) : DIGIT(i, 0);
         mp_clear(i);
         MVM_free(i);
     }

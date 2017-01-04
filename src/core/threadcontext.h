@@ -177,8 +177,10 @@ struct MVMThreadContext {
      * index 0. */
     MVMObject     *compiling_scs;
 
-    /* Dispatcher set for next invocation to take. */
+    /* Dispatcher for next invocation that matches _for to take. If _for is
+     * NULL then anything matches. */
     MVMObject     *cur_dispatcher;
+    MVMObject     *cur_dispatcher_for;
 
     /* Cache of native code callback data. */
     MVMNativeCallbackCacheHead *native_callback_cache;
@@ -215,6 +217,12 @@ struct MVMThreadContext {
      * in the call stack */
     MVMint32 current_frame_nr;
     MVMint32 next_frame_nr;
+
+#if MVM_GC_DEBUG
+    /* Whether we are currently in the specializer. Used to catch GC runs that
+     * take place at times they never should. */
+    MVMint32 in_spesh;
+#endif
 };
 
 MVMThreadContext * MVM_tc_create(MVMInstance *instance);

@@ -44,9 +44,8 @@ struct MVMSpeshGraph {
     /* Number of log-based guards we have. */
     MVMint32 num_log_guards;
 
-    /* Memory blocks we allocate to store spesh nodes, and which we free along
-     * with the graph. Contains a link to previous blocks. */
-    MVMSpeshMemBlock *mem_block;
+    /* Region allocator for spesh nodes */
+    MVMRegionAlloc region_alloc;
 
     /* Values placed in spesh slots. */
     MVMCollectable **spesh_slots;
@@ -106,26 +105,6 @@ struct MVMSpeshGraph {
     /* If this graph was formed from a spesh candidate rather than an
      * original static frame, the candidate will be stored here. */
     MVMSpeshCandidate *cand;
-};
-
-/* The default allocation chunk size for memory blocks used to store spesh
- * graph nodes. Power of two is best; we start small also. */
-#define MVM_SPESH_FIRST_MEMBLOCK_SIZE 32768
-#define MVM_SPESH_MEMBLOCK_SIZE       8192
-
-/* A block of bump-pointer allocated memory. */
-struct MVMSpeshMemBlock {
-    /* The memory buffer itself. */
-    char *buffer;
-
-    /* Current allocation position. */
-    char *alloc;
-
-    /* Allocation limit. */
-    char *limit;
-
-    /* Previous, now full, memory block. */
-    MVMSpeshMemBlock *prev;
 };
 
 /* A temporary register, added to support transformations. */

@@ -132,6 +132,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
     MVMConcBlockingQueueBody *cbq = (MVMConcBlockingQueueBody *)data;
     MVMConcBlockingQueueNode *add;
     AO_t orig_elems;
+    MVMObject *to_add = value.o;
 
     if (kind != MVM_reg_obj)
         MVM_exception_throw_adhoc(tc,
@@ -141,10 +142,9 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
             "Cannot store a null value in a concurrent blocking queue");
 
     add = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
-    MVM_ASSIGN_REF(tc, &(root->header), add->value, value.o);
 
     MVMROOT(tc, root, {
-    MVMROOT(tc, add->value, {
+    MVMROOT(tc, to_add, {
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&cbq->locks->tail_lock);
         MVM_gc_mark_thread_unblocked(tc);
@@ -152,6 +152,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
     });
     data = OBJECT_BODY(root);
     cbq = (MVMConcBlockingQueueBody *)data;
+    MVM_ASSIGN_REF(tc, &(root->header), add->value, to_add);
     cbq->tail->next = add;
     cbq->tail = add;
     orig_elems = MVM_incr(&cbq->elems);

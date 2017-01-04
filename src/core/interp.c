@@ -1,10 +1,36 @@
 #include "moar.h"
 #include <math.h>
 #include "platform/time.h"
+#include "strings/unicode_ops.h"
 
 /* Macros for getting things from the bytecode stream. */
+#if MVM_GC_DEBUG == 2
+MVM_STATIC_INLINE MVMuint16 check_reg(MVMThreadContext *tc, MVMRegister *reg_base, MVMuint16 idx) {
+    MVMFrame *f = tc->cur_frame;
+    MVMuint16 kind = f->spesh_cand && f->spesh_cand->local_types
+        ? f->spesh_cand->local_types[idx]
+        : f->static_info->body.local_types[idx];
+    if (kind == MVM_reg_obj || kind == MVM_reg_str)
+        MVM_ASSERT_NOT_FROMSPACE(tc, reg_base[idx].o);
+    return idx;
+}
+#define GET_REG(pc, idx)    reg_base[check_reg(tc, reg_base, *((MVMuint16 *)(pc + idx)))]
+#else
 #define GET_REG(pc, idx)    reg_base[*((MVMuint16 *)(pc + idx))]
+#endif
+#if MVM_GC_DEBUG == 2
+MVM_STATIC_INLINE MVMuint16 check_lex(MVMThreadContext *tc, MVMFrame *f, MVMuint16 idx) {
+    MVMuint16 kind = f->spesh_cand && f->spesh_cand->lexical_types
+        ? f->spesh_cand->lexical_types[idx]
+        : f->static_info->body.lexical_types[idx];
+    if (kind == MVM_reg_obj || kind == MVM_reg_str)
+        MVM_ASSERT_NOT_FROMSPACE(tc, f->env[idx].o);
+    return idx;
+}
+#define GET_LEX(pc, idx, f) f->env[check_lex(tc, f, *((MVMuint16 *)(pc + idx)))]
+#else
 #define GET_LEX(pc, idx, f) f->env[*((MVMuint16 *)(pc + idx))]
+#endif
 #define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
 #define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
 #define GET_I32(pc, idx)    *((MVMint32 *)(pc + idx))
@@ -296,6 +322,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     outers--;
                 }
                 if (kind == MVM_reg_obj || kind == MVM_reg_str) {
+#if MVM_GC_DEGUG
+                    MVM_ASSERT_NOT_FROMSPACE(tc, GET_REG(cur_op, 4).o);
+#endif
                     MVM_ASSIGN_REF(tc, &(f->header), GET_LEX(cur_op, 0, f).o,
                         GET_REG(cur_op, 4).o);
                 }
@@ -1433,6 +1462,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
+            OP(unicmp_s):
+                GET_REG(cur_op, 0).i64 = MVM_unicode_string_compare(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
+                cur_op += 12;
+                goto NEXT;
             OP(eqat_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_equal_at(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s,
@@ -2135,7 +2169,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 REPR(obj)->pos_funcs.push(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_int64);
-                MVM_SC_WB_OBJ(tc, obj);
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2143,7 +2177,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 REPR(obj)->pos_funcs.push(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_num64);
-                MVM_SC_WB_OBJ(tc, obj);
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2151,7 +2185,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 REPR(obj)->pos_funcs.push(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_str);
-                MVM_SC_WB_OBJ(tc, obj);
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2159,7 +2193,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 REPR(obj)->pos_funcs.push(tc, STABLE(obj), obj,
                     OBJECT_BODY(obj), GET_REG(cur_op, 2), MVM_reg_obj);
-                MVM_SC_WB_OBJ(tc, obj);
+                MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2811,13 +2845,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(setdispatcher):
                 tc->cur_dispatcher = GET_REG(cur_op, 0).o;
+                tc->cur_dispatcher_for = NULL;
                 cur_op += 2;
                 goto NEXT;
-            OP(takedispatcher):
-                GET_REG(cur_op, 0).o = tc->cur_dispatcher ? tc->cur_dispatcher : tc->instance->VMNull;
-                tc->cur_dispatcher = NULL;
+            OP(takedispatcher): {
+                MVMObject *disp = tc->cur_dispatcher;
+                MVMObject *disp_for = tc->cur_dispatcher_for;
+                MVMObject *cur_code = tc->cur_frame->code_ref;
+                if (disp && (!disp_for || disp_for == cur_code)) {
+                    GET_REG(cur_op, 0).o = disp;
+                    tc->cur_dispatcher = NULL;
+                }
+                else {
+                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
+                }
                 cur_op += 2;
                 goto NEXT;
+            }
             OP(assign): {
                 MVMObject *cont  = GET_REG(cur_op, 0).o;
                 MVMObject *obj = GET_REG(cur_op, 2).o;
@@ -5107,6 +5151,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_frame_capture_inner(tc, GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
+            OP(setdispatcherfor): {
+                MVMObject *disp_for = GET_REG(cur_op, 2).o;
+                tc->cur_dispatcher = GET_REG(cur_op, 0).o;
+                tc->cur_dispatcher_for = REPR(disp_for)->ID == MVM_REPR_ID_MVMCode
+                    ? disp_for
+                    : MVM_frame_find_invokee(tc, disp_for, NULL);
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),

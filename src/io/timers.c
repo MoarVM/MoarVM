@@ -83,7 +83,9 @@ MVMObject * MVM_io_timer_create(MVMThreadContext *tc, MVMObject *queue,
 
     /* Hand the task off to the event loop, which will set up the timer on the
      * event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return (MVMObject *)task;
 }

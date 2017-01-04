@@ -4,6 +4,15 @@
  * back out of it, because some assumption it made has been invalidated. This
  * file contains implementations of those various forms of de-opt. */
 
+#define MVM_LOG_DEOPTS 0
+
+/* Uninlining can invalidate what the dynlex cache points to, so we'll
+ * clear it in various caches. */
+MVM_STATIC_INLINE void clear_dynlex_cache(MVMThreadContext *tc, MVMFrame *f) {
+    f->dynlex_cache_name = NULL;
+    f->dynlex_cache_reg = NULL;
+}
+
 /* If we have to deopt inside of a frame containing inlines, and we're in
  * an inlined frame at the point we hit deopt, we need to undo the inlining
  * by switching all levels of inlined frame out for a bunch of frames that
@@ -25,17 +34,17 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             MVMROOT(tc, f, {
             MVMROOT(tc, callee, {
             MVMROOT(tc, last_uninlined, {
-            MVMROOT(tc, ucode, {
             MVMROOT(tc, usf, {
                 uf = MVM_frame_create_for_deopt(tc, usf, ucode);
             });
             });
             });
             });
-            });
-            /*fprintf(stderr, "Recreated frame '%s' (cuid '%s')\n",
+#if MVM_LOG_DEOPTS
+            fprintf(stderr, "Recreated frame '%s' (cuid '%s')\n",
                 MVM_string_utf8_encode_C_string(tc, usf->body.name),
-                MVM_string_utf8_encode_C_string(tc, usf->body.cuuid));*/
+                MVM_string_utf8_encode_C_string(tc, usf->body.cuuid));
+#endif
 
             /* Copy the locals and lexicals into place. */
             if (usf->body.num_locals)
@@ -170,10 +179,11 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
         f->effective_handlers    = f->static_info->body.handlers;
         f->effective_spesh_slots = NULL;
         f->spesh_cand            = NULL;
-        /*fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s'), idx = %i, with uninlining\n",
+#if MVM_LOG_DEOPTS
+        fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s') with uninlining\n",
           MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-          MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid),
-          i / 2);*/
+          MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
     }
     else {
         /* No inlining; simple case. Switch back to the original code. */
@@ -183,10 +193,11 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
         *(tc->interp_bytecode_start) = f->effective_bytecode;
         f->effective_spesh_slots     = NULL;
         f->spesh_cand                = NULL;
-        /*fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s'), idx = %i\n",
+#if MVM_LOG_DEOPTS
+        fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s')\n",
           MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-          MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid),
-          i / 2);*/
+          MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
     }
 
 }
@@ -197,9 +208,12 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc) {
     MVMFrame *f = tc->cur_frame;
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_one(tc);
-    /*fprintf(stderr, "deopt_one requested in frame '%s' (cuid '%s')\n",
+#if MVM_LOG_DEOPTS
+    fprintf(stderr, "deopt_one requested in frame '%s' (cuid '%s')\n",
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));*/
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
+    clear_dynlex_cache(tc, f);
     if (f->effective_bytecode != f->static_info->body.bytecode) {
         MVMint32 deopt_offset = *(tc->interp_cur_op) - f->effective_bytecode;
         MVMint32 deopt_target = find_deopt_target(tc, f, deopt_offset);
@@ -218,6 +232,7 @@ void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMint32 deopt_offset,
     MVMFrame *f = tc->cur_frame;
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_one(tc);
+    clear_dynlex_cache(tc, f);
     if (f->effective_bytecode != f->static_info->body.bytecode) {
         deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
     } else {
@@ -238,6 +253,7 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_all(tc);
     while (f) {
+        clear_dynlex_cache(tc, f);
         if (f->effective_bytecode != f->static_info->body.bytecode && f->spesh_log_idx < 0) {
             /* Found one. Is it JITted code? */
             if (f->spesh_cand->jitcode && f->jit_entry_label) {
@@ -247,14 +263,15 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                 MVMint32 i;
                 for (i = 0; i < num_deopts; i++) {
                     if (labels[deopts[i].label] == f->jit_entry_label) {
-                        /*
-                        fprintf(stderr, "Found deopt label for JIT (%d) (label %d idx %d)\n", i,
-                                deopts[i].label, deopts[i].idx);
-                        */
                         /* Resolve offset and target. */
                         MVMint32 deopt_idx    = deopts[i].idx;
                         MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
                         MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
+
+#if MVM_LOG_DEOPTS
+                        fprintf(stderr, "Found deopt label for JIT (%d) (label %d idx %d)\n", i,
+                                deopts[i].label, deopts[i].idx);
+#endif
 
                         /* Switch frame itself back to the original code. */
                         f->effective_bytecode    = f->static_info->body.bytecode;
@@ -281,10 +298,10 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                         break;
                     }
                 }
-                /*
+#if MVM_LOG_DEOPTS
                 if (i == num_deopts)
                     fprintf(stderr, "JIT: can't find deopt all idx");
-                */
+#endif
             }
 
             else {

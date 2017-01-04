@@ -42,9 +42,13 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
         if (++tc->instance->spesh_produced > tc->instance->spesh_limit)
             return NULL;
 
-    /* If we're profiling, log we're starting spesh work. */
+    /* If we're profiling, log we're starting spesh work. Also track entry
+     * to spesh when GC debugging. */
     if (tc->instance->profiling)
         MVM_profiler_log_spesh_start(tc);
+#if MVM_GC_DEBUG
+    tc->in_spesh = 1;
+#endif
 
     /* Do initial generation of the specialization, working out the argument
      * guards and adding logging. */
@@ -142,9 +146,12 @@ MVMSpeshCandidate * MVM_spesh_candidate_setup(MVMThreadContext *tc,
     }
     uv_mutex_unlock(&tc->instance->mutex_spesh_install);
 
-    /* If we're profiling, log we've finished spesh work. */
+    /* If we're profiling or GC debugging, log we've finished spesh work. */
     if (tc->instance->profiling)
         MVM_profiler_log_spesh_end(tc);
+#if MVM_GC_DEBUG
+    tc->in_spesh = 0;
+#endif
 
     MVM_free(sc);
     return result;
@@ -160,9 +167,12 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     MVMSpeshGraph *sg;
     MVMJitGraph   *jg = NULL;
 
-    /* If we're profiling, log we're starting spesh work. */
+    /* If we're profiling or GC debugging, log we're starting spesh work. */
     if (tc->instance->profiling)
         MVM_profiler_log_spesh_start(tc);
+#if MVM_GC_DEBUG
+    tc->in_spesh = 1;
+#endif
 
     /* Obtain the graph, add facts, and do optimization work. */
     sg = candidate->sg;
@@ -236,9 +246,12 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     MVM_barrier();
     candidate->sg = NULL;
 
-    /* If we're profiling, log we've finished spesh work. */
+    /* If we're profiling or GC debugging, log we've finished spesh work. */
     if (tc->instance->profiling)
         MVM_profiler_log_spesh_end(tc);
+#if MVM_GC_DEBUG
+    tc->in_spesh = 0;
+#endif
 }
 
 

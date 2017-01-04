@@ -305,6 +305,11 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     MVMuint8   gen;
     MVMuint32  i, n;
 
+#if MVM_GC_DEBUG
+    if (tc->in_spesh)
+        MVM_panic(1, "Must not GC when in the specializer/JIT\n");
+#endif
+
     /* Decide nursery or full collection. */
     gen = tc->instance->gc_full_collect ? MVMGCGenerations_Both : MVMGCGenerations_Nursery;
 

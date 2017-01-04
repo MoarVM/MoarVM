@@ -69,8 +69,8 @@ MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ct
     }
 
     if (fsize) {
-        flags = MVM_malloc(fsize);
-        memcpy(flags, src_flags, fsize);
+        flags = MVM_malloc(fsize * sizeof(MVMCallsiteEntry));
+        memcpy(flags, src_flags, fsize * sizeof(MVMCallsiteEntry));
     }
     res->flag_count = fsize;
     res->arg_flags = flags;

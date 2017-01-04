@@ -89,6 +89,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/core/continuation@obj@ \
           src/core/intcache@obj@ \
           src/core/fixedsizealloc@obj@ \
+          src/core/regionalloc@obj@ \
           src/gen/config@obj@ \
           src/gc/orchestrate@obj@ \
           src/gc/allocation@obj@ \
@@ -181,6 +182,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/spesh/threshold@obj@ \
           src/spesh/inline@obj@ \
           src/spesh/osr@obj@ \
+          src/spesh/lookup@obj@ \
           src/spesh/iterator@obj@ \
           src/jit/graph@obj@ \
           src/jit/label@obj@ \
@@ -242,6 +244,7 @@ HEADERS = src/moar.h \
           src/core/continuation.h \
           src/core/intcache.h \
           src/core/fixedsizealloc.h \
+          src/core/regionalloc.h \
           src/io/io.h \
           src/io/eventloop.h \
           src/io/syncfile.h \
@@ -332,6 +335,7 @@ HEADERS = src/moar.h \
           src/spesh/threshold.h \
           src/spesh/inline.h \
           src/spesh/osr.h \
+          src/spesh/lookup.h \
           src/spesh/iterator.h \
           src/strings/unicode_gen.h \
           src/strings/normalize.h \

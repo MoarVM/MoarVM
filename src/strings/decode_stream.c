@@ -10,6 +10,9 @@
  * such as ASCII and Latin-1, are normalized by definition).
  */
 
+#define DECODE_NOT_EOF  0
+#define DECODE_EOF      1
+
 /* Creates a new decoding stream. */
 MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 encoding,
         MVMint64 abs_byte_pos, MVMint32 translate_newlines) {
@@ -86,7 +89,7 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
 #define RUN_DECODE_NOTHING_DECODED          0
 #define RUN_DECODE_STOPPER_NOT_REACHED      1
 #define RUN_DECODE_STOPPER_REACHED          2
-static MVMuint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *sep_spec) {
+static MVMuint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *sep_spec, MVMint32 eof) {
     MVMDecodeStreamChars *prev_chars_tail = ds->chars_tail;
     MVMuint32 reached_stopper;
     switch (ds->encoding) {
@@ -103,7 +106,7 @@ static MVMuint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVM
         reached_stopper = MVM_string_windows1252_decodestream(tc, ds, stopper_chars, sep_spec);
         break;
     case MVM_encoding_type_utf8_c8:
-        reached_stopper = MVM_string_utf8_c8_decodestream(tc, ds, stopper_chars, sep_spec);
+        reached_stopper = MVM_string_utf8_c8_decodestream(tc, ds, stopper_chars, sep_spec, eof);
         break;
     default:
         MVM_exception_throw_adhoc(tc, "Streaming decode NYI for encoding %d",
@@ -200,7 +203,7 @@ MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStr
     /* If we don't already have enough chars, try and decode more. */
     missing = missing_chars(tc, ds, chars);
     if (missing)
-        run_decode(tc, ds, &missing, NULL);
+        run_decode(tc, ds, &missing, NULL, DECODE_NOT_EOF);
 
     /* If we've got enough, assemble a string. Otherwise, give up. */
     if (missing_chars(tc, ds, chars) == 0)
@@ -285,7 +288,7 @@ MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecod
      * the separator, so we may need to loop a few times around this. */
     sep_loc = find_separator(tc, ds, sep_spec, &sep_length);
     while (!sep_loc) {
-        MVMuint32 decode_outcome = run_decode(tc, ds, NULL, sep_spec);
+        MVMuint32 decode_outcome = run_decode(tc, ds, NULL, sep_spec, DECODE_NOT_EOF);
         if (decode_outcome == RUN_DECODE_NOTHING_DECODED)
             break;
         if (decode_outcome == RUN_DECODE_STOPPER_REACHED)
@@ -302,7 +305,7 @@ MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecod
 static void reached_eof(MVMThreadContext *tc, MVMDecodeStream *ds) {
     /* Decode all the things. */
     if (ds->bytes_head)
-        run_decode(tc, ds, NULL, NULL);
+        run_decode(tc, ds, NULL, NULL, DECODE_EOF);
 
     /* If there's some things left in the normalization buffer, take them. */
     MVM_unicode_normalizer_eof(tc, &(ds->norm));
@@ -415,7 +418,7 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
  * or multi-codepoint sequences that are not yet completely processed. */
 MVMString * MVM_string_decodestream_get_available(MVMThreadContext *tc, MVMDecodeStream *ds) {
     if (ds->bytes_head)
-        run_decode(tc, ds, NULL, NULL);
+        run_decode(tc, ds, NULL, NULL, DECODE_NOT_EOF);
     return get_all_in_buffer(tc, ds);
 }
 
@@ -506,6 +509,7 @@ void MVM_string_decodestream_destory(MVMThreadContext *tc, MVMDecodeStream *ds) 
         cur_bytes = next_bytes;
     }
     MVM_unicode_normalizer_cleanup(tc, &(ds->norm));
+    MVM_free(ds->decoder_state);
     MVM_free(ds);
 }
 

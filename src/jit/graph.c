@@ -126,8 +126,6 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_throwcatdyn:
     case MVM_OP_throwcatlex:
     case MVM_OP_throwcatlexotic: return MVM_exception_throwcat;
-    case MVM_OP_throwpayloadlex:
-    case MVM_OP_throwpayloadlexcaller: return MVM_exception_throwpayload;
     case MVM_OP_resume: return MVM_exception_resume;
     case MVM_OP_continuationreset: return MVM_continuation_reset;
     case MVM_OP_continuationcontrol: return MVM_continuation_control;
@@ -1705,23 +1703,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_ADDR, { regi } }};
         jg_append_call_c(tc, jg, op_to_func(tc, op),
                           4, args, MVM_JIT_RV_VOID, -1);
-        break;
-    }
-    case MVM_OP_throwpayloadlex:
-    case MVM_OP_throwpayloadlexcaller: {
-        MVMint16 regi     = ins->operands[0].reg.orig;
-        MVMint32 category = (MVMuint32)ins->operands[1].lit_i64;
-        MVMint16 payload  = ins->operands[2].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_LITERAL, {
-                                   op == MVM_OP_throwpayloadlex ? MVM_EX_THROW_LEX :
-                                                                  MVM_EX_THROW_LEX_CALLER
-                                   } },
-                                 { MVM_JIT_LITERAL, { category } },
-                                 { MVM_JIT_REG_VAL, { payload } },
-                                 { MVM_JIT_REG_ADDR, { regi } }};
-        jg_append_call_c(tc, jg, op_to_func(tc, op),
-                         5, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_resume: {

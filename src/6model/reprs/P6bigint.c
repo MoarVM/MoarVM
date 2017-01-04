@@ -91,12 +91,8 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     if (MVM_BIGINT_IS_BIG(body)) {
         mp_int *i = body->u.bigint;
-        if (MP_LT == mp_cmp_d(i, 0)) {
-            MVMint64 ret;
-            mp_neg(i, i);
-            ret = mp_get_int64(tc, i);
-            mp_neg(i, i);
-            return -ret;
+        if (MP_NEG == SIGN(i)) {
+            return -mp_get_int64(tc, i);
         }
         else {
             return mp_get_int64(tc, i);
@@ -124,7 +120,7 @@ static MVMuint64 get_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     if (MVM_BIGINT_IS_BIG(body)) {
         mp_int *i = body->u.bigint;
-        if (MP_LT == mp_cmp_d(i, 0))
+        if (MP_NEG == SIGN(i))
             MVM_exception_throw_adhoc(tc, "Cannot unbox negative bigint into native unsigned integer");
         else
             return mp_get_int64(tc, i);

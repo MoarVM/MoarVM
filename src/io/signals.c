@@ -196,7 +196,9 @@ MVMObject * MVM_io_signal_handle(MVMThreadContext *tc, MVMObject *queue,
     task->body.data     = signal_info;
 
     /* Hand the task off to the event loop. */
-    MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    MVMROOT(tc, task, {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    });
 
     return (MVMObject *)task;
 }

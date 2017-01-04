@@ -13,6 +13,7 @@ void MVM_gc_finalize_set(MVMThreadContext *tc, MVMObject *type, MVMint64 finaliz
 /* Adds an object we've just allocated to the queue of those with finalizers
  * that will need calling upon collection. */
 void MVM_gc_finalize_add_to_queue(MVMThreadContext *tc, MVMObject *obj) {
+    MVM_ASSERT_NOT_FROMSPACE(tc, obj);
     if (tc->num_finalize == tc->alloc_finalize) {
         if (tc->alloc_finalize)
             tc->alloc_finalize *= 2;
