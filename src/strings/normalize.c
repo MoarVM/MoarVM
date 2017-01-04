@@ -280,13 +280,13 @@ static void decomp_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, M
     /* See if we actually need to decompose (can skip if the decomposition
      * type is None, or we're only doing Canonical decomposition and it is
      * anything except Canonical). */
-    const char *type = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE);
+    MVMint16 cp_DT = MVM_unicode_codepoint_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE);
     MVMint64 decompose = 1;
-    if (!type)
+    //if (!cp_DT)
+    //    decompose = 0;
+    if (cp_DT == MVM_UNICODE_PVALUE_DT_NONE)
         decompose = 0;
-    else if (strcmp(type, "None") == 0)
-        decompose = 0;
-    else if (!MVM_NORMALIZE_COMPAT_DECOMP(n->form) && strcmp(type, "Canonical") != 0)
+    else if (!MVM_NORMALIZE_COMPAT_DECOMP(n->form) && cp_DT != MVM_UNICODE_PVALUE_DT_CANONICAL )
         decompose = 0;
     if (decompose) {
         /* We need to decompose. Get the decomp spec and go over the things in
