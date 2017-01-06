@@ -137,6 +137,10 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
                              MVMObject *code, MVMRegister *res_reg) {
     MVMFrame *orig_caller;
 
+    /* Ensure we are the only invoker of the continuation. */
+    if (!MVM_trycas(&(cont->body.invoked), 0, 1))
+        MVM_exception_throw_adhoc(tc, "This continuation has already been invoked");
+
     /* Switch caller of the root to current invoker. */
     MVMROOT(tc, cont, {
     MVMROOT(tc, code, {
