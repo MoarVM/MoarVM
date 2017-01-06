@@ -1,4 +1,9 @@
 #include "moar.h"
+#define UNI_CP_MALE_SIGN             0x2642
+#define UNI_CP_FEMALE_SIGN           0x2640
+#define UNI_CP_ZERO_WIDTH_JOINER     0x200D
+#define UNI_CP_ZERO_WIDTH_NON_JOINER 0x200C
+
 /* Maps outside-world normalization form codes to our internal set, validating
  * that we got something valid. */
 MVMNormalization MVN_unicode_normalizer_form(MVMThreadContext *tc, MVMint64 form_in) {
@@ -341,7 +346,7 @@ static MVMint64 ccc(MVMThreadContext *tc, MVMCodepoint cp) {
  * a fast path. */
 static MVMint32 is_control_beyond_latin1(MVMThreadContext *tc, MVMCodepoint in) {
     /* U+200C ZERO WIDTH NON-JOINER and U+200D ZERO WIDTH JOINER are excluded. */
-    if (in != 0x200C && in != 0x200D) {
+    if (in != UNI_CP_ZERO_WIDTH_NON_JOINER && in != UNI_CP_ZERO_WIDTH_JOINER) {
         /* Consider general property. */
         const char *genprop = MVM_unicode_codepoint_get_property_cstr(tc, in,
             MVM_UNICODE_PROPERTY_GENERAL_CATEGORY);
@@ -557,13 +562,13 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
             return 0;
         /* Don't break after ZWJ for E_Base_GAZ or Glue_After_ZWJ */
         case MVM_UNICODE_PVALUE_GCB_ZWJ:
-            if ( GCB_b == MVM_UNICODE_PVALUE_GCB_E_BASE_GAZ )
-                return 0;
-            if ( GCB_b == MVM_UNICODE_PVALUE_GCB_ZWJ )
-                return 0;
-            if ( GCB_b == MVM_UNICODE_PVALUE_GCB_GLUE_AFTER_ZWJ )
-                return 0;
-            if ( b == 0x2640 || b == 0x2642 )
+            switch (GCB_b) {
+                case MVM_UNICODE_PVALUE_GCB_E_BASE_GAZ:
+                case MVM_UNICODE_PVALUE_GCB_ZWJ:
+                case MVM_UNICODE_PVALUE_GCB_GLUE_AFTER_ZWJ:
+                    return 0;
+            }
+            if ( b == UNI_CP_FEMALE_SIGN || b == UNI_CP_MALE_SIGN )
                 return 0;
         case MVM_UNICODE_PVALUE_GCB_E_MODIFIER:
             if (MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_EMOJI_MODIFIER_BASE)) {
@@ -571,7 +576,7 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
                  * At the moment FEMALE SIGN and MALE SIGN don't have different
                  * GCB properties, or any special Emoji properties (Unicode 9.0),
                  * so we explictly check these codepoints here */
-                if ( b == 0x2640 || b == 0x2642 )
+                if ( b == UNI_CP_FEMALE_SIGN || b == UNI_CP_MALE_SIGN )
                     return 0;
             }
             break;
