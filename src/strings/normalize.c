@@ -561,9 +561,20 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
                 return 0;
             if ( GCB_b == MVM_UNICODE_PVALUE_GCB_ZWJ )
                 return 0;
+            if ( GCB_b == MVM_UNICODE_PVALUE_GCB_GLUE_AFTER_ZWJ )
+                return 0;
+            if ( b == 0x2640 || b == 0x2642 )
+                return 0;
+        case MVM_UNICODE_PVALUE_GCB_E_MODIFIER:
+            if (MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_EMOJI_MODIFIER_BASE)) {
+                /* Don't break after ZWJ if it's an Emoji Sequence.
+                 * At the moment FEMALE SIGN and MALE SIGN don't have different
+                 * GCB properties, or any special Emoji properties (Unicode 9.0),
+                 * so we explictly check these codepoints here */
+                if ( b == 0x2640 || b == 0x2642 )
+                    return 0;
+            }
             break;
-
-
     }
     switch (GCB_b) {
         /* Don't break before extending chars */
