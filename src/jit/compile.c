@@ -162,8 +162,10 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
 #define NYI(x) MVM_oops(tc, #x " NYI")
 
 
-void MVM_jit_compile_breakpoint(void) {
-    fprintf(stderr, "Pause here please\n");
+void MVM_jit_compile_breakpoint(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMJitExprTree *tree) {
+    MVMJitControl ctrl;
+    ctrl.type = MVM_JIT_CONTROL_BREAKPOINT;
+    MVM_jit_emit_control(tc, compiler, compiler->graph, &ctrl);
 }
 
 
@@ -185,13 +187,15 @@ void MVM_jit_compile_label(MVMThreadContext *tc, MVMJitCompiler *compiler,
 
 void MVM_jit_compile_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitTile *tile, MVMJitExprTree *tree) {
+    fprintf(stderr, "Compiling store of location %lld from register %d\n", tile->args[0], tile->values[1]);
     MVM_jit_emit_spill(tc, compiler, tile->args[0],
-                       MVM_JIT_STORAGE_GPR, tile->values[0],
+                       MVM_JIT_STORAGE_GPR, tile->values[1],
                        sizeof(MVMRegister));
 }
 
 void MVM_jit_compile_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
                           MVMJitTile *tile, MVMJitExprTree *tree) {
+    fprintf(stderr, "Compiling load of location %lld to register %d (insert-pos %lld)\n", tile->args[0], tile->values[0], tile->args[1]);
     MVM_jit_emit_load(tc, compiler, tile->args[0],
                       MVM_JIT_STORAGE_GPR, tile->values[0],
                       sizeof(MVMRegister));

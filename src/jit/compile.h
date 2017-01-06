@@ -29,7 +29,7 @@ struct MVMJitCode {
 };
 
 MVMJitCode* MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);
-void MVM_jit_compile_breakpoint(void);
+
 void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code);
 void MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
                         MVMJitCode * code);
@@ -45,3 +45,5 @@ void MVM_jit_compile_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitTile *tile, MVMJitExprTree *tree);
 void MVM_jit_compile_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
                           MVMJitTile *tile, MVMJitExprTree *tree);
+void MVM_jit_compile_breakpoint(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                                MVMJitTile *tile, MVMJitExprTree *tree);
