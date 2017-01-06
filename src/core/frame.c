@@ -90,11 +90,6 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
 
 /* Destroys a frame. */
 void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame) {
-    if (frame->work) {
-        MVM_args_proc_cleanup(tc, &frame->params);
-        MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_work,
-            frame->work);
-    }
     if (frame->env)
         MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env, frame->env);
     if (frame->continuation_tags)
@@ -777,6 +772,13 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     if (returner->continuation_tags)
         MVM_continuation_free_tags(tc, returner);
 
+    /* Clean up frame working space. */
+    if (returner->work) {
+        MVM_args_proc_cleanup(tc, &returner->params);
+        MVM_fixed_size_free(tc, tc->instance->fsa, returner->allocd_work,
+            returner->work);
+    }
+
     /* If it's a call stack frame, remove it from the stack. */
     if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner)) {
         MVMCallStackRegion *stack = tc->stack_current;
@@ -786,17 +788,13 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         MVM_frame_destroy(tc, returner);
     }
 
-    /* Otherwise, do dynamic scope cleanup if we're not a frame involved in a
-     * continuation (otherwise we need to allow for multi-shot re-invocation). */
+    /* Otherwise, NULL some things to prevent the GC ever visiting them; the
+     * frame will otherwise live on (most typically because it's been closed
+     * over). Note this is needed for safety (preventing access to released
+     * memory) as well as preventing unneeded work. */
     else {
-        /* Arguments buffer no longer in use (saves GC visiting it). */
         returner->cur_args_callsite = NULL;
-
-        /* Clear up argument processing leftovers, if any. */
-        if (returner->work)
-            MVM_args_proc_cleanup_for_cache(tc, &returner->params);
-
-        /* Signal to the GC to ignore ->work */
+        returner->work = NULL;
         returner->tc = NULL;
     }
 
