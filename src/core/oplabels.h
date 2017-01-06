@@ -551,7 +551,7 @@ static const void * const LABELS[] = {
     &&OP_link,
     &&OP_gethostname,
     &&OP_exreturnafterunwind,
-    &&OP_continuationclone,
+    &&OP_DEPRECATED_13,
     &&OP_continuationreset,
     &&OP_continuationcontrol,
     &&OP_continuationinvoke,

@@ -551,7 +551,7 @@
 #define MVM_OP_link 547
 #define MVM_OP_gethostname 548
 #define MVM_OP_exreturnafterunwind 549
-#define MVM_OP_continuationclone 550
+#define MVM_OP_DEPRECATED_13 550
 #define MVM_OP_continuationreset 551
 #define MVM_OP_continuationcontrol 552
 #define MVM_OP_continuationinvoke 553

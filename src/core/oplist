@@ -588,7 +588,7 @@ symlink             r(str) r(str)
 link                r(str) r(str)
 gethostname         w(str)
 exreturnafterunwind r(obj)
-continuationclone   w(obj) r(obj)
+DEPRECATED_13       w(obj) r(obj)
 continuationreset   w(obj) r(obj) r(obj) :invokish
 # this op isn't actually invokish, but it requires the cur_op to be set before doing its work
 continuationcontrol w(obj) r(int64) r(obj) r(obj) :invokish

@@ -1775,32 +1775,3 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
     });
     return ctx;
 }
-
-/* Creates a shallow clone of a frame. Used by continuations. We rely on this
- * not allocating with the GC; update continuation clone code if it comes to
-  * do so. */
-MVMFrame * MVM_frame_clone(MVMThreadContext *tc, MVMFrame *f) {
-    /* First, just grab a copy of everything. */
-    MVMFrame *clone;
-    MVMROOT(tc, f, {
-        clone = MVM_gc_allocate_frame(tc);
-    });
-    memcpy(
-        (char *)clone + sizeof(MVMCollectable),
-        (char *)f + sizeof(MVMCollectable),
-        sizeof(MVMFrame) - sizeof(MVMCollectable));
-
-    /* Need fresh env and work. */
-    if (f->static_info->body.env_size) {
-        clone->env = MVM_fixed_size_alloc(tc, tc->instance->fsa, f->static_info->body.env_size);
-        clone->allocd_env = f->static_info->body.env_size;
-        memcpy(clone->env, f->env, f->static_info->body.env_size);
-    }
-    if (f->static_info->body.work_size) {
-        clone->work = MVM_malloc(f->static_info->body.work_size);
-        memcpy(clone->work, f->work, f->static_info->body.work_size);
-        clone->args = clone->work + f->static_info->body.num_locals;
-    }
-
-    return clone;
-}

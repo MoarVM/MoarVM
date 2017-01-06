@@ -190,42 +190,6 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     }
 }
 
-MVMContinuation * MVM_continuation_clone(MVMThreadContext *tc, MVMContinuation *cont) {
-    MVMContinuation *result;
-    MVMFrame *cur_to_clone = NULL;
-    MVMFrame *last_clone   = NULL;
-    MVMFrame *cloned_top   = NULL;
-    MVMFrame *cloned_root  = NULL;
-
-    /* Allocate resulting continuation. We do this before cloning frames, as
-     * doing it after could cause them to contain stale memory addresses. */
-    MVMROOT(tc, cont, {
-        result = (MVMContinuation *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContinuation);
-    });
-
-    /* Clone all the frames. */
-    cur_to_clone = cont->body.top;
-    while (!cloned_root) {
-        MVMFrame *clone = MVM_frame_clone(tc, cur_to_clone);
-        if (!cloned_top)
-            cloned_top = clone;
-        if (cur_to_clone == cont->body.root)
-            cloned_root = clone;
-        if (last_clone)
-            last_clone->caller = clone;
-        last_clone   = clone;
-        cur_to_clone = cur_to_clone->caller;
-    }
-
-    /* Set up the new continuation. */
-    result->body.top     = cloned_top;
-    result->body.addr    = cont->body.addr;
-    result->body.res_reg = cont->body.res_reg;
-    result->body.root    = cloned_root;
-
-    return result;
-}
-
 void MVM_continuation_free_tags(MVMThreadContext *tc, MVMFrame *f) {
     MVMContinuationTag *tag = f->continuation_tags;
     while (tag) {

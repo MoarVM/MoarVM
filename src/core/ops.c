@@ -6048,8 +6048,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_continuationclone,
-        "continuationclone",
+        MVM_OP_DEPRECATED_13,
+        "DEPRECATED_13",
         "  ",
         2,
         0,
