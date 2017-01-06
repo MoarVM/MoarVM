@@ -60,7 +60,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
                 MVMArray *res_buf      = (MVMArray *)MVM_repr_alloc_init(tc, ri->buf_type);
                 res_buf->body.slots.i8 = (MVMint8 *)buf->base;
                 res_buf->body.start    = 0;
-                res_buf->body.ssize    = nread;
+                res_buf->body.ssize    = buf->len;
                 res_buf->body.elems    = nread;
                 MVM_repr_push_o(tc, arr, (MVMObject *)res_buf);
             }
