@@ -32,13 +32,8 @@ void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsit
 /* Clean up an arguments processing context. */
 void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     if (ctx->arg_flags) {
-        /* Free the generated flags. */
         MVM_free(ctx->arg_flags);
-        ctx->arg_flags = NULL;
-
-        /* Free the generated args buffer. */
         MVM_free(ctx->args);
-        ctx->args = NULL;
     }
     if (ctx->named_used) {
         MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size,
