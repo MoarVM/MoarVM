@@ -389,7 +389,7 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
     MVMuint8  *flag_map;
 
     /* Scan locals. */
-    if (frame->work && frame->tc) {
+    if (frame->work) {
         if (frame->spesh_cand && frame->spesh_log_idx == -1 && frame->spesh_cand->local_types) {
             type_map = frame->spesh_cand->local_types;
             count    = frame->spesh_cand->num_locals;

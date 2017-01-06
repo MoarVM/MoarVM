@@ -48,9 +48,6 @@ struct MVMFrame {
     /* Commonalities that all collectable entities have. */
     MVMCollectable header;
 
-    /* The thread that is executing, or executed, this frame. */
-    MVMThreadContext *tc;
-
     /* The environment for this frame, which lives beyond its execution.
      * Has space for, for instance, lexicals. */
     MVMRegister *env;
