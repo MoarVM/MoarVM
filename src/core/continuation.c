@@ -134,8 +134,6 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 
 void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
                              MVMObject *code, MVMRegister *res_reg) {
-    MVMFrame *orig_caller;
-
     /* Ensure we are the only invoker of the continuation. */
     if (!MVM_trycas(&(cont->body.invoked), 0, 1))
         MVM_exception_throw_adhoc(tc, "This continuation has already been invoked");
@@ -146,7 +144,6 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
         MVM_frame_force_to_heap(tc, tc->cur_frame);
     });
     });
-    orig_caller = cont->body.root->caller;
     MVM_ASSIGN_REF(tc, &(cont->common.header), cont->body.root->caller, tc->cur_frame);
 
     /* Set up current frame to receive result. */
