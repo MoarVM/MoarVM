@@ -130,9 +130,6 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                     add_allocation_logging(tc, g, bb, ins);
                 break;
             }
-            case MVM_OP_getregref_i:
-            case MVM_OP_getregref_n:
-            case MVM_OP_getregref_s:
             case MVM_OP_getlexref_i:
             case MVM_OP_getlexref_n:
             case MVM_OP_getlexref_s:

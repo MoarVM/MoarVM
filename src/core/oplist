@@ -676,9 +676,9 @@ assign_s            r(obj) r(str) :invokish
 decont_i            w(int64) r(obj) :pure :invokish
 decont_n            w(num64) r(obj) :pure :invokish
 decont_s            w(str) r(obj) :pure :invokish
-getregref_i         w(obj) r(int64) :pure :noinline
-getregref_n         w(obj) r(num64) :pure :noinline
-getregref_s         w(obj) r(str) :pure :noinline
+DEPRECATED_2        w(obj) r(int64) :pure :noinline
+DEPRECATED_3        w(obj) r(num64) :pure :noinline
+DEPRECATED_4        w(obj) r(str) :pure :noinline
 getlexref_i         w(obj) rl(int64) :pure :noinline
 getlexref_n         w(obj) rl(num64) :pure :noinline
 getlexref_s         w(obj) rl(str) :pure :noinline
@@ -748,10 +748,10 @@ asyncwritestrto     w(obj) r(obj) r(obj) r(obj) r(str) r(obj) r(str) r(int64)
 asyncwritebytesto   w(obj) r(obj) r(obj) r(obj) r(obj) r(obj) r(str) r(int64)
 objprimbits         w(int64) r(obj)
 objprimunsigned     w(int64) r(obj)
-getregref_i32       w(obj) r(int32) :pure :noinline
-getregref_i16       w(obj) r(int16) :pure :noinline
-getregref_i8        w(obj) r(int8) :pure :noinline
-getregref_n32       w(obj) r(num32) :pure :noinline
+DEPRECATED_5        w(obj) r(int32) :pure :noinline
+DEPRECATED_6        w(obj) r(int16) :pure :noinline
+DEPRECATED_7        w(obj) r(int8) :pure :noinline
+DEPRECATED_8        w(obj) r(num32) :pure :noinline
 getlexref_i32       w(obj) rl(int32) :pure :noinline
 getlexref_i16       w(obj) rl(int16) :pure :noinline
 getlexref_i8        w(obj) rl(int8) :pure :noinline
@@ -763,10 +763,10 @@ coerce_ui           w(int64) r(uint64) :pure
 coerce_nu           w(uint64) r(num64) :pure
 coerce_un           w(num64) r(uint64) :pure
 decont_u            w(uint64) r(obj) :pure :invokish
-getregref_u         w(obj) r(uint64) :pure :noinline
-getregref_u32       w(obj) r(uint32) :pure :noinline
-getregref_u16       w(obj) r(uint16) :pure :noinline
-getregref_u8        w(obj) r(uint8) :pure :noinline
+DEPRECATED_9        w(obj) r(uint64) :pure :noinline
+DEPRECATED_10       w(obj) r(uint32) :pure :noinline
+DEPRECATED_11       w(obj) r(uint16) :pure :noinline
+DEPRECATED_12       w(obj) r(uint8) :pure :noinline
 getlexref_u         w(obj) rl(uint64) :pure :noinline
 getlexref_u32       w(obj) rl(uint32) :pure :noinline
 getlexref_u16       w(obj) rl(uint16) :pure :noinline

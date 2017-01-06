@@ -5,7 +5,7 @@ struct MVMNativeRefBody {
             MVMFrame *frame;
             MVMRegister *var;
             MVMuint16 type;
-        } reg_or_lex;
+        } lex;
         struct {
             MVMObject *obj;
             MVMObject *class_handle;
@@ -27,7 +27,7 @@ struct MVMNativeRef {
 };
 
 /* Kinds of native reference. */
-#define MVM_NATIVEREF_REG_OR_LEX    1
+#define MVM_NATIVEREF_LEX           1
 #define MVM_NATIVEREF_ATTRIBUTE     2
 #define MVM_NATIVEREF_POSITIONAL    3
 #define MVM_NATIVEREF_MULTIDIM      4
@@ -47,9 +47,6 @@ const MVMREPROps * MVMNativeRef_initialize(MVMThreadContext *tc);
 
 /* Operations on a nativeref REPR. */
 void MVM_nativeref_ensure(MVMThreadContext *tc, MVMObject *val, MVMuint16 wantprim, MVMuint16 wantkind, char *guilty);
-MVMObject * MVM_nativeref_reg_i(MVMThreadContext *tc, MVMRegister *reg);
-MVMObject * MVM_nativeref_reg_n(MVMThreadContext *tc, MVMRegister *reg);
-MVMObject * MVM_nativeref_reg_s(MVMThreadContext *tc, MVMRegister *reg);
 MVMObject * MVM_nativeref_lex_i(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx);
 MVMObject * MVM_nativeref_lex_n(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx);
 MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx);
@@ -65,9 +62,9 @@ MVMObject * MVM_nativeref_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 i
 MVMObject * MVM_nativeref_multidim_i(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices);
 MVMObject * MVM_nativeref_multidim_n(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices);
 MVMObject * MVM_nativeref_multidim_s(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices);
-MVMint64 MVM_nativeref_read_reg_or_lex_i(MVMThreadContext *tc, MVMObject *ref);
-MVMnum64 MVM_nativeref_read_reg_or_lex_n(MVMThreadContext *tc, MVMObject *ref);
-MVMString * MVM_nativeref_read_reg_or_lex_s(MVMThreadContext *tc, MVMObject *ref);
+MVMint64 MVM_nativeref_read_lex_i(MVMThreadContext *tc, MVMObject *ref);
+MVMnum64 MVM_nativeref_read_lex_n(MVMThreadContext *tc, MVMObject *ref);
+MVMString * MVM_nativeref_read_lex_s(MVMThreadContext *tc, MVMObject *ref);
 MVMint64 MVM_nativeref_read_attribute_i(MVMThreadContext *tc, MVMObject *ref);
 MVMnum64 MVM_nativeref_read_attribute_n(MVMThreadContext *tc, MVMObject *ref);
 MVMString * MVM_nativeref_read_attribute_s(MVMThreadContext *tc, MVMObject *ref);
@@ -77,9 +74,9 @@ MVMString * MVM_nativeref_read_positional_s(MVMThreadContext *tc, MVMObject *ref
 MVMint64 MVM_nativeref_read_multidim_i(MVMThreadContext *tc, MVMObject *ref);
 MVMnum64 MVM_nativeref_read_multidim_n(MVMThreadContext *tc, MVMObject *ref);
 MVMString * MVM_nativeref_read_multidim_s(MVMThreadContext *tc, MVMObject *ref);
-void MVM_nativeref_write_reg_or_lex_i(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
-void MVM_nativeref_write_reg_or_lex_n(MVMThreadContext *tc, MVMObject *ref, MVMnum64 value);
-void MVM_nativeref_write_reg_or_lex_s(MVMThreadContext *tc, MVMObject *ref, MVMString *value);
+void MVM_nativeref_write_lex_i(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
+void MVM_nativeref_write_lex_n(MVMThreadContext *tc, MVMObject *ref, MVMnum64 value);
+void MVM_nativeref_write_lex_s(MVMThreadContext *tc, MVMObject *ref, MVMString *value);
 void MVM_nativeref_write_attribute_i(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
 void MVM_nativeref_write_attribute_n(MVMThreadContext *tc, MVMObject *ref, MVMnum64 value);
 void MVM_nativeref_write_attribute_s(MVMThreadContext *tc, MVMObject *ref, MVMString *value);
