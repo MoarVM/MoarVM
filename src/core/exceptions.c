@@ -58,10 +58,10 @@ static MVMuint8 in_handler_stack(MVMThreadContext *tc, MVMFrameHandler *fh, MVMF
 }
 
 /* Checks if a frame is still active. Naively, we could scan the call stack
- * for it, but we can use the same thing the GC uses to know if to scan the
- * work area. */
+ * for it, but since we always clean up ->work when a frame is removed from
+ * the call stack we can do it in O(1) that way. */
 static MVMuint8 in_caller_chain(MVMThreadContext *tc, MVMFrame *f_maybe) {
-    return f_maybe->tc ? 1 : 0;
+    return f_maybe->work ? 1 : 0;
 }
 
 
