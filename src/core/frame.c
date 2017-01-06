@@ -781,12 +781,12 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         MVM_frame_destroy(tc, returner);
     }
 
-    /* Otherwise, NULL some things to prevent the GC ever visiting them; the
-     * frame will otherwise live on (most typically because it's been closed
-     * over). Note this is needed for safety (preventing access to released
-     * memory) as well as preventing unneeded work. */
+    /* Otherwise, NULL  out ->work, to indicate the frame is no longer in
+     * dynamic scope. This is used by the GC to avoid marking stuff (this is
+     * needed for safety as otherwise we'd read freed memory), as well as by
+     * exceptions to ensure the target of an exception throw is indeed still
+     * in dynamic scope. */
     else {
-        returner->cur_args_callsite = NULL;
         returner->work = NULL;
     }
 
