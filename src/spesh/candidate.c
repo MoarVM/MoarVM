@@ -222,6 +222,10 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
             candidate->jitcode = MVM_jit_compile_graph(tc, jg);
     }
 
+    /* No longer need log slots. */
+    MVM_free(candidate->log_slots);
+    candidate->log_slots = NULL;
+
     /* Update spesh slots. */
     candidate->num_spesh_slots = sg->num_spesh_slots;
     candidate->spesh_slots     = sg->spesh_slots;
