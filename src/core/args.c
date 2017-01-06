@@ -44,7 +44,6 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size,
             ctx->named_used);
         ctx->named_used = NULL;
-        ctx->named_used_size = 0;
     }
 }
 
