@@ -139,10 +139,6 @@ struct MVMFrame {
     MVMuint16 allocd_work;
     MVMuint16 allocd_env;
 
-    /* Flags that the frame has been captured in a continuation, and as
-     * such we should keep everything in place for multiple invocations. */
-    MVMuint8 in_continuation;
-
     /* Assorted frame flags. */
     MVMuint8 flags;
 

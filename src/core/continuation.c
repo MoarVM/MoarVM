@@ -54,7 +54,6 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     });
     });
     while (jump_frame) {
-        jump_frame->in_continuation = 1;
         tag_record = jump_frame->continuation_tags;
         while (tag_record) {
             if (MVM_is_null(tc, tag) || tag_record->tag == tag)

@@ -773,30 +773,28 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         }
     }
 
+    /* Clear up any continuation tags. */
+    if (returner->continuation_tags)
+        MVM_continuation_free_tags(tc, returner);
+
     /* If it's a call stack frame, remove it from the stack. */
     if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner)) {
         MVMCallStackRegion *stack = tc->stack_current;
         stack->alloc = (char *)returner;
         if ((char *)stack->alloc - sizeof(MVMCallStackRegion) == (char *)stack)
             MVM_callstack_region_prev(tc);
-        if (returner->continuation_tags)
-            MVM_continuation_free_tags(tc, returner);
         MVM_frame_destroy(tc, returner);
     }
 
     /* Otherwise, do dynamic scope cleanup if we're not a frame involved in a
      * continuation (otherwise we need to allow for multi-shot re-invocation). */
-    else if (!returner->in_continuation) {
+    else {
         /* Arguments buffer no longer in use (saves GC visiting it). */
         returner->cur_args_callsite = NULL;
 
         /* Clear up argument processing leftovers, if any. */
         if (returner->work)
             MVM_args_proc_cleanup_for_cache(tc, &returner->params);
-
-        /* Clear up any continuation tags. */
-        if (returner->continuation_tags)
-            MVM_continuation_free_tags(tc, returner);
 
         /* Signal to the GC to ignore ->work */
         returner->tc = NULL;
