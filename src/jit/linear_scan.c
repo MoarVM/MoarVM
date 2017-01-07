@@ -580,8 +580,12 @@ void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler
     /* deinitialize allocator */
     MVM_free(alc.sets);
     MVM_free(alc.refs);
+    MVM_free(alc.values);
+
     MVM_free(alc.worklist);
     MVM_free(alc.retired);
+    MVM_free(alc.spilled);
+
 
     /* make edits effective */
     MVM_jit_tile_list_edit(tc, list);
