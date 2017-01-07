@@ -115,6 +115,8 @@ typedef struct MVMMultiDimArrayBody MVMMultiDimArrayBody;
 typedef struct MVMMultiDimArrayREPRData MVMMultiDimArrayREPRData;
 typedef struct MVMContinuation MVMContinuation;
 typedef struct MVMContinuationBody MVMContinuationBody;
+typedef struct MVMCoroutine MVMCoroutine;
+typedef struct MVMCoroutineBody MVMCoroutineBody;
 typedef struct MVMReentrantMutex MVMReentrantMutex;
 typedef struct MVMReentrantMutexBody MVMReentrantMutexBody;
 typedef struct MVMConditionVariable MVMConditionVariable;

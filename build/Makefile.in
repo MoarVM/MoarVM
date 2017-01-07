@@ -89,6 +89,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/core/nativecall@obj@ \
           src/core/nativecall_@nativecall_backend@@obj@ \
           src/core/continuation@obj@ \
+          src/core/coroutine@obj@ \
           src/core/intcache@obj@ \
           src/core/fixedsizealloc@obj@ \
           src/core/regionalloc@obj@ \
@@ -149,6 +150,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/reprs/MVMDLLSym@obj@ \
           src/6model/reprs/MVMMultiCache@obj@ \
           src/6model/reprs/MVMContinuation@obj@ \
+          src/6model/reprs/MVMCoroutine@obj@ \
           src/6model/reprs/NativeCall@obj@ \
           src/6model/reprs/CPointer@obj@ \
           src/6model/reprs/CStr@obj@ \

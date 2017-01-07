@@ -128,6 +128,7 @@ struct MVMFrame {
 
     /* Linked list of any continuation tags we have. */
     MVMContinuationTag *continuation_tags;
+    MVMObject *coroutine;
 
     /* Cache for dynlex lookup; if the name is non-null, the cache is valid
      * and the register can be accessed directly to find the contextual. */
