@@ -5166,8 +5166,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(coroyield): {
-                MVM_coroutine_yield(tc, GET_REG(cur_op, 2).o);
-                cur_op += 2;
+                MVM_coroutine_yield(tc, GET_REG(cur_op, 0).o);
                 goto NEXT;
             }
             OP(cororesume): {
