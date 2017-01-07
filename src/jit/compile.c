@@ -8,6 +8,7 @@ void MVM_jit_compiler_deinit(MVMThreadContext *tc, MVMJitCompiler *compiler);
 MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *graph, MVMJitExprTree *tree);
 
+
 #define COPY_ARRAY(a, n) memcpy(MVM_malloc(n * sizeof(a[0])), a, n * sizeof(a[0]))
 
 static const MVMuint16 MAGIC_BYTECODE[] = { MVM_OP_sp_jit_enter, 0 };
@@ -187,7 +188,6 @@ void MVM_jit_compile_label(MVMThreadContext *tc, MVMJitCompiler *compiler,
 
 void MVM_jit_compile_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitTile *tile, MVMJitExprTree *tree) {
-    fprintf(stderr, "Compiling store of location %lld from register %d\n", tile->args[0], tile->values[1]);
     MVM_jit_emit_spill(tc, compiler, tile->args[0],
                        MVM_JIT_STORAGE_GPR, tile->values[1],
                        sizeof(MVMRegister));
@@ -195,7 +195,6 @@ void MVM_jit_compile_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
 
 void MVM_jit_compile_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
                           MVMJitTile *tile, MVMJitExprTree *tree) {
-    fprintf(stderr, "Compiling load of location %lld to register %d (insert-pos %lld)\n", tile->args[0], tile->values[0], tile->args[1]);
     MVM_jit_emit_load(tc, compiler, tile->args[0],
                       MVM_JIT_STORAGE_GPR, tile->values[0],
                       sizeof(MVMRegister));
