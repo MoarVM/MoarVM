@@ -95,7 +95,20 @@
 
 (template: goto (branch (label $0)))
 
-(macro: ^jump_out () (branch (label (const branch_exit int_sz))))
+(macro: ^exit () (branch (label (const branch_exit int_sz))))
 
+(macro: ^p6obody (,a) (let: (($replace (^getf ,a MVMP6opaque body.replaced)))
+                      (if (nz $replace)
+                              $replace
+                              (addr ,a (&offsetof MVMP6opaque body)))))
 
+(template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
+(template: sp_p6oget_n (load (add (^p6obody $1) $2) (&sizeof MVMnum64)))
+(template: sp_p6oget_s (load (add (^p6obody $1) $2) ptr_sz))
+(template: sp_p6oget_o
+           (let: (($val (load (add (^p6obody $1) $2) ptr_sz)))
+                (if (nz $val) $val (^vmnull))))
 
+(template: getwho 
+   (let: (($who (^getf (^stable $1) MVMSTable WHO)))
+     (if (nz $who) $who (^vmnull))))

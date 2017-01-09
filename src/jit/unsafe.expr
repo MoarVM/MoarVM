@@ -3,18 +3,6 @@
 (macro: ^objflag (,cv) (const (&QUOTE ,cv) (&SIZEOF_MEMBER MVMObject header.flags)))
 
 (macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
-(macro: ^p6obody (,a) (let: (($replace (^getf ,a MVMP6opaque body.replaced)))
-                      (if (nz $replace)
-                              $replace
-                              (addr ,a (&offsetof MVMP6opaque body)))))
-
-
-(template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
-(template: sp_p6oget_n (load (add (^p6obody $1) $2) (&sizeof MVMnum64)))
-(template: sp_p6oget_s (load (add (^p6obody $1) $2) ptr_sz))
-(template: sp_p6oget_o
-           (let: (($val (load (add (^p6obody $1) $2) ptr_sz)))
-                (if (nz $val) $val (vmnull))))
 
 # hit write barrier for object - this one is rather large
 # NB - it is probably better to use direct variables, rather than trees,
@@ -64,8 +52,6 @@
         ptr_sz))
 
 
-(template: getwho  (let: (($who (^getf (^stable $1) MVMSTable WHO)))
-                         (if (nz $who) $who (vmnull))))
 
 
 (template: decont!
@@ -109,7 +95,7 @@
 
 (template: goto (branch (label $0)))
 
-(macro: ^jump_out () (branch (label (const branch_exit int_sz))))
+(macro: ^exit () (branch (label (const branch_exit int_sz))))
 
 (template: return
   (do 3
@@ -121,7 +107,7 @@
      (call (^func &MVM_frame_try_return)
            (arglist 1 (carg (tc) ptr))
            void)
-     (^jump_out)))
+     (^exit)))
 
 (template: return_o
   (do 3
@@ -134,7 +120,7 @@
      (call (^func &MVM_frame_try_return)
            (arglist 1 (carg (tc) ptr))
            void)
-     (^jump_out)))
+     (^exit)))
 
 (template: setdispatcher
   (^setf (tc) MVMThreadContext cur_dispatcher $0))
@@ -156,7 +142,8 @@
             (^getf $caller MVMFrame code_ref)
             (const 0 ptr_sz))))
 
-
+# NB - even though we can allocate this inline, probably best to make
+# this a destructive template and store it explicitly
 (template: sp_fastcreate
    (let: (($block
            (call (^func &MVM_gc_allocate_zeroed)

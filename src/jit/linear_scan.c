@@ -149,6 +149,8 @@ static void live_range_add_ref(RegisterAllocator *alc, LiveRange *range, MVMint3
 static void live_range_merge(LiveRange *a, LiveRange *b) {
     ValueRef *head = NULL, *tail = NULL;
     MVMint32 i;
+    _DEBUG("Merging live ranges (%d-%d) and (%d-%d)\n",
+           first_ref(a), last_ref(a), first_ref(b), last_ref(b));
     if (first_ref(a) <= first_ref(b)) {
         head = a->first;
         a->first = a->first->next;
