@@ -28,7 +28,7 @@ a template and the former does not.
 
 
 
-** TODO Remove cruft from previous attempts
+** DONE Remove cruft from previous attempts
 
 - we don't need MVMJitValue anymore (yay, no more value types)
   - instead we can assign register addresses directly to tiles (8 bits
@@ -213,7 +213,7 @@ int i = MVM_JIT_REQUIRE(RSP);
    - keep it abstract?
    - internalize into list? (why not?)
 
-*** TODO Work on operation nodes
+** TODO Work on operation nodes
 
 Specifically:
 - FRAME/VMNULL are not atomic ops, but instead specific load
@@ -228,7 +228,7 @@ Specifically:
   - It may actually make some sense to have an architecture-specific
     'specialization' phase operating on the tree... 
 
-*** TODO Implement optimistic 'store' insertion
+** TODO Implement optimistic 'store' insertion
 
 Currently our inserting of stores is pessimistic, i.e. stores are
 always inserted where they would be expected from the MoarVM bytecode.
@@ -412,7 +412,7 @@ static const MVMint64 NVR_BITMAP = MVM_JIT_ARCH_NONVOLATILE_GPR(SHIFT);
 
 I know, right. Subject for a blog post at the very least.
 
-*** TODO Implement spilling
+*** DONE Implement spilling
 
 Spilling is implemented by inserting stores (if not present) after
 every definition and loads before every use. Many operations actually
@@ -424,6 +424,49 @@ A byproduct of this method is that we must leave a number of registers
 free to load spilled values; three is sufficient for x86-64. (OR we
 generate new live ranges for the just-loaded values, which
 automatically does the right thing as well.)
+
+*** TODO Generalize IF nodes to PHI tilezs
+
+We append a 'definition' IF tile, but this notion of merging live
+ranges could generalize to a PHI tile, which could also be used to
+support looping constructs. So all this requires is
+
+a): the introduction of a PHI op
+b): replacing the IF node type with a PHI node type
+
+*** TODO Implement ARGLIST handling
+
+ARGLIST prepares arguments to function calls. This means placing
+values in their correct places, which may mean inserting COPYs, loads
+and spills.
+
+- Live ranges pointing to NVR (static) objects can be converted by
+  introducing a copy between them (generating a new live range)
+- We typically expire old live ranges prior to the start of new ones,
+  but for ARGLIST this is not a good idea, since it expires values
+  which may be last used in ARGLIST, and thus 'forgets' that these
+  values are there.
+- It is unfortunately not possible to 'afterswap' the registers, as it
+  may introduce a conflict (e.g. C lives in rax, A in rcx, B in rax
+  after C has expired; B would need to be in rcx, but swapping A and B
+  will introduce a conflict between C and B).
+- We could (attempt) to 'precolor' the register graph, but it is kind
+  of subtle, and the more I think about it, the more I believe it
+  might require an additional loop.
+
+Another design issue is how to implement it in cross-platform way,
+since it ties deeply into the register allocator.....
+
+Maybe just drive it to data. Take an arglist, return an array of {
+storage_class, storage_pos }, and use some kind of sorting, swapping,
+spilling to assign the right values to the right locations. Let the
+stack be a storage class.
+
+**** TODO Pre-count live range references
+
+Needed to allocate the correct amount of reference objects to account
+for the live range objects. Can be done simply during tiling.
+
 
 *** TODO Implement splitting
 
