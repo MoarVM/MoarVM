@@ -341,23 +341,23 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
         MVMuint8 decode_byte = utf8[state.cur_byte];
         switch (state.expecting) {
             case EXPECT_START:
-                if ((decode_byte & 0b10000000) == 0) {
+                if ((decode_byte & 0x80) == 0) {
                     /* Single byte sequence. */
                     state.cur_codepoint = decode_byte;
                     process_ok_codepoint(tc, &state);
                 }
-                else if ((decode_byte & 0b11100000) == 0b11000000 && (decode_byte & 0b11111)) {
-                    state.cur_codepoint = decode_byte & 0b00011111;
+                else if ((decode_byte & 0xE0) == 0xC0 && (decode_byte & 0x1F)) {
+                    state.cur_codepoint = decode_byte & 0x1F;
                     state.expecting = EXPECT_CONTINUATION;
                     expected_continuations = 1;
                 }
-                else if ((decode_byte & 0b11110000) == 0b11100000 && (decode_byte & 0b1111)) {
-                    state.cur_codepoint = decode_byte & 0b00001111;
+                else if ((decode_byte & 0xF0) == 0xE0 && (decode_byte & 0x0F)) {
+                    state.cur_codepoint = decode_byte & 0x0F;
                     state.expecting = EXPECT_CONTINUATION;
                     expected_continuations = 2;
                 }
-                else if ((decode_byte & 0b11111000) == 0b11110000 && (decode_byte & 0b111)) {
-                    state.cur_codepoint = decode_byte & 0b00000111;
+                else if ((decode_byte & 0xF8) == 0xF0 && (decode_byte & 0x07)) {
+                    state.cur_codepoint = decode_byte & 0x07;
                     state.expecting = EXPECT_CONTINUATION;
                     expected_continuations = 3;
                 }
@@ -367,9 +367,9 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
                 }
                 break;
             case EXPECT_CONTINUATION:
-                if ((decode_byte & 0b11000000) == 0b10000000 && (decode_byte & 0b111111)) {
+                if ((decode_byte & 0xC0) == 0x80 && (decode_byte & 0x3F)) {
                     state.cur_codepoint = (state.cur_codepoint << 6)
-                                          | (decode_byte & 0b00111111);
+                                          | (decode_byte & 0x3F);
                     expected_continuations--;
                     if (expected_continuations == 0) {
                         process_ok_codepoint(tc, &state);
@@ -470,24 +470,24 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
             MVMint32 maybe_new_graph = 0;
             switch (state.expecting) {
                 case EXPECT_START:
-                    if ((decode_byte & 0b10000000) == 0) {
+                    if ((decode_byte & 0x80) == 0) {
                         /* Single byte sequence. */
                         state.cur_codepoint = decode_byte;
                         process_ok_codepoint(tc, &state);
                         maybe_new_graph = 1;
                     }
-                    else if ((decode_byte & 0b11100000) == 0b11000000 && (decode_byte & 0b11111)) {
-                        state.cur_codepoint = decode_byte & 0b00011111;
+                    else if ((decode_byte & 0xE0) == 0xC0 && (decode_byte & 0x1F)) {
+                        state.cur_codepoint = decode_byte & 0x1F;
                         state.expecting = EXPECT_CONTINUATION;
                         expected_continuations = 1;
                     }
-                    else if ((decode_byte & 0b11110000) == 0b11100000 && (decode_byte & 0b1111)) {
-                        state.cur_codepoint = decode_byte & 0b00001111;
+                    else if ((decode_byte & 0xF0) == 0xE0 && (decode_byte & 0x0F)) {
+                        state.cur_codepoint = decode_byte & 0x0F;
                         state.expecting = EXPECT_CONTINUATION;
                         expected_continuations = 2;
                     }
-                    else if ((decode_byte & 0b11111000) == 0b11110000 && (decode_byte & 0b111)) {
-                        state.cur_codepoint = decode_byte & 0b00000111;
+                    else if ((decode_byte & 0xF8) == 0xF0 && (decode_byte & 0x07)) {
+                        state.cur_codepoint = decode_byte & 0x07;
                         state.expecting = EXPECT_CONTINUATION;
                         expected_continuations = 3;
                     }
@@ -498,9 +498,9 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
                     }
                     break;
                 case EXPECT_CONTINUATION:
-                    if ((decode_byte & 0b11000000) == 0b10000000 && (decode_byte & 0b111111)) {
+                    if ((decode_byte & 0xC0) == 0x80 && (decode_byte & 0x3F)) {
                         state.cur_codepoint = (state.cur_codepoint << 6)
-                                              | (decode_byte & 0b00111111);
+                                              | (decode_byte & 0x3F);
                         expected_continuations--;
                         if (expected_continuations == 0) {
                             process_ok_codepoint(tc, &state);
