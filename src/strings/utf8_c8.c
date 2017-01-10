@@ -316,6 +316,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
 
     /* Local state for decode loop. */
     int expected_continuations = 0;
+    int min_expected_codepoint;
 
     /* Don't do anything if empty. */
     if (bytes == 0)
@@ -346,20 +347,23 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
                     state.cur_codepoint = decode_byte;
                     process_ok_codepoint(tc, &state);
                 }
-                else if ((decode_byte & 0xE0) == 0xC0 && (decode_byte & 0x1F)) {
+                else if ((decode_byte & 0xE0) == 0xC0) {
                     state.cur_codepoint = decode_byte & 0x1F;
                     state.expecting = EXPECT_CONTINUATION;
                     expected_continuations = 1;
+                    min_expected_codepoint = 0x80;
                 }
-                else if ((decode_byte & 0xF0) == 0xE0 && (decode_byte & 0x0F)) {
+                else if ((decode_byte & 0xF0) == 0xE0) {
                     state.cur_codepoint = decode_byte & 0x0F;
                     state.expecting = EXPECT_CONTINUATION;
                     expected_continuations = 2;
+                    min_expected_codepoint = 0x800;
                 }
-                else if ((decode_byte & 0xF8) == 0xF0 && (decode_byte & 0x07)) {
+                else if ((decode_byte & 0xF8) == 0xF0) {
                     state.cur_codepoint = decode_byte & 0x07;
                     state.expecting = EXPECT_CONTINUATION;
                     expected_continuations = 3;
+                    min_expected_codepoint = 0x10000;
                 }
                 else {
                     /* Invalid byte sequence. */
@@ -367,12 +371,15 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
                 }
                 break;
             case EXPECT_CONTINUATION:
-                if ((decode_byte & 0xC0) == 0x80 && (decode_byte & 0x3F)) {
+                if ((decode_byte & 0xC0) == 0x80) {
                     state.cur_codepoint = (state.cur_codepoint << 6)
                                           | (decode_byte & 0x3F);
                     expected_continuations--;
                     if (expected_continuations == 0) {
-                        process_ok_codepoint(tc, &state);
+                        if (state.cur_codepoint >= min_expected_codepoint)
+                            process_ok_codepoint(tc, &state);
+                        else
+                            process_bad_bytes(tc, &state);
                         state.expecting = EXPECT_START;
                     }
                 }
@@ -414,6 +421,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
     MVMint32 last_accept_pos = ds->bytes_head_pos;
     DecodeState state;
     int expected_continuations = 0;
+    int min_expected_codepoint;
     MVMuint32 reached_stopper = 0;
     MVMint32 result_graphs = 0;
 
@@ -476,20 +484,23 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
                         process_ok_codepoint(tc, &state);
                         maybe_new_graph = 1;
                     }
-                    else if ((decode_byte & 0xE0) == 0xC0 && (decode_byte & 0x1F)) {
+                    else if ((decode_byte & 0xE0) == 0xC0) {
                         state.cur_codepoint = decode_byte & 0x1F;
                         state.expecting = EXPECT_CONTINUATION;
                         expected_continuations = 1;
+                        min_expected_codepoint = 0x80;
                     }
-                    else if ((decode_byte & 0xF0) == 0xE0 && (decode_byte & 0x0F)) {
+                    else if ((decode_byte & 0xF0) == 0xE0) {
                         state.cur_codepoint = decode_byte & 0x0F;
                         state.expecting = EXPECT_CONTINUATION;
                         expected_continuations = 2;
+                        min_expected_codepoint = 0x800;
                     }
-                    else if ((decode_byte & 0xF8) == 0xF0 && (decode_byte & 0x07)) {
+                    else if ((decode_byte & 0xF8) == 0xF0) {
                         state.cur_codepoint = decode_byte & 0x07;
                         state.expecting = EXPECT_CONTINUATION;
                         expected_continuations = 3;
+                        min_expected_codepoint = 0x10000;
                     }
                     else {
                         /* Invalid byte sequence. */
@@ -498,12 +509,15 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
                     }
                     break;
                 case EXPECT_CONTINUATION:
-                    if ((decode_byte & 0xC0) == 0x80 && (decode_byte & 0x3F)) {
+                    if ((decode_byte & 0xC0) == 0x80) {
                         state.cur_codepoint = (state.cur_codepoint << 6)
                                               | (decode_byte & 0x3F);
                         expected_continuations--;
                         if (expected_continuations == 0) {
-                            process_ok_codepoint(tc, &state);
+                            if (state.cur_codepoint >= min_expected_codepoint)
+                                process_ok_codepoint(tc, &state);
+                            else
+                                process_bad_bytes(tc, &state);
                             maybe_new_graph = 1;
                             state.expecting = EXPECT_START;
                         }
