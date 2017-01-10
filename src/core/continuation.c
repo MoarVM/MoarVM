@@ -54,7 +54,6 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     });
     });
     while (jump_frame) {
-        jump_frame->in_continuation = 1;
         tag_record = jump_frame->continuation_tags;
         while (tag_record) {
             if (MVM_is_null(tc, tag) || tag_record->tag == tag)
@@ -135,7 +134,9 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 
 void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
                              MVMObject *code, MVMRegister *res_reg) {
-    MVMFrame *orig_caller;
+    /* Ensure we are the only invoker of the continuation. */
+    if (!MVM_trycas(&(cont->body.invoked), 0, 1))
+        MVM_exception_throw_adhoc(tc, "This continuation has already been invoked");
 
     /* Switch caller of the root to current invoker. */
     MVMROOT(tc, cont, {
@@ -143,7 +144,6 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
         MVM_frame_force_to_heap(tc, tc->cur_frame);
     });
     });
-    orig_caller = cont->body.root->caller;
     MVM_ASSIGN_REF(tc, &(cont->common.header), cont->body.root->caller, tc->cur_frame);
 
     /* Set up current frame to receive result. */
@@ -188,42 +188,6 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
         MVM_args_setup_thunk(tc, cont->body.res_reg, MVM_RETURN_OBJ, null_args_callsite);
         STABLE(code)->invoke(tc, code, null_args_callsite, tc->cur_frame->args);
     }
-}
-
-MVMContinuation * MVM_continuation_clone(MVMThreadContext *tc, MVMContinuation *cont) {
-    MVMContinuation *result;
-    MVMFrame *cur_to_clone = NULL;
-    MVMFrame *last_clone   = NULL;
-    MVMFrame *cloned_top   = NULL;
-    MVMFrame *cloned_root  = NULL;
-
-    /* Allocate resulting continuation. We do this before cloning frames, as
-     * doing it after could cause them to contain stale memory addresses. */
-    MVMROOT(tc, cont, {
-        result = (MVMContinuation *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContinuation);
-    });
-
-    /* Clone all the frames. */
-    cur_to_clone = cont->body.top;
-    while (!cloned_root) {
-        MVMFrame *clone = MVM_frame_clone(tc, cur_to_clone);
-        if (!cloned_top)
-            cloned_top = clone;
-        if (cur_to_clone == cont->body.root)
-            cloned_root = clone;
-        if (last_clone)
-            last_clone->caller = clone;
-        last_clone   = clone;
-        cur_to_clone = cur_to_clone->caller;
-    }
-
-    /* Set up the new continuation. */
-    result->body.top     = cloned_top;
-    result->body.addr    = cont->body.addr;
-    result->body.res_reg = cont->body.res_reg;
-    result->body.root    = cloned_root;
-
-    return result;
 }
 
 void MVM_continuation_free_tags(MVMThreadContext *tc, MVMFrame *f) {

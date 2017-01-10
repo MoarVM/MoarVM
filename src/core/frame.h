@@ -48,9 +48,6 @@ struct MVMFrame {
     /* Commonalities that all collectable entities have. */
     MVMCollectable header;
 
-    /* The thread that is executing, or executed, this frame. */
-    MVMThreadContext *tc;
-
     /* The environment for this frame, which lives beyond its execution.
      * Has space for, for instance, lexicals. */
     MVMRegister *env;
@@ -139,10 +136,6 @@ struct MVMFrame {
     MVMuint16 allocd_work;
     MVMuint16 allocd_env;
 
-    /* Flags that the frame has been captured in a continuation, and as
-     * such we should keep everything in place for multiple invocations. */
-    MVMuint8 in_continuation;
-
     /* Assorted frame flags. */
     MVMuint8 flags;
 
@@ -220,4 +213,3 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
 MVM_PUBLIC MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs);
 MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs, MVMRegister *args);
 MVM_PUBLIC MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f);
-MVMFrame * MVM_frame_clone(MVMThreadContext *tc, MVMFrame *f);

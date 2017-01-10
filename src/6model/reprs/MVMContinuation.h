@@ -15,6 +15,12 @@ struct MVMContinuationBody {
     /* Active exception handler(s) to restore. */
     MVMActiveHandler *active_handlers;
 
+    /* Flag to check we never invoke this continuation more than once (we rely
+     * on continuations being one-shot, for example to know ->work can really
+     * be cleared safely and that we'll never be running the same continuation
+     * re-invocation on two threads at once). */
+    AO_t invoked;
+
     /* If we're profiling, then data needed to cope with the continuation
      * being invoked again. */
     MVMProfileContinuationData *prof_cont;
