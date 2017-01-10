@@ -81,36 +81,27 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in,
     ((MVMArray *)out)->body.start     = 0;
     ((MVMArray *)out)->body.elems     = result_pos;
 }
-
-/* Takes an object, which must be of VMArray representation and holding
- * 32-bit integers. Treats them as Unicode codepoints, normalizes them at
- * Grapheme level, and returns the resulting NFG string. */
-MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, const MVMObject *codes) {
+MVMString * MVM_unicode_codepoints_c_array_to_nfg_string(MVMThreadContext *tc, MVMCodepoint * cp_v, MVMint64 cp_count) {
     MVMNormalizer  norm;
-    MVMCodepoint  *input;
+    MVMint64       input_pos, result_pos, result_alloc;
     MVMGrapheme32 *result;
-    MVMint64       input_pos, input_codes, result_pos, result_alloc;
     MVMint32       ready;
     MVMString     *str;
 
-    /* Get input array; if it's empty, we're done already. */
-    assert_codepoint_array(tc, codes, "Code points to string input must be native array of 32-bit integers");
-    input       = (MVMCodepoint *)((MVMArray *)codes)->body.slots.u32 + ((MVMArray *)codes)->body.start;
-    input_codes = ((MVMArray *)codes)->body.elems;
-    if (input_codes == 0)
+    if (cp_count == 0)
         return tc->instance->str_consts.empty;
 
-    /* Guess output size based on input size. */
-    result_alloc = input_codes;
+    /* Guess output size based on cp_v size. */
+    result_alloc = cp_count;
     result       = MVM_malloc(result_alloc * sizeof(MVMCodepoint));
 
     /* Perform normalization at grapheme level. */
     MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
     input_pos  = 0;
     result_pos = 0;
-    while (input_pos < input_codes) {
+    while (input_pos < cp_count) {
         MVMGrapheme32 g;
-        ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, input[input_pos], &g);
+        ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, cp_v[input_pos], &g);
         if (ready) {
             maybe_grow_result(&result, &result_alloc, result_pos + ready);
             result[result_pos++] = g;
@@ -132,6 +123,20 @@ MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, const MVM
     str->body.storage_type    = MVM_STRING_GRAPHEME_32;
     str->body.num_graphs      = result_pos;
     return str;
+}
+
+/* Takes an object, which must be of VMArray representation and holding
+ * 32-bit integers. Treats them as Unicode codepoints, normalizes them at
+ * Grapheme level, and returns the resulting NFG string. */
+MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, const MVMObject *codes) {
+    MVMCodepoint  *input;
+    MVMint64       input_codes;
+
+    assert_codepoint_array(tc, codes, "Code points to string input must be native array of 32-bit integers");
+
+    input       = (MVMCodepoint *)((MVMArray *)codes)->body.slots.u32 + ((MVMArray *)codes)->body.start;
+    input_codes = ((MVMArray *)codes)->body.elems;
+    return MVM_unicode_codepoints_c_array_to_nfg_string(tc, input, input_codes);
 }
 
 /* Takes an NFG string and populates the array out, which must be a 32-bit

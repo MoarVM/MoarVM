@@ -167,6 +167,7 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in,
 /* High-level function to produces an NFG string from an input array of
  * codepoints. */
 MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc,const MVMObject *codes);
+MVMString * MVM_unicode_codepoints_c_array_to_nfg_string(MVMThreadContext *tc, MVMCodepoint * cp_v, MVMint64 cp_count);
 
 /* High-level function to produce an array of codepoints from a string. */
 void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNormalization form, MVMObject *out);
