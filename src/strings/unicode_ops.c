@@ -234,6 +234,7 @@ MVMuint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint codepoi
 
 /* XXX make all the statics members of the global MVM instance instead? */
 static MVMUnicodeNameRegistry *property_codes_by_names_aliases;
+static MVMUnicodeNameRegistry *property_codes_by_seq_names;
 
 static void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_property_keypairs;
@@ -243,6 +244,17 @@ static void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
         entry->name = (char *)unicode_property_keypairs[num_names].name;
         entry->codepoint = unicode_property_keypairs[num_names].value;
         HASH_ADD_KEYPTR(hash_handle, property_codes_by_names_aliases,
+            entry->name, strlen(entry->name), entry);
+    }
+}
+static void generate_property_codes_by_seq_names(MVMThreadContext *tc) {
+    MVMuint32 num_names = num_unicode_seq_keypairs;
+
+    while (num_names--) {
+        MVMUnicodeGraphemeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeGraphemeNameRegistry));
+        entry->name = (char *)uni_seq_pairs[num_names].name;
+        entry->structindex = uni_seq_pairs[num_names].value;
+        HASH_ADD_KEYPTR(hash_handle, property_codes_by_seq_names,
             entry->name, strlen(entry->name), entry);
     }
 }
@@ -399,4 +411,35 @@ void MVM_unicode_release(MVMThreadContext *tc)
         unicode_property_values_hashes = NULL;
     }
     uv_mutex_unlock(&property_hash_count_mutex);
+}
+/* Looks up a grapheme by name. Lazily constructs a hash. */
+MVMString * MVM_unicode_string_from_name(MVMThreadContext *tc, MVMString *name) {
+    MVMuint64 size;
+    char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
+    MVMUnicodeGraphemeNameRegistry *result;
+
+    MVMGrapheme32 result_graph;
+    const MVMint32 * uni_seq;
+    int array_size;
+
+    result_graph = MVM_unicode_lookup_by_name(tc, name);
+    /* If it's just a codepoint, return that */
+    if (result_graph >= 0) {
+        MVM_free(cname);
+        return MVM_string_chr(tc, result_graph);
+    }
+    if (!property_codes_by_seq_names) {
+        generate_property_codes_by_seq_names(tc);
+    }
+    HASH_FIND(hash_handle, property_codes_by_seq_names, cname, strlen((const char *)cname), result);
+    MVM_free(cname);
+    /* If we can't find a result return an empty string */
+    if (!result)
+        return tc->instance->str_consts.empty;
+
+    uni_seq = uni_seq_enum[result->structindex];
+    /* The first element is the number of codepoints in the sequence */
+    array_size = uni_seq[0];
+    return MVM_unicode_codepoints_c_array_to_nfg_string(tc, (MVMCodepoint *) uni_seq + 1, array_size);
+
 }

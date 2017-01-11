@@ -21,15 +21,16 @@ if ! so "./UCD.zip".IO.f {
     unzip-file("UCD.zip");
 }
 else {
-if ! so "UCA".IO.d {
-    say "Creating the UCA directory";
-    mkdir "UCA";
-}
-if ! so "./UCA/allkeys.txt".IO.f {
-    say "Downloading allkeys.txt from $UCA-all-keys";
-    chdir "UCA".IO;
-    download-file($UCA-all-keys, "allkeys.txt");
-    chdir '..';
+    if ! so "UCA".IO.d {
+        say "Creating the UCA directory";
+        mkdir "UCA";
+    }
+    if ! so "./UCA/allkeys.txt".IO.f {
+        say "Downloading allkeys.txt from $UCA-all-keys";
+        chdir "UCA".IO;
+        download-file($UCA-all-keys, "allkeys.txt");
+        chdir '..';
+    }
 }
 my $emoji-dir = "ftp://ftp.unicode.org/Public/emoji/";
 my @emoji-vers;
@@ -46,11 +47,14 @@ for @emoji-vers.sort.reverse -> $version {
     }
     else {
         say "Found version $version. Don't see /:i draft|PRELIMINARY/ in the text.";
-        my $emoji-data = "ftp://ftp.unicode.org/Public/emoji/$version/emoji-data.txt";
+        my $emoji-data = "ftp://ftp.unicode.org/Public/emoji/$version/";
         say $emoji-data;
         mkdir "emoji";
         chdir "emoji";
-        download-file($emoji-data, "emoji-data.txt");
+        download-file("$emoji-data/ReadMe.txt", "ReadMe.txt");
+        download-file("$emoji-data/emoji-data.txt", "emoji-data.txt");
+        download-file("$emoji-data/emoji-sequences.txt", "emoji-sequences.txt");
+        download-file("$emoji-data/emoji-zwj-sequences.txt", "emoji-zwj-sequences.txt");
         chdir "..";
         last;
     }
