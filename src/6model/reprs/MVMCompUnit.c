@@ -94,7 +94,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVM_fixed_size_free(tc, tc->instance->fsa,
             body->num_extops * sizeof(MVMExtOpRecord),
             body->extops);
-    MVM_free(body->strings);
+    if (body->strings)
+        MVM_fixed_size_free(tc, tc->instance->fsa,
+            body->num_strings * sizeof(MVMString *),
+            body->strings);
     MVM_free(body->scs);
     MVM_free(body->scs_to_resolve);
     MVM_free(body->sc_handle_idxs);

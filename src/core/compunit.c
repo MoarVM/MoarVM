@@ -145,10 +145,16 @@ MVMuint32 MVM_cu_string_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMString *st
         }
     if (!found) {
         /* Not known; let's add it. */
+        size_t orig_size = cu->body.num_strings * sizeof(MVMString *);
+        size_t new_size = (cu->body.num_strings + 1) * sizeof(MVMString *);
+        MVMString **new_strings = MVM_fixed_size_alloc(tc, tc->instance->fsa, new_size);
+        memcpy(new_strings, cu->body.strings, orig_size);
         idx = cu->body.num_strings;
-        cu->body.strings = MVM_realloc(cu->body.strings,
-            (idx + 1) * sizeof(MVMString *));
-        cu->body.strings[idx] = str;
+        new_strings[idx] = str;
+        if (cu->body.strings)
+            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, orig_size,
+                cu->body.strings);
+        cu->body.strings = new_strings;
         cu->body.num_strings++;
     }
 

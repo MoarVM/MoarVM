@@ -854,7 +854,8 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs = dissect_bytecode(tc, cu);
 
     /* Allocate space for the strings heap; we deserialize it lazily. */
-    cu_body->strings = MVM_calloc(rs->expected_strings, sizeof(MVMString *));
+    cu_body->strings = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+        rs->expected_strings * sizeof(MVMString *));
     cu_body->num_strings = rs->expected_strings;
     cu_body->orig_strings = rs->expected_strings;
     cu_body->string_heap_fast_table = MVM_calloc(
