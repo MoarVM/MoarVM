@@ -983,6 +983,11 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
         }
     }
     entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
+    entry->name = "LINE FEED";
+    entry->codepoint = 10;
+    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "LINE FEED", 9, entry);
+
+    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
     entry->name = "LF";
     entry->codepoint = 10;
     HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "LF", 2, entry);
@@ -993,14 +998,29 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
     HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "FF", 2, entry);
 
     entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
+    entry->name = "FORM FEED";
+    entry->codepoint = 12;
+    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "FORM FEED", 9, entry);
+
+    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
     entry->name = "CR";
     entry->codepoint = 13;
     HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "CR", 2, entry);
 
     entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
+    entry->name = "CARRIAGE RETURN";
+    entry->codepoint = 13;
+    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "CARRIAGE RETURN", 15, entry);
+
+    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
     entry->name = "NEL";
     entry->codepoint = 133;
     HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "NEL", 3, entry);
+
+    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
+    entry->name = "NEXT LINE";
+    entry->codepoint = 133;
+    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "NEXT LINE", 9, entry);
 
 }
 END
