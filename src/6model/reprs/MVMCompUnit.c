@@ -86,7 +86,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     uv_mutex_destroy(body->inline_tweak_mutex);
     MVM_free(body->inline_tweak_mutex);
     MVM_free(body->coderefs);
-    MVM_free(body->callsites);
+    if (body->callsites)
+        MVM_fixed_size_free(tc, tc->instance->fsa,
+            body->num_callsites * sizeof(MVMCallsite *),
+            body->callsites);
     if (body->extops)
         MVM_fixed_size_free(tc, tc->instance->fsa,
             body->num_extops * sizeof(MVMExtOpRecord),

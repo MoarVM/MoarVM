@@ -726,7 +726,8 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     /* Allocate space for callsites. */
     if (rs->expected_callsites == 0)
         return NULL;
-    callsites = MVM_malloc(sizeof(MVMCallsite *) * rs->expected_callsites);
+    callsites = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+        sizeof(MVMCallsite *) * rs->expected_callsites);
 
     /* Load callsites. */
     pos = rs->callsite_seg;

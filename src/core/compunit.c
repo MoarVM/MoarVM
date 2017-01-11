@@ -111,10 +111,16 @@ MVMuint16 MVM_cu_callsite_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMCallsite
         }
     if (!found) {
         /* Not known; let's add it. */
+        size_t orig_size = cu->body.num_callsites * sizeof(MVMCallsite *);
+        size_t new_size = (cu->body.num_callsites + 1) * sizeof(MVMCallsite *);
+        MVMCallsite **new_callsites = MVM_fixed_size_alloc(tc, tc->instance->fsa, new_size);
+        memcpy(new_callsites, cu->body.callsites, orig_size);
         idx = cu->body.num_callsites;
-        cu->body.callsites = MVM_realloc(cu->body.callsites,
-            (idx + 1) * sizeof(MVMCallsite *));
-        cu->body.callsites[idx] = MVM_callsite_copy(tc, cs);
+        new_callsites[idx] = MVM_callsite_copy(tc, cs);
+        if (cu->body.callsites)
+            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, orig_size,
+                cu->body.callsites);
+        cu->body.callsites = new_callsites;
         cu->body.num_callsites++;
     }
 
