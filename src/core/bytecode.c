@@ -582,11 +582,11 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         return;
 
     /* Acquire the update mutex on the CompUnit. */
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
 
     /* Ensure no other thread has done this for us in the mean time. */
     if (sf->body.fully_deserialized) {
-        MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+        MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
         return;
     }
 
@@ -667,7 +667,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         MVMuint16 flags   = read_int16(pos, 2);
 
         if (lex_idx >= sf->body.num_lexicals) {
-            MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+            MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
             MVM_exception_throw_adhoc(tc, "Lexical index out of bounds: %d > %d", lex_idx, sf->body.num_lexicals);
         }
 
@@ -677,7 +677,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
              * can wait. */
             MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, read_int32(pos, 4));
             if (sc == NULL) {
-                MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+                MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
                 MVM_exception_throw_adhoc(tc, "SC not yet resolved; lookup failed");
             }
             MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[lex_idx].o,
@@ -690,7 +690,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
     sf->body.fully_deserialized = 1;
 
     /* Release the update mutex again */
-    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
 }
 
 /* Gets the SC reference for a given static lexical var for

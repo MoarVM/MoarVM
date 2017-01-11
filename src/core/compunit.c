@@ -101,7 +101,7 @@ MVMuint16 MVM_cu_callsite_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMCallsite
     MVMuint16 found = 0;
     MVMuint16 idx;
 
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+    uv_mutex_lock(cu->body.inline_tweak_mutex);
 
     /* See if we already know this callsite. */
     for (idx = 0; idx < cu->body.num_callsites; idx++)
@@ -118,7 +118,7 @@ MVMuint16 MVM_cu_callsite_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMCallsite
         cu->body.num_callsites++;
     }
 
-    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+    uv_mutex_unlock(cu->body.inline_tweak_mutex);
 
     return idx;
 }
@@ -128,7 +128,7 @@ MVMuint32 MVM_cu_string_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMString *st
     MVMuint32 found = 0;
     MVMuint32 idx;
 
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+    uv_mutex_lock(cu->body.inline_tweak_mutex);
 
     /* See if we already know this string; only consider those added already by
      * inline, since we don't intern and don't want this to be costly to hunt. */
@@ -146,7 +146,7 @@ MVMuint32 MVM_cu_string_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMString *st
         cu->body.num_strings++;
     }
 
-    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+    uv_mutex_unlock(cu->body.inline_tweak_mutex);
 
     return idx;
 }

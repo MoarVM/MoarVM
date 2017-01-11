@@ -6,14 +6,14 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
     MVMExtOpRecord *extops;
     MVMuint16 i, num_extops;
 
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)target_cu->body.update_mutex);
+    uv_mutex_lock(target_cu->body.inline_tweak_mutex);
 
     /* See if the target compunit already has the extop. */
     extops     = target_cu->body.extops;
     num_extops = target_cu->body.num_extops;
     for (i = 0; i < num_extops; i++)
         if (extops[i].info == info) {
-            MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)target_cu->body.update_mutex);
+            uv_mutex_unlock(target_cu->body.inline_tweak_mutex);
             return;
         }
 
@@ -29,13 +29,13 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
             memcpy(&target_cu->body.extops[target_cu->body.num_extops],
                 &extops[i], sizeof(MVMExtOpRecord));
             target_cu->body.num_extops++;
-            MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)target_cu->body.update_mutex);
+            uv_mutex_unlock(target_cu->body.inline_tweak_mutex);
             return;
         }
     }
 
     /* Didn't find it; should be impossible. */
-    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)target_cu->body.update_mutex);
+    uv_mutex_unlock(target_cu->body.inline_tweak_mutex);
     MVM_oops(tc, "Spesh: inline failed to find source CU extop entry");
 }
 
