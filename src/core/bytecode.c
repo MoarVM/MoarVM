@@ -313,7 +313,8 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
     if (num == 0)
         return NULL;
 
-    extops = MVM_calloc(num, sizeof *extops);
+    extops = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+        num * sizeof(MVMExtOpRecord));
 
     pos = rs->extop_seg;
     for (i = 0; i < num; i++) {
