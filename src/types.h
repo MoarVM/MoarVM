@@ -189,6 +189,7 @@ typedef struct MVMThreadBody MVMThreadBody;
 typedef struct MVMThreadContext MVMThreadContext;
 typedef struct MVMUnicodeNamedValue MVMUnicodeNamedValue;
 typedef struct MVMUnicodeNameRegistry MVMUnicodeNameRegistry;
+typedef struct MVMUnicodeGraphemeNameRegistry MVMUnicodeGraphemeNameRegistry;
 typedef struct MVMUninstantiable MVMUninstantiable;
 typedef struct MVMWorkThread MVMWorkThread;
 typedef struct MVMIOOps MVMIOOps;
