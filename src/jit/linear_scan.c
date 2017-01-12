@@ -25,6 +25,7 @@ typedef struct {
     MVMint32 idx;
 } UnionFind;
 
+
 #ifdef MVM_JIT_DEBUG
 #define _DEBUG(...) fprintf(stderr, __VA_ARGS__)
 #else
@@ -38,10 +39,6 @@ struct ValueRef {
     MVMint32  value_idx;
     ValueRef *next;
 };
-
-static inline MVMint32 is_def(ValueRef *v) {
-    return (v->value_idx == 0);
-}
 
 typedef struct {
     /* double-ended queue of value refs */
@@ -95,17 +92,27 @@ typedef struct {
 } RegisterAllocator;
 
 
+/* For first/last ref comparison, the tile indexes are doubled, and the indexes
+ * of synthetics are biased with +1/-1. We use this extra space on the number
+ * line to ensure consistent ordering and expiring behavior for 'synthetic' live
+ * ranges that either start before an instruction (loading a required value) or
+ * end just after one (storing the produced value). Without this, ordering
+ * problems can cause two 'atomic' live ranges to be allocated and expired
+ * before their actual last use */
+static inline MVMint32 order_nr(MVMint32 tile_idx) {
+    return tile_idx * 2;
+}
 
 /* quick accessors for common checks */
 static inline MVMint32 first_ref(LiveRange *r) {
-    MVMint32 a = r->first == NULL        ? INT32_MAX : r->first->tile_idx;
-    MVMint32 b = r->synthetic[0] == NULL ? INT32_MAX : r->synth_pos[0];
+    MVMint32 a = r->first == NULL        ? INT32_MAX : order_nr(r->first->tile_idx);
+    MVMint32 b = r->synthetic[0] == NULL ? INT32_MAX : order_nr(r->synth_pos[0]) - 1;
     return MIN(a,b);
 }
 
 static inline MVMint32 last_ref(LiveRange *r) {
-    MVMint32 a = r->last == NULL         ? -1 : r->last->tile_idx;
-    MVMint32 b = r->synthetic[1] == NULL ? -1 : r->synth_pos[1];
+    MVMint32 a = r->last == NULL         ? -1 : order_nr(r->last->tile_idx);
+    MVMint32 b = r->synthetic[1] == NULL ? -1 : order_nr(r->synth_pos[1]) + 1;
     return MAX(a,b);
 }
 
@@ -209,10 +216,14 @@ MVMint32 value_set_union(UnionFind *sets, LiveRange *values, MVMint32 a, MVMint3
     /* dereference the sets to their roots */
     a = value_set_find(sets, a)->key;
     b = value_set_find(sets, b)->key;
-
+    if (a == b) {
+        /* secretly the same set anyway, could happen in some combinations of
+         * IF, COPY, and DO. */
+        return a;
+    }
     if (first_ref(values + sets[b].idx) < first_ref(values + sets[a].idx)) {
         /* ensure we're picking the first one to start so that we maintain the
-         * heap order */
+         * first-definition heap order */
         MVMint32 t = a; a = b; b = t;
     }
     sets[b].key = a; /* point b to a */
@@ -475,12 +486,12 @@ static void spill_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitT
             synth = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_load, -1, 1, spill_pos);
             range->synthetic[0] = synth;
             /* decrement insert_pos and assign to synth_pos so that it is properly ordered */
-            range->synth_pos[0] = --insert_pos;
+            range->synth_pos[0] = insert_pos--;
         }
         synth->args[1] = insert_pos;
         MVM_jit_tile_list_insert(tc, list, synth, insert_pos, insert_order);
 
-        if (head->tile_idx < code_position) {
+        if (order_nr(head->tile_idx) < code_position) {
             /* in the past, which means we can safely use the spilled register
              * and immediately retire this live range */
             if (is_definition(head)) {
@@ -504,13 +515,7 @@ static void spill_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitT
     }
     alc->values[v].spill_pos = spill_pos;
     free_register(tc, alc, MVM_JIT_STORAGE_GPR, reg_spilled);
-    if (0) {
-        /* let's add a temporary breakpoint */
-        MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_breakpoint, -1, 0);
-        MVM_jit_tile_list_insert(tc, list, tile, code_position, 0);
-    }
     MVM_VECTOR_PUSH(alc->spilled, v);
-
 }
 
 static void split_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 which, MVMint32 from, MVMint32 to) {
