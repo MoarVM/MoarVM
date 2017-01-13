@@ -627,8 +627,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         MVM_exception_throw_adhoc(tc, "Type %s is already composed", st->debug_name);
 
     /* Allocate the representation data. */
-    repr_data = MVM_malloc(sizeof(MVMP6opaqueREPRData));
-    memset(repr_data, 0, sizeof(MVMP6opaqueREPRData));
+    repr_data = (MVMP6opaqueREPRData *)MVM_calloc(1, sizeof(MVMP6opaqueREPRData));
 
     /* Find attribute information. */
     info = MVM_repr_at_key_o(tc, info_hash, str_attribute);
@@ -665,17 +664,14 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     repr_data->num_attributes = total_attrs;
     if (total_attrs) {
         repr_data->attribute_offsets   = MVM_malloc(total_attrs * sizeof(MVMuint16));
-        repr_data->flattened_stables   = MVM_malloc(total_attrs * sizeof(MVMSTable *));
-        repr_data->auto_viv_values     = MVM_malloc(total_attrs * sizeof(MVMObject *));
+        repr_data->flattened_stables   = (MVMSTable **)MVM_calloc(total_attrs, sizeof(MVMSTable *));
+        repr_data->auto_viv_values     = (MVMObject **)MVM_calloc(total_attrs, sizeof(MVMObject *));
         repr_data->gc_obj_mark_offsets = MVM_malloc(total_attrs * sizeof(MVMuint16));
-        memset(repr_data->flattened_stables, 0, total_attrs * sizeof(MVMSTable *));
-        memset(repr_data->auto_viv_values, 0, total_attrs * sizeof(MVMObject *));
     }
-    repr_data->name_to_index_mapping = MVM_malloc((mro_count + 1) * sizeof(MVMP6opaqueNameMap));
+    repr_data->name_to_index_mapping = (MVMP6opaqueNameMap *)MVM_calloc((mro_count + 1), sizeof(MVMP6opaqueNameMap));
     repr_data->initialize_slots      = MVM_malloc((total_attrs + 1) * sizeof(MVMuint16));
     repr_data->gc_mark_slots         = MVM_malloc((total_attrs + 1) * sizeof(MVMuint16));
     repr_data->gc_cleanup_slots      = MVM_malloc((total_attrs + 1) * sizeof(MVMuint16));
-    memset(repr_data->name_to_index_mapping, 0, (mro_count + 1) * sizeof(MVMP6opaqueNameMap));
 
     /* -1 indicates no unboxing or delegate possible for a type. */
     repr_data->unbox_int_slot = -1;

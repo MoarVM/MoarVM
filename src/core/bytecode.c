@@ -150,8 +150,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
         MVM_exception_throw_adhoc(tc, "Bytecode stream version too high");
 
     /* Allocate reader state. */
-    rs = MVM_malloc(sizeof(ReaderState));
-    memset(rs, 0, sizeof(ReaderState));
+    rs = (ReaderState *)MVM_calloc(1, sizeof(ReaderState));
     rs->version = version;
     rs->read_limit = cu_body->data_start + cu_body->data_size;
     cu->body.bytecode_version = version;
