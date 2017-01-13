@@ -29,6 +29,7 @@ my $binary_properties = {};
 my $first_point = undef;
 my $last_point = undef;
 my $aliases = {};
+my $alias_types = {};
 my $prop_names = {};
 my $named_sequences = {};
 my $bitfield_table = [];
@@ -60,6 +61,8 @@ sub main {
     add_unicode_sequence('emoji/emoji-sequences');
     add_unicode_sequence('emoji/emoji-zwj-sequences');
     gen_unicode_sequence_keypairs();
+    NameAliases();
+    gen_name_alias_keypairs();
     # Load all the things
     UnicodeData(
         derived_property('BidiClass', 'Bidi_Class', {}, 0),
@@ -100,7 +103,6 @@ sub main {
         'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1, 1);
     Jamo();
     LineBreak();
-    NameAliases();
     NamedSequences();
     binary_props('PropList');
     enumerated_property('Scripts', 'Script', { Unknown => 0 }, 1, 1);
@@ -940,6 +942,8 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
     MVMint32 extent_index = 0;
     MVMint32 codepoint = 0;
     MVMint32 codepoint_table_index = 0;
+    MVMint16 i = num_unicode_namealias_keypairs;
+
     MVMUnicodeNameRegistry *entry;
     for (; extent_index < MVM_NUM_UNICODE_EXTENTS; extent_index++) {
         MVMint32 length;
@@ -982,45 +986,13 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             }
         }
     }
-    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-    entry->name = "LINE FEED";
-    entry->codepoint = 10;
-    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "LINE FEED", 9, entry);
+    for (; i >= 0; i--) {
+        entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
+        entry->name = uni_namealias_pairs[i].name;
+        entry->codepoint =  uni_namealias_pairs[i].codepoint;
+        HASH_ADD_KEYPTR(hash_handle, codepoints_by_name,  uni_namealias_pairs[i].name,  uni_namealias_pairs[i].strlen, entry);
 
-    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-    entry->name = "LF";
-    entry->codepoint = 10;
-    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "LF", 2, entry);
-
-    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-    entry->name = "FF";
-    entry->codepoint = 12;
-    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "FF", 2, entry);
-
-    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-    entry->name = "FORM FEED";
-    entry->codepoint = 12;
-    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "FORM FEED", 9, entry);
-
-    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-    entry->name = "CR";
-    entry->codepoint = 13;
-    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "CR", 2, entry);
-
-    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-    entry->name = "CARRIAGE RETURN";
-    entry->codepoint = 13;
-    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "CARRIAGE RETURN", 15, entry);
-
-    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-    entry->name = "NEL";
-    entry->codepoint = 133;
-    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "NEL", 3, entry);
-
-    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-    entry->name = "NEXT LINE";
-    entry->codepoint = 133;
-    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "NEXT LINE", 9, entry);
+    }
 
 }
 END
@@ -1167,7 +1139,41 @@ sub gen_unicode_sequence_keypairs {
     $db_sections->{uni_seq} = $seq_c_hash_str . $string_seq . $enum_table;
     $hout .= "#define num_unicode_seq_keypairs " . $count ."\n";
 }
+sub gen_name_alias_keypairs {
+    my $count = 0;
+    my $seq_c_hash_str;
+    my @seq_c_hash_array;
+    for my $thing ( sort keys %$alias_types ) {
+        my $ord_data;
+        my $ord = $alias_types->{$thing}->{'code'};
+        $ord_data .= '0x' . uc sprintf("%x", $ord) . ',';
+        $seq_c_hash_str .= '{"' . $thing . '",' . $ord_data . (length $thing) . '},';
+        $ord_data =~ s/,$//;
+        my $type = $alias_types->{$thing}->{'type'};
+        $count++;
+        if ( length $seq_c_hash_str > 80 ) {
+            push @seq_c_hash_array, $seq_c_hash_str . "\n";
+            $seq_c_hash_str = '';
+        }
+    }
+    push @seq_c_hash_array, $seq_c_hash_str . "\n";
+    $seq_c_hash_str = join '    ', @seq_c_hash_array;
+    $seq_c_hash_str =~ s/\s*,\s*$//;
+    $seq_c_hash_str .= "\n};";
+    $seq_c_hash_str = "static const MVMUnicodeNamedAlias uni_namealias_pairs[$count] = {\n    " . $seq_c_hash_str;
 
+    $seq_c_hash_str = "/* Unicode Name Aliases */\n" . $seq_c_hash_str;
+    $db_sections->{Auni_namealias} = $seq_c_hash_str;
+    $hout .= "#define num_unicode_namealias_keypairs " . $count ."\n";
+    $hout .= <<'END'
+struct MVMUnicodeNamedAlias {
+    char *name;
+    MVMGrapheme32 codepoint;
+    MVMint16 strlen;
+};
+typedef struct MVMUnicodeNamedAlias MVMUnicodeNamedAlias;
+END
+}
 sub emit_unicode_property_value_keypairs {
     my @lines = ();
     my $property;
@@ -1483,10 +1489,13 @@ sub UnicodeData {
 
         my $code = hex $code_str;
         my $plane_num = $code >> 16;
-        if ($name eq '<control>' || $name eq '') {
-            $name = $u1name;
+        if ($name eq '<control>' ) {
+            $name = sprintf '<control-%.4X>', $code;
         }
         my $point = {
+            # Unicode_1_Name is not used yet. We should make sure it ends up
+            # in some data structure
+            Unicode_1_Name => $u1name,
             code_str => $code_str,
             name => $name,
             gencat_name => $gencat,
@@ -1823,8 +1832,10 @@ sub LineBreak {
 
 sub NameAliases {
     each_line('NameAliases', sub { $_ = shift;
-        my ($code_str, $name) = split /\s*[;#]\s*/;
+        my ($code_str, $name, $type) = split /\s*[;#]\s*/;
         $aliases->{$name} = hex $code_str;
+        $alias_types->{$name}->{'code'} = hex $code_str;
+        $alias_types->{$name}->{'type'} = $type;
     });
 }
 
