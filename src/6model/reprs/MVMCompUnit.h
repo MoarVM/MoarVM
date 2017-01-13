@@ -120,11 +120,16 @@ struct MVMCompUnitBody {
     /* Handle, if any, associated with a mapped file. */
     void *handle;
 
-    /* MVMReentrantLock to be taken if we want to add extra string,
-     * callsite, or coderef constants to the pools (done during
-     * inlining) or when we finish deserializing a frame, thus
-     * vivifying its lexicals. */
-    MVMObject *update_mutex;
+    /* Unmanaged (so not GC-aware) mutex taken if we want to add extra string,
+     * callsite, extop, or coderef constants to the pools. This is done in
+     * some cases of cross-compilation-unit inlining. We are never at risk of
+     * recursion on this mutex, and since spesh can never GC it's important we
+     * do not use a GC-aware mutex, which could trigger GC. */
+    uv_mutex_t *inline_tweak_mutex;
+
+    /* MVMReentrantLock to be taken when we want to finish deserializing a
+     * frame inside of the compilation unit. */
+    MVMObject *deserialize_frame_mutex;
 
     /* Version of the bytecode format we deserialized this comp unit from. */
     MVMuint16 bytecode_version;

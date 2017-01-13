@@ -27,7 +27,7 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
 
     /* Take compilation unit lock, to make sure we don't race to do the
      * frame preparation/verification work. */
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
     if (static_frame->body.instrumentation_level == 0) {
         /* Work size is number of locals/registers plus size of the maximum
         * call site argument list. */
@@ -64,7 +64,7 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
     }
 
     /* Unlock, now we're finished. */
-    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
 }
 
 /* When we don't match the current instrumentation level, we hit this. It may

@@ -312,7 +312,8 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
     if (num == 0)
         return NULL;
 
-    extops = MVM_calloc(num, sizeof *extops);
+    extops = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+        num * sizeof(MVMExtOpRecord));
 
     pos = rs->extop_seg;
     for (i = 0; i < num; i++) {
@@ -581,11 +582,11 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         return;
 
     /* Acquire the update mutex on the CompUnit. */
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
 
     /* Ensure no other thread has done this for us in the mean time. */
     if (sf->body.fully_deserialized) {
-        MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+        MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
         return;
     }
 
@@ -666,7 +667,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         MVMuint16 flags   = read_int16(pos, 2);
 
         if (lex_idx >= sf->body.num_lexicals) {
-            MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+            MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
             MVM_exception_throw_adhoc(tc, "Lexical index out of bounds: %d > %d", lex_idx, sf->body.num_lexicals);
         }
 
@@ -676,7 +677,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
              * can wait. */
             MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, read_int32(pos, 4));
             if (sc == NULL) {
-                MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+                MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
                 MVM_exception_throw_adhoc(tc, "SC not yet resolved; lookup failed");
             }
             MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[lex_idx].o,
@@ -689,7 +690,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
     sf->body.fully_deserialized = 1;
 
     /* Release the update mutex again */
-    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
 }
 
 /* Gets the SC reference for a given static lexical var for
@@ -724,7 +725,8 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     /* Allocate space for callsites. */
     if (rs->expected_callsites == 0)
         return NULL;
-    callsites = MVM_malloc(sizeof(MVMCallsite *) * rs->expected_callsites);
+    callsites = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+        sizeof(MVMCallsite *) * rs->expected_callsites);
 
     /* Load callsites. */
     pos = rs->callsite_seg;
@@ -851,7 +853,8 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs = dissect_bytecode(tc, cu);
 
     /* Allocate space for the strings heap; we deserialize it lazily. */
-    cu_body->strings = MVM_calloc(rs->expected_strings, sizeof(MVMString *));
+    cu_body->strings = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+        rs->expected_strings * sizeof(MVMString *));
     cu_body->num_strings = rs->expected_strings;
     cu_body->orig_strings = rs->expected_strings;
     cu_body->string_heap_fast_table = MVM_calloc(
