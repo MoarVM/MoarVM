@@ -604,8 +604,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         }
                         else {
                             /* Allocate storage for state vars. */
-                            state = MVM_malloc(frame->static_info->body.env_size);
-                            memset(state, 0, frame->static_info->body.env_size);
+                            state = (MVMRegister *)MVM_calloc(1, frame->static_info->body.env_size);
                             ((MVMCode *)frame->code_ref)->body.state_vars = state;
                             state_act = 1;
 

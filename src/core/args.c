@@ -105,8 +105,7 @@ MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
 
     /* Set up the call capture. */
     cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
-    cc->body.apc  = MVM_malloc(sizeof(MVMArgProcContext));
-    memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
+    cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
     MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
     return cc_obj;
 }
@@ -860,8 +859,7 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
 
     /* Set up the call capture. */
     cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
-    cc->body.apc  = MVM_malloc(sizeof(MVMArgProcContext));
-    memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
+    cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
     MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
 
     /* Invoke the HLL's bind failure handler. */
