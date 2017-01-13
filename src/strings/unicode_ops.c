@@ -107,11 +107,13 @@ MVMint64 MVM_unicode_string_compare
 MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
     char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
+    size_t cname_len = strlen((const char *) cname );
     MVMUnicodeNameRegistry *result;
     if (!codepoints_by_name) {
         generate_codepoints_by_name(tc);
     }
-    HASH_FIND(hash_handle, codepoints_by_name, cname, strlen((const char *)cname), result);
+    HASH_FIND(hash_handle, codepoints_by_name, cname, cname_len, result);
+
     MVM_free(cname);
     return result ? result->codepoint : -1;
 }
