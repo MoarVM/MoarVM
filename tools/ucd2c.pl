@@ -942,7 +942,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
     MVMint32 extent_index = 0;
     MVMint32 codepoint = 0;
     MVMint32 codepoint_table_index = 0;
-    MVMint16 i = num_unicode_namealias_keypairs;
+    MVMint16 i = num_unicode_namealias_keypairs - 1;
 
     MVMUnicodeNameRegistry *entry;
     for (; extent_index < MVM_NUM_UNICODE_EXTENTS; extent_index++) {
