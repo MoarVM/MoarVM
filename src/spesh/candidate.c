@@ -222,8 +222,14 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
             MVM_jit_graph_destroy(tc, jg);
         }
     }
+
     /* calculate work environment taking JIT spill area into account */
     calculate_work_env_sizes(tc, static_frame, candidate);
+
+    /* No longer need log slots. */
+    MVM_free(candidate->log_slots);
+    candidate->log_slots = NULL;
+
     /* Update spesh slots. */
     candidate->num_spesh_slots = sg->num_spesh_slots;
     candidate->spesh_slots     = sg->spesh_slots;

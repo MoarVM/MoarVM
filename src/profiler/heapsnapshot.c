@@ -183,7 +183,7 @@ static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
     return idx;
 }
 
-/* Gets the index of a frame, either returning an existing inde if we've seen
+/* Gets the index of a frame, either returning an existing index if we've seen
  * it before or adding it if not. */
 static MVMuint64 get_frame_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         MVMFrame *frame) {
@@ -482,7 +482,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
             case MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS: {
                 MVMThreadContext *thread_tc = (MVMThreadContext *)item.target;
                 MVM_gc_root_add_tc_roots_to_worklist(thread_tc, NULL, ss);
-                if (!MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame))
+                if (thread_tc->cur_frame && !MVM_FRAME_IS_ON_CALLSTACK(thread_tc, tc->cur_frame))
                     add_reference_const_cstr(tc, ss, "Current frame",
                         get_frame_idx(tc, ss, thread_tc->cur_frame));
                  break;

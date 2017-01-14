@@ -27,7 +27,7 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
 
     /* Take compilation unit lock, to make sure we don't race to do the
      * frame preparation/verification work. */
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
     if (static_frame->body.instrumentation_level == 0) {
         /* Work size is number of locals/registers plus size of the maximum
         * call site argument list. */
@@ -64,7 +64,7 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
     }
 
     /* Unlock, now we're finished. */
-    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.update_mutex);
+    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
 }
 
 /* When we don't match the current instrumentation level, we hit this. It may
@@ -88,7 +88,9 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
         MVM_profile_ensure_uninstrumented(tc, static_frame);
 }
 
-/* Destroys a frame. */
+/* Called when the GC destroys a frame. Since the frame may have been alive as
+ * part of a continuation that was taken but never invoked, we should check
+ * things normally cleaned up on return don't need cleaning up also. */
 void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame) {
     if (frame->work) {
         MVM_args_proc_cleanup(tc, &frame->params);
@@ -117,9 +119,6 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
         frame = MVM_gc_allocate_frame(tc);
     });
     });
-    
-    /* Copy thread context into the frame. */
-    frame->tc = tc;
 
     /* Set static frame. */
     MVM_ASSIGN_REF(tc, &(frame->header), frame->static_info, static_frame);
@@ -555,9 +554,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         frame->effective_handlers = static_frame->body.handlers;
     }
 
-    /* Copy thread context into the frame. */
-    frame->tc = tc;
-
     /* Set static frame. */
     frame->static_info = static_frame;
 
@@ -614,8 +610,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         }
                         else {
                             /* Allocate storage for state vars. */
-                            state = MVM_malloc(frame->static_info->body.env_size);
-                            memset(state, 0, frame->static_info->body.env_size);
+                            state = (MVMRegister *)MVM_calloc(1, frame->static_info->body.env_size);
                             ((MVMCode *)frame->code_ref)->body.state_vars = state;
                             state_act = 1;
 
@@ -748,7 +743,6 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
     });
     frame->effective_bytecode       = static_frame->body.bytecode;
     frame->effective_handlers       = static_frame->body.handlers;
-    frame->tc                       = tc;
     MVM_ASSIGN_REF(tc, &(frame->header), frame->static_info, static_frame);
     MVM_ASSIGN_REF(tc, &(frame->header), frame->code_ref, code_ref);
     MVM_ASSIGN_REF(tc, &(frame->header), frame->outer, code_ref->body.outer);
@@ -779,23 +773,15 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         }
     }
 
-    /* Some cleanup we only need do if we're not a frame involved in a
-     * continuation (otherwise we need to allow for multi-shot
-     * re-invocation). */
-    if (!returner->in_continuation) {
-        /* Arguments buffer no longer in use (saves GC visiting it). */
-        returner->cur_args_callsite = NULL;
+    /* Clear up any continuation tags. */
+    if (returner->continuation_tags)
+        MVM_continuation_free_tags(tc, returner);
 
-        /* Clear up argument processing leftovers, if any. */
-        if (returner->work)
-            MVM_args_proc_cleanup_for_cache(tc, &returner->params);
-
-        /* Clear up any continuation tags. */
-        if (returner->continuation_tags)
-            MVM_continuation_free_tags(tc, returner);
-
-        /* Signal to the GC to ignore ->work */
-        returner->tc = NULL;
+    /* Clean up frame working space. */
+    if (returner->work) {
+        MVM_args_proc_cleanup(tc, &returner->params);
+        MVM_fixed_size_free(tc, tc->instance->fsa, returner->allocd_work,
+            returner->work);
     }
 
     /* If it's a call stack frame, remove it from the stack. */
@@ -804,7 +790,17 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         stack->alloc = (char *)returner;
         if ((char *)stack->alloc - sizeof(MVMCallStackRegion) == (char *)stack)
             MVM_callstack_region_prev(tc);
-        MVM_frame_destroy(tc, returner);
+        if (returner->env)
+            MVM_fixed_size_free(tc, tc->instance->fsa, returner->allocd_env, returner->env);
+    }
+
+    /* Otherwise, NULL  out ->work, to indicate the frame is no longer in
+     * dynamic scope. This is used by the GC to avoid marking stuff (this is
+     * needed for safety as otherwise we'd read freed memory), as well as by
+     * exceptions to ensure the target of an exception throw is indeed still
+     * in dynamic scope. */
+    else {
+        returner->work = NULL;
     }
 
     /* Switch back to the caller frame if there is one. */
@@ -1779,33 +1775,4 @@ MVMObject * MVM_frame_context_wrapper(MVMThreadContext *tc, MVMFrame *f) {
         MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
     });
     return ctx;
-}
-
-/* Creates a shallow clone of a frame. Used by continuations. We rely on this
- * not allocating with the GC; update continuation clone code if it comes to
-  * do so. */
-MVMFrame * MVM_frame_clone(MVMThreadContext *tc, MVMFrame *f) {
-    /* First, just grab a copy of everything. */
-    MVMFrame *clone;
-    MVMROOT(tc, f, {
-        clone = MVM_gc_allocate_frame(tc);
-    });
-    memcpy(
-        (char *)clone + sizeof(MVMCollectable),
-        (char *)f + sizeof(MVMCollectable),
-        sizeof(MVMFrame) - sizeof(MVMCollectable));
-
-    /* Need fresh env and work. */
-    if (f->static_info->body.env_size) {
-        clone->env = MVM_fixed_size_alloc(tc, tc->instance->fsa, f->static_info->body.env_size);
-        clone->allocd_env = f->static_info->body.env_size;
-        memcpy(clone->env, f->env, f->static_info->body.env_size);
-    }
-    if (f->static_info->body.work_size) {
-        clone->work = MVM_malloc(f->static_info->body.work_size);
-        memcpy(clone->work, f->work, f->static_info->body.work_size);
-        clone->args = clone->work + f->static_info->body.num_locals;
-    }
-
-    return clone;
 }

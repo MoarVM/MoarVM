@@ -170,8 +170,8 @@ static void native_ref_fetch_i(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
     if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_INT)
         MVM_exception_throw_adhoc(tc, "This container does not reference a native integer");
     switch (repr_data->ref_kind) {
-        case MVM_NATIVEREF_REG_OR_LEX:
-            res->i64 = MVM_nativeref_read_reg_or_lex_i(tc, cont);
+        case MVM_NATIVEREF_LEX:
+            res->i64 = MVM_nativeref_read_lex_i(tc, cont);
             break;
         case MVM_NATIVEREF_ATTRIBUTE:
             res->i64 = MVM_nativeref_read_attribute_i(tc, cont);
@@ -192,8 +192,8 @@ static void native_ref_fetch_n(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
     if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_NUM)
         MVM_exception_throw_adhoc(tc, "This container does not reference a native number");
     switch (repr_data->ref_kind) {
-        case MVM_NATIVEREF_REG_OR_LEX:
-            res->n64 = MVM_nativeref_read_reg_or_lex_n(tc, cont);
+        case MVM_NATIVEREF_LEX:
+            res->n64 = MVM_nativeref_read_lex_n(tc, cont);
             break;
         case MVM_NATIVEREF_ATTRIBUTE:
             res->n64 = MVM_nativeref_read_attribute_n(tc, cont);
@@ -214,8 +214,8 @@ static void native_ref_fetch_s(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
     if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_STR)
         MVM_exception_throw_adhoc(tc, "This container does not reference a native string");
     switch (repr_data->ref_kind) {
-        case MVM_NATIVEREF_REG_OR_LEX:
-            res->s = MVM_nativeref_read_reg_or_lex_s(tc, cont);
+        case MVM_NATIVEREF_LEX:
+            res->s = MVM_nativeref_read_lex_s(tc, cont);
             break;
         case MVM_NATIVEREF_ATTRIBUTE:
             res->s = MVM_nativeref_read_attribute_s(tc, cont);
@@ -260,8 +260,8 @@ static void native_ref_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 v
     if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_INT)
         MVM_exception_throw_adhoc(tc, "This container does not reference a native integer");
     switch (repr_data->ref_kind) {
-        case MVM_NATIVEREF_REG_OR_LEX:
-            MVM_nativeref_write_reg_or_lex_i(tc, cont, value);
+        case MVM_NATIVEREF_LEX:
+            MVM_nativeref_write_lex_i(tc, cont, value);
             break;
         case MVM_NATIVEREF_ATTRIBUTE:
             MVM_nativeref_write_attribute_i(tc, cont, value);
@@ -282,8 +282,8 @@ static void native_ref_store_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 v
     if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_NUM)
         MVM_exception_throw_adhoc(tc, "This container does not reference a native number");
     switch (repr_data->ref_kind) {
-        case MVM_NATIVEREF_REG_OR_LEX:
-            MVM_nativeref_write_reg_or_lex_n(tc, cont, value);
+        case MVM_NATIVEREF_LEX:
+            MVM_nativeref_write_lex_n(tc, cont, value);
             break;
         case MVM_NATIVEREF_ATTRIBUTE:
             MVM_nativeref_write_attribute_n(tc, cont, value);
@@ -304,8 +304,8 @@ static void native_ref_store_s(MVMThreadContext *tc, MVMObject *cont, MVMString 
     if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_STR)
         MVM_exception_throw_adhoc(tc, "This container does not reference a native string");
     switch (repr_data->ref_kind) {
-        case MVM_NATIVEREF_REG_OR_LEX:
-            MVM_nativeref_write_reg_or_lex_s(tc, cont, value);
+        case MVM_NATIVEREF_LEX:
+            MVM_nativeref_write_lex_s(tc, cont, value);
             break;
         case MVM_NATIVEREF_ATTRIBUTE:
             MVM_nativeref_write_attribute_s(tc, cont, value);

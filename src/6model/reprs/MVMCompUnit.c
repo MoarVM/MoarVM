@@ -26,9 +26,12 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMROOT(tc, root, {
+    MVMCompUnit *cu = (MVMCompUnit *)root;
+    MVMROOT(tc, cu, {
         MVMObject *rm = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTReentrantMutex);
-        MVM_ASSIGN_REF(tc, &(root->header), ((MVMCompUnit *)root)->body.update_mutex, rm);
+        MVM_ASSIGN_REF(tc, &(root->header), cu->body.deserialize_frame_mutex, rm);
+        cu->body.inline_tweak_mutex = MVM_malloc(sizeof(uv_mutex_t));
+        uv_mutex_init(cu->body.inline_tweak_mutex);
     });
 }
 
@@ -62,7 +65,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         /* Unresolved sc bodies' handles are marked by the GC instance root marking. */
     }
 
-    MVM_gc_worklist_add(tc, worklist, &body->update_mutex);
+    MVM_gc_worklist_add(tc, worklist, &body->deserialize_frame_mutex);
 
     /* Add various other referenced strings, etc. */
     MVM_gc_worklist_add(tc, worklist, &body->hll_name);
@@ -72,22 +75,29 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCompUnitBody *body = &((MVMCompUnit *)obj)->body;
-    int i;
 
+    int i;
     for (i = 0; i < body->num_callsites; i++) {
         MVMCallsite *cs = body->callsites[i];
-
-        if (cs->is_interned) {
-            continue;
-        }
-
-        MVM_callsite_destroy(cs);
+        if (!cs->is_interned)
+            MVM_callsite_destroy(cs);
     }
 
+    uv_mutex_destroy(body->inline_tweak_mutex);
+    MVM_free(body->inline_tweak_mutex);
     MVM_free(body->coderefs);
-    MVM_free(body->callsites);
-    MVM_free(body->extops);
-    MVM_free(body->strings);
+    if (body->callsites)
+        MVM_fixed_size_free(tc, tc->instance->fsa,
+            body->num_callsites * sizeof(MVMCallsite *),
+            body->callsites);
+    if (body->extops)
+        MVM_fixed_size_free(tc, tc->instance->fsa,
+            body->num_extops * sizeof(MVMExtOpRecord),
+            body->extops);
+    if (body->strings)
+        MVM_fixed_size_free(tc, tc->instance->fsa,
+            body->num_strings * sizeof(MVMString *),
+            body->strings);
     MVM_free(body->scs);
     MVM_free(body->scs_to_resolve);
     MVM_free(body->sc_handle_idxs);
@@ -194,7 +204,7 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
             (MVMCollectable *)body->scs[i], "Serialization context dependency");
 
     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-        (MVMCollectable *)body->update_mutex, "Update_mutex");
+        (MVMCollectable *)body->deserialize_frame_mutex, "Update_mutex");
 
     /* Add various other referenced strings, etc. */
     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,

@@ -26,8 +26,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMRegister *args = MVM_malloc(arg_size);
     memcpy(args, src_body->apc->args, arg_size);
 
-    dest_body->apc = MVM_malloc(sizeof(MVMArgProcContext));
-    memset(dest_body->apc, 0, sizeof(MVMArgProcContext));
+    dest_body->apc = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
     dest_body->mode = MVM_CALL_CAPTURE_MODE_SAVE;
 
     if (src_body->owns_callsite) {

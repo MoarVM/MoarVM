@@ -1,4 +1,4 @@
-#!perl
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
@@ -756,7 +756,7 @@ sub write_backend_config {
     for my $k (sort keys %config) {
         next if $k eq 'backendconfig';
         my $v = $config{$k};
-        
+
         if (ref($v) eq 'ARRAY') {
             my $i = 0;
             for (@$v) {

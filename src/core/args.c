@@ -29,27 +29,16 @@ void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsit
     ctx->arg_flags = NULL; /* will be populated by flattener if needed */
 }
 
-/* Clean up an arguments processing context for cache. */
-void MVM_args_proc_cleanup_for_cache(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    if (ctx->arg_flags) {
-        /* Free the generated flags. */
-        MVM_free(ctx->arg_flags);
-        ctx->arg_flags = NULL;
-
-        /* Free the generated args buffer. */
-        MVM_free(ctx->args);
-        ctx->args = NULL;
-    }
-}
-
 /* Clean up an arguments processing context. */
 void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    MVM_args_proc_cleanup_for_cache(tc, ctx);
+    if (ctx->arg_flags) {
+        MVM_free(ctx->arg_flags);
+        MVM_free(ctx->args);
+    }
     if (ctx->named_used) {
         MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size,
             ctx->named_used);
         ctx->named_used = NULL;
-        ctx->named_used_size = 0;
     }
 }
 
@@ -116,8 +105,7 @@ MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
 
     /* Set up the call capture. */
     cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
-    cc->body.apc  = MVM_malloc(sizeof(MVMArgProcContext));
-    memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
+    cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
     MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
     return cc_obj;
 }
@@ -871,8 +859,7 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
 
     /* Set up the call capture. */
     cc->body.mode = MVM_CALL_CAPTURE_MODE_SAVE;
-    cc->body.apc  = MVM_malloc(sizeof(MVMArgProcContext));
-    memset(cc->body.apc, 0, sizeof(MVMArgProcContext));
+    cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
     MVM_args_proc_init(tc, cc->body.apc, cc->body.effective_callsite, args);
 
     /* Invoke the HLL's bind failure handler. */

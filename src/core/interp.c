@@ -1555,6 +1555,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
+            OP(getstrfromname):
+                GET_REG(cur_op, 0).s = MVM_unicode_string_from_name(tc,
+                    GET_REG(cur_op, 2).s);
+                cur_op += 4;
+                goto NEXT;
             OP(indexat):
                 /* branches on *failure* to match in the constant string, to save an instruction in regexes */
                 if (MVM_string_char_at_in_string(tc, GET_REG(cur_op, 0).s,
@@ -3892,16 +3897,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
-            OP(continuationclone): {
-                MVMObject *cont = GET_REG(cur_op, 2).o;
-                if (REPR(cont)->ID == MVM_REPR_ID_MVMContinuation)
-                    GET_REG(cur_op, 0).o = (MVMObject *)MVM_continuation_clone(tc,
-                        (MVMContinuation *)cont);
-                else
-                    MVM_exception_throw_adhoc(tc, "continuationclone expects an MVMContinuation");
-                cur_op += 4;
-                goto NEXT;
-            }
             OP(continuationreset): {
                 MVMRegister *res  = &GET_REG(cur_op, 0);
                 MVMObject   *tag  = GET_REG(cur_op, 2).o;
@@ -4492,21 +4487,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_6model_container_decont_s(tc, obj, r);
                 goto NEXT;
             }
-            OP(getregref_i):
-                GET_REG(cur_op, 0).o = MVM_nativeref_reg_i(tc,
-                    &GET_REG(cur_op, 2));
-                cur_op += 4;
-                goto NEXT;
-            OP(getregref_n):
-                GET_REG(cur_op, 0).o = MVM_nativeref_reg_n(tc,
-                    &GET_REG(cur_op, 2));
-                cur_op += 4;
-                goto NEXT;
-            OP(getregref_s):
-                GET_REG(cur_op, 0).o = MVM_nativeref_reg_s(tc,
-                    &GET_REG(cur_op, 2));
-                cur_op += 4;
-                goto NEXT;
             OP(getlexref_i):
                 GET_REG(cur_op, 0).o = MVM_nativeref_lex_i(tc,
                     GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
@@ -4882,18 +4862,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(getregref_i32):
-            OP(getregref_i16):
-            OP(getregref_i8):
-                GET_REG(cur_op, 0).o = MVM_nativeref_reg_i(tc,
-                    &GET_REG(cur_op, 2));
-                cur_op += 4;
-                goto NEXT;
-            OP(getregref_n32):
-                GET_REG(cur_op, 0).o = MVM_nativeref_reg_n(tc,
-                    &GET_REG(cur_op, 2));
-                cur_op += 4;
-                goto NEXT;
             OP(getlexref_i32):
             OP(getlexref_i16):
             OP(getlexref_i8):
@@ -4944,15 +4912,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_6model_container_decont_u(tc, obj, r);
                 goto NEXT;
             }
-            OP(getregref_u):
-            OP(getregref_u32):
-            OP(getregref_u16):
-            OP(getregref_u8):
-                /* XXX Cheat should have a _u here. */
-                GET_REG(cur_op, 0).o = MVM_nativeref_reg_i(tc,
-                    &GET_REG(cur_op, 2));
-                cur_op += 4;
-                goto NEXT;
             OP(getlexref_u):
             OP(getlexref_u32):
             OP(getlexref_u16):
@@ -5650,6 +5609,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_cross_thread_write_check(tc, obj, blame);
                 goto NEXT;
             }
+            OP(DEPRECATED_2):
+            OP(DEPRECATED_3):
+            OP(DEPRECATED_4):
+            OP(DEPRECATED_5):
+            OP(DEPRECATED_6):
+            OP(DEPRECATED_7):
+            OP(DEPRECATED_8):
+            OP(DEPRECATED_9):
+            OP(DEPRECATED_10):
+            OP(DEPRECATED_11):
+            OP(DEPRECATED_12):
+                MVM_exception_throw_adhoc(tc, "The getregref_* ops were removed in MoarVM 2017.01.");
+            OP(DEPRECATED_13):
+                MVM_exception_throw_adhoc(tc, "The continuationclone op was removed in MoarVM 2017.01.");
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

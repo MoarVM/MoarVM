@@ -294,6 +294,11 @@ static MVMint32 is_full_collection(MVMThreadContext *tc) {
     if (promoted < MVM_GC_GEN2_THRESHOLD_MINIMUM)
         return 0;
 
+    /* If we're heap profiling then don't consider the resident set size, as
+     * it will be hugely distorted by the profile data we record. */
+    if (MVM_profile_heap_profiling(tc))
+        return 1;
+
     /* Otherwise, consider percentage of resident set size. */
     if (uv_resident_set_memory(&rss) < 0 || rss == 0)
         rss = 50 * 1024 * 1024;

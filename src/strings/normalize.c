@@ -1,4 +1,9 @@
 #include "moar.h"
+#define UNI_CP_MALE_SIGN             0x2642
+#define UNI_CP_FEMALE_SIGN           0x2640
+#define UNI_CP_ZERO_WIDTH_JOINER     0x200D
+#define UNI_CP_ZERO_WIDTH_NON_JOINER 0x200C
+
 /* Maps outside-world normalization form codes to our internal set, validating
  * that we got something valid. */
 MVMNormalization MVN_unicode_normalizer_form(MVMThreadContext *tc, MVMint64 form_in) {
@@ -76,36 +81,27 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in,
     ((MVMArray *)out)->body.start     = 0;
     ((MVMArray *)out)->body.elems     = result_pos;
 }
-
-/* Takes an object, which must be of VMArray representation and holding
- * 32-bit integers. Treats them as Unicode codepoints, normalizes them at
- * Grapheme level, and returns the resulting NFG string. */
-MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, const MVMObject *codes) {
+MVMString * MVM_unicode_codepoints_c_array_to_nfg_string(MVMThreadContext *tc, MVMCodepoint * cp_v, MVMint64 cp_count) {
     MVMNormalizer  norm;
-    MVMCodepoint  *input;
+    MVMint64       input_pos, result_pos, result_alloc;
     MVMGrapheme32 *result;
-    MVMint64       input_pos, input_codes, result_pos, result_alloc;
     MVMint32       ready;
     MVMString     *str;
 
-    /* Get input array; if it's empty, we're done already. */
-    assert_codepoint_array(tc, codes, "Code points to string input must be native array of 32-bit integers");
-    input       = (MVMCodepoint *)((MVMArray *)codes)->body.slots.u32 + ((MVMArray *)codes)->body.start;
-    input_codes = ((MVMArray *)codes)->body.elems;
-    if (input_codes == 0)
+    if (cp_count == 0)
         return tc->instance->str_consts.empty;
 
-    /* Guess output size based on input size. */
-    result_alloc = input_codes;
+    /* Guess output size based on cp_v size. */
+    result_alloc = cp_count;
     result       = MVM_malloc(result_alloc * sizeof(MVMCodepoint));
 
     /* Perform normalization at grapheme level. */
     MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
     input_pos  = 0;
     result_pos = 0;
-    while (input_pos < input_codes) {
+    while (input_pos < cp_count) {
         MVMGrapheme32 g;
-        ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, input[input_pos], &g);
+        ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, cp_v[input_pos], &g);
         if (ready) {
             maybe_grow_result(&result, &result_alloc, result_pos + ready);
             result[result_pos++] = g;
@@ -127,6 +123,20 @@ MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, const MVM
     str->body.storage_type    = MVM_STRING_GRAPHEME_32;
     str->body.num_graphs      = result_pos;
     return str;
+}
+
+/* Takes an object, which must be of VMArray representation and holding
+ * 32-bit integers. Treats them as Unicode codepoints, normalizes them at
+ * Grapheme level, and returns the resulting NFG string. */
+MVMString * MVM_unicode_codepoints_to_nfg_string(MVMThreadContext *tc, const MVMObject *codes) {
+    MVMCodepoint  *input;
+    MVMint64       input_codes;
+
+    assert_codepoint_array(tc, codes, "Code points to string input must be native array of 32-bit integers");
+
+    input       = (MVMCodepoint *)((MVMArray *)codes)->body.slots.u32 + ((MVMArray *)codes)->body.start;
+    input_codes = ((MVMArray *)codes)->body.elems;
+    return MVM_unicode_codepoints_c_array_to_nfg_string(tc, input, input_codes);
 }
 
 /* Takes an NFG string and populates the array out, which must be a 32-bit
@@ -280,13 +290,11 @@ static void decomp_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, M
     /* See if we actually need to decompose (can skip if the decomposition
      * type is None, or we're only doing Canonical decomposition and it is
      * anything except Canonical). */
-    const char *type = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE);
+    MVMint16 cp_DT = MVM_unicode_codepoint_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE);
     MVMint64 decompose = 1;
-    if (!type)
+    if (cp_DT == MVM_UNICODE_PVALUE_DT_NONE)
         decompose = 0;
-    else if (strcmp(type, "None") == 0)
-        decompose = 0;
-    else if (!MVM_NORMALIZE_COMPAT_DECOMP(n->form) && strcmp(type, "Canonical") != 0)
+    else if (!MVM_NORMALIZE_COMPAT_DECOMP(n->form) && cp_DT != MVM_UNICODE_PVALUE_DT_CANONICAL )
         decompose = 0;
     if (decompose) {
         /* We need to decompose. Get the decomp spec and go over the things in
@@ -343,7 +351,7 @@ static MVMint64 ccc(MVMThreadContext *tc, MVMCodepoint cp) {
  * a fast path. */
 static MVMint32 is_control_beyond_latin1(MVMThreadContext *tc, MVMCodepoint in) {
     /* U+200C ZERO WIDTH NON-JOINER and U+200D ZERO WIDTH JOINER are excluded. */
-    if (in != 0x200C && in != 0x200D) {
+    if (in != UNI_CP_ZERO_WIDTH_NON_JOINER && in != UNI_CP_ZERO_WIDTH_JOINER) {
         /* Consider general property. */
         const char *genprop = MVM_unicode_codepoint_get_property_cstr(tc, in,
             MVM_UNICODE_PROPERTY_GENERAL_CATEGORY);
@@ -559,13 +567,24 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
             return 0;
         /* Don't break after ZWJ for E_Base_GAZ or Glue_After_ZWJ */
         case MVM_UNICODE_PVALUE_GCB_ZWJ:
-            if ( GCB_b == MVM_UNICODE_PVALUE_GCB_E_BASE_GAZ )
+            switch (GCB_b) {
+                case MVM_UNICODE_PVALUE_GCB_E_BASE_GAZ:
+                case MVM_UNICODE_PVALUE_GCB_ZWJ:
+                case MVM_UNICODE_PVALUE_GCB_GLUE_AFTER_ZWJ:
+                    return 0;
+            }
+            if ( b == UNI_CP_FEMALE_SIGN || b == UNI_CP_MALE_SIGN )
                 return 0;
-            if ( GCB_b == MVM_UNICODE_PVALUE_GCB_ZWJ )
-                return 0;
+        case MVM_UNICODE_PVALUE_GCB_E_MODIFIER:
+            if (MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_EMOJI_MODIFIER_BASE)) {
+                /* Don't break after ZWJ if it's an Emoji Sequence.
+                 * At the moment FEMALE SIGN and MALE SIGN don't have different
+                 * GCB properties, or any special Emoji properties (Unicode 9.0),
+                 * so we explictly check these codepoints here */
+                if ( b == UNI_CP_FEMALE_SIGN || b == UNI_CP_MALE_SIGN )
+                    return 0;
+            }
             break;
-
-
     }
     switch (GCB_b) {
         /* Don't break before extending chars */

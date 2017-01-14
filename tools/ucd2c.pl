@@ -18,6 +18,8 @@ open(LOG, ">extents") or die "can't create extents: $!" if $DEBUG;
 my $LOG;
 
 my $db_sections = {};
+my $sequences = {};
+my $hout = "";
 my $h_sections = {};
 my $planes = [];
 my $points_by_hex = {};
@@ -27,6 +29,7 @@ my $binary_properties = {};
 my $first_point = undef;
 my $last_point = undef;
 my $aliases = {};
+my $alias_types = {};
 my $prop_names = {};
 my $named_sequences = {};
 my $bitfield_table = [];
@@ -55,7 +58,11 @@ sub trim { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s };
 sub progress($);
 sub main {
     $db_sections->{'AAA_header'} = header();
-
+    add_unicode_sequence('emoji/emoji-sequences');
+    add_unicode_sequence('emoji/emoji-zwj-sequences');
+    gen_unicode_sequence_keypairs();
+    NameAliases();
+    gen_name_alias_keypairs();
     # Load all the things
     UnicodeData(
         derived_property('BidiClass', 'Bidi_Class', {}, 0),
@@ -96,7 +103,6 @@ sub main {
         'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1, 1);
     Jamo();
     LineBreak();
-    NameAliases();
     NamedSequences();
     binary_props('PropList');
     enumerated_property('Scripts', 'Script', { Unknown => 0 }, 1, 1);
@@ -706,7 +712,7 @@ sub emit_bitfield {
 sub emit_property_value_lookup {
     my $allocated = shift;
     my $enumtables = "\n\n";
-    my $hout = "typedef enum {\n";
+    our $hout = "typedef enum {\n";
     my $out = "
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint32 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
@@ -819,19 +825,24 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
 
     $hout .= "} MVM_unicode_property_codes;";
 
-    # Grapheme_Cluster_Break Values
-    my $GCB_h;
-    $GCB_h .= "\n\n/* Values of Grapheme_Cluster_Break Property */\n";
-    my %seen;
-    foreach my $key (sort keys % {$enumerated_properties->{'Grapheme_Cluster_Break'}->{'enum'} }  ) {
-        next if $seen{$key};
-        my $value = $enumerated_properties->{'Grapheme_Cluster_Break'}->{'enum'}->{$key};
-        $key = 'MVM_UNICODE_PVALUE_GCB_' . uc $key;
-        $key =~ tr/\./_/;
-        $GCB_h .= "#define $key $value\n";
-        $seen{$key} = 1;
+    sub gen_pvalue_defines {
+        my ( $property_name_mvm, $property_name, $short_pval_name ) = @_;
+        my $GCB_h;
+        $GCB_h .= "\n\n/* $property_name_mvm */\n";
+        my %seen;
+        foreach my $key (sort keys % {$enumerated_properties->{$property_name}->{'enum'} }  ) {
+            next if $seen{$key};
+            my $value = $enumerated_properties->{$property_name}->{'enum'}->{$key};
+            $key = 'MVM_UNICODE_PVALUE_' . $short_pval_name . '_' . uc $key;
+            $key =~ tr/\./_/;
+            $GCB_h .= "#define $key $value\n";
+            $seen{$key} = 1;
+        }
+        $hout .= $GCB_h;
     }
-    $hout .= $GCB_h;
+    gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK', 'Grapheme_Cluster_Break', 'GCB');
+    gen_pvalue_defines('MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE', 'Decomposition_Type', 'DT');
+    gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS', 'Canonical_Combining_Class', 'CCC');
 
     $db_sections->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
     $h_sections->{property_code_definitions} = $hout;
@@ -931,6 +942,8 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
     MVMint32 extent_index = 0;
     MVMint32 codepoint = 0;
     MVMint32 codepoint_table_index = 0;
+    MVMint16 i = num_unicode_namealias_keypairs - 1;
+
     MVMUnicodeNameRegistry *entry;
     for (; extent_index < MVM_NUM_UNICODE_EXTENTS; extent_index++) {
         MVMint32 length;
@@ -973,25 +986,14 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             }
         }
     }
-    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-    entry->name = "LF";
-    entry->codepoint = 10;
-    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "LF", 2, entry);
+    for (; i >= 0; i--) {
+        entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
+        entry->name = uni_namealias_pairs[i].name;
+        entry->codepoint =  uni_namealias_pairs[i].codepoint;
+        HASH_ADD_KEYPTR(hash_handle, codepoints_by_name,  uni_namealias_pairs[i].name,  uni_namealias_pairs[i].strlen, entry);
 
-    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-    entry->name = "FF";
-    entry->codepoint = 12;
-    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "FF", 2, entry);
+    }
 
-    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-    entry->name = "CR";
-    entry->codepoint = 13;
-    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "CR", 2, entry);
-
-    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-    entry->name = "NEL";
-    entry->codepoint = 133;
-    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, "NEL", 3, entry);
 }
 END
     $db_sections->{names_hash_builder} = $out;
@@ -1082,9 +1084,97 @@ static const MVMUnicodeNamedValue unicode_property_keypairs[".scalar(@lines)."] 
     $db_sections->{BBB_unicode_property_keypairs} = $out;
     $h_sections->{MVMUnicodeNamedValue} = $hout;
 }
+sub add_unicode_sequence {
+    my ($filename) = @_;
+    each_line($filename, sub { my $line = shift;
+        if ( $line =~ /^#/ or $line =~ /^\s*$/) {
+            return;
+        }
+        my @list = split /;|   \#/, $line;
+        my $hex_ords = trim shift @list;
+        my $type = trim shift @list;
+        my $name = trim shift @list;
+        $sequences->{$name}->{'type'} = $type;
 
+        for my $hex (split ' ', $hex_ords) {
+            push @{$sequences->{$name}->{'ords'}}, hex $hex;
+        }
+    } );
+}
+sub gen_unicode_sequence_keypairs {
+    my $count = 0;
+    my $string_seq;
+    my $seq_c_hash_str;
+    my @seq_c_hash_array;
+    my $enum_table;
+    $string_seq .= "/* Unicode sequences such as Emoji sequences */\n";
+    for my $thing ( sort keys %$sequences ) {
+        my $seq_name = "uni_seq_$count";
+        $string_seq .=  "static const MVMint32 $seq_name" . "[] = {";
+        $seq_c_hash_str .= '{"' . $thing . '",' . $count . '},';
+        my $ord_data;
+        for my $ord ( @{$sequences->{$thing}->{'ords'}} ) {
+            $ord_data .= '0x' . uc sprintf("%x", $ord) . ',';
+        }
+        $ord_data = scalar @{$sequences->{$thing}->{'ords'}} . ',' . $ord_data;
+        $string_seq .= $ord_data;
+        $ord_data =~ s/,$//;
+        $string_seq =~ s/,$//;
+        $string_seq = $string_seq . "}; " . "/* $thing */ /*" . $sequences->{$thing}->{'type'} . " */\n";
+        $enum_table = $enum_table . "$seq_name,\n";
+        $count++;
+        if ( length $seq_c_hash_str > 80 ) {
+            push @seq_c_hash_array, $seq_c_hash_str . "\n";
+            $seq_c_hash_str = '';
+        }
+    }
+    push @seq_c_hash_array, $seq_c_hash_str . "\n";
+    $seq_c_hash_str = join '    ', @seq_c_hash_array;
+    $seq_c_hash_str =~ s/\s*,\s*$//;
+    $seq_c_hash_str .= "\n};";
+    $seq_c_hash_str = "static const MVMUnicodeNamedValue uni_seq_pairs[$count] = {\n    " . $seq_c_hash_str;
+
+    $enum_table =~ s/\s*,\s*$/};/;
+    $enum_table = "static const MVMint32 * uni_seq_enum[$count] = {\n" . $enum_table;
+    $db_sections->{uni_seq} = $seq_c_hash_str . $string_seq . $enum_table;
+    $hout .= "#define num_unicode_seq_keypairs " . $count ."\n";
+}
+sub gen_name_alias_keypairs {
+    my $count = 0;
+    my $seq_c_hash_str;
+    my @seq_c_hash_array;
+    for my $thing ( sort keys %$alias_types ) {
+        my $ord_data;
+        my $ord = $alias_types->{$thing}->{'code'};
+        $ord_data .= '0x' . uc sprintf("%x", $ord) . ',';
+        $seq_c_hash_str .= '{"' . $thing . '",' . $ord_data . (length $thing) . '},';
+        $ord_data =~ s/,$//;
+        my $type = $alias_types->{$thing}->{'type'};
+        $count++;
+        if ( length $seq_c_hash_str > 80 ) {
+            push @seq_c_hash_array, $seq_c_hash_str . "\n";
+            $seq_c_hash_str = '';
+        }
+    }
+    push @seq_c_hash_array, $seq_c_hash_str . "\n";
+    $seq_c_hash_str = join '    ', @seq_c_hash_array;
+    $seq_c_hash_str =~ s/\s*,\s*$//;
+    $seq_c_hash_str .= "\n};";
+    $seq_c_hash_str = "static const MVMUnicodeNamedAlias uni_namealias_pairs[$count] = {\n    " . $seq_c_hash_str;
+
+    $seq_c_hash_str = "/* Unicode Name Aliases */\n" . $seq_c_hash_str;
+    $db_sections->{Auni_namealias} = $seq_c_hash_str;
+    $hout .= "#define num_unicode_namealias_keypairs " . $count ."\n";
+    $hout .= <<'END'
+struct MVMUnicodeNamedAlias {
+    char *name;
+    MVMGrapheme32 codepoint;
+    MVMint16 strlen;
+};
+typedef struct MVMUnicodeNamedAlias MVMUnicodeNamedAlias;
+END
+}
 sub emit_unicode_property_value_keypairs {
-    my $hout = "";
     my @lines = ();
     my $property;
     for (keys %$enumerated_properties) {
@@ -1399,10 +1489,13 @@ sub UnicodeData {
 
         my $code = hex $code_str;
         my $plane_num = $code >> 16;
-        if ($name eq '<control>' || $name eq '') {
-            $name = $u1name;
+        if ($name eq '<control>' ) {
+            $name = sprintf '<control-%.4X>', $code;
         }
         my $point = {
+            # Unicode_1_Name is not used yet. We should make sure it ends up
+            # in some data structure
+            Unicode_1_Name => $u1name,
             code_str => $code_str,
             name => $name,
             gencat_name => $gencat,
@@ -1739,8 +1832,10 @@ sub LineBreak {
 
 sub NameAliases {
     each_line('NameAliases', sub { $_ = shift;
-        my ($code_str, $name) = split /\s*[;#]\s*/;
+        my ($code_str, $name, $type) = split /\s*[;#]\s*/;
         $aliases->{$name} = hex $code_str;
+        $alias_types->{$name}->{'code'} = hex $code_str;
+        $alias_types->{$name}->{'type'} = $type;
     });
 }
 

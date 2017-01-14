@@ -1424,8 +1424,7 @@ static char * form_bytecode_output(VM, WriterState *ws, unsigned int *bytecode_s
         size += MVM_ALIGN_SECTION(vm->serialized_size);
 
     /* Allocate space for the bytecode output. */
-    output = (char *)MVM_malloc(size);
-    memset(output, 0, size);
+    output = (char *)MVM_calloc(1, size);
 
     /* Generate start of header. */
     memcpy(output, "MOARVM\r\n", 8);

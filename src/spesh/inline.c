@@ -6,14 +6,14 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
     MVMExtOpRecord *extops;
     MVMuint16 i, num_extops;
 
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)target_cu->body.update_mutex);
+    uv_mutex_lock(target_cu->body.inline_tweak_mutex);
 
     /* See if the target compunit already has the extop. */
     extops     = target_cu->body.extops;
     num_extops = target_cu->body.num_extops;
     for (i = 0; i < num_extops; i++)
         if (extops[i].info == info) {
-            MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)target_cu->body.update_mutex);
+            uv_mutex_unlock(target_cu->body.inline_tweak_mutex);
             return;
         }
 
@@ -22,20 +22,24 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
     num_extops = source_cu->body.num_extops;
     for (i = 0; i < num_extops; i++) {
         if (extops[i].info == info) {
-            MVMuint32 size = (target_cu->body.num_extops + 1) * sizeof(MVMExtOpRecord);
-            target_cu->body.extops = target_cu->body.extops
-                ? MVM_realloc(target_cu->body.extops, size)
-                : MVM_malloc(size);
-            memcpy(&target_cu->body.extops[target_cu->body.num_extops],
-                &extops[i], sizeof(MVMExtOpRecord));
+            MVMuint32 orig_size = target_cu->body.num_extops * sizeof(MVMExtOpRecord);
+            MVMuint32 new_size = (target_cu->body.num_extops + 1) * sizeof(MVMExtOpRecord);
+            MVMExtOpRecord *new_extops = MVM_fixed_size_alloc(tc,
+                tc->instance->fsa, new_size);
+            memcpy(new_extops, target_cu->body.extops, orig_size);
+            memcpy(&new_extops[target_cu->body.num_extops], &extops[i], sizeof(MVMExtOpRecord));
+            if (target_cu->body.extops)
+                MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, orig_size,
+                   target_cu->body.extops);
+            target_cu->body.extops = new_extops;
             target_cu->body.num_extops++;
-            MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)target_cu->body.update_mutex);
+            uv_mutex_unlock(target_cu->body.inline_tweak_mutex);
             return;
         }
     }
 
     /* Didn't find it; should be impossible. */
-    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)target_cu->body.update_mutex);
+    uv_mutex_unlock(target_cu->body.inline_tweak_mutex);
     MVM_oops(tc, "Spesh: inline failed to find source CU extop entry");
 }
 
