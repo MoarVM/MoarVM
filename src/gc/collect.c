@@ -462,7 +462,7 @@ static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable
 
     /* See if there's a currently active list; create it if not. */
     if (!target_info->work) {
-        target_info->work = MVM_calloc(sizeof(MVMGCPassedWork), 1);
+        target_info->work = MVM_calloc(1, sizeof(MVMGCPassedWork));
     }
 
     /* Add this item to the work list. */

@@ -43,7 +43,7 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 }
 
 MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    MVMCallsite      *res   = MVM_calloc(sizeof(MVMCallsite), 1);
+    MVMCallsite      *res   = MVM_calloc(1, sizeof(MVMCallsite));
     MVMCallsiteEntry *flags = NULL;
     MVMCallsiteEntry *src_flags;
     MVMint32 fsize;

@@ -65,7 +65,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 s = 1024;
     MVMuint32 l = 0;
     MVMuint32 i, j, k;
-    char *o = MVM_calloc(sizeof(char) * s, 1);
+    char *o = MVM_calloc(1, sizeof(char) * s);
     char ***frame_lexicals = MVM_malloc(sizeof(char **) * cu->body.num_frames);
     MVMString *name = MVM_string_utf8_decode(tc, tc->instance->VMString, "", 0);
 
@@ -176,8 +176,8 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* current position in the bytestream */
     MVMuint8 *cur_op = bytecode_start;
     /* positions in the bytestream that are starts of ops and goto targets */
-    MVMuint8 *labels = MVM_calloc(bytecode_size, 1);
-    MVMuint32 *jumps = MVM_calloc(sizeof(MVMuint32) * bytecode_size, 1);
+    MVMuint8 *labels = MVM_calloc(1, bytecode_size);
+    MVMuint32 *jumps = MVM_calloc(1, sizeof(MVMuint32) * bytecode_size);
     char **lines = MVM_malloc(sizeof(char *) * bytecode_size);
     MVMuint32 *linelocs = MVM_malloc(sizeof(MVMuint32) * bytecode_size);
     MVMuint32 lineno = 0;
@@ -199,7 +199,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         /* allocate a line buffer */
         s = 200;
         l = 0;
-        o = MVM_calloc(sizeof(char) * s, 1);
+        o = MVM_calloc(1, sizeof(char) * s);
 
         lineloc = cur_op - bytecode_start;
         /* mark that this line starts at this point in the bytestream */
