@@ -1650,7 +1650,7 @@ char *MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader *
         strbuf[len] = 0;
         *(reader->cur_read_offset) += len;
     } else if (len < 0) {
-        fail_deserialize(tc, reader, "Cannot read a c string with negative length %d.", len);
+        fail_deserialize(tc, reader, "Cannot read a c string with negative length %li.", len);
     }
     return strbuf;
 }
