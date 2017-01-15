@@ -7,7 +7,7 @@
 MVMRegister * MVM_frame_initial_work(MVMThreadContext *tc, MVMuint16 *local_types,
                                      MVMuint16 num_locals) {
     MVMuint16 i;
-    MVMRegister *work_initial = MVM_calloc(sizeof(MVMRegister), num_locals);
+    MVMRegister *work_initial = MVM_calloc(num_locals, sizeof(MVMRegister));
     for (i = 0; i < num_locals; i++)
         if (local_types[i] == MVM_reg_obj)
             work_initial[i].o = tc->instance->VMNull;

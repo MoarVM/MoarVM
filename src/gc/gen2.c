@@ -6,7 +6,7 @@ MVMGen2Allocator * MVM_gc_gen2_create(MVMInstance *i) {
     MVMGen2Allocator *al = MVM_malloc(sizeof(MVMGen2Allocator));
 
     /* Create empty size classes array data structure. */
-    al->size_classes = (MVMGen2SizeClass *)MVM_calloc(1, sizeof(MVMGen2SizeClass) * MVM_GEN2_BINS);
+    al->size_classes = (MVMGen2SizeClass *)MVM_calloc(MVM_GEN2_BINS, sizeof(MVMGen2SizeClass));
 
     /* Set up overflows area. */
     al->alloc_overflows = MVM_GEN2_OVERFLOWS;

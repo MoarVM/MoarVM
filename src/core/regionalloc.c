@@ -19,7 +19,7 @@ void * MVM_region_alloc(MVMThreadContext *tc, MVMRegionAlloc *al, size_t bytes) 
             : MVM_REGIONALLOC_MEMBLOCK_SIZE;
         if (buffer_size < bytes)
             buffer_size = bytes;
-        block->buffer = MVM_calloc(buffer_size, 1);
+        block->buffer = MVM_calloc(1, buffer_size);
         block->alloc  = block->buffer;
         block->limit  = block->buffer + buffer_size;
         block->prev   = al->block;

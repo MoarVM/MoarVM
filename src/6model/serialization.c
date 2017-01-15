@@ -3052,10 +3052,10 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
         MVM_free(sc->body->root_objects);
     if (sc->body->root_stables)
         MVM_free(sc->body->root_stables);
-    sc->body->root_objects  = MVM_calloc(1, reader->root.num_objects * sizeof(MVMObject *));
+    sc->body->root_objects  = MVM_calloc(reader->root.num_objects, sizeof(MVMObject *));
     sc->body->num_objects   = reader->root.num_objects;
     sc->body->alloc_objects = reader->root.num_objects;
-    sc->body->root_stables  = MVM_calloc(1, reader->root.num_stables * sizeof(MVMSTable *));
+    sc->body->root_stables  = MVM_calloc(reader->root.num_stables, sizeof(MVMSTable *));
     sc->body->num_stables   = reader->root.num_stables;
     sc->body->alloc_stables = reader->root.num_stables;
     reader->contexts        = MVM_calloc(reader->root.num_contexts, sizeof(MVMFrame *));
