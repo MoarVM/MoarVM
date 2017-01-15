@@ -492,7 +492,6 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         MVMint64 arg = edge_info[i].arg.i;
                         MVMint64 j;
                         MVMint64 found_fate = 0;
-                        arg &= 0xffffff;   /* XXX can go away after rebootstrap */
                         if (nfadeb)
                             fprintf(stderr, "fate(%016llx) ", (long long unsigned int)arg);
                         for (j = 0; j < total_fates; j++) {
