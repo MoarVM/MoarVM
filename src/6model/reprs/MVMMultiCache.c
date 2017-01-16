@@ -430,7 +430,7 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
         MVMSTable   *st;
         MVMuint64    is_rw     = 0;
 
-        if (MVM_is_null(tc, arg.o)) {
+        if (!arg.o) {
             return NULL;
         }
 
