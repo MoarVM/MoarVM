@@ -988,7 +988,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
 
 /* Gets a code object for a frame, lazily deserializing it if needed. */
 MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
-    if (REPR(code)->ID != MVM_REPR_ID_MVMCode)
+    if (!code || REPR(code)->ID != MVM_REPR_ID_MVMCode)
         MVM_exception_throw_adhoc(tc, "getcodeobj needs a code ref");
 
     if (!code->body.code_object) {
