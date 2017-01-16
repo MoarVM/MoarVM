@@ -185,8 +185,14 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
             i++;
         if ((cs->arg_flags[flag] & MVM_CALLSITE_ARG_MASK) == MVM_CALLSITE_ARG_OBJ) {
             MVMRegister  arg   = apc->args[i];
-            MVMSTable   *st    = STABLE(arg.o);
+            MVMSTable   *st;
             MVMuint32    is_rw = 0;
+
+            if (!arg.o) {
+                goto DONE;
+            }
+
+            st = STABLE(arg.o);
             if (st->container_spec && IS_CONCRETE(arg.o)) {
                 MVMContainerSpec const *contspec = st->container_spec;
                 if (!contspec->fetch_never_invokes)
