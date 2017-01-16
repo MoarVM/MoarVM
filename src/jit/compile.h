@@ -11,22 +11,19 @@ struct MVMJitCode {
      * runtime (because we need a second dereference to figure the
      * labels out), but very simple for me now, and super-easy to
      * optimise at a later date */
-    MVMint32   num_labels;
-    void     **labels;
-
+    MVMint32       num_labels;
     MVMint32       num_bbs;
+    void         **labels;
     MVMint32      *bb_labels;
 
     MVMint32       num_deopts;
-    MVMJitDeopt    *deopts;
-
     MVMint32       num_inlines;
+    MVMJitDeopt    *deopts;
     MVMJitInline  *inlines;
 
     MVMint32       num_handlers;
-    MVMJitHandler *handlers;
-
     MVMint32       seq_nr;
+    MVMJitHandler *handlers;
 };
 
 MVMJitCode* MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);
