@@ -421,8 +421,14 @@ MVMObject * MVM_multi_cache_find_callsite_args(MVMThreadContext *tc, MVMObject *
         MVMuint64    arg_idx   = arg_match & MVM_MULTICACHE_ARG_IDX_FILTER;
         MVMuint64    type_id   = arg_match & MVM_MULTICACHE_TYPE_ID_FILTER;
         MVMRegister  arg       = args[arg_idx];
-        MVMSTable   *st        = STABLE(arg.o);
+        MVMSTable   *st;
         MVMuint64    is_rw     = 0;
+
+        if (MVM_is_null(tc, arg.o)) {
+            return NULL;
+        }
+
+        st = STABLE(arg.o);
         if (st->container_spec && IS_CONCRETE(arg.o)) {
             MVMContainerSpec const *contspec = st->container_spec;
             if (!contspec->fetch_never_invokes)
