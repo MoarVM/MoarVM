@@ -16,7 +16,7 @@ struct MVMCallStackRegion {
 };
 
 /* The default size of a call stack region. */
-#define MVM_CALLSTACK_REGIION_SIZE 131072
+#define MVM_CALLSTACK_REGION_SIZE 131072
 
 /* Checks if a frame is allocated on a call stack or on the heap. If it is on
  * the call stack, then it will have zeroed flags (since heap-allocated frames
