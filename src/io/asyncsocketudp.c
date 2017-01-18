@@ -114,8 +114,7 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
     /* Add to work in progress. */
     ReadInfo *ri  = (ReadInfo *)data;
     ri->tc        = tc;
-    ri->work_idx  = MVM_repr_elems(tc, tc->instance->event_loop_active);
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    ri->work_idx  = MVM_io_eventloop_add_active_work(tc, async_task);
 
     /* Start reading the stream. */
     handle_data = (MVMIOAsyncUDPSocketData *)ri->handle->body.data;
@@ -307,8 +306,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Add to work in progress. */
     WriteInfo *wi = (WriteInfo *)data;
     wi->tc        = tc;
-    wi->work_idx  = MVM_repr_elems(tc, tc->instance->event_loop_active);
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    wi->work_idx  = MVM_io_eventloop_add_active_work(tc, async_task);
 
     /* Encode the string, or extract buf data. */
     if (wi->str_data) {

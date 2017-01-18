@@ -428,8 +428,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Add to work in progress. */
     SpawnWriteInfo *wi = (SpawnWriteInfo *)data;
     wi->tc             = tc;
-    wi->work_idx       = MVM_repr_elems(tc, tc->instance->event_loop_active);
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    wi->work_idx       = MVM_io_eventloop_add_active_work(tc, async_task);
 
     /* Encode the string, or extract buf data. */
     if (wi->str_data) {
@@ -850,8 +849,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Add to work in progress. */
     SpawnInfo *si = (SpawnInfo *)data;
     si->tc        = tc;
-    si->work_idx  = MVM_repr_elems(tc, tc->instance->event_loop_active);
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    si->work_idx  = MVM_io_eventloop_add_active_work(tc, async_task);
 
     /* Create input/output handles as needed. */
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.write)) {
