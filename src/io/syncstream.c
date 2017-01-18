@@ -252,7 +252,7 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
         uv_close((uv_handle_t *)data->handle, NULL);
         data->handle = NULL;
         if (data->ds) {
-            MVM_string_decodestream_destory(tc, data->ds);
+            MVM_string_decodestream_destroy(tc, data->ds);
             data->ds = NULL;
         }
     }
@@ -292,7 +292,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
             data->handle = NULL;
         }
         if (data->ds) {
-            MVM_string_decodestream_destory(tc, data->ds);
+            MVM_string_decodestream_destroy(tc, data->ds);
             data->ds = NULL;
         }
         MVM_string_decode_stream_sep_destroy(tc, &(data->sep_spec));

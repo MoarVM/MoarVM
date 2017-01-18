@@ -30,7 +30,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMDecoder *decoder = (MVMDecoder *)obj;
     if (decoder->body.ds)
-        MVM_string_decodestream_destory(tc, decoder->body.ds);
+        MVM_string_decodestream_destroy(tc, decoder->body.ds);
 }
 
 static const MVMStorageSpec storage_spec = {

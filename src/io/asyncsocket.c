@@ -149,7 +149,7 @@ static void read_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data) {
         ReadInfo *ri = (ReadInfo *)data;
         if (ri->ds)
-            MVM_string_decodestream_destory(tc, ri->ds);
+            MVM_string_decodestream_destroy(tc, ri->ds);
         MVM_free(data);
     }
 }
@@ -491,7 +491,7 @@ static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOAsyncSocketData *data = (MVMIOAsyncSocketData *)d;
     if (data->ds) {
-        MVM_string_decodestream_destory(tc, data->ds);
+        MVM_string_decodestream_destroy(tc, data->ds);
         data->ds = NULL;
     }
 }
