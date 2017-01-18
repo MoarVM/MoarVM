@@ -385,8 +385,7 @@ static void on_write(uv_write_t *req, int status) {
     SpawnWriteInfo   *wi  = (SpawnWriteInfo *)req->data;
     MVMThreadContext *tc  = wi->tc;
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, wi->work_idx);
+    MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, wi->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if (status >= 0) {
         MVMROOT(tc, arr, {
@@ -698,8 +697,7 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
 
             /* Get what we'll need to build and convey the result. */
             MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-            MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-                tc->instance->event_loop_active, si->work_idx);
+            MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, si->work_idx);
 
             /* Box and send along status. */
             MVM_repr_push_o(tc, arr, done_cb);
@@ -741,7 +739,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
     MVMAsyncTask *t;
     MVMROOT(tc, callback, {
         arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-        t = (MVMAsyncTask *)MVM_repr_at_pos_o(tc, tc->instance->event_loop_active, si->work_idx);
+        t = MVM_io_eventloop_get_active_work(tc, si->work_idx);
     });
     MVM_repr_push_o(tc, arr, callback);
     if (nread >= 0) {

@@ -36,8 +36,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     ReadInfo         *ri  = (ReadInfo *)handle->data;
     MVMThreadContext *tc  = ri->tc;
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, ri->work_idx);
+    MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, ri->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if (nread >= 0) {
         MVMROOT(tc, t, {
@@ -261,8 +260,7 @@ static void on_write(uv_write_t *req, int status) {
     WriteInfo        *wi  = (WriteInfo *)req->data;
     MVMThreadContext *tc  = wi->tc;
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, wi->work_idx);
+    MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, wi->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if (status >= 0) {
         MVMROOT(tc, arr, {
@@ -529,8 +527,7 @@ static void on_connect(uv_connect_t* req, int status) {
     ConnectInfo      *ci  = (ConnectInfo *)req->data;
     MVMThreadContext *tc  = ci->tc;
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, ci->work_idx);
+    MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, ci->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if (status >= 0) {
         /* Allocate and set up handle. */
@@ -672,8 +669,7 @@ static void on_connection(uv_stream_t *server, int status) {
     ListenInfo       *li     = (ListenInfo *)server->data;
     MVMThreadContext *tc     = li->tc;
     MVMObject        *arr    = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t      = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, li->work_idx);
+    MVMAsyncTask     *t      = MVM_io_eventloop_get_active_work(tc, li->work_idx);
 
     uv_tcp_t         *client = MVM_malloc(sizeof(uv_tcp_t));
     int               r;
@@ -752,8 +748,7 @@ static void on_listen_cancelled(uv_handle_t *handle) {
     ListenInfo       *li = (ListenInfo *)handle->data;
     MVMThreadContext *tc = li->tc;
     MVM_io_eventloop_send_cancellation_notification(tc,
-        (MVMAsyncTask *)MVM_repr_at_pos_o(tc, tc->instance->event_loop_active,
-            li->work_idx));
+        MVM_io_eventloop_get_active_work(tc, li->work_idx));
 }
 static void listen_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     ListenInfo *li = (ListenInfo *)data;

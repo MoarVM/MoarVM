@@ -160,3 +160,16 @@ int MVM_io_eventloop_add_active_work(MVMThreadContext *tc, MVMObject *async_task
     MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
     return work_idx;
 }
+
+/* Gets an active work item from the active work eventloop. */
+MVMAsyncTask * MVM_io_eventloop_get_active_work(MVMThreadContext *tc, int work_idx) {
+    if (work_idx >= 0 && work_idx < MVM_repr_elems(tc, tc->instance->event_loop_active)) {
+        MVMObject *task_obj = MVM_repr_at_pos_o(tc, tc->instance->event_loop_active, work_idx);
+        if (REPR(task_obj)->ID != MVM_REPR_ID_MVMAsyncTask)
+            MVM_panic(1, "non-AsyncTask fetched from eventloop active work list");
+        return (MVMAsyncTask *)task_obj;
+    }
+    else {
+        MVM_panic(1, "use of invalid eventloop work item index %d", work_idx);
+    }
+}
