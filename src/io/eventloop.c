@@ -173,3 +173,18 @@ MVMAsyncTask * MVM_io_eventloop_get_active_work(MVMThreadContext *tc, int work_i
         MVM_panic(1, "use of invalid eventloop work item index %d", work_idx);
     }
 }
+
+/* Removes an active work index from the active work list, enabling any
+ * memory associated with it to be collected. Replaces the work index with -1
+ * so that any future use of the task will be a failed lookup. */
+void MVM_io_eventloop_remove_active_work(MVMThreadContext *tc, int *work_idx_to_clear) {
+    int work_idx = *work_idx_to_clear;
+    if (work_idx >= 0 && work_idx < MVM_repr_elems(tc, tc->instance->event_loop_active)) {
+        *work_idx_to_clear = -1;
+        MVM_repr_bind_pos_o(tc, tc->instance->event_loop_active, work_idx, tc->instance->VMNull);
+        /* TODO: start to re-use the indices */
+    }
+    else {
+        MVM_panic(1, "cannot remove invalid eventloop work item index %d", work_idx);
+    }
+}
