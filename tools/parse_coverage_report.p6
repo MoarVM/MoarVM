@@ -33,7 +33,7 @@ sub MAIN(Str $file where *.IO.e, Str $source where *.IO.e, Str $filename? = $sou
         for $source.IO.lines.kv -> $lineno, $_ {
             if $_.starts-with('#line ') {
                 my @parts = .words;
-                @file_ranges.push: [$lineno, +@parts[1], @parts[2]];
+                @file_ranges.push: [$lineno, +@parts[1], @parts[2].starts-with('SETTING::') ?? @parts[2].substr(9) !! @parts[2]];
             }
         }
         note "finished analyzing source file. @file_ranges.elems() line/filename annotations found.";
