@@ -236,7 +236,7 @@ MVMuint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint codepoi
 
 /* XXX make all the statics members of the global MVM instance instead? */
 static MVMUnicodeNameRegistry *property_codes_by_names_aliases;
-static MVMUnicodeNameRegistry *property_codes_by_seq_names;
+static MVMUnicodeGraphemeNameRegistry *property_codes_by_seq_names;
 
 static void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_property_keypairs;
@@ -274,7 +274,7 @@ MVMint32 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name
 }
 
 static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
-    MVMUnicodeNameRegistry **hash_array = MVM_calloc(sizeof(MVMUnicodeNameRegistry *), MVM_NUM_PROPERTY_CODES);
+    MVMUnicodeNameRegistry **hash_array = MVM_calloc(MVM_NUM_PROPERTY_CODES, sizeof(MVMUnicodeNameRegistry *));
     MVMuint32 index = 0;
     MVMUnicodeNameRegistry *entry = NULL, *binaries = NULL;
     for ( ; index < num_unicode_property_value_keypairs; index++) {
