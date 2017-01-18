@@ -33,6 +33,7 @@ static void cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task,
     uv_timer_stop(&ti->handle);
     MVM_io_eventloop_send_cancellation_notification(ti->tc,
         MVM_io_eventloop_get_active_work(tc, ti->work_idx));
+    MVM_io_eventloop_remove_active_work(tc, &(ti->work_idx));
 }
 
 /* Frees data associated with a timer async task. */
