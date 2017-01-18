@@ -82,6 +82,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
         if (buf->base)
             MVM_free(buf->base);
         uv_read_stop(handle);
+        MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
     else {
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
@@ -98,6 +99,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
         if (buf->base)
             MVM_free(buf->base);
         uv_read_stop(handle);
+        MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
 }
@@ -132,6 +134,7 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
             });
             MVM_repr_push_o(tc, t->body.queue, arr);
         });
+        MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
 }
 
@@ -289,6 +292,7 @@ static void on_write(uv_write_t *req, int status) {
     if (wi->str_data)
         MVM_free(wi->buf.base);
     MVM_free(wi->req);
+    MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
 }
 
 /* Does setup work for an asynchronous write. */
@@ -343,6 +347,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         /* Cleanup handle. */
         MVM_free(wi->req);
         wi->req = NULL;
+        MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
     }
 }
 
@@ -522,7 +527,7 @@ typedef struct {
     int               work_idx;
 } ConnectInfo;
 
-/* When a connection takes place, need to keep the appropriate promise. */
+/* When a connection takes place, need to send result. */
 static void on_connect(uv_connect_t* req, int status) {
     ConnectInfo      *ci  = (ConnectInfo *)req->data;
     MVMThreadContext *tc  = ci->tc;
@@ -557,6 +562,7 @@ static void on_connect(uv_connect_t* req, int status) {
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
     MVM_free(req);
+    MVM_io_eventloop_remove_active_work(tc, &(ci->work_idx));
 }
 
 /* Initilalize the connection on the event loop. */
@@ -595,6 +601,7 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
         ci->connect = NULL;
         uv_close((uv_handle_t *)ci->socket, free_on_close_cb);
         ci->socket = NULL;
+        MVM_io_eventloop_remove_active_work(tc, &(ci->work_idx));
     }
 }
 
@@ -739,6 +746,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
         });
         uv_close((uv_handle_t *)li->socket, free_on_close_cb);
         li->socket = NULL;
+        MVM_io_eventloop_remove_active_work(tc, &(li->work_idx));
         return;
     }
 }
@@ -749,6 +757,7 @@ static void on_listen_cancelled(uv_handle_t *handle) {
     MVMThreadContext *tc = li->tc;
     MVM_io_eventloop_send_cancellation_notification(tc,
         MVM_io_eventloop_get_active_work(tc, li->work_idx));
+    MVM_io_eventloop_remove_active_work(tc, &(li->work_idx));
 }
 static void listen_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     ListenInfo *li = (ListenInfo *)data;

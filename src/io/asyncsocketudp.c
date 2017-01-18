@@ -85,6 +85,7 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
         if (buf->base)
             MVM_free(buf->base);
         uv_udp_recv_stop(handle);
+        MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
     else {
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
@@ -101,6 +102,7 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
         if (buf->base)
             MVM_free(buf->base);
         uv_udp_recv_stop(handle);
+        MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
 }
@@ -293,6 +295,7 @@ static void on_write(uv_udp_send_t *req, int status) {
     if (wi->str_data)
         MVM_free(wi->buf.base);
     MVM_free(wi->req);
+    MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
 }
 
 /* Does setup work for an asynchronous write. */
@@ -347,6 +350,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         /* Cleanup handle. */
         MVM_free(wi->req);
         wi->req = NULL;
+        MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
     }
 }
 
