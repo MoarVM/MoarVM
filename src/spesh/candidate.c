@@ -234,7 +234,7 @@ void MVM_spesh_candidate_specialize(MVMThreadContext *tc, MVMStaticFrame *static
     if (static_frame->common.header.flags & MVM_CF_SECOND_GEN)
         MVM_gc_write_barrier_hit(tc, (MVMCollectable *)static_frame);
 
-    /* Destory spesh graph, and finally clear point to it in the candidate,
+    /* Destroy spesh graph, and finally clear point to it in the candidate,
      * which unblocks use of the specialization. */
     if (candidate->num_inlines) {
         MVMint32 i;
