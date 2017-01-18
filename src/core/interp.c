@@ -2306,6 +2306,90 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
                 cur_op += 6;
                 goto NEXT;
+            OP(swappos_i): {
+                MVMObject     *obj = GET_REG(cur_op, 0).o;
+                MVMRegister indexa = GET_REG(cur_op, 2);
+                MVMRegister indexb = GET_REG(cur_op, 4);
+                MVMRegister vala, valb;
+                REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexa.i64,
+                    &vala, MVM_reg_int64);
+                REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexb.i64,
+                    &valb, MVM_reg_int64);
+                REPR(obj)->pos_funcs.bind_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexa.i64,
+                    valb, MVM_reg_int64);
+                REPR(obj)->pos_funcs.bind_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexb.i64,
+                    vala, MVM_reg_int64);
+                MVM_SC_WB_OBJ(tc, obj);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(swappos_n): {
+                MVMObject     *obj = GET_REG(cur_op, 0).o;
+                MVMRegister indexa = GET_REG(cur_op, 2);
+                MVMRegister indexb = GET_REG(cur_op, 4);
+                MVMRegister vala, valb;
+                REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexa.i64,
+                    &vala, MVM_reg_num64);
+                REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexb.i64,
+                    &valb, MVM_reg_num64);
+                REPR(obj)->pos_funcs.bind_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexa.i64,
+                    valb, MVM_reg_num64);
+                REPR(obj)->pos_funcs.bind_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexb.i64,
+                    vala, MVM_reg_num64);
+                MVM_SC_WB_OBJ(tc, obj);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(swappos_s): {
+                MVMObject     *obj = GET_REG(cur_op, 0).o;
+                MVMRegister indexa = GET_REG(cur_op, 2);
+                MVMRegister indexb = GET_REG(cur_op, 4);
+                MVMRegister vala, valb;
+                REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexa.i64,
+                    &vala, MVM_reg_str);
+                REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexb.i64,
+                    &valb, MVM_reg_str);
+                REPR(obj)->pos_funcs.bind_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexa.i64,
+                    valb, MVM_reg_str);
+                REPR(obj)->pos_funcs.bind_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexb.i64,
+                    vala, MVM_reg_str);
+                MVM_SC_WB_OBJ(tc, obj);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(swappos_o): {
+                MVMObject     *obj = GET_REG(cur_op, 0).o;
+                MVMRegister indexa = GET_REG(cur_op, 2);
+                MVMRegister indexb = GET_REG(cur_op, 4);
+                MVMRegister vala, valb;
+                REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexa.i64,
+                    &vala, MVM_reg_obj);
+                REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexb.i64,
+                    &valb, MVM_reg_obj);
+                REPR(obj)->pos_funcs.bind_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexa.i64,
+                    valb, MVM_reg_obj);
+                REPR(obj)->pos_funcs.bind_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), indexb.i64,
+                    vala, MVM_reg_obj);
+                MVM_SC_WB_OBJ(tc, obj);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(atkey_i): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
