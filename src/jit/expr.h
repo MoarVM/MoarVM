@@ -88,7 +88,7 @@ typedef enum { /* value type */
 
 
 
-enum MVMJitExprOp {
+enum {
 #define MVM_JIT_IR_ENUM(name, nchild, npar, vtype, cast) MVM_JIT_##name
 MVM_JIT_IR_OPS(MVM_JIT_IR_ENUM)
 #undef MVM_JIT_IR_ENUM
@@ -156,7 +156,11 @@ struct MVMJitTreeTraverser {
 };
 
 
-const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMJitExprNode node);
+const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMint32 op);
+/* properties of expression ops */
+MVMint32 MVM_jit_expr_op_negate_flag(MVMThreadContext *tc, MVMint32 op);
+MVMint32 MVM_jit_expor_op_is_binary_noncommutative(MVMThreadContext *tc, MVMint32 op);
+
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter);
 void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree, MVMJitTreeTraverser *traverser);
 void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree);

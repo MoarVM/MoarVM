@@ -17,12 +17,50 @@ static const MVMJitExprOpInfo expr_op_info[] = {
 };
 
 
-const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMJitExprNode op) {
+const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMint32 op) {
     if (op < 0 || op >= MVM_JIT_MAX_NODES) {
-        MVM_oops(tc, "JIT: Expr op index out of bounds: %"PRId64, op);
+        MVM_oops(tc, "JIT: Expr op index out of bounds: %d", op);
     }
     return &expr_op_info[op];
 }
+
+/* Logical negation of MVMJitExprOp flags. */
+MVMint32 MVM_jit_expr_op_negate_flag(MVMThreadContext *tc, MVMint32 op) {
+    switch(op) {
+    case MVM_JIT_LT:
+        return MVM_JIT_GE;
+    case MVM_JIT_LE:
+        return MVM_JIT_GT;
+    case MVM_JIT_EQ:
+        return MVM_JIT_NE;
+    case MVM_JIT_NE:
+        return MVM_JIT_EQ;
+    case MVM_JIT_GE:
+        return MVM_JIT_LT;
+    case MVM_JIT_GT:
+        return MVM_JIT_LE;
+    case MVM_JIT_NZ:
+        return MVM_JIT_ZR;
+    case MVM_JIT_ZR:
+        return MVM_JIT_NZ;
+    default:
+        break;
+    }
+    return -1; /* not a flag */
+}
+
+MVMint32 MVM_jit_expr_op_is_binary_noncommutative(MVMThreadContext *tc, MVMint32 op) {
+    switch (op) {
+    case MVM_JIT_SUB:
+    case MVM_JIT_XOR:
+        /* and DIV, SHIFT, etc */
+        return 1;
+    default:
+        /* ADD, MUL, AND, OR, etc. are commutative */
+        return 0;
+    }
+}
+
 
 static MVMint32 MVM_jit_expr_add_regaddr(MVMThreadContext *tc, MVMJitExprTree *tree,
                                          MVMuint16 reg) {

@@ -256,32 +256,6 @@ MVMJitTile* MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler,
     return tile;
 }
 
-
-
-/* Logical negation of MVMJitExprOp flags. */
-static enum MVMJitExprOp negate_flag(MVMThreadContext *tc, enum MVMJitExprOp op) {
-    switch(op) {
-    case MVM_JIT_LT:
-        return MVM_JIT_GE;
-    case MVM_JIT_LE:
-        return MVM_JIT_GT;
-    case MVM_JIT_EQ:
-        return MVM_JIT_NE;
-    case MVM_JIT_NE:
-        return MVM_JIT_EQ;
-    case MVM_JIT_GE:
-        return MVM_JIT_LT;
-    case MVM_JIT_GT:
-        return MVM_JIT_LE;
-    case MVM_JIT_NZ:
-        return MVM_JIT_ZR;
-    case MVM_JIT_ZR:
-        return MVM_JIT_NZ;
-    default:
-        MVM_oops(tc, "Not a flag!");
-    }
-}
-
 /* Insert labels, compute basic block extents (eventually) */
 static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          MVMJitExprTree *tree, MVMint32 node, MVMint32 i) {
@@ -311,7 +285,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             } else {
                 /* Other tests require a conditional branch */
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_conditional_branch,
-                                                       node, 2, negate_flag(tc, flag), when_label);
+                                                       node, 2, MVM_jit_expr_op_negate_flag(tc, flag), when_label);
                 MVM_VECTOR_PUSH(tiler->list->items, branch);
             }
         } else {
@@ -341,7 +315,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             /* Flag should be negated (ALL = short-circiut unless condition)) */
             MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler,
                                                    MVM_jit_compile_conditional_branch, node, 2,
-                                                   negate_flag(tc, flag), all_label);
+                                                   MVM_jit_expr_op_negate_flag(tc, flag), all_label);
             MVM_VECTOR_PUSH(tiler->list->items, branch);
         }
         break;
@@ -399,7 +373,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             } else {
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler,
                                                        MVM_jit_compile_conditional_branch,
-                                                       node, 2, negate_flag(tc, flag), left_label);
+                                                       node, 2, MVM_jit_expr_op_negate_flag(tc, flag), left_label);
                 MVM_VECTOR_PUSH(tiler->list->items, branch);
             }
         } else if (i == 1) {
