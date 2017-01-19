@@ -467,6 +467,43 @@ stack be a storage class.
 Needed to allocate the correct amount of reference objects to account
 for the live range objects. Can be done simply during tiling.
 
+*** TODO Implement three-operand to two-operand conversion
+
+Safely translating this form (expr JIT):
+
+#+BEGIN_EXAMPLE
+r0 = r1 <op> r2
+#+END_EXAMPLE
+
+Into (x86):
+
+#+BEGIN_EXAMPLE
+r0 = r0 <op> r1
+#+END_EXAMPLE
+
+Requires, in general, at least one additional register, since if
+
+- r0 == r1, then r1 := r2, and this is equivalent so no further work is necessary
+- r0 == r2,
+  - and A <op> B == B <op> A, (<op> is /commutative/) then this is
+    also equivalent, and no further work (or aliasing) is necessary
+    - this is true for ADD, OR, AND, MUL, not true for SUB, XOR, DIV
+  - or A <op> B != B <op> A, then we first need to copy r1 to a temporary register,
+    assign r0 := rtmp, r1 := r2, and copy rtmp -> r0
+- r0 != r1 && r0 != r2, then copy r0 <- r1, r1 := r2, and we're done
+
+I suggest that rax becomes this temporary register, as there are
+already a bunch of opcodes that depend on it otherwise, and this saves
+having to spill when we enocunter one of them.
+
+There may be an alternative way to do this, but it relies either on an
+extra loop (and mapping tiles back to live ranges somehow, or using a
+rename table) or a loop 'within' linear scan.
+
+Actually, that last bit is not a bad idea per se; since we know that
+we process live ranges in order of first definition, we also know that
+all tiles prior to our current live range must be well-defined (have
+complete registers).
 
 *** TODO Implement splitting
 
