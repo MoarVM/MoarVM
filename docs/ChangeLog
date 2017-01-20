@@ -21,7 +21,7 @@ New in 2017.01
 + Missing rooting GC in rare exit handler case
 + Implement new setdispatcherfor op and add JIT for it
 + Use much faster atoi function in normalizer; 14% less CPU use when slurping
-  a file in UTF-8 file
+  a file in UTF-8 encoding
 + For Decompose_Type, use int lookup instead of str for better performance
 + Fix heap snapshot crash on eventloop thread
 + Use /usr/bin/env perl for ./Configure.pl
