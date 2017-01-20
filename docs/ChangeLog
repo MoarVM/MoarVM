@@ -46,7 +46,6 @@ New in 2017.01
 + Fix charname lookups of LINE FEED and CARRIAGE RETURN
 + Remove Unicode 1 names and add Unicode Name Aliases
 + Convert MVM_malloc+memset to MVM_calloc
-+ Allow for fate offsets when unique fates in use in NFA evaluator
 + Clean out ancient "remove after rebootstrap" line
 + Fix typo in MVM_CALLSTACK_REGIONS_SIZE's name
 + Fix missing cleanup of managed DecodeStream
