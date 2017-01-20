@@ -1,8 +1,8 @@
 New in 2017.01
 
 + Extract spesh block allocator from spesh, for wider use
-+ Add a number of missing MVMROOTs, which could lead to generational invariant
-  violations; also removed some unrequired MVMROOTs
++ Add a number of missing MVMROOTs, which could lead to outdated pointers;
+  also removed some unrequired MVMROOTs
 + Fix arg_flags allocation sizes
 + Remove an obsolete path from ldrpath
 + Check lexical accesses in GC debug mode 2 also
