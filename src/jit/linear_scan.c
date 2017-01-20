@@ -480,6 +480,8 @@ static void spill_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitT
             synth = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_store, -1, 1, spill_pos);
             range->synthetic[1] = synth;
             range->synth_pos[1] = insert_pos;
+            /* directly after the instruction */
+            insert_order        = -1;
         } else {
             /* insert a load prior to the use */
             _DEBUG("Adding a load from position %d before use (tile %d)\n", spill_pos, head->tile_idx);
@@ -487,6 +489,8 @@ static void spill_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitT
             range->synthetic[0] = synth;
             /* decrement insert_pos and assign to synth_pos so that it is properly ordered */
             range->synth_pos[0] = insert_pos--;
+            /* last thing before the op */
+            insert_order        = 1;
         }
         synth->args[1] = insert_pos;
         MVM_jit_tile_list_insert(tc, list, synth, insert_pos, insert_order);
