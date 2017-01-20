@@ -9,10 +9,12 @@ my $riprel = undef;
 
 while (<>) {
     chomp;
+
     next unless m/^\s*([A-F0-9]+):\s+([A-F0-9]{2} ?)+\s+(\w+)\s+(.+)$/i;
     my ($addr, $opcode, $arg) = (hex($1), $3, $4);
-    # remo
-    next if $opcode =~ m/^[0-9A-F]+$/i;
+
+    # remove lines with value bytes
+    next if $opcode =~ m/^[0-9A-F]{2}$/i;
     # remove comments
     $arg =~ s/\s+(#.+)$//;
 

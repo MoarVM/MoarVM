@@ -579,7 +579,7 @@ src/jit/x64/tile_tables.h: src/jit/x64/tiles.list tools/tiler-table-generator.pl
 src/jit/expr@obj@: src/jit/core_expr_tables.h
 # TODO-fix stub
 src/jit/tile@obj@: src/jit/x64/tile_tables.h
-src/jit/compile@obj@ src/jit/register@obj@ @jit_obj@: src/jit/internal.h src/jit/x64/arch.h
+src/jit/compile@obj@ src/jit/register@obj@ src/jit/linear_scan@obj@ @jit_obj@: src/jit/internal.h src/jit/x64/arch.h
 
 # JIT intermediate files which clean should remove
 JIT_INTERMEDIATES:= src/jit/x64/emit_win32.c \
