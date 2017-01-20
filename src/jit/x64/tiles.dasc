@@ -1,6 +1,10 @@
+/* -*-C-*- */
 #include "tile_decl.h"
 
+/* NB: The rax/eax/ax/al/ah register is *reserved* for internal use in tiles by
+ * the register allocator. Using rax will never overwrite an allocated value */
 
+/* basic memory traffic tiles */
 MVM_JIT_TILE_DECL(addr) {
     MVMint8 out  = tile->values[0];
     MVMint8 base = tile->values[1];
@@ -219,19 +223,9 @@ MVM_JIT_TILE_DECL(cast) {
             /* movsx is apparantly not defined for double-to-quadword conversions,
              * which forces us to use the rax register like it's 1978. It might be easier
              * to bithack the sign-extension manually, but I'm not sure how.. */
-            if (from_reg == MVM_JIT_ARCH_X64_RAX) {
-                | cdqe;
-                if (to_reg != MVM_JIT_ARCH_X64_RAX) {
-                    | mov Rq(to_reg), rax;
-                    /* restore the eax as it was, clearing the upper bytes */
-                    | mov eax, Rd(to_reg);
-                }
-            } else if (to_reg == MVM_JIT_ARCH_X64_RAX) {
-                | mov eax, Rd(from_reg);
-                | cdqe;
-            } else {
-                MVM_oops(tc, "Register pre-coloring NYI");
-            }
+            | mov eax, Rd(from_reg);
+            | cdqe;
+            | mov Rq(to_reg), rax;
             break;
         default:
             MVM_oops(tc, "Unsuported signed cast %d -> %d\n", from_size, to_size);
@@ -270,17 +264,49 @@ MVM_JIT_TILE_DECL(cast_load_addr) {
     MVM_oops(tc, "NYI");
 }
 
+/* binary operations have special requirements because x86 is two-operand form, e.g:
+ * r0 = r0 <op> r1
+ * whereas the JIT uses a three-operand model:
+ * r0 = r1 <op> r2 */
+
+static void ensure_two_operand_pre(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMint8 reg[2]) {
+    MVMint8 out = tile->values[0], in1 = tile->values[1], in2 = tile->values[2];
+    if (out == in1) {
+        reg[0] = in1;
+        reg[1] = in2;
+    } else if (out == in2) {
+        if (MVM_jit_expr_op_is_binary_noncommutative(tc, tile->op)) {
+            | mov rax, Rq(in1);
+            reg[0] = MVM_JIT_ARCH_X64_RAX;
+            reg[1] = in2;
+        } else {
+            /* in this case, r2 <op> r1 == r0 <op> r1 */
+            reg[0] = out;
+            reg[1] = in1;
+        }
+    } else {
+        /* insert a copy */
+        | mov Rq(out), Rq(in1);
+        /* use r0, r2 */
+        reg[0] = out;
+        reg[1] = in2;
+    }
+}
+
+static void ensure_two_operand_post(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMint8 reg[2]) {
+    MVMint8 out = tile->values[0];
+    if (out != reg[0]) {
+        /* insert a copy afterwards */
+        | mov Rq(out), Rq(reg[0]);
+    }
+}
+
 
 MVM_JIT_TILE_DECL(add_reg) {
-    MVMint8 out = tile->values[0];
-    MVMint8 in1  = tile->values[1];
-    MVMint8 in2  = tile->values[2];
-    if (out == in2) {
-        | add Rq(out), Rq(in2);
-    } else {
-        | mov Rq(out), Rq(in1);
-        | add Rq(out), Rq(in2);
-    }
+    MVMint8 reg[2];
+    ensure_two_operand_pre(tc, compiler, tile, reg);
+    | add Rq(reg[0]), Rq(reg[1]);
+    ensure_two_operand_post(tc, compiler, tile, reg);
 }
 
 MVM_JIT_TILE_DECL(add_const) {
@@ -362,15 +388,10 @@ MVM_JIT_TILE_DECL(add_load_idx) {
 
 
 MVM_JIT_TILE_DECL(and_reg) {
-    MVMint8 out = tile->values[0];
-    MVMint8 in1  = tile->values[1];
-    MVMint8 in2  = tile->values[2];
-    if (out == in2) {
-        | and Rq(out), Rq(in2);
-    } else {
-        | mov Rq(out), Rq(in1);
-        | and Rq(out), Rq(in2);
-    }
+    MVMint8 reg[2];
+    ensure_two_operand_pre(tc, compiler, tile, reg);
+    | and Rq(reg[0]), Rq(reg[1]);
+    ensure_two_operand_post(tc, compiler, tile, reg);
 }
 
 MVM_JIT_TILE_DECL(and_const) {
@@ -380,7 +401,8 @@ MVM_JIT_TILE_DECL(and_const) {
     MVMint32 sz  = tile->args[1];
     if (out == in1) {
         if (sz == 8 && !fits_in_32_bit(val)) {
-            MVM_oops(tc, "Scratch register NYI");
+            | mov64 rax, val;
+            | and Rq(in1), rax;
         } else {
             | and Rq(in1), val;
         }
@@ -452,15 +474,10 @@ MVM_JIT_TILE_DECL(and_load_idx) {
 
 
 MVM_JIT_TILE_DECL(sub_reg) {
-    MVMint8 out = tile->values[0];
-    MVMint8 in1  = tile->values[1];
-    MVMint8 in2  = tile->values[2];
-    if (out == in2) {
-        | sub Rq(out), Rq(in2);
-    } else {
-        | mov Rq(out), Rq(in1);
-        | sub Rq(out), Rq(in2);
-    }
+    MVMint8 reg[2];
+    ensure_two_operand_pre(tc, compiler, tile, reg);
+    | sub Rq(reg[0]), Rq(reg[1]);
+    ensure_two_operand_post(tc, compiler, tile, reg);
 }
 
 MVM_JIT_TILE_DECL(sub_const) {
@@ -470,14 +487,16 @@ MVM_JIT_TILE_DECL(sub_const) {
     MVMint32 sz  = tile->args[1];
     if (out == in1) {
         if (sz == 8 && !fits_in_32_bit(val)) {
-            MVM_oops(tc, "Scratch register NYI");
+            | mov64 rax, val;
+            | sub Rq(in1), rax;
         } else {
             | sub Rq(in1), val;
         }
     } else {
         if (sz == 8 && !fits_in_32_bit(val)) {
-            | mov64 Rq(out), val;
-            | sub Rq(out), Rq(in1);
+            | mov64 rax, val;
+            | mov Rq(out), Rq(in1);
+            | sub Rq(out), rax;
         } else {
             | mov Rq(out), Rq(in1);
             | sub Rq(out), val;

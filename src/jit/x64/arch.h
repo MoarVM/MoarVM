@@ -30,10 +30,10 @@
 
 
 #if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_POSIX
-/* Define the GPR set usable for general calculations */
+/* Define the GPR set usable for general calculations. RAX is reserved for
+ * internal use by tiles */
 
 #define MVM_JIT_ARCH_AVAILABLE_GPR(_) \
-    _(RAX) __COMMA__ \
     _(RCX) __COMMA__ \
     _(RDX) __COMMA__ \
     _(RSI) __COMMA__ \
@@ -73,13 +73,13 @@
 
 /* Microsoft why you give us so few registers :-( */
 #define MVM_JIT_ARCH_AVAILABLE_GPR(_) \
-    _(RAX) __COMMA__ \
     _(RCX) __COMMA__ \
     _(RDX) __COMMA__ \
     _(R8) __COMMA__ \
     _(R9) __COMMA__ \
     _(R10) __COMMA__ \
     _(R11)
+
 #define MVM_JIT_ARCH_NONVOLATILE_GPR(_) \
     _(RBX) __COMMA__ \
     _(RSP) __COMMA__ \

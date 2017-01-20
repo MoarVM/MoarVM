@@ -159,7 +159,7 @@ struct MVMJitTreeTraverser {
 const MVMJitExprOpInfo * MVM_jit_expr_op_info(MVMThreadContext *tc, MVMint32 op);
 /* properties of expression ops */
 MVMint32 MVM_jit_expr_op_negate_flag(MVMThreadContext *tc, MVMint32 op);
-MVMint32 MVM_jit_expor_op_is_binary_noncommutative(MVMThreadContext *tc, MVMint32 op);
+MVMint32 MVM_jit_expr_op_is_binary_noncommutative(MVMThreadContext *tc, MVMint32 op);
 
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter);
 void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree, MVMJitTreeTraverser *traverser);
