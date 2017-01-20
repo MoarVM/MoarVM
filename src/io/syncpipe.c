@@ -42,7 +42,7 @@ static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
     data->process   = NULL;
     data->ss.handle = NULL;
     if (data->ss.ds) {
-        MVM_string_decodestream_destory(tc, data->ss.ds);
+        MVM_string_decodestream_destroy(tc, data->ss.ds);
         data->ss.ds = NULL;
     }
     return (MVMint64)status;

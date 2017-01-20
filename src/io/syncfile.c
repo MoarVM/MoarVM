@@ -46,7 +46,7 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     uv_fs_t req;
     if (data->ds) {
-        MVM_string_decodestream_destory(tc, data->ds);
+        MVM_string_decodestream_destroy(tc, data->ds);
         data->ds = NULL;
     }
     if (uv_fs_close(tc->loop, &req, data->fd, NULL) < 0) {
@@ -84,7 +84,7 @@ static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64
 
     if (data->ds) {
         /* We'll start over from a new position. */
-        MVM_string_decodestream_destory(tc, data->ds);
+        MVM_string_decodestream_destroy(tc, data->ds);
         data->ds = NULL;
     }
 
@@ -403,7 +403,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOFileData *data = (MVMIOFileData *)d;
     if (data) {
         if (data->ds)
-            MVM_string_decodestream_destory(tc, data->ds);
+            MVM_string_decodestream_destroy(tc, data->ds);
         MVM_string_decode_stream_sep_destroy(tc, &(data->sep_spec));
         if (data->filename)
             MVM_free(data->filename);

@@ -1024,11 +1024,11 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
             si->args = NULL;
         }
         if (si->ds_stdout) {
-            MVM_string_decodestream_destory(tc, si->ds_stdout);
+            MVM_string_decodestream_destroy(tc, si->ds_stdout);
             si->ds_stdout = NULL;
         }
         if (si->ds_stderr) {
-            MVM_string_decodestream_destory(tc, si->ds_stderr);
+            MVM_string_decodestream_destroy(tc, si->ds_stderr);
             si->ds_stderr = NULL;
         }
         MVM_free(si);
