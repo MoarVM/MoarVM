@@ -332,11 +332,11 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
         : NULL;
 
     char *filename_c = filename
-	? MVM_string_utf8_encode_C_string(tc, filename)
-	: "<ephemeral file>";
+        ? MVM_string_utf8_encode_C_string(tc, filename)
+        : "<ephemeral file>";
     char *name_c = name
-	? MVM_string_utf8_encode_C_string(tc, name)
-	: "<anonymous frame>";
+        ? MVM_string_utf8_encode_C_string(tc, name)
+        : "<anonymous frame>";
 
     snprintf(o, 1024, " %s %s:%u  (%s:%s)",
         not_top ? "from" : "  at",
@@ -346,9 +346,9 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, M
         name_c
     );
     if (filename)
-	MVM_free(filename_c);
+        MVM_free(filename_c);
     if (name)
-	MVM_free(name_c);
+        MVM_free(name_c);
 
     if (tmp1)
         MVM_free(tmp1);

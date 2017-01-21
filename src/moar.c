@@ -16,7 +16,7 @@
         fprintf(stderr, "MoarVM: Initialization of " name " mutex failed\n    %s\n", \
             uv_strerror(init_stat)); \
         exit(1); \
-	} \
+    } \
 } while (0)
 
 static void setup_std_handles(MVMThreadContext *tc);
