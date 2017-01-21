@@ -39,8 +39,7 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
     ReadInfo         *ri  = (ReadInfo *)handle->data;
     MVMThreadContext *tc  = ri->tc;
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, ri->work_idx);
+    MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, ri->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if (nread >= 0) {
         MVMROOT(tc, t, {
@@ -86,6 +85,7 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
         if (buf->base)
             MVM_free(buf->base);
         uv_udp_recv_stop(handle);
+        MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
     else {
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
@@ -102,6 +102,7 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
         if (buf->base)
             MVM_free(buf->base);
         uv_udp_recv_stop(handle);
+        MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
 }
@@ -114,8 +115,7 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
     /* Add to work in progress. */
     ReadInfo *ri  = (ReadInfo *)data;
     ri->tc        = tc;
-    ri->work_idx  = MVM_repr_elems(tc, tc->instance->event_loop_active);
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    ri->work_idx  = MVM_io_eventloop_add_active_work(tc, async_task);
 
     /* Start reading the stream. */
     handle_data = (MVMIOAsyncUDPSocketData *)ri->handle->body.data;
@@ -266,8 +266,7 @@ static void on_write(uv_udp_send_t *req, int status) {
     WriteInfo        *wi  = (WriteInfo *)req->data;
     MVMThreadContext *tc  = wi->tc;
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, wi->work_idx);
+    MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, wi->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if (status >= 0) {
         MVMROOT(tc, arr, {
@@ -296,6 +295,7 @@ static void on_write(uv_udp_send_t *req, int status) {
     if (wi->str_data)
         MVM_free(wi->buf.base);
     MVM_free(wi->req);
+    MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
 }
 
 /* Does setup work for an asynchronous write. */
@@ -307,8 +307,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Add to work in progress. */
     WriteInfo *wi = (WriteInfo *)data;
     wi->tc        = tc;
-    wi->work_idx  = MVM_repr_elems(tc, tc->instance->event_loop_active);
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    wi->work_idx  = MVM_io_eventloop_add_active_work(tc, async_task);
 
     /* Encode the string, or extract buf data. */
     if (wi->str_data) {
@@ -351,6 +350,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         /* Cleanup handle. */
         MVM_free(wi->req);
         wi->req = NULL;
+        MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
     }
 }
 

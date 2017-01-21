@@ -13,8 +13,7 @@ typedef struct {
 static void timer_cb(uv_timer_t *handle) {
     TimerInfo        *ti = (TimerInfo *)handle->data;
     MVMThreadContext *tc = ti->tc;
-    MVMAsyncTask     *t  = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, ti->work_idx);
+    MVMAsyncTask     *t  = MVM_io_eventloop_get_active_work(tc, ti->work_idx);
     MVM_repr_push_o(tc, t->body.queue, t->body.schedulee);
 }
 
@@ -22,10 +21,9 @@ static void timer_cb(uv_timer_t *handle) {
 static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     TimerInfo *ti = (TimerInfo *)data;
     uv_timer_init(loop, &ti->handle);
-    ti->work_idx    = MVM_repr_elems(tc, tc->instance->event_loop_active);
+    ti->work_idx    = MVM_io_eventloop_add_active_work(tc, async_task);
     ti->tc          = tc;
     ti->handle.data = ti;
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
     uv_timer_start(&ti->handle, timer_cb, ti->timeout, ti->repeat);
 }
 
@@ -34,8 +32,8 @@ static void cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task,
     TimerInfo *ti = (TimerInfo *)data;
     uv_timer_stop(&ti->handle);
     MVM_io_eventloop_send_cancellation_notification(ti->tc,
-        (MVMAsyncTask *)MVM_repr_at_pos_o(tc, ti->tc->instance->event_loop_active,
-            ti->work_idx));
+        MVM_io_eventloop_get_active_work(tc, ti->work_idx));
+    MVM_io_eventloop_remove_active_work(tc, &(ti->work_idx));
 }
 
 /* Frees data associated with a timer async task. */

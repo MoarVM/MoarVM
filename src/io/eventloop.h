@@ -18,3 +18,7 @@ void MVM_io_eventloop_queue_work(MVMThreadContext *tc, MVMObject *work);
 void MVM_io_eventloop_cancel_work(MVMThreadContext *tc, MVMObject *task_obj,
     MVMObject *notify_queue, MVMObject *notify_schedulee);
 void MVM_io_eventloop_send_cancellation_notification(MVMThreadContext *tc, MVMAsyncTask *task_obj);
+
+int MVM_io_eventloop_add_active_work(MVMThreadContext *tc, MVMObject *async_task);
+MVMAsyncTask * MVM_io_eventloop_get_active_work(MVMThreadContext *tc, int work_idx);
+void MVM_io_eventloop_remove_active_work(MVMThreadContext *tc, int *work_idx_to_clear);

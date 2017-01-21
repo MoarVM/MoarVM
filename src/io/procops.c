@@ -366,7 +366,8 @@ typedef struct {
     MVMuint32          seq_stdout;
     MVMuint32          seq_stderr;
     uv_stream_t       *stdin_handle;
-    ProcessState      state;
+    ProcessState       state;
+    int                using;
 } SpawnInfo;
 
 /* Info we convey about a write task. */
@@ -385,8 +386,7 @@ static void on_write(uv_write_t *req, int status) {
     SpawnWriteInfo   *wi  = (SpawnWriteInfo *)req->data;
     MVMThreadContext *tc  = wi->tc;
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, wi->work_idx);
+    MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, wi->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if (status >= 0) {
         MVMROOT(tc, arr, {
@@ -414,6 +414,7 @@ static void on_write(uv_write_t *req, int status) {
     MVM_repr_push_o(tc, t->body.queue, arr);
     if (wi->str_data)
         MVM_free(wi->buf.base);
+    MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
     MVM_free(wi->req);
 }
 
@@ -428,8 +429,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Add to work in progress. */
     SpawnWriteInfo *wi = (SpawnWriteInfo *)data;
     wi->tc             = tc;
-    wi->work_idx       = MVM_repr_elems(tc, tc->instance->event_loop_active);
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    wi->work_idx       = MVM_io_eventloop_add_active_work(tc, async_task);
 
     /* Encode the string, or extract buf data. */
     if (wi->str_data) {
@@ -699,8 +699,7 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
 
             /* Get what we'll need to build and convey the result. */
             MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-            MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-                tc->instance->event_loop_active, si->work_idx);
+            MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, si->work_idx);
 
             /* Box and send along status. */
             MVM_repr_push_o(tc, arr, done_cb);
@@ -725,6 +724,8 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
     /* Close handle. */
     uv_close((uv_handle_t *)req, spawn_async_close);
     ((MVMIOAsyncProcessData *)((MVMOSHandle *)si->handle)->body.data)->handle = NULL;
+    if (--si->using == 0)
+        MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
 }
 
 /* Allocates a buffer of the suggested size. */
@@ -742,7 +743,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
     MVMAsyncTask *t;
     MVMROOT(tc, callback, {
         arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-        t = (MVMAsyncTask *)MVM_repr_at_pos_o(tc, tc->instance->event_loop_active, si->work_idx);
+        t = MVM_io_eventloop_get_active_work(tc, si->work_idx);
     });
     MVM_repr_push_o(tc, arr, callback);
     if (nread >= 0) {
@@ -791,6 +792,8 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
         if (buf->base)
             MVM_free(buf->base);
         uv_close((uv_handle_t *) handle, NULL);
+        if (--si->using == 0)
+            MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
     }
     else {
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
@@ -807,6 +810,8 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
         if (buf->base)
             MVM_free(buf->base);
         uv_close((uv_handle_t *) handle, NULL);
+        if (--si->using == 0)
+            MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
 }
@@ -850,8 +855,8 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Add to work in progress. */
     SpawnInfo *si = (SpawnInfo *)data;
     si->tc        = tc;
-    si->work_idx  = MVM_repr_elems(tc, tc->instance->event_loop_active);
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    si->work_idx  = MVM_io_eventloop_add_active_work(tc, async_task);
+    si->using     = 1;
 
     /* Create input/output handles as needed. */
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.write)) {
@@ -875,6 +880,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         si->ds_stdout                = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0, 1);
         stdout_pipe                  = pipe;
         stdout_cb                    = async_spawn_stdout_chars_read;
+        si->using++;
     }
     else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
@@ -884,6 +890,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[1].data.stream = (uv_stream_t *)pipe;
         stdout_pipe                  = pipe;
         stdout_cb                    = async_spawn_stdout_bytes_read;
+        si->using++;
     }
     else {
         process_stdio[1].flags   = UV_INHERIT_FD;
@@ -898,6 +905,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         si->ds_stderr                = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0, 1);
         stderr_pipe                  = pipe;
         stderr_cb                    = async_spawn_stderr_chars_read;
+        si->using++;
     }
     else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
@@ -907,6 +915,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[2].data.stream = (uv_stream_t *)pipe;
         stderr_pipe                  = pipe;
         stderr_cb                    = async_spawn_stderr_bytes_read;
+        si->using++;
     }
     else {
         process_stdio[2].flags   = UV_INHERIT_FD;
@@ -945,6 +954,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                 MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
             });
             });
+            MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
         }
     }
     else {
