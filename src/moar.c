@@ -233,7 +233,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     dynvar_log = getenv("MVM_DYNVAR_LOG");
     if (dynvar_log && strlen(dynvar_log)) {
         instance->dynvar_log_fh = fopen_perhaps_with_pid(dynvar_log, "w");
-        fprintf(instance->dynvar_log_fh, "+ x 0 0 0 0 0 %llu\n", uv_hrtime());
+        fprintf(instance->dynvar_log_fh, "+ x 0 0 0 0 0 %lui\n", uv_hrtime());
         fflush(instance->dynvar_log_fh);
         instance->dynvar_log_lasttime = uv_hrtime();
     }
@@ -350,7 +350,7 @@ void MVM_vm_exit(MVMInstance *instance) {
     if (instance->jit_bytecode_map)
         fclose(instance->jit_bytecode_map);
     if (instance->dynvar_log_fh) {
-        fprintf(instance->dynvar_log_fh, "- x 0 0 0 0 %lld %llu %llu\n", instance->dynvar_log_lasttime, uv_hrtime(), uv_hrtime());
+        fprintf(instance->dynvar_log_fh, "- x 0 0 0 0 %ld %lu %lu\n", instance->dynvar_log_lasttime, uv_hrtime(), uv_hrtime());
         fclose(instance->dynvar_log_fh);
     }
 
