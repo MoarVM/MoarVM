@@ -527,10 +527,10 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         continue;
                     }
                     else if (act == MVM_NFA_EDGE_EPSILON && to <= num_states && done[to] != gen) {
-			if (to)
-			    curst[numcur++] = to;
-			else if (nfadeb)  /* XXX should turn into a "can't happen" after rebootstrap */
-			    fprintf(stderr, "  oops, ignoring epsilon to 0\n");
+                        if (to)
+                            curst[numcur++] = to;
+                        else if (nfadeb)  /* XXX should turn into a "can't happen" after rebootstrap */
+                            fprintf(stderr, "  oops, ignoring epsilon to 0\n");
                         continue;
                     }
                 }

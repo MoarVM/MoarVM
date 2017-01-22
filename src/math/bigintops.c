@@ -226,7 +226,7 @@ static void grow_and_negate(const mp_int *a, int size, mp_int *b) {
 }
 
 static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
-				 int (*mp_bitop)(mp_int *, mp_int *, mp_int *)) {
+                                 int (*mp_bitop)(mp_int *, mp_int *, mp_int *)) {
 
     mp_int d;
     mp_int e;
@@ -266,7 +266,7 @@ static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
             DIGIT(c, i) = (~DIGIT(c, i)) & MP_MASK;
         }
         mp_add_d(c, 1, c);
-	mp_neg(c, c);
+        mp_neg(c, c);
     }
 }
 

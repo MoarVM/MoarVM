@@ -649,7 +649,7 @@ static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-	gc_cleanup(tc, STABLE(obj), OBJECT_BODY(obj));
+    gc_cleanup(tc, STABLE(obj), OBJECT_BODY(obj));
 }
 
 static const MVMStorageSpec storage_spec = {
