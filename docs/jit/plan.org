@@ -462,12 +462,67 @@ storage_class, storage_pos }, and use some kind of sorting, swapping,
 spilling to assign the right values to the right locations. Let the
 stack be a storage class.
 
-**** TODO Pre-count live range references
+**** DONE Pre-count ARGLIST references
 
 Needed to allocate the correct amount of reference objects to account
 for the live range objects. Can be done simply during tiling.
 
-*** TODO Implement three-operand to two-operand conversion
+**** TODO Mark ARGLIST references
+
+In determine_live_ranges, we need to handle ARGLIST specially, since
+those references haven't been handled yet by the tiling process. It's
+a relatively straightforward step.
+
+**** TODO Special-case ARGLIST references
+
+A reference to ARGLIST cannot be loaded by the general spilling
+mechanism, because ARGLIST may refer to more values than can be loaded
+into registers. So ARGLIST compilation should be able to deal with
+'spilled' values.
+
+Similarily, register assignment to ARGLIST tiles will not Just Work.
+
+**** TODO Convert ARGLIST spec to ABI list
+
+The basic idea is to have a function that is called as follows:
+
+#+BEGIN_SRC c
+typedef struct {
+    MVMJitStorageClass _cls;
+    MVMint32           _pos;
+} MVMJitStorageRef;
+
+MVMJitStorageRef storage_refs[16];
+MVMint32 num_args = tree->nodes[tile->node + 1];, i;
+MVM_jit_arch_get_arglist_storage_refs(tc, tile, tree, storage_refs);
+for (i = 0; i < num_args; i++) {
+   /* .... */
+}
+#+END_SRC
+
+I assume that's going to be specific to the architecture (POSIX/WIN32)
+
+**** TODO Use list of storage references to compile code for ARGLIST
+
+- Requires the ability to eject values from their registers
+  - and as such a map of register -> live range
+- should sort the eviction / swapping to place values in their
+  registers first
+  - this may be a rather complicated bit
+- requires splitting the 'spill_register' code from spilling live
+  ranges code
+
+**** TODO Spill live values over the CALL function
+
+One of the complexities here is that CALL doesn't necessarily start a
+live range so it's not necessarily 'seen' in the live range heap.
+
+So we should have a queue of CALL or other register barriers, created
+during the first step, and then iterate over them while running.
+Matter of fact, we should probably have the same for ARGLIST, since
+ARGLIST too needs special-casing.
+
+*** DONE Implement three-operand to two-operand conversion
 
 Safely translating this form (expr JIT):
 
@@ -504,6 +559,12 @@ Actually, that last bit is not a bad idea per se; since we know that
 we process live ranges in order of first definition, we also know that
 all tiles prior to our current live range must be well-defined (have
 complete registers).
+
+*** TODO Implement three-op conversion for indirect instructions
+
+- We should either mark tiles as indirect, or pass it as a flag
+- Indirect ops can have up to two 'secondary' register arguments
+  - and these shouldn't be overwritten either!
 
 *** TODO Implement splitting
 
@@ -555,3 +616,34 @@ order over the same dataset. While possible, it is redundant.
 
 Register assignment also updates the uses and definitions of tiles
 using the value reference.
+
+* TODO Optimizer
+
+- Want to do common-subexpression-elimination / global-value numbering
+  - idea: (hash) table of expr, node
+  - table is created bottom-up
+    - all children are replaced with equivalent (according to the table)
+    - then parent is itself 'hashed' to a record, an potentially
+      replaced
+- IDX CONST to ADDR conversion
+  - Uses one register less, simpler operation
+- Want to do copy-insertion
+  - Values that are LOAD-ed and used from multiple operations might
+    benefit from inserting a COPY, so they don't use indirect operations, e.g.
+
+#+BEGIN_SRC asm
+add rcx, [rdx+8];
+sub rsi, [rdx+8];
+# or
+mov rax, [rdx+8];
+add rcx, rax;
+sub rsi, rax;
+#+END_SRC
+
+* TODO REPR Specialization
+
+- Want to add a "JIT" method to on REPR add expression fragments into
+  the tree for specific REPRs of objects
+- One of the requirements is to be able to specify expression
+  fragments for specific REPRs, e.g. via repr-specific expression
+  template files.
