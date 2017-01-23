@@ -316,7 +316,8 @@ MVM_JIT_TILE_DECL(add_const) {
     MVMint32 sz  = tile->args[1];
     if (out == in1) {
         if (sz == 8 && !fits_in_32_bit(val)) {
-            MVM_oops(tc, "Scratch register NYI");
+            | mov64 rax, val;
+            | add Rq(out), rax;
         } else {
             | add Rq(in1), val;
         }
@@ -365,7 +366,9 @@ MVM_JIT_TILE_DECL(add_load_idx) {
     MVMint8 idx  = tile->values[3];
     MVMint32 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
-
+    if (in1 != out) {
+        | mov Rq(out), Rq(in1);
+    }
     if (scl != 8)
         MVM_oops(tc, "IDX Scale %d NYI\n", scl);
     switch (size) {
@@ -452,6 +455,9 @@ MVM_JIT_TILE_DECL(and_load_idx) {
     MVMint32 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
 
+    if (out != in1) {
+        | mov Rq(out), Rq(in1);
+    }
     if (scl != 8)
         MVM_oops(tc, "IDX Scale %d NYI\n", scl);
     switch (size) {
@@ -538,7 +544,9 @@ MVM_JIT_TILE_DECL(sub_load_idx) {
     MVMint8 idx  = tile->values[3];
     MVMint32 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
-
+    if (out != in1) {
+        | mov Rq(out), Rq(in1);
+    }
     if (scl != 8)
         MVM_oops(tc, "IDX Scale %d NYI\n", scl);
     switch (size) {
@@ -698,7 +706,8 @@ MVM_JIT_TILE_DECL(call) {
 
 MVM_JIT_TILE_DECL(call_func) {
     MVMint64 ptr = tile->args[0];
-    MVM_oops(tc, "Scratch register / Data storage NYI");
+    | mov64 rax, ptr;
+    | call rax;
 }
 
 
