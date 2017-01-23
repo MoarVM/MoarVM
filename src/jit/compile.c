@@ -237,7 +237,7 @@ void MVM_jit_enter_code(MVMThreadContext *tc, MVMCompUnit *cu,
     void *label = tc->cur_frame->jit_entry_label;
     if (label < (void*)code->func_ptr || (char*)label > (((char*)code->func_ptr) + code->size))
         MVM_oops(tc, "JIT entry label out of range for code!\n"
-                 "(label %p, func_ptr %p, code size %lu, offset %ld, frame_nr %d, seq nr %d)",
+                 "(label %p, func_ptr %p, code size %lui, offset %li, frame_nr %i, seq nr %i)",
                  label, code->func_ptr, code->size, ((char*)label) - ((char*)code->func_ptr),
                  tc->cur_frame->sequence_nr, code->seq_nr);
     code->func_ptr(tc, cu, label);

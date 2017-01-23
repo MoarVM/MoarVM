@@ -1,3 +1,57 @@
+New in 2017.01
+
++ Extract spesh block allocator from spesh, for wider use
++ Add a number of missing MVMROOTs, which could lead to outdated pointers;
+  also removed some unrequired MVMROOTs
++ Fix arg_flags allocation sizes
++ Remove an obsolete path from ldrpath
++ Check lexical accesses in GC debug mode 2 also
++ Add a #define to turn on inline logging
++ Fix callstack reset bug, which could corrupt deeply recursing callstacks
++ Don't allow re-compose of a P6opaque
++ Add a new unicmp_s op, which compares using the Unicode Collation Algorithm
++ Make sure we generate all values of the Line_Break property
++ Re-implement utf8-c8 encoding, fixing bugs and ensuring that non-NFC input
+  will round-trip properly also
++ Implement Bidi_Mirroring_Glyph as an integer property
++ Implement Emoji grapheme breaking and other combined codes
++ Add support for Grapheme_Cluster_Break=Prepend from Unicode 9.0
++ Make sure we break after Prepend if it's a control character
++ Add a script to download the latest version of all of the Unicode data
++ Missing rooting GC in rare exit handler case
++ Implement new setdispatcherfor op and add JIT for it
++ Use much faster atoi function in normalizer; 14% less CPU use when slurping
+  a file in UTF-8 encoding
++ For Decompose_Type, use int lookup instead of str for better performance
++ Fix heap snapshot crash on eventloop thread
++ Use /usr/bin/env perl for ./Configure.pl
++ Don't break after ZWJ or for MALE SIGN and FEMALE SIGN
++ Take into account actual allocated size of I/O buffers in gen2 promotion
+  statistics
++ Tweak full collection criteria in heap profiling
++ Free up spesh log slots after specialization, avoiding some leaks
++ Removed the getregref_ ops (unused by NQP or Perl 6)
++ Removed the continuationclone op (unused by Perl 6)
++ Enforce one-shot invocation of continuations
++ Greatly simplify handling of call frame working register lifetimes, leading
+  to consistently shorter lifetimes, less memory pressure, and faster calling
++ Eliminate now-unused `tc` field in MVMFrame, saving a pointer per callframe
++ Simplify args cleanup functions
++ Reduce number of checks in call frame marking, making it faster
++ Implement getstrfromname op, to get named Unicode sequences
++ Fix GC in spesh triggered by managed mutex use
++ Fix data race in inlining extop fixup
++ Fix data race in callsite fixup during inlining
++ Fix data race in string fixup during inlining
++ Fix charname lookups of LINE FEED and CARRIAGE RETURN
++ Remove Unicode 1 names and add Unicode Name Aliases
++ Convert MVM_malloc+memset to MVM_calloc
++ Clean out ancient "remove after rebootstrap" line
++ Fix typo in MVM_CALLSTACK_REGIONS_SIZE's name
++ Fix missing cleanup of managed DecodeStream
++ Have DecodeStrem clean leftover char buffers
++ Fix a typo in decode stream destroy function
+
 New in 2016.12
 
 + Decode Latin-1 and UTF-8 strings to 8-bit width when possible

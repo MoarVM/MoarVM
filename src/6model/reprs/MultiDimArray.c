@@ -247,7 +247,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-	MVMMultiDimArray *arr = (MVMMultiDimArray *)obj;
+    MVMMultiDimArray *arr = (MVMMultiDimArray *)obj;
     MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)STABLE(obj)->REPR_data;
     if (arr->body.slots.any)
         MVM_fixed_size_free(tc, tc->instance->fsa,

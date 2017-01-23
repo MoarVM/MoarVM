@@ -366,7 +366,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
         for (j = 0; j < lineno; j++) {
             if (annotations[j]) {
-				MVMuint16 shi = GET_UI16(frame->body.annotations_data + 4, (annotations[j] - 1)*12);
+                MVMuint16 shi = GET_UI16(frame->body.annotations_data + 4, (annotations[j] - 1)*12);
                 tmpstr = MVM_string_utf8_encode_C_string(
                     tc, MVM_cu_string(tc, cu, shi < cu->body.num_strings ? shi : 0));
                 a("     annotation: %s:%u\n", tmpstr, GET_UI32(frame->body.annotations_data, (annotations[j] - 1)*12 + 8));

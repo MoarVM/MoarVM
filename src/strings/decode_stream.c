@@ -500,13 +500,20 @@ MVMint32 MVM_string_decodestream_is_empty(MVMThreadContext *tc, MVMDecodeStream 
 
 /* Destroys a decoding stream, freeing all associated memory (including the
  * buffers). */
-void MVM_string_decodestream_destory(MVMThreadContext *tc, MVMDecodeStream *ds) {
+void MVM_string_decodestream_destroy(MVMThreadContext *tc, MVMDecodeStream *ds) {
     MVMDecodeStreamBytes *cur_bytes = ds->bytes_head;
+    MVMDecodeStreamChars *cur_chars = ds->chars_head;
     while (cur_bytes) {
         MVMDecodeStreamBytes *next_bytes = cur_bytes->next;
         MVM_free(cur_bytes->bytes);
         MVM_free(cur_bytes);
         cur_bytes = next_bytes;
+    }
+    while (cur_chars) {
+        MVMDecodeStreamChars *next_chars = cur_chars->next;
+        MVM_free(cur_chars->chars);
+        MVM_free(cur_chars);
+        cur_chars = next_chars;
     }
     MVM_unicode_normalizer_cleanup(tc, &(ds->norm));
     MVM_free(ds->decoder_state);

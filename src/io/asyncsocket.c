@@ -36,8 +36,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     ReadInfo         *ri  = (ReadInfo *)handle->data;
     MVMThreadContext *tc  = ri->tc;
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, ri->work_idx);
+    MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, ri->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if (nread >= 0) {
         MVMROOT(tc, t, {
@@ -83,6 +82,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
         if (buf->base)
             MVM_free(buf->base);
         uv_read_stop(handle);
+        MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
     else {
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
@@ -99,6 +99,7 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
         if (buf->base)
             MVM_free(buf->base);
         uv_read_stop(handle);
+        MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
 }
@@ -111,8 +112,7 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
     /* Add to work in progress. */
     ReadInfo *ri  = (ReadInfo *)data;
     ri->tc        = tc;
-    ri->work_idx  = MVM_repr_elems(tc, tc->instance->event_loop_active);
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    ri->work_idx  = MVM_io_eventloop_add_active_work(tc, async_task);
 
     /* Start reading the stream. */
     handle_data = (MVMIOAsyncSocketData *)ri->handle->body.data;
@@ -134,6 +134,7 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
             });
             MVM_repr_push_o(tc, t->body.queue, arr);
         });
+        MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
 }
 
@@ -149,7 +150,7 @@ static void read_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data) {
         ReadInfo *ri = (ReadInfo *)data;
         if (ri->ds)
-            MVM_string_decodestream_destory(tc, ri->ds);
+            MVM_string_decodestream_destroy(tc, ri->ds);
         MVM_free(data);
     }
 }
@@ -262,8 +263,7 @@ static void on_write(uv_write_t *req, int status) {
     WriteInfo        *wi  = (WriteInfo *)req->data;
     MVMThreadContext *tc  = wi->tc;
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, wi->work_idx);
+    MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, wi->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if (status >= 0) {
         MVMROOT(tc, arr, {
@@ -292,6 +292,7 @@ static void on_write(uv_write_t *req, int status) {
     if (wi->str_data)
         MVM_free(wi->buf.base);
     MVM_free(wi->req);
+    MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
 }
 
 /* Does setup work for an asynchronous write. */
@@ -303,8 +304,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Add to work in progress. */
     WriteInfo *wi = (WriteInfo *)data;
     wi->tc        = tc;
-    wi->work_idx  = MVM_repr_elems(tc, tc->instance->event_loop_active);
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    wi->work_idx  = MVM_io_eventloop_add_active_work(tc, async_task);
 
     /* Encode the string, or extract buf data. */
     if (wi->str_data) {
@@ -347,6 +347,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         /* Cleanup handle. */
         MVM_free(wi->req);
         wi->req = NULL;
+        MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
     }
 }
 
@@ -491,7 +492,7 @@ static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOAsyncSocketData *data = (MVMIOAsyncSocketData *)d;
     if (data->ds) {
-        MVM_string_decodestream_destory(tc, data->ds);
+        MVM_string_decodestream_destroy(tc, data->ds);
         data->ds = NULL;
     }
 }
@@ -526,13 +527,12 @@ typedef struct {
     int               work_idx;
 } ConnectInfo;
 
-/* When a connection takes place, need to keep the appropriate promise. */
+/* When a connection takes place, need to send result. */
 static void on_connect(uv_connect_t* req, int status) {
     ConnectInfo      *ci  = (ConnectInfo *)req->data;
     MVMThreadContext *tc  = ci->tc;
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, ci->work_idx);
+    MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, ci->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if (status >= 0) {
         /* Allocate and set up handle. */
@@ -562,6 +562,7 @@ static void on_connect(uv_connect_t* req, int status) {
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
     MVM_free(req);
+    MVM_io_eventloop_remove_active_work(tc, &(ci->work_idx));
 }
 
 /* Initilalize the connection on the event loop. */
@@ -571,8 +572,7 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
     /* Add to work in progress. */
     ConnectInfo *ci = (ConnectInfo *)data;
     ci->tc        = tc;
-    ci->work_idx  = MVM_repr_elems(tc, tc->instance->event_loop_active);
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    ci->work_idx  = MVM_io_eventloop_add_active_work(tc, async_task);
 
     /* Create and initialize socket and connection. */
     ci->socket        = MVM_malloc(sizeof(uv_tcp_t));
@@ -601,6 +601,7 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
         ci->connect = NULL;
         uv_close((uv_handle_t *)ci->socket, free_on_close_cb);
         ci->socket = NULL;
+        MVM_io_eventloop_remove_active_work(tc, &(ci->work_idx));
     }
 }
 
@@ -675,8 +676,7 @@ static void on_connection(uv_stream_t *server, int status) {
     ListenInfo       *li     = (ListenInfo *)server->data;
     MVMThreadContext *tc     = li->tc;
     MVMObject        *arr    = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t      = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, li->work_idx);
+    MVMAsyncTask     *t      = MVM_io_eventloop_get_active_work(tc, li->work_idx);
 
     uv_tcp_t         *client = MVM_malloc(sizeof(uv_tcp_t));
     int               r;
@@ -721,8 +721,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
     /* Add to work in progress. */
     ListenInfo *li = (ListenInfo *)data;
     li->tc         = tc;
-    li->work_idx   = MVM_repr_elems(tc, tc->instance->event_loop_active);
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
+    li->work_idx   = MVM_io_eventloop_add_active_work(tc, async_task);
 
     /* Create and initialize socket and connection, and start listening. */
     li->socket        = MVM_malloc(sizeof(uv_tcp_t));
@@ -747,6 +746,7 @@ static void listen_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
         });
         uv_close((uv_handle_t *)li->socket, free_on_close_cb);
         li->socket = NULL;
+        MVM_io_eventloop_remove_active_work(tc, &(li->work_idx));
         return;
     }
 }
@@ -756,8 +756,8 @@ static void on_listen_cancelled(uv_handle_t *handle) {
     ListenInfo       *li = (ListenInfo *)handle->data;
     MVMThreadContext *tc = li->tc;
     MVM_io_eventloop_send_cancellation_notification(tc,
-        (MVMAsyncTask *)MVM_repr_at_pos_o(tc, tc->instance->event_loop_active,
-            li->work_idx));
+        MVM_io_eventloop_get_active_work(tc, li->work_idx));
+    MVM_io_eventloop_remove_active_work(tc, &(li->work_idx));
 }
 static void listen_cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     ListenInfo *li = (ListenInfo *)data;

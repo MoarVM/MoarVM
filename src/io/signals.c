@@ -20,8 +20,7 @@ static void signal_cb(uv_signal_t *handle, int sig_num) {
     SignalInfo       *si  = (SignalInfo *)handle->data;
     MVMThreadContext *tc  = si->tc;
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    MVMAsyncTask     *t   = (MVMAsyncTask *)MVM_repr_at_pos_o(tc,
-        tc->instance->event_loop_active, si->work_idx);
+    MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, si->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     MVMROOT(tc, t, {
     MVMROOT(tc, arr, {
@@ -37,10 +36,9 @@ static void signal_cb(uv_signal_t *handle, int sig_num) {
 static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     SignalInfo *si = (SignalInfo *)data;
     uv_signal_init(loop, &si->handle);
-    si->work_idx    = MVM_repr_elems(tc, tc->instance->event_loop_active);
+    si->work_idx    = MVM_io_eventloop_add_active_work(tc, async_task);
     si->tc          = tc;
     si->handle.data = si;
-    MVM_repr_push_o(tc, tc->instance->event_loop_active, async_task);
     uv_signal_start(&si->handle, signal_cb, si->signum);
 }
 

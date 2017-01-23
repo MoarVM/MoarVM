@@ -454,7 +454,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         if (nfadeb) {
             if (offset < eos) {
                 MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                fprintf(stderr,"%c with %ds target %lx offset %lld\n",cp,(int)numcur, (long)target, offset);
+                fprintf(stderr,"%c with %ds target %lx offset %ld\n",cp,(int)numcur, (long)target, offset);
             }
             else {
                 fprintf(stderr,"EOS with %ds\n",(int)numcur);
@@ -527,10 +527,10 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         continue;
                     }
                     else if (act == MVM_NFA_EDGE_EPSILON && to <= num_states && done[to] != gen) {
-			if (to)
-			    curst[numcur++] = to;
-			else if (nfadeb)  /* XXX should turn into a "can't happen" after rebootstrap */
-			    fprintf(stderr, "  oops, ignoring epsilon to 0\n");
+                        if (to)
+                            curst[numcur++] = to;
+                        else if (nfadeb)  /* XXX should turn into a "can't happen" after rebootstrap */
+                            fprintf(stderr, "  oops, ignoring epsilon to 0\n");
                         continue;
                     }
                 }
@@ -758,22 +758,8 @@ void MVM_nfa_run_alt(MVMThreadContext *tc, MVMObject *nfa, MVMString *target,
     MVMint64 caps = cstack && IS_CONCRETE(cstack)
         ? MVM_repr_elems(tc, cstack)
         : 0;
-
-    /* With unique fates, we have to subtract this NFA's offset, stored in fbeg. */
-    /* (Conveniently, fbeg was already stored as 0 for bootstraps of QRegex.) */
-    MVMObject *fatenames = ((MVMNFABody *)OBJECT_BODY(nfa))->fates;
-    MVMint64 fbegend = 0;
-    MVMint64 fbeg = 0;
-    MVMint64 fend = 0;
-
-    if (fatenames) {
-	fbegend = MVM_repr_get_int(tc, MVM_repr_at_pos_o(tc, fatenames, 0));
-	fbeg = fbegend & 0xffffffff;
-	fend = fbegend >> 32;
-    }
-
     for (i = 0; i < total_fates; i++) {
-        MVM_repr_push_i(tc, bstack, MVM_repr_at_pos_i(tc, labels, fates[i] - fbeg));
+        MVM_repr_push_i(tc, bstack, MVM_repr_at_pos_i(tc, labels, fates[i]));
         MVM_repr_push_i(tc, bstack, offset);
         MVM_repr_push_i(tc, bstack, 0);
         MVM_repr_push_i(tc, bstack, caps);

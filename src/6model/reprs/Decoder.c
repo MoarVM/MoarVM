@@ -28,6 +28,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
+    MVMDecoder *decoder = (MVMDecoder *)obj;
+    if (decoder->body.ds)
+        MVM_string_decodestream_destroy(tc, decoder->body.ds);
 }
 
 static const MVMStorageSpec storage_spec = {
