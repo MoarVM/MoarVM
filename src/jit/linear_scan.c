@@ -349,8 +349,8 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
     MVMint32 i, j;
 
     alc->sets = MVM_calloc(tree->nodes_num, sizeof(UnionFind));
-    /* TODO: add count for ARGLIST refs, which can be > 3 per 'tile' */
-    alc->refs = MVM_calloc(list->items_num * 4, sizeof(ValueRef));
+    /* up to 4 refs per tile (1 out, 3 in) plus the number of refs per arglist */
+    alc->refs = MVM_calloc(list->items_num * 4 + list->num_arglist_refs, sizeof(ValueRef));
     alc->refs_num = 0;
 
     MVM_VECTOR_INIT(alc->values,   list->items_num);

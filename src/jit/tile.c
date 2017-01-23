@@ -408,8 +408,12 @@ static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         return;
 
     tile = MVM_jit_tile_make_from_template(tc, tiler->compiler, template, tree, node);
-    /* fprintf(stderr, "%s %08x\n", template->expr, template->register_spec); */
+
     MVM_VECTOR_PUSH(tiler->list->items, tile);
+    /* count tne number of refs for ARGLIST */
+    if (tile->op == MVM_JIT_ARGLIST) {
+        tiler->list->num_arglist_refs += tile->num_refs;
+    }
 }
 
 /* Create a tile from a template */
@@ -439,6 +443,7 @@ MVMJitTile * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompile
          * than 8 (never mind 4) values, it won't fit into refs, so we're not
          * reading them here */
         tile->num_refs = tree->nodes[node+1];
+        
         break;
     }
     case MVM_JIT_DO:
@@ -495,6 +500,7 @@ MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *co
     tiler.compiler      = compiler;
     tiler.list          = MVM_spesh_alloc(tc, compiler->graph->sg, sizeof(MVMJitTileList));
     tiler.list->tree    = tree;
+    tiler.list->num_arglist_refs = 0;
 
     MVM_VECTOR_INIT(tiler.list->items, tree->nodes_num / 2);
     MVM_VECTOR_INIT(tiler.list->inserts, 0);

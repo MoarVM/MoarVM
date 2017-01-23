@@ -38,6 +38,7 @@ struct MVMJitTileList {
     MVM_VECTOR_DECL(MVMJitTile*, items);
     MVM_VECTOR_DECL(struct MVMJitTileInsert, inserts);
     /* TODO implement structures to mark basic blocks */
+    MVMint32 num_arglist_refs;
 };
 
 
