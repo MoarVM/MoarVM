@@ -106,7 +106,7 @@ MVMint64 MVM_unicode_string_compare
 /* Looks up a codepoint by name. Lazily constructs a hash. */
 MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
-    char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
+    char *cname = MVM_string_ascii_encode(tc, MVM_string_uc(tc, name), &size, 0);
     size_t cname_len = strlen((const char *) cname );
     MVMUnicodeNameRegistry *result;
     if (!codepoints_by_name) {
@@ -417,7 +417,7 @@ void MVM_unicode_release(MVMThreadContext *tc)
 /* Looks up a grapheme by name. Lazily constructs a hash. */
 MVMString * MVM_unicode_string_from_name(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
-    char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
+    char *cname = MVM_string_ascii_encode(tc, MVM_string_uc(tc, name), &size, 0);
     MVMUnicodeGraphemeNameRegistry *result;
 
     MVMGrapheme32 result_graph;
