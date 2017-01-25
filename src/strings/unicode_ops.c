@@ -106,7 +106,7 @@ MVMint64 MVM_unicode_string_compare
 /* Looks up a codepoint by name. Lazily constructs a hash. */
 MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
-    char *cname = MVM_string_ascii_encode(tc, MVM_string_uc(tc, name), &size, 0);
+    char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
     size_t cname_len = strlen((const char *) cname );
     MVMUnicodeNameRegistry *result;
     if (!codepoints_by_name) {
@@ -414,22 +414,26 @@ void MVM_unicode_release(MVMThreadContext *tc)
     }
     uv_mutex_unlock(&property_hash_count_mutex);
 }
-/* Looks up a grapheme by name. Lazily constructs a hash. */
+/* Looks up a codepoint sequence or codepoint by name (case insensitive).
+ First tries to look it up by codepoint with MVM_unicode_lookup_by_name and if
+ not found as a named codepoint, lazily constructs a hash of the codepoint
+ sequences and looks up the sequence name */
 MVMString * MVM_unicode_string_from_name(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
-    char *cname = MVM_string_ascii_encode(tc, MVM_string_uc(tc, name), &size, 0);
+    MVMString * name_uc = MVM_string_uc(tc, name);
+    char * cname;
     MVMUnicodeGraphemeNameRegistry *result;
 
     MVMGrapheme32 result_graph;
     const MVMint32 * uni_seq;
     int array_size;
 
-    result_graph = MVM_unicode_lookup_by_name(tc, name);
+    result_graph = MVM_unicode_lookup_by_name(tc, name_uc);
     /* If it's just a codepoint, return that */
     if (result_graph >= 0) {
-        MVM_free(cname);
         return MVM_string_chr(tc, result_graph);
     }
+    cname = MVM_string_ascii_encode(tc, name_uc, &size, 0);
     if (!property_codes_by_seq_names) {
         generate_property_codes_by_seq_names(tc);
     }
