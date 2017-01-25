@@ -60,6 +60,7 @@ sub main {
     $db_sections->{'AAA_header'} = header();
     add_unicode_sequence('emoji/emoji-sequences');
     add_unicode_sequence('emoji/emoji-zwj-sequences');
+    add_unicode_sequence('NamedSequences');
     gen_unicode_sequence_keypairs();
     NameAliases();
     gen_name_alias_keypairs();
@@ -1090,10 +1091,24 @@ sub add_unicode_sequence {
         if ( $line =~ /^#/ or $line =~ /^\s*$/) {
             return;
         }
-        my @list = split /;|   \#/, $line;
-        my $hex_ords = trim shift @list;
-        my $type = trim shift @list;
-        my $name = trim shift @list;
+        my (@list, $hex_ords, $type, $name);
+        @list = split /;|   \#/, $line;
+        if ($filename =~ /emoji/) {
+            $hex_ords = trim shift @list;
+            $type = trim shift @list;
+            $name = trim shift @list;
+        }
+        else {
+            $name = trim shift @list;
+            $hex_ords = trim shift @list;
+            $type = 'NamedSequences';
+        }
+        # Make sure it's uppercase since the Emoji sequences are not all in
+        # uppercase.
+        $name = uc $name;
+        # Emoji sequences have commas in some and these cannot be included
+        # since they seperate seperate named items in ISO notation that P6 uses
+        $name =~ s/,//g;
         $sequences->{$name}->{'type'} = $type;
 
         for my $hex (split ' ', $hex_ords) {
