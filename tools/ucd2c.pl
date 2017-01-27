@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 use v5.14;
 use warnings; use strict;
 use Data::Dumper;
