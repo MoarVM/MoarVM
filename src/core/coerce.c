@@ -377,8 +377,9 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
         else if (ch >= 'A' && ch <= 'Z') ch = ch - 'A' + 10;
         else if (ch >= 0xFF21 && ch <= 0xFF3A) ch = ch - 0xFF21 + 10; /* uppercase fullwidth */
         else if (ch >= 0xFF41 && ch <= 0xFF5A) ch = ch - 0xFF41 + 10; /* lowercase fullwidth */
-        else if (ch > 0 && MVM_unicode_codepoint_has_property_value(tc, ch, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, 
-                MVM_unicode_cname_to_property_value_code(tc, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, STR_WITH_LEN("Nd")))) {
+        else if (ch > 0 &&
+            MVM_unicode_codepoint_get_property_int(tc, ch, MVM_UNICODE_PROPERTY_NUMERIC_TYPE)
+         == MVM_UNICODE_PVALUE_Numeric_Type_DECIMAL) {
             /* As of Unicode 6.0.0, we know that Nd category numerals are within
              * the range 0..9
              */
