@@ -14,6 +14,9 @@ typedef struct {
      * of its logic. */
     MVMIOSyncStreamData ss;
 
+    /* Status of the last connect attempt, if any. */
+    int connect_status;
+
     /* Details of next connection to accept; NULL if none. */
     uv_stream_t *accept_server;
     int          accept_status;
@@ -76,12 +79,8 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
 }
 
 static void on_connect(uv_connect_t* req, int status) {
+    ((MVMIOSyncSocketData *)req->data)->connect_status = status;
     uv_unref((uv_handle_t *)req->handle);
-    if (status < 0) {
-        MVMThreadContext *tc = ((MVMIOSyncSocketData *)req->data)->ss.cur_tc;
-        MVM_free(req);
-        MVM_exception_throw_adhoc(tc, "Failed to connect: %s", uv_strerror(status));
-    }
 }
 static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
@@ -89,24 +88,23 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         struct sockaddr *dest    = MVM_io_resolve_host_name(tc, host, port);
         uv_tcp_t        *socket  = MVM_malloc(sizeof(uv_tcp_t));
         uv_connect_t    *connect = MVM_malloc(sizeof(uv_connect_t));
-        int r;
+        int status;
 
         data->ss.cur_tc = tc;
         connect->data   = data;
-        if ((r = uv_tcp_init(tc->loop, socket)) < 0 ||
-                (r = uv_tcp_connect(connect, socket, dest, on_connect)) < 0) {
-            MVM_free(socket);
-            MVM_free(connect);
-            MVM_free(dest);
-            MVM_exception_throw_adhoc(tc, "Failed to connect: %s", uv_strerror(r));
+        if ((status = uv_tcp_init(tc->loop, socket)) == 0 &&
+                (status = uv_tcp_connect(connect, socket, dest, on_connect)) == 0) {
+            uv_ref((uv_handle_t *)socket);
+            uv_run(tc->loop, UV_RUN_DEFAULT);
+            status = data->connect_status;
         }
-        uv_ref((uv_handle_t *)socket);
-        uv_run(tc->loop, UV_RUN_DEFAULT);
-
-        data->ss.handle = (uv_stream_t *)socket;
 
         MVM_free(connect);
         MVM_free(dest);
+
+        data->ss.handle = (uv_stream_t *)socket; /* So can be cleaned up in close */
+        if (status < 0)
+            MVM_exception_throw_adhoc(tc, "Failed to connect: %s", uv_strerror(status));
     }
     else {
         MVM_exception_throw_adhoc(tc, "Socket is already bound or connected");
