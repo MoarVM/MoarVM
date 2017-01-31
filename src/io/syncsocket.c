@@ -19,9 +19,12 @@ typedef struct {
     int          accept_status;
 } MVMIOSyncSocketData;
 
+static void free_on_close_cb(uv_handle_t *handle) {
+    MVM_free(handle);
+}
 static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
     if (data->ss.handle) {
-         uv_close((uv_handle_t *)data->ss.handle, NULL);
+         uv_close((uv_handle_t *)data->ss.handle, free_on_close_cb);
          data->ss.handle = NULL;
     }
     if (data->ss.ds) {
