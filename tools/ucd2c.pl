@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 use v5.14;
 use warnings; use strict;
 use Data::Dumper;
@@ -76,10 +77,11 @@ sub main {
     goto skip_most if $skip_most_mode;
     binary_props('extracted/DerivedBinaryProperties');
     binary_props('emoji/emoji-data');
-    enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 0, 3);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
+    enumerated_property('extracted/DerivedEastAsianWidth', 'East_Asian_Width', {}, 0, 1);
+    enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
     CaseFolding();
     SpecialCasing();
     enumerated_property('DerivedAge',
@@ -844,6 +846,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK', 'Grapheme_Cluster_Break', 'GCB');
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE', 'Decomposition_Type', 'DT');
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS', 'Canonical_Combining_Class', 'CCC');
+    gen_pvalue_defines('MVM_UNICODE_PROPERTY_NUMERIC_TYPE', 'Numeric_Type', 'Numeric_Type');
 
     $db_sections->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
     $h_sections->{property_code_definitions} = $hout;
