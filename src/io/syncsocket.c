@@ -38,6 +38,8 @@ static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)d;
     do_close(tc, data);
+    MVM_string_decode_stream_sep_destroy(tc, &(data->ss.sep_spec));
+    MVM_free(data);
 }
 
 /* Actually, it may return sockaddr_in6 as well; it's not a problem for us, because we just
