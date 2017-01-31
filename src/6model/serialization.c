@@ -2501,6 +2501,22 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     reader->cur_read_offset     = &(reader->stables_data_offset);
     reader->cur_read_end        = &(reader->stables_data_end);
 
+    /* If the STable is being repossessed, clean up its existing data before we
+     * write over it. */
+    if (st->being_repossessed) {
+        if (st->REPR->gc_free_repr_data)
+            st->REPR->gc_free_repr_data(tc, st);
+        MVM_free(st->type_check_cache);
+        st->type_check_cache = NULL;
+        MVM_free(st->boolification_spec);
+        st->boolification_spec = NULL;
+        MVM_free(st->invocation_spec);
+        st->invocation_spec = NULL;
+        MVM_free(st->debug_name);
+        st->debug_name = NULL;
+        st->being_repossessed = 0;
+    }
+
     /* Read the HOW, WHAT and WHO. */
     deserialize_how_lazy(tc, st, reader);
     MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, read_obj_ref(tc, reader));
@@ -2941,11 +2957,9 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         MVM_sc_set_stable_sc(tc, orig_st, reader->root.sc);
         MVM_sc_set_idx_in_sc(&(orig_st->header), slot);
 
-        /* XXX TODO: consider clearing up STable, however we must do it out of
-         * this repossess routine, since we may depend on original data to do
-         * lazy deserialization of original objects. */
-        /*if (orig_st->REPR->gc_free_repr_data)
-            orig_st->REPR->gc_free_repr_data(tc, orig_st);*/
+        /* Flag as being repossessed, so we can clear up memory at the point
+         * we replaced the STable data with the updated data. */
+        orig_st->being_repossessed = 1;
 
         /* Put this on the list of things we should deserialize right away. */
         worklist_add_index(tc, &(reader->wl_stables), slot);
