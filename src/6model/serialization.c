@@ -2750,7 +2750,9 @@ MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializati
     /* Obtain lock and ensure we didn't lose a race to deserialize this
      * STable. */
     MVMSerializationReader *sr = sc->body->sr;
-    MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+    MVMROOT(tc, sc, {
+        MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
+    });
     if (sc->body->root_stables[idx]) {
         MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
         return sc->body->root_stables[idx];
