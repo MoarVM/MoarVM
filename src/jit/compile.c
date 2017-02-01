@@ -21,8 +21,8 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 
     MVM_jit_log(tc, "Starting compilation\n");
 
-    /* setup dasm */
-    dasm_init(&state, 1);
+    /* setup dasm (data and code section) */
+    dasm_init(&state, 2);
     dasm_setupglobal(&state, dasm_globals, num_globals);
     dasm_setup(&state, MVM_jit_actions());
     dasm_growpc(&state, jg->num_labels);

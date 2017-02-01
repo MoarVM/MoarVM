@@ -72,7 +72,7 @@
 
 |.arch x64
 |.actionlist actions
-|.section code
+|.section code, data
 |.globals MVM_JIT_LABEL_
 
 /* type declarations */
@@ -218,8 +218,11 @@ const unsigned int MVM_jit_num_globals(void) {
 
 
 |.macro callp, funcptr
-| mov64 FUNCTION, (uintptr_t)funcptr
-| call FUNCTION
+|.data
+|5:
+|.dword (MVMuint32)((uintptr_t)(funcptr)), (MVMuint32)((uintptr_t)(funcptr) >> 32);
+|.code
+| call qword [<5];
 |.endmacro
 
 
@@ -285,6 +288,7 @@ const unsigned int MVM_jit_num_globals(void) {
  * via a frame. All JIT entry points receive a prologue. */
 void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitGraph *jg,
                            dasm_State **Dst) {
+    |.code
     /* Setup stack */
     | push rbp; // nb, this aligns the stack to 16 bytes again
     | mov rbp, rsp;
