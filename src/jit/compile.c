@@ -55,6 +55,9 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         case MVM_JIT_NODE_CONTROL:
             MVM_jit_emit_control(tc, jg, &node->u.control, &state);
             break;
+        case MVM_JIT_NODE_DATA:
+            MVM_jit_emit_data(tc, jg, &node->u.data, &state);
+            break;
         }
         node = node->next;
     }

@@ -67,7 +67,7 @@ static void jgb_append_call_c(MVMThreadContext *tc, JitGraphBuilder *jgb,
 
 
 static MVMint32 get_label_for_obj(MVMThreadContext *tc, JitGraphBuilder *jgb,
-                           void * obj) {
+                                  void * obj) {
     MVMint32 i;
     for (i = 0; i < jgb->num_labels; i++) {
         if (!jgb->labeleds[i])
@@ -596,9 +596,19 @@ static MVMint32 jgb_consume_jumplist(MVMThreadContext *tc, JitGraphBuilder *jgb,
     return 1;
 }
 
-static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshIns *ins) {
-    /* XXX Need to be able to clear these up, some day. */
-    MVMuint16 *regs = MVM_calloc(ins->info->num_operands, sizeof(MVMuint16));
+static MVMint32 jgb_add_data_node(MVMThreadContext *tc, JitGraphBuilder *jgb, void *data, size_t size) {
+    MVMJitNode *node = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMJitNode));
+    MVMint32 label   = get_label_for_obj(tc, jgb, data);
+    node->type         = MVM_JIT_NODE_DATA;
+    node->u.data.data  = data;
+    node->u.data.size  = size;
+    node->u.data.label = label;
+    jgb_append_node(jgb, node);
+    return label;
+}
+
+static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMSpeshIns *ins, size_t *bufsize) {
+    MVMuint16 *regs = MVM_spesh_alloc(tc, sg, (*bufsize = (ins->info->num_operands * sizeof(MVMuint16))));
     MVMuint16 i;
     for (i = 0; i < ins->info->num_operands; i++) {
         switch (ins->info->operands[i] & MVM_operand_rw_mask) {
@@ -2744,12 +2754,13 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
             MVMuint16       num_extops = jgb->sg->sf->body.cu->body.num_extops;
             MVMuint16       i;
             for (i = 0; i < num_extops; i++) {
-                if (extops[i].info == ins->info) {
-                    MVMuint16 *fake_regs;
-                    if (!extops[i].no_jit && (fake_regs = try_fake_extop_regs(tc, ins))) {
-
+                if (extops[i].info == ins->info && !extops[i].no_jit) {
+                    size_t fake_regs_size;
+                    MVMuint16 *fake_regs = try_fake_extop_regs(tc, jgb->sg, ins, &fake_regs_size);
+                    if (fake_regs_size && fake_regs != NULL) {
+                        MVMint32  data_label = jgb_add_data_node(tc, jgb, fake_regs, fake_regs_size);
                         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  { MVM_JIT_INTERP_TC } },
-                                                 { MVM_JIT_LITERAL_PTR, { (MVMint64)fake_regs } }};
+                                                 { MVM_JIT_DATA_LABEL,  { data_label } }};
                         if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH)
                             jgb_append_control(tc, jgb, ins, MVM_JIT_CONTROL_THROWISH_PRE);
                         jgb_append_call_c(tc, jgb, extops[i].func, 2, args, MVM_JIT_RV_VOID, -1);
