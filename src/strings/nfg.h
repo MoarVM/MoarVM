@@ -52,7 +52,7 @@ struct MVMNFGSynthetic {
 struct MVMNFGTrieNode {
     /* Set of entries for further traversal, sorted ascending on codepoint
      * so we can find an entry using binary search. */
-    MVMNGFTrieNodeEntry *next_codes;
+    MVMNFGTrieNodeEntry *next_codes;
 
     /* Number of entries in next_cps. */
     MVMint32 num_entries;
@@ -63,7 +63,7 @@ struct MVMNFGTrieNode {
 };
 
 /* An entry in the list of next possible codepoints in the NFG trie. */
-struct MVMNGFTrieNodeEntry {
+struct MVMNFGTrieNodeEntry {
     /* The codepoint. */
     MVMCodepoint code;
 

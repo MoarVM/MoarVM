@@ -56,8 +56,8 @@ static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *
         /* If we had an existing child node... */
         if (idx >= 0) {
             /* Make a copy of the next_codes list. */
-            size_t the_size = current->num_entries * sizeof(MVMNGFTrieNodeEntry);
-            MVMNGFTrieNodeEntry *new_next_codes = MVM_fixed_size_alloc(tc,
+            size_t the_size = current->num_entries * sizeof(MVMNFGTrieNodeEntry);
+            MVMNFGTrieNodeEntry *new_next_codes = MVM_fixed_size_alloc(tc,
                 tc->instance->fsa, the_size);
             memcpy(new_next_codes, current->next_codes, the_size);
 
@@ -78,8 +78,8 @@ static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *
             /* Calculate new child node list size and allocate it. */
             MVMint32 orig_entries = current ? current->num_entries : 0;
             MVMint32 new_entries  = orig_entries + 1;
-            size_t new_size       = new_entries * sizeof(MVMNGFTrieNodeEntry);
-            MVMNGFTrieNodeEntry *new_next_codes = MVM_fixed_size_alloc(tc,
+            size_t new_size       = new_entries * sizeof(MVMNFGTrieNodeEntry);
+            MVMNFGTrieNodeEntry *new_next_codes = MVM_fixed_size_alloc(tc,
                 tc->instance->fsa, new_size);
 
             /* Go through original entries, copying those that are for a lower
@@ -104,7 +104,7 @@ static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *
             new_node->next_codes  = new_next_codes;
             if (orig_entries)
                 MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
-                    orig_entries * sizeof(MVMNGFTrieNodeEntry),
+                    orig_entries * sizeof(MVMNFGTrieNodeEntry),
                     current->next_codes);
         }
 
