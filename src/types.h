@@ -79,7 +79,7 @@ typedef struct MVMNFAStateInfo MVMNFAStateInfo;
 typedef struct MVMNFGState MVMNFGState;
 typedef struct MVMNFGSynthetic MVMNFGSynthetic;
 typedef struct MVMNFGTrieNode MVMNFGTrieNode;
-typedef struct MVMNGFTrieNodeEntry MVMNGFTrieNodeEntry;
+typedef struct MVMNFGTrieNodeEntry MVMNFGTrieNodeEntry;
 typedef struct MVMNativeCall MVMNativeCall;
 typedef struct MVMNativeCallBody MVMNativeCallBody;
 typedef struct MVMNativeRef MVMNativeRef;
