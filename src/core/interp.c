@@ -507,8 +507,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(div_i): {
-                int num   = GET_REG(cur_op, 2).i64;
-                int denom = GET_REG(cur_op, 4).i64;
+                MVMint64 num   = GET_REG(cur_op, 2).i64;
+                MVMint64 denom = GET_REG(cur_op, 4).i64;
                 // if we have a negative result, make sure we floor rather
                 // than rounding towards zero.
                 if (denom == 0)
