@@ -57,7 +57,7 @@ sub compile {
         push @objs, $obj;
     }
 
-    my $command = "$config->{ld} $config->{ldout}$leaf @objs $config->{ldlibs} >$devnull 2>&1";
+    my $command = "$config->{ld} $ENV{LDFLAGS} $config->{ldout}$leaf @objs $config->{ldlibs} >$devnull 2>&1";
     system $command
         and return;
     return 1;
@@ -102,7 +102,8 @@ EOT
     }
 
     if ($can_compile) {
-        $command = "$config->{ld} $config->{ldout}$leaf $obj $config->{ldlibs} 2>&1";
+	$ENV{LDFLAGS} //= '';
+        $command = "$config->{ld} $ENV{LDFLAGS} $config->{ldout}$leaf $obj $config->{ldlibs} 2>&1";
         $output  = `$command` || $!;
         if ($? >> 8 == 0) {
             $can_link = 1;
