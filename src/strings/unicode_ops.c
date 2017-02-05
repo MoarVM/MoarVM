@@ -19,13 +19,17 @@ MVMint32 MVM_unicode_collation_secondary (MVMThreadContext *tc, MVMint32 codepoi
 MVMint32 MVM_unicode_collation_tertiary (MVMThreadContext *tc, MVMint32 codepoint) {
      return MVM_unicode_codepoint_get_property_int(tc, codepoint, MVM_UNICODE_PROPERTY_MVM_COLLATION_TERTIARY);
 }
+/* MVM_unicode_string_compare supports synthetic graphemes but in case we have
+ * a codepoint without any collation value, we do not yet decompose it and
+ * then use the decomposed codepoint's weights. */
 MVMint64 MVM_unicode_string_compare
         (MVMThreadContext *tc, MVMString *a, MVMString *b,
          MVMint32 collation_mode, MVMint32 lang_mode, MVMint32 country_mode) {
-    MVMStringIndex alen, blen, i, scanlen;
+    MVMStringIndex alen, blen;
     /* Iteration variables */
-    MVMGrapheme32 ai;
-    MVMGrapheme32 bi;
+    MVMGraphemeIter a_gi, b_gi;
+    MVMGraphemeIter *s_has_more_gi;
+    MVMGrapheme32 ai, bi;
     /* Collation order numbers */
     MVMint32 ai_coll_val;
     MVMint32 bi_coll_val;
@@ -38,62 +42,107 @@ MVMint64 MVM_unicode_string_compare
         return blen == 0 ? 0 : -1;
     if (blen == 0)
         return 1;
+    /* We only check whether the shorter string has more each iteration
+     * so find which string is longer */
+    s_has_more_gi = alen > blen ? &b_gi : &a_gi;
+    /* Initialize a grapheme iterator */
+    MVM_string_gi_init(tc, &a_gi, a);
+    MVM_string_gi_init(tc, &b_gi, b);
 
-    /* Otherwise, need to scan them. */
-    scanlen = alen > blen ? blen : alen;
-    for (i = 0; i < scanlen; i++) {
-        ai = MVM_string_get_grapheme_at_nocheck(tc, a, i);
-        bi = MVM_string_get_grapheme_at_nocheck(tc, b, i);
-        /* If they are the same grapheme */
+    /* Otherwise, need to iterate by grapheme */
+    while (MVM_string_gi_has_more(tc, s_has_more_gi)) {
+        ai = MVM_string_gi_get_grapheme(tc, &a_gi);
+        bi = MVM_string_gi_get_grapheme(tc, &b_gi);
+        /* Only need to do this if they're not the same grapheme */
         if (ai != bi) {
-            /* only try and get a property if the value it is isn't a synthetic
-             * grapheme. we should change from get_grapheme to something to get the
-             * NFC form */
-            if ( ai >= 0 || bi >= 0 ) {
-                /* Get the primary collation value for the grapheme */
-                ai_coll_val = MVM_unicode_collation_primary(tc, ai);
-                bi_coll_val = MVM_unicode_collation_primary(tc, bi);
-                /* If we don't find a collation value,
-                   we should compare by codepoint */
-                /* Eventually we should try and catch codepoints that don't
-                   have a collation value. We would then need to decompose it and
-                   apply weighting based on their decomposed values. */
-                if (ai_coll_val == 0 || bi_coll_val == 0) {
-                    /* return -10 or 10 to indicate we didn't use the collation
-                       algorithm */
-                    return ai < bi ? -10 :
-                           ai > bi ?  10 :
-                                       0 ;
-                }
+            /* If it's less than zero we have a synthetic codepoint */
+            if (ai < 0) {
+                MVMCodepointIter a_ci;
+                MVMGrapheme32 result_a;
+                /* It's a synthetic. Look it up. */
+                MVMNFGSynthetic *synth_a = MVM_nfg_get_synthetic_info(tc, ai);
 
-                /* If both have primary collation values ( they are not 0 ) */
-                if ( (ai_coll_val != 0 && bi_coll_val != 0) && (ai_coll_val != bi_coll_val) ) {
-                    return ai_coll_val < bi_coll_val ? -1 : 1;
-                }
-                /* If both have the same primary collation values */
-                ai_coll_val += MVM_unicode_collation_secondary(tc, ai);
-                bi_coll_val += MVM_unicode_collation_secondary(tc, bi);
-                if ( (ai_coll_val != 0 && bi_coll_val != 0) && (ai_coll_val != bi_coll_val) ) {
-                    return ai_coll_val < bi_coll_val ? -2 : 2;
-                }
-                /* If both have the same tertiary collation values */
-                ai_coll_val = MVM_unicode_collation_tertiary(tc, ai);
-                bi_coll_val = MVM_unicode_collation_tertiary(tc, bi);
-                if ( (ai_coll_val != 0 && bi_coll_val != 0) && (ai_coll_val != bi_coll_val) ) {
-                    return ai_coll_val < bi_coll_val ? -3 : 3;
-                }
-                /* All the collation values were equal. Check codepoints */
-                return ai < bi ? -4 :
-                       ai > bi ?  4 :
-                                  0 ;
+                /* Set up the iterator so in the next iteration we will start to
+                * hand back combiners. */
+                a_ci.synth_codes         = synth_a->combs;
+                a_ci.visited_synth_codes = 0;
+                a_ci.total_synth_codes   = synth_a->num_combs;
 
+                /* result_a is the base character of the grapheme. */
+                result_a = synth_a->base;
+                ai_coll_val += MVM_unicode_collation_primary(tc, result_a);
+                ai_coll_val += MVM_unicode_collation_secondary(tc, result_a);
+                ai_coll_val += MVM_unicode_collation_tertiary(tc, result_a);
+                while (a_ci.synth_codes) {
+                    /* Take the current combiner as the result_a. */
+                    result_a = a_ci.synth_codes[a_ci.visited_synth_codes];
+                    ai_coll_val += MVM_unicode_collation_primary(tc, result_a);
+                    ai_coll_val += MVM_unicode_collation_secondary(tc, result_a);
+                    ai_coll_val += MVM_unicode_collation_tertiary(tc, result_a);
+                    /* If we've seen all of the synthetics, clear up so we'll take another
+                     * grapheme next time around. */
+                    a_ci.visited_synth_codes++;
+                    if (a_ci.visited_synth_codes == a_ci.total_synth_codes)
+                        a_ci.synth_codes = NULL;
+                }
             }
-            /* For now, if it's a synthetic codepoint just compare by codepoint. */
             else {
+                ai_coll_val += MVM_unicode_collation_primary(tc, ai);
+                ai_coll_val += MVM_unicode_collation_secondary(tc, ai);
+                ai_coll_val += MVM_unicode_collation_tertiary(tc, ai);
+            }
+            if (bi < 0) {
+                MVMCodepointIter b_ci;
+                MVMGrapheme32 result_b;
+                /* It's a synthetic. Look it up. */
+                MVMNFGSynthetic *synth_b = MVM_nfg_get_synthetic_info(tc, bi);
+
+                /* Set up the iterator so in the next iteration we will start to
+                * hand back combiners. */
+                b_ci.synth_codes         = synth_b->combs;
+                b_ci.visited_synth_codes = 0;
+                b_ci.total_synth_codes   = synth_b->num_combs;
+
+                /* result_b is the base character of the grapheme. */
+                result_b = synth_b->base;
+                bi_coll_val += MVM_unicode_collation_primary(tc, result_b);
+                bi_coll_val += MVM_unicode_collation_secondary(tc, result_b);
+                bi_coll_val += MVM_unicode_collation_tertiary(tc, result_b);
+                while (b_ci.synth_codes) {
+                    /* Take the current combiner as the result_b. */
+                    result_b = b_ci.synth_codes[b_ci.visited_synth_codes];
+                    bi_coll_val += MVM_unicode_collation_primary(tc, result_b);
+                    bi_coll_val += MVM_unicode_collation_secondary(tc, result_b);
+                    bi_coll_val += MVM_unicode_collation_tertiary(tc, result_b);
+                    /* If we've seen all of the synthetics, clear up so we'll take another
+                     * grapheme next time around. */
+                    b_ci.visited_synth_codes++;
+                    if (b_ci.visited_synth_codes == b_ci.total_synth_codes)
+                        b_ci.synth_codes = NULL;
+                }
+            }
+            else {
+                bi_coll_val += MVM_unicode_collation_primary(tc, bi);
+                bi_coll_val += MVM_unicode_collation_secondary(tc, bi);
+                bi_coll_val += MVM_unicode_collation_tertiary(tc, bi);
+            }
+            if ( (ai_coll_val != 0 && bi_coll_val != 0) && (ai_coll_val != bi_coll_val) ) {
+                return ai_coll_val < bi_coll_val ? -3 : 3;
+            }
+            /* If we don't find a collation value,
+               we should compare by codepoint */
+            if (ai_coll_val == 0 || bi_coll_val == 0) {
+                /* return -10 or 10 to indicate we didn't use the collation
+                   algorithm */
                 return ai < bi ? -10 :
                        ai > bi ?  10 :
-                                   1 ;
+                                   0 ;
             }
+            /* Return 4/-4 or 0 to indicate they had to be checked by cp
+             * because otherwise the collation values were equal */
+            return ai < bi ? -4 :
+                   ai > bi ?  4 :
+                              0 ;
         }
     }
 
