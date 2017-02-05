@@ -313,7 +313,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
             res_reg->n64 = REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
             res_reg->n64 = MVM_coerce_s_n(tc, REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
-        else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
+        else if (REPR(obj)->ID == MVM_REPR_ID_VMArray)
             res_reg->n64 = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
             res_reg->n64 = (MVMnum64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
@@ -337,7 +337,7 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
             return (MVMint64)REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR)
             return MVM_coerce_s_i(tc, REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
-        else if (REPR(obj)->ID == MVM_REPR_ID_MVMArray)
+        else if (REPR(obj)->ID == MVM_REPR_ID_VMArray)
             return REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         else if (REPR(obj)->ID == MVM_REPR_ID_MVMHash)
             return REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));

@@ -72,7 +72,7 @@ MVM_GEN2_PAGE_CUBE_SIZE = int(math.sqrt(MVM_GEN2_PAGE_ITEMS))
 # bit of extra patience, turn this up.
 EXTRA_SAMPLES = 2
 
-# This corresponds to the defines in MVMArray.h for MVMArrayREPRData.slot_type.
+# This corresponds to the defines in VMArray.h for VMArrayREPRData.slot_type.
 array_storage_types = [
         'obj',
         'str',
@@ -395,9 +395,9 @@ class CommonHeapData(object):
         if REPRname == "P6opaque":
             self.opaq_histogram[int(size)] += 1
         elif REPRname == "VMArray":
-            slot_type = int(STable['REPR_data'].cast(gdb.lookup_type("MVMArrayREPRData").pointer())['slot_type'])
+            slot_type = int(STable['REPR_data'].cast(gdb.lookup_type("VMArrayREPRData").pointer())['slot_type'])
             self.arrstr_hist[array_storage_types[slot_type]] += 1
-            array_body = cursor.cast(gdb.lookup_type("MVMArray").pointer())['body']
+            array_body = cursor.cast(gdb.lookup_type("VMArray").pointer())['body']
             if array_body['ssize'] == 0:
                 usage_perc = "N/A"
             else:

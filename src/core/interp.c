@@ -2560,7 +2560,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(islist): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
-                GET_REG(cur_op, 0).i64 = obj && REPR(obj)->ID == MVM_REPR_ID_MVMArray ? 1 : 0;
+                GET_REG(cur_op, 0).i64 = obj && REPR(obj)->ID == MVM_REPR_ID_VMArray ? 1 : 0;
                 cur_op += 4;
                 goto NEXT;
             }

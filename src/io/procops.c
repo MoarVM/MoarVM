@@ -438,7 +438,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         output_size = (int)output_size_64;
     }
     else {
-        MVMArray *buffer = (MVMArray *)wi->buf_data;
+        VMArray *buffer = (VMArray *)wi->buf_data;
         output = (char *)(buffer->body.slots.i8 + buffer->body.start);
         output_size = (int)buffer->body.elems;
     }
@@ -548,10 +548,10 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
     if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
         MVM_exception_throw_adhoc(tc,
             "asyncwritebytes result type must have REPR AsyncTask");
-    if (!IS_CONCRETE(buffer) || REPR(buffer)->ID != MVM_REPR_ID_MVMArray)
+    if (!IS_CONCRETE(buffer) || REPR(buffer)->ID != MVM_REPR_ID_VMArray)
         MVM_exception_throw_adhoc(tc, "asyncwritebytes requires a native array to read from");
-    if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_U8
-        && ((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_I8)
+    if (((VMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_U8
+        && ((VMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_I8)
         MVM_exception_throw_adhoc(tc, "asyncwritebytes requires a native array of uint8 or int8");
 
     /* Create async task handle. */
@@ -766,7 +766,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
             else {
                 MVMObject *buf_type    = MVM_repr_at_key_o(tc, si->callbacks,
                                             tc->instance->str_consts.buf_type);
-                MVMArray  *res_buf     = (MVMArray *)MVM_repr_alloc_init(tc, buf_type);
+                VMArray  *res_buf     = (VMArray *)MVM_repr_alloc_init(tc, buf_type);
                 res_buf->body.slots.i8 = (MVMint8 *)buf->base;
                 res_buf->body.start    = 0;
                 res_buf->body.ssize    = buf->len;

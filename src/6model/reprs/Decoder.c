@@ -154,26 +154,26 @@ void MVM_decoder_set_separators(MVMThreadContext *tc, MVMDecoder *decoder, MVMOb
 /* Adds bytes to the deocde stream. */
 void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject *buffer) {
     MVMDecodeStream *ds = get_ds(tc, decoder);
-    if (REPR(buffer)->ID == MVM_REPR_ID_MVMArray) {
+    if (REPR(buffer)->ID == MVM_REPR_ID_VMArray) {
         /* To be safe, we need to make a copy of data in a resizable array; it
          * may change/move under us. */
         char *output, *copy;
         MVMint64 output_size;
-        switch (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type) {
+        switch (((VMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type) {
             case MVM_ARRAY_U8:
             case MVM_ARRAY_I8:
-                output = (char *)(((MVMArray *)buffer)->body.slots.i8 + ((MVMArray *)buffer)->body.start);
-                output_size = ((MVMArray *)buffer)->body.elems;
+                output = (char *)(((VMArray *)buffer)->body.slots.i8 + ((VMArray *)buffer)->body.start);
+                output_size = ((VMArray *)buffer)->body.elems;
                 break;
             case MVM_ARRAY_U16:
             case MVM_ARRAY_I16:
-                output = (char *)(((MVMArray *)buffer)->body.slots.i16 + ((MVMArray *)buffer)->body.start);
-                output_size = ((MVMArray *)buffer)->body.elems * 2;
+                output = (char *)(((VMArray *)buffer)->body.slots.i16 + ((VMArray *)buffer)->body.start);
+                output_size = ((VMArray *)buffer)->body.elems * 2;
                 break;
             case MVM_ARRAY_U32:
             case MVM_ARRAY_I32:
-                output = (char *)(((MVMArray *)buffer)->body.slots.i32 + ((MVMArray *)buffer)->body.start);
-                output_size = ((MVMArray *)buffer)->body.elems * 4;
+                output = (char *)(((VMArray *)buffer)->body.slots.i32 + ((VMArray *)buffer)->body.start);
+                output_size = ((VMArray *)buffer)->body.elems * 4;
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "Can only add bytes from an int array to a decoder");
@@ -233,10 +233,10 @@ MVMObject * MVM_decoder_take_bytes(MVMThreadContext *tc, MVMDecoder *decoder,
     MVMObject *result;
 
     /* Ensure the target is in the correct form. */
-    if (REPR(buf_type)->ID != MVM_REPR_ID_MVMArray)
+    if (REPR(buf_type)->ID != MVM_REPR_ID_VMArray)
         MVM_exception_throw_adhoc(tc, "decodertakebytes requires a native array type");
-    if (((MVMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type != MVM_ARRAY_U8
-            && ((MVMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type != MVM_ARRAY_I8)
+    if (((VMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type != MVM_ARRAY_U8
+            && ((VMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type != MVM_ARRAY_I8)
         MVM_exception_throw_adhoc(tc, "decodertakebytes requires a native array type of uint8 or int8");
     if (bytes < 1 || bytes > 99999999)
         MVM_exception_throw_adhoc(tc,
@@ -245,9 +245,9 @@ MVMObject * MVM_decoder_take_bytes(MVMThreadContext *tc, MVMDecoder *decoder,
 
     result = MVM_repr_alloc_init(tc, buf_type);
     read = MVM_string_decodestream_bytes_to_buf(tc, ds, &buf, bytes);
-    ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
-    ((MVMArray *)result)->body.start    = 0;
-    ((MVMArray *)result)->body.ssize    = read;
-    ((MVMArray *)result)->body.elems    = read;
+    ((VMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
+    ((VMArray *)result)->body.start    = 0;
+    ((VMArray *)result)->body.ssize    = read;
+    ((VMArray *)result)->body.elems    = read;
     return result;
 }

@@ -187,7 +187,7 @@ static void iter_facts(MVMThreadContext *tc, MVMSpeshGraph *g,
 
     if (in_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
         switch (REPR(in_facts->type)->ID) {
-            case MVM_REPR_ID_MVMArray:
+            case MVM_REPR_ID_VMArray:
                 out_facts->type = g->sf->body.cu->body.hll_config->array_iterator_type;
                 out_facts->flags |= MVM_SPESH_FACT_ARRAY_ITER;
                 break;
