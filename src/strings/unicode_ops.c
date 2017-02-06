@@ -24,15 +24,15 @@ MVMint32 MVM_unicode_collation_tertiary (MVMThreadContext *tc, MVMint32 codepoin
  * then use the decomposed codepoint's weights. */
 MVMint64 MVM_unicode_string_compare
         (MVMThreadContext *tc, MVMString *a, MVMString *b,
-         MVMint32 collation_mode, MVMint32 lang_mode, MVMint32 country_mode) {
+         MVMint64 collation_mode, MVMint64 lang_mode, MVMint64 country_mode) {
     MVMStringIndex alen, blen;
     /* Iteration variables */
     MVMGraphemeIter a_gi, b_gi;
     MVMGraphemeIter *s_has_more_gi;
     MVMGrapheme32 ai, bi;
     /* Collation order numbers */
-    MVMint32 ai_coll_val;
-    MVMint32 bi_coll_val;
+    MVMint32 ai_coll_val = 0;
+    MVMint32 bi_coll_val = 0;
     MVM_string_check_arg(tc, a, "compare");
     MVM_string_check_arg(tc, b, "compare");
     /* Simple cases when one or both are zero length. */
@@ -70,15 +70,21 @@ MVMint64 MVM_unicode_string_compare
 
                 /* result_a is the base character of the grapheme. */
                 result_a = synth_a->base;
-                ai_coll_val += MVM_unicode_collation_primary(tc, result_a);
-                ai_coll_val += MVM_unicode_collation_secondary(tc, result_a);
-                ai_coll_val += MVM_unicode_collation_tertiary(tc, result_a);
+                if (collation_mode & 1)
+                    ai_coll_val += MVM_unicode_collation_primary(tc, result_a);
+                if (collation_mode & 2)
+                    ai_coll_val += MVM_unicode_collation_secondary(tc, result_a);
+                if (collation_mode & 4)
+                    ai_coll_val += MVM_unicode_collation_tertiary(tc, result_a);
                 while (a_ci.synth_codes) {
                     /* Take the current combiner as the result_a. */
                     result_a = a_ci.synth_codes[a_ci.visited_synth_codes];
-                    ai_coll_val += MVM_unicode_collation_primary(tc, result_a);
-                    ai_coll_val += MVM_unicode_collation_secondary(tc, result_a);
-                    ai_coll_val += MVM_unicode_collation_tertiary(tc, result_a);
+                    if (collation_mode & 1)
+                        ai_coll_val += MVM_unicode_collation_primary(tc, result_a);
+                    if (collation_mode & 2)
+                        ai_coll_val += MVM_unicode_collation_secondary(tc, result_a);
+                    if (collation_mode & 4)
+                        ai_coll_val += MVM_unicode_collation_tertiary(tc, result_a);
                     /* If we've seen all of the synthetics, clear up so we'll take another
                      * grapheme next time around. */
                     a_ci.visited_synth_codes++;
@@ -87,10 +93,14 @@ MVMint64 MVM_unicode_string_compare
                 }
             }
             else {
-                ai_coll_val += MVM_unicode_collation_primary(tc, ai);
-                ai_coll_val += MVM_unicode_collation_secondary(tc, ai);
-                ai_coll_val += MVM_unicode_collation_tertiary(tc, ai);
+                if (collation_mode & 1)
+                    ai_coll_val += MVM_unicode_collation_primary(tc, ai);
+                if (collation_mode & 2)
+                    ai_coll_val += MVM_unicode_collation_secondary(tc, ai);
+                if (collation_mode & 4)
+                    ai_coll_val += MVM_unicode_collation_tertiary(tc, ai);
             }
+
             if (bi < 0) {
                 MVMCodepointIter b_ci;
                 MVMGrapheme32 result_b;
@@ -105,15 +115,21 @@ MVMint64 MVM_unicode_string_compare
 
                 /* result_b is the base character of the grapheme. */
                 result_b = synth_b->base;
-                bi_coll_val += MVM_unicode_collation_primary(tc, result_b);
-                bi_coll_val += MVM_unicode_collation_secondary(tc, result_b);
-                bi_coll_val += MVM_unicode_collation_tertiary(tc, result_b);
+                if (collation_mode & 1)
+                    bi_coll_val += MVM_unicode_collation_primary(tc, result_b);
+                if (collation_mode & 2)
+                    bi_coll_val += MVM_unicode_collation_secondary(tc, result_b);
+                if (collation_mode & 4)
+                    bi_coll_val += MVM_unicode_collation_tertiary(tc, result_b);
                 while (b_ci.synth_codes) {
                     /* Take the current combiner as the result_b. */
                     result_b = b_ci.synth_codes[b_ci.visited_synth_codes];
-                    bi_coll_val += MVM_unicode_collation_primary(tc, result_b);
-                    bi_coll_val += MVM_unicode_collation_secondary(tc, result_b);
-                    bi_coll_val += MVM_unicode_collation_tertiary(tc, result_b);
+                    if (collation_mode & 1)
+                        bi_coll_val += MVM_unicode_collation_primary(tc, result_b);
+                    if (collation_mode & 2)
+                        bi_coll_val += MVM_unicode_collation_secondary(tc, result_b);
+                    if (collation_mode & 4)
+                        bi_coll_val += MVM_unicode_collation_tertiary(tc, result_b);
                     /* If we've seen all of the synthetics, clear up so we'll take another
                      * grapheme next time around. */
                     b_ci.visited_synth_codes++;
@@ -122,26 +138,23 @@ MVMint64 MVM_unicode_string_compare
                 }
             }
             else {
-                bi_coll_val += MVM_unicode_collation_primary(tc, bi);
-                bi_coll_val += MVM_unicode_collation_secondary(tc, bi);
-                bi_coll_val += MVM_unicode_collation_tertiary(tc, bi);
+                if (collation_mode & 1)
+                    bi_coll_val += MVM_unicode_collation_primary(tc, bi);
+                if (collation_mode & 2)
+                    bi_coll_val += MVM_unicode_collation_secondary(tc, bi);
+                if (collation_mode & 4)
+                    bi_coll_val += MVM_unicode_collation_tertiary(tc, bi);
             }
-            if ( (ai_coll_val != 0 && bi_coll_val != 0) && (ai_coll_val != bi_coll_val) ) {
-                return ai_coll_val < bi_coll_val ? -3 : 3;
-            }
-            /* If we don't find a collation value,
-               we should compare by codepoint */
-            if (ai_coll_val == 0 || bi_coll_val == 0) {
-                /* return -10 or 10 to indicate we didn't use the collation
-                   algorithm */
-                return ai < bi ? -10 :
-                       ai > bi ?  10 :
-                                   0 ;
-            }
-            /* Return 4/-4 or 0 to indicate they had to be checked by cp
-             * because otherwise the collation values were equal */
-            return ai < bi ? -4 :
-                   ai > bi ?  4 :
+            /* If collation values are not equal or we don't have quaternary
+             * collation set, return by collation value */
+            if ((ai_coll_val != bi_coll_val) || !(collation_mode & 8))
+                return ai_coll_val < bi_coll_val ? -1 :
+                       ai_coll_val > bi_coll_val ?  1 :
+                                                    0 ;
+            /* If we get here, then collation values were equal and we have
+             * quaternary level enabled, so return by codepoint */
+            return ai < bi ? -1 :
+                   ai > bi ?  1 :
                               0 ;
         }
     }
