@@ -13,7 +13,8 @@
 #    include <crt_externs.h>
 #    define environ (*_NSGetEnviron())
 #  else
-extern char **environ;
+#include <stdlib.h>
+extern char ** _wenvrion;
 #  endif
 #else
 #  include <process.h>
@@ -68,23 +69,26 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     MVMInstance * const instance = tc->instance;
     MVMObject   *       env_hash;
 
-#ifdef _WIN32
-    const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
-#endif
     MVMuint32     pos = 0;
     MVMString *needle = MVM_string_ascii_decode(tc, instance->VMString, STR_WITH_LEN("="));
+#ifndef _WIN32
     char      *env;
+#else
+    wchar_t   *env;
+    (void) _wgetenv(L"windows"); /* populate _wenviron */
+#endif
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&needle);
 
     env_hash = MVM_repr_alloc_init(tc,  MVM_hll_current(tc)->slurpy_hash_type);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&env_hash);
 
-    while ((env = environ[pos++]) != NULL) {
 #ifndef _WIN32
+    while ((env = environ[pos++]) != NULL) {
         MVMString    *str = MVM_string_utf8_c8_decode(tc, instance->VMString, env, strlen(env));
 #else
-        char * const _env = ANSIToUTF8(acp, env);
+    while ((env = _wenviron[pos++]) != NULL) {
+        char * const _env = UnicodeToUTF8(env);
         MVMString    *str = MVM_string_utf8_c8_decode(tc, instance->VMString, _env, strlen(_env));
 #endif
 
