@@ -1528,6 +1528,7 @@ sub UnicodeData {
             NFKD_QC => 1,
             NFKC_QC => 1,
             NFG_QC => 1,
+            MVM_COLLATION_QC => 1,
             code => $code,
             Any => 1
         };
@@ -1752,7 +1753,6 @@ sub collation {
         $line_no++;
         my ($code, $weight1, $weight2, $weight3, $temp);
         if ($line =~ s/ ^ \@implicitweights \s+ //xms ) {
-            say "IMPLICIT WEIGHTS";
             ($code, $weight1) = split / (?: [;\[\]]|\s )+ /xms, $line;
             $weight1 = hex $weight1 or croak;
             $code or croak;
@@ -1766,8 +1766,14 @@ sub collation {
             ($code, $temp) = split /[;#]+/, $line;
             $code = trim $code;
             my @codes = split / /, $code;
+            # we don't yet support collation for multiple codepoints
             if ( scalar @codes > 1 ) {
-                return; # we don't yet support collation for multiple codepoints
+                # For now set MVM_COLLATION_QC = 0 for these cp
+                apply_to_range($codes[0], sub {
+                    my $point = shift;
+                    $point->{'MVM_COLLATION_QC'} = 0;
+                });
+                return;
             }
             # We capture the `.` or `*` before each weight. Currently we do
             # not use this information, but it may be of use later (we currently
@@ -1820,6 +1826,7 @@ sub collation {
     register_int_property($name_primary, $primary_max);
     register_int_property($name_secondary, $secondary_max);
     register_int_property($name_tertiary, $tertiary_max);
+    register_binary_property('MVM_COLLATION_QC');
 }
 sub LineBreak {
     my $enum = {};
