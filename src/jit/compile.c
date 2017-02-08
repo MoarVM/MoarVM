@@ -21,8 +21,8 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 
     MVM_jit_log(tc, "Starting compilation\n");
 
-    /* setup dasm */
-    dasm_init(&state, 1);
+    /* setup dasm (data and code section) */
+    dasm_init(&state, 2);
     dasm_setupglobal(&state, dasm_globals, num_globals);
     dasm_setup(&state, MVM_jit_actions());
     dasm_growpc(&state, jg->num_labels);
@@ -54,6 +54,9 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
             break;
         case MVM_JIT_NODE_CONTROL:
             MVM_jit_emit_control(tc, jg, &node->u.control, &state);
+            break;
+        case MVM_JIT_NODE_DATA:
+            MVM_jit_emit_data(tc, jg, &node->u.data, &state);
             break;
         }
         node = node->next;

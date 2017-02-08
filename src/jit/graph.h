@@ -101,6 +101,7 @@ typedef enum {
     MVM_JIT_LITERAL_PTR,
     MVM_JIT_REG_STABLE,
     MVM_JIT_REG_OBJBODY,
+    MVM_JIT_DATA_LABEL,
 } MVMJitArgType;
 
 struct MVMJitCallArg {
@@ -160,6 +161,12 @@ struct MVMJitJumpList {
     MVMint32 *out_labels;
 };
 
+struct MVMJitData {
+    MVMint32 label;
+    void     *data;
+    size_t    size;
+};
+
 /* Node types */
 typedef enum {
     MVM_JIT_NODE_PRIMITIVE,
@@ -170,6 +177,7 @@ typedef enum {
     MVM_JIT_NODE_INVOKE,
     MVM_JIT_NODE_JUMPLIST,
     MVM_JIT_NODE_CONTROL,
+    MVM_JIT_NODE_DATA,
 } MVMJitNodeType;
 
 struct MVMJitNode {
@@ -184,6 +192,7 @@ struct MVMJitNode {
         MVMJitInvoke    invoke;
         MVMJitJumpList  jumplist;
         MVMJitControl   control;
+        MVMJitData      data;
     } u;
 };
 
