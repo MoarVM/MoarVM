@@ -17,7 +17,6 @@ extern char **environ;
 #  endif
 #else
 #include <stdlib.h>
-extern char **_wenvrion;
 #endif
 
 #ifdef _WIN32
