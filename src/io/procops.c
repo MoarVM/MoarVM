@@ -13,11 +13,11 @@
 #    include <crt_externs.h>
 #    define environ (*_NSGetEnviron())
 #  else
-#include <stdlib.h>
-extern char ** _wenvrion;
+extern char **environ;
 #  endif
 #else
-#  include <process.h>
+#include <stdlib.h>
+extern char **_wenvrion;
 #endif
 
 #ifdef _WIN32
