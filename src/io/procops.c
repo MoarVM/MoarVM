@@ -33,7 +33,7 @@ static wchar_t * ANSIToUnicode(MVMuint16 acp, const char *str)
 static char * UnicodeToUTF8(const wchar_t *str)
 {
      const int       len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
-     char * const result = (char *)MVM_malloc(len * sizeof(char));
+     char * const result = (char *)MVM_malloc(len + 1);
 
      WideCharToMultiByte(CP_UTF8, 0, str, -1, result, len, NULL, NULL);
 
@@ -47,6 +47,19 @@ static char * ANSIToUTF8(MVMuint16 acp, const char * str)
 
     MVM_free(wstr);
     return result;
+}
+
+MVM_PUBLIC char **
+UnicodeToUTF8_argv(const int argc, const wchar_t **wargv)
+{
+    int i;
+    char **argv = MVM_malloc((argc + 1) * sizeof(*argv));
+    for (i = 0; i < argc; ++i)
+    {
+        argv[i] = UnicodeToUTF8(wargv[i]);
+    }
+    argv[i] = NULL;
+    return argv;
 }
 
 #endif
