@@ -1227,7 +1227,6 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
         });
 #else
         MVMROOT(tc, clargs, {
-            const MVMuint16 acp = GetACP();
             const MVMint64 num_clargs = instance->num_clargs;
             MVMint64 count;
 
@@ -1240,10 +1239,8 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
 
             for (count = 0; count < num_clargs; count++) {
                 char *raw_clarg = instance->raw_clargs[count];
-                char * const _tmp = ANSIToUTF8(acp, raw_clarg);
                 MVMString *string = MVM_string_utf8_c8_decode(tc,
-                    instance->VMString, _tmp, strlen(_tmp));
-                MVM_free(_tmp);
+                    instance->VMString, raw_clarg, strlen(raw_clarg));
                 boxed_str = MVM_repr_box_str(tc,
                     instance->boot_types.BOOTStr, string);
                 MVM_repr_push_o(tc, clargs, boxed_str);
