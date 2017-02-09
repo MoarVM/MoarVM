@@ -101,7 +101,7 @@ static int parse_flag(const char *arg)
 int main(int argc, char *argv[])
 #else
 
-char ** UnicodeToUTF8_argv(const int argc, const wchar_t **wargv);
+char ** UnicodeToUTF8_argv(const int argc, wchar_t **wargv);
 
 int wmain(int argc, wchar_t *wargv[])
 
