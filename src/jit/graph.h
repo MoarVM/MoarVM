@@ -155,9 +155,9 @@ struct MVMJitInvoke {
 struct MVMJitJumpList {
     MVMint64 num_labels;
     MVMint16 reg;
-    // labels of the goto's / jump instructions themselves
+    /* labels of the goto's / jump instructions themselves */
     MVMint32 *in_labels;
-    // labels the goto's jump to
+    /* labels the goto's jump to */
     MVMint32 *out_labels;
 };
 
@@ -181,8 +181,8 @@ typedef enum {
 } MVMJitNodeType;
 
 struct MVMJitNode {
-    MVMJitNode   * next; // linked list
-    MVMJitNodeType type; // tag
+    MVMJitNode   * next; /* linked list */
+    MVMJitNodeType type; /* tag */
     union {
         MVMJitPrimitive prim;
         MVMJitCallC     call;

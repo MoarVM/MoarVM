@@ -509,8 +509,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(div_i): {
                 MVMint64 num   = GET_REG(cur_op, 2).i64;
                 MVMint64 denom = GET_REG(cur_op, 4).i64;
-                // if we have a negative result, make sure we floor rather
-                // than rounding towards zero.
+                /* if we have a negative result, make sure we floor rather
+                 * than rounding towards zero. */
                 if (denom == 0)
                     MVM_exception_throw_adhoc(tc, "Division by zero");
                 if ((num < 0) ^ (denom < 0)) {
@@ -5550,7 +5550,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (tc->cur_frame->spesh_cand->jitcode == NULL) {
                     MVM_exception_throw_adhoc(tc, "Try to enter NULL jitcode");
                 }
-                // trampoline back to this opcode
+                /* trampoline back to this opcode */
                 cur_op -= 2;
                 if (MVM_jit_enter_code(tc, cu, tc->cur_frame->spesh_cand->jitcode)) {
                     if (MVM_frame_try_return(tc) == 0)

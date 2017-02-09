@@ -281,7 +281,7 @@ MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint
         if ((statbuf.st_mode & S_IFMT) == S_IFDIR)
             return 1;
         else {
-            // true if fileext is in PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC
+            /* true if fileext is in PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC */
             MVMString *dot = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, ".");
             MVMROOT(tc, dot, {
                 MVMint64 n = MVM_string_index_from_end(tc, filename, dot, 0);

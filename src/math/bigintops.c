@@ -495,9 +495,9 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
 
     bc = get_bigint_body(tc, result);
 
-    // XXX the behavior of C's mod operator is not correct
-    // for our purposes. So we rely on mp_mod for all our modulus
-    // calculations for now.
+    /* XXX the behavior of C's mod operator is not correct
+     * for our purposes. So we rely on mp_mod for all our modulus
+     * calculations for now. */
     if (1 || MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
         mp_int *tmp[2] = { NULL, NULL };
         mp_int *ia = force_bigint(ba, tmp);
@@ -542,7 +542,7 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
 
     bc = get_bigint_body(tc, result);
 
-    // we only care about MP_LT or !MP_LT, so we give MP_GT even for 0.
+    /* we only care about MP_LT or !MP_LT, so we give MP_GT even for 0. */
     if (MVM_BIGINT_IS_BIG(ba)) {
         cmp_a = !mp_iszero(ba->u.bigint) && SIGN(ba->u.bigint) == MP_NEG ? MP_LT : MP_GT;
     } else {
@@ -562,9 +562,9 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         ic = MVM_malloc(sizeof(mp_int));
         mp_init(ic);
 
-        // if we do a div with a negative, we need to make sure
-        // the result is floored rather than rounded towards
-        // zero, like C and libtommath would do.
+        /* if we do a div with a negative, we need to make sure
+         * the result is floored rather than rounded towards
+         * zero, like C and libtommath would do. */
         if ((cmp_a == MP_LT) ^ (cmp_b == MP_LT)) {
             mp_init(&remainder);
             mp_init(&intermediate);
@@ -932,8 +932,8 @@ MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
             return result;
         }
     } else {
-        // we only reach this if we have a smallint that's equal to 1.
-        // which we define as not-prime.
+        /* we only reach this if we have a smallint that's equal to 1.
+         * which we define as not-prime. */
         return 0;
     }
 }
@@ -1066,7 +1066,7 @@ MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *a) {
             is_big = 1;
         return is_big;
     } else {
-        // if it's in a smallint, it's 32 bits big at most and fits into an INTVAL easily.
+        /* if it's in a smallint, it's 32 bits big at most and fits into an INTVAL easily. */
         return 0;
     }
 }
