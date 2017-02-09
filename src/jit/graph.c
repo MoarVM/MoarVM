@@ -55,7 +55,7 @@ static void jgb_append_call_c(MVMThreadContext *tc, JitGraphBuilder *jgb,
     node->type             = MVM_JIT_NODE_CALL_C;
     node->u.call.func_ptr  = func_ptr;
     node->u.call.num_args  = num_args;
-    node->u.call.has_vargs = 0; // don't support them yet
+    node->u.call.has_vargs = 0; /* don't support them yet */
     /* Call argument array is typically stack allocated,
      * so they need to be copied */
     node->u.call.args      = MVM_spesh_alloc(tc, jgb->sg, args_size);
@@ -225,7 +225,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_unbox_n: return MVM_repr_get_num;
     case MVM_OP_istrue: case MVM_OP_isfalse: return MVM_coerce_istrue;
     case MVM_OP_istype: return MVM_6model_istype;
-    case MVM_OP_isint: case MVM_OP_isnum: case MVM_OP_isstr: // continued
+    case MVM_OP_isint: case MVM_OP_isnum: case MVM_OP_isstr: /* continued */
     case MVM_OP_islist: case MVM_OP_ishash: return MVM_repr_compare_repr_id;
     case MVM_OP_wval: case MVM_OP_wval_wide: return MVM_sc_get_sc_object;
     case MVM_OP_scgetobjidx: return MVM_sc_find_object_idx_jit;
@@ -574,10 +574,10 @@ static MVMint32 jgb_consume_jumplist(MVMThreadContext *tc, JitGraphBuilder *jgb,
     MVMJitNode *node;
     MVMint64 i;
     for (i = 0; i < num_labels; i++) {
-        bb = bb->linear_next; // take the next basic block
-        if (!bb || bb->first_ins != bb->last_ins) return 0; //  which must exist
-        ins = bb->first_ins;  //  and it's first and only entry
-        if (ins->info->opcode != MVM_OP_goto)  // which must be a goto
+        bb = bb->linear_next; /* take the next basic block */
+        if (!bb || bb->first_ins != bb->last_ins) return 0; /*  which must exist */
+        ins = bb->first_ins;  /*  and it's first and only entry */
+        if (ins->info->opcode != MVM_OP_goto)  /* which must be a goto */
             return 0;
         in_labels[i]  = get_label_for_bb(tc, jgb, bb);
         out_labels[i] = get_label_for_bb(tc, jgb, ins->operands[0].ins_bb);
@@ -1644,10 +1644,10 @@ static MVMint32 jgb_consume_ins(MVMThreadContext *tc, JitGraphBuilder *jgb,
         MVMint16 dst = jgb->sg->num_locals + jgb->sg->sf->body.cu->body.max_callsite_size - 1;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL,  { obj } },
-                                 { MVM_JIT_REG_ADDR, { dst } }, // destination register (in args space)
-                                 { MVM_JIT_LITERAL, { 0 } }, // true code
-                                 { MVM_JIT_LITERAL, { 0 } }, // false code
-                                 { MVM_JIT_LITERAL, { op == MVM_OP_unless_o } }}; // switch
+                                 { MVM_JIT_REG_ADDR, { dst } }, /* destination register (in args space) */
+                                 { MVM_JIT_LITERAL, { 0 } }, /* true code */
+                                 { MVM_JIT_LITERAL, { 0 } }, /* false code */
+                                 { MVM_JIT_LITERAL, { op == MVM_OP_unless_o } }}; /* switch */
         MVMSpeshIns * branch = MVM_spesh_alloc(tc, jgb->sg, sizeof(MVMSpeshIns));
         if (dst + 1 <= jgb->sg->num_locals) {
             MVM_oops(tc, "JIT: no space in args buffer to store"
