@@ -49,11 +49,11 @@ static char * ANSIToUTF8(MVMuint16 acp, const char * str)
     return result;
 }
 
-MVM_PUBLIC char **
+MVM_PUBLIC const char **
 UnicodeToUTF8_argv(const int argc, const wchar_t **wargv)
 {
     int i;
-    char **argv = MVM_malloc((argc + 1) * sizeof(*argv));
+    const char **argv = MVM_malloc((argc + 1) * sizeof(*argv));
     for (i = 0; i < argc; ++i)
     {
         argv[i] = UnicodeToUTF8(wargv[i]);
