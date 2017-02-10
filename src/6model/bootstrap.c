@@ -578,6 +578,15 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(kind, "kind");
     string_creator(instrumented, "instrumented");
     string_creator(heap, "heap");
+
+    string_creator(spesh_frames_produced, "speshframes_produced");
+    string_creator(jit_frames_produced, "jitframes_produced");
+    string_creator(gc_sequence_number, "gc_seqnr");
+    string_creator(gc_bytes_since_full, "gc_bytes_promoted_since_full");
+    string_creator(fsa_sizeclass_pagecount, "fsa_pagecounts");
+    string_creator(fsa_sizeclass_free_elems, "fsa_free_elems");
+    string_creator(num_threads, "num_threads");
+    string_creator(nurseries_filled, "nursery_bytes");
 }
 
 /* Drives the overall bootstrap process. */

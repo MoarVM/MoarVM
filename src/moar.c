@@ -1,5 +1,6 @@
 #include "moar.h"
 #include <platform/threads.h>
+#include <memdebug.h>
 
 #if defined(_MSC_VER)
 #define snprintf _snprintf
@@ -512,4 +513,98 @@ void MVM_vm_set_lib_path(MVMInstance *instance, int count, const char **lib_path
     /* Clear remainder to allow repeated calls */
     for (; i < MAX_COUNT; ++i)
         instance->lib_path[i] = NULL;
+}
+
+static MVMObject * box_i(MVMThreadContext *tc, MVMint64 i) {
+    return MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, i);
+}
+
+static void add_nursery_info(MVMThreadContext *tc, MVMObject *list, MVMThread *thread) {
+    MVMThreadContext *target = thread->body.tc;
+    MVMROOT(tc, list, {
+        MVMuint64 bytes_filled = (char *)target->nursery_alloc - (char *)target->nursery_tospace;
+        MVM_repr_push_o(tc, list, box_i(tc, bytes_filled));
+    });
+}
+
+MVMObject *MVM_vm_health(MVMThreadContext *tc) {
+    MVMObject *top_hash = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
+
+    MVMThread *cursor;
+
+    MVMObject *pagecount_list = NULL;
+    MVMObject *free_elems_list = NULL;
+    MVMObject *nurseries_fill_list = NULL;
+
+    MVMint64 class_idx;
+    MVMint64 num_threads = 0;
+
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&top_hash);
+
+    MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.spesh_frames_produced,
+        box_i(tc, tc->instance->spesh_produced));
+
+    MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.jit_frames_produced,
+        box_i(tc, MVM_load(&tc->instance->jit_seq_nr)));
+
+    MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.gc_sequence_number,
+        box_i(tc, MVM_load(&tc->instance->gc_seq_number)));
+
+    MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.gc_bytes_since_full,
+        box_i(tc, MVM_load(&tc->instance->gc_promoted_bytes_since_last_full)));
+
+    pagecount_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&pagecount_list);
+
+    free_elems_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&free_elems_list);
+
+    MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.fsa_sizeclass_pagecount,
+            pagecount_list);
+    MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.fsa_sizeclass_free_elems,
+            free_elems_list);
+
+    for(class_idx = 0; class_idx < MVM_FSA_BINS; class_idx++) {
+        MVMFixedSizeAllocSizeClass *class = &tc->instance->fsa->size_classes[class_idx];
+        MVMuint32 elem_size = (class_idx + 1) << MVM_FSA_BIN_BITS + MVM_FSA_REDZONE_BYTES * 2;
+
+        MVM_repr_push_o(tc, pagecount_list,
+                box_i(tc, class->num_pages));
+        MVM_repr_push_o(tc, free_elems_list,
+                box_i(tc, (class->alloc_limit - class->alloc_pos) / elem_size));
+    }
+
+    nurseries_fill_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&nurseries_fill_list);
+
+    add_nursery_info(tc, nurseries_fill_list, tc->instance->main_thread->thread_obj);
+    if (tc->instance->event_loop_thread) {
+        num_threads++;
+        add_nursery_info(tc, nurseries_fill_list, tc->instance->event_loop_thread->thread_obj);
+    }
+
+    cursor = tc->instance->threads;
+    while (cursor) {
+        while (cursor == tc->instance->main_thread->thread_obj || cursor == tc->instance->event_loop_thread->thread_obj) {
+            goto NEXTTHREAD;
+        }
+
+        if (MVM_load(&cursor->body.stage) != 3) {
+            goto NEXTTHREAD;
+        }
+
+        add_nursery_info(tc, nurseries_fill_list, cursor);
+        num_threads++;
+ NEXTTHREAD:
+        cursor = cursor->body.next;
+    }
+
+    MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.nurseries_filled, nurseries_fill_list);
+
+    MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.num_threads,
+            box_i(tc, num_threads + 1));
+
+    MVM_gc_root_temp_pop_n(tc, 4);
+
+    return top_hash;
 }

@@ -79,6 +79,15 @@ struct MVMStringConsts {
     MVMString *kind;
     MVMString *instrumented;
     MVMString *heap;
+
+    MVMString *spesh_frames_produced;
+    MVMString *jit_frames_produced;
+    MVMString *gc_sequence_number;
+    MVMString *gc_bytes_since_full;
+    MVMString *fsa_sizeclass_pagecount;
+    MVMString *fsa_sizeclass_free_elems;
+    MVMString *num_threads;
+    MVMString *nurseries_filled;
 };
 
 /* An entry in the representations registry. */
