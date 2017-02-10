@@ -16,7 +16,7 @@ static const MVMuint16 MAGIC_BYTECODE[] = { MVM_OP_sp_jit_enter, 0 };
 void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitGraph *jg) {
     MVMint32  num_globals = MVM_jit_num_globals();
     /* Create dasm state */
-    dasm_init(cl, 1);
+    dasm_init(cl, 2);
     cl->dasm_globals = MVM_malloc(num_globals * sizeof(void*));
     dasm_setupglobal(cl, cl->dasm_globals, num_globals);
     dasm_setup(cl, MVM_jit_actions());
@@ -32,6 +32,7 @@ void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitGraph
     cl->spill_top    = cl->spill_bottom;
 
 }
+
 
 void MVM_jit_compiler_deinit(MVMThreadContext *tc, MVMJitCompiler *cl) {
     dasm_free(cl);
@@ -76,6 +77,9 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
             break;
         case MVM_JIT_NODE_EXPR_TREE:
             MVM_jit_compile_expr_tree(tc, &cl, jg, node->u.tree);
+            break;
+        case MVM_JIT_NODE_DATA:
+            MVM_jit_emit_data(tc, &cl, &node->u.data);
             break;
         }
         node = node->next;

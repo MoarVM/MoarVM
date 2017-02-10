@@ -559,11 +559,11 @@ static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint 
             break;
         /* Don't break after Prepend Grapheme_Cluster_Break=Prepend */
         case MVM_UNICODE_PVALUE_GCB_PREPEND:
-            // If it's a control character remember to break
+            /* If it's a control character remember to break */
             if (is_control_beyond_latin1(tc, b )) {
                 return 1;
             }
-            // Otherwise don't break
+            /* Otherwise don't break */
             return 0;
         /* Don't break after ZWJ for E_Base_GAZ or Glue_After_ZWJ */
         case MVM_UNICODE_PVALUE_GCB_ZWJ:

@@ -507,10 +507,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(div_i): {
-                int num   = GET_REG(cur_op, 2).i64;
-                int denom = GET_REG(cur_op, 4).i64;
-                // if we have a negative result, make sure we floor rather
-                // than rounding towards zero.
+                MVMint64 num   = GET_REG(cur_op, 2).i64;
+                MVMint64 denom = GET_REG(cur_op, 4).i64;
+                /* if we have a negative result, make sure we floor rather
+                 * than rounding towards zero. */
                 if (denom == 0)
                     MVM_exception_throw_adhoc(tc, "Division by zero");
                 if ((num < 0) ^ (denom < 0)) {
@@ -696,7 +696,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(abs_n):
                 {
                     MVMnum64 num = GET_REG(cur_op, 2).n64;
-                    if (num < 0) num = num * -1;
+                    /* The 1.0/num logic checks for a negative zero */
+                    if (num < 0 || num == 0 && 1.0/num < 0 ) num = num * -1;
                     GET_REG(cur_op, 0).n64 = num;
                     cur_op += 4;
                 }
@@ -1464,7 +1465,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(unicmp_s):
                 GET_REG(cur_op, 0).i64 = MVM_unicode_string_compare(tc,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
+                    GET_REG(cur_op,  2).s,   GET_REG(cur_op, 4).s,
+                    GET_REG(cur_op,  6).i64, GET_REG(cur_op, 8).i64,
+                    GET_REG(cur_op, 10).i64);
                 cur_op += 12;
                 goto NEXT;
             OP(eqat_s):
@@ -5547,7 +5550,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (tc->cur_frame->spesh_cand->jitcode == NULL) {
                     MVM_exception_throw_adhoc(tc, "Try to enter NULL jitcode");
                 }
-                // trampoline back to this opcode
+                /* trampoline back to this opcode */
                 cur_op -= 2;
                 MVM_jit_enter_code(tc, cu, tc->cur_frame->spesh_cand->jitcode);
                 if (!tc->cur_frame) {

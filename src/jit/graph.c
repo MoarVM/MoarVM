@@ -30,7 +30,7 @@ static void jg_append_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
     node->type             = MVM_JIT_NODE_CALL_C;
     node->u.call.func_ptr  = func_ptr;
     node->u.call.num_args  = num_args;
-    node->u.call.has_vargs = 0; // don't support them yet
+    node->u.call.has_vargs = 0; /* don't support them yet */
     /* Call argument array is typically stack allocated,
      * so they need to be copied */
     node->u.call.args      = MVM_spesh_alloc(tc, jg->sg, args_size);
@@ -39,7 +39,6 @@ static void jg_append_call_c(MVMThreadContext *tc, MVMJitGraph *jg,
     node->u.call.rv_idx    = rv_idx;
     jg_append_node(jg, node);
 }
-
 
 
 static void add_deopt_idx(MVMThreadContext *tc, MVMJitGraph *jg, MVMint32 label_name, MVMint32 deopt_idx) {
@@ -141,7 +140,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_unbox_n: return MVM_repr_get_num;
     case MVM_OP_istrue: case MVM_OP_isfalse: return MVM_coerce_istrue;
     case MVM_OP_istype: return MVM_6model_istype;
-    case MVM_OP_isint: case MVM_OP_isnum: case MVM_OP_isstr: // continued
+    case MVM_OP_isint: case MVM_OP_isnum: case MVM_OP_isstr: /* continued */
     case MVM_OP_islist: case MVM_OP_ishash: return MVM_repr_compare_repr_id;
     case MVM_OP_wval: case MVM_OP_wval_wide: return MVM_sc_get_sc_object;
     case MVM_OP_scgetobjidx: return MVM_sc_find_object_idx_jit;
@@ -264,6 +263,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_bnot_I: return MVM_bigint_not;
     case MVM_OP_div_In: return MVM_bigint_div_num;
     case MVM_OP_coerce_Is: case MVM_OP_base_I: return MVM_bigint_to_str;
+    case MVM_OP_radix: return MVM_radix;
     case MVM_OP_radix_I: return MVM_bigint_radix;
     case MVM_OP_sqrt_n: return sqrt;
     case MVM_OP_sin_n: return sin;
@@ -489,10 +489,10 @@ static MVMint32 consume_jumplist(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMJitNode *node;
     MVMint64 i;
     for (i = 0; i < num_labels; i++) {
-        bb = bb->linear_next; // take the next basic block
-        if (!bb || bb->first_ins != bb->last_ins) return 0; //  which must exist
-        ins = bb->first_ins;  //  and it's first and only entry
-        if (ins->info->opcode != MVM_OP_goto)  // which must be a goto
+        bb = bb->linear_next; /* take the next basic block */
+        if (!bb || bb->first_ins != bb->last_ins) return 0; /*  which must exist */
+        ins = bb->first_ins;  /*  and it's first and only entry */
+        if (ins->info->opcode != MVM_OP_goto)  /* which must be a goto */
             return 0;
         in_labels[i]  = MVM_jit_label_before_bb(tc, jg, bb);
         out_labels[i] = MVM_jit_label_before_bb(tc, jg, ins->operands[0].ins_bb);
@@ -511,9 +511,19 @@ static MVMint32 consume_jumplist(MVMThreadContext *tc, MVMJitGraph *jg,
     return 1;
 }
 
-static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshIns *ins) {
-    /* XXX Need to be able to clear these up, some day. */
-    MVMuint16 *regs = MVM_calloc(ins->info->num_operands, sizeof(MVMuint16));
+static MVMint32 jg_add_data_node(MVMThreadContext *tc, MVMJitGraph *jg, void *data, size_t size) {
+    MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
+    MVMint32 label   = MVM_jit_label_for_obj(tc, jg, data);
+    node->type         = MVM_JIT_NODE_DATA;
+    node->u.data.data  = data;
+    node->u.data.size  = size;
+    node->u.data.label = label;
+    jg_append_node(jg, node);
+    return label;
+}
+
+static MVMuint16 * try_fake_extop_regs(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMSpeshIns *ins, size_t *bufsize) {
+    MVMuint16 *regs = MVM_spesh_alloc(tc, sg, (*bufsize = (ins->info->num_operands * sizeof(MVMuint16))));
     MVMuint16 i;
     for (i = 0; i < ins->info->num_operands; i++) {
         switch (ins->info->operands[i] & MVM_operand_rw_mask) {
@@ -1567,10 +1577,10 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 dst = jg->sg->num_locals + jg->sg->sf->body.cu->body.max_callsite_size - 1;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL,  { obj } },
-                                 { MVM_JIT_REG_ADDR, { dst } }, // destination register (in args space)
-                                 { MVM_JIT_LITERAL, { 0 } }, // true code
-                                 { MVM_JIT_LITERAL, { 0 } }, // false code
-                                 { MVM_JIT_LITERAL, { op == MVM_OP_unless_o } }}; // switch
+                                 { MVM_JIT_REG_ADDR, { dst } }, /* destination register (in args space) */
+                                 { MVM_JIT_LITERAL, { 0 } }, /* true code */
+                                 { MVM_JIT_LITERAL, { 0 } }, /* false code */
+                                 { MVM_JIT_LITERAL, { op == MVM_OP_unless_o } }}; /* switch */
         MVMSpeshIns * branch = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMSpeshIns));
         if (dst + 1 <= jg->sg->num_locals) {
             MVM_oops(tc, "JIT: no space in args buffer to store"
@@ -2389,6 +2399,21 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                           MVM_JIT_RV_PTR, dst);
         break;
     }
+    case MVM_OP_radix: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 radix = ins->operands[1].reg.orig;
+        MVMint16 string = ins->operands[2].reg.orig;
+        MVMint16 offset = ins->operands[3].reg.orig;
+        MVMint16 flag = ins->operands[4].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { radix } },
+                                 { MVM_JIT_REG_VAL, { string } },
+                                 { MVM_JIT_REG_VAL, { offset } },
+                                 { MVM_JIT_REG_VAL, { flag } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args,
+                          MVM_JIT_RV_PTR, dst);
+        break;
+    }
     case MVM_OP_radix_I: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 radix = ins->operands[1].reg.orig;
@@ -2675,12 +2700,13 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
             MVMuint16       num_extops = jg->sg->sf->body.cu->body.num_extops;
             MVMuint16       i;
             for (i = 0; i < num_extops; i++) {
-                if (extops[i].info == ins->info) {
-                    MVMuint16 *fake_regs;
-                    if (!extops[i].no_jit && (fake_regs = try_fake_extop_regs(tc, ins))) {
-
+                if (extops[i].info == ins->info && !extops[i].no_jit) {
+                    size_t fake_regs_size;
+                    MVMuint16 *fake_regs = try_fake_extop_regs(tc, jg->sg, ins, &fake_regs_size);
+                    if (fake_regs_size && fake_regs != NULL) {
+                        MVMint32  data_label = jg_add_data_node(tc, jg, fake_regs, fake_regs_size);
                         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  { MVM_JIT_INTERP_TC } },
-                                                 { MVM_JIT_LITERAL_PTR, { (MVMint64)fake_regs } }};
+                                                 { MVM_JIT_DATA_LABEL,  { data_label } }};
                         if (ins->info->jittivity & MVM_JIT_INFO_INVOKISH)
                             jg_append_control(tc, jg, ins, MVM_JIT_CONTROL_THROWISH_PRE);
                         jg_append_call_c(tc, jg, extops[i].func, 2, args, MVM_JIT_RV_VOID, -1);
@@ -2782,11 +2808,11 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     graph->last_node  = NULL;
 
     /* Set initial instruction label offset */
-    graph->ins_label_ofs = sg->num_bbs + 1;
+    graph->obj_label_ofs = sg->num_bbs + 1;
 
     /* Labels for individual instructions (not basic blocks), for instance at
      * boundaries of exception handling frames */
-    MVM_VECTOR_INIT(graph->ins_labels, 16);
+    MVM_VECTOR_INIT(graph->obj_labels, 16);
     /* Deoptimization labels */
     MVM_VECTOR_INIT(graph->deopts, 8);
     /* Nodes for each label, used to ensure labels aren't added twice */
@@ -2824,9 +2850,7 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
 
     /* append the end-of-graph label */
     jg_append_label(tc, graph, MVM_jit_label_after_graph(tc, graph, sg));
-
-    /* Calculate number of basic block + graph labels */
-    graph->num_labels = sg->num_bbs + 1 + graph->ins_labels_num;
+    graph->num_labels    = graph->obj_label_ofs + graph->obj_labels_num;
     return graph;
 
  bail:
@@ -2843,7 +2867,7 @@ void MVM_jit_graph_destroy(MVMThreadContext *tc, MVMJitGraph *graph) {
         }
     }
     MVM_free(graph->label_nodes);
-    MVM_free(graph->ins_labels);
+    MVM_free(graph->obj_labels);
     MVM_free(graph->deopts);
     MVM_free(graph->handlers);
     MVM_free(graph->inlines);

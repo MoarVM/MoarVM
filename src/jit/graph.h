@@ -5,14 +5,14 @@ struct MVMJitGraph {
     MVMJitNode    *first_node;
     MVMJitNode    *last_node;
 
-    /* Number of instruction+bb+graph labels, but excluding the expression labels */
+    /* Number of instruction+bb+graph+obj labels, but excluding the expression labels */
     MVMint32       num_labels;
-    /* Offset for instruction labels */
-    MVMint32       ins_label_ofs;
+    /* Offset for instruction / data labels */
+    MVMint32       obj_label_ofs;
 
+    /* Although meant only for instructions they can really contain any random stuff */
+    MVM_VECTOR_DECL(void*, obj_labels);
 
-    /* All labeled things */
-    MVM_VECTOR_DECL(MVMSpeshIns*, ins_labels);
     MVM_VECTOR_DECL(MVMJitDeopt, deopts);
     MVM_VECTOR_DECL(MVMJitHandler, handlers);
     MVM_VECTOR_DECL(MVMJitInline, inlines);
@@ -97,6 +97,7 @@ typedef enum {
     MVM_JIT_LITERAL_PTR,
     MVM_JIT_REG_STABLE,
     MVM_JIT_REG_OBJBODY,
+    MVM_JIT_DATA_LABEL,
 } MVMJitArgType;
 
 struct MVMJitCallArg {
@@ -150,10 +151,16 @@ struct MVMJitInvoke {
 struct MVMJitJumpList {
     MVMint64 num_labels;
     MVMint16 reg;
-    // labels of the goto's / jump instructions themselves
+    /* labels of the goto's / jump instructions themselves */
     MVMint32 *in_labels;
-    // labels the goto's jump to
+    /* labels the goto's jump to */
     MVMint32 *out_labels;
+};
+
+struct MVMJitData {
+    MVMint32 label;
+    void     *data;
+    size_t    size;
 };
 
 /* Node types */
@@ -166,12 +173,13 @@ typedef enum {
     MVM_JIT_NODE_INVOKE,
     MVM_JIT_NODE_JUMPLIST,
     MVM_JIT_NODE_CONTROL,
+    MVM_JIT_NODE_DATA,
     MVM_JIT_NODE_EXPR_TREE,
 } MVMJitNodeType;
 
 struct MVMJitNode {
-    MVMJitNode   * next; // linked list
-    MVMJitNodeType type; // tag
+    MVMJitNode   * next; /* linked list */
+    MVMJitNodeType type; /* tag */
     union {
         MVMJitPrimitive prim;
         MVMJitCallC     call;
@@ -181,6 +189,7 @@ struct MVMJitNode {
         MVMJitInvoke    invoke;
         MVMJitJumpList  jumplist;
         MVMJitControl   control;
+        MVMJitData      data;
         MVMJitExprTree *tree;
     } u;
 };

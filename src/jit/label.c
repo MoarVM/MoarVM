@@ -1,6 +1,5 @@
 #include "moar.h"
 
-
 MVMint32 MVM_jit_label_before_bb(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshBB *bb) {
     return bb->idx;
 }
@@ -16,7 +15,6 @@ MVMint32 MVM_jit_label_after_graph(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpe
 
 
 MVMint32 MVM_jit_label_before_ins(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshBB *bb, MVMSpeshIns *ins) {
-    MVMint32 offset, i;
     /* PHI nodes are always at the start of a basic block, so this not is really necessary */
     while (ins->prev && ins->prev->info->opcode == MVM_SSA_PHI) {
         ins = ins->prev;
@@ -26,16 +24,7 @@ MVMint32 MVM_jit_label_before_ins(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpes
         return MVM_jit_label_before_bb(tc, jg, bb);
     }
     /* Requires a separate label */
-    /* Reverse search; it is pretty likely we've seen this ins just before */
-    i      = jg->ins_labels_num;
-    while (i--) {
-        if (jg->ins_labels[i] == ins) {
-            return i + jg->ins_label_ofs;
-        }
-    }
-    /* Add and return new instruction label */
-    MVM_VECTOR_PUSH(jg->ins_labels, ins);
-    return jg->ins_labels_num - 1 + jg->ins_label_ofs;
+    return MVM_jit_label_for_obj(tc, jg, ins);
 }
 
 MVMint32 MVM_jit_label_after_ins(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshBB *bb, MVMSpeshIns *ins) {
@@ -51,6 +40,20 @@ MVMint32 MVM_jit_label_after_ins(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpesh
     return MVM_jit_label_after_graph(tc, jg, jg->sg);
 }
 
+MVMint32 MVM_jit_label_for_obj(MVMThreadContext *tc, MVMJitGraph *jg, void *obj) {
+    MVMint32 i;
+    /* Reverse search; it is pretty likely we've seen this ins just before */
+    i      = jg->obj_labels_num;
+    while (i--) {
+        if (jg->obj_labels[i] == obj) {
+            return i + jg->obj_label_ofs;
+        }
+    }
+    /* Add and return new instruction label */
+    MVM_VECTOR_PUSH(jg->obj_labels, obj);
+    return jg->obj_labels_num - 1 + jg->obj_label_ofs;
+}
+
 MVMint32 MVM_jit_label_is_for_graph(MVMThreadContext *tc, MVMJitGraph *jg, MVMint32 label) {
     return label == 0 || label == jg->sg->num_bbs;
 }
@@ -60,7 +63,7 @@ MVMint32 MVM_jit_label_is_for_bb(MVMThreadContext *tc, MVMJitGraph *jg, MVMint32
 }
 
 MVMint32 MVM_jit_label_is_for_ins(MVMThreadContext *tc, MVMJitGraph *jg, MVMint32 label) {
-    return label > jg->sg->num_bbs && label < jg->sg->num_bbs + jg->ins_labels_num;
+    return label > jg->sg->num_bbs && label < jg->sg->num_bbs + jg->obj_labels_num;
 }
 
 MVMint32 MVM_jit_label_is_internal(MVMThreadContext *tc, MVMJitGraph *jg, MVMint32 label) {

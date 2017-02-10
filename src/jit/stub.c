@@ -17,6 +17,7 @@ const unsigned int MVM_jit_num_globals(void) {
     return 0;
 }
 
+
 void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg) {}
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg) {}
 void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler,
@@ -35,4 +36,5 @@ void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
                            MVMJitJumpList *jumplist) {}
 void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                           MVMJitControl *ctrl) {}
+void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitData *data) {}
 

@@ -146,6 +146,18 @@ static MVMint64 filtered_out(MVMThreadContext *tc, MVMObject *written) {
     if (REPR(written)->ID == MVM_REPR_ID_ConcBlockingQueue)
         return 1;
 
+    /* Write on object from event loop thread is usually shift of invokable. */
+    if (tc->instance->event_loop_thread)
+        if (written->header.owner == tc->instance->event_loop_thread->thread_id)
+            return 1;
+
+    /* Filter out writes to Sub and Method, since these are almost always just
+     * multi-dispatch caches. */
+    if (memcmp(written->st->debug_name, "Method", 6) == 0)
+        return 1;
+    if (memcmp(written->st->debug_name, "Sub", 3) == 0)
+        return 1;
+
     /* Otherwise, may be relevant. */
     return 0;
 }

@@ -349,6 +349,10 @@ struct MVMSTable {
     /* A string associated with this STable for debugging purposes.
      * Usually the name of the class this belongs to. */
     char *debug_name;
+
+    /* If this STable is currently in the process of being repossessed. Used
+     * to trigger clearup of memory pre-repossession. */
+    MVMuint8 being_repossessed;
 };
 
 /* The representation operations table. Note that representations are not

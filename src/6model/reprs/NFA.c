@@ -318,8 +318,8 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
         num_states = MVM_repr_elems(tc, states) - 1;
         nfa->num_states = num_states;
         if (num_states > 0) {
-            nfa->num_state_edges = MVM_malloc(num_states * sizeof(MVMint64));
-            nfa->states = MVM_malloc(num_states * sizeof(MVMNFAStateInfo *));
+            nfa->num_state_edges = MVM_calloc(num_states, sizeof(MVMint64));
+            nfa->states = MVM_calloc(num_states, sizeof(MVMNFAStateInfo *));
         }
         for (i = 0; i < num_states; i++) {
             MVMObject *edge_info = MVM_repr_at_pos_o(tc, states, i + 1);
@@ -336,6 +336,8 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                     MVM_repr_at_pos_o(tc, edge_info, j));
                 MVMint64 to  = MVM_coerce_simple_intify(tc,
                     MVM_repr_at_pos_o(tc, edge_info, j + 2));
+                if (to <= 0 && act != MVM_NFA_EDGE_FATE)
+                    MVM_exception_throw_adhoc(tc, "Invalid to edge %ld in NFA statelist", to);
 
                 nfa->states[i][cur_edge].act = act;
                 nfa->states[i][cur_edge].to = to;

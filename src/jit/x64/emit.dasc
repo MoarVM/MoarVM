@@ -71,7 +71,7 @@
 
 |.arch x64
 |.actionlist actions
-|.section code
+|.section code, data
 |.globals MVM_JIT_LABEL_
 
 /* type declarations */
@@ -217,8 +217,11 @@ const unsigned int MVM_jit_num_globals(void) {
 
 
 |.macro callp, funcptr
-| mov64 FUNCTION, (uintptr_t)funcptr
-| call FUNCTION
+|.data
+|5:
+|.dword (MVMuint32)((uintptr_t)(funcptr)), (MVMuint32)((uintptr_t)(funcptr) >> 32);
+|.code
+| call qword [<5];
 |.endmacro
 
 
@@ -282,8 +285,10 @@ const unsigned int MVM_jit_num_globals(void) {
 /* A function prologue is always the same in x86 / x64, because
  * we do not provide variable arguments, instead arguments are provided
  * via a frame. All JIT entry points receive a prologue. */
+
 void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitGraph *jg) {
+    |.code
     /* Setup stack */
     | push rbp; // nb, this aligns the stack to 16 bytes again
     | mov rbp, rsp;
@@ -1805,6 +1810,9 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         | mov TMP6, qword WORK[arg.v.reg];
         | lea TMP6, STOOGE:TMP6->data;
         break;
+    case MVM_JIT_DATA_LABEL:
+        | lea TMP6, [=>(arg.v.lit_i64)];
+        break;
     }
 }
 
@@ -1917,6 +1925,7 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, 
         case MVM_JIT_LITERAL:
         case MVM_JIT_LITERAL_64:
         case MVM_JIT_LITERAL_PTR:
+        case MVM_JIT_DATA_LABEL:
             if (num_gpr < 6) {
                 in_gpr[num_gpr++] = args[i];
             } else {
@@ -2582,5 +2591,18 @@ void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint3
 }
 
 
+void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitData *data) {
+    MVMuint8 *bytes = data->data;
+    MVMint32 i;
+    |.data;
+    |=>(data->label):
+    for (i = 0; i < data->size; i++) {
+        |.byte bytes[i];
+    }
+    |.code
+}
+
+
 /* import tiles */
 |.include src/jit/x64/tiles.dasc
+

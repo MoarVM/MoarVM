@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 use v5.14;
 use warnings; use strict;
 use Data::Dumper;
@@ -60,6 +61,7 @@ sub main {
     $db_sections->{'AAA_header'} = header();
     add_unicode_sequence('emoji/emoji-sequences');
     add_unicode_sequence('emoji/emoji-zwj-sequences');
+    add_unicode_sequence('NamedSequences');
     gen_unicode_sequence_keypairs();
     NameAliases();
     gen_name_alias_keypairs();
@@ -75,10 +77,11 @@ sub main {
     goto skip_most if $skip_most_mode;
     binary_props('extracted/DerivedBinaryProperties');
     binary_props('emoji/emoji-data');
-    enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 0, 3);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1, 1);
     enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1, 1);
+    enumerated_property('extracted/DerivedEastAsianWidth', 'East_Asian_Width', {}, 0, 1);
+    enumerated_property('ArabicShaping', 'Joining_Type', {}, 0, 2);
     CaseFolding();
     SpecialCasing();
     enumerated_property('DerivedAge',
@@ -843,6 +846,7 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint32 c
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK', 'Grapheme_Cluster_Break', 'GCB');
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE', 'Decomposition_Type', 'DT');
     gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS', 'Canonical_Combining_Class', 'CCC');
+    gen_pvalue_defines('MVM_UNICODE_PROPERTY_NUMERIC_TYPE', 'Numeric_Type', 'Numeric_Type');
 
     $db_sections->{MVM_unicode_get_property_int} = $enumtables . $eout . $out;
     $h_sections->{property_code_definitions} = $hout;
@@ -1090,10 +1094,24 @@ sub add_unicode_sequence {
         if ( $line =~ /^#/ or $line =~ /^\s*$/) {
             return;
         }
-        my @list = split /;|   \#/, $line;
-        my $hex_ords = trim shift @list;
-        my $type = trim shift @list;
-        my $name = trim shift @list;
+        my (@list, $hex_ords, $type, $name);
+        @list = split /;|   \#/, $line;
+        if ($filename =~ /emoji/) {
+            $hex_ords = trim shift @list;
+            $type = trim shift @list;
+            $name = trim shift @list;
+        }
+        else {
+            $name = trim shift @list;
+            $hex_ords = trim shift @list;
+            $type = 'NamedSequences';
+        }
+        # Make sure it's uppercase since the Emoji sequences are not all in
+        # uppercase.
+        $name = uc $name;
+        # Emoji sequences have commas in some and these cannot be included
+        # since they seperate seperate named items in ISO notation that P6 uses
+        $name =~ s/,//g;
         $sequences->{$name}->{'type'} = $type;
 
         for my $hex (split ' ', $hex_ords) {
@@ -1510,6 +1528,7 @@ sub UnicodeData {
             NFKD_QC => 1,
             NFKC_QC => 1,
             NFG_QC => 1,
+            MVM_COLLATION_QC => 1,
             code => $code,
             Any => 1
         };
@@ -1734,7 +1753,6 @@ sub collation {
         $line_no++;
         my ($code, $weight1, $weight2, $weight3, $temp);
         if ($line =~ s/ ^ \@implicitweights \s+ //xms ) {
-            say "IMPLICIT WEIGHTS";
             ($code, $weight1) = split / (?: [;\[\]]|\s )+ /xms, $line;
             $weight1 = hex $weight1 or croak;
             $code or croak;
@@ -1748,8 +1766,14 @@ sub collation {
             ($code, $temp) = split /[;#]+/, $line;
             $code = trim $code;
             my @codes = split / /, $code;
+            # we don't yet support collation for multiple codepoints
             if ( scalar @codes > 1 ) {
-                return; # we don't yet support collation for multiple codepoints
+                # For now set MVM_COLLATION_QC = 0 for these cp
+                apply_to_range($codes[0], sub {
+                    my $point = shift;
+                    $point->{'MVM_COLLATION_QC'} = 0;
+                });
+                return;
             }
             # We capture the `.` or `*` before each weight. Currently we do
             # not use this information, but it may be of use later (we currently
@@ -1802,6 +1826,7 @@ sub collation {
     register_int_property($name_primary, $primary_max);
     register_int_property($name_secondary, $secondary_max);
     register_int_property($name_tertiary, $tertiary_max);
+    register_binary_property('MVM_COLLATION_QC');
 }
 sub LineBreak {
     my $enum = {};
