@@ -1,6 +1,8 @@
 #!/usr/bin/env perl
 use v5.14;
 use warnings; use strict;
+use utf8;
+use feature 'unicode_strings';
 use Data::Dumper;
 use Carp qw(cluck croak);
 $Data::Dumper::Maxdepth = 1;
@@ -15,7 +17,12 @@ $Data::Dumper::Maxdepth = 1;
 my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
 my @name_lines;
-open(LOG, ">extents") or die "can't create extents: $!" if $DEBUG;
+if $DEBUG {
+    open(LOG, ">extents") or die "can't create extents: $!";
+    binmode LOG, ':encoding(UTF-8)';
+}
+binmode STDOUT, ':encoding(UTF-8)';
+binmode STDERR, ':encoding(UTF-8)';
 my $LOG;
 
 my $db_sections = {};
@@ -1450,6 +1457,7 @@ authorization of the copyright holder. */
 sub read_file {
     my $fname = shift;
     open FILE, $fname or die "Couldn't open file '$fname': $!";
+    binmode FILE, ':encoding(UTF-8)';
     my @lines = ();
     while( <FILE> ) {
         push @lines, $_;
@@ -1461,6 +1469,7 @@ sub read_file {
 sub write_file {
     my ($fname, $contents) = @_;
     open FILE, ">$fname" or die "Couldn't open file '$fname': $!";
+    binmode FILE, ':encoding(UTF-8)';
     print FILE $contents;
     close FILE;
 }
