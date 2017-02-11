@@ -122,7 +122,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/containers@obj@ \
           src/6model/parametric@obj@ \
           src/6model/reprs/MVMString@obj@ \
-          src/6model/reprs/MVMArray@obj@ \
+          src/6model/reprs/VMArray@obj@ \
           src/6model/reprs/MVMHash@obj@ \
           src/6model/reprs/MVMCFunction@obj@ \
           src/6model/reprs/KnowHOWREPR@obj@ \
@@ -271,7 +271,7 @@ HEADERS = src/moar.h \
           src/6model/containers.h \
           src/6model/parametric.h \
           src/6model/reprs/MVMString.h \
-          src/6model/reprs/MVMArray.h \
+          src/6model/reprs/VMArray.h \
           src/6model/reprs/MVMHash.h \
           src/6model/reprs/MVMCFunction.h \
           src/6model/reprs/KnowHOWREPR.h \

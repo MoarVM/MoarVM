@@ -1,6 +1,6 @@
 /* Pull in all of the core REPRs. */
 #include "6model/reprs/MVMString.h"
-#include "6model/reprs/MVMArray.h"
+#include "6model/reprs/VMArray.h"
 #include "6model/reprs/MVMHash.h"
 #include "6model/reprs/MVMCFunction.h"
 #include "6model/reprs/KnowHOWREPR.h"
