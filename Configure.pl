@@ -512,11 +512,6 @@ print "\n", <<TERM, "\n";
   3rdparty: $thirdpartylibs
 TERM
 
-# make sure to link with the correct entry point */
-if ($config{win32_compiler_toolchain} eq 'mingw32') {
-    $config{ldflags} .= ' -municode';
-}
-
 # read list of files to generate
 
 open my $listfile, '<', $GENLIST
