@@ -585,6 +585,8 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(gc_bytes_since_full, "gc_bytes_promoted_since_full");
     string_creator(fsa_sizeclass_pagecount, "fsa_pagecounts");
     string_creator(fsa_sizeclass_free_elems, "fsa_free_elems");
+    string_creator(gen2_sizeclass_pagecount, "gen2_pagecounts");
+    string_creator(gen2_sizeclass_free_elems, "gen2_free_elems");
     string_creator(num_threads, "num_threads");
     string_creator(nurseries_filled, "nursery_bytes");
 }

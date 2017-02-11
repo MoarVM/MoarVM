@@ -86,6 +86,8 @@ struct MVMStringConsts {
     MVMString *gc_bytes_since_full;
     MVMString *fsa_sizeclass_pagecount;
     MVMString *fsa_sizeclass_free_elems;
+    MVMString *gen2_sizeclass_pagecount;
+    MVMString *gen2_sizeclass_free_elems;
     MVMString *num_threads;
     MVMString *nurseries_filled;
 };
