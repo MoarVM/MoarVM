@@ -890,7 +890,7 @@ void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc
 
     /* Ensure the target is in the correct form. */
     MVM_string_check_arg(tc, s, "encode");
-    if (!IS_CONCRETE(buf) || REPR(buf)->ID != MVM_REPR_ID_MVMArray)
+    if (!IS_CONCRETE(buf) || REPR(buf)->ID != MVM_REPR_ID_VMArray)
         MVM_exception_throw_adhoc(tc, "encode requires a native array to write into");
     buf_rd = (MVMArrayREPRData *)STABLE(buf)->REPR_data;
     if (buf_rd) {
@@ -934,7 +934,7 @@ MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVM
     MVMuint8 elem_size = 0;
 
     /* Ensure the source is in the correct form. */
-    if (!IS_CONCRETE(buf) || REPR(buf)->ID != MVM_REPR_ID_MVMArray)
+    if (!IS_CONCRETE(buf) || REPR(buf)->ID != MVM_REPR_ID_VMArray)
         MVM_exception_throw_adhoc(tc, "decode requires a native array to read from");
     buf_rd = (MVMArrayREPRData *)STABLE(buf)->REPR_data;
     if (buf_rd) {

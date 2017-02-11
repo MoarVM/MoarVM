@@ -174,7 +174,7 @@ static void optimize_is_reprid(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshI
     }
 
     switch (ins->info->opcode) {
-        case MVM_OP_islist: wanted_repr_id = MVM_REPR_ID_MVMArray; break;
+        case MVM_OP_islist: wanted_repr_id = MVM_REPR_ID_VMArray; break;
         case MVM_OP_ishash: wanted_repr_id = MVM_REPR_ID_MVMHash; break;
         case MVM_OP_isint:  wanted_repr_id = MVM_REPR_ID_P6int; break;
         case MVM_OP_isnum:  wanted_repr_id = MVM_REPR_ID_P6num; break;
@@ -826,7 +826,7 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                 MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
 
                 return;
-            } else if (!is_strify && (REPR(facts->type)->ID == MVM_REPR_ID_MVMArray ||
+            } else if (!is_strify && (REPR(facts->type)->ID == MVM_REPR_ID_VMArray ||
                                      (REPR(facts->type)->ID == MVM_REPR_ID_MVMHash))) {
                 /* A smrt_numify on an array or hash can be replaced by an
                  * elems operation, that can then be optimized by our

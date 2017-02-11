@@ -457,7 +457,7 @@ static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject 
     MVMBoolificationSpec *bs;
     MVMObject  *repr_info;
     MVMInstance  *instance  = tc->instance;
-    const MVMREPROps *repr  = MVM_repr_get_by_id(tc, MVM_REPR_ID_MVMArray);
+    const MVMREPROps *repr  = MVM_repr_get_by_id(tc, MVM_REPR_ID_VMArray);
     MVMObject  *array = repr->type_object_for(tc, NULL);
     MVMROOT(tc, array, {
         /* Give it a meta-object. */
@@ -612,7 +612,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_boot_type(tc, MVM_REPR_ID_P6int, boot_types.BOOTInt, 1, MVM_BOOL_MODE_UNBOX_INT);
     create_stub_boot_type(tc, MVM_REPR_ID_P6num, boot_types.BOOTNum, 1, MVM_BOOL_MODE_UNBOX_NUM);
     create_stub_boot_type(tc, MVM_REPR_ID_P6str, boot_types.BOOTStr, 1, MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY);
-    create_stub_boot_type(tc, MVM_REPR_ID_MVMArray, boot_types.BOOTArray, 1, MVM_BOOL_MODE_HAS_ELEMS);
+    create_stub_boot_type(tc, MVM_REPR_ID_VMArray, boot_types.BOOTArray, 1, MVM_BOOL_MODE_HAS_ELEMS);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMHash, boot_types.BOOTHash, 1, MVM_BOOL_MODE_HAS_ELEMS);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMCFunction, boot_types.BOOTCCode, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMCode, boot_types.BOOTCode, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
