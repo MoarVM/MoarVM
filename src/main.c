@@ -100,11 +100,7 @@ static int parse_flag(const char *arg)
 #ifndef _WIN32
 int main(int argc, char *argv[])
 #else
-
-char ** UnicodeToUTF8_argv(const int argc, wchar_t **wargv);
-
 int wmain(int argc, wchar_t *wargv[])
-
 #endif
 {
     MVMInstance *instance;
@@ -113,7 +109,7 @@ int wmain(int argc, wchar_t *wargv[])
     const char  *lib_path[8];
 
 #ifdef _WIN32
-    char **argv = UnicodeToUTF8_argv(argc, wargv);
+    char **argv = MVM_UnicodeToUTF8_argv(argc, wargv);
 #endif
 
     int dump         = 0;

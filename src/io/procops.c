@@ -50,7 +50,7 @@ static char * ANSIToUTF8(MVMuint16 acp, const char * str)
 }
 
 MVM_PUBLIC char **
-UnicodeToUTF8_argv(const int argc, wchar_t **wargv)
+MVM_UnicodeToUTF8_argv(const int argc, wchar_t **wargv)
 {
     int i;
     char **argv = MVM_malloc((argc + 1) * sizeof(*argv));
