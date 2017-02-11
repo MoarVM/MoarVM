@@ -512,6 +512,12 @@ print "\n", <<TERM, "\n";
   3rdparty: $thirdpartylibs
 TERM
 
+# make sure to link with the correct entry point */
+$config{mingw_unicode} = '';
+if ($config{os} eq 'mingw32') {
+    $config{mingw_unicode} = '-municode';
+}
+
 # read list of files to generate
 
 open my $listfile, '<', $GENLIST

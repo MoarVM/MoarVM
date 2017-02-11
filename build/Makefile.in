@@ -14,7 +14,7 @@ RM_RF  = $(PERL) -MExtUtils::Command -e rm_rf
 RM_F   = $(PERL) -MExtUtils::Command -e rm_f
 DYNASM = $(LUA) @dynasmlua@
 
-
+MINGW_UNICODE = @mingw_unicode@
 
 CONFIG    = @config@
 ADDCONFIG =
@@ -488,7 +488,7 @@ clangcheck gcccheck:
 
 moar@exe@: $(MAIN_OBJECTS) @moar@
 	$(MSG) linking $@
-	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) $(MAIN_LIBS)
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MINGW_UNICODE) $(MAIN_OBJECTS) $(MAIN_LIBS)
 
 @moarlib@: $(OBJECTS) $(THIRDPARTY)
 	$(MSG) linking $@

@@ -97,18 +97,27 @@ static int parse_flag(const char *arg)
         return UNKNOWN_FLAG;
 }
 
+#ifndef _WIN32
 int main(int argc, char *argv[])
+#else
+int wmain(int argc, wchar_t *wargv[])
+#endif
 {
     MVMInstance *instance;
     const char  *input_file;
     const char  *executable_name = NULL;
     const char  *lib_path[8];
 
+#ifdef _WIN32
+    char **argv = MVM_UnicodeToUTF8_argv(argc, wargv);
+#endif
+
     int dump         = 0;
     int full_cleanup = 0;
     int argi         = 1;
     int lib_path_i   = 0;
     int flag;
+
     for (; (flag = parse_flag(argv[argi])) != NOT_A_FLAG; ++argi) {
         switch (flag) {
             case FLAG_CRASH:
