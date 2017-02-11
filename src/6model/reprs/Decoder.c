@@ -154,7 +154,7 @@ void MVM_decoder_set_separators(MVMThreadContext *tc, MVMDecoder *decoder, MVMOb
 /* Adds bytes to the deocde stream. */
 void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject *buffer) {
     MVMDecodeStream *ds = get_ds(tc, decoder);
-    if (REPR(buffer)->ID == MVM_REPR_ID_MVMArray) {
+    if (REPR(buffer)->ID == MVM_REPR_ID_VMArray) {
         /* To be safe, we need to make a copy of data in a resizable array; it
          * may change/move under us. */
         char *output, *copy;
@@ -233,7 +233,7 @@ MVMObject * MVM_decoder_take_bytes(MVMThreadContext *tc, MVMDecoder *decoder,
     MVMObject *result;
 
     /* Ensure the target is in the correct form. */
-    if (REPR(buf_type)->ID != MVM_REPR_ID_MVMArray)
+    if (REPR(buf_type)->ID != MVM_REPR_ID_VMArray)
         MVM_exception_throw_adhoc(tc, "decodertakebytes requires a native array type");
     if (((MVMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type != MVM_ARRAY_U8
             && ((MVMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type != MVM_ARRAY_I8)

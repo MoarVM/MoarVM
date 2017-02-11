@@ -1276,7 +1276,7 @@ static const MVMREPROps this_repr = {
     compose,
     spesh,
     "VMArray", /* name */
-    MVM_REPR_ID_MVMArray,
+    MVM_REPR_ID_VMArray,
     unmanaged_size,
     describe_refs,
 };

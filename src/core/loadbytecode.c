@@ -35,7 +35,7 @@ void MVM_load_bytecode_buffer(MVMThreadContext *tc, MVMObject *buf) {
     /* Ensure the source is in the correct form. */
     if (
         !IS_CONCRETE(buf)
-        || REPR(buf)->ID != MVM_REPR_ID_MVMArray
+        || REPR(buf)->ID != MVM_REPR_ID_VMArray
         || (
                ((MVMArrayREPRData *)STABLE(buf)->REPR_data)->slot_type != MVM_ARRAY_U8
             && ((MVMArrayREPRData *)STABLE(buf)->REPR_data)->slot_type != MVM_ARRAY_I8
