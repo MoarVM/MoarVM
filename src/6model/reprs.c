@@ -196,7 +196,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
 
     /* Add all core representations. */
     register_core_repr(String);
-    register_core_repr(Array);
+    register_repr(tc, VMArray_initialize(tc), NULL);
     register_core_repr(Hash);
     register_core_repr(CFunction);
     register_core_repr(KnowHOWREPR);

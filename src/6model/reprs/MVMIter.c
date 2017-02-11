@@ -196,7 +196,7 @@ static const MVMREPROps this_repr = {
 MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
     MVMIter *iterator;
     MVMROOT(tc, target, {
-        if (REPR(target)->ID == MVM_REPR_ID_MVMArray) {
+        if (REPR(target)->ID == MVM_REPR_ID_VMArray) {
             iterator = (MVMIter *)MVM_repr_alloc_init(tc,
                 MVM_hll_current(tc)->array_iterator_type);
             iterator->body.array_state.index = -1;
