@@ -515,21 +515,23 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         result->body.num_graphs      = agraphs * count;
         result->body.storage_type    = MVM_STRING_STRAND;
         result->body.storage.strands = allocate_strands(tc, 1);
-        result->body.num_strands     = 1;
         if (a->body.storage_type == MVM_STRING_STRAND) {
             if (a->body.num_strands == 1 && a->body.storage.strands[0].repetitions == 0) {
+                result->body.num_strands     = 1;
                 copy_strands(tc, a, 0, result, 0, 1);
             }
             else {
                 MVMROOT(tc, result, {
                     a = collapse_strands(tc, a);
                 });
+                result->body.num_strands     = 1;
                 result->body.storage.strands[0].blob_string = a;
                 result->body.storage.strands[0].start       = 0;
                 result->body.storage.strands[0].end         = agraphs;
             }
         }
         else {
+            result->body.num_strands     = 1;
             result->body.storage.strands[0].blob_string = a;
             result->body.storage.strands[0].start       = 0;
             result->body.storage.strands[0].end         = agraphs;
