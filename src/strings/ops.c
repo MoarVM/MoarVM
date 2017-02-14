@@ -1249,9 +1249,9 @@ MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMS
 MVMString * MVM_string_indexing_optimized(MVMThreadContext *tc, MVMString *s) {
     MVM_string_check_arg(tc, s, "indexingoptimized");
     if (s->body.storage_type == MVM_STRING_STRAND) {
-        MVMGrapheme32   *flat = MVM_malloc(MVM_string_graphs(tc, s) * sizeof(MVMGrapheme32));
-        MVMStringStrand *orig = s->body.storage.strands;
-        MVMuint32        i    = 0;
+        MVMuint32        chars = MVM_string_graphs(tc, s);
+        MVMGrapheme32   *flat  = MVM_malloc(chars * sizeof(MVMGrapheme32));
+        MVMuint32        i     = 0;
         MVMString       *res;
         MVMint8          can_fit_into_8bit = 1;
 
@@ -1267,7 +1267,7 @@ MVMString * MVM_string_indexing_optimized(MVMThreadContext *tc, MVMString *s) {
         res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         res->body.storage_type    = MVM_STRING_GRAPHEME_32;
         res->body.storage.blob_32 = flat;
-        res->body.num_graphs      = MVM_string_graphs(tc, s);
+        res->body.num_graphs      = chars;
 
         if (can_fit_into_8bit)
             turn_32bit_into_8bit_unchecked(tc, res);
