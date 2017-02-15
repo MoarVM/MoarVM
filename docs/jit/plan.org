@@ -494,15 +494,17 @@ So how to factor this?
   separate step (can also be a separate step).
 
 
-**** TODO Factor spill-register selection out of spilling-values
-
-**** TODO Mark ARGLIST references
+**** DONE Mark ARGLIST references
 
 In determine_live_ranges, we need to handle ARGLIST specially, since
 those references haven't been handled yet by the tiling process. It's
 a relatively straightforward step.
 
-**** TODO Special-case ARGLIST references
+We need this not because we need to be able to assign registers to
+those refs, but because otherwise the register allocator is allowed to
+expire values when they're still needed by ARGLIST.
+
+**** DONE Special-case ARGLIST references
 
 A reference to ARGLIST cannot be loaded by the general spilling
 mechanism, because ARGLIST may refer to more values than can be loaded

@@ -120,6 +120,10 @@ static inline MVMint32 is_definition(ValueRef *v) {
     return (v->value_idx == 0);
 }
 
+static inline MVMint32 is_arglist_ref(MVMJitTileList *list, ValueRef *v) {
+    return (list->items[v->tile_idx]->op == MVM_JIT_ARGLIST);
+}
+
 /* allocate a new live range value by pointer-bumping */
 MVMint32 live_range_init(RegisterAllocator *alc) {
     LiveRange *range;
@@ -331,6 +335,11 @@ void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileLis
     range->reg_cls   = reg_cls;
     range->reg_num   = reg_num;
     for (ref = range->first; ref != NULL; ref = ref->next) {
+        if (is_arglist_ref(list, ref)) {
+            /* don't assign registers to ARGLIST references, that will never
+             * work */
+            continue;
+        }
         MVMJitTile *tile = list->items[ref->tile_idx];
         tile->values[ref->value_idx] = reg_num;
     }
@@ -374,6 +383,15 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
             /* NB; this may cause a conflict, in which case we can resolve it by
              * creating a new live range or inserting a copy */
             alc->sets[node].key  = value_set_union(alc->sets, alc->values, left_cond, right_cond);
+        } else if (tile->op == MVM_JIT_ARGLIST) {
+            MVMint32 num_args = list->tree->nodes[tile->node + 1];
+            MVMJitExprNode *refs = list->tree->nodes + tile->node + 2;
+            for (j = 0; j < num_args; j++) {
+                MVMint32 carg  = refs[j];
+                MVMint32 value = list->tree->nodes[carg+1];
+                MVMint32 idx   = value_set_find(alc->sets, value)->idx;
+                live_range_add_ref(alc, alc->values + idx, i, j + 1);
+            }
         } else {
             /* create a live range if necessary */
             if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
@@ -455,6 +473,22 @@ static void active_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
     }
 }
 
+static void active_set_splice(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 to_splice) {
+    MVMint32 i ;
+    /* find (reverse, because it's usually the last); predecrement alc->active_top */
+    for (i = --alc->active_top; i >= 0; i--) {
+        if (alc->active[i] == to_splice)
+            break;
+    }
+    if (i >= 0 && i < alc->active_top) {
+        /* shift out */
+        memmove(alc->active + i, alc->active + i + 1,
+                sizeof(alc->active[0]) * alc->active_top - i);
+    }
+}
+
+
+
 static MVMint32 insert_load_before_use(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
                                        ValueRef *ref, MVMint32 load_pos) {
     MVMint32 n = live_range_init(alc);
@@ -489,26 +523,13 @@ static MVMint32 select_memory_for_spill(MVMThreadContext *tc, RegisterAllocator 
     return pos;
 }
 
-static void live_range_splice_from_active(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 to_splice) {
-    MVMint32 i ;
-    /* find (reverse, because it's usually the last); predecrement alc->active_top */
-    for (i = --alc->active_top; i >= 0; i--) {
-        if (alc->active[i] == to_splice)
-            break;
-    }
-    if (i >= 0 && i < alc->active_top) {
-        /* shift out */
-        memmove(alc->active + i, alc->active + i + 1,
-                sizeof(alc->active[0]) * alc->active_top - i);
-    }
-}
 
 static void live_range_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
                              MVMint32 to_spill, MVMint32 spill_pos, MVMint32 code_pos) {
     LiveRange *spillee  = alc->values + to_spill;
     MVMint8 reg_spilled = spillee->reg_num;
     /* loop over all value refs */
-    ValueRef **head      = &(spillee->first);
+    ValueRef **head     = &(spillee->first);
     while (*head != NULL) {
         /* make a new live range */
         MVMint32 n;
@@ -516,8 +537,13 @@ static void live_range_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJi
         ValueRef *ref = *head;
         *head         = ref->next;
         ref->next     = NULL;
-
-        if (is_definition(ref)) {
+        if (is_arglist_ref(list, ref) && order_nr(ref->tile_idx) > code_pos) {
+            /* Never insert a load before a future ARGLIST; ARGLIST may easily
+             * consume more registers than we have available. Past ARGLISTs have
+             * already been handled, so we do need to insert a load a before
+             * them (or modify in place, but, complex!). */
+            continue;
+        } else if (is_definition(ref)) {
             n = insert_store_after_definition(tc, alc, list, ref, spill_pos);
         } else {
             n = insert_load_before_use(tc, alc, list, ref, spill_pos);
@@ -544,10 +570,9 @@ static void spill_any_register(MVMThreadContext *tc, RegisterAllocator *alc, MVM
     /* choose a live range, a register to spill, and a spill location */
     MVMint32 to_spill   = select_live_range_for_spill(tc, alc, list, code_position);
     MVMint32 spill_pos  = select_memory_for_spill(tc, alc, list, code_position, sizeof(MVMRegister));
-    live_range_splice_from_active(tc, alc, to_spill);
+    active_set_splice(tc, alc, to_spill);
     live_range_spill(tc, alc, list, to_spill, spill_pos, code_position);
 }
-
 
 
 /* not sure if this is sufficiently general-purpose and unconfusing */
