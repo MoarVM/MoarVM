@@ -467,6 +467,35 @@ stack be a storage class.
 Needed to allocate the correct amount of reference objects to account
 for the live range objects. Can be done simply during tiling.
 
+**** DONE Factor load-and-store insertion out of spilling
+
+Wanted to generalize spilling to support spilling-over-callsites.
+So currently we do:
+
++ Select a register + live range
++ Select a storage location
++ Iterate over all value refs in the live range and
+  + If a definition, insert a synthetic tile just after to store that value (insert_pos = ref->tile_idx, insert_order = -1)
+  + If a use, insert a synthetic tile just before to load that value (insert_pos = ref->tile_idx - 1, insert_order = +1)
+  + Create a new 'atomic' live range and
+    + Assign our newly created synthetic tile to it
+    + Assign our current value ref to it, as well, and take it from the current live range (to be processed)
+    + If prior to current position, assign given register (to live range + tile) and mark as expired
+    + If later than current position, push on worklist
+
+So how to factor this?
+- Specific live range + register + location selection is clearly
+  higher level (and prior to) than mechanics of processing the value
+  references
+- Insertion of loads and stores is a mechanism from the perspective of
+  the algorithm, which can supply different policies (e.g. group by
+  basic block)
+- Creating a new live range with our current value ref is also a
+  separate step (can also be a separate step).
+
+
+**** TODO Factor spill-register selection out of spilling-values
+
 **** TODO Mark ARGLIST references
 
 In determine_live_ranges, we need to handle ARGLIST specially, since

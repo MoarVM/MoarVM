@@ -455,75 +455,99 @@ static void active_set_expire(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
     }
 }
 
+static MVMint32 insert_load_before_use(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
+                                       ValueRef *ref, MVMint32 load_pos) {
+    MVMint32 n = live_range_init(alc);
+    MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_load, -1, 1, load_pos);
+    MVM_jit_tile_list_insert(tc, list, tile, ref->tile_idx - 1, +1); /* insert just prior to use */
+    alc->values[n].synthetic[0] = tile;
+    alc->values[n].synth_pos[0] = ref->tile_idx;
+    alc->values[n].first = alc->values[n].last = ref;
+    return n;
+}
 
-static void spill_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 code_position) {
-    /* choose a live range, a register to spill, and a spill location */
-    MVMint32 v          = alc->active[--alc->active_top];
-    MVMint32 spill_pos  = alc->compiler->spill_top;
-    MVMint8 reg_spilled = alc->values[v].reg_num;
+static MVMint32 insert_store_after_definition(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
+                                              ValueRef *ref, MVMint32 store_pos) {
+    MVMint32 n = live_range_init(alc);
+    MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_store, -1, 1, store_pos);
+    MVM_jit_tile_list_insert(tc, list, tile, ref->tile_idx, -1); /* insert just after storage */
+    alc->values[n].synthetic[1] = tile;
+    alc->values[n].synth_pos[1] = ref->tile_idx;
+    alc->values[n].first = alc->values[n].last = ref;
+    return n;
+}
 
+static MVMint32 select_live_range_for_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 code_pos) {
+    return alc->active[alc->active_top-1];
+}
+
+static MVMint32 select_memory_for_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
+                                        MVMint32 code_pos, MVMuint32 size) {
+    /* TODO: Implement a 'free list' of spillable locations */
+    MVMint32 pos = alc->compiler->spill_top;
+    alc->compiler->spill_top += size;
+    return pos;
+}
+
+static void live_range_splice_from_active(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 to_splice) {
+    MVMint32 i ;
+    /* find (reverse, because it's usually the last); predecrement alc->active_top */
+    for (i = --alc->active_top; i >= 0; i--) {
+        if (alc->active[i] == to_splice)
+            break;
+    }
+    if (i >= 0 && i < alc->active_top) {
+        /* shift out */
+        memmove(alc->active + i, alc->active + i + 1,
+                sizeof(alc->active[0]) * alc->active_top - i);
+    }
+}
+
+static void live_range_spill(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
+                             MVMint32 to_spill, MVMint32 spill_pos, MVMint32 code_pos) {
+    LiveRange *spillee  = alc->values + to_spill;
+    MVMint8 reg_spilled = spillee->reg_num;
     /* loop over all value refs */
-    ValueRef *head            = alc->values[v].first;
-    alc->compiler->spill_top += sizeof(MVMRegister);
-    _DEBUG("Starting spill of register %d starting from %d\n", reg_spilled, code_position);
-    _DEBUG("Live range from %d to %d\n", first_ref(alc->values + v), last_ref(alc->values + v));
-    while (head != NULL) {
+    ValueRef **head      = &(spillee->first);
+    while (*head != NULL) {
         /* make a new live range */
-        MVMint32 n = live_range_init(alc);
-        LiveRange *range = alc->values + n;
+        MVMint32 n;
+        /* shift current ref */
+        ValueRef *ref = *head;
+        *head         = ref->next;
+        ref->next     = NULL;
 
-        MVMint32 insert_pos = head->tile_idx, insert_order = 0;
-        MVMJitTile *synth;
-        if (is_definition(head)) {
-            _DEBUG("Adding a store to position %d after the definition (tile %d)\n", spill_pos, head->tile_idx);
-            /* insert a store after a definition */
-            synth = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_store, -1, 1, spill_pos);
-            range->synthetic[1] = synth;
-            range->synth_pos[1] = insert_pos;
-            /* directly after the instruction */
-            insert_order        = -1;
+        if (is_definition(ref)) {
+            n = insert_store_after_definition(tc, alc, list, ref, spill_pos);
         } else {
-            /* insert a load prior to the use */
-            _DEBUG("Adding a load from position %d before use (tile %d)\n", spill_pos, head->tile_idx);
-            synth = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_load, -1, 1, spill_pos);
-            range->synthetic[0] = synth;
-            /* decrement insert_pos and assign to synth_pos so that it is properly ordered */
-            range->synth_pos[0] = insert_pos--;
-            /* last thing before the op */
-            insert_order        = 1;
+            n = insert_load_before_use(tc, alc, list, ref, spill_pos);
         }
-        synth->args[1] = insert_pos;
-        MVM_jit_tile_list_insert(tc, list, synth, insert_pos, insert_order);
 
-        if (order_nr(head->tile_idx) < code_position) {
+        if (order_nr(ref->tile_idx) < code_pos) {
             /* in the past, which means we can safely use the spilled register
              * and immediately retire this live range */
-            if (is_definition(head)) {
-                synth->values[1] = reg_spilled;
-            } else {
-                synth->values[0] = reg_spilled;
-            }
-            _DEBUG("Retiring newly created live range %d for pos %d\n", n, insert_pos);
+            assign_register(tc, alc, list, n, MVM_JIT_STORAGE_GPR, reg_spilled);
             MVM_VECTOR_PUSH(alc->retired, n);
         } else {
             /* in the future, which means we need to add it to the worklist */
-            _DEBUG("Adding newly created live range %d to worklist for pos %d\n", n, insert_pos);
             MVM_VECTOR_ENSURE_SPACE(alc->worklist, 1);
             live_range_heap_push(alc->values, alc->worklist, &alc->worklist_num, n);
         }
-
-        /* continue, and split off the node */
-        range->first = range->last = head;
-        head = head->next;
-        range->first->next = NULL;
     }
-    alc->values[v].spill_pos = spill_pos;
+    /* mark as spilled and store the spill position */
+    spillee->spill_pos = spill_pos;
     free_register(tc, alc, MVM_JIT_STORAGE_GPR, reg_spilled);
-    MVM_VECTOR_PUSH(alc->spilled, v);
+    MVM_VECTOR_PUSH(alc->spilled, to_spill);
 }
 
-static void split_live_range(MVMThreadContext *tc, RegisterAllocator *alc, MVMint32 which, MVMint32 from, MVMint32 to) {
+static void spill_any_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 code_position) {
+    /* choose a live range, a register to spill, and a spill location */
+    MVMint32 to_spill   = select_live_range_for_spill(tc, alc, list, code_position);
+    MVMint32 spill_pos  = select_memory_for_spill(tc, alc, list, code_position, sizeof(MVMRegister));
+    live_range_splice_from_active(tc, alc, to_spill);
+    live_range_spill(tc, alc, list, to_spill, spill_pos, code_position);
 }
+
 
 
 /* not sure if this is sufficiently general-purpose and unconfusing */
@@ -559,7 +583,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
             }
         } else {
             while ((reg = get_register(tc, alc, MVM_JIT_STORAGE_GPR)) < 0) {
-                spill_register(tc, alc, list, pos);
+                spill_any_register(tc, alc, list, pos);
             }
             assign_register(tc, alc, list, v, MVM_JIT_STORAGE_GPR, reg);
             active_set_add(tc, alc, v);
