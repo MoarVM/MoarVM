@@ -582,14 +582,16 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(spesh_frames_produced, "speshframes_produced");
     string_creator(jit_frames_produced, "jitframes_produced");
     string_creator(gc_sequence_number, "gc_seqnr");
+    string_creator(gc_major_sequence_number, "gc_major_seqnr");
     string_creator(gc_bytes_since_full, "gc_bytes_promoted_since_full");
     string_creator(fsa_sizeclass_pagecount, "fsa_pagecounts");
     string_creator(fsa_sizeclass_free_elems, "fsa_free_elems");
     string_creator(gen2_sizeclass_pagecount, "gen2_pagecounts");
     string_creator(gen2_sizeclass_free_elems, "gen2_free_elems");
     string_creator(num_threads, "num_threads");
-    string_creator(threads_blocked, "threads_blocked");
     string_creator(nurseries_filled, "nursery_bytes");
+    string_creator(gc_timings_minor, "gc_timings_minor");
+    string_creator(gc_timings_major, "gc_timings_major");
 }
 
 /* Drives the overall bootstrap process. */
