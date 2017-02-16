@@ -9,6 +9,8 @@ typedef enum {
     MVM_thread_stage_destroyed = 6
 } MVMThreadStages;
 
+#define MVM_THREAD_STAGES_COUNT 7
+
 /* Representation used for VM thread handles. */
 struct MVMThreadBody {
     /* The code object we will invoke to start the thread.. */
