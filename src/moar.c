@@ -577,9 +577,12 @@ MVMObject *MVM_vm_health(MVMThreadContext *tc) {
     MVMObject *nurseries_fill_list = NULL;
     MVMObject *gen2_pagecount_list = NULL;
     MVMObject *gen2_free_elems_list = NULL;
+    MVMObject *threadcount_list = NULL;
 
     MVMint64 class_idx;
-    MVMint64 num_threads = 0;
+    MVMint32 threads_blocked = 0;
+    MVMint32 thread_idx;
+    MVMint32 threads_per_state[MVM_THREAD_STAGES_COUNT] = {0};
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&top_hash);
 
@@ -609,6 +612,9 @@ MVMObject *MVM_vm_health(MVMThreadContext *tc) {
     gen2_free_elems_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&gen2_free_elems_list);
 
+    threadcount_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&threadcount_list);
+
     MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.fsa_sizeclass_pagecount,
             pagecount_list);
     MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.fsa_sizeclass_free_elems,
@@ -618,6 +624,9 @@ MVMObject *MVM_vm_health(MVMThreadContext *tc) {
             gen2_pagecount_list);
     MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.gen2_sizeclass_free_elems,
             gen2_free_elems_list);
+
+    MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.num_threads,
+            threadcount_list);
 
     for(class_idx = 0; class_idx < MVM_FSA_BINS; class_idx++) {
         MVMFixedSizeAllocSizeClass *class = &tc->instance->fsa->size_classes[class_idx];
@@ -633,9 +642,13 @@ MVMObject *MVM_vm_health(MVMThreadContext *tc) {
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&nurseries_fill_list);
 
     add_thread_info(tc, nurseries_fill_list, gen2_pagecount_list, gen2_free_elems_list, tc->instance->main_thread->thread_obj);
+    threads_per_state[MVM_load(&tc->instance->main_thread->thread_obj->body.stage)]++;
+    if (MVM_load(&tc->instance->main_thread->gc_status) == MVMGCStatus_UNABLE) threads_blocked++;
+
     if (tc->instance->event_loop_thread) {
-        num_threads++;
         add_thread_info(tc, nurseries_fill_list, gen2_pagecount_list, gen2_free_elems_list, tc->instance->event_loop_thread->thread_obj);
+        threads_per_state[MVM_load(&tc->instance->event_loop_thread->thread_obj->body.stage)]++;
+    if (MVM_load(&tc->instance->main_thread->gc_status) == MVMGCStatus_UNABLE) threads_blocked++;
     }
 
     cursor = tc->instance->threads;
@@ -644,12 +657,14 @@ MVMObject *MVM_vm_health(MVMThreadContext *tc) {
             goto NEXTTHREAD;
         }
 
-        if (MVM_load(&cursor->body.stage) != 3) {
+        threads_per_state[MVM_load(&cursor->body.stage)]++;
+
+        if (MVM_load(&cursor->body.stage) != MVM_thread_stage_started) {
             goto NEXTTHREAD;
         }
+        if (MVM_load(&tc->instance->main_thread->gc_status) == MVMGCStatus_UNABLE) threads_blocked++;
 
         add_thread_info(tc, nurseries_fill_list, gen2_pagecount_list, gen2_free_elems_list, cursor);
-        num_threads++;
  NEXTTHREAD:
         cursor = cursor->body.next;
     }
@@ -660,8 +675,14 @@ MVMObject *MVM_vm_health(MVMThreadContext *tc) {
             box_i(tc, tc->instance->last_minor_gc_timing));
     MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.gc_timings_major,
             box_i(tc, tc->instance->last_major_gc_timing));
-    MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.num_threads,
-            box_i(tc, num_threads + 1));
+
+    /*MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.num_threads,*/
+            /*box_i(tc, num_threads));*/
+
+    /*for (thread_idx = 0; thread_idx < MVM_THREAD_STAGES_COUNT; thread_idx++) {*/
+        /*MVM_repr_push_o(tc, threadcount_list,*/
+                /*box_i(tc, class->num_pages));*/
+    /*}*/
 
     MVM_gc_root_temp_pop_n(tc, 7);
 

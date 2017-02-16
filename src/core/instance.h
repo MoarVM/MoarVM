@@ -90,6 +90,7 @@ struct MVMStringConsts {
     MVMString *gen2_sizeclass_pagecount;
     MVMString *gen2_sizeclass_free_elems;
     MVMString *num_threads;
+    MVMString *threads_blocked;
     MVMString *nurseries_filled;
     MVMString *gc_timings_minor;
     MVMString *gc_timings_major;
