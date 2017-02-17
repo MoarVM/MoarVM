@@ -1,4 +1,3 @@
-
 struct MVMJitCode {
     void     (*func_ptr)(MVMThreadContext *tc, MVMCompUnit *cu, void * label);
     size_t     size;

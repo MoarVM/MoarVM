@@ -58,8 +58,8 @@ PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
 
 DASM_FLAGS_WIN32 = -D WIN32=1
 DASM_FLAGS_POSIX = -D POSIX=1
-JIT_WIN32_X64 = src/jit/x64/emit_win32@obj@
-JIT_POSIX_X64 = src/jit/x64/emit_posix@obj@
+JIT_WIN32_X64 = src/jit/x64/emit_win32@obj@ src/jit/x64/arch@obj@
+JIT_POSIX_X64 = src/jit/x64/emit_posix@obj@ src/jit/x64/arch@obj@
 JIT_STUB = src/jit/stub@obj@
 
 
@@ -190,7 +190,6 @@ OBJECTS = src/core/callsite@obj@ \
           src/jit/log@obj@ \
           src/jit/expr@obj@ \
           src/jit/tile@obj@ \
-          src/jit/register@obj@ \
           src/jit/linear_scan@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
@@ -579,7 +578,7 @@ src/jit/x64/tile_tables.h: src/jit/x64/tiles.list tools/tiler-table-generator.pl
 src/jit/expr@obj@: src/jit/core_expr_tables.h
 # TODO-fix stub
 src/jit/tile@obj@: src/jit/x64/tile_tables.h
-src/jit/compile@obj@ src/jit/register@obj@ src/jit/linear_scan@obj@ @jit_obj@: src/jit/internal.h src/jit/x64/arch.h
+src/jit/compile@obj@ src/jit/linear_scan@obj@ src/jit/x64/arch@obj@ @jit_obj@: src/jit/internal.h src/jit/x64/arch.h
 
 # JIT intermediate files which clean should remove
 JIT_INTERMEDIATES:= src/jit/x64/emit_win32.c \

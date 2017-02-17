@@ -19,7 +19,7 @@ makes sense as (preferably) all these values use the same register.
 I am seeing an issue with the node of synthetic tiles. The register
 allocator observes this node to see what kind of step it has to take
 on e.g. IF nodes.  But we copy these node values into their synthetic
-tiles, which has no real value so far as I can see....  
+tiles, which has no real value so far as I can see....
 
 Copying the node into the tile will cause issues currently because
 we cannot distinguish between the postorder 'resolution' `IF` tile and
@@ -226,7 +226,7 @@ Specifically:
   byte conversions, different register requirements, and should be
   separated for that reason alone
   - It may actually make some sense to have an architecture-specific
-    'specialization' phase operating on the tree... 
+    'specialization' phase operating on the tree...
 
 ** TODO Implement optimistic 'store' insertion
 
@@ -513,7 +513,7 @@ into registers. So ARGLIST compilation should be able to deal with
 
 Similarily, register assignment to ARGLIST tiles will not Just Work.
 
-**** TODO Convert ARGLIST spec to ABI list
+**** DONE Convert ARGLIST spec to ABI list
 
 The basic idea is to have a function that is called as follows:
 
@@ -521,7 +521,7 @@ The basic idea is to have a function that is called as follows:
 typedef struct {
     MVMJitStorageClass _cls;
     MVMint32           _pos;
-} MVMJitStorageRef;
+} MVMJitStorageRef; /* I'll never run out of names for a cons */
 
 MVMJitStorageRef storage_refs[16];
 MVMint32 num_args = tree->nodes[tile->node + 1];, i;
@@ -533,6 +533,39 @@ for (i = 0; i < num_args; i++) {
 
 I assume that's going to be specific to the architecture (POSIX/WIN32)
 
+**** TODO Create a queue for special tiles
+
+Can be constructed at live-range determination time (since at that
+point we iterate over all live ranges). Needs to be iterated together
+with the general worklist, so that we either handle a special tile or
+a live range. E.g:
+
+#+BEGIN_SRC C
+while (alc->worklist_num) {
+    if (alc->special_queue_idx < alc->special_queue_num &&
+        alc->special_queue[alc->special_queue_idx] < alc->worklist[0]) {
+        MVMint32 special_tile_idx = alc->special_queue[alc->special_queue_idx++];
+        /* handle special tile */
+    } else {
+        MVMint32 v = live_range_heap_pop(tc, alc->values, alc->worklist, &alc->worklist_num);
+        /* handle regular live range */
+    }
+}
+while(alc->special_queue_idx < alc->special_queue_num) {
+    MVMint32 special_tile_idx = alc->special_queue[alc->special_queue_idx++];
+}
+#+END_SRC
+
+ALTERNATIVELY: Maintain an index `last_tile_idx'.  Prior to allocating
+for a live range, iterate over all tiles. between the 'last_tile_idx'
+and the start of the next live range.
+
+The thing I like about this alternative is that this reduces the place
+where we have to take 'magic' into account into this single loop
+(rather than two), and it could also be made to deal with annoying
+restrictions (including, potentially, source-is-destination-operand,
+which is now handled later).
+
 **** TODO Use list of storage references to compile code for ARGLIST
 
 - Requires the ability to eject values from their registers
@@ -543,15 +576,14 @@ I assume that's going to be specific to the architecture (POSIX/WIN32)
 - requires splitting the 'spill_register' code from spilling live
   ranges code
 
+We can insert the refs to 'just before the CALL', i.e. insert_pos =
+arglist_tile_idx + 1, insert_order = 2..(n+2)
+
 **** TODO Spill live values over the CALL function
 
-One of the complexities here is that CALL doesn't necessarily start a
-live range so it's not necessarily 'seen' in the live range heap.
-
-So we should have a queue of CALL or other register barriers, created
-during the first step, and then iterate over them while running.
-Matter of fact, we should probably have the same for ARGLIST, since
-ARGLIST too needs special-casing.
+- things that are live only for the ARGLIST are expired in or after
+  the generation of ARGLIST code, so everything that's still in the
+  active set ought to be spilled.
 
 *** DONE Implement three-operand to two-operand conversion
 

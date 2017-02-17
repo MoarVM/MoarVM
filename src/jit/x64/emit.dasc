@@ -1,3 +1,4 @@
+/* -*-C-*- */
 #include "moar.h"
 #include "jit/internal.h"
 #include "dasm_x86.h"

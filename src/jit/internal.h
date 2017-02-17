@@ -58,6 +58,9 @@ void MVM_jit_emit_stack_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMi
                             MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size);
 void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 num);
 
+
+
+
 /* Although we use these only symbolically, we need to assign a temporary value
  * in order to to distinguish between these */
 #define MVM_JIT_ARCH_X64 1
@@ -81,6 +84,10 @@ void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint3
 
 /* declare comma (register name separater) to be literal ',', which makes the
  * enum declaration work */
+#ifdef __COMMA__
+#error "Defining __COMMA__ cannot end well"
+#endif
+
 #define __COMMA__ ,
 enum {
     MVM_JIT_ARCH_GPR(MVM_JIT_REG)
