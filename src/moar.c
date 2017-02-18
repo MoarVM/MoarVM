@@ -653,7 +653,7 @@ MVMObject *MVM_vm_health(MVMThreadContext *tc) {
 
     cursor = tc->instance->threads;
     while (cursor) {
-        while (cursor == tc->instance->main_thread->thread_obj || cursor == tc->instance->event_loop_thread->thread_obj) {
+        while (cursor == tc->instance->main_thread->thread_obj || (tc->instance->event_loop_thread && cursor == tc->instance->event_loop_thread->thread_obj)) {
             goto NEXTTHREAD;
         }
 
