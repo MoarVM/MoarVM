@@ -581,7 +581,6 @@ MVMObject *MVM_vm_health(MVMThreadContext *tc) {
 
     MVMint64 class_idx;
     MVMint32 threads_blocked = 0;
-    MVMint32 thread_idx;
     MVMint32 threads_per_state[MVM_THREAD_STAGES_COUNT] = {0};
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&top_hash);
@@ -676,13 +675,10 @@ MVMObject *MVM_vm_health(MVMThreadContext *tc) {
     MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.gc_timings_major,
             box_i(tc, tc->instance->last_major_gc_timing));
 
-    /*MVM_repr_bind_key_o(tc, top_hash, tc->instance->str_consts.num_threads,*/
-            /*box_i(tc, num_threads));*/
-
-    /*for (thread_idx = 0; thread_idx < MVM_THREAD_STAGES_COUNT; thread_idx++) {*/
-        /*MVM_repr_push_o(tc, threadcount_list,*/
-                /*box_i(tc, class->num_pages));*/
-    /*}*/
+    for (class_idx = 0; class_idx < MVM_THREAD_STAGES_COUNT; class_idx++) {
+        MVM_repr_push_o(tc, threadcount_list,
+                box_i(tc, threads_per_state[class_idx]));
+    }
 
     MVM_gc_root_temp_pop_n(tc, 7);
 
