@@ -533,7 +533,7 @@ for (i = 0; i < num_args; i++) {
 
 I assume that's going to be specific to the architecture (POSIX/WIN32)
 
-**** TODO Create a queue for special tiles
+**** DONE Create a queue for special tiles
 
 Can be constructed at live-range determination time (since at that
 point we iterate over all live ranges). Needs to be iterated together
@@ -541,30 +541,47 @@ with the general worklist, so that we either handle a special tile or
 a live range. E.g:
 
 #+BEGIN_SRC C
-while (alc->worklist_num) {
-    if (alc->special_queue_idx < alc->special_queue_num &&
-        alc->special_queue[alc->special_queue_idx] < alc->worklist[0]) {
-        MVMint32 special_tile_idx = alc->special_queue[alc->special_queue_idx++];
-        /* handle special tile */
-    } else {
-        MVMint32 v = live_range_heap_pop(tc, alc->values, alc->worklist, &alc->worklist_num);
-        /* handle regular live range */
-    }
-}
-while(alc->special_queue_idx < alc->special_queue_num) {
-    MVMint32 special_tile_idx = alc->special_queue[alc->special_queue_idx++];
-}
+  /* NB: the reason this code does not work as written is that it
+     compares the tile index to the live range index, and those are not
+     comparable in that way or even guaranteed to follow the same order  */
+  while (alc->worklist_num) {
+      if (alc->special_queue_idx < alc->special_queue_num &&
+          alc->special_queue[alc->special_queue_idx] < alc->worklist[0]) {
+          MVMint32 special_tile_idx = alc->special_queue[alc->special_queue_idx++];
+          /* handle special tile */
+      } else {
+          MVMint32 v = live_range_heap_pop(tc, alc->values, alc->worklist, &alc->worklist_num);
+          /* handle regular live range */
+      }
+  }
+  while(alc->special_queue_idx < alc->special_queue_num) {
+      MVMint32 special_tile_idx = alc->special_queue[alc->special_queue_idx++];
+  }
 #+END_SRC
 
-ALTERNATIVELY: Maintain an index `last_tile_idx'.  Prior to allocating
-for a live range, iterate over all tiles. between the 'last_tile_idx'
-and the start of the next live range.
+*ALTERNATIVELY*: Maintain an index `last_tile_idx'.  Prior to
+allocating for a live range, iterate over all tiles. between the
+'last_tile_idx' and the start of the next live range.
 
 The thing I like about this alternative is that this reduces the place
 where we have to take 'magic' into account into this single loop
 (rather than two), and it could also be made to deal with annoying
 restrictions (including, potentially, source-is-destination-operand,
 which is now handled later).
+
+However, there is (in both cases, in fact) a trick to it; we use the
+'order number' to order live ranges, but a tile index for indicating
+over special tiles, and we must compare them 'correctly'. The order number is:
+
++ 2 * tile index for regular tiles
++ 2 * tile index - 1 for 'prior' synthetic tiles
++ 2 * tile index + 1 for 'posterior' synthetic tiles
+
+Special tiles are always 'regular' tiles, hence their order_nr is
+always 2*tile index. So we could compare the order_nr with
+2*tile_idx. However I prefer to compare tile_idx with order_nr / 2;
+and, to properly deal with special use requirements as well as special
+compiled tiles, we include the tile of the start of the list in that.
 
 **** TODO Use list of storage references to compile code for ARGLIST
 
@@ -642,6 +659,7 @@ So in fact, splitting implies:
   live range heap (hence a heap!)
 - and spill the necessary registers.
 
+(When do we actually need this?)
 
 *** TODO Precoloring
 
