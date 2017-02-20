@@ -646,6 +646,7 @@ complete registers).
 - Indirect ops can have up to two 'secondary' register arguments
   - and these shouldn't be overwritten either!
 
+
 *** TODO Implement splitting
 
 One might split a live range in two, for example, if a set of uses
@@ -697,6 +698,49 @@ order over the same dataset. While possible, it is redundant.
 
 Register assignment also updates the uses and definitions of tiles
 using the value reference.
+
+** TODO Reduce tree node size to 32 bits
+
+Tree nodes are currently 64 bits wide to allow them to coexist with
+constant pointers. This is handy, but not really required, since we
+could use a lookup table to get the pointers (as long as we can
+declare pointers, for which I think we can still use the '@' sigil, e.g:
+
+#+BEGIN_EXAMPLE
+(template: say
+   (call (const @MVM_string_say ptr_sz)
+         (arglist 2
+           (carg (tc) ptr)
+           (carg $0 ptr))
+#+END_EXAMPLE
+
+The @MVM_string_say pointer can be stashed in an array:
+
+#+BEGIN_SRC C
+static const void *MVM_jit_expr_ptrs[] = {
+   ...
+   MVM_string_say,
+   ...
+};
+#+END_SRC
+
+And the pointer itself replaced by the index.
+
+We could argue against dealing with 64 bit constants in general, but
+unfortunately, const_i64 prevents us from doing that.... Ways of
+dealing with that:
+
++ A 'large constants' table per tree (into which we could copy both the
+  i64 constants and the function pointer constants)
+  + We could store this entire table in the data section, too
++ A 'large constants' op, which could take the space to store the 64
+  bit constant directly; one of the advantages of that is that we
+  could specialise tiling to that (e.g. there is no advantage to
+  including a very large constant in the ADD tile since the underlying
+  'add' instruction cannot handle it).
++ Or both: have a large_const op and a large_const table, and only
+  have the large_const op refer to the large_const table (i.e. not the
+  regular const)
 
 * TODO Optimizer
 
