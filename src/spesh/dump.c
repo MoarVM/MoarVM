@@ -271,7 +271,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                 /* We can try to find out what the debug_name of this thing is. */
                 MVMint16 dep = cur_ins->operands[1].lit_i16;
                 MVMint64 idx;
-                MVMCollectable *result;
+                MVMCollectable *result = NULL;
                 MVMSerializationContext *sc;
                 char *debug_name = NULL;
                 const char *repr_name = NULL;
