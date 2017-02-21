@@ -252,6 +252,31 @@ it isn't. What we can do is:
   out where it should be stored if it isn't
 
 
+*** TODO Find out if a particular live range has already been stored (or if it has a fixed storage location)
+
+ #+BEGIN_SRC c
+ /* Return -1 if not a local store, 0 <= i <= frame->work_size if it is */
+ MVMint32 is_local_store(MVMJitExprTree *tree, MVMint32 node) {
+     if (tree->nodes[node] != MVM_JIT_STORE)
+         return -1;
+     node = tree->nodes[node + 1];
+     if (tree->nodes[node] != MVM_JIT_ADDR)
+         return -1;
+     if (tree->nodes[tree->nodes[node + 1]] != MVM_JIT_LOCAL)
+         return -1;
+     return tree->nodes[node+2];
+ }
+
+ MVMint32 has_local_location(MVMJitExprTree *tree, MVMint32 node) {
+     MVMSpeshIns *ins = tree->info[node].spesh_ins;
+     if (ins == NULL || ins->op_info->num_operands == 0 ||
+         (ins->info->operands[0] & MVM_operand_rw_mask) != MVM_operand_write_reg)
+         return -1;
+     return ins->op_info->operands[0].reg.orig;
+ }
+ #+END_SRC
+
+
 ** DONE Find live ranges
 
 I think we can do this in a single pass, or maybe two passes
@@ -280,31 +305,6 @@ I think we can do this in a single pass, or maybe two passes
     split off, since it may be 'inbetween' the buffer, but we can fix
     that by shuffling (in principle)
   - point all the uses in the split live range to the new live range
-
-
-*** TODO Find out if a particular live range has already been stored (or if it has a fixed storage location)
-
-#+BEGIN_SRC c
-/* Return -1 if not a local store, 0 <= i <= frame->work_size if it is */
-MVMint32 is_local_store(MVMJitExprTree *tree, MVMint32 node) {
-    if (tree->nodes[node] != MVM_JIT_STORE)
-        return -1;
-    node = tree->nodes[node + 1];
-    if (tree->nodes[node] != MVM_JIT_ADDR)
-        return -1;
-    if (tree->nodes[tree->nodes[node + 1]] != MVM_JIT_LOCAL)
-        return -1;
-    return tree->nodes[node+2];
-}
-
-MVMint32 has_local_location(MVMJitExprTree *tree, MVMint32 node) {
-    MVMSpeshIns *ins = tree->info[node].spesh_ins;
-    if (ins == NULL || ins->op_info->num_operands == 0 ||
-        (ins->info->operands[0] & MVM_operand_rw_mask) != MVM_operand_write_reg)
-        return -1;
-    return ins->op_info->operands[0].reg.orig;
-}
-#+END_SRC
 
 ** DONE Implement linear scan
 
@@ -339,6 +339,8 @@ the expire-register case.....
 
 Maybe we should have the prefered-register thing per use/defintiion,
 but that becomes very complicated fast.
+
+
 
 *** DONE Use linked list for use/definition storage
 
@@ -395,6 +397,15 @@ static inline MVMint32 last_ref(LiveRange *r) {
 }
 #+END_SRC
 
+*** DONE register assignment
+
+Register assignment should be inline with the register allocation
+step, because otherwise we simply have to iterate twice in the same
+order over the same dataset. While possible, it is redundant.
+
+Register assignment also updates the uses and definitions of tiles
+using the value reference.
+
 *** DONE Make non-volatile-register bitmap a constant
 
 The trick is to replace the literal comma ',' with a COMMA macro in
@@ -434,7 +445,93 @@ support looping constructs. So all this requires is
 a): the introduction of a PHI op
 b): replacing the IF node type with a PHI node type
 
-*** TODO Implement ARGLIST handling
+*** DONE Implement three-operand to two-operand conversion
+
+Safely translating this form (expr JIT):
+
+#+BEGIN_EXAMPLE
+r0 = r1 <op> r2
+#+END_EXAMPLE
+
+Into (x86):
+
+#+BEGIN_EXAMPLE
+r0 = r0 <op> r1
+#+END_EXAMPLE
+
+Requires, in general, at least one additional register, since if
+
+- r0 == r1, then r1 := r2, and this is equivalent so no further work is necessary
+- r0 == r2,
+  - and A <op> B == B <op> A, (<op> is /commutative/) then this is
+    also equivalent, and no further work (or aliasing) is necessary
+    - this is true for ADD, OR, AND, MUL, not true for SUB, XOR, DIV
+  - or A <op> B != B <op> A, then we first need to copy r1 to a temporary register,
+    assign r0 := rtmp, r1 := r2, and copy rtmp -> r0
+- r0 != r1 && r0 != r2, then copy r0 <- r1, r1 := r2, and we're done
+
+I suggest that rax becomes this temporary register, as there are
+already a bunch of opcodes that depend on it otherwise, and this saves
+having to spill when we enocunter one of them.
+
+There may be an alternative way to do this, but it relies either on an
+extra loop (and mapping tiles back to live ranges somehow, or using a
+rename table) or a loop 'within' linear scan.
+
+Actually, that last bit is not a bad idea per se; since we know that
+we process live ranges in order of first definition, we also know that
+all tiles prior to our current live range must be well-defined (have
+complete registers).
+
+*** TODO Implement three-op conversion for indirect instructions
+
+- We should either mark tiles as indirect, or pass it as a flag
+- Indirect ops can have up to two 'secondary' register arguments
+  - and these shouldn't be overwritten either!
+
+
+*** TODO Implement live-range splitting
+
+One might split a live range in two, for example, if a set of uses
+preceeds the point where the range would need to be spilled; the value
+may reside in the register before the spill and reside in storage
+afterwards.
+
+So in fact, splitting implies:
+- taking all definitions/uses within some range
+- creating a new live range for range splitted of, inserting it in the
+  live range heap (hence a heap!)
+- and spill the necessary registers.
+
+(When do we actually need this?)
+*** TODO Precoloring
+
+Comes down to:
+- maintaining a table of last-register-used to register-preferences
+- assigning a prefered register to certain live ranges
+  - if a conflict is present for a single live range, split it (and
+    insert a copy between)
+  - if a conflict is present between multiple live ranges, spill (one
+    of) them
+
+- an output register is fundamentally different from an input register:
+  - output single-live-range conflict (multiple definitions different prefered output):
+    - pick one, split off the other, insert a copy between them
+  - input single-live-range conflict (different prefered register for output/input)
+    - split off output range from input range; copy to output range
+      (if not spilled)
+
+  - multiple live-range register conflict
+
+    - first-defined output register /must/ be spilled in order to make room for second registe
+
+      - exception: lifetime holes
+
+    - output-input conflict
+
+      - output-register must be copied off /or/ spilled
+
+** TODO Implement ARGLIST handling
 
 ARGLIST prepares arguments to function calls. This means placing
 values in their correct places, which may mean inserting COPYs, loads
@@ -462,12 +559,12 @@ storage_class, storage_pos }, and use some kind of sorting, swapping,
 spilling to assign the right values to the right locations. Let the
 stack be a storage class.
 
-**** DONE Pre-count ARGLIST references
+*** DONE Pre-count ARGLIST references
 
 Needed to allocate the correct amount of reference objects to account
 for the live range objects. Can be done simply during tiling.
 
-**** DONE Factor load-and-store insertion out of spilling
+*** DONE Factor load-and-store insertion out of spilling
 
 Wanted to generalize spilling to support spilling-over-callsites.
 So currently we do:
@@ -494,7 +591,7 @@ So how to factor this?
   separate step (can also be a separate step).
 
 
-**** DONE Mark ARGLIST references
+*** DONE Mark ARGLIST references
 
 In determine_live_ranges, we need to handle ARGLIST specially, since
 those references haven't been handled yet by the tiling process. It's
@@ -504,7 +601,7 @@ We need this not because we need to be able to assign registers to
 those refs, but because otherwise the register allocator is allowed to
 expire values when they're still needed by ARGLIST.
 
-**** DONE Special-case ARGLIST references
+*** DONE Special-case ARGLIST references
 
 A reference to ARGLIST cannot be loaded by the general spilling
 mechanism, because ARGLIST may refer to more values than can be loaded
@@ -513,7 +610,7 @@ into registers. So ARGLIST compilation should be able to deal with
 
 Similarily, register assignment to ARGLIST tiles will not Just Work.
 
-**** DONE Convert ARGLIST spec to ABI list
+*** DONE Convert ARGLIST spec to ABI list
 
 The basic idea is to have a function that is called as follows:
 
@@ -533,7 +630,7 @@ for (i = 0; i < num_args; i++) {
 
 I assume that's going to be specific to the architecture (POSIX/WIN32)
 
-**** DONE Create a queue for special tiles
+*** DONE Create a queue for special tiles
 
 Can be constructed at live-range determination time (since at that
 point we iterate over all live ranges). Needs to be iterated together
@@ -583,7 +680,13 @@ always 2*tile index. So we could compare the order_nr with
 and, to properly deal with special use requirements as well as special
 compiled tiles, we include the tile of the start of the list in that.
 
-**** TODO Use list of storage references to compile code for ARGLIST
+*** TODO Support query for live-range-in-register
+
+Specifically needed to support ejecting a live range from a register.
+Can be done by building a map; can also be done by looping through the
+active set. Depends a bit on the actual frequency of this happening.
+
+*** TODO Use list of storage references to compile code for ARGLIST
 
 - Requires the ability to eject values from their registers
   - and as such a map of register -> live range
@@ -593,113 +696,79 @@ compiled tiles, we include the tile of the start of the list in that.
 - requires splitting the 'spill_register' code from spilling live
   ranges code
 
+
+So... we have a list of values and a list of places they need to be
+in. How to put them in their right places?
+
++ All values that expire prior to ARGLIST start should be expired
++ All values that survive ARGLIST should be spilled to memory
+  (CALL will erase them anyway)
++ A _value_ can be either in a register, or spilled to memory.
++ An _argument_ can be in a register, or on the stack.
++ Any value that is currently spilled
+  + And that should be moved to a register, can be moved after swaps
+  + And that should be moved to a stack location, ban de done after register loading
++ Any value that is currently active (in a register)
+  + If it should be moved to stack, that should be done prior to other things
+  + If it should be moved to another register, then
+    + That register can either be inhabited by another argument, in
+      which case the move toward it should be after this argument has 'settled'
+    + Or it is inhabited by another value, in which case the move can
+      be after this value has been spilled
+    + Or it is not inhabited at all, in which case it can be executed
+      immediately
+  + We can have cycles in the 'move chain' of values, e.g. a -> b ->
+    a, c -> d -> e -> c,
+    + Cycles should be broken by moving a single value 'out of the
+      way', e.g. by spilling to a stack location
+  + No two values can 'point' to the same argument register, but a
+    value could potentially point to two other registers (e.g. due
+    to common subexpression elimination, or just using the same
+    argument twice)
+
+This seems to me like we should use a form of topological sort with a
+cycle breaking step; in which all values 'depend' on the value that is
+currently inhabiting their destination.
+
+Implementing topological sort in this way is a manner of a FIFO queue
+and a reverse dependency map.
+
 We can insert the refs to 'just before the CALL', i.e. insert_pos =
 arglist_tile_idx + 1, insert_order = 2..(n+2)
 
-**** TODO Spill live values over the CALL function
+It is probably a good idea to consume both CALL and ARGLIST at the
+same time, and die if they do not follow each other.
+
+*** TODO Spill live values over the CALL function
 
 - things that are live only for the ARGLIST are expired in or after
   the generation of ARGLIST code, so everything that's still in the
   active set ought to be spilled.
 
-*** DONE Implement three-operand to two-operand conversion
+* TODO Optimizer
 
-Safely translating this form (expr JIT):
+- Want to do common-subexpression-elimination / global-value numbering
+  - idea: (hash) table of expr, node
+  - table is created bottom-up
+    - all children are replaced with equivalent (according to the table)
+    - then parent is itself 'hashed' to a record, an potentially
+      replaced
+- IDX CONST to ADDR conversion
+  - Uses one register less, simpler operation
+- Want to do copy-insertion
+  - Values that are LOAD-ed and used from multiple operations might
+    benefit from inserting a COPY, so they don't use indirect operations, e.g.
 
-#+BEGIN_EXAMPLE
-r0 = r1 <op> r2
-#+END_EXAMPLE
+#+BEGIN_SRC asm
+add rcx, [rdx+8];
+sub rsi, [rdx+8];
+# or
+mov rax, [rdx+8];
+add rcx, rax;
+sub rsi, rax;
+#+END_SRC
 
-Into (x86):
-
-#+BEGIN_EXAMPLE
-r0 = r0 <op> r1
-#+END_EXAMPLE
-
-Requires, in general, at least one additional register, since if
-
-- r0 == r1, then r1 := r2, and this is equivalent so no further work is necessary
-- r0 == r2,
-  - and A <op> B == B <op> A, (<op> is /commutative/) then this is
-    also equivalent, and no further work (or aliasing) is necessary
-    - this is true for ADD, OR, AND, MUL, not true for SUB, XOR, DIV
-  - or A <op> B != B <op> A, then we first need to copy r1 to a temporary register,
-    assign r0 := rtmp, r1 := r2, and copy rtmp -> r0
-- r0 != r1 && r0 != r2, then copy r0 <- r1, r1 := r2, and we're done
-
-I suggest that rax becomes this temporary register, as there are
-already a bunch of opcodes that depend on it otherwise, and this saves
-having to spill when we enocunter one of them.
-
-There may be an alternative way to do this, but it relies either on an
-extra loop (and mapping tiles back to live ranges somehow, or using a
-rename table) or a loop 'within' linear scan.
-
-Actually, that last bit is not a bad idea per se; since we know that
-we process live ranges in order of first definition, we also know that
-all tiles prior to our current live range must be well-defined (have
-complete registers).
-
-*** TODO Implement three-op conversion for indirect instructions
-
-- We should either mark tiles as indirect, or pass it as a flag
-- Indirect ops can have up to two 'secondary' register arguments
-  - and these shouldn't be overwritten either!
-
-
-*** TODO Implement splitting
-
-One might split a live range in two, for example, if a set of uses
-preceeds the point where the range would need to be spilled; the value
-may reside in the register before the spill and reside in storage
-afterwards.
-
-So in fact, splitting implies:
-- taking all definitions/uses within some range
-- creating a new live range for range splitted of, inserting it in the
-  live range heap (hence a heap!)
-- and spill the necessary registers.
-
-(When do we actually need this?)
-
-*** TODO Precoloring
-
-Comes down to:
-- maintaining a table of last-register-used to register-preferences
-- assigning a prefered register to certain live ranges
-  - if a conflict is present for a single live range, split it (and
-    insert a copy between)
-  - if a conflict is present between multiple live ranges, spill (one
-    of) them
-
-- an output register is fundamentally different from an input register:
-  - output single-live-range conflict (multiple definitions different prefered output):
-    - pick one, split off the other, insert a copy between them
-  - input single-live-range conflict (different prefered register for output/input)
-    - split off output range from input range; copy to output range
-      (if not spilled)
-
-  - multiple live-range register conflict
-
-    - first-defined output register /must/ be spilled in order to make room for second registe
-
-      - exception: lifetime holes
-
-    - output-input conflict
-
-      - output-register must be copied off /or/ spilled
-
-
-** DONE register assignment
-
-Register assignment should be inline with the register allocation
-step, because otherwise we simply have to iterate twice in the same
-order over the same dataset. While possible, it is redundant.
-
-Register assignment also updates the uses and definitions of tiles
-using the value reference.
-
-** TODO Reduce tree node size to 32 bits
+* TODO Reduce tree node size to 32 bits
 
 Tree nodes are currently 64 bits wide to allow them to coexist with
 constant pointers. This is handy, but not really required, since we
@@ -741,29 +810,6 @@ dealing with that:
 + Or both: have a large_const op and a large_const table, and only
   have the large_const op refer to the large_const table (i.e. not the
   regular const)
-
-* TODO Optimizer
-
-- Want to do common-subexpression-elimination / global-value numbering
-  - idea: (hash) table of expr, node
-  - table is created bottom-up
-    - all children are replaced with equivalent (according to the table)
-    - then parent is itself 'hashed' to a record, an potentially
-      replaced
-- IDX CONST to ADDR conversion
-  - Uses one register less, simpler operation
-- Want to do copy-insertion
-  - Values that are LOAD-ed and used from multiple operations might
-    benefit from inserting a COPY, so they don't use indirect operations, e.g.
-
-#+BEGIN_SRC asm
-add rcx, [rdx+8];
-sub rsi, [rdx+8];
-# or
-mov rax, [rdx+8];
-add rcx, rax;
-sub rsi, rax;
-#+END_SRC
 
 * TODO REPR Specialization
 

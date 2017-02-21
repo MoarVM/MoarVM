@@ -77,6 +77,8 @@ typedef struct {
     MVMint32 active_top;
     MVMint32 active[MAX_ACTIVE];
 
+
+
     /* Values still left to do (heap) */
     MVM_VECTOR_DECL(MVMint32, worklist);
     /* Retired values (to be assigned registers) (heap) */
@@ -579,6 +581,33 @@ static void spill_any_register(MVMThreadContext *tc, RegisterAllocator *alc, MVM
     } while (0);
 
 static void compile_arglist_node(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 tile_idx) {
+
+    MVMint8 register_map[MAX_GPR];
+    MVMJitStorageRef storage_refs[16];
+    MVMJitExprTree *tree = list->tree;
+    MVMJitTile *tile = list->items[tile_idx];
+    MVMint32 nargs = tree->nodes[tile->node + 1];
+    MVMint32 live_ranges[16];
+    MVMint32 i;
+
+    /* get storage nodes */
+    MVM_jit_arch_storage_for_arglist(tc, alc->compiler, tree, tile->node, storage_refs);
+
+    /* I'm not 100% sure this is going to be a generally useful mechanism, and it's just as easy to build in here */
+    memset(register_map, -1, sizeof(register_map));
+    for (i = 0; i < alc->active_top; i++) {
+        MVMint32 v = alc->active[i];
+        MVMint8  r = alc->values[v].reg_num;
+        register_map[r] = v;
+    }
+
+    /* get value refs */
+    for (i = 0; i < nargs; i++) {
+        MVMint32 carg  = tree->nodes[tile->node + 2 + i];
+        live_ranges[i] = value_set_find(alc->sets, tree->nodes[carg + 1])->idx; /* may refer to spilled live range */
+    }
+
+    /* now what?.... */
 }
 
 static void spill_over_call_node(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 tile_idx) {
@@ -592,7 +621,6 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
     while (alc->worklist_num > 0) {
         MVMint32 v        = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num);
         MVMint32 order_nr = first_ref(alc->values + v);
-        MVMint32 first_pos = order_nr / 2; /* round down */
         MVMint8 reg;
         _DEBUG("Processing live range %d (first ref %d, last ref %d)\n", v, first_ref(alc->values + v), last_ref(alc->values + v));
         /* NB: Should I have a compaction step to remove these? */
@@ -600,7 +628,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
             continue;
 
         /* deal with 'special' requirements */
-        for (; tile_cursor <= first_pos; tile_cursor++) {
+        for (; order_nr(tile_cursor) <= order_nr; tile_cursor++) {
             MVMJitTile *tile = list->items[tile_cursor];
             if (tile->op == MVM_JIT_ARGLIST) {
                 compile_arglist_node(tc, alc, list, tile_cursor);
@@ -610,8 +638,8 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
                 /* deal with 'use' registers */
                 for  (i = 1; i < tile->num_refs; i++) {
                     MVMint8 spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, i);
-                    if (MVM_JIT_REGISTER_IS_USED(spec) &&
-                        MVM_JIT_REGISTER_HAS_REQUIREMENT(spec)) {
+                    if (MVM_JIT_REGISTER_IS_USED(spec) && MVM_JIT_REGISTER_HAS_REQUIREMENT(spec)) {
+                        /* we could use the register map here, but let's wait and see */
                         NYI(tile_use_requirements);
                     }
                 }
