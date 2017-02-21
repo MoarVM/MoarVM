@@ -1896,20 +1896,14 @@ void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
     /* Now handle trailing graphemes (must be 2, 1, or 0). */
     switch (graphs_remaining) {
         case 2:
-            hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
             hash_block.graphs[1] = MVM_string_gi_get_grapheme(tc, &gi);
-            break;
-        case 1:
-            hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
-            break;
-    }
-    switch (graphs_remaining * 4) {
-        case 8:
             _hj_j += ( (unsigned)hash_block.bytes[7] << 24 ) +
                      ( (unsigned)hash_block.bytes[6] << 16 ) +
                      ( (unsigned)hash_block.bytes[5] << 8 ) +
                      hash_block.bytes[4];
-        case 4:
+        /* Fallthrough */
+        case 1:
+            hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
             _hj_i += ( (unsigned)hash_block.bytes[3] << 24 ) +
                      ( (unsigned)hash_block.bytes[2] << 16 ) +
                      ( (unsigned)hash_block.bytes[1] << 8 ) +
