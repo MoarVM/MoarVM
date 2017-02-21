@@ -5,7 +5,7 @@
  * their to-resolve list after installing itself in the appropriate slot. */
 MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
     MVMSerializationContext     *sc;
-    MVMSerializationContextBody *scb;
+    MVMSerializationContextBody *scb = NULL;
 
     /* Allocate. */
     MVMROOT(tc, handle, {

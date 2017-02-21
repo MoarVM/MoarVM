@@ -1087,7 +1087,7 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
     MVMuint8       *flags;
     MVMint16        flag;
     MVMRegister    *static_env;
-    MVMuint16       effective_idx;
+    MVMuint16       effective_idx = 0;
     MVMStaticFrame *effective_sf;
     if (idx < f->static_info->body.num_lexicals) {
         flags         = f->static_info->body.static_env_flags;
