@@ -284,7 +284,7 @@ static MVMuint64 zero_slots(MVMThreadContext *tc, MVMArrayBody *body,
     return elems;
 }
 
-static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64 n, MVMArrayREPRData *repr_data) {
+static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint64 n, MVMArrayREPRData *repr_data) {
     MVMuint64   elems = body->elems;
     MVMuint64   start = body->start;
     MVMuint64   ssize = body->ssize;
@@ -325,8 +325,12 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64
         if (ssize < 8) ssize = 8;
     }
     else {
-        ssize = (n + 0x1000) & ~0xfff;
+        ssize = (n + 0x1000) & ~0xfffUL;
     }
+    if (ssize > (1UL << (8 * sizeof(size_t) - repr_data->elem_size)))
+        MVM_exception_throw_adhoc(tc,
+            "Unable to allocate an array of %lu elements",
+            ssize);
 
     /* now allocate the new slot buffer */
     slots = (slots)
