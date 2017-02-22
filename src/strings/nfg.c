@@ -213,8 +213,10 @@ static MVMGrapheme32 lookup_or_add_synthetic(MVMThreadContext *tc, MVMCodepoint 
 MVMGrapheme32 MVM_nfg_codes_to_grapheme(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes) {
     if (num_codes == 1)
         return codes[0];
-    else
+    else if (num_codes < MVM_GRAPHEME_MAX_CODEPOINTS)
         return lookup_or_add_synthetic(tc, codes, num_codes, 0);
+    else
+        MVM_exception_throw_adhoc(tc, "Too many codepoints (%d) in grapheme", num_codes);
 }
 
 /* Does the same as MVM_nfg_codes_to_grapheme, but flags the added grapheme as

@@ -71,6 +71,11 @@ struct MVMNFGTrieNodeEntry {
     MVMNFGTrieNode *node;
 };
 
+/* The maximum number of codepoints we will allow in a synthetic grapheme.
+ * This is a good bit higher than any real-world use case is going to run
+ * in to. */
+#define MVM_GRAPHEME_MAX_CODEPOINTS 1024
+
 /* Functions related to grapheme handling. */
 MVMGrapheme32 MVM_nfg_codes_to_grapheme(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes);
 MVMGrapheme32 MVM_nfg_codes_to_grapheme_utf8_c8(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes);
