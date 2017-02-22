@@ -509,18 +509,19 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
 
 /* Ends profiling, builds the result data structure, and returns it. */
 MVMObject * MVM_profile_instrumented_end(MVMThreadContext *tc) {
-    /* If we have any call frames still on the profile stack, exit them. */
-    while (tc->prof_data->current_call)
-        MVM_profile_log_exit(tc);
+    if (tc->prof_data) {
+        /* If we have any call frames still on the profile stack, exit them. */
+        while (tc->prof_data->current_call)
+            MVM_profile_log_exit(tc);
+
+        /* Record end time. */
+        tc->prof_data->end_time = uv_hrtime();
+    }
 
     /* Disable profiling. */
     /* XXX Needs to account for multiple threads. */
     tc->instance->profiling = 0;
     tc->instance->instrumentation_level++;
-
-    /* Record end time. */
-    if (tc->prof_data)
-        tc->prof_data->end_time = uv_hrtime();
 
     /* Build and return result data structure. */
     return dump_data(tc);
