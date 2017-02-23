@@ -77,6 +77,11 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(instance);
+
+    if (!instance->main_thread) {
+        MVM_panic(1, "Could not create the main thread!");
+    }
+
     instance->main_thread->thread_id = 1;
 
     /* Next thread to be created gets ID 2 (the main thread got ID 1). */

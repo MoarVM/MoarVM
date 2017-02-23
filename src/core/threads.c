@@ -21,8 +21,15 @@ MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 ap
     MVM_ASSIGN_REF(tc, &(thread->common.header), thread->body.invokee, invokee);
     thread->body.app_lifetime = app_lifetime;
 
-    /* Create a new thread context and set it up a little. */
+    /* Try to create the new threadcontext. Can fail if libuv can't
+     * create a loop for it for some reason (i.e. too many open files) */
     child_tc = MVM_tc_create(tc->instance);
+
+    if (!child_tc) {
+        MVM_exception_throw_adhoc(tc, "Could not create a new Thread.");
+    }
+
+    /* Set up the new threadcontext a little. */
     child_tc->thread_obj = thread;
     child_tc->thread_id = 1 + MVM_incr(&tc->instance->next_user_thread_id);
         /* Add one, since MVM_incr returns original. */

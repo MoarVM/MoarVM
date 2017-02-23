@@ -10,6 +10,13 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     /* Associate with VM instance. */
     tc->instance = instance;
 
+    /* Use default loop for main thread; create a new one for others. */
+    tc->loop = instance->main_thread ? uv_loop_new() : uv_default_loop();
+    if (!tc->loop) {
+        MVM_free(tc);
+        return NULL;
+    }
+
     /* Set up GC nursery. We only allocate tospace initially, and allocate
      * fromspace the first time this thread GCs, provided it ever does. */
     tc->nursery_tospace     = MVM_calloc(1, MVM_NURSERY_SIZE);
@@ -31,13 +38,6 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
 
     /* Allocate an initial call stack region for the thread. */
     MVM_callstack_region_init(tc);
-
-    /* Use default loop for main thread; create a new one for others. */
-    tc->loop = instance->main_thread ? uv_loop_new() : uv_default_loop();
-
-    if (!tc->loop) {
-        MVM_panic(1, "ThreadContext: could not create a new libuv loop!");
-    }
 
     /* Initialize random number generator state. */
     MVM_proc_seed(tc, (MVM_platform_now() / 10000) * MVM_proc_getpid(tc));
