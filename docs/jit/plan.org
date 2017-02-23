@@ -731,7 +731,111 @@ cycle breaking step; in which all values 'depend' on the value that is
 currently inhabiting their destination.
 
 Implementing topological sort in this way is a manner of a FIFO queue
-and a reverse dependency map.
+and a reverse dependency map. (Good bit; there can be only on
+'dependent' value / register per value, even as it may itself depend
+on multiple others before it can be ejected).
+
+So:
+#+BEGIN_SRC C
+struct {
+    MVMint8 dep; /* the value which wants to inhabit my dependency */
+    MVMint8 num; /* how many values need to make room for me */
+} rev_dep_map[MAX_GPR];
+struct {
+    MVMint8 reg_num;
+    MVMint8 stack_pos;
+} stack_transfer[16];
+MVMint8 transfer_queue[16];
+MVMint32 transfer_queue_idx, transfer_queue_top = 0, transfers_required;
+memset(rev_dep_map, 0, sizeof(rev_dep_map));
+for (i = 0; i < num_args; i++) {
+    LiveRange *v = alc->values + arg_values[i];
+    if (v->spill_pos != 0) {
+        /* spilled register, handle later */
+    } else if (storage_refs[i]._cls == MVM_JIT_STORAGE_GPR) {
+        MVMint8 reg_num = storage_refs[i]._pos;
+        if (reg_num == v->reg_num) {
+            /* already in correct register; will never conflict with anything */
+        } else if (gpr_map[reg_num] < 0) {
+            /* not in use, will not conflict */
+            rev_dep_map[reg_num].dep = v->reg_num;
+            rev_dep_map[reg_num].num = 0;
+            transfer_queue[transfer_queue_top++] = reg_num;
+            transfers_required++;
+        } else {
+            /* only one arglist can possibly want this register */
+            rev_dep_map[reg_num].dep = v->reg_num;
+            /* but, i need at least one move before i can be 'released' */
+            rev_dep_map[v->reg_num].num++;
+            /* I'll need a trasnfer yet */
+            transfers_required++;
+        }
+    } else if (storage_refs[i]._cls == MVM_JIT_STORAGE_STACK) {
+        /* enqueue for stack transfer */
+        stack_transfer[stack_transfer_top].reg_num = v->reg_num;
+        stack_transfer[stack_transfer_top].stack_pos = storage_refs[i]._pos;
+        stack_transfer_top++;
+        transfers_required++;
+        /* and this is a dependency to deal with as well */
+        rev_dep_map[v->reg_num].num++;
+    } else {
+        NYI(this_storage_class);
+    }
+ }
+
+for (i = 0; i <  stack_transfer_num; i++) {
+    MVMint8 reg_num = stack_transfer[i].reg_num;
+    MVMint8 stk_pos = stack_transfer[i].stack_pos;
+    insert_copy_to_stack(tc, alc, stk_pos, reg_num);
+    if (--(rev_dep_map[reg_num].num) == 0) {
+        transfer_queue[transfer_queue_top++] = reg_num;
+    }
+ }
+for (transfer_queue_idx = 0; transfer_queue_idx < transfer_queue_top; transfer_queue_idx++) {
+    MVMint8 dst = transfer_queue[transfer_queue_idx];
+    MVMint8 src = rev_dep_map[dst].dep;
+    insert_register_move(tc, alc, dst, src);
+    if (--(rev_map[src].num) == 0) {
+        transfer_queue[transfer_queue_top++] = src;
+    }
+ }
+if (transfer_queue_top < transfers_required) {
+    /* we have cycles, break them in some way
+     * we can detect a cycle by anything whose dep > 0
+     *
+     * we can group cycles by something resemmbling union-find,
+     * e.g., when a cycle is found, mark all belonging to this; if
+     * you find the one you're marking, you have the one
+     */
+    MVMint8 cycles[MAX_GPR];
+    MVMint8 c, n;
+    memset(cycles, -1, sizeof(cycles));
+    for (i = 0; i < MAX_GPR; i++) {
+        if (rev_dep_map[i].num > 0 && cycles[i] < 0) {
+            num_cycles++;
+            /* mark all belonging to this cycle */
+            for (c = i; cycles[c] != i; c = rev_dep_map[c].dep) {
+                cycles[c] = i;
+            }
+        }
+    }
+    for (i = 0; i < MAX_GPR; i++) {
+        if (cycles[i] == i) {
+            /* start of cycle, insert cyclical moves */
+            insert_register_transfer(tc, alc, i, reserved_register);
+            for (n = rev_dep_map[i].dep, c = i; n != i;
+                 c = n, n = rev_dep_map[n].dep) {
+                insert_register_transfer(tc, alc, c, n);
+            }
+            insert_register_transfer(tc, alc, reserved_register, i);
+        }
+    }
+    /* now all that remains is to deal with spilled values */
+}
+
+
+
+#+END_SRC
 
 We can insert the refs to 'just before the CALL', i.e. insert_pos =
 arglist_tile_idx + 1, insert_order = 2..(n+2)

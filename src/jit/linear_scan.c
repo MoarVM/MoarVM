@@ -580,18 +580,17 @@ static void spill_any_register(MVMThreadContext *tc, RegisterAllocator *alc, MVM
         a ## _alloc = b ## _alloc;              \
     } while (0);
 
-static void compile_arglist_node(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 tile_idx) {
-
+static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
+                                     MVMJitTile *arglist_tile, MVMJitTile *call_tile, MVMint32 order_nr)
     MVMint8 register_map[MAX_GPR];
     MVMJitStorageRef storage_refs[16];
     MVMJitExprTree *tree = list->tree;
-    MVMJitTile *tile = list->items[tile_idx];
-    MVMint32 nargs = tree->nodes[tile->node + 1];
+    MVMint32 nargs = tree->nodes[arglist_tile->node + 1];
     MVMint32 live_ranges[16];
     MVMint32 i;
 
     /* get storage nodes */
-    MVM_jit_arch_storage_for_arglist(tc, alc->compiler, tree, tile->node, storage_refs);
+    MVM_jit_arch_storage_for_arglist(tc, alc->compiler, tree, arglist_tile->node, storage_refs);
 
     /* I'm not 100% sure this is going to be a generally useful mechanism, and it's just as easy to build in here */
     memset(register_map, -1, sizeof(register_map));
@@ -608,9 +607,6 @@ static void compile_arglist_node(MVMThreadContext *tc, RegisterAllocator *alc, M
     }
 
     /* now what?.... */
-}
-
-static void spill_over_call_node(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 tile_idx) {
 }
                                  
 static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
@@ -631,9 +627,12 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
         for (; order_nr(tile_cursor) <= order_nr; tile_cursor++) {
             MVMJitTile *tile = list->items[tile_cursor];
             if (tile->op == MVM_JIT_ARGLIST) {
-                compile_arglist_node(tc, alc, list, tile_cursor);
-            } else if (tile->op == MVM_JIT_CALL) {
-                spill_over_call_node(tc, alc, list, tile_cursor);
+                MVMJitTile *arglist_tile = tile;
+                MVMJJittile *call_tile   = list->items[++tile_cursor];
+                if (call_tile->op != MVM_JIT_CALL) {
+                    MVM_panic(1, "ARGLIST tiles must be followed by CALL");
+                }
+                prepare_arglist_and_call(tc, alc, list, arglist_tile, call-tile, order_nr(tile_cursor));
             } else {
                 /* deal with 'use' registers */
                 for  (i = 1; i < tile->num_refs; i++) {
