@@ -35,6 +35,10 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
     /* Use default loop for main thread; create a new one for others. */
     tc->loop = instance->main_thread ? uv_loop_new() : uv_default_loop();
 
+    if (!tc->loop) {
+        MVM_panic(1, "ThreadContext: could not create a new libuv loop!");
+    }
+
     /* Initialize random number generator state. */
     MVM_proc_seed(tc, (MVM_platform_now() / 10000) * MVM_proc_getpid(tc));
 
