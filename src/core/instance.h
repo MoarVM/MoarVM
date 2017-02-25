@@ -79,6 +79,21 @@ struct MVMStringConsts {
     MVMString *kind;
     MVMString *instrumented;
     MVMString *heap;
+
+    MVMString *spesh_frames_produced;
+    MVMString *jit_frames_produced;
+    MVMString *gc_sequence_number;
+    MVMString *gc_major_sequence_number;
+    MVMString *gc_bytes_since_full;
+    MVMString *fsa_sizeclass_pagecount;
+    MVMString *fsa_sizeclass_free_elems;
+    MVMString *gen2_sizeclass_pagecount;
+    MVMString *gen2_sizeclass_free_elems;
+    MVMString *num_threads;
+    MVMString *threads_blocked;
+    MVMString *nurseries_filled;
+    MVMString *gc_timings_minor;
+    MVMString *gc_timings_major;
 };
 
 /* An entry in the representations registry. */
@@ -367,6 +382,13 @@ struct MVMInstance {
 
     /* Cached backend config hash. */
     MVMObject *cached_backend_config;
+
+    /* Time the last major and minor collection each took */
+    MVMuint64 last_minor_gc_timing;
+    MVMuint64 last_major_gc_timing;
+
+    /* Number of major collections so far. only for stats */
+    AO_t major_gc_seq_number;
 };
 
 /* Returns a true value if we have created user threads (and so are running a

@@ -371,6 +371,14 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     if (MVM_trycas(&tc->instance->gc_start, 0, 1)) {
         MVMThread *last_starter = NULL;
         MVMuint32 num_threads = 0;
+        MVMuint64 gc_start_time;
+        MVMuint64 gc_total_time;
+
+        /* If profiling, record that GC is starting. */
+        if (tc->instance->profiling)
+            MVM_profiler_log_gc_start(tc);
+
+        gc_start_time = uv_hrtime();
 
         /* Need to wait for other threads to reset their gc_status. */
         while (MVM_load(&tc->instance->gc_ack)) {
@@ -390,9 +398,8 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* Decide if it will be a full collection. */
         tc->instance->gc_full_collect = is_full_collection(tc);
 
-        /* If profiling, record that GC is starting. */
-        if (tc->instance->profiling)
-            MVM_profiler_log_gc_start(tc, tc->instance->gc_full_collect);
+        if (tc->instance->gc_full_collect)
+            MVM_incr(&tc->instance->major_gc_seq_number);
 
         /* Ensure our stolen list is empty. */
         tc->gc_work_count = 0;
@@ -464,7 +471,14 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
 
         /* If profiling, record that GC is over. */
         if (tc->instance->profiling)
-            MVM_profiler_log_gc_end(tc);
+            MVM_profiler_log_gc_end(tc, tc->instance->gc_full_collect);
+
+        gc_total_time = uv_hrtime() - gc_start_time;
+
+        if (tc->instance->gc_full_collect)
+            tc->instance->last_major_gc_timing = gc_total_time;
+        else
+            tc->instance->last_minor_gc_timing = gc_total_time;
 
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : GC complete (cooridnator)\n");
     }
@@ -481,12 +495,16 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
  * try and do that, just enlist in the run. */
 void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     AO_t curr;
+    MVMuint64 gc_start_time;
+    MVMuint64 gc_total_time;
 
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from interrupt\n");
 
     /* If profiling, record that GC is starting. */
     if (tc->instance->profiling)
-        MVM_profiler_log_gc_start(tc, is_full_collection(tc));
+        MVM_profiler_log_gc_start(tc);
+
+    gc_start_time = uv_hrtime();
 
     /* We'll certainly take care of our own work. */
     tc->gc_work_count = 0;
@@ -513,7 +531,14 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
 
     /* If profiling, record that GC is over. */
     if (tc->instance->profiling)
-        MVM_profiler_log_gc_end(tc);
+        MVM_profiler_log_gc_end(tc, tc->instance->gc_full_collect);
+
+    gc_total_time = uv_hrtime() - gc_start_time;
+
+    if (tc->instance->gc_full_collect)
+        tc->instance->last_major_gc_timing = gc_total_time;
+    else
+        tc->instance->last_minor_gc_timing = gc_total_time;
 }
 
 /* Run the global destruction phase. */

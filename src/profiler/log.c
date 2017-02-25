@@ -279,7 +279,7 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj) {
 }
 
 /* Logs the start of a GC run. */
-void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full) {
+void MVM_profiler_log_gc_start(MVMThreadContext *tc) {
     MVMProfileThreadData *ptd = get_thread_data(tc);
 
     /* Make a new entry in the GCs. We use the cleared_bytes to store the
@@ -289,7 +289,6 @@ void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full) {
         ptd->alloc_gcs += 16;
         ptd->gcs = MVM_realloc(ptd->gcs, ptd->alloc_gcs * sizeof(MVMProfileGC));
     }
-    ptd->gcs[ptd->num_gcs].full          = full;
     ptd->gcs[ptd->num_gcs].cleared_bytes = (char *)tc->nursery_alloc -
                                            (char *)tc->nursery_tospace;
 
@@ -298,7 +297,7 @@ void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full) {
 }
 
 /* Logs the end of a GC run. */
-void MVM_profiler_log_gc_end(MVMThreadContext *tc) {
+void MVM_profiler_log_gc_end(MVMThreadContext *tc, MVMuint32 full) {
     MVMProfileThreadData *ptd = get_thread_data(tc);
     MVMProfileCallNode   *pcn = ptd->current_call;
     MVMuint64 gc_time;
@@ -312,6 +311,7 @@ void MVM_profiler_log_gc_end(MVMThreadContext *tc) {
     retained_bytes = (char *)tc->nursery_alloc - (char *)tc->nursery_tospace;
     ptd->gcs[ptd->num_gcs].promoted_bytes = tc->gc_promoted_bytes;
     ptd->gcs[ptd->num_gcs].retained_bytes = retained_bytes;
+    ptd->gcs[ptd->num_gcs].full           = full;
 
     /* Tweak cleared bytes count. */
     ptd->gcs[ptd->num_gcs].cleared_bytes -= (retained_bytes + tc->gc_promoted_bytes);
