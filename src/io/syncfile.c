@@ -96,7 +96,7 @@ static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64
     data->ds = MVM_string_decodestream_create(tc, data->encoding, r, 1);
 }
 
-/* Get curernt position in the file. */
+/* Get current position in the file. */
 static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     MVMint64 r;
