@@ -573,15 +573,15 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
 }
 
 MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
-    MVMString *lca;
-    MVMString *lcb;
+    MVMString *fca;
+    MVMString *fcb;
     MVMROOT(tc, b, {
-        lca = MVM_string_lc(tc, a);
-        MVMROOT(tc, lca, {
-            lcb = MVM_string_lc(tc, b);
+        fca = MVM_string_fc(tc, a);
+        MVMROOT(tc, fca, {
+            fcb = MVM_string_fc(tc, b);
         });
     });
-    return MVM_string_equal_at(tc, lca, lcb, offset);
+    return MVM_string_equal_at(tc, fca, fcb, offset);
 }
 
 MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
