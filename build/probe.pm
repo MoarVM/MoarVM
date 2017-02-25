@@ -412,15 +412,21 @@ sub pthread_yield {
     _spew('try.c', <<'EOT');
 #include <stdlib.h>
 #include <pthread.h>
+#include <unistd.h>
 
 int main(int argc, char **argv) {
+#ifdef _POSIX_PRIORITY_SCHEDULING
+    /* hide pthread_yield so we fall back to the recommended sched_yield() */
+    return EXIT_FAILURE;
+#else
     pthread_yield();
     return EXIT_SUCCESS;
+#endif
 }
 EOT
 
     print ::dots('    probing pthread_yield support');
-    my $has_pthread_yield = compile($config, 'try');
+    my $has_pthread_yield = compile($config, 'try') && system('./try') == 0;
     print $has_pthread_yield ? "YES\n": "NO\n";
     $config->{has_pthread_yield} = $has_pthread_yield || 0
 }
