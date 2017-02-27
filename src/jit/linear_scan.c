@@ -580,14 +580,28 @@ static void spill_any_register(MVMThreadContext *tc, RegisterAllocator *alc, MVM
         a ## _alloc = b ## _alloc;              \
     } while (0);
 
+#define MAX_NUMARG 16
+
 static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
-                                     MVMJitTile *arglist_tile, MVMJitTile *call_tile, MVMint32 order_nr)
-    MVMint8 register_map[MAX_GPR];
+                                     MVMJitTile *arglist_tile, MVMJitTile *call_tile, MVMint32 call_order_nr) {
+    MVMint8 register_map[MVM_JIT_ARCH_NUM_GPR];
     MVMJitStorageRef storage_refs[16];
     MVMJitExprTree *tree = list->tree;
-    MVMint32 nargs = tree->nodes[arglist_tile->node + 1];
-    MVMint32 live_ranges[16];
+    MVMint32 num_args = tree->nodes[arglist_tile->node + 1];
+    MVMint32 arg_values[16];
+    struct {
+        MVMint8 dep; /* the value which wants to inhabit my dependency */
+        MVMint8 num; /* how many values need to make room for me */
+    } rev_map[MVM_JIT_ARCH_NUM_GPR]; /* reverse map for topological sort of moves */
+    struct {
+        MVMint8 reg_num;
+        MVMint8 stack_pos;
+    } stack_transfer[16];
+    MVMint8 transfer_queue[16];
+    MVMint8 spilled_args[16];
+    MVMint32 transfer_queue_idx, stack_transfer_top = 0, transfer_queue_top = 0, spilled_args_top = 0, transfers_required = 0;
     MVMint32 i;
+    MVMint8 spare_register = 0; /* this would actually work... strangely enough */
 
     /* get storage nodes */
     MVM_jit_arch_storage_for_arglist(tc, alc->compiler, tree, arglist_tile->node, storage_refs);
@@ -598,25 +612,119 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         MVMint32 v = alc->active[i];
         MVMint8  r = alc->values[v].reg_num;
         register_map[r] = v;
+        if (last_ref(alc->values + v) > call_order_nr) {
+            /* it survives this call, so it must be spilled */
+            MVMint32 spill_pos  = select_memory_for_spill(tc, alc, list, call_order_nr, sizeof(MVMRegister));
+        }
     }
 
     /* get value refs */
-    for (i = 0; i < nargs; i++) {
-        MVMint32 carg  = tree->nodes[tile->node + 2 + i];
-        live_ranges[i] = value_set_find(alc->sets, tree->nodes[carg + 1])->idx; /* may refer to spilled live range */
+    for (i = 0; i < num_args; i++) {
+        MVMint32 carg  = tree->nodes[arglist_tile->node + 2 + i];
+        arg_values[i] = value_set_find(alc->sets, tree->nodes[carg + 1])->idx; /* may refer to spilled live range */
     }
 
-    /* now what?.... */
+    memset(rev_map, 0, sizeof(rev_map));
+    for (i = 0; i < num_args; i++) {
+        LiveRange *v = alc->values + arg_values[i];
+        if (v->spill_pos != 0) {
+            spilled_args[spilled_args_top++] = i;
+        } else if (storage_refs[i]._cls == MVM_JIT_STORAGE_GPR) {
+            MVMint8 reg_num = storage_refs[i]._pos;
+            if (reg_num == v->reg_num) {
+                /* already in correct register; will never conflict with anything */
+            } else if (register_map[reg_num] < 0) {
+                /* not in use, will not conflict */
+                rev_map[reg_num].dep = v->reg_num;
+                rev_map[reg_num].num = 0;
+                transfer_queue[transfer_queue_top++] = reg_num;
+                transfers_required++;
+            } else {
+                /* only one arglist can possibly want this register */
+                rev_map[reg_num].dep = v->reg_num;
+                /* but, i need at least one move before i can be 'released' */
+                rev_map[v->reg_num].num++;
+                /* I'll need a trasnfer yet */
+                transfers_required++;
+            }
+        } else if (storage_refs[i]._cls == MVM_JIT_STORAGE_STACK) {
+            /* enqueue for stack transfer */
+            stack_transfer[stack_transfer_top].reg_num = v->reg_num;
+            stack_transfer[stack_transfer_top].stack_pos = storage_refs[i]._pos;
+            stack_transfer_top++;
+            transfers_required++;
+            /* and this is a dependency to deal with as well */
+            rev_map[v->reg_num].num++;
+        } else {
+            NYI(this_storage_class);
+        }
+    }
+
+    for (i = 0; i < stack_transfer_top; i++) {
+        MVMint8 reg_num = stack_transfer[i].reg_num;
+        MVMint8 stk_pos = stack_transfer[i].stack_pos;
+        insert_copy_to_stack(tc, alc, stk_pos, reg_num);
+        if (--(rev_map[reg_num].num) == 0) {
+            transfer_queue[transfer_queue_top++] = reg_num;
+        }
+    }
+
+    for (transfer_queue_idx = 0; transfer_queue_idx < transfer_queue_top; transfer_queue_idx++) {
+        MVMint8 dst = transfer_queue[transfer_queue_idx];
+        MVMint8 src = rev_map[dst].dep;
+        insert_register_move(tc, alc, dst, src);
+        if (--(rev_map[src].num) == 0) {
+            transfer_queue[transfer_queue_top++] = src;
+        }
+    }
+    if (transfer_queue_top < transfers_required) {
+        /* rev_map points from a -> b, b -> c, c -> a, etc; which is the
+         * direction of the moves. However, the direction of the cleanup
+         * is necessarily reversed, first c -> a, then b -> c, then a -> c.
+         * This suggest the use of a stack.
+         */
+        MVMint8 cycle_stack[16], cycle_stack_top = 0, c;
+        for (i = 0; i < MVM_JIT_ARCH_NUM_GPR; i++) {
+            if (rev_map[i].num > 0) {
+                /* build a LIFO stack to reverse the cycle */
+                for (c = i; rev_map[c].dep != i; c = rev_map[c].dep) {
+                    cycle_stack[cycle_stack_top++] = rev_map[c].dep;
+                }
+                insert_register_move(tc, alc, spare_register, i);
+                rev_map[i].num--;
+                /* pop stack and move insert transfers */
+                while (cycle_stack_top--) {
+                    c = cycle_stack[cycle_stack_top];
+                    insert_register_move(tc, alc, rev_map[c].dep, c);
+                    rev_map[c].num--;
+                }
+                insert_register_move(tc, alc, rev_map[i].dep, spare_register);
+            }
+        }
+    }
+
+    /* now all that remains is to deal with spilled values */
+    for (i = 0; i < spilled_args_top; i++) {
+        LiveRange *value = alc->values + arg_values[i];
+        if (storage_refs[i]._cls == MVM_JIT_STORAGE_GPR) {
+            insert_register_load(tc, alc, storage_refs[i]._pos, value->spill_pos);
+        } else if (storage_refs[i]._cls == MVM_JIT_STORAGE_STACK) {
+            insert_memory_to_stack_copy(tc, alc, storage_refs[i]._pos, value->spill_pos, spare_register);
+        } else {
+            NYI(storage_classs);
+        }
+    }
 }
-                                 
+
+
 static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
     MVMint32 i, tile_cursor = 0;
     MVM_VECTOR_INIT(alc->retired, alc->worklist_num);
     MVM_VECTOR_INIT(alc->spilled, 8);
     _DEBUG("STARTING LINEAR SCAN\n\n");
     while (alc->worklist_num > 0) {
-        MVMint32 v        = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num);
-        MVMint32 order_nr = first_ref(alc->values + v);
+        MVMint32 v             = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num);
+        MVMint32 tile_order_nr = first_ref(alc->values + v);
         MVMint8 reg;
         _DEBUG("Processing live range %d (first ref %d, last ref %d)\n", v, first_ref(alc->values + v), last_ref(alc->values + v));
         /* NB: Should I have a compaction step to remove these? */
@@ -624,15 +732,15 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
             continue;
 
         /* deal with 'special' requirements */
-        for (; order_nr(tile_cursor) <= order_nr; tile_cursor++) {
+        for (; order_nr(tile_cursor) <= tile_order_nr; tile_cursor++) {
             MVMJitTile *tile = list->items[tile_cursor];
             if (tile->op == MVM_JIT_ARGLIST) {
                 MVMJitTile *arglist_tile = tile;
-                MVMJJittile *call_tile   = list->items[++tile_cursor];
+                MVMJitTile *call_tile   = list->items[++tile_cursor];
                 if (call_tile->op != MVM_JIT_CALL) {
                     MVM_panic(1, "ARGLIST tiles must be followed by CALL");
                 }
-                prepare_arglist_and_call(tc, alc, list, arglist_tile, call-tile, order_nr(tile_cursor));
+                prepare_arglist_and_call(tc, alc, list, arglist_tile, call_tile, order_nr(tile_cursor));
             } else {
                 /* deal with 'use' registers */
                 for  (i = 1; i < tile->num_refs; i++) {
@@ -646,7 +754,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
         }
 
         /* assign registers in loop */
-        active_set_expire(tc, alc, order_nr);
+        active_set_expire(tc, alc, tile_order_nr);
         if (MVM_JIT_REGISTER_HAS_REQUIREMENT(alc->values[v].register_spec)) {
             reg = MVM_JIT_REGISTER_REQUIREMENT(alc->values[v].register_spec);
             if (NVR_GPR_BITMAP & (1 << reg)) {
@@ -657,7 +765,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
             }
         } else {
             while ((reg = get_register(tc, alc, MVM_JIT_STORAGE_GPR)) < 0) {
-                spill_any_register(tc, alc, list, order_nr);
+                spill_any_register(tc, alc, list, tile_order_nr);
             }
             assign_register(tc, alc, list, v, MVM_JIT_STORAGE_GPR, reg);
             active_set_add(tc, alc, v);
