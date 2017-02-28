@@ -1,3 +1,8 @@
+/* Concurrent use of a VMArray is erroneous. This debugging option will
+ * catch bad usages. (Eventually, we will refactor VMArray to not have
+ * this issue.) */
+#define MVM_ARRAY_CONC_DEBUG 0
+
 /* Representation used by VM-level arrays. Adopted from QRPA work by
  * Patrick Michaud. */
 struct MVMArrayBody {
@@ -26,6 +31,10 @@ struct MVMArrayBody {
         MVMuint8   *u8;
         void       *any;
     } slots;
+
+#if MVM_ARRAY_CONC_DEBUG
+    AO_t in_use;
+#endif 
 };
 struct MVMArray {
     MVMObject common;
