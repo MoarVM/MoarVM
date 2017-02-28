@@ -578,6 +578,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(kind, "kind");
     string_creator(instrumented, "instrumented");
     string_creator(heap, "heap");
+    string_creator(translate_newlines, "translate_newlines");
 }
 
 /* Drives the overall bootstrap process. */

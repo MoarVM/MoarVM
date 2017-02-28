@@ -102,11 +102,20 @@ void MVM_decoder_ensure_decoder(MVMThreadContext *tc, MVMObject *decoder, const 
 }
 
 /* Configures the decoder with the specified encoding and other configuration. */
+static int should_translate_newlines(MVMThreadContext *tc, MVMObject *config) {
+    if (IS_CONCRETE(config) && REPR(config)->ID == MVM_REPR_ID_MVMHash) {
+        MVMObject *value = MVM_repr_at_key_o(tc, config,
+            tc->instance->str_consts.translate_newlines);
+        return IS_CONCRETE(value) && MVM_repr_get_int(tc, value) != 0;
+    }
+    return 0;
+}
 void MVM_decoder_configure(MVMThreadContext *tc, MVMDecoder *decoder,
                            MVMString *encoding, MVMObject *config) {
     if (!decoder->body.ds) {
         MVMuint8 encid = MVM_string_find_encoding(tc, encoding);
-        decoder->body.ds = MVM_string_decodestream_create(tc, encid, 0, 0);
+        decoder->body.ds = MVM_string_decodestream_create(tc, encid, 0,
+            should_translate_newlines(tc, config));
         decoder->body.sep_spec = MVM_malloc(sizeof(MVMDecodeStreamSeparators));
         MVM_string_decode_stream_sep_default(tc, decoder->body.sep_spec);
     }
