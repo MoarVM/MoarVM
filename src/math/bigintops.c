@@ -1059,12 +1059,10 @@ MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *a) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
 
     if (MVM_BIGINT_IS_BIG(ba)) {
-        mp_int *b = ba->u.bigint;
-        MVMint64 is_big = b->used > 1;
-        /* XXX somebody please check that on a 32 bit platform */
-        if ( sizeof(MVMint64) * 8 > DIGIT_BIT && is_big == 0 && DIGIT(b, 0) & ~0x7FFFFFFFUL)
-            is_big = 1;
-        return is_big;
+        /* We do a very conservative guess here. We should be introspecting
+         * the mp_int struct here, but the previous approach was flawed
+         * and caused problems. */
+        return 1;
     } else {
         /* if it's in a smallint, it's 32 bits big at most and fits into an INTVAL easily. */
         return 0;
