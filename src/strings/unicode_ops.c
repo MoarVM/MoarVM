@@ -168,7 +168,7 @@ MVMint64 MVM_unicode_string_compare
 /* Looks up a codepoint by name. Lazily constructs a hash. */
 MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
-    char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
+    char *cname = MVM_string_utf8_encode_C_string(tc, name);
     size_t cname_len = strlen((const char *) cname );
     MVMUnicodeNameRegistry *result;
     if (!codepoints_by_name) {
@@ -481,33 +481,31 @@ void MVM_unicode_release(MVMThreadContext *tc)
  not found as a named codepoint, lazily constructs a hash of the codepoint
  sequences and looks up the sequence name */
 MVMString * MVM_unicode_string_from_name(MVMThreadContext *tc, MVMString *name) {
-    MVMuint64 size;
     MVMString * name_uc = MVM_string_uc(tc, name);
     char * cname;
     MVMUnicodeGraphemeNameRegistry *result;
 
-    MVMGrapheme32 result_graph;
-    const MVMint32 * uni_seq;
-    int array_size;
-
-    result_graph = MVM_unicode_lookup_by_name(tc, name_uc);
+    MVMGrapheme32 result_graph = MVM_unicode_lookup_by_name(tc, name_uc);
     /* If it's just a codepoint, return that */
     if (result_graph >= 0) {
         return MVM_string_chr(tc, result_graph);
     }
-    cname = MVM_string_ascii_encode(tc, name_uc, &size, 0);
-    if (!property_codes_by_seq_names) {
-        generate_property_codes_by_seq_names(tc);
-    }
-    HASH_FIND(hash_handle, property_codes_by_seq_names, cname, strlen((const char *)cname), result);
-    MVM_free(cname);
-    /* If we can't find a result return an empty string */
-    if (!result)
-        return tc->instance->str_consts.empty;
+    /* Otherwise look up the sequence */
+    else {
+        const MVMint32 * uni_seq;
+        cname = MVM_string_utf8_encode_C_string(tc, name_uc);
+        if (!property_codes_by_seq_names) {
+            generate_property_codes_by_seq_names(tc);
+        }
+        HASH_FIND(hash_handle, property_codes_by_seq_names, cname, strlen((const char *)cname), result);
+        MVM_free(cname);
+        /* If we can't find a result return an empty string */
+        if (!result)
+            return tc->instance->str_consts.empty;
 
-    uni_seq = uni_seq_enum[result->structindex];
-    /* The first element is the number of codepoints in the sequence */
-    array_size = uni_seq[0];
-    return MVM_unicode_codepoints_c_array_to_nfg_string(tc, (MVMCodepoint *) uni_seq + 1, array_size);
+        uni_seq = uni_seq_enum[result->structindex];
+        /* The first element is the number of codepoints in the sequence */
+        return MVM_unicode_codepoints_c_array_to_nfg_string(tc, (MVMCodepoint *) uni_seq + 1, uni_seq[0]);
+    }
 
 }
