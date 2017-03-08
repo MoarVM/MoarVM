@@ -575,12 +575,37 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
 MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
     MVMString *fca;
     MVMString *fcb;
-    MVMROOT(tc, b, {
-        fca = MVM_string_fc(tc, a);
-        MVMROOT(tc, fca, {
-            fcb = MVM_string_fc(tc, b);
+    MVMint64 len_a = MVM_string_graphs(tc, a);
+    MVMint64 len_b = MVM_string_graphs(tc, b);
+    MVMint64 change_a, change_b;
+
+    MVMROOT(tc, a, {
+        MVMROOT(tc, b, {
+            fca = MVM_string_fc(tc, a);
+            MVMROOT(tc, fca, {
+                fcb = MVM_string_fc(tc, b);
+            });
         });
     });
+    change_a = MVM_string_graphs(tc, fca) - len_a;
+    change_b = MVM_string_graphs(tc, fcb) - len_b;
+
+    if (change_a == 0 && change_b == 0) {
+        return MVM_string_equal_at(tc, fca, fcb, offset);
+    }
+    if (change_a > 0) {
+        MVMint64 counter = 0;
+        /* Find the point where the case-folded string and the original string
+         * contain different characters
+         * Although it shouldn't be possible to overrun the string unless the
+         * last cp of `a` expands to itself + another cp, ensure we don't go past
+         * the length of the original string */
+        while (MVM_string_substrings_equal_nocheck(tc, a, counter, 1, fca, 0) && counter < len_a) {
+            counter++;
+        }
+        if (offset > counter)
+            offset += change_a;
+    }
     return MVM_string_equal_at(tc, fca, fcb, offset);
 }
 
