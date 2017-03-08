@@ -377,8 +377,6 @@ typedef struct {
     char              *cwd;
     char             **env;
     char             **args;
-    MVMDecodeStream   *ds_stdout;
-    MVMDecodeStream   *ds_stderr;
     MVMuint32          seq_stdout;
     MVMuint32          seq_stderr;
     uv_stream_t       *stdin_handle;
@@ -753,7 +751,7 @@ static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) 
 
 /* Read functions for stdout/stderr. */
 static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, SpawnInfo *si,
-                       MVMObject *callback, MVMDecodeStream *ds, MVMuint32 seq_number) {
+                       MVMObject *callback, MVMuint32 seq_number) {
     MVMThreadContext *tc  = si->tc;
     MVMObject *arr;
     MVMAsyncTask *t;
@@ -770,16 +768,8 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
                 tc->instance->boot_types.BOOTInt, seq_number);
             MVM_repr_push_o(tc, arr, seq_boxed);
 
-            /* Either need to produce a buffer or decode characters. */
-            if (ds) {
-                MVMString *str;
-                MVMObject *boxed_str;
-                MVM_string_decodestream_add_bytes(tc, ds, buf->base, nread);
-                str = MVM_string_decodestream_get_all(tc, ds);
-                boxed_str = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, str);
-                MVM_repr_push_o(tc, arr, boxed_str);
-            }
-            else {
+            /* Push buffer of data. */
+            {
                 MVMObject *buf_type    = MVM_repr_at_key_o(tc, si->callbacks,
                                             tc->instance->str_consts.buf_type);
                 MVMArray  *res_buf     = (MVMArray *)MVM_repr_alloc_init(tc, buf_type);
@@ -831,29 +821,17 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
 }
-static void async_spawn_stdout_chars_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
-    SpawnInfo *si = (SpawnInfo *)handle->data;
-    MVMObject *cb = MVM_repr_at_key_o(si->tc, si->callbacks,
-        si->tc->instance->str_consts.stdout_chars);
-    async_read(handle, nread, buf, si, cb, si->ds_stdout, si->seq_stdout++);
-}
 static void async_spawn_stdout_bytes_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     SpawnInfo *si = (SpawnInfo *)handle->data;
     MVMObject *cb = MVM_repr_at_key_o(si->tc, si->callbacks,
         si->tc->instance->str_consts.stdout_bytes);
-    async_read(handle, nread, buf, si, cb, NULL, si->seq_stdout++);
-}
-static void async_spawn_stderr_chars_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
-    SpawnInfo *si = (SpawnInfo *)handle->data;
-    MVMObject *cb = MVM_repr_at_key_o(si->tc, si->callbacks,
-        si->tc->instance->str_consts.stderr_chars);
-    async_read(handle, nread, buf, si, cb, si->ds_stderr, si->seq_stderr++);
+    async_read(handle, nread, buf, si, cb, si->seq_stdout++);
 }
 static void async_spawn_stderr_bytes_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     SpawnInfo *si = (SpawnInfo *)handle->data;
     MVMObject *cb = MVM_repr_at_key_o(si->tc, si->callbacks,
         si->tc->instance->str_consts.stderr_bytes);
-    async_read(handle, nread, buf, si, cb, NULL, si->seq_stderr++);
+    async_read(handle, nread, buf, si, cb, si->seq_stderr++);
 }
 
 /* Actually spawns an async task. This runs in the event loop thread. */
@@ -887,18 +865,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[0].flags   = UV_INHERIT_FD;
         process_stdio[0].data.fd = 0;
     }
-    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_chars)) {
-        uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(tc->loop, pipe, 0);
-        pipe->data = si;
-        process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-        process_stdio[1].data.stream = (uv_stream_t *)pipe;
-        si->ds_stdout                = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0, 1);
-        stdout_pipe                  = pipe;
-        stdout_cb                    = async_spawn_stdout_chars_read;
-        si->using++;
-    }
-    else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
+    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(tc->loop, pipe, 0);
         pipe->data = si;
@@ -912,18 +879,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[1].flags   = UV_INHERIT_FD;
         process_stdio[1].data.fd = 1;
     }
-    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_chars)) {
-        uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(tc->loop, pipe, 0);
-        pipe->data = si;
-        process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-        process_stdio[2].data.stream = (uv_stream_t *)pipe;
-        si->ds_stderr                = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0, 1);
-        stderr_pipe                  = pipe;
-        stderr_cb                    = async_spawn_stderr_chars_read;
-        si->using++;
-    }
-    else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
+    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(tc->loop, pipe, 0);
         pipe->data = si;
@@ -970,8 +926,8 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                 MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
             });
             });
-            MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
         }
+        MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
     }
     else {
         MVMOSHandle           *handle  = (MVMOSHandle *)si->handle;
@@ -1048,14 +1004,6 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
                 MVM_free(si->args[i++]);
             MVM_free(si->args);
             si->args = NULL;
-        }
-        if (si->ds_stdout) {
-            MVM_string_decodestream_destroy(tc, si->ds_stdout);
-            si->ds_stdout = NULL;
-        }
-        if (si->ds_stderr) {
-            MVM_string_decodestream_destroy(tc, si->ds_stderr);
-            si->ds_stderr = NULL;
         }
         MVM_free(si);
     }
