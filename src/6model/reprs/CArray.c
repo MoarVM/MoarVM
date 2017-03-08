@@ -359,19 +359,19 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
             if (REPR(value.o)->ID != MVM_REPR_ID_MVMCPointer)
                 MVM_exception_throw_adhoc(tc, "CArray of CPointer passed non-CPointer object");
             bind_wrapper_and_ptr(tc, root, body, index, value.o,
-                ((MVMCPointer *)value.o)->body.ptr);
+                IS_CONCRETE(value.o) ? ((MVMCPointer *)value.o)->body.ptr : NULL);
             break;
         case MVM_CARRAY_ELEM_KIND_CARRAY:
             if (REPR(value.o)->ID != MVM_REPR_ID_MVMCArray)
                 MVM_exception_throw_adhoc(tc, "CArray of CArray passed non-CArray object");
             bind_wrapper_and_ptr(tc, root, body, index, value.o,
-                ((MVMCArray *)value.o)->body.storage);
+                IS_CONCRETE(value.o) ? ((MVMCArray *)value.o)->body.storage : NULL);
             break;
         case MVM_CARRAY_ELEM_KIND_CSTRUCT:
             if (REPR(value.o)->ID != MVM_REPR_ID_MVMCStruct)
                 MVM_exception_throw_adhoc(tc, "CArray of CStruct passed non-CStruct object");
             bind_wrapper_and_ptr(tc, root, body, index, value.o,
-                ((MVMCStruct *)value.o)->body.cstruct);
+                IS_CONCRETE(value.o) ? ((MVMCStruct *)value.o)->body.cstruct : NULL);
             break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown element type in CArray");

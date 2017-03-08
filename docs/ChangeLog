@@ -1,3 +1,36 @@
+New in 2017.02
+
++ Fix format strings that warn during compile
++ Implement missing cleanup of async task handles, fixing a memory leak
++ Make Unicode sequence and codepoint name lookup case-insensitive
++ Add Unicode sequences from NamedSequences.txt in the Unicode database
++ Remove second declaration of MVM_frame_destroy
++ JIT MVM_radix()
++ Make radix and radix_I 50% faster with Unicode Nd
++ Add East_Asian_Width prop
++ Fix memory leaks in synchronous sockets
++ Fix crashes in socket connect error handling
++ Don't leak memory in STable repossession
++ Missing MVMROOT around a lock acquisition
++ Refuse to form an NFA with a zeroed to-state
++ Add data section for JIT code, and use it for extop 'fake' registers
++ Correct typo in NFG trie node struct name
++ Fix overflow in div_i op
++ Implement support for synthetic graphemes in MVM_unicode_string_compare
++ Implement configurable collation_mode for MVM_unicode_string_compare
++ Use LDFLAGS in ld invocations
++ On Windows, create UTF-8 encoded argv upon program entry
++ On Windows, populate environment hash from Unicode environment
++ Some additional heuristics to cut down on cross-thread write log output
++ Fix abs_n op for negative zeros
++ Sort out semantics of closed async sockets
++ Fix overflow on 32-bit systems in is_full_collection()
++ Rename MVMArray file and constant to VMArray
++ Remove bogus indication that MoarVM builds on `cygwin`
++ Use utf8 for unicode_db files
++ Fix invalid read when GC was triggered in the string repeat op
++ Don't call MVM_string_graphs twice in indexing op, plus cleanup
+
 New in 2017.01
 
 + Extract spesh block allocator from spesh, for wider use

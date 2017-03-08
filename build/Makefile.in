@@ -11,6 +11,7 @@ MKPATH = $(PERL) -MExtUtils::Command -e mkpath
 CHMOD  = $(PERL) -MExtUtils::Command -e chmod
 RM_RF  = $(PERL) -MExtUtils::Command -e rm_rf
 RM_F   = $(PERL) -MExtUtils::Command -e rm_f
+MINGW_UNICODE = @mingw_unicode@
 
 
 CONFIG    = @config@
@@ -120,7 +121,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/6model/containers@obj@ \
           src/6model/parametric@obj@ \
           src/6model/reprs/MVMString@obj@ \
-          src/6model/reprs/MVMArray@obj@ \
+          src/6model/reprs/VMArray@obj@ \
           src/6model/reprs/MVMHash@obj@ \
           src/6model/reprs/MVMCFunction@obj@ \
           src/6model/reprs/KnowHOWREPR@obj@ \
@@ -275,7 +276,7 @@ HEADERS = src/moar.h \
           src/6model/containers.h \
           src/6model/parametric.h \
           src/6model/reprs/MVMString.h \
-          src/6model/reprs/MVMArray.h \
+          src/6model/reprs/VMArray.h \
           src/6model/reprs/MVMHash.h \
           src/6model/reprs/MVMCFunction.h \
           src/6model/reprs/KnowHOWREPR.h \
@@ -502,7 +503,7 @@ clangcheck gcccheck:
 
 moar@exe@: $(MAIN_OBJECTS) @moar@
 	$(MSG) linking $@
-	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MAIN_OBJECTS) $(MAIN_LIBS)
+	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MINGW_UNICODE) $(MAIN_OBJECTS) $(MAIN_LIBS)
 
 @moarlib@: $(OBJECTS) $(THIRDPARTY)
 	$(MSG) linking $@

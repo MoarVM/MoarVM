@@ -101,14 +101,36 @@ void MVM_decoder_ensure_decoder(MVMThreadContext *tc, MVMObject *decoder, const 
             op);
 }
 
+/* Checks and sets the decoder single-user sanity check flag. */
+static void enter_single_user(MVMThreadContext *tc, MVMDecoder *decoder) {
+    if (!MVM_trycas(&(decoder->body.in_use), 0, 1))
+       MVM_exception_throw_adhoc(tc, "Deocder may not be used concurrently"); 
+}
+
+/* Releases the decoder single-user sanity check flag. */
+static void exit_single_user(MVMThreadContext *tc, MVMDecoder *decoder) {
+    decoder->body.in_use = 0;
+}
+
 /* Configures the decoder with the specified encoding and other configuration. */
+static int should_translate_newlines(MVMThreadContext *tc, MVMObject *config) {
+    if (IS_CONCRETE(config) && REPR(config)->ID == MVM_REPR_ID_MVMHash) {
+        MVMObject *value = MVM_repr_at_key_o(tc, config,
+            tc->instance->str_consts.translate_newlines);
+        return IS_CONCRETE(value) && MVM_repr_get_int(tc, value) != 0;
+    }
+    return 0;
+}
 void MVM_decoder_configure(MVMThreadContext *tc, MVMDecoder *decoder,
                            MVMString *encoding, MVMObject *config) {
     if (!decoder->body.ds) {
         MVMuint8 encid = MVM_string_find_encoding(tc, encoding);
-        decoder->body.ds = MVM_string_decodestream_create(tc, encid, 0, 0);
+        enter_single_user(tc, decoder);
+        decoder->body.ds = MVM_string_decodestream_create(tc, encid, 0,
+            should_translate_newlines(tc, config));
         decoder->body.sep_spec = MVM_malloc(sizeof(MVMDecodeStreamSeparators));
         MVM_string_decode_stream_sep_default(tc, decoder->body.sep_spec);
+        exit_single_user(tc, decoder);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Decoder already configured");
@@ -142,8 +164,10 @@ void MVM_decoder_set_separators(MVMThreadContext *tc, MVMDecoder *decoder, MVMOb
         c_seps = MVM_malloc((num_seps ? num_seps : 1) * sizeof(MVMString *));
         for (i = 0; i < num_seps; i++)
             c_seps[i] = MVM_repr_at_pos_s(tc, seps, i);
+        enter_single_user(tc, decoder);
         MVM_string_decode_stream_sep_from_strings(tc, get_sep_spec(tc, decoder),
             c_seps, num_seps);
+        exit_single_user(tc, decoder);
         MVM_free(c_seps);
     }
     else {
@@ -154,7 +178,7 @@ void MVM_decoder_set_separators(MVMThreadContext *tc, MVMDecoder *decoder, MVMOb
 /* Adds bytes to the deocde stream. */
 void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject *buffer) {
     MVMDecodeStream *ds = get_ds(tc, decoder);
-    if (REPR(buffer)->ID == MVM_REPR_ID_MVMArray) {
+    if (REPR(buffer)->ID == MVM_REPR_ID_VMArray) {
         /* To be safe, we need to make a copy of data in a resizable array; it
          * may change/move under us. */
         char *output, *copy;
@@ -180,7 +204,9 @@ void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject 
         }
         copy = MVM_malloc(output_size);
         memcpy(copy, output, output_size);
+        enter_single_user(tc, decoder);
         MVM_string_decodestream_add_bytes(tc, ds, copy, output_size);
+        exit_single_user(tc, decoder);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Cannot add bytes to a decoder with a %s",
@@ -191,17 +217,29 @@ void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject 
 /* Takes the specified number of chars from the decoder, or all if there
  * is not enough. */
 MVMString * MVM_decoder_take_chars(MVMThreadContext *tc, MVMDecoder *decoder, MVMint64 chars) {
-    return MVM_string_decodestream_get_chars(tc, get_ds(tc, decoder), (MVMint32)chars);
+    MVMString *result;
+    enter_single_user(tc, decoder);
+    result = MVM_string_decodestream_get_chars(tc, get_ds(tc, decoder), (MVMint32)chars);
+    exit_single_user(tc, decoder);
+    return result;
 }
 
 /* Takes all chars from the decoder. */
 MVMString * MVM_decoder_take_all_chars(MVMThreadContext *tc, MVMDecoder *decoder) {
-    return MVM_string_decodestream_get_all(tc, get_ds(tc, decoder));
+    MVMString *result;
+    enter_single_user(tc, decoder);
+    result = MVM_string_decodestream_get_all(tc, get_ds(tc, decoder));
+    exit_single_user(tc, decoder);
+    return result;
 }
 
 /* Takes all available chars from the decoder. */
 MVMString * MVM_decoder_take_available_chars(MVMThreadContext *tc, MVMDecoder *decoder) {
-    return MVM_string_decodestream_get_available(tc, get_ds(tc, decoder));
+    MVMString *result;
+    enter_single_user(tc, decoder);
+    result = MVM_string_decodestream_get_available(tc, get_ds(tc, decoder));
+    exit_single_user(tc, decoder);
+    return result;
 }
 
 /* Takes a line from the decoder. */
@@ -209,9 +247,13 @@ MVMString * MVM_decoder_take_line(MVMThreadContext *tc, MVMDecoder *decoder,
                                   MVMint64 chomp, MVMint64 incomplete_ok) {
     MVMDecodeStream *ds = get_ds(tc, decoder);
     MVMDecodeStreamSeparators *sep_spec = get_sep_spec(tc, decoder);
-    return incomplete_ok
+    MVMString *result;
+    enter_single_user(tc, decoder);
+    result = incomplete_ok
         ? MVM_string_decodestream_get_until_sep_eof(tc, ds, sep_spec, (MVMint32)chomp)
         : MVM_string_decodestream_get_until_sep(tc, ds, sep_spec, (MVMint32)chomp);
+    exit_single_user(tc, decoder);
+    return result;
 }
 
 /* Returns true if the decoder is empty. */
@@ -233,7 +275,7 @@ MVMObject * MVM_decoder_take_bytes(MVMThreadContext *tc, MVMDecoder *decoder,
     MVMObject *result;
 
     /* Ensure the target is in the correct form. */
-    if (REPR(buf_type)->ID != MVM_REPR_ID_MVMArray)
+    if (REPR(buf_type)->ID != MVM_REPR_ID_VMArray)
         MVM_exception_throw_adhoc(tc, "decodertakebytes requires a native array type");
     if (((MVMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type != MVM_ARRAY_U8
             && ((MVMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type != MVM_ARRAY_I8)
@@ -244,7 +286,9 @@ MVMObject * MVM_decoder_take_bytes(MVMThreadContext *tc, MVMDecoder *decoder,
             bytes);
 
     result = MVM_repr_alloc_init(tc, buf_type);
+    enter_single_user(tc, decoder);
     read = MVM_string_decodestream_bytes_to_buf(tc, ds, &buf, bytes);
+    exit_single_user(tc, decoder);
     ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
     ((MVMArray *)result)->body.start    = 0;
     ((MVMArray *)result)->body.ssize    = read;

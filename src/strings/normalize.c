@@ -19,7 +19,7 @@ MVMNormalization MVN_unicode_normalizer_form(MVMThreadContext *tc, MVMint64 form
 /* Takes two objects, which must be of VMArray representation and holding
  * 32-bit integers. Performs normalization to the specified form. */
 static void assert_codepoint_array(MVMThreadContext *tc, const MVMObject *arr, char *error) {
-    if (IS_CONCRETE(arr) && REPR(arr)->ID == MVM_REPR_ID_MVMArray) {
+    if (IS_CONCRETE(arr) && REPR(arr)->ID == MVM_REPR_ID_VMArray) {
         MVMuint8 slot_type = ((MVMArrayREPRData *)STABLE(arr)->REPR_data)->slot_type;
         if (slot_type == MVM_ARRAY_I32 || slot_type == MVM_ARRAY_U32)
             return;

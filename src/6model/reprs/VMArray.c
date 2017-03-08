@@ -3,6 +3,20 @@
 /* This representation's function pointer table. */
 static const MVMREPROps this_repr;
 
+MVM_STATIC_INLINE void enter_single_user(MVMThreadContext *tc, MVMArrayBody *arr) {
+#if MVM_ARRAY_CONC_DEBUG
+    if (!MVM_trycas(&(arr->in_use), 0, 1)) {
+        MVM_dump_backtrace(tc);
+        MVM_exception_throw_adhoc(tc, "Array may not be used concurrently"); 
+    }
+#endif
+}
+static void exit_single_user(MVMThreadContext *tc, MVMArrayBody *arr) {
+#if MVM_ARRAY_CONC_DEBUG
+    arr->in_use = 0;
+#endif
+}
+
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
@@ -284,7 +298,7 @@ static MVMuint64 zero_slots(MVMThreadContext *tc, MVMArrayBody *body,
     return elems;
 }
 
-static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64 n, MVMArrayREPRData *repr_data) {
+static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint64 n, MVMArrayREPRData *repr_data) {
     MVMuint64   elems = body->elems;
     MVMuint64   start = body->start;
     MVMuint64   ssize = body->ssize;
@@ -325,8 +339,12 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMint64
         if (ssize < 8) ssize = 8;
     }
     else {
-        ssize = (n + 0x1000) & ~0xfff;
+        ssize = (n + 0x1000) & ~0xfffUL;
     }
+    if (ssize > (1UL << (8 * sizeof(size_t) - repr_data->elem_size)))
+        MVM_exception_throw_adhoc(tc,
+            "Unable to allocate an array of %lu elements",
+            ssize);
 
     /* now allocate the new slot buffer */
     slots = (slots)
@@ -345,6 +363,7 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     MVMArrayBody     *body      = (MVMArrayBody *)data;
 
     /* Handle negative indexes and resizing if needed. */
+    enter_single_user(tc, body);
     if (index < 0) {
         index += body->elems;
         if (index < 0)
@@ -418,6 +437,7 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
+    exit_single_user(tc, body);
 }
 
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -428,12 +448,15 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 count) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
+    enter_single_user(tc, body);
     set_size_internal(tc, body, count, repr_data);
+    exit_single_user(tc, body);
 }
 
 static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
+    enter_single_user(tc, body);
     set_size_internal(tc, body, body->elems + 1, repr_data);
     switch (repr_data->slot_type) {
         case MVM_ARRAY_OBJ:
@@ -499,6 +522,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
+    exit_single_user(tc, body);
 }
 
 static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
@@ -509,6 +533,7 @@ static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
         MVM_exception_throw_adhoc(tc,
             "MVMArray: Can't pop from an empty array");
 
+    enter_single_user(tc, body);
     body->elems--;
     switch (repr_data->slot_type) {
         case MVM_ARRAY_OBJ:
@@ -574,6 +599,7 @@ static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
+    exit_single_user(tc, body);
 }
 
 static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
@@ -582,6 +608,7 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 
     /* If we don't have room at the beginning of the slots,
      * make some room (8 slots) for unshifting */
+    enter_single_user(tc, body);
     if (body->start < 1) {
         MVMuint64 n = 8;
         MVMuint64 elems = body->elems;
@@ -668,6 +695,7 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
     body->elems++;
+    exit_single_user(tc, body);
 }
 
 static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
@@ -678,6 +706,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
         MVM_exception_throw_adhoc(tc,
             "MVMArray: Can't shift from an empty array");
 
+    enter_single_user(tc, body);
     switch (repr_data->slot_type) {
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
@@ -744,6 +773,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     }
     body->start++;
     body->elems--;
+    exit_single_user(tc, body);
 }
 
 /* This whole splice optimization can be optimized for the case we have two
@@ -765,6 +795,8 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
             MVM_exception_throw_adhoc(tc,
                 "MVMArray: Illegal splice offset");
     }
+
+    enter_single_user(tc, body);
 
     /* When offset == 0, then we may be able to reduce the memmove
      * calls and reallocs by adjusting SELF's start, elems0, and
@@ -792,8 +824,10 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 
     /* if count == 0 and elems1 == 0, there's nothing left
      * to copy or remove, so the splice is done! */
-    if (count == 0 && elems1 == 0)
+    if (count == 0 && elems1 == 0) {
+        exit_single_user(tc, body);
         return;
+    }
 
     /* number of elements to right of splice (the "tail") */
     tail = elems0 - offset - count;
@@ -820,6 +854,7 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
             (char *)body->slots.any + (start + offset + count) * repr_data->elem_size,
             tail * repr_data->elem_size);
     }
+    exit_single_user(tc, body);
 
     /* now copy C<from>'s elements into SELF */
     if (elems1 > 0) {
@@ -1276,7 +1311,7 @@ static const MVMREPROps this_repr = {
     compose,
     spesh,
     "VMArray", /* name */
-    MVM_REPR_ID_MVMArray,
+    MVM_REPR_ID_VMArray,
     unmanaged_size,
     describe_refs,
 };

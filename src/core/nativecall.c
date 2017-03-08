@@ -337,7 +337,7 @@ void * MVM_nativecall_unmarshal_carray(MVMThreadContext *tc, MVMObject *value) {
 void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value) {
     if (!IS_CONCRETE(value))
         return NULL;
-    else if (REPR(value)->ID == MVM_REPR_ID_MVMArray) {
+    else if (REPR(value)->ID == MVM_REPR_ID_VMArray) {
         MVMArrayBody *body          = &((MVMArray *)value)->body;
         MVMArrayREPRData *repr_data = (MVMArrayREPRData *)STABLE(value)->REPR_data;
         size_t start_pos            = body->start * repr_data->elem_size;
@@ -646,7 +646,7 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
         data_body = MVM_nativecall_unmarshal_cpointer(tc, source);
     else if (REPR(source)->ID == MVM_REPR_ID_MVMCArray)
         data_body = MVM_nativecall_unmarshal_carray(tc, source);
-    else if (REPR(source)->ID == MVM_REPR_ID_MVMArray)
+    else if (REPR(source)->ID == MVM_REPR_ID_VMArray)
         data_body = MVM_nativecall_unmarshal_vmarray(tc, source);
     else
         MVM_exception_throw_adhoc(tc,

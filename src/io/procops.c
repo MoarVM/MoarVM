@@ -16,7 +16,7 @@
 extern char **environ;
 #  endif
 #else
-#  include <process.h>
+#include <stdlib.h>
 #endif
 
 #ifdef _WIN32
@@ -33,7 +33,7 @@ static wchar_t * ANSIToUnicode(MVMuint16 acp, const char *str)
 static char * UnicodeToUTF8(const wchar_t *str)
 {
      const int       len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
-     char * const result = (char *)MVM_malloc(len * sizeof(char));
+     char * const result = (char *)MVM_malloc(len + 1);
 
      WideCharToMultiByte(CP_UTF8, 0, str, -1, result, len, NULL, NULL);
 
@@ -49,29 +49,45 @@ static char * ANSIToUTF8(MVMuint16 acp, const char * str)
     return result;
 }
 
+MVM_PUBLIC char **
+MVM_UnicodeToUTF8_argv(const int argc, wchar_t **wargv)
+{
+    int i;
+    char **argv = MVM_malloc((argc + 1) * sizeof(*argv));
+    for (i = 0; i < argc; ++i)
+    {
+        argv[i] = UnicodeToUTF8(wargv[i]);
+    }
+    argv[i] = NULL;
+    return argv;
+}
+
 #endif
 
 MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
     MVMInstance * const instance = tc->instance;
     MVMObject   *       env_hash;
 
-#ifdef _WIN32
-    const MVMuint16 acp = GetACP(); /* We should get ACP at runtime. */
-#endif
     MVMuint32     pos = 0;
     MVMString *needle = MVM_string_ascii_decode(tc, instance->VMString, STR_WITH_LEN("="));
+#ifndef _WIN32
     char      *env;
+#else
+    wchar_t   *env;
+    (void) _wgetenv(L"windows"); /* populate _wenviron */
+#endif
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&needle);
 
     env_hash = MVM_repr_alloc_init(tc,  MVM_hll_current(tc)->slurpy_hash_type);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&env_hash);
 
-    while ((env = environ[pos++]) != NULL) {
 #ifndef _WIN32
+    while ((env = environ[pos++]) != NULL) {
         MVMString    *str = MVM_string_utf8_c8_decode(tc, instance->VMString, env, strlen(env));
 #else
-        char * const _env = ANSIToUTF8(acp, env);
+    while ((env = _wenviron[pos++]) != NULL) {
+        char * const _env = UnicodeToUTF8(env);
         MVMString    *str = MVM_string_utf8_c8_decode(tc, instance->VMString, _env, strlen(_env));
 #endif
 
@@ -548,7 +564,7 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
     if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
         MVM_exception_throw_adhoc(tc,
             "asyncwritebytes result type must have REPR AsyncTask");
-    if (!IS_CONCRETE(buffer) || REPR(buffer)->ID != MVM_REPR_ID_MVMArray)
+    if (!IS_CONCRETE(buffer) || REPR(buffer)->ID != MVM_REPR_ID_VMArray)
         MVM_exception_throw_adhoc(tc, "asyncwritebytes requires a native array to read from");
     if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_U8
         && ((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type != MVM_ARRAY_I8)
@@ -1227,7 +1243,6 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
         });
 #else
         MVMROOT(tc, clargs, {
-            const MVMuint16 acp = GetACP();
             const MVMint64 num_clargs = instance->num_clargs;
             MVMint64 count;
 
@@ -1240,10 +1255,8 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
 
             for (count = 0; count < num_clargs; count++) {
                 char *raw_clarg = instance->raw_clargs[count];
-                char * const _tmp = ANSIToUTF8(acp, raw_clarg);
                 MVMString *string = MVM_string_utf8_c8_decode(tc,
-                    instance->VMString, _tmp, strlen(_tmp));
-                MVM_free(_tmp);
+                    instance->VMString, raw_clarg, strlen(raw_clarg));
                 boxed_str = MVM_repr_box_str(tc,
                     instance->boot_types.BOOTStr, string);
                 MVM_repr_push_o(tc, clargs, boxed_str);

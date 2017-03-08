@@ -4,11 +4,26 @@
 /* Initializes a new thread context. Note that this doesn't set up a
  * thread itself, it just creates the data structure that exists in
  * MoarVM per thread. */
-MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
+MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance) {
     MVMThreadContext *tc = MVM_calloc(1, sizeof(MVMThreadContext));
 
     /* Associate with VM instance. */
     tc->instance = instance;
+
+    /* Use default loop for main thread; create a new one for others. */
+    if (instance->main_thread) {
+        int r;
+
+        tc->loop = MVM_calloc(1, sizeof(uv_loop_t));
+        r = uv_loop_init(tc->loop);
+        if (r < 0) {
+            MVM_free(tc->loop);
+            MVM_free(tc);
+            MVM_exception_throw_adhoc(parent, "Could not create a new Thread: %s", uv_strerror(r));
+        }
+    } else {
+        tc->loop = uv_default_loop();
+    }
 
     /* Set up GC nursery. We only allocate tospace initially, and allocate
      * fromspace the first time this thread GCs, provided it ever does. */
@@ -31,9 +46,6 @@ MVMThreadContext * MVM_tc_create(MVMInstance *instance) {
 
     /* Allocate an initial call stack region for the thread. */
     MVM_callstack_region_init(tc);
-
-    /* Use default loop for main thread; create a new one for others. */
-    tc->loop = instance->main_thread ? uv_loop_new() : uv_default_loop();
 
     /* Initialize random number generator state. */
     MVM_proc_seed(tc, (MVM_platform_now() / 10000) * MVM_proc_getpid(tc));

@@ -21,7 +21,9 @@ typedef struct {
 /* Creates the allocator data structure with bins. */
 MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
     int init_stat;
+#ifdef MVM_VALGRIND_SUPPORT
     int bin_no;
+#endif
     MVMFixedSizeAlloc *al = MVM_malloc(sizeof(MVMFixedSizeAlloc));
     al->size_classes = MVM_calloc(MVM_FSA_BINS, sizeof(MVMFixedSizeAllocSizeClass));
     if ((init_stat = uv_mutex_init(&(al->complex_alloc_mutex))) < 0)

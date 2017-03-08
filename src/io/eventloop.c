@@ -72,7 +72,9 @@ static uv_loop_t *get_or_vivify_loop(MVMThreadContext *tc) {
 
     if (!instance->event_loop_thread) {
         /* Grab starting mutex and ensure we didn't lose the race. */
+        MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&instance->mutex_event_loop_start);
+        MVM_gc_mark_thread_unblocked(tc);
         if (!instance->event_loop_thread) {
             MVMObject *thread, *loop_runner;
             int r;
@@ -102,7 +104,9 @@ static uv_loop_t *get_or_vivify_loop(MVMThreadContext *tc) {
                 MVM_thread_run(tc, thread);
 
                 /* Block until we know it's fully started and initialized. */
+                MVM_gc_mark_thread_blocked(tc);
                 uv_sem_wait(&(instance->sem_event_loop_started));
+                MVM_gc_mark_thread_unblocked(tc);
                 uv_sem_destroy(&(instance->sem_event_loop_started));
 
                 /* Make the started event loop thread visible to others. */

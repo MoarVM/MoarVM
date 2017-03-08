@@ -515,7 +515,6 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         result->body.num_graphs      = agraphs * count;
         result->body.storage_type    = MVM_STRING_STRAND;
         result->body.storage.strands = allocate_strands(tc, 1);
-        result->body.num_strands     = 1;
         if (a->body.storage_type == MVM_STRING_STRAND) {
             if (a->body.num_strands == 1 && a->body.storage.strands[0].repetitions == 0) {
                 copy_strands(tc, a, 0, result, 0, 1);
@@ -535,6 +534,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
             result->body.storage.strands[0].end         = agraphs;
         }
         result->body.storage.strands[0].repetitions = count - 1;
+        result->body.num_strands = 1;
     });
 
     STRAND_CHECK(tc, result);
@@ -573,15 +573,15 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
 }
 
 MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
-    MVMString *lca;
-    MVMString *lcb;
+    MVMString *fca;
+    MVMString *fcb;
     MVMROOT(tc, b, {
-        lca = MVM_string_lc(tc, a);
-        MVMROOT(tc, lca, {
-            lcb = MVM_string_lc(tc, b);
+        fca = MVM_string_fc(tc, a);
+        MVMROOT(tc, fca, {
+            fcb = MVM_string_fc(tc, b);
         });
     });
-    return MVM_string_equal_at(tc, lca, lcb, offset);
+    return MVM_string_equal_at(tc, fca, fcb, offset);
 }
 
 MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
@@ -890,7 +890,7 @@ void MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc
 
     /* Ensure the target is in the correct form. */
     MVM_string_check_arg(tc, s, "encode");
-    if (!IS_CONCRETE(buf) || REPR(buf)->ID != MVM_REPR_ID_MVMArray)
+    if (!IS_CONCRETE(buf) || REPR(buf)->ID != MVM_REPR_ID_VMArray)
         MVM_exception_throw_adhoc(tc, "encode requires a native array to write into");
     buf_rd = (MVMArrayREPRData *)STABLE(buf)->REPR_data;
     if (buf_rd) {
@@ -934,7 +934,7 @@ MVMString * MVM_string_decode_from_buf(MVMThreadContext *tc, MVMObject *buf, MVM
     MVMuint8 elem_size = 0;
 
     /* Ensure the source is in the correct form. */
-    if (!IS_CONCRETE(buf) || REPR(buf)->ID != MVM_REPR_ID_MVMArray)
+    if (!IS_CONCRETE(buf) || REPR(buf)->ID != MVM_REPR_ID_VMArray)
         MVM_exception_throw_adhoc(tc, "decode requires a native array to read from");
     buf_rd = (MVMArrayREPRData *)STABLE(buf)->REPR_data;
     if (buf_rd) {
@@ -1247,9 +1247,9 @@ MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMS
 MVMString * MVM_string_indexing_optimized(MVMThreadContext *tc, MVMString *s) {
     MVM_string_check_arg(tc, s, "indexingoptimized");
     if (s->body.storage_type == MVM_STRING_STRAND) {
-        MVMGrapheme32   *flat = MVM_malloc(MVM_string_graphs(tc, s) * sizeof(MVMGrapheme32));
-        MVMStringStrand *orig = s->body.storage.strands;
-        MVMuint32        i    = 0;
+        MVMuint32        chars = MVM_string_graphs(tc, s);
+        MVMGrapheme32   *flat  = MVM_malloc(chars * sizeof(MVMGrapheme32));
+        MVMuint32        i     = 0;
         MVMString       *res;
         MVMint8          can_fit_into_8bit = 1;
 
@@ -1265,7 +1265,7 @@ MVMString * MVM_string_indexing_optimized(MVMThreadContext *tc, MVMString *s) {
         res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         res->body.storage_type    = MVM_STRING_GRAPHEME_32;
         res->body.storage.blob_32 = flat;
-        res->body.num_graphs      = MVM_string_graphs(tc, s);
+        res->body.num_graphs      = chars;
 
         if (can_fit_into_8bit)
             turn_32bit_into_8bit_unchecked(tc, res);
@@ -1896,20 +1896,14 @@ void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
     /* Now handle trailing graphemes (must be 2, 1, or 0). */
     switch (graphs_remaining) {
         case 2:
-            hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
             hash_block.graphs[1] = MVM_string_gi_get_grapheme(tc, &gi);
-            break;
-        case 1:
-            hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
-            break;
-    }
-    switch (graphs_remaining * 4) {
-        case 8:
             _hj_j += ( (unsigned)hash_block.bytes[7] << 24 ) +
                      ( (unsigned)hash_block.bytes[6] << 16 ) +
                      ( (unsigned)hash_block.bytes[5] << 8 ) +
                      hash_block.bytes[4];
-        case 4:
+        /* Fallthrough */
+        case 1:
+            hash_block.graphs[0] = MVM_string_gi_get_grapheme(tc, &gi);
             _hj_i += ( (unsigned)hash_block.bytes[3] << 24 ) +
                      ( (unsigned)hash_block.bytes[2] << 16 ) +
                      ( (unsigned)hash_block.bytes[1] << 8 ) +
