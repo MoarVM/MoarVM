@@ -1,5 +1,7 @@
 #include "moar.h"
 
+#include "memdebug.h"
+
 /* This allows the dynlex cache to be disabled when bug hunting, if needed. */
 #define MVM_DYNLEX_CACHE_ENABLED 1
 
@@ -223,6 +225,8 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     frame = (MVMFrame *)stack->alloc;
     stack->alloc += sizeof(MVMFrame);
     memset(frame, 0, sizeof(MVMFrame));
+
+    VALGRIND_HG_CLEAN_MEMORY(stack->alloc - sizeof(MVMFrame), sizeof(MVMFrame));
 
     /* Allocate space for lexicals and work area. */
     static_frame_body = &(static_frame->body);

@@ -32,6 +32,8 @@ MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
     al->freelist_spin = 0;
     al->free_at_next_safepoint_overflows = NULL;
 
+    VALGRIND_HG_MUTEX_INIT_POST(&al->freelist_spin, 0);
+
     /* All other places where we use valgrind macros are very likely
      * thrown out by dead code elimination. Not 100% sure about this,
      * so we ifdef it out. */
@@ -45,6 +47,8 @@ MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
 
 void MVM_fixed_size_destroy(MVMFixedSizeAlloc *al) {
     int bin_no;
+
+    VALGRIND_HG_MUTEX_DESTROY_PRE(&al->freelist_spin);
 
     for (bin_no = 0; bin_no < MVM_FSA_BINS; bin_no++) {
         int page_no;
@@ -154,18 +158,22 @@ void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t 
              * addition to the atomic operations: the atomics allow us to add
              * to the free list in a lock-free way, and the lock allows us to
              * avoid the ABA issue we'd have with only the atomics. */
+            VALGRIND_HG_MUTEX_LOCK_PRE(&al->freelist_spin, 0);
             while (!MVM_trycas(&(al->freelist_spin), 0, 1)) {
                 MVMint32 i = 0;
                 while (i < 1024)
                     i++;
             }
+            VALGRIND_HG_MUTEX_LOCK_POST(&al->freelist_spin);
             do {
                 fle = bin_ptr->free_list;
                 if (!fle)
                     break;
             } while (!MVM_trycas(&(bin_ptr->free_list), fle, fle->next));
             MVM_barrier();
+            VALGRIND_HG_MUTEX_UNLOCK_PRE(&al->freelist_spin);
             al->freelist_spin = 0;
+            VALGRIND_HG_MUTEX_UNLOCK_POST(&al->freelist_spin);
         }
         else {
             /* Single-threaded; just take it. */
@@ -230,6 +238,8 @@ void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t byt
     if (bin < MVM_FSA_BINS) {
         /* Add to freelist chained through a bin. */
         add_to_bin_freelist(tc, al, bin, to_free);
+        /* Tell valgrind to forget everything about this piece of memory */
+        VALGRIND_HG_CLEAN_MEMORY(to_free, bytes);
     }
     else {
         /* Was malloc'd due to being oversize, so just free it. */
