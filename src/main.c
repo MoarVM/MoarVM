@@ -204,7 +204,9 @@ int wmain(int argc, wchar_t *wargv[])
     /* Ignore SIGPIPE by default, since we error-check reads/writes. This does
      * not prevent users from setting up their own signal handler for SIGPIPE,
      * which will take precedence over this ignore. */
+#ifndef _WIN32
     signal(SIGPIPE, SIG_IGN);
+#endif
 
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);
