@@ -992,13 +992,13 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
             });
             });
         }
-    }
 
-    /* Start any output readers. */
-    if (stdout_pipe)
-        uv_read_start((uv_stream_t *)stdout_pipe, on_alloc, stdout_cb);
-    if (stderr_pipe)
-        uv_read_start((uv_stream_t *)stderr_pipe, on_alloc, stderr_cb);
+        /* Start any output readers. */
+        if (stdout_pipe)
+            uv_read_start((uv_stream_t *)stdout_pipe, on_alloc, stdout_cb);
+        if (stderr_pipe)
+            uv_read_start((uv_stream_t *)stderr_pipe, on_alloc, stderr_cb);
+    }
 }
 
 /* On cancel, kill the process. */
