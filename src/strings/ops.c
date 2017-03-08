@@ -397,6 +397,7 @@ static MVMint32 final_strand_matches(MVMThreadContext *tc, MVMString *a, MVMStri
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString *result;
     MVMuint32  agraphs, bgraphs;
+    MVMuint64  total_graphs;
 
     MVM_string_check_arg(tc, a, "concatenate");
     MVM_string_check_arg(tc, b, "concatenate");
@@ -409,6 +410,13 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     if (bgraphs == 0)
         return a;
 
+    /* Total size of the resulting string can't be bigger than an MVMString is allowed to be. */
+    total_graphs = (MVMuint64)agraphs + (MVMuint64)bgraphs;
+    if (total_graphs > 0xFFFFFFFF)
+        MVM_exception_throw_adhoc(tc,
+            "Can't concatenate strings, required number of graphemes %llu > max allowed of %lu",
+             total_graphs, 0xFFFFFFFF);
+
     /* Otherwise, we'll assemble a result string. */
     MVMROOT(tc, a, {
     MVMROOT(tc, b, {
@@ -416,7 +424,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
 
         /* Total graphemes is trivial; just total up inputs. */
-        result->body.num_graphs = agraphs + bgraphs;
+        result->body.num_graphs = (MVMuint32)total_graphs;
 
         /* Result string will be made of strands. */
         result->body.storage_type = MVM_STRING_STRAND;
@@ -491,6 +499,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
 MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count) {
     MVMString *result;
     MVMuint32  agraphs;
+    MVMuint64  total_graphs;
 
     MVM_string_check_arg(tc, a, "repeat");
 
@@ -508,6 +517,13 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     agraphs = MVM_string_graphs(tc, a);
     if (agraphs == 0)
         return tc->instance->str_consts.empty;
+
+    /* Total size of the resulting string can't be bigger than an MVMString is allowed to be. */
+    total_graphs = (MVMuint64)agraphs * (MVMuint64)count;
+    if (total_graphs > 0xFFFFFFFF)
+        MVM_exception_throw_adhoc(tc,
+            "Can't repeat string, required number of graphemes %llu > max allowed of %lu",
+             total_graphs, 0xFFFFFFFF);
 
     /* Now build a result string with the repetition set. */
     MVMROOT(tc, a, {
