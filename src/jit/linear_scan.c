@@ -36,7 +36,7 @@ static inline MVMuint32 FFS(MVMuint32 x) {
     MVMuint32 i = 0;
     if (_BitScanForward(&i, x) == 0)
         return 0;
-    return i;
+    return i + 1;
 }
 #else
 /* fallback, note that i=0 if no bits are set */
