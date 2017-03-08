@@ -32,7 +32,7 @@ static const MVMint64 NVR_GPR_BITMAP = MVM_JIT_ARCH_NONVOLATILE_GPR(SHIFT);
 /* also works for clang and friends */
 #define FFS(x) __builtin_ffs(x)
 #elif defined(_MSC_VER)
-static inline MVMuint32 FFS(MVMuint32 x) {
+MVM_STATIC_INLINE MVMuint32 FFS(MVMuint32 x) {
     MVMuint32 i = 0;
     if (_BitScanForward(&i, x) == 0)
         return 0;
@@ -40,7 +40,7 @@ static inline MVMuint32 FFS(MVMuint32 x) {
 }
 #else
 /* fallback, note that i=0 if no bits are set */
-static inline MVMuint32 FFS(MVMuint32 x) {
+MVM_STATIC_INLINE MVMuint32 FFS(MVMuint32 x) {
     MVMuint32 i = 0;
     while (x) {
         if (x & (1 << i++))
@@ -122,28 +122,28 @@ typedef struct {
  * end just after one (storing the produced value). Without this, ordering
  * problems can cause two 'atomic' live ranges to be allocated and expired
  * before their actual last use */
-static inline MVMint32 order_nr(MVMint32 tile_idx) {
+MVM_STATIC_INLINE MVMint32 order_nr(MVMint32 tile_idx) {
     return tile_idx * 2;
 }
 
 /* quick accessors for common checks */
-static inline MVMint32 first_ref(LiveRange *r) {
+MVM_STATIC_INLINE MVMint32 first_ref(LiveRange *r) {
     MVMint32 a = r->first == NULL        ? INT32_MAX : order_nr(r->first->tile_idx);
     MVMint32 b = r->synthetic[0] == NULL ? INT32_MAX : order_nr(r->synth_pos[0]) - 1;
     return MIN(a,b);
 }
 
-static inline MVMint32 last_ref(LiveRange *r) {
+MVM_STATIC_INLINE MVMint32 last_ref(LiveRange *r) {
     MVMint32 a = r->last == NULL         ? -1 : order_nr(r->last->tile_idx);
     MVMint32 b = r->synthetic[1] == NULL ? -1 : order_nr(r->synth_pos[1]) + 1;
     return MAX(a,b);
 }
 
-static inline MVMint32 is_definition(ValueRef *v) {
+MVM_STATIC_INLINE MVMint32 is_definition(ValueRef *v) {
     return (v->value_idx == 0);
 }
 
-static inline MVMint32 is_arglist_ref(MVMJitTileList *list, ValueRef *v) {
+MVM_STATIC_INLINE MVMint32 is_arglist_ref(MVMJitTileList *list, ValueRef *v) {
     return (list->items[v->tile_idx]->op == MVM_JIT_ARGLIST);
 }
 
@@ -155,7 +155,7 @@ MVMint32 live_range_init(RegisterAllocator *alc) {
     return idx;
 }
 
-static inline MVMint32 live_range_is_empty(LiveRange *range) {
+MVM_STATIC_INLINE MVMint32 live_range_is_empty(LiveRange *range) {
     return (range->first == NULL &&
             range->synthetic[0] == NULL &&
             range->synthetic[1] == NULL);
@@ -259,7 +259,7 @@ MVMint32 value_set_union(UnionFind *sets, LiveRange *values, MVMint32 a, MVMint3
 }
 
 
-static inline void heap_swap(MVMint32 *heap, MVMint32 a, MVMint32 b) {
+MVM_STATIC_INLINE void heap_swap(MVMint32 *heap, MVMint32 a, MVMint32 b) {
     MVMint32 t = heap[a];
     heap[a]    = heap[b];
     heap[b]    = t;
