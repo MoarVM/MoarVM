@@ -504,6 +504,7 @@ So in fact, splitting implies:
 - and spill the necessary registers.
 
 (When do we actually need this?)
+
 *** TODO Precoloring
 
 Comes down to:
@@ -680,13 +681,13 @@ always 2*tile index. So we could compare the order_nr with
 and, to properly deal with special use requirements as well as special
 compiled tiles, we include the tile of the start of the list in that.
 
-*** TODO Support query for live-range-in-register
+*** DONE Support query for live-range-in-register
 
 Specifically needed to support ejecting a live range from a register.
 Can be done by building a map; can also be done by looping through the
 active set. Depends a bit on the actual frequency of this happening.
 
-*** TODO Use list of storage references to compile code for ARGLIST
+*** DONE Use list of storage references to compile code for ARGLIST
 
 - Requires the ability to eject values from their registers
   - and as such a map of register -> live range
@@ -735,24 +736,45 @@ and a reverse dependency map. (Good bit; there can be only on
 'dependent' value / register per value, even as it may itself depend
 on multiple others before it can be ejected).
 
-So:
-#+BEGIN_SRC C
-
-
-
-#+END_SRC
-
 We can insert the refs to 'just before the CALL', i.e. insert_pos =
 arglist_tile_idx + 1, insert_order = 2..(n+2)
 
 It is probably a good idea to consume both CALL and ARGLIST at the
 same time, and die if they do not follow each other.
 
-*** TODO Spill live values over the CALL function
+We need to do two more things:
++ spill live ranges that will survive this call
+  + annyoing bit; we have `spill_live_range` already;
+  + we could have 'active_set_spill` (but why)
++ resolve conflicts between any CALL and ARGLIST nodes
+  + use a bitmap to find conflicts and move values to a free registers:
+  + conflict = arg_bitmap & call_bitmap
+  + free_reg = ~(arg_bitmap | call_bitmap | NVR_GPR_BITMAP)
++ reserve registers used in the call node
+
+*** DONE Spill live values over the CALL function
 
 - things that are live only for the ARGLIST are expired in or after
   the generation of ARGLIST code, so everything that's still in the
   active set ought to be spilled.
+
+*** TODO Implement code emitter primitives
+
++ insert_register_move
++ insert_copy_to_stack
++ insert_memory_to_stack_copy
++ insert_register_load - we have that one, actually
+
+These ought to be order-sensitive, e.g. the stack stores go before the
+register moves which go before the memory-to-stack-copy, and CALL args
+shuffling comes before that.
+
+*** TODO Safely deal with CALL args being spilled
+
++ CALL nodes may take some values
++ Those values may be spilled
++ If they're spilled, a LOAD will be inserted prior to their use
++ If that load would be inserted between the ARGLIST and the CALL
 
 * TODO Optimizer
 

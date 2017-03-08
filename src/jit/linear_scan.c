@@ -20,18 +20,42 @@ static const MVMint64 NVR_GPR_BITMAP = MVM_JIT_ARCH_NONVOLATILE_GPR(SHIFT);
 #define MAX_ACTIVE sizeof(available_gpr)
 #define NYI(x) MVM_oops(tc, #x  "not yet implemented")
 
-typedef struct {
-    MVMint32 key;
-    MVMint32 idx;
-} UnionFind;
-
-
 #ifdef MVM_JIT_DEBUG
 #define _DEBUG(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define _DEBUG(...) do {} while(0)
 #endif
 
+/* Efficient find-first-set; on x86, using `bsf` primitive operation; something
+ * else on other architectures. */
+#ifdef __GNUC__
+/* also works for clang and friends */
+#define FFS(x) __builtin_ffs(x)
+#elif defined(_MSC_VER)
+static inline MVMuint32 FFS(MVMuint32 x) {
+    MVMuint32 i = 0;
+    if (_BitScanForward(&i, x) == 0)
+        return 0;
+    return i;
+}
+#else
+/* fallback, note that i=0 if no bits are set */
+static inline MVMuint32 FFS(MVMuint32 x) {
+    MVMuint32 i = 0;
+    while (x) {
+        if (x & (1 << i++))
+            break;
+    }
+    return i;
+}
+#endif
+
+
+
+typedef struct {
+    MVMint32 key;
+    MVMint32 idx;
+} UnionFind;
 
 typedef struct ValueRef ValueRef;
 struct ValueRef {
@@ -39,6 +63,7 @@ struct ValueRef {
     MVMint32  value_idx;
     ValueRef *next;
 };
+
 
 typedef struct {
     /* double-ended queue of value refs */
@@ -58,8 +83,6 @@ typedef struct {
 } LiveRange;
 
 
-
-
 typedef struct {
     MVMJitCompiler *compiler;
 
@@ -76,8 +99,6 @@ typedef struct {
     /* 'Currently' active values */
     MVMint32 active_top;
     MVMint32 active[MAX_ACTIVE];
-
-
 
     /* Values still left to do (heap) */
     MVM_VECTOR_DECL(MVMint32, worklist);
@@ -158,6 +179,7 @@ static void live_range_add_ref(RegisterAllocator *alc, LiveRange *range, MVMint3
     ref->next   = NULL;
 }
 
+
 /* merge value ref sets */
 static void live_range_merge(LiveRange *a, LiveRange *b) {
     ValueRef *head = NULL, *tail = NULL;
@@ -209,7 +231,6 @@ static void live_range_merge(LiveRange *a, LiveRange *b) {
 }
 
 
-
 UnionFind * value_set_find(UnionFind *sets, MVMint32 key) {
     while (sets[key].key != key) {
         key = sets[key].key;
@@ -217,8 +238,8 @@ UnionFind * value_set_find(UnionFind *sets, MVMint32 key) {
     return sets + key;
 }
 
-MVMint32 value_set_union(UnionFind *sets, LiveRange *values, MVMint32 a, MVMint32 b) {
 
+MVMint32 value_set_union(UnionFind *sets, LiveRange *values, MVMint32 a, MVMint32 b) {
     /* dereference the sets to their roots */
     a = value_set_find(sets, a)->key;
     b = value_set_find(sets, b)->key;
@@ -583,47 +604,63 @@ static void spill_any_register(MVMThreadContext *tc, RegisterAllocator *alc, MVM
 #define MAX_NUMARG 16
 
 static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
-                                     MVMJitTile *arglist_tile, MVMJitTile *call_tile, MVMint32 call_order_nr) {
-    MVMint8 register_map[MVM_JIT_ARCH_NUM_GPR];
-    MVMJitStorageRef storage_refs[16];
+                                     MVMint32 arglist_idx, MVMint32 call_idx) {
+    MVMJitTile *arglist_tile = list->items[arglist_idx],
+                  *call_tile = list->items[call_idx];
     MVMJitExprTree *tree = list->tree;
     MVMint32 num_args = tree->nodes[arglist_tile->node + 1];
-    MVMint32 arg_values[16];
+    MVMint32           arg_values[16];
+    MVMJitStorageRef storage_refs[16];
+
+    MVMint8 register_map[MVM_JIT_ARCH_NUM_GPR];
     struct {
         MVMint8 dep; /* the value which wants to inhabit my dependency */
         MVMint8 num; /* how many values need to make room for me */
     } rev_map[MVM_JIT_ARCH_NUM_GPR]; /* reverse map for topological sort of moves */
+
     struct {
         MVMint8 reg_num;
         MVMint8 stack_pos;
     } stack_transfer[16];
-    MVMint8 transfer_queue[16];
-    MVMint8 spilled_args[16];
-    MVMint32 transfer_queue_idx, stack_transfer_top = 0, transfer_queue_top = 0, spilled_args_top = 0, transfers_required = 0;
-    MVMint32 i;
-    MVMint8 spare_register = 0; /* this would actually work... strangely enough */
+    MVMint32 stack_transfer_top = 0;
 
-    /* get storage nodes */
+    MVMint8 transfer_queue[16];
+    MVMint32 transfer_queue_idx, transfer_queue_top = 0, transfers_required = 0;
+
+    MVMint8 spilled_args[16];
+    MVMint32 spilled_args_top = 0;
+
+    MVMuint32 call_bitmap = 0, arg_bitmap = 0;
+
+    /* this would actually work because %rax = = 0 = the spare register available, but we'd prefer something more  */
+    MVMint8 spare_register = 0;
+
+    MVMint32 i;
+
+    /* get storage positions for arglist */
     MVM_jit_arch_storage_for_arglist(tc, alc->compiler, tree, arglist_tile->node, storage_refs);
 
-    /* I'm not 100% sure this is going to be a generally useful mechanism, and it's just as easy to build in here */
-    memset(register_map, -1, sizeof(register_map));
-    for (i = 0; i < alc->active_top; i++) {
-        MVMint32 v = alc->active[i];
-        MVMint8  r = alc->values[v].reg_num;
-        register_map[r] = v;
-        if (last_ref(alc->values + v) > call_order_nr) {
-            /* it survives this call, so it must be spilled */
-            MVMint32 spill_pos  = select_memory_for_spill(tc, alc, list, call_order_nr, sizeof(MVMRegister));
-        }
-    }
-
-    /* get value refs */
+    /* get value refs for arglist */
     for (i = 0; i < num_args; i++) {
         MVMint32 carg  = tree->nodes[arglist_tile->node + 2 + i];
         arg_values[i] = value_set_find(alc->sets, tree->nodes[carg + 1])->idx; /* may refer to spilled live range */
     }
 
+
+    /* compute map */
+    memset(register_map, -1, sizeof(register_map));
+    for (i = 0; i < alc->active_top; i++) {
+        MVMint32 v = alc->active[i];
+        MVMint8  r = alc->values[v].reg_num;
+        register_map[r] = v;
+        if (last_ref(alc->values + v) > order_nr(call_idx)) {
+            /* this one survives, so spill it */
+            MVMint32 spill_pos = select_memory_for_spill(tc, alc, list, order_nr(arglist_idx), sizeof(MVMRegister));
+            live_range_spill(tc, alc, list, v, spill_pos, order_nr(arglist_idx));
+        }
+    }
+
+    /* Basic idea is to do a topological sort; */
     memset(rev_map, 0, sizeof(rev_map));
     for (i = 0; i < num_args; i++) {
         LiveRange *v = alc->values + arg_values[i];
@@ -657,6 +694,44 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
             rev_map[v->reg_num].num++;
         } else {
             NYI(this_storage_class);
+        }
+
+        /* set bitmap */
+        if (storage_refs[i]._cls = MVM_JIT_STORAGE_GPR) {
+            MVMint8 reg_num = storage_refs[i]._pos;
+            arg_bitmap |= (1 << reg_num);
+        }
+    }
+
+
+
+    /* resolve conflicts for CALL; since we're spilling any surviving bits,
+     * we can just move it to any free registers. */
+    for (i = 1; i < call_tile->num_refs; i++) {
+        MVMint8 spec = MVM_JIT_REGISTER_FETCH(call_tile->register_spec, i);
+        if (MVM_JIT_REGISTER_IS_USED(spec)) {
+            MVMint8 reg = call_tile->args[i];
+            call_bitmap |= (1 << reg);
+        }
+    }
+
+    while (call_bitmap & arg_bitmap) {
+        MVMuint32 free_reg = ~(call_bitmap | arg_bitmap | NVR_GPR_BITMAP);
+        /* FFS counts registers starting from 1 */
+        MVMuint8 src = FFS(call_bitmap & arg_bitmap) - 1;
+        MVMuint8 dst = FFS(free_reg) - 1;
+        if (!free_reg) {
+            MVM_panic(0, "JIT: need to move a register but nothing is free");
+        }
+        insert_register_move(tc, alc, dst, src);
+        /* update bitmap */
+        call_bitmap = call_bitmap & ~(1 << src) | (1 << dst);
+
+        /* update CALL args */
+        for (i = 1; i < call_tile->num_refs; i++) {
+            if (call_tile->args[i] == src) {
+                call_tile->args[i] = dst;
+            }
         }
     }
 
@@ -714,6 +789,14 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
             NYI(storage_classs);
         }
     }
+
+    /* free all registers, none of them survice CALL because we don't allocate
+     * to register allocators */
+    while (alc->active_top--) {
+        MVMint32 v = alc->active[alc->active_top];
+        free_register(tc, alc, MVM_JIT_STORAGE_GPR, alc->values[v].reg_num);
+    }
+
 }
 
 
@@ -735,12 +818,12 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
         for (; order_nr(tile_cursor) <= tile_order_nr; tile_cursor++) {
             MVMJitTile *tile = list->items[tile_cursor];
             if (tile->op == MVM_JIT_ARGLIST) {
-                MVMJitTile *arglist_tile = tile;
-                MVMJitTile *call_tile   = list->items[++tile_cursor];
-                if (call_tile->op != MVM_JIT_CALL) {
+                MVMint32 arglist_idx = tile_cursor;
+                MVMint32 call_idx    = ++tile_cursor;
+                if (list->items[call_idx]->op != MVM_JIT_CALL) {
                     MVM_panic(1, "ARGLIST tiles must be followed by CALL");
                 }
-                prepare_arglist_and_call(tc, alc, list, arglist_tile, call_tile, order_nr(tile_cursor));
+                prepare_arglist_and_call(tc, alc, list, arglist_idx, call_idx);
             } else {
                 /* deal with 'use' registers */
                 for  (i = 1; i < tile->num_refs; i++) {
