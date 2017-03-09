@@ -572,26 +572,84 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
     return MVM_string_substrings_equal_nocheck(tc, a, offset, bgraphs, b, 0);
 }
 
-MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *a, MVMString *b, MVMint64 offset) {
-    MVMString *fca;
-    MVMString *fcb;
-    MVMint64 len_a = MVM_string_graphs(tc, a);
-    MVMint64 len_b = MVM_string_graphs(tc, b);
-    MVMint64 change_a, change_b;
-
-    MVMROOT(tc, a, {
-        MVMROOT(tc, b, {
-            fca = MVM_string_fc(tc, a);
-            MVMROOT(tc, fca, {
-                fcb = MVM_string_fc(tc, b);
+MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 h_offset) {
+    MVMString *haystack_fc;
+    MVMString *needle_fc;
+    MVMint64 h_graphs = MVM_string_graphs(tc, haystack);
+    MVMint64 len_b = MVM_string_graphs(tc, needle);
+    MVMint64 h_change, n_change;
+    MVMGrapheme32 h_g, n_g;
+    MVMint64 i, j;
+    MVMint64 return_val = 1;
+    MVMint64 n_offset = 0;
+    fprintf(stderr, "starting function\n");
+    n_change = MVM_string_graphs(tc, needle_fc) - len_b;
+    if (h_offset < 0) {
+        h_offset += h_graphs;
+        if (h_offset < 0)
+            h_offset = 0; /* XXX I think this is the right behavior here */
+    }
+    if (h_offset >= h_graphs) {
+        fprintf(stderr, "returning 0 because h_offset ≥ h_graphs\n");
+        return 0;
+    }
+    MVMROOT(tc, haystack, {
+        MVMROOT(tc, needle, {
+            haystack_fc = MVM_string_fc(tc, haystack);
+            MVMROOT(tc, haystack_fc, {
+                needle_fc = MVM_string_fc(tc, needle);
             });
         });
     });
-    change_a = MVM_string_graphs(tc, fca) - len_a;
-    change_b = MVM_string_graphs(tc, fcb) - len_b;
+    h_change = MVM_string_graphs(tc, haystack_fc) - h_graphs;
+    if (h_change == 0) {
+        fprintf(stderr, "Using simple route because haystack didn't change length\n");
+        return MVM_string_equal_at(tc, haystack_fc, needle_fc, h_offset);
+    }
+    for (i = 0; i + h_offset < h_graphs && i + n_offset < len_b; i++) {
+        const MVMCodepoint *h_result_cps;
+        h_g = MVM_string_get_grapheme_at_nocheck(tc, haystack, h_offset + i);
+        MVMuint32 h_fc_cps = MVM_unicode_get_case_change(tc, h_g, MVM_unicode_case_change_type_fold, &h_result_cps);
+        fprintf(stderr, "h_fc_cps=%i first loop i=%li\n", h_fc_cps, i);
+        if (h_fc_cps == 0) {
+            n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
+            if (h_g != n_g) {
+                fprintf(stderr, "614 in first for loop h_g[%i] != n_g[%i] j=%li\n", h_g, n_g, j);
+                return_val = 0;
+                break;
+            }
+        }
+        else if (h_fc_cps == 1) {
+            n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
+            fprintf(stderr, "621 h_result_cp[0]=%li\n", h_result_cps[0]);
+            if (h_result_cps[0] != n_g) {
+                fprintf(stderr, "623 in first for loop h_g[%i] != n_g[%i] j=%li\n", h_g, n_g, j);
+                return_val = 0;
+                break;
+            }
+        }
+        else if (h_fc_cps > 1) {
+            fprintf(stderr, "h_fc_cps=%li\n", h_fc_cps);
+            for (j = 0; j < h_fc_cps && h_fc_cps; j++) {
+                n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
+                h_g = h_result_cps[j];
+                if (h_g != n_g) {
+                    fprintf(stderr, "634 in second for loop h_g[%i] != n_g[%i] j=%li\n", h_g, n_g, j);
+                    return_val = 0;
+                    break;
+                }
+                n_offset++;
+            }
+            fprintf(stderr, "640 h_result_cps[0]=%li h_result_cps[1]=%li\n", h_result_cps[0], h_result_cps[1]);
 
-    if (change_a == 0 && change_b == 0) {
-        return MVM_string_equal_at(tc, fca, fcb, offset);
+        }
+    }
+    return return_val;
+    /*
+    change_a = MVM_string_graphs(tc, haystack_fc) - h_graphs;
+
+    if (change_a == 0 && n_change == 0) {
+        return MVM_string_equal_at(tc, haystack_fc, needle_fc, h_offset);
     }
     if (change_a > 0) {
         MVMint64 counter = 0;
@@ -600,13 +658,16 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *a, MVM
          * Although it shouldn't be possible to overrun the string unless the
          * last cp of `a` expands to itself + another cp, ensure we don't go past
          * the length of the original string */
-        while (MVM_string_substrings_equal_nocheck(tc, a, counter, 1, fca, 0) && counter < len_a) {
+        /*while (MVM_string_substrings_equal_nocheck(tc, a, counter, 1, haystack_fc, 0) && counter < h_graphs) {
             counter++;
         }
-        if (offset > counter)
+        /* If the string changes before the offset we're checking, we have
+         * to adjust our offset. If the string changes *after* the offset we
+         * are checking, then the offset is unchanged */
+        /*if (offset > counter)
             offset += change_a;
     }
-    return MVM_string_equal_at(tc, fca, fcb, offset);
+    return MVM_string_equal_at(tc, haystack_fc, needle_fc, offset);*/
 }
 
 MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
