@@ -647,29 +647,6 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
         }
     }
     return return_val;
-    /*
-    change_a = MVM_string_graphs(tc, haystack_fc) - h_graphs;
-
-    if (change_a == 0 && n_change == 0) {
-        return MVM_string_equal_at(tc, haystack_fc, needle_fc, h_offset);
-    }
-    if (change_a > 0) {
-        MVMint64 counter = 0;
-        /* Find the point where the case-folded string and the original string
-         * contain different characters
-         * Although it shouldn't be possible to overrun the string unless the
-         * last cp of `a` expands to itself + another cp, ensure we don't go past
-         * the length of the original string */
-        /*while (MVM_string_substrings_equal_nocheck(tc, a, counter, 1, haystack_fc, 0) && counter < h_graphs) {
-            counter++;
-        }
-        /* If the string changes before the offset we're checking, we have
-         * to adjust our offset. If the string changes *after* the offset we
-         * are checking, then the offset is unchanged */
-        /*if (offset > counter)
-            offset += change_a;
-    }
-    return MVM_string_equal_at(tc, haystack_fc, needle_fc, offset);*/
 }
 
 MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
