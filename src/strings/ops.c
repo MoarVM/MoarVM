@@ -573,14 +573,19 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
 }
 
 MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 h_offset) {
-    MVMString *haystack_fc;
+    /* foldcase versions of needle */
     MVMString *needle_fc;
     MVMStringIndex h_graphs = MVM_string_graphs(tc, haystack);
     MVMStringIndex n_graphs = MVM_string_graphs(tc, needle);
-    MVMStringIndex h_change, n_change;
+    /* Difference in length before and after foldcase. Foldcase can sometimes
+     * increase the number of codepoints. */
+    /* Store the grapheme as we iterate through the haystack */
     MVMGrapheme32 h_g, n_g;
     MVMint64 i, j;
     MVMint64 return_val = 1;
+    /* An additional needle offset which is used only when codepoints expand
+     * when casefolded. The offset is the number of additional codepoints that
+     * have been seen so haystack and needle stay aligned */
     MVMint64 n_offset = 0;
     fprintf(stderr, "starting function\n");
     if (h_offset < 0) {
@@ -593,26 +598,17 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
         return 0;
     }
     MVMROOT(tc, haystack, {
-        MVMROOT(tc, needle, {
-            haystack_fc = MVM_string_fc(tc, haystack);
-            MVMROOT(tc, haystack_fc, {
-                needle_fc = MVM_string_fc(tc, needle);
-                MVMROOT(tc, needle_fc, {
-                    n_change = MVM_string_graphs(tc, needle_fc) - n_graphs;
-                });
-            });
+        MVMROOT(tc, needle_fc, {
+            needle_fc = MVM_string_fc(tc, needle);
         });
     });
-    h_change = MVM_string_graphs(tc, haystack_fc) - h_graphs;
-    if (h_change == 0) {
-        fprintf(stderr, "Using simple route because haystack didn't change length\n");
-        return MVM_string_equal_at(tc, haystack_fc, needle_fc, h_offset);
-    }
+
     for (i = 0; i + h_offset < h_graphs && i + n_offset < n_graphs; i++) {
         const MVMCodepoint *h_result_cps;
         h_g = MVM_string_get_grapheme_at_nocheck(tc, haystack, h_offset + i);
         MVMuint32 h_fc_cps = MVM_unicode_get_case_change(tc, h_g, MVM_unicode_case_change_type_fold, &h_result_cps);
         fprintf(stderr, "h_fc_cps=%i first loop i=%li\n", h_fc_cps, i);
+        /* If we get 0 for the number that means the cp doesn't change when casefolded */
         if (h_fc_cps == 0) {
             n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
             if (h_g != n_g) {
@@ -620,7 +616,7 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
                 return_val = 0;
                 break;
             }
-        }
+        }/*
         else if (h_fc_cps == 1) {
             n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
             fprintf(stderr, "621 h_result_cp[0]=%li\n", h_result_cps[0]);
@@ -629,10 +625,10 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
                 return_val = 0;
                 break;
             }
-        }
-        else if (h_fc_cps > 1) {
+        }*/
+        else if (h_fc_cps >= 1) {
             fprintf(stderr, "h_fc_cps=%li\n", h_fc_cps);
-            for (j = 0; j < h_fc_cps && h_fc_cps; j++) {
+            for (j = 0; j < h_fc_cps; j++) {
                 n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
                 h_g = h_result_cps[j];
                 if (h_g != n_g) {
