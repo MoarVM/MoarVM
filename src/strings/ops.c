@@ -575,15 +575,14 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
 MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 h_offset) {
     MVMString *haystack_fc;
     MVMString *needle_fc;
-    MVMint64 h_graphs = MVM_string_graphs(tc, haystack);
-    MVMint64 len_b = MVM_string_graphs(tc, needle);
-    MVMint64 h_change, n_change;
+    MVMStringIndex h_graphs = MVM_string_graphs(tc, haystack);
+    MVMStringIndex n_graphs = MVM_string_graphs(tc, needle);
+    MVMStringIndex h_change, n_change;
     MVMGrapheme32 h_g, n_g;
     MVMint64 i, j;
     MVMint64 return_val = 1;
     MVMint64 n_offset = 0;
     fprintf(stderr, "starting function\n");
-    n_change = MVM_string_graphs(tc, needle_fc) - len_b;
     if (h_offset < 0) {
         h_offset += h_graphs;
         if (h_offset < 0)
@@ -598,6 +597,9 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
             haystack_fc = MVM_string_fc(tc, haystack);
             MVMROOT(tc, haystack_fc, {
                 needle_fc = MVM_string_fc(tc, needle);
+                MVMROOT(tc, needle_fc, {
+                    n_change = MVM_string_graphs(tc, needle_fc) - n_graphs;
+                });
             });
         });
     });
@@ -606,7 +608,7 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
         fprintf(stderr, "Using simple route because haystack didn't change length\n");
         return MVM_string_equal_at(tc, haystack_fc, needle_fc, h_offset);
     }
-    for (i = 0; i + h_offset < h_graphs && i + n_offset < len_b; i++) {
+    for (i = 0; i + h_offset < h_graphs && i + n_offset < n_graphs; i++) {
         const MVMCodepoint *h_result_cps;
         h_g = MVM_string_get_grapheme_at_nocheck(tc, haystack, h_offset + i);
         MVMuint32 h_fc_cps = MVM_unicode_get_case_change(tc, h_g, MVM_unicode_case_change_type_fold, &h_result_cps);
