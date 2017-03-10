@@ -587,7 +587,6 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
      * when casefolded. The offset is the number of additional codepoints that
      * have been seen so haystack and needle stay aligned */
     MVMint64 n_offset = 0;
-    fprintf(stderr, "starting function\n");
     if (h_offset < 0) {
         h_offset += h_graphs;
         if (h_offset < 0)
@@ -595,10 +594,9 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
     }
     /* If the offset is greater or equal to the number of haystack graphemes
      * return 0 */
-    if (h_offset >= h_graphs) {
-        fprintf(stderr, "returning 0 because h_offset ≥ h_graphs\n");
+    if (h_offset >= h_graphs)
         return 0;
-    }
+
     MVMROOT(tc, haystack, {
         MVMROOT(tc, needle_fc, {
             needle_fc = MVM_string_fc(tc, needle);
@@ -609,29 +607,21 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
         const MVMCodepoint *h_result_cps;
         h_g = MVM_string_get_grapheme_at_nocheck(tc, haystack, h_offset + i);
         MVMuint32 h_fc_cps = MVM_unicode_get_case_change(tc, h_g, MVM_unicode_case_change_type_fold, &h_result_cps);
-        fprintf(stderr, "h_fc_cps=%i first loop i=%li\n", h_fc_cps, i);
         /* If we get 0 for the number that means the cp doesn't change when casefolded */
         if (h_fc_cps == 0) {
             n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
-            if (h_g != n_g) {
-                fprintf(stderr, "618 in first for loop h_g[%i] != n_g[%i] j=%li\n", h_g, n_g, j);
+            if (h_g != n_g)
                 return 0;
-            }
         }
         else if (h_fc_cps >= 1) {
-            fprintf(stderr, "h_fc_cps=%li\n", h_fc_cps);
             for (j = 0; j < h_fc_cps; j++) {
                 n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
                 h_g = h_result_cps[j];
-                if (h_g != n_g) {
-                    fprintf(stderr, "629 in second for loop h_g[%i] != n_g[%i] j=%li\n", h_g, n_g, j);
+                if (h_g != n_g)
                     return 0;
-                }
                 n_offset++;
             }
             n_offset--;
-            fprintf(stderr, "635 h_result_cps[0]=%li h_result_cps[1]=%li\n", h_result_cps[0], h_result_cps[1]);
-
         }
     }
     return 1;
