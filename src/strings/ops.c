@@ -571,18 +571,18 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
         return 0;
     return MVM_string_substrings_equal_nocheck(tc, a, offset, bgraphs, b, 0);
 }
-
+/* Checks if needle exists at the offset, but ignores case
+ * Sometimes there is a difference in length of a string before and after foldcase,
+ * because of this we must compare this differently than just foldcasing both
+ * strings to ensure the offset is correct */
 MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 h_offset) {
-    /* foldcase versions of needle */
+    /* foldcase version of needle */
     MVMString *needle_fc;
     MVMStringIndex h_graphs = MVM_string_graphs(tc, haystack);
     MVMStringIndex n_graphs = MVM_string_graphs(tc, needle);
-    /* Difference in length before and after foldcase. Foldcase can sometimes
-     * increase the number of codepoints. */
     /* Store the grapheme as we iterate through the haystack */
     MVMGrapheme32 h_g, n_g;
     MVMint64 i, j;
-    MVMint64 return_val = 1;
     /* An additional needle offset which is used only when codepoints expand
      * when casefolded. The offset is the number of additional codepoints that
      * have been seen so haystack and needle stay aligned */
@@ -593,6 +593,8 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
         if (h_offset < 0)
             h_offset = 0; /* XXX I think this is the right behavior here */
     }
+    /* If the offset is greater or equal to the number of haystack graphemes
+     * return 0 */
     if (h_offset >= h_graphs) {
         fprintf(stderr, "returning 0 because h_offset ≥ h_graphs\n");
         return 0;
@@ -612,37 +614,27 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
         if (h_fc_cps == 0) {
             n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
             if (h_g != n_g) {
-                fprintf(stderr, "614 in first for loop h_g[%i] != n_g[%i] j=%li\n", h_g, n_g, j);
-                return_val = 0;
-                break;
+                fprintf(stderr, "618 in first for loop h_g[%i] != n_g[%i] j=%li\n", h_g, n_g, j);
+                return 0;
             }
-        }/*
-        else if (h_fc_cps == 1) {
-            n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
-            fprintf(stderr, "621 h_result_cp[0]=%li\n", h_result_cps[0]);
-            if (h_result_cps[0] != n_g) {
-                fprintf(stderr, "623 in first for loop h_g[%i] != n_g[%i] j=%li\n", h_g, n_g, j);
-                return_val = 0;
-                break;
-            }
-        }*/
+        }
         else if (h_fc_cps >= 1) {
             fprintf(stderr, "h_fc_cps=%li\n", h_fc_cps);
             for (j = 0; j < h_fc_cps; j++) {
                 n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
                 h_g = h_result_cps[j];
                 if (h_g != n_g) {
-                    fprintf(stderr, "634 in second for loop h_g[%i] != n_g[%i] j=%li\n", h_g, n_g, j);
-                    return_val = 0;
-                    break;
+                    fprintf(stderr, "629 in second for loop h_g[%i] != n_g[%i] j=%li\n", h_g, n_g, j);
+                    return 0;
                 }
                 n_offset++;
             }
-            fprintf(stderr, "640 h_result_cps[0]=%li h_result_cps[1]=%li\n", h_result_cps[0], h_result_cps[1]);
+            n_offset--;
+            fprintf(stderr, "635 h_result_cps[0]=%li h_result_cps[1]=%li\n", h_result_cps[0], h_result_cps[1]);
 
         }
     }
-    return return_val;
+    return 1;
 }
 
 MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
