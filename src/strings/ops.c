@@ -198,7 +198,6 @@ MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadContext *tc, MVMString
 
 /* Returns the location of one string in another or -1  */
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
-    MVMint64 result        = -1;
     size_t index           = (size_t)start;
     MVMStringIndex hgraphs = MVM_string_graphs(tc, haystack), ngraphs = MVM_string_graphs(tc, needle);
 
@@ -220,12 +219,11 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
     /* brute force for now. horrible, yes. halp. */
     while (index <= hgraphs - ngraphs) {
         if (MVM_string_substrings_equal_nocheck(tc, needle, 0, ngraphs, haystack, index)) {
-            result = (MVMint64)index;
-            break;
+            return (MVMint64)index;
         }
         index++;
     }
-    return result;
+    return -1;
 }
 
 /* Returns the location of one string in another or -1  */
