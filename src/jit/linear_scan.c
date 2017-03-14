@@ -13,6 +13,7 @@ static MVMint8 available_num[] = {
 #define __COMMA__ |
 #define SHIFT(x) (1 << (MVM_JIT_REG(x)))
 static const MVMint64 NVR_GPR_BITMAP = MVM_JIT_ARCH_NONVOLATILE_GPR(SHIFT);
+static const MVMint64 AVAILABLE_GPR_BITMAP = MVM_JIT_ARCH_AVAILABLE_GPR(SHIFT);
 #undef SHIFT
 #undef __COMMA__
 
@@ -511,7 +512,8 @@ static void active_set_splice(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
 static MVMint32 insert_load_before_use(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
                                        ValueRef *ref, MVMint32 load_pos) {
     MVMint32 n = live_range_init(alc);
-    MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_load, -1, 1, load_pos);
+    MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_load, -1, 2,
+                                         MVM_JIT_STORAGE_LOCAL, load_pos);
     MVM_jit_tile_list_insert(tc, list, tile, ref->tile_idx - 1, +1); /* insert just prior to use */
     alc->values[n].synthetic[0] = tile;
     alc->values[n].synth_pos[0] = ref->tile_idx;
@@ -522,7 +524,8 @@ static MVMint32 insert_load_before_use(MVMThreadContext *tc, RegisterAllocator *
 static MVMint32 insert_store_after_definition(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
                                               ValueRef *ref, MVMint32 store_pos) {
     MVMint32 n       = live_range_init(alc);
-    MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_store, -1, 1, store_pos);
+    MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_store, -1, 2,
+                                         MVM_JIT_STORAGE_LOCAL, store_pos);
     MVM_jit_tile_list_insert(tc, list, tile, ref->tile_idx, -1); /* insert just after storage */
     alc->values[n].synthetic[1] = tile;
     alc->values[n].synth_pos[1] = ref->tile_idx;
@@ -603,6 +606,45 @@ static void spill_any_register(MVMThreadContext *tc, RegisterAllocator *alc, MVM
 
 #define MAX_NUMARG 16
 
+static void insert_register_move(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
+                                 MVMint8 dst, MVMint8 src,
+                                 MVMint32 tile_idx, MVMint32 pos) {
+    MVMJitTile *move_tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_move, -1, 0);
+    MVM_jit_tile_list_insert(tc, list, move_tile, tile_idx, pos);
+    move_tile->values[0] = dst;
+    move_tile->values[1] = src;
+}
+
+static void insert_load_local(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
+                              MVMint8 reg_dst, MVMint32 local_src,
+                              MVMint32 tile_idx, MVMint32 pos) {
+    MVMJitTile *load_tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_load, -1, 2,
+                                              MVM_JIT_STORAGE_LOCAL, local_src);
+    MVM_jit_tile_list_insert(tc, list, load_tile, tile_idx, pos);
+    load_tile->values[0] = reg_dst;
+}
+
+
+static void insert_copy_to_stack(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
+                                 MVMint32 stk_dst, MVMint32 reg_src,
+                                 MVMint32 tile_idx, MVMint32 pos) {
+    MVMJitTile *store_tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_store, -1, 2,
+                                               MVM_JIT_STORAGE_STACK, stk_dst);
+    MVM_jit_tile_list_insert(tc, list, store_tile, tile_idx, pos);
+    store_tile->values[1] = reg_src;
+}
+
+static void insert_local_to_stack_copy(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
+                                        MVMint32 stk_dst, MVMint32 local_src, MVMint8 spare_register,
+                                        MVMint32 tile_idx, MVMint32 pos) {
+    MVMJitTile *copy_tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_memory_copy, -1, 4,
+                                              MVM_JIT_STORAGE_LOCAL, local_src,
+                                              MVM_JIT_STORAGE_LOCAL, stk_dst);
+    MVM_jit_tile_list_insert(tc, list, copy_tile, tile_idx, pos);
+    copy_tile->values[1] = spare_register;
+}
+
+
 static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
                                      MVMint32 arglist_idx, MVMint32 call_idx) {
     MVMJitTile *arglist_tile = list->items[arglist_idx],
@@ -632,10 +674,9 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
 
     MVMuint32 call_bitmap = 0, arg_bitmap = 0;
 
-    /* this would actually work because %rax = = 0 = the spare register available, but we'd prefer something more  */
-    MVMint8 spare_register = 0;
+    MVMint8 spare_register;
 
-    MVMint32 i;
+    MVMint32 i, ins_pos = 2;
 
     /* get storage positions for arglist */
     MVM_jit_arch_storage_for_arglist(tc, alc->compiler, tree, arglist_tile->node, storage_refs);
@@ -697,7 +738,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         }
 
         /* set bitmap */
-        if (storage_refs[i]._cls = MVM_JIT_STORAGE_GPR) {
+        if (storage_refs[i]._cls == MVM_JIT_STORAGE_GPR) {
             MVMint8 reg_num = storage_refs[i]._pos;
             arg_bitmap |= (1 << reg_num);
         }
@@ -723,9 +764,9 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         if (!free_reg) {
             MVM_panic(0, "JIT: need to move a register but nothing is free");
         }
-        insert_register_move(tc, alc, dst, src);
+        insert_register_move(tc, alc, list, dst, src, call_idx, ins_pos++);
         /* update bitmap */
-        call_bitmap = call_bitmap & ~(1 << src) | (1 << dst);
+        call_bitmap = call_bitmap & ((~(1 << src)) | (1 << dst));
 
         /* update CALL args */
         for (i = 1; i < call_tile->num_refs; i++) {
@@ -735,10 +776,18 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         }
     }
 
+    /* with call_bitmap and arg_bitmap given, we can determine the spare
+     * register used for allocation; NB this may only be necessary in some
+     * cases */
+    spare_register = FFS(~(call_bitmap | arg_bitmap | NVR_GPR_BITMAP)) - 1;
+    if (spare_register < 0) {
+        MVM_panic(0, "JIT: No spare register for moves");
+    }
+
     for (i = 0; i < stack_transfer_top; i++) {
         MVMint8 reg_num = stack_transfer[i].reg_num;
         MVMint8 stk_pos = stack_transfer[i].stack_pos;
-        insert_copy_to_stack(tc, alc, stk_pos, reg_num);
+        insert_copy_to_stack(tc, alc, list, stk_pos, reg_num, call_idx, ins_pos++);
         if (--(rev_map[reg_num].num) == 0) {
             transfer_queue[transfer_queue_top++] = reg_num;
         }
@@ -747,11 +796,12 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     for (transfer_queue_idx = 0; transfer_queue_idx < transfer_queue_top; transfer_queue_idx++) {
         MVMint8 dst = transfer_queue[transfer_queue_idx];
         MVMint8 src = rev_map[dst].dep;
-        insert_register_move(tc, alc, dst, src);
+        insert_register_move(tc, alc, list, dst, src, call_idx, ins_pos++);
         if (--(rev_map[src].num) == 0) {
             transfer_queue[transfer_queue_top++] = src;
         }
     }
+
     if (transfer_queue_top < transfers_required) {
         /* rev_map points from a -> b, b -> c, c -> a, etc; which is the
          * direction of the moves. However, the direction of the cleanup
@@ -765,15 +815,15 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
                 for (c = i; rev_map[c].dep != i; c = rev_map[c].dep) {
                     cycle_stack[cycle_stack_top++] = rev_map[c].dep;
                 }
-                insert_register_move(tc, alc, spare_register, i);
+                insert_register_move(tc, alc, list, spare_register, i, call_idx, ins_pos++);
                 rev_map[i].num--;
                 /* pop stack and move insert transfers */
                 while (cycle_stack_top--) {
                     c = cycle_stack[cycle_stack_top];
-                    insert_register_move(tc, alc, rev_map[c].dep, c);
+                    insert_register_move(tc, alc, list, rev_map[c].dep, c, call_idx, ins_pos++);
                     rev_map[c].num--;
                 }
-                insert_register_move(tc, alc, rev_map[i].dep, spare_register);
+                insert_register_move(tc, alc, list, rev_map[i].dep, spare_register, call_idx, ins_pos++);
             }
         }
     }
@@ -782,9 +832,10 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     for (i = 0; i < spilled_args_top; i++) {
         LiveRange *value = alc->values + arg_values[i];
         if (storage_refs[i]._cls == MVM_JIT_STORAGE_GPR) {
-            insert_register_load(tc, alc, storage_refs[i]._pos, value->spill_pos);
+            insert_load_local(tc, alc, list, storage_refs[i]._pos, value->spill_pos, call_idx, ins_pos++);
         } else if (storage_refs[i]._cls == MVM_JIT_STORAGE_STACK) {
-            insert_memory_to_stack_copy(tc, alc, storage_refs[i]._pos, value->spill_pos, spare_register);
+            insert_local_to_stack_copy(tc, alc, list, storage_refs[i]._pos, value->spill_pos, spare_register,
+                                       call_idx, ins_pos++);
         } else {
             NYI(storage_classs);
         }

@@ -758,6 +758,12 @@ We need to do two more things:
   the generation of ARGLIST code, so everything that's still in the
   active set ought to be spilled.
 
+*** TODO Implement scratch register selection
+
+By virtue of arg/call value resolution, we have a bitmap of values and
+their respective locations; and a bitmap of 'unallocatable' registers
+(well, actually... we could have a bitmap of allocatable registers).
+
 *** TODO Implement code emitter primitives
 
 + insert_register_move
@@ -775,6 +781,8 @@ shuffling comes before that.
 + Those values may be spilled
 + If they're spilled, a LOAD will be inserted prior to their use
 + If that load would be inserted between the ARGLIST and the CALL
++ However, the maximum 'offset' would be +1; therefore, any operations
+  I'd insert with a higher offset would be after those
 
 * TODO Optimizer
 

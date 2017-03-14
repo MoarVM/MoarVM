@@ -44,5 +44,10 @@ void MVM_jit_compile_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
                            MVMJitTile *tile, MVMJitExprTree *tree);
 void MVM_jit_compile_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
                           MVMJitTile *tile, MVMJitExprTree *tree);
+void MVM_jit_compile_move(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                          MVMJitTile *tile, MVMJitExprTree *tree);
+void MVM_jit_compile_memory_copy(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                                 MVMJitTile *tile, MVMJitExprTree *tree);
+
 void MVM_jit_compile_breakpoint(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                 MVMJitTile *tile, MVMJitExprTree *tree);

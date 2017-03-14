@@ -2524,51 +2524,70 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
 }
 
 
-void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 idx,
-                       MVMJitStorageClass st_cls , MVMint8 st_pos, MVMint32 size) {
-    if (st_cls == MVM_JIT_STORAGE_GPR) {
+void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                       MVMint32 reg_cls, MVMint8 reg_dst,
+                       MVMint32 mem_cls, MVMint32 mem_src, MVMint32 size) {
+    MVMint8 mem_base;
+    if (mem_cls == MVM_JIT_STORAGE_LOCAL) {
+        mem_base = MVM_JIT_REG(RBX);
+    } else if (mem_cls == MVM_JIT_STORAGE_STACK) {
+        mem_base = MVM_JIT_REG(RSP);
+    } else {
+        MVM_panic(1, "Cannot refer to this memory class: %d", mem_cls);
+    }
+    if (reg_cls == MVM_JIT_STORAGE_GPR) {
         switch(size) {
         case 1:
-            | mov Rb(st_pos), byte [rbx+idx];
+            | mov Rb(reg_dst), byte [Rq(mem_base)+mem_src];
             break;
         case 2:
-            | mov Rw(st_pos), word [rbx+idx];
+            | mov Rw(reg_dst), word [Rq(mem_base)+mem_src];
             break;
         case 4:
-            | mov Rd(st_pos), dword [rbx+idx];
+            | mov Rd(reg_dst), dword [Rq(mem_base)+mem_src];
             break;
         case 8:
-            | mov Rq(st_pos), qword [rbx+idx];
+            | mov Rq(reg_dst), qword [Rq(mem_base)+mem_src];
             break;
         }
     }
 }
 
-void MVM_jit_emit_spill(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 idx,
-                        MVMJitStorageClass st_cls, MVMint8 reg_pos, MVMint32 size) {
-    if (st_cls == MVM_JIT_STORAGE_GPR) {
+void MVM_jit_emit_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                        MVMint32 mem_cls, MVMint32 mem_dst,
+                        MVMint32 reg_cls, MVMint8 reg_src, MVMint32 size) {
+
+    MVMint8 mem_base;
+    if (mem_cls == MVM_JIT_STORAGE_LOCAL) {
+        mem_base = MVM_JIT_REG(RBX);
+    } else if (mem_cls == MVM_JIT_STORAGE_STACK) {
+        mem_base = MVM_JIT_REG(RSP);
+    } else {
+        MVM_panic(1, "Cannot refer to this memory class: %d", mem_cls);
+    }
+    if (reg_cls == MVM_JIT_STORAGE_GPR) {
         switch (size) {
         case 1:
-            | mov byte [rbx+idx], Rb(reg_pos);
+            | mov byte [Rq(mem_base)+mem_dst], Rb(reg_src);
             break;
         case 2:
-            | mov word [rbx+idx], Rw(reg_pos);
+            | mov word [Rq(mem_base)+mem_dst], Rw(reg_src);
             break;
         case 4:
-            | mov dword [rbx+idx], Rd(reg_pos);
+            | mov dword [Rq(mem_base)+mem_dst], Rd(reg_src);
             break;
         case 8:
-            | mov qword [rbx+idx], Rq(reg_pos);
+            | mov qword [Rq(mem_base)+mem_dst], Rq(reg_src);
             break;
         }
     }
 }
 
-void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 dst_reg_cls,
-                       MVMint8 dst_position, MVMint32 src_reg_cls, MVMint8 src_position) {
-    if (dst_reg_cls == src_reg_cls) {
-        if (dst_reg_cls == MVM_JIT_STORAGE_GPR) {
-            | mov Rq(dst_position), Rq(src_position);
+void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                       MVMint32 dst_cls,  MVMint8 dst_reg, MVMint32 src_cls, MVMint8 src_reg) {
+    if (dst_cls == src_cls) {
+        if (dst_cls == MVM_JIT_STORAGE_GPR) {
+            | mov Rq(dst_reg), Rq(src_reg);
         } else {
             MVM_oops(tc, "numeric regs nyi");
         }
@@ -2577,23 +2596,6 @@ void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 
     }
 }
 
-void MVM_jit_emit_stack_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 stack_pos,
-                            MVMint32 reg_cls, MVMint8 reg_num, MVMint32 size) {
-    switch (size) {
-    case 1:
-        | mov byte [rsp+stack_pos], Rb(reg_num);
-        break;
-    case 2:
-        | mov word [rsp+stack_pos], Rw(reg_num);
-        break;
-    case 4:
-        | mov dword [rsp+stack_pos], Rd(reg_num);
-        break;
-    case 8:
-        | mov qword [rsp+stack_pos], Rq(reg_num);
-        break;
-    }
-}
 
 void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 num) {
     MVMint32 i;
