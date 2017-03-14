@@ -366,7 +366,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
         clear_temp_bigints(tmp, 2); \
         nursery_adjust = MIN(USED(ic), 32768) & ~0x7; \
         if (nursery_adjust && \
-            ((tc->nursery_alloc_limit - nursery_adjust) > (tc->nursery_alloc + nursery_adjust))) \
+            ((tc->nursery_alloc_limit - nursery_adjust) > tc->nursery_alloc)) \
         { \
             tc->nursery_alloc_limit -= nursery_adjust; \
         } \
