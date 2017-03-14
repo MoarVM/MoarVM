@@ -642,7 +642,36 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
     }
     return 1;
 }
+MVMint64 MVM_string_index_ignore_case(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
+    size_t index           = (size_t)start;
+    MVMStringIndex hgraphs, ngraphs;
 
+    MVM_string_check_arg(tc, haystack, "index search target");
+    MVM_string_check_arg(tc, needle, "index search term");
+    hgraphs = MVM_string_graphs(tc, haystack);
+    ngraphs = MVM_string_graphs(tc, needle);
+
+    if (!ngraphs)
+        return start <= hgraphs ? start : -1; /* the empty string is in any other string */
+
+    if (!hgraphs)
+        return -1;
+
+    if (start < 0 || start >= hgraphs)
+        return -1;
+
+    if (ngraphs > hgraphs || ngraphs < 1)
+        return -1;
+
+    /* brute force for now. horrible, yes. halp. */
+    while (index <= hgraphs - ngraphs) {
+        if (MVM_string_equal_at_ignore_case(tc, haystack, needle, index)) {
+            return (MVMint64)index;
+        }
+        index++;
+    }
+    return -1;
+}
 MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
     MVMStringIndex agraphs;
     MVMGrapheme32 g;
