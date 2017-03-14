@@ -645,7 +645,7 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
 MVMint64 MVM_string_index_ignore_case(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
     size_t index           = (size_t)start;
     MVMStringIndex hgraphs, ngraphs;
-
+    MVMint64 return_val = -1;
     MVM_string_check_arg(tc, haystack, "index search target");
     MVM_string_check_arg(tc, needle, "index search term");
     hgraphs = MVM_string_graphs(tc, haystack);
@@ -663,14 +663,20 @@ MVMint64 MVM_string_index_ignore_case(MVMThreadContext *tc, MVMString *haystack,
     if (ngraphs > hgraphs || ngraphs < 1)
         return -1;
 
-    /* brute force for now. horrible, yes. halp. */
-    while (index <= hgraphs - ngraphs) {
-        if (MVM_string_equal_at_ignore_case(tc, haystack, needle, index)) {
-            return (MVMint64)index;
-        }
-        index++;
-    }
-    return -1;
+    MVMROOT(tc, haystack, {
+        MVMROOT(tc, needle, {
+            /* brute force for now. horrible, yes. halp. */
+            while (index <= hgraphs - ngraphs) {
+                if (MVM_string_equal_at_ignore_case(tc, haystack, needle, index)) {
+                    return_val = (MVMint64)index;
+                    break;
+                }
+                index++;
+            }
+        });
+    });
+
+    return return_val;
 }
 MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
     MVMStringIndex agraphs;
