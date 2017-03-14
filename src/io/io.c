@@ -5,7 +5,7 @@
 
 static MVMOSHandle * verify_is_handle(MVMThreadContext *tc, MVMObject *oshandle, const char *op) {
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle)
-        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", op);
+        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle (got %s with REPR %s)", op, STABLE(oshandle)->debug_name, REPR(oshandle)->name);
     return (MVMOSHandle *)oshandle;
 }
 

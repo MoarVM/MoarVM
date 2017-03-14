@@ -215,6 +215,12 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
             MVM_store(&thread_obj->body.stage, MVM_thread_stage_destroyed);
         }
         else {
+            if (gen == MVMGCGenerations_Both) {
+                GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+                    "Thread %d run %d : freeing gen2 of thread %d\n",
+                    other->thread_id);
+                MVM_gc_collect_free_gen2_unmarked(other, 0);
+            }
             if (MVM_load(&thread_obj->body.stage) == MVM_thread_stage_exited) {
                 /* Don't bother freeing gen2; we'll do it next time */
                 MVM_store(&thread_obj->body.stage, MVM_thread_stage_clearing_nursery);
@@ -346,17 +352,11 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         /* Contribute this thread's promoted bytes. */
         MVM_add(&tc->instance->gc_promoted_bytes_since_last_full, other->gc_promoted_bytes);
 
-        /* Collect nursery and gen2 as needed. */
+        /* Collect nursery. */
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : collecting nursery uncopied of thread %d\n",
             other->thread_id);
         MVM_gc_collect_free_nursery_uncopied(other, tc->gc_work[i].limit);
-        if (gen == MVMGCGenerations_Both) {
-            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
-                "Thread %d run %d : freeing gen2 of thread %d\n",
-                other->thread_id);
-            MVM_gc_collect_free_gen2_unmarked(other, 0);
-        }
     }
 }
 

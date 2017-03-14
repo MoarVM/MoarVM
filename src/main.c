@@ -11,6 +11,10 @@
 #  define TRACING_USAGE ""
 #endif
 
+#ifndef _WIN32
+#  include "signal.h"
+#endif
+
 /* flags need to be sorted alphabetically */
 
 enum {
@@ -197,6 +201,13 @@ int wmain(int argc, wchar_t *wargv[])
     MVM_vm_set_prog_name(instance, input_file);
     MVM_vm_set_exec_name(instance, executable_name);
     MVM_vm_set_lib_path(instance, lib_path_i, lib_path);
+
+    /* Ignore SIGPIPE by default, since we error-check reads/writes. This does
+     * not prevent users from setting up their own signal handler for SIGPIPE,
+     * which will take precedence over this ignore. */
+#ifndef _WIN32
+    signal(SIGPIPE, SIG_IGN);
+#endif
 
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);

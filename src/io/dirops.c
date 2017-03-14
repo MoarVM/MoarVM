@@ -280,7 +280,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
 static MVMOSHandle * get_dirhandle(MVMThreadContext *tc, MVMObject *oshandle, const char *msg) {
     MVMOSHandle *handle = (MVMOSHandle *)oshandle;
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle)
-        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle", msg);
+        MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle (got %s with REPR %s)", msg, STABLE(handle)->debug_name, REPR(handle)->name);
     if (handle->body.ops != &op_table)
         MVM_exception_throw_adhoc(tc, "%s got incorrect kind of handle", msg);
     return handle;
