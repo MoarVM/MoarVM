@@ -1,6 +1,10 @@
 #include "moar.h"
 #include <math.h>
 
+#ifndef MIN
+    #define MIN(x,y) ((x)<(y)?(x):(y))
+#endif
+
 #ifndef MAX
     #define MAX(x,y) ((x)>(y)?(x):(y))
 #endif
@@ -342,6 +346,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     ba = get_bigint_body(tc, a); \
     bb = get_bigint_body(tc, b); \
     if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) { \
+        int nursery_adjust; \
         mp_int *tmp[2] = { NULL, NULL }; \
         mp_int *ia, *ib, *ic; \
         MVMROOT(tc, a, { \
@@ -359,10 +364,11 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
         mp_##opname(ia, ib, ic); \
         store_bigint_result(bc, ic); \
         clear_temp_bigints(tmp, 2); \
-        if (mp_count_bits(ic) > 65 && \
-            ((tc->nursery_alloc_limit - sizeof(mp_int)) > (tc->nursery_alloc + sizeof(mp_int)))) \
+        nursery_adjust = MIN(USED(ic), 32768) & ~0x7; \
+        if (nursery_adjust && \
+            ((tc->nursery_alloc_limit - nursery_adjust) > (tc->nursery_alloc + nursery_adjust))) \
         { \
-            tc->nursery_alloc_limit -= sizeof(mp_int); \
+            tc->nursery_alloc_limit -= nursery_adjust; \
         } \
     } \
     else { \
