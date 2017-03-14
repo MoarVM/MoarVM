@@ -359,6 +359,11 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
         mp_##opname(ia, ib, ic); \
         store_bigint_result(bc, ic); \
         clear_temp_bigints(tmp, 2); \
+        /*if (mp_count_bits(ic) > 65 && \
+            ((tc->nursery_alloc_limit - sizeof(mp_int)) > (tc->nursery_alloc + sizeof(mp_int)))) \
+        { \
+            tc->nursery_alloc_limit -= sizeof(mp_int); \
+        }*/ \
     } \
     else { \
         MVMint64 sc; \
