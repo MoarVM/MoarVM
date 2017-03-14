@@ -9,4 +9,4 @@
 	url = https://github.com/MoarVM/dynasm.git
 [submodule "3rdparty/libtommath"]
 	path = 3rdparty/libtommath
-	url = git://github.com/MoarVM/libtommath
+	url = https://github.com/MoarVM/libtommath
