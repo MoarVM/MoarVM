@@ -1,5 +1,15 @@
 #include "moar.h"
 
+/* Mathematical min and max macro's */
+#ifndef MAX
+#define MAX(a,b) ((a) > (b) ? (a) : (b));
+#endif
+
+#ifndef MIN
+#define MIN(a,b) ((a) < (b) ? (a) : (b));
+#endif
+
+
 /* macros used in the expression list templates, defined here so they
    don't overwrite other definitions */
 #define CONST_PTR(x) ((uintptr_t)(x))

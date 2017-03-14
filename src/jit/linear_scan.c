@@ -27,6 +27,16 @@ static const MVMint64 AVAILABLE_GPR_BITMAP = MVM_JIT_ARCH_AVAILABLE_GPR(SHIFT);
 #define _DEBUG(...) do {} while(0)
 #endif
 
+/* We need max and min macro's */
+#ifndef MAX
+#define MAX(a,b) ((a) > (b) ? (a) : (b));
+#endif
+
+#ifndef MIN
+#define MIN(a,b) ((a) < (b) ? (a) : (b));
+#endif
+
+
 /* Efficient find-first-set; on x86, using `bsf` primitive operation; something
  * else on other architectures. */
 #ifdef __GNUC__
@@ -126,6 +136,7 @@ typedef struct {
 MVM_STATIC_INLINE MVMint32 order_nr(MVMint32 tile_idx) {
     return tile_idx * 2;
 }
+
 
 /* quick accessors for common checks */
 MVM_STATIC_INLINE MVMint32 first_ref(LiveRange *r) {
