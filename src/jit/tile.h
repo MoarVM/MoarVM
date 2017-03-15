@@ -15,7 +15,7 @@ struct MVMJitTile {
     MVMint32 node;
     MVMint32 op;
 
-    MVMint32 num_refs;
+    MVMint32      num_refs;
     MVMint32       refs[4];
     MVMJitExprNode args[4];
     MVMint8      values[4];
@@ -44,8 +44,8 @@ struct MVMJitTileList {
 
 
 
-MVMJitTile     * MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                                   void *emit, MVMint32 node, MVMint32 nargs, ...);
+MVMJitTile     * MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler, void *emit,
+                                   MVMint32 num_args, MVMint32 num_values, ...);
 MVMJitTile     * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                                  const MVMJitTileTemplate *template,
                                                  MVMJitExprTree *tree, MVMint32 node);

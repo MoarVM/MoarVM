@@ -212,10 +212,10 @@ void MVM_jit_compile_move(MVMThreadContext *tc, MVMJitCompiler *compiler,
 
 void MVM_jit_compile_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
                           MVMJitTile *tile, MVMJitExprTree *tree) {
-        MVM_jit_emit_load(tc, compiler,
-                          MVM_JIT_STORAGE_GPR, tile->values[0],
-                          tile->args[0], tile->args[1],
-                          sizeof(MVMRegister));
+    MVM_jit_emit_load(tc, compiler,
+                      MVM_JIT_STORAGE_GPR, tile->values[0],
+                      tile->args[0], tile->args[1],
+                      sizeof(MVMRegister));
 }
 
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {

@@ -523,8 +523,8 @@ static void active_set_splice(MVMThreadContext *tc, RegisterAllocator *alc, MVMi
 static MVMint32 insert_load_before_use(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
                                        ValueRef *ref, MVMint32 load_pos) {
     MVMint32 n = live_range_init(alc);
-    MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_load, -1, 2,
-                                         MVM_JIT_STORAGE_LOCAL, load_pos);
+    MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_load, 2, 1,
+                                         MVM_JIT_STORAGE_LOCAL, load_pos, 0);
     MVM_jit_tile_list_insert(tc, list, tile, ref->tile_idx - 1, +1); /* insert just prior to use */
     alc->values[n].synthetic[0] = tile;
     alc->values[n].synth_pos[0] = ref->tile_idx;
@@ -535,8 +535,8 @@ static MVMint32 insert_load_before_use(MVMThreadContext *tc, RegisterAllocator *
 static MVMint32 insert_store_after_definition(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
                                               ValueRef *ref, MVMint32 store_pos) {
     MVMint32 n       = live_range_init(alc);
-    MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_store, -1, 2,
-                                         MVM_JIT_STORAGE_LOCAL, store_pos);
+    MVMJitTile *tile = MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_store, 2, 2,
+                                         MVM_JIT_STORAGE_LOCAL, store_pos, 0, 0);
     MVM_jit_tile_list_insert(tc, list, tile, ref->tile_idx, -1); /* insert just after storage */
     alc->values[n].synthetic[1] = tile;
     alc->values[n].synth_pos[1] = ref->tile_idx;
