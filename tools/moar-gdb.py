@@ -9,6 +9,11 @@
 #     cd /path/to/install/bin
 #     ln -s path/to/moarvm/tools/moar-gdb.py
 
+# If you're developing/extending/changing this script, or if you're getting
+# python exception messages, this command will be very helpful:
+#
+#    set python print-stack full
+
 # This script contains a few helpers to make debugging MoarVM a bit more pleasant.
 #
 # So far, there's:
