@@ -247,7 +247,7 @@ MVMJitTile* MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler,
     MVMJitTile *tile;
     MVMint32 i;
     va_list arglist;
-    va_start(arglist, num_refs);
+    va_start(arglist, num_values);
     tile = MVM_spesh_alloc(tc, compiler->graph->sg, sizeof(MVMJitTile));
     tile->emit = emit;
     tile->num_refs = num_values;

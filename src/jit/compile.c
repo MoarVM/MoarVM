@@ -199,8 +199,8 @@ void MVM_jit_compile_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
 void MVM_jit_compile_memory_copy(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                  MVMJitTile *tile, MVMJitExprTree *tree) {
     MVM_jit_emit_load(tc, compiler, MVM_JIT_STORAGE_GPR, tile->values[1],
-                      tile->args[0], tile->args[1], sizeof(MVMRegister));
-    MVM_jit_emit_store(tc, compiler, tile->args[2], tile->args[3],
+                      tile->args[2], tile->args[3], sizeof(MVMRegister));
+    MVM_jit_emit_store(tc, compiler, tile->args[0], tile->args[1],
                        MVM_JIT_STORAGE_GPR, tile->values[1], sizeof(MVMRegister));
 }
 
