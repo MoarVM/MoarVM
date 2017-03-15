@@ -1,13 +1,20 @@
 #include "moar.h"
 #include <math.h>
 
+#ifndef MAX
+    #define MAX(x,y) ((x)>(y)?(x):(y))
+#endif
+
 #ifndef MIN
     #define MIN(x,y) ((x)<(y)?(x):(y))
 #endif
 
-#ifndef MAX
-    #define MAX(x,y) ((x)>(y)?(x):(y))
-#endif
+MVM_STATIC_INLINE void adjust_nursery(MVMThreadContext *tc, int used) {
+    int adjustment = MIN(used, 32768) & ~0x7;
+    if (adjustment && ((tc->nursery_alloc_limit - adjustment) > tc->nursery_alloc)) {
+        tc->nursery_alloc_limit -= adjustment;
+    }
+}
 
 /* Taken from mp_set_long, but portably accepts a 64-bit number. */
 int MVM_bigint_mp_set_uint64(mp_int * a, MVMuint64 b) {
@@ -305,6 +312,7 @@ void MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result, MVMObject *sou
             mp_init(ib); \
             mp_##opname(ia, ib); \
             store_bigint_result(bb, ib); \
+            adjust_nursery(tc, USED(ib)); \
         } \
         else { \
             MVMint64 sb; \
@@ -336,6 +344,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     mp_##opname(ia, ib, ic); \
     store_bigint_result(bc, ic); \
     clear_temp_bigints(tmp, 2); \
+    adjust_nursery(tc, USED(ic)); \
     return result; \
 }
 
@@ -346,7 +355,6 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     ba = get_bigint_body(tc, a); \
     bb = get_bigint_body(tc, b); \
     if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) { \
-        int nursery_adjust; \
         mp_int *tmp[2] = { NULL, NULL }; \
         mp_int *ia, *ib, *ic; \
         MVMROOT(tc, a, { \
@@ -364,12 +372,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
         mp_##opname(ia, ib, ic); \
         store_bigint_result(bc, ic); \
         clear_temp_bigints(tmp, 2); \
-        nursery_adjust = MIN(USED(ic), 32768) & ~0x7; \
-        if (nursery_adjust && \
-            ((tc->nursery_alloc_limit - nursery_adjust) > tc->nursery_alloc)) \
-        { \
-            tc->nursery_alloc_limit -= nursery_adjust; \
-        } \
+        adjust_nursery(tc, USED(ic)); \
     } \
     else { \
         MVMint64 sc; \
@@ -407,6 +410,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
         two_complement_bitop(ia, ib, ic, mp_##opname); \
         store_bigint_result(bc, ic); \
         clear_temp_bigints(tmp, 2); \
+        adjust_nursery(tc, USED(ic)); \
     } \
     else { \
         MVMint64 sc; \
@@ -452,6 +456,7 @@ MVMObject *MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         mp_gcd(ia, ib, ic);
         store_bigint_result(bc, ic);
         clear_temp_bigints(tmp, 2);
+        adjust_nursery(tc, USED(ic));
     } else {
         MVMint32 sa = ba->u.smallint.value;
         MVMint32 sb = bb->u.smallint.value;
@@ -525,6 +530,7 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
             MVM_exception_throw_adhoc(tc, "Division by zero");
         }
         store_bigint_result(bc, ic);
+        adjust_nursery(tc, USED(ic));
     } else {
         store_int64_result(bc, ba->u.smallint.value % bb->u.smallint.value);
     }
@@ -602,6 +608,7 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         }
         store_bigint_result(bc, ic);
         clear_temp_bigints(tmp, 2);
+        adjust_nursery(tc, USED(ic));
     } else {
         MVMint32 num   = ba->u.smallint.value;
         MVMint32 denom = bb->u.smallint.value;
@@ -664,6 +671,7 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
             mp_expt_d(base, exponent_d, ic);
             r = MVM_repr_alloc_init(tc, int_type);
             store_bigint_result(get_bigint_body(tc, r), ic);
+            adjust_nursery(tc, USED(ic));
         }
     }
     else {
@@ -694,6 +702,7 @@ MVMObject *MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         two_complement_shl(ib, ia, n);
         store_bigint_result(bb, ib);
         clear_temp_bigints(tmp, 1);
+        adjust_nursery(tc, USED(ib));
     } else {
         MVMint64 value;
         if (n < 0)
@@ -725,6 +734,7 @@ MVMObject *MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         two_complement_shl(ib, ia, -n);
         store_bigint_result(bb, ib);
         clear_temp_bigints(tmp, 1);
+        adjust_nursery(tc, USED(ib));
     } else if (n >= 32) {
         store_int64_result(bb, 0);
     } else {
@@ -755,6 +765,7 @@ MVMObject *MVM_bigint_not(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         mp_add_d(ia, 1, ib);
         mp_neg(ib, ib);
         store_bigint_result(bb, ib);
+        adjust_nursery(tc, USED(ib));
     } else {
         MVMint32 value = ba->u.smallint.value;
         value = ~value;
@@ -781,6 +792,7 @@ void MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MV
     mp_exptmod(ia, ib, ic, id);
     store_bigint_result(bd, id);
     clear_temp_bigints(tmp, 3);
+    adjust_nursery(tc, USED(id));
 }
 
 void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf) {
@@ -788,6 +800,7 @@ void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf) {
     mp_int *i = MVM_malloc(sizeof(mp_int));
     mp_init(i);
     mp_read_radix(i, buf, 10);
+    adjust_nursery(tc, USED(i));
     if (can_be_smallint(i)) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
         body->u.smallint.value = SIGN(i) == MP_NEG ? -DIGIT(i, 0) : DIGIT(i, 0);
@@ -921,6 +934,7 @@ void MVM_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     mp_mod(rnd, max, rnd);
     store_bigint_result(ba, rnd);
     clear_temp_bigints(tmp, 1);
+    adjust_nursery(tc, USED(rnd));
 }
 
 MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
@@ -1055,6 +1069,8 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
 
     store_bigint_result(bvalue, value);
     store_bigint_result(bbase, base);
+
+    adjust_nursery(tc, USED(value));
 
     pos_obj = MVM_repr_box_int(tc, type, pos);
     MVM_repr_push_o(tc, result, pos_obj);
