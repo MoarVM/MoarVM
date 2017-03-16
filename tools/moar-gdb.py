@@ -393,6 +393,10 @@ class CommonHeapData(object):
         if not is_stable:
             REPR = STable["REPR"]
             REPRname = REPR["name"].string()
+            try:
+                debugname = STable['debug_name'].string()
+            except gdb.MemoryError:
+                debugname = "n/a"
             if is_typeobj:
                 self.number_typeobs += 1
             else:
@@ -400,10 +404,14 @@ class CommonHeapData(object):
         else:
             REPR = None
             REPRname = "STable"
+            debugname = "n/a"
             self.number_stables += 1
 
         self.size_histogram[int(size)] += 1
-        self.repr_histogram[REPRname] += 1
+        if debugname != "n/a":
+            self.repr_histogram[debugname] += 1
+        else:
+            self.repr_histogram[REPRname] += 1
 
         if REPRname == "P6opaque":
             self.opaq_histogram[int(size)] += 1
@@ -421,9 +429,14 @@ class CommonHeapData(object):
         elif REPRname == "MVMString":
             try:
                 casted = cursor.cast(gdb.lookup_type('MVMString').pointer())
-                self.string_histogram[MVMStringPPrinter(casted).stringify()] += 1
+                stringresult = MVMStringPPrinter(casted).stringify()
+                if stringresult is not None:
+                    self.string_histogram[stringresult] += 1
+                else:
+                    self.string_histogram["mvmstr@" + hex(int(cursor.address.cast(gdb.lookup_type("int"))))] += 1
             except gdb.MemoryError as e:
                 print(e)
+                print(e.traceback())
                 print(cursor.cast(gdb.lookup_type('MVMString').pointer()))
                 pass
 
@@ -472,7 +485,7 @@ class NurseryData(CommonHeapData):
         show_histogram(self.size_histogram, "key", True)
         print("sizes of P6opaques only:")
         show_histogram(self.opaq_histogram, "key", True)
-        print("REPRs:")
+        print("debugnames:")
         show_histogram(self.repr_histogram)
         print("VMArray storage types:")
         show_histogram(self.arrstr_hist)
@@ -489,7 +502,7 @@ class NurseryData(CommonHeapData):
         diff_histogram(self.size_histogram, other.size_histogram, "key", True)
         print("sizes of P6opaques only:")
         diff_histogram(self.opaq_histogram, other.opaq_histogram, "key", True)
-        print("REPRs:")
+        print("debugnames:")
         diff_histogram(self.repr_histogram, other.repr_histogram)
         print("VMArray storage types:")
         diff_histogram(self.arrstr_hist, other.arrstr_hist)
@@ -670,12 +683,15 @@ class Gen2Data(CommonHeapData):
             try:
                 show_histogram(self.size_histogram, "key", True)
             except Exception as e:
+                print("while trying to show the size histogram...")
                 print(e)
+                print(e.traceback())
         if len(self.repr_histogram) >= 1:
-            print("REPRs:")
+            print("debugnames:")
             try:
                 show_histogram(self.repr_histogram)
             except Exception as e:
+                print("while trying to show the repr histogram...")
                 print(e)
         print("strings:")
         show_histogram(self.string_histogram)
@@ -703,7 +719,7 @@ class OverflowData(CommonHeapData):
         show_histogram(self.size_histogram, "key", True)
         print("sizes of P6opaques only:")
         show_histogram(self.opaq_histogram, "key", True)
-        print("REPRs:")
+        print("debugnames:")
         show_histogram(self.repr_histogram)
         print("VMArray storage types:")
         show_histogram(self.arrstr_hist)
