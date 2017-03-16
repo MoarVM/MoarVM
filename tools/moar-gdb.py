@@ -273,7 +273,7 @@ def show_histogram(hist, sort="value", multiply=False):
     else:
         print("sorting mode", sort, "not implemented")
     maximum = max(hist.values())
-    keymax = min(max([len(str(key)) for key in hist.keys()]), 20)
+    keymax = min(max([len(str(key)) for key in hist.keys()]), 30)
     lines_so_far = 0
     group = -1
     num_in_group = 0
