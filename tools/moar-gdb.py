@@ -456,14 +456,18 @@ class NurseryData(CommonHeapData):
         self.allocation_offs = allocation_offs
 
     def analyze(self, tc):
-        print("starting to analyze the nursery:")
         cursor = gdb.Value(self.start_addr)
-        print(cursor);
         info_step = int(self.allocation_offs - cursor) // 50
         next_info = cursor + info_step
         print("_" * 50)
         while cursor < self.allocation_offs:
-            size = self.analyze_single_object(cursor)
+            try:
+                size = self.analyze_single_object(cursor)
+            except:
+                print("while trying to analyze single object:");
+                traceback.print_exc()
+                print(stooge)
+                print(stooge.__repr__())
 
             cursor += size
             if cursor > next_info:
