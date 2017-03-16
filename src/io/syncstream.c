@@ -88,7 +88,7 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncStreamData *data, 
 /* Ensures we have a decode stream, creating it if we're missing one. */
 static void ensure_decode_stream(MVMThreadContext *tc, MVMIOSyncStreamData *data) {
     if (!data->ds)
-        data->ds = MVM_string_decodestream_create(tc, data->encoding, 0,
+        data->ds = MVM_string_decodestream_create(tc, data->encoding, MVM_NORMALIZE_NFG, 0,
             data->translate_newlines);
 }
 

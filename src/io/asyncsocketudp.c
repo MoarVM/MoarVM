@@ -190,7 +190,7 @@ static MVMAsyncTask * read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &read_op_table;
     ri              = MVM_calloc(1, sizeof(ReadInfo));
-    ri->ds          = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0, 0);
+    ri->ds          = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, MVM_NORMALIZE_NFG, 0, 0);
     MVM_ASSIGN_REF(tc, &(task->common.header), ri->handle, h);
     task->body.data = ri;
 

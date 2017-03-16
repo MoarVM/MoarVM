@@ -8,10 +8,12 @@
  * that we got something valid. */
 MVMNormalization MVN_unicode_normalizer_form(MVMThreadContext *tc, MVMint64 form_in) {
     switch (form_in) {
+    case 0: return MVM_NORMALIZE_NULL;
     case 1: return MVM_NORMALIZE_NFC;
     case 2: return MVM_NORMALIZE_NFD;
     case 3: return MVM_NORMALIZE_NFKC;
     case 4: return MVM_NORMALIZE_NFKD;
+    case 5: return MVM_NORMALIZE_NFG;
     default: MVM_exception_throw_adhoc(tc, "Invalid normalization form %d", (int)form_in);
     }
 }
@@ -56,22 +58,27 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in,
 
     /* Perform normalization. */
     MVM_unicode_normalizer_init(tc, &norm, form);
-    input_pos  = 0;
-    result_pos = 0;
-    while (input_pos < input_codes) {
-        MVMCodepoint cp;
-        ready = MVM_unicode_normalizer_process_codepoint(tc, &norm, input[input_pos], &cp);
-        if (ready) {
-            maybe_grow_result(&result, &result_alloc, result_pos + ready);
-            result[result_pos++] = cp;
-            while (--ready > 0)
-                result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
+
+    if (form == MVM_NORMALIZE_NULL) {
+        ready = input_codes;
+    } else {
+        input_pos  = 0;
+        result_pos = 0;
+        while (input_pos < input_codes) {
+            MVMCodepoint cp;
+            ready = MVM_unicode_normalizer_process_codepoint(tc, &norm, input[input_pos], &cp);
+            if (ready) {
+                maybe_grow_result(&result, &result_alloc, result_pos + ready);
+                result[result_pos++] = cp;
+                while (--ready > 0)
+                    result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
+            }
+            input_pos++;
         }
-        input_pos++;
+        MVM_unicode_normalizer_eof(tc, &norm);
+        ready = MVM_unicode_normalizer_available(tc, &norm);
+        maybe_grow_result(&result, &result_alloc, result_pos + ready);
     }
-    MVM_unicode_normalizer_eof(tc, &norm);
-    ready = MVM_unicode_normalizer_available(tc, &norm);
-    maybe_grow_result(&result, &result_alloc, result_pos + ready);
     while (ready--)
         result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
     MVM_unicode_normalizer_cleanup(tc, &norm);
@@ -156,8 +163,9 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
     /* Create codepoint iterator. */
     MVM_string_ci_init(tc, &ci, s, 0);
 
-    /* If we want NFC, just iterate, since NFG is constructed out of NFC. */
-    if (form == MVM_NORMALIZE_NFC) {
+    /* If we want NFC, just iterate, since NFG is constructed out of NFC.
+     * Likewise, if we want Null normalization, just pretend we asked for NFG */
+    if (form == MVM_NORMALIZE_NFC || form == MVM_NORMALIZE_NULL) {
         while (MVM_string_ci_has_more(tc, &ci)) {
             maybe_grow_result(&result, &result_alloc, result_pos + 1);
             result[result_pos++] = MVM_string_ci_get_codepoint(tc, &ci);
@@ -223,6 +231,10 @@ void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNorm
         case MVM_NORMALIZE_NFG:
             n->quick_check_property = MVM_UNICODE_PROPERTY_NFG_QC;
             n->first_significant = MVM_NORMALIZE_FIRST_SIG_NFC;
+            break;
+        case MVM_NORMALIZE_NULL:
+            n->quick_check_property = MVM_NORMALIZE_FIRST_SIG_NFD;
+            n->quick_check_property = MVM_UNICODE_PROPERTY_NFD_QC;
             break;
         default:
             abort();
@@ -296,6 +308,9 @@ static void decomp_codepoint_to_buffer(MVMThreadContext *tc, MVMNormalizer *n, M
         decompose = 0;
     else if (!MVM_NORMALIZE_COMPAT_DECOMP(n->form) && cp_DT != MVM_UNICODE_PVALUE_DT_CANONICAL )
         decompose = 0;
+    else if (n->form == MVM_NORMALIZE_NULL)
+        decompose = 0;
+
     if (decompose) {
         /* We need to decompose. Get the decomp spec and go over the things in
          * it; things without a decomp spec are presumably Hangul and need the

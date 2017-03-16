@@ -1,21 +1,24 @@
 /* Normalization modes. Numbers picked so that:
- *  - The LSB tells us whether to do canonical or compatibility normalization
- *  - The second bit tells us whether to do canonical normalization
- *  - The third bit tells us to go a step further and create synthetic codes
+ *  - The LSB tells us whether to do any normalization at all.
+ *  - The second bit tells us whether to use canonical or compatibility normalization
+ *  - The third bit tells us whether to do canonical normalization
+ *  - The fourth bit tells us to go a step further and create synthetic codes
  *    for graphemes.
  */
 typedef enum {
-    MVM_NORMALIZE_NFD   = 0,
-    MVM_NORMALIZE_NFKD  = 1,
-    MVM_NORMALIZE_NFC   = 2,
-    MVM_NORMALIZE_NFKC  = 3,
-    MVM_NORMALIZE_NFG   = 6
+    MVM_NORMALIZE_NULL  = 0,
+    MVM_NORMALIZE_NFD   = 1,
+    MVM_NORMALIZE_NFKD  = 3,
+    MVM_NORMALIZE_NFC   = 5,
+    MVM_NORMALIZE_NFKC  = 7,
+    MVM_NORMALIZE_NFG   = 13,
 } MVMNormalization;
 
 /* Ways of checking various properties of the normalization form. */
-#define MVM_NORMALIZE_COMPAT_DECOMP(form) (form & 1)
-#define MVM_NORMALIZE_COMPOSE(form)       (form & 2)
-#define MVM_NORMALIZE_GRAPHEME(form)      (form & 4)
+#define MVM_NORMALIZE_ANYTHING(form)      (form & 1)
+#define MVM_NORMALIZE_COMPAT_DECOMP(form) (form & 2)
+#define MVM_NORMALIZE_COMPOSE(form)       (form & 4)
+#define MVM_NORMALIZE_GRAPHEME(form)      (form & 8)
 
 /* First codepoint where we have to actually do a real check and maybe some
  * work when normalizing. */

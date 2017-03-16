@@ -121,12 +121,22 @@ static int should_translate_newlines(MVMThreadContext *tc, MVMObject *config) {
     }
     return 0;
 }
+static MVMNormalization configured_normalization_mode(MVMThreadContext *tc, MVMObject *config) {
+    if (IS_CONCRETE(config) && REPR(config)->ID == MVM_REPR_ID_MVMHash) {
+        MVMObject *value = MVM_repr_at_key_o(tc, config,
+            tc->instance->str_consts.normalization);
+        if (IS_CONCRETE(value)) {
+            return MVM_unicode_normalizer_form(tc, MVM_repr_get_int(tc, value));
+        }
+    }
+    return MVM_NORMALIZE_NFG;
+}
 void MVM_decoder_configure(MVMThreadContext *tc, MVMDecoder *decoder,
                            MVMString *encoding, MVMObject *config) {
     if (!decoder->body.ds) {
         MVMuint8 encid = MVM_string_find_encoding(tc, encoding);
         enter_single_user(tc, decoder);
-        decoder->body.ds = MVM_string_decodestream_create(tc, encid, 0,
+        decoder->body.ds = MVM_string_decodestream_create(tc, encid, MVM_NORMALIZE_NFG, 0,
             should_translate_newlines(tc, config));
         decoder->body.sep_spec = MVM_malloc(sizeof(MVMDecodeStreamSeparators));
         MVM_string_decode_stream_sep_default(tc, decoder->body.sep_spec);

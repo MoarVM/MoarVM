@@ -93,7 +93,7 @@ static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     if ((r = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
-    data->ds = MVM_string_decodestream_create(tc, data->encoding, r, 1);
+    data->ds = MVM_string_decodestream_create(tc, data->encoding, MVM_NORMALIZE_NFG, r, 1);
 }
 
 /* Get curernt position in the file. */
@@ -137,7 +137,7 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint
 /* Ensures we have a decode stream, creating it if we're missing one. */
 static void ensure_decode_stream(MVMThreadContext *tc, MVMIOFileData *data) {
     if (!data->ds)
-        data->ds = MVM_string_decodestream_create(tc, data->encoding, 0, 1);
+        data->ds = MVM_string_decodestream_create(tc, data->encoding, MVM_NORMALIZE_NFG, 0, 1);
 }
 
 /* Reads a single line from the file handle. May serve it from a buffer, if we
