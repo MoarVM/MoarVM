@@ -185,37 +185,43 @@ class MVMStringPPrinter(object):
         elif stringtyp == "strands":
             # XXX here be dragons and/or wrong code
             # XXX This is still true now
-            i = 0
-            pieces = []
-            data = self.val['body']['storage']['strands']
-            end_reached = False
-            previous_index = 0
-            previous_string = None
-            while not end_reached:
-                strand_data = (data + i).dereference()
-                if strand_data['blob_string'] == 0:
-                    end_reached = True
-                    pieces.append(previous_string[1:-1])
-                else:
-                    the_string = strand_data['blob_string'].dereference()
-                    if previous_string is not None:
-                        pieces.append(
-                            str(previous_string)[1:-1][
-                                int(strand_data['start']) :
-                                int(strand_data['end']) - previous_index]
-                            )
-                    previous_string = str(the_string)
-                    previous_index = int(strand_data['end'])
-                i = i + 1
-            return "r(" + ")(".join(pieces) + ")"
+
+            # i = 0
+            # pieces = []
+            # data = self.val['body']['storage']['strands']
+            # end_reached = False
+            # previous_index = 0
+            # previous_string = None
+            # while not end_reached:
+                # strand_data = (data + i).dereference()
+                # if strand_data['blob_string'] == 0:
+                    # end_reached = True
+                    # pieces.append(previous_string[1:-1])
+                # else:
+                    # the_string = strand_data['blob_string'].dereference()
+                    # if previous_string is not None:
+                        # pieces.append(
+                            # str(previous_string)[1:-1][
+                                # int(strand_data['start']) :
+                                # int(strand_data['end']) - previous_index]
+                            # )
+                    # previous_string = str(the_string)
+                    # previous_index = int(strand_data['end'])
+                # i = i + 1
+            # return "r(" + ")(".join(pieces) + ")"
+            return None
         else:
             return "string of type " + stringtyp
 
     def to_string(self):
-        if self.pointer:
-            return "pointer to '" + self.stringify() + "'"
+        result = self.stringify()
+        if result:
+            if self.pointer:
+                return "pointer to '" + self.stringify() + "'"
+            else:
+                return "'" + self.stringify() + "'"
         else:
-            return "'" + self.stringify() + "'"
+            return None
 
 # currently nonfunctional
 class MVMObjectPPrinter(object):
