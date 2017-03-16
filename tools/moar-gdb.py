@@ -749,34 +749,37 @@ class AnalyzeHeapCommand(gdb.Command):
         if not str(tc.type).startswith("MVMThreadContext"):
             raise ValueError("Please invoke the heap analyzer command on a MVMThreadContext, usually tc.")
 
-        # find out the GC generation we're in (just a number increasing by 1 every time we GC)
-        instance = tc['instance']
-        generation = instance['gc_seq_number']
+        try:
+            # find out the GC generation we're in (just a number increasing by 1 every time we GC)
+            instance = tc['instance']
+            generation = instance['gc_seq_number']
 
-        nursery = NurseryData(generation, tc['nursery_tospace'], tc['nursery_alloc_limit'], tc['nursery_alloc'])
+            nursery = NurseryData(generation, tc['nursery_tospace'], tc['nursery_alloc_limit'], tc['nursery_alloc'])
 
-        nursery.analyze(tc)
+            nursery.analyze(tc)
 
-        nursery_memory.append(nursery)
+            nursery_memory.append(nursery)
 
-        print("the current generation of the gc is", generation)
+            print("the current generation of the gc is", generation)
 
-        sizeclass_data = []
-        for sizeclass in range(MVM_GEN2_BINS):
-            g2sc = Gen2Data(generation, tc['gen2']['size_classes'][sizeclass], sizeclass)
-            sizeclass_data.append(g2sc)
-            g2sc.analyze(tc)
+            sizeclass_data = []
+            for sizeclass in range(MVM_GEN2_BINS):
+                g2sc = Gen2Data(generation, tc['gen2']['size_classes'][sizeclass], sizeclass)
+                sizeclass_data.append(g2sc)
+                g2sc.analyze(tc)
 
-        overflowdata = OverflowData(generation)
+            overflowdata = OverflowData(generation)
 
-        overflowdata.analyze(tc)
+            overflowdata.analyze(tc)
 
-        for g2sc in sizeclass_data:
-            g2sc.summarize()
+            for g2sc in sizeclass_data:
+                g2sc.summarize()
 
-        nursery.summarize()
+            nursery.summarize()
 
-        overflowdata.summarize()
+            overflowdata.summarize()
+        except KeyboardInterrupt:
+            print("aborted the analysis.")
 
 class DiffHeapCommand(gdb.Command):
     """Display the difference between two snapshots of the nursery."""
