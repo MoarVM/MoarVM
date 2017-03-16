@@ -239,7 +239,9 @@ class MVMObjectPPrinter(object):
 
         reprname = _repr['name'].string()
 
-        return str(self.val.type.name) + " of repr " + reprname
+        debugname = as_mvmobject['st']['debug_name']
+
+        return str(self.val.type.name) + " (" + debugname + ") of repr " + reprname
 
     def to_string(self):
         if self.pointer:
