@@ -34,6 +34,12 @@
 # - Implement diffing for the gen2 in some sensible manner
 # - The backtrace should also display a backtrace of the interpreter
 #   state. That's relatively easy, as you can just dump_backtrace(tc).
+# - Give the object prety printer a children method that figures
+#   stuff out about attributes of a P6opaque, or CStruct.
+# - Let VMArray and MVMHash be displayed with the right display_hint
+#   and also give them values for the children method
+# - Pretty print P6bigint as their value
+# - Pretty print P6int and P6num as their value
 
 # Here's some wishlist items
 #
