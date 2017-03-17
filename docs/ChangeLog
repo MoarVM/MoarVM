@@ -1,3 +1,37 @@
+New in 2017.03
+
++ Fix some missing variable initializations
++ Set effective_handlers in context-only frame
++ Streamline code in hash computation, hopefully fixing a Coverity warning
++ Detect and throw on over-size array
++ Put in a limit for codepoints in a grapeheme, to avoid various overflows
++ Fix a missing NULL check at end of profiling
++ Panic when a new thread context can't create an uv_loop
++ Better handling of out of memory when creating a thread
++ Another attempt at silencing the pthread_yield warnings
++ Missing GC block marking in event loop starting, fixing a deadlock
++ Fix CArray marshalling of type objects
++ Provide a way to put Decoder in nl-translate mode
++ Ensure Decoder REPR never sees concurrent use
++ Debug option to detect concurrent VMArray use
++ Encode strings as UTF-8 in MVM_unicode_string_from_name
++ Reword exception message for read() outside original thread
++ Check that results of repeat/concat fit in an MVMString
++ Fix div_i JIT round to negative infinity
++ Ignore SIGPIPE by default
++ Only start readers if a process spawned OK
++ Remove deprecated char-mode async proc reading
++ Signal error to stdout/stderr on spawn failure
++ Do gen2 sweep before letting stolen threads go, fixing occasional SEGVs
++ Turn libtommath dependency into a submodule, use a MoarVM fork
++ Update libtommath fork to have expmod hang fix
++ Change MVM_string_equal_at_ignore_case to use fc
++ Fix MVM_string_equal_at_ignore_case when string `a` changes length
++ Mention debug name and REPR name in "requires obj with repr X" errors
++ Remove unneeded variable in MVM_string_index
++ Add MVM_string_index_ignore_case function and indexic_s op
++ A range of improvements to the MoarVM GDB plug-in
+
 New in 2017.02
 
 + Fix format strings that warn during compile
