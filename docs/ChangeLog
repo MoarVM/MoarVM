@@ -26,7 +26,7 @@ New in 2017.03
 + Turn libtommath dependency into a submodule, use a MoarVM fork
 + Update libtommath fork to have expmod hang fix
 + Change MVM_string_equal_at_ignore_case to use fc
-+ Fix MVM_string_equal_at_ignore_case when string `a` changes length
++ Fix MVM_string_equal_at_ignore_case when folding the haystack changes length
 + Mention debug name and REPR name in "requires obj with repr X" errors
 + Remove unneeded variable in MVM_string_index
 + Add MVM_string_index_ignore_case function and indexic_s op
