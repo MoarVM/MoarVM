@@ -4,7 +4,7 @@ New in 2017.03
 + Set effective_handlers in context-only frame
 + Streamline code in hash computation, hopefully fixing a Coverity warning
 + Detect and throw on over-size array
-+ Put in a limit for codepoints in a grapeheme, to avoid various overflows
++ Put in a limit for codepoints in a grapheme, to avoid various overflows
 + Fix a missing NULL check at end of profiling
 + Panic when a new thread context can't create an uv_loop
 + Better handling of out of memory when creating a thread
