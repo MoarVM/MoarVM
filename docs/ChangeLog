@@ -27,6 +27,10 @@ New in 2017.03
 + Update libtommath fork to have expmod hang fix
 + Change MVM_string_equal_at_ignore_case to use fc
 + Fix MVM_string_equal_at_ignore_case when folding the haystack changes length
++ MVM_string_equal_at_ignore_case no longer applies a case changing
+  operation to the entire haystack. It now only changes case for as
+  much of the haystack length as is needed. ~30%+ or faster depending on on
+  haystack length.
 + Mention debug name and REPR name in "requires obj with repr X" errors
 + Remove unneeded variable in MVM_string_index
 + Add MVM_string_index_ignore_case function and indexic_s op
