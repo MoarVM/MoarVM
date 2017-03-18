@@ -666,7 +666,7 @@ MVMint64 MVM_string_index_ignore_case(MVMThreadContext *tc, MVMString *haystack,
     MVMROOT(tc, haystack, {
         MVMROOT(tc, needle, {
             /* brute force for now. horrible, yes. halp. */
-            while (index <= hgraphs - ngraphs) {
+            while (index <= hgraphs) {
                 if (MVM_string_equal_at_ignore_case(tc, haystack, needle, index)) {
                     return_val = (MVMint64)index;
                     break;
