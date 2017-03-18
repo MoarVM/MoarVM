@@ -40,6 +40,7 @@
 #   and also give them values for the children method
 # - Pretty print P6bigint as their value
 # - Pretty print P6int and P6num as their value
+# - something like "mvmbreak" to place breakpoints for ops in interp.c
 
 # Here's some wishlist items
 #
@@ -229,31 +230,96 @@ class MVMStringPPrinter(object):
         else:
             return None
 
-# currently nonfunctional
+slot_type_to_slot_name = [
+        "o",
+        "s",
+        "i64",
+        "i32",
+        "i16",
+        "i8",
+        "n64",
+        "n32",
+        "u64",
+        "u32",
+        "u16",
+        "u8",
+        "None",
+        "None",
+        "None"
+    ]
+
 class MVMObjectPPrinter(object):
     def __init__(self, val, pointer = False):
+        print("pretty print for ", hex(val))
         self.val = val
         self.pointer = pointer
+        self.inited = False
+
+    def get_basic_info(self):
+        if self.inited: return
+        if self.pointer:
+            self.as_mvmobject = self.val.cast(gdb.lookup_type("MVMObject").pointer()).dereference()
+        else:
+            self.as_mvmobject = self.val.cast(gdb.lookup_type("MVMObject"))
+
+        self._repr = self.as_mvmobject['st']['REPR']
+        print(hex(self._repr))
+
+        self.reprname = self._repr['name'].string()
+
+        self.debugname = self.as_mvmobject['st']['debug_name'].string()
+
+        self.inited = True
 
     def stringify(self):
-        if self.pointer:
-            as_mvmobject = self.val.cast("MVMObject *").dereference()
-        else:
-            as_mvmobject = self.val.cast("MVMObject")
-
-        _repr = as_mvmobject['st']['REPR']
-
-        reprname = _repr['name'].string()
-
-        debugname = as_mvmobject['st']['debug_name']
-
-        return str(self.val.type.name) + " (" + debugname + ") of repr " + reprname
+        print("stringifying an mvmobject")
+        self.get_basic_info()
+        return str(self.val.type) + " (" + self.debugname + ") of repr " + self.reprname
 
     def to_string(self):
-        if self.pointer:
-            return "pointer to " + self.stringify()
+        return self.stringify()
+
+    def get_array_children(self):
+        try:
+            as_vmarray = self.as_mvmobject.cast(gdb.lookup_type("MVMArray").pointer()).dereference()
+            reprdata = self.as_mvmobject['st']['REPR_data'].cast(gdb.lookup_type("MVMArrayREPRData").pointer()).dereference()
+            elem_size = reprdata['elem_size']
+            slot_type = reprdata['slot_type']
+
+            elems = int(as_vmarray['body']['elems'])
+            start = int(as_vmarray['body']['start'])
+
+            slots_array = as_vmarray['body']['slots'][slot_type_to_slot_name[slot_type]]
+
+            for i in range(start, start + elems):
+                yield slots_array[i]
+        except Exception as e:
+            traceback.print_exc()
+
+    def children(self):
+        self.get_basic_info()
+
+        print("getting children for a ", self.reprname)
+
+        if self.reprname == "VMArray":
+            yield from self.get_array_children()
+        elif self.reprname == "MVMHash":
+            pass
+        elif self.reprname == "P6opaque":
+            pass
         else:
-            return self.stringify()
+            return None
+
+    def display_hint(self):
+        self.get_basic_info()
+        if self.reprname == "VMArray":
+            return "array"
+        elif self.reprname == "MVMHash":
+            return "map"
+        elif self.reprname == "P6opaque":
+            return "perl6object"
+        else:
+            return None
 
 def show_histogram(hist, sort="value", multiply=False):
     """In the context of this function, a histogram is a hash from an object
@@ -621,7 +687,6 @@ class Gen2Data(CommonHeapData):
                     pagebuckets[page][bucket] = False
                     self.length_freelist += 1
             free_cursor = free_cursor.dereference().cast(gdb.lookup_type("char").pointer().pointer())
-        print("")
 
         #doubles = defaultdict(int)
 
@@ -641,10 +706,9 @@ class Gen2Data(CommonHeapData):
             #show_histogram(doubles)
 
     def summarize(self):
-        print("size bucket:", self.bucket_size)
         if self.empty:
-            print("(unallocated)")
             return
+        print("size bucket:", self.bucket_size)
         cols_per_block = int(math.sqrt(MVM_GEN2_PAGE_ITEMS))
         lines_per_block = cols_per_block // 2
         outlines = [[] for i in range(lines_per_block + 1)]
@@ -820,7 +884,10 @@ def mvmobject_lookup_function(val):
     pointer = str(val.type).endswith("*")
     if str(val.type).startswith("MVM"):
         try:
-            val.cast(gdb.lookup_type("MVMObject" + (" *" if pointer else "")))
+            if pointer:
+                val.cast(gdb.lookup_type("MVMObject").pointer())
+            else:
+                val.cast(gdb.lookup_type("MVMObject"))
             return MVMObjectPPrinter(val, pointer)
         except Exception as e:
             print("couldn't cast this:", e)
@@ -831,8 +898,8 @@ def register_printers(objfile):
     objfile.pretty_printers.append(str_lookup_function)
     print("MoarVM string pretty printer registered")
     # XXX since this is currently nonfunctional, just ignore it for now
-    # objfile.pretty_printers.append(mvmobject_lookup_function)
-    # print("MoarVM Object pretty printer registered")
+    objfile.pretty_printers.append(mvmobject_lookup_function)
+    print("MoarVM Object pretty printer registered")
 
 commands = []
 def register_commands(objfile):
