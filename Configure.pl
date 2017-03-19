@@ -350,7 +350,7 @@ my @ldflags = ($config{ldmiscflags});
 push @ldflags, $config{ldoptiflags}  if $args{optimize};
 push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}       if $args{instrument};
-push @ldflags, $config{ldrpath}           unless $args{static};
+push @ldflags, $config{ldrpath}           if not $args{static} and $config{prefix} ne '/usr';
 push @ldflags, $^O eq 'darwin' ? '-faddress-sanitizer' : '-fsanitize=address' if $args{asan};
 push @ldflags, $ENV{LDFLAGS}  if $ENV{LDFLAGS};
 $config{ldflags} = join ' ', @ldflags;
