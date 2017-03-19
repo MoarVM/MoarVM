@@ -354,6 +354,7 @@ static MVMint32 passes_quickcheck_and_zero_ccc(MVMThreadContext *tc, MVMCodepoin
 MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMGrapheme32 last_a;
     MVMGrapheme32 first_b;
+    MVMGrapheme32 crlf;
 
     /* If either string is empty, we're good. */
     if (a->body.num_graphs == 0 || b->body.num_graphs == 0)
@@ -363,10 +364,12 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
     last_a = MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1);
     first_b = MVM_string_get_grapheme_at_nocheck(tc, b, 0);
 
-    /* If either is synthetic, assume we'll have to re-normalize (this is an
-     * over-estimate, most likely). Note if you optimize this that it serves
-     * as a guard for what follows. */
-    if (last_a < 0 || first_b < 0)
+    crlf = MVM_nfg_crlf_grapheme(tc);
+
+    /* If either is synthetic other than "\r\n", assume we'll have to re-normalize
+     * (this is an over-estimate, most likely). Note if you optimize this that it
+     * serves as a guard for what follows. */
+    if ((last_a != crlf && last_a < 0) || (first_b != crlf && first_b < 0))
         return 0;
 
     /* If both less than the first significant char for NFC, and the first is
