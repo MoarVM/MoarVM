@@ -1,3 +1,4 @@
+# -*-whitespace-*-
 # SYNTAX: (keyword: opcode (tree $substitutions))
 
 # Number with dollars stand for the arguments of the opcode.  The
@@ -109,6 +110,12 @@
            (let: (($val (load (add (^p6obody $1) $2) ptr_sz)))
                 (if (nz $val) $val (^vmnull))))
 
-(template: getwho 
+(template: getwho
    (let: (($who (^getf (^stable $1) MVMSTable WHO)))
      (if (nz $who) $who (^vmnull))))
+
+(macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
+(template: say (call (^func &MVM_string_say)
+                     (arglist 2 (carg (tc) ptr)
+                                (carg $0 ptr))
+                     void))

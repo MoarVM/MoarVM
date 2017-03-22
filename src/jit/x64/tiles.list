@@ -1,8 +1,9 @@
+# -*-whitespace-*-
 # Terminals: reg, mem, flag, void, expr, lab
 #
 
 #
-# Virtual Machine Values 
+# Virtual Machine Values
 #
 (define: (stack) reg:rsp)
 (define: (local) reg:rbx)

@@ -752,19 +752,7 @@ We need to do two more things:
   + free_reg = ~(arg_bitmap | call_bitmap | NVR_GPR_BITMAP)
 + reserve registers used in the call node
 
-*** DONE Spill live values over the CALL function
-
-- things that are live only for the ARGLIST are expired in or after
-  the generation of ARGLIST code, so everything that's still in the
-  active set ought to be spilled.
-
-*** TODO Implement scratch register selection
-
-By virtue of arg/call value resolution, we have a bitmap of values and
-their respective locations; and a bitmap of 'unallocatable' registers
-(well, actually... we could have a bitmap of allocatable registers).
-
-*** TODO Implement code emitter primitives
+*** DONE Implement code emitter primitives
 
 + insert_register_move
 + insert_copy_to_stack
@@ -775,7 +763,10 @@ These ought to be order-sensitive, e.g. the stack stores go before the
 register moves which go before the memory-to-stack-copy, and CALL args
 shuffling comes before that.
 
-*** TODO Safely deal with CALL args being spilled
+I've done it using macro's since these reuse most of the 'state' of
+the function.
+
+*** DONE CALL args may already be spilleed
 
 + CALL nodes may take some values
 + Those values may be spilled
@@ -783,6 +774,93 @@ shuffling comes before that.
 + If that load would be inserted between the ARGLIST and the CALL
 + However, the maximum 'offset' would be +1; therefore, any operations
   I'd insert with a higher offset would be after those
+
+*** DONE Implement scratch register selection
+
+By virtue of arg/call value resolution, we have a bitmap of values and
+their respective locations; and a bitmap of 'unallocatable' registers
+(well, actually... we could have a bitmap of allocatable registers).
+
+*** DONE Spill live values over the CALL function
+
+- things that are live only for the ARGLIST are expired in or after
+  the generation of ARGLIST code, so everything that's still in the
+  active set ought to be spilled.
+- Stuff that is spilled should not be made 'used' in the register map,
+  because we are never able to move them
+  - If something is spilled, and used in the ARGLIST, then that is
+    strictly speaking wasteful, but not necessarily incorrect, because
+    the live range is replaced by a 'spilled' live range.
+- OR the spillage is dealt with in a separate step
+  - Arguably, if the spillage is limited, we can also use a 'recovery'
+    step POST-call to restore arguments to what they were prior to the
+    CALL.
+
+So, I've decided to use separate spilling (and probably restorative
+loading loading), so that the spillage step is taken into account for
+the topological sort.
+
+#+BEGIN_SRC c
+struct {
+    MVMint32 value;
+    MVMint32 mem_pos;
+} survivors[MAX_ACTIVE], survivors_top = 0;
+for (i = 0; i < alc->active_top; i++) {
+    LiveRange *v = alc->values + alc->active[i];
+    if (last_ref(v) >= order_nr(arglist_idx)) {
+        reg_map[v->reg_num] = alc->active[i];
+    }
+    if (last_ref(v) > order_nr(call_idx)) {
+         survivors[survivors_top++].value = alc->active[i];
+         rev_map[v->regnum].dep++;
+    }
+}
+/* code for initial transfer queue building is pretty much the same */
+for (i = 0; i < survivors_top; i++) {
+    MVMint23 spill_pos = survivors[i].spill_pos = select_memory_for_spill(tc, alc, list, order_nr(call_idx), sizeof(MVMRegister));
+    /* add load and restore */
+    MVM_jit_tile_list_insert(tc, list,
+                             MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_store,
+                                               2, 2, MVM_JIT_STORAGE_LOCAL, spill_pos, 0, v->reg_num),
+                             call_idx, ins_pos++);
+    MVM_jit_tile_list_insert(tc, list,
+                             MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_load,
+                                               2, 1, MVM_JIT_STORAGE_LOCAL, spill_pos, v->reg_num),
+                             call_idx + 1, -2);
+    if (--rev_map[v->reg_num].num == 0) {
+    }
+}
+#+END_SRC
+
+*** DONE Clean register usage of variables not used in ARGLIST
+
+Something is either used in ARGLIST, CALL, or later;
+if CALL conflicts with ARGLIST, a move is added as edge and enqueued
+if used later, it's spilled and restored, if possible an inbound move is enqueued
+if last used before ARGLIST, it's disregarded
+if not conflicting, can't delay ARGLIST moves
+
+*** TODO Split ARGLIST and CALL
+
+Apparently I had rolled ARGLIST into CALL in an earlier phase....
+This has a number of advantages:
+
+- There is no way for another tile to be inserted between CALL and
+  ARGLIST; arglist is tighly bound to the call.
+- There is no need for an arglist-specific symbol in the tiler
+
+However, splitting them also has the advantage:
+- I can treat refs by the ARGLIST and refs to the CALL differently.
+
+This is pretty important, because:
+- There can be more ARGLIST refs than free registers. In the spilling
+  process, we cannot afford to insert loads prior to ARGLIST.
+- We need to find the used by ARGLIST during live-range-determination, but we don't
+- CALL refs are used for calling the function (e.g. in a dispatch
+  table), if such refs are spilled, they need to be loaded in the
+  regular way.
+
+
 
 * TODO Optimizer
 
