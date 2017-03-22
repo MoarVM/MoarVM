@@ -1,12 +1,12 @@
 #include "moar.h"
 
 /* This representation's function pointer table. */
-static const MVMREPROps this_repr;
+static const MVMREPROps SCRef_this_repr;
 
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st  = MVM_gc_allocate_stable(tc, &this_repr, HOW);
+    MVMSTable *st  = MVM_gc_allocate_stable(tc, &SCRef_this_repr, HOW);
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
@@ -197,10 +197,10 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
 
 /* Initializes the representation. */
 const MVMREPROps * MVMSCRef_initialize(MVMThreadContext *tc) {
-    return &this_repr;
+    return &SCRef_this_repr;
 }
 
-static const MVMREPROps this_repr = {
+static const MVMREPROps SCRef_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
     initialize,

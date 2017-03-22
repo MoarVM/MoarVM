@@ -1,7 +1,7 @@
 #include "moar.h"
 
 /* This representation's function pointer table. */
-static const MVMREPROps this_repr;
+static const MVMREPROps VMArray_this_repr;
 
 MVM_STATIC_INLINE void enter_single_user(MVMThreadContext *tc, MVMArrayBody *arr) {
 #if MVM_ARRAY_CONC_DEBUG
@@ -20,7 +20,7 @@ static void exit_single_user(MVMThreadContext *tc, MVMArrayBody *arr) {
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable        *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
+    MVMSTable        *st = MVM_gc_allocate_stable(tc, &VMArray_this_repr, HOW);
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
@@ -1269,10 +1269,10 @@ static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMST
 
 /* Initializes the representation. */
 const MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
-    return &this_repr;
+    return &VMArray_this_repr;
 }
 
-static const MVMREPROps this_repr = {
+static const MVMREPROps VMArray_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
     NULL, /* initialize */

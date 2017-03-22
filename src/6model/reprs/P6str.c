@@ -1,12 +1,12 @@
 #include "moar.h"
 
 /* This representation's function pointer table. */
-static const MVMREPROps this_repr;
+static const MVMREPROps P6str_this_repr;
 
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st  = MVM_gc_allocate_stable(tc, &this_repr, HOW);
+    MVMSTable *st  = MVM_gc_allocate_stable(tc, &P6str_this_repr, HOW);
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
@@ -71,10 +71,10 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
 
 /* Initializes the representation. */
 const MVMREPROps * MVMP6str_initialize(MVMThreadContext *tc) {
-    return &this_repr;
+    return &P6str_this_repr;
 }
 
-static const MVMREPROps this_repr = {
+static const MVMREPROps P6str_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
     NULL, /* initialize */

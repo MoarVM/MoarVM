@@ -9,7 +9,7 @@
 #define MVM_P6OPAQUE_NO_UNBOX_SLOT 0xFFFF
 
 /* This representation's function pointer table. */
-static const MVMREPROps this_repr;
+static const MVMREPROps P6opaque_this_repr;
 
 /* Helpers for reading/writing values. */
 MVM_STATIC_INLINE MVMObject * get_obj_at_offset(void *data, MVMint64 offset) {
@@ -43,7 +43,7 @@ static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_dat
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
+    MVMSTable *st = MVM_gc_allocate_stable(tc, &P6opaque_this_repr, HOW);
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
@@ -1552,10 +1552,10 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
 
 /* Initializes the representation. */
 const MVMREPROps * MVMP6opaque_initialize(MVMThreadContext *tc) {
-    return &this_repr;
+    return &P6opaque_this_repr;
 }
 
-static const MVMREPROps this_repr = {
+static const MVMREPROps P6opaque_this_repr = {
     type_object_for,
     allocate,
     initialize,

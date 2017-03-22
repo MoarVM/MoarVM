@@ -1,9 +1,9 @@
 #include "moar.h"
 
-static const MVMREPROps this_repr;
+static const MVMREPROps MVMDLLSym_this_repr;
 
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
+    MVMSTable *st = MVM_gc_allocate_stable(tc, &MVMDLLSym_this_repr, HOW);
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
@@ -43,7 +43,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 }
 
 const MVMREPROps * MVMDLLSym_initialize(MVMThreadContext *tc) {
-    MVMSTable *st = MVM_gc_allocate_stable(tc, &this_repr, NULL);
+    MVMSTable *st = MVM_gc_allocate_stable(tc, &MVMDLLSym_this_repr, NULL);
 
     MVMROOT(tc, st, {
         MVMObject *WHAT = MVM_gc_allocate_type_object(tc, st);
@@ -56,10 +56,10 @@ const MVMREPROps * MVMDLLSym_initialize(MVMThreadContext *tc) {
         (MVMCollectable **)&tc->instance->raw_types.RawDLLSym,
         "RawDLLSym");
 
-    return &this_repr;
+    return &MVMDLLSym_this_repr;
 }
 
-static const MVMREPROps this_repr = {
+static const MVMREPROps MVMDLLSym_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
     NULL, /* initialize */
