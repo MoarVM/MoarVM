@@ -8,8 +8,8 @@ install: "echo"
 before_script:
     - gcc --version
     - clang --version
-    - if [ "$TRAVIS_OS_NAME" == "linux" ] ; then sudo apt-get update -qq ; fi
-    - if [ "$TRAVIS_OS_NAME" == "linux" ] ; then sudo apt-get install -y libffi-dev ; fi
+    - travis_retry if [ "$TRAVIS_OS_NAME" == "linux" ] ; then sudo apt-get update -qq ; fi
+    - travis_retry if [ "$TRAVIS_OS_NAME" == "linux" ] ; then sudo apt-get install -y libffi-dev ; fi
     - git fetch --unshallow
     - git clone --depth 1 git://github.com/perl6/nqp
 
