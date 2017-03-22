@@ -5,7 +5,7 @@
 #endif
 
 /* Handles both int and uint cases. */
-static MVMuint64 mp_get_int64(MVMThreadContext *tc, mp_int * a, int sign) {
+static MVMuint64 mp_get_int64(MVMThreadContext *tc, mp_int * a, int is_signed) {
     MVMuint64 res;
     MVMuint64 signed_max = 9223372036854775807ULL;
 
@@ -15,12 +15,12 @@ static MVMuint64 mp_get_int64(MVMThreadContext *tc, mp_int * a, int sign) {
 
     /* For 64-bit 2's complement numbers the positive max is 2**63-1
      * but the negative max is 2**63. */
-    if (sign && MP_NEG == SIGN(a)) {
+    if (is_signed && MP_NEG == SIGN(a)) {
         ++signed_max;
     }
 
     res = mp_get_long_long(a);
-    if (res == 0 || (sign && res > signed_max)) {
+    if (res == 0 || (is_signed && res > signed_max)) {
         /* The mp_int was either so big it overflowed a MVMuint64 or was bigger than a signed result could be. */
         MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", mp_count_bits(a));
     }
