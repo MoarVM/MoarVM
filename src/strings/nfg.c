@@ -351,6 +351,12 @@ static MVMint32 passes_quickcheck_and_zero_ccc(MVMThreadContext *tc, MVMCodepoin
     return qc_str && qc_str[0] == 'Y' &&
         (!ccc_str || strlen(ccc_str) > 3 || (strlen(ccc_str) == 1 && ccc_str[0] == 0));
 }
+/* Returns true for cps with Grapheme_Cluster_Break = Control */
+MVM_STATIC_INLINE MVMint32 codepoint_GCB_Control (MVMThreadContext *tc, MVMCodepoint codepoint) {
+    return MVM_unicode_codepoint_get_property_int(tc, codepoint,
+        MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK)
+    ==  MVM_UNICODE_PVALUE_GCB_CONTROL;
+}
 MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMGrapheme32 last_a;
     MVMGrapheme32 first_b;
@@ -371,15 +377,18 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
      * serves as a guard for what follows. */
     if ((last_a != crlf && last_a < 0) || (first_b != crlf && first_b < 0))
         return 0;
+    /* If last_a is \r and first_b is \n then we need to renormalize */
+    if (last_a == '\r' && first_b == '\n')
+        return 0;
 
-    /* If both less than the first significant char for NFC, and the first is
-     * not \r, we're good. */
-    if (last_a != 0x0D && last_a < MVM_NORMALIZE_FIRST_SIG_NFC
-                       && first_b < MVM_NORMALIZE_FIRST_SIG_NFC)
+    /* If both less than the first significant char for NFC we are good */
+    if (last_a < MVM_NORMALIZE_FIRST_SIG_NFC && first_b < MVM_NORMALIZE_FIRST_SIG_NFC)
         return 1;
 
-    /* If either fail quickcheck or have ccc > 0, have to re-normalize. */
-    return passes_quickcheck_and_zero_ccc(tc, last_a) && passes_quickcheck_and_zero_ccc(tc, first_b);
+    /* If either fail quickcheck or have ccc > 0, and it does not have
+     * Grapheme_Cluster_Break=Control we have to re-normalize */
+    return (codepoint_GCB_Control(tc, last_a) || passes_quickcheck_and_zero_ccc(tc, last_a))
+    && (codepoint_GCB_Control(tc, first_b) || passes_quickcheck_and_zero_ccc(tc, first_b));
 }
 
 /* Free all memory allocated to hold synthetic graphemes. These are global
