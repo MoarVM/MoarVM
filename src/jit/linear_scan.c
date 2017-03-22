@@ -719,7 +719,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     }
 
 #define INSERT_TILE(_tile, _pos, _order) MVM_jit_tile_list_insert(tc, list, _tile, _pos, _order)
-#define INSERT_NEXT_TILE(_tile) INSERT_TILE(_tile, call_idx, ins_pos++)
+#define INSERT_NEXT_TILE(_tile) INSERT_TILE(_tile, arglist_idx, ins_pos++)
 #define MAKE_TILE(_code, _narg, _nval, ...) MVM_jit_tile_make(tc, alc->compiler, MVM_jit_compile_ ## _code, _narg, _nval, __VA_ARGS__)
 
 #define INSERT_MOVE(_a, _b)          INSERT_NEXT_TILE(MAKE_TILE(move, 0, 2, _a, _b))
@@ -750,7 +750,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         _DEBUG("Spilling Rq(%d) -> [rbx+%d]", src, dst);
         INSERT_NEXT_TILE(MAKE_TILE(store, 2, 2, MVM_JIT_STORAGE_LOCAL, dst, 0, src));
         /* directly after the CALL, restore the values */
-        INSERT_TILE(MAKE_TILE(load, 2, 1, MVM_JIT_STORAGE_LOCAL, dst, src), call_idx + 1, -2);
+        INSERT_TILE(MAKE_TILE(load, 2, 1, MVM_JIT_STORAGE_LOCAL, dst, src), call_idx, -2);
         /* decrease the outbound edges, and enqueue if possible */
         if (--(topological_map[src].num_out) == 0) {
             transfer_queue[transfer_queue_top++] = src;
@@ -892,9 +892,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
             if (tile->op == MVM_JIT_ARGLIST) {
                 MVMint32 arglist_idx = tile_cursor;
                 MVMint32 call_idx    = ++tile_cursor;
-                if (list->items[call_idx]->op != MVM_JIT_CALL) {
-                    MVM_panic(1, "ARGLIST tiles must be followed by CALL");
-                }
+                _ASSERT(list->items[call_idx]->op == MVM_JIT_CALL, "ARGLIST tiles must be followed by CALL");
                 prepare_arglist_and_call(tc, alc, list, arglist_idx, call_idx);
             } else {
                 /* deal with 'use' registers */

@@ -86,11 +86,15 @@
 (tile: label   (label (const $val)) reg 2)
 (tile: branch_label (branch (label (const $val))) void 2)
 
-(tile: call      (call reg (arglist (carg reg))) reg 4)
-(tile: call      (call reg (arglist (carg reg))) void 4)
 
-(tile: call_func (call (const $ptr) (arglist (carg reg))) reg 4)
-(tile: call_func (call (const $ptr) (arglist (carg reg))) void 4)
+# placeholder for arglist pseudotile
+(define: (arglist (carg reg)) c_args 1)
 
-(tile: call_addr (call (load (addr reg $ofs)) (arglist (carg reg))) reg 4)
-(tile: call_addr (call (load (addr reg $ofs)) (arglist (carg reg))) void 4)
+(tile: call      (call reg c_args) reg 4)
+(tile: call      (call reg c_args) void 4)
+
+(tile: call_func (call (const $ptr) c_args) reg 4)
+(tile: call_func (call (const $ptr) c_args) void 4)
+
+(tile: call_addr (call (load (addr reg $ofs)) c_args)) reg 4)
+(tile: call_addr (call (load (addr reg $ofs)) c_args)) void 4)

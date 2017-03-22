@@ -7,6 +7,7 @@ typedef enum { /* value type */
      MVM_JIT_INT,
      MVM_JIT_NUM,
      MVM_JIT_PTR,
+     MVM_JIT_C_ARGS,
 } MVMJitExprVtype;
 
 #define MVM_JIT_PTR_SZ sizeof(void*)
