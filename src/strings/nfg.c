@@ -343,13 +343,10 @@ MVMuint32 MVM_nfg_get_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVM
     }
 }
 
-/* Returns non-zero if the result of concatenating the two strings will freely
- * leave us in NFG without any further effort. */
-static MVMint32 passes_quickcheck_and_zero_ccc(MVMThreadContext *tc, MVMCodepoint cp) {
-    const char *qc_str  = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_NFG_QC);
-    const char *ccc_str = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
-    return qc_str && qc_str[0] == 'Y' &&
-        (!ccc_str || strlen(ccc_str) > 3 || (strlen(ccc_str) == 1 && ccc_str[0] == 0));
+MVM_STATIC_INLINE MVMint32 passes_quickcheck_and_zero_ccc(MVMThreadContext *tc, MVMCodepoint cp) {
+    return MVM_unicode_codepoint_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_NFG_QC)
+    &&     MVM_unicode_codepoint_get_property_int(tc, cp,
+               MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS) <= MVM_UNICODE_PVALUE_CCC_0;
 }
 /* Returns true for cps with Grapheme_Cluster_Break = Control */
 MVM_STATIC_INLINE MVMint32 codepoint_GCB_Control (MVMThreadContext *tc, MVMCodepoint codepoint) {
@@ -357,6 +354,8 @@ MVM_STATIC_INLINE MVMint32 codepoint_GCB_Control (MVMThreadContext *tc, MVMCodep
         MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK)
     ==  MVM_UNICODE_PVALUE_GCB_CONTROL;
 }
+/* Returns non-zero if the result of concatenating the two strings will freely
+ * leave us in NFG without any further effort. */
 MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMGrapheme32 last_a;
     MVMGrapheme32 first_b;
