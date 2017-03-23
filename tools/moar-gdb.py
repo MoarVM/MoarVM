@@ -55,6 +55,10 @@ import random
 #import blessings
 import sys
 
+import pdb
+
+pdb.set_trace()
+
 import traceback # debugging
 
 # These are the flags from MVMString's body.flags
@@ -248,6 +252,27 @@ slot_type_to_slot_name = [
         "None"
     ]
 
+please_just_give_me_the_default_pprinter_gdb_you_piece_of_shit = False
+
+class PPrintFallback(Exception):
+    def __init__(self, exc):
+        self.exc = exc
+
+def can_fall_back(method):
+    def with_fallback(self, *args, **kwargs):
+        global please_just_give_me_the_default_pprinter_gdb_you_piece_of_shit
+        try:
+            result = method(self, *args, **kwargs)
+        except PPrintFallback as e:
+            traceback.print_exception(type(e), e.exc, None)
+            print("please give me the default pprinter, yes yes")
+            please_just_give_me_the_default_pprinter_gdb_you_piece_of_shit = True
+            result = self.val.to_string()
+            please_just_give_me_the_default_pprinter_gdb_you_piece_of_shit = False
+        return result
+    return with_fallback
+
+
 class MVMObjectPPrinter(object):
     def __init__(self, val, pointer = False):
         print("pretty print for ", hex(val))
@@ -263,19 +288,28 @@ class MVMObjectPPrinter(object):
             self.as_mvmobject = self.val.cast(gdb.lookup_type("MVMObject"))
 
         self._repr = self.as_mvmobject['st']['REPR']
+        try:
+            self._repr.dereference()
+        except gdb.MemoryError as e:
+            raise PPrintFallback(e)
+
         print(hex(self._repr))
 
         self.reprname = self._repr['name'].string()
 
-        self.debugname = self.as_mvmobject['st']['debug_name'].string()
+        self.debugname = self.as_mvmobject['st']['debug_name']
+        if self.debugname != 0:
+            self.debugname = self.debugname.string()
 
         self.inited = True
 
+    @can_fall_back
     def stringify(self):
         print("stringifying an mvmobject")
         self.get_basic_info()
         return str(self.val.type) + " (" + self.debugname + ") of repr " + self.reprname
 
+    @can_fall_back
     def to_string(self):
         return self.stringify()
 
@@ -880,9 +914,16 @@ def str_lookup_function(val):
 
     return None
 
+mvm_not_object = [
+        "MVMThreadContext",
+        
+    ]
+
 def mvmobject_lookup_function(val):
+    if please_just_give_me_the_default_pprinter_gdb_you_piece_of_shit:
+        return None
     pointer = str(val.type).endswith("*")
-    if str(val.type).startswith("MVM"):
+    if str(val.type).startswith("MVM") and not (str(val.type).endswith("Body") or str(val.type).endswith("Body*")):
         try:
             if pointer:
                 val.cast(gdb.lookup_type("MVMObject").pointer())
