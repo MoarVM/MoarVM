@@ -386,8 +386,8 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
 
     /* If either fail quickcheck or have ccc > 0, and it does not have
      * Grapheme_Cluster_Break=Control we have to re-normalize */
-    return (codepoint_GCB_Control(tc, last_a) || passes_quickcheck_and_zero_ccc(tc, last_a))
-    && (codepoint_GCB_Control(tc, first_b) || passes_quickcheck_and_zero_ccc(tc, first_b));
+    return (last_a == crlf || codepoint_GCB_Control(tc, last_a) || passes_quickcheck_and_zero_ccc(tc, last_a))
+        && (first_b == crlf || codepoint_GCB_Control(tc, first_b) || passes_quickcheck_and_zero_ccc(tc, first_b));
 }
 
 /* Free all memory allocated to hold synthetic graphemes. These are global
