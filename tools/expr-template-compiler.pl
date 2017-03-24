@@ -1,7 +1,10 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use Test;
+
+use FindBin;
+use lib $FindBin::Bin;
+
 use Getopt::Long;
 use sexpr;
 
@@ -129,9 +132,9 @@ sub write_template {
         # Add macro or sizeof/offsetof expression. these are not
         # processed in at runtime! Must evaluate to constant
         # expression.
-        return (sprintf('%s(%s)', substr($top, 1), 
+        return (sprintf('%s(%s)', substr($top, 1),
                         join(', ', @$tree[1..$#$tree])), '.');
-    } 
+    }
     # deal with a simple expression
     for my $item (@$tree) {
         if (ref($item) eq 'ARRAY') {
@@ -168,6 +171,16 @@ sub write_template {
 
 
 if ($TESTING) {
+    eval {
+        # Neither Test, nor Test::More are available everywhere.
+        # Thanks, Fedora!
+        require Test::More;
+        Test::More->import;
+        1;
+    } or do {
+        die "Cannot load Test::More and run tests: $@";
+    };
+
     $PREFIX = 'MJ_';
     my $parser = sexpr->parser();
     sub parse_sexp {
@@ -185,34 +198,35 @@ if ($TESTING) {
     check_parse('(foo (bar))', ['foo', ['bar']]);
     check_parse('((foo) (bar))', [['foo'], ['bar']]);
     check_parse('(0)', ['0']);
-    eval { compile_template(parse_sexp('()')) }; ok $@, 'Cannot compile empty template';
+
+    eval { compile_template(parse_sexp('()')) }; ok ($@, 'Cannot compile empty template');
     eval { compile_template(parse_sexp('(foo bar)')) };
-    ok !$@, 'a simple expression should work';
+    ok (!$@, 'a simple expression should work');
     eval { compile_template(parse_sexp('(&offsetof foo bar)')) };
-    ok $@, 'Template root must be simple expr';
-    eval { compile_template(parse_sexp('(foo (&sizeof 1))')) }; ok !$@, 'use sizeof as a macro';
+    ok ($@, 'Template root must be simple expr');
+    eval { compile_template(parse_sexp('(foo (&sizeof 1))')) }; ok (!$@, 'use sizeof as a macro');
     eval { compile_template(parse_sexp('(let: (($foo (bar)) ($quix (quam $1))) (bar $foo $quix))')) };
-    ok !$@, 'let expressions should live and take more than one argument';
+    ok (!$@, 'let expressions should live and take more than one argument');
     eval { compile_template(parse_sexp('(foo $bar)')) };
-    ok $@, 'Cannot compile with undefined variables';
-    eval { compile_template(parse_sexp('($1 bar)')) }; ok $@, 'First argument should be bareword';
+    ok ($@, 'Cannot compile with undefined variables');
+    eval { compile_template(parse_sexp('($1 bar)')) }; ok ($@, 'First argument should be bareword');
     eval { compile_template(parse_sexp('(let: (($foo (bar))) (let: (($quix (quam (bar $foo)))) (a $foo $quix)))')); };
-    ok !$@, 'Nested lets are ok';
+    ok (!$@, 'Nested lets are ok');
     eval { compile_template(parse_sexp('(let: (($foo (bar))) (let: (($foo (bar))) (quix $foo)))')); };
-    ok $@, 'Redeclarations are not';
+    ok ($@, 'Redeclarations are not');
     my $simple = compile_template(parse_sexp('(foo bar)'));
-    is($simple->{root}, 0, 'root of a very simple expression should be 0');
-    is($simple->{desc}, '..', 'simple expression without filling or linking');
+    is ($simple->{root}, 0, 'root of a very simple expression should be 0');
+    is ($simple->{desc}, '..', 'simple expression without filling or linking');
     my $let = compile_template(parse_sexp('(let: (($foo (baz))) (quix $foo))'));
-    is($let->{root}, 1, 'baz expression requires only one node');
-    is($let->{desc}, 'r.l');
+    is ($let->{root}, 1, 'baz expression requires only one node');
+    is ($let->{desc}, 'r.l');
     is_deeply($let->{template}, [qw<MJ_BAZ MJ_QUIX 0>]);
     my $par = compile_template(parse_sexp('(foo bar $1)'));
     is($par->{desc}, '..f');
     is_deeply($par->{template}, [qw<MJ_FOO MJ_BAR 1>]);
     my $subex = compile_template(parse_sexp('(foo bar (baz $1))'));
-    is($subex->{root}, 2);
-    is($subex->{desc}, '.f..l', 'Fill subexpression, link to parent');
+    is ($subex->{root}, 2);
+    is ($subex->{desc}, '.f..l', 'Fill subexpression, link to parent');
     is_deeply($subex->{template}, [qw<MJ_BAZ 1 MJ_FOO MJ_BAR 0>]);
     my $complex_sexp = '(let: (($foo (bar $1))) (foo zum $2 (zaf $foo 3) (&sizeof int)))';
     my ($complex_expr, $rest) = parse_sexp($complex_sexp);
@@ -223,7 +237,7 @@ if ($TESTING) {
 
     eval { my ($macro, $rest) = parse_sexp('((,a) (quix quam ,a))', 1);
            $parser->decl_macro('^foo', $macro); };
-    ok !$@, 'macro parsing lives';
+    ok (!$@, 'macro parsing lives');
     my ($macrod, $restmacro) = parse_sexp('(oh (^foo $1) hai)');
     is_deeply($macrod, ['oh', ['quix', 'quam', '$1'], 'hai'], 'macro is spliced in correctly');
 

@@ -375,9 +375,10 @@ void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileLis
             /* don't assign registers to ARGLIST references, that will never
              * work */
             continue;
+        } else {
+            MVMJitTile *tile = list->items[ref->tile_idx];
+            tile->values[ref->value_idx] = reg_num;
         }
-        MVMJitTile *tile = list->items[ref->tile_idx];
-        tile->values[ref->value_idx] = reg_num;
     }
 
     for (i = 0; i < 2; i++) {

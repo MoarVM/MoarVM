@@ -1,7 +1,10 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use Test;
+
+use FindBin;
+use lib $FindBin::Bin;
+
 use Getopt::Long;
 use sexpr;
 
@@ -63,7 +66,6 @@ package rule {
             # number of arguments and refs
             num  => 0,
         };
-
         push @{$ctx->{'spec'}}, register_spec($sym);
 
         my @rules = decompose($ctx, $tree, $sym, $cost);
