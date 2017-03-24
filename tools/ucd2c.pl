@@ -636,7 +636,7 @@ sub emit_codepoint_row_lookup {
     MVMint32 plane = codepoint >> 16;
 
     if (codepoint < 0) {
-        MVM_exception_throw_adhoc(tc, \"should eventually be unreachable\");
+        MVM_exception_throw_adhoc(tc, \"Error, MoarVM cannot get Unicode codepoint property for synthetic codepoint %i", codepoint);
     }
 
     if (plane == 0) {"
