@@ -622,7 +622,14 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
     for (i = 0; i + h_offset < h_graphs && i + n_offset < n_graphs; i++) {
         const MVMCodepoint* h_result_cps;
         h_g = MVM_string_get_grapheme_at_nocheck(tc, haystack, h_offset + i);
-        h_fc_cps = MVM_unicode_get_case_change(tc, h_g, MVM_unicode_case_change_type_fold, &h_result_cps);
+        if (h_g >= 0 ) {
+            /* For codeponits we can get the case change directly */
+            h_fc_cps = MVM_unicode_get_case_change(tc, h_g, MVM_unicode_case_change_type_fold, &h_result_cps);
+        }
+        else {
+            /* Synthetics must use this function */
+            h_fc_cps = MVM_nfg_get_case_change(tc, h_g, MVM_unicode_case_change_type_fold, &h_result_cps);
+        }
         /* If we get 0 for the number that means the cp doesn't change when casefolded */
         if (h_fc_cps == 0) {
             n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
