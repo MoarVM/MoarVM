@@ -4,30 +4,44 @@
    #define MIN(x,y) ((x)<(y)?(x):(y))
 #endif
 
-/* A forced 64-bit version of mp_get_long, since on some platforms long is
- * not all that long. */
-static MVMuint64 mp_get_int64(MVMThreadContext *tc, mp_int * a) {
-    int i, bits;
+/* Get a native int64 from an mp_int. */
+static MVMint64 mp_get_int64(MVMThreadContext *tc, mp_int * a) {
+    MVMuint64 res;
+    MVMuint64 signed_max = 9223372036854775807ULL;
+
+    if (a->used == 0) {
+        return 0;
+    }
+
+    /* For 64-bit 2's complement numbers the positive max is 2**63-1
+     * but the negative max is 2**63. */
+    if (MP_NEG == SIGN(a)) {
+        ++signed_max;
+    }
+
+    res = mp_get_long_long(a);
+    if (res == 0 || res > signed_max) {
+        /* The mp_int was bigger than a signed result could be. */
+        MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", mp_count_bits(a));
+    }
+
+    return MP_NEG == SIGN(a) ? -res : res;
+}
+
+/* Get a native uint64 from an mp_int. */
+static MVMuint64 mp_get_uint64(MVMThreadContext *tc, mp_int * a) {
     MVMuint64 res;
 
     if (a->used == 0) {
-         return 0;
+        return 0;
     }
 
-    bits = mp_count_bits(a);
-    if (bits > 64) {
-        MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
+    res = mp_get_long_long(a);
+    if (res == 0) {
+        /* The mp_int was so big it overflowed a MVMuint64. */
+        MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", mp_count_bits(a));
     }
 
-    /* get number of digits of the lsb we have to read */
-    i = MIN(a->used,(int)((sizeof(MVMuint64)*CHAR_BIT+DIGIT_BIT-1)/DIGIT_BIT))-1;
-
-    /* get most significant digit of result */
-    res = DIGIT(a,i);
-
-    while (--i >= 0) {
-        res = (res << DIGIT_BIT) | DIGIT(a,i);
-    }
     return res;
 }
 
@@ -91,12 +105,7 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     if (MVM_BIGINT_IS_BIG(body)) {
         mp_int *i = body->u.bigint;
-        if (MP_NEG == SIGN(i)) {
-            return -mp_get_int64(tc, i);
-        }
-        else {
-            return mp_get_int64(tc, i);
-        }
+        return mp_get_int64(tc, i);
     }
     else {
         return body->u.smallint.value;
@@ -123,7 +132,7 @@ static MVMuint64 get_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
         if (MP_NEG == SIGN(i))
             MVM_exception_throw_adhoc(tc, "Cannot unbox negative bigint into native unsigned integer");
         else
-            return mp_get_int64(tc, i);
+            return mp_get_uint64(tc, i);
     }
     else {
         return body->u.smallint.value;
