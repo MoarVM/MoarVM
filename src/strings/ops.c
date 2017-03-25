@@ -1922,17 +1922,26 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
 MVMString * MVM_string_chr(MVMThreadContext *tc, MVMCodepoint cp) {
     MVMString *s;
     MVMGrapheme32 g;
-    MVMNormalizer norm;
 
     if (cp < 0)
         MVM_exception_throw_adhoc(tc, "chr codepoint cannot be negative");
+    /* If it doesn't pass NFG_QC we may need to normalize it.
+     * this can be optimized further, but make sure any changes don't allow
+     * any non-normalized codepoints to get through */
+    if (MVM_unicode_codepoint_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE)
+        != MVM_UNICODE_PVALUE_DT_NONE) {
 
-    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
-    if (!MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, cp, &g)) {
-        MVM_unicode_normalizer_eof(tc, &norm);
-        g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        MVMNormalizer norm;
+        MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+        if (!MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, cp, &g)) {
+            MVM_unicode_normalizer_eof(tc, &norm);
+            g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        }
+        MVM_unicode_normalizer_cleanup(tc, &norm);
     }
-    MVM_unicode_normalizer_cleanup(tc, &norm);
+    else {
+        g = (MVMGrapheme32) cp;
+    }
 
     s = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
     if (g >= -128 && g < 128) {
