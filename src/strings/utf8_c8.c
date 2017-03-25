@@ -620,11 +620,19 @@ static void emit_cp(MVMThreadContext *tc, MVMCodepoint cp, MVMuint8 **result,
         *result_pos += repl_length;
     }
     else {
+        const char *gencat = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY);
         MVM_free(*result);
         MVM_free(repl_bytes);
-        MVM_exception_throw_adhoc(tc,
-            "Error encoding UTF-8 string: could not encode codepoint %d",
-            cp);
+        if (strcmp("Cs", gencat) == 0) {
+            MVM_exception_throw_adhoc(tc,
+                "Error encoding UTF-8 string: could not encode Unicode Surrogate codepoint %d",
+                cp);
+        }
+        else {
+            MVM_exception_throw_adhoc(tc,
+                "Error encoding UTF-8 string: could not encode codepoint %d",
+                cp);
+        }
     }
 }
 static int hex2int(MVMThreadContext *tc, MVMCodepoint cp) {
