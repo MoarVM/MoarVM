@@ -52,6 +52,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
         break;
     case MVM_JIT_DO:
+    case MVM_JIT_DOV:
         {
             MVMint32 last_child = first_child+nchild-1;
             MVMint32 left_state = tiler->states[tree->nodes[first_child]].state;
@@ -65,7 +66,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
         break;
     case MVM_JIT_IF:
-    case MVM_JIT_EITHER:
+    case MVM_JIT_IFV:
         {
             MVMint32 cond = tree->nodes[node+1],
                 left = tree->nodes[node+2],
@@ -206,6 +207,7 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
         break;
     case MVM_JIT_DO:
+    case MVM_JIT_DOV:
         {
             MVMint32 i, last_child, last_rule;
             for (i = 0; i < nchild - 1; i++) {
@@ -215,7 +217,7 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
         break;
     case MVM_JIT_IF:
-    case MVM_JIT_EITHER:
+    case MVM_JIT_IFV:
         {
             DO_ASSIGN_CHILD(0, left_sym);
             DO_ASSIGN_CHILD(1, right_sym);
@@ -353,8 +355,8 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
         break;
     }
-    case MVM_JIT_EITHER:
     case MVM_JIT_IF:
+    case MVM_JIT_IFV:
     {
         MVMint32 left_label = tree->info[node].label;
         MVMint32 right_label = left_label + 1;

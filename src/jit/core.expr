@@ -1,7 +1,7 @@
 # -*-whitespace-*-
 # SYNTAX: (keyword: opcode (tree $substitutions))
 
-# Number with dollars stand for the arguments of the opcode.  The
+# Number with dollar-signs stand for the arguments of the opcode.  The
 # opcode preprocessor inserts loads, and immediate nodes for arguments
 # automatically.
 
@@ -115,7 +115,6 @@
      (if (nz $who) $who (^vmnull))))
 
 (macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
-(template: say (call (^func &MVM_string_say)
-                     (arglist 2 (carg (tc) ptr)
-                                (carg $0 ptr))
-                     void))
+(template: say (callv (^func &MVM_string_say)
+                      (arglist 2 (carg (tc) ptr)
+                                 (carg $0 ptr))))

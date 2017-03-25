@@ -67,9 +67,10 @@ typedef enum { /* value type */
     _(ANY, -1, 0, FLAG, NO_CAST), \
     /* control operators */ \
     _(DO, -1, 0, REG, NO_CAST),   \
+    _(DOV, -1, 0, VOID, NO_CAST),   \
     _(WHEN, 2, 0, VOID, NO_CAST), \
     _(IF, 3, 0, REG, NO_CAST),    \
-    _(EITHER, 3, 0, VOID, NO_CAST), \
+    _(IFV, 3, 0, VOID, NO_CAST), \
     _(BRANCH, 1, 0, VOID, NO_CAST), \
     _(LABEL, 1, 0, VOID, NO_CAST),  \
     /* special control operators */ \
@@ -77,7 +78,8 @@ typedef enum { /* value type */
      _(THROWISH, 1, 0, VOID, NO_CAST), \
     /* call c functions */ \
     _(CALL, 2, 1, REG, NO_CAST),      \
-    _(ARGLIST, -1, 0, VOID, NO_CAST), \
+    _(CALLV, 2, 0, VOID, NO_CAST), \
+    _(ARGLIST, -1, 0, C_ARGS, NO_CAST), \
     _(CARG, 1, 1, VOID, NO_CAST),     \
     /* interpreter special variables */ \
     _(TC, 0, 0, REG, NO_CAST), \

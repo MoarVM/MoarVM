@@ -16,10 +16,10 @@
 (define: (all flag) flag)
 (define: (any flag) flag)
 (define: (if flag reg) reg)
-(define: (either flag void) void)
+(define: (ifv flag void) void)
 (define: (when flag void) void)
 (define: (do void reg) reg)
-(define: (do void void) void)
+(define: (dov void void) void)
 
 #
 # ALIASING
@@ -90,11 +90,11 @@
 # placeholder for arglist pseudotile
 (define: (arglist (carg reg)) c_args 1)
 
-(tile: call      (call reg c_args) reg:rax 4)
-(tile: call      (call reg c_args) void 4)
+(tile: call      (call  reg c_args) reg:rax 4)
+(tile: call      (callv reg c_args) void 4)
 
-(tile: call_func (call (const $ptr $sz) c_args) reg:rax 4)
-(tile: call_func (call (const $ptr $sz) c_args) void 4)
+(tile: call_func (call  (const $ptr $sz) c_args) reg:rax 4)
+(tile: call_func (callv (const $ptr $sz) c_args) void 4)
 
-(tile: call_addr (call (load (addr reg $ofs) $sz) c_args) reg:rax 4)
-(tile: call_addr (call (load (addr reg $ofs) $sz) c_args) void 4)
+(tile: call_addr (call  (load (addr reg $ofs) $sz) c_args) reg:rax 4)
+(tile: call_addr (callv (load (addr reg $ofs) $sz) c_args) void 4)

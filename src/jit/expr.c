@@ -388,14 +388,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             break;
         }
     case MVM_JIT_CALL:
-        if (args[0] == MVM_JIT_VOID)
-            node_info->size = 0;
-        else if (args[0] == MVM_JIT_INT)
-            node_info->size = MVM_JIT_INT_SZ;
-        else if (args[0] == MVM_JIT_PTR)
-            node_info->size = MVM_JIT_PTR_SZ;
-        else
-            node_info->size = MVM_JIT_NUM_SZ;
+        node_info->size = args[0];
         break;
     case MVM_JIT_NZ:
     case MVM_JIT_ZR:
@@ -513,7 +506,7 @@ static void assign_labels(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         }
         break;
     case MVM_JIT_IF:
-    case MVM_JIT_EITHER:
+    case MVM_JIT_IFV:
         {
             MVMint32 test = tree->nodes[node+1];
             /* take two labels, one for the left block and one for the right block */

@@ -410,7 +410,7 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
         if (tile->op == MVM_JIT_COPY) {
             MVMint32 ref        = tree->nodes[tile->node + 1];
             alc->sets[node].key = ref; /* point directly to actual definition */
-        } else if (tile->op == MVM_JIT_DO && MVM_JIT_TILE_YIELDS_VALUE(tile)) {
+        } else if (tile->op == MVM_JIT_DO) {
             MVMint32 nchild     = tree->nodes[tile->node + 1];
             MVMint32 ref        = tree->nodes[tile->node + nchild];
             alc->sets[node].key = ref;
@@ -893,7 +893,8 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
             if (tile->op == MVM_JIT_ARGLIST) {
                 MVMint32 arglist_idx = tile_cursor;
                 MVMint32 call_idx    = ++tile_cursor;
-                _ASSERT(list->items[call_idx]->op == MVM_JIT_CALL, "ARGLIST tiles must be followed by CALL");
+                _ASSERT((list->items[call_idx]->op == MVM_JIT_CALL || list->items[call_idx]->op == MVM_JIT_CALLV),
+                        "ARGLIST tiles must be followed by CALL");
                 prepare_arglist_and_call(tc, alc, list, arglist_idx, call_idx);
             } else {
                 /* deal with 'use' registers */

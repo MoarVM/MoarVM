@@ -532,7 +532,7 @@ Comes down to:
 
       - output-register must be copied off /or/ spilled
 
-** TODO Implement ARGLIST handling
+** DONE Implement ARGLIST handling
 
 ARGLIST prepares arguments to function calls. This means placing
 values in their correct places, which may mean inserting COPYs, loads
@@ -840,7 +840,7 @@ if used later, it's spilled and restored, if possible an inbound move is enqueue
 if last used before ARGLIST, it's disregarded
 if not conflicting, can't delay ARGLIST moves
 
-*** TODO Split ARGLIST and CALL
+*** DONE Split ARGLIST and CALL
 
 Apparently I had rolled ARGLIST into CALL in an earlier phase....
 This has a number of advantages:
@@ -860,11 +860,48 @@ This is pretty important, because:
   table), if such refs are spilled, they need to be loaded in the
   regular way.
 
+*** TODO Use function return argument
 
+We should probably allocate the return argument to a 'allocatable'
+register, since the current register is not. (In fact, we should
+somehow deal with specific register arguments anyway).
+
+** DONE Split void from non-void nodes
+
+Already did this for IF/EITHER, now for DO / DOV,
+CALL/CALLV. Otherwise the tiler always selects the value-generating
+one. Might also be nice for numeric/non-numeric variants.
+
+** TODO Apply register requirements
+
+Bunch of options possible:
+- it's a requirement for an output register
+  - the register is allocatable
+    - which is /free/, in which case we can just take it (how I do I
+      know it's free? by a register map, which we need to make)
+    - which is /not free/, in which case we need to /spill/ the
+      current register
+  - the register is not allocatable (e.g. %rax)
+    - I'm going to go ahead and assume that it is free nevertheless,
+      otherwise we'd have to record the set of non-allocatable
+      registers clobbered
+    - However, if the value is to live, it's probably best to copy it
+      to an allocatable register
+- it is a requirement for an input register
+  - that is not yet a problem I have (because I made %rax the spare
+    register), but most of the considerations of clobbering described
+    below apply
+  - it is an existing problem for ARGLIST compilation, but there it is
+    handled seprately (although it is fairly similar, and might generalize!)
+- it clobbers a register (not necessarily one it uses), e.g. div which
+  clobbers %rdx to store the modulo (and %rax for the quotient).
+  - if free, no problem whatever
+  - if non-free, we again need to start moving registers, but I'm not
+    sure this requires the full shuffling requirements of ARGLIST.
 
 * TODO Optimizer
 
-- Want to do common-subexpression-elimination / global-value numbering
+- common subexpression elimination
   - idea: (hash) table of expr, node
   - table is created bottom-up
     - all children are replaced with equivalent (according to the table)
@@ -872,7 +909,7 @@ This is pretty important, because:
       replaced
 - IDX CONST to ADDR conversion
   - Uses one register less, simpler operation
-- Want to do copy-insertion
+- COPY insertion
   - Values that are LOAD-ed and used from multiple operations might
     benefit from inserting a COPY, so they don't use indirect operations, e.g.
 
