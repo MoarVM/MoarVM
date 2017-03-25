@@ -1916,19 +1916,21 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     }
 }
 
-/* Turns a codepoint into a string. Uses the normalizer to ensure that we get
- * a valid NFG string (NFG is a superset of NFC, and singleton decompositions
- * exist). */
+/* Turns a codepoint into a string. If required uses the normalizer to ensure
+ * that we get a valid NFG string (NFG is a superset of NFC, and singleton
+ * decompositions exist). */
 MVMString * MVM_string_chr(MVMThreadContext *tc, MVMCodepoint cp) {
     MVMString *s;
     MVMGrapheme32 g;
 
     if (cp < 0)
         MVM_exception_throw_adhoc(tc, "chr codepoint cannot be negative");
-    /* If it doesn't pass NFG_QC we may need to normalize it.
-     * this can be optimized further, but make sure any changes don't allow
-     * any non-normalized codepoints to get through */
-    if (MVM_unicode_codepoint_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE)
+    /* If the codepoint decomposes we may need to normalize it.
+     * The first cp that decomposes is U+0340, but to be on the safe side
+     * for now we go with the first significant character which at the time
+     * of writing (Unicode 9.0) is COMBINING GRAVE ACCENT U+300 */
+    if (cp >= MVM_NORMALIZE_FIRST_SIG_NFC
+        && MVM_unicode_codepoint_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE)
         != MVM_UNICODE_PVALUE_DT_NONE) {
 
         MVMNormalizer norm;
