@@ -13,8 +13,8 @@ MVM_STATIC_INLINE void adjust_nursery(MVMThreadContext *tc, MVMP6bigintBody *bod
     if (MVM_BIGINT_IS_BIG(body)) {
         int used = USED(body->u.bigint);
         int adjustment = MIN(used, 32768) & ~0x7;
-        if (adjustment && ((tc->nursery_alloc_limit - adjustment) > tc->nursery_alloc)) {
-            tc->nursery_alloc_limit -= adjustment;
+        if (adjustment && (((char *)(tc->nursery_alloc_limit) - adjustment) > tc->nursery_alloc)) {
+            tc->nursery_alloc_limit = (char *)(tc->nursery_alloc_limit) - adjustment;
         }
     }
 }
