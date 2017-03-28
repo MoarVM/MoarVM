@@ -510,12 +510,12 @@ void MVM_string_utf8_throw_encoding_exception (MVMThreadContext *tc, MVMCodepoin
     }
     else if (strcmp("Cs", gencat) == 0) {
         MVM_exception_throw_adhoc(tc,
-            "Error encoding UTF-8 string: could not encode Unicode Surrogate codepoint %d",
-            cp);
+            "Error encoding UTF-8 string: could not encode Unicode Surrogate codepoint %d (0x%X)",
+            cp, cp);
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "Error encoding UTF-8 string: could not encode codepoint %d",
-            cp);
+            "Error encoding UTF-8 string: could not encode codepoint %d (0x%X)",
+            cp, cp);
     }
 }
