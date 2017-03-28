@@ -622,9 +622,7 @@ static void emit_cp(MVMThreadContext *tc, MVMCodepoint cp, MVMuint8 **result,
     else {
         MVM_free(*result);
         MVM_free(repl_bytes);
-        MVM_exception_throw_adhoc(tc,
-            "Error encoding UTF-8 string: could not encode codepoint %d",
-            cp);
+        MVM_string_utf8_throw_encoding_exception(tc, cp);
     }
 }
 static int hex2int(MVMThreadContext *tc, MVMCodepoint cp) {
