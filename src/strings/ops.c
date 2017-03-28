@@ -412,7 +412,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     total_graphs = (MVMuint64)agraphs + (MVMuint64)bgraphs;
     if (total_graphs > 0xFFFFFFFF)
         MVM_exception_throw_adhoc(tc,
-            "Can't concatenate strings, required number of graphemes %lu > max allowed of %u",
+            "Can't concatenate strings, required number of graphemes %"PRIu64" > max allowed of %u",
              total_graphs, 0xFFFFFFFF);
 
     /* Otherwise, we'll assemble a result string. */
@@ -520,7 +520,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     total_graphs = (MVMuint64)agraphs * (MVMuint64)count;
     if (total_graphs > 0xFFFFFFFF)
         MVM_exception_throw_adhoc(tc,
-            "Can't repeat string, required number of graphemes %lu > max allowed of %u",
+            "Can't repeat string, required number of graphemes %"PRIu64" > max allowed of %u",
              total_graphs, 0xFFFFFFFF);
 
     /* Now build a result string with the repetition set. */
