@@ -279,7 +279,7 @@ static void process_gc_worklist(MVMThreadContext *tc, MVMHeapSnapshotState *ss, 
     MVMuint16 ref_index = desc
         ? get_string_index(tc, ss, desc, STR_MODE_CONST)
         : 0;
-    while (c_ptr = MVM_gc_worklist_get(tc, ss->gcwl)) {
+    while (( c_ptr = MVM_gc_worklist_get(tc, ss->gcwl) )) {
         MVMCollectable *c = *c_ptr;
         if (c)
             add_reference(tc, ss, ref_kind, ref_index,
@@ -312,7 +312,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
         MVMHeapSnapshotWorkItem item = pop_workitem(tc, ss);
 
         /* We take our own working copy of the collectable info, since the
-         * collectables array can grow and be reallocated. */ 
+         * collectables array can grow and be reallocated. */
         MVMHeapSnapshotCollectable col;
         set_ref_from(tc, ss, item.col_idx);
         col = ss->hs->collectables[item.col_idx];

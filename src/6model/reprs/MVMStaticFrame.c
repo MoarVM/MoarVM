@@ -357,7 +357,7 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
             if (body->spesh_candidates[i].sg) {
                 MVMCollectable **c_ptr;
                 MVM_spesh_graph_mark(tc, body->spesh_candidates[i].sg, ss->gcwl);
-                while (c_ptr = MVM_gc_worklist_get(tc, ss->gcwl)) {
+                while (( c_ptr = MVM_gc_worklist_get(tc, ss->gcwl) )) {
                     MVMCollectable *c = *c_ptr;
                     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss, c,
                         "Object held by spesh graph");

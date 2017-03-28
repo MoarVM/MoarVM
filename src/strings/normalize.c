@@ -489,7 +489,7 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
  * the handling of breaking around controls much earlier, so don't have to
  * consider that case. */
 static MVMint32 maybe_hangul(MVMCodepoint cp) {
-    return cp >= 0x1100 && cp < 0x1200 || cp >= 0xA960 && cp < 0xD7FC;
+    return (cp >= 0x1100 && cp < 0x1200) || (cp >= 0xA960 && cp < 0xD7FC);
 }
 static MVMint32 is_regional_indicator(MVMCodepoint cp) {
     /* U+1F1E6 REGIONAL INDICATOR SYMBOL LETTER A
