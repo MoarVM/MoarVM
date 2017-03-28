@@ -688,6 +688,10 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
     return 1;
 }
 MVMint64 MVM_string_index_ignore_case(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
+    /* foldcase version of needle */
+    MVMString *needle_fc;
+    MVMStringIndex n_fc_graphs;
+
     size_t index           = (size_t)start;
     MVMStringIndex hgraphs, ngraphs;
     MVMint64 return_val = -1;
@@ -695,33 +699,36 @@ MVMint64 MVM_string_index_ignore_case(MVMThreadContext *tc, MVMString *haystack,
     MVM_string_check_arg(tc, needle, "index search term");
     hgraphs = MVM_string_graphs(tc, haystack);
     ngraphs = MVM_string_graphs(tc, needle);
-
     if (!ngraphs)
         return start <= hgraphs ? start : -1; /* the empty string is in any other string */
-
     if (!hgraphs)
         return -1;
-
     if (start < 0 || start >= hgraphs)
         return -1;
-
-    if (ngraphs > hgraphs || ngraphs < 1)
+    /* Codepoints can expand into up to THREE codepoints (as of Unicode 9.0). The next check
+     * checks if it is at all possible for the needle grapheme number to be higher
+     * than the haystack */
+    if (ngraphs > hgraphs * 3)
         return -1;
 
+    if (ngraphs < 1)
+        return -1;
+
+    needle_fc = MVM_string_fc(tc, needle);
+    n_fc_graphs = MVM_string_graphs(tc, needle_fc);
+
     MVMROOT(tc, haystack, {
-        MVMROOT(tc, needle, {
-            /* brute force for now. horrible, yes. halp. */
-            while (index <= hgraphs) {
-                if (MVM_string_equal_at_ignore_case(tc, haystack, needle, index)) {
-                    return_val = (MVMint64)index;
-                    break;
-                }
-                index++;
-            }
+        MVMROOT(tc, needle_fc, {
         });
     });
+    /* brute force for now. horrible, yes. halp. */
+    while (index <= hgraphs) {
+        if (string_equal_at_ignore_case_INTERNAL_loop(tc, haystack, needle_fc, index, hgraphs, n_fc_graphs))
+            return (MVMint64)index;
 
-    return return_val;
+        index++;
+    }
+    return -1;
 }
 MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
     MVMStringIndex agraphs;
