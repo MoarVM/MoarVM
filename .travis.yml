@@ -34,8 +34,6 @@ notifications:
 
 env:
   matrix:
-    - ARCH=i686 MVM_OPTIONS=""          CC="gcc"
-    - ARCH=i686 MVM_OPTIONS=""          CC="clang"
     - MVM_OPTIONS="--no-jit"  CC="gcc"
     - MVM_OPTIONS=""          CC="gcc"
     - MVM_OPTIONS="--no-jit"  CC="clang"
