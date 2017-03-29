@@ -1147,7 +1147,7 @@ static void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_typ
     /* Ensure we don't have a type object. */
     if (!IS_CONCRETE(obj))
         MVM_exception_throw_adhoc(tc,
-            "Cannot change the type of a %s type object");
+            "Cannot change the type of a %s type object", STABLE(obj)->debug_name);
 
     /* Ensure that the REPR of the new type is also P6opaque. */
     if (REPR(new_type)->ID != REPR(obj)->ID)
