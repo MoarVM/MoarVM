@@ -35,7 +35,8 @@ MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle) {
 
 MVMint64 MVM_io_is_tty(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "istty");
-    if (handle->body.ops->introspection) {
+    /* We need the extra check on is_tty because it is NULL for pipes. */
+    if (handle->body.ops->introspection && handle->body.ops->introspection->is_tty) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
         MVMint64 ret = handle->body.ops->introspection->is_tty(tc, handle);
         release_mutex(tc, mutex);
