@@ -467,7 +467,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
         state.orig_codes = MVM_realloc(state.orig_codes,
             sizeof(MVMCodepoint) * (state.orig_codes_pos + bytes));
         state.result_pos = 0;
-        state.utf8 = cur_bytes->bytes;
+        state.utf8 = (const MVMuint8*)cur_bytes->bytes;
         state.cur_byte = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
         state.unaccepted_start = state.cur_byte;
 
