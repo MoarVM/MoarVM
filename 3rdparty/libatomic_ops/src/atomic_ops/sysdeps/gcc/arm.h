@@ -15,9 +15,7 @@
  *
  */
 
-#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8) \
-     || __clang_major__ > 3 \
-     || (__clang_major__ == 3 && __clang_minor__ >= 5)) \
+#if (AO_GNUC_PREREQ(4, 8) || AO_CLANG_PREREQ(3, 5)) \
     && !defined(AO_DISABLE_GCC_ATOMICS)
   /* Probably, it could be enabled even for earlier gcc/clang versions. */
 # define AO_GCC_ATOMIC_TEST_AND_SET
@@ -82,8 +80,7 @@
 #   if (!defined(__thumb__) \
         || (defined(__thumb2__) && !defined(__ARM_ARCH_7__) \
             && !defined(__ARM_ARCH_7M__) && !defined(__ARM_ARCH_7EM__))) \
-       && (!defined(__clang__) || (__clang_major__ > 3) \
-            || (__clang_major__ == 3 && __clang_minor__ >= 3))
+       && (!defined(__clang__) || AO_CLANG_PREREQ(3, 3))
       /* LDREXD/STREXD present in ARMv6K/M+ (see gas/config/tc-arm.c).  */
       /* In the Thumb mode, this works only starting from ARMv7 (except */
       /* for the base and 'M' models).  Clang3.2 (and earlier) does not */
@@ -108,7 +105,8 @@
   {
     /* AO_THUMB_GO_ARM is empty. */
     /* This will target the system domain and thus be overly            */
-    /* conservative as the CPUs will occupy the inner shareable domain. */
+    /* conservative as the CPUs (even in case of big.LITTLE SoC) will   */
+    /* occupy the inner shareable domain.                               */
     /* The plain variant (dmb st) is theoretically slower, and should   */
     /* not be needed.  That said, with limited experimentation, a CPU   */
     /* implementation for which it actually matters has not been found  */
@@ -551,7 +549,7 @@ AO_xor(volatile AO_t *p, AO_t value)
       : "=&r"(result), "=&r"(tmp), "+m"(*addr)
       : "r"(addr), "r"(old_val), "r"(new_val)
       : AO_THUMB_SWITCH_CLOBBERS "cc");
-    return !(result&2); /* if succeded, return 1, else 0 */
+    return !(result&2); /* if succeeded then return 1 else 0 */
   }
 # define AO_HAVE_compare_and_swap
 #endif /* !AO_GENERALIZE_ASM_BOOL_CAS */
@@ -653,7 +651,7 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
         : "r" (addr), "r" (new_val.AO_whole)
         : "cc");
     } while (AO_EXPECT_FALSE(result));
-    return !result;   /* if succeded, return 1 else 0 */
+    return !result;   /* if succeeded then return 1 else 0 */
   }
 # define AO_HAVE_double_compare_and_swap
 #endif /* AO_ARM_HAVE_LDREXD */
@@ -722,6 +720,17 @@ AO_fetch_compare_and_swap(volatile AO_t *addr, AO_t old_val, AO_t new_val)
 
 #undef AO_BR_ALIGN
 #undef AO_MASK_PTR
+#undef AO_SKIPATOMIC_ANY_and_ANY
+#undef AO_SKIPATOMIC_ANY_or_ANY
+#undef AO_SKIPATOMIC_ANY_xor_ANY
+#undef AO_SKIPATOMIC_char_store
+#undef AO_SKIPATOMIC_char_store_release
+#undef AO_SKIPATOMIC_int_store
+#undef AO_SKIPATOMIC_int_store_release
+#undef AO_SKIPATOMIC_short_store
+#undef AO_SKIPATOMIC_short_store_release
+#undef AO_SKIPATOMIC_store
+#undef AO_SKIPATOMIC_store_release
 #undef AO_THUMB_GO_ARM
 #undef AO_THUMB_RESTORE_MODE
 #undef AO_THUMB_SWITCH_CLOBBERS

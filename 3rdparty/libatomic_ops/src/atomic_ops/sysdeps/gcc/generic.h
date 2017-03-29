@@ -45,6 +45,9 @@
 # define AO_GCC_HAVE_SYNC_CAS
 #endif
 
+#undef AO_compiler_barrier
+#define AO_compiler_barrier() __atomic_signal_fence(__ATOMIC_SEQ_CST)
+
 #ifdef AO_UNIPROCESSOR
   /* If only a single processor (core) is used, AO_UNIPROCESSOR could   */
   /* be defined by the client to avoid unnecessary memory barrier.      */
@@ -86,6 +89,8 @@
 #ifndef AO_PREFER_GENERALIZED
 # include "generic-arithm.h"
 
+# define AO_CLEAR(addr) __atomic_clear(addr, __ATOMIC_RELEASE)
+
   AO_INLINE AO_TS_VAL_t
   AO_test_and_set(volatile AO_TS_t *addr)
   {
@@ -117,6 +122,16 @@
 
 #ifdef AO_HAVE_DOUBLE_PTR_STORAGE
 
+# if ((__SIZEOF_SIZE_T__ == 4 \
+       && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)) \
+      || (__SIZEOF_SIZE_T__ == 8 /* half of AO_double_t */ \
+          && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16))) \
+     && !defined(AO_SKIPATOMIC_double_compare_and_swap_ANY)
+#   define AO_GCC_HAVE_double_SYNC_CAS
+# endif
+
+# if !defined(AO_GCC_HAVE_double_SYNC_CAS) || !defined(AO_PREFER_GENERALIZED)
+
 # if !defined(AO_HAVE_double_load) && !defined(AO_SKIPATOMIC_double_load)
     AO_INLINE AO_double_t
     AO_double_load(const volatile AO_double_t *addr)
@@ -142,7 +157,7 @@
 #   define AO_HAVE_double_load_acquire
 # endif
 
-# ifndef AO_HAVE_double_store
+# if !defined(AO_HAVE_double_store) && !defined(AO_SKIPATOMIC_double_store)
     AO_INLINE void
     AO_double_store(volatile AO_double_t *addr, AO_double_t value)
     {
@@ -151,7 +166,8 @@
 #   define AO_HAVE_double_store
 # endif
 
-# ifndef AO_HAVE_double_store_release
+# if !defined(AO_HAVE_double_store_release) \
+     && !defined(AO_SKIPATOMIC_double_store_release)
     AO_INLINE void
     AO_double_store_release(volatile AO_double_t *addr, AO_double_t value)
     {
@@ -160,13 +176,7 @@
 #   define AO_HAVE_double_store_release
 # endif
 
-# if ((__SIZEOF_SIZE_T__ == 4 \
-       && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)) \
-      || (__SIZEOF_SIZE_T__ == 8 /* half of AO_double_t */ \
-          && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16))) \
-     && !defined(AO_SKIPATOMIC_double_compare_and_swap_ANY)
-#   define AO_GCC_HAVE_double_SYNC_CAS
-# endif
+#endif /* !AO_GCC_HAVE_double_SYNC_CAS || !AO_PREFER_GENERALIZED */
 
 #endif /* AO_HAVE_DOUBLE_PTR_STORAGE */
 

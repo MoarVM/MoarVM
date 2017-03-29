@@ -16,12 +16,55 @@
  * Some of the machine specific code was borrowed from our GC distribution.
  */
 
-#if (((__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)) \
-      && !defined(__INTEL_COMPILER)) /* TODO: test and enable icc */ \
-     || __clang_major__ > 3 \
-     || (__clang_major__ == 3 && __clang_minor__ >= 4)) \
+#if (AO_GNUC_PREREQ(4, 8) || AO_CLANG_PREREQ(3, 4)) \
+    && !defined(__INTEL_COMPILER) /* TODO: test and enable icc */ \
     && !defined(AO_DISABLE_GCC_ATOMICS)
 # define AO_GCC_ATOMIC_TEST_AND_SET
+
+/* TODO: Refine for newer clang releases. */
+# if defined(__clang__) \
+     && (!(defined(__x86_64__) || defined(__APPLE_CC__) \
+           || defined(__CYGWIN__) || defined(AO_PREFER_BUILTIN_ATOMICS)) \
+         || (defined(__x86_64__) && !defined(__ILP32__) \
+             && (!(AO_CLANG_PREREQ(3, 5) \
+                   || defined(AO_PREFER_BUILTIN_ATOMICS)) \
+                 || defined(AO_ADDRESS_SANITIZER))))
+    /* As of clang-3.8 i686 (NDK r11c), it requires -latomic for all    */
+    /* the double-wide operations.  Same for clang-3.4/x64.  For now,   */
+    /* we fall back to the non-intrinsic implementation by default.     */
+    /* As of clang-3.8, double-wide arguments are incorrectly passed to */
+    /* atomic intrinsic operations for x64 target if ASan is enabled.   */
+#   define AO_SKIPATOMIC_double_compare_and_swap_ANY
+#   define AO_SKIPATOMIC_double_load
+#   define AO_SKIPATOMIC_double_load_acquire
+#   define AO_SKIPATOMIC_double_store
+#   define AO_SKIPATOMIC_double_store_release
+# elif defined(__APPLE_CC__) && defined(__x86_64__)
+    /* As of Apple clang-600 (based on LLVM 3.5svn), it has some bug in */
+    /* double-wide CAS implementation for x64 target.                   */
+#   define AO_SKIPATOMIC_double_compare_and_swap_ANY
+# endif
+
+# if defined(__APPLE_CC__)
+    /* OS X 10.7 clang-425 lacks __GCC_HAVE_SYNC_COMPARE_AND_SWAP_n     */
+    /* predefined macro (unlike e.g. OS X 10.11 clang-703).             */
+#   define AO_GCC_FORCE_HAVE_CAS
+# endif
+
+# if !defined(__x86_64__) && defined(__APPLE__) && defined(__MACH__)
+    /* OS X 10.8 lacks __atomic_load/store symbols for arch i386 (even  */
+    /* with non-Apple clang).                                           */
+#   ifndef MAC_OS_X_VERSION_MIN_REQUIRED
+      /* Include this header just to import the version macro.  */
+#     include <AvailabilityMacros.h>
+#   endif
+#   if MAC_OS_X_VERSION_MIN_REQUIRED < 1090 /* MAC_OS_X_VERSION_10_9 */
+#     define AO_SKIPATOMIC_double_load
+#     define AO_SKIPATOMIC_double_load_acquire
+#     define AO_SKIPATOMIC_double_store
+#     define AO_SKIPATOMIC_double_store_release
+#   endif
+# endif
 
 #else /* AO_DISABLE_GCC_ATOMICS */
 
@@ -126,7 +169,6 @@ AO_short_fetch_and_add_full (volatile unsigned short *p, unsigned short incr)
   /* AO_store_full could be implemented directly using "xchg" but it    */
   /* could be generalized efficiently as an ordinary store accomplished */
   /* with AO_nop_full ("mfence" instruction).                           */
-#endif /* !AO_PREFER_GENERALIZED */
 
 AO_INLINE void
 AO_char_and_full (volatile unsigned char *p, unsigned char value)
@@ -181,6 +223,7 @@ AO_short_xor_full (volatile unsigned short *p, unsigned short value)
                         : "memory");
 }
 #define AO_HAVE_short_xor_full
+#endif /* !AO_PREFER_GENERALIZED */
 
 AO_INLINE AO_TS_VAL_t
 AO_test_and_set_full(volatile AO_TS_t *addr)
@@ -236,7 +279,68 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
 }
 #define AO_HAVE_fetch_compare_and_swap_full
 
+  AO_INLINE unsigned char
+  AO_char_fetch_compare_and_swap_full(volatile unsigned char *addr,
+                                      unsigned char old_val,
+                                      unsigned char new_val)
+  {
+#   ifdef AO_USE_SYNC_CAS_BUILTIN
+      return __sync_val_compare_and_swap(addr, old_val, new_val
+                                         /* empty protection list */);
+#   else
+      unsigned char fetched_val;
+
+      __asm__ __volatile__ ("lock; cmpxchgb %3, %4"
+                            : "=a" (fetched_val), "=m" (*addr)
+                            : "a" (old_val), "r" (new_val), "m" (*addr)
+                            : "memory");
+      return fetched_val;
+#   endif
+  }
+# define AO_HAVE_char_fetch_compare_and_swap_full
+
+  AO_INLINE unsigned short
+  AO_short_fetch_compare_and_swap_full(volatile unsigned short *addr,
+                                       unsigned short old_val,
+                                       unsigned short new_val)
+  {
+#   ifdef AO_USE_SYNC_CAS_BUILTIN
+      return __sync_val_compare_and_swap(addr, old_val, new_val
+                                         /* empty protection list */);
+#   else
+      unsigned short fetched_val;
+
+      __asm__ __volatile__ ("lock; cmpxchgw %3, %4"
+                            : "=a" (fetched_val), "=m" (*addr)
+                            : "a" (old_val), "r" (new_val), "m" (*addr)
+                            : "memory");
+      return fetched_val;
+#   endif
+  }
+# define AO_HAVE_short_fetch_compare_and_swap_full
+
 # if defined(__x86_64__) && !defined(__ILP32__)
+    AO_INLINE unsigned int
+    AO_int_fetch_compare_and_swap_full(volatile unsigned int *addr,
+                                       unsigned int old_val,
+                                       unsigned int new_val)
+    {
+#     ifdef AO_USE_SYNC_CAS_BUILTIN
+        return __sync_val_compare_and_swap(addr, old_val, new_val
+                                           /* empty protection list */);
+#     else
+        unsigned int fetched_val;
+
+        __asm__ __volatile__ ("lock; cmpxchgl %3, %4"
+                            : "=a" (fetched_val), "=m" (*addr)
+                            : "a" (old_val), "r" (new_val), "m" (*addr)
+                            : "memory");
+        return fetched_val;
+#     endif
+    }
+#   define AO_HAVE_int_fetch_compare_and_swap_full
+
+#   ifndef AO_PREFER_GENERALIZED
     AO_INLINE unsigned int
     AO_int_fetch_and_add_full (volatile unsigned int *p, unsigned int incr)
     {
@@ -276,6 +380,7 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
                             : "memory");
     }
 #   define AO_HAVE_int_xor_full
+#   endif /* !AO_PREFER_GENERALIZED */
 
 # else
 #   define AO_T_IS_INT
@@ -291,18 +396,8 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
 
 #endif /* AO_DISABLE_GCC_ATOMICS */
 
-#if (defined(AO_PREFER_BUILTIN_ATOMICS) || !defined(__clang__) \
-     || defined(__x86_64__) || defined(__APPLE_CC__) || defined(__CYGWIN__)) \
-    && defined(AO_GCC_ATOMIC_TEST_AND_SET) \
-    && !(defined(__APPLE_CC__) && defined(__x86_64__) && !defined(__ILP32__) \
-         && defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16))
-
-  /* As of clang-3.8 i686 (NDK r11c), it requires -latomic for all the  */
-  /* double-wide operations.  For now, we fall back to the              */
-  /* non-intrinsic implementation if clang/x86.                         */
-  /* As of Apple clang-600 (based on LLVM 3.5svn), it has some bug in   */
-  /* double-wide CAS implementation for x64 target.                     */
-  /* TODO: Refine for newer clang releases. */
+#if defined(AO_GCC_ATOMIC_TEST_AND_SET) \
+    && !defined(AO_SKIPATOMIC_double_compare_and_swap_ANY)
 
 # if defined(__ILP32__) || !defined(__x86_64__) /* 32-bit AO_t */ \
      || defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16) /* 64-bit AO_t */
@@ -316,20 +411,10 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
   /* Reading or writing a quadword aligned on a 64-bit boundary is      */
   /* always carried out atomically on at least a Pentium according to   */
   /* Chapter 8.1.1 of Volume 3A Part 1 of Intel processor manuals.      */
-# define AO_ACCESS_double_CHECK_ALIGNED
-# include "../loadstore/double_atomic_load_store.h"
-
-# ifdef AO_GCC_ATOMIC_TEST_AND_SET
-    /* Double-wide loads and stores are ordered.        */
-#   define AO_double_load_acquire(addr) AO_double_load_read(addr)
-#   define AO_HAVE_double_load_acquire
-
-#   define AO_double_store_release(addr, val) \
-                                (AO_nop_write(), AO_double_store(addr, val))
-#   define AO_HAVE_double_store_release
-
-#   define AO_SKIPATOMIC_double_compare_and_swap_ANY
-# endif /* AO_GCC_ATOMIC_TEST_AND_SET */
+# ifndef AO_PREFER_GENERALIZED
+#   define AO_ACCESS_double_CHECK_ALIGNED
+#   include "../loadstore/double_atomic_load_store.h"
+# endif
 
   /* Returns nonzero if the comparison succeeded.       */
   /* Really requires at least a Pentium.                */
@@ -398,8 +483,10 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
 
   /* Reading or writing a quadword aligned on a 64-bit boundary is      */
   /* always carried out atomically (requires at least a Pentium).       */
-# define AO_ACCESS_double_CHECK_ALIGNED
-# include "../loadstore/double_atomic_load_store.h"
+# ifndef AO_PREFER_GENERALIZED
+#   define AO_ACCESS_double_CHECK_ALIGNED
+#   include "../loadstore/double_atomic_load_store.h"
+# endif
 
   /* X32 has native support for 64-bit integer operations (AO_double_t  */
   /* is a 64-bit integer and we could use 64-bit cmpxchg).              */
@@ -439,8 +526,6 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
   /* enough machines and tool chains around on which cmpxchg16b         */
   /* doesn't work.  And the emulation is unsafe by our usual rules.     */
   /* However both are clearly useful in certain cases.                  */
-
-# define AO_SKIPATOMIC_double_compare_and_swap_ANY
 
   AO_INLINE int
   AO_compare_double_and_swap_double_full(volatile AO_double_t *addr,
@@ -483,3 +568,9 @@ AO_fetch_compare_and_swap_full(volatile AO_t *addr, AO_t old_val,
 #ifdef AO_GCC_ATOMIC_TEST_AND_SET
 # include "generic.h"
 #endif
+
+#undef AO_SKIPATOMIC_double_compare_and_swap_ANY
+#undef AO_SKIPATOMIC_double_load
+#undef AO_SKIPATOMIC_double_load_acquire
+#undef AO_SKIPATOMIC_double_store
+#undef AO_SKIPATOMIC_double_store_release

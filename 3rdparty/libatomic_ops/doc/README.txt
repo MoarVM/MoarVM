@@ -140,6 +140,16 @@ both of type AO_t.  For compare_and_swap_double, we compare against
 the val1 field.  AO_double_t exists only if AO_HAVE_double_t
 is defined.
 
+Please note that AO_double_t (and AO_stack_t) variables should be properly
+aligned (8-byte alignment on 32-bit targets, 16-byte alignment on 64-bit ones)
+otherwise the behavior of a double-wide atomic primitive might be undefined
+(or an assertion violation might occur) if such a misaligned variable is
+passed (as a reference) to the primitive.  Global and static variables should
+already have proper alignment automatically but automatic variables (i.e.
+located on the stack) might be misaligned because the stack might be
+word-aligned (e.g. 4-byte stack alignment is the default one for x86).
+Luckily, stack-allocated AO variables is a rare case in practice.
+
 ORDERING CONSTRAINTS:
 
 Each operation name also includes a suffix that specifies the associated
@@ -229,12 +239,6 @@ retrieve it in other threads with AO_acquire_read(p).
 Platform notes:
 
 All X86: We quietly assume 486 or better.
-
-Microsoft compilers:
-Define AO_ASSUME_WINDOWS98 to get access to hardware compare-and-swap
-functionality.  This relies on the InterlockedCompareExchange() function
-which was apparently not supported in Windows95.  (There may be a better
-way to get access to this.)
 
 Gcc on x86:
 Define AO_USE_PENTIUM4_INSTRS to use the Pentium 4 mfence instruction.

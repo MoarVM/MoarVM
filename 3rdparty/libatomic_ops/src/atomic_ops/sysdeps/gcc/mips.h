@@ -23,9 +23,7 @@
 /* #include "../standard_ao_double_t.h" */
 /* TODO: Implement double-wide operations if available. */
 
-#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9) \
-     || __clang_major__ > 3 \
-     || (__clang_major__ == 3 && __clang_minor__ >= 5)) \
+#if (AO_GNUC_PREREQ(4, 9) || AO_CLANG_PREREQ(3, 5)) \
     && !defined(AO_DISABLE_GCC_ATOMICS)
   /* Probably, it could be enabled even for earlier gcc/clang versions. */
 

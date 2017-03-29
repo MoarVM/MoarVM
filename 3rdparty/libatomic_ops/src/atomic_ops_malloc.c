@@ -93,6 +93,7 @@ static volatile AO_t initial_heap_ptr = (AO_t)AO_initial_heap;
 #   define OPT_MAP_ANON MAP_ANON
 # endif
 #else
+# include <unistd.h> /* for close() */
 # define OPT_MAP_ANON 0
 #endif
 
@@ -141,7 +142,8 @@ static char *get_mmaped(size_t sz)
 # include <limits.h>
 #endif
 #if defined(SIZE_MAX) && !defined(CPPCHECK)
-# define AO_SIZE_MAX SIZE_MAX
+# define AO_SIZE_MAX ((size_t)SIZE_MAX)
+            /* Extra cast to workaround some buggy SIZE_MAX definitions. */
 #else
 # define AO_SIZE_MAX (~(size_t)0)
 #endif
@@ -251,14 +253,27 @@ static unsigned msb(size_t s)
 {
   unsigned result = 0;
   if ((s & 0xff) != s) {
-    unsigned v;
-    /* The following is a tricky code ought to be equivalent to         */
-    /* "(v = s >> 32) != 0" but suppresses warnings on 32-bit arch's.   */
-    if (sizeof(size_t) > 4 && (v = s >> (sizeof(size_t) > 4 ? 32 : 0)) != 0)
-      {
-        s = v;
-        result += 32;
-      }
+#   if (__SIZEOF_SIZE_T__ == 8) && !defined(CPPCHECK)
+      unsigned v = (unsigned)(s >> 32);
+      if (v != 0)
+        {
+          s = v;
+          result += 32;
+        }
+#   elif __SIZEOF_SIZE_T__ == 4
+      /* No op. */
+#   else
+      unsigned v;
+      /* The following is a tricky code ought to be equivalent to       */
+      /* "(v = s >> 32) != 0" but suppresses warnings on 32-bit arch's. */
+#     define SIZEOF_SIZE_T_GT_4 (sizeof(size_t) > 4)
+      if (SIZEOF_SIZE_T_GT_4
+          && (v = (unsigned)(s >> (SIZEOF_SIZE_T_GT_4 ? 32 : 0))) != 0)
+        {
+          s = v;
+          result += 32;
+        }
+#   endif /* !defined(__SIZEOF_SIZE_T__) */
     if ((s >> 16) != 0)
       {
         s >>= 16;
@@ -297,8 +312,8 @@ AO_malloc(size_t sz)
   }
   *result = log_sz;
 # ifdef AO_TRACE_MALLOC
-    fprintf(stderr, "%x: AO_malloc(%lu) = %p\n",
-                    (int)pthread_self(), (unsigned long)sz, result+1);
+    fprintf(stderr, "%p: AO_malloc(%lu) = %p\n",
+            (void *)pthread_self(), (unsigned long)sz, (void *)(result + 1));
 # endif
   return result + 1;
 }
@@ -314,8 +329,8 @@ AO_free(void *p)
   base = (AO_t *)p - 1;
   log_sz = (int)(*base);
 # ifdef AO_TRACE_MALLOC
-    fprintf(stderr, "%x: AO_free(%p sz:%lu)\n", (int)pthread_self(), p,
-            (unsigned long)(log_sz > LOG_MAX_SIZE? log_sz : (1 << log_sz)));
+    fprintf(stderr, "%p: AO_free(%p sz:%lu)\n", (void *)pthread_self(), p,
+            log_sz > LOG_MAX_SIZE ? (unsigned)log_sz : 1UL << log_sz);
 # endif
   if (log_sz > LOG_MAX_SIZE)
     AO_free_large(p);

@@ -15,6 +15,8 @@
  *
  */
 
+#if !defined(AO_GCC_HAVE_char_SYNC_CAS) || !defined(AO_PREFER_GENERALIZED)
+
 AO_INLINE unsigned/**/char
 AO_char_load(const volatile unsigned/**/char *addr)
 {
@@ -61,6 +63,8 @@ AO_char_load_acquire(const volatile unsigned/**/char *addr)
   }
 # define AO_HAVE_char_store_release
 #endif
+
+#endif /* !AO_GCC_HAVE_char_SYNC_CAS || !AO_PREFER_GENERALIZED */
 
 #ifdef AO_GCC_HAVE_char_SYNC_CAS
 
@@ -169,6 +173,8 @@ AO_char_load_acquire(const volatile unsigned/**/char *addr)
  *
  */
 
+#if !defined(AO_GCC_HAVE_short_SYNC_CAS) || !defined(AO_PREFER_GENERALIZED)
+
 AO_INLINE unsigned/**/short
 AO_short_load(const volatile unsigned/**/short *addr)
 {
@@ -215,6 +221,8 @@ AO_short_load_acquire(const volatile unsigned/**/short *addr)
   }
 # define AO_HAVE_short_store_release
 #endif
+
+#endif /* !AO_GCC_HAVE_short_SYNC_CAS || !AO_PREFER_GENERALIZED */
 
 #ifdef AO_GCC_HAVE_short_SYNC_CAS
 
@@ -323,6 +331,8 @@ AO_short_load_acquire(const volatile unsigned/**/short *addr)
  *
  */
 
+#if !defined(AO_GCC_HAVE_int_SYNC_CAS) || !defined(AO_PREFER_GENERALIZED)
+
 AO_INLINE unsigned
 AO_int_load(const volatile unsigned *addr)
 {
@@ -369,6 +379,8 @@ AO_int_load_acquire(const volatile unsigned *addr)
   }
 # define AO_HAVE_int_store_release
 #endif
+
+#endif /* !AO_GCC_HAVE_int_SYNC_CAS || !AO_PREFER_GENERALIZED */
 
 #ifdef AO_GCC_HAVE_int_SYNC_CAS
 
@@ -477,6 +489,8 @@ AO_int_load_acquire(const volatile unsigned *addr)
  *
  */
 
+#if !defined(AO_GCC_HAVE_SYNC_CAS) || !defined(AO_PREFER_GENERALIZED)
+
 AO_INLINE AO_t
 AO_load(const volatile AO_t *addr)
 {
@@ -523,6 +537,8 @@ AO_load_acquire(const volatile AO_t *addr)
   }
 # define AO_HAVE_store_release
 #endif
+
+#endif /* !AO_GCC_HAVE_SYNC_CAS || !AO_PREFER_GENERALIZED */
 
 #ifdef AO_GCC_HAVE_SYNC_CAS
 

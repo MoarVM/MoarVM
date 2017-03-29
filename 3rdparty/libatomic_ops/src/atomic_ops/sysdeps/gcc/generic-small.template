@@ -15,6 +15,8 @@
  *
  */
 
+#if !defined(AO_GCC_HAVE_XSIZE_SYNC_CAS) || !defined(AO_PREFER_GENERALIZED)
+
 AO_INLINE XCTYPE
 AO_XSIZE_load(const volatile XCTYPE *addr)
 {
@@ -61,6 +63,8 @@ AO_XSIZE_load_acquire(const volatile XCTYPE *addr)
   }
 # define AO_HAVE_XSIZE_store_release
 #endif
+
+#endif /* !AO_GCC_HAVE_XSIZE_SYNC_CAS || !AO_PREFER_GENERALIZED */
 
 #ifdef AO_GCC_HAVE_XSIZE_SYNC_CAS
 

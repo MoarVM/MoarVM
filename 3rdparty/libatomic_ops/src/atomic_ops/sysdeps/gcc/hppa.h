@@ -37,7 +37,7 @@ struct AO_pa_clearable_loc {
 
 #undef AO_TS_INITIALIZER
 #define AO_TS_t struct AO_pa_clearable_loc
-#define AO_TS_INITIALIZER {1,1,1,1}
+#define AO_TS_INITIALIZER { { 1, 1, 1, 1 } }
 /* Switch meaning of set and clear, since we only have an atomic clear  */
 /* instruction.                                                         */
 typedef enum {AO_PA_TS_set = 0, AO_PA_TS_clear = 1} AO_PA_TS_val;

@@ -211,3 +211,6 @@
 #endif
 
 #include "generic.h"
+
+#undef AO_SKIPATOMIC_double_load
+#undef AO_SKIPATOMIC_double_load_acquire

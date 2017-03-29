@@ -43,6 +43,11 @@
 # define AO_USE_NO_SIGNALS
 #endif
 
+#if (defined(__linux__) || defined(__GLIBC__) || defined(__GNU__)) \
+    && !defined(AO_USE_NO_SIGNALS) && !defined(_GNU_SOURCE)
+# define _GNU_SOURCE 1
+#endif
+
 #undef AO_REQUIRE_CAS
 #include "atomic_ops.h" /* Without cas emulation! */
 

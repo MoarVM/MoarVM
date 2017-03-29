@@ -25,14 +25,13 @@
 #if ((defined(__x86_64__) && defined(AO_GCC_ATOMIC_TEST_AND_SET)) \
      || defined(__aarch64__)) && !defined(__ILP32__)
   /* x86-64: __m128 is not applicable to atomic intrinsics.     */
-# if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7) \
-     || __clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 6)
+# if AO_GNUC_PREREQ(4, 7) || AO_CLANG_PREREQ(3, 6)
 #   pragma GCC diagnostic push
     /* Suppress warning about __int128 type.      */
 #   if defined(__clang__)
 #     pragma GCC diagnostic ignored "-Wpedantic"
 #   else
-      /* GCC before ~4.8 does not accept "-Wpedanic" quietly.     */
+      /* GCC before ~4.8 does not accept "-Wpedantic" quietly.  */
 #     pragma GCC diagnostic ignored "-pedantic"
 #   endif
     typedef unsigned __int128 double_ptr_storage;
@@ -40,7 +39,7 @@
 # else /* pragma diagnostic is not supported */
     typedef unsigned __int128 double_ptr_storage;
 # endif
-#elif ((defined(__x86_64__) && __GNUC__ >= 4) || defined(_WIN64)) \
+#elif ((defined(__x86_64__) && AO_GNUC_PREREQ(4, 0)) || defined(_WIN64)) \
       && !defined(__ILP32__)
   /* x86-64 (except for x32): __m128 serves as a placeholder which also */
   /* requires the compiler to align it on 16-byte boundary (as required */
@@ -50,6 +49,9 @@
   typedef __m128 double_ptr_storage;
 #elif defined(_WIN32) && !defined(__GNUC__)
   typedef unsigned __int64 double_ptr_storage;
+#elif defined(__i386__) && defined(__GNUC__)
+  typedef unsigned long long double_ptr_storage
+                                __attribute__((__aligned__(8)));
 #else
   typedef unsigned long long double_ptr_storage;
 #endif
@@ -66,6 +68,11 @@ typedef union {
         /* to a structure or array/vector).                             */
 } AO_double_t;
 #define AO_HAVE_double_t
+
+/* Note: AO_double_t volatile variables are not intended to be local    */
+/* ones (at least those which are passed to AO double-wide primitives   */
+/* as the first argument), otherwise it is the client responsibility to */
+/* ensure they have double-word alignment.                              */
 
 /* Dummy declaration as a compile-time assertion for AO_double_t size.  */
 struct AO_double_t_size_static_assert {
