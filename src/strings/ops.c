@@ -652,9 +652,7 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
         return 0;
 
     MVMROOT(tc, haystack, {
-        MVMROOT(tc, needle_fc, {
-            needle_fc = MVM_string_fc(tc, needle);
-        });
+        needle_fc = MVM_string_fc(tc, needle);
     });
 
     return string_equal_at_ignore_case_INTERNAL_loop(tc, haystack, needle_fc, h_offset, h_graphs, n_graphs);
@@ -686,13 +684,11 @@ MVMint64 MVM_string_index_ignore_case(MVMThreadContext *tc, MVMString *haystack,
     if (ngraphs < 1)
         return -1;
 
-    needle_fc = MVM_string_fc(tc, needle);
+    MVMROOT(tc, haystack, {
+            needle_fc = MVM_string_fc(tc, needle);
+    });
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
 
-    MVMROOT(tc, haystack, {
-        MVMROOT(tc, needle_fc, {
-        });
-    });
     /* brute force for now. horrible, yes. halp. */
     while (index <= hgraphs) {
         if (string_equal_at_ignore_case_INTERNAL_loop(tc, haystack, needle_fc, index, hgraphs, n_fc_graphs))
