@@ -767,7 +767,7 @@ MVMObject * references_str(MVMThreadContext *tc, MVMHeapSnapshot *s) {
     MVMuint64 i;
     for (i = 0; i < s->num_references; i++) {
         char tmp[128];
-        int item_chars = snprintf(tmp, 128, "%lu,%lu,%lu;",
+        int item_chars = snprintf(tmp, 128, "%"PRIu64",%"PRIu64",%"PRIu64";",
             s->references[i].description & ((1 << MVM_SNAPSHOT_REF_KIND_BITS) - 1),
             s->references[i].description >> MVM_SNAPSHOT_REF_KIND_BITS,
             s->references[i].collectable_index);

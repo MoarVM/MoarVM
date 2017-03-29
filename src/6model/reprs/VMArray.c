@@ -7,7 +7,7 @@ MVM_STATIC_INLINE void enter_single_user(MVMThreadContext *tc, MVMArrayBody *arr
 #if MVM_ARRAY_CONC_DEBUG
     if (!MVM_trycas(&(arr->in_use), 0, 1)) {
         MVM_dump_backtrace(tc);
-        MVM_exception_throw_adhoc(tc, "Array may not be used concurrently"); 
+        MVM_exception_throw_adhoc(tc, "Array may not be used concurrently");
     }
 #endif
 }
@@ -343,7 +343,7 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
     }
     if (ssize > (1UL << (8 * sizeof(size_t) - repr_data->elem_size)))
         MVM_exception_throw_adhoc(tc,
-            "Unable to allocate an array of %lu elements",
+            "Unable to allocate an array of %"PRIu64" elements",
             ssize);
 
     /* now allocate the new slot buffer */
