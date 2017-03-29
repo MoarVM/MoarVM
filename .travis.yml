@@ -20,6 +20,7 @@ branches:
    only:
      - master
      - /smoke-me/
+     - /.*/
 
 notifications:
   irc:
