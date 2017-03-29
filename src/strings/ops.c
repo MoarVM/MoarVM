@@ -623,31 +623,24 @@ MVM_STATIC_INLINE MVMint32 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadCo
     }
     return 1;
 }
-/* Checks if needle exists at the offset, but ignores case
+/* Checks if needle exists at the offset, but ignores case.
  * Sometimes there is a difference in length of a string before and after foldcase,
  * because of this we must compare this differently than just foldcasing both
  * strings to ensure the offset is correct */
 MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 h_offset) {
-    /* foldcase version of needle */
+    /* Foldcase version of needle */
     MVMString *needle_fc;
     MVMStringIndex h_graphs = MVM_string_graphs(tc, haystack);
     MVMStringIndex n_graphs = MVM_string_graphs(tc, needle);
-    /* Store the grapheme as we iterate through the haystack */
-    MVMGrapheme32 h_g, n_g;
-    MVMint64 i, j;
-    MVMuint32 h_fc_cps;
 
-    /* An additional needle offset which is used only when codepoints expand
-     * when casefolded. The offset is the number of additional codepoints that
-     * have been seen so haystack and needle stay aligned */
-    MVMint64 n_offset = 0;
     if (h_offset < 0) {
         h_offset += h_graphs;
         if (h_offset < 0)
             h_offset = 0; /* XXX I think this is the right behavior here */
     }
     /* If the offset is greater or equal to the number of haystack graphemes
-     * return 0 */
+     * return 0. Since size of graphemes could change under casefolding, we
+     * can't assume too much. If optimizing this be careful */
     if (h_offset >= h_graphs)
         return 0;
 
@@ -658,7 +651,7 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
     return string_equal_at_ignore_case_INTERNAL_loop(tc, haystack, needle_fc, h_offset, h_graphs, n_graphs);
 }
 MVMint64 MVM_string_index_ignore_case(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
-    /* foldcase version of needle */
+    /* Foldcase version of needle */
     MVMString *needle_fc;
     MVMStringIndex n_fc_graphs;
 
@@ -670,7 +663,7 @@ MVMint64 MVM_string_index_ignore_case(MVMThreadContext *tc, MVMString *haystack,
     hgraphs = MVM_string_graphs(tc, haystack);
     ngraphs = MVM_string_graphs(tc, needle);
     if (!ngraphs)
-        return start <= hgraphs ? start : -1; /* the empty string is in any other string */
+        return start <= hgraphs ? start : -1; /* Empty string is in any other string */
     if (!hgraphs)
         return -1;
     if (start < 0 || start >= hgraphs)
@@ -685,7 +678,7 @@ MVMint64 MVM_string_index_ignore_case(MVMThreadContext *tc, MVMString *haystack,
         return -1;
 
     MVMROOT(tc, haystack, {
-            needle_fc = MVM_string_fc(tc, needle);
+        needle_fc = MVM_string_fc(tc, needle);
     });
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
 
