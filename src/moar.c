@@ -253,6 +253,19 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->cross_thread_write_logging = 0;
     }
 
+    if (getenv("MVM_COVERAGE_LOG")) {
+        char *coverage_log = getenv("MVM_COVERAGE_LOG");
+        instance->coverage_logging = 1;
+        instance->instrumentation_level++;
+        if (strlen(coverage_log))
+            instance->coverage_log_fh = fopen_perhaps_with_pid(coverage_log, "a");
+        else
+            instance->coverage_log_fh = stderr;
+    }
+    else {
+        instance->coverage_logging = 0;
+    }
+
     /* Set up NFG state mutation mutex. */
     instance->nfg = calloc(1, sizeof(MVMNFGState));
     init_mutex(instance->nfg->update_mutex, "NFG update mutex");

@@ -9020,9 +9020,20 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
+    {
+        MVM_OP_coverage_log,
+        "coverage_log",
+        ".s",
+        4,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_str, MVM_operand_int32, MVM_operand_int32, MVM_operand_int64 }
+    },
 };
 
-static const unsigned short MVM_op_counts = 821;
+static const unsigned short MVM_op_counts = 822;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)

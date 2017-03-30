@@ -925,3 +925,5 @@ prof_allocated   .s r(obj)
 
 # Cross-thread write analysis logging instruction.
 ctw_check        .s r(obj) int16
+
+coverage_log     .s str int32 int32 int64

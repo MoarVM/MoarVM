@@ -205,6 +205,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/profiler/profile@obj@ \
           src/profiler/heapsnapshot@obj@ \
           src/instrument/crossthreadwrite@obj@ \
+          src/instrument/line_coverage@obj@ \
           src/moar@obj@ \
           @platform@ \
           @jit@
@@ -359,6 +360,7 @@ HEADERS = src/moar.h \
           src/jit/compile.h \
           src/jit/log.h \
           src/instrument/crossthreadwrite.h \
+          src/instrument/line_coverage.h \
           src/gen/config.h \
           3rdparty/uthash.h
 
