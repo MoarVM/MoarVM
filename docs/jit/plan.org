@@ -213,7 +213,7 @@ int i = MVM_JIT_REQUIRE(RSP);
    - keep it abstract?
    - internalize into list? (why not?)
 
-** TODO Work on operation nodes
+** DONE Work on operation nodes
 
 Specifically:
 - FRAME/VMNULL are not atomic ops, but instead specific load
@@ -228,53 +228,6 @@ Specifically:
   - It may actually make some sense to have an architecture-specific
     'specialization' phase operating on the tree...
 
-** TODO Implement optimistic 'store' insertion
-
-Currently our inserting of stores is pessimistic, i.e. stores are
-always inserted where they would be expected from the MoarVM bytecode.
-But this is not necessary if the stored value is overwritten within
-the same basic block. We can work on eliminating that, but I had
-assumed that it'd be easy to get the last-use-per-value via spesh, and
-it isn't. What we can do is:
-
-- maintain a table of the last-definition per MoarVM register (hey, we
-  do that now)
-- insert stores where necessary, which is:
-  - find all nodes that have recent definitions
-    - insert a 'store-to-moar-register' instruction (MVM_jit_expr_add_store)
-    - swap the 'root' pointing to the definition node with the store
-      node (this may require a scan through the table)
-- figure out when it is necessary
-  - before throwing (or 'throwish)
-  - before jumping to another basic block
-  - ....
-- store the spesh instruction tagged to the tree, so that we can find
-  out where it should be stored if it isn't
-
-
-*** TODO Find out if a particular live range has already been stored (or if it has a fixed storage location)
-
- #+BEGIN_SRC c
- /* Return -1 if not a local store, 0 <= i <= frame->work_size if it is */
- MVMint32 is_local_store(MVMJitExprTree *tree, MVMint32 node) {
-     if (tree->nodes[node] != MVM_JIT_STORE)
-         return -1;
-     node = tree->nodes[node + 1];
-     if (tree->nodes[node] != MVM_JIT_ADDR)
-         return -1;
-     if (tree->nodes[tree->nodes[node + 1]] != MVM_JIT_LOCAL)
-         return -1;
-     return tree->nodes[node+2];
- }
-
- MVMint32 has_local_location(MVMJitExprTree *tree, MVMint32 node) {
-     MVMSpeshIns *ins = tree->info[node].spesh_ins;
-     if (ins == NULL || ins->op_info->num_operands == 0 ||
-         (ins->info->operands[0] & MVM_operand_rw_mask) != MVM_operand_write_reg)
-         return -1;
-     return ins->op_info->operands[0].reg.orig;
- }
- #+END_SRC
 
 
 ** DONE Find live ranges
@@ -871,6 +824,158 @@ somehow deal with specific register arguments anyway).
 Already did this for IF/EITHER, now for DO / DOV,
 CALL/CALLV. Otherwise the tiler always selects the value-generating
 one. Might also be nice for numeric/non-numeric variants.
+
+** TODO Solve 'garbage restore' problem
+
+The problem:
+
+#+BEGIN_EXAMPLE
+(if (test ...) (load ...) (call ...))
+#+END_EXAMPLE
+
+Tile list:
+#+BEGIN_EXAMPLE
+0:   TEST ...
+1:   JZ ->4;
+2:   LOAD ...
+3:   GOTO ->6;
+4:   ARGLIST ...
+5:   CALL ....
+6: ....
+#+END_EXAMPLE
+
+Which will generate a live range that starts from (2) and presumably
+survives after 6.
+
+Hence, according to linear scan, the value of LOAD (possibliy in
+register %rcx) is live on the CALL tile (5), which means that according
+to it's own logic, it must spill-and-restore register %rcx arround 5, i.e.:
+
+#+BEGIN_EXAMPLE
+
+5a: STORE %rcx, ...
+5:  CALL ...
+5b: LOAD %rcx, ...
+#+END_EXAMPLE
+
+If we don't take care, it will overwrite the result value of the CALL,
+which must also be placed in %rcx eventually. This sucks because %rcx
+is only defined in
+
+The article 'linear scan allocation on SSA form' had a section about
+this very problem, and their algorithm revolves arround finding
+'lifetime holes', by scanning backwards through all basic basic blocks
+and, for every definition, if that value is not the first definition,
+inserting a hole.
+
+In our case we might be able to do this relatively cheaply, because:
+- it's SSA form, so a value is only defined once per basic block
+- at worst, it is used prior in the basic block (e.g. in a looping
+  construct, or by deriving from the alternative value, e.g.
+
+#+BEGIN_EXAMPLE
+(let (($foo ..)) (if (zr $foo) $foo (load (addr $foo ...))))
+#+END_EXAMPLE
+
+NB, not a very good example because it probably does not require a
+spill in the alternative block.  Anyway....
+
+- So the scope of the hole ends at the start of the second defintion,
+  and it starts:
+  - either at the last use within the same basic block
+  - or at the end of the last basic block in which another definition
+    'dominates' (not sure if I'm using that terminology right).
+- In other words, there exists some scope where the earlier definition
+  is still live, and some point at which that stops, and that point is
+  the hole.
+  - A conservative first-best-guesss would be from the second
+    definition to the last use or the begin of the basic block, which
+    would already help sufficiently for the garbage-restore problem.
+- It's only relevant for live ranges with multiple definitions anyway,
+  so that cuts down on the number
+- The maximum number of holes is the sum of definitions in that set
+  minus the number of live ranges; this certainty allows us to
+  preallocate a block of memory for the holes.
+
+*** TODO Determine basic blocks
+
+We want two facts for every basic block
+- the range of instructions (tiles) covered (from- and to- inclusive)
+- the basic blocks preceeding or following this block, or both
+
+The basic block structure is (fortunately) completely determined at
+tile-generation time:
+
+- We start with a single basic block starting at the beginning of the
+  tree
+- WHEN (A, B, C)
+  - basic block A ends after test (jump), followed by B and C
+  - basic block B is the conditional block (between test jump and end
+    label), followed by C and preceeded by A
+  - basic block C begins after the conditional clause (label),
+    preceeded by A and B
+- IF/IFV (A, B, C, D)
+  - A ends after test, followed by B, C
+  - B starts after conditional jump and ends at unconditional jump
+    (before alternative label), preceeded by A,
+  - C starts before alternative label (after unconditional jump),
+- Therefore, we start with 1 basic block; every WHEN adds 2 basic
+  blocks, every IF/IFV adds 3 basic blocks; a hypothetical LOOP
+  construct would also add 2 basic blocks.
+- Any basic block has at most 2 following basic blocks (demarcated by
+  either a jump, conditional jump, or a label)
+
+*** TODO Determine live range holes
+*** TODO Don't spill 'holes' in ARGLIST
+*** TODO Try to use 'holes' in allocation.
+
+** TODO Implement optimistic 'store' insertion
+
+Currently our inserting of stores is pessimistic, i.e. stores are
+always inserted where they would be expected from the MoarVM bytecode.
+But this is not necessary if the stored value is overwritten within
+the same basic block. We can work on eliminating that, but I had
+assumed that it'd be easy to get the last-use-per-value via spesh, and
+it isn't. What we can do is:
+
+- maintain a table of the last-definition per MoarVM register (hey, we
+  do that now)
+- insert stores where necessary, which is:
+  - find all nodes that have recent definitions
+    - insert a 'store-to-moar-register' instruction (MVM_jit_expr_add_store)
+    - swap the 'root' pointing to the definition node with the store
+      node (this may require a scan through the table)
+- figure out when it is necessary
+  - before throwing (or 'throwish)
+  - before jumping to another basic block
+  - ....
+- store the spesh instruction tagged to the tree, so that we can find
+  out where it should be stored if it isn't
+
+
+*** TODO Find out if a particular live range has already been stored (or if it has a fixed storage location)
+
+ #+BEGIN_SRC c
+ /* Return -1 if not a local store, 0 <= i <= frame->work_size if it is */
+ MVMint32 is_local_store(MVMJitExprTree *tree, MVMint32 node) {
+     if (tree->nodes[node] != MVM_JIT_STORE)
+         return -1;
+     node = tree->nodes[node + 1];
+     if (tree->nodes[node] != MVM_JIT_ADDR)
+         return -1;
+     if (tree->nodes[tree->nodes[node + 1]] != MVM_JIT_LOCAL)
+         return -1;
+     return tree->nodes[node+2];
+ }
+
+ MVMint32 has_local_location(MVMJitExprTree *tree, MVMint32 node) {
+     MVMSpeshIns *ins = tree->info[node].spesh_ins;
+     if (ins == NULL || ins->op_info->num_operands == 0 ||
+         (ins->info->operands[0] & MVM_operand_rw_mask) != MVM_operand_write_reg)
+         return -1;
+     return ins->op_info->operands[0].reg.orig;
+ }
+ #+END_SRC
 
 ** TODO Apply register requirements
 
