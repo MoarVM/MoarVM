@@ -919,11 +919,19 @@ tile-generation time:
   - B starts after conditional jump and ends at unconditional jump
     (before alternative label), preceeded by A,
   - C starts before alternative label (after unconditional jump),
+- ALL/ANY (A, B1 .. Bn, C)
+  - A ends after first test
+  - B1 starts after test, until next (conditional jump)
+    - All B blocks are preceeded either by A or another B block,
+  - C is preceeded by all of A, B1-Bn
 - Therefore, we start with 1 basic block; every WHEN adds 2 basic
   blocks, every IF/IFV adds 3 basic blocks; a hypothetical LOOP
-  construct would also add 2 basic blocks.
+  construct would also add 2 basic blocks, every ALL/ANY adds n basic
+  blocks.
 - Any basic block has at most 2 following basic blocks (demarcated by
   either a jump, conditional jump, or a label)
+  - Note that `jumplist` is an exception like ARGLIST is an exception,
+    and we can deal with those separately
 
 *** TODO Determine live range holes
 *** TODO Don't spill 'holes' in ARGLIST
@@ -1004,7 +1012,74 @@ Bunch of options possible:
   - if non-free, we again need to start moving registers, but I'm not
     sure this requires the full shuffling requirements of ARGLIST.
 
+* TODO Automatic unconditionalizing
+
+The problem:
+
+#+BEGIN_EXAMPLE
+(if (test $bar) $quix (derive $quix))
+#+END_EXAMPLE
+
+In this case, $quix is refered to in both conditional branches, but
+might not be computed before the consequent of the `IF`. The tiler
+will *not* insert the computation for $quix twice, meaning that in the
+alternative block, $quix is not computed but used. This is an error.
+
+The current solution is to use a 'let' declaration, which predeclares
+the variable and ensures that it is compiled prior to the let block, e.g:
+
+#+BEGIN_EXAMPLE
+(let (($quam (copy $quix))) (if (test $bar) $quam (derive $quam)))
+#+END_EXAMPLE
+
+But that sucks, because a): it inserts a redundant copy, b): it relies
+on the user doing the right thing (which is possible to detect
+statically, for templates, though, but perhaps not so easy for
+'dynamically' generated tree nodes), c): it relies on a hacky
+'rooting' mechanism in the tree template building and application
+step.
+
+So the idea is to:
+- detect if the first reference to a node is conditional
+- and if there are other references that lie outside that conditional
+- and if that is true, insert a root prior to the start of the
+  conditional
+
+This makes me think of using a conditional-branch stack.  Let's
+record, on first visitation, the top-of-the conditional branch stack.
+If a second visit does not lead to the same top, it should be
+unconditionalized (by adding a root).
+- We could add an explicit stack, anyway.
+  - A stack item consist of the node and the child number.
+- And if we have that, there's no reason to do implicit recursion
+  anymore.
+- And if we have that, we only need to add a counter (we don't really
+  need that, but it makes stuff cheaper)
+
+** TODO Switch tree walking to use an explicit stack
+
+Simple, mechanical transformation. I wonder if we can have a maximum
+depth; probably not, if we can allow revisits.
+
+** TODO Find 'current conditional block' for first visits
+
+Also consists of node (IF) and child index (branch), or nothing if not
+a conditional block.
+
+** TODO Inserts roots for blocks that are used outside of their 'own' conditional
+
+It is probably not necessary to do repeat visits - in fact let's not!
+But we can do a postorder analysis to see if any of the children is
+defined first in a conditional block, and if that conditional block is
+the same as what we're in. (Can that actually happen? probably, yes,
+in a DO thing).
+
+** TODO 
+
 * TODO Optimizer
+
+Idea is to have a tree-walking step between tree generation and
+tiling, that can optimize tree expressions.
 
 - common subexpression elimination
   - idea: (hash) table of expr, node
@@ -1016,7 +1091,11 @@ Bunch of options possible:
   - Uses one register less, simpler operation
 - COPY insertion
   - Values that are LOAD-ed and used from multiple operations might
-    benefit from inserting a COPY, so they don't use indirect operations, e.g.
+    benefit from inserting a COPY, so they don't use indirect
+    operations, e.g.
+  - Basic idea: count number of users of 'load', if > 1, insert the
+    COPY node and replace the refs
+  - Possibly a pessimization because it requires more registers!
 
 #+BEGIN_SRC asm
 add rcx, [rdx+8];
