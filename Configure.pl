@@ -33,7 +33,7 @@ my @args = @ARGV;
 
 GetOptions(\%args, qw(
     help|?
-    debug:s optimize:s instrument!
+    debug:s optimize:s instrument! coverage
     os=s shell=s toolchain=s compiler=s
     ar=s cc=s ld=s make=s has-sha has-libuv
     static has-libtommath has-libatomic_ops
@@ -76,7 +76,7 @@ if (-d '.git') {
 $args{optimize}     = 3 if not defined $args{optimize} or $args{optimize} eq "";
 $args{debug}        = 3 if defined $args{debug} and $args{debug} eq "";
 
-for (qw(instrument static big-endian has-libtommath has-sha has-libuv
+for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
         has-libatomic_ops has-dynasm asan ubsan valgrind)) {
     $args{$_} = 0 unless defined $args{$_};
 }
@@ -333,6 +333,7 @@ push @cflags, $config{ccmiscflags};
 push @cflags, $config{ccoptiflags}  if $args{optimize};
 push @cflags, $config{ccdebugflags} if $args{debug};
 push @cflags, $config{ccinstflags}  if $args{instrument};
+push @cflags, $config{ld_covflags}  if $args{coverage};
 push @cflags, $config{ccwarnflags};
 push @cflags, $config{ccdefflags};
 push @cflags, $config{ccshared}     unless $args{static};
@@ -350,6 +351,7 @@ my @ldflags = ($config{ldmiscflags});
 push @ldflags, $config{ldoptiflags}  if $args{optimize};
 push @ldflags, $config{lddebugflags} if $args{debug};
 push @ldflags, $config{ldinstflags}       if $args{instrument};
+push @ldflags, $config{ld_covflags}  if $args{coverage};
 push @ldflags, $config{ldrpath}           if not $args{static} and $config{prefix} ne '/usr';
 push @ldflags, $^O eq 'darwin' ? '-faddress-sanitizer' : '-fsanitize=address' if $args{asan};
 push @ldflags, $ENV{LDFLAGS}  if $ENV{LDFLAGS};
