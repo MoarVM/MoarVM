@@ -149,6 +149,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
              && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
                 MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%dbit)", repr_data->bits);
+        } else {
+            repr_data->bits = default_storage_spec.bits;
         }
 
         if (!MVM_is_null(tc, is_unsigned_o)) {
