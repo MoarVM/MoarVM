@@ -44,10 +44,15 @@ src/gen/
 *.lo
 *.so
 *.dylib
-# Clang coverage files when built with --coverage
+# Coverage files when built with --coverage
 *.gcno
+*.gcda
 # Clang coverage generated raw datafiles
 *.profraw
+# Clang processed coverage datafiles
+*.profdata
+# GCC Gcov files
+*.gcov
 
 moar
 *.vsp
