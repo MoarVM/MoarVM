@@ -47,6 +47,25 @@
 # - Offer an HTML rendering of the stats, since gdb insists on printing
 #   a pager header right in between our pretty gen2 graphs most of the time
 
+acceptable_types = """
+        MVMObject
+        MVMArray MVMAsyncTask MVMCallCapture MVMCArray MVMCFunction MVMCode
+        MVMCompUnit MVMConcBlockingQueue MVMConcBlockingQueueLocks
+        MVMConcBlockingQueueNode MVMConditionVariable MVMContext
+        MVMContinuation MVMCPointer MVMCPPStruct MVMCPPStructNameMap MVMCStr
+        MVMCStruct MVMCStructNameMap MVMCUnion MVMCUnionNameMap MVMDecoder
+        MVMDLLSym MVMException MVMExtOpRecord MVMHash MVMHashAttrStore
+        MVMHashEntry MVMIter MVMKnowHOWAttributeREPR MVMKnowHOWREPR MVMLexotic
+        MVMLoadedCompUnitName MVMMultiCache MVMMultiCacheNode MVMMultiDimArray
+        MVMNativeCall MVMNativeRef MVMNFA MVMNFAStateInfo MVMNull MVMOSHandle
+        MVMP6bigint MVMP6int MVMP6num MVMP6opaque MVMP6opaqueNameMap MVMP6str
+        MVMReentrantMutex MVMSemaphore MVMSerializationContext MVMStaticFrame
+        MVMStaticFrameInstrumentation MVMString MVMStringStrand MVMThread
+        MVMUninstantiable
+        """.split()
+
+print(repr(acceptable_types))
+
 import gdb
 from collections import defaultdict
 from itertools import chain
@@ -54,10 +73,6 @@ import math
 import random
 #import blessings
 import sys
-
-import pdb
-
-pdb.set_trace()
 
 import traceback # debugging
 
@@ -252,30 +267,12 @@ slot_type_to_slot_name = [
         "None"
     ]
 
-please_just_give_me_the_default_pprinter_gdb_you_piece_of_shit = False
-
 class PPrintFallback(Exception):
     def __init__(self, exc):
         self.exc = exc
 
-def can_fall_back(method):
-    def with_fallback(self, *args, **kwargs):
-        global please_just_give_me_the_default_pprinter_gdb_you_piece_of_shit
-        try:
-            result = method(self, *args, **kwargs)
-        except PPrintFallback as e:
-            traceback.print_exception(type(e), e.exc, None)
-            print("please give me the default pprinter, yes yes")
-            please_just_give_me_the_default_pprinter_gdb_you_piece_of_shit = True
-            result = self.val.to_string()
-            please_just_give_me_the_default_pprinter_gdb_you_piece_of_shit = False
-        return result
-    return with_fallback
-
-
 class MVMObjectPPrinter(object):
     def __init__(self, val, pointer = False):
-        print("pretty print for ", hex(val))
         self.val = val
         self.pointer = pointer
         self.inited = False
@@ -293,8 +290,6 @@ class MVMObjectPPrinter(object):
         except gdb.MemoryError as e:
             raise PPrintFallback(e)
 
-        print(hex(self._repr))
-
         self.reprname = self._repr['name'].string()
 
         self.debugname = self.as_mvmobject['st']['debug_name']
@@ -303,43 +298,67 @@ class MVMObjectPPrinter(object):
 
         self.inited = True
 
-    @can_fall_back
     def stringify(self):
-        print("stringifying an mvmobject")
         self.get_basic_info()
-        return str(self.val.type) + " (" + self.debugname + ") of repr " + self.reprname
+        return str(self.val.type) + " (" + self.debugname + ")"
 
-    @can_fall_back
     def to_string(self):
         return self.stringify()
 
     def get_array_children(self):
         try:
-            as_vmarray = self.as_mvmobject.cast(gdb.lookup_type("MVMArray").pointer()).dereference()
+            as_vmarray = self.as_mvmobject.cast(gdb.lookup_type("MVMArray"))
             reprdata = self.as_mvmobject['st']['REPR_data'].cast(gdb.lookup_type("MVMArrayREPRData").pointer()).dereference()
             elem_size = reprdata['elem_size']
-            slot_type = reprdata['slot_type']
+            slot_type = int(reprdata['slot_type'].cast(gdb.lookup_type("int")))
 
             elems = int(as_vmarray['body']['elems'])
             start = int(as_vmarray['body']['start'])
 
-            slots_array = as_vmarray['body']['slots'][slot_type_to_slot_name[slot_type]]
+            slots_union = as_vmarray['body']['slots']
+            slots_array = slots_union[slot_type_to_slot_name[slot_type]]
 
             for i in range(start, start + elems):
-                yield slots_array[i]
+                yield (str(i), slots_array[i])
+        except Exception as e:
+            traceback.print_exc()
+
+    def get_p6opaque_children(self):
+        try:
+            as_vmhash = self.as_mvmobject.cast(gdb.lookup_type("MVMP6opaque"))
+            reprdata = self.as_mvmobject['st']['REPR_data'].cast(gdb.lookup_type("MVMP6opaqueREPRData").pointer()).dereference()
+
+            name_index = 0
+
+            attr_offsets = reprdata['attribute_offsets']
+
+            name_index_mapping = reprdata['name_to_index_mapping']
+            while int((name_index_mapping + name_index).dereference()['class_key']) != 0:
+                type_entry = (name_index_mapping + name_index).dereference()
+                count = int(type_entry['num_attrs'])
+
+                names = type_entry['names']
+                slots = type_entry['slots']
+                for name_idx in range(count):
+                    name_entry = names[name_idx]
+                    name = MVMStringPPrinter(name_entry).stringify()
+                    slot = slots[name_idx]
+
+
+                name_index += 1
+
         except Exception as e:
             traceback.print_exc()
 
     def children(self):
         self.get_basic_info()
 
-        print("getting children for a ", self.reprname)
-
         if self.reprname == "VMArray":
             yield from self.get_array_children()
         elif self.reprname == "MVMHash":
             pass
         elif self.reprname == "P6opaque":
+            # yield from self.get_p6opaque_children()
             pass
         else:
             return None
@@ -351,7 +370,7 @@ class MVMObjectPPrinter(object):
         elif self.reprname == "MVMHash":
             return "map"
         elif self.reprname == "P6opaque":
-            return "perl6object"
+            return "map"
         else:
             return None
 
@@ -914,23 +933,17 @@ def str_lookup_function(val):
 
     return None
 
-mvm_not_object = [
-        "MVMThreadContext",
-        
-    ]
-
 def mvmobject_lookup_function(val):
-    if please_just_give_me_the_default_pprinter_gdb_you_piece_of_shit:
-        return None
     pointer = str(val.type).endswith("*")
-    if str(val.type).startswith("MVM") and not (str(val.type).endswith("Body") or str(val.type).endswith("Body*")):
+    if str(val.type).rstrip(" *") in acceptable_types:
         try:
-            if pointer:
-                val.cast(gdb.lookup_type("MVMObject").pointer())
-            else:
-                val.cast(gdb.lookup_type("MVMObject"))
+            # if pointer:
+                # val.cast(gdb.lookup_type("MVMObject").pointer())
+            # else:
+                # val.cast(gdb.lookup_type("MVMObject"))
             return MVMObjectPPrinter(val, pointer)
         except Exception as e:
+            traceback.print_exc()
             print("couldn't cast this:", e)
             pass
     return None
