@@ -267,10 +267,6 @@ slot_type_to_slot_name = [
         "None"
     ]
 
-class PPrintFallback(Exception):
-    def __init__(self, exc):
-        self.exc = exc
-
 class MVMObjectPPrinter(object):
     def __init__(self, val, pointer = False):
         self.val = val
@@ -285,10 +281,6 @@ class MVMObjectPPrinter(object):
             self.as_mvmobject = self.val.cast(gdb.lookup_type("MVMObject"))
 
         self._repr = self.as_mvmobject['st']['REPR']
-        try:
-            self._repr.dereference()
-        except gdb.MemoryError as e:
-            raise PPrintFallback(e)
 
         self.reprname = self._repr['name'].string()
 
