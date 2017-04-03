@@ -19,4 +19,4 @@ build: off
 
 test_script:
   - cd %APPVEYOR_BUILD_FOLDER%\nqp
-  - nmake test
+  - nmake m-test-loud
