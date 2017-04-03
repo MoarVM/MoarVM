@@ -18,5 +18,5 @@ install:
 build: off
 
 test_script:
-  - cd %USERPROFILE%\nqp
+  - cd %APPVEYOR_BUILD_FOLDER%\nqp
   - nmake test
