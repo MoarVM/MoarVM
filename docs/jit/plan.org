@@ -1012,7 +1012,7 @@ Bunch of options possible:
   - if non-free, we again need to start moving registers, but I'm not
     sure this requires the full shuffling requirements of ARGLIST.
 
-* TODO Automatic unconditionalizing
+* TODO Templare value ordering
 
 The problem:
 
@@ -1056,25 +1056,93 @@ unconditionalized (by adding a root).
 - And if we have that, we only need to add a counter (we don't really
   need that, but it makes stuff cheaper)
 
-** TODO Switch tree walking to use an explicit stack
+** Automatic unconditionalizing
 
-Simple, mechanical transformation. I wonder if we can have a maximum
-depth; probably not, if we can allow revisits.
+This is documented for future reference, but not the plan I actually
+intend to take, due to the associated complexity.
 
-** TODO Find 'current conditional block' for first visits
+*** TODO Switch tree walking to use an explicit stack
 
-Also consists of node (IF) and child index (branch), or nothing if not
-a conditional block.
+ Simple, mechanical transformation. I wonder if we can have a maximum
+ depth; probably not, if we can allow revisits.
 
-** TODO Inserts roots for blocks that are used outside of their 'own' conditional
+*** TODO Find greatest unconditional defined block
+*** TODO Detect references beyond unconditional defined block
+*** TODO Detect if a reference is safely movable
 
-It is probably not necessary to do repeat visits - in fact let's not!
-But we can do a postorder analysis to see if any of the children is
-defined first in a conditional block, and if that conditional block is
-the same as what we're in. (Can that actually happen? probably, yes,
-in a DO thing).
+ - not all references are safey moveable, e.g. a load that is 'guarded'
+   by a check in ALL is not.
 
-** TODO 
+*** TODO Order the reference computation to an inclusive scope 
+
+ It is probably not necessary to do repeat visits - in fact let's not!
+ But we can do a postorder analysis to see if any of the children is
+ defined first in a conditional block, and if that conditional block is
+ the same as what we're in. (Can that actually happen? probably, yes,
+ in a DO thing).
+
+ That said; if we're going to move references, we don't actually need
+ to insert a new root; we can replace the existing root with a DO or
+ DOV that contains the declaration first and the use second. (This
+ requires detecting if the expression results a REG or VOID).
+
+** TODO Local ordering of LET
+
+Currently the 'let' statement has an ordering purpose aside from it's
+declaration. The weakness of this is that it uses the 'rooting'
+mechanism which applies a *global* ordering to the *template* level,
+i.e., /any/ LET declaration is applied prior to *any* expression
+compilation. So, for instance, the following will not do what you
+want:
+
+#+BEGIN_EXAMPLE
+(let (($foo (load ....)))
+  (if (nz $foo)
+      (let (($bar (load $foo ...)))
+           (add $foo $bar))
+      (const 0)))
+#+END_EXAMPLE
+
+Because it will compile as:
+
+#+BEGIN_EXAMPLE
+0:  $foo = LOAD ...
+1:  $bar = LOAD $foo ...
+2:  TEST $foo
+3:  IFZR GOTO 6
+4:  $out = ADD $foo $bar
+5:  GOTO 7
+6:  $out = CONST 0
+7:  ...
+#+END_EXAMPLE
+
+However, what we want is equivalent to:
+
+#+BEGIN_EXAMPLE
+(do
+   (declare $foo (load ...))
+   (if (nz $foo)
+      (do
+        (declare $bar (load $foo ...))
+        (add $foo $bar))
+      (const 0)))
+#+END_EXAMPLE
+
+Which, owing to the 'natural' ordering effect of DO, will compile as:
+
+#+BEGIN_EXAMPLE
+0: $foo = LOAD ...
+1: TEST $foo
+2: IFZR GOTO 6
+3: $bar = LOAD $foo ...
+4: $out = ADD $foo $bar
+5: GOTO 7
+6: $out = CONTST 0
+7: ...
+#+END_EXAMPLE
+
+However, this is essentially a template-compile time step, to
+translate the LET statements into DO (or DOV) statements.
 
 * TODO Optimizer
 
