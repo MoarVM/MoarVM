@@ -22,7 +22,7 @@
 
 static const MVMJitExprOpInfo expr_op_info[] = {
 #define OP_INFO(name, nchild, nargs, vtype, cast) { #name, nchild, nargs, MVM_JIT_ ## vtype, MVM_JIT_ ## cast }
-    MVM_JIT_IR_OPS(OP_INFO)
+    MVM_JIT_EXPR_OPS(OP_INFO)
 #undef OP_INFO
 };
 

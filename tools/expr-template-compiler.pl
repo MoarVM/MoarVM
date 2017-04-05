@@ -2,11 +2,12 @@
 use strict;
 use warnings;
 
+use Getopt::Long;
+
 use FindBin;
 use lib $FindBin::Bin;
-
-use Getopt::Long;
 use sexpr;
+use expr_ops;
 
 # A S-EXP is the most trivial thing to parse in the world.  Writing S-EXP
 # is greatly preferable to hand-matching tree fragment offsets, We
@@ -23,11 +24,9 @@ use sexpr;
 #   template: (MVM_JIT_ADDR, MVM_JIT_PARGS, 1, MVM_JIT_LOAD, 0)
 #   length: 5, root: 3 "..f..l"
 
-my $OPLIST = 'src/core/oplist'; # We need this for generating the lookup table
-my $EXPR_H = 'src/jit/expr.h';  # And this for validating templates
-my $PREFIX = 'MVM_JIT_';        # Prefix of all nodes
-my %MACROS;                     # hash table of defined macros
-my %NODE_DEFS;                  # node definitions from expr.h
+my $OPLIST = 'src/core/oplist';     # We need this for generating the lookup table
+my $PREFIX = 'MVM_JIT_';            # Prefix of all nodes
+my %MACROS;                         # hash table of defined macros
 my ($INPUT, $OUTPUT);
 my $TESTING;
 GetOptions(
@@ -70,8 +69,8 @@ sub validate_template {
         return;
     }
 
-    die "Unknown node type $node" unless defined $NODE_DEFS{$node};
-    my ($nchild, $narg) = @{$NODE_DEFS{$node}};
+    die "Unknown node type $node" unless exists $EXPR_OPS{$node};
+    my ($nchild, $narg) = @{$EXPR_OPS{$node}}{qw(num_childs num_args)};;
     my $offset = 1;
     if ($nchild < 0) {
         die "First child of variadic node should be a number" unless $template->[1] =~ m/^\d+$/;
@@ -253,21 +252,6 @@ if ($TESTING) {
         push @opcodes, $opcode;
     }
     close $oplist;
-
-    open my $expr_h, '<', $EXPR_H or die "Could not open $EXPR_H";
-    while (<$expr_h>) {
-        last if m/MVM_JIT_IR_OPS/;
-    }
-    while (<$expr_h>) {
-        chomp;
-        last unless m/\\$/;
-        next unless m/_\((\w+),\s*(-?\d+),\s*(-?\d+),\s*\w+,\s\w+\)/;
-        my $node  = lc substr($_, $-[1], $+[1] - $-[1]);
-        my $nchld = substr($_, $-[2], $+[2] - $-[2]);
-        my $narg  = substr($_, $-[3], $+[3] - $-[3]);
-        $NODE_DEFS{$node} = [$nchld, $narg];
-    }
-    close $expr_h;
 
     # read input, which should use the expresison-list
     # syntax. generate template info table and template array

@@ -364,6 +364,7 @@ HEADERS = src/moar.h \
           src/jit/graph.h \
           src/jit/label.h \
           src/jit/expr.h \
+          src/jit/expr_ops.h \
           src/jit/compile.h \
           src/jit/tile.h \
           src/jit/register.h \
@@ -569,11 +570,11 @@ src/jit/x64/emit_win32.c: src/jit/x64/emit.dasc src/jit/x64/tiles.dasc $(MINILUA
 dasm_all: src/jit/x64/emit_win32.c src/jit/x64/emit_posix.c
 
 # Expression list tables
-%_expr_tables.h: %.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr.h
+%_expr_tables.h: %.expr tools/expr-template-compiler.pl src/core/oplist src/jit/expr_ops.h
 	$(PERL) -Itools/ tools/expr-template-compiler.pl -o $@ $<
 
 # Architecture-specific tiles
-src/jit/x64/tile_tables.h: src/jit/x64/tiles.list tools/tiler-table-generator.pl src/jit/expr.h
+src/jit/x64/tile_tables.h: src/jit/x64/tiles.list tools/tiler-table-generator.pl src/jit/expr_ops.h
 	$(PERL) -Itools/ tools/tiler-table-generator.pl -o $@ $<
 
 src/jit/expr@obj@: src/jit/core_expr_tables.h

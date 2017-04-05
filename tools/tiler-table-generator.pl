@@ -2,12 +2,12 @@
 use strict;
 use warnings;
 
+use Getopt::Long;
+
 use FindBin;
 use lib $FindBin::Bin;
-
-use Getopt::Long;
 use sexpr;
-
+use expr_ops;
 
 # Use a readable hash key separator
 local $; = ",";
@@ -31,10 +31,6 @@ sub uniq {
     my %h;
     $h{$_}++ for @_;
     return keys %h;
-}
-
-sub avg {
-    return (sum(@_))/ scalar @_
 }
 
 package rule {
@@ -402,24 +398,6 @@ my %table    = generate_table(\@rules, \@rulesets);
 my %min_cost = compute_costs(\@rules, \@rulesets, \%table);
 
 
-sub parse_expression_definitions {
-    my ($expr_header_file) = @_;
-    my @op_names;
-    open my $handle, '<', $expr_header_file or die "Could not open $expr_header_file";
-    while (<$handle>) {
-        last if m/^#define MVM_JIT_IR_OPS\(_\) \\/;
-    }
-    while(<$handle>) {
-        chomp;
-        last unless m/\\$/;
-        next unless m/_\((\w+),[^\)]+\)/;
-        my $op = substr($_, $-[1], $+[1]-$-[1]);
-        push @op_names, $op;
-    }
-    close $handle;
-    return @op_names;
-}
-
 sub bits {
     my $i = 0;
     my $n = shift;
@@ -430,7 +408,7 @@ sub bits {
     return $i;
 }
 
-my @expr_ops = parse_expression_definitions($EXPR_HEADER_FILE);
+
 
 # Write tables
 my $output;
@@ -516,13 +494,14 @@ print $output <<"COMMENT";
 
 COMMENT
 print $output "static MVMint32 ".$VARNAME."state[][6] = {\n";
-for my $expr_op (@expr_ops) {
-    my $head = lc $expr_op;
+for my $expr_op (@EXPR_OPS) {
+    my $head = lc($expr_op->[0]);
     for my $rs1 (sortn keys %{$table{$head}}) {
         for my $rs2 (sortn keys %{$table{$head}{$rs1}}) {
             my $state = $table{$head}{$rs1}{$rs2};
             my $best  = $min_cost{$state,'reg'} // $min_cost{$state,'void'} // -1;
-            print $output "    { ${PREFIX}${expr_op}, $rs1, $rs2, $state, $best },\n";
+            printf $output '    { %s%s, %s, %s, %d, %d },' . "\n",
+                   $PREFIX, $expr_op->[0], $rs1, $rs2, $state, $best;
         }
     }
 }
