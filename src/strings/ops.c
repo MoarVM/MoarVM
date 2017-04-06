@@ -1,3 +1,5 @@
+/* Needed with glibc to allow use of memmem function */
+#define _GNU_SOURCE
 #include "moar.h"
 
 #define MVM_DEBUG_STRANDS 0
@@ -200,7 +202,6 @@ MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadContext *tc, MVMString
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
     size_t index           = (size_t)start;
     MVMStringIndex hgraphs = MVM_string_graphs(tc, haystack), ngraphs = MVM_string_graphs(tc, needle);
-
     MVM_string_check_arg(tc, haystack, "index search target");
     MVM_string_check_arg(tc, needle, "index search term");
 
@@ -215,6 +216,46 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
 
     if (ngraphs > hgraphs || ngraphs < 1)
         return -1;
+
+    /* Fast paths when storage types are identical. Uses memmem function, which
+     * in glibc uses Knuth-Morris-Pratt algorithm as of glibc-2.8-44-g0caca71ac9 */
+    switch (haystack->body.storage_type) {
+        case MVM_STRING_GRAPHEME_32:
+            if (needle->body.storage_type == MVM_STRING_GRAPHEME_32) {
+                /* Keep as void* to not lose precision */
+                void *mm_return_32 = memmem(
+                    haystack->body.storage.blob_32 + start, /* start position */
+                    (hgraphs - start) * sizeof(MVMGrapheme32), /* length of haystack from start position to end */
+                    needle->body.storage.blob_32, /* needle start */
+                    ngraphs * sizeof(MVMGrapheme32) /* needle length */
+                );
+                if (mm_return_32 == NULL)
+                    return -1;
+                /* If we aren't on a 32 bit boundary then freak out!!! */
+                else if (
+                    ( (intptr_t)mm_return_32 - (intptr_t)haystack->body.storage.blob_32) % sizeof(MVMGrapheme32)
+                ) {
+                    fprintf(stderr, "Overlapping chars, oh no… this is bad\n");
+                    MVM_exception_throw_adhoc(tc, "Overlapping chars, oh no… this is bad\n");
+                }
+                else
+                    return (MVMGrapheme32*)mm_return_32 - haystack->body.storage.blob_32;
+            }
+            break;
+        case MVM_STRING_GRAPHEME_8:
+            if (needle->body.storage_type == MVM_STRING_GRAPHEME_8) {
+                void *mm_return_8 = memmem(
+                    haystack->body.storage.blob_8 + start, /* start position */
+                    (hgraphs - start) * sizeof(MVMGrapheme8), /* length of haystack from start position to end */
+                    needle->body.storage.blob_8, /* needle start */
+                    ngraphs * sizeof(MVMGrapheme8)); /* needle length */
+                if (mm_return_8 == NULL)
+                    return -1;
+                else
+                    return (MVMGrapheme8*)mm_return_8 -  haystack->body.storage.blob_8;
+            }
+            break;
+    }
 
     /* brute force for now. horrible, yes. halp. */
     while (index <= hgraphs - ngraphs) {
