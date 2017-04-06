@@ -72,7 +72,7 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     MVM_string_gi_init(tc, &gi, orig);
     for (i = 0; i < ographs; i++) {
         MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-        if (g < -127 || g > 127)
+        if (can_use_8bit != 0 && (g < -127 || g > 127) )
             can_use_8bit = 0;
         result->body.storage.blob_32[i] = g;
     }
@@ -198,7 +198,6 @@ MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadContext *tc, MVMString
 
 /* Returns the location of one string in another or -1  */
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
-    MVMint64 result        = -1;
     size_t index           = (size_t)start;
     MVMStringIndex hgraphs = MVM_string_graphs(tc, haystack), ngraphs = MVM_string_graphs(tc, needle);
 
@@ -220,12 +219,11 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
     /* brute force for now. horrible, yes. halp. */
     while (index <= hgraphs - ngraphs) {
         if (MVM_string_substrings_equal_nocheck(tc, needle, 0, ngraphs, haystack, index)) {
-            result = (MVMint64)index;
-            break;
+            return (MVMint64)index;
         }
         index++;
     }
-    return result;
+    return -1;
 }
 
 /* Returns the location of one string in another or -1  */
@@ -414,7 +412,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     total_graphs = (MVMuint64)agraphs + (MVMuint64)bgraphs;
     if (total_graphs > 0xFFFFFFFF)
         MVM_exception_throw_adhoc(tc,
-            "Can't concatenate strings, required number of graphemes %llu > max allowed of %lu",
+            "Can't concatenate strings, required number of graphemes %"PRIu64" > max allowed of %u",
              total_graphs, 0xFFFFFFFF);
 
     /* Otherwise, we'll assemble a result string. */
@@ -522,7 +520,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     total_graphs = (MVMuint64)agraphs * (MVMuint64)count;
     if (total_graphs > 0xFFFFFFFF)
         MVM_exception_throw_adhoc(tc,
-            "Can't repeat string, required number of graphemes %llu > max allowed of %lu",
+            "Can't repeat string, required number of graphemes %"PRIu64" > max allowed of %u",
              total_graphs, 0xFFFFFFFF);
 
     /* Now build a result string with the repetition set. */
@@ -587,44 +585,25 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
         return 0;
     return MVM_string_substrings_equal_nocheck(tc, a, offset, bgraphs, b, 0);
 }
-/* Checks if needle exists at the offset, but ignores case
- * Sometimes there is a difference in length of a string before and after foldcase,
- * because of this we must compare this differently than just foldcasing both
- * strings to ensure the offset is correct */
-MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 h_offset) {
-    /* foldcase version of needle */
-    MVMString *needle_fc;
-    MVMStringIndex h_graphs = MVM_string_graphs(tc, haystack);
-    MVMStringIndex n_graphs = MVM_string_graphs(tc, needle);
-    /* Store the grapheme as we iterate through the haystack */
-    MVMGrapheme32 h_g, n_g;
-    MVMint64 i, j;
+MVM_STATIC_INLINE MVMint32 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *haystack, MVMString *needle_fc, MVMint64 h_start, MVMint64 h_graphs, MVMint64 n_graphs) {
     MVMuint32 h_fc_cps;
-
     /* An additional needle offset which is used only when codepoints expand
      * when casefolded. The offset is the number of additional codepoints that
      * have been seen so haystack and needle stay aligned */
     MVMint64 n_offset = 0;
-    if (h_offset < 0) {
-        h_offset += h_graphs;
-        if (h_offset < 0)
-            h_offset = 0; /* XXX I think this is the right behavior here */
-    }
-    /* If the offset is greater or equal to the number of haystack graphemes
-     * return 0 */
-    if (h_offset >= h_graphs)
-        return 0;
-
-    MVMROOT(tc, haystack, {
-        MVMROOT(tc, needle_fc, {
-            needle_fc = MVM_string_fc(tc, needle);
-        });
-    });
-
-    for (i = 0; i + h_offset < h_graphs && i + n_offset < n_graphs; i++) {
+    MVMint64 i, j;
+    MVMGrapheme32 h_g, n_g;
+    for (i = 0; i + h_start < h_graphs && i + n_offset < n_graphs; i++) {
         const MVMCodepoint* h_result_cps;
-        h_g = MVM_string_get_grapheme_at_nocheck(tc, haystack, h_offset + i);
-        h_fc_cps = MVM_unicode_get_case_change(tc, h_g, MVM_unicode_case_change_type_fold, &h_result_cps);
+        h_g = MVM_string_get_grapheme_at_nocheck(tc, haystack, h_start + i);
+        if (h_g >= 0 ) {
+            /* For codeponits we can get the case change directly */
+            h_fc_cps = MVM_unicode_get_case_change(tc, h_g, MVM_unicode_case_change_type_fold, &h_result_cps);
+        }
+        else {
+            /* Synthetics must use this function */
+            h_fc_cps = MVM_nfg_get_case_change(tc, h_g, MVM_unicode_case_change_type_fold, (MVMGrapheme32**) &h_result_cps);
+        }
         /* If we get 0 for the number that means the cp doesn't change when casefolded */
         if (h_fc_cps == 0) {
             n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
@@ -644,7 +623,74 @@ MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haysta
     }
     return 1;
 }
+/* Checks if needle exists at the offset, but ignores case.
+ * Sometimes there is a difference in length of a string before and after foldcase,
+ * because of this we must compare this differently than just foldcasing both
+ * strings to ensure the offset is correct */
+MVMint64 MVM_string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 h_offset) {
+    /* Foldcase version of needle */
+    MVMString *needle_fc;
+    MVMStringIndex h_graphs = MVM_string_graphs(tc, haystack);
+    MVMStringIndex n_graphs = MVM_string_graphs(tc, needle);
 
+    if (h_offset < 0) {
+        h_offset += h_graphs;
+        if (h_offset < 0)
+            h_offset = 0; /* XXX I think this is the right behavior here */
+    }
+    /* If the offset is greater or equal to the number of haystack graphemes
+     * return 0. Since size of graphemes could change under casefolding, we
+     * can't assume too much. If optimizing this be careful */
+    if (h_offset >= h_graphs)
+        return 0;
+
+    MVMROOT(tc, haystack, {
+        needle_fc = MVM_string_fc(tc, needle);
+    });
+
+    return string_equal_at_ignore_case_INTERNAL_loop(tc, haystack, needle_fc, h_offset, h_graphs, n_graphs);
+}
+MVMint64 MVM_string_index_ignore_case(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
+    /* Foldcase version of needle */
+    MVMString *needle_fc;
+    MVMStringIndex n_fc_graphs;
+
+    size_t index           = (size_t)start;
+    MVMStringIndex hgraphs, ngraphs;
+    MVMint64 return_val = -1;
+    MVM_string_check_arg(tc, haystack, "index search target");
+    MVM_string_check_arg(tc, needle, "index search term");
+    hgraphs = MVM_string_graphs(tc, haystack);
+    ngraphs = MVM_string_graphs(tc, needle);
+    if (!ngraphs)
+        return start <= hgraphs ? start : -1; /* Empty string is in any other string */
+    if (!hgraphs)
+        return -1;
+    if (start < 0 || start >= hgraphs)
+        return -1;
+    /* Codepoints can expand into up to THREE codepoints (as of Unicode 9.0). The next check
+     * checks if it is at all possible for the needle grapheme number to be higher
+     * than the haystack */
+    if (ngraphs > hgraphs * 3)
+        return -1;
+
+    if (ngraphs < 1)
+        return -1;
+
+    MVMROOT(tc, haystack, {
+        needle_fc = MVM_string_fc(tc, needle);
+    });
+    n_fc_graphs = MVM_string_graphs(tc, needle_fc);
+
+    /* brute force for now. horrible, yes. halp. */
+    while (index <= hgraphs) {
+        if (string_equal_at_ignore_case_INTERNAL_loop(tc, haystack, needle_fc, index, hgraphs, n_fc_graphs))
+            return (MVMint64)index;
+
+        index++;
+    }
+    return -1;
+}
 MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
     MVMStringIndex agraphs;
     MVMGrapheme32 g;
@@ -1876,23 +1922,34 @@ MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name) {
     }
 }
 
-/* Turns a codepoint into a string. Uses the normalizer to ensure that we get
- * a valid NFG string (NFG is a superset of NFC, and singleton decompositions
- * exist). */
+/* Turns a codepoint into a string. If required uses the normalizer to ensure
+ * that we get a valid NFG string (NFG is a superset of NFC, and singleton
+ * decompositions exist). */
 MVMString * MVM_string_chr(MVMThreadContext *tc, MVMCodepoint cp) {
     MVMString *s;
     MVMGrapheme32 g;
-    MVMNormalizer norm;
 
     if (cp < 0)
         MVM_exception_throw_adhoc(tc, "chr codepoint cannot be negative");
+    /* If the codepoint decomposes we may need to normalize it.
+     * The first cp that decomposes is U+0340, but to be on the safe side
+     * for now we go with the first significant character which at the time
+     * of writing (Unicode 9.0) is COMBINING GRAVE ACCENT U+300 */
+    if (cp >= MVM_NORMALIZE_FIRST_SIG_NFC
+        && MVM_unicode_codepoint_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE)
+        != MVM_UNICODE_PVALUE_DT_NONE) {
 
-    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
-    if (!MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, cp, &g)) {
-        MVM_unicode_normalizer_eof(tc, &norm);
-        g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        MVMNormalizer norm;
+        MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+        if (!MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, cp, &g)) {
+            MVM_unicode_normalizer_eof(tc, &norm);
+            g = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        }
+        MVM_unicode_normalizer_cleanup(tc, &norm);
     }
-    MVM_unicode_normalizer_cleanup(tc, &norm);
+    else {
+        g = (MVMGrapheme32) cp;
+    }
 
     s = (MVMString *)REPR(tc->instance->VMString)->allocate(tc, STABLE(tc->instance->VMString));
     if (g >= -128 && g < 128) {

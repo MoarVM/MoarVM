@@ -470,9 +470,7 @@ char * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
         else {
             MVM_free(result);
             MVM_free(repl_bytes);
-            MVM_exception_throw_adhoc(tc,
-                "Error encoding UTF-8 string: could not encode codepoint %d",
-                cp);
+            MVM_string_utf8_throw_encoding_exception(tc, cp);
         }
     }
 
@@ -501,4 +499,23 @@ char * MVM_string_utf8_encode_C_string(MVMThreadContext *tc, MVMString *str) {
     MVM_free(utf8_string);
     result[output_size] = (char)0;
     return result;
+}
+
+void MVM_string_utf8_throw_encoding_exception (MVMThreadContext *tc, MVMCodepoint cp) {
+    const char *gencat = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY);
+    if(cp > 0x10FFFF) {
+        MVM_exception_throw_adhoc(tc,
+            "Error encoding UTF-8 string: could not encode codepoint %d (0x%X), codepoint out of bounds. Cannot encode higher than %d (0x%X)",
+            cp, cp, 0x10FFFF, 0x10FFFF);
+    }
+    else if (strcmp("Cs", gencat) == 0) {
+        MVM_exception_throw_adhoc(tc,
+            "Error encoding UTF-8 string: could not encode Unicode Surrogate codepoint %d (0x%X)",
+            cp, cp);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Error encoding UTF-8 string: could not encode codepoint %d (0x%X)",
+            cp, cp);
+    }
 }

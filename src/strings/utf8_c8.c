@@ -467,7 +467,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
         state.orig_codes = MVM_realloc(state.orig_codes,
             sizeof(MVMCodepoint) * (state.orig_codes_pos + bytes));
         state.result_pos = 0;
-        state.utf8 = cur_bytes->bytes;
+        state.utf8 = (const MVMuint8*)cur_bytes->bytes;
         state.cur_byte = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
         state.unaccepted_start = state.cur_byte;
 
@@ -622,9 +622,7 @@ static void emit_cp(MVMThreadContext *tc, MVMCodepoint cp, MVMuint8 **result,
     else {
         MVM_free(*result);
         MVM_free(repl_bytes);
-        MVM_exception_throw_adhoc(tc,
-            "Error encoding UTF-8 string: could not encode codepoint %d",
-            cp);
+        MVM_string_utf8_throw_encoding_exception(tc, cp);
     }
 }
 static int hex2int(MVMThreadContext *tc, MVMCodepoint cp) {

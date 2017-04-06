@@ -1,12 +1,12 @@
 #include "moar.h"
 
 /* This representation's function pointer table. */
-static const MVMREPROps this_repr;
+static const MVMREPROps NFA_this_repr;
 
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st = MVM_gc_allocate_stable(tc, &this_repr, HOW);
+    MVMSTable *st = MVM_gc_allocate_stable(tc, &NFA_this_repr, HOW);
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
@@ -243,10 +243,10 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
 
 /* Initializes the representation. */
 const MVMREPROps * MVMNFA_initialize(MVMThreadContext *tc) {
-    return &this_repr;
+    return &NFA_this_repr;
 }
 
-static const MVMREPROps this_repr = {
+static const MVMREPROps NFA_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
     NULL, /* initialize */
@@ -337,7 +337,7 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                 MVMint64 to  = MVM_coerce_simple_intify(tc,
                     MVM_repr_at_pos_o(tc, edge_info, j + 2));
                 if (to <= 0 && act != MVM_NFA_EDGE_FATE)
-                    MVM_exception_throw_adhoc(tc, "Invalid to edge %ld in NFA statelist", to);
+                    MVM_exception_throw_adhoc(tc, "Invalid to edge %"PRId64" in NFA statelist", to);
 
                 nfa->states[i][cur_edge].act = act;
                 nfa->states[i][cur_edge].to = to;
@@ -456,7 +456,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         if (nfadeb) {
             if (offset < eos) {
                 MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                fprintf(stderr,"%c with %ds target %lx offset %ld\n",cp,(int)numcur, (long)target, offset);
+                fprintf(stderr,"%c with %ds target %lx offset %"PRId64"\n",cp,(int)numcur, (long)target, offset);
             }
             else {
                 fprintf(stderr,"EOS with %ds\n",(int)numcur);

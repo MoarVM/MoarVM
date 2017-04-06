@@ -1,7 +1,7 @@
 #include "moar.h"
 
 /* This representation's function pointer table. */
-static const MVMREPROps this_repr;
+static const MVMREPROps CUnion_this_repr;
 
 /* Locates all of the attributes. Puts them onto a flattened, ordered
  * list of attributes (populating the passed flat_list). Also builds
@@ -303,7 +303,7 @@ static MVMint32 try_get_slot(MVMThreadContext *tc, MVMCUnionREPRData *repr_data,
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st  = MVM_gc_allocate_stable(tc, &this_repr, HOW);
+    MVMSTable *st  = MVM_gc_allocate_stable(tc, &CUnion_this_repr, HOW);
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
@@ -762,10 +762,10 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 
 /* Initializes the representation. */
 const MVMREPROps * MVMCUnion_initialize(MVMThreadContext *tc) {
-    return &this_repr;
+    return &CUnion_this_repr;
 }
 
-static const MVMREPROps this_repr = {
+static const MVMREPROps CUnion_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
     initialize,

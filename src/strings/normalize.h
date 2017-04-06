@@ -171,3 +171,12 @@ MVMString * MVM_unicode_codepoints_c_array_to_nfg_string(MVMThreadContext *tc, M
 
 /* High-level function to produce an array of codepoints from a string. */
 void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNormalization form, MVMObject *out);
+
+/* faster atoi function */
+MVM_STATIC_INLINE MVMint32 fast_atoi( const char * dec_str ) {
+    MVMint32 value = 0;
+    while( *dec_str ) {
+        value = value*10 + (*dec_str++ - '0');
+    }
+    return value;
+}

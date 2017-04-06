@@ -343,17 +343,23 @@ MVMuint32 MVM_nfg_get_case_change(MVMThreadContext *tc, MVMGrapheme32 synth, MVM
     }
 }
 
+MVM_STATIC_INLINE MVMint32 passes_quickcheck_and_zero_ccc(MVMThreadContext *tc, MVMCodepoint cp) {
+    return MVM_unicode_codepoint_get_property_int(tc, cp, MVM_UNICODE_PROPERTY_NFG_QC)
+    &&     MVM_unicode_codepoint_get_property_int(tc, cp,
+               MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS) <= MVM_UNICODE_PVALUE_CCC_0;
+}
+/* Returns true for cps with Grapheme_Cluster_Break = Control */
+MVM_STATIC_INLINE MVMint32 codepoint_GCB_Control (MVMThreadContext *tc, MVMCodepoint codepoint) {
+    return MVM_unicode_codepoint_get_property_int(tc, codepoint,
+        MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK)
+    ==  MVM_UNICODE_PVALUE_GCB_CONTROL;
+}
 /* Returns non-zero if the result of concatenating the two strings will freely
  * leave us in NFG without any further effort. */
-static MVMint32 passes_quickcheck_and_zero_ccc(MVMThreadContext *tc, MVMCodepoint cp) {
-    const char *qc_str  = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_NFG_QC);
-    const char *ccc_str = MVM_unicode_codepoint_get_property_cstr(tc, cp, MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS);
-    return qc_str && qc_str[0] == 'Y' &&
-        (!ccc_str || strlen(ccc_str) > 3 || (strlen(ccc_str) == 1 && ccc_str[0] == 0));
-}
 MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMGrapheme32 last_a;
     MVMGrapheme32 first_b;
+    MVMGrapheme32 crlf;
 
     /* If either string is empty, we're good. */
     if (a->body.num_graphs == 0 || b->body.num_graphs == 0)
@@ -363,20 +369,25 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
     last_a = MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1);
     first_b = MVM_string_get_grapheme_at_nocheck(tc, b, 0);
 
-    /* If either is synthetic, assume we'll have to re-normalize (this is an
-     * over-estimate, most likely). Note if you optimize this that it serves
-     * as a guard for what follows. */
-    if (last_a < 0 || first_b < 0)
+    crlf = MVM_nfg_crlf_grapheme(tc);
+
+    /* If either is synthetic other than "\r\n", assume we'll have to re-normalize
+     * (this is an over-estimate, most likely). Note if you optimize this that it
+     * serves as a guard for what follows. */
+    if ((last_a != crlf && last_a < 0) || (first_b != crlf && first_b < 0))
+        return 0;
+    /* If last_a is \r and first_b is \n then we need to renormalize */
+    if (last_a == '\r' && first_b == '\n')
         return 0;
 
-    /* If both less than the first significant char for NFC, and the first is
-     * not \r, we're good. */
-    if (last_a != 0x0D && last_a < MVM_NORMALIZE_FIRST_SIG_NFC
-                       && first_b < MVM_NORMALIZE_FIRST_SIG_NFC)
+    /* If both less than the first significant char for NFC we are good */
+    if (last_a < MVM_NORMALIZE_FIRST_SIG_NFC && first_b < MVM_NORMALIZE_FIRST_SIG_NFC)
         return 1;
 
-    /* If either fail quickcheck or have ccc > 0, have to re-normalize. */
-    return passes_quickcheck_and_zero_ccc(tc, last_a) && passes_quickcheck_and_zero_ccc(tc, first_b);
+    /* If either fail quickcheck or have ccc > 0, and it does not have
+     * Grapheme_Cluster_Break=Control we have to re-normalize */
+    return (last_a == crlf || codepoint_GCB_Control(tc, last_a) || passes_quickcheck_and_zero_ccc(tc, last_a))
+        && (first_b == crlf || codepoint_GCB_Control(tc, first_b) || passes_quickcheck_and_zero_ccc(tc, first_b));
 }
 
 /* Free all memory allocated to hold synthetic graphemes. These are global

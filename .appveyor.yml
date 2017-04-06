@@ -1,0 +1,22 @@
+os: Visual Studio 2015
+
+platform:
+  - x64
+  - x86
+
+install:
+  - '"C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x64'
+  - appveyor-retry choco install strawberryperl --version 5.20.1.1 --allow-empty-checksums
+  - SET PATH=C:\strawberry\c\bin;C:\strawberry\perl\site\bin;C:\strawberry\perl\bin;%PATH%
+  - perl Configure.pl --prefix=%APPVEYOR_BUILD_FOLDER%\buildprefix
+  - nmake install
+  - git clone https://github.com/perl6/nqp %APPVEYOR_BUILD_FOLDER%\nqp
+  - cd %APPVEYOR_BUILD_FOLDER%\nqp
+  - perl Configure.pl --prefix=%APPVEYOR_BUILD_FOLDER%\buildprefix
+  - nmake install
+
+build: off
+
+test_script:
+  - cd %APPVEYOR_BUILD_FOLDER%\nqp
+  - nmake m-test-loud

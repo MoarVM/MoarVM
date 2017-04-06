@@ -1,7 +1,7 @@
 #include "moar.h"
 
 /* This representation's function pointer table. */
-static const MVMREPROps this_repr;
+static const MVMREPROps MultiDimArray_this_repr;
 
 /* Computes the flat number of elements from the given dimension list. */
 static MVMint64 flat_elements(MVMint64 num_dimensions, MVMint64 *dimensions) {
@@ -42,7 +42,7 @@ MVM_STATIC_INLINE size_t indices_to_flat_index(MVMThreadContext *tc, MVMint64 nu
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
-    MVMSTable *st  = MVM_gc_allocate_stable(tc, &this_repr, HOW);
+    MVMSTable *st  = MVM_gc_allocate_stable(tc, &MultiDimArray_this_repr, HOW);
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
@@ -755,10 +755,10 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
 
 /* Initializes the representation. */
 const MVMREPROps * MVMMultiDimArray_initialize(MVMThreadContext *tc) {
-    return &this_repr;
+    return &MultiDimArray_this_repr;
 }
 
-static const MVMREPROps this_repr = {
+static const MVMREPROps MultiDimArray_this_repr = {
     type_object_for,
     allocate,
     NULL, /* initialize */

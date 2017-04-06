@@ -1224,6 +1224,15 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
     }
 }
 
+static void optimize_coverage_log(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    char *cache        = (char *)ins->operands[3].lit_i64;
+    MVMint32 cache_idx = ins->operands[2].lit_i32;
+
+    if (cache[cache_idx] != 0) {
+        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+    }
+}
+
 /* Optimizes an extension op. */
 static void optimize_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMExtOpRecord *extops     = g->sf->body.cu->body.extops;
@@ -1663,6 +1672,9 @@ static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb) 
             /* Profiling entered from spesh should indicate so. */
             ins->info = MVM_op_get_op(MVM_OP_prof_enterspesh);
             break;
+        case MVM_OP_coverage_log:
+            /* A coverage_log op that has already fired can be thrown out. */
+            optimize_coverage_log(tc, g, bb, ins);
         default:
             if (ins->info->opcode == (MVMuint16)-1)
                 optimize_extop(tc, g, bb, ins);

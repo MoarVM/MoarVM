@@ -697,7 +697,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 {
                     MVMnum64 num = GET_REG(cur_op, 2).n64;
                     /* The 1.0/num logic checks for a negative zero */
-                    if (num < 0 || num == 0 && 1.0/num < 0 ) num = num * -1;
+                    if (num < 0 || (num == 0 && 1.0/num < 0) ) num = num * -1;
                     GET_REG(cur_op, 0).n64 = num;
                     cur_op += 4;
                 }
@@ -1507,6 +1507,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(index_s):
                 GET_REG(cur_op, 0).i64 = MVM_string_index(tc,
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(indexic_s):
+                GET_REG(cur_op, 0).i64 = MVM_string_index_ignore_case(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
                 cur_op += 8;
                 goto NEXT;
@@ -5626,6 +5631,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The getregref_* ops were removed in MoarVM 2017.01.");
             OP(DEPRECATED_13):
                 MVM_exception_throw_adhoc(tc, "The continuationclone op was removed in MoarVM 2017.01.");
+            OP(coverage_log): {
+                MVMString *filename = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
+                MVMuint32 lineno    = GET_UI32(cur_op, 4);
+                MVMuint32 cacheidx  = GET_UI32(cur_op, 8);
+                char      *cache    = (char *)MVM_BC_get_I64(cur_op, 12);
+                MVM_line_coverage_report(tc, filename, lineno, cacheidx, cache);
+                cur_op += 20;
+                goto NEXT;
+            }
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

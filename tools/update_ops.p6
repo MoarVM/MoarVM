@@ -1,3 +1,4 @@
+#!/usr/bin/env perl6
 # This script processes the op list into a C header file that contains
 # info about the opcodes.
 

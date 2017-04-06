@@ -84,6 +84,8 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
         MVM_profile_instrument(tc, static_frame);
     else if (tc->instance->cross_thread_write_logging)
         MVM_cross_thread_write_instrument(tc, static_frame);
+    else if (tc->instance->coverage_logging)
+        MVM_line_coverage_instrument(tc, static_frame);
     else
         MVM_profile_ensure_uninstrumented(tc, static_frame);
 }
@@ -1399,7 +1401,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 if (fcost+icost > 1)
                                   try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                                 if (dlog) {
-                                    fprintf(dlog, "I %s %d %d %d %d %lu %lu %lu\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                                    fprintf(dlog, "I %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                                     fflush(dlog);
                                     MVM_free(c_name);
                                     tc->instance->dynvar_log_lasttime = uv_hrtime();
@@ -1436,7 +1438,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                                 if (fcost+icost > 1)
                                   try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                                 if (dlog) {
-                                    fprintf(dlog, "I %s %d %d %d %d %lu %lu %lu\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                                    fprintf(dlog, "I %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                                     fflush(dlog);
                                     MVM_free(c_name);
                                     tc->instance->dynvar_log_lasttime = uv_hrtime();
@@ -1458,7 +1460,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                 if (fcost+icost > 5)
                     try_cache_dynlex(tc, initial_frame, cur_frame, name, result, *type, fcost, icost);
                 if (dlog) {
-                    fprintf(dlog, "C %s %d %d %d %d %lu %lu %lu\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                    fprintf(dlog, "C %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                     fflush(dlog);
                     MVM_free(c_name);
                     tc->instance->dynvar_log_lasttime = uv_hrtime();
@@ -1489,7 +1491,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
                     });
                 }
                 if (dlog) {
-                    fprintf(dlog, "F %s %d %d %d %d %lu %lu %lu\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+                    fprintf(dlog, "F %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
                     fflush(dlog);
                     MVM_free(c_name);
                     tc->instance->dynvar_log_lasttime = uv_hrtime();
@@ -1504,7 +1506,7 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
         cur_frame = cur_frame->caller;
     }
     if (dlog) {
-        fprintf(dlog, "N %s %d %d %d %d %lu %lu %lu\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
+        fprintf(dlog, "N %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
         fflush(dlog);
         MVM_free(c_name);
         tc->instance->dynvar_log_lasttime = uv_hrtime();

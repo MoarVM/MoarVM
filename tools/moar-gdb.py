@@ -9,6 +9,11 @@
 #     cd /path/to/install/bin
 #     ln -s path/to/moarvm/tools/moar-gdb.py
 
+# If you're developing/extending/changing this script, or if you're getting
+# python exception messages, this command will be very helpful:
+#
+#    set python print-stack full
+
 # This script contains a few helpers to make debugging MoarVM a bit more pleasant.
 #
 # So far, there's:
@@ -29,6 +34,12 @@
 # - Implement diffing for the gen2 in some sensible manner
 # - The backtrace should also display a backtrace of the interpreter
 #   state. That's relatively easy, as you can just dump_backtrace(tc).
+# - Give the object prety printer a children method that figures
+#   stuff out about attributes of a P6opaque, or CStruct.
+# - Let VMArray and MVMHash be displayed with the right display_hint
+#   and also give them values for the children method
+# - Pretty print P6bigint as their value
+# - Pretty print P6int and P6num as their value
 
 # Here's some wishlist items
 #
@@ -180,37 +191,43 @@ class MVMStringPPrinter(object):
         elif stringtyp == "strands":
             # XXX here be dragons and/or wrong code
             # XXX This is still true now
-            i = 0
-            pieces = []
-            data = self.val['body']['storage']['strands']
-            end_reached = False
-            previous_index = 0
-            previous_string = None
-            while not end_reached:
-                strand_data = (data + i).dereference()
-                if strand_data['blob_string'] == 0:
-                    end_reached = True
-                    pieces.append(previous_string[1:-1])
-                else:
-                    the_string = strand_data['blob_string'].dereference()
-                    if previous_string is not None:
-                        pieces.append(
-                            str(previous_string)[1:-1][
-                                int(strand_data['start']) :
-                                int(strand_data['end']) - previous_index]
-                            )
-                    previous_string = str(the_string)
-                    previous_index = int(strand_data['end'])
-                i = i + 1
-            return "r(" + ")(".join(pieces) + ")"
+
+            # i = 0
+            # pieces = []
+            # data = self.val['body']['storage']['strands']
+            # end_reached = False
+            # previous_index = 0
+            # previous_string = None
+            # while not end_reached:
+                # strand_data = (data + i).dereference()
+                # if strand_data['blob_string'] == 0:
+                    # end_reached = True
+                    # pieces.append(previous_string[1:-1])
+                # else:
+                    # the_string = strand_data['blob_string'].dereference()
+                    # if previous_string is not None:
+                        # pieces.append(
+                            # str(previous_string)[1:-1][
+                                # int(strand_data['start']) :
+                                # int(strand_data['end']) - previous_index]
+                            # )
+                    # previous_string = str(the_string)
+                    # previous_index = int(strand_data['end'])
+                # i = i + 1
+            # return "r(" + ")(".join(pieces) + ")"
+            return None
         else:
             return "string of type " + stringtyp
 
     def to_string(self):
-        if self.pointer:
-            return "pointer to '" + self.stringify() + "'"
+        result = self.stringify()
+        if result:
+            if self.pointer:
+                return "pointer to '" + self.stringify() + "'"
+            else:
+                return "'" + self.stringify() + "'"
         else:
-            return "'" + self.stringify() + "'"
+            return None
 
 # currently nonfunctional
 class MVMObjectPPrinter(object):
@@ -228,7 +245,9 @@ class MVMObjectPPrinter(object):
 
         reprname = _repr['name'].string()
 
-        return str(self.val.type.name) + " of repr " + reprname
+        debugname = as_mvmobject['st']['debug_name']
+
+        return str(self.val.type.name) + " (" + debugname + ") of repr " + reprname
 
     def to_string(self):
         if self.pointer:
@@ -260,7 +279,7 @@ def show_histogram(hist, sort="value", multiply=False):
     else:
         print("sorting mode", sort, "not implemented")
     maximum = max(hist.values())
-    keymax = min(max([len(str(key)) for key in hist.keys()]), 20)
+    keymax = min(max([len(str(key)) for key in hist.keys()]), 30)
     lines_so_far = 0
     group = -1
     num_in_group = 0
@@ -380,6 +399,10 @@ class CommonHeapData(object):
         if not is_stable:
             REPR = STable["REPR"]
             REPRname = REPR["name"].string()
+            try:
+                debugname = STable['debug_name'].string()
+            except gdb.MemoryError:
+                debugname = "n/a"
             if is_typeobj:
                 self.number_typeobs += 1
             else:
@@ -387,10 +410,14 @@ class CommonHeapData(object):
         else:
             REPR = None
             REPRname = "STable"
+            debugname = "n/a"
             self.number_stables += 1
 
         self.size_histogram[int(size)] += 1
-        self.repr_histogram[REPRname] += 1
+        if debugname != "n/a":
+            self.repr_histogram[debugname] += 1
+        else:
+            self.repr_histogram[REPRname] += 1
 
         if REPRname == "P6opaque":
             self.opaq_histogram[int(size)] += 1
@@ -408,9 +435,14 @@ class CommonHeapData(object):
         elif REPRname == "MVMString":
             try:
                 casted = cursor.cast(gdb.lookup_type('MVMString').pointer())
-                self.string_histogram[MVMStringPPrinter(casted).stringify()] += 1
+                stringresult = MVMStringPPrinter(casted).stringify()
+                if stringresult is not None:
+                    self.string_histogram[stringresult] += 1
+                else:
+                    self.string_histogram["mvmstr@" + hex(int(cursor.address.cast(gdb.lookup_type("int"))))] += 1
             except gdb.MemoryError as e:
                 print(e)
+                print(e.traceback())
                 print(cursor.cast(gdb.lookup_type('MVMString').pointer()))
                 pass
 
@@ -430,14 +462,18 @@ class NurseryData(CommonHeapData):
         self.allocation_offs = allocation_offs
 
     def analyze(self, tc):
-        print("starting to analyze the nursery:")
         cursor = gdb.Value(self.start_addr)
-        print(cursor);
         info_step = int(self.allocation_offs - cursor) // 50
         next_info = cursor + info_step
         print("_" * 50)
         while cursor < self.allocation_offs:
-            size = self.analyze_single_object(cursor)
+            try:
+                size = self.analyze_single_object(cursor)
+            except:
+                print("while trying to analyze single object:");
+                traceback.print_exc()
+                print(stooge)
+                print(stooge.__repr__())
 
             cursor += size
             if cursor > next_info:
@@ -459,7 +495,7 @@ class NurseryData(CommonHeapData):
         show_histogram(self.size_histogram, "key", True)
         print("sizes of P6opaques only:")
         show_histogram(self.opaq_histogram, "key", True)
-        print("REPRs:")
+        print("debugnames:")
         show_histogram(self.repr_histogram)
         print("VMArray storage types:")
         show_histogram(self.arrstr_hist)
@@ -476,7 +512,7 @@ class NurseryData(CommonHeapData):
         diff_histogram(self.size_histogram, other.size_histogram, "key", True)
         print("sizes of P6opaques only:")
         diff_histogram(self.opaq_histogram, other.opaq_histogram, "key", True)
-        print("REPRs:")
+        print("debugnames:")
         diff_histogram(self.repr_histogram, other.repr_histogram)
         print("VMArray storage types:")
         diff_histogram(self.arrstr_hist, other.arrstr_hist)
@@ -657,12 +693,15 @@ class Gen2Data(CommonHeapData):
             try:
                 show_histogram(self.size_histogram, "key", True)
             except Exception as e:
+                print("while trying to show the size histogram...")
                 print(e)
+                print(e.traceback())
         if len(self.repr_histogram) >= 1:
-            print("REPRs:")
+            print("debugnames:")
             try:
                 show_histogram(self.repr_histogram)
             except Exception as e:
+                print("while trying to show the repr histogram...")
                 print(e)
         print("strings:")
         show_histogram(self.string_histogram)
@@ -690,7 +729,7 @@ class OverflowData(CommonHeapData):
         show_histogram(self.size_histogram, "key", True)
         print("sizes of P6opaques only:")
         show_histogram(self.opaq_histogram, "key", True)
-        print("REPRs:")
+        print("debugnames:")
         show_histogram(self.repr_histogram)
         print("VMArray storage types:")
         show_histogram(self.arrstr_hist)
@@ -720,34 +759,37 @@ class AnalyzeHeapCommand(gdb.Command):
         if not str(tc.type).startswith("MVMThreadContext"):
             raise ValueError("Please invoke the heap analyzer command on a MVMThreadContext, usually tc.")
 
-        # find out the GC generation we're in (just a number increasing by 1 every time we GC)
-        instance = tc['instance']
-        generation = instance['gc_seq_number']
+        try:
+            # find out the GC generation we're in (just a number increasing by 1 every time we GC)
+            instance = tc['instance']
+            generation = instance['gc_seq_number']
 
-        nursery = NurseryData(generation, tc['nursery_tospace'], tc['nursery_alloc_limit'], tc['nursery_alloc'])
+            nursery = NurseryData(generation, tc['nursery_tospace'], tc['nursery_alloc_limit'], tc['nursery_alloc'])
 
-        nursery.analyze(tc)
+            nursery.analyze(tc)
 
-        nursery_memory.append(nursery)
+            nursery_memory.append(nursery)
 
-        print("the current generation of the gc is", generation)
+            print("the current generation of the gc is", generation)
 
-        sizeclass_data = []
-        for sizeclass in range(MVM_GEN2_BINS):
-            g2sc = Gen2Data(generation, tc['gen2']['size_classes'][sizeclass], sizeclass)
-            sizeclass_data.append(g2sc)
-            g2sc.analyze(tc)
+            sizeclass_data = []
+            for sizeclass in range(MVM_GEN2_BINS):
+                g2sc = Gen2Data(generation, tc['gen2']['size_classes'][sizeclass], sizeclass)
+                sizeclass_data.append(g2sc)
+                g2sc.analyze(tc)
 
-        overflowdata = OverflowData(generation)
+            overflowdata = OverflowData(generation)
 
-        overflowdata.analyze(tc)
+            overflowdata.analyze(tc)
 
-        for g2sc in sizeclass_data:
-            g2sc.summarize()
+            for g2sc in sizeclass_data:
+                g2sc.summarize()
 
-        nursery.summarize()
+            nursery.summarize()
 
-        overflowdata.summarize()
+            overflowdata.summarize()
+        except KeyboardInterrupt:
+            print("aborted the analysis.")
 
 class DiffHeapCommand(gdb.Command):
     """Display the difference between two snapshots of the nursery."""

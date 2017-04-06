@@ -377,18 +377,17 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
         else if (ch >= 'A' && ch <= 'Z') ch = ch - 'A' + 10;
         else if (ch >= 0xFF21 && ch <= 0xFF3A) ch = ch - 0xFF21 + 10; /* uppercase fullwidth */
         else if (ch >= 0xFF41 && ch <= 0xFF5A) ch = ch - 0xFF41 + 10; /* lowercase fullwidth */
-        else if (ch > 0 &&
-            MVM_unicode_codepoint_get_property_int(tc, ch, MVM_UNICODE_PROPERTY_NUMERIC_TYPE)
+        else if (ch > 0 && MVM_unicode_codepoint_get_property_int(tc, ch, MVM_UNICODE_PROPERTY_NUMERIC_TYPE)
          == MVM_UNICODE_PVALUE_Numeric_Type_DECIMAL) {
-            /* As of Unicode 6.0.0, we know that Nd category numerals are within
-             * the range 0..9
+            /* as of Unicode 9.0.0, characters with the 'de' Numeric Type (and are
+             * thus also of General Category Nd, since 4.0.0) are contiguous
+             * sequences of 10 chars whose Numeric Values ascend from 0 through 9.
              */
 
-            /* the string returned for NUMERIC_VALUE contains a floating point
-             * value, so atoi will stop on the . in the string. This is fine
-             * though, since we'd have to truncate the float regardless.
-             */
-            ch = atoi(MVM_unicode_codepoint_get_property_cstr(tc, ch, MVM_UNICODE_PROPERTY_NUMERIC_VALUE));
+            /* the string returned for NUMERIC_VALUE_NUMERATOR contains an integer
+             * value. We can use numerator because they all are from 0-9 and have
+             * denominator of 1 */
+            ch = fast_atoi(MVM_unicode_codepoint_get_property_cstr(tc, ch, MVM_UNICODE_PROPERTY_NUMERIC_VALUE_NUMERATOR));
         }
         else break;
         if (ch >= radix) break;

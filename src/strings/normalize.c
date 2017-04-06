@@ -327,13 +327,6 @@ static MVMint64 passes_quickcheck(MVMThreadContext *tc, const MVMNormalizer *n, 
     return pval && pval[0] == 'Y';
 }
 
-MVM_STATIC_INLINE MVMint32 fast_atoi( const char * dec_str ) {
-    MVMint32 value = 0;
-    while( *dec_str ) {
-        value = value*10 + (*dec_str++ - '0');
-    }
-    return value;
-}
 /* Gets the canonical combining class for a codepoint. */
 static MVMint64 ccc(MVMThreadContext *tc, MVMCodepoint cp) {
     if (cp < MVM_NORMALIZE_FIRST_NONZERO_CCC) {
@@ -496,13 +489,7 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
  * the handling of breaking around controls much earlier, so don't have to
  * consider that case. */
 static MVMint32 maybe_hangul(MVMCodepoint cp) {
-    return cp >= 0x1100 && cp < 0x1200 || cp >= 0xA960 && cp < 0xD7FC;
-}
-static MVMint32 is_regional_indicator(MVMCodepoint cp) {
-    /* U+1F1E6 REGIONAL INDICATOR SYMBOL LETTER A
-     * ..
-     * U+1F1FF REGIONAL INDICATOR SYMBOL LETTER Z */
-    return cp >= 0x1F1E6 && cp <= 0x1F1FF;
+    return (cp >= 0x1100 && cp < 0x1200) || (cp >= 0xA960 && cp < 0xD7FC);
 }
 static MVMint32 is_grapheme_extend(MVMThreadContext *tc, MVMCodepoint cp) {
     return MVM_unicode_codepoint_get_property_int(tc, cp,
@@ -511,22 +498,6 @@ static MVMint32 is_grapheme_extend(MVMThreadContext *tc, MVMCodepoint cp) {
 static MVMint32 is_grapheme_prepend(MVMThreadContext *tc, MVMCodepoint cp) {
     return MVM_unicode_codepoint_get_property_int(tc, cp,
         MVM_UNICODE_PROPERTY_PREPENDED_CONCATENATION_MARK);
-}
-
-static MVMint32 is_spacing_mark(MVMThreadContext *tc, MVMCodepoint cp) {
-    const char *genprop = MVM_unicode_codepoint_get_property_cstr(tc, cp,
-        MVM_UNICODE_PROPERTY_GENERAL_CATEGORY);
-    if (genprop[0] == 'M' && genprop[1] == 'c') {
-        const char *gcb = MVM_unicode_codepoint_get_property_cstr(tc, cp,
-            MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
-        return strcmp(gcb, "Extend") != 0;
-    }
-    else {
-        /* Special cases outside of Mc:
-         * U+0E33 THAI CHARACTER SARA AM
-         * U+0EB3 LAO VOWEL SIGN AM */
-        return cp == 0x0E33 || cp == 0x0EB3;
-    }
 }
 static MVMint32 should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b) {
     int GCB_a = MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);

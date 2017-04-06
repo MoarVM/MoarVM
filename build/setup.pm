@@ -292,11 +292,13 @@ our %COMPILERS = (
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
         ccinstflags  => '-fsanitize=address',
+        cc_covflags => '-fprofile-instr-generate -fcoverage-mapping',
 
         ldmiscflags  => '',
         ldoptiflags  => undef,
         lddebugflags => undef,
         ldinstflags  => undef,
+        ld_covflags => '-fprofile-instr-generate -fcoverage-mapping',
 
         noreturnspecifier => '',
         noreturnattribute => '__attribute__((noreturn))',
