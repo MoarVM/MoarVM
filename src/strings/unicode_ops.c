@@ -36,8 +36,8 @@ MVMint64 MVM_unicode_string_compare
     MVM_string_check_arg(tc, a, "compare");
     MVM_string_check_arg(tc, b, "compare");
     /* Simple cases when one or both are zero length. */
-    alen = MVM_string_graphs(tc, a);
-    blen = MVM_string_graphs(tc, b);
+    alen = MVM_string_graphs_nocheck(tc, a);
+    blen = MVM_string_graphs_nocheck(tc, b);
     if (alen == 0)
         return blen == 0 ? 0 : -1;
     if (blen == 0)

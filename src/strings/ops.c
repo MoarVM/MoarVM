@@ -230,10 +230,12 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
 MVMint64 MVM_string_index_from_end(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
     MVMint64 result = -1;
     size_t index;
-    MVMStringIndex hgraphs = MVM_string_graphs(tc, haystack), ngraphs = MVM_string_graphs(tc, needle);
+    MVMStringIndex hgraphs, ngraphs;
 
     MVM_string_check_arg(tc, haystack, "rindex search target");
     MVM_string_check_arg(tc, needle, "rindex search term");
+    hgraphs = MVM_string_graphs_nocheck(tc, haystack);
+    ngraphs = MVM_string_graphs_nocheck(tc, needle);
 
     if (!ngraphs) {
         if (start >= 0)
@@ -276,10 +278,11 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
     MVMString *result;
     MVMint64   start_pos, end_pos;
 
-    /* convert to signed to avoid implicit arithmetic conversions */
-    MVMint64 agraphs = (MVMint64)MVM_string_graphs(tc, a);
+    MVMint64 agraphs;
 
     MVM_string_check_arg(tc, a, "substring");
+    /* convert to signed to avoid implicit arithmetic conversions */
+    agraphs = (MVMint64)MVM_string_graphs_nocheck(tc, a);
 
     /* -1 signifies go to the end of the string; anything less is a bug */
     if (length < -1)
@@ -401,7 +404,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     MVM_string_check_arg(tc, b, "concatenate");
 
     /* Simple empty-string cases. */
-    agraphs = MVM_string_graphs(tc, a);
+    agraphs = MVM_string_graphs_nocheck(tc, a);
     if (agraphs == 0)
         return b;
     bgraphs = MVM_string_graphs(tc, b);
@@ -512,7 +515,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         MVM_exception_throw_adhoc(tc, "repeat count > %d arbitrarily unsupported...", (1 << 30));
 
     /* If input string is empty, repeating it is empty. */
-    agraphs = MVM_string_graphs(tc, a);
+    agraphs = MVM_string_graphs_nocheck(tc, a);
     if (agraphs == 0)
         return tc->instance->str_consts.empty;
 
@@ -573,8 +576,8 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
     MVM_string_check_arg(tc, a, "equal_at");
     MVM_string_check_arg(tc, b, "equal_at");
 
-    agraphs = MVM_string_graphs(tc, a);
-    bgraphs = MVM_string_graphs(tc, b);
+    agraphs = MVM_string_graphs_nocheck(tc, a);
+    bgraphs = MVM_string_graphs_nocheck(tc, b);
 
     if (offset < 0) {
         offset += agraphs;
@@ -1082,8 +1085,8 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
         result = MVM_repr_alloc_init(tc, hll->slurpy_array_type);
         MVMROOT(tc, result, {
             start = 0;
-            end = MVM_string_graphs(tc, input);
-            sep_length = MVM_string_graphs(tc, separator);
+            end = MVM_string_graphs_nocheck(tc, input);
+            sep_length = MVM_string_graphs_nocheck(tc, separator);
 
             while (start < end) {
                 MVMString *portion;
@@ -1146,7 +1149,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     /* Take a first pass through the string, counting up length and the total
      * number of strands we encounter as well as building a flat array of the
      * strings (to we only have to do the indirect calls once). */
-    sgraphs  = MVM_string_graphs(tc, separator);
+    sgraphs  = MVM_string_graphs_nocheck(tc, separator);
     if (sgraphs)
         sstrands = separator->body.storage_type == MVM_STRING_STRAND
             ? separator->body.num_strands
@@ -1289,11 +1292,11 @@ MVMint64 MVM_string_char_at_in_string(MVMThreadContext *tc, MVMString *a, MVMint
     MVM_string_check_arg(tc, b, "char_at_in_string");
 
     /* We return -2 here only to be able to distinguish between "out of bounds" and "not in string". */
-    if (offset < 0 || offset >= MVM_string_graphs(tc, a))
+    if (offset < 0 || offset >= MVM_string_graphs_nocheck(tc, a))
         return -2;
 
     search  = MVM_string_get_grapheme_at_nocheck(tc, a, offset);
-    bgraphs = MVM_string_graphs(tc, b);
+    bgraphs = MVM_string_graphs_nocheck(tc, b);
     switch (b->body.storage_type) {
     case MVM_STRING_GRAPHEME_32: {
         MVMStringIndex i;
@@ -1336,7 +1339,7 @@ MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMS
 
     MVM_string_check_arg(tc, s, "uniprop");
 
-    if (offset < 0 || offset >= MVM_string_graphs(tc, s))
+    if (offset < 0 || offset >= MVM_string_graphs_nocheck(tc, s))
         return 0;
 
     g = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
@@ -1354,7 +1357,7 @@ MVMint64 MVM_string_offset_has_unicode_property_value(MVMThreadContext *tc, MVMS
 MVMString * MVM_string_indexing_optimized(MVMThreadContext *tc, MVMString *s) {
     MVM_string_check_arg(tc, s, "indexingoptimized");
     if (s->body.storage_type == MVM_STRING_STRAND) {
-        MVMuint32        chars = MVM_string_graphs(tc, s);
+        MVMuint32        chars = MVM_string_graphs_nocheck(tc, s);
         MVMGrapheme32   *flat  = MVM_malloc(chars * sizeof(MVMGrapheme32));
         MVMuint32        i     = 0;
         MVMString       *res;
@@ -1397,7 +1400,7 @@ MVMString * MVM_string_escape(MVMThreadContext *tc, MVMString *s) {
 
     MVM_string_check_arg(tc, s, "escape");
 
-    sgraphs = MVM_string_graphs(tc, s);
+    sgraphs = MVM_string_graphs_nocheck(tc, s);
     balloc  = sgraphs;
     buffer  = MVM_malloc(sizeof(MVMGrapheme32) * balloc);
 
@@ -1466,7 +1469,7 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
     MVMStringIndex  rpos;
 
     MVM_string_check_arg(tc, s, "flip");
-    sgraphs = MVM_string_graphs(tc, s);
+    sgraphs = MVM_string_graphs_nocheck(tc, s);
     rpos    = sgraphs;
 
     if (s->body.storage_type == MVM_STRING_GRAPHEME_8) {
@@ -1510,8 +1513,8 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVM_string_check_arg(tc, b, "compare");
 
     /* Simple cases when one or both are zero length. */
-    alen = MVM_string_graphs(tc, a);
-    blen = MVM_string_graphs(tc, b);
+    alen = MVM_string_graphs_nocheck(tc, a);
+    blen = MVM_string_graphs_nocheck(tc, b);
     if (alen == 0)
         return blen == 0 ? 0 : -1;
     if (blen == 0)
@@ -1541,8 +1544,8 @@ MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     MVM_string_check_arg(tc, a, "bitwise and");
     MVM_string_check_arg(tc, b, "bitwise and");
 
-    alen = MVM_string_graphs(tc, a);
-    blen = MVM_string_graphs(tc, b);
+    alen = MVM_string_graphs_nocheck(tc, a);
+    blen = MVM_string_graphs_nocheck(tc, b);
     sgraphs = alen < blen ? alen : blen;
     buffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
 
@@ -1569,8 +1572,8 @@ MVMString * MVM_string_bitor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVM_string_check_arg(tc, a, "bitwise or");
     MVM_string_check_arg(tc, b, "bitwise or");
 
-    alen = MVM_string_graphs(tc, a);
-    blen = MVM_string_graphs(tc, b);
+    alen = MVM_string_graphs_nocheck(tc, a);
+    blen = MVM_string_graphs_nocheck(tc, b);
     sgraphs = (alen > blen ? alen : blen);
     buffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
 
@@ -1606,8 +1609,8 @@ MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) 
     MVM_string_check_arg(tc, a, "bitwise xor");
     MVM_string_check_arg(tc, b, "bitwise xor");
 
-    alen = MVM_string_graphs(tc, a);
-    blen = MVM_string_graphs(tc, b);
+    alen = MVM_string_graphs_nocheck(tc, a);
+    blen = MVM_string_graphs_nocheck(tc, b);
     sgraphs = (alen > blen ? alen : blen);
     buffer = MVM_malloc(sizeof(MVMGrapheme32) * sgraphs);
 
@@ -1815,7 +1818,7 @@ static MVMint64 grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGra
 MVMint64 MVM_string_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString *s, MVMint64 offset) {
     MVMGrapheme32 g;
     MVM_string_check_arg(tc, s, "is_cclass");
-    if (offset < 0 || offset >= MVM_string_graphs(tc, s))
+    if (offset < 0 || offset >= MVM_string_graphs_nocheck(tc, s))
         return 0;
     g = MVM_string_get_grapheme_at_nocheck(tc, s, offset);
     return grapheme_is_cclass(tc, cclass, g);
@@ -1828,7 +1831,7 @@ MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString
 
     MVM_string_check_arg(tc, s, "find_cclass");
 
-    length = MVM_string_graphs(tc, s);
+    length = MVM_string_graphs_nocheck(tc, s);
     end    = offset + count;
     end = length < end ? length : end;
     if (offset < 0 || offset >= length)
@@ -1852,7 +1855,7 @@ MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMSt
 
     MVM_string_check_arg(tc, s, "find_not_cclass");
 
-    length = MVM_string_graphs(tc, s);
+    length = MVM_string_graphs_nocheck(tc, s);
     end    = offset + count;
     end = length < end ? length : end;
     if (offset < 0 || offset >= length)

@@ -38,6 +38,9 @@ MVM_STATIC_INLINE MVMuint32 MVM_string_graphs(MVMThreadContext *tc, MVMString *s
     MVM_string_check_arg(tc, s, "chars");
     return s->body.num_graphs;
 }
+MVM_STATIC_INLINE MVMuint32 MVM_string_graphs_nocheck(MVMThreadContext *tc, MVMString *s) {
+    return s->body.num_graphs;
+}
 MVM_STATIC_INLINE MVMuint32 MVM_string_codes(MVMThreadContext *tc, MVMString *s) {
     MVM_string_check_arg(tc, s, "codes");
     return s->body.num_graphs; /* Don't do NFG yet; this will do us. */
