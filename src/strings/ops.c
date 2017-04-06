@@ -72,7 +72,7 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     MVM_string_gi_init(tc, &gi, orig);
     for (i = 0; i < ographs; i++) {
         MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-        if (g < -127 || g > 127)
+        if (can_use_8bit != 0 && (g < -127 || g > 127) )
             can_use_8bit = 0;
         result->body.storage.blob_32[i] = g;
     }
