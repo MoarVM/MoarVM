@@ -43,6 +43,27 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
     MVM_oops(tc, "Spesh: inline failed to find source CU extop entry");
 }
 
+static MVMint8 is_wval_harmless(MVMThreadContext *tc, MVMCode *inlinee, MVMSpeshIns *to_check) {
+
+    MVMCompUnit *cu  = inlinee->body.sf->body.cu;
+    MVMint16     dep = to_check->operands[1].lit_i16;
+    MVMint64     idx = to_check->info->opcode == MVM_OP_wval
+        ? to_check->operands[2].lit_i16
+        : to_check->operands[2].lit_i64;
+    if (dep >= 0 && dep < cu->body.num_scs) {
+        MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, dep);
+        if (sc) {
+            if (!MVM_sc_can_immediately_get_object(tc, sc, idx)) {
+                return 0;
+            }
+            else {
+                return 1;
+            }
+        }
+    }
+    return 1;
+}
+
 /* Sees if it will be possible to inline the target code ref, given we could
  * already identify a spesh candidate. Returns NULL if no inlining is possible
  * or a graph ready to be merged if it will be possible. */
@@ -50,6 +71,8 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                                                MVMCode *target, MVMSpeshCandidate *cand) {
     MVMSpeshGraph *ig;
     MVMSpeshBB    *bb;
+
+    MVMint32 same_comp_unit = inliner->sf->body.cu == target->body.sf->body.cu;
 
     /* Check inlining is enabled. */
     if (!tc->instance->spesh_inline_enabled)
@@ -114,6 +137,12 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
                     ins->info->opcode == MVM_OP_sp_getarg_s) {
                 if (ins->operands[1].lit_i16 >= MAX_ARGS_FOR_OPT)
                     goto not_inlinable;
+            }
+
+            if (!same_comp_unit && ins->info->opcode == MVM_OP_wval || ins->info->opcode == MVM_OP_wval_wide) {
+                if (!is_wval_harmless(tc, target, ins)) {
+                    goto not_inlinable;
+                }
             }
 
             /* Ext-ops need special care in inter-comp-unit inlines. */

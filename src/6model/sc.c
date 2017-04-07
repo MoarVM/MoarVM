@@ -189,6 +189,17 @@ MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc,
     }
 }
 
+/* Given an SC and an index, figure out if MVM_sc_get_object would cause
+ * deserialization. */
+MVMint8 MVM_sc_can_immediately_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
+    MVMObject **roots = sc->body->root_objects;
+    MVMint64    count = sc->body->num_objects;
+    if (idx >= 0 && idx < count)
+        return !!(roots[idx]);
+    return 0;
+}
+
+
 MVMObject * MVM_sc_get_sc_object(MVMThreadContext *tc, MVMCompUnit *cu,
                                  MVMint16 dep, MVMint64 idx) {
     if (dep >= 0 && dep < cu->body.num_scs) {
