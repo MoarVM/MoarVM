@@ -158,6 +158,34 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* XXX key and value types will be communicated here */
 }
 
+/* Deserialize the representation. */
+static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    MVMint64 elems = MVM_serialization_read_int(tc, reader);
+    MVMint64 i;
+    for (i = 0; i < elems; i++) {
+        MVMString *key = MVM_serialization_read_str(tc, reader);
+        MVMObject *value = MVM_serialization_read_ref(tc, reader);
+        MVMHashEntry *entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+            sizeof(MVMHashEntry));
+        MVM_ASSIGN_REF(tc, &(root->header), entry->value, value);
+        MVM_HASH_BIND(tc, body->hash_head, key, entry);
+    }
+}
+
+/* Serialize the representation. */
+static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    MVMHashEntry *current, *tmp;
+    unsigned bucket_tmp;
+    MVM_serialization_write_int(tc, writer, HASH_CNT(hash_handle, body->hash_head));
+    HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
+        MVMString *key = MVM_HASH_KEY(current);
+        MVM_serialization_write_str(tc, writer, key);
+        MVM_serialization_write_ref(tc, writer, current->value);
+    }
+}
+
 /* Set the size of the STable. */
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     st->size = sizeof(MVMHash);
@@ -211,8 +239,8 @@ static const MVMREPROps MVMHash_this_repr = {
     elems,
     get_storage_spec,
     NULL, /* change_type */
-    NULL, /* serialize */
-    NULL, /* deserialize */
+    serialize,
+    deserialize,
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
     deserialize_stable_size,
