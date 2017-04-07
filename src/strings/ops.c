@@ -1,10 +1,4 @@
-/* Needed with glibc to allow use of memmem function */
-#if defined _WIN32
-#include "../3rdparty/freebsd/memmem.c"
-#else
-#define _GNU_SOURCE
-#endif
-
+#include "platform/memmem.h"
 #include "moar.h"
 #define MVM_DEBUG_STRANDS 0
 
@@ -230,7 +224,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
                 void *mm_return_32;
                 do {
                     /* Keep as void* to not lose precision */
-                    mm_return_32 = memmem(
+                    mm_return_32 = MVM_memmem(
                         start_ptr, /* start position */
                         (hgraphs - start) * sizeof(MVMGrapheme32), /* length of haystack from start position to end */
                         needle->body.storage.blob_32, /* needle start */
@@ -247,7 +241,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
             break;
         case MVM_STRING_GRAPHEME_8:
             if (needle->body.storage_type == MVM_STRING_GRAPHEME_8) {
-                void *mm_return_8 = memmem(
+                void *mm_return_8 = MVM_memmem(
                     haystack->body.storage.blob_8 + start, /* start position */
                     (hgraphs - start) * sizeof(MVMGrapheme8), /* length of haystack from start position to end */
                     needle->body.storage.blob_8, /* needle start */
