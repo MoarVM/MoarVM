@@ -1224,3 +1224,22 @@ dealing with that:
 - One of the requirements is to be able to specify expression
   fragments for specific REPRs, e.g. via repr-specific expression
   template files.
+* TODO Improve logging
+
+Currently logging is *extremely* adhoc and pretty much only
+human-parseable. There are a bunch of things I want to improve about
+that.
+
+** TODO Profilers should know why stuff didn't get compiled
+
+When something is not compiled, that's usually because there is
+something in it the compiler can't handle. I think we should be able
+to stash that reason in a profiler context object, serialize and
+display it somehow.
+
+** DONE Digraph expression logging can take parameters in node
+
+Currently, constant parameters are displayed as separate nodes, and
+stuff would be cleaner if we didn't do that, e.g. rather let ADDR
+point to some constant number, write ADDR($constant).
+

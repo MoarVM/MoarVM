@@ -48,7 +48,7 @@ static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     char nargs[80];
 
     (*depth)++;
-
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
     i = MIN(*depth*2, sizeof(indent)-1);
     memset(indent, ' ', i);
     indent[i] = 0;
@@ -80,13 +80,22 @@ static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *trave
     MVMint32 nchild             = op_info->nchild < 0 ? tree->nodes[first_child++] : op_info->nchild;
     MVMint32 first_arg          = first_child + nchild;
     MVMint32 i;
-    fprintf(graph_file, "  n_%04d [label=\"%s\"];\n", node, op_info->name);
+    /* maximum length of op name is 'invokish' at 8 characters, let's allocate
+     * 16; maximum number of parameters is 4, and 64 bits; printing them in
+     * hexadecimal would require at most 8 characters, plus 4 for the '0x' and
+     * the ', '; minus 2 for the last one, plus 2 for the ampersands, plus 0 for
+     * the terminus, gives us 16 + 4*12 + 3 = 67; 80 should be plenty */
+    char node_label[80];
+    char *ptr = node_label + sprintf(node_label, "%s%s", op_info->name,
+                                     op_info->nargs ? "(" : "");
+    for (i = 0; i < op_info->nargs; i++) {
+        ptr += sprintf(ptr, "%#" PRIx64 "%s", tree->nodes[first_arg+i],
+                       (i + 1 < op_info->nargs) ? ", "  : ")");
+    }
+
+    fprintf(graph_file, "  n_%04d [label=\"%s\"];\n", node, node_label);
     for (i = 0; i < nchild; i++) {
         fprintf(graph_file, "    n_%04d -> n_%04d;\n", node, (MVMint32)tree->nodes[first_child+i]);
-    }
-    for (i = 0; i < op_info->nargs; i++) {
-        fprintf(graph_file, "  n_%04d_a_%d [label=%ld];\n", node, i, tree->nodes[first_arg+i]);
-        fprintf(graph_file, "    n_%04d -> n_%04d_a_%d;\n", node, node, i);
     }
 }
 
