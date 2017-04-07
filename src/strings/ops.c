@@ -1,7 +1,11 @@
 /* Needed with glibc to allow use of memmem function */
+#if defined _WIN32
+#include "../3rdparty/freebsd/memmem.c"
+#else
 #define _GNU_SOURCE
-#include "moar.h"
+#endif
 
+#include "moar.h"
 #define MVM_DEBUG_STRANDS 0
 
 #if MVM_DEBUG_STRANDS
