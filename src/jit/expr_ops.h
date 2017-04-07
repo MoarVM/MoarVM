@@ -33,6 +33,8 @@
     _(ZR, 1, 0, FLAG, UNSIGNED),   \
     /* flag value */ \
     _(FLAGVAL, 1, 0, REG, NO_CAST), \
+    /* force compilation but discard result */ \
+    _(DISCARD, 1, 0, VOID, NO_CAST),       \
     /* integer arithmetic */ \
     _(ADD, 2, 0, REG, SIGNED), \
     _(SUB, 2, 0, REG, SIGNED), \

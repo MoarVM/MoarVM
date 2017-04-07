@@ -18,6 +18,7 @@
 (define: (if flag reg) reg)
 (define: (ifv flag void) void)
 (define: (when flag void) void)
+(define: (discard reg) void)
 (define: (do void reg) reg)
 (define: (dov void void) void)
 
