@@ -226,24 +226,23 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
     switch (haystack->body.storage_type) {
         case MVM_STRING_GRAPHEME_32:
             if (needle->body.storage_type == MVM_STRING_GRAPHEME_32) {
-                /* Keep as void* to not lose precision */
-                void *mm_return_32 = memmem(
-                    haystack->body.storage.blob_32 + start, /* start position */
-                    (hgraphs - start) * sizeof(MVMGrapheme32), /* length of haystack from start position to end */
-                    needle->body.storage.blob_32, /* needle start */
-                    ngraphs * sizeof(MVMGrapheme32) /* needle length */
-                );
-                if (mm_return_32 == NULL)
-                    return -1;
-                /* If we aren't on a 32 bit boundary then freak out!!! */
-                else if (
-                    ( (intptr_t)mm_return_32 - (intptr_t)haystack->body.storage.blob_32) % sizeof(MVMGrapheme32)
-                ) {
-                    fprintf(stderr, "Overlapping chars, oh no… this is bad\n");
-                    MVM_exception_throw_adhoc(tc, "Overlapping chars, oh no… this is bad\n");
-                }
-                else
-                    return (MVMGrapheme32*)mm_return_32 - haystack->body.storage.blob_32;
+                void *start_ptr = haystack->body.storage.blob_32 + start;
+                void *mm_return_32;
+                do {
+                    /* Keep as void* to not lose precision */
+                    mm_return_32 = memmem(
+                        start_ptr, /* start position */
+                        (hgraphs - start) * sizeof(MVMGrapheme32), /* length of haystack from start position to end */
+                        needle->body.storage.blob_32, /* needle start */
+                        ngraphs * sizeof(MVMGrapheme32) /* needle length */
+                    );
+                    if (mm_return_32 == NULL)
+                        return -1;
+                    start_ptr = mm_return_32;
+                } /* If we aren't on a 32 bit boundary then continue from where we left off (unlikely but possible) */
+                while ( ( (intptr_t)mm_return_32 - (intptr_t)haystack->body.storage.blob_32) % sizeof(MVMGrapheme32) );
+
+                return (MVMGrapheme32*)mm_return_32 - haystack->body.storage.blob_32;
             }
             break;
         case MVM_STRING_GRAPHEME_8:
