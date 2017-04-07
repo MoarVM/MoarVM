@@ -53,6 +53,8 @@ src/gen/
 *.profdata
 # GCC Gcov files
 *.gcov
+# Callgrind files
+callgrind.out.*
 
 moar
 *.vsp
