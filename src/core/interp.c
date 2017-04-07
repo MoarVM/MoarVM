@@ -4584,7 +4584,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "NYI");
             OP(normalizecodes):
                 MVM_unicode_normalize_codepoints(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 4).o,
-                    MVN_unicode_normalizer_form(tc, GET_REG(cur_op, 2).i64));
+                    MVM_unicode_normalizer_form(tc, GET_REG(cur_op, 2).i64));
                 cur_op += 6;
                 goto NEXT;
             OP(strfromcodes):
@@ -4594,7 +4594,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(strtocodes):
                 MVM_unicode_string_to_codepoints(tc, GET_REG(cur_op, 0).s,
-                    MVN_unicode_normalizer_form(tc, GET_REG(cur_op, 2).i64),
+                    MVM_unicode_normalizer_form(tc, GET_REG(cur_op, 2).i64),
                     GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
