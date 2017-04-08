@@ -234,7 +234,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
                         return -1;
                     start_ptr = mm_return_32;
                 } /* If we aren't on a 32 bit boundary then continue from where we left off (unlikely but possible) */
-                while ( ( (intptr_t)mm_return_32 - (intptr_t)haystack->body.storage.blob_32) % sizeof(MVMGrapheme32) );
+                while ( ( (char*)mm_return_32 - (char*)haystack->body.storage.blob_32) % sizeof(MVMGrapheme32) );
 
                 return (MVMGrapheme32*)mm_return_32 - haystack->body.storage.blob_32;
             }
