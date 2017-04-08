@@ -216,7 +216,8 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
         return -1;
 
     /* Fast paths when storage types are identical. Uses memmem function, which
-     * in glibc uses Knuth-Morris-Pratt algorithm as of glibc-2.8-44-g0caca71ac9 */
+     * uses Knuth-Morris-Pratt algorithm on Linux and on others
+     * Crochemore+Perrin two-way string matching */
     switch (haystack->body.storage_type) {
         case MVM_STRING_GRAPHEME_32:
             if (needle->body.storage_type == MVM_STRING_GRAPHEME_32) {
@@ -245,7 +246,8 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
                     haystack->body.storage.blob_8 + start, /* start position */
                     (hgraphs - start) * sizeof(MVMGrapheme8), /* length of haystack from start position to end */
                     needle->body.storage.blob_8, /* needle start */
-                    ngraphs * sizeof(MVMGrapheme8)); /* needle length */
+                    ngraphs * sizeof(MVMGrapheme8) /* needle length */
+                );
                 if (mm_return_8 == NULL)
                     return -1;
                 else
