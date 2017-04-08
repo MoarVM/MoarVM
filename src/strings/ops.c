@@ -223,19 +223,22 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
             if (needle->body.storage_type == MVM_STRING_GRAPHEME_32) {
                 void *start_ptr = haystack->body.storage.blob_32 + start;
                 void *mm_return_32;
+                void *end_ptr = (char*)start_ptr + sizeof(MVMGrapheme32) * (hgraphs - start);
                 do {
                     /* Keep as void* to not lose precision */
                     mm_return_32 = MVM_memmem(
                         start_ptr, /* start position */
-                        (hgraphs - start) * sizeof(MVMGrapheme32), /* length of haystack from start position to end */
+                        (char*)end_ptr - (char*)start_ptr, /* length of haystack from start position to end */
                         needle->body.storage.blob_32, /* needle start */
                         ngraphs * sizeof(MVMGrapheme32) /* needle length */
                     );
                     if (mm_return_32 == NULL)
                         return -1;
-                    start_ptr = mm_return_32;
                 } /* If we aren't on a 32 bit boundary then continue from where we left off (unlikely but possible) */
-                while ( ( (char*)mm_return_32 - (char*)haystack->body.storage.blob_32) % sizeof(MVMGrapheme32) );
+                while ( ( (char*)mm_return_32 - (char*)haystack->body.storage.blob_32) % sizeof(MVMGrapheme32)
+                    && ( start_ptr = mm_return_32 ) /* Set the new start pointer at where we left off */
+                    && ( end_ptr > start_ptr ) /* Check we aren't past the end of the string just in case */
+                );
 
                 return (MVMGrapheme32*)mm_return_32 - haystack->body.storage.blob_32;
             }
