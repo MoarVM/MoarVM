@@ -1222,11 +1222,10 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
             if (i > 0) {
                 /* If there's no separator and one piece is The Empty String we
                  * have to be extra careful about concat stability */
-                if (sgraphs == 0 && MVM_string_graphs(tc, piece) == 0) {
-                    if (!concats_stable)
-                        ;
-                    else if (i + 1 < num_pieces && !MVM_nfg_is_concat_stable(tc, pieces[i - 1], pieces[i + 1]))
-                        concats_stable = 0;
+                if (sgraphs == 0 && MVM_string_graphs_nocheck(tc, piece) == 0 && concats_stable
+                        && i + 1 < num_pieces
+                        && !MVM_nfg_is_concat_stable(tc, pieces[i - 1], pieces[i + 1])) {
+                    concats_stable = 0;
                 }
 
                 if (sgraphs) {
