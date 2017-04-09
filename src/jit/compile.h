@@ -11,8 +11,8 @@ struct MVMJitCode {
      * runtime (because we need a second dereference to figure the
      * labels out), but very simple for me now, and super-easy to
      * optimise at a later date */
-    MVMint32       num_labels;
-    MVMint32       num_bbs;
+    MVMint32       num_labels; /* for labels */
+    MVMint32       num_bbs;    /* for bb_labels */
     void         **labels;
     MVMint32      *bb_labels;
 
@@ -21,7 +21,7 @@ struct MVMJitCode {
     MVMJitDeopt    *deopts;
     MVMJitInline  *inlines;
 
-    MVMint32       num_handlers;
+    MVMint32       num_handlers; /* for handlers */
     MVMint32       seq_nr;
     MVMJitHandler *handlers;
 };
