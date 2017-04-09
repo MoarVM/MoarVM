@@ -1220,9 +1220,17 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
 
             /* Add separator if needed. */
             if (i > 0) {
+                /* If there's no separator and one piece is The Empty String we
+                 * have to be extra careful about concat stability */
+                if (sgraphs == 0 && MVM_string_graphs_nocheck(tc, piece) == 0 && concats_stable
+                        && i + 1 < num_pieces
+                        && !MVM_nfg_is_concat_stable(tc, pieces[i - 1], pieces[i + 1])) {
+                    concats_stable = 0;
+                }
+
                 if (sgraphs) {
                     if (!concats_stable)
-                        /* Already stable; no more checks. */;
+                        /* Already unstable; no more checks. */;
                     else if (!MVM_nfg_is_concat_stable(tc, pieces[i - 1], separator))
                         concats_stable = 0;
                     else if (!MVM_nfg_is_concat_stable(tc, separator, piece))
