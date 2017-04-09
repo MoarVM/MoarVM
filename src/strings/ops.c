@@ -59,7 +59,6 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     MVMStringIndex   i;
     MVMuint32        ographs;
     MVMGraphemeIter  gi;
-    MVMint8          can_use_8bit = 1;
 
     MVMROOT(tc, orig, {
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
@@ -72,14 +71,18 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     MVM_string_gi_init(tc, &gi, orig);
     for (i = 0; i < ographs; i++) {
         MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-        if (can_use_8bit != 0 && (g < -127 || g > 127) )
-            can_use_8bit = 0;
         result->body.storage.blob_32[i] = g;
+        if (g < -127 || g > 127) {
+            /* If we know we can't fit into 8 bits, enter a tighter loop for maximum speed */
+            for (i++; i < ographs; i++) {
+                result->body.storage.blob_32[i] = MVM_string_gi_get_grapheme(tc, &gi);
+            }
+            return result;
+        }
     }
-
-    if (can_use_8bit)
-        turn_32bit_into_8bit_unchecked(tc, result);
-
+    /* If we get here, we didn't see any cp's lower than -127 or higher than 127
+     * so turn it into an 8 bit string */
+    turn_32bit_into_8bit_unchecked(tc, result);
     return result;
 }
 
