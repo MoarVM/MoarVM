@@ -1,5 +1,5 @@
+#include "platform/memmem.h"
 #include "moar.h"
-
 #define MVM_DEBUG_STRANDS 0
 
 #if MVM_DEBUG_STRANDS
@@ -203,7 +203,6 @@ MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadContext *tc, MVMString
 MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *needle, MVMint64 start) {
     size_t index           = (size_t)start;
     MVMStringIndex hgraphs = MVM_string_graphs(tc, haystack), ngraphs = MVM_string_graphs(tc, needle);
-
     MVM_string_check_arg(tc, haystack, "index search target");
     MVM_string_check_arg(tc, needle, "index search term");
 
@@ -218,6 +217,50 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *haystack, MVMString *
 
     if (ngraphs > hgraphs || ngraphs < 1)
         return -1;
+
+    /* Fast paths when storage types are identical. Uses memmem function, which
+     * uses Knuth-Morris-Pratt algorithm on Linux and on others
+     * Crochemore+Perrin two-way string matching */
+    switch (haystack->body.storage_type) {
+        case MVM_STRING_GRAPHEME_32:
+            if (needle->body.storage_type == MVM_STRING_GRAPHEME_32) {
+                void *start_ptr = haystack->body.storage.blob_32 + start;
+                void *mm_return_32;
+                void *end_ptr = (char*)start_ptr + sizeof(MVMGrapheme32) * (hgraphs - start);
+                do {
+                    /* Keep as void* to not lose precision */
+                    mm_return_32 = MVM_memmem(
+                        start_ptr, /* start position */
+                        (char*)end_ptr - (char*)start_ptr, /* length of haystack from start position to end */
+                        needle->body.storage.blob_32, /* needle start */
+                        ngraphs * sizeof(MVMGrapheme32) /* needle length */
+                    );
+                    if (mm_return_32 == NULL)
+                        return -1;
+                } /* If we aren't on a 32 bit boundary then continue from where we left off (unlikely but possible) */
+                while ( ( (char*)mm_return_32 - (char*)haystack->body.storage.blob_32) % sizeof(MVMGrapheme32)
+                    && ( start_ptr = mm_return_32 ) /* Set the new start pointer at where we left off */
+                    && ( end_ptr > start_ptr ) /* Check we aren't past the end of the string just in case */
+                );
+
+                return (MVMGrapheme32*)mm_return_32 - haystack->body.storage.blob_32;
+            }
+            break;
+        case MVM_STRING_GRAPHEME_8:
+            if (needle->body.storage_type == MVM_STRING_GRAPHEME_8) {
+                void *mm_return_8 = MVM_memmem(
+                    haystack->body.storage.blob_8 + start, /* start position */
+                    (hgraphs - start) * sizeof(MVMGrapheme8), /* length of haystack from start position to end */
+                    needle->body.storage.blob_8, /* needle start */
+                    ngraphs * sizeof(MVMGrapheme8) /* needle length */
+                );
+                if (mm_return_8 == NULL)
+                    return -1;
+                else
+                    return (MVMGrapheme8*)mm_return_8 -  haystack->body.storage.blob_8;
+            }
+            break;
+    }
 
     /* brute force for now. horrible, yes. halp. */
     while (index <= hgraphs - ngraphs) {
