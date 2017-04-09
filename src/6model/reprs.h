@@ -31,6 +31,7 @@
 #include "6model/reprs/CPointer.h"
 #include "6model/reprs/CStr.h"
 #include "6model/reprs/CArray.h"
+#include "6model/reprs/CStructArray.h"
 #include "6model/reprs/CStruct.h"
 #include "6model/reprs/CUnion.h"
 #include "6model/reprs/ReentrantMutex.h"
@@ -96,8 +97,9 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MultiDimArray           41
 #define MVM_REPR_ID_MVMCPPStruct            42
 #define MVM_REPR_ID_Decoder                 43
+#define MVM_REPR_ID_MVMCStructArray         44
 
-#define MVM_REPR_CORE_COUNT                 44
+#define MVM_REPR_CORE_COUNT                 45
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */

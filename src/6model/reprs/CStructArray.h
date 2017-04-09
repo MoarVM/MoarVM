@@ -1,5 +1,5 @@
-/* Body of a CArray. */
-struct MVMCArrayBody {
+/* Body of a CStructArray. */
+struct MVMCStructArrayBody {
     /* The storage of C-land elements. */
     void *storage;
 
@@ -20,23 +20,17 @@ struct MVMCArrayBody {
     MVMint32 elems;
 };
 
-struct MVMCArray {
+struct MVMCStructArray {
     MVMObject common;
-    MVMCArrayBody body;
+    MVMCStructArrayBody body;
 };
 
 /* What kind of element do we have? */
-#define MVM_CARRAY_ELEM_KIND_NUMERIC      1
-#define MVM_CARRAY_ELEM_KIND_STRING       2
-#define MVM_CARRAY_ELEM_KIND_CPOINTER     3
-#define MVM_CARRAY_ELEM_KIND_CARRAY       4
-#define MVM_CARRAY_ELEM_KIND_CSTRUCT      5
-#define MVM_CARRAY_ELEM_KIND_CUNION       6
-#define MVM_CARRAY_ELEM_KIND_CSTRUCTARRAY 7
+#define MVM_CSTRUCTARRAY_ELEM_KIND_CSTRUCT 1
 
-/* The CArray REPR data contains a little info about the type of array
+/* The CStructArray REPR data contains a little info about the type of array
  * that we have. */
-struct MVMCArrayREPRData {
+struct MVMCStructArrayREPRData {
     /* The number of bytes in size that an element is. */
     MVMint32 elem_size;
 
@@ -48,5 +42,5 @@ struct MVMCArrayREPRData {
     MVMint32 elem_kind;
 };
 
-/* Initializes the CArray REPR. */
-const MVMREPROps * MVMCArray_initialize(MVMThreadContext *tc);
+/* Initializes the CStructArray REPR. */
+const MVMREPROps * MVMCStructArray_initialize(MVMThreadContext *tc);
