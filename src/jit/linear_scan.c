@@ -412,7 +412,7 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
             alc->sets[node].key = ref; /* point directly to actual definition */
         } else if (tile->op == MVM_JIT_DO) {
             MVMint32 nchild     = tree->nodes[tile->node + 1];
-            MVMint32 ref        = tree->nodes[tile->node + nchild];
+            MVMint32 ref        = tree->nodes[tile->node + 1 + nchild];
             alc->sets[node].key = ref;
         } else if (tile->op == MVM_JIT_IF) {
             MVMint32 left_cond   = tree->nodes[tile->node + 2];
