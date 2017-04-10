@@ -186,6 +186,10 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
         template[1] = MVM_jit_label_before_bb(tc, tree->graph, opr.ins_bb);
         template[2] = sizeof(MVMint32);
         break;
+    case MVM_operand_callsite:
+        template[1] = opr.callsite_idx;
+        template[2] = sizeof(MVMuint16);
+        break;
     case MVM_operand_spesh_slot:
         template[1] = opr.lit_i16;
         template[2] = sizeof(MVMuint16);

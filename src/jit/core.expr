@@ -19,6 +19,8 @@
 (macro: ^cu_string (,a) (idx  (^getf (cu) MVMCompUnit body.strings) ,a ptr_sz))
 (template: const_s (load (^cu_string $1) ptr_sz))
 
+(macro: ^cu_callsite (,a) (idx  (^getf (cu) MVMCompUnit body.callsites) ,a ptr_sz))
+
 (template: set (copy $1))
 (template: getlex (copy $1))
 (template: bindlex (store $0 $1 reg_sz))
@@ -102,6 +104,12 @@
                       (if (nz $replace)
                            $replace
                            (addr ,a (&offsetof MVMP6opaque body)))))
+
+# since compilation of invocation is special-cased in the regular jit
+# we can't just toss this in here without also handling all of arg_*
+# and invoke_*.
+#(template: prepargs (^setf (^getf (tc) MVMThreadContext cur_frame) MVMFrame cur_args_callsite
+                           #(^cu_callsite $0))))
 
 (template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
 (template: sp_p6oget_n (load (add (^p6obody $1) $2) (&sizeof MVMnum64)))
