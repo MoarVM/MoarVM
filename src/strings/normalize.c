@@ -6,7 +6,7 @@
 
 /* Maps outside-world normalization form codes to our internal set, validating
  * that we got something valid. */
-MVMNormalization MVN_unicode_normalizer_form(MVMThreadContext *tc, MVMint64 form_in) {
+MVMNormalization MVM_unicode_normalizer_form(MVMThreadContext *tc, MVMint64 form_in) {
     switch (form_in) {
     case 1: return MVM_NORMALIZE_NFC;
     case 2: return MVM_NORMALIZE_NFD;

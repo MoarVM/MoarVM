@@ -155,7 +155,7 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_unicode_normalizer_get_grapheme(MVMThreadCon
 }
 
 /* Setup and teardown of the MVMNormalizer struct. */
-MVMNormalization MVN_unicode_normalizer_form(MVMThreadContext *tc, MVMint64 form_in);
+MVMNormalization MVM_unicode_normalizer_form(MVMThreadContext *tc, MVMint64 form_in);
 void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNormalization norm);
 void MVM_unicode_normalizer_translate_newlines(MVMThreadContext *tc, MVMNormalizer *n);
 void MVM_unicode_normalizer_cleanup(MVMThreadContext *tc, MVMNormalizer *n);

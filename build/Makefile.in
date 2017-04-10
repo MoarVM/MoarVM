@@ -362,6 +362,7 @@ HEADERS = src/moar.h \
           src/platform/io.h \
           src/platform/sys.h \
           src/platform/setjmp.h \
+          src/platform/memmem.h \
           src/jit/graph.h \
           src/jit/label.h \
           src/jit/expr.h \

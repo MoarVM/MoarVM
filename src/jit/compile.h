@@ -9,21 +9,18 @@ struct MVMJitCode {
      * runtime (because we need a second dereference to figure the
      * labels out), but very simple for me now, and super-easy to
      * optimise at a later date */
+
     MVMint32   num_labels;
     void     **labels;
 
     MVMint32       num_deopts;
-    MVMJitDeopt    *deopts;
-
     MVMint32       num_inlines;
-    MVMJitInline  *inlines;
-
     MVMint32       num_handlers;
+    MVMJitDeopt    *deopts;
+    MVMJitInline  *inlines;
     MVMJitHandler *handlers;
 
-
     MVMint32       spill_size;
-
     MVMint32       seq_nr;
 };
 
