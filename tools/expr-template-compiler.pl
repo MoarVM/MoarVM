@@ -128,17 +128,13 @@ sub write_template {
             die "Variable name {$stmt->[0]} is invalid" unless $stmt->[0] =~ m/\$[a-z]\w*/i;
             die "Let statement expects an expression" unless ref($stmt->[1]) eq 'ARRAY';
             die "Redeclaration of '$stmt->[0]'" if defined($env->{$stmt->[0]});
-            printf STDERR "declaring %s as %s\n", $stmt->[0], sexpr::encode($stmt->[1]);
             my ($child, $mode) = write_template($stmt->[1], $templ, $desc, $env);
             die "Let can only be used with simple expresions" unless $mode eq 'l';
-            printf STDERR "%s is relative node %d (mode %s)\n", $stmt->[0], $child, $mode;
             $env->{$stmt->[0]} = $child;
             # ensure the DO is compiled as I expect.
             push @$list, ['DISCARD', $stmt->[0]];
         }
         push @$list, @expr;
-        use Data::Dumper;
-        printf "Rewritten %s to %s, env = %s\n", sexpr::encode($tree), sexpr::encode($list), Dumper($env);
         return write_template($list, $templ, $desc, $env);
     } elsif (substr($top, 0, 1) eq '&') {
         # Add macro or sizeof/offsetof expression. these are not

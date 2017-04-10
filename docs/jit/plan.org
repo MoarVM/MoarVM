@@ -1012,137 +1012,6 @@ Bunch of options possible:
   - if non-free, we again need to start moving registers, but I'm not
     sure this requires the full shuffling requirements of ARGLIST.
 
-* TODO Templare value ordering
-
-The problem:
-
-#+BEGIN_EXAMPLE
-(if (test $bar) $quix (derive $quix))
-#+END_EXAMPLE
-
-In this case, $quix is refered to in both conditional branches, but
-might not be computed before the consequent of the `IF`. The tiler
-will *not* insert the computation for $quix twice, meaning that in the
-alternative block, $quix is not computed but used. This is an error.
-
-The current solution is to use a 'let' declaration, which predeclares
-the variable and ensures that it is compiled prior to the let block, e.g:
-
-#+BEGIN_EXAMPLE
-(let (($quam (copy $quix))) (if (test $bar) $quam (derive $quam)))
-#+END_EXAMPLE
-
-But that sucks, because a): it inserts a redundant copy, b): it relies
-on the user doing the right thing (which is possible to detect
-statically, for templates, though, but perhaps not so easy for
-'dynamically' generated tree nodes), c): it relies on a hacky
-'rooting' mechanism in the tree template building and application
-step.
-
-So the idea is to:
-- detect if the first reference to a node is conditional
-- and if there are other references that lie outside that conditional
-- and if that is true, insert a root prior to the start of the
-  conditional
-
-This makes me think of using a conditional-branch stack.  Let's
-record, on first visitation, the top-of-the conditional branch stack.
-If a second visit does not lead to the same top, it should be
-unconditionalized (by adding a root).
-- We could add an explicit stack, anyway.
-  - A stack item consist of the node and the child number.
-- And if we have that, there's no reason to do implicit recursion
-  anymore.
-- And if we have that, we only need to add a counter (we don't really
-  need that, but it makes stuff cheaper)
-
-** Automatic unconditionalizing
-
-This is documented for future reference, but not the plan I actually
-intend to take, due to the associated complexity.
-
-*** TODO Switch tree walking to use an explicit stack
-
- Simple, mechanical transformation. I wonder if we can have a maximum
- depth; probably not, if we can allow revisits.
-
-*** TODO Find greatest unconditional defined block
-*** TODO Detect references beyond unconditional defined block
-*** TODO Detect if a reference is safely movable
-
- - not all references are safey moveable, e.g. a load that is 'guarded'
-   by a check in ALL is not.
-
-*** TODO Order the reference computation to an inclusive scope 
-
- It is probably not necessary to do repeat visits - in fact let's not!
- But we can do a postorder analysis to see if any of the children is
- defined first in a conditional block, and if that conditional block is
- the same as what we're in. (Can that actually happen? probably, yes,
- in a DO thing).
-
- That said; if we're going to move references, we don't actually need
- to insert a new root; we can replace the existing root with a DO or
- DOV that contains the declaration first and the use second. (This
- requires detecting if the expression results a REG or VOID).
-
-** TODO Local ordering of LET
-
-Currently the 'let' statement has an ordering purpose aside from it's
-declaration. The weakness of this is that it uses the 'rooting'
-mechanism which applies a *global* ordering to the *template* level,
-i.e., /any/ LET declaration is applied prior to *any* expression
-compilation. So, for instance, the following will not do what you
-want:
-
-#+BEGIN_EXAMPLE
-(let (($foo (load ....)))
-  (if (nz $foo)
-      (let (($bar (load $foo ...)))
-           (add $foo $bar))
-      (const 0)))
-#+END_EXAMPLE
-
-Because it will compile as:
-
-#+BEGIN_EXAMPLE
-0:  $foo = LOAD ...
-1:  $bar = LOAD $foo ...
-2:  TEST $foo
-3:  IFZR GOTO 6
-4:  $out = ADD $foo $bar
-5:  GOTO 7
-6:  $out = CONST 0
-7:  ...
-#+END_EXAMPLE
-
-However, what we want is equivalent to:
-
-#+BEGIN_EXAMPLE
-(do
-   (declare $foo (load ...))
-   (if (nz $foo)
-      (do
-        (declare $bar (load $foo ...))
-        (add $foo $bar))
-      (const 0)))
-#+END_EXAMPLE
-
-Which, owing to the 'natural' ordering effect of DO, will compile as:
-
-#+BEGIN_EXAMPLE
-0: $foo = LOAD ...
-1: TEST $foo
-2: IFZR GOTO 6
-3: $bar = LOAD $foo ...
-4: $out = ADD $foo $bar
-5: GOTO 7
-6: $out = CONTST 0
-7: ...
-#+END_EXAMPLE
-
-However, this is essentially a template-compile time step, to
-translate the LET statements into DO (or DOV) statements.
 
 * TODO Optimizer
 
@@ -1157,6 +1026,8 @@ tiling, that can optimize tree expressions.
       replaced
 - IDX CONST to ADDR conversion
   - Uses one register less, simpler operation
+- ADD CONST to ADDR conversion
+  - only allowed if user is pointerlike (e.g. LOAD)
 - COPY insertion
   - Values that are LOAD-ed and used from multiple operations might
     benefit from inserting a COPY, so they don't use indirect
@@ -1174,49 +1045,6 @@ add rcx, rax;
 sub rsi, rax;
 #+END_SRC
 
-* TODO Reduce tree node size to 32 bits
-
-Tree nodes are currently 64 bits wide to allow them to coexist with
-constant pointers. This is handy, but not really required, since we
-could use a lookup table to get the pointers (as long as we can
-declare pointers, for which I think we can still use the '@' sigil, e.g:
-
-#+BEGIN_EXAMPLE
-(template: say
-   (call (const @MVM_string_say ptr_sz)
-         (arglist 2
-           (carg (tc) ptr)
-           (carg $0 ptr))
-#+END_EXAMPLE
-
-The @MVM_string_say pointer can be stashed in an array:
-
-#+BEGIN_SRC C
-static const void *MVM_jit_expr_ptrs[] = {
-   ...
-   MVM_string_say,
-   ...
-};
-#+END_SRC
-
-And the pointer itself replaced by the index.
-
-We could argue against dealing with 64 bit constants in general, but
-unfortunately, const_i64 prevents us from doing that.... Ways of
-dealing with that:
-
-+ A 'large constants' table per tree (into which we could copy both the
-  i64 constants and the function pointer constants)
-  + We could store this entire table in the data section, too
-+ A 'large constants' op, which could take the space to store the 64
-  bit constant directly; one of the advantages of that is that we
-  could specialise tiling to that (e.g. there is no advantage to
-  including a very large constant in the ADD tile since the underlying
-  'add' instruction cannot handle it).
-+ Or both: have a large_const op and a large_const table, and only
-  have the large_const op refer to the large_const table (i.e. not the
-  regular const)
-
 * TODO REPR Specialization
 
 - Want to add a "JIT" method to on REPR add expression fragments into
@@ -1224,22 +1052,201 @@ dealing with that:
 - One of the requirements is to be able to specify expression
   fragments for specific REPRs, e.g. via repr-specific expression
   template files.
-* TODO Improve logging
+- We *especially* want this for nativecall, so it might be worthwhile
+  to look into that first.
 
-Currently logging is *extremely* adhoc and pretty much only
-human-parseable. There are a bunch of things I want to improve about
-that.
+* General cleanups
+** TODO Reduce tree node size to 32 bits
 
-** TODO Profilers should know why stuff didn't get compiled
+ Tree nodes are currently 64 bits wide to allow them to coexist with
+ constant pointers. This is handy, but not really required, since we
+ could use a lookup table to get the pointers (as long as we can
+ declare pointers, for which I think we can still use the '@' sigil, e.g:
 
-When something is not compiled, that's usually because there is
-something in it the compiler can't handle. I think we should be able
-to stash that reason in a profiler context object, serialize and
-display it somehow.
+ #+BEGIN_EXAMPLE
+ (template: say
+    (call (const @MVM_string_say ptr_sz)
+          (arglist 2
+            (carg (tc) ptr)
+            (carg $0 ptr))
+ #+END_EXAMPLE
 
-** DONE Digraph expression logging can take parameters in node
+ The @MVM_string_say pointer can be stashed in an array:
 
-Currently, constant parameters are displayed as separate nodes, and
-stuff would be cleaner if we didn't do that, e.g. rather let ADDR
-point to some constant number, write ADDR($constant).
+ #+BEGIN_SRC C
+ static const void *MVM_jit_expr_ptrs[] = {
+    ...
+    MVM_string_say,
+    ...
+ };
+ #+END_SRC
+
+ And the pointer itself replaced by the index.
+
+ We could argue against dealing with 64 bit constants in general, but
+ unfortunately, const_i64 prevents us from doing that.... Ways of
+ dealing with that:
+
+ + A 'large constants' table per tree (into which we could copy both the
+   i64 constants and the function pointer constants)
+   + We could store this entire table in the data section, too
+ + A 'large constants' op, which could take the space to store the 64
+   bit constant directly; one of the advantages of that is that we
+   could specialise tiling to that (e.g. there is no advantage to
+   including a very large constant in the ADD tile since the underlying
+   'add' instruction cannot handle it).
+ + Or both: have a large_const op and a large_const table, and only
+   have the large_const op refer to the large_const table (i.e. not the
+   regular const)
+
+** TODO Improve logging
+
+ Currently logging is *extremely* adhoc and pretty much only
+ human-parseable. There are a bunch of things I want to improve about
+ that.
+
+*** TODO Profilers should know why stuff didn't get compiled
+
+ When something is not compiled, that's usually because there is
+ something in it the compiler can't handle. I think we should be able
+ to stash that reason in a profiler context object, serialize and
+ display it somehow.
+
+*** DONE Digraph expression logging can take parameters in node
+
+ Currently, constant parameters are displayed as separate nodes, and
+ stuff would be cleaner if we didn't do that, e.g. rather let ADDR
+ point to some constant number, write ADDR($constant).
+
+** DONE Templare value ordering
+
+ The problem:
+
+ #+BEGIN_EXAMPLE
+ (if (test $bar) $quix (derive $quix))
+ #+END_EXAMPLE
+
+ In this case, $quix is refered to in both conditional branches, but
+ might not be computed before the consequent of the `IF`. The tiler
+ will *not* insert the computation for $quix twice, meaning that in the
+ alternative block, $quix is not computed but used. This is an error.
+
+ The current solution is to use a 'let' declaration, which predeclares
+ the variable and ensures that it is compiled prior to the let block, e.g:
+
+ #+BEGIN_EXAMPLE
+ (let (($quam (copy $quix))) (if (test $bar) $quam (derive $quam)))
+ #+END_EXAMPLE
+
+ But that sucks, because a): it inserts a redundant copy, b): it relies
+ on the user doing the right thing (which is possible to detect
+ statically, for templates, though, but perhaps not so easy for
+ 'dynamically' generated tree nodes), c): it relies on a hacky
+ 'rooting' mechanism in the tree template building and application
+ step.
+
+ So the idea is to:
+ - detect if the first reference to a node is conditional
+ - and if there are other references that lie outside that conditional
+ - and if that is true, insert a root prior to the start of the
+   conditional
+
+ This makes me think of using a conditional-branch stack.  Let's
+ record, on first visitation, the top-of-the conditional branch stack.
+ If a second visit does not lead to the same top, it should be
+ unconditionalized (by adding a root).
+ - We could add an explicit stack, anyway.
+   - A stack item consist of the node and the child number.
+ - And if we have that, there's no reason to do implicit recursion
+   anymore.
+ - And if we have that, we only need to add a counter (we don't really
+   need that, but it makes stuff cheaper)
+
+*** Automatic unconditionalizing
+
+ This is documented for future reference, but not the plan I actually
+ intend to take, due to the associated complexity.
+
+**** TODO Switch tree walking to use an explicit stack
+
+  Simple, mechanical transformation. I wonder if we can have a maximum
+  depth; probably not, if we can allow revisits.
+
+**** TODO Find greatest unconditional defined block
+**** TODO Detect references beyond unconditional defined block
+**** TODO Detect if a reference is safely movable
+
+  - not all references are safey moveable, e.g. a load that is 'guarded'
+    by a check in ALL is not.
+
+**** TODO Order the reference computation to an inclusive scope 
+
+  It is probably not necessary to do repeat visits - in fact let's not!
+  But we can do a postorder analysis to see if any of the children is
+  defined first in a conditional block, and if that conditional block is
+  the same as what we're in. (Can that actually happen? probably, yes,
+  in a DO thing).
+
+  That said; if we're going to move references, we don't actually need
+  to insert a new root; we can replace the existing root with a DO or
+  DOV that contains the declaration first and the use second. (This
+  requires detecting if the expression results a REG or VOID).
+
+*** DONE Local ordering of LET
+
+ Currently the 'let' statement has an ordering purpose aside from it's
+ declaration. The weakness of this is that it uses the 'rooting'
+ mechanism which applies a *global* ordering to the *template* level,
+ i.e., /any/ LET declaration is applied prior to *any* expression
+ compilation. So, for instance, the following will not do what you
+ want:
+
+ #+BEGIN_EXAMPLE
+ (let (($foo (load ....)))
+   (if (nz $foo)
+       (let (($bar (load $foo ...)))
+            (add $foo $bar))
+       (const 0)))
+ #+END_EXAMPLE
+
+ Because it will compile as:
+
+ #+BEGIN_EXAMPLE
+ 0:  $foo = LOAD ...
+ 1:  $bar = LOAD $foo ...
+ 2:  TEST $foo
+ 3:  IFZR GOTO 6
+ 4:  $out = ADD $foo $bar
+ 5:  GOTO 7
+ 6:  $out = CONST 0
+ 7:  ...
+ #+END_EXAMPLE
+
+ However, what we want is equivalent to:
+
+ #+BEGIN_EXAMPLE
+ (do
+    (declare $foo (load ...))
+    (if (nz $foo)
+       (do
+         (declare $bar (load $foo ...))
+         (add $foo $bar))
+       (const 0)))
+ #+END_EXAMPLE
+
+ Which, owing to the 'natural' ordering effect of DO, will compile as:
+
+ #+BEGIN_EXAMPLE
+ 0: $foo = LOAD ...
+ 1: TEST $foo
+ 2: IFZR GOTO 6
+ 3: $bar = LOAD $foo ...
+ 4: $out = ADD $foo $bar
+ 5: GOTO 7
+ 6: $out = CONTST 0
+ 7: ...
+ #+END_EXAMPLE
+
+ However, this is essentially a template-compile time step, to
+ translate the LET statements into DO (or DOV) statements.
 
