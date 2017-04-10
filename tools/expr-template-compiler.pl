@@ -61,11 +61,11 @@ sub validate_template {
     my $node = $template->[0];
     if ($node eq 'let:') {
         my $defs = $template->[1];
-        my $expr = $template->[2];
+        my @expr = @$template[2..$#$template];
         for my $def (@$defs) {
             validate_template($def->[1]);
         }
-        validate_template($expr);
+        validate_template($_) for @expr;
         return;
     }
 
@@ -113,20 +113,33 @@ sub write_template {
     die "First parameter must be a bareword or macro" unless $top =~ m/^&?[a-z]\w*:?$/i;
     my (@items, @desc); # accumulate state
     if ($top eq 'let:') {
-        # deal with let declarations
+        # rewrite (let: (($name ($code))) ($code..)+)
+        # into (do(v)?: $ndec + $ncode $decl+ $code+)
+        my $env  = { %$env }; # copy env and shadow it
         my $decl = $tree->[1];
-        my $expr = $tree->[2];
+        my @expr = @$tree[2..$#$tree];
+
+        # depening on last node result, start with DO or DOV (void)
+        my $type = $EXPR_OPS{$expr[-1][0]}{'type'};
+        my $list = [ $type eq 'VOID' ? 'DOV' : 'DO', @$decl + @expr ];
+        # add declarations to template and to DO list
         for my $stmt (@$decl) {
             die "Let statement should hold 2 expressions, holds ".@$stmt unless @$stmt == 2;
             die "Variable name {$stmt->[0]} is invalid" unless $stmt->[0] =~ m/\$[a-z]\w*/i;
             die "Let statement expects an expression" unless ref($stmt->[1]) eq 'ARRAY';
             die "Redeclaration of '$stmt->[0]'" if defined($env->{$stmt->[0]});
+            printf STDERR "declaring %s as %s\n", $stmt->[0], sexpr::encode($stmt->[1]);
             my ($child, $mode) = write_template($stmt->[1], $templ, $desc, $env);
             die "Let can only be used with simple expresions" unless $mode eq 'l';
+            printf STDERR "%s is relative node %d (mode %s)\n", $stmt->[0], $child, $mode;
             $env->{$stmt->[0]} = $child;
-            $desc->[$child]    = 'r';
+            # ensure the DO is compiled as I expect.
+            push @$list, ['DISCARD', $stmt->[0]];
         }
-        return write_template($expr, $templ, $desc, $env);
+        push @$list, @expr;
+        use Data::Dumper;
+        printf "Rewritten %s to %s, env = %s\n", sexpr::encode($tree), sexpr::encode($list), Dumper($env);
+        return write_template($list, $templ, $desc, $env);
     } elsif (substr($top, 0, 1) eq '&') {
         # Add macro or sizeof/offsetof expression. these are not
         # processed in at runtime! Must evaluate to constant
@@ -146,8 +159,8 @@ sub write_template {
             push @items, substr($item, 1)+0; # pass the operand nummer
             push @desc, 'f'; # at run time, fill this from operands
         } elsif ($item =~ m/^\$\w+$/) {
-            # named variable (declared in nlet)
-            die "Undefined variable '$item' used" unless defined $env->{$item};
+            # named variable (declared in let)
+            die "Undefined variable '$item' used" unless exists $env->{$item};
             push @items, $env->{$item};
             push @desc, 'l'; # also needs to be linked in properly
         } elsif ($item =~ m/^\d+$/) {

@@ -100,8 +100,8 @@
 
 (macro: ^p6obody (,a) (let: (($replace (^getf ,a MVMP6opaque body.replaced)))
                       (if (nz $replace)
-                              $replace
-                              (addr ,a (&offsetof MVMP6opaque body)))))
+                           $replace
+                           (addr ,a (&offsetof MVMP6opaque body)))))
 
 (template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
 (template: sp_p6oget_n (load (add (^p6obody $1) $2) (&sizeof MVMnum64)))
