@@ -7,6 +7,13 @@
 #include "x64/tile_tables.h"
 #endif
 
+
+#if MVM_JIT_DEBUG
+#define _ASSERT(x, f, ...) do { if (!(x)) { MVM_oops(tc, f, __VA_ARGS__); } } while(0)
+#else
+#define _ASSERT(x, f, ...) do { } while (0)
+#endif
+
 struct TileState {
     /* state is junction of applicable tiles */
     MVMint32 state;
@@ -42,10 +49,8 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             for (i = 0; i < nchild; i++) {
                 MVMint32 child = tree->nodes[first_child+i];
                 state_info = MVM_jit_tile_state_lookup(tc, op, tiler->states[child].state, -1);
-                if (state_info == NULL) {
-                    MVM_oops(tc, "OOPS, %s can't be tiled with a %s child at position %d",
-                             info->name, tree->info[child].op_info->name, i);
-                }
+                _ASSERT(state_info != NULL, "OOPS, %s can't be tiled with a %s child at position %d",
+                        info->name, tree->info[child].op_info->name, i);
             }
             tiler->states[node].state    = state_info[3];
             tiler->states[node].rule     = state_info[4];
@@ -58,9 +63,7 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             MVMint32 left_state = tiler->states[tree->nodes[first_child]].state;
             MVMint32 right_state = tiler->states[tree->nodes[last_child]].state;
             state_info = MVM_jit_tile_state_lookup(tc, op, left_state, right_state);
-            if (state_info == NULL) {
-                MVM_oops(tc, "Can't tile this DO node");
-            }
+            _ASSERT(state_info != NULL, "Can't tile this DO node %d", node);
             tiler->states[node].state = state_info[3];
             tiler->states[node].rule  = state_info[4];
         }
@@ -75,11 +78,8 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                                                               tiler->states[left].state);
             MVMint32 *right_state = MVM_jit_tile_state_lookup(tc, op, tiler->states[cond].state,
                                                               tiler->states[right].state);
-            if (left_state == NULL || right_state == NULL ||
-                left_state[3] != right_state[3] ||
-                left_state[4] != right_state[4]) {
-                MVM_oops(tc, "Inconsistent %s tile state", info->name);
-            }
+            _ASSERT(left_state != NULL && right_state != NULL,
+                    "Inconsistent %s tile state", info->name);
             tiler->states[node].state = left_state[3];
             tiler->states[node].rule  = left_state[4];
         }
@@ -98,12 +98,8 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 MVMint32 right = tree->nodes[first_child+1];
                 MVMint32 rstate = tiler->states[right].state;
                 state_info = MVM_jit_tile_state_lookup(tc, op, lstate, rstate);
-            } else {
-                MVM_oops(tc, "Can't deal with %d children of node %s\n", nchild, info->name);
             }
-            if (state_info == NULL)
-                MVM_oops(tc, "Tiler table could not find next state for %s\n",
-                         info->name);
+            _ASSERT(state_info != NULL, "Tiler table could not find next state for %s\n", info->name);
             tiler->states[node].state = state_info[3];
             tiler->states[node].rule  = state_info[4];
         }
@@ -127,8 +123,8 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
     const MVMJitTileTemplate *template = &MVM_jit_tile_templates[rule_nr];
     struct TreeTiler *tiler = traverser->data;
 
-    if (rule_nr > (sizeof(MVM_jit_tile_templates)/sizeof(MVM_jit_tile_templates[0])))
-        MVM_oops(tc, "Attempt to assign invalid tile rule %d\n", rule_nr);
+    _ASSERT(rule_nr <= (sizeof(MVM_jit_tile_templates)/sizeof(MVM_jit_tile_templates[0])),
+            "Attempt to assign invalid tile rule %d\n", rule_nr);
 
     if (tiler->states[node].template == NULL || tiler->states[node].template == template ||
         memcmp(template, tiler->states[node].template, sizeof(MVMJitTileTemplate)) == 0) {
@@ -226,14 +222,12 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         break;
     default:
         {
+            _ASSERT(nchild <= 2, "Can't tile %d children of %s", nchild, tree->info[node].op_info->name);
             if (nchild > 0) {
                 DO_ASSIGN_CHILD(0, left_sym);
             }
             if (nchild > 1) {
                 DO_ASSIGN_CHILD(1, right_sym);
-            }
-            if (nchild > 2) {
-                MVM_oops(tc, "Can't tile %d children of %s", nchild, tree->info[node].op_info->name);
             }
         }
     }
