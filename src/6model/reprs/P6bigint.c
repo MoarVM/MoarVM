@@ -8,21 +8,27 @@
 static MVMint64 mp_get_int64(MVMThreadContext *tc, mp_int * a) {
     MVMuint64 res;
     MVMuint64 signed_max = 9223372036854775807ULL;
-
-    if (a->used == 0) {
-        return 0;
-    }
+    int bits = mp_count_bits(a);
 
     /* For 64-bit 2's complement numbers the positive max is 2**63-1
      * but the negative max is 2**63. */
     if (MP_NEG == SIGN(a)) {
+        if (bits > 64) {
+            MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
+        }
         ++signed_max;
+    }
+	else {
+        if (bits > 63) {
+            MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
+        }
     }
 
     res = mp_get_long_long(a);
-    if (res == 0 || res > signed_max) {
+
+    if (res > signed_max) {
         /* The mp_int was bigger than a signed result could be. */
-        MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", mp_count_bits(a));
+        MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
     }
 
     return MP_NEG == SIGN(a) ? -res : res;
@@ -30,19 +36,13 @@ static MVMint64 mp_get_int64(MVMThreadContext *tc, mp_int * a) {
 
 /* Get a native uint64 from an mp_int. */
 static MVMuint64 mp_get_uint64(MVMThreadContext *tc, mp_int * a) {
-    MVMuint64 res;
+    int bits = mp_count_bits(a);
 
-    if (a->used == 0) {
-        return 0;
+    if (bits > 64) {
+        MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
     }
 
-    res = mp_get_long_long(a);
-    if (res == 0) {
-        /* The mp_int was so big it overflowed a MVMuint64. */
-        MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", mp_count_bits(a));
-    }
-
-    return res;
+    return mp_get_long_long(a);
 }
 
 /* This representation's function pointer table. */
