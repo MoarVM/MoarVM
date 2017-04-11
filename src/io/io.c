@@ -176,7 +176,7 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
         && ((MVMArrayREPRData *)STABLE(result)->REPR_data)->slot_type != MVM_ARRAY_I8)
         MVM_exception_throw_adhoc(tc, "read_fhb requires a native array of uint8 or int8");
 
-    if (length < 1 || length > 99999999)
+    if (length < 1)
         MVM_exception_throw_adhoc(tc, "Out of range: attempted to read %"PRId64" bytes from filehandle", length);
 
     if (handle->body.ops->sync_readable) {
