@@ -12,6 +12,9 @@ typedef struct {
 MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 app_lifetime) {
     MVMThread *thread;
     MVMThreadContext *child_tc;
+    unsigned int interval_id;
+
+    interval_id = startInterval(tc, "spawning a new thread off of me");
 
     /* Create the Thread object and stash code to run and lifetime. */
     MVMROOT(tc, invokee, {
@@ -30,6 +33,8 @@ MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 ap
     child_tc->thread_id = 1 + MVM_incr(&tc->instance->next_user_thread_id);
         /* Add one, since MVM_incr returns original. */
     thread->body.tc = child_tc;
+
+    stopInterval(child_tc, interval_id, "i'm the newly spawned thread.");
 
     /* Also make a copy of the thread ID in the thread object itself, so it
      * is available once the thread dies and its ThreadContext is gone. */
@@ -196,6 +201,7 @@ MVMint64 MVM_thread_native_id(MVMThreadContext *tc, MVMObject *thread_obj) {
 
 /* Yields control to another thread. */
 void MVM_thread_yield(MVMThreadContext *tc) {
+    takeTimeStamp(tc, "thread yielding");
     MVM_platform_thread_yield();
 }
 

@@ -124,10 +124,14 @@ MVMObject * MVM_conditionvariable_from_lock(MVMThreadContext *tc, MVMReentrantMu
 void MVM_conditionvariable_wait(MVMThreadContext *tc, MVMConditionVariable *cv) {
     MVMReentrantMutex *rm = (MVMReentrantMutex *)cv->body.mutex;
     AO_t orig_rec_level;
+    unsigned int interval_id;
 
     if (MVM_load(&rm->body.holder_id) != tc->thread_id)
         MVM_exception_throw_adhoc(tc,
             "Can only wait on a condition variable when holding mutex");
+
+    interval_id = startInterval(tc, "ConditionVariable.wait");
+    annotateInterval(cv->body.condvar, interval_id, "this condition variable");
     orig_rec_level = MVM_load(&rm->body.lock_count);
     MVM_store(&rm->body.holder_id, 0);
     MVM_store(&rm->body.lock_count, 0);
@@ -142,14 +146,17 @@ void MVM_conditionvariable_wait(MVMThreadContext *tc, MVMConditionVariable *cv) 
 
     MVM_store(&rm->body.holder_id, tc->thread_id);
     MVM_store(&rm->body.lock_count, orig_rec_level);
+    stopInterval(tc, interval_id, "ConditionVariable.wait");
 }
 
 /* Signals one thread waiting on the condition. */
 void MVM_conditionvariable_signal_one(MVMThreadContext *tc, MVMConditionVariable *cv) {
+    takeTimeStamp(tc, "ConditionVariable.signal_one");
     uv_cond_signal(cv->body.condvar);
 }
 
 /* Signals all threads waiting on the condition. */
 void MVM_conditionvariable_signal_all(MVMThreadContext *tc, MVMConditionVariable *cv) {
+    takeTimeStamp(tc, "ConditionVariable.signal_all");
     uv_cond_broadcast(cv->body.condvar);
 }

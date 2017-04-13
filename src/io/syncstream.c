@@ -45,14 +45,17 @@ void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
 /* Read a bunch of bytes into the current decode stream. Returns true if we
  * read some data, and false if we hit EOF. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
+    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)handle->data;
     size_t size = suggested_size > 0 ? suggested_size : 4;
     buf->base   = MVM_malloc(size);
+    annotateInterval(size, data->interval_id, "alloced this much space");
     buf->len    = size;
 }
 static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)handle->data;
     if (nread > 0) {
         MVM_string_decodestream_add_bytes(data->cur_tc, data->ds, buf->base, nread);
+        annotateInterval(nread, data->interval_id, "read this many bytes");
     }
     else if (nread == UV_EOF) {
         data->eof = 1;
@@ -66,6 +69,9 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncStreamData *data, 
     /* Don't try and read again if we already saw EOF. */
     if (!data->eof) {
         int r;
+        unsigned int interval_id;
+
+        interval_id = startInterval(tc, "syncstream.read_to_buffer");
         data->handle->data = data;
         data->cur_tc = tc;
         if ((r = uv_read_start(data->handle, on_alloc, on_read)) < 0)
@@ -78,6 +84,7 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncStreamData *data, 
         MVM_gc_mark_thread_blocked(tc);
         uv_run(tc->loop, UV_RUN_DEFAULT);
         MVM_gc_mark_thread_unblocked(tc);
+        stopInterval(tc, interval_id, "syncstream.read_to_buffer");
         return 1;
     }
     else {
@@ -188,6 +195,9 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
     uv_buf_t write_buf;
     int r;
 
+    unsigned int interval_id;
+
+    interval_id = startInterval(tc, "syncstream.write_str");
     output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding, NULL,
         data->translate_newlines ? MVM_TRANSLATE_NEWLINE_OUTPUT : 0);
     if (newline) {
@@ -201,6 +211,7 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
         uv_unref((uv_handle_t *)data->handle);
         MVM_free(req);
         MVM_free(output);
+        stopInterval(tc, interval_id, "syncstream.write_str failed");
         MVM_exception_throw_adhoc(tc, "Failed to write string to stream: %s", uv_strerror(r));
     }
     else {
@@ -210,6 +221,8 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
         MVM_free(output);
     }
 
+    annotateInterval(output_size, interval_id, "written this many bytes");
+    stopInterval(tc, interval_id, "syncstream.write_str");
     data->total_bytes_written += output_size;
     return output_size;
 }
@@ -220,10 +233,14 @@ MVMint64 MVM_io_syncstream_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, cha
     uv_write_t *req = MVM_malloc(sizeof(uv_write_t));
     uv_buf_t write_buf = uv_buf_init(buf, bytes);
     int r;
+    unsigned int interval_id;
+
+    interval_id = startInterval(tc, "syncstream.write_bytes");
     uv_ref((uv_handle_t *)data->handle);
     if ((r = uv_write(req, data->handle, &write_buf, 1, write_cb)) < 0) {
         uv_unref((uv_handle_t *)data->handle);
         MVM_free(req);
+        stopInterval(tc, interval_id, "syncstream.write_bytes failed");
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to stream: %s", uv_strerror(r));
     }
     else {
@@ -231,6 +248,8 @@ MVMint64 MVM_io_syncstream_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, cha
         uv_run(tc->loop, UV_RUN_DEFAULT);
         MVM_gc_mark_thread_unblocked(tc);
     }
+    annotateInterval(bytes, interval_id, "written this many bytes");
+    stopInterval(tc, interval_id, "syncstream.write_bytes");
     data->total_bytes_written += bytes;
     return bytes;
 }

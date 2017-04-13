@@ -107,6 +107,8 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
 
     if (MVM_load(&cbq->elems) > 0) {
         MVMConcBlockingQueueNode *peeked;
+        unsigned int interval_id;
+        interval_id = startInterval(tc, "ConcBlockingQueue.at_pos");
         MVMROOT(tc, root, {
             MVM_gc_mark_thread_blocked(tc);
             uv_mutex_lock(&cbq->locks->head_lock);
@@ -117,6 +119,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         peeked = cbq->head->next;
         value->o = peeked ? peeked->value : tc->instance->VMNull;
         uv_mutex_unlock(&cbq->locks->head_lock);
+        stopInterval(tc, interval_id, "ConcBlockingQueue.at_pos");
     }
     else {
         value->o = tc->instance->VMNull;
@@ -133,6 +136,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
     MVMConcBlockingQueueNode *add;
     AO_t orig_elems;
     MVMObject *to_add = value.o;
+    unsigned int interval_id;
 
     if (kind != MVM_reg_obj)
         MVM_exception_throw_adhoc(tc,
@@ -143,6 +147,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
 
     add = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
 
+    interval_id = startInterval(tc, "ConcBlockingQueue.push");
     MVMROOT(tc, root, {
     MVMROOT(tc, to_add, {
         MVM_gc_mark_thread_blocked(tc);
@@ -169,15 +174,18 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
         uv_cond_signal(&cbq->locks->head_cond);
         uv_mutex_unlock(&cbq->locks->head_lock);
     }
+    stopInterval(tc, interval_id, "ConcBlockingQueue.push");
 }
 
 static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     MVMConcBlockingQueueBody *cbq = (MVMConcBlockingQueueBody *)data;
     MVMConcBlockingQueueNode *taken;
+    unsigned int interval_id;
 
     if (kind != MVM_reg_obj)
         MVM_exception_throw_adhoc(tc, "Can only shift objects from a ConcBlockingQueue");
 
+    interval_id = startInterval(tc, "ConcBlockingQueue.shift");
     MVMROOT(tc, root, {
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&cbq->locks->head_lock);
@@ -206,6 +214,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
         uv_cond_signal(&cbq->locks->head_cond);
 
     uv_mutex_unlock(&cbq->locks->head_lock);
+    stopInterval(tc, interval_id, "ConcBlockingQueue.shift");
 }
 
 /* Set the size of the STable. */
@@ -267,7 +276,9 @@ MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueu
     MVMConcBlockingQueue *cbq = (MVMConcBlockingQueue *)queue;
     MVMConcBlockingQueueNode *taken;
     MVMObject *result = tc->instance->VMNull;
+    unsigned int interval_id;
 
+    interval_id = startInterval(tc, "ConcBlockingQueue.poll");
     MVMROOT(tc, cbq, {
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&cbq->body.locks->head_lock);
@@ -288,5 +299,6 @@ MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueu
 
     uv_mutex_unlock(&cbq->body.locks->head_lock);
 
+    stopInterval(tc, interval_id, "ConcBlockingQueue.poll");
     return result;
 }

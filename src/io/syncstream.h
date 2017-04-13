@@ -26,6 +26,8 @@ struct MVMIOSyncStreamData {
 
     /* Current separator specification for line-by-line reading. */
     MVMDecodeStreamSeparators sep_spec;
+
+    unsigned int interval_id;
 };
 
 void MVM_io_syncstream_set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding);
