@@ -489,6 +489,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     ffi_status status  = ffi_prep_cif(&cif, body->convention, (unsigned int)num_args, body->ffi_ret_type, body->ffi_arg_types);
 
     interval_id = startInterval(tc, "nativecall invoke");
+    annotateInterval(entry_point, interval_id, "nc entrypoint");
 
     /* Process arguments. */
     for (i = 0; i < num_args; i++) {
