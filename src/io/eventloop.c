@@ -72,12 +72,16 @@ static uv_loop_t *get_or_vivify_loop(MVMThreadContext *tc) {
 
     if (!instance->event_loop_thread) {
         /* Grab starting mutex and ensure we didn't lose the race. */
+        takeTimeStamp(tc, "hoping to start an event loop thread");
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&instance->mutex_event_loop_start);
         MVM_gc_mark_thread_unblocked(tc);
         if (!instance->event_loop_thread) {
             MVMObject *thread, *loop_runner;
             int r;
+            unsigned int interval_id;
+
+            interval_id = startInterval(tc, "creating the event loop thread");
 
             /* Create various bits of state the async event loop thread needs. */
             instance->event_loop_todo_queue   = MVM_repr_alloc_init(tc,
@@ -112,6 +116,8 @@ static uv_loop_t *get_or_vivify_loop(MVMThreadContext *tc) {
                 /* Make the started event loop thread visible to others. */
                 instance->event_loop_thread = ((MVMThread *)thread)->body.tc;
             });
+
+            stopInterval(tc, interval_id, "created the event loop thread");
         }
         uv_mutex_unlock(&instance->mutex_event_loop_start);
     }

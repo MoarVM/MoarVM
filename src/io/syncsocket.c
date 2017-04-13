@@ -84,6 +84,9 @@ static void on_connect(uv_connect_t* req, int status) {
 }
 static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
+    unsigned int interval_id;
+
+    interval_id = startInterval(tc, "syncsocket connect");
     if (!data->ss.handle) {
         struct sockaddr *dest    = MVM_io_resolve_host_name(tc, host, port);
         uv_tcp_t        *socket  = MVM_malloc(sizeof(uv_tcp_t));
@@ -102,11 +105,14 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         MVM_free(connect);
         MVM_free(dest);
 
+        stopInterval(tc, interval_id, "syncsocket connect");
+
         data->ss.handle = (uv_stream_t *)socket; /* So can be cleaned up in close */
         if (status < 0)
             MVM_exception_throw_adhoc(tc, "Failed to connect: %s", uv_strerror(status));
     }
     else {
+        stopInterval(tc, interval_id, "syncsocket didn't connect");
         MVM_exception_throw_adhoc(tc, "Socket is already bound or connected");
     }
 }
@@ -189,7 +195,9 @@ static const MVMIOOps op_table = {
 
 static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
+    unsigned int interval_id;
 
+    interval_id = startInterval(tc, "syncsocket accept");
     while (!data->accept_server) {
         if (tc->loop != data->ss.handle->loop) {
             MVM_exception_throw_adhoc(tc, "Tried to accept() on a socket from outside its originating thread");
@@ -202,6 +210,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
 
     /* Check the accept worked out. */
     if (data->accept_status < 0) {
+        stopInterval(tc, interval_id, "syncsocket accept failed");
         MVM_exception_throw_adhoc(tc, "Failed to listen: unknown error");
     }
     else {
@@ -218,11 +227,13 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
             MVM_string_decode_stream_sep_default(tc, &(data->ss.sep_spec));
             result->body.ops  = &op_table;
             result->body.data = data;
+            stopInterval(tc, interval_id, "syncsocket accept succeeded");
             return (MVMObject *)result;
         }
         else {
             uv_close((uv_handle_t*)client, NULL);
             MVM_free(client);
+            stopInterval(tc, interval_id, "syncsocket accept failed");
             MVM_exception_throw_adhoc(tc, "Failed to accept: %s", uv_strerror(r));
         }
     }
