@@ -91,6 +91,9 @@ struct MVMFixedSizeAllocThreadSizeClass {
 /* The number of items that go into each page. */
 #define MVM_FSA_PAGE_ITEMS 128
 
+/* The length limit for the per-thread free list. */
+#define MVM_FSA_THREAD_FREELIST_LIMIT   1024
+
 /* Functions. */
 MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc);
 void MVM_fixed_size_create_thread(MVMThreadContext *tc);

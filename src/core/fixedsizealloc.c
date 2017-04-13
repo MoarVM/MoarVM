@@ -156,6 +156,43 @@ static void * alloc_slow_path(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVMui
 
     return result;
 }
+static void * alloc_from_global(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVMuint32 bin) {
+    /* Try and take from the global free list (fast path). */
+    MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
+    MVMFixedSizeAllocFreeListEntry *fle = NULL;
+    if (MVM_instance_have_user_threads(tc)) {
+        /* Multi-threaded; take a lock. Note that the lock is needed in
+         * addition to the atomic operations: the atomics allow us to add
+         * to the free list in a lock-free way, and the lock allows us to
+         * avoid the ABA issue we'd have with only the atomics. */
+        while (!MVM_trycas(&(al->freelist_spin), 0, 1)) {
+            MVMint32 i = 0;
+            while (i < 1024)
+                i++;
+        }
+        do {
+            fle = bin_ptr->free_list;
+            if (!fle)
+                break;
+        } while (!MVM_trycas(&(bin_ptr->free_list), fle, fle->next));
+        MVM_barrier();
+        al->freelist_spin = 0;
+    }
+    else {
+        /* Single-threaded; just take it. */
+        fle = bin_ptr->free_list;
+        if (fle)
+            bin_ptr->free_list = fle->next;
+    }
+    if (fle) {
+        VALGRIND_MEMPOOL_ALLOC(&al->size_classes[bin], ((void *)fle),
+                (bin + 1) << MVM_FSA_BIN_BITS);
+        return (void *)fle;
+    }
+
+    /* Failed to take from free list; slow path with the lock. */
+    return alloc_slow_path(tc, al, bin);
+}
 void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t bytes) {
 #if FSA_SIZE_DEBUG
     MVMFixedSizeAllocDebug *dbg = MVM_malloc(bytes + sizeof(MVMuint64));
@@ -164,45 +201,17 @@ void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t 
 #else
     MVMuint32 bin = bin_for(bytes);
     if (bin < MVM_FSA_BINS) {
-        /* Try and take from the free list (fast path). */
-        MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
-        MVMFixedSizeAllocFreeListEntry *fle;
-        if (MVM_instance_have_user_threads(tc)) {
-            /* Multi-threaded; take a lock. Note that the lock is needed in
-             * addition to the atomic operations: the atomics allow us to add
-             * to the free list in a lock-free way, and the lock allows us to
-             * avoid the ABA issue we'd have with only the atomics. */
-            while (!MVM_trycas(&(al->freelist_spin), 0, 1)) {
-                MVMint32 i = 0;
-                while (i < 1024)
-                    i++;
-            }
-            do {
-                fle = bin_ptr->free_list;
-                if (!fle)
-                    break;
-            } while (!MVM_trycas(&(bin_ptr->free_list), fle, fle->next));
-            MVM_barrier();
-            al->freelist_spin = 0;
-        }
-        else {
-            /* Single-threaded; just take it. */
-            fle = bin_ptr->free_list;
-            if (fle)
-                bin_ptr->free_list = fle->next;
-        }
+        /* Try and take from the per-thread free list. */
+        MVMFixedSizeAllocThreadSizeClass *bin_ptr = &(tc->thread_fsa->size_classes[bin]);
+        MVMFixedSizeAllocFreeListEntry *fle = bin_ptr->free_list;
         if (fle) {
-            VALGRIND_MEMPOOL_ALLOC(&al->size_classes[bin], ((void *)fle), (bin + 1) << MVM_FSA_BIN_BITS);
-
+            bin_ptr->free_list = fle->next;
+            bin_ptr->items--;
             return (void *)fle;
         }
-
-        /* Failed to take from free list; slow path with the lock. */
-        return alloc_slow_path(tc, al, bin);
+        return alloc_from_global(tc, al, bin);
     }
-    else {
-        return MVM_malloc(bytes);
-    }
+    return MVM_malloc(bytes);
 #endif
 }
 
@@ -215,8 +224,8 @@ void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *al, 
 }
 
 /* Frees a piece of memory of the specified size, using the FSA. */
-static void add_to_bin_freelist(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVMint32 bin, void *to_free) {
-    /* Came from a bin; put into free list. */
+static void add_to_global_bin_freelist(MVMThreadContext *tc, MVMFixedSizeAlloc *al,
+                                       MVMint32 bin, void *to_free) {
     MVMFixedSizeAllocSizeClass     *bin_ptr = &(al->size_classes[bin]);
     MVMFixedSizeAllocFreeListEntry *to_add  = (MVMFixedSizeAllocFreeListEntry *)to_free;
     MVMFixedSizeAllocFreeListEntry *orig;
@@ -235,6 +244,20 @@ static void add_to_bin_freelist(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVM
         /* Single-threaded; just add it. */
         to_add->next       = bin_ptr->free_list;
         bin_ptr->free_list = to_add;
+    }
+}
+static void add_to_bin_freelist(MVMThreadContext *tc, MVMFixedSizeAlloc *al,
+                                MVMint32 bin, void *to_free) {
+    MVMFixedSizeAllocThreadSizeClass *bin_ptr = &(tc->thread_fsa->size_classes[bin]);
+    if (bin_ptr->items < MVM_FSA_THREAD_FREELIST_LIMIT) {
+        MVMFixedSizeAllocFreeListEntry *to_add  = (MVMFixedSizeAllocFreeListEntry *)to_free;
+        MVMFixedSizeAllocFreeListEntry *orig;
+        to_add->next = bin_ptr->free_list;
+        bin_ptr->free_list = to_add;
+        bin_ptr->items++;
+    }
+    else {
+        add_to_global_bin_freelist(tc, al, bin, to_free);
     }
 }
 void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t bytes, void *to_free) {
