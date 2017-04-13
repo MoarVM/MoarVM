@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
+#include <string.h>
 
 #ifdef _WIN32
 #include <intrin.h>
@@ -24,7 +25,8 @@ enum RecordType {
     TimeStamp,
     IntervalStart,
     IntervalEnd,
-    IntervalAnnotation
+    IntervalAnnotation,
+    DynamicString
 };
 
 struct CalibrationRecord {
@@ -51,6 +53,11 @@ struct IntervalAnnotation {
     const char *description;
 };
 
+struct DynamicString {
+    unsigned int intervalID;
+    char *description;
+};
+
 struct TelemetryRecord {
     enum RecordType recordType;
 
@@ -62,6 +69,7 @@ struct TelemetryRecord {
         struct TimeStampRecord timeStamp;
         struct IntervalRecord interval;
         struct IntervalAnnotation annotation;
+        struct DynamicString annotation_dynamic;
     };
 };
 
@@ -151,6 +159,22 @@ void annotateInterval(intptr_t subject, int intervalID, const char *description)
     record->annotation.description = description;
 }
 
+void annotateIntervalDynamic(intptr_t subject, int intervalID, char *description) {
+    struct TelemetryRecord *record;
+    char *temp;
+
+    if (!telemetry_active) { return; }
+
+    temp = malloc(strlen(description) + 1);
+    strncpy(temp, description, strlen(description) + 1);
+
+    record = newRecord();
+    record->recordType = DynamicString;
+    record->threadID = subject;
+    record->annotation_dynamic.intervalID = intervalID;
+    record->annotation_dynamic.description = temp;
+}
+
 void calibrateTSC(FILE *outfile)
 {
     unsigned long long startTsc, endTsc;
@@ -204,6 +228,10 @@ void serializeTelemetryBufferRange(FILE *outfile, unsigned int serializationStar
                 break;
             case IntervalAnnotation:
                 fprintf(outfile,  "%15s ??? Annotation:     \"%s\" (%d)\n", " ", record->annotation.description, record->annotation.intervalID);
+                break;
+            case DynamicString:
+                fprintf(outfile,  "%15s ??? Annotation:     \"%s\" (%d)\n", " ", record->annotation_dynamic.description, record->annotation_dynamic.intervalID);
+                free(record->annotation_dynamic.description);
                 break;
         }
     }
