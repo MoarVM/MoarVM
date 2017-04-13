@@ -1,4 +1,4 @@
-/* The top-level data structure for the fixed size allocator. */
+/* The global, top-level data structure for the fixed size allocator. */
 struct MVMFixedSizeAlloc {
     /* Size classes for the fixed size allocator. Each one represents a bunch
      * of objects of the same size. The allocated sizes are rounded and then
@@ -52,6 +52,23 @@ struct MVMFixedSizeAllocSizeClass {
 
     /* Head of the "free at next safepoint" list. */
     MVMFixedSizeAllocSafepointFreeListEntry *free_at_next_safepoint_list;
+};
+
+/* The per-thread data structure for the fixed size allocator, hung off the
+ * thread context. Holds a free list per size bin. Allocations on the thread
+ * will preferentially use the thread free list, and threads will free to
+ * their own free lists, up to a length limit. On hitting the limit, they
+ * will free back to the global allocator. This helps ensure patterns like
+ * producer/consumer don't end up with a "leak". */
+struct MVMFixedSizeAllocThread {
+    MVMFixedSizeAllocThreadSizeClass *size_classes;
+};
+struct MVMFixedSizeAllocThreadSizeClass {
+    /* Head of the free list. */
+    MVMFixedSizeAllocFreeListEntry *free_list;
+
+    /* How many items are on this thread's free list. */
+    MVMuint32 items;
 };
 
 /* The number of bits we discard from the requested size when binning
