@@ -933,7 +933,59 @@ tile-generation time:
   - Note that `jumplist` is an exception like ARGLIST is an exception,
     and we can deal with those separately
 
+#+BEGIN_SRC C
+struct MVMJitTileBasicBlock {
+    MVMint32 start, end;
+    MVMint32 num_successors, successors[2];
+};
+#+END_SRC
+
+So it seems we have a few primitive operations:
+- start a basic block after a branch, or before a label
+- patch up predecessor to point to a successor (either first or second
+  successor)
+
+We can find the predecessor by tagging the tree (we're tree-walking,
+after all, and we're editing the jumps and labels in the 'inorder'
+visits). But a single node can lead to multiple basic blocks; and we
+need some space for tagging each of these independently. I suggest we
+use the 'extra' nodes allocated for the references of WHEN/IF etc.
+
+Patching nodes posterior to their tiling can be a bit tricky;
+especially with ALL and ANY, since any nested ANY or nested ALL will
+need to be patched to the same block, because they have the same
+label....
+
+But, a label does not exactly equal a block, since you may have a
+'labellless-block', for instance the interior block of a WHEN node,
+and the first block of IF/IFV.
+
+Idea: do the patchup in the postorder step.
+
+
 *** TODO Determine live range holes
+
+We can use the algorithm defined by (Wimmer, 2010).
+
+- set last_bb.out = {}
+- for each basic block in reverse order:
+  - set bb.out = union(successors.in)
+    - if any live range is not live in both successors, that
+      means we had a hole, and we should now close it
+  - set bb.in = copy(bb.out)
+  - for each instruction in bb:
+    - if a value is defined, remove it from bb.in
+      - if this is *not* the first definition, we now have a hole
+    - if a value is used, add it to bb.in
+      - if the value has a hole associated, close it
+
+The basic idea is that
+- if a value is used, it must've been determined first
+- if a value is defined, then surely per it can't have been live
+  before
+- if a value is live in one of successors, it must've been live
+  out of this basic block
+
 *** TODO Don't spill 'holes' in ARGLIST
 *** TODO Try to use 'holes' in allocation.
 

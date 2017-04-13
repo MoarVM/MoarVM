@@ -24,6 +24,12 @@ struct MVMJitTile {
     MVMint8   size;
 };
 
+struct MVMJitTileBB {
+    /* first and last tile index of code  */
+    MVMint32 start, end;
+    /* up to two successors */
+    MVMint32 num_succ, succ[2];
+};
 
 /* A tile I'm planning to insert into the list */
 struct MVMJitTileInsert {
@@ -37,6 +43,8 @@ struct MVMJitTileList {
     MVMJitExprTree *tree;
     MVM_VECTOR_DECL(MVMJitTile*, items);
     MVM_VECTOR_DECL(struct MVMJitTileInsert, inserts);
+    MVM_VECTOR_DECL(struct MVMJitTileBB, blocks);
+
     /* TODO implement structures to mark basic blocks */
     MVMint32 num_arglist_refs;
 };
