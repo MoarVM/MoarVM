@@ -45,7 +45,7 @@ struct MVMThreadContext {
     MVMThread *thread_obj;
 
     /* Per-thread fixed size allocator state. */
-    MVMFixedSizeAllocThread *fsa_thread;
+    MVMFixedSizeAllocThread *thread_fsa;
 
     /* Pointer to where the interpreter's current opcode is stored. */
     MVMuint8 **interp_cur_op;

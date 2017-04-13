@@ -44,6 +44,9 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
     /* Set up the second generation allocator. */
     tc->gen2 = MVM_gc_gen2_create(instance);
 
+    /* The fixed size allocator also keeps pre-thread state. */
+    MVM_fixed_size_create_thread(tc);
+
     /* Allocate an initial call stack region for the thread. */
     MVM_callstack_region_init(tc);
 
@@ -77,6 +80,9 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
 
     /* Destroy the second generation allocator. */
     MVM_gc_gen2_destroy(tc->instance, tc->gen2);
+
+    /* Destory the per-thread fixed size allocator state. */
+    MVM_fixed_size_destroy_thread(tc);
 
     /* Destroy all callstack regions. */
     MVM_callstack_region_destroy_all(tc);

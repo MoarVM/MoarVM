@@ -43,6 +43,15 @@ MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
     return al;
 }
 
+/* Creates the per-thread fixed size allocator state. */
+void MVM_fixed_size_create_thread(MVMThreadContext *tc) {
+    MVMFixedSizeAllocThread *al = MVM_malloc(sizeof(MVMFixedSizeAllocThread));
+    al->size_classes = MVM_calloc(MVM_FSA_BINS, sizeof(MVMFixedSizeAllocThreadSizeClass));
+    tc->thread_fsa = al;
+}
+
+/* Destroys the global fixed size allocator data structure and all of
+ * the memory held within it. */
 void MVM_fixed_size_destroy(MVMFixedSizeAlloc *al) {
     int bin_no;
 
@@ -59,6 +68,15 @@ void MVM_fixed_size_destroy(MVMFixedSizeAlloc *al) {
     }
     uv_mutex_destroy(&(al->complex_alloc_mutex));
 
+    MVM_free(al->size_classes);
+    MVM_free(al);
+}
+
+/* Destroys per-thread fixed size allocator state. All freelists will be
+ * contributed back to the global freelists for the bin size. */
+void MVM_fixed_size_destroy_thread(MVMThreadContext *tc) {
+    MVMFixedSizeAllocThread *al = tc->thread_fsa;
+    /* TODO Give memory back to the global allocator */
     MVM_free(al->size_classes);
     MVM_free(al);
 }

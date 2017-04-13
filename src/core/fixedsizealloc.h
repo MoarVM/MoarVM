@@ -93,9 +93,11 @@ struct MVMFixedSizeAllocThreadSizeClass {
 
 /* Functions. */
 MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc);
+void MVM_fixed_size_create_thread(MVMThreadContext *tc);
 void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes);
 void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes);
 void MVM_fixed_size_destroy(MVMFixedSizeAlloc *al);
+void MVM_fixed_size_destroy_thread(MVMThreadContext *tc);
 void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes, void *free);
 void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes, void *free);
 void MVM_fixed_size_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *al);
