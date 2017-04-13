@@ -1,46 +1,95 @@
 language: "perl"
 os:
     - linux
-    - osx
+#    - osx
 perl:
     - "5.10"
-install: "echo"
+before_install:
+  # Put github's into known_hosts /* may not need this */
+  - printf "github.com,192.30.255.112 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==\n" >> ~/.ssh/known_hosts
+  # Decrypt deploy_key using Travis *magic* variables
+  - openssl aes-256-cbc -K $encrypted_b77ce3a1cc5c_key -iv $encrypted_b77ce3a1cc5c_iv -in ./tools/gh-pages-deploy_key.enc -out deploy_key -d;
+  # Change perms or ssh-agent will get mad at us
+  - chmod 600 deploy_key;
+  - eval `ssh-agent -s`
+  # Decrypted key has no password, but it will still ask for one. Use expect program to interact with it non-interactively
+  - expect -c 'spawn ssh-add ./deploy_key; expect "enter passphrase for"; send "\n"; expect "Identity added:"; interact'
+install:
+    - echo
+addons:
+  apt:
+    sources:
+      - sourceline: 'ppa:ubuntu-toolchain-r/test'
+      - sourceline: 'deb http://apt.llvm.org/precise/ llvm-toolchain-precise main'
+    packages:
+      - clang-5.0
+      - llvm-5.0
+      - expect
+
 before_script:
+    - ls /usr/bin | grep llvm
+    - ls /usr/bin | grep clang
     - uname -a
     - gcc --version
     - clang --version
+    - find_latest_version () { ls /usr/bin | grep -Ee "^$1(\-[0-9.]+)?$" | sort -r | head -n 1; }
+    - find_latest_version llvm-profdata
+    - find_latest_version llvm-cov
+    # Find the latest clang that is on the system
+    - CLANG_LATEST=$(ls /usr/bin | grep -Ee '^clang(\-[0-9.]+)?$' | sort -r | head -n 1)
+    - if [ ! "$CLANG_LATEST" = 'clang' ]; then eval "$CLANG_LATEST --version"; fi
+    - if [ "$USE_CLANG_LATEST" ]; then echo "Using $CLANG_LATEST due to build setting"; CC="$CLANG_LATEST"; fi
+    - MVM_debug="--debug"; MVM_optimize="--optimize"
+    - if [ "$COVERAGE" ]; then MVM_debug="--debug=3"; MVM_optimize="--optimize=0"; fi
     - if [ "$TRAVIS_OS_NAME" == "linux" ] ; then sudo apt-get update -qq || sudo apt-get update -qq ; fi
     - if [ "$TRAVIS_OS_NAME" == "linux" ] ; then sudo apt-get install -y libffi-dev || sudo apt-get install -y libffi-dev ; fi
     - git fetch --unshallow
     - git clone --depth 1 git://github.com/perl6/nqp
 
-script: "perl Configure.pl --prefix=/tmp/moar $MVM_OPTIONS --debug --optimize --cc=\"$CC\"; make install; cd nqp; perl Configure.pl --prefix=/tmp/moar --backends=moar; make; make test"
+script:
+    - export MOAR_PREFIX="/tmp/moar"; export MOAR_FOLDER="$TRAVIS_BUILD_DIR"
+    - export NQP_FOLDER="$(readlink -f ./nqp)"
+    - perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc="$CC" $MVM_debug $MVM_optimize;
+    - make install;
+    - cd nqp;
+    - perl Configure.pl --prefix=$MOAR_PREFIX --backends=moar;
+    - make;
+    - make test;
+    - cd ..
+    - if [ "$COVERAGE" ]; then git clone --depth 1 'https://github.com/samcv/MoarVM-cover.git' && cp -v MoarVM-cover/html-cover.sh . && cp -v MoarVM-cover/nqp-profile ./nqp/ && cp -v MoarVM-cover/merge-profraw.sh ./nqp/ && ./html-cover.sh 2; fi
+
+after_success:
+  - cd "$TRAVIS_BUILD_DIR"
+  - echo "Running on success options"
+  - if [ "$COVERAGE" ]; then ./tools/update-gh-pages.sh; fi
 
 branches:
    only:
      - master
+     - coverage
      - /smoke-me/
 
 notifications:
   irc:
     channels:
     - "irc.freenode.net#moarvm"
-    on_success: change
-    on_failure: always
+  #  on_success: change
+  #  on_failure: always
     template:
       - "MoarVM build %{result}. %{author} '%{commit_message}'"
       - "%{build_url} %{compare_url}"
 
 env:
   matrix:
-    - MVM_OPTIONS="--no-jit"  CC="gcc"
-    - MVM_OPTIONS=""          CC="gcc"
-    - MVM_OPTIONS="--no-jit"  CC="clang"
-    - MVM_OPTIONS=""          CC="clang"
-    - MVM_OPTIONS="--has-libffi --no-jit"  CC="gcc"
-    - MVM_OPTIONS="--has-libffi"           CC="gcc"
-    - MVM_OPTIONS="--has-libffi --no-jit"  CC="clang"
-    - MVM_OPTIONS="--has-libffi"           CC="clang"
+#    - MVM_OPTIONS="--no-jit               CC='gcc'"
+#    - MVM_OPTIONS="                       CC='gcc'"
+#    - MVM_OPTIONS="--no-jit               CC='clang'"
+#    - MVM_OPTIONS="                       CC='clang'"
+#    - MVM_OPTIONS="--has-libffi --no-jit  CC='gcc'"
+#    - MVM_OPTIONS="--has-libffi           CC='gcc'"
+#    - MVM_OPTIONS="--has-libffi --no-jit  CC='clang'"
+#    - MVM_OPTIONS="--has-libffi           CC='clang'"
+    - MVM_OPTIONS="--compiler=clang --coverage --optimize=0 --debug=3" COVERAGE=1 USE_CLANG_LATEST=1 CC='clang'
 
 matrix:
   exclude:
