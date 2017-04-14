@@ -271,8 +271,9 @@ static void start_basic_block(MVMThreadContext *tc, struct TreeTiler *tiler, MVM
     tiler->states[node].block = block_idx;
 }
 
-static void patch_basic_blocks(MVMThreadContext *tc, struct TreeTiler *tiler, MVMJitExprTree *tree, MVMint32 node) {
 
+
+static void patch_basic_blocks(MVMThreadContext *tc, struct TreeTiler *tiler, MVMJitExprTree *tree, MVMint32 node) {
 }
 
 /* Insert labels, compute basic block extents (eventually) */
@@ -291,6 +292,8 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             if (flag == MVM_JIT_ALL) {
                 /* Do nothing, shortcircuit of ALL has skipped the conditional
                    block if necessary */
+                MVMint32 last_child = test + tree->nodes[test+1] + 1;
+                tiler->states[node+1].block = tiler->states[last_child].block;
             } else if (flag == MVM_JIT_ANY) {
                 /* If ANY hasn't short-circuited into the conditional block,
                    jump after it */
@@ -309,8 +312,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_conditional_branch,
                                                        2, 0, MVM_jit_expr_op_negate_flag(tc, flag), when_label);
                 MVM_VECTOR_PUSH(list->items, branch);
-                /*
-                  start_basic_block(tc, tiler, node + 1); */
+                start_basic_block(tc, tiler, node + 1);
             }
         } else {
             /* after child of WHEN, insert the label */
@@ -329,6 +331,8 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 
         if (flag == MVM_JIT_ALL) {
             /* Nested ALL short-circuits identically */
+            MVMint32 last_child = test + 1 + tree->nodes[test + 1];
+            tiler->states[node + 2 + i].block = tiler->states[last_child].block;
         } else if (flag == MVM_JIT_ANY) {
             /* If ANY reached it's end, that means it's false. So branch out */
             MVMint32 any_label = tree->info[test].label;
@@ -368,6 +372,8 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         } else if (flag == MVM_JIT_ANY) {
             /* Nothing to do here, since nested ANY already short-circuits to
                our label */
+            MVMint32 last_child = test + 1 + tree->nodes[test + 1];
+            tiler->states[node + 2 + i].block = tiler->states[last_child].block;
         } else {
             /* Normal evaluation (ANY = short-circuit if condition) */
             MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler,
@@ -390,6 +396,8 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             if (flag == MVM_JIT_ALL) {
                 /* If we reach this code then ALL was true, hence we should
                  * enter the left block, and do nothing */
+                MVMint32 last_child = test + 1 + tree->nodes[test + 1];
+                tiler->states[node + 1].block = tiler->states[last_child].block;
             } else if (flag == MVM_JIT_ANY) {
                 /* We need the branch to the right block and the label for ANY
                  * to jump to enter the left block */
