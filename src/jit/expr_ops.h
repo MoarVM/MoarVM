@@ -68,4 +68,4 @@
     _(LOCAL, 0, 0, REG, NO_CAST), \
     _(STACK, 0, 0, REG, NO_CAST), \
     /* End of list marker */ \
-    _(MAX_NODES, 0, 0, VOID, NO_CAST), \
+    _(MAX_NODES, 0, 0, VOID, NO_CAST)
