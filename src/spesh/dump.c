@@ -35,7 +35,7 @@ static void appendf(DumpStr *ds, const char *fmt, ...) {
     char *c_message = MVM_malloc(1024);
     va_list args;
     va_start(args, fmt);
-    c_message[vsnprintf(c_message, 1023, fmt, args)] = 0;
+    vsnprintf(c_message, 1023, fmt, args);
     append(ds, c_message);
     MVM_free(c_message);
     va_end(args);
