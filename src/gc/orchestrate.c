@@ -215,12 +215,24 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
             MVM_store(&thread_obj->body.stage, MVM_thread_stage_destroyed);
         }
         else {
+            /* Free gen2 unmarked if full collection. */
             if (gen == MVMGCGenerations_Both) {
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
                     "Thread %d run %d : freeing gen2 of thread %d\n",
                     other->thread_id);
                 MVM_gc_collect_free_gen2_unmarked(other, 0);
             }
+
+            /* Contribute this thread's promoted bytes. */
+            MVM_add(&tc->instance->gc_promoted_bytes_since_last_full, other->gc_promoted_bytes);
+
+            /* Collect nursery. */
+            GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+                "Thread %d run %d : collecting nursery uncopied of thread %d\n",
+                other->thread_id);
+            MVM_gc_collect_free_nursery_uncopied(other, tc->gc_work[i].limit);
+
+            /* Handle exited threads. */
             if (MVM_load(&thread_obj->body.stage) == MVM_thread_stage_exited) {
                 /* Don't bother freeing gen2; we'll do it next time */
                 MVM_store(&thread_obj->body.stage, MVM_thread_stage_clearing_nursery);
@@ -228,6 +240,8 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
                     "Thread %d run %d : set thread %d clearing nursery stage to %d\n",
                     other->thread_id, (int)MVM_load(&thread_obj->body.stage));
             }
+
+            /* Mark thread free to continue. */
             MVM_cas(&other->gc_status, MVMGCStatus_STOLEN, MVMGCStatus_UNABLE);
             MVM_cas(&other->gc_status, MVMGCStatus_INTERRUPT, MVMGCStatus_NONE);
         }
@@ -337,27 +351,6 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
 
     /* Wait for everybody to agree we're done. */
     finish_gc(tc, gen, what_to_do == MVMGCWhatToDo_All);
-
-    /* Now we're all done, it's safe to finalize any objects that need it. */
-    /* XXX TODO explore the feasability of doing this in a background
-     * finalizer/destructor thread and letting the main thread(s) continue
-     * on their merry way(s). */
-    for (i = 0, n = tc->gc_work_count ; i < n; i++) {
-        MVMThreadContext *other = tc->gc_work[i].tc;
-
-        /* The thread might've been destroyed */
-        if (!other)
-            continue;
-
-        /* Contribute this thread's promoted bytes. */
-        MVM_add(&tc->instance->gc_promoted_bytes_since_last_full, other->gc_promoted_bytes);
-
-        /* Collect nursery. */
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
-            "Thread %d run %d : collecting nursery uncopied of thread %d\n",
-            other->thread_id);
-        MVM_gc_collect_free_nursery_uncopied(other, tc->gc_work[i].limit);
-    }
 }
 
 /* This is called when the allocator finds it has run out of memory and wants
