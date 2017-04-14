@@ -19,7 +19,7 @@ if [ "$TRAVIS_PULL_REQUEST" != "false" -o "$TRAVIS_BRANCH" != "$TARGET_BRANCH"  
   # -----------------------------
   #go to home and setup git
   cd -- "$HOME" || echo "Couldn't cd into $HOME";
-  git config user.name "Travis CI"
+  git config --global user.name "Travis CI"
   #git config user.email "$COMMIT_AUTHOR_EMAIL"
   git config --global user.email "travis@travis-ci.org"
   #git config --global user.name "Travis"
