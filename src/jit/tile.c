@@ -264,16 +264,80 @@ static void start_basic_block(MVMThreadContext *tc, struct TreeTiler *tiler, MVM
     MVMint32 tile_idx = list->items_num, block_idx = list->blocks_num;
 
     MVM_VECTOR_ENSURE_SPACE(list->blocks, 1);
-    list->blocks[block_idx].end = tile_idx;
+    list->blocks[block_idx].end     = tile_idx;
     list->blocks[block_idx+1].start = tile_idx + 1;
     list->blocks_num++;
-    /* patchup block for node */
+    /* associate block with node */
     tiler->states[node].block = block_idx;
 }
 
-
+static void patch_shortcircuit_blocks(MVMThreadContext *tc, struct TreeTiler *tiler, MVMJitExprTree *tree, MVMint32 node, MVMint32 alt) {
+    /* Shortcircuit operators (ALL/ANY), are series of tests and conditional
+     * jumps to a common label (i.e. basic block). Hence every block associated
+     * with a child has two successors, namely the following block (block + 1)
+     * or the shortcircuited block (alt). */
+    MVMJitTileList *list = tiler->list;
+    MVMint32 i, nchild = tree->nodes[node+1];
+    for (i = 0; i < nchild; i++) {
+        MVMint32 child = tree->nodes[node + 2 + i];
+        MVMint32 block = tiler->states[node + 2 + i].block;
+        if (tree->nodes[child] == tree->nodes[node]) {
+            /* in the case of nested shortcircuit operators, if they are equal
+             * they shortcircuit identically, and so all children need to be
+             * patched up in the same way */
+            patch_shortcircuit_blocks(tc, tiler, tree, child, alt);
+        } else if (tree->nodes[child] == MVM_JIT_ALL || tree->nodes[child] == MVM_JIT_ANY) {
+            /* unequal nested shortcircuit operators (ALL iin ANY or ANY in ALL)
+             * have the behaviour that shortcircuit to the next block or at the
+             * end shortcircuit to the alternative block. E.g. ANY nested in ALL
+             * must jump to the next block (continue tests) or continue testing;
+             * after the last block, however, if we reach it we can shortcircuit
+             * (in ANY, we only reach it, if nothing was true, in ALL, only if
+             * everything was true, and hence one of the ANY is true) */
+            patch_shortcircuit_blocks(tc, tiler, tree, child, block + 1);
+        }
+        list->blocks[block].num_succ = 2;
+        list->blocks[block].succ[0] = block + 1;
+        list->blocks[block].succ[1] = alt;
+    }
+}
 
 static void patch_basic_blocks(MVMThreadContext *tc, struct TreeTiler *tiler, MVMJitExprTree *tree, MVMint32 node) {
+    /* Postorder assign the successors to blocks associated with nodes */
+    MVMJitTileList *list = tiler->list;
+    MVMint32 test = tree->nodes[node+1];
+    if (tree->nodes[node] == MVM_JIT_WHEN) {
+        MVMint32 pre  = tiler->states[node + 1].block;
+        MVMint32 post = tiler->states[node + 2].block;
+        if (tree->nodes[test] == MVM_JIT_ALL) {
+            patch_shortcircuit_blocks(tc, tiler, tree, test, post + 1);
+        } else if (tree->nodes[test] == MVM_JIT_ANY) {
+            /* ANY will start numbering the blocks and assigning (n+1, pre+1) to
+             * each of them; pre+1 is the alternative successor.  */
+            patch_shortcircuit_blocks(tc, tiler, tree, test, pre + 1);
+        }
+        list->blocks[pre].num_succ = 2;
+        list->blocks[pre].succ[0] = pre + 1;
+        list->blocks[pre].succ[1] = post + 1;
+        list->blocks[post].num_succ = 1;
+        list->blocks[post].succ[0] = post + 1;
+    } else if (tree->nodes[node] == MVM_JIT_IF || tree->nodes[node] == MVM_JIT_IFV) {
+        MVMint32 pre  = tiler->states[node + 1].block;
+        MVMint32 cond = tiler->states[node + 2].block;
+        MVMint32 post = tiler->states[node + 3].block;
+        if (tree->nodes[test] == MVM_JIT_ALL) {
+            patch_shortcircuit_blocks(tc, tiler, tree, test, cond + 1);
+        } else if (tree->nodes[test] == MVM_JIT_ANY) {
+            patch_shortcircuit_blocks(tc, tiler, tree, test, pre + 1);
+        }
+        list->blocks[pre].num_succ = 2;
+        list->blocks[pre].succ[0] = pre + 1;
+        list->blocks[pre].succ[1] = cond + 1;
+        list->blocks[cond].num_succ = 1;
+        list->blocks[cond].succ[0] = post + 1;
+        list->blocks[post].num_succ = 1;
+        list->blocks[post].succ[0] = post + 1;
+    }
 }
 
 /* Insert labels, compute basic block extents (eventually) */
