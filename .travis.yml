@@ -1,7 +1,7 @@
 language: "perl"
 os:
     - linux
-#    - osx
+    - osx
 perl:
     - "5.10"
 before_install:
@@ -105,3 +105,5 @@ matrix:
     env: MVM_OPTIONS="--has-libffi --no-jit"  CC="clang"
   - os: osx
     env: MVM_OPTIONS="--has-libffi"           CC="clang"
+  - os: osx
+    env: MVM_OPTIONS="--compiler=clang --coverage --optimize=0 --debug=3" COVERAGE=1 USE_CLANG_LATEST=1 CC='clang'
