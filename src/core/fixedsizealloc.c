@@ -72,15 +72,6 @@ void MVM_fixed_size_destroy(MVMFixedSizeAlloc *al) {
     MVM_free(al);
 }
 
-/* Destroys per-thread fixed size allocator state. All freelists will be
- * contributed back to the global freelists for the bin size. */
-void MVM_fixed_size_destroy_thread(MVMThreadContext *tc) {
-    MVMFixedSizeAllocThread *al = tc->thread_fsa;
-    /* TODO Give memory back to the global allocator */
-    MVM_free(al->size_classes);
-    MVM_free(al);
-}
-
 /* Determine the bin. If we hit a bin exactly then it's off-by-one,
  * since the bins list is base-0. Otherwise we've some extra bits,
  * which round us up to the next bin, but that's a no-op. */
@@ -370,4 +361,22 @@ void MVM_fixed_size_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *al) {
         cur = next;
     }
     al->free_at_next_safepoint_overflows = NULL;
+}
+
+/* Destroys per-thread fixed size allocator state. All freelists will be
+ * contributed back to the global freelists for the bin size. */
+void MVM_fixed_size_destroy_thread(MVMThreadContext *tc) {
+    MVMFixedSizeAllocThread *al = tc->thread_fsa;
+    int bin;
+    for (bin = 0; bin < MVM_FSA_BINS; bin++) {
+        MVMFixedSizeAllocThreadSizeClass *bin_ptr = &(al->size_classes[bin]);
+        MVMFixedSizeAllocFreeListEntry *fle = bin_ptr->free_list;
+        while (fle) {
+            MVMFixedSizeAllocFreeListEntry *next = fle->next;
+            add_to_global_bin_freelist(tc, tc->instance->fsa, bin, (void *)fle);
+            fle = next;
+        }
+    }
+    MVM_free(al->size_classes);
+    MVM_free(al);
 }
