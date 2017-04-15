@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Adapted from script by Yuriy Tymchuk 2013
-# and here https://gist.github.com/domenic/ec8b0fc8ab45f39403dd
-# https://sleepycoders.blogspot.com/2013/03/sharing-travis-ci-generated-files.html
+# Adapted from script by Domenic Denicola
+# Creative Commons Zero v1.0 Universal
+# https://github.com/domenic/zones/blob/master/
+# and here
+# https://gist.github.com/domenic/ec8b0fc8ab45f39403dd
 TARGET_BRANCH="gh-pages"
 set -x
 if [ "$TRAVIS_PULL_REQUEST" != "false" -o "$TRAVIS_BRANCH" != "$TARGET_BRANCH"  ]; then
