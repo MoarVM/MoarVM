@@ -218,19 +218,19 @@ void serializeTelemetryBufferRange(FILE *outfile, unsigned int serializationStar
                 fprintf(outfile, "Epoch counter: %ld\n", record->epoch.time);
                 break;
             case TimeStamp:
-                fprintf(outfile, "%15ld -|- Time stamp:     \"%s\"\n", record->timeStamp.time - beginningEpoch, record->timeStamp.description);
+                fprintf(outfile, "%15ld -|-  \"%s\"\n", record->timeStamp.time - beginningEpoch, record->timeStamp.description);
                 break;
             case IntervalStart:
-                fprintf(outfile, "%15ld (-  Interval start: \"%s\" (%d)\n", record->interval.time - beginningEpoch, record->interval.description, record->interval.intervalID);
+                fprintf(outfile, "%15ld (-   \"%s\" (%d)\n", record->interval.time - beginningEpoch, record->interval.description, record->interval.intervalID);
                 break;
             case IntervalEnd:
-                fprintf(outfile, "%15ld  -) Interval stop:  \"%s\" (%d)\n", record->interval.time - beginningEpoch, record->interval.description, record->interval.intervalID);
+                fprintf(outfile, "%15ld  -)  \"%s\" (%d)\n", record->interval.time - beginningEpoch, record->interval.description, record->interval.intervalID);
                 break;
             case IntervalAnnotation:
-                fprintf(outfile,  "%15s ??? Annotation:     \"%s\" (%d)\n", " ", record->annotation.description, record->annotation.intervalID);
+                fprintf(outfile,  "%15s ???  \"%s\" (%d)\n", " ", record->annotation.description, record->annotation.intervalID);
                 break;
             case DynamicString:
-                fprintf(outfile,  "%15s ??? Annotation:     \"%s\" (%d)\n", " ", record->annotation_dynamic.description, record->annotation_dynamic.intervalID);
+                fprintf(outfile,  "%15s ???  \"%s\" (%d)\n", " ", record->annotation_dynamic.description, record->annotation_dynamic.intervalID);
                 free(record->annotation_dynamic.description);
                 break;
         }
