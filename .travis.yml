@@ -23,8 +23,11 @@ branches:
 
 notifications:
   irc:
+    branches:
+      except:
+        - gh-pages
     channels:
-    - "irc.freenode.net#moarvm"
+      - "irc.freenode.net#moarvm"
     on_success: change
     on_failure: always
     template:
