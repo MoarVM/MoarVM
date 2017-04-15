@@ -1,22 +1,65 @@
-<ul>
-  <li> . </li>
-  <ul>
-    <li><a href=".">.</a></li>
-  </ul>
-  <li> .git </li>
-  <ul>
-    <li><a href=".git">.git</a></li>
-  </ul>
-  <li> moar </li>
-  <ul>
-    <li><a href="moar">moar</a></li>
-  </ul>
-  <li> index.html </li>
-  <ul>
-    <li><a href="index.html">index.html</a></li>
-  </ul>
-  <li> libmoar </li>
-  <ul>
-    <li><a href="libmoar">libmoar</a></li>
-  </ul>
-</ul>
+<html>
+<head>
+    <style>
+        .ui-resizable-helper {
+            border: 10px dotted gray;
+        }
+        .resizable-right {
+            display:block; width:66%; height:95%; padding:0px; border:8px solid gray;
+            overflow:hidden; position:relative; float: right
+        }
+        .resizable-left {
+            display:block; width:30%; height:95%; padding:0px; border:8px solid gray;
+            overflow:hidden; position:relative; float: left
+        }
+        iframe {
+            width:100%; height:100%;
+        }
+        .right-frame {
+            float: right;
+        }
+
+    </style>
+
+    <link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/start/jquery-ui.css" rel="stylesheet"/>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4/jquery.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+    <script>
+        $(function() {
+            $( ".resizable-right" ).resizable({
+                animate: true, animateEasing: 'swing', animateDuration: 0
+            });
+        });
+        $(function() {
+            $( ".resizable-left" ).resizable({
+                animate: true, animateEasing: 'swing', animateDuration: 0
+            });
+        });
+    </script>
+    <script>
+      $( function() {
+        $( ".resizable-right" ).draggable();
+        } );
+        $( function() {
+          $( ".resizable-left" ).draggable();
+          } );
+    </script>
+</head>
+<body>
+
+    <font size="-4">
+        MoarVM coverage. <b>NQP test suite.</b>. Boxes are resizable and moveable. Left side is `moar` binary right side is `libmoar` (has majority of things) MoarVM
+    </font>
+<div class="resizable-right">
+    <iframe id="right-frame" src="libmoar/"></iframe>
+</div>
+
+<div class="resizable-left">
+    <div class="left-frame">
+        <iframe id="left-frame" src="moar"></iframe>
+    </div>
+</div>
+
+</body>
+
+</html>
