@@ -14,7 +14,12 @@ if [ "$TRAVIS_PULL_REQUEST" != "false" -o "$TRAVIS_BRANCH" != "$TARGET_BRANCH"  
   mkdir -p "$HOME/staging"
   # Do MoarVM specific code here
   # --------------------------------
-  cp -R $TRAVIS_BUILD_DIR/html-cov/* "$HOME/staging"
+  if [ "$TRAVIS_BRANCH" = 'master' ]; then
+    cp -R $TRAVIS_BUILD_DIR/html-cov/* "$HOME/staging"
+  else
+    mkdir -p "$HOME/staging/$TRAVIS_BRANCH"
+    cp -R $TRAVIS_BUILD_DIR/html-cov/* "$HOME/staging/${TRAVIS_BRANCH}"
+  fi
   # END MoarVM specific code
   # -----------------------------
   #go to home and setup git
