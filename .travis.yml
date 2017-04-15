@@ -25,6 +25,7 @@ addons:
       - clang-5.0
       - llvm-5.0
       - expect
+      - libffi-dev
 
 before_script:
     - ls /usr/bin | grep llvm
@@ -32,17 +33,21 @@ before_script:
     - uname -a
     - gcc --version
     - clang --version
+    # Fun function that finds files in /usr/bin naming as foo-4.2 for example
+    # and returns the highest version. Travis CI installs newer versions under
+    # their own verison numbers.
     - find_latest_version () { ls /usr/bin | grep -Ee "^$1(\-[0-9.]+)?$" | sort -r | head -n 1; }
     - find_latest_version llvm-profdata
     - find_latest_version llvm-cov
     # Find the latest clang that is on the system
-    - CLANG_LATEST=$(ls /usr/bin | grep -Ee '^clang(\-[0-9.]+)?$' | sort -r | head -n 1)
+    - CLANG_LATEST=$(find_latest_version clang)
     - if [ ! "$CLANG_LATEST" = 'clang' ]; then eval "$CLANG_LATEST --version"; fi
     - if [ "$USE_CLANG_LATEST" ]; then echo "Using $CLANG_LATEST due to build setting"; CC="$CLANG_LATEST"; fi
+    # Generic debug and optimization settings that are used for all builds except
+    # the coverage builds
     - MVM_debug="--debug"; MVM_optimize="--optimize"
     - if [ "$COVERAGE" ]; then MVM_debug="--debug=3"; MVM_optimize="--optimize=0"; fi
     - if [ "$TRAVIS_OS_NAME" == "linux" ] ; then sudo apt-get update -qq || sudo apt-get update -qq ; fi
-    - if [ "$TRAVIS_OS_NAME" == "linux" ] ; then sudo apt-get install -y libffi-dev || sudo apt-get install -y libffi-dev ; fi
     - git fetch --unshallow
     - git clone --depth 1 git://github.com/perl6/nqp
 
