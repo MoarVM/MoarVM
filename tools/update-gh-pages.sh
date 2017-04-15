@@ -36,7 +36,7 @@ if [ "$TRAVIS_PULL_REQUEST" != "false" -o "$TRAVIS_BRANCH" != "$TARGET_BRANCH"  
   #fi
   #add, commit and push files
   ls -lh
-  make_index () { $TRAVIS_BUILD_DIR/tools/make-index.sh > ./index.html ; }
+  make_index () { $TRAVIS_BUILD_DIR/tools/make-index.sh > ./file-index.html ; }
   make_index
   git add -fv .
   git commit -m "Travis build $TRAVIS_BUILD_NUMBER pushed to $TARGET_BRANCH" && \
