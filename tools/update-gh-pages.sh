@@ -6,13 +6,13 @@
 # https://gist.github.com/domenic/ec8b0fc8ab45f39403dd
 TARGET_BRANCH="gh-pages"
 set -x
-if [ "$TRAVIS_PULL_REQUEST" != "false" -o "$TRAVIS_BRANCH" != "$TARGET_BRANCH"  ]; then
+if [ "$TRAVIS_PULL_REQUEST" != "false" ] || [ "$TRAVIS_BRANCH" != "$TARGET_BRANCH"  ]; then
   printf "Starting to update %s\n" "$TARGET_BRANCH"
     # Save some useful information
-  REPO=`git config remote.origin.url`
+  REPO=$(git config remote.origin.url)
   #SSH_REPO=${REPO/https:\/\/github.com\//git@github.com:}
   SSH_REPO='git@github.com:MoarVM/coverage.git'
-  SHA=`git rev-parse --verify HEAD`
+  SHA=$(git rev-parse --verify HEAD)
   #copy data we're interested in to other place
   mkdir -p "$HOME/staging"
   # Do MoarVM specific code here
@@ -23,6 +23,7 @@ if [ "$TRAVIS_PULL_REQUEST" != "false" -o "$TRAVIS_BRANCH" != "$TARGET_BRANCH"  
     mkdir -p "$HOME/staging/$TRAVIS_BRANCH"
     cp -R $TRAVIS_BUILD_DIR/html-cov/* "$HOME/staging/${TRAVIS_BRANCH}"
   fi
+  COMMIT_MSG="$(printf "Travis №%s built from %s %s" "$TRAVIS_BUILD_NUMBER" "$TRAVIS_BRANCH" "$(cd $TRAVIS_BUILD_DIR >/dev/null && git describe)")"
   # END MoarVM specific code
   # -----------------------------
   #go to home and setup git
@@ -47,9 +48,9 @@ if [ "$TRAVIS_PULL_REQUEST" != "false" -o "$TRAVIS_BRANCH" != "$TARGET_BRANCH"  
   make_index () { $TRAVIS_BUILD_DIR/tools/make-index.sh > ./file-index.html ; }
   make_index
   git add -fv .
-  git commit -m "Travis build $TRAVIS_BUILD_NUMBER pushed to $TARGET_BRANCH" && \
+  git commit -m "$COMMIT_MSG" && \
   git pull --rebase --ff-only && \
   git push -fv origin $TARGET_BRANCH
 
-  echo -e "Done magic with push\n"
+  echo "Done magic with push"
 fi
