@@ -47,6 +47,27 @@ if [ "$TRAVIS_PULL_REQUEST" != "false" ] || [ "$TRAVIS_BRANCH" != "$TARGET_BRANC
   ls -lh
   make_index () { $TRAVIS_BUILD_DIR/tools/make-index.sh > ./file-index.html ; }
   make_index
+
+  sed -e 's|<body><h2>Coverage Report</h2>|<body><h2>Coverage Report <small>for libmoar, commit id '$SHA'</small></h2>|' < libmoar/index.html > libmoar_index.html
+
+  sed -e 's|<body><h2>Coverage Report</h2>|<body><h2>Coverage Report <small>for moar, commit id '$SHA'</small></h2>|' < moar/index.html > moar_index.html
+
+  sed -e 's|</body></html>||'  < libmoar_index.html > libmoar_index_head_and_content.html
+  sed -e 's|.*</head><body>||' < moar_index.html    > moar_index_content_and_tail.html
+
+  rm libmoar_index.html
+  rm moar_index.html
+
+  cp libmoar/style.css .
+
+  sed --in-place -e "s|href='coverage/home/|href='libmoar/coverage/home/|g" libmoar_index_head_and_content.html
+  sed --in-place -e "s|href='coverage/home/|href='moar/coverage/home/|g"    moar_index_content_and_tail.html
+
+  cat libmoar_index_head_and_content.html moar_index_content_and_tail.html > index.html
+
+  rm libmoar_index_head_and_content.html
+  rm moar_index_content_and_tail.html
+
   git add -fv .
   git commit -m "$COMMIT_MSG" && \
   git pull --rebase --ff-only && \
