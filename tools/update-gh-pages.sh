@@ -10,7 +10,8 @@ if [ "$TRAVIS_PULL_REQUEST" != "false" -o "$TRAVIS_BRANCH" != "$TARGET_BRANCH"  
   printf "Starting to update %s\n" "$TARGET_BRANCH"
     # Save some useful information
   REPO=`git config remote.origin.url`
-  SSH_REPO=${REPO/https:\/\/github.com\//git@github.com:}
+  #SSH_REPO=${REPO/https:\/\/github.com\//git@github.com:}
+  SSH_REPO='git@github.com:MoarVM/coverage.git'
   SHA=`git rev-parse --verify HEAD`
   #copy data we're interested in to other place
   mkdir -p "$HOME/staging"
