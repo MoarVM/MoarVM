@@ -51,7 +51,7 @@ sub compile {
     my @objs;
     foreach my $file ("$leaf.c", @$files) {
         (my $obj = $file) =~ s/\.c/$config->{obj}/;
-        my $command = "$config->{cc} $cl_define $config->{ccout}$obj $config->{ccswitch} $file >$devnull 2>&1";
+        my $command = "$config->{cc} $ENV{CFLAGS} $cl_define $config->{ccout}$obj $config->{ccswitch} $file >$devnull 2>&1";
         system $command
             and return;
         push @objs, $obj;
@@ -91,7 +91,8 @@ EOT
 
     my ($can_compile, $can_link, $command_errored, $error_message);
     (my $obj = $file) =~ s/\.c/$config->{obj}/;
-    my $command = "$config->{cc} $config->{ccout}$obj $config->{ccswitch} $file 2>&1";
+    $ENV{CFLAGS} //= '';
+    my $command = "$config->{cc} $ENV{CFLAGS} $config->{ccout}$obj $config->{ccswitch} $file 2>&1";
     my $output  = `$command` || $!;
     if ($? >> 8 == 0) {
         $can_compile = 1;
