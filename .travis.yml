@@ -118,3 +118,6 @@ matrix:
     env: MVM_OPTIONS="--has-libffi"           CC='clang'
   - os: osx
     env: MVM_OPTIONS="--compiler=clang --coverage --optimize=0 --debug=3" COVERAGE=1 USE_CLANG_LATEST=1 CC='clang'
+  allow_failures:
+  - os: linux
+    env: MVM_OPTIONS="--compiler=clang --coverage --optimize=0 --debug=3" COVERAGE=1 USE_CLANG_LATEST=1 CC='clang'
