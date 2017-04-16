@@ -5,6 +5,7 @@ os:
 perl:
     - "5.10"
 before_install:
+  - echo $TRAVIS_REPO_SLUG
   # If we aren't on MoarVM, we can't decode the deploy key
   - if [ "$TRAVIS_REPO_SLUG" = 'MoarVM/MoarVM' ]; then COVERAGE=''; export COVERAGE; fi
   # Put github's into known_hosts /* may not need this */
