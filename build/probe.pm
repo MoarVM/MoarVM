@@ -91,7 +91,8 @@ EOT
 
     my ($can_compile, $can_link, $command_errored, $error_message);
     (my $obj = $file) =~ s/\.c/$config->{obj}/;
-    my $command = "$config->{cc} $config->{ccout}$obj $config->{ccswitch} $file 2>&1";
+    $ENV{CFLAGS} //= '';
+    my $command = "$config->{cc} $ENV{CFLAGS} $config->{ccout}$obj $config->{ccswitch} $file 2>&1";
     my $output  = `$command` || $!;
     if ($? >> 8 == 0) {
         $can_compile = 1;
