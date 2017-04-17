@@ -6,7 +6,7 @@ perl:
     - "5.10"
 before_install:
   |-
-    echo "Begin before_install section of .travis.yml"
+    echo "Begin ‘before_install’ section of .travis.yml"
     # If we aren't on MoarVM/MoarVM or it's a pull request we can't decode the deploy key
     if [ ! "$TRAVIS_REPO_SLUG" = 'MoarVM/MoarVM' ] || [ ! "$TRAVIS_PULL_REQUEST" = "false" ]; then
       export COVERAGE=''; export MOCK_COVERAGE=1;
@@ -22,7 +22,7 @@ before_install:
       expect -c 'spawn ssh-add ./deploy_key; expect "enter passphrase for"; send "\n"; expect "Identity added:"; interact'
     fi
 install:
-    - echo
+    - echo "Begin ‘install’ section of .travis.yml"
 addons:
   apt:
     sources:
@@ -35,6 +35,7 @@ addons:
       - libffi-dev
 
 before_script:
+    - echo "Begin ‘before_script’ section of .travis.yml"
     - uname -a
     - gcc --version
     - clang --version
@@ -57,6 +58,7 @@ before_script:
     - git clone --depth 1 git://github.com/perl6/nqp
 
 script:
+    - echo "Begin ‘script’ section of .travis.yml"
     - export MOAR_PREFIX="/tmp/moar"; export MOAR_FOLDER="$TRAVIS_BUILD_DIR"
     - export NQP_FOLDER="$(readlink -f ./nqp)"
     - perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc="$CC" $MVM_debug $MVM_optimize;
@@ -69,8 +71,8 @@ script:
     - if [ "$COVERAGE" ]; then git clone --depth 1 'https://github.com/samcv/MoarVM-cover.git' && cp -v MoarVM-cover/html-cover.sh . && cp -v MoarVM-cover/nqp-profile ./nqp/ && cp -v MoarVM-cover/merge-profraw.sh ./nqp/ && ./html-cover.sh 2; fi
 
 after_success:
+  - echo "Begin ‘after_success’ section of .travis.yml"
   - cd "$TRAVIS_BUILD_DIR"
-  - echo "Running on success options"
   - if [ "$COVERAGE" ]; then ./tools/update-gh-pages.sh; fi
 
 branches:
