@@ -180,9 +180,13 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
         MVM_exception_throw_adhoc(tc, "Out of range: attempted to read %"PRId64" bytes from filehandle", length);
 
     if (handle->body.ops->sync_readable) {
-        uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        bytes_read = handle->body.ops->sync_readable->read_bytes(tc, handle, &buf, length);
-        release_mutex(tc, mutex);
+        MVMROOT(tc, handle, {
+        MVMROOT(tc, result, {
+            uv_mutex_t *mutex = acquire_mutex(tc, handle);
+            bytes_read = handle->body.ops->sync_readable->read_bytes(tc, handle, &buf, length);
+            release_mutex(tc, mutex);
+        });
+        });
     }
     else
         MVM_exception_throw_adhoc(tc, "Cannot read characters from this kind of handle");
