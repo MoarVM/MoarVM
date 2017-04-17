@@ -1,9 +1,9 @@
 language: "perl"
 os:
-    - linux
-    - osx
+  - linux
+  - osx
 perl:
-    - "5.10"
+  - "5.10"
 before_install:
   |-
     echo "Begin ‘before_install’ section of .travis.yml"
@@ -22,7 +22,7 @@ before_install:
       expect -c 'spawn ssh-add ./deploy_key; expect "enter passphrase for"; send "\n"; expect "Identity added:"; interact'
     fi
 install:
-    - echo "Begin ‘install’ section of .travis.yml"
+  - echo "Begin ‘install’ section of .travis.yml"
 addons:
   apt:
     sources:
@@ -35,40 +35,40 @@ addons:
       - libffi-dev
 
 before_script:
-    - echo "Begin ‘before_script’ section of .travis.yml"
-    - uname -a
-    - gcc --version
-    - clang --version
-    # Fun function that finds files in /usr/bin naming as foo-4.2 for example
-    # and returns the highest version. Travis CI installs newer versions under
-    # their own verison numbers.
-    - find_latest_version () { ls /usr/bin | grep -Ee "^$1(\-[0-9.]+)?$" | sort -r | head -n 1; }
-    - find_latest_version llvm-profdata
-    - find_latest_version llvm-cov
-    # Find the latest clang that is on the system
-    - CLANG_LATEST=$(find_latest_version clang)
-    - if [ ! "$CLANG_LATEST" = 'clang' ]; then eval "$CLANG_LATEST --version"; fi
-    - if [ "$USE_CLANG_LATEST" ]; then echo "Using $CLANG_LATEST due to build setting"; CC="$CLANG_LATEST"; fi
-    # Generic debug and optimization settings that are used for all builds except
-    # the coverage builds
-    - MVM_debug="--debug"; MVM_optimize="--optimize"
-    - if [ "$COVERAGE" ] || [ "$MOCK_COVERAGE" ]; then MVM_debug="--debug=3"; MVM_optimize="--optimize=0"; fi
-    - if [ "$TRAVIS_OS_NAME" == "linux" ] ; then sudo apt-get update -qq || sudo apt-get update -qq ; fi
-    - git fetch --unshallow
-    - git clone --depth 1 git://github.com/perl6/nqp
+  - echo "Begin ‘before_script’ section of .travis.yml"
+  - uname -a
+  - gcc --version
+  - clang --version
+  # Fun function that finds files in /usr/bin naming as foo-4.2 for example
+  # and returns the highest version. Travis CI installs newer versions under
+  # their own verison numbers.
+  - find_latest_version () { ls /usr/bin | grep -Ee "^$1(\-[0-9.]+)?$" | sort -r | head -n 1; }
+  - find_latest_version llvm-profdata
+  - find_latest_version llvm-cov
+  # Find the latest clang that is on the system
+  - CLANG_LATEST=$(find_latest_version clang)
+  - if [ ! "$CLANG_LATEST" = 'clang' ]; then eval "$CLANG_LATEST --version"; fi
+  - if [ "$USE_CLANG_LATEST" ]; then echo "Using $CLANG_LATEST due to build setting"; CC="$CLANG_LATEST"; fi
+  # Generic debug and optimization settings that are used for all builds except
+  # the coverage builds
+  - MVM_debug="--debug"; MVM_optimize="--optimize"
+  - if [ "$COVERAGE" ] || [ "$MOCK_COVERAGE" ]; then MVM_debug="--debug=3"; MVM_optimize="--optimize=0"; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ] ; then sudo apt-get update -qq || sudo apt-get update -qq ; fi
+  - git fetch --unshallow
+  - git clone --depth 1 git://github.com/perl6/nqp
 
 script:
-    - echo "Begin ‘script’ section of .travis.yml"
-    - export MOAR_PREFIX="/tmp/moar"; export MOAR_FOLDER="$TRAVIS_BUILD_DIR"
-    - export NQP_FOLDER="$(readlink -f ./nqp)"
-    - perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc="$CC" $MVM_debug $MVM_optimize;
-    - make install;
-    - cd nqp;
-    - perl Configure.pl --prefix=$MOAR_PREFIX --backends=moar;
-    - make;
-    - make test;
-    - cd ..
-    - if [ "$COVERAGE" ]; then git clone --depth 1 'https://github.com/samcv/MoarVM-cover.git' && cp -v MoarVM-cover/html-cover.sh . && cp -v MoarVM-cover/nqp-profile ./nqp/ && cp -v MoarVM-cover/merge-profraw.sh ./nqp/ && ./html-cover.sh 2; fi
+  - echo "Begin ‘script’ section of .travis.yml"
+  - export MOAR_PREFIX="/tmp/moar"; export MOAR_FOLDER="$TRAVIS_BUILD_DIR"
+  - export NQP_FOLDER="$(readlink -f ./nqp)"
+  - perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc="$CC" $MVM_debug $MVM_optimize;
+  - make install;
+  - cd nqp;
+  - perl Configure.pl --prefix=$MOAR_PREFIX --backends=moar;
+  - make;
+  - make test;
+  - cd ..
+  - if [ "$COVERAGE" ]; then git clone --depth 1 'https://github.com/samcv/MoarVM-cover.git' && cp -v MoarVM-cover/html-cover.sh . && cp -v MoarVM-cover/nqp-profile ./nqp/ && cp -v MoarVM-cover/merge-profraw.sh ./nqp/ && ./html-cover.sh 2; fi
 
 after_success:
   - echo "Begin ‘after_success’ section of .travis.yml"
@@ -77,9 +77,9 @@ after_success:
 
 branches:
    only:
-     - master
-     - coverage
-     - /smoke-me/
+    - master
+    - coverage
+    - /smoke-me/
 
 notifications:
   irc:
