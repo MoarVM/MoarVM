@@ -610,6 +610,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc, MVMint32 global_des
     MVMGen2Allocator *gen2 = tc->gen2;
     MVMuint32 bin, obj_size, page, i;
     char ***freelist_insert_pos;
+    int col_in_directives;
     for (bin = 0; bin < MVM_GEN2_BINS; bin++) {
         /* If we've nothing allocated in this size class, skip it. */
         if (gen2->size_classes[bin].pages == NULL)
@@ -656,12 +657,13 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc, MVMint32 global_des
 #endif
                     }
                     else if (col->flags & MVM_CF_STABLE) {
-                        if (
+                        col_in_directives = (col->sc_forward_u.sc.sc_idx == 0
+                                             && col->sc_forward_u.sc.idx == MVM_DIRECT_SC_IDX_SENTINEL)
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
-                            !(col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) &&
+                        col_in_directives = (!(col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) &&
+                                            col_in_directives);
 #endif
-                            col->sc_forward_u.sc.sc_idx == 0
-                            && col->sc_forward_u.sc.idx == MVM_DIRECT_SC_IDX_SENTINEL) {
+                        if (col_in_directives) {
                             /* We marked it dead last time, kill it. */
                             MVM_6model_stable_gc_free(tc, (MVMSTable *)col);
                         }
@@ -719,7 +721,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *tc, MVMint32 global_des
             }
         }
     }
-    
+
     /* Also need to consider overflows. */
     for (i = 0; i < gen2->num_overflows; i++) {
         if (gen2->overflows[i]) {
