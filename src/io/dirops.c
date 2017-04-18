@@ -143,7 +143,7 @@ MVMString * MVM_dir_cwd(MVMThreadContext *tc) {
 
     return MVM_string_utf8_c8_decode(tc, tc->instance->VMString, path, strlen(path));
 }
-char * MVM_dir_chdir_C_string(MVMThreadContext *tc, const char *dirstring) {
+int MVM_dir_chdir_C_string(MVMThreadContext *tc, const char *dirstring) {
     return uv_chdir(dirstring);
 }
 /* Change directory. */
