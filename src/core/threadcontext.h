@@ -22,16 +22,6 @@ typedef enum {
     MVMGCStatus_STOLEN = 3
 } MVMGCStatus;
 
-/* To manage memory more efficiently, we cache MVMFrame instances.
- * The initial frame pool table size sets the initial guess at the
- * number of different types of frame (that is, an MVMStaticFrame)
- * that we'll encounter and cache. If we do deep recursion, we run
- * the risk of caching an enormous number of frames, so the length
- * limit sets how many frames of a given static frame type we will
- * keep around. */
-#define MVMInitialFramePoolTableSize    64
-#define MVMFramePoolLengthLimit         64
-
 /* Information associated with an executing thread. */
 struct MVMThreadContext {
     /* The current allocation pointer, where the next object to be allocated
@@ -53,6 +43,9 @@ struct MVMThreadContext {
 
     /* Thread object representing the thread. */
     MVMThread *thread_obj;
+
+    /* Per-thread fixed size allocator state. */
+    MVMFixedSizeAllocThread *thread_fsa;
 
     /* Pointer to where the interpreter's current opcode is stored. */
     MVMuint8 **interp_cur_op;

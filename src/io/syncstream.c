@@ -204,7 +204,9 @@ MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMSt
         MVM_exception_throw_adhoc(tc, "Failed to write string to stream: %s", uv_strerror(r));
     }
     else {
+        MVM_gc_mark_thread_blocked(tc);
         uv_run(tc->loop, UV_RUN_DEFAULT);
+        MVM_gc_mark_thread_unblocked(tc);
         MVM_free(output);
     }
 
@@ -225,7 +227,9 @@ MVMint64 MVM_io_syncstream_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, cha
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to stream: %s", uv_strerror(r));
     }
     else {
+        MVM_gc_mark_thread_blocked(tc);
         uv_run(tc->loop, UV_RUN_DEFAULT);
+        MVM_gc_mark_thread_unblocked(tc);
     }
     data->total_bytes_written += bytes;
     return bytes;

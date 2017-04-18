@@ -176,13 +176,17 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
         && ((MVMArrayREPRData *)STABLE(result)->REPR_data)->slot_type != MVM_ARRAY_I8)
         MVM_exception_throw_adhoc(tc, "read_fhb requires a native array of uint8 or int8");
 
-    if (length < 1 || length > 99999999)
+    if (length < 1)
         MVM_exception_throw_adhoc(tc, "Out of range: attempted to read %"PRId64" bytes from filehandle", length);
 
     if (handle->body.ops->sync_readable) {
-        uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        bytes_read = handle->body.ops->sync_readable->read_bytes(tc, handle, &buf, length);
-        release_mutex(tc, mutex);
+        MVMROOT(tc, handle, {
+        MVMROOT(tc, result, {
+            uv_mutex_t *mutex = acquire_mutex(tc, handle);
+            bytes_read = handle->body.ops->sync_readable->read_bytes(tc, handle, &buf, length);
+            release_mutex(tc, mutex);
+        });
+        });
     }
     else
         MVM_exception_throw_adhoc(tc, "Cannot read characters from this kind of handle");

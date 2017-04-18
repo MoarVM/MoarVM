@@ -1,3 +1,55 @@
+New in 2017.04
+
++ Shorten the nursery when creating large bigints, to bring GC forward and
+  resolve excessive memory use
++ Use correct format for repeat/concat errors
++ Fix bug in indexic_s if expanding codepoint is the last codepoint
++ Special case "\r\n" in MVM_nfg_is_concat_stable for performance reasons
++ Further optimize MVM_nfg_is_concat_stable to speed up concatenation
++ Do not set use rpath if installing into proper system locations
++ Optimize passes_quickcheck_and_zero_ccc to be much faster
++ Give this_repr constants more meaningful names to aid debugging
++ Streamline MVM_bigint_radix and MVM_radix for Nd Unicode #'s
++ Fix case-insensitive string compare bug when synthetics are in the haystack
++ Improve description for "should eventually be unreachable" error
++ Correctly detect and handle overflow in mp_get_int64
++ Split into mp_get_int64 and mp_get_uint64
++ Only allocate and normalize for cp's that require it in MVM_string_chr, and
+  short-circuit Unicode property test for codepoints below 0x300
++ Provide a better error when failing to encode surrogates in UTF-8
++ Add a cast to suppress a compiler warning in strings/ops.c
++ Factor out code from equal_at_ignore_case for use in index_ignore_case also
++ Use both hex and decimal for UTF8 encoding error messages
++ Add parentheses in various places to suppress compiler warnings
++ Use PRIu64 in fprintf's to fix compiler warning about incorrect types
++ Add a check that introspection->is_tty is not NULL, avoiding a crash
++ Mention debug_name in errors about uncomposed repr
++ Add new --coverage option for Configure.pl
++ First prototype of a per-line coverage reporter, enabled by setting
+  MVM_COVERAGE_LOG
++ Cope with a native type with no nativesize, but signedness
++ Remove two functions in normalize.c that have been superseded
++ Give collapse_strands a 5.4% speed boost under some workloads
++ Add MVM_string_graphs_nocheck funct, use it in places we previously already
+  checked
++ Have a two-part loop in collapse strands to make loop tighter when possible
++ Implement serialize/deserialize in VMHash REPR.
++ Use memmem in string index. Uses Knuth-Morris-Pratt on glibc, and adds the
+  FreeBSD memmem.c for use on Windows
++ Fix a join NFG bug when there was an  empty string and an empty seperator
++ Reorder MVMStaticFrameBody to save 16 bytes according to pahole; similarly
+  save 16 bytes in MVMCompUnitBody, 24 bytes in MVMJitCode, 8 bytes in
+  MVMIOSyncStreamData, SerializationRoot and SerializationReader
++ Remove arbitrary and small length range check for reading bytes from a file
++ Remove unused defines in threadcontext.h
++ Greatly reduce contention in the fixed-size allocator for multi-threaded
+  programs, giving up to 40% speedup in some cases
++ Add continuous coverage analysis to Travis builds, along with other Travis
+  improvements
++ Mark thread GC blocked when doing synchronous writes
++ Add missing MVMROOT when reading bytes, which could result in occasional
+  data loss
+
 New in 2017.03
 
 + Fix some missing variable initializations

@@ -852,7 +852,8 @@ void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const
     MVMROOT(tc, ex, {
         char      *c_message = MVM_malloc(1024);
         int        bytes     = vsnprintf(c_message, 1024, messageFormat, args);
-        MVMString *message   = MVM_string_utf8_decode(tc, tc->instance->VMString, c_message, bytes);
+        int        to_encode = bytes > 1024 ? 1024 : bytes;
+        MVMString *message   = MVM_string_utf8_decode(tc, tc->instance->VMString, c_message, to_encode);
         MVM_free(c_message);
 
         /* Clean up after ourselves to avoid leaking C strings. */

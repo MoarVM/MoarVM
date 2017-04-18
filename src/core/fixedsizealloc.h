@@ -1,4 +1,4 @@
-/* The top-level data structure for the fixed size allocator. */
+/* The global, top-level data structure for the fixed size allocator. */
 struct MVMFixedSizeAlloc {
     /* Size classes for the fixed size allocator. Each one represents a bunch
      * of objects of the same size. The allocated sizes are rounded and then
@@ -54,6 +54,23 @@ struct MVMFixedSizeAllocSizeClass {
     MVMFixedSizeAllocSafepointFreeListEntry *free_at_next_safepoint_list;
 };
 
+/* The per-thread data structure for the fixed size allocator, hung off the
+ * thread context. Holds a free list per size bin. Allocations on the thread
+ * will preferentially use the thread free list, and threads will free to
+ * their own free lists, up to a length limit. On hitting the limit, they
+ * will free back to the global allocator. This helps ensure patterns like
+ * producer/consumer don't end up with a "leak". */
+struct MVMFixedSizeAllocThread {
+    MVMFixedSizeAllocThreadSizeClass *size_classes;
+};
+struct MVMFixedSizeAllocThreadSizeClass {
+    /* Head of the free list. */
+    MVMFixedSizeAllocFreeListEntry *free_list;
+
+    /* How many items are on this thread's free list. */
+    MVMuint32 items;
+};
+
 /* The number of bits we discard from the requested size when binning
  * the allocation request into a size class. For example, if this is
  * 3 bits then:
@@ -74,11 +91,16 @@ struct MVMFixedSizeAllocSizeClass {
 /* The number of items that go into each page. */
 #define MVM_FSA_PAGE_ITEMS 128
 
+/* The length limit for the per-thread free list. */
+#define MVM_FSA_THREAD_FREELIST_LIMIT   1024
+
 /* Functions. */
 MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc);
+void MVM_fixed_size_create_thread(MVMThreadContext *tc);
 void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes);
 void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes);
 void MVM_fixed_size_destroy(MVMFixedSizeAlloc *al);
+void MVM_fixed_size_destroy_thread(MVMThreadContext *tc);
 void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes, void *free);
 void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa, size_t bytes, void *free);
 void MVM_fixed_size_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *al);
