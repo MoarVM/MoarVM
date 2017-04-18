@@ -143,18 +143,17 @@ MVMString * MVM_dir_cwd(MVMThreadContext *tc) {
 
     return MVM_string_utf8_c8_decode(tc, tc->instance->VMString, path, strlen(path));
 }
-
+char * MVM_dir_chdir_C_string(MVMThreadContext *tc, const char *dirstring) {
+    return uv_chdir(dirstring);
+}
 /* Change directory. */
 void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {
-    char * const dirstring = MVM_string_utf8_c8_encode_C_string(tc, dir);
-
-    if (uv_chdir((const char *)dirstring) != 0) {
-        int chdir_error = errno;
-        MVM_free(dirstring);
+    const char *dirstring = MVM_string_utf8_c8_encode_C_string(tc, dir);
+    int chdir_error = MVM_dir_chdir_C_string(tc, dirstring);
+    if (chdir_error) {
         MVM_exception_throw_adhoc(tc, "chdir failed: %s", uv_strerror(chdir_error));
     }
-
-    MVM_free(dirstring);
+    MVM_free((void*)dirstring);
 }
 
 /* Structure to keep track of directory iteration state. */
