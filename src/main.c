@@ -15,6 +15,12 @@
 #  include "signal.h"
 #endif
 
+#ifndef _WIN32
+#  include <unistd.h>
+#else
+#  include <process.h>
+#endif
+
 /* flags need to be sorted alphabetically */
 
 enum {
