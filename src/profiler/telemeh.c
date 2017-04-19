@@ -21,6 +21,12 @@ double ticksPerSecond;
     tscValue = __rdtscp(&_tsc_aux); \
 }
 
+#ifdef __clang__
+#ifndef __has_builtin(__rdtscp)
+#undef READ_TSC(tscValue)
+#define READ_TSC(tscValue) { tscValue = 0 }
+#endif
+
 enum RecordType {
     Calibration,
     Epoch,
