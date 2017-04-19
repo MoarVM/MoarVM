@@ -9,7 +9,11 @@
 #ifdef _WIN32
 #include <intrin.h>
 #else
+#if defined(__x86_64__) || defined(__i386__)
 #include <x86intrin.h>
+#else
+#define __rdtscp(V) { V = 0; }
+#endif
 #endif
 
 double ticksPerSecond;
