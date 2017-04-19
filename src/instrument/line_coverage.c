@@ -89,7 +89,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 if (ann->type == MVM_SPESH_ANN_LINENO) {
                     /* We are very likely to have one instruction here that has
                      * the same annotation as the bb itself. We skip that one.*/
-                    if (ann->data.lineno.line_number == line_number && ann->data.lineno.filename_string_index == last_filename) {
+                    if (ann->data.lineno.line_number == line_number && ann->data.lineno.filename_string_index == filename_string_index) {
                         break;
                     }
 
