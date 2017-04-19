@@ -220,6 +220,10 @@ struct MVMSpeshAnn {
         MVMint32 frame_handler_index;
         MVMint32 deopt_idx;
         MVMint32 inline_idx;
+        struct {
+            MVMuint32 filename_string_index;
+            MVMuint32 line_number;
+        } lineno;
     } data;
 };
 
@@ -233,6 +237,7 @@ struct MVMSpeshAnn {
 #define MVM_SPESH_ANN_INLINE_END    7
 #define MVM_SPESH_ANN_DEOPT_INLINE  8
 #define MVM_SPESH_ANN_DEOPT_OSR     9
+#define MVM_SPESH_ANN_LINENO        10
 
 /* Functions to create/destroy the spesh graph. */
 MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
