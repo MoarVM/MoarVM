@@ -79,20 +79,20 @@ struct TelemetryRecord {
 
 // this is a ring buffer of telemetry events
 static struct TelemetryRecord recordBuffer[RECORD_BUFFER_SIZE];
-static unsigned int recordBufferIndex = 0;
+static AO_t recordBufferIndex = 0;
 static unsigned int lastSerializedIndex = 0;
 static unsigned long long beginningEpoch = 0;
 static unsigned int telemetry_active = 0;
 
 struct TelemetryRecord *newRecord()
 {
-    unsigned int newBufferIndex, recordIndex;
+    AO_t newBufferIndex, recordIndex;
     struct TelemetryRecord *record;
 
     do {
-        recordIndex = recordBufferIndex;
+        recordIndex = MVM_load(&recordBufferIndex);
         newBufferIndex = (recordBufferIndex + 1) % RECORD_BUFFER_SIZE;
-    } while(!__atomic_compare_exchange_n(&recordBufferIndex, &recordIndex, newBufferIndex, 0, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED));
+    } while(!MVM_trycas(&recordBufferIndex, recordIndex, newBufferIndex));
 
     record = &recordBuffer[recordIndex];
     return record;
@@ -123,7 +123,8 @@ unsigned int MVM_telemetry_interval_start(MVMThreadContext *threadID, const char
     if (!telemetry_active) { return 0; }
 
     record = newRecord();
-    intervalID = __atomic_fetch_add(&intervalIDCounter, 1, __ATOMIC_SEQ_CST);
+    MVM_incr(&intervalIDCounter);
+    intervalID = MVM_load(&intervalIDCounter);
     READ_TSC(record->interval.time);
 
     record->recordType = IntervalStart;
