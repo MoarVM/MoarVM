@@ -489,7 +489,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     ffi_status status  = ffi_prep_cif(&cif, body->convention, (unsigned int)num_args, body->ffi_ret_type, body->ffi_arg_types);
 
     interval_id = MVM_telemetry_interval_start(tc, "nativecall invoke");
-    MVM_telemetry_interval_annotate(entry_point, interval_id, "nc entrypoint");
+    MVM_telemetry_interval_annotate((uintptr_t)entry_point, interval_id, "nc entrypoint");
 
     /* Process arguments. */
     for (i = 0; i < num_args; i++) {
