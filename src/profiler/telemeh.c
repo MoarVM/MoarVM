@@ -207,7 +207,8 @@ static volatile int continueBackgroundSerialization = 1;
 
 void serializeTelemetryBufferRange(FILE *outfile, unsigned int serializationStart, unsigned int serializationEnd)
 {
-    for(unsigned int i = serializationStart; i < serializationEnd; i++) {
+    unsigned int i;
+    for(i = serializationStart; i < serializationEnd; i++) {
         struct TelemetryRecord *record = &recordBuffer[i];
 
         fprintf(outfile, "% 10x ", record->threadID);
