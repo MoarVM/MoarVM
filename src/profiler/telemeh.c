@@ -195,14 +195,12 @@ void calibrateTSC(FILE *outfile)
     unsigned long long startTsc, endTsc;
     struct timespec startTime, endTime;
 
-    clock_gettime(CLOCK_MONOTONIC, &startTime);
-    //startTsc = __rdtsc();
+    startTime = uv_hrtime()
     READ_TSC(startTsc)
 
     sleep(1);
 
-    clock_gettime(CLOCK_MONOTONIC, &endTime);
-    //endTsc = __rdtsc();
+    endTime = uv_hrtime();
     READ_TSC(endTsc)
 
     {
