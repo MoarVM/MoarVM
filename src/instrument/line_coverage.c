@@ -4,8 +4,8 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *bb = g->entry->linear_next;
     MVMuint16 array_slot = 0;
 
-    MVMint32 last_line_number;
-    MVMint32 last_filename;
+    MVMint32 last_line_number = -2;
+    MVMint32 last_filename = -1;
 
     MVMuint16 allocd_slots  = g->num_bbs * 2;
     char *line_report_store = MVM_calloc(allocd_slots, sizeof(char));
@@ -123,9 +123,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
         bb = bb->linear_next;
     }
 
-    if (allocd_slots != array_slot) {
-        line_report_store = MVM_realloc(line_report_store, sizeof(char) * array_slot);
-    }
+    line_report_store = MVM_realloc(line_report_store, sizeof(char) * (array_slot + 1));
 
     for (fixup_idx = 0; fixup_idx < fixup_elems; fixup_idx++) {
         MVMSpeshIns *ins = to_fixup[fixup_idx];
