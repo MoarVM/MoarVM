@@ -26,7 +26,7 @@ double ticksPerSecond;
 }
 
 #ifdef __clang__
-#if !__has_builtin(__builtin_ia32_rdtsc)
+#if !__has_builtin(__builtin_ia32_rdtscp)
 #undef READ_TSC
 #define READ_TSC(tscValue) { tscValue = 0; }
 #warning "not using rdtscp"
