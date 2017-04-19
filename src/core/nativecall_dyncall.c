@@ -490,7 +490,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     dcReset(vm);
 
     interval_id = MVM_telemetry_interval_start(tc, "nativecall invoke");
-    MVM_telemetry_interval_annotate(entry_point, interval_id, "nc entrypoint");
+    MVM_telemetry_interval_annotate((intptr_t)entry_point, interval_id, "nc entrypoint");
 
     /* Process arguments. */
     for (i = 0; i < num_args; i++) {
