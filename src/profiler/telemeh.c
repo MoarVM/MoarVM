@@ -26,6 +26,7 @@ double ticksPerSecond;
 #undef READ_TSC(tscValue)
 #define READ_TSC(tscValue) { tscValue = 0 }
 #endif
+#endif
 
 enum RecordType {
     Calibration,
