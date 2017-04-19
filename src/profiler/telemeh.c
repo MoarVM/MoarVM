@@ -224,7 +224,7 @@ void serializeTelemetryBufferRange(FILE *outfile, unsigned int serializationStar
     for(i = serializationStart; i < serializationEnd; i++) {
         struct TelemetryRecord *record = &recordBuffer[i];
 
-        fprintf(outfile, "% 10x ", record->threadID);
+        fprintf(outfile, "%10" PRIxPTR " ", record->threadID);
 
         switch(record->recordType) {
             case Calibration:
