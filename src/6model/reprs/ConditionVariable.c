@@ -131,7 +131,7 @@ void MVM_conditionvariable_wait(MVMThreadContext *tc, MVMConditionVariable *cv) 
             "Can only wait on a condition variable when holding mutex");
 
     interval_id = MVM_telemetry_interval_start(tc, "ConditionVariable.wait");
-    MVM_telemetry_interval_annotate((intptr_t)cv->body.condvar, interval_id, "this condition variable");
+    MVM_telemetry_interval_annotate((uintptr_t)cv->body.condvar, interval_id, "this condition variable");
     orig_rec_level = MVM_load(&rm->body.lock_count);
     MVM_store(&rm->body.holder_id, 0);
     MVM_store(&rm->body.lock_count, 0);

@@ -61,7 +61,7 @@ struct DynamicString {
 struct TelemetryRecord {
     enum RecordType recordType;
 
-    intptr_t threadID;
+    uintptr_t threadID;
 
     union {
         struct CalibrationRecord calibration;
@@ -98,7 +98,7 @@ struct TelemetryRecord *newRecord()
 
 static unsigned int intervalIDCounter = 0;
 
-void MVM_telemetry_timestamp(intptr_t threadID, const char *description)
+void MVM_telemetry_timestamp(MVMThreadContext *threadID, const char *description)
 {
     struct TelemetryRecord *record;
 
@@ -108,11 +108,11 @@ void MVM_telemetry_timestamp(intptr_t threadID, const char *description)
 
     READ_TSC(record->timeStamp.time);
     record->recordType = TimeStamp;
-    record->threadID = threadID;
+    record->threadID = (uintptr_t)threadID;
     record->timeStamp.description = description;
 }
 
-unsigned int MVM_telemetry_interval_start(intptr_t threadID, const char *description)
+unsigned int MVM_telemetry_interval_start(MVMThreadContext *threadID, const char *description)
 {
     struct TelemetryRecord *record;
 
@@ -125,14 +125,14 @@ unsigned int MVM_telemetry_interval_start(intptr_t threadID, const char *descrip
     READ_TSC(record->interval.time);
 
     record->recordType = IntervalStart;
-    record->threadID = threadID;
+    record->threadID = (uintptr_t)threadID;
     record->interval.intervalID = intervalID;
     record->interval.description = description;
 
     return intervalID;
 }
 
-void MVM_telemetry_interval_stop(intptr_t threadID, int intervalID, const char *description)
+void MVM_telemetry_interval_stop(MVMThreadContext *threadID, int intervalID, const char *description)
 {
     struct TelemetryRecord *record;
 
@@ -142,12 +142,12 @@ void MVM_telemetry_interval_stop(intptr_t threadID, int intervalID, const char *
     READ_TSC(record->interval.time);
 
     record->recordType = IntervalEnd;
-    record->threadID = threadID;
+    record->threadID = (uintptr_t)threadID;
     record->interval.intervalID = intervalID;
     record->interval.description = description;
 }
 
-void MVM_telemetry_interval_annotate(intptr_t subject, int intervalID, const char *description) {
+void MVM_telemetry_interval_annotate(uintptr_t subject, int intervalID, const char *description) {
     struct TelemetryRecord *record;
 
     if (!telemetry_active) { return; }
@@ -159,7 +159,7 @@ void MVM_telemetry_interval_annotate(intptr_t subject, int intervalID, const cha
     record->annotation.description = description;
 }
 
-void MVM_telemetry_interval_annotate_dynamic(intptr_t subject, int intervalID, char *description) {
+void MVM_telemetry_interval_annotate_dynamic(uintptr_t subject, int intervalID, char *description) {
     struct TelemetryRecord *record;
     char *temp;
 

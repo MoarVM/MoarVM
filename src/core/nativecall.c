@@ -416,7 +416,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
         keep_sym_name     = 1;
     }
 
-    MVM_telemetry_interval_annotate_dynamic((intptr_t)body->entry_point, interval_id, body->sym_name);
+    MVM_telemetry_interval_annotate_dynamic((uintptr_t)body->entry_point, interval_id, body->sym_name);
 
     if (keep_sym_name == 0) {
         MVM_free(sym_name);
