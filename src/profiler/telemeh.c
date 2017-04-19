@@ -193,9 +193,9 @@ void MVM_telemetry_interval_annotate_dynamic(uintptr_t subject, int intervalID, 
 void calibrateTSC(FILE *outfile)
 {
     unsigned long long startTsc, endTsc;
-    struct timespec startTime, endTime;
+    uint64_t startTime, endTime;
 
-    startTime = uv_hrtime()
+    startTime = uv_hrtime();
     READ_TSC(startTsc)
 
     sleep(1);
@@ -206,7 +206,7 @@ void calibrateTSC(FILE *outfile)
     {
         unsigned long long ticks = endTsc - startTsc;
 
-        unsigned long long wallClockTime = (endTime.tv_sec - startTime.tv_sec) * 1000000000 + (endTime.tv_nsec - startTime.tv_nsec);
+        unsigned long long wallClockTime = endTime - startTime;
 
         ticksPerSecond = (double)ticks / (double)wallClockTime;
         ticksPerSecond *= 1000000000.0;
