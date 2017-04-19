@@ -189,6 +189,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "profiler/log.h"
 #include "profiler/profile.h"
 #include "profiler/heapsnapshot.h"
+#include "profiler/telemeh.h"
 #include "instrument/crossthreadwrite.h"
 #include "instrument/line_coverage.h"
 
