@@ -198,8 +198,8 @@ int wmain(int argc, wchar_t *wargv[])
              getpid()
 #endif
              );
-        initTelemetry(fopen(path, "w"));
-        interval_id = startInterval(0, "moarvm startup");
+        MVM_telemetry_init(fopen(path, "w"));
+        interval_id = MVM_telemetry_interval_start(0, "moarvm startup");
     }
 
     lib_path[lib_path_i] = NULL;
@@ -229,8 +229,8 @@ int wmain(int argc, wchar_t *wargv[])
     else MVM_vm_run_file(instance, input_file);
 
     if (getenv("MVM_TELEMETRY_LOG")) {
-        stopInterval(0, interval_id, "moarvm teardown");
-        finishTelemetry();
+        MVM_telemetry_interval_stop(0, interval_id, "moarvm teardown");
+        MVM_telemetry_finish();
     }
 
     if (full_cleanup) {

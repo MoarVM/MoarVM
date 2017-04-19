@@ -124,7 +124,7 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint
     MVMint32 read;
     unsigned int interval_id;
 
-    interval_id = startInterval(tc, "syncfile.read_to_buffer");
+    interval_id = MVM_telemetry_interval_start(tc, "syncfile.read_to_buffer");
     MVM_gc_mark_thread_blocked(tc);
     if ((read = uv_fs_read(tc->loop, &req, data->fd, &read_buf, 1, -1, NULL)) < 0) {
         MVM_free(buf);
@@ -134,8 +134,8 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint
     }
     MVM_string_decodestream_add_bytes(tc, data->ds, buf, read);
     MVM_gc_mark_thread_unblocked(tc);
-    annotateInterval(read, interval_id, "read this many bytes");
-    stopInterval(tc, interval_id, "syncfile.read_to_buffer");
+    MVM_telemetry_interval_annotate(read, interval_id, "read this many bytes");
+    MVM_telemetry_interval_stop(tc, interval_id, "syncfile.read_to_buffer");
     return read;
 }
 

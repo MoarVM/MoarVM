@@ -98,7 +98,7 @@ struct TelemetryRecord *newRecord()
 
 static unsigned int intervalIDCounter = 0;
 
-void takeTimeStamp(intptr_t threadID, const char *description)
+void MVM_telemetry_timestamp(intptr_t threadID, const char *description)
 {
     struct TelemetryRecord *record;
 
@@ -112,7 +112,7 @@ void takeTimeStamp(intptr_t threadID, const char *description)
     record->timeStamp.description = description;
 }
 
-unsigned int startInterval(intptr_t threadID, const char *description)
+unsigned int MVM_telemetry_interval_start(intptr_t threadID, const char *description)
 {
     struct TelemetryRecord *record;
 
@@ -132,7 +132,7 @@ unsigned int startInterval(intptr_t threadID, const char *description)
     return intervalID;
 }
 
-void stopInterval(intptr_t threadID, int intervalID, const char *description)
+void MVM_telemetry_interval_stop(intptr_t threadID, int intervalID, const char *description)
 {
     struct TelemetryRecord *record;
 
@@ -147,7 +147,7 @@ void stopInterval(intptr_t threadID, int intervalID, const char *description)
     record->interval.description = description;
 }
 
-void annotateInterval(intptr_t subject, int intervalID, const char *description) {
+void MVM_telemetry_interval_annotate(intptr_t subject, int intervalID, const char *description) {
     struct TelemetryRecord *record;
 
     if (!telemetry_active) { return; }
@@ -159,7 +159,7 @@ void annotateInterval(intptr_t subject, int intervalID, const char *description)
     record->annotation.description = description;
 }
 
-void annotateIntervalDynamic(intptr_t subject, int intervalID, char *description) {
+void MVM_telemetry_interval_annotate_dynamic(intptr_t subject, int intervalID, char *description) {
     struct TelemetryRecord *record;
     char *temp;
 
@@ -264,7 +264,7 @@ void *backgroundSerialization(void *outfile)
     return NULL;
 }
 
-void initTelemetry(FILE *outfile)
+void MVM_telemetry_init(FILE *outfile)
 {
     struct TelemetryRecord *calibrationRecord;
     struct TelemetryRecord *epochRecord;
@@ -286,7 +286,7 @@ void initTelemetry(FILE *outfile)
     pthread_create(&backgroundSerializationThread, NULL, backgroundSerialization, (void *)outfile);
 }
 
-void finishTelemetry()
+void MVM_telemetry_finish()
 {
     continueBackgroundSerialization = 0;
     pthread_join(backgroundSerializationThread, NULL);

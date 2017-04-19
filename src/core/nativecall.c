@@ -378,7 +378,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     MVMint8  keep_sym_name = 0;
     MVMint16 i;
 
-    unsigned int interval_id = startInterval(tc, "building native call");
+    unsigned int interval_id = MVM_telemetry_interval_start(tc, "building native call");
 
     MVMObject *entry_point_o = (MVMObject *)MVM_repr_at_key_o(tc, ret_info,
         tc->instance->str_consts.entry_point);
@@ -393,7 +393,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     if (!body->lib_handle) {
         char *waste[] = { lib_name, NULL };
         MVM_free(sym_name);
-        stopInterval(tc, interval_id, "error building native call");
+        MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
         MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", lib_name, dlerror());
     }
 
@@ -408,7 +408,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
         body->entry_point = MVM_nativecall_find_sym(body->lib_handle, sym_name);
         if (!body->entry_point) {
             char *waste[] = { sym_name, lib_name, NULL };
-            stopInterval(tc, interval_id, "error building native call");
+            MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
             MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate symbol '%s' in native library '%s'",
                 sym_name, lib_name);
         }
@@ -416,7 +416,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
         keep_sym_name     = 1;
     }
 
-    annotateIntervalDynamic(body->entry_point, interval_id, body->sym_name);
+    MVM_telemetry_interval_annotate_dynamic(body->entry_point, interval_id, body->sym_name);
 
     if (keep_sym_name == 0) {
         MVM_free(sym_name);
@@ -453,7 +453,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     body->ffi_ret_type = MVM_nativecall_get_ffi_type(tc, body->ret_type);
 #endif
 
-    stopInterval(tc, interval_id, "nativecall built");
+    MVM_telemetry_interval_stop(tc, interval_id, "nativecall built");
 }
 
 static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObject *target_type, void *cpointer_body) {

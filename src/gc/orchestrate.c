@@ -342,9 +342,9 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     gen = tc->instance->gc_full_collect ? MVMGCGenerations_Both : MVMGCGenerations_Nursery;
 
     if (tc->instance->gc_full_collect) {
-        interval_id = startInterval(tc, "start full collection");
+        interval_id = MVM_telemetry_interval_start(tc, "start full collection");
     } else {
-        interval_id = startInterval(tc, "start minor collection");
+        interval_id = MVM_telemetry_interval_start(tc, "start minor collection");
     }
 
     /* Do GC work for ourselves and any work threads. */
@@ -360,7 +360,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     /* Wait for everybody to agree we're done. */
     finish_gc(tc, gen, what_to_do == MVMGCWhatToDo_All);
 
-    stopInterval(tc, interval_id, "finished run_gc");
+    MVM_telemetry_interval_stop(tc, interval_id, "finished run_gc");
 }
 
 /* This is called when the allocator finds it has run out of memory and wants
@@ -370,7 +370,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
 void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from allocate\n");
 
-    takeTimeStamp(tc, "gc_enter_from_allocator");
+    MVM_telemetry_timestamp(tc, "gc_enter_from_allocator");
 
     /* Try to start the GC run. */
     if (MVM_trycas(&tc->instance->gc_start, 0, 1)) {
@@ -395,7 +395,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* Decide if it will be a full collection. */
         tc->instance->gc_full_collect = is_full_collection(tc);
 
-        takeTimeStamp(tc, "won the gc starting race");
+        MVM_telemetry_timestamp(tc, "won the gc starting race");
 
         /* If profiling, record that GC is starting. */
         if (tc->instance->profiling)
@@ -473,7 +473,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         if (tc->instance->profiling)
             MVM_profiler_log_gc_end(tc);
 
-        takeTimeStamp(tc, "gc finished");
+        MVM_telemetry_timestamp(tc, "gc finished");
 
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : GC complete (cooridnator)\n");
     }
@@ -493,7 +493,7 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
 
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from interrupt\n");
 
-    takeTimeStamp(tc, "gc_enter_from_interrupt");
+    MVM_telemetry_timestamp(tc, "gc_enter_from_interrupt");
 
     /* If profiling, record that GC is starting. */
     if (tc->instance->profiling)
