@@ -217,16 +217,16 @@ void serializeTelemetryBufferRange(FILE *outfile, unsigned int serializationStar
                 fprintf(outfile, "Calibration: %f ticks per second\n", record->calibration.ticksPerSecond);
                 break;
             case Epoch:
-                fprintf(outfile, "Epoch counter: %ld\n", record->epoch.time);
+                fprintf(outfile, "Epoch counter: %lld\n", record->epoch.time);
                 break;
             case TimeStamp:
-                fprintf(outfile, "%15ld -|-  \"%s\"\n", record->timeStamp.time - beginningEpoch, record->timeStamp.description);
+                fprintf(outfile, "%15lld -|-  \"%s\"\n", record->timeStamp.time - beginningEpoch, record->timeStamp.description);
                 break;
             case IntervalStart:
-                fprintf(outfile, "%15ld (-   \"%s\" (%d)\n", record->interval.time - beginningEpoch, record->interval.description, record->interval.intervalID);
+                fprintf(outfile, "%15lld (-   \"%s\" (%d)\n", record->interval.time - beginningEpoch, record->interval.description, record->interval.intervalID);
                 break;
             case IntervalEnd:
-                fprintf(outfile, "%15ld  -)  \"%s\" (%d)\n", record->interval.time - beginningEpoch, record->interval.description, record->interval.intervalID);
+                fprintf(outfile, "%15lld  -)  \"%s\" (%d)\n", record->interval.time - beginningEpoch, record->interval.description, record->interval.intervalID);
                 break;
             case IntervalAnnotation:
                 fprintf(outfile,  "%15s ???  \"%s\" (%d)\n", " ", record->annotation.description, record->annotation.intervalID);
