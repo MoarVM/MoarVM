@@ -150,10 +150,10 @@ int MVM_dir_chdir_C_string(MVMThreadContext *tc, const char *dirstring) {
 void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {
     const char *dirstring = MVM_string_utf8_c8_encode_C_string(tc, dir);
     int chdir_error = MVM_dir_chdir_C_string(tc, dirstring);
+    MVM_free((void*)dirstring);
     if (chdir_error) {
         MVM_exception_throw_adhoc(tc, "chdir failed: %s", uv_strerror(chdir_error));
     }
-    MVM_free((void*)dirstring);
 }
 
 /* Structure to keep track of directory iteration state. */
