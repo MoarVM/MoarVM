@@ -896,13 +896,13 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
         mp_int *ia = force_bigint(ba, tmp);
         mp_int *ib = force_bigint(bb, tmp);
 
-        int max_size = DIGIT_BIT * MAX(USED(ia), USED(ib));
-        if (max_size > 1023) {
+        int min_size = DIGIT_BIT * MIN(USED(ia), USED(ib));
+        if (min_size > 1023) {
             mp_int reduced_a, reduced_b;
             mp_init(&reduced_a);
             mp_init(&reduced_b);
-            mp_div_2d(ia, max_size - 1023, &reduced_a, NULL);
-            mp_div_2d(ib, max_size - 1023, &reduced_b, NULL);
+            mp_div_2d(ia, min_size - 1023, &reduced_a, NULL);
+            mp_div_2d(ib, min_size - 1023, &reduced_b, NULL);
             c = mp_get_double(&reduced_a) / mp_get_double(&reduced_b);
             mp_clear(&reduced_a);
             mp_clear(&reduced_b);
