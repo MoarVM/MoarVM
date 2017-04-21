@@ -923,7 +923,29 @@ MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MV
         ba->bytecode_offset = read_int32(cur_anno, 0);
         ba->filename_string_heap_index = read_int32(cur_anno, 4);
         ba->line_number = read_int32(cur_anno, 8);
+        ba->ann_offset = cur_anno - sfb->annotations_data;
+        ba->ann_index  = i;
     }
 
     return ba;
+}
+
+void MVM_bytecode_advance_annotation(MVMThreadContext *tc, MVMStaticFrameBody *sfb, MVMBytecodeAnnotation *ba) {
+    MVMuint32 i = ba->ann_index + 1;
+
+    MVMuint8 *cur_anno = sfb->annotations_data + ba->ann_offset;
+    cur_anno += 12;
+    if (i >= sfb->num_annotations) {
+        ba->bytecode_offset = -1;
+        ba->filename_string_heap_index = 0;
+        ba->line_number = 0;
+        ba->ann_offset = -1;
+        ba->ann_index = -1;
+    } else {
+        ba->bytecode_offset = read_int32(cur_anno, 0);
+        ba->filename_string_heap_index = read_int32(cur_anno, 4);
+        ba->line_number = read_int32(cur_anno, 8);
+        ba->ann_offset = cur_anno - sfb->annotations_data;
+        ba->ann_index  = i;
+    }
 }

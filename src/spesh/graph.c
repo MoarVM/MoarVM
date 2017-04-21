@@ -104,6 +104,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     MVMuint8    *end      = g->bytecode + g->bytecode_size;
     MVMuint32    ins_idx  = 0;
     MVMuint8     next_bbs = 1; /* Next iteration (here, first) starts a BB. */
+    MVMuint32    lineno_ann_offs = 0;
+
+    MVMBytecodeAnnotation *ann_ptr = MVM_bytecode_resolve_annotation(tc, &sf->body, sf->body.bytecode - pc);
+
     for (i = 0; i < g->num_handlers; i++)
         byte_to_ins_flags[g->handlers[i].goto_offset] |= MVM_CFG_BB_START;
     while (pc < end) {
@@ -137,6 +141,18 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
         /* Store opcode */
         ins_node->info = info;
+
+        /* Let's see if we have a line-number annotation */
+        if (ann_ptr && pc - sf->body.bytecode == ann_ptr->bytecode_offset) {
+            MVMSpeshAnn *lineno_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+            lineno_ann->next = ins_node->annotations;
+            lineno_ann->type = MVM_SPESH_ANN_LINENO;
+            lineno_ann->data.lineno.filename_string_index = ann_ptr->filename_string_heap_index;
+            lineno_ann->data.lineno.line_number = ann_ptr->line_number;
+            ins_node->annotations = lineno_ann;
+
+            MVM_bytecode_advance_annotation(tc, &sf->body, ann_ptr);
+        }
 
         /* Go over operands. */
         ins_node->operands = MVM_spesh_alloc(tc, g, info->num_operands * sizeof(MVMSpeshOperand));
@@ -502,6 +518,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     MVM_free(byte_to_ins_flags);
     MVM_free(ins_flat);
     MVM_free(ins_to_bb);
+    MVM_free(ann_ptr);
 }
 
 /* Inserts nulling of object reigsters. A later stage of the optimizer will
