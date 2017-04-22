@@ -21,6 +21,10 @@
 #  include <process.h>
 #endif
 
+#ifdef _WIN32
+#  define snprintf _snprintf
+#endif
+
 /* flags need to be sorted alphabetically */
 
 enum {
