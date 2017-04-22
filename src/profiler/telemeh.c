@@ -2,7 +2,6 @@
 
 #include <stdio.h>
 #include <time.h>
-#include <unistd.h>
 #include <string.h>
 
 #ifdef _WIN32
@@ -30,6 +29,14 @@ double ticksPerSecond;
 #define READ_TSC(tscValue) { tscValue = 0; }
 #warning "not using rdtscp"
 #endif
+#endif
+
+#ifdef _WIN32
+#include <windows.h>
+#define MVM_sleep(ms) do { Sleep(ms); } while (0)
+#else
+#include <unistd.h>
+#define MVM_sleep(ms) do { usleep(ms * 1000); } while (0)
 #endif
 
 enum RecordType {
@@ -197,7 +204,7 @@ void calibrateTSC(FILE *outfile)
     startTime = uv_hrtime();
     READ_TSC(startTsc)
 
-    sleep(1);
+    MVM_sleep(1000);
 
     endTime = uv_hrtime();
     READ_TSC(endTsc)
@@ -268,7 +275,7 @@ void serializeTelemetryBuffer(FILE *outfile)
 void *backgroundSerialization(void *outfile)
 {
     while(continueBackgroundSerialization) {
-        sleep(1);
+        MVM_sleep(500);
         serializeTelemetryBuffer((FILE *)outfile);
     }
 
