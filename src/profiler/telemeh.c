@@ -118,7 +118,7 @@ struct TelemetryRecord *newRecord()
 
 static unsigned int intervalIDCounter = 0;
 
-void MVM_telemetry_timestamp(MVMThreadContext *threadID, const char *description)
+MVM_PUBLIC void MVM_telemetry_timestamp(MVMThreadContext *threadID, const char *description)
 {
     struct TelemetryRecord *record;
 
@@ -132,7 +132,7 @@ void MVM_telemetry_timestamp(MVMThreadContext *threadID, const char *description
     record->timeStamp.description = description;
 }
 
-unsigned int MVM_telemetry_interval_start(MVMThreadContext *threadID, const char *description)
+MVM_PUBLIC unsigned int MVM_telemetry_interval_start(MVMThreadContext *threadID, const char *description)
 {
     struct TelemetryRecord *record;
 
@@ -153,7 +153,7 @@ unsigned int MVM_telemetry_interval_start(MVMThreadContext *threadID, const char
     return intervalID;
 }
 
-void MVM_telemetry_interval_stop(MVMThreadContext *threadID, int intervalID, const char *description)
+MVM_PUBLIC void MVM_telemetry_interval_stop(MVMThreadContext *threadID, int intervalID, const char *description)
 {
     struct TelemetryRecord *record;
 
@@ -168,7 +168,7 @@ void MVM_telemetry_interval_stop(MVMThreadContext *threadID, int intervalID, con
     record->interval.description = description;
 }
 
-void MVM_telemetry_interval_annotate(uintptr_t subject, int intervalID, const char *description) {
+MVM_PUBLIC void MVM_telemetry_interval_annotate(uintptr_t subject, int intervalID, const char *description) {
     struct TelemetryRecord *record;
 
     if (!telemetry_active) { return; }
@@ -180,7 +180,7 @@ void MVM_telemetry_interval_annotate(uintptr_t subject, int intervalID, const ch
     record->annotation.description = description;
 }
 
-void MVM_telemetry_interval_annotate_dynamic(uintptr_t subject, int intervalID, char *description) {
+MVM_PUBLIC void MVM_telemetry_interval_annotate_dynamic(uintptr_t subject, int intervalID, char *description) {
     struct TelemetryRecord *record;
     char *temp;
 
@@ -284,7 +284,7 @@ void *backgroundSerialization(void *outfile)
     return NULL;
 }
 
-void MVM_telemetry_init(FILE *outfile)
+MVM_PUBLIC void MVM_telemetry_init(FILE *outfile)
 {
     struct TelemetryRecord *calibrationRecord;
     struct TelemetryRecord *epochRecord;
@@ -312,7 +312,7 @@ void MVM_telemetry_init(FILE *outfile)
     }
 }
 
-void MVM_telemetry_finish()
+MVM_PUBLIC void MVM_telemetry_finish()
 {
     continueBackgroundSerialization = 0;
     uv_thread_join(&backgroundSerializationThread);
