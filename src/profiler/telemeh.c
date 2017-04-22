@@ -90,7 +90,7 @@ struct TelemetryRecord {
         struct IntervalRecord interval;
         struct IntervalAnnotation annotation;
         struct DynamicString annotation_dynamic;
-    };
+    } u;
 };
 
 #define RECORD_BUFFER_SIZE 10000
@@ -126,10 +126,10 @@ MVM_PUBLIC void MVM_telemetry_timestamp(MVMThreadContext *threadID, const char *
 
     record = newRecord();
 
-    READ_TSC(record->timeStamp.time);
+    READ_TSC(record->u.timeStamp.time);
     record->recordType = TimeStamp;
     record->threadID = (uintptr_t)threadID;
-    record->timeStamp.description = description;
+    record->u.timeStamp.description = description;
 }
 
 MVM_PUBLIC unsigned int MVM_telemetry_interval_start(MVMThreadContext *threadID, const char *description)
@@ -143,12 +143,12 @@ MVM_PUBLIC unsigned int MVM_telemetry_interval_start(MVMThreadContext *threadID,
     record = newRecord();
     MVM_incr(&intervalIDCounter);
     intervalID = MVM_load(&intervalIDCounter);
-    READ_TSC(record->interval.time);
+    READ_TSC(record->u.interval.time);
 
     record->recordType = IntervalStart;
     record->threadID = (uintptr_t)threadID;
-    record->interval.intervalID = intervalID;
-    record->interval.description = description;
+    record->u.interval.intervalID = intervalID;
+    record->u.interval.description = description;
 
     return intervalID;
 }
@@ -160,12 +160,12 @@ MVM_PUBLIC void MVM_telemetry_interval_stop(MVMThreadContext *threadID, int inte
     if (!telemetry_active) { return; }
 
     record = newRecord();
-    READ_TSC(record->interval.time);
+    READ_TSC(record->u.interval.time);
 
     record->recordType = IntervalEnd;
     record->threadID = (uintptr_t)threadID;
-    record->interval.intervalID = intervalID;
-    record->interval.description = description;
+    record->u.interval.intervalID = intervalID;
+    record->u.interval.description = description;
 }
 
 MVM_PUBLIC void MVM_telemetry_interval_annotate(uintptr_t subject, int intervalID, const char *description) {
@@ -176,8 +176,8 @@ MVM_PUBLIC void MVM_telemetry_interval_annotate(uintptr_t subject, int intervalI
     record = newRecord();
     record->recordType = IntervalAnnotation;
     record->threadID = subject;
-    record->annotation.intervalID = intervalID;
-    record->annotation.description = description;
+    record->u.annotation.intervalID = intervalID;
+    record->u.annotation.description = description;
 }
 
 MVM_PUBLIC void MVM_telemetry_interval_annotate_dynamic(uintptr_t subject, int intervalID, char *description) {
@@ -192,8 +192,8 @@ MVM_PUBLIC void MVM_telemetry_interval_annotate_dynamic(uintptr_t subject, int i
     record = newRecord();
     record->recordType = DynamicString;
     record->threadID = subject;
-    record->annotation_dynamic.intervalID = intervalID;
-    record->annotation_dynamic.description = temp;
+    record->u.annotation_dynamic.intervalID = intervalID;
+    record->u.annotation_dynamic.description = temp;
 }
 
 void calibrateTSC(FILE *outfile)
@@ -232,26 +232,26 @@ void serializeTelemetryBufferRange(FILE *outfile, unsigned int serializationStar
 
         switch(record->recordType) {
             case Calibration:
-                fprintf(outfile, "Calibration: %f ticks per second\n", record->calibration.ticksPerSecond);
+                fprintf(outfile, "Calibration: %f ticks per second\n", record->u.calibration.ticksPerSecond);
                 break;
             case Epoch:
-                fprintf(outfile, "Epoch counter: %lld\n", record->epoch.time);
+                fprintf(outfile, "Epoch counter: %lld\n", record->u.epoch.time);
                 break;
             case TimeStamp:
-                fprintf(outfile, "%15lld -|-  \"%s\"\n", record->timeStamp.time - beginningEpoch, record->timeStamp.description);
+                fprintf(outfile, "%15lld -|-  \"%s\"\n", record->u.timeStamp.time - beginningEpoch, record->u.timeStamp.description);
                 break;
             case IntervalStart:
-                fprintf(outfile, "%15lld (-   \"%s\" (%d)\n", record->interval.time - beginningEpoch, record->interval.description, record->interval.intervalID);
+                fprintf(outfile, "%15lld (-   \"%s\" (%d)\n", record->u.interval.time - beginningEpoch, record->u.interval.description, record->u.interval.intervalID);
                 break;
             case IntervalEnd:
-                fprintf(outfile, "%15lld  -)  \"%s\" (%d)\n", record->interval.time - beginningEpoch, record->interval.description, record->interval.intervalID);
+                fprintf(outfile, "%15lld  -)  \"%s\" (%d)\n", record->u.interval.time - beginningEpoch, record->u.interval.description, record->u.interval.intervalID);
                 break;
             case IntervalAnnotation:
-                fprintf(outfile,  "%15s ???  \"%s\" (%d)\n", " ", record->annotation.description, record->annotation.intervalID);
+                fprintf(outfile,  "%15s ???  \"%s\" (%d)\n", " ", record->u.annotation.description, record->u.annotation.intervalID);
                 break;
             case DynamicString:
-                fprintf(outfile,  "%15s ???  \"%s\" (%d)\n", " ", record->annotation_dynamic.description, record->annotation_dynamic.intervalID);
-                free(record->annotation_dynamic.description);
+                fprintf(outfile,  "%15s ???  \"%s\" (%d)\n", " ", record->u.annotation_dynamic.description, record->u.annotation_dynamic.intervalID);
+                free(record->u.annotation_dynamic.description);
                 break;
         }
     }
@@ -295,14 +295,14 @@ MVM_PUBLIC void MVM_telemetry_init(FILE *outfile)
     calibrateTSC(outfile);
 
     calibrationRecord = newRecord();
-    calibrationRecord->calibration.ticksPerSecond = ticksPerSecond;
+    calibrationRecord->u.calibration.ticksPerSecond = ticksPerSecond;
     calibrationRecord->recordType = Calibration;
 
     epochRecord = newRecord();
-    READ_TSC(epochRecord->epoch.time)
+    READ_TSC(epochRecord->u.epoch.time)
     epochRecord->recordType = Epoch;
 
-    beginningEpoch = epochRecord->epoch.time;
+    beginningEpoch = epochRecord->u.epoch.time;
 
     threadCreateError = uv_thread_create(&backgroundSerializationThread, (uv_thread_cb)backgroundSerialization, (void *)outfile);
     if (threadCreateError != 0)  {
