@@ -309,5 +309,4 @@ void MVM_telemetry_finish()
 {
     continueBackgroundSerialization = 0;
     uv_thread_join(&backgroundSerializationThread);
-    pthread_join(backgroundSerializationThread, NULL);
 }
