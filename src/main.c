@@ -19,6 +19,7 @@
 #  include <unistd.h>
 #else
 #  include <process.h>
+#  define snprintf _snprintf
 #endif
 
 /* flags need to be sorted alphabetically */
