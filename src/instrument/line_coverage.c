@@ -1,5 +1,9 @@
 #include "moar.h"
 
+#ifdef _WIN32
+#define snprintf _snprintf
+#endif
+
 static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *bb = g->entry->linear_next;
     MVMuint16 array_slot = 0;
