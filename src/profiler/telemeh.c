@@ -1,6 +1,5 @@
 #include <moar.h>
 
-#include <pthread.h>
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
@@ -213,7 +212,7 @@ void calibrateTSC(FILE *outfile)
     }
 }
 
-static pthread_t backgroundSerializationThread;
+static uv_thread_t backgroundSerializationThread;
 static volatile int continueBackgroundSerialization = 1;
 
 void serializeTelemetryBufferRange(FILE *outfile, unsigned int serializationStart, unsigned int serializationEnd)
@@ -282,6 +281,7 @@ void MVM_telemetry_init(FILE *outfile)
 {
     struct TelemetryRecord *calibrationRecord;
     struct TelemetryRecord *epochRecord;
+    int threadCreateError;
 
     telemetry_active = 1;
 
@@ -297,11 +297,17 @@ void MVM_telemetry_init(FILE *outfile)
 
     beginningEpoch = epochRecord->epoch.time;
 
-    pthread_create(&backgroundSerializationThread, NULL, backgroundSerialization, (void *)outfile);
+    threadCreateError = uv_thread_create(&backgroundSerializationThread, (uv_thread_cb)backgroundSerialization, (void *)outfile);
+    if (threadCreateError != 0)  {
+        telemetry_active = 0;
+
+        fprintf(stderr, "MoarVM: Could not initialize telemetry: %s\n", uv_strerror(threadCreateError));
+    }
 }
 
 void MVM_telemetry_finish()
 {
     continueBackgroundSerialization = 0;
+    uv_thread_join(&backgroundSerializationThread);
     pthread_join(backgroundSerializationThread, NULL);
 }
