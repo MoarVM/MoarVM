@@ -16,6 +16,9 @@ before_install:
       printf "github.com,192.30.255.112 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==\n" >> ~/.ssh/known_hosts
       # Decrypt deploy_key using Travis *magic* variables
       eval 'openssl aes-256-cbc -K $encrypted_b77ce3a1cc5c_key -iv $encrypted_b77ce3a1cc5c_iv -in ./tools/gh-pages-deploy_key.enc -out deploy_key -d'
+      # Now that it's decrypted, clear the keys so it can't leak
+      export encrypted_b77ce3a1cc5c_key=""
+      export encrypted_b77ce3a1cc5c_iv=""
       chmod 600 deploy_key # Change perms or ssh-agent will get mad at us
       eval $(ssh-agent -s) # Run the code that ssh-agent -s gives back to setup ENV
       # Decrypted key has no password, but it will still ask for one. Use expect program to interact with it non-interactively
@@ -76,6 +79,10 @@ after_success:
   - echo "Begin ‘after_success’ section of .travis.yml"
   - cd "$TRAVIS_BUILD_DIR"
   - if [ "$COVERAGE" ]; then ./tools/update-gh-pages.sh; fi
+
+after_failure:
+# On failure, dump all ENV vars, in case we need to look at them
+  - if [ ! "$encrypted_b77ce3a1cc5c_key" ] && [ ! "$encrypted_b77ce3a1cc5c_iv" ]; then printenv; fi
 
 branches:
    only:
