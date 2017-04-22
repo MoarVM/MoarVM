@@ -116,7 +116,7 @@ if (open(my $fh, '<', 'VERSION')) {
     close($fh);
 }
 # .git is a file and not a directory in submodule
-if (-e '.git' && open(my $GIT, '-|', "git describe --tags")) {
+if (-e '.git' && open(my $GIT, '-|', "git describe")) {
     $VERSION = <$GIT>;
     close($GIT);
 }
