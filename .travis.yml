@@ -46,6 +46,8 @@ before_script:
   # and returns the highest version. Travis CI installs newer versions under
   # their own verison numbers.
   - find_latest_version () { ls /usr/bin | grep -Ee "^$1(\-[0-9.]+)?$" | sort -r | head -n 1; }
+  # MacOS's readlink doesn't support -f, so use our own solution
+  - resolve_folder      () { O="$(pwd -P)"; D="$(dirname $1)"; T="$(basename $1)"; cd -- "$D" && cd -- "$T" && pwd -P; cd -- "$O" > /dev/null; }
   - find_latest_version llvm-profdata
   - find_latest_version llvm-cov
   # Find the latest clang that is on the system
@@ -63,7 +65,7 @@ before_script:
 script:
   - echo "Begin ‘script’ section of .travis.yml"
   - export MOAR_PREFIX="/tmp/moar"; export MOAR_FOLDER="$TRAVIS_BUILD_DIR"
-  - export NQP_FOLDER="$(readlink -f ./nqp)"
+  - export NQP_FOLDER="$(resolve_folder ./nqp)"
   - echo "perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc=\"$CC\" $MVM_debug $MVM_optimize;"
   - perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc="$CC" $MVM_debug $MVM_optimize;
   - make install;
