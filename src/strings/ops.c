@@ -634,7 +634,10 @@ MVMint64 MVM_string_equal_at(MVMThreadContext *tc, MVMString *a, MVMString *b, M
         return 0;
     return MVM_string_substrings_equal_nocheck(tc, a, offset, bgraphs, b, 0);
 }
-MVM_STATIC_INLINE MVMint32 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *haystack, MVMString *needle_fc, MVMint64 h_start, MVMint64 h_graphs, MVMint64 n_graphs) {
+/* Ensure return value can hold numbers at least 3x higher than MVMStringIndex.
+ * Theoretically if the string has all ﬃ ligatures and 1/3 the max size of
+ * MVMStringIndex in length, we could have some weird results. */
+MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadContext *tc, MVMString *haystack, MVMString *needle_fc, MVMint64 h_start, MVMint64 h_graphs, MVMint64 n_graphs) {
     MVMuint32 h_fc_cps;
     /* An additional needle offset which is used only when codepoints expand
      * when casefolded. The offset is the number of additional codepoints that
@@ -712,7 +715,8 @@ MVMint64 MVM_string_index_ignore_case(MVMThreadContext *tc, MVMString *haystack,
 
     size_t index           = (size_t)start;
     MVMStringIndex hgraphs, ngraphs;
-    MVMint32 h_expansion;
+    /* h_expansion must be able to hold integers 3x larger than MVMStringIndex */
+    MVMint64 h_expansion;
     MVMint64 return_val = -1;
     MVM_string_check_arg(tc, haystack, "index search target");
     MVM_string_check_arg(tc, needle, "index search term");
