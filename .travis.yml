@@ -61,13 +61,15 @@ script:
   - echo "Begin ‘script’ section of .travis.yml"
   - export MOAR_PREFIX="/tmp/moar"; export MOAR_FOLDER="$TRAVIS_BUILD_DIR"
   - export NQP_FOLDER="$(readlink -f ./nqp)"
+  - echo "perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc=\"$CC\" $MVM_debug $MVM_optimize;"
   - perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc="$CC" $MVM_debug $MVM_optimize;
   - make install;
-  - cd nqp;
+  - cd -- "$NQP_FOLDER";
+  - echo "perl Configure.pl --prefix=$MOAR_PREFIX --backends=moar;"
   - perl Configure.pl --prefix=$MOAR_PREFIX --backends=moar;
   - make;
   - make test;
-  - cd ..
+  - cd -- "$MOAR_FOLDER"
   - if [ "$COVERAGE" ]; then git clone --depth 1 'https://github.com/samcv/MoarVM-cover.git' && cp -v MoarVM-cover/html-cover.sh . && cp -v MoarVM-cover/nqp-profile ./nqp/ && cp -v MoarVM-cover/merge-profraw.sh ./nqp/ && ./html-cover.sh 2; fi
 
 after_success:
