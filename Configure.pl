@@ -803,6 +803,7 @@ __END__
                    [--has-libtommath] [--has-sha] [--has-libuv]
                    [--has-libatomic_ops] [--has-dynasm]
                    [--lua <lua>] [--asan] [--ubsan] [--no-jit]
+                   [--no-telemeh]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
@@ -966,5 +967,9 @@ Disable JIT compiler, which is enabled by default to JIT-compile hot frames.
 =item --lua=path/to/lua/executable
 
 Path to a lua executable. (Used during the build when JIT is enabled).
+
+=item --telemeh --no-telemeh
+
+Build (or do not build) support for the fine-grained internal event logger.
 
 =back
