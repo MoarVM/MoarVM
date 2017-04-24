@@ -423,6 +423,8 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             MVMint32 any_label = tree->info[test].label;
             MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_branch, 1, 0, all_label);
             MVMJitTile *label  = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label, 1, 0, any_label);
+            branch->debug_name = "(branch :fail)   # ALL";
+            label->debug_name  = "(label :success) # ANY";
             MVM_VECTOR_PUSH(list->items, branch);
             /* extends last block of ANY to include the unconditional branch */
             extend_last_block(tc, tiler, node + 2 + i);
@@ -433,6 +435,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler,
                                                    MVM_jit_compile_conditional_branch, 2, 0,
                                                    MVM_jit_expr_op_negate_flag(tc, flag), all_label);
+            branch->debug_name = "(conditional-branch :fail)";
             MVM_VECTOR_PUSH(list->items, branch);
             start_basic_block(tc, tiler, node + 2 + i);
         }
@@ -451,6 +454,8 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                                                    1, 0, any_label);
             MVMJitTile *label  = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label,
                                                    1, 0, all_label);
+            branch->debug_name = "(branch :success) # ALL";
+            label->debug_name  = "(label  :fail) # ANY";
             MVM_VECTOR_PUSH(list->items, branch);
             extend_last_block(tc, tiler, node + 2 + i);
             /* If not succesful, testing should continue (thus ALL must branch
@@ -466,6 +471,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler,
                                                    MVM_jit_compile_conditional_branch,
                                                    2, 0, flag, any_label);
+            branch->debug_name  = "(branch :success)";
             MVM_VECTOR_PUSH(list->items, branch);
             start_basic_block(tc, tiler, node + 2 + i);
         }
@@ -493,6 +499,8 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                                                        1, 0, left_label);
                 MVMJitTile *label  = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label,
                                                        1, 0, any_label);
+                branch->debug_name = "(branch: fail)";
+                label->debug_name = "(label :success)";
                 MVM_VECTOR_PUSH(list->items, branch);
                 extend_last_block(tc, tiler, node + 1);
                 MVM_VECTOR_PUSH(list->items, label);
@@ -500,6 +508,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler,
                                                        MVM_jit_compile_conditional_branch, 2, 0,
                                                        MVM_jit_expr_op_negate_flag(tc, flag), left_label);
+                branch->debug_name = "(conditional-branch: fail)";
                 MVM_VECTOR_PUSH(list->items, branch);
                 start_basic_block(tc, tiler, node + 1);
             }
@@ -509,6 +518,8 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                                                    1, 0, right_label);
             MVMJitTile *label  = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label,
                                                    1, 0, left_label);
+            branch->debug_name = "(branch :after)";
+            label->debug_name  = "(label :fail)";
             MVM_VECTOR_PUSH(list->items, branch);
             start_basic_block(tc, tiler, node + 2);
             MVM_VECTOR_PUSH(list->items, label);
@@ -516,6 +527,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             /* after 'right' conditional block */
             MVMJitTile *label = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label,
                                                    1, 0, right_label);
+            label->debug_name = "(branch :after)";
             start_basic_block(tc, tiler, node + 3);
             MVM_VECTOR_PUSH(list->items, label);
         }
