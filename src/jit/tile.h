@@ -22,6 +22,8 @@ struct MVMJitTile {
 
     MVMuint32 register_spec;
     MVMint8   size;
+
+    const char *debug_name;
 };
 
 struct MVMJitTileBB {

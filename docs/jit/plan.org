@@ -897,7 +897,7 @@ spill in the alternative block.  Anyway....
   minus the number of live ranges; this certainty allows us to
   preallocate a block of memory for the holes.
 
-*** TODO Determine basic blocks
+*** DONE Determine basic blocks
 
 We want two facts for every basic block
 - the range of instructions (tiles) covered (from- and to- inclusive)
@@ -961,7 +961,6 @@ But, a label does not exactly equal a block, since you may have a
 and the first block of IF/IFV.
 
 Idea: do the patchup in the postorder step.
-
 
 *** TODO Determine live range holes
 

@@ -119,4 +119,30 @@ void MVM_jit_log_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
                     "====================================\n");
 }
 
+void MVM_jit_log_tile_list(MVMThreadContext *tc, MVMJitTileList *list) {
+    MVMint32 i, j;
+    FILE *f = tc->instance->jit_log_fh;
+    if (!f)
+        return;
+    fprintf(f, "Starting tile list log\n"
+              "======================\n");
+    for (i = 0; i < list->blocks_num; i++) {
+        MVMint32 start = list->blocks[i].start, end = list->blocks[i].end;
+        fprintf(f, "Block{%d} [%d-%d)\n", i, start, end);
+        for (j = start; j < end; j++) {
+            MVMJitTile *tile = list->items[j];
+            fprintf(f, "    %d: %s\n", j, tile->debug_name ? tile->debug_name : "");
+        }
+        if (list->blocks[i].num_succ == 2) {
+            fprintf(f, "-> { %d, %d }\n", list->blocks[i].succ[0], list->blocks[i].succ[1]);
+        } else if (list->blocks[i].num_succ == 1) {
+            fprintf(f, "-> { %d }\n", list->blocks[i].succ[0]);
+        } else {
+            fprintf(f, "-> {}\n");
+        }
 
+    }
+    fprintf(f, "End of tile list log\n"
+              "======================\n");
+
+}

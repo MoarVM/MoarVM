@@ -602,6 +602,7 @@ MVMJitTile * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompile
         break;
     }
     }
+    tile->debug_name = template->expr;
     return tile;
 }
 
@@ -641,6 +642,14 @@ MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *co
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
 
     MVM_free(tiler.states);
+
+    /* finish last list block */
+    {
+        MVMint32 last_block = tiler.list->blocks_num++;
+        tiler.list->blocks[last_block].end = tiler.list->items_num;
+        tiler.list->blocks[last_block].num_succ = 0;
+    }
+
     return tiler.list;
 }
 
