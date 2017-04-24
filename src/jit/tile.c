@@ -269,7 +269,7 @@ static void start_basic_block(MVMThreadContext *tc, struct TreeTiler *tiler, MVM
 
     MVM_VECTOR_ENSURE_SPACE(list->blocks, 1);
     list->blocks[block_idx].end     = tile_idx;
-    list->blocks[block_idx+1].start = tile_idx + 1;
+    list->blocks[block_idx+1].start = tile_idx;
     list->blocks_num++;
     /* associate block with node */
     tiler->states[node].block = block_idx;
@@ -384,6 +384,8 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                                                        1, 0, when_label);
                 MVMJitTile *label  = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label,
                                                        1, 0, any_label);
+                branch->debug_name = "(branch :fail)";
+                label->debug_name  = "(label :success)";
                 MVM_VECTOR_PUSH(list->items, branch);
                 /* extends last block of ANY to include the unconditional branch */
                 extend_last_block(tc, tiler, node + 2 + i);
@@ -392,6 +394,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 /* Other tests require a conditional branch, but no label */
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_conditional_branch,
                                                        2, 0, MVM_jit_expr_op_negate_flag(tc, flag), when_label);
+                branch->debug_name = "(branch :fail)";
                 MVM_VECTOR_PUSH(list->items, branch);
                 start_basic_block(tc, tiler, node + 1);
             }
@@ -399,6 +402,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             /* after child of WHEN, insert the label */
             MVMJitTile *label = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label,
                                                   1, 0, when_label);
+            label->debug_name = "(label :fail)";
             start_basic_block(tc, tiler, node + 2);
             MVM_VECTOR_PUSH(list->items, label);
         }
