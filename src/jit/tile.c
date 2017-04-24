@@ -685,7 +685,7 @@ void MVM_jit_tile_list_insert(MVMThreadContext *tc, MVMJitTileList *list, MVMJit
 
 void MVM_jit_tile_list_edit(MVMThreadContext *tc, MVMJitTileList *list) {
     MVMJitTile **worklist;
-    MVMint32 i, j, k;
+    MVMint32 i, j, k, n;
     if (list->inserts_num == 0)
         return;
 
@@ -699,11 +699,16 @@ void MVM_jit_tile_list_edit(MVMThreadContext *tc, MVMJitTileList *list) {
     i = 0; /* items */
     j = 0; /* inserts */
     k = 0; /* output */
+    n = 0; /* block */
 
     while (i < list->items_num) {
         while (j < list->inserts_num &&
                list->inserts[j].position < i) {
             worklist[k++] = list->inserts[j++].tile;
+        }
+        if (list->blocks[n].end == i) {
+            list->blocks[n++].end = k;
+            list->blocks[n].start = k;
         }
         worklist[k++] = list->items[i++];
     }
@@ -711,6 +716,7 @@ void MVM_jit_tile_list_edit(MVMThreadContext *tc, MVMJitTileList *list) {
     while (j < list->inserts_num) {
         worklist[k++] = list->inserts[j++].tile;
     }
+    list->blocks[n].end = k;
 
     /* swap old and new list */
     MVM_free(list->items);
