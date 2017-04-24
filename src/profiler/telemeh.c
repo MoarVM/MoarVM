@@ -1,17 +1,23 @@
 #include <moar.h>
 
+#ifdef HAVE_TELEMEH
+
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
 
-#ifdef _WIN32
-#include <intrin.h>
+#ifdef MVM_RDTSCP
+# ifdef _WIN32
+#  include <intrin.h>
+# else
+#  if defined(__x86_64__) || defined(__i386__)
+#   include <x86intrin.h>
+#  else
+#   define __rdtscp(V) { V = 0; }
+#  endif
+# endif
 #else
-#if defined(__x86_64__) || defined(__i386__)
-#include <x86intrin.h>
-#else
-#define __rdtscp(V) { V = 0; }
-#endif
+# define __rdtscp(V) { V = 0; }
 #endif
 
 double ticksPerSecond;
@@ -317,3 +323,17 @@ MVM_PUBLIC void MVM_telemetry_finish()
     continueBackgroundSerialization = 0;
     uv_thread_join(&backgroundSerializationThread);
 }
+
+#else
+
+MVM_PUBLIC void MVM_telemetry_timestamp(MVMThreadContext *threadID, const char *description) { }
+
+MVM_PUBLIC unsigned int MVM_telemetry_interval_start(MVMThreadContext *threadID, const char *description) { return 0; }
+MVM_PUBLIC void MVM_telemetry_interval_stop(MVMThreadContext *threadID, int intervalID, const char *description) { }
+MVM_PUBLIC void MVM_telemetry_interval_annotate(uintptr_t subject, int intervalID, const char *description) { }
+MVM_PUBLIC void MVM_telemetry_interval_annotate_dynamic(uintptr_t subject, int intervalID, char *description) { }
+
+MVM_PUBLIC void MVM_telemetry_init(FILE *outfile) { }
+MVM_PUBLIC void MVM_telemetry_finish() { }
+
+#endif

@@ -450,4 +450,37 @@ sub win32_compiler_toolchain {
     $config->{win32_compiler_toolchain}
 }
 
+sub rdtscp {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    _spew('try.c', <<'EOT');
+#include <stdio.h>
+#include <stdlib.h>
+
+#ifdef _WIN32
+#include <intrin.h>
+#else
+#include <x86intrin.h>
+#endif
+
+int main(int argc, char **argv) {
+    unsigned int _tsc_aux;
+    unsigned int tscValue;
+    tscValue = __rdtscp(&_tsc_aux);
+
+    if (tscValue > 1)
+        return EXIT_SUCCESS;
+    return EXIT_FAILURE;
+}
+EOT
+
+    print ::dots('    probing support of rdtscp intrinsic');
+    my $can_rdtscp = compile($config, 'try');
+    unless ($config->{crossconf}) {
+        $can_rdtscp  &&= !system './try';
+    }
+    print $can_rdtscp ? "YES\n": "NO\n";
+    $config->{canrdtscp} = $can_rdtscp || 0
+}
+
 '00';

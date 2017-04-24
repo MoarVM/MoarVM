@@ -39,9 +39,10 @@ GetOptions(\%args, qw(
     static has-libtommath has-libatomic_ops
     has-dyncall has-libffi pkgconfig=s
     build=s host=s big-endian jit! enable-jit lua=s has-dynasm
-    prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan valgrind),
+    prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan valgrind telemeh),
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
-    'no-debug|nodebug' => sub { $args{debug} = 0 }
+    'no-debug|nodebug' => sub { $args{debug} = 0 },
+    'no-telemeh|notelemeh' => sub { $args{telemeh} = 0 }
 ) or die "See --help for further information\n";
 
 
@@ -83,6 +84,7 @@ for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
 
 # jit is default
 $args{jit} = 1 unless defined $args{jit};
+$args{telemeh} = 1 unless defined $args{telemeh};
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
@@ -341,6 +343,7 @@ push @cflags, '-fno-omit-frame-pointer' if $args{asan} or $args{ubsan};
 push @cflags, '-fsanitize=address' if $args{asan};
 push @cflags, '-fsanitize=undefined' if $args{ubsan};
 push @cflags, '-DMVM_VALGRIND_SUPPORT' if $args{valgrind};
+push @cflags, '-DHAVE_TELEMEH' if $args{valgrind};
 push @cflags, '-DWORDS_BIGENDIAN' if $config{be}; # 3rdparty/sha1 needs it and it isnt set on mips;
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
@@ -425,6 +428,7 @@ if ($config{cc} eq 'cl') {
 build::probe::C_type_bool(\%config, \%defaults);
 build::probe::computed_goto(\%config, \%defaults);
 build::probe::pthread_yield(\%config, \%defaults);
+build::probe::rdtscp(\%config, \%defaults);
 
 my $order = $config{be} ? 'big endian' : 'little endian';
 
