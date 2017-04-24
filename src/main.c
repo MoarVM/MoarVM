@@ -199,6 +199,7 @@ int wmain(int argc, wchar_t *wargv[])
         }
     }
 
+#ifdef HAVE_TELEMEH
     if (getenv("MVM_TELEMETRY_LOG")) {
         char path[256];
         snprintf(path, 255, "%s.%d", getenv("MVM_TELEMETRY_LOG"),
@@ -211,6 +212,7 @@ int wmain(int argc, wchar_t *wargv[])
         MVM_telemetry_init(fopen(path, "w"));
         interval_id = MVM_telemetry_interval_start(0, "moarvm startup");
     }
+#endif
 
     lib_path[lib_path_i] = NULL;
 
