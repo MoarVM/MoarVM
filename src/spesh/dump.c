@@ -141,8 +141,8 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                 case MVM_SPESH_ANN_LINENO: {
                     char *cstr = MVM_string_utf8_encode_C_string(tc,
                         MVM_cu_string(tc, g->sf->body.cu, ann->data.lineno.filename_string_index));
-                    appendf(ds, "      [Annotation: Line Number (idx %d -> pc %d); %s:%d]\n",
-                        ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx], cstr, ann->data.lineno.line_number);
+                    appendf(ds, "      [Annotation: Line Number: %s:%d]\n",
+                        cstr, ann->data.lineno.line_number);
                     MVM_free(cstr);
                     break;
                 }
