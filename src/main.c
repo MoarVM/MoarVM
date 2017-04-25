@@ -15,6 +15,16 @@
 #  include "signal.h"
 #endif
 
+#ifndef _WIN32
+#  include <unistd.h>
+#else
+#  include <process.h>
+#endif
+
+#ifdef _WIN32
+#  define snprintf _snprintf
+#endif
+
 /* flags need to be sorted alphabetically */
 
 enum {
@@ -69,6 +79,7 @@ The following environment variables are respected:\n\
     MVM_JIT_BYTECODE_DIR        Specifies a directory for JIT bytecode dumps\n\
     MVM_CROSS_THREAD_WRITE_LOG  Log unprotected cross-thread object writes to stderr\n\
     MVM_COVERAGE_LOG            Append line-by-line coverage messages to this file\n\
+    MVM_TELEMETRY_LOG           Write high-resolution timing for several internal events\n\
 ";
 
 static int cmp_flag(const void *key, const void *value)
@@ -123,6 +134,8 @@ int wmain(int argc, wchar_t *wargv[])
     int argi         = 1;
     int lib_path_i   = 0;
     int flag;
+
+    unsigned int interval_id;
 
     for (; (flag = parse_flag(argv[argi])) != NOT_A_FLAG; ++argi) {
         switch (flag) {
@@ -187,6 +200,19 @@ int wmain(int argc, wchar_t *wargv[])
         }
     }
 
+    if (getenv("MVM_TELEMETRY_LOG")) {
+        char path[256];
+        snprintf(path, 255, "%s.%d", getenv("MVM_TELEMETRY_LOG"),
+#ifdef _WIN32
+             _getpid()
+#else
+             getpid()
+#endif
+             );
+        MVM_telemetry_init(fopen(path, "w"));
+        interval_id = MVM_telemetry_interval_start(0, "moarvm startup");
+    }
+
     lib_path[lib_path_i] = NULL;
 
     if (argi >= argc) {
@@ -212,6 +238,11 @@ int wmain(int argc, wchar_t *wargv[])
 
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);
+
+    if (getenv("MVM_TELEMETRY_LOG")) {
+        MVM_telemetry_interval_stop(0, interval_id, "moarvm teardown");
+        MVM_telemetry_finish();
+    }
 
     if (full_cleanup) {
         MVM_vm_destroy_instance(instance);

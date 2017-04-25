@@ -115,18 +115,24 @@ static const MVMREPROps Semaphore_this_repr = {
 };
 
 MVMint64 MVM_semaphore_tryacquire(MVMThreadContext *tc, MVMSemaphore *sem) {
-    int r = uv_sem_trywait(sem->body.sem);
+    int r;
+    MVM_telemetry_timestamp(tc, "Semaphore.tryAcquire");
+    r = uv_sem_trywait(sem->body.sem);
     return !r;
 }
 
 void MVM_semaphore_acquire(MVMThreadContext *tc, MVMSemaphore *sem) {
+    unsigned int interval_id;
+    interval_id = MVM_telemetry_interval_start(tc, "Semaphore.acquire");
     MVMROOT(tc, sem, {
         MVM_gc_mark_thread_blocked(tc);
         uv_sem_wait(sem->body.sem);
         MVM_gc_mark_thread_unblocked(tc);
     });
+    MVM_telemetry_interval_stop(tc, interval_id, "Semaphore.acquire");
 }
 
 void MVM_semaphore_release(MVMThreadContext *tc, MVMSemaphore *sem) {
+    MVM_telemetry_timestamp(tc, "Semaphore.release");
     uv_sem_post(sem->body.sem);
 }

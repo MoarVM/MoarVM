@@ -16,6 +16,9 @@ before_install:
       printf "github.com,192.30.255.112 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==\n" >> ~/.ssh/known_hosts
       # Decrypt deploy_key using Travis *magic* variables
       eval 'openssl aes-256-cbc -K $encrypted_b77ce3a1cc5c_key -iv $encrypted_b77ce3a1cc5c_iv -in ./tools/gh-pages-deploy_key.enc -out deploy_key -d'
+      # Now that it's decrypted, clear the keys so it can't leak
+      export encrypted_b77ce3a1cc5c_key=""
+      export encrypted_b77ce3a1cc5c_iv=""
       chmod 600 deploy_key # Change perms or ssh-agent will get mad at us
       eval $(ssh-agent -s) # Run the code that ssh-agent -s gives back to setup ENV
       # Decrypted key has no password, but it will still ask for one. Use expect program to interact with it non-interactively
@@ -43,6 +46,8 @@ before_script:
   # and returns the highest version. Travis CI installs newer versions under
   # their own verison numbers.
   - find_latest_version () { ls /usr/bin | grep -Ee "^$1(\-[0-9.]+)?$" | sort -r | head -n 1; }
+  # MacOS's readlink doesn't support -f, so use our own solution
+  - resolve_folder      () { O="$(pwd -P)"; D="$(dirname $1)"; T="$(basename $1)"; cd -- "$D" && cd -- "$T" && pwd -P; cd -- "$O" > /dev/null; }
   - find_latest_version llvm-profdata
   - find_latest_version llvm-cov
   # Find the latest clang that is on the system
@@ -60,20 +65,26 @@ before_script:
 script:
   - echo "Begin ‘script’ section of .travis.yml"
   - export MOAR_PREFIX="/tmp/moar"; export MOAR_FOLDER="$TRAVIS_BUILD_DIR"
-  - export NQP_FOLDER="$(readlink -f ./nqp)"
+  - export NQP_FOLDER="$(resolve_folder ./nqp)"
+  - echo "perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc=\"$CC\" $MVM_debug $MVM_optimize;"
   - perl Configure.pl --prefix=$MOAR_PREFIX $MVM_OPTIONS --cc="$CC" $MVM_debug $MVM_optimize;
   - make install;
-  - cd nqp;
+  - cd -- "$NQP_FOLDER";
+  - echo "perl Configure.pl --prefix=$MOAR_PREFIX --backends=moar;"
   - perl Configure.pl --prefix=$MOAR_PREFIX --backends=moar;
   - make;
   - make test;
-  - cd ..
+  - cd -- "$MOAR_FOLDER"
   - if [ "$COVERAGE" ]; then git clone --depth 1 'https://github.com/samcv/MoarVM-cover.git' && cp -v MoarVM-cover/html-cover.sh . && cp -v MoarVM-cover/nqp-profile ./nqp/ && cp -v MoarVM-cover/merge-profraw.sh ./nqp/ && ./html-cover.sh 2; fi
 
 after_success:
   - echo "Begin ‘after_success’ section of .travis.yml"
   - cd "$TRAVIS_BUILD_DIR"
   - if [ "$COVERAGE" ]; then ./tools/update-gh-pages.sh; fi
+
+after_failure:
+# On failure, dump all ENV vars, in case we need to look at them
+  - if [ ! "$encrypted_b77ce3a1cc5c_key" ] && [ ! "$encrypted_b77ce3a1cc5c_iv" ]; then printenv; fi
 
 branches:
    only:

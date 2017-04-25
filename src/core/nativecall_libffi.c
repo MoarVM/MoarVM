@@ -210,12 +210,15 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     MVMRegister *args;
     MVMNativeCallback *data = (MVMNativeCallback *)cb_data;
     void           **values = MVM_malloc(sizeof(void *) * (data->cs->arg_count ? data->cs->arg_count : 1));
+    unsigned int interval_id;
 
     /* Unblock GC if needed, so this thread can do work. */
     MVMThreadContext *tc = data->tc;
     MVMint32 was_blocked = MVM_gc_is_thread_blocked(tc);
     if (was_blocked)
         MVM_gc_mark_thread_unblocked(tc);
+
+    interval_id = MVM_telemetry_interval_start(tc, "nativecall callback handler");
 
     /* Build a callsite and arguments buffer. */
     args = MVM_malloc(data->num_types * sizeof(MVMRegister));
@@ -296,6 +299,7 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
                 args[i - 1].i64 = *(unsigned long long *)cb_args[i - 1];
                 break;
             default:
+                MVM_telemetry_interval_stop(tc, interval_id, "nativecall callback handler failed");
                 MVM_exception_throw_adhoc(tc,
                     "Internal error: unhandled libffi callback argument type");
         }
@@ -405,6 +409,7 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
             *(unsigned long long *)cb_result = MVM_nativecall_unmarshal_ulonglong(data->tc, res.o);
             break;
         default:
+                MVM_telemetry_interval_stop(tc, interval_id, "nativecall callback handler failed");
             MVM_exception_throw_adhoc(data->tc,
                 "Internal error: unhandled libffi callback return type");
     }
@@ -417,6 +422,8 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     /* Re-block GC if needed, so other threads will be able to collect. */
     if (was_blocked)
         MVM_gc_mark_thread_blocked(tc);
+
+    MVM_telemetry_interval_stop(tc, interval_id, "nativecall callback handler");
 }
 
 #define handle_arg(what, cont_X, dc_type, reg_slot, unmarshal_fun) do { \
@@ -476,8 +483,13 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     void     *entry_point = body->entry_point;
     void    **values      = MVM_malloc(sizeof(void *) * (num_args ? num_args : 1));
 
+    unsigned int interval_id;
+
     ffi_cif cif;
     ffi_status status  = ffi_prep_cif(&cif, body->convention, (unsigned int)num_args, body->ffi_ret_type, body->ffi_arg_types);
+
+    interval_id = MVM_telemetry_interval_start(tc, "nativecall invoke");
+    MVM_telemetry_interval_annotate((uintptr_t)entry_point, interval_id, "nc entrypoint");
 
     /* Process arguments. */
     for (i = 0; i < num_args; i++) {
@@ -582,6 +594,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 handle_arg("integer", cont_i, unsigned long long, i64, MVM_nativecall_unmarshal_ulonglong);
                 break;
             default:
+                MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
                 MVM_exception_throw_adhoc(tc, "Internal error: unhandled libffi argument type");
         }
     }
@@ -686,6 +699,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     handle_ret(tc, unsigned long long, ffi_arg, MVM_nativecall_make_int);
                     break;
                 default:
+                    MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled libffi return type");
             }
         }
@@ -737,6 +751,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                         (MVMint64)*(void **)*(void **)values[i]);
                     break;
                 default:
+                    MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled libffi argument type");
             }
         }
@@ -753,6 +768,8 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
 
     if (values)
         MVM_free(values);
+
+    MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke");
 
     return result;
 }

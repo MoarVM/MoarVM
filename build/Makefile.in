@@ -208,6 +208,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/profiler/log@obj@ \
           src/profiler/profile@obj@ \
           src/profiler/heapsnapshot@obj@ \
+          src/profiler/telemeh@obj@ \
           src/instrument/crossthreadwrite@obj@ \
           src/instrument/line_coverage@obj@ \
           src/moar@obj@ \
@@ -356,6 +357,7 @@ HEADERS = src/moar.h \
           src/profiler/log.h \
           src/profiler/profile.h \
           src/profiler/heapsnapshot.h \
+          src/profiler/telemeh.h \
           src/platform/mmap.h \
           src/platform/time.h \
           src/platform/threads.h \

@@ -211,12 +211,15 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     MVMint32 num_roots, i;
     MVMRegister res;
     MVMRegister *args;
+    unsigned int interval_id;
 
     /* Unblock GC if needed, so this thread can do work. */
     MVMThreadContext *tc = data->tc;
     MVMint32 was_blocked = MVM_gc_is_thread_blocked(tc);
     if (was_blocked)
         MVM_gc_mark_thread_unblocked(tc);
+
+    interval_id = MVM_telemetry_interval_start(tc, "nativecall callback handler");
 
     /* Build a callsite and arguments buffer. */
     args = MVM_malloc(data->num_types * sizeof(MVMRegister));
@@ -303,6 +306,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                 args[i - 1].i64 = dcbArgULongLong(cb_args);
                 break;
             default:
+                MVM_telemetry_interval_stop(tc, interval_id, "nativecall callback handler failed");
                 MVM_exception_throw_adhoc(tc,
                     "Internal error: unhandled dyncall callback argument type");
         }
@@ -412,6 +416,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
             cb_result->l = MVM_nativecall_unmarshal_ulonglong(data->tc, res.o);
             break;
         default:
+            MVM_telemetry_interval_stop(tc, interval_id, "nativecall callback handler failed");
             MVM_exception_throw_adhoc(data->tc,
                 "Internal error: unhandled dyncall callback return type");
     }
@@ -423,6 +428,8 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     /* Re-block GC if needed, so other threads will be able to collect. */
     if (was_blocked)
         MVM_gc_mark_thread_blocked(tc);
+
+    MVM_telemetry_interval_stop(tc, interval_id, "nativecall callback handler");
 
     /* Indicate what we're producing as a result. */
     return get_signature_char(data->typeinfos[0]);
@@ -475,10 +482,15 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     void     *entry_point = body->entry_point;
     void     *ptr         = NULL;
 
+    unsigned int interval_id;
+
     /* Create and set up call VM. */
     DCCallVM *vm = dcNewCallVM(8192);
     dcMode(vm, body->convention);
     dcReset(vm);
+
+    interval_id = MVM_telemetry_interval_start(tc, "nativecall invoke");
+    MVM_telemetry_interval_annotate((intptr_t)entry_point, interval_id, "nc entrypoint");
 
     /* Process arguments. */
     for (i = 0; i < num_args; i++) {
@@ -580,6 +592,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 handle_arg("integer", cont_i, DCulonglong, i64, dcArgLongLong, MVM_nativecall_unmarshal_ulonglong);
                 break;
             default:
+                MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
                 MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall argument type");
         }
     }
@@ -720,6 +733,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 default:
+                    MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall return type");
             }
         }
@@ -772,6 +786,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                         (MVMint64)*(DCpointer *)free_rws[num_rws]);
                     break;
                 default:
+                    MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall argument type");
             }
             num_rws++;
@@ -796,5 +811,6 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     /* Finally, free call VM. */
     dcFree(vm);
 
+    MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke");
     return result;
 }
