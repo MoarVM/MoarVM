@@ -13,11 +13,17 @@
 #  if defined(__x86_64__) || defined(__i386__)
 #   include <x86intrin.h>
 #  else
-#   define __rdtscp(V) { V = 0; }
+unsigned int __rdtscp(unsigned int *inval) {
+    *inval = 0;
+    return 0;
+}
 #  endif
 # endif
 #else
-# define __rdtscp(V) { V = 0; }
+unsigned int __rdtscp(unsigned int *inval) {
+    *inval = 0;
+    return 0;
+}
 #endif
 
 double ticksPerSecond;
