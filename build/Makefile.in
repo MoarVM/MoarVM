@@ -21,6 +21,7 @@ ADDCONFIG =
 
 TRACING = 0
 CGOTO = @cancgoto@
+RDTSCP = @canrdtscp@
 NOISY = 0
 
 MSG = @:
@@ -37,7 +38,7 @@ MASTDIR   = @mastdir@
 
 PKGCONFIGDIR = @prefix@/share/pkgconfig
 
-CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
+CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO) @ccdef@MVM_RDTSCP=$(RDTSCP)
 CINCLUDES = @cincludes@ \
             @ccinc@@shaincludedir@ \
             @ccinc@3rdparty/tinymt \
