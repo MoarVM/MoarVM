@@ -40,7 +40,8 @@ int static get_cp(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoint *cp) 
     if (!MVM_string_ci_has_more(tc, ci)) {
         *cp = END_OF_NUM; // FIXME pick a safe value
         return 1;
-    } else {
+    }
+    else {
         *cp = MVM_string_ci_get_codepoint(tc, ci);
         return 0;
     }
