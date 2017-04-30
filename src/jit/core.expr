@@ -109,7 +109,7 @@
 # we can't just toss this in here without also handling all of arg_*
 # and invoke_*.
 #(template: prepargs (^setf (^getf (tc) MVMThreadContext cur_frame) MVMFrame cur_args_callsite
-                           #(^cu_callsite $0))))
+#                    (^cu_callsite $0)))
 
 (template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
 (template: sp_p6oget_n (load (add (^p6obody $1) $2) (&sizeof MVMnum64)))
@@ -126,3 +126,23 @@
 (template: say (callv (^func &MVM_string_say)
                       (arglist 2 (carg (tc) ptr)
                                  (carg $0 ptr))))
+
+(macro: ^objflag (,cv) (const (&QUOTE ,cv) (&SIZEOF_MEMBER MVMObject header.flags)))
+(macro: ^write_barrier (,obj ,ref)
+   (when (all 3 (nz (and (^getf ,obj MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN)))
+                (nz ,ref)
+                (zr (and (^getf ,ref MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN))))
+         (callv (^func &MVM_gc_write_barrier_hit)
+                (arglist 2 (carg (tc) ptr)
+                           (carg ,obj ptr)))))
+
+(template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 int_sz))
+(template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 int_sz))
+
+# XXX these are still buggy :-(
+#(template: sp_p6obind_o (let: (($addr (add (^p6obody $0) $1)))
+#                             (dov 2 (^write_barrier $0 $2)
+#                                    (store $addr $2 ptr_sz))))
+#(template: sp_p6obind_s (let: (($addr (add (^p6obody $0) $1)))
+#                             (dov 2 (^write_barrier $0 $2)
+#                                    (store $addr $2 ptr_sz))))

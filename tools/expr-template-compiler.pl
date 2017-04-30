@@ -297,7 +297,7 @@ if ($TESTING) {
         } else {
             die "I don't know what to do with '$keyword' ";
         }
-    }
+      }
     close $INPUT;
 
     # write a c output header file.
@@ -313,14 +313,15 @@ HEADER
             print $OUTPUT "\n    ";
             $i = length($_) + 2;
         }
-        print $OUTPUT "$_, ";
+        print $OUTPUT "$_,";
     }
     print $OUTPUT "\n};\n";
     print $OUTPUT "static const MVMJitExprTemplate MVM_jit_expr_template_info[] = {\n";
     for (@opcodes) {
         if (defined($info{$_})) {
             my $td = $info{$_};
-            print $OUTPUT "    { &MVM_jit_expr_templates[$td->{idx}], \"$td->{info}\", $td->{len}, $td->{root}, $td->{flags} },\n";
+            printf $OUTPUT '    { MVM_jit_expr_templates + %d, "%s", %d, %d, %d },%s',
+                           $td->{idx}, $td->{info}, $td->{len}, $td->{root}, $td->{flags}, "\n";
         } else {
             print $OUTPUT "    { NULL, NULL, -1, 0 },\n";
         }
