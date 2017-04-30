@@ -1,10 +1,10 @@
 #include "moar.h"
 #include <math.h>
 
-/* We put a NULL into the current code point buffer when we reach the end of the string,
- *  as it's not something that can be part of a number */
+/* We put a ' ' into the current code point buffer when we reach the end of the string,
+ *  as it's something that can be harmlessly added to the end of a number */
 
-#define END_OF_NUM 0
+#define END_OF_NUM ' '
 static int is_whitespace(MVMThreadContext *tc, MVMCodepoint cp) {
     if (cp <= '~') {
         if (cp == ' ' || (cp <= 13 && cp >= 9))
