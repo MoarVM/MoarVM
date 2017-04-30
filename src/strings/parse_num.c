@@ -70,7 +70,7 @@ static int parse_sign(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoint *
     return (has_minus ? -1 : 1);
 }
 
-static double parse_int_frac_exp(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoint *cp, MVMString* s, double radix) {
+static double parse_int_frac_exp(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoint *cp, MVMString* s, double radix, int leading_zero) {
     double integer = 0;
     double frac = 0;
     double base = 1;
@@ -109,7 +109,7 @@ static double parse_int_frac_exp(MVMThreadContext *tc, MVMCodepointIter *ci, MVM
         }
     }
 
-    if (digits == 0 && frac_digits == 0) parse_error(tc, s, "expecting a number");
+    if (digits == 0 && frac_digits == 0 && !leading_zero) parse_error(tc, s, "expecting a number");
 
     if (*cp == 'E' || *cp == 'e') {
         int e_digits = 0;
@@ -174,8 +174,25 @@ static double parse_simple_number(MVMThreadContext *tc, MVMCodepointIter *ci, MV
     if (match_word(tc, ci, cp, "Inf", s)) {
         return sign * MVM_num_posinf(tc);
     }
+    else if (*cp == '0') {
+        int radix = 0;
+
+        get_cp(tc, ci, cp);
+        if (*cp == 'b') radix = 2;
+        else if (*cp == 'o') radix = 8;
+        else if (*cp == 'd') radix = 10;
+        else if (*cp == 'x') radix = 16;
+
+        if (radix) {
+            get_cp(tc, ci, cp);
+            if (*cp == '_') get_cp(tc, ci, cp);
+            return sign * parse_int_frac_exp(tc, ci, cp, s, radix, 1);
+        } else {
+            return sign * parse_int_frac_exp(tc, ci, cp, s, 10, 1);
+        }
+    }
     else {
-        return sign * parse_int_frac_exp(tc, ci, cp, s, 10);
+        return sign * parse_int_frac_exp(tc, ci, cp, s, 10, 0);
     }
 }
 
