@@ -174,6 +174,34 @@ static double parse_simple_number(MVMThreadContext *tc, MVMCodepointIter *ci, MV
     if (match_word(tc, ci, cp, "Inf", s)) {
         return sign * MVM_num_posinf(tc);
     }
+    else if (*cp == ':') {
+        int radix;
+        double body;
+        get_cp(tc, ci, cp);
+        radix = (int) parse_int_frac_exp(tc, ci, cp, s, 10, 0);
+        if (*cp == '<') {
+            get_cp(tc, ci, cp);
+            body = parse_int_frac_exp(tc, ci, cp, s, radix, 0);
+            if (*cp == '>') {
+                get_cp(tc, ci, cp);
+                return sign * body;
+            }
+            else {
+                parse_error(tc, s, "malformed ':radix<>' style radix number, expecting '>' after the body");
+            }
+        }
+        else if (*cp == 171) { // «
+            get_cp(tc, ci, cp);
+            body = parse_int_frac_exp(tc, ci, cp, s, radix, 0);
+            if (*cp == 187) { // »
+                get_cp(tc, ci, cp);
+                return sign * body;
+            }
+            else {
+                parse_error(tc, s, "malformed ':radix«»' style radix number, expecting '>' after the body");
+            }
+        }
+    }
     else if (*cp == '0') {
         int radix = 0;
 
