@@ -70,6 +70,23 @@ static int parse_sign(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoint *
     return (has_minus ? -1 : 1);
 }
 
+static double parse_decimal_integer(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoint *cp, MVMString* s) {
+    int ends_with_underscore = 0;
+    double value = 0;
+    int digit;
+    if (*cp == '_') parse_error(tc, s, "number can't be start with _");
+    while (*cp == '_' || (digit = cp_value(tc, *cp)) != -1) {
+        ends_with_underscore = *cp == '_';
+        if (*cp != '_') {
+            if (digit >= 10) parse_error(tc, s, "expecting comma seprated decimal numbers after :$radix[]");
+            value = value * 10 + digit;
+        }
+        get_cp(tc, ci, cp);
+    }
+    if (ends_with_underscore) parse_error(tc, s, "a number can't end in underscore");
+    return value;
+}
+
 static double parse_int_frac_exp(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoint *cp, MVMString* s, double radix, int leading_zero) {
     double integer = 0;
     double frac = 0;
@@ -199,6 +216,24 @@ static double parse_simple_number(MVMThreadContext *tc, MVMCodepointIter *ci, MV
             }
             else {
                 parse_error(tc, s, "malformed ':radix«»' style radix number, expecting '>' after the body");
+            }
+        }
+        else if (*cp == '[') { // «
+            double result = 0;
+            get_cp(tc, ci, cp);
+            while (*cp != ']' && MVM_string_ci_has_more(tc, ci)) {
+                double digit = parse_decimal_integer(tc, ci, cp, s);
+                result = result * radix + digit;
+                if (*cp == ',') {
+                    get_cp(tc, ci, cp);
+                }
+            }
+            if (*cp == ']') { // »
+                get_cp(tc, ci, cp);
+                return sign * result;
+            }
+            else {
+                parse_error(tc, s, "malformed ':radix[]' style radix number, expecting ']' after the body");
             }
         }
     }
