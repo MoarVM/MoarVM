@@ -139,10 +139,11 @@
 (template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 int_sz))
 (template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 int_sz))
 
-# XXX these are still buggy :-(
-(template: sp_p6obind_o (let: (($addr (add (^p6obody $0) $1)))
-                             (dov 2 (^write_barrier $0 $2)
-                                    (store $addr $2 ptr_sz))))
-#(template: sp_p6obind_s (let: (($addr (add (^p6obody $0) $1)))
-#                             (dov 2 (^write_barrier $0 $2)
-#                                    (store $addr $2 ptr_sz))))
+
+(template: sp_p6obind_o
+    (dov 2 (^write_barrier $0 $2)
+           (store (add (^p6obody $0) $1) $2 ptr_sz)))
+
+(template: sp_p6obind_s
+    (dov 2 (^write_barrier $0 $2)
+           (store (add (^p6obody $0) $1) $2 ptr_sz)))
