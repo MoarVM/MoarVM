@@ -890,6 +890,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
         /* deal with 'special' requirements */
         for (; order_nr(tile_cursor) <= tile_order_nr; tile_cursor++) {
             MVMJitTile *tile = list->items[tile_cursor];
+
             if (tile->op == MVM_JIT_ARGLIST) {
                 MVMint32 arglist_idx = tile_cursor;
                 MVMint32 call_idx    = ++tile_cursor;
@@ -926,6 +927,28 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
             active_set_add(tc, alc, v);
         }
     }
+
+    /* deal with final 'special tile' requirements */
+    for (; tile_cursor < list->items_num; tile_cursor++) {
+        MVMJitTile *tile = list->items[tile_cursor];
+        if (tile->op == MVM_JIT_ARGLIST) {
+            MVMint32 arglist_idx = tile_cursor;
+            MVMint32 call_idx    = ++tile_cursor;
+            _ASSERT((list->items[call_idx]->op == MVM_JIT_CALL || list->items[call_idx]->op == MVM_JIT_CALLV),
+                    "ARGLIST tiles must be followed by CALL");
+            prepare_arglist_and_call(tc, alc, list, arglist_idx, call_idx);
+        } else {
+            /* deal with 'use' registers */
+            for  (i = 1; i < tile->num_refs; i++) {
+                MVMint8 spec = MVM_JIT_REGISTER_FETCH(tile->register_spec, i);
+                if (MVM_JIT_REGISTER_IS_USED(spec) && MVM_JIT_REGISTER_HAS_REQUIREMENT(spec)) {
+                    /* we could use the register map here, but let's wait and see */
+                    NYI(tile_use_requirements);
+                }
+            }
+        }
+    }
+
     /* flush active live ranges */
     active_set_expire(tc, alc, list->items_num + 1);
     _DEBUG("END OF LINEAR SCAN%s","\n");
