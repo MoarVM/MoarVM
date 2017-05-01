@@ -94,11 +94,13 @@ static double parse_int_frac_exp(MVMThreadContext *tc, MVMCodepointIter *ci, MVM
     int digits = 0;
     int frac_digits = 0;
     int digit;
+    int ends_with_underscore = 0;
 
     if (*cp == '_') parse_error(tc, s, "number can't start with _");
 
     if (*cp != '.') {
         while (*cp == '_' || (digit = cp_value(tc, *cp)) != -1) {
+            ends_with_underscore = *cp == '_';
             if (*cp != '_') {
                 if (digit >= radix) break;
                 integer = integer * radix + digit;
@@ -106,13 +108,15 @@ static double parse_int_frac_exp(MVMThreadContext *tc, MVMCodepointIter *ci, MVM
             }
             get_cp(tc, ci, cp);
         }
-
+        if (ends_with_underscore) parse_error(tc, s, "a number can't end in underscore");
     }
+
 
     if (*cp == '.') {
         get_cp(tc, ci, cp);
         if (*cp == '_') parse_error(tc, s, "radix point can't be followed by _");
         while (*cp == '_' || (digit = cp_value(tc, *cp)) != -1) {
+            ends_with_underscore = *cp == '_';
             if (*cp != '_') {
                 if (digit >= radix) break;
                 frac = frac * radix + digit;
@@ -124,6 +128,7 @@ static double parse_int_frac_exp(MVMThreadContext *tc, MVMCodepointIter *ci, MVM
         if (frac_digits == 0) {
             parse_error(tc, s, "radix point must be followed by one or more valid digits");
         }
+        if (ends_with_underscore) parse_error(tc, s, "a number can't end in underscore");
     }
 
     if (digits == 0 && frac_digits == 0 && !leading_zero) parse_error(tc, s, "expecting a number");
