@@ -84,7 +84,6 @@ for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
 
 # jit is default
 $args{jit} = 1 unless defined $args{jit};
-$args{telemeh} = 1 unless defined $args{telemeh};
 
 # fill in C<%defaults>
 if (exists $args{build} || exists $args{host}) {
@@ -803,7 +802,7 @@ __END__
                    [--has-libtommath] [--has-sha] [--has-libuv]
                    [--has-libatomic_ops] [--has-dynasm]
                    [--lua <lua>] [--asan] [--ubsan] [--no-jit]
-                   [--no-telemeh]
+                   [--telemeh]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
@@ -968,8 +967,8 @@ Disable JIT compiler, which is enabled by default to JIT-compile hot frames.
 
 Path to a lua executable. (Used during the build when JIT is enabled).
 
-=item --telemeh --no-telemeh
+=item --telemeh
 
-Build (or do not build) support for the fine-grained internal event logger.
+Build support for the fine-grained internal event logger.
 
 =back
