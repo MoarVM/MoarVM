@@ -599,6 +599,7 @@ static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
+    zero_slots(tc, body, body->start + body->elems, body->start + body->elems + 1, repr_data->slot_type);
     exit_single_user(tc, body);
 }
 
