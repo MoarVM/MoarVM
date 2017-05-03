@@ -528,6 +528,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
 static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
+    const MVMuint64 slot        = body->start + body->elems - 1;
 
     if (body->elems < 1)
         MVM_exception_throw_adhoc(tc,
@@ -539,67 +540,67 @@ static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
                 MVM_exception_throw_adhoc(tc, "MVMArray: pop expected object register");
-            value->o = body->slots.o[body->start + body->elems];
+            value->o = body->slots.o[slot];
             break;
         case MVM_ARRAY_STR:
             if (kind != MVM_reg_str)
                 MVM_exception_throw_adhoc(tc, "MVMArray: pop expected string register");
-            value->s = body->slots.s[body->start + body->elems];
+            value->s = body->slots.s[slot];
             break;
         case MVM_ARRAY_I64:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: pop expected int register");
-            value->i64 = (MVMint64)body->slots.i64[body->start + body->elems];
+            value->i64 = (MVMint64)body->slots.i64[slot];
             break;
         case MVM_ARRAY_I32:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: pop expected int register");
-            value->i64 = (MVMint64)body->slots.i32[body->start + body->elems];
+            value->i64 = (MVMint64)body->slots.i32[slot];
             break;
         case MVM_ARRAY_I16:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: pop expected int register");
-            value->i64 = (MVMint64)body->slots.i16[body->start + body->elems];
+            value->i64 = (MVMint64)body->slots.i16[slot];
             break;
         case MVM_ARRAY_I8:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: pop expected int register");
-            value->i64 = (MVMint64)body->slots.i8[body->start + body->elems];
+            value->i64 = (MVMint64)body->slots.i8[slot];
             break;
         case MVM_ARRAY_N64:
             if (kind != MVM_reg_num64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: pop expected num register");
-            value->n64 = (MVMnum64)body->slots.n64[body->start + body->elems];
+            value->n64 = (MVMnum64)body->slots.n64[slot];
             break;
         case MVM_ARRAY_N32:
             if (kind != MVM_reg_num64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: pop expected num register");
-            value->n64 = (MVMnum64)body->slots.n32[body->start + body->elems];
+            value->n64 = (MVMnum64)body->slots.n32[slot];
             break;
         case MVM_ARRAY_U64:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: pop expected int register");
-            value->i64 = (MVMint64)body->slots.u64[body->start + body->elems];
+            value->i64 = (MVMint64)body->slots.u64[slot];
             break;
         case MVM_ARRAY_U32:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: pop expected int register");
-            value->i64 = (MVMint64)body->slots.u32[body->start + body->elems];
+            value->i64 = (MVMint64)body->slots.u32[slot];
             break;
         case MVM_ARRAY_U16:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: pop expected int register");
-            value->i64 = (MVMint64)body->slots.u16[body->start + body->elems];
+            value->i64 = (MVMint64)body->slots.u16[slot];
             break;
         case MVM_ARRAY_U8:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: pop expected int register");
-            value->i64 = (MVMint64)body->slots.u8[body->start + body->elems];
+            value->i64 = (MVMint64)body->slots.u8[slot];
             break;
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
-    zero_slots(tc, body, body->start + body->elems, body->start + body->elems + 1, repr_data->slot_type);
+    zero_slots(tc, body, slot, slot + 1, repr_data->slot_type);
     exit_single_user(tc, body);
 }
 
