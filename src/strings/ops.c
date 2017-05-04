@@ -1,6 +1,7 @@
 #include "platform/memmem.h"
 #include "moar.h"
 #define MVM_DEBUG_STRANDS 0
+#define MAX_GRAPHEMES     0xFFFFFFFF
 
 #if MVM_DEBUG_STRANDS
 static void check_strand_sanity(MVMThreadContext *tc, MVMString *s) {
@@ -459,10 +460,10 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
 
     /* Total size of the resulting string can't be bigger than an MVMString is allowed to be. */
     total_graphs = (MVMuint64)agraphs + (MVMuint64)bgraphs;
-    if (total_graphs > 0xFFFFFFFF)
+    if (total_graphs > MAX_GRAPHEMES)
         MVM_exception_throw_adhoc(tc,
             "Can't concatenate strings, required number of graphemes %"PRIu64" > max allowed of %u",
-             total_graphs, 0xFFFFFFFF);
+             total_graphs, MAX_GRAPHEMES);
 
     /* Otherwise, we'll assemble a result string. */
     MVMROOT(tc, a, {
@@ -557,8 +558,8 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         return a;
     if (count < 0)
         MVM_exception_throw_adhoc(tc, "repeat count (%"PRId64") cannot be negative", count);
-    if (count > 0xFFFFFFFF)
-        MVM_exception_throw_adhoc(tc, "repeat count (%"PRId64") cannot be > than max allowed number of graphemes %u", count, 0xFFFFFFFF);
+    if (count > MAX_GRAPHEMES)
+        MVM_exception_throw_adhoc(tc, "repeat count (%"PRId64") cannot be > than max allowed number of graphemes %u", count, MAX_GRAPHEMES);
 
     /* If input string is empty, repeating it is empty. */
     agraphs = MVM_string_graphs_nocheck(tc, a);
@@ -567,10 +568,10 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
 
     /* Total size of the resulting string can't be bigger than an MVMString is allowed to be. */
     total_graphs = (MVMuint64)agraphs * (MVMuint64)count;
-    if (total_graphs > 0xFFFFFFFF)
+    if (total_graphs > MAX_GRAPHEMES)
         MVM_exception_throw_adhoc(tc,
             "Can't repeat string, required number of graphemes %"PRIu64" > max allowed of %u",
-             total_graphs, 0xFFFFFFFF);
+             total_graphs, MAX_GRAPHEMES);
 
     /* Now build a result string with the repetition set. */
     MVMROOT(tc, a, {
