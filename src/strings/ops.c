@@ -557,8 +557,8 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         return a;
     if (count < 0)
         MVM_exception_throw_adhoc(tc, "repeat count (%"PRId64") cannot be negative", count);
-    if (count > (1 << 30))
-        MVM_exception_throw_adhoc(tc, "repeat count > %d arbitrarily unsupported...", (1 << 30));
+    if (count > 0xFFFFFFFF)
+        MVM_exception_throw_adhoc(tc, "repeat count (%"PRId64") cannot be > than max allowed number of graphemes %u", count, 0xFFFFFFFF);
 
     /* If input string is empty, repeating it is empty. */
     agraphs = MVM_string_graphs_nocheck(tc, a);
