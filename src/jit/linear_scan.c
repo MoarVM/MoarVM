@@ -872,15 +872,22 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
 
 }
 
-MVM_STATIC_INLINE MVMint32 handle_requirements(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 tile_cursor) {
+MVM_STATIC_INLINE void process_tile(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, MVMint32 tile_cursor) {
     MVMJitTile *tile = list->items[tile_cursor];
 
     if (tile->op == MVM_JIT_ARGLIST) {
         MVMint32 arglist_idx = tile_cursor;
-        MVMint32 call_idx    = ++tile_cursor;
-        _ASSERT((list->items[call_idx]->op == MVM_JIT_CALL || list->items[call_idx]->op == MVM_JIT_CALLV),
+        MVMint32 call_idx    = tile_cursor + 1;
+        _ASSERT(call_idx < list->items_num &&
+                (list->items[call_idx]->op == MVM_JIT_CALL ||
+                 list->items[call_idx]->op == MVM_JIT_CALLV),
                 "ARGLIST tiles must be followed by CALL");
         prepare_arglist_and_call(tc, alc, list, arglist_idx, call_idx);
+    } else if (tile->op == MVM_JIT_CALL || tile->op == MVM_JIT_CALLV) {
+        /* Any CALL op requiremetns are handles by prepare_arglist_and_call,
+         * which handles both tiles,  */
+        _ASSERT(tile_cursor > 0 && list->items[tile_cursor - 1]->op == MVM_JIT_ARGLIST,
+                "CALL must be preceeded by ARGLIST");
     } else {
         MVMint32 i;
         /* deal with 'use' registers */
@@ -892,7 +899,6 @@ MVM_STATIC_INLINE MVMint32 handle_requirements(MVMThreadContext *tc, RegisterAll
             }
         }
     }
-    return tile_cursor;
 }
 
 
@@ -912,7 +918,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
 
         /* deal with 'special' requirements */
         for (; order_nr(tile_cursor) <= tile_order_nr; tile_cursor++) {
-            tile_cursor = handle_requirements(tc, alc, list, tile_cursor);
+            process_tile(tc, alc, list, tile_cursor);
         }
 
         /* assign registers in loop */
@@ -936,7 +942,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
 
     /* deal with final 'special tile' requirements */
     for (; tile_cursor < list->items_num; tile_cursor++) {
-        tile_cursor = handle_requirements(tc, alc, list, tile_cursor);
+        process_tile(tc, alc, list, tile_cursor);
     }
 
     /* flush active live ranges */
