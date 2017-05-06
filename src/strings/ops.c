@@ -1,6 +1,8 @@
 #include "platform/memmem.h"
 #include "moar.h"
 #define MVM_DEBUG_STRANDS 0
+
+/* Max value possible for MVMuint32 MVMStringBody.num_graphs */
 #define MAX_GRAPHEMES     0xFFFFFFFF
 
 #if MVM_DEBUG_STRANDS
@@ -559,7 +561,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     if (count < 0)
         MVM_exception_throw_adhoc(tc, "repeat count (%"PRId64") cannot be negative", count);
     if (count > MAX_GRAPHEMES)
-        MVM_exception_throw_adhoc(tc, "repeat count (%"PRId64") cannot be > than max allowed number of graphemes %u", count, MAX_GRAPHEMES);
+        MVM_exception_throw_adhoc(tc, "repeat count (%"PRId64") cannot be greater than max allowed number of graphemes %u", count, MAX_GRAPHEMES);
 
     /* If input string is empty, repeating it is empty. */
     agraphs = MVM_string_graphs_nocheck(tc, a);
@@ -570,7 +572,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
     total_graphs = (MVMuint64)agraphs * (MVMuint64)count;
     if (total_graphs > MAX_GRAPHEMES)
         MVM_exception_throw_adhoc(tc,
-            "Can't repeat string, required number of graphemes %"PRIu64" > max allowed of %u",
+            "Can't repeat string, required number of graphemes %"PRIu64" greater than max allowed of %u",
              total_graphs, MAX_GRAPHEMES);
 
     /* Now build a result string with the repetition set. */
