@@ -962,7 +962,7 @@ and the first block of IF/IFV.
 
 Idea: do the patchup in the postorder step.
 
-*** TODO Determine live range holes
+*** DONE Determine live range holes
 
 We can use the algorithm defined by (Wimmer, 2010).
 
@@ -984,6 +984,111 @@ The basic idea is that
   before
 - if a value is live in one of successors, it must've been live
   out of this basic block
+
+**** DONE Count number of holes
+
+The number of holes equals the number of definitions minus the number
+of live ranges.
+
+A live range is initially created for each definition, and only when
+definitions are merged (PHI nodes) does the number of live ranges
+decrease. (Copies are not counted as live ranges, instead point
+directly to the original).
+
+Thus the number of holes is never more than the number of PHI
+nodes. (It may be less because some of the PHI nodes could be a 'false
+merge', e.g.. merging of a copy with its original). But an upper bound
+is good enough.
+
+**** DONE Represent set of live ranges
+
+We need three operations:
+
++ Adding
++ Removing
++ Merging
+
+Merging is necessary at basic block ends (when a basic block has two
+successors). With a single successor, a copy is allright.
+
+I'm thinking of using:
+- a sorted array for the original set
+- unsorted arrays for additions and removals
+
+After processing a basic block, we can sort the additions and
+removals, and merge them with live_out into live_in.
+
+Removals are never duplicated (it's SSA form after all). So that's
+something (it means I have an upper bound on the size of live_in:
+live_out + num_additions - num_removals).
+
+Hang on, sorting by number is never going to work... what if something
+is defined (removed) but used before that (added), then that thing
+must be in live_in. And if it is defined first but used after, then it
+must not. So we need the order information; we can't separate the
+set-construction from the code iteration order, so we might as well do
+it in the iteration.
+
+That leaves us still wanting a set structure that has cheap and
+cheerful insertions, removals, and merges. Is there a way we can
+search a binary heap with more-than-linear efficiency? Because
+addition and removal are pretty cheap.
+
+Provided the heap is min-ordered, then,
+- enqueue the root
+- while there is stuff in the queue
+  - if the node > key, then we can discard it
+  - if the node is = key, then we can stop
+  - if the node is < than key, we can enqueue it's children
+
+If we parameterize the heap code (with a data arg and a cmp
+function), then we can reuse it cheaply.
+
+But, on the other hand, heap search is worst-case O(N). Best-case is
+probably cheaper but best-case is always cheaper. If soemthing is in
+the middle of the heap we could just as well be doing a linear
+search.
+
+Binary search trees - interesting, probably not going to be
+benificial, because of the complexity involved with managing the
+memory - tree-in-array works, but you must exchange tight packing
+(memory use) with reordering complexity (CPU time), and even then you
+never get better than O(log N); moreover it's difficult to preallocate
+sufficient nodes upfront, not without being really pessimistic...
+
+Hash tables - look pretty good actually (pretty good O(1) complexity
+in most cases), but I don't like to implement one just for this
+feature. A hash table would be, without doubt, my prefered alternative
+to what I'm about to suggest, though:
+
+A bitmap.
+
+The set keys are bounded by the maximum live range. Enumerating them
+is never necessary; the union is. The size of memory required is
+ceil(max_live_range / 8) in bytes, multiplied by the number of basic
+blocks, i.e. 'strictly fixed', the way I like it. Adding stuff to the
+bitmap can never make it grow. The per-bit memory usage means that if
+we use 32 bit numbers to represent the keys, then the 'fill' of each
+basic block has to be no larger than 1/32 for the bitmap to be cheaper
+in memory than the most memory-efficient alternative, a tightly packed
+linear array. Addition, removal, search are all O(1) in worst-case,
+union is O(N), as is diff.
+
+
+**** DONE Detect holes
+
+If we find a definition which is *not* at the first ref of the live
+range, that means we have a hole.
+
+If we find a use of a variable that currently has a hole, then we
+should close it.
+
+If we find (during merge) that one of the successors has a variable in
+live_in, and the other has not, *and* that variable is in a hole, then
+we close the hole.
+
+Because we attach the holes to the live range in a linked list, we can
+always detect if the current live range is 'holed'.
 
 *** TODO Don't spill 'holes' in ARGLIST
 *** TODO Try to use 'holes' in allocation.

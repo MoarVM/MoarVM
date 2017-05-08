@@ -76,10 +76,17 @@ struct ValueRef {
     ValueRef *next;
 };
 
+struct Hole {
+    MVMint32 start, end;
+    struct Hole *next;
+};
 
 typedef struct {
     /* double-ended queue of value refs */
     ValueRef *first, *last;
+
+    /* list of holes in ascending order */
+    struct Hole *holes;
 
     /* We can have at most two synthetic tiles, one attached to the first
      * definition and one to the last use... we could also point directly into
@@ -104,6 +111,10 @@ typedef struct {
     /* single buffer for uses, definitions */
     ValueRef *refs;
     MVMint32  refs_num;
+
+    /* single buffer for number of holes */
+    struct Hole *holes;
+    MVMint32 holes_top;
 
     /* All values ever defined by the register allcoator */
     MVM_VECTOR_DECL(LiveRange, values);
@@ -389,10 +400,122 @@ void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileLis
     }
 }
 
+/* Witness the elegance of the bitmap for our purposes. */
+MVM_STATIC_INLINE void bitmap_set(MVMuint64 *bits, MVMint32 idx) {
+    bits[idx >> 6] |= (1 << (idx & 0x3f));
+}
+
+MVM_STATIC_INLINE MVMuint64 bitmap_get(MVMuint64 *bits, MVMint32 idx) {
+    return bits[idx >> 6] & (1 << (idx & 0x3f));
+}
+
+MVM_STATIC_INLINE void bitmap_delete(MVMuint64 *bits, MVMint32 idx) {
+    bits[idx >> 6] &= ~(1 << (idx & 0x3f));
+}
+
+MVM_STATIC_INLINE void bitmap_union_and_diff(MVMuint64 *u, MVMuint64 *d, MVMuint64 *a, MVMuint64 *b, MVMint32 n) {
+    MVMint32 i;
+    for (i = 0; i < n; i++) {
+        u[i] = a[i] | b[i];
+        d[i] = a[i] ^ b[i];
+    }
+}
+
+MVM_STATIC_INLINE void close_hole(RegisterAllocator *alc, MVMint32 ref, MVMint32 tile_idx) {
+    LiveRange *v = alc->values + ref;
+    if (v->holes && v->holes->start < tile_idx) {
+        v->holes->start = tile_idx;
+        _DEBUG("Closed hole in live range %d at %d", ref, tile_idx);
+    }
+}
+
+MVM_STATIC_INLINE void open_hole(RegisterAllocator *alc, MVMint32 ref, MVMint32 tile_idx) {
+    LiveRange *v = alc->values + ref;
+    if (first_ref(v) < order_nr(tile_idx) && (v->holes == NULL || v->holes->start > tile_idx)) {
+        struct Hole *hole = alc->holes + alc->holes_top++;
+        hole->next  = v->holes;
+        hole->start = 0;
+        hole->end   = tile_idx;
+        v->holes    = hole;
+        _DEBUG("Opened hole in live range %d at %d", ref, tile_idx);
+    }
+}
+
+static void find_live_range_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
+    MVMint32 i, j, k;
+
+    MVMint32 bitmap_size = (alc->values_num >> 5) + 1;
+
+ /* convenience macros */
+#define _BITMAP(_a)   (bitmaps + (_a)*bitmap_size)
+#define _SUCC(_a, _z) (list->blocks[(_a)].succ[(_z)])
+
+    MVMuint64 *bitmaps = MVM_calloc(list->blocks_num + 1, sizeof(MVMuint64) * bitmap_size);
+    /* last bitmap is allocated to hold diff, which is how we know which live
+     * ranges holes potentially need to be closed */
+    MVMuint64 *diff    = _BITMAP(list->blocks_num);
+
+    for (j = list->blocks_num - 1; j >= 0; j--) {
+        MVMuint64 *live_in = _BITMAP(j);
+        MVMint32 start = list->blocks[j].start, end = list->blocks[j].end;
+        if (list->blocks[j].num_succ == 2) {
+            /* live out is union of successors' live_in */
+            bitmap_union_and_diff(live_in, diff, _BITMAP(_SUCC(j, 0)), _BITMAP(_SUCC(j, 1)), bitmap_size);
+            for (k = 0; k < bitmap_size; k++) {
+                MVMuint64 additions = diff[k];
+                while (additions) {
+                    MVMint32 bit = FFS(additions) - 1;
+                    MVMint32 val = (k << 6) + bit;
+                    additions &= ~(1 << bit);
+                    close_hole(alc, val, end);
+                }
+            }
+        } else if (list->blocks[j].num_succ == 1) {
+            memcpy(live_in, _BITMAP(_SUCC(j, 0)),
+                   sizeof(MVMuint64) * bitmap_size);
+        }
+
+        for (i = end - 1; i >= start; i--) {
+            MVMJitTile *tile = list->items[i];
+            if (tile->op == MVM_JIT_ARGLIST) {
+                /* list of uses, all very real */
+                MVMint32 nchild = list->tree->nodes[tile->node + 1];
+                for (k = 0; k < nchild; k++) {
+                    MVMint32 carg = list->tree->nodes[tile->node + 2 + k];
+                    MVMint32 ref  = value_set_find(alc->sets, list->tree->nodes[carg + 1])->idx;
+                    if (!bitmap_get(live_in, ref)) {
+                        bitmap_set(live_in, ref);
+                        close_hole(alc, ref, i);
+                    }
+                }
+            } else if (tile->op == MVM_JIT_IF || tile->op == MVM_JIT_DO || tile->op == MVM_JIT_COPY) {
+                /* not a real use, no work needed here (we already merged them) */
+            } else {
+                /* regular defintions and uses */
+                for (k = 1; k < tile->num_refs; k++) {
+                    if (MVM_JIT_REGISTER_IS_USED(MVM_JIT_REGISTER_FETCH(tile->register_spec, k))) {
+                        MVMint32 ref = value_set_find(alc->sets, tile->refs[k])->idx;
+                        close_hole(alc, ref, i);
+                    }
+                }
+                if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
+                    MVMint32 ref = value_set_find(alc->sets, tile->node)->idx;
+                    open_hole(alc, ref, i, tile);
+                }
+            }
+        }
+    }
+    MVM_free(bitmaps);
+
+#undef _BITMAP
+#undef _SUCC
+}
+
 
 static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
     MVMJitExprTree *tree = list->tree;
-    MVMint32 i, j;
+    MVMint32 i, j, n;
+    MVMint32 num_phi = 0; /* pessimistic but correct upper bound of number of holes */
 
     alc->sets = MVM_calloc(tree->nodes_num, sizeof(UnionFind));
     /* up to 4 refs per tile (1 out, 3 in) plus the number of refs per arglist */
@@ -420,6 +543,7 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
             /* NB; this may cause a conflict, in which case we can resolve it by
              * creating a new live range or inserting a copy */
             alc->sets[node].key  = value_set_union(alc->sets, alc->values, left_cond, right_cond);
+            num_phi++;
         } else if (tile->op == MVM_JIT_ARGLIST) {
             MVMint32 num_args = list->tree->nodes[tile->node + 1];
             MVMJitExprNode *refs = list->tree->nodes + tile->node + 2;
@@ -453,7 +577,16 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
             }
         }
     }
-
+    if (num_phi > 0) {
+        /* If there are PHI nodes, there will be holes.
+         * The array allocated here will be used to construct linked lists */
+        alc->holes     = MVM_malloc(num_phi * sizeof(struct Hole));
+        alc->holes_top = 0;
+        find_live_range_holes(tc, alc, list);
+    } else {
+        alc->holes = NULL;
+        alc->holes_top = 0;
+    }
 }
 
 /* The code below needs some thinking... */
@@ -971,6 +1104,7 @@ void MVM_jit_linear_scan_allocate(MVMThreadContext *tc, MVMJitCompiler *compiler
     /* deinitialize allocator */
     MVM_free(alc.sets);
     MVM_free(alc.refs);
+    MVM_free(alc.holes);
     MVM_free(alc.values);
 
     MVM_free(alc.worklist);
