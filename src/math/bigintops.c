@@ -741,7 +741,7 @@ MVMObject *MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         clear_temp_bigints(tmp, 1);
         adjust_nursery(tc, bb);
     } else if (n >= 32) {
-        store_int64_result(bb, 0);
+        store_int64_result(bb, -1);
     } else {
         MVMint32 value = ba->u.smallint.value;
         value = value >> n;
