@@ -121,7 +121,7 @@ MVMint64 MVM_sc_find_stable_idx(MVMThreadContext *tc, MVMSerializationContext *s
         if (sc->body->root_stables[i] == st)
             return i;
     MVM_exception_throw_adhoc(tc,
-        "STable does not exist in serialization context");
+        "STable %s does not exist in serialization context", st->debug_name);
 }
 
 /* Given an SC, looks up the index of a code ref that is in its root set. */
