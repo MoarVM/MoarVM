@@ -147,3 +147,13 @@
 (template: sp_p6obind_s
     (dov 2 (^write_barrier $0 $2)
            (store (add (^p6obody $0) $1) $2 ptr_sz)))
+
+(template: sp_p6ogetvt_o
+   (let: (($addr (add (^p6obody $1) $2))
+          ($val (load $addr ptr_sz)))
+       (if (nz $val)
+            $val
+            (let: (($type (load (^spesh_slot $3) ptr_sz)))
+                 (^write_barrier $1 $type)
+                 (store $addr $type ptr_sz)
+                 (copy $type)))))

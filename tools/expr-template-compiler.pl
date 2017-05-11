@@ -65,7 +65,7 @@ sub validate_template {
         for my $def (@$defs) {
             validate_template($def->[1]);
         }
-        validate_template($_) for @expr;
+        validate_template($_) for grep ref($_) eq 'ARRAY', @expr;
         return;
     }
 

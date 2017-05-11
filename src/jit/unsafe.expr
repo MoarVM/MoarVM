@@ -1,41 +1,7 @@
 # Difficult stuff, that hasn't been tested sufficiently adequately to support
 
-(macro: ^objflag (,cv) (const (&QUOTE ,cv) (&SIZEOF_MEMBER MVMObject header.flags)))
 
-(macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
 
-# hit write barrier for object - this one is rather large
-# NB - it is probably better to use direct variables, rather than trees,
-# as arguments to the write-barrier macro. Usually the compiler can
-# eliminate duplications, but call is a notable exception
-
-(macro: ^write_barrier (,obj ,ref)
-   (when (all 3 (nz (and (^getf ,obj MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN)))
-                (nz ,ref)
-                (zr (and (^getf ,ref MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN))))
-         (call (^func &MVM_gc_write_barrier_hit)
-               (arglist 2 (carg (tc) ptr)
-                          (carg ,obj ptr))
-                 void)))
-
-(template: sp_p6ogetvt_o
-           (let: (($addr (add (^p6obody $1) $2))
-                 ($val (load $addr ptr_sz))
-                 ($type (load (^spesh_slot $3) ptr_sz)))
-                 (if (nz $val)
-                      $val
-                      (do 3 (^write_barrier $1 $type)
-                            (store $addr $type ptr_sz)
-                             $type))))
-
-(template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 int_sz))
-(template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 int_sz))
-(template: sp_p6obind_o (let: (($addr (add (^p6obody $0) $1)))
-                             (do 2 (^write_barrier $0 $2)
-                                   (store $addr $2 ptr_sz))))
-(template: sp_p6obind_s (let: (($addr (add (^p6obody $0) $1)))
-                             (do 2 (^write_barrier $0 $2)
-                                   (store $addr $2 ptr_sz))))
 
 
 
