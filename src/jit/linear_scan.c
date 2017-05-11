@@ -23,7 +23,7 @@ static const MVMint64 AVAILABLE_GPR_BITMAP = MVM_JIT_ARCH_AVAILABLE_GPR(SHIFT);
 #define _ASSERT(b, msg) if (!(b)) do { MVM_panic(1, msg); } while (0)
 
 #if MVM_JIT_DEBUG
-#define _DEBUG(fmt, ...) fprintf(stderr, fmt "\n", __VA_ARGS__)
+#define _DEBUG(fmt, ...) do { fprintf(stderr, fmt "%s", __VA_ARGS__, "\n"); } while(0);
 #else
 #define _DEBUG(fmt, ...) do {} while(0)
 #endif
@@ -603,6 +603,15 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
         alc->holes     = MVM_malloc(num_phi * sizeof(struct Hole));
         alc->holes_top = 0;
         find_holes(tc, alc, list);
+
+        /* eliminate empty values from the worklist */
+        for (i = 0, j = 0; j < alc->worklist_num; j++) {
+            if (!live_range_is_empty(alc->values + alc->worklist[j])) {
+                alc->worklist[i++] = alc->worklist[j];
+            }
+        }
+        alc->worklist_num = i;
+
     } else {
         alc->holes = NULL;
         alc->holes_top = 0;
@@ -1058,20 +1067,17 @@ MVM_STATIC_INLINE void process_tile(MVMThreadContext *tc, RegisterAllocator *alc
     }
 }
 
-
 static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
     MVMint32 i, tile_cursor = 0;
     MVM_VECTOR_INIT(alc->retired, alc->worklist_num);
     MVM_VECTOR_INIT(alc->spilled, 8);
-    _DEBUG("STARTING LINEAR SCAN%s", "\n");
+    _DEBUG("STARTING LINEAR SCAN: %ld/%d", tc->instance->jit_seq_nr, _jit_frame_nr);
+
     while (alc->worklist_num > 0) {
         MVMint32 v             = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num);
         MVMint32 tile_order_nr = first_ref(alc->values + v);
         MVMint8 reg;
         _DEBUG("Processing live range %d (first ref %d, last ref %d)", v, first_ref(alc->values + v), last_ref(alc->values + v));
-        /* NB: Should I have a compaction step to remove these? */
-        if (live_range_is_empty(alc->values + v))
-            continue;
 
         /* deal with 'special' requirements */
         for (; order_nr(tile_cursor) <= tile_order_nr; tile_cursor++) {
