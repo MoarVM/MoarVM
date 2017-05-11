@@ -11,6 +11,12 @@
 #  define TRACING_USAGE ""
 #endif
 
+#ifdef HAVE_TELEMEH
+#  define TELEMEH_USAGE "MVM_TELEMETRY_LOG           Log internal events at high precision to this file\n"
+#else
+#  define TELEMEH_USAGE ""
+#endif
+
 #ifndef _WIN32
 #  include "signal.h"
 #endif
@@ -78,9 +84,8 @@ The following environment variables are respected:\n\
     MVM_JIT_LOG                 Specifies a JIT-compiler log file\n\
     MVM_JIT_BYTECODE_DIR        Specifies a directory for JIT bytecode dumps\n\
     MVM_CROSS_THREAD_WRITE_LOG  Log unprotected cross-thread object writes to stderr\n\
-    MVM_COVERAGE_LOG            Append line-by-line coverage messages to this file\n\
-    MVM_TELEMETRY_LOG           Write high-resolution timing for several internal events\n\
-";
+    MVM_COVERAGE_LOG            Append line-by-line coverage messages to this file\n"
+    TELEMEH_USAGE;
 
 static int cmp_flag(const void *key, const void *value)
 {
@@ -200,6 +205,7 @@ int wmain(int argc, wchar_t *wargv[])
         }
     }
 
+#ifdef HAVE_TELEMEH
     if (getenv("MVM_TELEMETRY_LOG")) {
         char path[256];
         snprintf(path, 255, "%s.%d", getenv("MVM_TELEMETRY_LOG"),
@@ -212,6 +218,7 @@ int wmain(int argc, wchar_t *wargv[])
         MVM_telemetry_init(fopen(path, "w"));
         interval_id = MVM_telemetry_interval_start(0, "moarvm startup");
     }
+#endif
 
     lib_path[lib_path_i] = NULL;
 

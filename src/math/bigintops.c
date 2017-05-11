@@ -719,7 +719,17 @@ MVMObject *MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
 
     return result;
 }
-
+/* Checks if a MVMP6bigintBody is negative. Handles cases where it is stored as
+ * a small int as well as cases when it is stored as a bigint */
+int BIGINT_IS_NEGATIVE (MVMP6bigintBody *ba) {
+    mp_int *mp_a = ba->u.bigint;
+    if MVM_BIGINT_IS_BIG(ba) {
+        return SIGN(mp_a) == MP_NEG;
+    }
+    else {
+        return ba->u.smallint.value < 0;
+    }
+}
 MVMObject *MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMint64 n) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
     MVMP6bigintBody *bb;
@@ -741,7 +751,7 @@ MVMObject *MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         clear_temp_bigints(tmp, 1);
         adjust_nursery(tc, bb);
     } else if (n >= 32) {
-        store_int64_result(bb, 0);
+        store_int64_result(bb, BIGINT_IS_NEGATIVE(ba) ? -1 : 0);
     } else {
         MVMint32 value = ba->u.smallint.value;
         value = value >> n;
@@ -924,17 +934,8 @@ void MVM_bigint_rand(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     mp_int *rnd = MVM_malloc(sizeof(mp_int));
     mp_int *max = force_bigint(bb, tmp);
 
-    /* Workaround tommath issue #56 */
-    mp_int workaround;
-    mp_init (&workaround);
-    mp_rand(&workaround, USED(max) + 1);
-    mp_mul_2d(&workaround, 29, &workaround);
-
     mp_init(rnd);
     mp_rand(rnd, USED(max) + 1);
-
-    mp_xor(rnd, &workaround, rnd);
-    mp_clear(&workaround);
 
     mp_mod(rnd, max, rnd);
     store_bigint_result(ba, rnd);

@@ -39,10 +39,11 @@ GetOptions(\%args, qw(
     static has-libtommath has-libatomic_ops
     has-dyncall has-libffi pkgconfig=s
     build=s host=s big-endian jit! enable-jit
-    prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan valgrind),
+    prefix=s bindir=s libdir=s mastdir=s make-install asan ubsan valgrind telemeh),
 
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
-    'no-debug|nodebug' => sub { $args{debug} = 0 }
+    'no-debug|nodebug' => sub { $args{debug} = 0 },
+    'no-telemeh|notelemeh' => sub { $args{telemeh} = 0 }
 ) or die "See --help for further information\n";
 
 
@@ -335,6 +336,7 @@ push @cflags, '-fno-omit-frame-pointer' if $args{asan} or $args{ubsan};
 push @cflags, '-fsanitize=address' if $args{asan};
 push @cflags, '-fsanitize=undefined' if $args{ubsan};
 push @cflags, '-DMVM_VALGRIND_SUPPORT' if $args{valgrind};
+push @cflags, '-DHAVE_TELEMEH' if $args{telemeh};
 push @cflags, '-DWORDS_BIGENDIAN' if $config{be}; # 3rdparty/sha1 needs it and it isnt set on mips;
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
@@ -425,6 +427,7 @@ if ($config{cc} eq 'cl') {
 build::probe::C_type_bool(\%config, \%defaults);
 build::probe::computed_goto(\%config, \%defaults);
 build::probe::pthread_yield(\%config, \%defaults);
+build::probe::rdtscp(\%config, \%defaults);
 
 my $order = $config{be} ? 'big endian' : 'little endian';
 
@@ -798,6 +801,7 @@ __END__
                    [--static] [--prefix]
                    [--has-libtommath] [--has-sha] [--has-libuv]
                    [--has-libatomic_ops] [--asan] [--ubsan] [--no-jit]
+                   [--telemeh]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
@@ -955,5 +959,9 @@ Provide path to the pkgconfig executable. Default: /usr/bin/pkg-config
 =item --no-jit
 
 Disable JIT compiler, which is enabled by default to JIT-compile hot frames.
+
+=item --telemeh
+
+Build support for the fine-grained internal event logger.
 
 =back
