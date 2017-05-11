@@ -254,6 +254,16 @@ static void live_range_merge(LiveRange *a, LiveRange *b) {
     }
 }
 
+static struct Hole * live_range_has_hole(LiveRange *value, MVMint32 order_nr) {
+    struct Hole *h;
+    /* By construction these are in linear ascending order, and never overlap */
+    for (h = value->holes; h != NULL && h->start <= order_nr; h = h->next) {
+        if (h->end >= order_nr)
+            return h;
+    }
+    return NULL;
+}
+
 
 UnionFind * value_set_find(UnionFind *sets, MVMint32 key) {
     while (sets[key].key != key) {
@@ -423,25 +433,31 @@ MVM_STATIC_INLINE void bitmap_union_and_diff(MVMuint64 *u, MVMuint64 *d, MVMuint
 
 MVM_STATIC_INLINE void close_hole(RegisterAllocator *alc, MVMint32 ref, MVMint32 tile_idx) {
     LiveRange *v = alc->values + ref;
-    if (v->holes && v->holes->start < tile_idx) {
-        v->holes->start = tile_idx;
-        _DEBUG("Closed hole in live range %d at %d", ref, tile_idx);
+    if (v->holes && v->holes->start < order_nr(tile_idx)) {
+        v->holes->start = order_nr(tile_idx);
+        _DEBUG("Closed hole in live range %d at %d", ref, order_nr(tile_idx));
     }
 }
 
 MVM_STATIC_INLINE void open_hole(RegisterAllocator *alc, MVMint32 ref, MVMint32 tile_idx) {
     LiveRange *v = alc->values + ref;
-    if (first_ref(v) < order_nr(tile_idx) && (v->holes == NULL || v->holes->start > tile_idx)) {
+    if (first_ref(v) < order_nr(tile_idx) &&
+        (v->holes == NULL || v->holes->start > order_nr(tile_idx))) {
         struct Hole *hole = alc->holes + alc->holes_top++;
         hole->next  = v->holes;
         hole->start = 0;
-        hole->end   = tile_idx;
+        hole->end   = order_nr(tile_idx);
         v->holes    = hole;
-        _DEBUG("Opened hole in live range %d at %d", ref, tile_idx);
+        _DEBUG("Opened hole in live range %d at %d", ref, order_nr(tile_idx));
     }
 }
 
-static void find_live_range_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
+/* Find holes in live ranges, as per Wimmer (2010). This is required only
+ * because the spill-strategy arround CALLs is (sometimes) to load-and-restore,
+ * rather than do a full spill, in the not-so-rare case that many of the live
+ * values will be temporaries and the call is only necessary in a branch */
+
+static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
     MVMint32 i, j, k;
 
     MVMint32 bitmap_size = (alc->values_num >> 5) + 1;
@@ -586,7 +602,7 @@ static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, 
          * The array allocated here will be used to construct linked lists */
         alc->holes     = MVM_malloc(num_phi * sizeof(struct Hole));
         alc->holes_top = 0;
-        find_live_range_holes(tc, alc, list);
+        find_holes(tc, alc, list);
     } else {
         alc->holes = NULL;
         alc->holes_top = 0;
@@ -811,10 +827,14 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     for (i = 0; i < alc->active_top; i++) {
         MVMint32 v = alc->active[i];
         MVMint8  r = alc->values[v].reg_num;
-        if (last_ref(alc->values + v) >= order_nr(arglist_idx)) {
+        LiveRange *l = alc->values + v;
+
+        if (last_ref(l) >= order_nr(arglist_idx)) {
             register_map[r] = v;
         }
-        if (last_ref(alc->values + v) > order_nr(call_idx)) {
+        if (last_ref(l) > order_nr(call_idx) &&
+            /* if it has a hole arround CALL, it's not a survivor */
+            live_range_has_hole(l, order_nr(call_idx)) == NULL) {
             survivors[survivors_num++] = v;
             /* add an outbound edge */
             topological_map[r].num_out++;
