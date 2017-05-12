@@ -123,10 +123,6 @@
      (if (nz $who) $who (^vmnull))))
 
 (macro: ^func (,a) (const (&CONST_PTR ,a) ptr_sz))
-(template: say (callv (^func &MVM_string_say)
-                      (arglist 2 (carg (tc) ptr)
-                                 (carg $0 ptr))))
-
 (macro: ^objflag (,cv) (const (&QUOTE ,cv) (&SIZEOF_MEMBER MVMObject header.flags)))
 (macro: ^write_barrier (,obj ,ref)
    (when (all 3 (nz (and (^getf ,obj MVMCollectable flags) (^objflag MVM_CF_SECOND_GEN)))
@@ -138,7 +134,6 @@
 
 (template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 int_sz))
 (template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 int_sz))
-
 
 (template: sp_p6obind_o
     (dov 2 (^write_barrier $0 $2)
@@ -157,3 +152,30 @@
                  (^write_barrier $1 $type)
                  (store $addr $type ptr_sz)
                  (copy $type)))))
+
+(macro: ^repr (,a) (^getf ,a MVMSTable REPR))
+(macro: ^is_type_obj (,a)
+    (nz (and (^getf ,a MVMObject header.flags) (^objflag MVM_CF_TYPE_OBJECT))))
+(macro: ^repr_cont_func (,obj ,func)
+    (^getf
+          (^getf (^stable ,obj) MVMSTable container_spec)
+          MVMContainerSpec ,func))
+
+
+(template: say (callv (^func &MVM_string_say)
+                      (arglist 2 (carg (tc) ptr)
+                                 (carg $0 ptr))))
+
+
+(template: decont!
+    (ifv
+         (any 3
+              (zr $1)
+              (^is_type_obj $1)
+              (zr (^getf (^stable $1) MVMSTable container_spec)))
+         (store $0 $1 ptr_sz)
+         (callv (^repr_cont_func $1 fetch)
+               (arglist 3
+                    (carg (tc) ptr)
+                    (carg $1 ptr)
+                    (carg $0 ptr))))))

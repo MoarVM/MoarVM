@@ -699,15 +699,23 @@ MVM_JIT_TILE_DECL(branch_label) {
 
 
 
+static void move_call_value(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile) {
+    if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
+        MVMint8 out = tile->values[0];
+        | mov Rq(out), rax;
+    }
+}
+
 MVM_JIT_TILE_DECL(call) {
     MVMint8 reg = tile->values[1];
     | call Rq(reg);
+    move_call_value(tc, compiler, tile);
 }
 
 MVM_JIT_TILE_DECL(call_func) {
     MVMint64 ptr = tile->args[0];
-    | mov64 rax, ptr;
-    | call rax;
+    | callp ptr;
+    move_call_value(tc, compiler, tile);
 }
 
 
@@ -715,4 +723,5 @@ MVM_JIT_TILE_DECL(call_addr) {
     MVMint8  reg = tile->values[1];
     MVMint32 ofs = tile->args[0];
     | call qword [Rq(reg)+ofs];
+    move_call_value(tc, compiler, tile);
 }

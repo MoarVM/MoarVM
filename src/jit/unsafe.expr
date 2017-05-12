@@ -2,46 +2,6 @@
 
 
 
-
-
-
-
-(macro: ^repr (,a) (^getf ,a MVMSTable REPR))
-(macro: ^is_type_obj (,a)
-  (nz (and (^getf ,a MVMObject header.flags) (^objflag MVM_CF_TYPE_OBJECT))))
-
-(macro: ^repr_cont_func (,obj ,func)
-    (load
-        (addr
-            (^getf (^stable ,obj) MVMSTable container_spec)
-            (&offsetof MVMContainerSpec ,func))
-        ptr_sz))
-
-
-
-
-(template: decont!
-    (let: (($obj (copy $1)))
-        (either
-            (any 3
-                (zr $1)
-                (^is_type_obj $1)
-                (zr (^getf (^stable $1) MVMSTable container_spec)))
-            (store $0 $1 ptr_sz)
-            (call (^repr_cont_func $1 fetch)
-                (arglist 3
-                    (carg (tc) ptr)
-                    (carg $1 ptr)
-                    (carg $0 ptr)
-                )
-                void))))
-
-(template: say (call (^func &MVM_string_say)
-                     (arglist 2 (carg (tc) ptr)
-                                (carg $0 ptr))
-                     void))
-
-
 (template: getlex_no
   (let: (($res
     (call (^func &MVM_frame_find_lexical_by_name)
