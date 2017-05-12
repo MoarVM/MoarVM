@@ -929,7 +929,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     for (i = 1; i < call_tile->num_refs; i++) {
         MVMint8 spec = MVM_JIT_REGISTER_FETCH(call_tile->register_spec, i);
         if (MVM_JIT_REGISTER_IS_USED(spec)) {
-            MVMint8 reg = call_tile->args[i];
+            MVMint8 reg = call_tile->values[i];
             call_bitmap |= (1 << reg);
         }
     }
@@ -1071,7 +1071,7 @@ static void linear_scan(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile
     MVMint32 i, tile_cursor = 0;
     MVM_VECTOR_INIT(alc->retired, alc->worklist_num);
     MVM_VECTOR_INIT(alc->spilled, 8);
-    _DEBUG("STARTING LINEAR SCAN: %ld/%d", tc->instance->jit_seq_nr, _jit_frame_nr);
+    _DEBUG("STARTING LINEAR SCAN: %ld/%d", tc->instance->jit_seq_nr, list->tree->seq_nr);
 
     while (alc->worklist_num > 0) {
         MVMint32 v             = live_range_heap_pop(alc->values, alc->worklist, &alc->worklist_num);

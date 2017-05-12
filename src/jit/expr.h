@@ -61,6 +61,7 @@ struct MVMJitExprTree {
 
     MVMint32 label_ofs;
     MVMint32 num_labels;
+    MVMuint32 seq_nr;
 };
 
 struct MVMJitExprTemplate {

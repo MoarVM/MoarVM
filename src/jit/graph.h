@@ -10,6 +10,9 @@ struct MVMJitGraph {
     /* Offset for instruction / data labels */
     MVMint32       obj_label_ofs;
 
+    /* Sequence number for expr trees */
+    MVMuint32      expr_seq_nr;
+
     /* Although meant only for instructions they can really contain any random stuff */
     MVM_VECTOR_DECL(void*, obj_labels);
 

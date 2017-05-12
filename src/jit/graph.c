@@ -2760,6 +2760,7 @@ static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
                 MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
                 node->type       = MVM_JIT_NODE_EXPR_TREE;
                 node->u.tree     = tree;
+                tree->seq_nr     = jg->expr_seq_nr++;
                 jg_append_node(jg, node);
                 MVM_jit_log_expr_tree(tc, tree);
             } else {
@@ -2817,6 +2818,8 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     MVM_VECTOR_INIT(graph->deopts, 8);
     /* Nodes for each label, used to ensure labels aren't added twice */
     MVM_VECTOR_INIT(graph->label_nodes, 16 + sg->num_bbs);
+
+    graph->expr_seq_nr = 0;
 
     /* JIT handlers are indexed by spesh graph handler index */
     if (sg->num_handlers > 0) {
