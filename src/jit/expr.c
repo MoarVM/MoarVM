@@ -616,6 +616,11 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         if (opcode == MVM_OP_getlex && !can_getlex(tc, jg, ins)) {
             goto done;
         }
+        if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
+            /* XXX - we can handle this with a guard node and proper flushing */
+            goto done;
+        }
+
         /* Check annotations that require handling before the expression  */
         for (ann = ins->annotations; ann != NULL; ann = ann->next) {
             switch (ann->type) {

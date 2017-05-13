@@ -1090,10 +1090,17 @@ we close the hole.
 Because we attach the holes to the live range in a linked list, we can
 always detect if the current live range is 'holed'.
 
-*** TODO Don't spill 'holes' in ARGLIST
+*** DONE Don't spill 'holes' in ARGLIST
 *** TODO Try to use 'holes' in allocation.
 
-** TODO Implement optimistic 'store' insertion
+Not 100% sure this is worth the additional complexity since it means
+that a register can have multiple occupants, which means you'll want
+to use a linked list, and a heap for maintaining the first-to-expire
+set, or a double-ended priority queue, etc.
+
+The optimizer is probably simpler.
+
+** TODO Guards, flushing, optimistic stores
 
 Currently our inserting of stores is pessimistic, i.e. stores are
 always inserted where they would be expected from the MoarVM bytecode.
@@ -1116,6 +1123,16 @@ it isn't. What we can do is:
 - store the spesh instruction tagged to the tree, so that we can find
   out where it should be stored if it isn't
 
+*** TODO Implement guard nodes
+
+The basic idea:
+
+- whenever an instruction is throwish / invokish we
+  - wrap it with the appropriate guard
+  - tile with pre and post node
+  - flush the current variable->node table
+
+*** TODO
 
 *** TODO Find out if a particular live range has already been stored (or if it has a fixed storage location)
 
@@ -1167,6 +1184,8 @@ Bunch of options possible:
   - if free, no problem whatever
   - if non-free, we again need to start moving registers, but I'm not
     sure this requires the full shuffling requirements of ARGLIST.
+
+
 
 
 * TODO Optimizer

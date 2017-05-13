@@ -12,28 +12,25 @@
    (if (nz $res) (load $res ptr_sz) $res)))
 
 
-(template: wval (call (^func MVM_sc_get_sc_object)
-                      (arglist 4 (carg (tc) ptr)
-                                 (carg (cu) ptr)
-                                 (carg $1 int)
-                                 (carg $2 int))
-                       ptr))
 
-(template: goto (branch (label $0)))
+(template: wval
+      (callv (^func MVM_sc_get_sc_object)
+             (arglist 4 (carg (tc) ptr)
+                        (carg (cu) ptr)
+                        (carg $1 int)
+                        (carg $2 int))))
 
-(macro: ^exit () (branch (label (const branch_exit int_sz))))
+
 
 (template: return
   (do 3
-     (call (^func &MVM_args_assert_void_return_ok)
-           (arglist 2
-              (carg (tc) ptr)
-              (carg (const 0 int_sz) int))
-           void)
-     (call (^func &MVM_frame_try_return)
-           (arglist 1 (carg (tc) ptr))
-           void)
-     (^exit)))
+       (callv (^func &MVM_args_assert_void_return_ok)
+             (arglist 2
+                  (carg (tc) ptr)
+                  (carg (const 0 int_sz) int)))
+       (callv (^func &MVM_frame_try_return)
+              (arglist 1 (carg (tc) ptr)))
+       (^exit)))
 
 (template: return_o
   (do 3
