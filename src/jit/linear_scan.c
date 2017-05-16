@@ -1048,12 +1048,29 @@ MVM_STATIC_INLINE void process_tile(MVMThreadContext *tc, RegisterAllocator *alc
                 (list->items[call_idx]->op == MVM_JIT_CALL ||
                  list->items[call_idx]->op == MVM_JIT_CALLV),
                 "ARGLIST tiles must be followed by CALL");
-        prepare_arglist_and_call(tc, alc, list, arglist_idx, call_idx);
     } else if (tile->op == MVM_JIT_CALL || tile->op == MVM_JIT_CALLV) {
-        /* Any CALL op requiremetns are handles by prepare_arglist_and_call,
-         * which handles both tiles,  */
+        MVMint32 arglist_idx = tile_cursor - 1;
+        MVMint32 call_idx    = tile_cursor;
         _ASSERT(tile_cursor > 0 && list->items[tile_cursor - 1]->op == MVM_JIT_ARGLIST,
                 "CALL must be preceeded by ARGLIST");
+        /*
+         * CALL nodes can use values in registers, for example for dynamic
+         * calls. These registers may conflict with registers used in ARGLIST,
+         * in which case prepare_arglist_and_call will move the values to a free
+         * register and update the call tile.
+         *
+         * However, as regular register-allocated values, the selected register
+         * may be allocated for a synthetic LOAD tile after it had previously
+         * been spilled. To ensure that allocation for the synthetic tile does
+         * not overwrite the free register picked by the resolution code, we
+         * must be sure that prepare_arglist_and_call will be run *after* all
+         * registers have been allocated for the values used by the CALL tile.
+         *
+         * That is why prepare_arglist_and_call, which handles BOTH tiles, is
+         * called for the CALL tile and not for the ARGLIST tile.
+         */
+
+        prepare_arglist_and_call(tc, alc, list, arglist_idx, call_idx);
     } else {
         MVMint32 i;
         /* deal with 'use' registers */
