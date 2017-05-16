@@ -926,10 +926,10 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
 
     /* resolve conflicts for CALL; since we're spilling any surviving bits,
      * we can just move it to any free registers. */
-    for (i = 1; i < call_tile->num_refs; i++) {
-        MVMint8 spec = MVM_JIT_REGISTER_FETCH(call_tile->register_spec, i);
+    for (i = 0; i < call_tile->num_refs; i++) {
+        MVMint8 spec = MVM_JIT_REGISTER_FETCH(call_tile->register_spec, i + 1);
         if (MVM_JIT_REGISTER_IS_USED(spec)) {
-            MVMint8 reg = call_tile->values[i];
+            MVMint8 reg = call_tile->values[i+1];
             call_bitmap |= (1 << reg);
         }
     }
@@ -951,9 +951,9 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         call_bitmap = call_bitmap & ((~(1 << src)) | (1 << dst));
 
         /* update CALL args */
-        for (i = 1; i < call_tile->num_refs; i++) {
-            if (call_tile->args[i] == src) {
-                call_tile->args[i] = dst;
+        for (i = 0; i < call_tile->num_refs; i++) {
+            if (call_tile->values[i+1] == src) {
+                call_tile->values[i+1] = dst;
             }
         }
     }
