@@ -44,8 +44,8 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
                          MVMJitInvoke *invoke);
 void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                            MVMJitJumpList *jumplist);
-void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                          MVMJitControl *ctrl);
+void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                          MVMJitControl *ctrl, MVMJitTile *tile);
 void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitData *data);
 void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
                        MVMint32 reg_cls, MVMint8 reg_dst,

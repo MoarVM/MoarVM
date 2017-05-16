@@ -2467,10 +2467,12 @@ void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
     |2:
 }
 
-void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
-                          MVMJitControl *ctrl) {
+void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                          MVMJitControl *ctrl, MVMJitTile *tile) {
     /* TODO - rename invokish and pre and post invokish into something that makes more sense */
-    if (ctrl->type == MVM_JIT_CONTROL_INVOKISH) {
+    MVMJitControlType type = (tile != NULL ? tile->args[0] : ctrl->type);
+    MVMint8 tmp = (tile != NULL ? tile->values[0] : MVM_JIT_REG(RCX));
+    if (type == MVM_JIT_CONTROL_INVOKISH) {
         MVM_jit_log(tc, "Emit invokish control guard\n");
         /* This relies on the fact that MVM_JIT_THROWISH_PRE has already
          * assigned the jit entry label */
@@ -2480,42 +2482,42 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         | jmp ->exit;
         |9:
     }
-    else if (ctrl->type == MVM_JIT_CONTROL_DYNAMIC_LABEL) {
+    else if (type == MVM_JIT_CONTROL_DYNAMIC_LABEL) {
         MVM_jit_log(tc, "Emit throwish control guard\n");
         /* This pre-loads a label for the next op, so that throwish
          * operators will know where we're throwing from - NB, I'm not
          * totally sure this is still necessary now */
-        | lea TMP1, [>1];
-        | mov TMP2, TC->cur_frame;
-        | mov aword FRAME:TMP2->jit_entry_label, TMP1;
+        | lea rax, [>1];
+        | mov Rq(tmp), TC->cur_frame;
+        | mov aword FRAME:Rq(tmp)->jit_entry_label, rax;
         |1:
     }
-    else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_PRE) {
+    else if (type == MVM_JIT_CONTROL_THROWISH_PRE) {
         /* Store a reference to the 9 label below. I assume this label isn't
          * used in the intermediate instructions, which is basically valid
          * throughout this codebase. */
-        | lea TMP1, [>9];
-        | mov TMP2, TC->cur_frame;
-        | mov aword FRAME:TMP2->jit_entry_label, TMP1;
+        | lea Rq(tmp), [>9];
+        | mov rax, TC->cur_frame;
+        | mov aword FRAME:rax->jit_entry_label, Rq(tmp);
     }
-    else if (ctrl->type == MVM_JIT_CONTROL_THROWISH_POST) {
+    else if (type == MVM_JIT_CONTROL_THROWISH_POST) {
         /* check if our current frame is the same as it was */
-        | mov TMP1d, dword TC->current_frame_nr;
-        | cmp TMP1d, FRAME_NR;
+        | mov eax, dword TC->current_frame_nr;
+        | cmp eax, FRAME_NR;
         | jne >8;
         /* if it is, we may still be in a goto-handler, so in that
          * case the throwing machinery should have ensured that
          * jit_entry_label now points to the correct label. If not, it
          * still points to 9:. */
-        | mov TMP1, TC->cur_frame;
-        | jmp aword FRAME:TMP1->jit_entry_label;
+        | mov rax, TC->cur_frame;
+        | jmp aword FRAME:rax->jit_entry_label;
         /* if not the same frame, trampoline to interpreter */
         |8:
         | jmp ->exit;
         /* I assume we *never* use a local label 9 in the code between
          * pre-and-post throwish */
         |9:
-    } else if (ctrl->type == MVM_JIT_CONTROL_BREAKPOINT) {
+    } else if (type == MVM_JIT_CONTROL_BREAKPOINT) {
         /* brrts evil testing purposes breakpoint */
         | int 3;
     } else {

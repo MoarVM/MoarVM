@@ -45,6 +45,5 @@ void MVM_jit_compile_move(MVMThreadContext *tc, MVMJitCompiler *compiler,
                           MVMJitTile *tile, MVMJitExprTree *tree);
 void MVM_jit_compile_memory_copy(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                  MVMJitTile *tile, MVMJitExprTree *tree);
-
-void MVM_jit_compile_breakpoint(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                                MVMJitTile *tile, MVMJitExprTree *tree);
+void MVM_jit_compile_guard(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                           MVMJitTile *tile, MVMJitExprTree *tree);

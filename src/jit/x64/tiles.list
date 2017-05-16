@@ -22,6 +22,10 @@
 (define: (do void reg) reg)
 (define: (dov void void) void)
 
+# INVOKISH / THROWISH
+(define: (guard void $mode) void)
+
+
 #
 # ALIASING
 #

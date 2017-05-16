@@ -73,7 +73,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
             MVM_jit_emit_jumplist(tc, &cl, jg, &node->u.jumplist);
             break;
         case MVM_JIT_NODE_CONTROL:
-            MVM_jit_emit_control(tc, &cl, jg, &node->u.control);
+            MVM_jit_emit_control(tc, &cl, &node->u.control, NULL);
             break;
         case MVM_JIT_NODE_EXPR_TREE:
             MVM_jit_compile_expr_tree(tc, &cl, jg, node->u.tree);
@@ -167,13 +167,6 @@ void MVM_jit_destroy_code(MVMThreadContext *tc, MVMJitCode *code) {
 #define NYI(x) MVM_oops(tc, #x " NYI")
 
 
-void MVM_jit_compile_breakpoint(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMJitExprTree *tree) {
-    MVMJitControl ctrl;
-    ctrl.type = MVM_JIT_CONTROL_BREAKPOINT;
-    MVM_jit_emit_control(tc, compiler, compiler->graph, &ctrl);
-}
-
-
 /* pseudotile emit functions */
 void MVM_jit_compile_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
                             MVMJitTile *tile, MVMJitExprTree *tree) {
@@ -216,6 +209,11 @@ void MVM_jit_compile_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
                       MVM_JIT_STORAGE_GPR, tile->values[0],
                       tile->args[0], tile->args[1],
                       sizeof(MVMRegister));
+}
+
+void MVM_jit_compile_guard(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                          MVMJitTile *tile, MVMJitExprTree *tree) {
+    MVM_jit_emit_control(tc, compiler, NULL, tile);
 }
 
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {

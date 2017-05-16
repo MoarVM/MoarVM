@@ -31,6 +31,28 @@ struct TreeTiler {
     MVMJitTileList *list;
 };
 
+/* Make complete tiles. Note that any argument passed is interpreted as an
+ * int32. Used primarily for making 'synthetic' tiles introduced by the
+ * compiler */
+MVMJitTile* MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler,
+                              void *emit, MVMint32 num_args, MVMint32 num_values, ...) {
+    MVMJitTile *tile;
+    MVMint32 i;
+    va_list arglist;
+    va_start(arglist, num_values);
+    tile = MVM_spesh_alloc(tc, compiler->graph->sg, sizeof(MVMJitTile));
+    tile->emit = emit;
+    tile->num_refs = num_values;
+    for (i = 0; i < num_args; i++) {
+        tile->args[i] = va_arg(arglist, MVMint32);
+    }
+    for (i = 0; i < num_values; i++) {
+        tile->values[i] = (MVMint8)va_arg(arglist, MVMint32);
+    }
+    va_end(arglist);
+    return tile;
+}
+
 /* Postorder collection of tile states (rulesets) */
 static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node) {
@@ -222,9 +244,22 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             DO_ASSIGN_CHILD(2, right_sym);
         }
         break;
+    case MVM_JIT_GUARD:
+        {
+            /* for invokish / throwish instructions */
+            MVMJitTile *tile = MVM_jit_tile_make(tc, tiler->compiler,
+                                                 MVM_jit_compile_guard, 1, 0,
+                                                 MVM_JIT_CONTROL_THROWISH_PRE);
+            /* XXX - request a spare register. This should be generalized */
+            tile->register_spec = MVM_JIT_REGISTER_ANY;
+            tile->debug_name    = "(guard :pre)";
+            MVM_VECTOR_PUSH(tiler->list->items, tile);
+            DO_ASSIGN_CHILD(0, left_sym);
+        }
     default:
         {
-            _ASSERT(nchild <= 2, "Can't tile %d children of %s", nchild, tree->info[node].op_info->name);
+            _ASSERT(nchild <= 2, "Can't tile %d children of %s", nchild,
+                    tree->info[node].op_info->name);
             if (nchild > 0) {
                 DO_ASSIGN_CHILD(0, left_sym);
             }
@@ -237,27 +272,6 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     /* (Currently) we never insert into the tile list here */
 }
 
-/* Make complete tiles. Note that any argument passed is interpreted as an
- * int32. Used primarily for making 'synthetic' tiles introduced by the
- * compiler */
-MVMJitTile* MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                              void *emit, MVMint32 num_args, MVMint32 num_values, ...) {
-    MVMJitTile *tile;
-    MVMint32 i;
-    va_list arglist;
-    va_start(arglist, num_values);
-    tile = MVM_spesh_alloc(tc, compiler->graph->sg, sizeof(MVMJitTile));
-    tile->emit = emit;
-    tile->num_refs = num_values;
-    for (i = 0; i < num_args; i++) {
-        tile->args[i] = va_arg(arglist, MVMint32);
-    }
-    for (i = 0; i < num_values; i++) {
-        tile->values[i] = (MVMint8)va_arg(arglist, MVMint32);
-    }
-    va_end(arglist);
-    return tile;
-}
 
 static void start_basic_block(MVMThreadContext *tc, struct TreeTiler *tiler, MVMint32 node) {
     /* After the last tile of a basic block (e.g. after a branch) or before the
@@ -554,10 +568,17 @@ static void build_tilelist(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     /* count tne number of refs for ARGLIST */
     if (tile->op == MVM_JIT_ARGLIST) {
         tiler->list->num_arglist_refs += tile->num_refs;
-    } else if (tile->op == MVM_JIT_WHEN || tile->op == MVM_JIT_IF || tile->op == MVM_JIT_IFV) {
+    } else if (tile->op == MVM_JIT_WHEN || tile->op == MVM_JIT_IF ||
+               tile->op == MVM_JIT_IFV) {
         /* NB: ALL and ANY also generate basic blocks, but their successors can
          * only be resolved after the conditional construct */
         patch_basic_blocks(tc, tiler, tree, node);
+    } else if (tile->op == MVM_JIT_GUARD) {
+        MVMint32 jittivity = tile->args[0];
+        MVMint32 guard_mode = (jittivity & MVM_JIT_THROWISH) ? MVM_JIT_CONTROL_THROWISH_POST : MVM_JIT_CONTROL_INVOKISH;
+        /* overwrite tile to point to guard compilation */
+        tile->args[0] = guard_mode;
+        tile->emit    = MVM_jit_compile_guard;
     }
 }
 

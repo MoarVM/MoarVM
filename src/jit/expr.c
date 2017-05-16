@@ -90,30 +90,6 @@ static MVMint32 MVM_jit_expr_add_loadframe(MVMThreadContext *tc, MVMJitExprTree 
     return num + 4;
 }
 
-static MVMint32 MVM_jit_expr_add_lexaddr(MVMThreadContext *tc, MVMJitExprTree *tree,
-                                         MVMuint16 outers, MVMuint16 idx) {
-    MVMint32 i;
-    /* (frame) as the root */
-    MVMint32 num = MVM_jit_expr_add_loadframe(tc, tree);
-    for (i = 0; i < outers; i++) {
-        /* (load (addr $val (&offsetof MVMFrame outer)) (&sizeof MVMFrame*)) */
-        MVMJitExprNode template[] = { MVM_JIT_ADDR, num, offsetof(MVMFrame, outer),
-                                      MVM_JIT_LOAD, tree->nodes_num, sizeof(MVMFrame*) };
-        MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
-        num = tree->nodes_num - 3;
-    }
-    /* (addr (load (addr $frame (&offsetof MVMFrame env)) ptr_sz) ptr_sz*idx) */
-    {
-        MVMJitExprNode template[] = {
-            MVM_JIT_ADDR, num, offsetof(MVMFrame, env), /* (addr $frame (&offsetof MVMFrame env)) */
-            MVM_JIT_LOAD, tree->nodes_num, MVM_JIT_PTR_SZ, /* (load $addr ptr_sz) */
-            MVM_JIT_ADDR, tree->nodes_num + 3, idx * MVM_JIT_REG_SZ /* (addr $frame_env idx*reg_sz) */
-        };
-        MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
-        num = tree->nodes_num - 3;
-    }
-    return num;
-}
 
 
 static MVMint32 MVM_jit_expr_add_load(MVMThreadContext *tc, MVMJitExprTree *tree,
@@ -140,6 +116,39 @@ static MVMint32 MVM_jit_expr_add_cast(MVMThreadContext *tc, MVMJitExprTree *tree
     MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
     return num;
 }
+
+static MVMint32 MVM_jit_expr_wrap_guard(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 node, MVMint32 jittivity) {
+    MVMint32 num = tree->nodes_num;
+    MVMJitExprNode template[] = { MVM_JIT_GUARD, node, jittivity };
+    MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+    return num;
+}
+
+static MVMint32 MVM_jit_expr_add_lexaddr(MVMThreadContext *tc, MVMJitExprTree *tree,
+                                         MVMuint16 outers, MVMuint16 idx) {
+    MVMint32 i;
+    /* (frame) as the root */
+    MVMint32 num = MVM_jit_expr_add_loadframe(tc, tree);
+    for (i = 0; i < outers; i++) {
+        /* (load (addr $val (&offsetof MVMFrame outer)) (&sizeof MVMFrame*)) */
+        MVMJitExprNode template[] = { MVM_JIT_ADDR, num, offsetof(MVMFrame, outer),
+                                      MVM_JIT_LOAD, tree->nodes_num, sizeof(MVMFrame*) };
+        MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+        num = tree->nodes_num - 3;
+    }
+    /* (addr (load (addr $frame (&offsetof MVMFrame env)) ptr_sz) ptr_sz*idx) */
+    {
+        MVMJitExprNode template[] = {
+            MVM_JIT_ADDR, num, offsetof(MVMFrame, env), /* (addr $frame (&offsetof MVMFrame env)) */
+            MVM_JIT_LOAD, tree->nodes_num, MVM_JIT_PTR_SZ, /* (load $addr ptr_sz) */
+            MVM_JIT_ADDR, tree->nodes_num + 3, idx * MVM_JIT_REG_SZ /* (addr $frame_env idx*reg_sz) */
+        };
+        MVM_VECTOR_APPEND(tree->nodes, template, sizeof(template)/sizeof(MVMJitExprNode));
+        num = tree->nodes_num - 3;
+    }
+    return num;
+}
+
 
 static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tree,
                                        MVMSpeshOperand opr, MVMuint8 info) {
@@ -569,6 +578,13 @@ void MVM_jit_expr_tree_analyze(MVMThreadContext *tc, MVMJitExprTree *tree) {
     MVM_jit_expr_tree_traverse(tc, tree, &traverser);
 }
 
+static void flush_computed_variables(MVMThreadContext *tc, MVMJitExprTree *tree, MVMint32 *variables, MVMint32 num_variables) {
+    /* NB As long as we have pessimistic / immediate store insertion, we only
+     * ever need to flush the lookup table so that all loads are new */
+    memset(variables, -1, sizeof(MVMint32) * num_variables);
+}
+
+
 /* TODO add labels to the expression tree */
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter) {
     MVMSpeshGraph *sg = jg->sg;
@@ -614,10 +630,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
 
         /* check if this is a getlex and if we can handle it */
         if (opcode == MVM_OP_getlex && !can_getlex(tc, jg, ins)) {
-            goto done;
-        }
-        if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
-            /* XXX - we can handle this with a guard node and proper flushing */
+            /* XXX - we probably can handle it by now */
             goto done;
         }
 
@@ -675,7 +688,15 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             /* and add a store, which becomes the root */
             root = MVM_jit_expr_add_store(tc, tree, operands[0], root, MVM_JIT_REG_SZ);
         }
-        /* TODO implement post-instruction annotation handling (e.g. throwish, invokish) */
+
+        if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
+            /* NB: GUARD only wraps void nodes, so when the inserted stores
+             * above are removed (and replaced by the flushing), we need to
+             * replace the root we are wrapping as well if it isn't VOID. */
+            root = MVM_jit_expr_wrap_guard(tc, tree, root, ins->info->jittivity);
+            flush_computed_variables(tc, tree, computed, sg->num_locals);
+        }
+
         /* Add root to tree to ensure source evaluation order */
         MVM_VECTOR_PUSH(tree->roots, root);
     }
