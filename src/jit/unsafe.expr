@@ -13,14 +13,6 @@
 
 
 
-(template: wval
-      (callv (^func MVM_sc_get_sc_object)
-             (arglist 4 (carg (tc) ptr)
-                        (carg (cu) ptr)
-                        (carg $1 int)
-                        (carg $2 int))))
-
-
 
 (template: return
   (do 3
@@ -71,8 +63,7 @@
    (let: (($block
            (call (^func &MVM_gc_allocate_zeroed)
                  (arglist 2 (carg (tc) ptr)
-                            (carg $1 int))
-                  ptr)))
+                            (carg $1 int)) ptr_sz)))
       (do 4
           (^setf $block MVMObject st (load (^spesh_slot $2) ptr_sz))
           (^setf $block MVMObject header.size $1)
@@ -80,10 +71,10 @@
           (copy $block))))
 
 (macro: ^throw_adhoc (,msg)
-   (call (^func &MVM_exception_throw_adhoc)
-         (arglist 2 (carg (tc) ptr)
-                    (carg (const ,msg ptr_sz) ptr))
-         void))
+   (die (^func &MVM_exception_throw_adhoc)
+        (arglist 2 (carg (tc) ptr)
+                    (carg (const ,msg ptr_sz) ptr))))
+       
 
 
 (template: ctxcode

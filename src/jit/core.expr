@@ -153,19 +153,17 @@
                  (store $addr $type ptr_sz)
                  (copy $type)))))
 
-(macro: ^repr (,a) (^getf ,a MVMSTable REPR))
+(macro: ^repr (,obj) (^getf (^stable ,obj) MVMSTable REPR))
 (macro: ^is_type_obj (,a)
     (nz (and (^getf ,a MVMObject header.flags) (^objflag MVM_CF_TYPE_OBJECT))))
-(macro: ^repr_cont_func (,obj ,func)
+(macro: ^stable_cont_func (,obj ,func)
     (^getf
           (^getf (^stable ,obj) MVMSTable container_spec)
           MVMContainerSpec ,func))
 
-
 (template: say (callv (^func &MVM_string_say)
                       (arglist 2 (carg (tc) ptr)
                                  (carg $0 ptr))))
-
 
 (template: decont!
     (ifv
@@ -174,8 +172,16 @@
               (^is_type_obj $1)
               (zr (^getf (^stable $1) MVMSTable container_spec)))
          (store $0 $1 ptr_sz)
-         (callv (^repr_cont_func $1 fetch)
+         (callv (^stable_cont_func $1 fetch)
                (arglist 3
                     (carg (tc) ptr)
                     (carg $1 ptr)
-                    (carg $0 ptr))))))
+                    (carg $0 ptr)))))
+
+(template: wval
+    (call (^func MVM_sc_get_sc_object)
+        (arglist 4 (carg (tc) ptr)
+                   (carg (cu) ptr)
+                   (carg $1 int)
+                   (carg $2 int)) ptr_sz))
+
