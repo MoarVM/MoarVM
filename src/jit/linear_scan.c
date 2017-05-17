@@ -895,6 +895,14 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
 #define INSERT_LOCAL_STACK_COPY(_s, _l) \
     INSERT_NEXT_TILE(MAKE_TILE(memory_copy, 4, 1, MVM_JIT_STORAGE_STACK, _s, MVM_JIT_STORAGE_LOCAL, _l, 0, spare_register))
 
+#define ENQUEUE_TRANSFER(_r) do { \
+         MVMint8 _c = (_r); \
+         if (--(topological_map[(_c)].num_out) == 0 &&  \
+                topological_map[(_c)].in_reg   >= 0) { \
+             transfer_queue[transfer_queue_top++] = _c; \
+         } \
+     } while(0)
+
     /* Before any other thing, spill the surviving registers.
      * There are a number of correct strategies, e.g. a full spill, a split-and-spill or a restorative spill.
      * Full spill may be wasteful (although this could be optimized).
@@ -919,9 +927,7 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         /* directly after the CALL, restore the values */
         INSERT_TILE(MAKE_TILE(load, 2, 1, MVM_JIT_STORAGE_LOCAL, dst, src), call_idx, -2);
         /* decrease the outbound edges, and enqueue if possible */
-        if (--(topological_map[src].num_out) == 0) {
-            transfer_queue[transfer_queue_top++] = src;
-        }
+        ENQUEUE_TRANSFER(src);
     }
 
     /* resolve conflicts for CALL; since we're spilling any surviving bits,
@@ -969,23 +975,16 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         MVMint8 stk_pos = stack_transfer[i].stack_pos;
         INSERT_COPY_TO_STACK(stk_pos, reg_num);
         _DEBUG("Insert stack parameter: Rq(%d) -> [rsp+%d]", reg_num, stk_pos);
-        if (--(topological_map[reg_num].num_out) == 0) {
-            transfer_queue[transfer_queue_top++] = reg_num;
-        }
+        ENQUEUE_TRANSFER(reg_num);
     }
 
     for (transfer_queue_idx = 0; transfer_queue_idx < transfer_queue_top; transfer_queue_idx++) {
         MVMint8 dst = transfer_queue[transfer_queue_idx];
         MVMint8 src = topological_map[dst].in_reg;
-        if (src < 0) {
-            _DEBUG("No inbound edge for Rq(%d)", dst);
-            continue;
-        }
+        _ASSERT(src >= 0, "No inboud edge");
         _DEBUG("Insert move (toposort): Rq(%d) -> Rq(%d)", src, dst);
         INSERT_MOVE(dst, src);
-        if (--(topological_map[src].num_out) == 0) {
-            transfer_queue[transfer_queue_top++] = src;
-        }
+        ENQUEUE_TRANSFER(src);
     }
 
     if (transfer_queue_top < transfers_required) {
