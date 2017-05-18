@@ -568,13 +568,29 @@ MVM_JIT_TILE_DECL(sub_load_idx) {
 }
 
 
-MVM_JIT_TILE_DECL(nz) {
+
+
+MVM_JIT_TILE_DECL(test) {
     MVMint8 reg = tile->values[1];
-    | test Rq(reg), Rq(reg);
+    switch (tile->size) {
+    case 1:
+        | test Rb(reg), Rb(reg);
+        break;
+    case 2:
+        | test Rw(reg), Rw(reg);
+        break;
+    case 4:
+        | test Rd(reg), Rd(reg);
+        break;
+    case 8:
+        | test Rq(reg), Rq(reg);
+        break;
+    }
 }
 
 
-MVM_JIT_TILE_DECL(nz_addr) {
+
+MVM_JIT_TILE_DECL(test_addr) {
     MVMint8 base  = tile->values[1];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
@@ -597,7 +613,7 @@ MVM_JIT_TILE_DECL(nz_addr) {
 }
 
 
-MVM_JIT_TILE_DECL(nz_idx) {
+MVM_JIT_TILE_DECL(test_idx) {
     MVMint8 base = tile->values[1];
     MVMint8 idx  = tile->values[2];
     MVMint32 scl = tile->args[0];
@@ -622,7 +638,7 @@ MVM_JIT_TILE_DECL(nz_idx) {
     }
 }
 
-MVM_JIT_TILE_DECL(nz_and) {
+MVM_JIT_TILE_DECL(test_and) {
     MVMint8 rega = tile->values[1];
     MVMint8 regb = tile->values[2];
     switch(tile->size) {
@@ -641,24 +657,56 @@ MVM_JIT_TILE_DECL(nz_and) {
     }
 }
 
-MVM_JIT_TILE_DECL(zr) {
-    MVMint8 reg = tile->values[1];
-    switch (tile->size) {
+MVM_JIT_TILE_DECL(test_const) {
+    MVMint8  reg = tile->values[1];
+    MVMint64 val = tile->args[0];
+    switch(tile->size) {
     case 1:
-        | test Rb(reg), Rb(reg);
+        | test Rb(reg), val;
         break;
     case 2:
-        | test Rw(reg), Rw(reg);
+        | test Rw(reg), val;
         break;
     case 4:
-        | test Rd(reg), Rd(reg);
+        | test Rd(reg), val;
         break;
     case 8:
-        | test Rq(reg), Rq(reg);
+        if (fits_in_32_bit(val)) {
+            | test Rq(reg), val;
+        } else {
+            | mov64 rax, val;
+            | test Rq(reg), rax;
+        }
         break;
     }
-
 }
+
+MVM_JIT_TILE_DECL(test_addr_const) {
+    MVMint8  reg = tile->values[1];
+    /* args: $ofs $lsize $val $csize */
+    MVMint32 ofs = tile->args[0];
+    MVMint64 val = tile->args[2];
+    switch(tile->size) {
+    case 1:
+        | test byte [Rq(reg)+ofs], val;
+        break;
+    case 2:
+        | test word [Rq(reg)+ofs], val;
+        break;
+    case 4:
+        | test dword [Rq(reg)+ofs], val;
+        break;
+    case 8:
+        if (fits_in_32_bit(val)) {
+            | test qword [Rq(reg)+ofs], val;
+        } else {
+            | mov64 rax, val;
+            | test qword [Rq(reg)+ofs], rax;
+        }
+        break;
+    }
+}
+
 
 MVM_JIT_TILE_DECL(cmp) {
     MVMint8 regl = tile->values[1];

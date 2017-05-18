@@ -31,13 +31,14 @@ MVM_JIT_TILE_DECL(and_load_addr);
 MVM_JIT_TILE_DECL(and_load_idx);
 
 
-MVM_JIT_TILE_DECL(nz);
-MVM_JIT_TILE_DECL(nz_addr);
-MVM_JIT_TILE_DECL(nz_idx);
-MVM_JIT_TILE_DECL(nz_and);
-MVM_JIT_TILE_DECL(zr);
+MVM_JIT_TILE_DECL(test);
+MVM_JIT_TILE_DECL(test_addr);
+MVM_JIT_TILE_DECL(test_idx);
+MVM_JIT_TILE_DECL(test_and);
+MVM_JIT_TILE_DECL(test_const);
+MVM_JIT_TILE_DECL(test_addr_const);
 
-MVM_JIT_TILE_DECL(flagval);
+
 
 MVM_JIT_TILE_DECL(label);
 MVM_JIT_TILE_DECL(branch_label);
