@@ -185,3 +185,18 @@
                    (carg $1 int)
                    (carg $2 int)) ptr_sz))
 
+(macro: ^body (,a) (addr ,a (&offsetof MVMObjectStooge data)))
+#  GET_REG(cur_op, 0).i64 = (MVMint64)REPR(obj)->elems(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+
+(template: elems
+  (call (^getf (^repr $1) MVMREPROps elems)
+    (arglist 4
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg (^body $1) ptr)) int_sz))
+
+#  REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
+#       OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
+#       &GET_REG(cur_op, 0), MVM_reg_obj);
+
