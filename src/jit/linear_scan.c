@@ -945,16 +945,19 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         /* FFS counts registers starting from 1 */
         MVMuint8 src = FFS(call_bitmap & arg_bitmap) - 1;
         MVMuint8 dst = FFS(free_reg) - 1;
+
         _ASSERT(free_reg != 0, "JIT: need to move a register but nothing is free");
+
         /* add edge */
         topological_map[dst].in_reg = src;
         topological_map[src].num_out++;
+
         /* enqueue directly (dst is free by definition) */
         transfer_queue[transfer_queue_top++] = dst;
         transfers_required++;
 
         /* update bitmap */
-        call_bitmap = call_bitmap & ((~(1 << src)) | (1 << dst));
+        call_bitmap = (call_bitmap & (~(1 << src))) | (1 << dst);
 
         /* update CALL args */
         for (i = 0; i < call_tile->num_refs; i++) {
