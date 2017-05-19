@@ -704,7 +704,7 @@ static const void * const LABELS[] = {
     &&OP_multidimref_s,
     &&OP_fileno_fh,
     &&OP_asyncudp,
-    &&OP_asyncwritestrto,
+    &&OP_DEPRECATED_15,
     &&OP_asyncwritebytesto,
     &&OP_objprimbits,
     &&OP_objprimunsigned,

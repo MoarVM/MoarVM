@@ -704,7 +704,7 @@
 #define MVM_OP_multidimref_s 700
 #define MVM_OP_fileno_fh 701
 #define MVM_OP_asyncudp 702
-#define MVM_OP_asyncwritestrto 703
+#define MVM_OP_DEPRECATED_15 703
 #define MVM_OP_asyncwritebytesto 704
 #define MVM_OP_objprimbits 705
 #define MVM_OP_objprimunsigned 706

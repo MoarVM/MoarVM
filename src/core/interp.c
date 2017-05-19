@@ -4828,12 +4828,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 12).o);
                 cur_op += 14;
                 goto NEXT;
-            OP(asyncwritestrto):
-                GET_REG(cur_op, 0).o = MVM_io_write_string_to_async(tc, GET_REG(cur_op, 2).o,
-                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).s,
-                    GET_REG(cur_op, 10).o, GET_REG(cur_op, 12).s, GET_REG(cur_op, 14).i64);
-                cur_op += 16;
-                goto NEXT;
             OP(asyncwritebytesto):
                 GET_REG(cur_op, 0).o = MVM_io_write_bytes_to_async(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o,
@@ -5626,6 +5620,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The continuationclone op was removed in MoarVM 2017.01.");
             OP(DEPRECATED_14):
                 MVM_exception_throw_adhoc(tc, "The asyncwritestr op was removed in MoarVM 2017.05.");
+            OP(DEPRECATED_15):
+                MVM_exception_throw_adhoc(tc, "The asyncwritestrto op was removed in MoarVM 2017.05.");
             OP(coverage_log): {
                 MVMString *filename = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
                 MVMuint32 lineno    = GET_UI32(cur_op, 4);

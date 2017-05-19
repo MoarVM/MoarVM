@@ -67,8 +67,6 @@ struct MVMIOAsyncWritable {
 /* I/O operations on handles that can do asynchronous writing to a given
  * network destination. */
 struct MVMIOAsyncWritableTo {
-    MVMAsyncTask * (*write_str_to) (MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
-        MVMObject *schedulee, MVMString *s, MVMObject *async_type, MVMString *host, MVMint64 port);
     MVMAsyncTask * (*write_bytes_to) (MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
         MVMObject *schedulee, MVMObject *buffer, MVMObject *async_type, MVMString *host, MVMint64 port);
 };
@@ -124,8 +122,6 @@ MVMObject * MVM_io_read_bytes_async(MVMThreadContext *tc, MVMObject *oshandle, M
     MVMObject *schedulee, MVMObject *buf_type, MVMObject *async_type);
 MVMObject * MVM_io_write_bytes_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
         MVMObject *schedulee, MVMObject *buffer, MVMObject *async_type);
-MVMObject * MVM_io_write_string_to_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
-    MVMObject *schedulee, MVMString *s, MVMObject *async_type, MVMString *host, MVMint64 port);
 MVMObject * MVM_io_write_bytes_to_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
         MVMObject *schedulee, MVMObject *buffer, MVMObject *async_type, MVMString *host, MVMint64 port);
 MVMint64 MVM_io_eof(MVMThreadContext *tc, MVMObject *oshandle);

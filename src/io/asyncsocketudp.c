@@ -252,7 +252,6 @@ static MVMAsyncTask * read_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObject
 /* Info we convey about a write task. */
 typedef struct {
     MVMOSHandle      *handle;
-    MVMString        *str_data;
     MVMObject        *buf_data;
     uv_udp_send_t    *req;
     uv_buf_t          buf;
@@ -292,8 +291,6 @@ static void on_write(uv_udp_send_t *req, int status) {
         });
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
-    if (wi->str_data)
-        MVM_free(wi->buf.base);
     MVM_free(wi->req);
     MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
 }
@@ -301,25 +298,19 @@ static void on_write(uv_udp_send_t *req, int status) {
 /* Does setup work for an asynchronous write. */
 static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     MVMIOAsyncUDPSocketData *handle_data;
-    char                 *output;
-    int                   output_size, r;
+    MVMArray                *buffer;
+    char                    *output;
+    int                      output_size, r;
 
     /* Add to work in progress. */
     WriteInfo *wi = (WriteInfo *)data;
     wi->tc        = tc;
     wi->work_idx  = MVM_io_eventloop_add_active_work(tc, async_task);
 
-    /* Encode the string, or extract buf data. */
-    if (wi->str_data) {
-        MVMuint64 output_size_64;
-        output = MVM_string_utf8_encode(tc, wi->str_data, &output_size_64, 0);
-        output_size = (int)output_size_64;
-    }
-    else {
-        MVMArray *buffer = (MVMArray *)wi->buf_data;
-        output = (char *)(buffer->body.slots.i8 + buffer->body.start);
-        output_size = (int)buffer->body.elems;
-    }
+    /* Extract buf data. */
+    buffer = (MVMArray *)wi->buf_data;
+    output = (char *)(buffer->body.slots.i8 + buffer->body.start);
+    output_size = (int)buffer->body.elems;
 
     /* Create and initialize write request. */
     wi->req           = MVM_malloc(sizeof(uv_udp_send_t));
@@ -358,7 +349,6 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 static void write_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
     WriteInfo *wi = (WriteInfo *)data;
     MVM_gc_worklist_add(tc, worklist, &wi->handle);
-    MVM_gc_worklist_add(tc, worklist, &wi->str_data);
     MVM_gc_worklist_add(tc, worklist, &wi->buf_data);
 }
 
@@ -379,51 +369,6 @@ static const MVMAsyncTaskOps write_op_table = {
     write_gc_mark,
     write_gc_free
 };
-
-static MVMAsyncTask * write_str_to(MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
-                                   MVMObject *schedulee, MVMString *s, MVMObject *async_type,
-                                   MVMString *host, MVMint64 port) {
-    MVMAsyncTask    *task;
-    WriteInfo       *wi;
-    struct sockaddr *dest_addr;
-
-    /* Validate REPRs. */
-    if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
-        MVM_exception_throw_adhoc(tc,
-            "asyncwritestrto target queue must have ConcBlockingQueue REPR");
-    if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
-        MVM_exception_throw_adhoc(tc,
-            "asyncwritestrto result type must have REPR AsyncTask");
-
-    /* Resolve destination. */
-    dest_addr = MVM_io_resolve_host_name(tc, host, port);
-
-    /* Create async task handle. */
-    MVMROOT(tc, queue, {
-    MVMROOT(tc, schedulee, {
-    MVMROOT(tc, h, {
-    MVMROOT(tc, s, {
-        task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
-    });
-    });
-    });
-    });
-    MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
-    MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
-    task->body.ops  = &write_op_table;
-    wi              = MVM_calloc(1, sizeof(WriteInfo));
-    MVM_ASSIGN_REF(tc, &(task->common.header), wi->handle, h);
-    MVM_ASSIGN_REF(tc, &(task->common.header), wi->str_data, s);
-    wi->dest_addr = dest_addr;
-    task->body.data = wi;
-
-    /* Hand the task off to the event loop. */
-    MVMROOT(tc, task, {
-        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
-    });
-
-    return task;
-}
 
 static MVMAsyncTask * write_bytes_to(MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
                                      MVMObject *schedulee, MVMObject *buffer, MVMObject *async_type,
@@ -519,7 +464,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 /* IO ops table, populated with functions. */
 static const MVMIOClosable        closable          = { close_socket };
 static const MVMIOAsyncReadable   async_readable    = { read_chars, read_bytes };
-static const MVMIOAsyncWritableTo async_writable_to = { write_str_to, write_bytes_to };
+static const MVMIOAsyncWritableTo async_writable_to = { write_bytes_to };
 static const MVMIOOps op_table = {
     &closable,
     NULL,
