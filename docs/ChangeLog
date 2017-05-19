@@ -2,7 +2,7 @@ New in 2017.05
 
 + Mark profiler call graphs iteratively instead of recursively
 + Keep around line number annotations in spesh, for more accurate source
-  position information in specialized code
+  position information for coverage data in specialized code
 + Introduce "telemeh", a high-precision-time low-impact logger
 + Fix error reporting in chdir
 + Fix memory leak on error in chdir
