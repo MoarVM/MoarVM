@@ -8,113 +8,182 @@
 #define snprintf _snprintf
 #endif
 
-/* Number of bytes we read at a time to the buffer (equal to largest TCP
- * packet size). */
-#define CHUNK_SIZE 65536
+/* Assuemd maximum packet size. If ever changing this to something beyond a
+ * 16-bit number, then make sure to change the receive offsets in the data
+ * structure below. */
+#define PACKET_SIZE 65535
 
  /* Data that we keep for a socket-based handle. */
 typedef struct {
     /* The libuv handle to the stream-readable thingy. */
     uv_stream_t *handle;
 
+    /* Buffer of the last received packet of data, and start/end pointers
+     * into the data. */
+    char *last_packet;
+    MVMuint16 last_packet_start;
+    MVMuint16 last_packet_end;
+
     /* Did we reach EOF yet? */
-    MVMint64 eof;
-
-    /* Decode stream, for turning bytes into strings. */
-    MVMDecodeStream *ds;
-
-    /* The thread that is doing reading. */
-    MVMThreadContext *cur_tc;
-
-    unsigned int interval_id;
+    MVMint32 eof;
 
     /* Status of the last connect attempt, if any. */
     int connect_status;
 
     /* Details of next connection to accept; NULL if none. */
-    uv_stream_t *accept_server;
     int          accept_status;
+    uv_stream_t *accept_server;
+
+    /* ID for instrumentation. */
+    unsigned int interval_id;
 } MVMIOSyncSocketData;
 
-/* Read a bunch of bytes into the current decode stream. Returns true if we
- * read some data, and false if we hit EOF. */
+/* Read a packet worth of data into the last packet buffer. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)handle->data;
-    size_t size = suggested_size > 0 ? suggested_size : 4;
+    size_t size = suggested_size > PACKET_SIZE
+        ? PACKET_SIZE
+        : (suggested_size > 0 ? suggested_size : 4);
     buf->base   = MVM_malloc(size);
-    MVM_telemetry_interval_annotate(size, data->interval_id, "alloced this much space");
     buf->len    = size;
+    MVM_telemetry_interval_annotate(size, data->interval_id, "alloced this much space");
 }
 static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)handle->data;
     if (nread > 0) {
-        MVM_string_decodestream_add_bytes(data->cur_tc, data->ds, buf->base, nread);
+        data->last_packet = buf->base;
+        data->last_packet_start = 0;
+        data->last_packet_end = nread;
         MVM_telemetry_interval_annotate(nread, data->interval_id, "read this many bytes");
     }
     else if (nread == UV_EOF) {
-        data->eof = 1;
+        data->last_packet = NULL;
         if (buf->base)
             MVM_free(buf->base);
+    }
+    else if (nread == 0) {
+        /* Read nothing, but not EOF; stay in the event loop. */
+        if (buf->base)
+            MVM_free(buf->base);
+        return;
     }
     uv_read_stop(handle);
     uv_unref((uv_handle_t*)handle);
 }
-static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncSocketData *data, MVMint32 bytes) {
-    /* Don't try and read again if we already saw EOF. */
-    if (!data->eof) {
-        int r;
-        unsigned int interval_id;
-
-        interval_id = MVM_telemetry_interval_start(tc, "syncsocket.read_to_buffer");
-        data->handle->data = data;
-        data->cur_tc = tc;
-        if ((r = uv_read_start(data->handle, on_alloc, on_read)) < 0)
-            MVM_exception_throw_adhoc(tc, "Reading from stream failed: %s",
-                uv_strerror(r));
-        uv_ref((uv_handle_t *)data->handle);
-        if (tc->loop != data->handle->loop) {
-            MVM_exception_throw_adhoc(tc, "Tried to read() from an IO handle outside its originating thread");
-        }
-        MVM_gc_mark_thread_blocked(tc);
-        uv_run(tc->loop, UV_RUN_DEFAULT);
-        MVM_gc_mark_thread_unblocked(tc);
-        MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.read_to_buffer");
-        return 1;
+static void read_one_packet(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
+    unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncsocket.read_one_packet");
+    int r;
+    data->handle->data = data;
+    if ((r = uv_read_start(data->handle, on_alloc, on_read)) < 0)
+        MVM_exception_throw_adhoc(tc, "Reading from stream failed: %s",
+            uv_strerror(r));
+    uv_ref((uv_handle_t *)data->handle);
+    if (tc->loop != data->handle->loop) {
+        MVM_exception_throw_adhoc(tc, "Tried to read() from an IO handle outside its originating thread");
     }
-    else {
-        return 0;
-    }
-}
-
-/* Ensures we have a decode stream, creating it if we're missing one. */
-static void ensure_decode_stream(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
-    if (!data->ds)
-        data->ds = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0, 0);
+    MVM_gc_mark_thread_blocked(tc);
+    uv_run(tc->loop, UV_RUN_DEFAULT);
+    MVM_gc_mark_thread_unblocked(tc);
+    MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.read_to_buffer");
 }
 
 MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-    ensure_decode_stream(tc, data);
+    char *use_last_packet = NULL;
+    MVMuint16 use_last_packet_start, use_last_packet_end;
 
-    /* See if we've already enough; if not, try and grab more. */
-    if (!MVM_string_decodestream_have_bytes(tc, data->ds, bytes))
-        read_to_buffer(tc, data, bytes > CHUNK_SIZE ? bytes : CHUNK_SIZE);
+    /* If at EOF, nothing more to do. */
+    if (data->eof) {
+        *buf = NULL;
+        return 0;
+    }
 
-    /* Read as many as we can, up to the limit. */
-    return MVM_string_decodestream_bytes_to_buf(tc, data->ds, buf, bytes);
+    /* See if there's anything in the packet buffer. */
+    if (data->last_packet) {
+        MVMuint16 last_remaining = data->last_packet_end - data->last_packet_start;
+        if (bytes <= last_remaining) {
+            /* There's enough, and it's sufficient for the request. Extract it
+             * and return, discarding the last packet buffer if we drain it. */
+            *buf = MVM_malloc(bytes);
+            memcpy(*buf, data->last_packet + data->last_packet_start, bytes);
+            if (bytes == last_remaining) {
+                MVM_free(data->last_packet);
+                data->last_packet = NULL;
+            }
+            else {
+                data->last_packet_start += bytes;
+            }
+            return bytes;
+        }
+        else {
+            /* Something, but not enough. Take the last packet for use, then
+             * we'll read another one. */
+            use_last_packet = data->last_packet;
+            use_last_packet_start = data->last_packet_start;
+            use_last_packet_end = data->last_packet_end;
+            data->last_packet = NULL;
+        }
+    }
+
+    /* If we get here, we need to read another packet. */
+    read_one_packet(tc, data);
+
+    /* Now assemble the result. */
+    if (data->last_packet && use_last_packet) {
+        /* Need to assemble it from two places. */
+        MVMuint32 last_available = use_last_packet_end - use_last_packet_start;
+        MVMuint32 available = last_available + data->last_packet_end;
+        if (bytes > available)
+            bytes = available;
+        *buf = MVM_malloc(bytes);
+        memcpy(*buf, use_last_packet + use_last_packet_start, last_available);
+        memcpy(*buf + last_available, data->last_packet, bytes - last_available);
+        if (bytes == available) {
+            /* We used all of the just-read packet. */
+            MVM_free(data->last_packet);
+            data->last_packet = NULL;
+        }
+        else {
+            /* Still something left in the just-read packet for next time. */
+            data->last_packet_start += bytes - last_available;
+        }
+    }
+    else if (data->last_packet) {
+        /* Only data from the just-read packet. */
+        if (bytes >= data->last_packet_end) {
+            /* We need all of it, so no copying needed, just hand it back. */
+            *buf = data->last_packet;
+            bytes = data->last_packet_end;
+            data->last_packet = NULL;
+        }
+        else {
+            /* Only need some of it. */
+            *buf = MVM_malloc(bytes);
+            memcpy(*buf, data->last_packet, bytes);
+            data->last_packet_start += bytes;
+        }
+    }
+    else if (use_last_packet) {
+        /* Nothing read this time, so at the end. Drain previous packet data
+         * and mark EOF. */
+        bytes = use_last_packet_end - use_last_packet_start;
+        *buf = MVM_malloc(bytes);
+        memcpy(*buf, use_last_packet + use_last_packet_start, bytes);
+        data->eof = 1;
+    }
+    else {
+        /* Nothing to hand back; at EOF. */
+        *buf = NULL;
+        bytes = 0;
+        data->eof = 1;
+    }
+
+    return bytes;
 }
 
-/* Checks if the end of stream has been reached. */
+/* Checks if EOF has been reached on the incoming data. */
 MVMint64 socket_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-
-    /* If we still have stuff in the buffer, certainly not the end (even if
-     * data->eof is set; that just means we read all we can from libuv, not
-     * that we processed it all). */
-    if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))
-        return 0;
-
-    /* Otherwise, go on the EOF flag from the underlying stream. */
     return data->eof;
 }
 
@@ -163,10 +232,6 @@ static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
     if (data->handle) {
          uv_close((uv_handle_t *)data->handle, free_on_close_cb);
          data->handle = NULL;
-    }
-    if (data->ds) {
-        MVM_string_decodestream_destroy(tc, data->ds);
-        data->ds = NULL;
     }
     return 0;
 }
@@ -226,7 +291,6 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         uv_connect_t    *connect = MVM_malloc(sizeof(uv_connect_t));
         int status;
 
-        data->cur_tc = tc;
         connect->data   = data;
         if ((status = uv_tcp_init(tc->loop, socket)) == 0 &&
                 (status = uv_tcp_connect(connect, socket, dest, on_connect)) == 0) {
