@@ -14,17 +14,8 @@
 
  /* Data that we keep for a socket-based handle. */
 typedef struct {
-    /* is it a TTY? */
-    MVMint8 is_tty;
-
-    /* Should we translate newlines? */
-    MVMint32 translate_newlines;
-
     /* The libuv handle to the stream-readable thingy. */
     uv_stream_t *handle;
-
-    /* The encoding we're using. */
-    MVMint64 encoding;
 
     /* Did we reach EOF yet? */
     MVMint64 eof;
@@ -34,12 +25,6 @@ typedef struct {
 
     /* The thread that is doing reading. */
     MVMThreadContext *cur_tc;
-
-    /* Total bytes we've written. */
-    MVMint64 total_bytes_written;
-
-    /* Current separator specification for line-by-line reading. */
-    MVMDecodeStreamSeparators sep_spec;
 
     unsigned int interval_id;
 
@@ -104,8 +89,7 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncSocketData *data, 
 /* Ensures we have a decode stream, creating it if we're missing one. */
 static void ensure_decode_stream(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
     if (!data->ds)
-        data->ds = MVM_string_decodestream_create(tc, data->encoding, 0,
-            data->translate_newlines);
+        data->ds = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8, 0, 0);
 }
 
 MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes) {
@@ -169,7 +153,6 @@ MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
     }
     MVM_telemetry_interval_annotate(bytes, interval_id, "written this many bytes");
     MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.write_bytes");
-    data->total_bytes_written += bytes;
     return bytes;
 }
 
@@ -195,7 +178,6 @@ static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)d;
     do_close(tc, data);
-    MVM_string_decode_stream_sep_destroy(tc, &(data->sep_spec));
     MVM_free(data);
 }
 
@@ -393,8 +375,6 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
             MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
             MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
             data->handle   = (uv_stream_t *)client;
-            data->encoding = MVM_encoding_type_utf8;
-            MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
             result->body.ops  = &op_table;
             result->body.data = data;
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket accept succeeded");
@@ -413,9 +393,6 @@ MVMObject * MVM_io_socket_create(MVMThreadContext *tc, MVMint64 listen) {
     MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
     data->handle   = NULL;
-    data->encoding = MVM_encoding_type_utf8;
-    data->translate_newlines = 0;
-    MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;
