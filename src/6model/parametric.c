@@ -48,9 +48,10 @@ static void finish_parameterizing(MVMThreadContext *tc, void *sr_data) {
     new_stable->mode_flags |= MVM_PARAMETERIZED_TYPE;
 
     /* Add to lookup table. */
-    /* XXX handle possible race. */
+    uv_mutex_lock(&tc->instance->mutex_parameterization_add);
     MVM_repr_push_o(tc, prd->parametric_type->st->paramet.ric.lookup, prd->parameters);
     MVM_repr_push_o(tc, prd->parametric_type->st->paramet.ric.lookup, prd->result->o);
+    uv_mutex_unlock(&tc->instance->mutex_parameterization_add);
 
     /* Clean up parametric return data, now we're finished with it. */
     MVM_free(prd);
