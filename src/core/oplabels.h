@@ -591,7 +591,7 @@ static const void * const LABELS[] = {
     &&OP_watchfile,
     &&OP_asyncconnect,
     &&OP_asynclisten,
-    &&OP_asyncwritestr,
+    &&OP_DEPRECATED_14,
     &&OP_asyncwritebytes,
     &&OP_asyncreadchars,
     &&OP_asyncreadbytes,

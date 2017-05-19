@@ -276,22 +276,6 @@ MVMObject * MVM_io_read_bytes_async(MVMThreadContext *tc, MVMObject *oshandle, M
         MVM_exception_throw_adhoc(tc, "Cannot read bytes asynchronously from this kind of handle");
 }
 
-MVMObject * MVM_io_write_string_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
-                                      MVMObject *schedulee, MVMString *str, MVMObject *async_type) {
-    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "write string asynchronously");
-    if (str == NULL)
-        MVM_exception_throw_adhoc(tc, "Failed to write to filehandle: NULL string given");
-    if (handle->body.ops->async_writable) {
-        uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        MVMObject *result = (MVMObject *)handle->body.ops->async_writable->write_str(tc,
-            handle, queue, schedulee, str, async_type);
-        release_mutex(tc, mutex);
-        return result;
-    }
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot write a string asynchronously to this kind of handle");
-}
-
 MVMObject * MVM_io_write_bytes_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
                                      MVMObject *schedulee, MVMObject *buffer, MVMObject *async_type) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "write buffer asynchronously");
