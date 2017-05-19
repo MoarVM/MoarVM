@@ -160,7 +160,6 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h);
 
 /* IO ops table, populated with functions. */
 static const MVMIOClosable     closable      = { close_socket };
-static const MVMIOEncodable    encodable     = { MVM_io_syncstream_set_encoding };
 static const MVMIOSyncReadable sync_readable = { MVM_io_syncstream_set_separator,
                                                  MVM_io_syncstream_read_line,
                                                  MVM_io_syncstream_slurp,
@@ -178,7 +177,7 @@ static const MVMIOSockety            sockety = { socket_connect,
                                                  socket_accept };
 static const MVMIOOps op_table = {
     &closable,
-    &encodable,
+    NULL,
     &sync_readable,
     &sync_writable,
     NULL,
