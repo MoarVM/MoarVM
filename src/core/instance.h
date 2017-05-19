@@ -225,6 +225,10 @@ struct MVMInstance {
     MVMuint32                     all_scs_next_idx;
     MVMuint32                     all_scs_alloc;
 
+    /* Mutex to serialize additions of type parameterizations. Global rather
+     * than per STable, as this doesn't happen often. */
+    uv_mutex_t mutex_parameterization_add;
+
     /************************************************************************
      * Specializer (dynamic optimization)
      ************************************************************************/
