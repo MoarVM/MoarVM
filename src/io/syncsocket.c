@@ -156,17 +156,39 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
     }
 }
 
+static void no_chars(MVMThreadContext *tc) {
+        MVM_exception_throw_adhoc(tc, "Sockets no longer support string I/O at VM-level");
+}
+static void socket_set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding) {
+    no_chars(tc);
+}
+static void socket_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString **seps, MVMint32 num_seps) {
+    no_chars(tc);
+}
+static MVMString * socket_read_line(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 chomp) {
+    no_chars(tc);
+}
+static MVMString * socket_slurp(MVMThreadContext *tc, MVMOSHandle *h) {
+    no_chars(tc);
+}
+static MVMString * socket_read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 chars) {
+    no_chars(tc);
+}
+static MVMint64 socket_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, MVMint64 newline) {
+    no_chars(tc);
+}
+
 static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h);
 
 /* IO ops table, populated with functions. */
 static const MVMIOClosable     closable      = { close_socket };
-static const MVMIOSyncReadable sync_readable = { MVM_io_syncstream_set_separator,
-                                                 MVM_io_syncstream_read_line,
-                                                 MVM_io_syncstream_slurp,
-                                                 MVM_io_syncstream_read_chars,
+static const MVMIOSyncReadable sync_readable = { socket_set_separator,
+                                                 socket_read_line,
+                                                 socket_slurp,
+                                                 socket_read_chars,
                                                  MVM_io_syncstream_read_bytes,
                                                  MVM_io_syncstream_eof };
-static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_str,
+static const MVMIOSyncWritable sync_writable = { socket_write_str,
                                                  MVM_io_syncstream_write_bytes,
                                                  MVM_io_syncstream_flush,
                                                  MVM_io_syncstream_truncate };
