@@ -631,8 +631,7 @@ asyncconnect        w(obj) r(obj) r(obj) r(str) r(int64) r(obj)
 asynclisten         w(obj) r(obj) r(obj) r(str) r(int64) r(int64) r(obj)
 DEPRECATED_14       w(obj) r(obj) r(obj) r(obj) r(str) r(obj)
 asyncwritebytes     w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
-# asyncreadchars will be DEPRECATED! (decode from bytes at the application level)
-asyncreadchars      w(obj) r(obj) r(obj) r(obj) r(obj)
+DEPRECATED_16       w(obj) r(obj) r(obj) r(obj) r(obj)
 asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 getlexstatic_o      w(obj) r(str) :pure :noinline
 getlexperinvtype_o  w(obj) r(str) :pure :noinline

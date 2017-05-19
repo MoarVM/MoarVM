@@ -593,7 +593,7 @@
 #define MVM_OP_asynclisten 589
 #define MVM_OP_DEPRECATED_14 590
 #define MVM_OP_asyncwritebytes 591
-#define MVM_OP_asyncreadchars 592
+#define MVM_OP_DEPRECATED_16 592
 #define MVM_OP_asyncreadbytes 593
 #define MVM_OP_getlexstatic_o 594
 #define MVM_OP_getlexperinvtype_o 595

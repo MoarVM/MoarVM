@@ -52,8 +52,6 @@ struct MVMIOSyncWritable {
 
 /* I/O operations on handles that can do asynchronous reading. */
 struct MVMIOAsyncReadable {
-    MVMAsyncTask * (*read_chars) (MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
-        MVMObject *schedulee, MVMObject *async_type);
     MVMAsyncTask * (*read_bytes) (MVMThreadContext *tc, MVMOSHandle *h, MVMObject *queue,
         MVMObject *schedulee, MVMObject *buf_type, MVMObject *async_type);
 };
@@ -116,8 +114,6 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
 MVMString * MVM_io_slurp(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_write_string(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint8 addnl);
 void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *buffer);
-MVMObject * MVM_io_read_chars_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
-    MVMObject *schedulee, MVMObject *async_type);
 MVMObject * MVM_io_read_bytes_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
     MVMObject *schedulee, MVMObject *buf_type, MVMObject *async_type);
 MVMObject * MVM_io_write_bytes_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,

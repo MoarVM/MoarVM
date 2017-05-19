@@ -248,20 +248,6 @@ void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *bu
         MVM_exception_throw_adhoc(tc, "Cannot write bytes to this kind of handle");
 }
 
-MVMObject * MVM_io_read_chars_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
-                                    MVMObject *schedulee, MVMObject *async_type) {
-    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "read chars asynchronously");
-    if (handle->body.ops->async_readable) {
-        uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        MVMObject *result = (MVMObject *)handle->body.ops->async_readable->read_chars(tc,
-            handle, queue, schedulee, async_type);
-        release_mutex(tc, mutex);
-        return result;
-    }
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot read chars asynchronously from this kind of handle");
-}
-
 MVMObject * MVM_io_read_bytes_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
                                     MVMObject *schedulee, MVMObject *buf_type, MVMObject *async_type) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "read bytes asynchronously");

@@ -4211,11 +4211,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 10).o);
                 cur_op += 12;
                 goto NEXT;
-            OP(asyncreadchars):
-                GET_REG(cur_op, 0).o = MVM_io_read_chars_async(tc, GET_REG(cur_op, 2).o,
-                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o);
-                cur_op += 10;
-                goto NEXT;
             OP(asyncreadbytes):
                 GET_REG(cur_op, 0).o = MVM_io_read_bytes_async(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o, GET_REG(cur_op, 8).o,
@@ -5622,6 +5617,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The asyncwritestr op was removed in MoarVM 2017.05.");
             OP(DEPRECATED_15):
                 MVM_exception_throw_adhoc(tc, "The asyncwritestrto op was removed in MoarVM 2017.05.");
+            OP(DEPRECATED_16):
+                MVM_exception_throw_adhoc(tc, "The asyncreadchars op was removed in MoarVM 2017.05.");
             OP(coverage_log): {
                 MVMString *filename = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
                 MVMuint32 lineno    = GET_UI32(cur_op, 4);

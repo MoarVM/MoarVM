@@ -593,7 +593,7 @@ static const void * const LABELS[] = {
     &&OP_asynclisten,
     &&OP_DEPRECATED_14,
     &&OP_asyncwritebytes,
-    &&OP_asyncreadchars,
+    &&OP_DEPRECATED_16,
     &&OP_asyncreadbytes,
     &&OP_getlexstatic_o,
     &&OP_getlexperinvtype_o,
