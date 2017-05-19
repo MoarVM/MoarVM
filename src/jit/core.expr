@@ -198,7 +198,21 @@
       (carg $1 ptr)
       (carg (^body $1) ptr)) int_sz))
 
+
 #  REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
 #       OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
 #       &GET_REG(cur_op, 0), MVM_reg_obj);
+(template: atpos_o!
+  (ifv (^is_type_obj $1)
+   (store $0 (^vmnull) ptr_sz)
+   (callv
+      (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
+      (arglist 7
+        (carg (tc) ptr)
+        (carg (^stable $1) ptr)
+        (carg $1 ptr)
+        (carg (^body $1) ptr)
+        (carg $2 int)
+        (carg $0 ptr)
+        (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))))
 

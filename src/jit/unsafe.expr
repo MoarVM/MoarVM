@@ -59,16 +59,15 @@
 
 # NB - even though we can allocate this inline, probably best to make
 # this a destructive template and store it explicitly
-(template: sp_fastcreate
+(template: sp_fastcreate!
    (let: (($block
            (call (^func &MVM_gc_allocate_zeroed)
                  (arglist 2 (carg (tc) ptr)
                             (carg $1 int)) ptr_sz)))
-      (do 4
           (^setf $block MVMObject st (load (^spesh_slot $2) ptr_sz))
           (^setf $block MVMObject header.size $1)
           (^setf $block MVMObject header.owner (^getf (tc) MVMThreadContext thread_id))
-          (copy $block))))
+          (store $0 $block))))
 
 (macro: ^throw_adhoc (,msg)
    (die (^func &MVM_exception_throw_adhoc)
@@ -89,19 +88,3 @@
 # I maybe want to add a flag-to-register op
 
 
-#  REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj,
-#       OBJECT_BODY(obj), GET_REG(cur_op, 4).i64,
-#       &GET_REG(cur_op, 0), MVM_reg_obj);
-(template: atpos_o!
-  (ifv (^is_type_obj $1)
-   (store $0 (^vmnull) ptr_sz)
-   (callv
-      (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
-      (arglist 7
-        (carg (tc) ptr)
-        (carg (^stable $1) ptr)
-        (carg $1 ptr)
-        (carg (^body $1) ptr)
-        (carg $2 int)
-        (carg $0 ptr)
-        (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))))
