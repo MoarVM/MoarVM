@@ -14,9 +14,34 @@
 
  /* Data that we keep for a socket-based handle. */
 typedef struct {
-    /* Start with same fields as a sync stream, since we will re-use most
-     * of its logic. */
-    MVMIOSyncStreamData ss;
+    /* is it a TTY? */
+    MVMint8 is_tty;
+
+    /* Should we translate newlines? */
+    MVMint32 translate_newlines;
+
+    /* The libuv handle to the stream-readable thingy. */
+    uv_stream_t *handle;
+
+    /* The encoding we're using. */
+    MVMint64 encoding;
+
+    /* Did we reach EOF yet? */
+    MVMint64 eof;
+
+    /* Decode stream, for turning bytes into strings. */
+    MVMDecodeStream *ds;
+
+    /* The thread that is doing reading. */
+    MVMThreadContext *cur_tc;
+
+    /* Total bytes we've written. */
+    MVMint64 total_bytes_written;
+
+    /* Current separator specification for line-by-line reading. */
+    MVMDecodeStreamSeparators sep_spec;
+
+    unsigned int interval_id;
 
     /* Status of the last connect attempt, if any. */
     int connect_status;
@@ -29,14 +54,14 @@ typedef struct {
 /* Read a bunch of bytes into the current decode stream. Returns true if we
  * read some data, and false if we hit EOF. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)handle->data;
+    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)handle->data;
     size_t size = suggested_size > 0 ? suggested_size : 4;
     buf->base   = MVM_malloc(size);
     MVM_telemetry_interval_annotate(size, data->interval_id, "alloced this much space");
     buf->len    = size;
 }
 static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)handle->data;
+    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)handle->data;
     if (nread > 0) {
         MVM_string_decodestream_add_bytes(data->cur_tc, data->ds, buf->base, nread);
         MVM_telemetry_interval_annotate(nread, data->interval_id, "read this many bytes");
@@ -49,13 +74,13 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     uv_read_stop(handle);
     uv_unref((uv_handle_t*)handle);
 }
-static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncStreamData *data, MVMint32 bytes) {
+static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncSocketData *data, MVMint32 bytes) {
     /* Don't try and read again if we already saw EOF. */
     if (!data->eof) {
         int r;
         unsigned int interval_id;
 
-        interval_id = MVM_telemetry_interval_start(tc, "syncstream.read_to_buffer");
+        interval_id = MVM_telemetry_interval_start(tc, "syncsocket.read_to_buffer");
         data->handle->data = data;
         data->cur_tc = tc;
         if ((r = uv_read_start(data->handle, on_alloc, on_read)) < 0)
@@ -68,7 +93,7 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncStreamData *data, 
         MVM_gc_mark_thread_blocked(tc);
         uv_run(tc->loop, UV_RUN_DEFAULT);
         MVM_gc_mark_thread_unblocked(tc);
-        MVM_telemetry_interval_stop(tc, interval_id, "syncstream.read_to_buffer");
+        MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.read_to_buffer");
         return 1;
     }
     else {
@@ -77,14 +102,14 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncStreamData *data, 
 }
 
 /* Ensures we have a decode stream, creating it if we're missing one. */
-static void ensure_decode_stream(MVMThreadContext *tc, MVMIOSyncStreamData *data) {
+static void ensure_decode_stream(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
     if (!data->ds)
         data->ds = MVM_string_decodestream_create(tc, data->encoding, 0,
             data->translate_newlines);
 }
 
 MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes) {
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     ensure_decode_stream(tc, data);
 
     /* See if we've already enough; if not, try and grab more. */
@@ -97,7 +122,7 @@ MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
 
 /* Checks if the end of stream has been reached. */
 MVMint64 socket_eof(MVMThreadContext *tc, MVMOSHandle *h) {
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
 
     /* If we still have stuff in the buffer, certainly not the end (even if
      * data->eof is set; that just means we read all we can from libuv, not
@@ -123,18 +148,18 @@ static void write_cb(uv_write_t* req, int status) {
     MVM_free(req);
 }
 MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     uv_write_t *req = MVM_malloc(sizeof(uv_write_t));
     uv_buf_t write_buf = uv_buf_init(buf, bytes);
     int r;
     unsigned int interval_id;
 
-    interval_id = MVM_telemetry_interval_start(tc, "syncstream.write_bytes");
+    interval_id = MVM_telemetry_interval_start(tc, "syncsocket.write_bytes");
     uv_ref((uv_handle_t *)data->handle);
     if ((r = uv_write(req, data->handle, &write_buf, 1, write_cb)) < 0) {
         uv_unref((uv_handle_t *)data->handle);
         MVM_free(req);
-        MVM_telemetry_interval_stop(tc, interval_id, "syncstream.write_bytes failed");
+        MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.write_bytes failed");
         MVM_exception_throw_adhoc(tc, "Failed to write bytes to stream: %s", uv_strerror(r));
     }
     else {
@@ -143,7 +168,7 @@ MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
         MVM_gc_mark_thread_unblocked(tc);
     }
     MVM_telemetry_interval_annotate(bytes, interval_id, "written this many bytes");
-    MVM_telemetry_interval_stop(tc, interval_id, "syncstream.write_bytes");
+    MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.write_bytes");
     data->total_bytes_written += bytes;
     return bytes;
 }
@@ -152,13 +177,13 @@ static void free_on_close_cb(uv_handle_t *handle) {
     MVM_free(handle);
 }
 static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
-    if (data->ss.handle) {
-         uv_close((uv_handle_t *)data->ss.handle, free_on_close_cb);
-         data->ss.handle = NULL;
+    if (data->handle) {
+         uv_close((uv_handle_t *)data->handle, free_on_close_cb);
+         data->handle = NULL;
     }
-    if (data->ss.ds) {
-        MVM_string_decodestream_destroy(tc, data->ss.ds);
-        data->ss.ds = NULL;
+    if (data->ds) {
+        MVM_string_decodestream_destroy(tc, data->ds);
+        data->ds = NULL;
     }
     return 0;
 }
@@ -170,7 +195,7 @@ static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)d;
     do_close(tc, data);
-    MVM_string_decode_stream_sep_destroy(tc, &(data->ss.sep_spec));
+    MVM_string_decode_stream_sep_destroy(tc, &(data->sep_spec));
     MVM_free(data);
 }
 
@@ -213,13 +238,13 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
     unsigned int interval_id;
 
     interval_id = MVM_telemetry_interval_start(tc, "syncsocket connect");
-    if (!data->ss.handle) {
+    if (!data->handle) {
         struct sockaddr *dest    = MVM_io_resolve_host_name(tc, host, port);
         uv_tcp_t        *socket  = MVM_malloc(sizeof(uv_tcp_t));
         uv_connect_t    *connect = MVM_malloc(sizeof(uv_connect_t));
         int status;
 
-        data->ss.cur_tc = tc;
+        data->cur_tc = tc;
         connect->data   = data;
         if ((status = uv_tcp_init(tc->loop, socket)) == 0 &&
                 (status = uv_tcp_connect(connect, socket, dest, on_connect)) == 0) {
@@ -233,7 +258,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
 
         MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
 
-        data->ss.handle = (uv_stream_t *)socket; /* So can be cleaned up in close */
+        data->handle = (uv_stream_t *)socket; /* So can be cleaned up in close */
         if (status < 0)
             MVM_exception_throw_adhoc(tc, "Failed to connect: %s", uv_strerror(status));
     }
@@ -253,7 +278,7 @@ static void on_connection(uv_stream_t *server, int status) {
 }
 static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMint32 backlog) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-    if (!data->ss.handle) {
+    if (!data->handle) {
         struct sockaddr *dest    = MVM_io_resolve_host_name(tc, host, port);
         uv_tcp_t        *socket  = MVM_malloc(sizeof(uv_tcp_t));
         int r;
@@ -275,7 +300,7 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         }
         uv_unref((uv_handle_t *)socket);
 
-        data->ss.handle = (uv_stream_t *)socket;
+        data->handle = (uv_stream_t *)socket;
     }
     else {
         MVM_exception_throw_adhoc(tc, "Socket is already bound or connected");
@@ -344,10 +369,10 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
 
     interval_id = MVM_telemetry_interval_start(tc, "syncsocket accept");
     while (!data->accept_server) {
-        if (tc->loop != data->ss.handle->loop) {
+        if (tc->loop != data->handle->loop) {
             MVM_exception_throw_adhoc(tc, "Tried to accept() on a socket from outside its originating thread");
         }
-        uv_ref((uv_handle_t *)data->ss.handle);
+        uv_ref((uv_handle_t *)data->handle);
         MVM_gc_mark_thread_blocked(tc);
         uv_run(tc->loop, UV_RUN_DEFAULT);
         MVM_gc_mark_thread_unblocked(tc);
@@ -367,9 +392,9 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
         if ((r = uv_accept(server, (uv_stream_t *)client)) == 0) {
             MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
             MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
-            data->ss.handle   = (uv_stream_t *)client;
-            data->ss.encoding = MVM_encoding_type_utf8;
-            MVM_string_decode_stream_sep_default(tc, &(data->ss.sep_spec));
+            data->handle   = (uv_stream_t *)client;
+            data->encoding = MVM_encoding_type_utf8;
+            MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
             result->body.ops  = &op_table;
             result->body.data = data;
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket accept succeeded");
@@ -387,10 +412,10 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
 MVMObject * MVM_io_socket_create(MVMThreadContext *tc, MVMint64 listen) {
     MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
-    data->ss.handle   = NULL;
-    data->ss.encoding = MVM_encoding_type_utf8;
-    data->ss.translate_newlines = 0;
-    MVM_string_decode_stream_sep_default(tc, &(data->ss.sep_spec));
+    data->handle   = NULL;
+    data->encoding = MVM_encoding_type_utf8;
+    data->translate_newlines = 0;
+    MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;
