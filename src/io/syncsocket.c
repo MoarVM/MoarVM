@@ -170,8 +170,6 @@ static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_str,
                                                  MVM_io_syncstream_write_bytes,
                                                  MVM_io_syncstream_flush,
                                                  MVM_io_syncstream_truncate };
-static const MVMIOSeekable          seekable = { MVM_io_syncstream_seek,
-                                                 MVM_io_syncstream_tell };
 static const MVMIOSockety            sockety = { socket_connect,
                                                  socket_bind,
                                                  socket_accept };
@@ -183,7 +181,7 @@ static const MVMIOOps op_table = {
     NULL,
     NULL,
     NULL,
-    &seekable,
+    NULL,
     &sockety,
     NULL,
     NULL,
