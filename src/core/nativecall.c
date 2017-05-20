@@ -369,7 +369,34 @@ static const char *dlerror(void)
     return buf;
 }
 #endif
+void resolve_ldscript(MVMThreadContext *tc, MVMNativeCallBody *body) {
+    if (!body->lib_handle) {
+        char * err = dlerror();
+        char * enderr = ": invalid ELF header";
+        MVMString *myerr = MVM_string_ascii_decode(tc, tc->instance->VMString, err, strlen(err));
+        MVMString *myenderr = MVM_string_ascii_decode(tc, tc->instance->VMString, enderr, strlen(enderr));
+        //fprintf(stderr, "Graphs in file %i err: '%s'\n", MVM_string_graphs(tc, myerr), err);
+        if ( MVM_string_equal_at(tc, myerr, myenderr, MVM_string_graphs(tc, myerr) - MVM_string_graphs(tc, myenderr)) ) {
+            MVMString *filename = MVM_string_ascii_decode(tc, tc->instance->VMString, err,  MVM_string_graphs(tc, myerr) - MVM_string_graphs(tc, myenderr));
+            MVMString *sofile = MVM_file_slurp(tc, filename, MVM_string_ascii_decode(tc, tc->instance->VMString, "utf8", 4));
+            char *begin = "GROUP ( ";
+            char *end = " )";
+            MVMString *begin_thing = MVM_string_ascii_decode(tc, tc->instance->VMString, begin, strlen(begin));
+            MVMString *end_thing = MVM_string_ascii_decode(tc, tc->instance->VMString, end, strlen(end));
+            MVMint64 begin_index = MVM_string_index(tc, sofile, begin_thing, 0);
+            if (begin_index) {
+                MVMint64 end_index = MVM_string_index(tc, sofile, end_thing, begin_index);
+                MVMString *newpath = MVM_string_substring(tc, sofile, MVM_string_graphs(tc, begin_thing) + begin_index, end_index - begin_index - MVM_string_graphs(tc, begin_thing));
+                char *newpath_c_str = MVM_string_utf8_c8_encode_C_string(tc, newpath);
+                fprintf(stderr, "Loading newpath: '%s'\n",
+                    newpath_c_str
+                );
+                body->lib_handle = MVM_nativecall_load_lib(strlen(newpath_c_str) ? newpath_c_str : NULL);
 
+            }
+        }
+    }
+}
 /* Builds up a native call site out of the supplied arguments. */
 void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
         MVMString *sym, MVMString *conv, MVMObject *arg_info, MVMObject *ret_info) {
@@ -389,7 +416,7 @@ void MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     /* Try to load the library. */
     body->lib_name = lib_name;
     body->lib_handle = MVM_nativecall_load_lib(strlen(lib_name) ? lib_name : NULL);
-
+    resolve_ldscript(tc, body);
     if (!body->lib_handle) {
         char *waste[] = { lib_name, NULL };
         MVM_free(sym_name);
