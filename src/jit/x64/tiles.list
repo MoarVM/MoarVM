@@ -99,6 +99,7 @@
 (tile: cmp (le reg reg) flag 2)
 (tile: cmp (ge reg reg) flag 2)
 
+(tile: flagval (flagval flag) reg 2)
 
 (tile: label   (label (const $val)) reg 2)
 (tile: branch_label (branch (label (const $val))) void 2)

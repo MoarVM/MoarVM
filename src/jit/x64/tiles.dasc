@@ -727,7 +727,34 @@ MVM_JIT_TILE_DECL(cmp) {
     }
 }
 
-
+MVM_JIT_TILE_DECL(flagval) {
+    MVMint8 out = tile->values[0];
+    MVMint32 child = tree->nodes[tile->node + 1];
+    MVMint32 flag  = tree->nodes[child];
+    switch (flag) {
+    case MVM_JIT_LT:
+        | setl Rb(out);
+        break;
+    case MVM_JIT_LE:
+        | setle Rb(out);
+        break;
+    case MVM_JIT_EQ:
+        | setz Rb(out);
+        break;
+    case MVM_JIT_NE:
+        | setnz Rb(out);
+        break;
+    case MVM_JIT_GE:
+        | setge Rb(out);
+        break;
+    case MVM_JIT_GT:
+        | setg Rb(out);
+        break;
+    default:
+        MVM_panic(1, "No flagval possible");
+        break;
+    }
+}
 
 
 MVM_JIT_TILE_DECL(label) {

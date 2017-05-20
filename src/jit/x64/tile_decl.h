@@ -38,14 +38,12 @@ MVM_JIT_TILE_DECL(test_and);
 MVM_JIT_TILE_DECL(test_const);
 MVM_JIT_TILE_DECL(test_addr_const);
 
-
+MVM_JIT_TILE_DECL(cmp);
+MVM_JIT_TILE_DECL(flagval);
 
 MVM_JIT_TILE_DECL(label);
 MVM_JIT_TILE_DECL(branch_label);
 
-MVM_JIT_TILE_DECL(cmp);
-
 MVM_JIT_TILE_DECL(call);
 MVM_JIT_TILE_DECL(call_func);
 MVM_JIT_TILE_DECL(call_addr);
-

@@ -381,6 +381,9 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                                   tree->info[right].size);
             break;
         }
+    case MVM_JIT_FLAGVAL:
+        node_info->size = 1;
+        break;
     case MVM_JIT_DO:
         /* node size of last child */
         {
