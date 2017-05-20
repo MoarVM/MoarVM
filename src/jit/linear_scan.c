@@ -838,7 +838,10 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         MVMint8  r = alc->values[v].reg_num;
         LiveRange *l = alc->values + v;
 
-        if (last_ref(l) >= order_nr(arglist_idx)) {
+        if (last_ref(l) >= order_nr(arglist_idx) &&
+            live_range_has_hole(l, order_nr(arglist_idx)) == NULL) {
+            /* if it has a hole in the value arround ARGLIST, it is not live for
+             * shuffling */
             register_map[r] = v;
         }
         if (last_ref(l) > order_nr(call_idx) &&

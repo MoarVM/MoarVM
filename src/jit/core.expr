@@ -216,3 +216,12 @@
         (carg $0 ptr)
         (carg (const (&QUOTE MVM_reg_obj) int_sz) int)))))
 
+(template: gethow
+   (let: (($how (^getf (^stable $1) MVMSTable HOW)))
+     (if (nz $how)
+         $how
+         (call (^func MVM_6model_get_how)
+               (arglist 2 (carg (tc) ptr)
+                          (carg (^stable $1) ptr))
+                          ptr_sz))))
+
