@@ -1,3 +1,21 @@
+New in 2017.05
+
++ Mark profiler call graphs iteratively instead of recursively
++ Keep around line number annotations in spesh, for more accurate source
+  position information for coverage data in specialized code
++ Introduce "telemeh", a high-precision-time low-impact logger
++ Fix error reporting in chdir
++ Fix memory leak on error in chdir
++ Travis: readlink doesn't have `-f` on MacOS so make our own solution
++ Fix bug in index ignorecase and equal at ignorecase
++ Fix all known remaining bugs in indexic and eqatic
++ Zero slot when popping a VMArray, to avoid junk reads if it grows again later
++ Add can_fit_into_8bit funct, put logic used many places into one function
++ Use -1 instead of 0 when long right-shifting negative smallints
++ Remove workaround for tommath issue #56, which is now fixed upstream
++ Don't crash on reading a closed dir handle
++ Remove deprecated async string I/O ops
+
 New in 2017.04
 
 + Shorten the nursery when creating large bigints, to bring GC forward and

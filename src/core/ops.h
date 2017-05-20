@@ -591,9 +591,9 @@
 #define MVM_OP_watchfile 587
 #define MVM_OP_asyncconnect 588
 #define MVM_OP_asynclisten 589
-#define MVM_OP_asyncwritestr 590
+#define MVM_OP_DEPRECATED_14 590
 #define MVM_OP_asyncwritebytes 591
-#define MVM_OP_asyncreadchars 592
+#define MVM_OP_DEPRECATED_16 592
 #define MVM_OP_asyncreadbytes 593
 #define MVM_OP_getlexstatic_o 594
 #define MVM_OP_getlexperinvtype_o 595
@@ -704,7 +704,7 @@
 #define MVM_OP_multidimref_s 700
 #define MVM_OP_fileno_fh 701
 #define MVM_OP_asyncudp 702
-#define MVM_OP_asyncwritestrto 703
+#define MVM_OP_DEPRECATED_15 703
 #define MVM_OP_asyncwritebytesto 704
 #define MVM_OP_objprimbits 705
 #define MVM_OP_objprimunsigned 706

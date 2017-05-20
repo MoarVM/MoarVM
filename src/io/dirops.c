@@ -322,6 +322,10 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
     struct dirent *entry;
     errno = 0; /* must reset errno so we won't check old errno */
 
+    if (!data->dir_handle) {
+        MVM_exception_throw_adhoc(tc, "Cannot read a closed dir handle.");
+    }
+
     entry = readdir(data->dir_handle);
 
     if (errno == 0) {

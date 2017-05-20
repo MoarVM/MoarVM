@@ -6486,8 +6486,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_asyncwritestr,
-        "asyncwritestr",
+        MVM_OP_DEPRECATED_14,
+        "DEPRECATED_14",
         "  ",
         6,
         0,
@@ -6508,8 +6508,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_asyncreadchars,
-        "asyncreadchars",
+        MVM_OP_DEPRECATED_16,
+        "DEPRECATED_16",
         "  ",
         5,
         0,
@@ -7727,8 +7727,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_asyncwritestrto,
-        "asyncwritestrto",
+        MVM_OP_DEPRECATED_15,
+        "DEPRECATED_15",
         "  ",
         8,
         0,
