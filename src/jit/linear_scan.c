@@ -984,41 +984,35 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
     for (transfer_queue_idx = 0; transfer_queue_idx < transfer_queue_top; transfer_queue_idx++) {
         MVMint8 dst = transfer_queue[transfer_queue_idx];
         MVMint8 src = topological_map[dst].in_reg;
-        _ASSERT(src >= 0, "No inboud edge");
+        _ASSERT(src >= 0, "No inboud edge (sort)");
         _DEBUG("Insert move (toposort): Rq(%d) -> Rq(%d)", src, dst);
         INSERT_MOVE(dst, src);
         ENQUEUE_TRANSFER(src);
     }
 
     if (transfer_queue_top < transfers_required) {
-        /* rev_map points from a -> b, b -> c, c -> a, etc; which is the
-         * direction of the moves. However, the direction of the cleanup
-         * is necessarily reversed, first c -> a, then b -> c, then a -> c.
-         * This suggest the use of a stack.
+        /* suppose we have a cycle of transfers: a -> b -> c -> a;
+         * since we only keep the one inbound register as a reference, the chain
+         * is really:
+         * a -> c -> b -> a
+         * We can 'break' this cycle by walking the chain in this order, first
+         * moving 'a' out of thee way into a spare register, then moving c to a,
+         * b to c, and finally moving the spare register to 'b'
          */
-        MVMint8 cycle_stack[16], cycle_stack_top = 0, c, n;
         for (i = 0; i < MVM_JIT_ARCH_NUM_GPR; i++) {
             if (topological_map[i].num_out > 0) {
-                /* build a LIFO stack to reverse the cycle */
-                for (c = i, n = topological_map[i].in_reg; n != i;
-                     c = n, n = topological_map[n].in_reg) {
-                    cycle_stack[cycle_stack_top++] = n;
-                    _ASSERT(n >= 0, "no inbound edge");
-                }
-                _DEBUG("Insert move (cycle break): Rq(%d) -> Rq(%d)", spare_register, i);
+                MVMint8 src, dst;
                 INSERT_MOVE(spare_register, i);
-                topological_map[i].num_out--;
-                /* pop stack and move insert transfers */
-                while (cycle_stack_top--) {
-                    c = cycle_stack[cycle_stack_top];
-                    _DEBUG("Insert move (cycle break): Rq(%d) -> Rq(%d)", c, topological_map[c].in_reg);
-                    INSERT_MOVE(topological_map[c].in_reg, c);
-                    topological_map[c].num_out--;
-                    _ASSERT(topological_map[c].num_out == 0, "num_out != 0 in breaking cycle");
+                _ASSERT(--(topological_map[i].num_out) == 0,
+                        "More than one outbound edge in cycle");
+                for (dst = i, src = topological_map[i].in_reg; src != i;
+                     dst = src, src = topological_map[src].in_reg) {
+                    _ASSERT(src >= 0, "No inbound edge (cycle breaking)");
+                    INSERT_MOVE(dst, src);
+                    _ASSERT(--(topological_map[src].num_out) == 0,
+                            "More than one outbound edge in cycle");
                 }
-                _DEBUG("Insert move (cycle break): Rq(%d) -> Rq(%d)", topological_map[i].in_reg, spare_register);
-                INSERT_MOVE(topological_map[i].in_reg, spare_register);
-                _ASSERT(topological_map[i].num_out == 0, "Cycle is broken");
+                INSERT_MOVE(dst, spare_register);
             }
         }
     }
