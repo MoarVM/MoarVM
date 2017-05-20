@@ -257,23 +257,6 @@ MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *s) {
     return i;
 }
 
-MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s) {
-    char     *enc = MVM_string_ascii_encode(tc, s, NULL, 0);
-    MVMnum64  n;
-    if (strcmp(enc, "NaN") == 0)
-        n = MVM_num_nan(tc);
-    else if (strcmp(enc, "Inf") == 0)
-        n = MVM_num_posinf(tc);
-    else if (strcmp(enc, "+Inf") == 0)
-        n = MVM_num_posinf(tc);
-    else if (strcmp(enc, "-Inf") == 0)
-        n = MVM_num_neginf(tc);
-    else
-        n = atof(enc);
-    MVM_free(enc);
-    return n;
-}
-
 void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
     MVMObject *nummeth;
 
