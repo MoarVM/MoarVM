@@ -21,7 +21,7 @@
 
 /* Error handling varies between POSIX and WinSock. */
 #ifdef _WIN32
-    #define IS_ERROR(x) ((x) == SOCKET_ERROR)
+    #define MVM_IS_SOCKET_ERROR(x) ((x) == SOCKET_ERROR)
     static void throw_error(MVMThreadContext *tc, int r, char *operation) {
         int error = WSAGetLastError();
         LPTSTR error_string = NULL;
@@ -33,7 +33,7 @@
         MVM_exception_throw_adhoc(tc, "Could not %s: %s", operation, error_string);
     }
 #else
-    #define IS_ERROR(x) ((x) < 0)
+    #define MVM_IS_SOCKET_ERROR(x) ((x) < 0)
     static void throw_error(MVMThreadContext *tc, int r, char *operation) {
         MVM_exception_throw_adhoc(tc, "Could not %s: %s", operation, strerror(errno));
     }
@@ -66,7 +66,7 @@ static void read_one_packet(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
     r = recv(data->handle, data->last_packet, PACKET_SIZE, 0);
     MVM_gc_mark_thread_unblocked(tc);
     MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.read_one_packet");
-    if (IS_ERROR(r) || r == 0) {
+    if (MVM_IS_SOCKET_ERROR(r) || r == 0) {
         MVM_free(data->last_packet);
         data->last_packet = NULL;
         if (r != 0)
@@ -196,7 +196,7 @@ MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
     MVM_gc_mark_thread_blocked(tc);
     while (bytes > 0) {
         int r = send(data->handle, buf, (int)bytes, 0);
-        if (IS_ERROR(r)) {
+        if (MVM_IS_SOCKET_ERROR(r)) {
             MVM_gc_mark_thread_unblocked(tc);
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.write_bytes");
             throw_error(tc, r, "send data to socket");
@@ -269,7 +269,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         int r;
 
         Socket s = socket(AF_INET , SOCK_STREAM , 0);
-        if (IS_ERROR(s)) {
+        if (MVM_IS_SOCKET_ERROR(s)) {
             MVM_free(dest);
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
             throw_error(tc, s, "create socket");
@@ -279,7 +279,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         r = connect(s, dest, sizeof(struct sockaddr));
         MVM_gc_mark_thread_unblocked(tc);
         MVM_free(dest);
-        if (IS_ERROR(r)) {
+        if (MVM_IS_SOCKET_ERROR(r)) {
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
             throw_error(tc, s, "connect socket");
         }
@@ -299,7 +299,7 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         int r;
 
         Socket s = socket(AF_INET , SOCK_STREAM , 0);
-        if (IS_ERROR(s)) {
+        if (MVM_IS_SOCKET_ERROR(s)) {
             MVM_free(dest);
             throw_error(tc, s, "create socket");
         }
@@ -319,11 +319,11 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
 
         r = bind(s, dest, sizeof(struct sockaddr));
         MVM_free(dest);
-        if (IS_ERROR(r))
+        if (MVM_IS_SOCKET_ERROR(r))
             throw_error(tc, s, "bind socket");
 
         r = listen(s, (int)backlog);
-        if (IS_ERROR(r))
+        if (MVM_IS_SOCKET_ERROR(r))
             throw_error(tc, s, "start listening on socket");
 
         data->handle = s;
@@ -397,7 +397,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
     MVM_gc_mark_thread_blocked(tc);
     s = accept(data->handle, NULL, NULL);
     MVM_gc_mark_thread_unblocked(tc);
-    if (IS_ERROR(s)) {
+    if (MVM_IS_SOCKET_ERROR(s)) {
         MVM_telemetry_interval_stop(tc, interval_id, "syncsocket accept failed");
         throw_error(tc, s, "accept socket connection");
     }
