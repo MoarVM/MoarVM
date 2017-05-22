@@ -3598,6 +3598,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).o = MVM_io_socket_create(tc, GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
+            OP(get_port_sk):
+                GET_REG(cur_op, 0).i64 = MVM_io_get_port(tc, GET_REG(cur_op, 2).o);
+                cur_op += 4;
+                goto NEXT;
             OP(bind_sk):
                 MVM_io_bind(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, (int)GET_REG(cur_op, 6).i64);
