@@ -754,6 +754,15 @@ MVM_JIT_TILE_DECL(flagval) {
         MVM_panic(1, "No flagval possible");
         break;
     }
+    /* XXX THIS IS A HACK
+
+     * The size cast is supposed to be applied by the expression template
+     * builder, but that subtly doesn't work (it's not applied for STORE
+     * operands, and when it is, it causes even subtler errors with CONST
+     * arguments. (const_i64_16 returns a 64 bit signed integer as a 16 bit
+     * signed integer argument, and currently CONST doesn't have a sign, and the
+     * tile yielding the value (fortunately) doesn't respect the size. */
+    | movzx Rq(out), Rb(out);
 }
 
 

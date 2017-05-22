@@ -31,6 +31,7 @@
 (template: dec_i (sub (load $0 int_sz) (const 1 int_sz)))
 
 (template: gt_i (flagval (gt $1 $2)))
+(template: eq_i (flagval (eq $1 $2)))
 
 (macro: ^frame () (^getf (tc) MVMThreadContext cur_frame))
 

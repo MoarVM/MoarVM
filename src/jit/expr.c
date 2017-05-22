@@ -382,7 +382,12 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             break;
         }
     case MVM_JIT_FLAGVAL:
-        node_info->size = 1;
+        /* XXX THIS IS A HACK
+         *
+         * The true size of 'flagval' is a single byte.  But that would mean it
+         * had to be upcast to be used as a 64-bit word, and that subtly
+         * doesn't work if the value is STORE-d to memory. */
+        node_info->size = 4;
         break;
     case MVM_JIT_DO:
         /* node size of last child */
