@@ -268,7 +268,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port);
         int r;
 
-        Socket s = socket(AF_INET , SOCK_STREAM , 0);
+        Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
         if (MVM_IS_SOCKET_ERROR(s)) {
             MVM_free(dest);
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
@@ -276,7 +276,9 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         }
 
         MVM_gc_mark_thread_blocked(tc);
-        r = connect(s, dest, sizeof(struct sockaddr));
+        r = connect(s, dest, dest->sa_family == AF_INET6
+                ? sizeof(struct sockaddr_in6)
+                : sizeof(struct sockaddr));
         MVM_gc_mark_thread_unblocked(tc);
         MVM_free(dest);
         if (MVM_IS_SOCKET_ERROR(r)) {
@@ -298,7 +300,7 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port);
         int r;
 
-        Socket s = socket(AF_INET , SOCK_STREAM , 0);
+        Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
         if (MVM_IS_SOCKET_ERROR(s)) {
             MVM_free(dest);
             throw_error(tc, s, "create socket");
@@ -317,7 +319,9 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         }
 #endif
 
-        r = bind(s, dest, sizeof(struct sockaddr));
+        r = bind(s, dest, dest->sa_family == AF_INET6
+                ? sizeof(struct sockaddr_in6)
+                : sizeof(struct sockaddr));
         MVM_free(dest);
         if (MVM_IS_SOCKET_ERROR(r))
             throw_error(tc, s, "bind socket");
