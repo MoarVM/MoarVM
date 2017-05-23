@@ -80,6 +80,7 @@ struct MVMIOSockety {
     void (*connect) (MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port);
     void (*bind) (MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMint32 backlog);
     MVMObject * (*accept) (MVMThreadContext *tc, MVMOSHandle *h);
+    MVMint64 (*getport) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 
 /* I/O operations on handles that can lock/unlock. */
@@ -128,3 +129,4 @@ void MVM_io_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset)
 void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port);
 void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMint32 backlog);
 MVMObject * MVM_io_accept(MVMThreadContext *tc, MVMObject *oshandle);
+MVMint64 MVM_io_getport(MVMThreadContext *tc, MVMObject *oshandle);

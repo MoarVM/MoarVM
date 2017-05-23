@@ -337,6 +337,30 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
     }
 }
 
+MVMint64 socket_getport(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
+
+    struct sockaddr_storage name;
+    int error, len = sizeof(struct sockaddr_storage);
+    MVMint64 port = 0;
+
+    error = getsockname(data->handle, (struct sockaddr *) &name, &len);
+
+    if (error != 0)
+        MVM_exception_throw_adhoc(tc, "Failed to getsockname: %s", strerror(errno));
+
+    switch (name.ss_family) {
+        case AF_INET6:
+            port = ntohs((*( struct sockaddr_in6 *) &name).sin6_port);
+            break;
+        case AF_INET:
+            port = ntohs((*( struct sockaddr_in *) &name).sin_port);
+            break;
+    }
+
+    return port;
+}
+
 static void no_chars(MVMThreadContext *tc) {
         MVM_exception_throw_adhoc(tc, "Sockets no longer support string I/O at VM-level");
 }
@@ -375,7 +399,8 @@ static const MVMIOSyncWritable sync_writable = { socket_write_str,
                                                  socket_truncate };
 static const MVMIOSockety            sockety = { socket_connect,
                                                  socket_bind,
-                                                 socket_accept };
+                                                 socket_accept,
+                                                 socket_getport };
 static const MVMIOOps op_table = {
     &closable,
     NULL,
