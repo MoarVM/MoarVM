@@ -762,7 +762,7 @@ static const void * const LABELS[] = {
     &&OP_setdispatcherfor,
     &&OP_getstrfromname,
     &&OP_indexic_s,
-    &&OP_get_port_sk,
+    &&OP_getport_sk,
     &&OP_sp_log,
     &&OP_sp_osrfinalize,
     &&OP_sp_guardconc,

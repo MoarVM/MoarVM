@@ -374,16 +374,16 @@ void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVM
         MVM_exception_throw_adhoc(tc, "Cannot bind this kind of handle");
 }
 
-MVMint64 MVM_io_get_port(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "get_port");
+MVMint64 MVM_io_getport(MVMThreadContext *tc, MVMObject *oshandle) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "getport");
     if (handle->body.ops->sockety) {
         uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        MVMint64 result = handle->body.ops->sockety->get_port(tc, handle);
+        MVMint64 result = handle->body.ops->sockety->getport(tc, handle);
         release_mutex(tc, mutex);
         return result;
     }
     else
-        MVM_exception_throw_adhoc(tc, "Cannot get_port for this kind of handle");
+        MVM_exception_throw_adhoc(tc, "Cannot getport for this kind of handle");
 }
 
 MVMObject * MVM_io_accept(MVMThreadContext *tc, MVMObject *oshandle) {
