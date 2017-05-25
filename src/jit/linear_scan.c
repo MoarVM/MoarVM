@@ -507,7 +507,15 @@ static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileL
             } else if (tile->op == MVM_JIT_IF || tile->op == MVM_JIT_DO || tile->op == MVM_JIT_COPY) {
                 /* not a real use, no work needed here (we already merged them) */
             } else {
-                /* regular defintions and uses */
+                /* If a value is used and defined by the same tile, then the
+                 * 'hole' only covers that single tile. The definitions must
+                 * therefore be handled before the uses */
+
+                if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
+                    MVMint32 ref = value_set_find(alc->sets, tile->node)->idx;
+                    open_hole(alc, ref, i);
+                    bitmap_delete(live_in, ref);
+                }
                 for (k = 0; k < tile->num_refs; k++) {
                     if (MVM_JIT_REGISTER_IS_USED(MVM_JIT_REGISTER_FETCH(tile->register_spec, k+1))) {
                         MVMint32 ref = value_set_find(alc->sets, tile->refs[k])->idx;
@@ -516,11 +524,6 @@ static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileL
                             close_hole(alc, ref, i);
                         }
                     }
-                }
-                if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
-                    MVMint32 ref = value_set_find(alc->sets, tile->node)->idx;
-                    open_hole(alc, ref, i);
-                    bitmap_delete(live_in, ref);
                 }
             }
         }
