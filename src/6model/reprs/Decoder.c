@@ -274,7 +274,8 @@ MVMint64 MVM_decoder_bytes_available(MVMThreadContext *tc, MVMDecoder *decoder) 
     return MVM_string_decodestream_bytes_available(tc, get_ds(tc, decoder));
 }
 
-/* Takes bytes from the decode stream and places them into a buffer. */
+/* Takes bytes from the decode stream and places them into a buffer. If there
+ * are less available than requested, hand back null. */
 MVMObject * MVM_decoder_take_bytes(MVMThreadContext *tc, MVMDecoder *decoder,
                                    MVMObject *buf_type, MVMint64 bytes) {
     MVMDecodeStream *ds = get_ds(tc, decoder);
@@ -288,10 +289,13 @@ MVMObject * MVM_decoder_take_bytes(MVMThreadContext *tc, MVMDecoder *decoder,
     if (((MVMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type != MVM_ARRAY_U8
             && ((MVMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type != MVM_ARRAY_I8)
         MVM_exception_throw_adhoc(tc, "decodertakebytes requires a native array type of uint8 or int8");
-    if (bytes < 1 || bytes > 99999999)
+    if (bytes < 0 || bytes > 0x7FFFFFFF)
         MVM_exception_throw_adhoc(tc,
             "Out of range: attempted to read %"PRId64" bytes from decoder",
             bytes);
+
+    if (MVM_string_decodestream_bytes_available(tc, ds) < bytes)
+        return tc->instance->VMNull;
 
     result = MVM_repr_alloc_init(tc, buf_type);
     enter_single_user(tc, decoder);
