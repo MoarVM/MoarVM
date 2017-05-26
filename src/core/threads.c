@@ -1,4 +1,5 @@
 #include "moar.h"
+#include <unistd.h>
 #include <platform/threads.h>
 
 /* Temporary structure for passing data to thread start. */
@@ -261,4 +262,14 @@ void MVM_thread_join_foreground(MVMThreadContext *tc) {
             cur_thread = cur_thread->body.next;
         }
     }
+}
+
+MVMint64 MVM_hardware_concurrency() {
+    int count;
+    uv_cpu_info_t *info;
+
+    uv_cpu_info(&info, &count);
+    uv_free_cpu_info(info, count);
+
+    return count;
 }

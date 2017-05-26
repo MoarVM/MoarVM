@@ -824,6 +824,7 @@
 #define MVM_OP_prof_allocated 820
 #define MVM_OP_ctw_check 821
 #define MVM_OP_coverage_log 822
+#define MVM_OP_hardware_concurrency 823
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

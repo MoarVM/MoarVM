@@ -927,3 +927,5 @@ prof_allocated   .s r(obj)
 ctw_check        .s r(obj) int16
 
 coverage_log     .s str int32 int32 int64
+
+hardware_concurrency w(int64) :pure

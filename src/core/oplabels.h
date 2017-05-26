@@ -824,7 +824,7 @@ static const void * const LABELS[] = {
     &&OP_prof_allocated,
     &&OP_ctw_check,
     &&OP_coverage_log,
-    NULL,
+    &&OP_hardware_concurrency,
     NULL,
     NULL,
     NULL,

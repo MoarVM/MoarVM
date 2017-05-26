@@ -9042,9 +9042,20 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         { MVM_operand_str, MVM_operand_int32, MVM_operand_int32, MVM_operand_int64 }
     },
+    {
+        MVM_OP_hardware_concurrency,
+        "hardware_concurrency",
+        "  ",
+        1,
+        1,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64 }
+    },
 };
 
-static const unsigned short MVM_op_counts = 823;
+static const unsigned short MVM_op_counts = 824;
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
