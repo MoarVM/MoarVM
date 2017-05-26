@@ -264,7 +264,7 @@ void MVM_thread_join_foreground(MVMThreadContext *tc) {
     }
 }
 
-MVMint64 MVM_hardware_concurrency() {
+MVMint64 MVM_cpucores() {
     int count;
     uv_cpu_info_t *info;
 

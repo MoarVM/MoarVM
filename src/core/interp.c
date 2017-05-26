@@ -5632,8 +5632,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 20;
                 goto NEXT;
             }
-            OP(hardware_concurrency): {
-                GET_REG(cur_op, 0).i64 = MVM_hardware_concurrency();
+            OP(cpucores): {
+                GET_REG(cur_op, 0).i64 = MVM_cpucores();
                 cur_op += 2;
                 goto NEXT;
             }

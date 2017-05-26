@@ -802,6 +802,7 @@ getstrfromname       w(str) r(str) :pure
 indexic_s            w(int64) r(str) r(str) r(int64) :pure
 getport_sk          w(int64) r(obj)
 
+cpucores            w(int64) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
@@ -927,5 +928,3 @@ prof_allocated   .s r(obj)
 ctw_check        .s r(obj) int16
 
 coverage_log     .s str int32 int32 int64
-
-hardware_concurrency w(int64) :pure
