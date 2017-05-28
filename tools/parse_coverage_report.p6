@@ -122,7 +122,7 @@ sub create-coverage-file (%stats, @lines) {
     }
 }
 
-multi get-annotations-from (Any:D $ann where .?IO.e) {
+multi get-annotations-from (Any:D $ann where try .IO.e) {
     note "Analyzing annotations file $ann";
     my %annotations .= push: $ann.IO.lines.grep(
         *.starts-with: '     annotation: SETTING::'
