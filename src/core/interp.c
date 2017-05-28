@@ -5115,6 +5115,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(cpucores): {
+                GET_REG(cur_op, 0).i32 = MVM_platform_cpu_count();
+                cur_op += 2;
+                goto NEXT;
+            }
             OP(sp_log):
                 if (tc->cur_frame->spesh_log_idx >= 0) {
                     MVM_ASSIGN_REF(tc, &(tc->cur_frame->static_info->common.header),
@@ -5631,11 +5636,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 char      *cache    = (char *)MVM_BC_get_I64(cur_op, 12);
                 MVM_line_coverage_report(tc, filename, lineno, cacheidx, cache);
                 cur_op += 20;
-                goto NEXT;
-            }
-            OP(cpucores): {
-                GET_REG(cur_op, 0).i32 = MVM_platform_cpu_count();
-                cur_op += 2;
                 goto NEXT;
             }
 #if MVM_CGOTO
