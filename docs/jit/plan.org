@@ -476,13 +476,10 @@ Comes down to:
       (if not spilled)
 
   - multiple live-range register conflict
-
-    - first-defined output register /must/ be spilled in order to make room for second registe
-
+    - first-defined output register /must/ be spilled in order to make room for second register
       - exception: lifetime holes
 
     - output-input conflict
-
       - output-register must be copied off /or/ spilled
 
 ** DONE Implement ARGLIST handling
@@ -813,7 +810,7 @@ This is pretty important, because:
   table), if such refs are spilled, they need to be loaded in the
   regular way.
 
-*** TODO Use function return argument
+*** DONE Use function return argument
 
 We should probably allocate the return argument to a 'allocatable'
 register, since the current register is not. (In fact, we should
@@ -825,7 +822,7 @@ Already did this for IF/EITHER, now for DO / DOV,
 CALL/CALLV. Otherwise the tiler always selects the value-generating
 one. Might also be nice for numeric/non-numeric variants.
 
-** TODO Solve 'garbage restore' problem
+** DONE Solve 'garbage restore' problem
 
 The problem:
 
@@ -1123,7 +1120,7 @@ it isn't. What we can do is:
 - store the spesh instruction tagged to the tree, so that we can find
   out where it should be stored if it isn't
 
-*** TODO Implement guard nodes
+*** DONE Implement guard nodes
 
 The basic idea:
 
@@ -1132,7 +1129,9 @@ The basic idea:
   - tile with pre and post node
   - flush the current variable->node table
 
-*** TODO
+*** TODO Implement 'optimistic' stores
+
+Within a single basic block
 
 *** TODO Find out if a particular live range has already been stored (or if it has a fixed storage location)
 

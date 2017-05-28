@@ -1,0 +1,38 @@
+#+TITLE: Expression JIT TODO
+
+Before merging the expression JIT, there are numerous standing issues
+to resolve, sorted by priority.
+
+* sp_fastcreate problem
+
+May be an interaction between allocation and restoring registers to
+objects, i.e. if an allocation (can) happen, pointers in registers are
+no longer valid, OR, we update the map to scan the locals for object
+pointers and have them restored automatically.
+
+I like that second option much better, as a matter of fact. (But it
+does mean we need to maintain what is an object and what is not, in
+the JIT)
+
+But to ascertain if that is it, it needs some more debugging.
+
+* Generalized 3-op to two-op conversion
+
+Already implemented for direct-memory binary ops, but needs to be
+extended to take into account indirect-access ops and memory base +
+indexed ops.
+
+* 'Optimistic' insertion of STORE
+
+Involves delaying the insertion of STORE operations for generated
+expressions until the insertion of flush. (Currently inserted directly
+after being generated).
+
+Involves
+- iterating over currently active local variables
+- inserting a STORE
+- replacing the root referring to these variable generation with the
+  STORE root
+  - to do this efficiently
+
+* Preemptively assign 'spilled positions'

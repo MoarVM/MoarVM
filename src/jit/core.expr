@@ -226,3 +226,8 @@
                           (carg (^stable $1) ptr))
                           ptr_sz))))
 
+(template: callercode
+  (let: (($caller (^getf (^frame) MVMFrame caller)))
+        (if (nz $caller)
+            (^getf $caller MVMFrame code_ref)
+            (const 0 ptr_sz))))
