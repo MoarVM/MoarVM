@@ -52,12 +52,10 @@ ARFLAGS   = @arflags@
 
 PLATFORM_WIN32 = src/platform/win32/mmap@obj@ \
                  src/platform/win32/time@obj@ \
-                 src/platform/win32/io@obj@ \
-                 src/platform/win32/sys@obj@
+                 src/platform/win32/io@obj@
 
 PLATFORM_POSIX = src/platform/posix/mmap@obj@ \
-                 src/platform/posix/time@obj@ \
-                 src/platform/posix/sys@obj@
+                 src/platform/posix/time@obj@
 
 DASM_FLAGS_WIN32 = -D WIN32=1
 DASM_FLAGS_POSIX = -D POSIX=1
@@ -209,6 +207,7 @@ OBJECTS = src/core/callsite@obj@ \
           src/profiler/telemeh@obj@ \
           src/instrument/crossthreadwrite@obj@ \
           src/instrument/line_coverage@obj@ \
+          src/platform/sys@obj@ \
           src/moar@obj@ \
           @platform@ \
           @jit@

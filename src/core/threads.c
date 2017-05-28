@@ -1,4 +1,5 @@
 #include "moar.h"
+#include <unistd.h>
 #include <platform/threads.h>
 
 /* Temporary structure for passing data to thread start. */
@@ -262,3 +263,4 @@ void MVM_thread_join_foreground(MVMThreadContext *tc) {
         }
     }
 }
+
