@@ -264,12 +264,3 @@ void MVM_thread_join_foreground(MVMThreadContext *tc) {
     }
 }
 
-MVMint64 MVM_cpucores() {
-    int count;
-    uv_cpu_info_t *info;
-
-    uv_cpu_info(&info, &count);
-    uv_free_cpu_info(info, count);
-
-    return count;
-}

@@ -8,4 +8,3 @@ void MVM_thread_yield(MVMThreadContext *tc);
 MVMObject * MVM_thread_current(MVMThreadContext *tc);
 void MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head);
 void MVM_thread_join_foreground(MVMThreadContext *tc);
-MVMint64 MVM_cpucores();

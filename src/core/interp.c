@@ -1,6 +1,7 @@
 #include "moar.h"
 #include <math.h>
 #include "platform/time.h"
+#include "platform/sys.h"
 #include "strings/unicode_ops.h"
 
 /* Macros for getting things from the bytecode stream. */
@@ -5633,7 +5634,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(cpucores): {
-                GET_REG(cur_op, 0).i64 = MVM_cpucores();
+                GET_REG(cur_op, 0).i32 = MVM_platform_cpu_count();
                 cur_op += 2;
                 goto NEXT;
             }
