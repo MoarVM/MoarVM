@@ -68,6 +68,33 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), tmp);
 }
 
+static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    MVMHashEntry *current, *tmp;
+    unsigned bucket_tmp;
+    MVMint64 i = 0;
+
+    if (kind != MVM_reg_obj)
+        MVM_exception_throw_adhoc(tc,
+            "MVMHash representation does not support native type storage");
+
+    /* Handle negative indexes. */
+    if (index < 0) {
+        index += HASH_CNT(hash_handle, body->hash_head);
+        if (index < 0)
+            MVM_exception_throw_adhoc(tc, "MVMHash: Index out of bounds");
+    }
+
+    value->o = tc->instance->VMNull;
+    HASH_ITER(hash_handle, body->hash_head, current, tmp, bucket_tmp) {
+        if (i++ == index) {
+            if (current != NULL)
+                value->o = current->value;
+	    break;
+        }
+    }
+}
+
 static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind) {
     MVMHashBody *body = (MVMHashBody *)data;
     MVMHashEntry *entry;
@@ -228,7 +255,22 @@ static const MVMREPROps MVMHash_this_repr = {
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
     MVM_REPR_DEFAULT_BOX_FUNCS,
-    MVM_REPR_DEFAULT_POS_FUNCS,
+    {
+        at_pos,
+        MVM_REPR_DEFAULT_BIND_POS,
+        MVM_REPR_DEFAULT_SET_ELEMS,
+        MVM_REPR_DEFAULT_PUSH,
+        MVM_REPR_DEFAULT_POP,
+        MVM_REPR_DEFAULT_UNSHIFT,
+        MVM_REPR_DEFAULT_SHIFT,
+        MVM_REPR_DEFAULT_SPLICE,
+        MVM_REPR_DEFAULT_AT_POS_MULTIDIM,
+        MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,
+        MVM_REPR_DEFAULT_DIMENSIONS,
+        MVM_REPR_DEFAULT_SET_DIMENSIONS,
+        MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC
+        /* pos_funcs */
+    },
     {
         at_key,
         bind_key,
