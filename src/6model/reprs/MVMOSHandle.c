@@ -44,8 +44,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMOSHandle *handle = (MVMOSHandle *)obj;
-    if (handle->body.ops && handle->body.ops->gc_free)
+    if (handle->body.ops && handle->body.ops->gc_free) {
         handle->body.ops->gc_free(tc, obj, handle->body.data);
+        handle->body.data = NULL;
+    }
     if (handle->body.mutex) {
         uv_mutex_destroy(handle->body.mutex);
         MVM_free(handle->body.mutex);
