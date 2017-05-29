@@ -97,8 +97,7 @@ struct MVMIOIntrospection {
 
 /* Operations aiding process spawning and I/O handling.  */
 struct MVMIOPipeable {
-    void (*bind_stdio_handle) (MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio,
-        uv_process_t *process);
+    void (*bind_stdio_handle) (MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio);
 };
 
 MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle);
