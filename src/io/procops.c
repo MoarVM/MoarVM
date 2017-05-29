@@ -174,7 +174,7 @@ static void setup_process_stdio(MVMThreadContext *tc, MVMObject *handle, uv_proc
             if (REPR(handle)->ID != MVM_REPR_ID_MVMOSHandle)
                 MVM_exception_throw_adhoc(tc, "%s requires an object with REPR MVMOSHandle (got %s with REPR %s)", op, STABLE(handle)->debug_name, REPR(handle)->name);
 
-            body.ops->pipeable->bind_stdio_handle(tc, ((MVMOSHandle *)handle), stdio, process);
+            body.ops->pipeable->bind_stdio_handle(tc, ((MVMOSHandle *)handle), stdio);
         }
     }
     else

@@ -298,8 +298,7 @@ static void truncatefh(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
 }
 
 /* Operations aiding process spawning and I/O handling. */
-static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio,
-        uv_process_t *process) {
+static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     stdio->flags        = UV_INHERIT_FD;
     stdio->data.fd      = data->fd;

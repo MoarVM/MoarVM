@@ -297,8 +297,7 @@ static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
 }
 
 /* Operations aiding process spawning and I/O handling. */
-static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio,
-        uv_process_t *process) {
+static void bind_stdio_handle(MVMThreadContext *tc, MVMOSHandle *h, uv_stdio_container_t *stdio) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
     stdio->flags              = UV_INHERIT_STREAM;
     stdio->data.stream        = data->handle;
