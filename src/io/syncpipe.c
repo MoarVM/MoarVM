@@ -14,6 +14,7 @@ static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
 #else
     int status = 0;
 #endif
+    if (!data) return 0;
     if (data->ss.handle == NULL || uv_is_closing((uv_handle_t*)data->ss.handle))
         return 0;
     /* closing the in-/output std filehandle will shutdown the child process. */
@@ -45,10 +46,12 @@ static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
         MVM_string_decodestream_destroy(tc, data->ss.ds);
         data->ss.ds = NULL;
     }
+    MVM_free(data);
     return (MVMint64)status;
 }
 static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncPipeData *data = (MVMIOSyncPipeData *)h->body.data;
+    h->body.data = NULL; /* data will be freed by do_close */
     return do_close(tc, data);
 }
 
