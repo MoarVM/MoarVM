@@ -97,73 +97,6 @@ MVMint64 MVM_io_tell(MVMThreadContext *tc, MVMObject *oshandle) {
         MVM_exception_throw_adhoc(tc, "Cannot tell this kind of handle");
 }
 
-void MVM_io_set_separator(MVMThreadContext *tc, MVMObject *oshandle, MVMString *sep) {
-    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "set separator");
-    if (handle->body.ops->sync_readable) {
-        uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        handle->body.ops->sync_readable->set_separator(tc, handle, &sep, 1);
-        release_mutex(tc, mutex);
-    }
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot set a separator on this kind of handle");
-}
-
-void MVM_io_set_separators(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *seps) {
-    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "set separators");
-    if (handle->body.ops->sync_readable) {
-        MVMint32 is_str_array = REPR(seps)->pos_funcs.get_elem_storage_spec(tc,
-            STABLE(seps)).boxed_primitive == MVM_STORAGE_SPEC_BP_STR;
-        if (is_str_array) {
-            uv_mutex_t *mutex;
-            MVMString **c_seps;
-            MVMuint64 i;
-
-            MVMuint64 num_seps = MVM_repr_elems(tc, seps);
-            if (num_seps > 0xFFFFFF)
-                MVM_exception_throw_adhoc(tc, "Too many line separators");
-            c_seps = MVM_malloc((num_seps ? num_seps : 1) * sizeof(MVMString *));
-            for (i = 0; i < num_seps; i++)
-                c_seps[i] = MVM_repr_at_pos_s(tc, seps, i);
-
-            mutex = acquire_mutex(tc, handle);
-            handle->body.ops->sync_readable->set_separator(tc, handle, c_seps, (MVMint32)num_seps);
-            release_mutex(tc, mutex);
-
-            MVM_free(c_seps);
-        }
-        else {
-            MVM_exception_throw_adhoc(tc, "Set separators requires a native string array");
-        }
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "Cannot set separators on this kind of handle");
-    }
-}
-
-MVMString * MVM_io_readline(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 chomp) {
-    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "readline");
-    if (handle->body.ops->sync_readable) {
-        uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        MVMString *result = handle->body.ops->sync_readable->read_line(tc, handle, chomp);
-        release_mutex(tc, mutex);
-        return result;
-    }
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot read lines from this kind of handle");
-}
-
-MVMString * MVM_io_read_string(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 chars) {
-    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "read string");
-    if (handle->body.ops->sync_readable) {
-        uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        MVMString *result = handle->body.ops->sync_readable->read_chars(tc, handle, chars);
-        release_mutex(tc, mutex);
-        return result;
-    }
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot read characters from this kind of handle");
-}
-
 void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "read bytes");
     MVMint64 bytes_read;
@@ -196,18 +129,6 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
     ((MVMArray *)result)->body.start    = 0;
     ((MVMArray *)result)->body.ssize    = bytes_read;
     ((MVMArray *)result)->body.elems    = bytes_read;
-}
-
-MVMString * MVM_io_slurp(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "slurp");
-    if (handle->body.ops->sync_readable) {
-        uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        MVMString *result = handle->body.ops->sync_readable->slurp(tc, handle);
-        release_mutex(tc, mutex);
-        return result;
-    }
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot slurp this kind of handle");
 }
 
 MVMint64 MVM_io_write_string(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint8 addnl) {
