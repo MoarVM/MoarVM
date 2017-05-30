@@ -323,26 +323,6 @@ FILE_IS(writable, W)
 FILE_IS(executable, X)
 #endif
 
-/* Read all of a file into a string. */
-MVMString * MVM_file_slurp(MVMThreadContext *tc, MVMString *filename, MVMString *encoding) {
-    MVMString *mode = MVM_string_utf8_decode(tc, tc->instance->VMString, "r", 1);
-    MVMObject *oshandle = (MVMObject *)MVM_file_open_fh(tc, filename, mode);
-    MVMString *result;
-    MVM_io_set_encoding(tc, oshandle, encoding);
-    result = MVM_io_slurp(tc, oshandle);
-    MVM_io_close(tc, oshandle);
-    return result;
-}
-
-/* Writes a string to a file, overwriting it if necessary */
-void MVM_file_spew(MVMThreadContext *tc, MVMString *output, MVMString *filename, MVMString *encoding) {
-    MVMString *mode = MVM_string_utf8_decode(tc, tc->instance->VMString, "w", 1);
-    MVMObject *fh = MVM_file_open_fh(tc, filename, mode);
-    MVM_io_set_encoding(tc, fh, encoding);
-    MVM_io_write_string(tc, fh, output, 0);
-    MVM_io_close(tc, fh);
-}
-
 /* return an OSHandle representing one of the standard streams */
 MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable) {
     switch(uv_guess_handle(type)) {
