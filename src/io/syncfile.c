@@ -36,9 +36,6 @@ typedef struct {
 
     /* Decode stream, for turning bytes from disk into strings. */
     MVMDecodeStream *ds;
-
-    /* Current separator specification for line-by-line reading. */
-    MVMDecodeStreamSeparators sep_spec;
 } MVMIOFileData;
 
 /* Closes the file. */
@@ -332,7 +329,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     if (data) {
         if (data->ds)
             MVM_string_decodestream_destroy(tc, data->ds);
-        MVM_string_decode_stream_sep_destroy(tc, &(data->sep_spec));
         if (data->filename)
             MVM_free(data->filename);
         MVM_free(data);
@@ -453,7 +449,6 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         data->fd          = fd;
         data->filename    = fname;
         data->encoding    = MVM_encoding_type_utf8;
-        MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
         result->body.ops  = &op_table;
         result->body.data = data;
 

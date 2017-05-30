@@ -245,7 +245,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
             MVM_string_decodestream_destroy(tc, data->ds);
             data->ds = NULL;
         }
-        MVM_string_decode_stream_sep_destroy(tc, &(data->sep_spec));
         MVM_free(data);
     }
 }
@@ -288,7 +287,6 @@ MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *h
     data->encoding    = MVM_encoding_type_utf8;
     data->is_tty      = is_tty;
     data->translate_newlines = 1;
-    MVM_string_decode_stream_sep_default(tc, &(data->sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;

@@ -24,9 +24,6 @@ struct MVMIOSyncStreamData {
     /* Total bytes we've written. */
     MVMint64 total_bytes_written;
 
-    /* Current separator specification for line-by-line reading. */
-    MVMDecodeStreamSeparators sep_spec;
-
     unsigned int interval_id;
 };
 

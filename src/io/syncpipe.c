@@ -114,7 +114,6 @@ MVMObject * MVM_io_syncpipe(MVMThreadContext *tc) {
     data->ss.handle   = (uv_stream_t *)handle;
     data->ss.encoding = MVM_encoding_type_utf8;
     data->ss.translate_newlines = 1;
-    MVM_string_decode_stream_sep_default(tc, &(data->ss.sep_spec));
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;
