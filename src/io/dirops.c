@@ -164,14 +164,7 @@ typedef struct {
 #else
     DIR     *dir_handle;
 #endif
-    MVMuint8 encoding;
 } MVMIODirIter;
-
-/* Sets the encoding used for reading the directory listing. */
-static void set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding) {
-    MVMIODirIter *data = (MVMIODirIter *)h->body.data;
-    data->encoding = encoding;
-}
 
 /* Frees data associated with the directory handle. */
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
@@ -191,12 +184,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     }
 }
 
-/* Ops table for directory iterator; it all works off special ops, so almost
- * no entries. */
-static const MVMIOEncodable encodable = { set_encoding };
+/* Ops table for directory iterator; it all works off special ops, so no entries. */
 static const MVMIOOps op_table = {
     NULL,
-    &encodable,
+    NULL,
     NULL,
     NULL,
     NULL,
@@ -268,7 +259,6 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     data->dir_handle = dir_handle;
 #endif
 
-    data->encoding = MVM_encoding_type_utf8_c8;
     result->body.ops  = &op_table;
     result->body.data = data;
 
@@ -311,7 +301,7 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
     else if (FindNextFileW(data->dir_handle, &ffd) != 0)  {
         dir_str = UnicodeToUTF8(ffd.cFileName);
         result  = MVM_string_decode(tc, tc->instance->VMString, dir_str, strlen(dir_str),
-                                    data->encoding);
+                                    MVM_encoding_type_utf8_c8);
         MVM_free(dir_str);
         return result;
     } else {
@@ -331,7 +321,8 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
     if (errno == 0) {
         MVMString *ret = (entry == NULL)
                        ? tc->instance->str_consts.empty
-                       : MVM_string_decode(tc, tc->instance->VMString, entry->d_name, strlen(entry->d_name), data->encoding);
+                       : MVM_string_decode(tc, tc->instance->VMString, entry->d_name,
+                               strlen(entry->d_name), MVM_encoding_type_utf8_c8);
         return ret;
     }
 
