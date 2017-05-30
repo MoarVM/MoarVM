@@ -634,7 +634,6 @@ static const MVMIOOps proc_op_table = {
     NULL,
     NULL,
     NULL,
-    NULL,
     &proc_async_writable,
     NULL,
     NULL,

@@ -11,17 +11,6 @@
 /* Number of bytes we pull in at a time to the buffer. */
 #define CHUNK_SIZE 65536
 
-/* Sets the encoding used for string-based I/O. */
-void MVM_io_syncstream_set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding) {
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    if (data->ds) {
-        if (data->ds->chars_head)
-            MVM_exception_throw_adhoc(tc, "Too late to change handle encoding");
-        data->ds->encoding = encoding;
-    }
-    data->encoding = encoding;
-}
-
 /* Cannot seek a TTY of named pipe (could fake the forward case, probably). */
 void MVM_io_syncstream_seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64 whence) {
     MVM_exception_throw_adhoc(tc, "Cannot seek this kind of handle");
@@ -263,7 +252,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 
 /* IO ops table, populated with functions. */
 static const MVMIOClosable     closable      = { closefh };
-static const MVMIOEncodable    encodable     = { MVM_io_syncstream_set_encoding };
 static const MVMIOSyncReadable sync_readable = { MVM_io_syncstream_read_bytes,
                                                  MVM_io_syncstream_eof };
 static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_str,
@@ -278,7 +266,6 @@ static const MVMIOIntrospection introspection = { is_tty, mvm_fileno };
 
 static const MVMIOOps op_table = {
     &closable,
-    &encodable,
     &sync_readable,
     &sync_writable,
     NULL,

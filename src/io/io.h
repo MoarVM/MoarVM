@@ -3,7 +3,6 @@
 struct MVMIOOps {
     /* The various sections that may be implemented. */
     const MVMIOClosable        *closable;
-    const MVMIOEncodable       *encodable;
     const MVMIOSyncReadable    *sync_readable;
     const MVMIOSyncWritable    *sync_writable;
     const MVMIOAsyncReadable   *async_readable;
@@ -25,11 +24,6 @@ struct MVMIOOps {
 /* I/O operations on handles that can be closed. */
 struct MVMIOClosable {
     MVMint64 (*close) (MVMThreadContext *tc, MVMOSHandle *h);
-};
-
-/* I/O operations on handles that can do encoding to/from MVMString. */
-struct MVMIOEncodable {
-    void (*set_encoding) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding);
 };
 
 /* I/O operations on handles that can do synchronous reading. */
@@ -99,7 +93,6 @@ struct MVMIOPipeable {
 MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_is_tty(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_fileno(MVMThreadContext *tc, MVMObject *oshandle);
-void MVM_io_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name);
 void MVM_io_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag);
 MVMint64 MVM_io_tell(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length);

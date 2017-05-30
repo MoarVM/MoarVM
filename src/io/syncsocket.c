@@ -387,7 +387,6 @@ static const MVMIOSockety            sockety = { socket_connect,
                                                  socket_getport };
 static const MVMIOOps op_table = {
     &closable,
-    NULL,
     &sync_readable,
     &sync_writable,
     NULL,

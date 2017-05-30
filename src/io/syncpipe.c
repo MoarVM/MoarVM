@@ -79,7 +79,6 @@ static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
 
 /* IO ops table, populated with functions. */
 static const MVMIOClosable     closable      = { closefh };
-static const MVMIOEncodable    encodable     = { MVM_io_syncstream_set_encoding };
 static const MVMIOSyncReadable sync_readable = { MVM_io_syncstream_read_bytes,
                                                  MVM_io_syncstream_eof };
 static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_str,
@@ -92,7 +91,6 @@ static const MVMIOPipeable     pipeable      = { bind_stdio_handle };
 static const MVMIOIntrospection introspection = { NULL, mvm_fileno };
 static const MVMIOOps op_table = {
     &closable,
-    &encodable,
     &sync_readable,
     &sync_writable,
     NULL,

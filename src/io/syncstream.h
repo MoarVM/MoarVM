@@ -30,7 +30,6 @@ struct MVMIOSyncStreamData {
     unsigned int interval_id;
 };
 
-void MVM_io_syncstream_set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding);
 void MVM_io_syncstream_seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64 whence);
 MVMint64 MVM_io_syncstream_tell(MVMThreadContext *tc, MVMOSHandle *h);
 MVMint64 MVM_io_syncstream_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes);

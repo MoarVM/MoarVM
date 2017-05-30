@@ -408,7 +408,6 @@ static const MVMIOOps op_table = {
     &closable,
     NULL,
     NULL,
-    NULL,
     &async_readable,
     NULL,
     &async_writable_to,

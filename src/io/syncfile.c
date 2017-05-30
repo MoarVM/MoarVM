@@ -69,14 +69,6 @@ static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
     return (MVMint64)data->fd;
 }
 
-/* Sets the encoding used for string-based I/O. */
-static void set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding) {
-    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    if (data->ds)
-        MVM_exception_throw_adhoc(tc, "Too late to change handle encoding");
-    data->encoding = encoding;
-}
-
 /* Seek to the specified position in the file. */
 static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64 whence) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
@@ -349,7 +341,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 
 /* IO ops table, populated with functions. */
 static const MVMIOClosable      closable      = { closefh };
-static const MVMIOEncodable     encodable     = { set_encoding };
 static const MVMIOSyncReadable  sync_readable = { read_bytes, mvm_eof };
 static const MVMIOSyncWritable  sync_writable = { write_str, write_bytes, flush, truncatefh };
 static const MVMIOSeekable      seekable      = { seek, mvm_tell };
@@ -359,7 +350,6 @@ static const MVMIOIntrospection introspection = { is_tty, mvm_fileno };
 
 static const MVMIOOps op_table = {
     &closable,
-    &encodable,
     &sync_readable,
     &sync_writable,
     NULL,

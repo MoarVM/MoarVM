@@ -60,20 +60,6 @@ MVMint64 MVM_io_fileno(MVMThreadContext *tc, MVMObject *oshandle) {
     }
 }
 
-void MVM_io_set_encoding(MVMThreadContext *tc, MVMObject *oshandle, MVMString *encoding_name) {
-    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "set encoding");
-    MVMROOT(tc, handle, {
-        const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, encoding_name);
-        if (handle->body.ops->encodable) {
-            uv_mutex_t *mutex = acquire_mutex(tc, handle);
-            handle->body.ops->encodable->set_encoding(tc, handle, encoding_flag);
-            release_mutex(tc, mutex);
-        }
-        else
-            MVM_exception_throw_adhoc(tc, "Cannot set encoding on this kind of handle");
-    });
-}
-
 void MVM_io_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "seek");
     if (handle->body.ops->seekable) {
