@@ -5201,8 +5201,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_read_fhs,
-        "read_fhs",
+        MVM_OP_DEPRECATED_23,
+        "DEPRECATED_23",
         "  ",
         3,
         0,
@@ -5212,8 +5212,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_slurp,
-        "slurp",
+        MVM_OP_DEPRECATED_27,
+        "DEPRECATED_27",
         "  ",
         3,
         0,
@@ -5223,8 +5223,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_spew,
-        "spew",
+        MVM_OP_DEPRECATED_28,
+        "DEPRECATED_28",
         "  ",
         3,
         0,
@@ -5234,8 +5234,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_write_fhs,
-        "write_fhs",
+        MVM_OP_DEPRECATED_18,
+        "DEPRECATED_18",
         "  ",
         3,
         0,
@@ -5377,8 +5377,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_setinputlinesep_fh,
-        "setinputlinesep_fh",
+        MVM_OP_DEPRECATED_24,
+        "DEPRECATED_24",
         "  ",
         2,
         0,
@@ -5421,8 +5421,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_setencoding,
-        "setencoding",
+        MVM_OP_DEPRECATED_17,
+        "DEPRECATED_17",
         "  ",
         2,
         0,
@@ -5454,8 +5454,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_readall_fh,
-        "readall_fh",
+        MVM_OP_DEPRECATED_22,
+        "DEPRECATED_22",
         "  ",
         2,
         0,
@@ -5487,8 +5487,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_readline_fh,
-        "readline_fh",
+        MVM_OP_DEPRECATED_20,
+        "DEPRECATED_20",
         "  ",
         2,
         0,
@@ -5498,8 +5498,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_readlineint_fh,
-        "readlineint_fh",
+        MVM_OP_DEPRECATED_26,
+        "DEPRECATED_26",
         "  ",
         3,
         0,
@@ -5916,8 +5916,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_say_fhs,
-        "say_fhs",
+        MVM_OP_DEPRECATED_19,
+        "DEPRECATED_19",
         "  ",
         3,
         0,
@@ -7628,8 +7628,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_setinputlineseps_fh,
-        "setinputlineseps_fh",
+        MVM_OP_DEPRECATED_25,
+        "DEPRECATED_25",
         "  ",
         2,
         0,
@@ -7639,8 +7639,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_readlinechomp_fh,
-        "readlinechomp_fh",
+        MVM_OP_DEPRECATED_21,
+        "DEPRECATED_21",
         "  ",
         2,
         0,
