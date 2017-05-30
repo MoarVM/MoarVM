@@ -34,10 +34,6 @@ struct MVMIOEncodable {
 
 /* I/O operations on handles that can do synchronous reading. */
 struct MVMIOSyncReadable {
-    void (*set_separator) (MVMThreadContext *tc, MVMOSHandle *h, MVMString **seps, MVMint32 num_seps);
-    MVMString * (*read_line) (MVMThreadContext *tc, MVMOSHandle *h, MVMint32 chomp);
-    MVMString * (*slurp) (MVMThreadContext *tc, MVMOSHandle *h);
-    MVMString * (*read_chars) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 chars);
     MVMint64 (*read_bytes) (MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes);
     MVMint64 (*eof) (MVMThreadContext *tc, MVMOSHandle *h);
 };

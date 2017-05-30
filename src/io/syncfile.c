@@ -110,12 +110,6 @@ static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     return r;
 }
 
-/* Set the line separator. */
-static void set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString **seps, MVMint32 num_seps) {
-    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVM_string_decode_stream_sep_from_strings(tc, &(data->sep_spec), seps, num_seps);
-}
-
 /* Read a bunch of bytes into the current decode stream. */
 static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint32 bytes) {
     char *buf         = MVM_malloc(bytes);
@@ -143,68 +137,6 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint
 static void ensure_decode_stream(MVMThreadContext *tc, MVMIOFileData *data) {
     if (!data->ds)
         data->ds = MVM_string_decodestream_create(tc, data->encoding, 0, 1);
-}
-
-/* Reads a single line from the file handle. May serve it from a buffer, if we
- * already read enough data. */
-static MVMString * read_line(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 chomp) {
-    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    ensure_decode_stream(tc, data);
-
-    /* Pull data until we can read a line. */
-    do {
-        MVMString *line = MVM_string_decodestream_get_until_sep(tc,
-            data->ds, &(data->sep_spec), chomp);
-        if (line != NULL)
-            return line;
-    } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);
-
-    /* Reached end of file, or last (non-termianted) line. */
-    return MVM_string_decodestream_get_until_sep_eof(tc, data->ds,
-        &(data->sep_spec), chomp);
-}
-
-/* Reads the file from the current position to the end into a string. */
-static MVMString * slurp(MVMThreadContext *tc, MVMOSHandle *h) {
-    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    uv_fs_t req;
-    ensure_decode_stream(tc, data);
-
-    /* Typically we're slurping an entire file, so just request the bytes
-     * until the end; repeat to ensure we get 'em all. */
-    if (uv_fs_fstat(tc->loop, &req, data->fd, NULL) < 0) {
-        MVM_exception_throw_adhoc(tc, "slurp from filehandle failed: %s", uv_strerror(req.result));
-    }
-    /* Sometimes - usually for special files like those in /proc - the file
-     * size comes up 0, even though the S_ISREG test succeeds. So in that case
-     * we try a small read and switch to a "read chunks until EOF" impl.
-     * Otherwise we just read the exact size of the file. */
-    if (req.statbuf.st_size == 0) {
-        if (read_to_buffer(tc, data, 32) > 0) {
-            while (read_to_buffer(tc, data, 4096) > 0)
-                ;
-        }
-    } else {
-        while (read_to_buffer(tc, data, req.statbuf.st_size) > 0)
-            ;
-    }
-    return MVM_string_decodestream_get_all(tc, data->ds);
-}
-
-/* Gets the specified number of characters from the file. */
-static MVMString * read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 chars) {
-    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    ensure_decode_stream(tc, data);
-
-    /* Pull data until we can read the chars we want. */
-    do {
-        MVMString *result = MVM_string_decodestream_get_chars(tc, data->ds, chars);
-        if (result != NULL)
-            return result;
-    } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);
-
-    /* Reached end of file, so just take what we have. */
-    return MVM_string_decodestream_get_all(tc, data->ds);
 }
 
 /* Reads the specified number of bytes into a the supplied buffer, returing
@@ -418,7 +350,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 /* IO ops table, populated with functions. */
 static const MVMIOClosable      closable      = { closefh };
 static const MVMIOEncodable     encodable     = { set_encoding };
-static const MVMIOSyncReadable  sync_readable = { set_separator, read_line, slurp, read_chars, read_bytes, mvm_eof };
+static const MVMIOSyncReadable  sync_readable = { read_bytes, mvm_eof };
 static const MVMIOSyncWritable  sync_writable = { write_str, write_bytes, flush, truncatefh };
 static const MVMIOSeekable      seekable      = { seek, mvm_tell };
 static const MVMIOPipeable      pipeable      = { bind_stdio_handle };

@@ -36,12 +36,6 @@ MVMint64 MVM_io_syncstream_tell(MVMThreadContext *tc, MVMOSHandle *h) {
         : data->total_bytes_written;
 }
 
-/* Set the line separator. */
-void MVM_io_syncstream_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString **seps, MVMint32 num_seps) {
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    MVM_string_decode_stream_sep_from_strings(tc, &(data->sep_spec), seps, num_seps);
-}
-
 /* Read a bunch of bytes into the current decode stream. Returns true if we
  * read some data, and false if we hit EOF. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
@@ -97,61 +91,6 @@ static void ensure_decode_stream(MVMThreadContext *tc, MVMIOSyncStreamData *data
     if (!data->ds)
         data->ds = MVM_string_decodestream_create(tc, data->encoding, 0,
             data->translate_newlines);
-}
-
-/* Reads a single line from the stream. May serve it from a buffer, if we
- * already read enough data. */
-MVMString * MVM_io_syncstream_read_line(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 chomp) {
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    ensure_decode_stream(tc, data);
-
-    /* Pull data until we can read a line. */
-    do {
-        MVMString *line = MVM_string_decodestream_get_until_sep(tc,
-            data->ds, &(data->sep_spec), chomp);
-        if (line != NULL)
-            return line;
-    } while (read_to_buffer(tc, data, CHUNK_SIZE) > 0);
-
-    /* Reached end of stream, or last (non-termianted) line. */
-    return MVM_string_decodestream_get_until_sep_eof(tc, data->ds,
-        &(data->sep_spec), chomp);
-}
-
-/* Reads the stream from the current position to the end into a string,
- * fetching as much data is available. */
-MVMString * MVM_io_syncstream_slurp(MVMThreadContext *tc, MVMOSHandle *h) {
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    ensure_decode_stream(tc, data);
-
-    /* Fetch as much data as we can (XXX this can be more efficient, by
-     * passing on down that we want to get many buffers from libuv). */
-    while (read_to_buffer(tc, data, CHUNK_SIZE))
-        ;
-    return MVM_string_decodestream_get_all(tc, data->ds);
-}
-
-/* Gets the specified number of characters from the stream. */
-MVMString * MVM_io_syncstream_read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 chars) {
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    MVMString *result;
-    ensure_decode_stream(tc, data);
-
-    /* Do we already have the chars available? */
-    result = MVM_string_decodestream_get_chars(tc, data->ds, chars);
-    if (result) {
-        return result;
-    }
-    else {
-        /* No; read and try again. */
-        read_to_buffer(tc, data, CHUNK_SIZE);
-        result = MVM_string_decodestream_get_chars(tc, data->ds, chars);
-        if (result != NULL)
-            return result;
-    }
-
-    /* Fetched all we immediately can, so just take what we have. */
-    return MVM_string_decodestream_get_all(tc, data->ds);
 }
 
 /* Reads the specified number of bytes into a the supplied buffer, returing
@@ -325,11 +264,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 /* IO ops table, populated with functions. */
 static const MVMIOClosable     closable      = { closefh };
 static const MVMIOEncodable    encodable     = { MVM_io_syncstream_set_encoding };
-static const MVMIOSyncReadable sync_readable = { MVM_io_syncstream_set_separator,
-                                                 MVM_io_syncstream_read_line,
-                                                 MVM_io_syncstream_slurp,
-                                                 MVM_io_syncstream_read_chars,
-                                                 MVM_io_syncstream_read_bytes,
+static const MVMIOSyncReadable sync_readable = { MVM_io_syncstream_read_bytes,
                                                  MVM_io_syncstream_eof };
 static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_str,
                                                  MVM_io_syncstream_write_bytes,

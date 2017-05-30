@@ -367,18 +367,6 @@ static void no_chars(MVMThreadContext *tc) {
 static void socket_set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding) {
     no_chars(tc);
 }
-static void socket_set_separator(MVMThreadContext *tc, MVMOSHandle *h, MVMString **seps, MVMint32 num_seps) {
-    no_chars(tc);
-}
-static MVMString * socket_read_line(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 chomp) {
-    no_chars(tc);
-}
-static MVMString * socket_slurp(MVMThreadContext *tc, MVMOSHandle *h) {
-    no_chars(tc);
-}
-static MVMString * socket_read_chars(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 chars) {
-    no_chars(tc);
-}
 static MVMint64 socket_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, MVMint64 newline) {
     no_chars(tc);
 }
@@ -387,11 +375,7 @@ static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h);
 
 /* IO ops table, populated with functions. */
 static const MVMIOClosable     closable      = { close_socket };
-static const MVMIOSyncReadable sync_readable = { socket_set_separator,
-                                                 socket_read_line,
-                                                 socket_slurp,
-                                                 socket_read_chars,
-                                                 socket_read_bytes,
+static const MVMIOSyncReadable sync_readable = { socket_read_bytes,
                                                  socket_eof };
 static const MVMIOSyncWritable sync_writable = { socket_write_str,
                                                  socket_write_bytes,
