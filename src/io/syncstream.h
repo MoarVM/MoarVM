@@ -1,28 +1,22 @@
 /* Data that we keep for a stream-based handle. */
 struct MVMIOSyncStreamData {
-    /* is it a TTY? */
-    MVMint8 is_tty;
-
-    /* Should we translate newlines? */
-    MVMint32 translate_newlines;
-
     /* The libuv handle to the stream-readable thingy. */
     uv_stream_t *handle;
 
-    /* The encoding we're using. */
-    MVMint64 encoding;
+    /* Bits of state we need in here while we still are using libuv. */
+    MVMThreadContext *cur_tc;
+    size_t to_read;
+    size_t nread;
+    char *buf;
 
     /* Did we reach EOF yet? */
     MVMint64 eof;
 
-    /* Decode stream, for turning bytes into strings. */
-    MVMDecodeStream *ds;
+    /* Total bytes we've read or written. */
+    MVMint64 position;
 
-    /* The thread that is doing reading. */
-    MVMThreadContext *cur_tc;
-
-    /* Total bytes we've written. */
-    MVMint64 total_bytes_written;
+    /* is it a TTY? */
+    MVMint8 is_tty;
 
     unsigned int interval_id;
 };

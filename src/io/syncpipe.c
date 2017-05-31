@@ -42,10 +42,6 @@ static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncPipeData *data) {
     uv_run(tc->loop, UV_RUN_DEFAULT);
     data->process   = NULL;
     data->ss.handle = NULL;
-    if (data->ss.ds) {
-        MVM_string_decodestream_destroy(tc, data->ss.ds);
-        data->ss.ds = NULL;
-    }
     MVM_free(data);
     return (MVMint64)status;
 }
@@ -111,8 +107,6 @@ MVMObject * MVM_io_syncpipe(MVMThreadContext *tc) {
     uv_pipe_t *handle = MVM_malloc(sizeof(uv_pipe_t));
     uv_pipe_init(tc->loop, handle, 0);
     data->ss.handle   = (uv_stream_t *)handle;
-    data->ss.encoding = MVM_encoding_type_utf8;
-    data->ss.translate_newlines = 1;
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;

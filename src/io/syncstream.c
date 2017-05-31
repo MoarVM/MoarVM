@@ -20,27 +20,26 @@ void MVM_io_syncstream_seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offse
  * number of bytes we've written. */
 MVMint64 MVM_io_syncstream_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    return data->ds
-        ? MVM_string_decodestream_tell_bytes(tc, data->ds)
-        : data->total_bytes_written;
+    return data->position;
 }
 
-/* Read a bunch of bytes into the current decode stream. Returns true if we
- * read some data, and false if we hit EOF. */
+/* Reads the specified number of bytes into a the supplied buffer, returing
+ * the number actually read. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)handle->data;
-    size_t size = suggested_size > 0 ? suggested_size : 4;
-    buf->base   = MVM_malloc(size);
-    MVM_telemetry_interval_annotate(size, data->interval_id, "alloced this much space");
-    buf->len    = size;
+    buf->base = MVM_malloc(data->to_read);
+    buf->len = data->to_read;
+    MVM_telemetry_interval_annotate(data->to_read, data->interval_id, "alloced this much space");
 }
 static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)handle->data;
     if (nread > 0) {
-        MVM_string_decodestream_add_bytes(data->cur_tc, data->ds, buf->base, nread);
-        MVM_telemetry_interval_annotate(nread, data->interval_id, "read this many bytes");
+        data->buf = buf->base;
+        data->nread = nread;
     }
     else if (nread == UV_EOF) {
+        data->buf = NULL;
+        data->nread = 0;
         data->eof = 1;
         if (buf->base)
             MVM_free(buf->base);
@@ -48,65 +47,40 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
     uv_read_stop(handle);
     uv_unref((uv_handle_t*)handle);
 }
-static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOSyncStreamData *data, MVMint32 bytes) {
-    /* Don't try and read again if we already saw EOF. */
-    if (!data->eof) {
+MVMint64 MVM_io_syncstream_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
+                                      MVMint64 bytes) {
+    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
+    if (bytes > 0 && !data->eof) {
         int r;
         unsigned int interval_id;
 
-        interval_id = MVM_telemetry_interval_start(tc, "syncstream.read_to_buffer");
+        interval_id = MVM_telemetry_interval_start(tc, "syncstream.read_bytes");
         data->handle->data = data;
         data->cur_tc = tc;
+        data->to_read = bytes;
         if ((r = uv_read_start(data->handle, on_alloc, on_read)) < 0)
             MVM_exception_throw_adhoc(tc, "Reading from stream failed: %s",
                 uv_strerror(r));
         uv_ref((uv_handle_t *)data->handle);
-        if (tc->loop != data->handle->loop) {
+        if (tc->loop != data->handle->loop)
             MVM_exception_throw_adhoc(tc, "Tried to read() from an IO handle outside its originating thread");
-        }
         MVM_gc_mark_thread_blocked(tc);
         uv_run(tc->loop, UV_RUN_DEFAULT);
         MVM_gc_mark_thread_unblocked(tc);
+        MVM_telemetry_interval_annotate(data->nread, data->interval_id, "read this many bytes");
         MVM_telemetry_interval_stop(tc, interval_id, "syncstream.read_to_buffer");
-        return 1;
+        *buf_out = data->buf;
+        return data->nread;
     }
     else {
+        *buf_out = NULL;
         return 0;
     }
-}
-
-/* Ensures we have a decode stream, creating it if we're missing one. */
-static void ensure_decode_stream(MVMThreadContext *tc, MVMIOSyncStreamData *data) {
-    if (!data->ds)
-        data->ds = MVM_string_decodestream_create(tc, data->encoding, 0,
-            data->translate_newlines);
-}
-
-/* Reads the specified number of bytes into a the supplied buffer, returing
- * the number actually read. */
-MVMint64 MVM_io_syncstream_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes) {
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    ensure_decode_stream(tc, data);
-
-    /* See if we've already enough; if not, try and grab more. */
-    if (!MVM_string_decodestream_have_bytes(tc, data->ds, bytes))
-        read_to_buffer(tc, data, bytes > CHUNK_SIZE ? bytes : CHUNK_SIZE);
-
-    /* Read as many as we can, up to the limit. */
-    return MVM_string_decodestream_bytes_to_buf(tc, data->ds, buf, bytes);
 }
 
 /* Checks if the end of stream has been reached. */
 MVMint64 MVM_io_syncstream_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-
-    /* If we still have stuff in the buffer, certainly not the end (even if
-     * data->eof is set; that just means we read all we can from libuv, not
-     * that we processed it all). */
-    if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))
-        return 0;
-
-    /* Otherwise, go on the EOF flag from the underlying stream. */
     return data->eof;
 }
 
@@ -137,7 +111,7 @@ MVMint64 MVM_io_syncstream_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, cha
     }
     MVM_telemetry_interval_annotate(bytes, interval_id, "written this many bytes");
     MVM_telemetry_interval_stop(tc, interval_id, "syncstream.write_bytes");
-    data->total_bytes_written += bytes;
+    data->position += bytes;
     return bytes;
 }
 
@@ -161,10 +135,6 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     if (data->handle && not_std_handle(tc, (MVMObject *)h)) {
         uv_close((uv_handle_t *)data->handle, NULL);
         data->handle = NULL;
-        if (data->ds) {
-            MVM_string_decodestream_destroy(tc, data->ds);
-            data->ds = NULL;
-        }
     }
     return 0;
 }
@@ -199,10 +169,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
             uv_run(tc->loop, UV_RUN_DEFAULT);
             MVM_free(data->handle);
             data->handle = NULL;
-        }
-        if (data->ds) {
-            MVM_string_decodestream_destroy(tc, data->ds);
-            data->ds = NULL;
         }
         MVM_free(data);
     }
@@ -242,9 +208,7 @@ MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *h
     MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     MVMIOSyncStreamData * const data   = MVM_calloc(1, sizeof(MVMIOSyncStreamData));
     data->handle      = handle;
-    data->encoding    = MVM_encoding_type_utf8;
     data->is_tty      = is_tty;
-    data->translate_newlines = 1;
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;
