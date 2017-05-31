@@ -612,12 +612,18 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
 
 void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
     MVM_string_check_arg(tc, a, "say");
-    MVM_io_write_string(tc, tc->instance->stdout_handle, a, 1);
+    MVM_string_print(tc, MVM_string_concatenate(tc, a,
+        tc->instance->str_consts.platform_newline));
 }
 
 void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
+    MVMOSHandle *handle = (MVMOSHandle *)tc->instance->stdout_handle;
+    MVMuint64 encoded_size;
+    char *encoded;
     MVM_string_check_arg(tc, a, "print");
-    MVM_io_write_string(tc, tc->instance->stdout_handle, a, 0);
+    encoded = MVM_string_utf8_encode(tc, a, &encoded_size, MVM_TRANSLATE_NEWLINE_OUTPUT);
+    MVM_io_write_bytes_c(tc, tc->instance->stdout_handle, encoded, encoded_size);
+    MVM_free(encoded);
 }
 
 /* Tests whether one string a has the other string b as a substring at that index */

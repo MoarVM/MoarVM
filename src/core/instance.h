@@ -78,6 +78,7 @@ struct MVMStringConsts {
     MVMString *instrumented;
     MVMString *heap;
     MVMString *translate_newlines;
+    MVMString *platform_newline;
 };
 
 /* An entry in the representations registry. */

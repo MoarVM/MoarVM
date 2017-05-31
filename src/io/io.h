@@ -98,6 +98,8 @@ MVMint64 MVM_io_tell(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length);
 MVMint64 MVM_io_write_string(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint8 addnl);
 void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *buffer);
+void MVM_io_write_bytes_c(MVMThreadContext *tc, MVMObject *oshandle, char *output,
+    MVMuint64 output_size);
 MVMObject * MVM_io_read_bytes_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
     MVMObject *schedulee, MVMObject *buf_type, MVMObject *async_type);
 MVMObject * MVM_io_write_bytes_async(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *queue,
