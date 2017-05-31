@@ -81,8 +81,7 @@ static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
 static const MVMIOClosable     closable      = { closefh };
 static const MVMIOSyncReadable sync_readable = { MVM_io_syncstream_read_bytes,
                                                  MVM_io_syncstream_eof };
-static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_str,
-                                                 MVM_io_syncstream_write_bytes,
+static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_bytes,
                                                  MVM_io_syncstream_flush,
                                                  MVM_io_syncstream_truncate };
 static const MVMIOSeekable          seekable = { MVM_io_syncstream_seek,

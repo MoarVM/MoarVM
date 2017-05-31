@@ -34,7 +34,6 @@ struct MVMIOSyncReadable {
 
 /* I/O operations on handles that can do synchronous writing. */
 struct MVMIOSyncWritable {
-    MVMint64 (*write_str) (MVMThreadContext *tc, MVMOSHandle *h, MVMString *s, MVMint64 newline);
     MVMint64 (*write_bytes) (MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes);
     void (*flush) (MVMThreadContext *tc, MVMOSHandle *h);
     void (*truncate) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes);
@@ -96,7 +95,6 @@ MVMint64 MVM_io_fileno(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_seek(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset, MVMint64 flag);
 MVMint64 MVM_io_tell(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length);
-MVMint64 MVM_io_write_string(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint8 addnl);
 void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *buffer);
 void MVM_io_write_bytes_c(MVMThreadContext *tc, MVMObject *oshandle, char *output,
     MVMuint64 output_size);

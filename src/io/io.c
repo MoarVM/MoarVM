@@ -117,20 +117,6 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
     ((MVMArray *)result)->body.elems    = bytes_read;
 }
 
-MVMint64 MVM_io_write_string(MVMThreadContext *tc, MVMObject *oshandle, MVMString *str, MVMint8 addnl) {
-    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "write string");
-    if (str == NULL)
-        MVM_exception_throw_adhoc(tc, "Failed to write to filehandle: NULL string given");
-    if (handle->body.ops->sync_writable) {
-        uv_mutex_t *mutex = acquire_mutex(tc, handle);
-        MVMint64 result = handle->body.ops->sync_writable->write_str(tc, handle, str, addnl);
-        release_mutex(tc, mutex);
-        return result;
-    }
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot write a string to this kind of handle");
-}
-
 void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *buffer) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "write bytes");
     char *output;

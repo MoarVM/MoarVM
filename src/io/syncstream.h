@@ -31,7 +31,6 @@ void MVM_io_syncstream_seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offse
 MVMint64 MVM_io_syncstream_tell(MVMThreadContext *tc, MVMOSHandle *h);
 MVMint64 MVM_io_syncstream_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes);
 MVMint64 MVM_io_syncstream_eof(MVMThreadContext *tc, MVMOSHandle *h);
-MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, MVMint64 newline);
 MVMint64 MVM_io_syncstream_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes);
 void MVM_io_syncstream_flush(MVMThreadContext *tc, MVMOSHandle *h);
 void MVM_io_syncstream_truncate(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes);

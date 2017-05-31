@@ -163,33 +163,6 @@ static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     return req.statbuf.st_size == seek_pos || req.statbuf.st_size == 0;
 }
 
-/* Writes the specified string to the file handle, maybe with a newline. */
-static MVMint64 write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, MVMint64 newline) {
-    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMuint64 output_size;
-    MVMint64 bytes_written;
-    char *output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding, NULL,
-        MVM_TRANSLATE_NEWLINE_OUTPUT);
-    uv_buf_t write_buf  = uv_buf_init(output, output_size);
-    uv_fs_t req;
-
-    bytes_written = uv_fs_write(tc->loop, &req, data->fd, &write_buf, 1, -1, NULL);
-    if (bytes_written < 0) {
-        MVM_free(output);
-        MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s", uv_strerror(req.result));
-    }
-    MVM_free(output);
-
-    if (newline) {
-        uv_buf_t nl = uv_buf_init("\n", 1);
-        if (uv_fs_write(tc->loop, &req, data->fd, &nl, 1, -1, NULL) < 0)
-            MVM_exception_throw_adhoc(tc, "Failed to write newline to filehandle: %s", uv_strerror(req.result));
-        bytes_written++;
-    }
-
-    return bytes_written;
-}
-
 /* Writes the specified bytes to the file handle. */
 static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
@@ -338,7 +311,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 /* IO ops table, populated with functions. */
 static const MVMIOClosable      closable      = { closefh };
 static const MVMIOSyncReadable  sync_readable = { read_bytes, mvm_eof };
-static const MVMIOSyncWritable  sync_writable = { write_str, write_bytes, flush, truncatefh };
+static const MVMIOSyncWritable  sync_writable = { write_bytes, flush, truncatefh };
 static const MVMIOSeekable      seekable      = { seek, mvm_tell };
 static const MVMIOPipeable      pipeable      = { bind_stdio_handle };
 static const MVMIOLockable      lockable      = { lock, unlock };

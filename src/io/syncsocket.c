@@ -361,24 +361,13 @@ MVMint64 socket_getport(MVMThreadContext *tc, MVMOSHandle *h) {
     return port;
 }
 
-static void no_chars(MVMThreadContext *tc) {
-        MVM_exception_throw_adhoc(tc, "Sockets no longer support string I/O at VM-level");
-}
-static void socket_set_encoding(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 encoding) {
-    no_chars(tc);
-}
-static MVMint64 socket_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, MVMint64 newline) {
-    no_chars(tc);
-}
-
 static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h);
 
 /* IO ops table, populated with functions. */
 static const MVMIOClosable     closable      = { close_socket };
 static const MVMIOSyncReadable sync_readable = { socket_read_bytes,
                                                  socket_eof };
-static const MVMIOSyncWritable sync_writable = { socket_write_str,
-                                                 socket_write_bytes,
+static const MVMIOSyncWritable sync_writable = { socket_write_bytes,
                                                  socket_flush,
                                                  socket_truncate };
 static const MVMIOSockety            sockety = { socket_connect,

@@ -110,52 +110,11 @@ MVMint64 MVM_io_syncstream_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     return data->eof;
 }
 
-/* Writes the specified string to the stream, maybe with a newline. */
+/* Writes the specified bytes to the stream. */
 static void write_cb(uv_write_t* req, int status) {
     uv_unref((uv_handle_t *)req->handle);
     MVM_free(req);
 }
-MVMint64 MVM_io_syncstream_write_str(MVMThreadContext *tc, MVMOSHandle *h, MVMString *str, MVMint64 newline) {
-    MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
-    char *output;
-    MVMuint64 output_size;
-    uv_write_t *req;
-    uv_buf_t write_buf;
-    int r;
-
-    unsigned int interval_id;
-
-    interval_id = MVM_telemetry_interval_start(tc, "syncstream.write_str");
-    output = MVM_string_encode(tc, str, 0, -1, &output_size, data->encoding, NULL,
-        data->translate_newlines ? MVM_TRANSLATE_NEWLINE_OUTPUT : 0);
-    if (newline) {
-        output = (char *)MVM_realloc(output, ++output_size);
-        output[output_size - 1] = '\n';
-    }
-    req = MVM_malloc(sizeof(uv_write_t));
-    write_buf = uv_buf_init(output, output_size);
-    uv_ref((uv_handle_t *)data->handle);
-    if ((r = uv_write(req, data->handle, &write_buf, 1, write_cb)) < 0) {
-        uv_unref((uv_handle_t *)data->handle);
-        MVM_free(req);
-        MVM_free(output);
-        MVM_telemetry_interval_stop(tc, interval_id, "syncstream.write_str failed");
-        MVM_exception_throw_adhoc(tc, "Failed to write string to stream: %s", uv_strerror(r));
-    }
-    else {
-        MVM_gc_mark_thread_blocked(tc);
-        uv_run(tc->loop, UV_RUN_DEFAULT);
-        MVM_gc_mark_thread_unblocked(tc);
-        MVM_free(output);
-    }
-
-    MVM_telemetry_interval_annotate(output_size, interval_id, "written this many bytes");
-    MVM_telemetry_interval_stop(tc, interval_id, "syncstream.write_str");
-    data->total_bytes_written += output_size;
-    return output_size;
-}
-
-/* Writes the specified bytes to the stream. */
 MVMint64 MVM_io_syncstream_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
     MVMIOSyncStreamData *data = (MVMIOSyncStreamData *)h->body.data;
     uv_write_t *req = MVM_malloc(sizeof(uv_write_t));
@@ -253,8 +212,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
 static const MVMIOClosable     closable      = { closefh };
 static const MVMIOSyncReadable sync_readable = { MVM_io_syncstream_read_bytes,
                                                  MVM_io_syncstream_eof };
-static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_str,
-                                                 MVM_io_syncstream_write_bytes,
+static const MVMIOSyncWritable sync_writable = { MVM_io_syncstream_write_bytes,
                                                  MVM_io_syncstream_flush,
                                                  MVM_io_syncstream_truncate };
 static const MVMIOSeekable          seekable = { MVM_io_syncstream_seek,
