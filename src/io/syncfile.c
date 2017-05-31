@@ -30,22 +30,12 @@ typedef struct {
 
     /* The filename we opened, as a C string. */
     char *filename;
-
-    /* The encoding we're using. */
-    MVMint64 encoding;
-
-    /* Decode stream, for turning bytes from disk into strings. */
-    MVMDecodeStream *ds;
 } MVMIOFileData;
 
 /* Closes the file. */
 static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     uv_fs_t req;
-    if (data->ds) {
-        MVM_string_decodestream_destroy(tc, data->ds);
-        data->ds = NULL;
-    }
     if (uv_fs_close(tc->loop, &req, data->fd, NULL) < 0) {
         data->fd = -1;
         MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
@@ -69,45 +59,29 @@ static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
 /* Seek to the specified position in the file. */
 static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64 whence) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 r;
-
-    if (data->ds) {
-        /* We'll start over from a new position. */
-        MVM_string_decodestream_destroy(tc, data->ds);
-        data->ds = NULL;
-    }
-
-    /* Seek, then get absolute position for new decodestream. */
     if (MVM_platform_lseek(data->fd, offset, whence) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
-    if ((r = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
-    data->ds = MVM_string_decodestream_create(tc, data->encoding, r, 1);
 }
 
 /* Get curernt position in the file. */
 static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     MVMint64 r;
-
-    if (data->ds)
-        return MVM_string_decodestream_tell_bytes(tc, data->ds);
-
     if ((r = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to tell in filehandle: %d", errno);
-
     return r;
 }
 
-/* Read a bunch of bytes into the current decode stream. */
-static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint32 bytes) {
-    char *buf         = MVM_malloc(bytes);
+/* Reads the specified number of bytes into a the supplied buffer, returing
+ * the number actually read. */
+static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out, MVMint64 bytes) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    char *buf = MVM_malloc(bytes);
     uv_buf_t read_buf = uv_buf_init(buf, bytes);
     uv_fs_t req;
     MVMint32 read;
-    unsigned int interval_id;
 
-    interval_id = MVM_telemetry_interval_start(tc, "syncfile.read_to_buffer");
+    unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncfile.read_to_buffer");
     MVM_gc_mark_thread_blocked(tc);
     if ((read = uv_fs_read(tc->loop, &req, data->fd, &read_buf, 1, -1, NULL)) < 0) {
         MVM_free(buf);
@@ -115,34 +89,11 @@ static MVMint32 read_to_buffer(MVMThreadContext *tc, MVMIOFileData *data, MVMint
         MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
             uv_strerror(req.result));
     }
-    MVM_string_decodestream_add_bytes(tc, data->ds, buf, read);
+    *buf_out = buf;
     MVM_gc_mark_thread_unblocked(tc);
     MVM_telemetry_interval_annotate(read, interval_id, "read this many bytes");
     MVM_telemetry_interval_stop(tc, interval_id, "syncfile.read_to_buffer");
     return read;
-}
-
-/* Ensures we have a decode stream, creating it if we're missing one. */
-static void ensure_decode_stream(MVMThreadContext *tc, MVMIOFileData *data) {
-    if (!data->ds)
-        data->ds = MVM_string_decodestream_create(tc, data->encoding, 0, 1);
-}
-
-/* Reads the specified number of bytes into a the supplied buffer, returing
- * the number actually read. */
-static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes) {
-    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    ensure_decode_stream(tc, data);
-
-    /* Keep requesting bytes until we have enough in the buffer or we hit
-     * end of file. */
-    while (!MVM_string_decodestream_have_bytes(tc, data->ds, bytes)) {
-        if (read_to_buffer(tc, data, bytes) <= 0)
-            break;
-    }
-
-    /* Read as many as we can, up to the limit. */
-    return MVM_string_decodestream_bytes_to_buf(tc, data->ds, buf, bytes);
 }
 
 /* Checks if the end of file has been reached. */
@@ -150,8 +101,6 @@ static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     MVMint64 seek_pos;
     uv_fs_t  req;
-    if (data->ds && !MVM_string_decodestream_is_empty(tc, data->ds))
-        return 0;
     if (uv_fs_fstat(tc->loop, &req, data->fd, NULL) == -1) {
         MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s", uv_strerror(req.result));
     }
@@ -300,8 +249,6 @@ static void unlock(MVMThreadContext *tc, MVMOSHandle *h) {
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOFileData *data = (MVMIOFileData *)d;
     if (data) {
-        if (data->ds)
-            MVM_string_decodestream_destroy(tc, data->ds);
         if (data->filename)
             MVM_free(data->filename);
         MVM_free(data);
@@ -421,7 +368,6 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
 
         data->fd          = fd;
         data->filename    = fname;
-        data->encoding    = MVM_encoding_type_utf8;
         result->body.ops  = &op_table;
         result->body.data = data;
 
@@ -434,7 +380,6 @@ MVMObject * MVM_file_handle_from_fd(MVMThreadContext *tc, uv_file fd) {
     MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     MVMIOFileData * const data   = MVM_calloc(1, sizeof(MVMIOFileData));
     data->fd          = fd;
-    data->encoding    = MVM_encoding_type_utf8;
     result->body.ops  = &op_table;
     result->body.data = data;
     return (MVMObject *)result;
