@@ -62,9 +62,7 @@ struct MVMStringConsts {
     MVMString *auto_viv_container;
     MVMString *done;
     MVMString *error;
-    MVMString *stdout_chars;
     MVMString *stdout_bytes;
-    MVMString *stderr_chars;
     MVMString *stderr_bytes;
     MVMString *buf_type;
     MVMString *write;
