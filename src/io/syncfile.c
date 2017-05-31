@@ -19,6 +19,7 @@
 #define read _read
 #define write _write
 #define isatty _isatty
+#define ftruncate _chsize
 #define strerror _strerror
 #endif
 
@@ -141,9 +142,8 @@ static void flush(MVMThreadContext *tc, MVMOSHandle *h){
 /* Truncates the file handle. */
 static void truncatefh(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    uv_fs_t req;
-    if(uv_fs_ftruncate(tc->loop, &req, data->fd, bytes, NULL) < 0 )
-        MVM_exception_throw_adhoc(tc, "Failed to truncate filehandle: %s", uv_strerror(req.result));
+    if (ftruncate(data->fd, bytes) == -1)
+        MVM_exception_throw_adhoc(tc, "Failed to truncate filehandle: %s", strerror(errno));
 }
 
 /* Operations aiding process spawning and I/O handling. */
