@@ -3004,6 +3004,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
 
 static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
                            MVMSpeshIterator *iter, MVMSpeshBB *bb) {
+    MVMint32 i;
     MVMint32 label = MVM_jit_label_before_bb(tc, jg, bb);
     jg_append_label(tc, jg, label);
     /* We always append a label update at the start of a basic block for now.
@@ -3014,7 +3015,16 @@ static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
      * should be in force, and it failed to be. */
     jg_append_control(tc, jg, bb->first_ins, MVM_JIT_CONTROL_DYNAMIC_LABEL);
 
-    /* While we have spesh instructions, consume and interate */
+    /* add a jit breakpoint if required */
+    for (i = 0; i < tc->instance->jit_breakpoints_num; i++) {
+        if (tc->instance->jit_breakpoints[i].frame_nr == tc->instance->jit_seq_nr &&
+            tc->instance->jit_breakpoints[i].block_nr == iter->bb->idx) {
+            jg_append_control(tc, jg, bb->first_ins, MVM_JIT_CONTROL_BREAKPOINT);
+            break; /* one is enough though */
+        }
+    }
+
+    /* Try to consume the (rest of the) basic block per instruction */
     while (iter->ins) {
         before_ins(tc, jg, iter, iter->ins);
         if(!consume_ins(tc, jg, iter, iter->ins))

@@ -10,6 +10,13 @@
         x ## _alloc = _s; \
     } while (0)
 
+#define MVM_VECTOR_DESTROY(x) do { \
+        MVM_free(x); \
+        x = NULL; \
+        x ## _num = 0; \
+        x ## _alloc = 0; \
+    } while (0)
+
 #define MVM_VECTOR_GROW(x, size) do {\
         size_t _s = (size); \
         x = MVM_realloc(x, _s*sizeof(*x));   \

@@ -144,6 +144,9 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     code->num_inlines  = jg->inlines_num;
     code->inlines      = code->num_inlines ? COPY_ARRAY(jg->inlines, jg->inlines_alloc) : NULL;
 
+    /* add sequence number */
+    code->seq_nr       = MVM_incr(&tc->instance->jit_seq_nr);
+
     return code;
 }
 
