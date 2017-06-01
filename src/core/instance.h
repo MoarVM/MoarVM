@@ -215,7 +215,7 @@ struct MVMInstance {
     /* sequence number for JIT compiled frames */
     AO_t  jit_seq_nr;
 
-
+    MVM_VECTOR_DECL(struct { MVMint32 frame_nr; MVMint32 block_nr; }, jit_breakpoints);
 
     /* Number of representations registered so far. */
     MVMuint32 num_reprs;
