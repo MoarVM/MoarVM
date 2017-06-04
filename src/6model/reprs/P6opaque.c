@@ -1615,3 +1615,65 @@ static const MVMREPROps P6opaque_this_repr = {
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };
+
+#ifdef DEBUG_HELPERS
+/* This is meant to be called in a debugging session and not used anywhere else.
+ * Plese don't delete. */
+static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(obj)->REPR_data;
+    MVMP6opaqueBody *data = MVM_p6opaque_real_data(tc, OBJECT_BODY(obj));
+    if (repr_data) {
+        MVMint16 const num_attributes = repr_data->num_attributes;
+        MVMint16 cur_attribute = 0;
+        MVMP6opaqueNameMap * const name_to_index_mapping = repr_data->name_to_index_mapping;
+        fprintf(stderr, "%s.new(", STABLE(obj)->debug_name, num_attributes);
+        if (name_to_index_mapping != NULL) {
+            MVMint16 i;
+            MVMP6opaqueNameMap *cur_map_entry = name_to_index_mapping;
+
+            while (cur_map_entry->class_key != NULL) {
+                MVMint16 i;
+                MVMint64 slot;
+                if (cur_map_entry->num_attrs > 0) {
+                    fprintf(stderr, "#`(from %s) ", cur_map_entry->class_key->st->debug_name);
+                }
+                for (i = 0; i < cur_map_entry->num_attrs; i++) {
+                    char * name = MVM_string_utf8_encode_C_string(tc, cur_map_entry->names[i]);
+                    fprintf(stderr, "%s", name);
+                    MVM_free(name);
+
+                    slot = cur_map_entry->slots[i];
+                    if (slot >= 0) {
+                        MVMuint16 const offset = repr_data->attribute_offsets[slot];
+                        MVMSTable * const attr_st = repr_data->flattened_stables[slot];
+                        if (attr_st == NULL) {
+                            MVMObject *value = get_obj_at_offset(data, offset);
+                            if (value != NULL) {
+                                fprintf(stderr, "=");
+                                dump_p6opaque(tc, value, 1);
+                            }
+                        }
+                        else {
+                            MVMString * const s = attr_st->REPR->box_funcs.get_str(tc, attr_st, obj, (char *)data + offset);
+                            char * const str = MVM_string_utf8_encode_C_string(tc, s);
+                            fprintf(stderr, "='%s'", str);
+                            MVM_free(str);
+                        }
+                    }
+                    if (cur_attribute++ < num_attributes - 1)
+                        fprintf(stderr, ", ");
+                }
+                cur_map_entry++;
+            }
+        }
+        fprintf(stderr, nested ? ")" : ")\n");
+    }
+    else {
+        fprintf(stderr, "%s%s", STABLE(obj)->debug_name, nested ? "" : "\n");
+    }
+}
+
+void MVM_dump_p6opaque(MVMThreadContext *tc, MVMObject *obj) {
+    dump_p6opaque(tc, obj, 0);
+}
+#endif
