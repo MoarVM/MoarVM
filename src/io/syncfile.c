@@ -334,6 +334,9 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     MVM_free(fmode);
 
     /* Try to open the file. */
+#ifdef _WIN32
+    flag |= _O_BINARY;
+#endif
     if ((fd = open((const char *)fname, flag, DEFAULT_MODE)) == -1) {
         char *waste[] = { fname, NULL };
         const char *err = strerror(errno);
