@@ -21,7 +21,6 @@ typedef struct stat STAT;
 #define write _write
 #define isatty _isatty
 #define ftruncate _chsize
-#define strerror _strerror
 #define fstat _fstat
 typedef struct _stat STAT;
 #endif
