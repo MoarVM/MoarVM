@@ -108,7 +108,7 @@ MVMint64 MVM_platform_unlink(const char *pathname) {
 }
 
 int MVM_platform_fsync(int fd) {
-    if (FlushFileBuffers(_get_osfhandle(fd)))
+    if (FlushFileBuffers((HANDLE)_get_osfhandle(fd)))
         return 0;
     errno = GetLastError();
     return -1;
