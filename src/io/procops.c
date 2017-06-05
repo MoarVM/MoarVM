@@ -379,6 +379,7 @@ typedef struct {
     char             **args;
     MVMuint32          seq_stdout;
     MVMuint32          seq_stderr;
+    MVMuint32          seq_merge;
     uv_stream_t       *stdin_handle;
     ProcessState       state;
     int                using;
@@ -699,7 +700,7 @@ static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) 
     buf->len    = size;
 }
 
-/* Read functions for stdout/stderr. */
+/* Read functions for stdout/stderr/merged. */
 static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, SpawnInfo *si,
                        MVMObject *callback, MVMuint32 seq_number) {
     MVMThreadContext *tc  = si->tc;
@@ -783,6 +784,12 @@ static void async_spawn_stderr_bytes_read(uv_stream_t *handle, ssize_t nread, co
         si->tc->instance->str_consts.stderr_bytes);
     async_read(handle, nread, buf, si, cb, si->seq_stderr++);
 }
+static void async_spawn_merge_bytes_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
+    SpawnInfo *si = (SpawnInfo *)handle->data;
+    MVMObject *cb = MVM_repr_at_key_o(si->tc, si->callbacks,
+        si->tc->instance->str_consts.merge_bytes);
+    async_read(handle, nread, buf, si, cb, si->seq_merge++);
+}
 
 /* Actually spawns an async task. This runs in the event loop thread. */
 static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
@@ -815,33 +822,50 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[0].flags   = UV_INHERIT_FD;
         process_stdio[0].data.fd = 0;
     }
-    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
-        uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(tc->loop, pipe, 0);
-        pipe->data = si;
+    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.merge_bytes)) {
+        stdout_pipe = MVM_malloc(sizeof(uv_pipe_t));
+        uv_pipe_init(tc->loop, stdout_pipe, 0);
+        stdout_pipe->data = si;
         process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-        process_stdio[1].data.stream = (uv_stream_t *)pipe;
-        stdout_pipe                  = pipe;
-        stdout_cb                    = async_spawn_stdout_bytes_read;
-        si->using++;
-    }
-    else {
-        process_stdio[1].flags   = UV_INHERIT_FD;
-        process_stdio[1].data.fd = 1;
-    }
-    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
-        uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(tc->loop, pipe, 0);
-        pipe->data = si;
+        process_stdio[1].data.stream = (uv_stream_t *)stdout_pipe;
+        stdout_cb                    = async_spawn_merge_bytes_read;
+        stderr_pipe = MVM_malloc(sizeof(uv_pipe_t));
+        uv_pipe_init(tc->loop, stderr_pipe, 0);
+        stderr_pipe->data = si;
         process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-        process_stdio[2].data.stream = (uv_stream_t *)pipe;
-        stderr_pipe                  = pipe;
-        stderr_cb                    = async_spawn_stderr_bytes_read;
-        si->using++;
+        process_stdio[2].data.stream = (uv_stream_t *)stderr_pipe;
+        stderr_cb                    = async_spawn_merge_bytes_read;
+        si->using += 2;
     }
     else {
-        process_stdio[2].flags   = UV_INHERIT_FD;
-        process_stdio[2].data.fd = 2;
+        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
+            uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
+            uv_pipe_init(tc->loop, pipe, 0);
+            pipe->data = si;
+            process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+            process_stdio[1].data.stream = (uv_stream_t *)pipe;
+            stdout_pipe                  = pipe;
+            stdout_cb                    = async_spawn_stdout_bytes_read;
+            si->using++;
+        }
+        else {
+            process_stdio[1].flags   = UV_INHERIT_FD;
+            process_stdio[1].data.fd = 1;
+        }
+        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
+            uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
+            uv_pipe_init(tc->loop, pipe, 0);
+            pipe->data = si;
+            process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+            process_stdio[2].data.stream = (uv_stream_t *)pipe;
+            stderr_pipe                  = pipe;
+            stderr_cb                    = async_spawn_stderr_bytes_read;
+            si->using++;
+        }
+        else {
+            process_stdio[2].flags   = UV_INHERIT_FD;
+            process_stdio[2].data.fd = 2;
+        }
     }
 
     /* Set up process start info. */

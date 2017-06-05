@@ -64,6 +64,7 @@ struct MVMStringConsts {
     MVMString *error;
     MVMString *stdout_bytes;
     MVMString *stderr_bytes;
+    MVMString *merge_bytes;
     MVMString *buf_type;
     MVMString *write;
     MVMString *nativeref;
