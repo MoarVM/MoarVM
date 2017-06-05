@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #define DEFAULT_MODE 0x01B6
+typedef struct stat STAT;
 #else
 #include <fcntl.h>
 #define O_CREAT  _O_CREAT
@@ -21,6 +22,8 @@
 #define isatty _isatty
 #define ftruncate _chsize
 #define strerror _strerror
+#define fstat _fstat
+typedef struct _stat STAT;
 #endif
 
 /* Data that we keep for a file-based handle. */
@@ -98,16 +101,16 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
 static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     MVMint64 seek_pos;
-    uv_fs_t  req;
-    if (uv_fs_fstat(tc->loop, &req, data->fd, NULL) == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s", uv_strerror(req.result));
-    }
+    STAT statbuf;
+    if (fstat(data->fd, &statbuf) == -1)
+        MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s",
+            strerror(errno));
     if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
     /* Comparison with seek_pos for some special files, like those in /proc,
      * which file size is 0 can be false. In that case, we fall back to check
      * file size to detect EOF. */
-    return req.statbuf.st_size == seek_pos || req.statbuf.st_size == 0;
+    return statbuf.st_size == seek_pos || statbuf.st_size == 0;
 }
 
 /* Writes the specified bytes to the file handle. */
@@ -320,7 +323,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     char * const fname = MVM_string_utf8_c8_encode_C_string(tc, filename);
     int fd;
     int flag;
-    uv_fs_t req;
+    STAT statbuf;
 
     /* Resolve mode description to flags. */
     char * const fmode  = MVM_string_utf8_encode_C_string(tc, mode);
@@ -343,9 +346,8 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         already have triggered when opening the file, and we can't do anything
         about the others; a failure also does not necessarily imply that the
         file descriptor cannot be used for reading/writing. */
-    if (uv_fs_fstat(tc->loop, &req, fd, NULL) == 0 && (req.statbuf.st_mode & S_IFMT) == S_IFDIR) {
+    if (fstat(fd, &statbuf) == 0 && (statbuf.st_mode & S_IFMT) == S_IFDIR) {
         char *waste[] = { fname, NULL };
-        uv_fs_req_cleanup(&req);
         if (close(fd) == -1) {
             const char *err = strerror(errno);
             MVM_exception_throw_adhoc_free(tc, waste,
@@ -354,7 +356,6 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         }
         MVM_exception_throw_adhoc_free(tc, waste, "Tried to open directory %s", fname);
     }
-    uv_fs_req_cleanup(&req);
 
     /* Set up handle. */
     {
