@@ -379,5 +379,8 @@ MVMObject * MVM_file_handle_from_fd(MVMThreadContext *tc, int fd) {
     data->fd          = fd;
     result->body.ops  = &op_table;
     result->body.data = data;
+#ifdef _WIN32
+    _setmode(fd, _O_BINARY);
+#endif
     return (MVMObject *)result;
 }
