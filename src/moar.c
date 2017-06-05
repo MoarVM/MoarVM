@@ -129,6 +129,14 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->int_const_cache = MVM_calloc(1, sizeof(MVMIntConstCache));
     instance->int_to_str_cache = MVM_calloc(MVM_INT_TO_STR_CACHE_SIZE, sizeof(MVMString *));
 
+    /* Initialize Unicode database */
+    MVM_unicode_init(instance->main_thread);
+    MVM_string_cclass_init(instance->main_thread);
+
+    /* Set up NFG state mutation mutex. */
+    instance->nfg = calloc(1, sizeof(MVMNFGState));
+    init_mutex(instance->nfg->update_mutex, "NFG update mutex");
+
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
 
@@ -161,12 +169,6 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up hll symbol tables mutex. */
     init_mutex(instance->mutex_hll_syms, "hll syms");
-
-    /* Initialize Unicode database */
-    MVM_unicode_init(instance->main_thread);
-
-    /* Initialize string cclass handling. */
-    MVM_string_cclass_init(instance->main_thread);
 
     /* Create callsite intern pool. */
     instance->callsite_interns = MVM_calloc(1, sizeof(MVMCallsiteInterns));
@@ -265,10 +267,6 @@ MVMInstance * MVM_vm_create_instance(void) {
     else {
         instance->coverage_logging = 0;
     }
-
-    /* Set up NFG state mutation mutex. */
-    instance->nfg = calloc(1, sizeof(MVMNFGState));
-    init_mutex(instance->nfg->update_mutex, "NFG update mutex");
 
     /* Create std[in/out/err]. */
     setup_std_handles(instance->main_thread);
