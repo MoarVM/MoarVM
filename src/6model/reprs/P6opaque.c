@@ -1626,7 +1626,7 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
         MVMint16 const num_attributes = repr_data->num_attributes;
         MVMint16 cur_attribute = 0;
         MVMP6opaqueNameMap * const name_to_index_mapping = repr_data->name_to_index_mapping;
-        fprintf(stderr, "%s.new(", STABLE(obj)->debug_name, num_attributes);
+        fprintf(stderr, "%s.new(", STABLE(obj)->debug_name);
         if (name_to_index_mapping != NULL) {
             MVMint16 i;
             MVMP6opaqueNameMap *cur_map_entry = name_to_index_mapping;
