@@ -566,6 +566,9 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(merge_bytes, "merge_bytes");
     string_creator(buf_type, "buf_type");
     string_creator(write, "write");
+    string_creator(stdin_fd, "stdin_fd");
+    string_creator(stdout_fd, "stdout_fd");
+    string_creator(stderr_fd, "stderr_fd");
     string_creator(nativeref, "nativeref");
     string_creator(refkind, "refkind");
     string_creator(positional, "positional");

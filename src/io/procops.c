@@ -818,6 +818,11 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[0].data.stream = (uv_stream_t *)pipe;
         si->stdin_handle             = (uv_stream_t *)pipe;
     }
+    else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdin_fd)) {
+        process_stdio[0].flags   = UV_INHERIT_FD;
+        process_stdio[0].data.fd = (int)MVM_repr_get_int(tc,
+            MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stdin_fd));
+    }
     else {
         process_stdio[0].flags   = UV_INHERIT_FD;
         process_stdio[0].data.fd = 0;
@@ -848,6 +853,11 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
             stdout_cb                    = async_spawn_stdout_bytes_read;
             si->using++;
         }
+        else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_fd)) {
+            process_stdio[1].flags   = UV_INHERIT_FD;
+            process_stdio[1].data.fd = (int)MVM_repr_get_int(tc,
+                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stdout_fd));
+        }
         else {
             process_stdio[1].flags   = UV_INHERIT_FD;
             process_stdio[1].data.fd = 1;
@@ -861,6 +871,11 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
             stderr_pipe                  = pipe;
             stderr_cb                    = async_spawn_stderr_bytes_read;
             si->using++;
+        }
+        else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_fd)) {
+            process_stdio[2].flags   = UV_INHERIT_FD;
+            process_stdio[2].data.fd = (int)MVM_repr_get_int(tc,
+                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stderr_fd));
         }
         else {
             process_stdio[2].flags   = UV_INHERIT_FD;
