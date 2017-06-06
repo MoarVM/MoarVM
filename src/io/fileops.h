@@ -34,7 +34,7 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f, MVMint32 use_lstat)
 MVMint64 MVM_file_isreadable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
 MVMint64 MVM_file_iswritable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
 MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
-MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMuint8 type, MVMuint8 readable);
+MVMObject * MVM_file_get_stdstream(MVMThreadContext *tc, MVMint32 type);
 MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig);
 void MVM_file_link(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath);
 void MVM_file_symlink(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath);
