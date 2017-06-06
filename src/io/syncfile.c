@@ -29,9 +29,6 @@ typedef struct _stat STAT;
 typedef struct {
     /* File descriptor. */
     int fd;
-
-    /* The filename we opened, as a C string. */
-    char *filename;
 } MVMIOFileData;
 
 /* Closes the file. */
@@ -255,11 +252,8 @@ static void unlock(MVMThreadContext *tc, MVMOSHandle *h) {
 /* Frees data associated with the handle. */
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOFileData *data = (MVMIOFileData *)d;
-    if (data) {
-        if (data->filename)
-            MVM_free(data->filename);
+    if (data)
         MVM_free(data);
-    }
 }
 
 /* IO ops table, populated with functions. */
@@ -360,12 +354,12 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     }
 
     /* Set up handle. */
+    MVM_free(fname);
     {
         MVMIOFileData * const data   = MVM_calloc(1, sizeof(MVMIOFileData));
         MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc,
             tc->instance->boot_types.BOOTIO);
         data->fd          = fd;
-        data->filename    = fname;
         result->body.ops  = &op_table;
         result->body.data = data;
         return (MVMObject *)result;
