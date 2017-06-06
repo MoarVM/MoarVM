@@ -28,4 +28,3 @@ MVMint64 MVM_io_syncstream_eof(MVMThreadContext *tc, MVMOSHandle *h);
 MVMint64 MVM_io_syncstream_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes);
 void MVM_io_syncstream_flush(MVMThreadContext *tc, MVMOSHandle *h);
 void MVM_io_syncstream_truncate(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes);
-MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *handle, MVMint8 is_tty);

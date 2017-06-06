@@ -279,15 +279,15 @@ MVMInstance * MVM_vm_create_instance(void) {
 
 /* Set up some standard file handles. */
 static void setup_std_handles(MVMThreadContext *tc) {
-    tc->instance->stdin_handle  = MVM_file_get_stdstream(tc, 0, 1);
+    tc->instance->stdin_handle  = MVM_file_get_stdstream(tc, 0);
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&tc->instance->stdin_handle,
         "stdin handle");
 
-    tc->instance->stdout_handle = MVM_file_get_stdstream(tc, 1, 0);
+    tc->instance->stdout_handle = MVM_file_get_stdstream(tc, 1);
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&tc->instance->stdout_handle,
         "stdout handle");
 
-    tc->instance->stderr_handle = MVM_file_get_stdstream(tc, 2, 0);
+    tc->instance->stderr_handle = MVM_file_get_stdstream(tc, 2);
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&tc->instance->stderr_handle,
         "stderr handle");
 }

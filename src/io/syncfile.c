@@ -30,8 +30,15 @@ typedef struct {
     /* File descriptor. */
     int fd;
 
-    /* The filename we opened, as a C string. */
-    char *filename;
+    /* Is it seekable? */
+    int seekable;
+
+    /* How many bytes have we read/written? Used to fake tell on handles that
+     * are not seekable. */
+    MVMint64 byte_position;
+
+    /* Did read already report EOF? */
+    int eof_reported;
 } MVMIOFileData;
 
 /* Closes the file. */
@@ -61,6 +68,8 @@ static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
 /* Seek to the specified position in the file. */
 static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64 whence) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    if (!data->seekable)
+        MVM_exception_throw_adhoc(tc, "It is not possible to seek this kind of handle");
     if (MVM_platform_lseek(data->fd, offset, whence) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
 }
@@ -68,10 +77,15 @@ static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64
 /* Get curernt position in the file. */
 static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 r;
-    if ((r = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
-        MVM_exception_throw_adhoc(tc, "Failed to tell in filehandle: %d", errno);
-    return r;
+    if (data->seekable) {
+        MVMint64 r;
+        if ((r = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
+            MVM_exception_throw_adhoc(tc, "Failed to tell in filehandle: %d", errno);
+        return r;
+    }
+    else {
+        return data->byte_position;
+    }
 }
 
 /* Reads the specified number of bytes into a the supplied buffer, returning
@@ -81,6 +95,13 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
     char *buf = MVM_malloc(bytes);
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncfile.read_to_buffer");
     MVMint32 bytes_read;
+#ifdef _WIN32
+    /* Can only perform relatively small reads from a Windows console;
+     * trying to do larger ones gives back ENOMEM, most likely due to
+     * limitations of the Windows console subsystem. */
+    if (bytes > 16387 && _isatty(data->fd))
+        bytes = 16387;
+#endif
     MVM_gc_mark_thread_blocked(tc);
     if ((bytes_read = read(data->fd, buf, bytes)) == -1) {
         int save_errno = errno;
@@ -93,23 +114,31 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
     MVM_gc_mark_thread_unblocked(tc);
     MVM_telemetry_interval_annotate(bytes_read, interval_id, "read this many bytes");
     MVM_telemetry_interval_stop(tc, interval_id, "syncfile.read_to_buffer");
+    data->byte_position += bytes_read;
+    if (bytes_read == 0 && bytes != 0)
+        data->eof_reported = 1;
     return bytes_read;
 }
 
 /* Checks if the end of file has been reached. */
 static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 seek_pos;
-    STAT statbuf;
-    if (fstat(data->fd, &statbuf) == -1)
-        MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s",
-            strerror(errno));
-    if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
-    /* Comparison with seek_pos for some special files, like those in /proc,
-     * which file size is 0 can be false. In that case, we fall back to check
-     * file size to detect EOF. */
-    return statbuf.st_size == seek_pos || statbuf.st_size == 0;
+    if (data->seekable) {
+        MVMint64 seek_pos;
+        STAT statbuf;
+        if (fstat(data->fd, &statbuf) == -1)
+            MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s",
+                strerror(errno));
+        if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
+            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
+        /* Comparison with seek_pos for some special files, like those in /proc,
+         * which file size is 0 can be false. In that case, we fall back to check
+         * file size to detect EOF. */
+        return statbuf.st_size == seek_pos || statbuf.st_size == 0;
+    }
+    else {
+        return data->eof_reported;
+    }
 }
 
 /* Writes the specified bytes to the file handle. */
@@ -130,6 +159,7 @@ static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
         bytes -= r;
     }
     MVM_gc_mark_thread_unblocked(tc);
+    data->byte_position += bytes_written;
     return bytes_written;
 }
 
@@ -255,11 +285,8 @@ static void unlock(MVMThreadContext *tc, MVMOSHandle *h) {
 /* Frees data associated with the handle. */
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOFileData *data = (MVMIOFileData *)d;
-    if (data) {
-        if (data->filename)
-            MVM_free(data->filename);
+    if (data)
         MVM_free(data);
-    }
 }
 
 /* IO ops table, populated with functions. */
@@ -360,12 +387,13 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     }
 
     /* Set up handle. */
+    MVM_free(fname);
     {
         MVMIOFileData * const data   = MVM_calloc(1, sizeof(MVMIOFileData));
         MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc,
             tc->instance->boot_types.BOOTIO);
         data->fd          = fd;
-        data->filename    = fname;
+        data->seekable    = MVM_platform_lseek(fd, 0, SEEK_CUR) != -1;
         result->body.ops  = &op_table;
         result->body.data = data;
         return (MVMObject *)result;
@@ -377,6 +405,7 @@ MVMObject * MVM_file_handle_from_fd(MVMThreadContext *tc, int fd) {
     MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     MVMIOFileData * const data   = MVM_calloc(1, sizeof(MVMIOFileData));
     data->fd          = fd;
+    data->seekable    = MVM_platform_lseek(fd, 0, SEEK_CUR) != -1;
     result->body.ops  = &op_table;
     result->body.data = data;
 #ifdef _WIN32
