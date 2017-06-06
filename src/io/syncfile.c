@@ -36,6 +36,9 @@ typedef struct {
     /* How many bytes have we read/written? Used to fake tell on handles that
      * are not seekable. */
     MVMint64 byte_position;
+
+    /* Did read already report EOF? */
+    int eof_reported;
 } MVMIOFileData;
 
 /* Closes the file. */
@@ -105,23 +108,30 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
     MVM_telemetry_interval_annotate(bytes_read, interval_id, "read this many bytes");
     MVM_telemetry_interval_stop(tc, interval_id, "syncfile.read_to_buffer");
     data->byte_position += bytes_read;
+    if (bytes_read == 0 && bytes != 0)
+        data->eof_reported = 1;
     return bytes_read;
 }
 
 /* Checks if the end of file has been reached. */
 static MVMint64 mvm_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 seek_pos;
-    STAT statbuf;
-    if (fstat(data->fd, &statbuf) == -1)
-        MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s",
-            strerror(errno));
-    if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
-        MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
-    /* Comparison with seek_pos for some special files, like those in /proc,
-     * which file size is 0 can be false. In that case, we fall back to check
-     * file size to detect EOF. */
-    return statbuf.st_size == seek_pos || statbuf.st_size == 0;
+    if (data->seekable) {
+        MVMint64 seek_pos;
+        STAT statbuf;
+        if (fstat(data->fd, &statbuf) == -1)
+            MVM_exception_throw_adhoc(tc, "Failed to stat file descriptor: %s",
+                strerror(errno));
+        if ((seek_pos = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
+            MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
+        /* Comparison with seek_pos for some special files, like those in /proc,
+         * which file size is 0 can be false. In that case, we fall back to check
+         * file size to detect EOF. */
+        return statbuf.st_size == seek_pos || statbuf.st_size == 0;
+    }
+    else {
+        return data->eof_reported;
+    }
 }
 
 /* Writes the specified bytes to the file handle. */
