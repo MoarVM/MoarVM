@@ -9,7 +9,7 @@ typedef struct {
 } NodeWorklist;
 
 static void add_node(MVMThreadContext *tc, NodeWorklist *list, MVMProfileCallNode *node) {
-    if (list->start + list->items < list->alloc) {
+    if (list->start + list->items + 1 < list->alloc) {
         /* Add at the end */
         list->items++;
         list->list[list->start + list->items] = node;
