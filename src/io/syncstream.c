@@ -202,14 +202,3 @@ static const MVMIOOps op_table = {
     NULL,
     gc_free
 };
-
-/* Wraps a libuv stream (likely, libuv pipe or TTY) up in a sync stream. */
-MVMObject * MVM_io_syncstream_from_uvstream(MVMThreadContext *tc, uv_stream_t *handle, MVMint8 is_tty) {
-    MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    MVMIOSyncStreamData * const data   = MVM_calloc(1, sizeof(MVMIOSyncStreamData));
-    data->handle      = handle;
-    data->is_tty      = is_tty;
-    result->body.ops  = &op_table;
-    result->body.data = data;
-    return (MVMObject *)result;
-}
