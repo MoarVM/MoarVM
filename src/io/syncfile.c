@@ -29,6 +29,13 @@ typedef struct _stat STAT;
 typedef struct {
     /* File descriptor. */
     int fd;
+
+    /* Is it seekable? */
+    int seekable;
+
+    /* How many bytes have we read/written? Used to fake tell on handles that
+     * are not seekable. */
+    MVMint64 byte_position;
 } MVMIOFileData;
 
 /* Closes the file. */
@@ -58,6 +65,8 @@ static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
 /* Seek to the specified position in the file. */
 static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64 whence) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+    if (!data->seekable)
+        MVM_exception_throw_adhoc(tc, "It is not possible to seek this kind of handle");
     if (MVM_platform_lseek(data->fd, offset, whence) == -1)
         MVM_exception_throw_adhoc(tc, "Failed to seek in filehandle: %d", errno);
 }
@@ -65,10 +74,15 @@ static void seek(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 offset, MVMint64
 /* Get curernt position in the file. */
 static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    MVMint64 r;
-    if ((r = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
-        MVM_exception_throw_adhoc(tc, "Failed to tell in filehandle: %d", errno);
-    return r;
+    if (data->seekable) {
+        MVMint64 r;
+        if ((r = MVM_platform_lseek(data->fd, 0, SEEK_CUR)) == -1)
+            MVM_exception_throw_adhoc(tc, "Failed to tell in filehandle: %d", errno);
+        return r;
+    }
+    else {
+        return data->byte_position;
+    }
 }
 
 /* Reads the specified number of bytes into a the supplied buffer, returning
@@ -90,6 +104,7 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
     MVM_gc_mark_thread_unblocked(tc);
     MVM_telemetry_interval_annotate(bytes_read, interval_id, "read this many bytes");
     MVM_telemetry_interval_stop(tc, interval_id, "syncfile.read_to_buffer");
+    data->byte_position += bytes_read;
     return bytes_read;
 }
 
@@ -127,6 +142,7 @@ static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
         bytes -= r;
     }
     MVM_gc_mark_thread_unblocked(tc);
+    data->byte_position += bytes_written;
     return bytes_written;
 }
 
@@ -360,6 +376,7 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
         MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc,
             tc->instance->boot_types.BOOTIO);
         data->fd          = fd;
+        data->seekable    = MVM_platform_lseek(fd, 0, SEEK_CUR) != -1;
         result->body.ops  = &op_table;
         result->body.data = data;
         return (MVMObject *)result;
@@ -371,6 +388,7 @@ MVMObject * MVM_file_handle_from_fd(MVMThreadContext *tc, int fd) {
     MVMOSHandle   * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     MVMIOFileData * const data   = MVM_calloc(1, sizeof(MVMIOFileData));
     data->fd          = fd;
+    data->seekable    = MVM_platform_lseek(fd, 0, SEEK_CUR) != -1;
     result->body.ops  = &op_table;
     result->body.data = data;
 #ifdef _WIN32
