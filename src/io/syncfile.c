@@ -95,6 +95,13 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
     char *buf = MVM_malloc(bytes);
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncfile.read_to_buffer");
     MVMint32 bytes_read;
+#ifdef _WIN32
+    /* Can only perform relatively small reads from a Windows console;
+     * trying to do larger ones gives back ENOMEM, most likely due to
+     * limitations of the Windows console subsystem. */
+    if (bytes > 16387 && _isatty(data->fd))
+        bytes = 16387;
+#endif
     MVM_gc_mark_thread_blocked(tc);
     if ((bytes_read = read(data->fd, buf, bytes)) == -1) {
         int save_errno = errno;
