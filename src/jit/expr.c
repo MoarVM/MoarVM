@@ -686,17 +686,18 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         root = MVM_jit_expr_apply_template(tc, tree, template, operands);
 
         /* if this operation writes a register, it typically yields a value */
-        if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg &&
-            /* destructive templates are responsible for writing their
-               own value to memory, and do not yield an expression */
-            (template->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE) == 0) {
+        if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_write_reg) {
             MVMuint16 reg = ins->operands[0].reg.orig;
-            /* assign computed value to computed nodes */
-            computed[reg] = root;
-            /* and add a store, which becomes the root */
-            root = MVM_jit_expr_add_store(tc, tree, operands[0], root, MVM_JIT_REG_SZ);
+            if (template->flags & MVM_JIT_EXPR_TEMPLATE_DESTRUCTIVE) {
+                /* any old value is, like, totally no longer valid */
+                computed[reg] = -1;
+            } else {
+                /* assign computed value to computed nodes */
+                computed[reg] = root;
+                /* and add a store, which becomes the root */
+                root = MVM_jit_expr_add_store(tc, tree, operands[0], root, MVM_JIT_REG_SZ);
+            }
         }
-
         if (ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
             /* NB: GUARD only wraps void nodes, so when the inserted stores
              * above are removed (and replaced by the flushing), we need to
