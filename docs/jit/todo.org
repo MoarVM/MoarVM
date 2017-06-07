@@ -3,7 +3,109 @@
 Before merging the expression JIT, there are numerous standing issues
 to resolve, sorted by priority.
 
-* sp_fastcreate problem
+* point and full spill interaction
+
+It can happen that we first point-spill a value arround a CALL, then
+allocate a register for the CALL result, full-spilling the same value,
+the point-restore then overwrites the CALL value. The program is then
+incorrect and will often crash.
+
+Alternatively, we can point-spill-and-restore a full-spilled value if
+the full-spill happens later than the point-spill, and I'm not 100%
+sure that's just redundant and not unsafe, because the place for the
+point spill isn't necessarily a pre-existing use, hence there is no
+guarantee that the value is 'live' at that point. (Although there *is*
+a guarantee that nobody else is using the register, it is kind of a
+brittle one).
+
+So while seemingly a good idea point spills don't combine so well with
+the register allocator. We can remove point spills entirely, but that
+reintroduces the complexity of dealing with full spills in the call
+argument preparation.
+
+In this particular case, we wouldn't have the problem if the 'tile
+requirement' function would iterate up-until the live range to be
+allocated, so that this allocation would happen before the CALL
+handling code would run. I'm not 100% sure that wouldn't cause other
+problems though:
+
++ Any values used by the CALL tile would be allocated, even if they'd
+  previously been spilled, which is good
+  + In case they were spilled they aren't going to be survivors
+    anyway, because such values have atomic live ranges
+  + However, if they are spilled-and-then restored, I must take care
+    that still works wtih the CALL/ARGLIST conflict resolution code
+  + Might well be allocated to a register that is 'expired' for the
+    ARGLIST.
++ The return value for the CALL tile is also allocated. Obviously, it
+  should *not* be seen as a survivor value (and point-spilled) since
+  it isn't live before the CALL node.
++ Values that are expire prior the the CALL node allocation because
+  they are last used in ARGLIST, that may well be tricky, because they
+  won't be in `active` anymore, hence might well be in the ARGLIST
+  map.
+  
+The alternative solution is to 'delay' the point spills and only do it
+for values that ultimately aren't spilled. That's not ... 100%
+satisfactory, I think, but it is certainly possible.
+
+Note that this issue comes up because we don't have an optimizer to
+remove double loads by copy insertion, and we don't maintain
+'memory-backing' either, so the code is kind of worst-case. Which is
+good for rooting out bugs, of course.
+
+* Generalized 3-op to two-op conversion
+
+Already implemented for direct-memory binary ops, but needs to be
+extended to take into account indirect-access ops and memory base +
+indexed ops.
+
+* Maintain memory backed positions
+
+Currently, when we need to spill a value, we always treat it as if it
+were a temporary, i.e. we store it to a *new* location in the local
+memory buffer. We increment the local memory buffer, too.  This is
+suboptimal for values that are not temporaries, i.e. values that are
+stored to the local value buffer anyway.
+
++ stored to a local value
++ directly retrieved from a local value
+
+There are two classes of such values:
+There is no need to ever spill such values to memory.
+
+* Maintain 'object' status of pointers
+
+If we do spill, it is kind of important to let the GC know that the
+location we're spilling to is an object pointer, so that it can update
+it automatically.
+
+* Don't spill-and-load directly between definition and
+* 'Optimistic' insertion of STORE
+
+Involves delaying the insertion of STORE operations for generated
+expressions until the insertion of flush. (Currently inserted directly
+after being generated).
+
+Involves
+- iterating over currently active local variables
+- inserting a STORE
+- replacing the root referring to these variable generation with the
+  STORE root
+  - to do this efficiently, we need to maintain the root index as well
+    as the node index of the last definition of a value (this is
+    actually easy)
+
+
+
+* Fix S-EXPR parser for tile list
+
+I think it currently counts balancing parentheses, and it doesn't
+always work when the last line doesn't end with a line. And, it
+doesn't support strings. So we should probably fix that with a proper
+parser.
+
+* DONE sp_fastcreate problem
 
 May be an interaction between allocation and restoring registers to
 objects, i.e. if an allocation (can) happen, pointers in registers are
@@ -16,23 +118,9 @@ the JIT)
 
 But to ascertain if that is it, it needs some more debugging.
 
-* Generalized 3-op to two-op conversion
-
-Already implemented for direct-memory binary ops, but needs to be
-extended to take into account indirect-access ops and memory base +
-indexed ops.
-
-* 'Optimistic' insertion of STORE
-
-Involves delaying the insertion of STORE operations for generated
-expressions until the insertion of flush. (Currently inserted directly
-after being generated).
-
-Involves
-- iterating over currently active local variables
-- inserting a STORE
-- replacing the root referring to these variable generation with the
-  STORE root
-  - to do this efficiently
-
-* Preemptively assign 'spilled positions'
+So, the first option, interaction bwetween spillage and GC, that is
+not this bug. What does seem to happen is that at some point, the
+object (which is a P6opaque) has its 'replacement' variable set, to
+some unreadable value. That's pretty weird! Let's have that checked
+out.... (this REPR certainly musn't be a MVMP6opaque then, but what is
+it?)

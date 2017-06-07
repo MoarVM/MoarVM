@@ -1219,6 +1219,17 @@ add rcx, rax;
 sub rsi, rax;
 #+END_SRC
 
+- COPY elimination
+  - possibly the first step, removing redundant copies
+- CONST copying
+  - A const never needs to be kept in memory, and it is just as well
+    to keep just a single reference to it.
+
+** TODO Collect references
+
+Linked-list-in-block trick; we can use exactly nodes_nun number of
+items, since there can't possibly be more references than that.
+
 * TODO REPR Specialization
 
 - Want to add a "JIT" method to on REPR add expression fragments into
