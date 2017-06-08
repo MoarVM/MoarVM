@@ -626,7 +626,7 @@ void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
     MVM_free(encoded);
 }
 /* Meant to be pased in a MVMNormalizer of type MVM_NORMALIZE_NFD */
-MVMGrapheme32 ord_getbasechar (MVMThreadContext *tc, MVMGrapheme32 g) {
+static MVMGrapheme32 ord_getbasechar (MVMThreadContext *tc, MVMGrapheme32 g) {
     MVMGrapheme32 return_g;
     MVMint32 ready;
     MVMNormalizer norm;
@@ -749,7 +749,7 @@ MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Haystack, 
         return H_graphs + H_expansion - H_offset >= n_fc_graphs  ? 1 : 0;
     return 0;
 }
-MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start, int ignoremark) {
+static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 start, int ignoremark) {
     /* Foldcase version of needle */
     MVMString *needle_fc;
     MVMStringIndex n_fc_graphs;
