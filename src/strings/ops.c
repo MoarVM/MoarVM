@@ -720,7 +720,7 @@ MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadCo
  * Sometimes there is a difference in length of a string before and after foldcase,
  * because of this we must compare this differently than just foldcasing both
  * strings to ensure the offset is correct */
-MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 H_offset, int ignoremark) {
+static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 H_offset, int ignoremark) {
     /* Foldcase version of needle */
     MVMString *needle_fc;
     MVMStringIndex H_graphs = MVM_string_graphs(tc, Haystack);
