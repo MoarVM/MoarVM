@@ -58,6 +58,9 @@ struct MVMNormalizer {
     /* If we should translate the \r\n grapheme to \n (only applicable when
      * normalizing to NFG). */
     MVMint32 translate_newlines;
+
+    MVMint32 prepend_buffer;
+
 };
 
 /* Guts-y functions, called by the API level ones below. */
@@ -80,8 +83,9 @@ MVM_STATIC_INLINE MVMint32 MVM_unicode_normalizer_process_codepoint(MVMThreadCon
             return MVM_unicode_normalizer_process_codepoint_norm_terminator(tc, n, in, out);
 
     /* Fast-paths apply when the codepoint to consider is too low to have any
-     * interesting properties in the target normalization form. */
-    if (in < n->first_significant) {
+     * interesting properties in the target normalization form AND
+     * it doesn't follow a prepend character */
+    if (in < n->first_significant && !n->prepend_buffer) {
         if (MVM_NORMALIZE_COMPOSE(n->form)) {
             /* For the composition fast path we always have to know that we've
             * seen two codepoints in a row that are below those needing a full

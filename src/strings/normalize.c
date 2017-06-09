@@ -203,6 +203,7 @@ void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNorm
     n->buffer_end         = 0;
     n->buffer_norm_end    = 0;
     n->translate_newlines = 0;
+    n->prepend_buffer     = 0;
     switch (n->form) {
         case MVM_NORMALIZE_NFD:
             n->first_significant    = MVM_NORMALIZE_FIRST_SIG_NFD;
@@ -619,6 +620,12 @@ static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint3
 MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVMNormalizer *norm, MVMCodepoint in, MVMCodepoint *out) {
     MVMint64 qc_in, ccc_in;
     int is_prepend = is_grapheme_prepend(tc, in);
+
+    if (0 < norm->prepend_buffer)
+        norm->prepend_buffer--;
+    if (is_prepend)
+        norm->prepend_buffer = 2;
+
     /* If it's a control character (outside of the range we checked in the
      * fast path) then it's a normalization terminator. */
     if (in > 0xFF && is_control_beyond_latin1(tc, in) && !is_prepend) {
@@ -628,9 +635,9 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
     /* Do a quickcheck on the codepoint we got in and get its CCC. */
     qc_in  = passes_quickcheck(tc, norm, in);
     ccc_in = ccc(tc, in);
-
-    /* Fast cases when we pass quick check and what we got in has CCC = 0. */
-    if (qc_in && ccc_in == 0) {
+    /* Fast cases when we pass quick check and what we got in has CCC = 0,
+     * and it does not follow a prepend character. */
+    if (qc_in && ccc_in == 0 && norm->prepend_buffer == 0) {
         if (MVM_NORMALIZE_COMPOSE(norm->form)) {
             /* We're composing. If we have exactly one thing in the buffer and
              * it also passes the quick check, and both it and the thing in the
@@ -659,7 +666,7 @@ MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVM
     }
 
     /* If we didn't pass quick check... */
-    if (!qc_in) {
+    if (!qc_in || 0 < norm->prepend_buffer) {
         /* If we're composing, then decompose the last thing placed in the
          * buffer, if any. We need to do this since it may have passed
          * quickcheck, but having seen some character that does pass then we
